@@ -343,19 +343,3 @@ def ingest_batch(
         "written": written, "skipped": skipped, "manifestReplaced": manifest_replaced,
         "tooLarge": too_large,
     }
-
-
-def vaults_with_attachment_refs(user_id: str) -> set[str]:
-    """The member's vault ids with at least one staged note carrying attachment refs --
-    proof that vault's plugin speaks the attachment protocol, whatever version it reports
-    (Plan C ledger ruling: a stripped header must not show a false "update" hint)."""
-    conn = get_connection()
-    try:
-        rows = conn.execute(
-            "SELECT DISTINCT vault_id FROM j2_obsidian_staging"
-            " WHERE user_id = ? AND attachments_json IS NOT NULL",
-            (user_id,),
-        ).fetchall()
-    finally:
-        conn.close()
-    return {r["vault_id"] for r in rows}

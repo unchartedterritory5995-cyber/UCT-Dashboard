@@ -62,7 +62,7 @@ The monorepo copy `obsidian-plugin/` is a **stale 0.1.0 snapshot**. The publishe
 - Modify `api/services/journal_two/note_connectors/providers/obsidian.py`: attachment pre-pass, placeholder promotion, old-plugin notices, `fetch_media` for staged refs.
 - Modify `api/services/journal_two/note_connectors/convert/obsidian_parity_fixtures_gen.py`, `convert/obsidian_fixtures_in/04-embed-image.vault.json`, and add `convert/obsidian_fixtures_in/19-attachment-names.{md,vault.json}`. Regenerate `app/src/pages/journal-2-0/lib/importer/__fixtures__/obsidian_parity/*.json`.
 - Modify `app/src/pages/journal-2-0/hooks/useNoteConnectors.js` (normalizeSource), `components/connectors/SourceRow.jsx` (update hint), and `components/connectors/ObsidianConnectModal.jsx` (consent copy).
-- Modify `docs/feature_flags.json`: ledger `NOTE_SYNC_OBSIDIAN_ATTACHMENTS`.
+- Modify `docs/feature_flags.json`: ledger `NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED`.
 - Tests:
   - `api/services/journal_two/test_obsidian_attachments.py` (new)
   - `test_obsidian_ingest.py`, `test_obsidian_provider.py`
@@ -110,7 +110,7 @@ Every plugin request carries the header `X-UCT-Plugin-Version: <manifest version
   - `400` for a hash mismatch or bad name.
   - `413 {"detail": ...}` for over `maxBytes` or over the member bound.
   - `503` for no volume headroom.
-- Both new routes return **404** when `NOTE_SYNC_OBSIDIAN_ATTACHMENTS=0` (default on when unset). That is the same signal an older server gives, so the kill switch reuses the compatibility path.
+- Both new routes return **404** when `NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED=0` (default on when unset). That is the same signal an older server gives, so the kill switch reuses the compatibility path.
 - Media ref scheme written by the provider: `obsidian-att:<sha256>/<quote(basename, safe='')>` for an inline image and `obsidian-file:<sha256>/<quoted basename>` for a file chip.
 
 ---
@@ -234,7 +234,7 @@ git commit -m "feat(obsidian): staged attachment blob store, bounded and purged 
   - `obsidian_link.plugin_versions_for_user(user_id) -> dict[str, str | None]`, keyed by `vault_id`.
   - `obsidian_staging.ingest_batch(..., notes)`, where each note dict may carry `"attachments": list[dict] | None`. It is stored as `attachments_json` (JSON text, or NULL when None). An unchanged `content_hash` stays a no-op exactly as today.
   - `/status`: each obsidian source dict gains `pluginVersion: str | None` and `pluginSupportsAttachments: bool`, which is version ≥ `OBSIDIAN_ATTACHMENTS_MIN_PLUGIN_VERSION = (0, 2, 0)`.
-  - Flag helper `_obsidian_attachments_enabled() -> bool`, i.e. `os.environ.get("NOTE_SYNC_OBSIDIAN_ATTACHMENTS", "1") != "0"`.
+  - Flag helper `_obsidian_attachments_enabled() -> bool`, i.e. `os.environ.get("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1") != "0"`.
 
 - [ ] **Step 1: Write the failing tests** in `test_obsidian_ingest.py`. Reuse the `client` fixture and `_device_token`.
 
@@ -259,7 +259,7 @@ def test_put_hash_mismatch_is_400_and_oversize_is_413(client, monkeypatch): ...
 def test_attachment_routes_require_device_token_paid_plan_and_obsidian_flag(client, monkeypatch): ...
     # no bearer -> 401; user-free token -> 403; NOTE_SYNC_OBSIDIAN_ENABLED=0 -> 503
 def test_attachments_flag_off_answers_404_like_an_old_server(client, monkeypatch):
-    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS", "0")
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "0")
     assert client.post(_CHECK, json={"sha256": []}, headers=H(_device_token("user-a"))).status_code == 404
 def test_cross_tenant_put_cannot_satisfy_another_users_check(client): ...
 def test_ingest_stores_attachments_json_and_old_plugin_payload_stores_null(client):

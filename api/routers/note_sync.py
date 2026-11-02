@@ -47,11 +47,13 @@ from api.services import auth_service, crypto_box
 from api.services import request_body_cap as body_cap
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_svc
+from api.services.journal_two import widget_request_body
 from api.services.journal_two.note_connectors import (
     connections, engine, errors, obsidian_attachments, obsidian_link, obsidian_staging, oauth,
     registry,
 )
 from api.services.journal_two.note_connectors.providers.craft import parse_capability_url
+from api.routers.journal_two import UPLOAD_BUSY_SENTENCE, _UploadGate
 
 log = logging.getLogger("note_connectors.router")
 
@@ -426,24 +428,19 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     counts_by_source = _latest_sync_counts(user["id"], source_ids)
     failure_counts = _latest_failure_counts(user["id"], source_ids)
     pending = connections.pending_removal_counts(user["id"], source_ids)
-    # Plan C Task 2: what each Obsidian vault's plugin can do. Supported = it reports
-    # >= 0.2.0, OR its staging already carries attachment refs (ledger ruling: a stripped
-    # header or a pre-release build must not show a false "update" hint).
-    if any(s.get("provider") == "obsidian" for s in all_sources):
-        plugin_versions = obsidian_link.plugin_versions_for_user(user["id"])
-        vaults_with_refs = obsidian_staging.vaults_with_attachment_refs(user["id"])
-    else:
-        plugin_versions, vaults_with_refs = {}, set()
+    # Plan C Task 2: what each Obsidian vault's plugin can do, from the version that
+    # vault's device last reported (>= 0.2.0). The version alone: refs already staged say
+    # nothing about the plugin running NOW, and a device that downgrades must show the
+    # update hint again (fix round 1, M1).
+    plugin_versions = (obsidian_link.plugin_versions_for_user(user["id"])
+                       if any(s.get("provider") == "obsidian" for s in all_sources) else {})
     sources_by_provider: dict[str, list[dict[str, Any]]] = {}
     for s in all_sources:
         s = dict(s)
         if s.get("provider") == "obsidian":
             version = plugin_versions.get(s.get("remoteId"))
             s["pluginVersion"] = version
-            s["pluginSupportsAttachments"] = (
-                obsidian_link.plugin_version_supports_attachments(version)
-                or s.get("remoteId") in vaults_with_refs
-            )
+            s["pluginSupportsAttachments"] = obsidian_link.plugin_version_supports_attachments(version)
         s["counts"] = counts_by_source.get(s["id"], dict(_ZERO_COUNTS))
         s["pendingRemoval"] = int(pending.get(s["id"], 0))
         # None = the newest row's failures could not be read: the count is
@@ -1423,6 +1420,15 @@ _MAX_ATTACHMENT_CHECK_HASHES = 5000
 _MAX_ATTACHMENT_NAME_CHARS = 255
 _MAX_DECLARED_MIME_CHARS = 255
 ATTACHMENT_PROTOCOL_VERSION = 1
+# Fix round 1, M5: blob uploads in flight at once, per member and for the pod. Over either
+# => 429 at once, before any byte is read (the plugin retries a 429 on its next sync). The
+# editor upload doors' gate class, with its OWN instance and limits: a vault sync uploads
+# blob after blob, and sharing the editor doors' pod budget would answer a member's editor
+# upload 429 while other vaults sync. Per-process state (CLAUDE.md's single-process roster).
+OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT = 2
+OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT = 8
+_OBSIDIAN_UPLOAD_GATE = _UploadGate(per_member=OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT,
+                                    total=OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT)
 
 
 def _obsidian_attachments_enabled() -> bool:
@@ -1465,12 +1471,14 @@ async def _blob_body(request: Request):
 
 
 def _attachment_name(raw: str | None) -> str | None:
-    """`X-UCT-Attachment-Name`: the percent-encoded basename, decoded once. A path
-    separator or an over-long name is a 400, never stored."""
+    """`X-UCT-Attachment-Name`: the percent-encoded basename, decoded once. A 400, never
+    stored: over 255 characters, a path separator, a control character (NUL, CR/LF, tab,
+    DEL: the stored name may become a label or a header value), or the names `.` and `..`."""
     if raw is None:
         return None
     name = unquote(raw)
-    if len(name) > _MAX_ATTACHMENT_NAME_CHARS or "/" in name or "\\" in name:
+    if (len(name) > _MAX_ATTACHMENT_NAME_CHARS or "/" in name or "\\" in name
+            or any(ord(c) < 0x20 or ord(c) == 0x7F for c in name) or name in (".", "..")):
         raise HTTPException(status_code=400, detail="X-UCT-Attachment-Name must be a file name of at most 255 characters")
     return name or None
 
@@ -1498,9 +1506,11 @@ async def obsidian_attachments_check(request: Request) -> dict[str, Any]:
 
     raw = await _read_bounded_body(request, _MAX_ATTACHMENT_CHECK_BYTES)
     try:
-        payload = json.loads(raw or b"{}")
+        # The shared body decode: a body nested past the parser's recursion limit is
+        # `BodyTooDeep`, a 400 here, never a 500 (fix round 1, I1).
+        payload = widget_request_body.loads_json(raw or b"{}")
         body = ObsidianAttachmentCheckBody(**payload) if isinstance(payload, dict) else None
-    except (ValueError, ValidationError):
+    except (ValueError, ValidationError, widget_request_body.BodyTooDeep):
         body = None
     if body is None:
         raise HTTPException(status_code=400, detail='body must be {"sha256": [up to 5000 hashes]}')
@@ -1541,6 +1551,9 @@ async def obsidian_attachments_put(sha256: str, request: Request) -> dict[str, A
         declared = int(length_header) if length_header is not None else None
     except ValueError:
         raise HTTPException(status_code=400, detail="invalid Content-Length")
+    gate = _OBSIDIAN_UPLOAD_GATE
+    if not gate.acquire(device["user_id"]):
+        raise HTTPException(status_code=429, detail=UPLOAD_BUSY_SENTENCE)
     try:
         stored = await obsidian_attachments.stage_blob_stream(
             user_id=device["user_id"], vault_id=device["vault_id"], sha256=sha256,
@@ -1548,4 +1561,6 @@ async def obsidian_attachments_put(sha256: str, request: Request) -> dict[str, A
         )
     except obsidian_attachments.BlobRejected as e:
         raise _blob_rejected(e)
+    finally:
+        gate.release(device["user_id"])
     return {"stored": stored}

@@ -4079,15 +4079,23 @@ UPLOAD_BUSY_SENTENCE = "Too many uploads at once. Try again in a moment."
 
 class _UploadGate:
     """The two in-flight counts. Event-loop state only: `acquire` and `release` never await,
-    so a check and its increment cannot interleave with another request."""
+    so a check and its increment cannot interleave with another request.
 
-    def __init__(self) -> None:
+    The limits default to this door's two constants. Another upload door passes its own
+    (Plan C Task 2: the Obsidian blob PUT keeps a SEPARATE instance, so a vault sync never
+    spends the editor doors' slots)."""
+
+    def __init__(self, per_member: int | None = None, total: int | None = None) -> None:
         self.total = 0
         self.by_member: dict[str, int] = {}
+        self._per_member = per_member
+        self._total_cap = total
 
     def acquire(self, user_id: str) -> bool:
         mine = self.by_member.get(user_id, 0)
-        if mine >= UPLOAD_PER_MEMBER_INFLIGHT or self.total >= UPLOAD_GLOBAL_INFLIGHT:
+        per_member = UPLOAD_PER_MEMBER_INFLIGHT if self._per_member is None else self._per_member
+        total_cap = UPLOAD_GLOBAL_INFLIGHT if self._total_cap is None else self._total_cap
+        if mine >= per_member or self.total >= total_cap:
             return False
         self.by_member[user_id] = mine + 1
         self.total += 1

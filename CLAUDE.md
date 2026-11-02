@@ -512,6 +512,11 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   (`POST /api/j2/notes/{id}/images` and `/attachments`) in-flight caps `journal_two._UPLOAD_GATE`
   (`UPLOAD_PER_MEMBER_INFLIGHT` = 2 per member and `UPLOAD_GLOBAL_INFLIGHT` = 4 for the pod; over
   either answers 429 at once, before the threadpool): a second process doubles both ·
+  since connector fidelity Plan C Task 2 (fix round 1, M5), the Obsidian blob upload door's
+  (`PUT /api/j2/notes/connectors/obsidian/attachments/{sha256}`) in-flight caps
+  `note_sync._OBSIDIAN_UPLOAD_GATE`, its OWN instance of that gate class
+  (`OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT` = 2 per member and `OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT` = 8 for
+  the pod; over either answers 429 before any byte is read): a second process doubles both ·
   `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the

@@ -1468,7 +1468,10 @@ def test_put_maps_every_blob_rejection_to_its_own_status(client, monkeypatch, st
     assert (r.status_code, r.json()["detail"]) == (status, f"refused {status}")
 
 
-@pytest.mark.parametrize("name", ["a%2Fb.png", "a%5Cb.png", "x" * 256])
+@pytest.mark.parametrize("name", ["a%2Fb.png", "a%5Cb.png", "x" * 256,
+                                  # fix round 1, M3: control characters and the dot names
+                                  "a%00b.png", "a%0Ab.png", "a%0Db.png", "a%09b.png", "a%7Fb.png",
+                                  ".", "..", "%2E", "%2E%2E"])
 def test_put_refuses_a_bad_name_header_as_400(client, name):
     tok = _device_token("user-a")
     r = _upload(client, tok, b"hello", name=name)
@@ -1646,13 +1649,31 @@ def test_status_reports_null_version_for_a_0_1_plugin(client):
     tok = _redeem_via_http(client, "user-a")  # no version header, like 0.1.x
     src = client.get("/api/j2/notes/connectors/status").json()["providers"]["obsidian"]["sources"][0]
     assert src["pluginVersion"] is None and src["pluginSupportsAttachments"] is False
-    # Ledger ruling: a vault whose staging already carries attachment refs is proof of support,
-    # whatever the recorded version (a stripped header or a pre-release build).
+    # Support is the reported version alone: refs already staged for the vault prove nothing
+    # about the plugin running NOW (fix round 1, M1).
     note = {**_note("a.md", "h1"), "attachments": [_ref("a" * 64)]}
     assert client.post(_URL, headers={"Authorization": f"Bearer {tok}", "X-UCT-Plugin-Version": "0.1.4"},
                        json={"consent": True, "notes": [note]}).status_code == 200
     src = client.get("/api/j2/notes/connectors/status").json()["providers"]["obsidian"]["sources"][0]
-    assert src["pluginVersion"] == "0.1.4" and src["pluginSupportsAttachments"] is True
+    assert src["pluginVersion"] == "0.1.4" and src["pluginSupportsAttachments"] is False
+
+
+def test_a_device_that_downgrades_shows_the_update_hint_again(client):
+    """Fix round 1, M1: a member on 0.2.0 whose vault already staged refs reinstalls 0.1.4.
+    Their old refs stay staged (unchanged notes are never re-pushed), so a refs-based answer
+    would keep saying "supported" while new images silently stop syncing."""
+    _login_as(client, "user-a")
+    code = obsidian_link.mint_connect_code("user-a")
+    tok = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1"},
+                      headers={"X-UCT-Plugin-Version": "0.2.0"}).json()["token"]
+    note = {**_note("a.md", "h1"), "attachments": [_ref("a" * 64)]}
+    assert client.post(_URL, headers=H(tok), json={"consent": True, "notes": [note]}).status_code == 200
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["obsidian"]["sources"][0]
+    assert src["pluginSupportsAttachments"] is True
+    assert client.post(_URL, headers=H(tok, "0.1.4"),
+                       json={"consent": True, "notes": [_note("b.md", "h2")]}).status_code == 200
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["obsidian"]["sources"][0]
+    assert (src["pluginVersion"], src["pluginSupportsAttachments"]) == ("0.1.4", False)
 
 
 def test_status_versions_are_scoped_per_member_and_vault(client):
@@ -1695,3 +1716,76 @@ def test_a_gc_failure_never_fails_the_push(client, monkeypatch):
                                                  "manifest": ["a.md"], "final": True})
     assert r.status_code == 200, r.text
     assert r.json()["manifestReplaced"] is True
+
+
+# ── fix round 1 ──────────────────────────────────────────────────────────────
+
+def test_a_deeply_nested_check_body_is_400_not_500(client):
+    """I1: a body nested ~60,000 deep fits under the 512,000-byte cap and makes the JSON parser
+    raise RecursionError, not ValueError. It must be the route's own 400."""
+    tok = _device_token("user-a")
+    for body in (b"[" * 60000, b'{"sha256": ' + b"[" * 60000):
+        r = client.post(_CHECK, content=body, headers={**H(tok), "Content-Type": "application/json"})
+        assert r.status_code == 400, (r.status_code, r.text[:200])
+    assert client.post(_CHECK, json={"sha256": []}, headers=H(tok)).status_code == 200   # CONTROL
+
+
+def test_an_oversize_declared_length_is_refused_before_the_body_is_read(client, monkeypatch):
+    """M4: the streamed bound would also answer 413 for this body, so the test records whether
+    the route's body stream was ever pulled. A refusal from the declared Content-Length pulls
+    nothing and creates no tmp file. (Task 1's unit tests prove the same for direct callers.)"""
+    tok = _device_token("user-a")
+    monkeypatch.setattr(obsidian_attachments, "MAX_BLOB_BYTES", 10)
+    pulled = []
+    real = note_sync_router._blob_body
+
+    async def recording(request):
+        # Recorded on the FIRST pull, before the real stream reads a byte: the real bound
+        # raises before it yields an oversize chunk, so counting yields could not tell.
+        pulled.append("read")
+        async for chunk in real(request):
+            yield chunk
+    monkeypatch.setattr(note_sync_router, "_blob_body", recording)
+    big = b"x" * 11
+    r = client.put(_put(_sha(big)), content=big, headers=H(tok))
+    assert r.status_code == 413, r.text
+    assert pulled == []
+    assert [p for p in obsidian_attachments.blob_root().rglob("*") if p.is_file()] == []
+    # CONTROL: a body under the cap is pulled through the same recorder
+    ok = b"x" * 5
+    assert client.put(_put(_sha(ok)), content=ok, headers=H(tok)).status_code == 200
+    assert pulled == ["read"]
+
+
+def test_a_member_over_the_upload_inflight_cap_gets_429_at_once(client, monkeypatch):
+    """M5: uploads in flight are capped per member and per pod, like the editor upload doors.
+    Over the cap answers 429 before any byte is read; another member is not held up; a slot
+    comes back when its upload ends, refused or not."""
+    gate = note_sync_router._OBSIDIAN_UPLOAD_GATE.__class__(
+        per_member=note_sync_router.OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT,
+        total=note_sync_router.OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT)
+    monkeypatch.setattr(note_sync_router, "_OBSIDIAN_UPLOAD_GATE", gate)
+    tok_a = _device_token("user-a")
+    tok_b = _device_token("user-b")
+    gate.by_member["user-a"] = note_sync_router.OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT
+    gate.total = note_sync_router.OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT
+    r = _upload(client, tok_a, b"hello")
+    assert r.status_code == 429 and r.json()["detail"] == "Too many uploads at once. Try again in a moment."
+    assert _blob_rows() == []
+    assert _upload(client, tok_b, b"hello").json() == {"stored": True}
+    assert gate.by_member == {"user-a": note_sync_router.OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT}
+    # the pod-wide cap
+    gate.by_member.clear()
+    gate.total = note_sync_router.OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT
+    assert _upload(client, tok_b, b"other").status_code == 429
+    gate.total = 0
+    # a refused upload (hash mismatch) still returns its slot
+    assert client.put(_put(_sha(b"zzz")), content=b"yyy", headers=H(tok_b)).status_code == 400
+    assert (gate.total, gate.by_member) == (0, {})
+
+
+def test_the_obsidian_upload_gate_is_not_the_editor_gate():
+    """A vault sync uploads blob after blob; sharing the editor doors' 4-per-pod budget would
+    answer a member's editor upload 429 while other members' vaults sync."""
+    from api.routers import journal_two as jt
+    assert note_sync_router._OBSIDIAN_UPLOAD_GATE is not jt._UPLOAD_GATE
