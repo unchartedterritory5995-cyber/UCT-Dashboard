@@ -1,8 +1,8 @@
 {
  "schema": "uct.pine-coverage-map/v1",
  "generatedBy": "tools/pine_coverage/coverage_map.py",
- "measuredOn": "2026-10-31",
- "masterSha": "b6a3046739",
+ "measuredOn": "2026-11-02",
+ "masterSha": "6272ed7fa3",
  "headline": {
   "definition": "A script TRANSFERS FULLY when the production member door (memberPaneDefinition -> installUserDefinitions; objects-only pane armed, runtime pane dark) attaches it with zero refusals, with nothing dropped or withheld from its object program and no per-bar paint withheld. Door acceptance, not numeric parity.",
   "sample": 679,
@@ -10,28 +10,28 @@
   "transferPct": 31.1,
   "attachedAnyForm": 285,
   "attachedPct": 42.0,
-  "runtimeCounterfactualTransfer": 239,
-  "runtimeCounterfactualPct": 35.2,
+  "runtimeCounterfactualTransfer": 250,
+  "runtimeCounterfactualPct": 36.8,
   "byPopulation": {
    "committed": {
     "scripts": 266,
     "transfer": 56,
     "attached": 86,
-    "runtimeCounterfactual": 72,
+    "runtimeCounterfactual": 78,
     "transferPct": 21.1
    },
    "reference": {
     "scripts": 271,
     "transfer": 84,
     "attached": 127,
-    "runtimeCounterfactual": 91,
+    "runtimeCounterfactual": 95,
     "transferPct": 31.0
    },
    "builtin": {
     "scripts": 142,
     "transfer": 71,
     "attached": 72,
-    "runtimeCounterfactual": 76,
+    "runtimeCounterfactual": 77,
     "transferPct": 50.0
    }
   },
@@ -108,24 +108,24 @@
   },
   "uniqueItems": 927,
   "statusCounts": {
-   "call-unmapped": 10,
+   "call-unmapped": 8,
    "data-limited": 77,
-   "door-unreachable": 18,
+   "door-unreachable": 26,
    "missing": 7,
    "no-evidence": 217,
    "supported-and-verified": 313,
    "supported-unverified": 73,
-   "unproven": 212
+   "unproven": 206
   },
   "statusWeightedByUse": {
-   "call-unmapped": 95,
+   "call-unmapped": 74,
    "data-limited": 86,
-   "door-unreachable": 381,
+   "door-unreachable": 486,
    "missing": 176,
    "no-evidence": 0,
    "supported-and-verified": 33860,
    "supported-unverified": 1251,
-   "unproven": 1163
+   "unproven": 1079
   },
   "byNamespace": {
    "(global)": {
@@ -137,12 +137,11 @@
     "unproven": 5
    },
    "(language)": {
-    "call-unmapped": 1,
-    "door-unreachable": 3,
+    "door-unreachable": 5,
     "missing": 1,
     "no-evidence": 14,
     "supported-and-verified": 35,
-    "unproven": 10
+    "unproven": 9
    },
    "adjustment": {
     "no-evidence": 3
@@ -173,11 +172,11 @@
     "supported-unverified": 1
    },
    "box": {
-    "door-unreachable": 2,
+    "door-unreachable": 5,
     "no-evidence": 4,
     "supported-and-verified": 6,
     "supported-unverified": 2,
-    "unproven": 16
+    "unproven": 13
    },
    "chart": {
     "missing": 1,
@@ -197,10 +196,11 @@
     "supported-and-verified": 7
    },
    "display": {
+    "door-unreachable": 1,
     "no-evidence": 1,
     "supported-and-verified": 2,
     "supported-unverified": 2,
-    "unproven": 2
+    "unproven": 1
    },
    "dividends": {
     "data-limited": 5
@@ -226,7 +226,8 @@
     "supported-and-verified": 3
    },
    "input": {
-    "call-unmapped": 2,
+    "call-unmapped": 1,
+    "door-unreachable": 1,
     "supported-and-verified": 9,
     "supported-unverified": 1,
     "unproven": 1
@@ -263,10 +264,11 @@
     "unproven": 7
    },
    "math": {
+    "door-unreachable": 1,
     "no-evidence": 2,
     "supported-and-verified": 14,
     "supported-unverified": 5,
-    "unproven": 7
+    "unproven": 6
    },
    "matrix": {
     "call-unmapped": 1,
@@ -2512,7 +2514,7 @@
     "kinds": [
      "function"
     ],
-    "status": "unproven",
+    "status": "door-unreachable",
     "dataSource": null,
     "scriptsUsing": 21,
     "scriptsUsingThatTransfer": 0,
@@ -2544,7 +2546,7 @@
     "kinds": [
      "function"
     ],
-    "status": "unproven",
+    "status": "door-unreachable",
     "dataSource": null,
     "scriptsUsing": 9,
     "scriptsUsingThatTransfer": 0,
@@ -2752,7 +2754,7 @@
     "kinds": [
      "function"
     ],
-    "status": "unproven",
+    "status": "door-unreachable",
     "dataSource": null,
     "scriptsUsing": 22,
     "scriptsUsingThatTransfer": 0,
@@ -3561,7 +3563,7 @@
     "kinds": [
      "keyword"
     ],
-    "status": "unproven",
+    "status": "door-unreachable",
     "dataSource": null,
     "scriptsUsing": 17,
     "scriptsUsingThatTransfer": 0,
@@ -4717,7 +4719,7 @@
     "kinds": [
      "constant"
     ],
-    "status": "unproven",
+    "status": "door-unreachable",
     "dataSource": null,
     "scriptsUsing": 14,
     "scriptsUsingThatTransfer": 0,
@@ -5822,7 +5824,7 @@
     "kinds": [
      "function"
     ],
-    "status": "call-unmapped",
+    "status": "door-unreachable",
     "dataSource": null,
     "scriptsUsing": 14,
     "scriptsUsingThatTransfer": 0,
@@ -7942,7 +7944,7 @@
     "kinds": [
      "function"
     ],
-    "status": "unproven",
+    "status": "door-unreachable",
     "dataSource": null,
     "scriptsUsing": 1,
     "scriptsUsingThatTransfer": 0,
@@ -15086,7 +15088,7 @@
     "kinds": [
      "keyword"
     ],
-    "status": "call-unmapped",
+    "status": "door-unreachable",
     "dataSource": null,
     "scriptsUsing": 7,
     "scriptsUsingThatTransfer": 0,
@@ -15560,6 +15562,13 @@
    "scriptsUsing": 554,
    "scriptsUsingThatTransfer": 142,
    "transferRate": 0.256
+  },
+  {
+   "id": "conditional-ta",
+   "label": "ta.* called inside an if / loop / switch arm or a function body (per-call-site history)",
+   "scriptsUsing": 229,
+   "scriptsUsingThatTransfer": 41,
+   "transferRate": 0.179
   }
  ],
  "blockers": [
@@ -16405,183 +16414,195 @@
   "lane": "runtime-on",
   "definition": "The member door with the runtime pane ON at every peel step, as a permitted member with every script graded (the server's starter allowlist is NOT applied: an upper bound). A script transfers when it transfers fully on the host lane or attaches on the runtime lane, and is not a strategy that places orders. Door acceptance, not numeric parity.",
   "sample": 679,
-  "transfer": 239,
-  "transferPct": 35.2,
+  "transfer": 250,
+  "transferPct": 36.8,
   "productionTransfer": 211,
   "added": [
    "builtin:fisher-transform__Fisher_Trans",
-   "builtin:mcginley-dynamic__McGinley1Dyn",
    "builtin:moving-average-convergence-divergence__MACD",
    "builtin:percentage-volume-oscillator__Volume1Oscil",
    "builtin:price-oscillator__Price_Oscill",
+   "builtin:time-weighted-average-price__Time1Weighte",
+   "builtin:williams-fractal__Whilliams_Fr",
    "committed:adx-and-di-for-v4__932",
    "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
    "committed:cc-yata__bd898a1af0",
    "committed:deadband-hysteresis-filter-backquant__3fb3d09595",
    "committed:delta-rsi-oscillator-strategy__z4Yj46FVTX",
+   "committed:fair-value-gap__1048fa103a",
    "committed:fibonacci-dolphintradebot__d93b208611",
    "committed:fvg-trend__21e364f2ed",
+   "committed:inside-bar-boxes__2f747d848b",
    "committed:inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c",
    "committed:kalman-price-filter-backquant__47a601e4bc",
    "committed:linear-regression-channel__jiDgL4o6Qx",
+   "committed:macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH",
+   "committed:machine-learning-knn-based-strategy__lj1Gjlbycb",
    "committed:nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125",
+   "committed:order-block-finder__fVSb3j0I87",
    "committed:order-blocks__b324078711",
    "committed:parabolic-sar__xoeoPMOWGJ",
    "committed:renko-candles-overlay__d76a18d49e",
    "committed:trend-targets-algoalpha__92ff5628d7",
+   "committed:williams-fractal-trailing-stops__UOOIN5REYl",
    "committed:wyckoff-accumulation-distribution__d9ae726e21",
    "reference:aetheredge-smart-money-flow__c22c6f1f81",
+   "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
+   "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
    "reference:laguerre-rsi-v4-lk__114",
+   "reference:logistic-rsi-stoch-roc-ao-by-dgt__aYY2rK1EEf",
+   "reference:market-structure-with-inducements-sweeps-luxalgo__7948c21279",
    "reference:nadaraya-watson-combine__dbe3a7309e",
+   "reference:non-repainting-swing-highlow-signals__ccf063295a",
    "reference:parabolic-sar-alerts-on-close-quantnomad__hdvUgc9je5",
    "reference:twiggs-money-flow-lazybear__1562",
-   "reference:volume-supertrend-ai-zeiierman__b96fdd470d",
-   "reference:williams-vix-fix-bottoms-and-tops__f5d5130307"
+   "reference:volume-supertrend-ai-zeiierman__b96fdd470d"
   ],
   "lost": [],
   "byPopulation": {
    "committed": {
     "scripts": 266,
-    "transfer": 72
+    "transfer": 78
    },
    "reference": {
     "scripts": 271,
-    "transfer": 91
+    "transfer": 95
    },
    "builtin": {
     "scripts": 142,
-    "transfer": 76
+    "transfer": 77
    }
   },
-  "runtimeAttached": 29,
+  "runtimeAttached": 41,
   "runtimeAttachedOrderStrategies": [
-   "builtin:parabolic-sar-strategy__Parabolic1SA"
+   "builtin:parabolic-sar-strategy__Parabolic1SA",
+   "reference:trailing-sl-strategy-quantnomad__kvEZ1RweKL"
   ],
   "walls": {
-   "notTransferring": 440,
-   "fullyEnumerated": 161,
+   "notTransferring": 429,
+   "fullyEnumerated": 166,
    "touches": {
-    "pine:statement": 98,
-    "pine:builtin": 72,
-    "runtime:call-undeclared-builtin-state": 69,
+    "pine:statement": 76,
+    "pine:builtin": 73,
+    "runtime:call-undeclared-builtin-state": 68,
     "runtime:library": 64,
-    "pine:function": 63,
-    "runtime:statement": 38,
-    "runtime:block-value": 36,
-    "runtime:function": 36,
-    "runtime:no-output": 35,
+    "pine:function": 53,
+    "runtime:history-dynamic-offset": 40,
+    "runtime:no-output": 38,
+    "runtime:object-op": 35,
+    "runtime:conditional-history": 33,
     "pine:request": 31,
-    "pine:input-kind": 28,
-    "runtime:history-expression": 27,
-    "runtime:object-op": 27,
-    "runtime:history-dynamic-offset": 26,
-    "runtime:expression-statement": 20,
-    "runtime:array": 18,
-    "host:pine:constant-only": 17,
-    "runtime:call-windowed-state": 17,
+    "runtime:history-expression": 28,
+    "runtime:function": 27,
+    "runtime:statement": 24,
+    "runtime:expression-statement": 23,
+    "runtime:array": 22,
+    "host:pine:constant-only": 20,
+    "runtime:block-value": 16,
     "runtime:loop": 15,
-    "pine:text-value": 14,
-    "runtime:request": 13,
-    "runtime:unbound": 13,
-    "pine:strategy-call": 12,
-    "pine:arity": 11,
-    "runtime:nothing-drawn": 11,
-    "runtime:presentation": 11,
+    "runtime:presentation": 15,
+    "runtime:request": 15,
+    "pine:strategy-call": 14,
+    "runtime:call-text-state": 12,
+    "runtime:call-windowed-state": 12,
     "runtime:request-with-state": 11,
-    "runtime:call-text-state": 10,
-    "runtime:withheld-all": 10,
+    "runtime:unbound": 11,
     "lower-tf:store-unmeasured": 9,
-    "pine:block": 9,
-    "runtime:colour": 9,
-    "pine:collection": 8,
-    "pine:offset-literal": 7,
+    "runtime:colour": 8,
+    "runtime:nothing-drawn": 8,
+    "runtime:function-global-state": 7,
     "pine:state": 6,
-    "runtime:function-global-state": 6,
-    "runtime:call-conversion-state": 5,
-    "runtime:varip": 5,
-    "runtime:fill-gradient": 4,
+    "pine:arity": 5,
+    "pine:collection": 4,
+    "pine:drawing": 4,
+    "pine:offset-literal": 4,
+    "pine:type": 4,
     "runtime:fill-target": 4,
-    "runtime:switch": 4,
+    "runtime:tuple": 4,
     "lower-tf:lookahead": 3,
     "pine:colour-value": 3,
-    "pine:drawing": 3,
     "pine:member": 3,
-    "pine:type": 3,
     "pine:window": 3,
     "runtime:directive": 3,
     "runtime:na-test": 3,
-    "runtime:input-state": 2,
-    "runtime:tuple": 2,
+    "runtime:varip": 3,
+    "runtime:withheld-all": 3,
+    "lower-tf:unwitnessed": 2,
+    "pine:input-kind": 2,
+    "pine:text-value": 2,
+    "runtime:clock-zone": 2,
+    "runtime:output-map": 2,
     "runtime:udt-method": 2,
     "budget:lookback": 1,
     "host:pine:object-removal-lost": 1,
     "host:pine:presentation-only": 1,
-    "lower-tf:unwitnessed": 1
+    "runtime:builtin-args": 1,
+    "runtime:input-state": 1
    },
    "first": {
-    "attached-dirty": 85,
+    "attached-dirty": 86,
     "runtime:library": 63,
-    "runtime:call-undeclared-builtin-state": 22,
-    "pine:builtin": 21,
-    "pine:function": 21,
-    "runtime:no-output": 20,
-    "pine:request": 19,
-    "runtime:history-expression": 18,
-    "runtime:statement": 17,
-    "pine:input-kind": 11,
-    "pine:statement": 11,
-    "runtime:history-dynamic-offset": 11,
+    "pine:function": 24,
+    "runtime:history-dynamic-offset": 23,
+    "runtime:no-output": 22,
+    "runtime:call-undeclared-builtin-state": 21,
+    "pine:request": 20,
+    "pine:builtin": 18,
+    "runtime:conditional-history": 17,
+    "runtime:history-expression": 17,
     "pine:strategy-call": 8,
-    "runtime:block-value": 8,
-    "runtime:object-op": 7,
-    "runtime:array": 6,
-    "lower-tf:store-unmeasured": 5,
-    "pine:text-value": 5,
+    "runtime:array": 8,
+    "runtime:object-op": 8,
+    "runtime:loop": 7,
+    "pine:statement": 6,
+    "runtime:request": 6,
+    "runtime:request-with-state": 6,
+    "runtime:call-text-state": 5,
     "runtime:call-windowed-state": 5,
-    "runtime:loop": 5,
-    "runtime:request": 5,
-    "runtime:varip": 5,
+    "runtime:statement": 5,
     "host:pine:constant-only": 4,
-    "pine:arity": 4,
+    "lower-tf:store-unmeasured": 4,
+    "runtime:expression-statement": 4,
     "runtime:function": 4,
-    "runtime:request-with-state": 4,
-    "runtime:withheld-all": 4,
-    "pine:block": 3,
-    "pine:collection": 3,
     "pine:colour-value": 3,
     "pine:offset-literal": 3,
+    "runtime:block-value": 3,
     "runtime:presentation": 3,
     "lower-tf:lookahead": 2,
     "pine:window": 2,
-    "runtime:call-conversion-state": 2,
-    "runtime:call-text-state": 2,
     "runtime:colour": 2,
     "runtime:directive": 2,
-    "runtime:expression-statement": 2,
-    "runtime:fill-gradient": 2,
-    "runtime:input-state": 2,
     "runtime:na-test": 2,
+    "runtime:varip": 2,
     "budget:lookback": 1,
     "host:pine:object-removal-lost": 1,
     "host:pine:presentation-only": 1,
+    "pine:arity": 1,
+    "pine:collection": 1,
+    "pine:drawing": 1,
+    "pine:member": 1,
     "pine:state": 1,
-    "runtime:nothing-drawn": 1,
+    "pine:text-value": 1,
+    "runtime:function-global-state": 1,
+    "runtime:output-map": 1,
     "runtime:udt-method": 1,
-    "runtime:unbound": 1
+    "runtime:unbound": 1,
+    "runtime:withheld-all": 1
    },
    "stuck": {
-    "reached": 161,
-    "cap": 148,
-    "no-progress": 50,
-    "runtime:no-output": 35,
-    "pine:constant-only": 17,
-    "runtime:nothing-drawn": 11,
-    "runtime:withheld-all": 10,
+    "reached": 166,
+    "cap": 136,
+    "no-progress": 47,
+    "runtime:no-output": 38,
+    "pine:constant-only": 20,
+    "runtime:nothing-drawn": 8,
     "runtime:na-test": 3,
+    "runtime:withheld-all": 3,
+    "runtime:output-map": 2,
+    "runtime:request": 2,
     "runtime:statement": 2,
     "pine:object-removal-lost": 1,
-    "pine:presentation-only": 1,
-    "runtime:request": 1
+    "pine:presentation-only": 1
    },
    "byScript": {
     "builtin:24-hour-volume__24hVolume": [
@@ -16609,9 +16630,9 @@
     ],
     "builtin:auto-fib-extension__Auto1Fib1Ext": [
      "runtime:library",
-     "runtime:block-value",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
+     "pine:builtin",
      "pine:builtin",
      "pine:builtin",
      "pine:builtin",
@@ -16664,11 +16685,8 @@
     ],
     "builtin:cumulative-volume-delta__Cumulative1V": [
      "runtime:library",
-     "runtime:block-value",
-     "pine:function",
+     "runtime:call-undeclared-builtin-state",
      "runtime:presentation",
-     "pine:builtin",
-     "pine:input-kind",
      "runtime:nothing-drawn"
     ],
     "builtin:cumulative-volume-index__Cumulative1V": [
@@ -16713,24 +16731,24 @@
      "runtime:no-output"
     ],
     "builtin:linear-regression-channel__Linear_Regre": [
-     "pine:collection",
-     "runtime:block-value"
+     "runtime:history-dynamic-offset"
     ],
     "builtin:macd-strategy__MACD1Strateg": [
      "runtime:no-output"
+    ],
+    "builtin:mcginley-dynamic__McGinley1Dyn": [
+     "runtime:conditional-history",
+     "host:pine:constant-only"
     ],
     "builtin:momentum-strategy__Momentum1Str": [
      "runtime:no-output"
     ],
     "builtin:moon-phases__Moon1Phases": [
-     "runtime:statement",
-     "runtime:statement",
-     "runtime:statement",
-     "runtime:statement",
-     "runtime:function",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state"
+     "runtime:call-undeclared-builtin-state",
+     "pine:function",
+     "pine:statement"
     ],
     "builtin:moving-average-crossover__MovingAvg1Cr": [
      "runtime:no-output"
@@ -16738,17 +16756,14 @@
     "builtin:multi-time-period-charts__Multi-TimePe": [],
     "builtin:net-volume__Net1Volume": [
      "runtime:library",
-     "pine:input-kind",
      "runtime:call-undeclared-builtin-state",
      "runtime:nothing-drawn"
     ],
     "builtin:open-interest__OpenInterest": [
      "pine:builtin",
-     "pine:block",
-     "pine:statement",
-     "runtime:statement",
-     "pine:offset-literal",
-     "pine:statement"
+     "pine:builtin",
+     "runtime:presentation",
+     "runtime:request"
     ],
     "builtin:outside-bar-strategy__OutSide1Bar1": [
      "runtime:no-output"
@@ -16765,12 +16780,12 @@
      "runtime:no-output"
     ],
     "builtin:pivot-points-standard__Pivot1Points": [
-     "runtime:block-value",
-     "runtime:block-value",
-     "runtime:block-value",
      "runtime:array",
-     "runtime:block-value",
-     "runtime:request",
+     "pine:builtin",
+     "pine:statement",
+     "pine:statement",
+     "pine:statement",
+     "pine:statement",
      "pine:statement",
      "pine:statement"
     ],
@@ -16795,8 +16810,10 @@
      "runtime:nothing-drawn"
     ],
     "builtin:relative-strength-index__RSI": [
-     "runtime:colour",
-     "runtime:colour"
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history"
     ],
     "builtin:relative-volume-at-time__Relative1Vol": [
      "runtime:library",
@@ -16804,8 +16821,8 @@
      "runtime:nothing-drawn"
     ],
     "builtin:rob-booker-adx-breakout__Rob1Booker1A": [
-     "pine:strategy-call",
-     "pine:strategy-call",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
      "pine:strategy-call",
      "pine:strategy-call",
      "host:pine:constant-only"
@@ -16824,9 +16841,6 @@
      "runtime:no-output"
     ],
     "builtin:supertrend-strategy__SupertrendSt": [
-     "pine:function",
-     "pine:statement",
-     "pine:statement",
      "runtime:no-output"
     ],
     "builtin:technical-ratings-strategy__Technical1Ra": [
@@ -16837,25 +16851,18 @@
     "builtin:technical-ratings__Technical1Ra": [
      "runtime:library",
      "pine:type",
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
-     "runtime:loop"
-    ],
-    "builtin:time-weighted-average-price__Time1Weighte": [
-     "runtime:withheld-all"
+     "runtime:loop",
+     "pine:builtin"
     ],
     "builtin:trading-sessions__Trading1Sess": [
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
      "runtime:loop",
      "runtime:statement",
      "pine:statement",
      "pine:statement",
-     "pine:statement"
+     "pine:statement",
+     "pine:statement",
+     "runtime:statement",
+     "runtime:function"
     ],
     "builtin:two-moving-averages-crossover__MovingAvg1Cr": [
      "runtime:no-output"
@@ -16867,14 +16874,12 @@
     ],
     "builtin:updown-volume__UP_DOWN_Volu": [
      "runtime:library",
-     "pine:input-kind",
      "runtime:call-undeclared-builtin-state",
      "runtime:no-output"
     ],
     "builtin:visible-average-price__Visible1Aver": [
      "pine:builtin",
-     "pine:builtin",
-     "runtime:withheld-all"
+     "pine:builtin"
     ],
     "builtin:volatility-expansion-close-strategy__Volty1Expan1": [
      "runtime:no-output"
@@ -16884,8 +16889,7 @@
     ],
     "builtin:volume-delta__Volume1Delta": [
      "runtime:library",
-     "runtime:block-value",
-     "pine:function",
+     "runtime:call-undeclared-builtin-state",
      "runtime:presentation",
      "runtime:nothing-drawn"
     ],
@@ -16898,9 +16902,6 @@
      "pine:builtin",
      "pine:builtin",
      "pine:builtin"
-    ],
-    "builtin:williams-fractal__Whilliams_Fr": [
-     "runtime:withheld-all"
     ],
     "builtin:zigzag__Zig_Zag": [
      "runtime:library",
@@ -16926,11 +16927,9 @@
      "pine:statement",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function"
+     "pine:builtin",
+     "pine:strategy-call",
+     "pine:statement"
     ],
     "committed:ad-line-of-sp-sectors__af306a4359": [
      "runtime:history-expression",
@@ -16944,28 +16943,23 @@
     ],
     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027": [
      "runtime:library",
-     "pine:block",
-     "runtime:function",
-     "runtime:function",
-     "runtime:function",
-     "runtime:expression-statement",
-     "pine:statement",
-     "runtime:function"
+     "runtime:presentation",
+     "runtime:statement",
+     "pine:statement"
     ],
     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4": [
      "runtime:history-expression",
      "runtime:call-windowed-state",
      "runtime:request-with-state",
-     "runtime:block-value",
-     "runtime:unbound"
+     "pine:builtin",
+     "runtime:presentation",
+     "pine:statement"
     ],
     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48": [
      "pine:request",
-     "pine:input-kind",
-     "runtime:request",
      "pine:request",
-     "pine:input-kind",
-     "runtime:request",
+     "pine:request",
+     "pine:request",
      "runtime:loop",
      "pine:statement"
     ],
@@ -16978,26 +16972,26 @@
      "runtime:call-windowed-state",
      "runtime:call-windowed-state",
      "pine:arity",
-     "runtime:block-value",
-     "runtime:block-value"
+     "runtime:statement",
+     "runtime:statement"
     ],
     "committed:artemis-oscillator-pro__ea1097ca9e": [],
     "committed:asianrange-and-killzones__ef41eb5ad6": [
-     "runtime:statement",
-     "pine:input-kind",
      "pine:function",
-     "runtime:statement",
+     "pine:function",
+     "pine:function",
      "runtime:function",
      "runtime:call-undeclared-builtin-state",
+     "pine:function",
      "pine:function",
      "pine:function"
     ],
     "committed:atr-god-strategy-by-tradesmart__4369755a29": [
+     "runtime:conditional-history",
      "runtime:history-expression",
      "runtime:call-undeclared-builtin-state",
-     "runtime:call-windowed-state",
+     "runtime:history-expression",
      "runtime:loop",
-     "pine:statement",
      "pine:statement",
      "pine:statement",
      "pine:statement"
@@ -17012,7 +17006,7 @@
     "committed:atr-support-and-resistance__3e9ddb38c4": [],
     "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd": [],
     "committed:atr-trailing-stoploss-strategy__oayb1wVXkZ": [
-     "pine:statement"
+     "runtime:expression-statement"
     ],
     "committed:atr-trend-bands-misu__a34d44410a": [
      "runtime:library",
@@ -17020,14 +17014,14 @@
      "runtime:colour"
     ],
     "committed:auto-harmonic-patterns-open-source__ca6022754b": [
-     "runtime:object-op",
-     "runtime:object-op",
-     "runtime:object-op",
-     "runtime:object-op",
+     "runtime:conditional-history",
      "runtime:block-value",
-     "runtime:block-value",
-     "pine:statement",
-     "pine:statement"
+     "runtime:object-op",
+     "runtime:object-op",
+     "runtime:object-op",
+     "runtime:object-op",
+     "runtime:object-op",
+     "runtime:object-op"
     ],
     "committed:auto-trendline-dojiemoji__c21f83602c": [],
     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73": [
@@ -17042,9 +17036,8 @@
     ],
     "committed:average-day-range-adr-pivots__38b8c996e9": [],
     "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs": [
-     "runtime:history-expression",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
      "pine:function",
      "pine:function",
      "host:pine:constant-only"
@@ -17061,17 +17054,16 @@
      "pine:statement"
     ],
     "committed:bolingger-bands-inside-bar-boxes__3294017d4f": [
-     "runtime:varip",
-     "runtime:varip"
+     "runtime:function-global-state",
+     "runtime:function-global-state"
     ],
     "committed:bollinger-band-width-percentile__03JuGF728K": [
-     "runtime:statement",
-     "runtime:call-windowed-state",
+     "runtime:history-expression",
      "runtime:history-expression",
      "runtime:array",
      "runtime:array",
      "runtime:array",
-     "runtime:call-windowed-state",
+     "runtime:history-expression",
      "runtime:history-expression"
     ],
     "committed:boom-hunter-entry-point-screener-alerts__0fc5982548": [
@@ -17083,11 +17075,10 @@
      "runtime:expression-statement",
      "runtime:function-global-state",
      "runtime:function-global-state",
-     "pine:statement",
      "runtime:object-op",
      "runtime:object-op",
-     "runtime:switch",
-     "runtime:function-global-state"
+     "runtime:object-op",
+     "runtime:expression-statement"
     ],
     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8": [
      "runtime:library",
@@ -17112,7 +17103,7 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "pine:text-value",
+     "runtime:object-op",
      "runtime:object-op",
      "runtime:object-op",
      "runtime:object-op",
@@ -17130,36 +17121,36 @@
     ],
     "committed:candlestick-patterns-on-backtest__c85b9d3ec6": [
      "runtime:library",
-     "pine:input-kind",
-     "pine:statement"
+     "runtime:array",
+     "runtime:array",
+     "runtime:array",
+     "runtime:array",
+     "runtime:array",
+     "runtime:array",
+     "runtime:array"
     ],
     "committed:chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2": [
-     "runtime:call-undeclared-builtin-state",
      "pine:function",
      "pine:function",
      "runtime:object-op",
      "pine:function",
      "pine:function",
      "runtime:object-op",
+     "pine:function",
      "pine:function"
     ],
     "committed:chart-vwap__804099ca2f": [
      "runtime:library",
-     "pine:statement",
-     "runtime:function",
-     "pine:function",
+     "runtime:call-windowed-state",
+     "pine:builtin",
+     "runtime:statement",
      "pine:builtin",
      "pine:builtin"
     ],
     "committed:correlation-matrix__dzN3DMCFJL": [
+     "runtime:object-op",
      "pine:statement",
-     "runtime:function",
-     "runtime:function",
-     "runtime:function",
-     "runtime:function",
-     "runtime:function",
-     "runtime:function",
-     "runtime:function"
+     "runtime:no-output"
     ],
     "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f": [
      "pine:request",
@@ -17185,7 +17176,7 @@
      "runtime:request-with-state",
      "pine:statement",
      "pine:statement",
-     "pine:block"
+     "runtime:call-undeclared-builtin-state"
     ],
     "committed:cvd-cumulative-volume-delta-chart__84da7a14bf": [
      "runtime:library",
@@ -17198,8 +17189,6 @@
      "pine:statement"
     ],
     "committed:delta-imbalance-map-joat__b80f337fb3": [
-     "runtime:block-value",
-     "runtime:block-value",
      "pine:request",
      "pine:statement",
      "pine:statement"
@@ -17216,8 +17205,7 @@
     ],
     "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0": [
      "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:withheld-all"
+     "runtime:call-undeclared-builtin-state"
     ],
     "committed:deviation-scaled-moving-average-w-dsl-loxx__878af32b43": [
      "runtime:library",
@@ -17232,43 +17220,27 @@
     "committed:double-topbottom-ultimate-os__bd013ff4f5": [
      "runtime:directive",
      "runtime:directive",
-     "runtime:block-value",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
-     "runtime:function",
-     "runtime:block-value"
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:object-op",
+     "pine:statement"
     ],
     "committed:dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b": [],
     "committed:elliot-wave-detector-pro__ce1cc9553e": [
      "pine:builtin"
     ],
     "committed:ema-92150-vwap-macd-rsi-pro-v6__014bfba33d": [
-     "runtime:varip"
+     "runtime:conditional-history",
+     "runtime:conditional-history"
     ],
     "committed:ema-ribbon-trend-filter-strixedge__737f5c58ad": [],
-    "committed:fair-value-gap__1048fa103a": [
-     "runtime:call-undeclared-builtin-state",
-     "pine:input-kind",
-     "pine:builtin",
-     "pine:builtin",
-     "runtime:statement",
-     "runtime:block-value",
-     "runtime:statement",
-     "runtime:block-value"
-    ],
     "committed:fibonacci-retracement-mtflog__54a8dbfa8e": [
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement"
+     "runtime:call-text-state",
+     "pine:arity",
+     "runtime:output-map"
     ],
     "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce": [
-     "runtime:call-conversion-state",
+     "runtime:call-text-state",
      "runtime:function",
      "runtime:call-undeclared-builtin-state",
      "runtime:function",
@@ -17286,12 +17258,12 @@
     "committed:fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606": [
      "runtime:block-value",
      "runtime:block-value",
-     "pine:statement",
-     "pine:statement",
      "runtime:block-value",
      "runtime:block-value",
-     "pine:statement",
-     "pine:statement"
+     "runtime:block-value",
+     "runtime:block-value",
+     "runtime:block-value",
+     "runtime:block-value"
     ],
     "committed:fx-market-sessions__3KZoMPYziy": [
      "runtime:library",
@@ -17301,7 +17273,7 @@
      "pine:statement",
      "runtime:udt-method",
      "runtime:udt-method",
-     "pine:block"
+     "runtime:block-value"
     ],
     "committed:heat-map-seasons__53acdf3223": [],
     "committed:heikin-ashi-supertrend__2fb7267210": [
@@ -17332,12 +17304,12 @@
     "committed:ict-institutional-order-flow-fadi__25d4834579": [
      "runtime:history-dynamic-offset",
      "pine:builtin",
+     "runtime:statement",
+     "runtime:statement",
      "runtime:block-value",
-     "runtime:statement",
-     "runtime:statement",
-     "runtime:colour",
-     "runtime:colour",
-     "pine:builtin"
+     "pine:builtin",
+     "pine:statement",
+     "pine:statement"
     ],
     "committed:ict-killzone-index-version__28962c02dd": [
      "pine:function"
@@ -17354,22 +17326,23 @@
      "runtime:expression-statement"
     ],
     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q": [
-     "runtime:statement",
-     "pine:function",
+     "runtime:history-dynamic-offset",
      "pine:request",
      "pine:request",
+     "runtime:array",
      "runtime:array",
      "runtime:array",
      "runtime:array",
      "runtime:array"
     ],
-    "committed:inside-bar-boxes__2f747d848b": [
-     "runtime:varip",
-     "runtime:varip"
-    ],
     "committed:inside-bar-strategy-w-sl__b39f395d5d": [
      "pine:collection",
+     "pine:collection",
+     "pine:collection",
+     "pine:collection",
+     "pine:collection",
      "runtime:block-value",
+     "pine:strategy-call",
      "pine:statement"
     ],
     "committed:ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0": [
@@ -17387,6 +17360,8 @@
      "runtime:call-undeclared-builtin-state"
     ],
     "committed:kernel-channel-backquant__d8c4b7f75c": [
+     "runtime:conditional-history",
+     "runtime:conditional-history",
      "runtime:presentation"
     ],
     "committed:linear-regression-channel-200__243d67c804": [
@@ -17397,7 +17372,7 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "runtime:nothing-drawn"
+     "runtime:expression-statement"
     ],
     "committed:linear-regression-channel-breakout-strategy__3a1cf28800": [
      "pine:strategy-call",
@@ -17420,13 +17395,6 @@
      "pine:statement"
     ],
     "committed:macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99": [],
-    "committed:macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH": [
-     "pine:text-value"
-    ],
-    "committed:machine-learning-knn-based-strategy__lj1Gjlbycb": [
-     "pine:input-kind",
-     "pine:input-kind"
-    ],
     "committed:machine-learning-logistic-regression-v3__TDlqz0q9TN": [
      "runtime:history-expression",
      "runtime:call-undeclared-builtin-state",
@@ -17459,21 +17427,17 @@
     "committed:machine-learning-moving-average-backquant__4d7ff59e68": [
      "runtime:array",
      "runtime:statement",
-     "runtime:call-text-state",
-     "runtime:call-text-state",
-     "runtime:call-text-state",
-     "runtime:call-text-state",
      "runtime:call-text-state"
     ],
     "committed:machine-learning-rsi-bullvision__50b4566edd": [
      "runtime:library",
-     "pine:block",
      "runtime:history-expression",
-     "runtime:call-windowed-state",
-     "runtime:function-global-state",
-     "runtime:function-global-state",
-     "runtime:function-global-state",
-     "runtime:function-global-state"
+     "runtime:history-expression",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history"
     ],
     "committed:market-profile-with-tpo__b2b119d8ab": [
      "pine:builtin",
@@ -17493,7 +17457,7 @@
      "pine:builtin",
      "runtime:array",
      "runtime:array",
-     "runtime:call-conversion-state"
+     "runtime:conditional-history"
     ],
     "committed:market-structure-break-order-block__3a1fb6197f": [
      "runtime:history-dynamic-offset",
@@ -17512,18 +17476,18 @@
      "runtime:history-expression",
      "runtime:history-expression",
      "runtime:history-expression",
-     "runtime:object-op",
-     "runtime:object-op"
+     "runtime:conditional-history",
+     "runtime:conditional-history"
     ],
     "committed:market-structure-trend-targets-chartprime__d3c06abad6": [
      "pine:function",
      "pine:function",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-text-state",
-     "pine:statement",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state"
+     "pine:statement"
     ],
     "committed:mgi-levels-suite__285168ddfb": [
      "runtime:function",
@@ -17541,14 +17505,13 @@
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
+     "runtime:conditional-history",
      "pine:function"
     ],
     "committed:moving-averages-as-support-resistance-mtf__gcBksfRvvy": [
      "runtime:call-undeclared-builtin-state",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
-     "runtime:nothing-drawn"
+     "pine:function",
+     "pine:function"
     ],
     "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8": [
      "lower-tf:store-unmeasured",
@@ -17560,19 +17523,16 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "pine:collection",
-     "runtime:block-value",
-     "pine:statement"
+     "runtime:call-undeclared-builtin-state"
     ],
     "committed:multi-timeframe-fvg-tfo__adbed9f590": [
      "lower-tf:lookahead",
      "lower-tf:lookahead",
      "lower-tf:lookahead",
-     "runtime:block-value",
-     "runtime:block-value",
      "pine:member",
-     "pine:member"
+     "pine:member",
+     "pine:member",
+     "runtime:expression-statement"
     ],
     "committed:multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640": [
      "lower-tf:store-unmeasured",
@@ -17585,15 +17545,18 @@
      "runtime:request",
      "runtime:object-op",
      "pine:function",
-     "pine:input-kind"
+     "pine:input-kind",
+     "pine:function",
+     "runtime:history-expression"
     ],
     "committed:multicator-table__486858895c": [],
     "committed:multiple-mtf-moving-average-xdecow__aArjfk9ShG": [
      "runtime:request-with-state",
-     "runtime:function",
+     "runtime:request-with-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:block-value",
-     "runtime:request-with-state"
+     "runtime:call-text-state",
+     "runtime:call-undeclared-builtin-state"
     ],
     "committed:neural-network-buy-and-sell-signals__fbbb11d0c7": [
      "runtime:history-expression",
@@ -17606,17 +17569,13 @@
      "pine:statement"
     ],
     "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888": [
-     "pine:statement",
-     "runtime:colour"
+     "runtime:output-map"
     ],
     "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn": [
-     "pine:collection",
-     "runtime:block-value",
-     "runtime:block-value",
-     "runtime:block-value",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement"
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset"
     ],
     "committed:one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64": [
      "runtime:function",
@@ -17636,10 +17595,14 @@
      "pine:statement"
     ],
     "committed:open-interest-profile-fixed-range-by-leviathan__875691ab51": [
-     "pine:input-kind",
-     "pine:input-kind",
      "pine:builtin",
-     "host:pine:constant-only"
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "pine:function",
+     "pine:function",
+     "pine:function",
+     "pine:function",
+     "pine:function"
     ],
     "committed:open-interest-suite-aggregated-by-leviathan__44b150b3df": [
      "pine:function",
@@ -17659,21 +17622,15 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state"
     ],
-    "committed:order-block-finder__fVSb3j0I87": [
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state"
-    ],
     "committed:pivot-trendlines-with-breaks-hg__f1464ad5b7": [
      "runtime:library",
      "runtime:call-undeclared-builtin-state",
      "runtime:expression-statement",
-     "pine:statement",
-     "pine:builtin",
-     "runtime:unbound"
+     "runtime:expression-statement",
+     "runtime:expression-statement",
+     "runtime:expression-statement",
+     "runtime:function",
+     "runtime:expression-statement"
     ],
     "committed:pmax-explorer__jN9HBNhynF": [],
     "committed:position-size-calc__a42db1a620": [],
@@ -17684,7 +17641,7 @@
     ],
     "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d": [
      "runtime:call-undeclared-builtin-state",
-     "runtime:statement"
+     "runtime:call-undeclared-builtin-state"
     ],
     "committed:previous-n-daysweeksmonths-high-low__78f5b05522": [
      "pine:request",
@@ -17695,15 +17652,10 @@
      "pine:request"
     ],
     "committed:range-filter-bs-signals__eCVFctFlqp": [
-     "runtime:history-dynamic-offset",
-     "runtime:function",
-     "pine:function",
-     "pine:statement"
+     "runtime:history-dynamic-offset"
     ],
     "committed:range-filter-dw__pshyCmQSql": [
-     "runtime:array",
-     "pine:text-value",
-     "pine:text-value"
+     "runtime:array"
     ],
     "committed:rate-of-change__5efd12f955": [
      "runtime:library",
@@ -17716,18 +17668,16 @@
      "pine:builtin"
     ],
     "committed:relative-volume-at-time__gei8CBKbc5": [
-     "runtime:input-state",
-     "runtime:input-state",
-     "runtime:input-state",
-     "runtime:input-state",
-     "runtime:input-state",
-     "runtime:input-state",
-     "runtime:input-state",
-     "runtime:input-state"
+     "pine:function",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:function-global-state",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:call-undeclared-builtin-state",
+     "runtime:function"
     ],
     "committed:renderingnature-smc-reversal-engine-v71__f8734584d9": [
-     "pine:input-kind",
-     "pine:input-kind",
      "runtime:statement",
      "runtime:statement",
      "runtime:object-op",
@@ -17751,44 +17701,40 @@
     ],
     "committed:rsi-vwap-indicator__pTI5ZVw9n4": [],
     "committed:scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471": [
-     "pine:builtin"
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history"
     ],
     "committed:screener-mean-reversion-channel__nTK2sHWDlB": [
      "pine:function",
-     "pine:text-value",
-     "runtime:call-undeclared-builtin-state",
-     "pine:text-value",
-     "runtime:call-undeclared-builtin-state",
-     "pine:text-value",
-     "runtime:call-undeclared-builtin-state",
-     "pine:text-value"
+     "runtime:object-op",
+     "pine:statement"
     ],
     "committed:sector-rotation__0fca060bf4": [],
     "committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749": [
-     "runtime:statement",
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind"
+     "pine:function"
     ],
     "committed:session-hilo__WM2g5GtC4h": [
      "runtime:statement",
-     "pine:input-kind",
-     "pine:input-kind"
-    ],
-    "committed:session-tpo-profile__41088ef96d": [
-     "runtime:statement",
+     "pine:function",
      "pine:function"
     ],
+    "committed:session-tpo-profile__41088ef96d": [
+     "runtime:call-text-state",
+     "runtime:array",
+     "runtime:array",
+     "runtime:no-output"
+    ],
     "committed:sessions__2677": [
-     "runtime:statement",
-     "pine:input-kind",
-     "runtime:statement",
+     "pine:function",
+     "pine:function",
      "runtime:function",
      "pine:function",
-     "pine:input-kind",
      "pine:function",
-     "pine:input-kind"
+     "pine:function",
+     "pine:function",
+     "host:pine:constant-only"
     ],
     "committed:smart-money-breakout-channels-algoalpha__8c2d234156": [
      "runtime:library",
@@ -17815,36 +17761,38 @@
      "runtime:array"
     ],
     "committed:smart-money-concepts-by-welotrades__0bff41a2e5": [
-     "pine:input-kind",
-     "pine:input-kind",
      "runtime:history-dynamic-offset",
-     "runtime:block-value",
      "runtime:request",
      "runtime:function",
-     "runtime:call-undeclared-builtin-state"
+     "runtime:call-undeclared-builtin-state",
+     "runtime:tuple",
+     "runtime:block-value"
     ],
     "committed:smart-money-volume-activity-algoalpha__699c36ad31": [
      "pine:builtin",
      "pine:statement"
     ],
     "committed:smarter-snr__ac98ab25d5": [
-     "pine:builtin",
-     "runtime:call-conversion-state",
-     "runtime:call-conversion-state"
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:object-op",
+     "runtime:object-op",
+     "pine:drawing",
+     "runtime:object-op"
     ],
     "committed:smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6": [
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind"
+     "runtime:function",
+     "runtime:expression-statement",
+     "runtime:expression-statement",
+     "runtime:expression-statement",
+     "runtime:expression-statement",
+     "runtime:expression-statement",
+     "runtime:expression-statement",
+     "runtime:expression-statement"
     ],
     "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0": [
-     "runtime:fill-gradient",
-     "runtime:fill-gradient",
      "pine:statement",
      "pine:statement",
      "lower-tf:store-unmeasured",
@@ -17853,14 +17801,14 @@
      "lower-tf:store-unmeasured"
     ],
     "committed:smt-divergence-ict-killzones__c932d56665": [
-     "runtime:statement",
-     "pine:function",
-     "pine:function",
      "runtime:loop",
      "runtime:loop",
-     "runtime:call-undeclared-builtin-state",
+     "runtime:builtin-args",
      "runtime:function",
-     "runtime:call-undeclared-builtin-state"
+     "runtime:call-undeclared-builtin-state",
+     "runtime:call-undeclared-builtin-state",
+     "runtime:object-op",
+     "lower-tf:unwitnessed"
     ],
     "committed:std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764": [
      "runtime:library",
@@ -17909,7 +17857,6 @@
     "committed:supertrend-explorer__V4MsmtCeKs": [],
     "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df": [
      "runtime:library",
-     "pine:function",
      "runtime:array",
      "pine:function",
      "runtime:call-undeclared-builtin-state",
@@ -17918,13 +17865,13 @@
     ],
     "committed:supertrend-strategy__rcRbtoBiKG": [],
     "committed:supply-demand-mtf-flux-charts__7fb4bff229": [
-     "pine:input-kind",
-     "pine:input-kind",
-     "pine:input-kind",
      "runtime:array",
      "runtime:array",
      "runtime:block-value",
-     "pine:statement"
+     "runtime:block-value",
+     "runtime:call-undeclared-builtin-state",
+     "runtime:tuple",
+     "runtime:request"
     ],
     "committed:support-and-resistance-logistic-regression-flux-charts__9d844269d6": [
      "runtime:loop",
@@ -17933,6 +17880,7 @@
     ],
     "committed:support-and-resistance__c4792aabd0": [
      "runtime:history-dynamic-offset",
+     "runtime:conditional-history",
      "runtime:statement"
     ],
     "committed:support-resistance-mtf-flux-charts__dd04862677": [
@@ -17966,7 +17914,7 @@
      "runtime:object-op",
      "runtime:object-op",
      "pine:builtin",
-     "runtime:block-value",
+     "pine:statement",
      "pine:statement",
      "pine:statement"
     ],
@@ -17988,12 +17936,14 @@
      "runtime:history-dynamic-offset"
     ],
     "committed:trend-line-harrybot__vMv5yOQxcA": [
-     "pine:block",
-     "pine:block",
-     "runtime:block-value",
+     "runtime:conditional-history",
+     "runtime:object-op",
+     "runtime:function",
+     "runtime:function",
+     "runtime:object-op",
      "pine:statement",
-     "pine:statement",
-     "pine:statement"
+     "runtime:function",
+     "runtime:function"
     ],
     "committed:trend-lines-supports-and-resistances__413ee2ee3b": [],
     "committed:trendline-pivots-quantvue__3dc9be8b73": [
@@ -18013,17 +17963,17 @@
     ],
     "committed:vdubus-pattern-gen-v2-restored-refined__66dc68412e": [],
     "committed:visualizing-displacement-tfo__5b861441c2": [
-     "runtime:nothing-drawn"
+     "runtime:withheld-all"
     ],
     "committed:volatility-coil-edge-bullbyte__604f0fd1c6": [
      "runtime:history-dynamic-offset",
-     "runtime:call-text-state",
      "runtime:object-op",
      "runtime:object-op",
      "runtime:object-op",
      "runtime:object-op",
      "runtime:object-op",
-     "runtime:object-op"
+     "runtime:object-op",
+     "pine:statement"
     ],
     "committed:volatility-stop-mtf__K5XG42uHV9": [
      "runtime:library",
@@ -18033,7 +17983,7 @@
     "committed:volatility-trend-score-backquant__0794882a37": [
      "runtime:presentation",
      "pine:statement",
-     "pine:statement"
+     "runtime:colour"
     ],
     "committed:vold-market-breadth__9c5cde9557": [],
     "committed:volume-delta-hapharmonic__d5748870fd": [
@@ -18051,9 +18001,9 @@
      "pine:builtin",
      "pine:builtin",
      "runtime:block-value",
-     "runtime:request-with-state",
-     "pine:collection",
-     "pine:statement"
+     "runtime:block-value",
+     "runtime:block-value",
+     "runtime:request-with-state"
     ],
     "committed:volume-divergence-by-mm__cvG2Djaryv": [
      "runtime:call-windowed-state",
@@ -18111,30 +18061,23 @@
      "pine:arity"
     ],
     "committed:volumized-order-blocks-flux-charts__1675b2b8e3": [
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
      "pine:builtin",
      "pine:statement",
      "pine:statement",
      "pine:statement",
-     "runtime:unbound",
-     "runtime:statement",
-     "pine:statement",
-     "pine:statement"
+     "runtime:unbound"
     ],
     "committed:vwap-fibo-dev-extensions-strategy__mR2vfyGjUv": [],
-    "committed:williams-fractal-trailing-stops__UOOIN5REYl": [
-     "pine:text-value"
-    ],
     "committed:zigzag-ma-pattern-recognition__1302": [
      "pine:function"
     ],
     "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp": [
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
-     "runtime:block-value",
-     "pine:statement",
-     "pine:statement",
-     "runtime:function",
-     "runtime:block-value"
+     "runtime:no-output"
     ],
     "reference:ai-moving-average-expo__cddaa37ee5": [
      "runtime:statement",
@@ -18144,15 +18087,15 @@
      "lower-tf:store-unmeasured",
      "runtime:request",
      "runtime:request",
-     "runtime:statement",
      "runtime:object-op",
      "runtime:object-op",
-     "runtime:object-op",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
      "runtime:object-op"
     ],
     "reference:anchored-vwap__u9vU8nIMXA": [
      "pine:request",
-     "pine:function",
+     "pine:builtin",
      "pine:state",
      "pine:state",
      "host:pine:constant-only"
@@ -18163,12 +18106,6 @@
      "runtime:call-undeclared-builtin-state"
     ],
     "reference:anti-volume-stop-loss__QyDEhGL8DB": [
-     "runtime:call-conversion-state",
-     "runtime:block-value",
-     "runtime:statement",
-     "pine:statement",
-     "runtime:statement",
-     "pine:statement",
      "runtime:history-dynamic-offset",
      "runtime:withheld-all"
     ],
@@ -18180,21 +18117,13 @@
      "runtime:library",
      "runtime:library",
      "runtime:call-undeclared-builtin-state",
-     "pine:statement"
-    ],
-    "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365": [
-     "runtime:block-value",
-     "pine:drawing",
-     "pine:drawing",
-     "pine:drawing",
-     "pine:drawing"
+     "runtime:statement"
     ],
     "reference:auto-length-moving-average-trend-signals-zeiierman__30185ad35b": [
-     "pine:arity",
      "runtime:history-dynamic-offset",
      "runtime:function-global-state",
-     "runtime:history-dynamic-offset",
-     "runtime:fill-gradient"
+     "runtime:conditional-history",
+     "runtime:history-dynamic-offset"
     ],
     "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79": [],
     "reference:auto-trendlines-trendoscope__c1dc011801": [
@@ -18208,48 +18137,33 @@
     ],
     "reference:best-abcd-pattern-screener__ROdc6mWjx4": [
      "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "pine:text-value",
-     "pine:text-value",
-     "pine:text-value",
-     "pine:text-value",
-     "pine:text-value",
-     "runtime:withheld-all"
+     "runtime:call-undeclared-builtin-state"
     ],
     "reference:best-engulfing-ma__Vh6SGyOD3H": [
      "runtime:history-expression",
      "runtime:block-value",
      "runtime:block-value",
+     "runtime:conditional-history",
+     "runtime:history-expression",
      "runtime:block-value",
      "runtime:block-value",
-     "runtime:block-value",
-     "runtime:block-value",
-     "runtime:block-value"
+     "runtime:history-expression"
     ],
     "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f": [
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-windowed-state",
-     "runtime:function",
-     "pine:function",
-     "pine:text-value",
-     "pine:text-value"
+     "runtime:call-windowed-state",
+     "host:pine:constant-only"
     ],
     "reference:best-rsi-divergences-screener__TmlpugZKr6": [
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-windowed-state",
-     "runtime:function",
-     "pine:function",
-     "pine:text-value",
-     "pine:text-value"
-    ],
-    "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84": [
-     "runtime:object-op",
-     "runtime:object-op",
-     "runtime:object-op"
+     "runtime:call-windowed-state",
+     "host:pine:constant-only"
     ],
     "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3": [
      "pine:request",
@@ -18264,11 +18178,10 @@
      "runtime:expression-statement",
      "runtime:function-global-state",
      "runtime:function-global-state",
-     "pine:statement",
      "runtime:object-op",
      "runtime:object-op",
-     "runtime:switch",
-     "runtime:function-global-state"
+     "runtime:object-op",
+     "runtime:expression-statement"
     ],
     "reference:camarilla-levels-intraday__bfb5a2b8db": [
      "host:pine:object-removal-lost"
@@ -18281,24 +18194,28 @@
     ],
     "reference:check-head-and-shouldersmask-man__INWKFwOBpV": [],
     "reference:cm-forex-sessions-highlight-v1__41": [
-     "runtime:statement",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function"
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset"
     ],
     "reference:cm-gann-swing-highlow-v2__592": [
      "runtime:na-test"
     ],
     "reference:cobra039s-crypto-market-visualizer__c3636f55f4": [],
     "reference:color-gradient-framework-pinecoders__9ICIDOiMbF": [
-     "runtime:input-state",
      "runtime:colour",
      "runtime:colour",
-     "pine:arity"
+     "pine:statement",
+     "pine:statement",
+     "runtime:colour",
+     "pine:statement",
+     "runtime:colour",
+     "pine:statement"
     ],
     "reference:coral-trend-indicator-lazybear__836": [
      "pine:state",
@@ -18308,25 +18225,30 @@
     "reference:crypto-correlation-matrix__0f59de2d3d": [],
     "reference:cryptosignalscanner-rsi-overboughtoversold-divergence-indicator-new__918919b267": [],
     "reference:ct-displacement-fvg-toolkit__1ae5bb663e": [
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement",
+     "pine:drawing",
+     "pine:drawing",
+     "pine:drawing",
+     "pine:drawing",
+     "pine:drawing",
+     "pine:drawing",
      "runtime:object-op",
      "runtime:object-op"
     ],
     "reference:cumulative-volume-delta-divergence__fbc538f076": [
-     "runtime:block-value",
      "runtime:request-with-state",
      "runtime:loop",
      "pine:statement"
     ],
     "reference:custom-screener-with-alerts__dd1bf69eb8": [],
     "reference:delta-volume-columns-lucf__HmUxm6bIQC": [
+     "runtime:call-undeclared-builtin-state",
      "runtime:function",
-     "pine:statement"
+     "runtime:call-undeclared-builtin-state",
+     "runtime:varip",
+     "runtime:varip",
+     "runtime:varip",
+     "runtime:varip",
+     "runtime:varip"
     ],
     "reference:divergence-screener-trendoscope__5bfc8355aa": [
      "runtime:library",
@@ -18338,14 +18260,14 @@
      "pine:statement"
     ],
     "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16": [
-     "pine:arity",
      "runtime:function",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state"
+     "runtime:call-undeclared-builtin-state",
+     "pine:function"
     ],
     "reference:dot-dynamics__Zd1PZqZcep": [],
     "reference:dual-supertrend-ichimoku-and-dmi-color-weighted-by-dgt__6pPzwGaxjU": [],
@@ -18353,10 +18275,10 @@
     "reference:dynamic-linear-regression-channels__17ec799bc1": [],
     "reference:dynamic-support-and-resistance-with-trend-lines-multi-language__1928d26a07": [
      "runtime:library",
-     "pine:statement",
-     "pine:statement",
      "runtime:call-undeclared-builtin-state",
-     "pine:input-kind",
+     "runtime:object-op",
+     "runtime:object-op",
+     "runtime:object-op",
      "runtime:object-op"
     ],
     "reference:dynamic-swing-anchored-vwap-strategy-zeiierman-x-pineindicators__ee0c3c9ccd": [
@@ -18372,13 +18294,8 @@
      "pine:request"
     ],
     "reference:edufx-amd__0ca9b3c747": [
-     "pine:function",
-     "runtime:function",
-     "pine:function",
      "runtime:object-op",
-     "runtime:block-value",
-     "runtime:block-value",
-     "pine:statement"
+     "runtime:colour"
     ],
     "reference:engulfing-sinyal__pAgeLQw9kl": [
      "pine:colour-value",
@@ -18387,7 +18304,6 @@
      "host:pine:constant-only"
     ],
     "reference:enhanced-mcclellan-summation-index__f2989eaa65": [
-     "pine:block",
      "pine:member",
      "pine:statement",
      "pine:statement",
@@ -18407,12 +18323,11 @@
     ],
     "reference:flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu": [
      "runtime:history-expression",
+     "runtime:conditional-history",
      "runtime:history-expression",
      "runtime:history-dynamic-offset",
      "runtime:history-expression",
-     "pine:text-value",
-     "pine:text-value",
-     "pine:text-value",
+     "runtime:conditional-history",
      "runtime:statement"
     ],
     "reference:footprint-strategy__c1753fd287": [
@@ -18425,10 +18340,10 @@
     ],
     "reference:footprint__6848998fe8": [
      "runtime:varip",
-     "runtime:varip",
-     "runtime:varip",
-     "runtime:varip",
-     "runtime:varip",
+     "runtime:array",
+     "pine:builtin",
+     "runtime:array",
+     "pine:builtin",
      "runtime:varip",
      "runtime:varip",
      "runtime:varip"
@@ -18451,14 +18366,14 @@
      "runtime:loop"
     ],
     "reference:fxn-asian-session-range__jNLZBfpYDO": [
-     "pine:text-value",
-     "pine:text-value",
-     "pine:text-value",
-     "pine:text-value",
-     "pine:text-value",
-     "pine:text-value",
      "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state"
+     "runtime:statement",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:call-undeclared-builtin-state",
+     "runtime:object-op",
+     "runtime:object-op",
+     "runtime:object-op"
     ],
     "reference:gex-levels-breakout-structure-session-avwap-esspxspy__4e5d712bec": [
      "runtime:call-text-state",
@@ -18502,8 +18417,7 @@
      "runtime:fill-target",
      "runtime:call-windowed-state",
      "runtime:call-windowed-state",
-     "runtime:object-op",
-     "runtime:withheld-all"
+     "runtime:object-op"
     ],
     "reference:hull-moving-average-crossover-strategy__ASuWFtACGl": [],
     "reference:hurst-cycle-channel-clone-lazybear__1192": [
@@ -18517,20 +18431,20 @@
      "pine:statement"
     ],
     "reference:ict-killzone__fE0Mzs0mp0": [
-     "runtime:statement",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
      "runtime:fill-target",
      "runtime:fill-target",
-     "runtime:fill-target"
+     "runtime:fill-target",
+     "runtime:history-dynamic-offset"
     ],
     "reference:inside-bar-setup__a1528b4d74": [],
     "reference:interactive-atr-stop-loss__6d419f128f": [
-     "pine:input-kind",
      "runtime:object-op",
      "runtime:object-op",
+     "runtime:call-undeclared-builtin-state",
      "runtime:call-text-state",
      "runtime:call-text-state",
      "runtime:call-text-state",
@@ -18543,7 +18457,6 @@
      "pine:function",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "runtime:fill-gradient",
      "runtime:presentation"
     ],
     "reference:kaufman-adaptive-bands__sXCNphOxWh": [
@@ -18552,46 +18465,38 @@
      "pine:function"
     ],
     "reference:kz-boxes__zed4AoolEW": [
-     "runtime:statement",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
      "runtime:fill-target",
      "runtime:fill-target",
-     "runtime:fill-target"
+     "runtime:fill-target",
+     "runtime:history-dynamic-offset"
     ],
     "reference:linear-regression-channel-curve-slope-by-dgt__WvWdhArzmm": [],
     "reference:liquidity-heatmap-swiftedge__8291fe0662": [],
     "reference:liquidity-pools-pro-willyalgotrader__409687ce4a": [],
     "reference:liquidity-sniper-pro__da4b93aa0a": [],
     "reference:liquidity-swings-luxalgo__780e612168": [],
-    "reference:logistic-rsi-stoch-roc-ao-by-dgt__aYY2rK1EEf": [
-     "pine:builtin",
-     "pine:builtin",
-     "runtime:call-text-state",
-     "runtime:call-text-state",
-     "runtime:call-text-state",
-     "runtime:call-text-state",
-     "runtime:call-text-state",
-     "runtime:call-text-state"
-    ],
     "reference:lorentzian-classification-advanced-trading-dashboard__0de1c85a2f": [
      "runtime:library",
      "runtime:library",
      "runtime:call-undeclared-builtin-state",
      "pine:request",
      "pine:type",
-     "pine:function",
-     "pine:arity"
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset"
     ],
     "reference:luxy-momentum-trend-and-breakout-indicators-with-multi-timeframe-bias-__0fa143447a": [
      "pine:builtin",
-     "pine:arity",
      "pine:builtin",
      "pine:statement",
      "pine:statement",
-     "pine:offset-literal"
+     "runtime:conditional-history",
+     "runtime:history-dynamic-offset",
+     "runtime:history-expression",
+     "runtime:conditional-history"
     ],
     "reference:luxy-super-duper-supertrend-predictor-engine__582421244d": [
      "runtime:history-dynamic-offset",
@@ -18612,9 +18517,6 @@
      "runtime:unbound",
      "pine:statement"
     ],
-    "reference:market-structure-with-inducements-sweeps-luxalgo__7948c21279": [
-     "runtime:withheld-all"
-    ],
     "reference:market-trend-levels-detector-bigbeluga__317e91d708": [],
     "reference:mema-bb-parabolic-sar__nurAC4OTMa": [
      "runtime:colour",
@@ -18623,8 +18525,11 @@
     ],
     "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb": [
      "pine:colour-value",
-     "pine:input-kind",
-     "pine:statement"
+     "runtime:block-value",
+     "runtime:request",
+     "runtime:object-op",
+     "runtime:object-op",
+     "runtime:call-text-state"
     ],
     "reference:momentum-terrain-3d-luxalgo__f7eb2c2d64": [
      "runtime:array",
@@ -18645,20 +18550,21 @@
      "runtime:history-dynamic-offset",
      "runtime:history-expression",
      "pine:window",
-     "pine:input-kind",
+     "pine:function",
+     "runtime:input-state",
      "runtime:request",
-     "pine:input-kind",
-     "runtime:request",
-     "pine:input-kind"
+     "runtime:input-state",
+     "runtime:request"
     ],
     "reference:mtf-order-block-finder__ce13bf1b46": [
-     "pine:text-value",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "runtime:block-value",
+     "runtime:statement",
      "pine:statement",
-     "pine:offset-literal",
-     "pine:statement"
+     "pine:statement",
+     "pine:statement",
+     "runtime:object-op",
+     "runtime:object-op"
     ],
     "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH": [
      "pine:request",
@@ -18680,35 +18586,30 @@
      "pine:request"
     ],
     "reference:nadaraya-watson-trend-quantalgo__052bdb2a18": [
-     "pine:block",
-     "runtime:colour",
-     "runtime:colour",
+     "runtime:block-value",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
      "runtime:colour",
      "runtime:colour",
      "runtime:colour"
     ],
-    "reference:non-repainting-swing-highlow-signals__ccf063295a": [
-     "runtime:withheld-all"
-    ],
     "reference:nylondonasian-sessions-ict-swings__14bce3660b": [
-     "runtime:statement",
+     "pine:function",
      "runtime:function",
-     "runtime:statement",
-     "pine:input-kind",
      "pine:function",
-     "pine:input-kind",
      "pine:function",
-     "pine:input-kind"
+     "pine:function",
+     "pine:function"
     ],
     "reference:obv-macd-indicator__5JF4Np02Ma": [
      "runtime:history-expression",
-     "runtime:call-windowed-state",
-     "runtime:call-windowed-state",
-     "runtime:call-windowed-state",
+     "runtime:history-expression",
+     "runtime:history-expression",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
-     "runtime:call-undeclared-builtin-state"
+     "runtime:call-undeclared-builtin-state",
+     "runtime:block-value"
     ],
     "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c": [],
     "reference:open-interest-stochastic-money-flow-index__kGyXZBhXgx": [
@@ -18729,7 +18630,10 @@
      "pine:function",
      "pine:builtin",
      "pine:request",
-     "pine:function"
+     "runtime:request",
+     "runtime:request",
+     "runtime:request",
+     "runtime:request"
     ],
     "reference:pivot-points-high-low-extension__Pxr8FVNWPB": [
      "runtime:na-test"
@@ -18746,7 +18650,7 @@
     "reference:qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7": [
      "runtime:history-expression",
      "runtime:history-expression",
-     "pine:function",
+     "runtime:conditional-history",
      "pine:function",
      "pine:strategy-call",
      "pine:strategy-call"
@@ -18778,14 +18682,8 @@
     ],
     "reference:relative-strength-index-divergences-libertus__g2odvjJQz8": [],
     "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029": [
-     "pine:input-kind",
      "runtime:request",
-     "pine:input-kind",
-     "runtime:request",
-     "runtime:request",
-     "runtime:call-text-state",
-     "runtime:block-value",
-     "runtime:statement"
+     "runtime:request"
     ],
     "reference:rsi-cyclic-smoothed__ckgSq3I4CY": [
      "pine:offset-literal"
@@ -18796,24 +18694,20 @@
     ],
     "reference:rsi-kernel-optimized-flux-charts__427926d08f": [
      "runtime:array",
-     "runtime:switch",
-     "runtime:function",
-     "runtime:function",
-     "runtime:function",
+     "pine:function",
+     "runtime:call-undeclared-builtin-state",
+     "pine:function",
+     "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state"
     ],
     "reference:rsi-multi-timeframe-dashboard-by-giua64__cb0cdabd5f": [],
     "reference:rsi-support-resistance-by-dgt__ZkkLVEb1ak": [],
     "reference:rsi-trend-reversal__8ec0d3e25e": [
-     "runtime:call-windowed-state",
-     "runtime:call-windowed-state",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
      "pine:builtin"
     ],
     "reference:rth-opening-range-with-extensions__88bbcc36f3": [
-     "pine:function",
-     "pine:function",
      "runtime:no-output"
     ],
     "reference:saty-atr-levels__99165984ef": [
@@ -18822,22 +18716,21 @@
     ],
     "reference:screener-for-40-instruments__a009097811": [],
     "reference:session-liquidity__96d8d1599c": [
-     "runtime:statement",
+     "pine:function",
      "runtime:call-text-state",
      "runtime:call-text-state",
-     "runtime:block-value",
-     "runtime:block-value",
-     "runtime:block-value"
+     "pine:builtin",
+     "runtime:object-op",
+     "pine:builtin",
+     "pine:input-kind",
+     "runtime:clock-zone"
     ],
     "reference:sessions-nephew-sam__nTgXSYRNbD": [
      "runtime:call-text-state",
      "runtime:call-text-state",
-     "pine:function",
-     "pine:function",
-     "pine:input-kind",
-     "pine:function",
-     "pine:input-kind",
-     "pine:function"
+     "runtime:clock-zone",
+     "runtime:clock-zone",
+     "runtime:clock-zone"
     ],
     "reference:smart-money-concepts-probability-expo__285cd9fa6f": [],
     "reference:smc-target-liquidity-v35-manual-distance-control__811da09c25": [
@@ -18851,8 +18744,8 @@
      "runtime:history-expression"
     ],
     "reference:solar-system-in-3d-astro-tool-w-zodiac-alien-algorithms__213cfb6fbb": [
-     "pine:input-kind",
-     "pine:input-kind",
+     "runtime:statement",
+     "runtime:statement",
      "runtime:library",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
@@ -18863,32 +18756,34 @@
     "reference:spy-moving-averages-and-signals__KSz0yeOiH2": [
      "runtime:history-expression",
      "pine:function",
-     "pine:function",
-     "pine:function"
+     "pine:statement",
+     "pine:statement",
+     "pine:statement",
+     "pine:statement",
+     "pine:statement",
+     "pine:statement"
     ],
     "reference:squeeze-momentum-indicator-lazybear-vx-by-dgt__bjAASLSxLp": [
-     "pine:function",
      "pine:function"
     ],
     "reference:stoch-money-flow-admf-absolute-strength-index-asi-ci8dh__XqxUTKWKYq": [
-     "runtime:block-value",
-     "pine:statement"
+     "runtime:call-windowed-state",
+     "runtime:block-value"
     ],
     "reference:strategyrszigzag-pa-strategy-v41__2186": [
-     "runtime:call-undeclared-builtin-state"
+     "runtime:conditional-history"
     ],
     "reference:strategyrszigzag-pa-strategy-v4__2134": [
-     "runtime:call-undeclared-builtin-state"
+     "runtime:conditional-history"
     ],
     "reference:strong-knn-classifier__852c26b11d": [
-     "pine:builtin",
      "runtime:request-with-state",
      "runtime:request-with-state",
      "pine:collection",
      "runtime:call-windowed-state",
-     "runtime:colour",
-     "runtime:colour",
-     "runtime:colour"
+     "pine:collection",
+     "runtime:function",
+     "runtime:function"
     ],
     "reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA": [
      "pine:colour-value",
@@ -18905,10 +18800,10 @@
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
-     "runtime:call-windowed-state",
      "runtime:history-dynamic-offset",
-     "pine:statement",
-     "pine:statement"
+     "runtime:history-dynamic-offset",
+     "runtime:array",
+     "runtime:array"
     ],
     "reference:supertrend-ladder-atr-1909capital-trendoscope__c61e4a062a": [
      "runtime:library",
@@ -18923,21 +18818,17 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "pine:text-value",
-     "pine:text-value",
-     "pine:text-value"
+     "runtime:colour",
+     "runtime:colour",
+     "runtime:colour"
     ],
     "reference:supertrendrange-by-dgt__jDAxwdo5u7": [
-     "runtime:block-value",
-     "runtime:block-value",
-     "runtime:block-value",
-     "runtime:block-value",
-     "pine:statement",
-     "pine:statement",
-     "pine:statement"
+     "pine:function"
     ],
     "reference:supply-and-demand-zones-bigbeluga__6f46de6c8a": [],
     "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326": [
+     "runtime:conditional-history",
+     "runtime:conditional-history",
      "lower-tf:store-unmeasured"
     ],
     "reference:support-and-resistance-step-4__d24e4b30cf": [],
@@ -18966,25 +18857,21 @@
      "pine:request",
      "pine:request",
      "pine:function",
-     "pine:function",
-     "pine:function",
+     "pine:strategy-call",
+     "pine:statement",
      "pine:strategy-call",
      "pine:statement"
     ],
     "reference:trading-session-indicator__E4P4ZGnwPT": [
-     "runtime:statement",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
      "runtime:no-output"
     ],
     "reference:tradingviews-technical-analysis__oZFVfrvzZI": [],
-    "reference:trailing-sl-strategy-quantnomad__kvEZ1RweKL": [
-     "pine:function",
-     "pine:function"
-    ],
+    "reference:trailing-sl-strategy-quantnomad__kvEZ1RweKL": [],
     "reference:trend-channels-with-liquidity-breaks-chartprime__6cabbffddf": [],
     "reference:trend-direction-helper__XQTKs6HB2y": [],
     "reference:trend-following-parabolic-buy-sell-strategy-tradedots__bb6d929535": [
@@ -19001,56 +18888,48 @@
      "runtime:no-output"
     ],
     "reference:trend-speed-analyzer-zeiierman__bd2f816c88": [
-     "pine:input-kind",
      "runtime:expression-statement",
      "runtime:expression-statement",
      "runtime:expression-statement",
      "runtime:expression-statement",
      "runtime:statement",
-     "runtime:call-windowed-state",
-     "runtime:function-global-state"
+     "runtime:function-global-state",
+     "runtime:presentation",
+     "pine:type"
     ],
     "reference:trendline-breaks-with-multi-fibonacci-supertrend-strategy__89cd796179": [
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "runtime:unbound",
-     "runtime:unbound",
-     "runtime:unbound",
      "pine:strategy-call",
+     "pine:statement",
+     "pine:statement",
+     "pine:statement",
+     "pine:statement",
+     "runtime:unbound",
      "pine:statement"
     ],
     "reference:trendlines-2x__rzuOQrVQWt": [
-     "pine:arity",
-     "pine:arity",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state"
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "runtime:conditional-history"
     ],
     "reference:trendlines-jd__BYXZzZURrT": [
+     "runtime:conditional-history",
+     "runtime:conditional-history",
      "pine:statement",
-     "runtime:call-conversion-state",
-     "runtime:call-conversion-state",
-     "runtime:call-conversion-state",
-     "runtime:call-conversion-state",
-     "runtime:call-conversion-state",
-     "runtime:call-conversion-state",
-     "runtime:call-conversion-state"
+     "pine:statement"
     ],
     "reference:triangular-hull-moving-average-volatility-bigbeluga__f20311448f": [
      "runtime:history-expression",
      "runtime:function",
-     "runtime:switch",
-     "runtime:presentation",
      "pine:function",
+     "runtime:presentation",
      "runtime:withheld-all"
     ],
     "reference:uptrick-volatility-adjusted-trail__ff9f0f608f": [
-     "runtime:fill-gradient",
-     "runtime:fill-gradient",
      "runtime:presentation"
     ],
     "reference:ut-bot-linreg-candles-longevity-zones-sr-dashboard__26fb08b910": [],
@@ -19058,33 +18937,29 @@
     "reference:vix-fix-stochrsi-strategy__3173": [],
     "reference:volatility-regimes-gainzalgo__31d94ea2c3": [
      "runtime:history-expression",
-     "pine:block",
-     "runtime:function",
-     "runtime:function",
-     "runtime:function",
-     "runtime:function",
-     "pine:statement",
-     "runtime:function"
+     "runtime:conditional-history",
+     "pine:function",
+     "runtime:history-dynamic-offset"
     ],
     "reference:volume-profile-free-pro-by-rrb__a7xsrJkK2R": [
-     "runtime:function",
-     "runtime:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function",
-     "pine:function"
+     "pine:builtin",
+     "pine:builtin",
+     "pine:builtin",
+     "pine:builtin",
+     "pine:text-value",
+     "pine:text-value",
+     "pine:text-value",
+     "pine:text-value"
     ],
     "reference:volume-profile-free-ultra-sli-by-rrb__TFpVVPsMEJ": [
      "pine:text-value",
      "pine:text-value",
-     "runtime:function",
-     "runtime:function",
+     "runtime:call-windowed-state",
      "pine:function",
      "pine:function",
      "pine:function",
-     "pine:arity"
+     "pine:text-value",
+     "pine:text-value"
     ],
     "reference:volume-profile-heatmap__89dbe956a4": [
      "runtime:library"
@@ -19108,10 +18983,10 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "runtime:call-windowed-state",
      "runtime:history-expression",
      "runtime:call-undeclared-builtin-state",
-     "pine:text-value"
+     "pine:function",
+     "runtime:call-undeclared-builtin-state"
     ],
     "reference:vwap-mtf__2809": [
      "pine:builtin",
@@ -19146,15 +19021,22 @@
     ],
     "reference:vwapmvwapema-crossover__N16MOYK6AE": [],
     "reference:williams-r-rsi-ema-tendance-silver-wong__sogth7qpzs": [],
+    "reference:williams-vix-fix-bottoms-and-tops__f5d5130307": [
+     "runtime:conditional-history",
+     "runtime:conditional-history",
+     "pine:statement",
+     "runtime:conditional-history",
+     "runtime:conditional-history"
+    ],
     "reference:zig-zag-channels-luxalgo__c253c72883": []
    }
   },
   "parity": {
    "captures": 336,
    "verdicts": {
-    "DIVERGE": 108,
-    "INCONCLUSIVE": 120,
-    "MATCH": 108
+    "DIVERGE": 107,
+    "INCONCLUSIVE": 118,
+    "MATCH": 111
    },
    "productionVerdicts": {
     "DIVERGE": 103,
@@ -19162,8 +19044,8 @@
     "MATCH": 93
    },
    "changed": {
-    "INCONCLUSIVE->DIVERGE": 5,
-    "INCONCLUSIVE->MATCH": 15
+    "INCONCLUSIVE->DIVERGE": 4,
+    "INCONCLUSIVE->MATCH": 18
    },
    "changes": [
     {
@@ -19242,6 +19124,11 @@
      "to": "DIVERGE"
     },
     {
+     "file": "tests/fixtures/vendor/harness/vw-clock-close-tfchange-spy-1d-2026-09-28.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
      "file": "tests/fixtures/vendor/harness/vw-deadband-ticks-brk-a-1d-2026-09-28.json",
      "from": "INCONCLUSIVE",
      "to": "DIVERGE"
@@ -19262,624 +19149,46 @@
      "to": "MATCH"
     },
     {
+     "file": "tests/fixtures/vendor/harness/wyckoff-accumulation-distribution-rddt-1d-2026-10-02.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
      "file": "tests/fixtures/vendor/harness/wyckoff-accumulation-distribution-spy-1d-2026-10-02.json",
      "from": "INCONCLUSIVE",
-     "to": "DIVERGE"
+     "to": "MATCH"
     }
    ],
    "runtimeDeclines": {
-    "pine:input-kind": 18,
-    "pine:builtin": 15,
     "pine:function": 14,
+    "pine:builtin": 13,
     "lower-tf:store-unmeasured": 5,
     "runtime:library": 5,
+    "runtime:conditional-history": 3,
     "runtime:request": 3,
     "lower-tf:unwitnessed": 2,
     "pine:arity": 2,
     "pine:collection": 2,
     "pine:colour-value": 2,
-    "pine:drawing": 2,
     "runtime:loop": 2,
-    "runtime:statement": 2,
+    "pine:drawing": 1,
     "runtime:call-undeclared-builtin-state": 1,
     "runtime:colour": 1,
-    "runtime:object-op": 1
+    "runtime:history-expression": 1
    },
    "laneEvidence": {
     "requested": "runtime-on",
     "objectsOnlyPane": true,
     "gateOpen": true,
-    "declined": 77,
+    "declined": 57,
     "gated": 0,
-    "runtimeDrawn": 35,
+    "runtimeDrawn": 55,
     "hostRefused": 112,
     "reachedRuntime": 112
    }
   }
  },
- "engineTableThroughPineDoor": [
-  {
-   "name": "abs",
-   "call": "abs(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "accum",
-   "call": "accum(close, close, 250)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "acos",
-   "call": "acos(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "adx",
-   "call": "adx(high, low, close, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "alma",
-   "call": "alma(close, 14, close, close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "aroonDown",
-   "call": "aroonDown(14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "aroonUp",
-   "call": "aroonUp(14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "atan",
-   "call": "atan(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "atr",
-   "call": "atr(high, low, close, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:arity"
-  },
-  {
-   "name": "atrPine",
-   "call": "atrPine(high, low, close, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "avwap",
-   "call": "avwap(14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "barsAgo",
-   "call": "barsAgo(close, close, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "barssince",
-   "call": "barssince(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "bbw",
-   "call": "bbw(close, 14, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "bop",
-   "call": "bop(14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "cci",
-   "call": "cci(high, low, close, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:arity"
-  },
-  {
-   "name": "ceil",
-   "call": "ceil(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "change",
-   "call": "change(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "cos",
-   "call": "cos(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "crossOver",
-   "call": "crossOver(close, open)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "crossUnder",
-   "call": "crossUnder(close, open)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "cumFrom",
-   "call": "cumFrom(close, 14, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "dev",
-   "call": "dev(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "donchianLower",
-   "call": "donchianLower(high, low, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "donchianMiddle",
-   "call": "donchianMiddle(high, low, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "donchianUpper",
-   "call": "donchianUpper(high, low, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "ema",
-   "call": "ema(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "exp",
-   "call": "exp(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "falling",
-   "call": "falling(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "floor",
-   "call": "floor(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "highest",
-   "call": "highest(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "highestbars",
-   "call": "highestbars(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "hma",
-   "call": "hma(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "ichimokuChikou",
-   "call": "ichimokuChikou(high, low, close, 9, 26, 52)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "ichimokuKijun",
-   "call": "ichimokuKijun(high, low, 9, 26, 52)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "ichimokuSpanA",
-   "call": "ichimokuSpanA(high, low, 9, 26, 52)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "ichimokuSpanB",
-   "call": "ichimokuSpanB(high, low, 9, 26, 52)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "ichimokuTenkan",
-   "call": "ichimokuTenkan(high, low, 9, 26, 52)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "idiv",
-   "call": "idiv(close, open)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "ln",
-   "call": "ln(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "log10",
-   "call": "log10(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "lowest",
-   "call": "lowest(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "lowestbars",
-   "call": "lowestbars(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "macd",
-   "call": "macd(close, 12, 26)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "max",
-   "call": "max(close, open)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "median",
-   "call": "median(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "mfi",
-   "call": "mfi(high, low, close, volume, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:arity"
-  },
-  {
-   "name": "mfiPine",
-   "call": "mfiPine(high, low, close, volume, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "min",
-   "call": "min(close, open)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "minusDI",
-   "call": "minusDI(high, low, close, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "mod",
-   "call": "mod(close, open)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "na",
-   "call": "na(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "nz",
-   "call": "nz(close, open)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "obvN",
-   "call": "obvN(14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "percentileLinearInterpolation",
-   "call": "percentileLinearInterpolation(close, 14, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "percentileNearestRank",
-   "call": "percentileNearestRank(close, 14, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "percentrank",
-   "call": "percentrank(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "pivothigh",
-   "call": "pivothigh(close, 5, 5)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "pivotlow",
-   "call": "pivotlow(close, 5, 5)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "plusDI",
-   "call": "plusDI(high, low, close, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "pow",
-   "call": "pow(close, open)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "pvtN",
-   "call": "pvtN(14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "rising",
-   "call": "rising(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "rci",
-   "call": "rci(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "rma",
-   "call": "rma(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "round",
-   "call": "round(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "rsi",
-   "call": "rsi(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "sign",
-   "call": "sign(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "sin",
-   "call": "sin(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "sinh",
-   "call": "sinh(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "sma",
-   "call": "sma(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "sqrt",
-   "call": "sqrt(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "stdev",
-   "call": "stdev(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "stoch",
-   "call": "stoch(high, low, close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "sum",
-   "call": "sum(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "tan",
-   "call": "tan(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "valuewhen",
-   "call": "valuewhen(close, close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "valuewhenOccurrence",
-   "call": "valuewhenOccurrence(close, close, 1)",
-   "native": "reachable",
-   "pine": "ruled",
-   "guard": "pine:function"
-  },
-  {
-   "name": "vwap",
-   "call": "vwap()",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "vwapOf",
-   "call": "vwapOf(close)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "williamsR",
-   "call": "williamsR(high, low, close, 14)",
-   "native": "reachable",
-   "pine": "call-unmapped",
-   "guard": "pine:role-order"
-  },
-  {
-   "name": "wma",
-   "call": "wma(close, 14)",
-   "native": "reachable",
-   "pine": "reachable",
-   "guard": null
-  },
-  {
-   "name": "cum",
-   "call": "cum(close)",
-   "native": "reachable",
-   "pine": "ruled",
-   "guard": "pine:function"
-  }
- ],
+ "engineTableThroughPineDoor": [],
  "scripts": [
   {
    "key": "builtin:24-hour-volume__24hVolume",
@@ -21371,8 +20680,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": true,
-   "runtimeClean": true,
+   "runtimeAttached": false,
+   "runtimeClean": false,
    "peelSteps": 1,
    "reachedAfterPeel": false,
    "stuck": "pine:constant-only",
@@ -22684,8 +21993,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 2,
    "reachedAfterPeel": true,
    "stuck": null,
@@ -23133,8 +22442,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 2,
    "reachedAfterPeel": false,
    "stuck": "no-progress",
@@ -24983,8 +24292,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 0,
    "reachedAfterPeel": false,
    "stuck": "pine:objects-only",
@@ -25665,8 +24974,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 3,
    "reachedAfterPeel": false,
    "stuck": "pine:constant-only",
@@ -26199,8 +25508,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 7,
    "reachedAfterPeel": false,
    "stuck": null,
@@ -26225,8 +25534,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 7,
    "reachedAfterPeel": false,
    "stuck": null,
@@ -27257,8 +26566,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 2,
    "reachedAfterPeel": true,
    "stuck": null,
@@ -29913,8 +29222,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 5,
    "reachedAfterPeel": true,
    "stuck": null,
@@ -30365,8 +29674,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 0,
    "reachedAfterPeel": false,
    "stuck": "pine:no-output",
@@ -30688,8 +29997,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 1,
    "reachedAfterPeel": true,
    "stuck": null,
@@ -33106,8 +32415,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 4,
    "reachedAfterPeel": true,
    "stuck": null,
@@ -33361,8 +32670,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 6,
    "reachedAfterPeel": true,
    "stuck": null,
@@ -33806,8 +33115,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
-   "runtimeClean": false,
+   "runtimeAttached": true,
+   "runtimeClean": true,
    "peelSteps": 1,
    "reachedAfterPeel": true,
    "stuck": null,
@@ -35686,7 +34995,7 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": false,
+   "runtimeAttached": true,
    "runtimeClean": false,
    "peelSteps": 6,
    "reachedAfterPeel": false,
@@ -36682,8 +35991,8 @@
    "attached": false,
    "clean": false,
    "doorClean": false,
-   "runtimeAttached": true,
-   "runtimeClean": true,
+   "runtimeAttached": false,
+   "runtimeClean": false,
    "peelSteps": 3,
    "reachedAfterPeel": true,
    "stuck": null,
