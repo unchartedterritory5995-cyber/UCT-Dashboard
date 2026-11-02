@@ -241,6 +241,17 @@ def test_a_trashed_target_is_never_replaced_by_a_same_named_note(db):
     assert out == doc and actions == ["relative_target_trashed"]
 
 
+def test_a_trashed_same_name_note_counts_toward_ambiguity(db):
+    """Fix round 2, N-5 (re-review R6): the name was not unique when the link was written if a
+    trashed note carries it too, so the one live match is not taken by name."""
+    _import("Obsidian", "obsidian:V/Notes/Here.md")
+    _import("Obsidian", "obsidian:V/Notes/Sub/Plan.md")
+    _trash(_import("Obsidian", "obsidian:V/Old/Plan.md"))
+    doc = _doc(_para(_t("p", _link("Plan.md"))))
+    out, actions = _repair(doc, import_key="obsidian:V/Notes/Here.md", import_source="Obsidian")
+    assert out == doc and actions == ["relative_ambiguous"]
+
+
 def test_a_relative_link_to_a_non_note_file_is_not_a_note(db):
     """The live provider resolves a relative link only when it is a `.md` path:
     `report.pdf` must never open the note `report.md`."""

@@ -97,6 +97,10 @@ class FileKeyIndex:
     obsidian_folded: dict[str, list[str]] = field(default_factory=dict)
     #: Folded FULL key paths of the member's TRASHED Obsidian file notes (I-1).
     obsidian_trashed: frozenset[str] = frozenset()
+    #: vault -> (`_VaultIndex` over NFC inner paths, NFC inner -> stored inner paths) of the
+    #: TRASHED notes (fix round 2, N-5): a trashed same-name note counts toward the name rule's
+    #: ambiguity.
+    obsidian_trashed_names: dict[str, Any] = field(default_factory=dict)
     #: NFC key -> every live key AS STORED with that NFC form (M-1, N-3).
     by_nfc: dict[str, list[str]] = field(default_factory=dict)
 
@@ -142,6 +146,7 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
     paths: set[str] = set()
     folded: dict[str, list[str]] = {}
     trashed: set[str] = set()
+    trashed_raw: dict[str, dict[str, list[str]]] = {}
     for row in conn.execute(
         "SELECT import_key, import_source, deleted_at IS NOT NULL FROM j2_notes"
         " WHERE user_id = ? AND import_key IS NOT NULL ORDER BY import_key",
@@ -160,6 +165,7 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
                 continue
             if is_trashed:
                 trashed.add(_fold(full))
+                trashed_raw.setdefault(vault, {}).setdefault(_nfc(inner), []).append(inner)
             else:
                 paths.add(full)
                 folded.setdefault(_fold(full), []).append(full)
@@ -171,6 +177,8 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
         obsidian_paths=frozenset(paths),
         obsidian_folded=folded,
         obsidian_trashed=frozenset(trashed),
+        obsidian_trashed_names={v: (obsidian_provider._build_basename_map(sorted(r)), r)
+                                for v, r in trashed_raw.items()},
         by_nfc=by_nfc,
     )
 
@@ -252,7 +260,10 @@ def _obsidian_target(path: str, full: str, index: FileKeyIndex) -> tuple[str | N
             return None, TRASHED
     raw = index.obsidian_raw.get(vault, {})
     candidates = [r for c in _name_candidates(_nfc(path), vault_index) for r in raw.get(c, [c])]
-    if len(candidates) > 1:
+    trashed_index, trashed_raw = index.obsidian_trashed_names.get(vault, (None, {}))
+    trashed_named = ([r for c in _name_candidates(_nfc(path), trashed_index) for r in trashed_raw.get(c, [c])]
+                     if trashed_index is not None else [])
+    if len(candidates) + len(trashed_named) > 1:  # a trashed twin counts too (N-5)
         return None, AMBIGUOUS
     scope = inner.split("/", 1)[0] + "/" if "/" in inner else ""
     if len(candidates) == 1 and candidates[0].startswith(scope):
