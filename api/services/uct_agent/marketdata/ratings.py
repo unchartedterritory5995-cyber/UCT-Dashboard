@@ -77,7 +77,8 @@ def read_ratings(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no per-us
     notes = [NOTE_UCT_DERIVED, NOTE_UNDATED_LEGS]
     price_as_of = r.get("price_as_of")
     price_as_of = price_as_of[:10] if isinstance(price_as_of, str) and _DATE_RE.match(price_as_of[:10]) else None
-    latest = bars_fetch._last_closed_session_yyyymmdd()
+    from api.services.uct_agent.marketdata.sessions import last_completed_session
+    latest = last_completed_session()          # half days count from their own close (agent-qa F-23)
     if price_as_of:
         ymd = int(price_as_of.replace("-", ""))
         as_of = _session_close_utc(ymd)

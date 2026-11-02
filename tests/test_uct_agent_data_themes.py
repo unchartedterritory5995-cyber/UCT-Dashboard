@@ -47,8 +47,11 @@ def _env(monkeypatch):
     monkeypatch.setattr(svc, "get_theme_performance", boom)
     monkeypatch.setattr(svc, "trigger_recompute", boom)
     monkeypatch.setattr(route, "serve_theme_performance", boom)
-    monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd",
-                        lambda now=None: LATEST if now is None or int(now.strftime("%Y%m%d")) >= LATEST else 20261029)
+    _closed = lambda now=None: LATEST if now is None or int(now.strftime("%Y%m%d")) >= LATEST else 20261029  # noqa: E731
+    monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", _closed)
+    # the adapters ask sessions.last_completed_session (F-23); pin it to the same fixture calendar, never the wall clock
+    from api.services.uct_agent.marketdata import sessions
+    monkeypatch.setattr(sessions, "last_completed_session", _closed)
     cache.invalidate(svc._OVERLAID_KEY)
     route._THEME_STALE.forget(route._THEME_KEY)
     yield

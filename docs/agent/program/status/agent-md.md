@@ -123,6 +123,10 @@ Only agent-md edits this file. Update it in every PR.
   tests expect the gateway's `isolated` marker and assert it is true on the envelope, its data and every nested dict.
   Mutation-checked 2 ways against the stamp (not recursive; data not stamped: each red).
 
+- **F-23 fix** (branch `agent/md/f23-half-day`): `marketdata/sessions.last_completed_session` counts a half day as
+  completed from its own close. Used by `bars.daily`, `ratings` and `themes`; bars_fetch is unchanged. The adapter
+  tests pin the helper, never the wall clock. Mutation-checked (a 16:00 rule turns the tests red).
+
 ## Blockers
 - (none) — the Sprint-0 gateway test was updated by agent-lead in #571.
 
