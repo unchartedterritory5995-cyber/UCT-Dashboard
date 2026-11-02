@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "contract": "MD-1.4",
+  "version": "1.1",
+  "contract": "MD-1.5",
   "now": "2026-11-02T16:55:00Z",
   "live_words": [
     "live",
@@ -378,6 +378,646 @@
       },
       "expect_refusal": false,
       "flags": {}
+    },
+    {
+      "id": "qs-regular",
+      "category": "session-regular",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What's AMZN trading at right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {
+          "symbol": "AMZN"
+        },
+        "status": "ok",
+        "freshness": "live",
+        "as_of": "2026-11-02T16:54:58Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "quote": {
+            "symbol": "AMZN",
+            "last": 228.4,
+            "last_source": "trade",
+            "change": 1.25,
+            "change_pct": 0.55,
+            "open": 227.4,
+            "high": 229.4,
+            "low": 226.4,
+            "day_close": 228.4,
+            "volume": 1200000,
+            "prev_close": 227.15,
+            "as_of": "2026-11-02T16:54:58Z"
+          },
+          "session": "regular",
+          "session_detail": "regular"
+        },
+        "notes": [],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "live",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "11:54"
+        ],
+        "may_claim_live": true,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {},
+      "clock": {
+        "et": "2026-11-02 11:55",
+        "trading_day": true
+      }
+    },
+    {
+      "id": "qs-premarket",
+      "category": "session-premarket",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What's NVDA trading at premarket?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {
+          "symbol": "NVDA"
+        },
+        "status": "ok",
+        "freshness": "live",
+        "as_of": "2026-11-02T12:44:30Z",
+        "fetched_at": "2026-11-02T12:45:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "quote": {
+            "symbol": "NVDA",
+            "last": 142.1,
+            "last_source": "trade",
+            "change": 1.25,
+            "change_pct": 0.89,
+            "open": 141.1,
+            "high": 143.1,
+            "low": 140.1,
+            "day_close": 142.1,
+            "volume": 1200000,
+            "prev_close": 140.85,
+            "as_of": "2026-11-02T12:44:30Z"
+          },
+          "session": "extended",
+          "session_detail": "premarket"
+        },
+        "notes": [
+          "extended-hours (pre-/post-market) prices — thin trading; the regular-session close is in day_close/prev_close"
+        ],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "live",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "7:44"
+        ],
+        "may_claim_live": true,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "extended-hours"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {},
+      "clock": {
+        "et": "2026-11-02 07:45",
+        "trading_day": true
+      }
+    },
+    {
+      "id": "qs-premarket-quiet",
+      "category": "session-premarket-quiet",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "Where is CRWD premarket right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {
+          "symbol": "CRWD"
+        },
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-11-02T10:40:00Z",
+        "fetched_at": "2026-11-02T11:10:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "quote": {
+            "symbol": "CRWD",
+            "last": 377.0,
+            "last_source": "trade",
+            "change": 1.25,
+            "change_pct": 0.33,
+            "open": 376.0,
+            "high": 378.0,
+            "low": 375.0,
+            "day_close": 377.0,
+            "volume": 1200000,
+            "prev_close": 375.75,
+            "as_of": "2026-11-02T10:40:00Z"
+          },
+          "session": "extended",
+          "session_detail": "premarket"
+        },
+        "notes": [
+          "the regular session is not open — these are the last prints from the most recent session, not live prices"
+        ],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "5:40"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not live"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {},
+      "clock": {
+        "et": "2026-11-02 06:10",
+        "trading_day": true
+      }
+    },
+    {
+      "id": "qs-after-hours",
+      "category": "session-after-hours",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What is META at after hours now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {
+          "symbol": "META"
+        },
+        "status": "ok",
+        "freshness": "live",
+        "as_of": "2026-11-02T21:29:00Z",
+        "fetched_at": "2026-11-02T21:30:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "quote": {
+            "symbol": "META",
+            "last": 611.2,
+            "last_source": "trade",
+            "change": 1.25,
+            "change_pct": 0.2,
+            "open": 610.2,
+            "high": 612.2,
+            "low": 609.2,
+            "day_close": 611.2,
+            "volume": 1200000,
+            "prev_close": 609.95,
+            "as_of": "2026-11-02T21:29:00Z"
+          },
+          "session": "extended",
+          "session_detail": "after-hours"
+        },
+        "notes": [
+          "extended-hours (pre-/post-market) prices — thin trading; the regular-session close is in day_close/prev_close"
+        ],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "live",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "4:29"
+        ],
+        "may_claim_live": true,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "extended-hours"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {},
+      "clock": {
+        "et": "2026-11-02 16:30",
+        "trading_day": true
+      }
+    },
+    {
+      "id": "qs-overnight",
+      "category": "session-overnight",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What's TSLA trading at right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {
+          "symbol": "TSLA"
+        },
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-11-03T00:59:40Z",
+        "fetched_at": "2026-11-03T03:30:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "quote": {
+            "symbol": "TSLA",
+            "last": 251.0,
+            "last_source": "trade",
+            "change": 1.25,
+            "change_pct": 0.5,
+            "open": 250.0,
+            "high": 252.0,
+            "low": 249.0,
+            "day_close": 251.0,
+            "volume": 1200000,
+            "prev_close": 249.75,
+            "as_of": "2026-11-03T00:59:40Z"
+          },
+          "session": "closed",
+          "session_detail": "overnight"
+        },
+        "notes": [
+          "the regular session is not open — these are the last prints from the most recent session, not live prices"
+        ],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "7:59"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not live"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {},
+      "clock": {
+        "et": "2026-11-02 22:30",
+        "trading_day": true
+      }
+    },
+    {
+      "id": "qs-weekend",
+      "category": "session-weekend",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What is AAPL at right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {
+          "symbol": "AAPL"
+        },
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-10-30T23:58:10Z",
+        "fetched_at": "2026-10-31T16:00:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "quote": {
+            "symbol": "AAPL",
+            "last": 187.1,
+            "last_source": "trade",
+            "change": 1.25,
+            "change_pct": 0.67,
+            "open": 186.1,
+            "high": 188.1,
+            "low": 185.1,
+            "day_close": 187.1,
+            "volume": 1200000,
+            "prev_close": 185.85,
+            "as_of": "2026-10-30T23:58:10Z"
+          },
+          "session": "closed",
+          "session_detail": "closed"
+        },
+        "notes": [
+          "the regular session is not open — these are the last prints from the most recent session, not live prices"
+        ],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-10-30",
+          "Oct 30",
+          "October 30",
+          "7:58"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not live"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {},
+      "clock": {
+        "et": "2026-10-31 12:00",
+        "trading_day": false
+      }
+    },
+    {
+      "id": "qs-holiday",
+      "category": "session-holiday",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What's MSFT trading at today?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {
+          "symbol": "MSFT"
+        },
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-11-26T00:59:00Z",
+        "fetched_at": "2026-11-26T16:00:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "quote": {
+            "symbol": "MSFT",
+            "last": 512.3,
+            "last_source": "trade",
+            "change": 1.25,
+            "change_pct": 0.24,
+            "open": 511.29999999999995,
+            "high": 513.3,
+            "low": 510.29999999999995,
+            "day_close": 512.3,
+            "volume": 1200000,
+            "prev_close": 511.05,
+            "as_of": "2026-11-26T00:59:00Z"
+          },
+          "session": "closed",
+          "session_detail": "closed"
+        },
+        "notes": [
+          "the regular session is not open — these are the last prints from the most recent session, not live prices"
+        ],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-11-25",
+          "Nov 25",
+          "November 25",
+          "7:59"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not live"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {},
+      "clock": {
+        "et": "2026-11-26 11:00",
+        "trading_day": false
+      }
+    },
+    {
+      "id": "qs-early-close-regular",
+      "category": "session-early-close-regular",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What's GOOGL at right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {
+          "symbol": "GOOGL"
+        },
+        "status": "ok",
+        "freshness": "live",
+        "as_of": "2026-11-27T17:49:59Z",
+        "fetched_at": "2026-11-27T17:50:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "quote": {
+            "symbol": "GOOGL",
+            "last": 198.7,
+            "last_source": "trade",
+            "change": 1.25,
+            "change_pct": 0.63,
+            "open": 197.7,
+            "high": 199.7,
+            "low": 196.7,
+            "day_close": 198.7,
+            "volume": 1200000,
+            "prev_close": 197.45,
+            "as_of": "2026-11-27T17:49:59Z"
+          },
+          "session": "regular",
+          "session_detail": "regular"
+        },
+        "notes": [],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "live",
+        "as_of_renderings": [
+          "2026-11-27",
+          "Nov 27",
+          "November 27",
+          "12:49"
+        ],
+        "may_claim_live": true,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {},
+      "clock": {
+        "et": "2026-11-27 12:50",
+        "trading_day": true
+      }
+    },
+    {
+      "id": "qs-early-close-after",
+      "category": "session-early-close-after",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "Where is AMD trading now? (half day)",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {
+          "symbol": "AMD"
+        },
+        "status": "ok",
+        "freshness": "live",
+        "as_of": "2026-11-27T18:29:15Z",
+        "fetched_at": "2026-11-27T18:30:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "quote": {
+            "symbol": "AMD",
+            "last": 160.5,
+            "last_source": "trade",
+            "change": 1.25,
+            "change_pct": 0.78,
+            "open": 159.5,
+            "high": 161.5,
+            "low": 158.5,
+            "day_close": 160.5,
+            "volume": 1200000,
+            "prev_close": 159.25,
+            "as_of": "2026-11-27T18:29:15Z"
+          },
+          "session": "extended",
+          "session_detail": "after-hours"
+        },
+        "notes": [
+          "extended-hours (pre-/post-market) prices — thin trading; the regular-session close is in day_close/prev_close"
+        ],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "live",
+        "as_of_renderings": [
+          "2026-11-27",
+          "Nov 27",
+          "November 27",
+          "1:29"
+        ],
+        "may_claim_live": true,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "extended-hours"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {},
+      "clock": {
+        "et": "2026-11-27 13:30",
+        "trading_day": true
+      }
     },
     {
       "id": "b-today",

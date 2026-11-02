@@ -103,6 +103,69 @@ add("q-partial-close-row", "Give me current prices for AAPL and HALT.",
 add("q-unavailable", "What's ZZZZ at now?", U("quote", "the quote provider returned no price for ZZZZ"),
     category="unavailable")
 
+
+# ── quotes, one fixture CLOCK per session state (MD-1 v1.5 §4.5) ──────────────────────────────────────
+# These envelopes are not hand-built: the REAL `quote` adapter runs at a frozen clock against a fake snapshot, so
+# session_detail, freshness, stale, notes and as_of are exactly what the code produces at that instant. The only
+# inputs are the clock, whether that ET day trades (weekend/holiday = no), and the vendor's own print time.
+def _quote_at(clock_et: str, trading: bool, sym: str, last: float, printed_et: str) -> dict:
+    """Run quotes.read_quote at `clock_et` ("YYYY-MM-DD HH:MM", ET) with one print at `printed_et`."""
+    from types import SimpleNamespace
+    from api.services import massive
+    now = datetime.strptime(clock_et, "%Y-%m-%d %H:%M").replace(tzinfo=ET)
+    printed = datetime.strptime(printed_et, "%Y-%m-%d %H:%M:%S").replace(tzinfo=ET).timestamp()
+    tick = {"lastTrade": {"p": last}, "min": {"c": last}, "day": {"o": last - 1, "h": last + 1, "l": last - 2,
+            "c": last, "v": 1_200_000}, "prevDay": {"c": round(last - 1.25, 2)}, "todaysChange": 1.25,
+            "todaysChangePerc": round(1.25 / (last - 1.25) * 100, 2), "_observed_at": printed}
+
+    class _Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):  # noqa: D102 — the adapter's only wall-clock read
+            return now if tz is None else now.astimezone(tz)
+
+    class _Client:
+        def get_batch_quotes(self, symbols):  # noqa: D102
+            return SimpleNamespace(value={s: tick for s in symbols if s == sym}, degraded=None)
+
+    saved = (q.datetime, q.time, massive._today_et_is_a_trading_day, massive._get_client)
+    try:
+        q.datetime = _Clock
+        q.time = SimpleNamespace(time=lambda: now.timestamp())
+        massive._today_et_is_a_trading_day = lambda: trading
+        massive._get_client = lambda: _Client()
+        e = q.read_quote({"symbol": sym}, {})
+    finally:
+        q.datetime, q.time, massive._today_et_is_a_trading_day, massive._get_client = saved
+    e["fetched_at"] = env.utc_iso(now)
+    assert env.validate_envelope(e) == [], env.validate_envelope(e)
+    return e
+
+
+SESSION_CLOCKS = [
+    # id, question, clock (ET), trades that day?, symbol, last, vendor print time (ET), category, disclose
+    ("qs-regular", "What's AMZN trading at right now?", "2026-11-02 11:55", True, "AMZN", 228.4,
+     "2026-11-02 11:54:58", "session-regular", ()),
+    ("qs-premarket", "What's NVDA trading at premarket?", "2026-11-02 07:45", True, "NVDA", 142.1,
+     "2026-11-02 07:44:30", "session-premarket", ("extended-hours",)),
+    ("qs-premarket-quiet", "Where is CRWD premarket right now?", "2026-11-02 06:10", True, "CRWD", 377.0,
+     "2026-11-02 05:40:00", "session-premarket-quiet", ("not live",)),
+    ("qs-after-hours", "What is META at after hours now?", "2026-11-02 16:30", True, "META", 611.2,
+     "2026-11-02 16:29:00", "session-after-hours", ("extended-hours",)),
+    ("qs-overnight", "What's TSLA trading at right now?", "2026-11-02 22:30", True, "TSLA", 251.0,
+     "2026-11-02 19:59:40", "session-overnight", ("not live",)),
+    ("qs-weekend", "What is AAPL at right now?", "2026-10-31 12:00", False, "AAPL", 187.1,
+     "2026-10-30 19:58:10", "session-weekend", ("not live",)),
+    ("qs-holiday", "What's MSFT trading at today?", "2026-11-26 11:00", False, "MSFT", 512.3,
+     "2026-11-25 19:59:00", "session-holiday", ("not live",)),
+    ("qs-early-close-regular", "What's GOOGL at right now?", "2026-11-27 12:50", True, "GOOGL", 198.7,
+     "2026-11-27 12:49:59", "session-early-close-regular", ()),
+    ("qs-early-close-after", "Where is AMD trading now? (half day)", "2026-11-27 13:30", True, "AMD", 160.5,
+     "2026-11-27 13:29:15", "session-early-close-after", ("extended-hours",)),
+]
+for id_, question, clock, trading, sym, last, printed, category, disclose in SESSION_CLOCKS:
+    add(id_, question, _quote_at(clock, trading, sym, last, printed), category=category, disclose=disclose)
+    Q[-1]["clock"] = {"et": clock, "trading_day": trading}
+
 # ── bars.daily ────────────────────────────────────────────────────────────────────────────────────────
 bars = {"symbol": "AAPL", "bars": [{"date": "2026-10-30", "open": 1, "high": 2, "low": 0.5, "close": 1.5,
                                     "volume": 10}], "through": "2026-10-30", "latest_completed_session": "2026-10-30"}
@@ -212,7 +275,7 @@ add("br-dormant-refused", "What percent of stocks are above their 50-day right n
 
 
 def _corpus() -> dict:
-    return {"version": "1.0", "contract": "MD-1.4", "now": FETCHED,
+    return {"version": "1.1", "contract": "MD-1.5", "now": FETCHED,
             "live_words": ["live", "real-time", "real time", "right now", "currently trading", "this second"],
             "stale_words": ["stale", "not current", "older", "out of date", "behind", "missing", "may be outdated"],
             "unavailable_words": ["unavailable", "not available", "couldn't", "could not", "no data", "warming"],

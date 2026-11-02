@@ -46,7 +46,12 @@ def test_shape_and_size():
 def test_every_fixture_is_a_valid_envelope_of_a_registered_kind(q):
     e = q["envelope"]
     assert env.validate_envelope(e) == []
-    assert e["kind"] == q["kind"] and e["fetched_at"] == DATA["now"]
+    assert e["kind"] == q["kind"]
+    if "clock" in q:                         # a session-clock question: fetched_at IS its frozen clock
+        clock = datetime.strptime(q["clock"]["et"], "%Y-%m-%d %H:%M").replace(tzinfo=ET)
+        assert e["fetched_at"] == env.utc_iso(clock)
+    else:
+        assert e["fetched_at"] == DATA["now"]
     k = gw.registry().get(q["kind"])
     assert k is not None, q["kind"]
     if e["status"] in ("ok", "partial"):
@@ -109,6 +114,10 @@ def test_coverage_of_classes_and_failure_shapes():
     assert {"live", "live-stale", "closed", "extended", "partial", "unavailable", "historical",
             "historical-stale", "periodic", "periodic-stale", "as_of-null", "scheduled-event",
             "empty-not-stale", "isolation", "isolation-dormant"} <= shapes
+    # MD-1 v1.5: one fixture clock per session state, early close included
+    assert {"session-regular", "session-premarket", "session-premarket-quiet", "session-after-hours",
+            "session-overnight", "session-weekend", "session-holiday", "session-early-close-regular",
+            "session-early-close-after"} <= shapes
     # every registered agent-md kind is exercised at least once
     mine = {d["kind"] for d in gw.describe() if d["owner"] == "agent-md"}
     assert mine <= {q["kind"] for q in QS}, mine - {q["kind"] for q in QS}
@@ -128,3 +137,41 @@ def test_the_corpus_file_is_exactly_what_the_builder_produces():
     regenerate the corpus (`python -m api.services.uct_agent.marketdata.eval.build_freshness`)."""
     from api.services.uct_agent.marketdata.eval import build_freshness
     assert CORPUS.read_text(encoding="utf-8") == build_freshness.build()
+
+
+# ── MD-1 v1.5: the session-clock questions, re-derived from their clock (not read back from the corpus) ────────────
+SESSION_QS = [q for q in QS if "clock" in q]
+_WANT_DETAIL = {"session-regular": "regular", "session-premarket": "premarket", "session-premarket-quiet": "premarket",
+                "session-after-hours": "after-hours", "session-overnight": "overnight", "session-weekend": "closed",
+                "session-holiday": "closed", "session-early-close-regular": "regular",
+                "session-early-close-after": "after-hours"}
+
+
+@pytest.mark.parametrize("q", SESSION_QS, ids=_ids)
+def test_each_session_clock_reads_as_the_contract_says(q, monkeypatch):
+    from api.services.uct_agent.marketdata import quotes as qm
+    from api.services import massive
+    clock = datetime.strptime(q["clock"]["et"], "%Y-%m-%d %H:%M").replace(tzinfo=ET)
+    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: q["clock"]["trading_day"])
+    detail = qm._session_detail(clock)
+    e, x = q["envelope"], q["expect"]
+    assert detail == _WANT_DETAIL[q["category"]] == e["data"]["session_detail"]
+    assert e["data"]["session"] == qm._session(clock)
+    if detail in ("overnight", "closed"):
+        # never live outside the session: historical, the closed note, no live wording allowed
+        assert e["freshness"] == "historical" and qm.NOTE_CLOSED in e["notes"] and x["may_claim_live"] is False
+    elif detail == "regular":
+        assert e["freshness"] == "live" and x["may_claim_live"] is True and not e["notes"]
+    else:
+        fresh = (clock.timestamp() - datetime.fromisoformat(e["as_of"].replace("Z", "+00:00")).timestamp()) <= qm.EXTENDED_LIVE_S
+        assert e["freshness"] == ("live" if fresh else "historical")
+        assert (qm.NOTE_EXTENDED if fresh else qm.NOTE_CLOSED) in e["notes"]
+
+
+def test_the_session_clocks_cover_the_early_close_on_both_sides():
+    from api.services import bars_fetch
+    ec = [q for q in SESSION_QS if q["category"].startswith("session-early-close")]
+    assert {q["clock"]["et"][:10] for q in ec} == {"2026-11-27"}
+    assert bars_fetch._session_close_minutes(20261127) == 13 * 60          # the half day closes at 13:00 ET
+    mins = sorted(int(q["clock"]["et"][11:13]) * 60 + int(q["clock"]["et"][14:]) for q in ec)
+    assert mins[0] < 13 * 60 <= mins[1]
