@@ -409,6 +409,70 @@
   color: var(--text-heading);
 }
 
+/* ── Plan B Task 11: re-import to recover, Stop, and the arrival report ── */
+.recoverWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.recoverRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-bright);
+  cursor: pointer;
+}
+.recoverHelp {
+  margin: 0 0 0 24px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.stopBtn { margin-top: 6px; }
+.stoppedLine {
+  margin: 0;
+  max-width: 420px;
+  font-size: 12.5px;
+  color: var(--warn);
+  text-align: left;
+}
+.reportSection {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.reportTitle {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+.reportHelp {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.reportList {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 12.5px;
+  color: var(--text-bright);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.reportRow { overflow-wrap: anywhere; }
+.reportNote { font-weight: 600; }
+.reportLink { color: var(--accent, var(--text-bright)); text-decoration: underline; }
+
 @media (max-width: 640px) {
   .dropButtons { flex-direction: column; width: 100%; }
   .dropButtons .secondaryBtn { width: 100%; justify-content: center; }
@@ -446,6 +510,23 @@
      the "leave out" rows get the 44 px the note rows above already have. */
   .destSelect,
   .excludeRow {
+    min-height: 44px;
+  }
+  /* Plan B Task 11: the recover box's hit area is its label row; Stop and the report's
+     "open the original" links get the same 44 px floor. */
+  .recoverRow {
+    min-height: 44px;
+  }
+  .recoverRow input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+  }
+  .stopBtn {
+    min-height: 44px;
+  }
+  .reportLink {
+    display: inline-flex;
+    align-items: center;
     min-height: 44px;
   }
 }

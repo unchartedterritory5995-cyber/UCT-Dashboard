@@ -11,7 +11,7 @@
  *    >5,000-note library's tail came back "not existing" and duplicated on
  *    re-import instead of updating).
  *  - rewriteBody(bodyJson, {mediaUrls, mediaResults, idByKey}) -> {body, droppedMedia, notices, keptLinks}, PURE
- *  - runImport({source, destFolderId, docs, onProgress}) -> summary
+ *  - runImport({source, destFolderId, docs, onProgress, mode, isCancelled}) -> summary
  */
 
 const REF_PREFIX = 'import-ref://'
@@ -41,7 +41,12 @@ export async function checkExisting(docs) {
     body: JSON.stringify({ importKeys }),
   })
   if (!res.ok) throw new Error(`Failed to check existing notes (HTTP ${res.status})`)
-  return res.json()
+  // TERM-033: an unreadable 200 is named, never a bare JSON parse error.
+  const read = await readSuccessBody(res)
+  if (!read.ok || !read.body || typeof read.body !== 'object') {
+    throw new Error('Failed to check existing notes (the reply could not be read). Try the import again.')
+  }
+  return read.body
 }
 
 // ---------------------------------------------------------------------------
@@ -258,6 +263,42 @@ const BUSY_MAX_DELAY_MS = 10_000
 
 const realSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+/**
+ * Plan B Task 11 (Task 5 carry): one call to a media door (upload or fetch) gets this long to
+ * answer, then it is aborted and named, so one stuck request can never hold an import forever.
+ * Per ATTEMPT, and a timed-out attempt is not retried. The clock runs until the response
+ * arrives (an upload's bytes are sent inside it); the small JSON reply read after is not timed.
+ * `retry.timeoutMs` exists for tests.
+ */
+export const DOOR_TIMEOUT_MS = 75_000
+
+export class DoorTimeoutError extends Error {
+  constructor(url, ms) {
+    super(`${url} did not answer within ${Math.round(ms / 1000)} s`)
+    this.name = 'DoorTimeoutError'
+  }
+}
+
+async function fetchOnce(url, opts, timeoutMs) {
+  if (!(timeoutMs > 0)) return fetch(url, opts)
+  const controller = new AbortController()
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeoutMs)
+  try {
+    return await fetch(url, { ...opts, signal: controller.signal })
+  } catch (err) {
+    if (timedOut) throw new DoorTimeoutError(url, timeoutMs)
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const doorTimeout = (retry) => retry.timeoutMs ?? DOOR_TIMEOUT_MS
+
 /** The server's `Retry-After` in ms (delta-seconds or an HTTP date), or null. */
 function retryAfterMs(res) {
   const raw = res.headers?.get?.('Retry-After')
@@ -278,7 +319,7 @@ function retryAfterMs(res) {
  *
  * `retry` exists for tests (`{sleep, random}`); the wizard passes none.
  */
-async function fetchWithRetry(url, opts, retry = {}, maxRetries = 2) {
+async function fetchWithRetry(url, opts, retry = {}, maxRetries = 2, timeoutMs = 0) {
   const sleep = retry.sleep || realSleep
   const random = retry.random || Math.random
   let failures = 0
@@ -286,9 +327,10 @@ async function fetchWithRetry(url, opts, retry = {}, maxRetries = 2) {
   for (;;) {
     let res
     try {
-      res = await fetch(url, opts)
+      res = await fetchOnce(url, opts, timeoutMs)
     } catch (err) {
-      if (failures >= maxRetries) throw err
+      // A call that ran out its time is final: retrying it would multiply the wait.
+      if (err instanceof DoorTimeoutError || failures >= maxRetries) throw err
       failures += 1
       continue
     }
@@ -360,6 +402,12 @@ export function declaredType(item) {
 
 const FETCH_DOOR = '/api/j2/notes/media/fetch'
 
+// Plan B Task 11: what a member reads in `failures` for a door call that went wrong in a way the
+// server's own words would not help with. Plain and final: nothing retries a file import.
+export const FETCH_REFUSED_SENTENCE = "This linked image couldn't be copied into your notebook."
+export const FETCH_TOO_SLOW_SENTENCE = 'Copying this linked image took too long, so it was stopped.'
+export const UPLOAD_TOO_SLOW_SENTENCE = 'This file took too long to upload, so it was stopped.'
+
 const originalOf = (o) => (o && typeof o === 'object' && typeof o.url === 'string' && o.url
   ? { src: o.url, name: typeof o.name === 'string' ? o.name : null }
   : null)
@@ -396,8 +444,9 @@ async function fetchRemote(importKey, item, name, retry) {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, noteImportKey: importKey }),
-    }, retry)
+    }, retry, 2, doorTimeout(retry))
   } catch (err) {
+    if (err instanceof DoorTimeoutError) return failed(FETCH_TOO_SLOW_SENTENCE)
     return failed(`Copying the linked image failed (${err?.message || String(err)})`)
   }
   if (res.status === 422) {
@@ -408,7 +457,10 @@ async function fetchRemote(importKey, item, name, retry) {
       ? read.body.reason.trim() : NOTICE_REASONS.fetchFailed
     return failed(null, reason)
   }
-  if (!res.ok) return failed((await failureDetail(res)) || `Copying the linked image failed (HTTP ${res.status})`)
+  // Any other refusal: a fixed member sentence for a 4xx (the door's detail is written for
+  // whoever reads the log, and a 404 or 403 here means the same thing to a member), the status
+  // for a 5xx. Never the bare server detail.
+  if (!res.ok) return failed(res.status < 500 ? FETCH_REFUSED_SENTENCE : `Copying the linked image failed (HTTP ${res.status})`)
   const read = await readSuccessBody(res)
   const data = read.ok ? read.body : null
   if (!data || typeof data.src !== 'string' || !data.src) return failed('Copying the linked image failed (the reply could not be read)')
@@ -431,8 +483,9 @@ async function uploadLocal(noteId, item, name, retry) {
     const bytes = await item.vfile.bytes()
     const fd = new FormData()
     fd.append('file', new Blob([bytes], { type: declaredType(item) }), item.name || item.vfile.path)
-    res = await fetchWithRetry(endpoint, { method: 'POST', credentials: 'include', body: fd }, retry)
+    res = await fetchWithRetry(endpoint, { method: 'POST', credentials: 'include', body: fd }, retry, 2, doorTimeout(retry))
   } catch (err) {
+    if (err instanceof DoorTimeoutError) return failed(NOTICE_REASONS.uploadFailed, UPLOAD_TOO_SLOW_SENTENCE)
     return failed(NOTICE_REASONS.uploadFailed, err?.message || String(err))
   }
   if (!res.ok) {
@@ -514,10 +567,20 @@ export function dedupeKeptLinks(keptLinks) {
  * import that wrote a note, and what it could not connect is listed in `unconnectedLinks`.
  * `retry` exists for tests (`{sleep, random}` for the 429 backoff); the wizard passes none.
  *
- * @param {{source: string, destFolderId: string|null, docs: object[], limits?: {maxNotes?: number, maxBytes?: number}, retry?: {sleep?: Function, random?: Function}, onProgress?: (p: {phase: string, done: number, total: number}) => void}} args
- * @returns {Promise<{created: number, updated: number, skipped: number, failures: Array<{name: string, reason: string}>, failedBatches: Array<{index: number, notes: number, reason: string, message: string}>, notices: Array<{note: string, importKey: string, reason: string, name: string|null, sourceUrl: string|null}>, unconnectedLinks: Array<{note: string, text: string}>}>}
+ * @param {{source: string, destFolderId: string|null, docs: object[], limits?: {maxNotes?: number, maxBytes?: number}, retry?: {sleep?: Function, random?: Function, timeoutMs?: number}, mode?: 'recover', isCancelled?: () => boolean, onProgress?: (p: {phase: string, done: number, total: number, note?: string, itemDone?: number, itemTotal?: number}) => void}} args
+ * @returns {Promise<{created: number, updated: number, skipped: number, failures: Array<{name: string, reason: string}>, failedBatches: Array<{index: number, notes: number, reason: string, message: string}>, notices: Array<{note: string, importKey: string, reason: string, name: string|null, sourceUrl: string|null}>, unconnectedLinks: Array<{note: string, text: string}>, recovered: number, keptEdited: Array<{name: string, importKey: string}>, stopped: boolean}>}
  */
-export async function runImport({ source, destFolderId, docs, onProgress, limits, retry = {} }) {
+export async function runImport({ source, destFolderId, docs, onProgress, limits, retry = {}, mode, isCancelled }) {
+  // Plan B Task 11: the wizard's Stop (and its close) really stop the work. Checked BETWEEN
+  // items: before each confirm batch, each note's media phase, and each media item. A request
+  // already in flight is let finish (its own per-call timeout bounds it). What the server had
+  // already saved stays reported; a note stopped inside its media phase is never PUT half-done:
+  // the server still holds it as pending, so importing again finishes it.
+  const stopRequested = () => {
+    if (summary.stopped) return true
+    if (typeof isCancelled === 'function' && isCancelled()) summary.stopped = true
+    return summary.stopped
+  }
   // `outcomes` and `importedNoteIds` are DERIVED alongside the counts above,
   // never a second pass over the same responses — the arrival screen (Wave
   // 5, §9) reads `outcomes` to build its per-folder breakdown, and the
@@ -539,6 +602,13 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
     // in the note in its place), and one per link the heal pass could not connect.
     notices: [],
     unconnectedLinks: [],
+    // Plan B Task 11: `recovered` counts notes a recover rebuilt (handled exactly like
+    // `updated`); `keptEdited` names every note the server left alone because the member edited
+    // it since its import (either mode). Never folded into another count. `stopped`: the run
+    // was cancelled part-way.
+    recovered: 0,
+    keptEdited: [],
+    stopped: false,
   }
   // noteId -> {title, keptLinks} for every note whose body was rewritten, for the heal pass.
   const keptByNote = new Map()
@@ -568,6 +638,7 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
   }
 
   for (let batchIndex = 0; batchIndex < plan.batches.length; batchIndex++) {
+    if (stopRequested()) break
     const batch = plan.batches[batchIndex].items
     let res
     let networkError = null
@@ -576,10 +647,33 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: confirmBody({ source, destFolderId }, plan.batches[batchIndex].parts),
+        body: confirmBody({ source, destFolderId, mode }, plan.batches[batchIndex].parts),
       })
     } catch (err) {
       networkError = err
+    }
+
+    // TERM-033: a 200 whose reply cannot be read is its own named outcome. The server may have
+    // saved some or all of this batch, so it is never reported as "not imported"; a re-run
+    // settles it (confirm is idempotent per note).
+    let body = null
+    if (!networkError && res.ok) {
+      const read = await readSuccessBody(res)
+      if (!read.ok || !read.body || typeof read.body !== 'object') {
+        summary.failedBatches.push({
+          index: batchIndex,
+          notes: batch.length,
+          reason: 'the reply could not be read',
+          message: `Batch ${batchIndex + 1} was sent, but the reply could not be read, so UCT can't ` +
+            "tell which of its notes were saved. Running the import again finishes them; notes " +
+            'already saved will not be duplicated.',
+        })
+        for (const d of batch) summary.outcomes[d.importKey] = 'batch_failed'
+        confirmDone += batch.length
+        onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
+        continue
+      }
+      body = read.body
     }
 
     if (networkError || !res.ok) {
@@ -592,13 +686,8 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
         // real cause (e.g. a DB error, a validation failure the client-side
         // preview couldn't catch) is visible in the summary instead of just
         // "HTTP 500".
-        let detail = null
-        try {
-          const body = await res.json()
-          detail = typeof body?.detail === 'string' ? body.detail : null
-        } catch {
-          // non-JSON body — fall back to the bare status
-        }
+        // TERM-033: the status decided the failure; an unreadable body only means no detail.
+        const detail = await failureDetail(res)
         reason = detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`
       }
       // A whole-batch HTTP failure no longer stops the run (A2) — every
@@ -619,7 +708,6 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
       continue
     }
 
-    const body = await res.json()
     // Fire onProgress per NOTE (not once per batch) — loop each response
     // bucket's items individually so `done` climbs one at a time.
     for (const item of body.created || []) {
@@ -650,7 +738,29 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
     // exist a moment ago.
     // ⛔ NO EDITOR IS MOUNTED during an import. That is precisely why the settle
     // is store-direct and mount-independent.
-    await settleNoteWrites([...(body.created || []), ...(body.updated || [])])
+    // Plan B Task 11: a RECOVERED note was rebuilt from the export, exactly like an updated one:
+    // its id resolves links, it gets the media phase and the heal call, and its new revision is
+    // landed. Counted on its own, never as `updated`.
+    for (const item of body.recovered || []) {
+      idByKey[item.importKey] = item.id
+      toCommit.push(item.importKey)
+      summary.recovered += 1
+      summary.outcomes[item.importKey] = 'recovered'
+      summary.importedNoteIds.push(item.id)
+      confirmDone += 1
+      onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
+    }
+    await settleNoteWrites([...(body.created || []), ...(body.updated || []), ...(body.recovered || [])])
+    // A note the member edited since it was imported is left exactly as it is, in either mode.
+    // Named in `keptEdited` so the member is told plainly; its id still resolves a link to it.
+    for (const item of body.keptEdited || []) {
+      if (typeof item?.id === 'string' && item.id) idByKey[item.importKey] = item.id
+      const doc = byImportKey.get(item.importKey)
+      summary.keptEdited.push({ name: doc?.title || item.importKey, importKey: item.importKey })
+      summary.outcomes[item.importKey] = 'kept_edited'
+      confirmDone += 1
+      onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
+    }
     for (const item of body.skipped || []) {
       idByKey[item.importKey] = item.id
       summary.skipped += 1
@@ -679,6 +789,7 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
   let commitDone = 0
 
   for (const importKey of toCommit) {
+    if (stopRequested()) break
     const sourceDoc = byImportKey.get(importKey)
     const noteId = idByKey[importKey]
     const hasMedia = (sourceDoc?.media || []).length > 0
@@ -688,12 +799,26 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
       // One request per distinct ref: a ref repeated in the body (the same hotlinked image
       // twice) is stored once and every occurrence takes that one result.
       const mediaResults = {}
+      const items = []
+      const seenRefs = new Set()
       for (const item of sourceDoc.media || []) {
-        if (!item || Object.prototype.hasOwnProperty.call(mediaResults, item.ref)) continue
+        if (!item || seenRefs.has(item.ref)) continue
+        seenRefs.add(item.ref)
+        items.push(item)
+      }
+      const noteTitle = sourceDoc.title || ''
+      for (let i = 0; i < items.length; i++) {
+        if (stopRequested()) break
+        const item = items[i]
+        // Per-item progress within a note: a note with forty pictures moves, it does not sit.
+        onProgress?.({ phase: 'commit', done: commitDone, total: commitTotal, note: noteTitle, itemDone: i, itemTotal: items.length })
         const result = await storeMediaItem(noteId, importKey, item, retry)
         mediaResults[item.ref] = result
         if (!result.ok && result.message) summary.failures.push({ name: item.name || item.ref, reason: result.message })
       }
+      // Stopped inside this note: never PUT it half-done (the missing pictures would read as
+      // "couldn't be found"). The server still holds it as pending, so a re-import finishes it.
+      if (summary.stopped) break
       const { body: rewritten, droppedMedia, notices, keptLinks } = rewriteBody(sourceDoc.bodyJson, { mediaResults, idByKey })
       const noteName = sourceDoc.title || importKey
       for (const { reason, name, sourceUrl } of notices) {
@@ -752,7 +877,13 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
 
   // R6: ALWAYS once per import that wrote a note, even with no kept links of its own: the
   // door's sweep also heals OLD notes whose target this import just brought in.
-  if (toCommit.length > 0) summary.unconnectedLinks = await healImportedLinks(keptByNote, retry)
+  // A stopped run makes no further calls: the links it kept are listed as not connected (nobody
+  // checked them), never as connected.
+  if (summary.stopped) {
+    summary.unconnectedLinks = [...keptByNote.values()].flatMap(({ title, keptLinks }) => keptLinks.map(({ text }) => ({ note: title, text })))
+  } else if (toCommit.length > 0) {
+    summary.unconnectedLinks = await healImportedLinks(keptByNote, retry)
+  }
 
   return summary
 }

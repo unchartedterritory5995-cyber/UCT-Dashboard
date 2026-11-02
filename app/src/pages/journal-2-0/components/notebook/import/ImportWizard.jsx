@@ -30,6 +30,10 @@ import CaptureDoors from '../CaptureDoors'
 import ExportGuide from './ExportGuide'
 import styles from './ImportWizard.module.css'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../../lib/notebookTelemetry'
+// Plan B Task 11: the summary's "Couldn't be copied" rows read the SAME sentence the in-note
+// notice reads (one copy table, pinned cross-runtime). A plain module with no imports, so it
+// costs the Notebook chunk nothing worth deferring.
+import { importNoticeText, MEDIA_RETRY_MAX_ATTEMPTS, OPEN_ORIGINAL } from '../../../lib/importNoticeText'
 
 // ---------------------------------------------------------------------------
 // Best-effort client-side content hash — used ONLY to estimate the
@@ -276,6 +280,13 @@ export default function ImportWizard({ open, onClose, onImported }) {
 
   const [progress, setProgress] = useState(null)
   const [summaryResult, setSummaryResult] = useState(null)
+  // Plan B Task 11: "Re-import to recover missing pictures and links" (server `mode: "recover"`).
+  // Component state only, off by default, never persisted: it is a per-import choice.
+  const [recoverMode, setRecoverMode] = useState(false)
+  // The running step's Stop. `stopRef` is what `runImport`'s `isCancelled` reads between items;
+  // `stopping` only drives the button's label while the item in flight finishes.
+  const stopRef = useRef(false)
+  const [stopping, setStopping] = useState(false)
 
   // ── post-migration enrichment (spec §8.1) ────────────────────────────────
   // `enrichScan`: null (not yet run) | {status: 'scanning'|'ready'|'none', candidates, scanned}
@@ -317,6 +328,9 @@ export default function ImportWizard({ open, onClose, onImported }) {
     setDestChoice('__new__')
     setProgress(null)
     setSummaryResult(null)
+    setRecoverMode(false)
+    stopRef.current = false
+    setStopping(false)
     setEnrichScan(null)
     setEnrichApply(null)
   }, [])
@@ -504,6 +518,11 @@ export default function ImportWizard({ open, onClose, onImported }) {
     return c
   }, [visibleDocs, docStatus])
 
+  // Plan B Task 11: recover is offered only when this drop matches notes already imported, and
+  // it is ON only while offered: unchecking those notes withdraws it, and the box with it.
+  const canRecover = previewCounts.update + previewCounts.unchanged > 0
+  const recoverOn = recoverMode && canRecover
+
   const mediaCount = useMemo(
     () => visibleDocs.reduce((n, d) => n + (d.media?.length || 0), 0),
     [visibleDocs]
@@ -537,8 +556,10 @@ export default function ImportWizard({ open, onClose, onImported }) {
       if (!map.has(label)) map.set(label, { label, arrived: 0, unchanged: 0, attention: 0 })
       const bucket = map.get(label)
       const outcome = summaryResult.outcomes?.[d.importKey]
-      if (outcome === 'created' || outcome === 'updated') bucket.arrived += 1
-      else if (outcome === 'skipped') bucket.unchanged += 1
+      // A recovered note was rebuilt from this export (it arrived); a note kept as the member
+      // edited it was left exactly as it was (unchanged). Plan B Task 11.
+      if (outcome === 'created' || outcome === 'updated' || outcome === 'recovered') bucket.arrived += 1
+      else if (outcome === 'skipped' || outcome === 'kept_edited') bucket.unchanged += 1
       else if (outcome === 'failed' || outcome === 'batch_failed') bucket.attention += 1
     }
     return [...map.values()].sort((a, b) => a.label.localeCompare(b.label))
@@ -706,6 +727,8 @@ export default function ImportWizard({ open, onClose, onImported }) {
 
     setStep('running')
     setProgress(null)
+    stopRef.current = false
+    setStopping(false)
     await new Promise((r) => setTimeout(r, 0))
     if (cancelled()) return
     try {
@@ -770,6 +793,10 @@ export default function ImportWizard({ open, onClose, onImported }) {
         source: sourceLabel,
         destFolderId,
         docs: visibleDocs,
+        mode: recoverOn ? 'recover' : undefined,
+        // Closing the wizard OR pressing Stop stops the work itself, between items -- not only
+        // the screen updates (Plan B Task 11).
+        isCancelled: () => cancelled() || stopRef.current,
         onProgress: (p) => {
           if (cancelled()) return
           setProgress(p)
@@ -791,7 +818,12 @@ export default function ImportWizard({ open, onClose, onImported }) {
       setError(readableError(err))
       setStep('error')
     }
-  }, [resolveDestFolderId, sourceLabel, visibleDocs, onImported])
+  }, [resolveDestFolderId, sourceLabel, visibleDocs, recoverOn, onImported])
+
+  const handleStop = useCallback(() => {
+    stopRef.current = true
+    setStopping(true)
+  }, [])
 
   // ── post-migration enrichment (spec §8.1) ────────────────────────────────
   // Fires once per completed import, automatically — it is a READ-ONLY scan
@@ -876,7 +908,11 @@ export default function ImportWizard({ open, onClose, onImported }) {
     setEnrichApply((prev) => ({ ...prev, status: 'undone', undoFailures }))
   }, [enrichApply])
 
-  const importTotal = previewCounts.create + previewCounts.update
+  // Recover rebuilds unchanged notes too, so with it on they count as work to do.
+  const importTotal = previewCounts.create + previewCounts.update + (recoverOn ? previewCounts.unchanged : 0)
+  const summaryArrived = summaryResult
+    ? summaryResult.created + summaryResult.updated + (summaryResult.recovered || 0)
+    : 0
 
   const sheetTitle = {
     drop: 'Import notes',
@@ -1011,6 +1047,27 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 Will create {previewCounts.create} · update {previewCounts.update} · unchanged{' '}
                 {previewCounts.unchanged}
               </p>
+
+              {/* Plan B Task 11: only on a re-import (some notes already exist). The server never
+                  overwrites a note edited since its import, in either mode; the help line says so. */}
+              {canRecover && (
+                <div className={styles.recoverWrap}>
+                  <label className={styles.recoverRow}>
+                    <input
+                      type="checkbox"
+                      data-testid="import-recover-mode"
+                      checked={recoverMode}
+                      onChange={(e) => setRecoverMode(e.target.checked)}
+                      aria-describedby="import-recover-help"
+                    />
+                    Re-import to recover missing pictures and links
+                  </label>
+                  <p id="import-recover-help" className={styles.recoverHelp}>
+                    Notes you haven&apos;t changed since they were imported are rebuilt from this export.
+                    Notes you&apos;ve edited are left exactly as they are.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className={styles.fieldLabel} htmlFor="import-dest-select">
@@ -1169,6 +1226,12 @@ export default function ImportWizard({ open, onClose, onImported }) {
                     : `“${progress.note}”`}
                 </p>
               )}
+              {/* Plan B Task 11: within one note, which of its files is going over now. */}
+              {progress?.phase === 'commit' && progress.note != null && progress.itemTotal > 0 && (
+                <p className={styles.progressDetail}>
+                  {`“${progress.note || 'Untitled'}” — file ${progress.itemDone + 1} of ${progress.itemTotal}`}
+                </p>
+              )}
               {progress?.phase === 'convert' && progress.large && (
                 <p className={styles.progressDetail}>
                   Large notes can take a few minutes. You can leave this window
@@ -1183,6 +1246,17 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   />
                 </div>
               )}
+              {/* Plan B Task 11: Stop really stops. The file in flight finishes (or times out),
+                  then nothing more is sent; what was saved stays saved. */}
+              <button
+                type="button"
+                className={`btn btn-secondary ${styles.stopBtn}`}
+                onClick={handleStop}
+                disabled={stopping}
+              >
+                <UIcon name="x" size={16} gold={false} />
+                {stopping ? 'Stopping…' : 'Stop import'}
+              </button>
             </div>
           )}
 
@@ -1190,14 +1264,22 @@ export default function ImportWizard({ open, onClose, onImported }) {
             <div className={styles.summaryWrap}>
               <UIcon name="check" size={26} gold={false} className={styles.successIcon} />
               <p className={styles.summaryHeadline}>
-                Imported {summaryResult.created + summaryResult.updated} note
-                {summaryResult.created + summaryResult.updated === 1 ? '' : 's'}.
+                Imported {summaryArrived} note
+                {summaryArrived === 1 ? '' : 's'}.
               </p>
               <ul className={styles.summaryStats}>
                 <li>Created: {summaryResult.created}</li>
                 <li>Updated: {summaryResult.updated}</li>
+                {summaryResult.recovered > 0 && <li>Recovered: {summaryResult.recovered}</li>}
                 <li>Unchanged: {summaryResult.skipped}</li>
               </ul>
+              {summaryResult.stopped && (
+                <p className={styles.stoppedLine} role="status">
+                  <UIcon name="warning" size={13} gold={false} /> You stopped this import. Notes saved
+                  before you stopped are in your notebook. Import the same export again to bring
+                  over the rest; nothing already imported will be duplicated.
+                </p>
+              )}
               {/* The arrival screen (spec §9): what came across, by folder —
                   derived straight from `summaryResult.outcomes`, never the
                   preview's pre-import guess. */}
@@ -1234,6 +1316,76 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   {pluralize(excludedCount, 'note')} left out of this import — you unchecked{' '}
                   {excludedCount === 1 ? 'it' : 'them'} on the previous screen.
                 </p>
+              )}
+
+              {/* Plan B Task 11: three reports, each only when it has something to say. Every row
+                  is listed (nothing is summarised away), in a scrolling box when it is long. */}
+              {summaryResult.keptEdited?.length > 0 && (
+                <section className={styles.reportSection} aria-labelledby="import-report-kept">
+                  <h3 id="import-report-kept" className={styles.reportTitle}>
+                    <UIcon name="lock" size={13} gold={false} /> Kept as you edited them
+                  </h3>
+                  <p className={styles.reportHelp}>
+                    You&apos;ve edited this note since it was imported, so it was left as it is. Open it
+                    beside the export to copy anything across.
+                  </p>
+                  <ul className={styles.reportList}>
+                    {summaryResult.keptEdited.map((k) => (
+                      <li key={k.importKey} className={styles.reportRow}>{k.name}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {summaryResult.notices?.length > 0 && (
+                <section className={styles.reportSection} aria-labelledby="import-report-notices">
+                  <h3 id="import-report-notices" className={styles.reportTitle}>
+                    <UIcon name="warning" size={13} gold={false} /> Couldn&apos;t be copied
+                  </h3>
+                  <ul className={styles.reportList}>
+                    {summaryResult.notices.map((n, i) => (
+                      <li key={`${n.importKey}-${i}`} className={styles.reportRow}>
+                        <span className={styles.reportNote}>{n.note}</span>
+                        <span>
+                          {' — '}
+                          {importNoticeText({ reason: n.reason, name: n.name, attempts: MEDIA_RETRY_MAX_ATTEMPTS })}
+                          {n.sourceUrl && (
+                            <>
+                              {' — '}
+                              <a
+                                className={styles.reportLink}
+                                href={n.sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {OPEN_ORIGINAL}
+                              </a>
+                            </>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {summaryResult.unconnectedLinks?.length > 0 && (
+                <section className={styles.reportSection} aria-labelledby="import-report-links">
+                  <h3 id="import-report-links" className={styles.reportTitle}>
+                    <UIcon name="link" size={13} gold={false} /> Links not connected yet
+                  </h3>
+                  <p className={styles.reportHelp}>
+                    These connect automatically when the note they point to is imported.
+                  </p>
+                  <ul className={styles.reportList}>
+                    {summaryResult.unconnectedLinks.map((l, i) => (
+                      <li key={`${l.note}-${i}`} className={styles.reportRow}>
+                        <span className={styles.reportNote}>{l.note}</span>
+                        {` — “${l.text}”`}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               )}
 
               {(summaryResult.failedBatches?.length > 0 || summaryResult.failures?.length > 0) && (
