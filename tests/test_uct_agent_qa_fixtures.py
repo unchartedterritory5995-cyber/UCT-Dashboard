@@ -702,6 +702,7 @@ def test_bars_daily_fixtures_mirror_the_merged_adapter():
 
 def test_the_fake_registry_round_trips_through_the_real_gateway(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(KINDS))  # every fixture kind on
     monkeypatch.setenv(gw.SCAN_ENV, "1")
     try:
         gw._reset_for_test(fake_registry())
