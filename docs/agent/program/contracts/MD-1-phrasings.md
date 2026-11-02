@@ -40,9 +40,9 @@ this list, but it must handle every row exactly as written. The test suites read
 
 | outcome | when | what the member gets |
 |---|---|---|
-| `price` | quote intent, every candidate `symbol` | the §4.5 answer, naming each security: `NVDA (NVIDIA Corporation) $142.10 …` |
+| `price` | quote intent, every candidate `symbol` | the §4.5 answer, naming each security: `NVDA (NVIDIA Corporation) $142.10 …`; a fund reads `BTC (Grayscale Bitcoin Mini Trust, an ETF) …` and the answer adds the fund-price sentence (MD-1 §4.7.3) |
 | `bars` | bars intent, the candidate `symbol` | the §4.6 answer, naming the security |
-| `ask:SYM` | a candidate is `symbol_typed_lowercase` or `name_match` | `Did you mean SYM (Name)? Type the ticker in capitals, like SYM, and I'll get it.` |
+| `ask:SYM` | a candidate is `symbol_typed_lowercase` or `name_match` (SYM is the index's candidate, recorded for the tests; the member is never shown it) | `I'm not sure which instrument "<word>" means. I can quote US-listed stocks and ETFs by ticker. Type the ticker in capitals and I'll get it.` |
 | `limit` | a candidate is `non_equity` or `unknown` | `I can quote US-listed stocks and ETFs by ticker. <word> isn't one I can price here.` |
 | `model` | the parser does not claim it | the normal path (a safe miss) |
 
@@ -105,6 +105,10 @@ this list, but it must handle every row exactly as written. The test suites read
 **Notes on the rows:**
 - **P35 and P41 (all or nothing):** one unresolved word blocks the whole compound. Nothing is priced, and the
   first problem by precedence is named.
+- **P31, P33 (`btc`, `gold`):** the index holds a stock or ETF whose ticker is the word, but the member most likely
+  means the asset. The clarification is neutral and names no security (owner ruling, 2026-11-02).
+- **P32 (`BTC` in capitals):** the member typed a ticker, so the listed fund is priced, labelled `an ETF`, with the
+  sentence that its price is the fund's share price, not bitcoin's.
 - **P42 (an all-caps sentence):** when the whole sentence is in capitals, capitals carry no evidence, so every
   candidate counts as lowercase.
 

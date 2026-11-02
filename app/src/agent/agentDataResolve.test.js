@@ -12,8 +12,8 @@ import { fastParse } from './fastPath'
 import { getCapability, allCapabilityNames } from './capabilities'
 import { parsePriceSentence } from './capabilities/marketDataPhrases'
 import { registerMarketDataCapabilities, _resetForTest, CAPABILITY as QUOTE } from './capabilities/marketDataQuote'
-import { CAPABILITY as BARS } from './capabilities/marketDataBars'
-import { decide, NOT_READY } from './capabilities/marketDataResolve'
+import { CAPABILITY as BARS, answerFromBars } from './capabilities/marketDataBars'
+import { decide, NOT_READY, FUND_NOTE, clarifyText } from './capabilities/marketDataResolve'
 import { resolveEnvelope } from './marketdata/__fixtures__/fakeResolve'
 import INDEX from './marketdata/__fixtures__/symbol-index.json'
 
@@ -34,6 +34,7 @@ const ROWS = DOC.split('\n').filter(l => /^\| P\d\d \|/.test(l)).map(l => {
   return { id: c[1], phrase: c[2], intent, n: n ? Number(n) : null, cands, outcome: c[5] }
 })
 const NAMES = Object.fromEntries(INDEX.rows.map(([s, n]) => [s, n]))
+const TYPES = Object.fromEntries(INDEX.rows.map(([s, , t]) => [s, t]))
 const ALL_KINDS = ['instrument.resolve', 'quote', 'quotes', 'bars.daily']
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
 
@@ -118,16 +119,40 @@ describe('MD-1 §4.7: each row ends exactly as the doc says, through the real fa
     if (kind === 'price' || kind === 'bars') {
       expect(reads.length).toBe(2)
       expect(reads[1]).toMatch(kind === 'price' ? /^quotes?$/ : /^bars\.daily$/)
-      for (const s of (kind === 'bars' ? [posts()[1].params.symbol] : (posts()[1].params.symbols || [posts()[1].params.symbol]))) {
-        expect(text).toContain(`${s} (${NAMES[s]})`)                                     // every priced security is named
+      const priced = kind === 'bars' ? [posts()[1].params.symbol] : (posts()[1].params.symbols || [posts()[1].params.symbol])
+      for (const s of priced) {
+        // every priced security is named; a fund is labelled one (owner ruling 2)
+        expect(text).toContain(TYPES[s] === 'etf' ? `${s} (${NAMES[s]}, an ETF)` : `${s} (${NAMES[s]})`)
       }
+      // owner ruling 3: an ETF's price is never the underlying's price — said whenever one is priced, never otherwise
+      if (priced.some(s => TYPES[s] === 'etf')) expect(text).toContain(FUND_NOTE)
+      else expect(text).not.toContain(FUND_NOTE)
     } else {
       expect(reads).toEqual(['instrument.resolve'])                                      // nothing was priced
       expect(text).not.toMatch(/\$\d/)
-      if (kind === 'ask') expect(text).toBe(`Did you mean ${sym} (${NAMES[sym]})? Type the ticker in capitals, like ${sym}, and I'll get it.`)
+      if (kind === 'ask') {
+        // owner ruling 1: a NEUTRAL clarification — the word as typed, never the index's candidate security
+        const typed = r.cands.find(c => c.text.toUpperCase().replace(/^\$/, '') === sym || c.form === 'lower')
+        expect(text).toMatch(/^I'm not sure which instrument "[^"]+" means\. I can quote US-listed stocks and ETFs by ticker\. Type the ticker in capitals and I'll get it\.$/)
+        expect(typed).toBeTruthy()
+        expect(text).not.toContain(NAMES[sym])
+        expect(text).not.toContain(`${sym} (`)
+        expect(text).not.toMatch(/Did you mean/)
+      }
       if (kind === 'limit') expect(text).toMatch(/^I can quote US-listed stocks and ETFs by ticker\. \S+ isn't one I can price here\.$/)
       expect(text).not.toMatch(/\btry\b/i)                                               // never a substitute
     }
+  })
+})
+
+describe('owner ruling 3: a fund is never priced as its underlying', () => {
+  it('a bars answer for an ETF names it a fund and says whose price it is; a stock answer does not', () => {
+    const etf = says(answerFromBars(barsEnv('BTC', 2), { symbol: 'BTC', measure: 'lastClose', name: `${NAMES.BTC}, an ETF` }))
+    expect(etf).toContain('BTC (Grayscale Bitcoin Mini Trust, an ETF) closed at')
+    expect(etf).toContain(FUND_NOTE)
+    const stock = says(answerFromBars(barsEnv('GOLD', 2), { symbol: 'GOLD', measure: 'lastClose', name: NAMES.GOLD }))
+    expect(stock).toContain('GOLD (Barrick Gold Corporation) closed at')
+    expect(stock).not.toContain(FUND_NOTE)
   })
 })
 
@@ -137,11 +162,22 @@ describe('decide(): all or nothing, precedence, and a cold index', () => {
     const c = [{ text: 'NVDA', form: 'upper' }, { text: '$brk.b', form: 'cashtag' }]
     expect(decide(env(c), c)).toEqual({ ok: true, symbols: ['NVDA', 'BRK-B'], names: { NVDA: 'NVIDIA Corporation', 'BRK-B': 'Berkshire Hathaway Inc. Class B' } })
   })
+  it('an explicit fund ticker resolves to the fund, labelled an ETF by the index type (owner ruling 2)', () => {
+    const c = [{ text: 'BTC', form: 'upper' }, { text: 'SPY', form: 'upper' }]
+    expect(decide(env(c), c)).toEqual({ ok: true, symbols: ['BTC', 'SPY'],
+      names: { BTC: `${NAMES.BTC}, an ETF`, SPY: `${NAMES.SPY}, an ETF` } })
+  })
+  it.each(['btc', 'gold', 'apple', 'nvda'])('"%s" typed lowercase → the neutral clarification, naming no security', (w) => {
+    const c = [{ text: w, form: 'lower' }]
+    const d = decide(env(c), c)
+    expect(d).toEqual({ ok: false, text: clarifyText(w) })
+    for (const [s, n] of INDEX.rows) { expect(d.text).not.toContain(n); expect(d.text).not.toContain(`${s} (`) }
+  })
   it('precedence: non_equity > unknown > name_match > symbol_typed_lowercase', () => {
     const c = (...xs) => xs.map(([text, form]) => ({ text, form }))
     expect(decide(env(c(['nvda', 'lower'], ['SPX', 'upper'])), c(['nvda', 'lower'], ['SPX', 'upper'])).text).toMatch(/SPX isn't one I can price/)
     expect(decide(env(c(['apple', 'lower'], ['nvdia', 'lower'])), c(['apple', 'lower'], ['nvdia', 'lower'])).text).toMatch(/nvdia isn't one I can price/)
-    expect(decide(env(c(['nvda', 'lower'], ['apple', 'lower'])), c(['nvda', 'lower'], ['apple', 'lower'])).text).toMatch(/^Did you mean AAPL \(Apple Inc\.\)/)
+    expect(decide(env(c(['nvda', 'lower'], ['apple', 'lower'])), c(['nvda', 'lower'], ['apple', 'lower'])).text).toBe(clarifyText('apple'))
   })
   it.each([[null], [{ status: 'unavailable', data: null }], [{ status: 'refused', data: null }], [{ status: 'ok', data: { results: [] } }]])(
     'no usable resolve (%j) → the fixed not-ready sentence, never a price', (e) => {
@@ -187,7 +223,9 @@ describe('activation and the gateway budget', () => {
     const out = await getCapability(QUOTE).answer(null, f.ops[0].args)
     expect(posts().map(p => [p.kind, p.turn_id])).toEqual([['instrument.resolve', 't-r'], ['quotes', 't-r']])
     expect(posts()[0].params.symbols).toHaveLength(5)
-    for (const s of ['NVDA', 'AMD', 'AAPL', 'MSFT', 'SPY']) expect(says(out)).toContain(`${s} (${NAMES[s]})`)
+    for (const s of ['NVDA', 'AMD', 'AAPL', 'MSFT']) expect(says(out)).toContain(`${s} (${NAMES[s]})`)
+    expect(says(out)).toContain(`SPY (${NAMES.SPY}, an ETF)`)
+    expect(says(out)).toContain(FUND_NOTE)
   })
 
   it('never /api/live-prices, on any row', async () => {

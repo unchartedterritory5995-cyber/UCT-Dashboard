@@ -3,6 +3,16 @@
 Only agent-md edits this file. Update it in every PR.
 
 ## In flight
+- **Quote wording, owner rulings 2026-11-02** (branch `agent/md/quote-wording`, from agent/int `fa5b1e5085`;
+  development only, nothing activated). MD-1 §4.7.3: (1) `symbol_typed_lowercase` and `name_match` now get a
+  NEUTRAL clarification naming the word as typed and what can be quoted; the index's candidate is never named
+  (no more "Did you mean BTC (Grayscale Bitcoin Mini Trust)?" for btc/gold/dow/eth/sol). (2) An explicit
+  UPPERCASE/`$` fund ticker is still priced, labelled `NAME, an ETF` from the index's `type`. (3) Every answer
+  pricing an ETF (quote or bars) adds one sentence: the price is the fund's share price, not the underlying's.
+  Classes, precedence, reads and the 2-read budget unchanged; no word lists. QA held-out sets re-measured:
+  set 1 35 pass / 9 safe-miss / 0 FAIL, set 2 52 / 2 / 0; no ask names a security. QA's pins in
+  `qa/quoteHeldout.test.js` and `qa/md2Panel.test.jsx` encode the old "Did you mean" text and need agent-qa's
+  update (18 reds, all wording-only).
 - **PR 1 — `quote`, `quotes`** — ✅ INTEGRATED into agent/int as #569 (`76a45af859`). Follow-up PR 1b
   (extended-hours by timestamp, per-row `last_source`, MD-1 v1.1) requested by agent-lead — next.
   **PR 1b** (branch `agent/md/pr1b-quote-freshness`, MD-1 **v1.1**, additive): session classified from the
