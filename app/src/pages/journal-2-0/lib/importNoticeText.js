@@ -18,7 +18,8 @@
  * http(s) `sourceUrl`.
  */
 
-export const SERVER_REASONS = Object.freeze(['too_large', 'storage_limit', 'unsupported', 'fetch_failed', 'unsafe'])
+/** `truncated`: a bounded read stopped at its cap; its count rides inside the name. */
+export const SERVER_REASONS = Object.freeze(['too_large', 'storage_limit', 'unsupported', 'fetch_failed', 'unsafe', 'truncated'])
 export const CLIENT_REASONS = Object.freeze(['upload_failed', 'type_refused', 'unresolvable_src', 'decode_failed', 'missing_resource'])
 /** Plan C (the Obsidian plugin), plugin-only meanings, in snake_case. */
 export const PLUGIN_REASONS = Object.freeze(['obsidian_plugin_outdated', 'obsidian_attachments_unavailable', 'not_found', 'sync_off'])
@@ -35,6 +36,7 @@ export const NOTICE_COPY = Object.freeze({
   storage_limit: 'Not copied: storage limit. {name} will be copied once space frees up',
   unsupported: "{name} can't be shown here",
   unsafe: "{name} wasn't copied: its address isn't allowed",
+  truncated: 'Only {name} came over',
   upload_failed: "Couldn't upload {name}",
   type_refused: "{name} is a file type that can't be stored here",
   unresolvable_src: "Couldn't find the image file for {name}",

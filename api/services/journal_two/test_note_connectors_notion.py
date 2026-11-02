@@ -1722,8 +1722,10 @@ async def test_database_files_cell_rehosts_image_inline_and_file_as_chip():
     # files: chart.png (type file, S3 url) -> image import-ref in the cell, media registered; deck.pptx -> attachmentChip
     def resolve(block):
         info = _nb.extract_media_info(block)  # the provider reads the synthesized block with this
-        if info is None or "gone" in info[0]:
-            return None
+        if info is None:
+            return None  # no address at all: definitively gone
+        if "huge" in info[0]:
+            return {"too_large": True, "name": info[2]}
         kind = "image" if block["type"] == "image" else "file"
         return {"ref": f"notion:{block['id']}", "kind": kind, "name": info[2], "data_uri": "data:x/y;base64,AA=="}
 
@@ -1732,13 +1734,18 @@ async def test_database_files_cell_rehosts_image_inline_and_file_as_chip():
         "Files": {"type": "files", "files": [
             {"name": "chart.png", "type": "file", "file": {"url": _S3_CHART}},
             {"name": "deck.pptx", "type": "external", "external": {"url": "https://cdn.example.com/deck.pptx"}},
-            {"name": "gone.pdf", "type": "file", "file": {"url": "https://prod-files-secure.s3.amazonaws.com/gone.pdf"}},
+            {"name": "gone.pdf", "type": "file", "file": {}},
+            {"name": "huge.mov", "type": "file", "file": {"url": "https://prod-files-secure.s3.amazonaws.com/huge.mov"}},
         ]},
     }, resolve=resolve)
 
-    assert [(b["type"], b["id"]) for b in calls["resolve"]] == [
-        ("image", f"{_ROW}:Files:0"), ("file", f"{_ROW}:Files:1"), ("file", f"{_ROW}:Files:2")]
+    assert [(b["type"], b["id"], b["_synthetic"]) for b in calls["resolve"]] == [
+        ("image", f"{_ROW}:Files:0", True), ("file", f"{_ROW}:Files:1", True),
+        ("file", f"{_ROW}:Files:2", True), ("file", f"{_ROW}:Files:3", True)]
     assert _nb.extract_media_info(calls["resolve"][0]) == (_S3_CHART, False, "chart.png")
+    # image versus file is the media policy's ONE extension table, through its public name
+    from api.services.journal_two import media_policy
+    assert _nb.extension_mime is media_policy.extension_mime and not hasattr(media_policy, "_ext_mime")
 
     cell = _t12_cell(out, "Files")
     images = _find_all(cell, "image")
@@ -1746,8 +1753,29 @@ async def test_database_files_cell_rehosts_image_inline_and_file_as_chip():
     assert [i["attrs"]["src"] for i in images] == [f"import-ref://notion:{_ROW}:Files:0"]
     assert [(c["attrs"]["href"], c["attrs"]["name"]) for c in chips] == [
         (f"import-ref://notion:{_ROW}:Files:1", "deck.pptx")]
-    assert "[file unavailable: gone.pdf]" in _plain_text(cell), "a file that cannot come over is named, never dropped"
+    # what cannot come over is an importNotice block, never a text paragraph
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in _find_all(cell, "importNotice")] == [
+        ("missing_resource", "gone.pdf"), ("too_large", "huge.mov")]
+    assert "unavailable" not in _plain_text(out["doc"]) and "too large" not in _plain_text(out["doc"])
     assert [m["ref"] for m in out["media"]] == [f"notion:{_ROW}:Files:0", f"notion:{_ROW}:Files:1"]
+    _t12_valid(out["doc"])
+
+
+async def test_database_files_cell_is_capped_with_one_truncated_notice():
+    files = [{"name": f"shot{i}.png", "type": "file", "file": {"url": f"https://s3.example.com/{i}.png"}}
+             for i in range(23)]
+
+    def resolve(block):
+        return {"ref": f"notion:{block['id']}", "kind": "image", "name": "x", "data_uri": "data:x/y;base64,AA=="}
+
+    out, calls = await _t12_db({"Name": _title_prop("AAPL trade"),
+                                "Files": {"type": "files", "files": files}}, resolve=resolve)
+    assert len(calls["resolve"]) == _nb._DATABASE_CELL_FILES_MAX == 20
+    cell = _t12_cell(out, "Files")
+    assert len(_find_all(cell, "image")) == 20
+    notices = _find_all(cell, "importNotice")
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in notices] == [
+        ("truncated", "the first 20 of 23 files in Files")]
     _t12_valid(out["doc"])
 
 
@@ -1821,11 +1849,13 @@ async def test_a_truncated_database_says_so_in_the_note():
         [{"object": "page", "id": _ROW, "properties": {"Name": _title_prop("AAPL trade")}}], truncated=True)
     conv, _ = _t12_converter(rows=rows)
     out = await conv.convert([_block("db-t12", "child_database", {"title": "Journal"})])
-    assert _nb.database_truncated_text(1) in _plain_text(out["doc"])
-    # ...and a complete one carries no such line.
+    assert [n["attrs"] for n in _find_all(out["doc"], "importNotice")] == [
+        {"reason": "truncated", "name": "the first 1 rows of Journal", "sourceUrl": None, "ref": None, "attempts": 0}]
+    _t12_valid(out["doc"])
+    # ...and a complete one carries no notice.
     conv, _ = _t12_converter(rows=[{"object": "page", "id": _ROW, "properties": {"Name": _title_prop("A")}}])
     out = await conv.convert([_block("db-t12", "child_database", {"title": "Journal"})])
-    assert "truncated" not in _plain_text(out["doc"]).lower()
+    assert _find_all(out["doc"], "importNotice") == []
 
 
 async def test_provider_database_query_stops_at_its_cap_with_a_visible_notice(monkeypatch):
@@ -1855,11 +1885,14 @@ async def test_provider_database_query_stops_at_its_cap_with_a_visible_notice(mo
     assert len(queries) == 2, "the query is bounded by its page cap"
     text = _plain_text(note.doc)
     assert "Row 0" in text and "Row 1" in text
-    assert _nb.database_truncated_text(2) in text
+    from api.services.journal_two import import_notice
+    assert [import_notice.notice_text(n["attrs"]) for n in _find_all(note.doc, "importNotice")] == [
+        "Only the first 2 rows of Big came over"]
 
 
 async def test_provider_database_files_cell_downloads_now_and_never_refetches_a_synthesized_block():
     expired = "https://prod-files-secure.s3.amazonaws.com/b/old.pdf?sig=2"
+    huge = "https://prod-files-secure.s3.amazonaws.com/b/huge.mov?sig=3"
     requests = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -1868,6 +1901,9 @@ async def test_provider_database_files_cell_downloads_now_and_never_refetches_a_
             assert "authorization" not in request.headers, "the bearer never leaves api.notion.com"
             if str(request.url) == _S3_CHART:
                 return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
+            if str(request.url) == huge:
+                return httpx.Response(200, content=b"x", headers={
+                    "content-type": "video/quicktime", "content-length": str(10 ** 10)})
             return httpx.Response(403)
         path = request.url.path
         if path == "/v1/pages/p-files":
@@ -1883,6 +1919,7 @@ async def test_provider_database_files_cell_downloads_now_and_never_refetches_a_
                 "Shots": {"type": "files", "files": [
                     {"name": "chart.png", "type": "file", "file": {"url": _S3_CHART}},
                     {"name": "old.pdf", "type": "file", "file": {"url": expired}},
+                    {"name": "huge.mov", "type": "file", "file": {"url": huge}},
                 ]}}}]})
         return httpx.Response(404)
 
@@ -1891,9 +1928,27 @@ async def test_provider_database_files_cell_downloads_now_and_never_refetches_a_
     entry = next(m for m in note.media if m["ref"] == f"notion:{_ROW}:Shots:0")
     assert entry["kind"] == "image" and entry["data_uri"].startswith("data:image/png;base64,")
     assert [i["attrs"]["src"] for i in _find_all(note.doc, "image")] == [f"import-ref://notion:{_ROW}:Shots:0"]
-    assert "[file unavailable: old.pdf]" in _plain_text(note.doc)
     assert not [r for r in requests if r.url.host == _API_HOST and r.url.path.startswith("/v1/blocks/")
                 and not r.url.path.endswith("/children")], "a synthesized cell block is never re-read"
+
+    # A failed or oversized cell file stays a PLACEHOLDER with a media entry and no bytes: the
+    # engine's media pass asks `fetch_media`, which answers with the failure seen during
+    # traversal -- so the engine writes the notice, counts its attempts and lists it in the log.
+    from api.services.journal_two.note_connectors import engine as engine_mod
+    chips = {c["attrs"]["name"]: c["attrs"]["href"] for c in _find_all(note.doc, "attachmentChip")}
+    assert chips == {"old.pdf": f"import-ref://notion:{_ROW}:Shots:1",
+                     "huge.mov": f"import-ref://notion:{_ROW}:Shots:2"}
+    reasons = {}
+    for name, href in chips.items():
+        ref = href[len("import-ref://"):]
+        listed = next(m for m in note.media if m["ref"] == ref)
+        assert "data_uri" not in listed and listed["name"] == name
+        with pytest.raises(errors.NoteConnError) as exc:
+            await provider.fetch_media(CREDS, ref)
+        reasons[name] = engine_mod.media_failure_reason(exc.value)
+    assert reasons == {"old.pdf": "fetch_failed", "huge.mov": "too_large"}
+    downloads = [r for r in requests if r.url.host != _API_HOST]
+    assert len(downloads) == 3, "fetch_media re-raises; it never downloads again"
 
 
 async def test_provider_fetch_title_reads_the_cache_then_one_get_and_degrades_to_none():
@@ -1924,3 +1979,50 @@ async def test_provider_fetch_title_reads_the_cache_then_one_get_and_degrades_to
     assert [t for t, _ in _t12_links(note.doc)] == ["Q3 Plan", "Q3 Plan", "From search", "Linked page"]
     assert gets == [f"/v1/pages/{_T11_UUID}", "/v1/pages/4d5e6f70-8192-4a34-bc5d-6e7f80910213"], (
         "one GET per unknown target, none for a cached one, none repeated")
+
+
+async def test_a_transient_title_failure_keeps_the_link_address_and_is_not_memoised():
+    """Fix round 1: a 429/5xx while reading a target's title must not freeze the link as a
+    generic "Linked page" (the skip gate never re-converts an unchanged page). The link keeps
+    its own address as its text, and the failure is not remembered, so the next reference in
+    the same batch asks again. Only a definitive answer (not found, no access) is the label."""
+    gets = []
+    flaky = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/v1/pages/p-flaky":
+            return httpx.Response(200, json={"id": "p-flaky", "properties": {"title": _title_prop("Flaky")}})
+        if path == "/v1/blocks/p-flaky/children":
+            return httpx.Response(200, json={"has_more": False, "results": [
+                _block("l1", "link_to_page", {"type": "page_id", "page_id": _T11_UUID}),
+                _block("l2", "link_to_page", {"type": "page_id", "page_id": _T11_UUID}),
+            ]})
+        if path == f"/v1/pages/{_T11_UUID}":
+            gets.append(path)
+            flaky["n"] += 1
+            if flaky["n"] == 1:
+                return httpx.Response(503)
+            return httpx.Response(200, json={"id": _T11_UUID, "properties": {"title": _title_prop("Q3 Plan")}})
+        return httpx.Response(404)
+
+    provider = _make_provider(handler, sleep_fn=lambda _s: asyncio.sleep(0))
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="p-flaky", updated_at="x"))
+    assert _t12_links(note.doc) == [(f"https://www.notion.so/{_T11_HEX}", _T11_KEY), ("Q3 Plan", _T11_KEY)]
+    assert len(gets) == 2
+
+
+async def test_fetch_title_answers_none_only_for_a_definitive_refusal():
+    for status in (403, 404):
+        def handler(request: httpx.Request, status=status) -> httpx.Response:
+            return httpx.Response(status)
+        provider = _make_provider(handler)
+        conv = provider._build_converter(TOKEN)
+        assert await conv._fetch_title(_T11_UUID) is None, status
+    for status in (429, 500, 503):
+        def handler(request: httpx.Request, status=status) -> httpx.Response:
+            return httpx.Response(status)
+        provider = _make_provider(handler, sleep_fn=lambda _s: asyncio.sleep(0))
+        conv = provider._build_converter(TOKEN)
+        with pytest.raises(errors.NoteConnError):
+            await conv._fetch_title(_T11_UUID)

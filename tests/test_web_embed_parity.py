@@ -1,6 +1,6 @@
 """Plan A Task 12: the server's embed allow-list IS the client's.
 
-`note_connectors/convert/web_embed.py::embed_for` is a port of
+`journal_two/web_embed.py::embed_for` is a port of
 `app/src/pages/journal-2-0/lib/webEmbeds.js::embedFor`. Two rails, neither of which restates the
 allow-list:
 
@@ -19,7 +19,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from api.services.journal_two.note_connectors.convert import web_embed
+from api.services.journal_two import web_embed
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "webEmbeds.js"

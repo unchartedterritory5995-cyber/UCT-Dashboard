@@ -282,7 +282,10 @@ def _declared(value: str | None) -> str | None:
     return mime or None
 
 
-def _ext_mime(filename: str | None) -> str | None:
+def extension_mime(filename: str | None) -> str | None:
+    """The type a file NAME claims, from the one extension table (`_MIME_BY_EXT`), or None.
+    Public for callers that must decide image versus file before any bytes exist (the Notion
+    converter's database file cells, Plan A Task 12); the bytes are still sniffed later."""
     if not isinstance(filename, str):
         return None
     return _MIME_BY_EXT.get(os.path.splitext(filename.strip())[1].lower())
@@ -292,7 +295,7 @@ def _sniff(data: bytes, declared_mime: str | None, filename: str | None) -> tupl
     """`(mime, confirmed)`: the ONE decision `sniff_mime` and `normalize_media` both read;
     `confirmed` is True when the bytes themselves named the type."""
     declared = _declared(declared_mime)
-    ext = _ext_mime(filename)
+    ext = extension_mime(filename)
     magic = _magic(data)
     if magic is not None:
         family = _REFINES.get(magic, frozenset())

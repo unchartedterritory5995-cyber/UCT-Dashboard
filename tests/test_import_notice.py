@@ -46,7 +46,9 @@ def _client_copy(path: Path = CLIENT_COPY) -> dict:
           "m.importNoticeText(null),"
           "m.importNoticeText({reason: 'storage_limit', name: '  '}),"
           "m.importNoticeText({reason: 'fetch_failed', attempts: 3}),"
-          "m.importNoticeText({reason: 'too_large', name: 'chart.png'})]})))")
+          "m.importNoticeText({reason: 'too_large', name: 'chart.png'}),"
+          "m.importNoticeText({reason: 'truncated', name: 'the first 20 of 27 files in Shots'}),"
+          "m.importNoticeText({reason: 'truncated', name: null})]})))")
     r = subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, timeout=120)
     err = (r.stderr or b"").decode("utf-8", errors="replace")
     assert r.returncode == 0, f"node could not import {path}: {err[:2000]}"
@@ -83,7 +85,12 @@ def test_the_reason_union_name_fallback_and_derivation_agree_on_both_sides():
         marker_text("storage_limit", "  "),
         marker_text("fetch_failed", None, attempts=3),
         marker_text("too_large", "chart.png"),
+        # Plan A Task 12 fix round 1: `truncated` carries its count INSIDE the name, so both
+        # copy tables derive the same sentence from the five attrs alone
+        marker_text("truncated", "the first 20 of 27 files in Shots"),
+        marker_text("truncated", None),
     ]
+    assert want[8] == "Only the first 20 of 27 files in Shots came over"
     assert want[2] == "This item can't be shown here"   # non-vacuity: the samples hold the rule
     assert want[5].endswith(". This item will be copied once space frees up")
     assert want[6] == "Couldn't copy this item" and want[7].startswith("chart.png ")
@@ -91,7 +98,8 @@ def test_the_reason_union_name_fallback_and_derivation_agree_on_both_sides():
 
 
 def test_the_reason_union_covers_server_client_and_plugin_codes_and_every_one_has_copy():
-    assert import_notice.SERVER_REASONS == ("too_large", "storage_limit", "unsupported", "fetch_failed", "unsafe")
+    assert import_notice.SERVER_REASONS == (
+        "too_large", "storage_limit", "unsupported", "fetch_failed", "unsafe", "truncated")
     assert import_notice.CLIENT_REASONS == (
         "upload_failed", "type_refused", "unresolvable_src", "decode_failed", "missing_resource")
     assert import_notice.PLUGIN_REASONS == (
@@ -117,6 +125,7 @@ def test_marker_text_retry_vs_final():
     ("storage_limit", "Not copied: storage limit. a.png will be copied once space frees up"),
     ("unsupported", "a.png can't be shown here"),
     ("unsafe", "a.png wasn't copied: its address isn't allowed"),
+    ("truncated", "Only a.png came over"),
     ("upload_failed", "Couldn't upload a.png"),
     ("type_refused", "a.png is a file type that can't be stored here"),
     ("unresolvable_src", "Couldn't find the image file for a.png"),

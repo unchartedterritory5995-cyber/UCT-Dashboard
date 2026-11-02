@@ -69,9 +69,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import LINK_PREFIX, REF_PREFIX
-from .linkify import notion_note_key, notion_page_id_from_href  # the ONE Notion page-link reader and key builder (Task 10/11)
-from .web_embed import embed_for  # the client's embed allow-list, ported (Task 12)
-from ...media_policy import _ext_mime  # the one extension -> type table (an image file cell shows inline)
+from .linkify import canonical_notion_page_id, notion_note_key, notion_page_id_from_href  # the ONE Notion page-link reader and key builder (Task 10/11)
+from ...web_embed import embed_for  # the client's embed allow-list, ported (Task 12)
+from ...media_policy import extension_mime  # the one extension -> type table (an image file cell shows inline)
+from ...import_notice import notice_node  # what cannot come over is an importNotice block (Task 12 fix round 1)
+from ..errors import NoteConnError
 
 # spec §7: "<=50 rows -> table doc, >50 -> per-row pages (wizard parity)" —
 # matches the wizard's own CSV_MAX_ROWS constant
@@ -89,18 +91,23 @@ _MEDIA_BLOCK_TYPES = ("image", "video", "file", "pdf", "audio")
 class DatabaseRows(list):
     """A database query's rows, plus whether the query stopped at its cap before the database
     ran out (`truncated`). `query_database` may return a plain list (never truncated); the
-    provider returns this when its bounded paging hit the cap, and the converter writes
-    `database_truncated_text` under the table so the member sees that rows are missing."""
+    provider returns this when its bounded paging hit the cap, and the converter writes a
+    `truncated` importNotice under the table so the member sees that rows are missing."""
 
     def __init__(self, rows=(), *, truncated: bool = False) -> None:
         super().__init__(rows)
         self.truncated = truncated
 
 
-def database_truncated_text(shown: int) -> str:
-    """The visible line under a database whose query stopped at its cap."""
-    return (f"[database truncated: only the first {shown} rows came over from Notion; "
-            "open it in Notion for the rest]")
+#: The most files one database `files` cell resolves (each may be a download during traversal).
+#: The rest are named by one `truncated` notice in the cell.
+_DATABASE_CELL_FILES_MAX = 20
+
+
+def _notice(reason: str, name: str | None) -> dict[str, Any]:
+    """A FINAL importNotice the converter writes itself (no ref: it holds no placeholder, so the
+    engine never retries it; it lists it in the sync log, `engine._provider_notice_failures`)."""
+    return notice_node(reason, name=name, source_url=None, ref=None, attempts=0)
 
 
 # ── small pure helpers (no I/O; independently testable) ─────────────────────
@@ -390,6 +397,13 @@ def _para(inline: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _text_para(text: str) -> dict[str, Any]:
     return {"type": "paragraph", "content": [{"type": "text", "text": text}] if text else []}
+
+
+def notion_page_url(page_id: str) -> str:
+    """The page's own notion.so address (`https://www.notion.so/<32 hex>`), the words a page
+    link reads as when its title could not be read this time."""
+    canonical = canonical_notion_page_id(page_id)
+    return f"https://www.notion.so/{str(canonical).replace('-', '')}"
 
 
 def _link_para(url: str, caption: list[dict[str, Any]]) -> dict[str, Any]:
@@ -811,8 +825,9 @@ class NotionBlockConverter:
         title = (block.get("child_database") or {}).get("title")
         heading = [{"type": "heading", "attrs": {"level": 3}, "content": [{"type": "text", "text": title}]}] if title else []
         # A query that stopped at its cap says so, under the table or the row list: never a
-        # database that silently lost its tail.
-        notice = [_text_para(database_truncated_text(len(rows)))] if getattr(rows, "truncated", False) else []
+        # database that silently lost its tail. The count rides in the notice's name.
+        notice = ([_notice("truncated", f"the first {len(rows)} rows of {title or 'this database'}")]
+                  if getattr(rows, "truncated", False) else [])
 
         if len(rows) <= _DATABASE_TABLE_MAX_ROWS:
             file_nodes = await self._database_file_nodes(rows, media)
@@ -840,19 +855,23 @@ class NotionBlockConverter:
         """Every `files` cell's files, resolved through the SAME `resolve_media` door a media
         block uses (so a Notion-hosted file is downloaded now, before its signed URL expires, and
         a hotlink is copied by the engine later) and registered on this note's media. Bounded by
-        the table: at most `_DATABASE_TABLE_MAX_ROWS` rows. The synthesized block's id
-        `<row id>:<column>:<i>` is unique per file, and its `:` marks it as no real block id."""
+        the table (at most `_DATABASE_TABLE_MAX_ROWS` rows) and per cell (at most
+        `_DATABASE_CELL_FILES_MAX` files; the rest are one `truncated` notice in the cell). The
+        synthesized block's id `<row id>:<column>:<i>` is unique per file, and its `_synthetic`
+        flag tells the provider there is no real block behind it."""
         out: dict[tuple[str, str], list[dict[str, Any]]] = {}
         for row in rows:
             row_id = row.get("id")
             for column, prop in (row.get("properties") or {}).items():
                 if not isinstance(prop, dict) or prop.get("type") != "files":
                     continue
+                items = [(i, item) for i, item in enumerate(prop.get("files") or []) if isinstance(item, dict)]
                 nodes: list[dict[str, Any]] = []
-                for i, item in enumerate(prop.get("files") or []):
-                    if not isinstance(item, dict):
-                        continue
+                for i, item in items[:_DATABASE_CELL_FILES_MAX]:
                     nodes.append(await self._file_cell_node(f"{row_id}:{column}:{i}", item, media))
+                if len(items) > _DATABASE_CELL_FILES_MAX:
+                    nodes.append(_notice(
+                        "truncated", f"the first {_DATABASE_CELL_FILES_MAX} of {len(items)} files in {column}"))
                 if nodes:
                     out[(row_id, column)] = nodes
         return out
@@ -862,12 +881,16 @@ class NotionBlockConverter:
         data = item.get(kind) if isinstance(kind, str) else None
         url = data.get("url") if isinstance(data, dict) else None
         name = item.get("name") or (_basename_from_url(url) if isinstance(url, str) and url else "file")
-        btype = "image" if (_ext_mime(name) or "").startswith("image/") else "file"
-        resolution = await self._resolve_media({"type": btype, "id": block_id, btype: item})
+        btype = "image" if (extension_mime(name) or "").startswith("image/") else "file"
+        resolution = await self._resolve_media({"type": btype, "id": block_id, "_synthetic": True, btype: item})
+        # The provider answers a download failure with a deferred entry (a placeholder the
+        # engine's media pass turns into a counted, retried `fetch_failed` or a `too_large`
+        # notice). What reaches these two branches is final: no address at all, or a resolver
+        # that decided "too large" itself.
         if resolution is None:
-            return _text_para(f"[file unavailable: {name}]")
+            return _notice("missing_resource", name)
         if resolution.get("too_large"):
-            return _text_para(f"[media too large: {resolution.get('name') or name}]")
+            return _notice("too_large", resolution.get("name") or name)
         media.register(resolution)
         return self._media_node(btype, resolution)
 
@@ -896,10 +919,15 @@ class NotionBlockConverter:
         if not target_id:
             return None, [_unsupported_marker("link_to_page")]
         # The target's own title, as Notion shows it (N-8). A database target, a target the
-        # integration cannot read, or no reader at all keeps "Linked page".
+        # integration cannot read (`fetch_title` answers None), or no reader at all keeps
+        # "Linked page". A TRANSIENT failure (rate limit, 5xx) raises instead: the link then
+        # reads as its own Notion address -- never a generic label frozen in by the skip gate.
         label = None
         if data.get("page_id") and self._fetch_title is not None:
-            label = await self._fetch_title(target_id)
+            try:
+                label = await self._fetch_title(target_id)
+            except NoteConnError:
+                label = notion_page_url(target_id)
         para = _para([{
             "type": "text", "text": label if isinstance(label, str) and label.strip() else "Linked page",
             "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}{notion_note_key(target_id)}"}}],

@@ -101,6 +101,7 @@ from urllib.parse import unquote, urlsplit
 
 from api.services.journal_two import example_sanitize   # pure (re only): the closure stays framework-free
 from api.services.journal_two import shelf_kind_names   # constants only: the closure stays engine-free
+from api.services.journal_two import web_embed as _web_embed   # pure (re + urllib): the embed id patterns, from webEmbeds.js
 
 # ⛔ NO WEB FRAMEWORK AT MODULE LEVEL. `journal_two.db.ensure_schema` imports
 # `template_gallery`, which imports this module for `reduce`, and the firm-template seed calls
@@ -895,10 +896,12 @@ GALLERY_FONT_FAMILIES: tuple[str, ...] = (
 GALLERY_FONT_SIZE_RANGE = (8, 96)
 GALLERY_COLOR_NAMES: tuple[str, ...] = ("gray", "red", "orange", "yellow", "green", "blue")
 GALLERY_CALLOUT_VARIANTS: tuple[str, ...] = ("note", "info", "success", "warning", "danger")
-#: provider -> the pattern its id must match (lib/webEmbeds.js YOUTUBE_ID, TRADINGVIEW_REF).
+#: provider -> the pattern its id must match. DERIVED from `web_embed` (the server port of
+#: lib/webEmbeds.js, pinned against it by tests/test_web_embed_parity.py), never restated here,
+#: and always tested with `fullmatch` (`$` also matches before a trailing newline).
 GALLERY_EMBED_REFS: dict[str, "re.Pattern[str]"] = {
-    "youtube": re.compile(r"^[A-Za-z0-9_-]{11}$"),
-    "tradingview": re.compile(r"^(?:[A-Z0-9_]{1,20}:)?[A-Z0-9._!]{1,30}$"),
+    "youtube": re.compile(_web_embed.YOUTUBE_ID_SRC),
+    "tradingview": re.compile(_web_embed.TRADINGVIEW_REF_SRC),
 }
 GALLERY_MAX_URL_CHARS = 2048
 
@@ -1260,7 +1263,7 @@ def _clean_node(out: dict, mode: str, policy: dict | None = None) -> dict | None
         return None
     if t == "webEmbed":
         pattern = GALLERY_EMBED_REFS.get(attrs.get("provider"))
-        if pattern is None or not isinstance(attrs.get("ref"), str) or not pattern.match(attrs["ref"]):
+        if pattern is None or not isinstance(attrs.get("ref"), str) or not pattern.fullmatch(attrs["ref"]):
             attrs.pop("provider", None)              # not a player this app can build:
             attrs.pop("ref", None)                   # it reads as a plain link, or nothing
     if t == "linkPreview" and not isinstance(attrs.get("url"), str):

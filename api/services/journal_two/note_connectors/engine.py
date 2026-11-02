@@ -1683,6 +1683,14 @@ def _notice_failures(title: str, body: Any, notices: dict[str, dict]) -> list[di
              "name": a.get("name")} for a in placed]
 
 
+def _provider_notice_failures(title: str, doc: Any) -> list[dict[str, Any]]:
+    """`failures_json` entries for the notices the provider's converter wrote into the remote
+    doc itself (Plan A Task 12). Those carry no ref (they hold no placeholder), so they never
+    overlap `_notice_failures`, which lists only the notices this pass placed by ref."""
+    return [{"noteTitle": title or "Untitled note", "reason": import_notice.notice_text(a),
+             "name": a.get("name")} for a in import_notice.iter_notices(doc) if not a.get("ref")]
+
+
 def _strip_media_placeholders(node: Any) -> Any:
     """A copy of `node` with every media placeholder (`image`/`attachmentChip` on an
     `import-ref://`) removed. Pure, and never through `rewrite_body`: it is the last resort
@@ -2083,6 +2091,11 @@ async def _confirm_and_resolve_batch(
             continue  # shouldn't happen, but a lookup miss must never crash the sync
         status, note_id = outcome
         healing = status == "skipped" and note_id in stranded
+        if status != "skipped":
+            # Plan A Task 12 fix round 1: notices the PROVIDER placed (a truncated database, a
+            # file with no address) are failures the member reads in the log too -- listed when
+            # this pass writes the note, never again while it is skipped unchanged.
+            result["noticeFailures"].extend(_provider_notice_failures(_note_title(rn, key), rn.doc))
         if status == "skipped" and not healing:
             continue  # unchanged, no stranded placeholder -> nothing to do
 

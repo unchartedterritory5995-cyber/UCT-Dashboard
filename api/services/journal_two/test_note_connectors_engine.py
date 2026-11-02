@@ -3519,3 +3519,26 @@ async def test_a_notion_deep_link_resolves_to_the_imported_note(source, provider
     target_id = next(n["id"] for n in notes_svc.list_notes("u1") if n["title"] == "Target")
     deep = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Deep")
     assert _link_marks(_body(deep)) == [("Target", f"/journal?j2tab=notebook&note={target_id}")]
+
+
+async def test_a_notice_the_provider_placed_is_listed_in_failures_json_once(source, provider):
+    """Plan A Task 12 fix round 1: a notice the CONVERTER put in the note (a truncated
+    database, a file with no address) is a failure the member can read in the log, like the
+    engine's own media notices -- listed when the note is written, not again when it is
+    skipped unchanged, and it never marks the note pending."""
+    from api.services.journal_two import import_notice
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "DB page")
+    rn.doc["content"].append(import_notice.notice_node(
+        "truncated", name="the first 100 rows of Trades", source_url=None, ref=None, attempts=0))
+    provider.notes_by_id = {"p1": rn}
+
+    await engine.sync_source(source["id"], full=True)
+    assert _last_failures(source["id"]) == [
+        {"noteTitle": "DB page", "reason": "Only the first 100 rows of Trades came over",
+         "name": "the first 100 rows of Trades"}]
+    assert _row("u1", "fake:fake-graph/p1")["import_media_pending"] == 0
+
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert (r2["updated"], r2["skipped"]) == (0, 1), r2
+    assert _last_failures(source["id"]) is None

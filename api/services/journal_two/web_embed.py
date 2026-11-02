@@ -12,6 +12,11 @@ and the YouTube path kinds below are the client's, verbatim. `tests/test_web_emb
 PARSES them out of `webEmbeds.js` and asserts equality, and runs the client's own `embedFor` in
 Node over a corpus of links to compare answers, so a provider added, an id pattern widened or a
 URL shape learned on one side goes red until the other side learns it too.
+
+A LEAF (stdlib `re` + `urllib` only), deliberately outside `note_connectors.convert`: the public
+payload reducer (`public_note_payload.GALLERY_EMBED_REFS`) derives its id patterns from here and
+sits in the schema layer's import closure (tests/test_j2_db_import_closure.py), which must not
+grow the converter package's markdown and HTML parsers.
 """
 
 from __future__ import annotations

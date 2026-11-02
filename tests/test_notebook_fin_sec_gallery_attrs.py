@@ -284,6 +284,23 @@ def test_the_colour_palette_callout_styles_and_embed_providers_are_the_clients()
     assert len(providers) >= 2 and set(public.GALLERY_EMBED_REFS) == set(providers)
 
 
+def test_the_gallery_embed_ids_are_the_web_embed_port_matched_whole():
+    """Plan A Task 12 fix round 1: the id patterns are DERIVED from `web_embed` (itself pinned to
+    webEmbeds.js), never a third copy; and they are tested with fullmatch, so a ref with a
+    trailing newline (which `$` under `re.match` accepted) is not a player."""
+    from api.services.journal_two import web_embed
+    assert public.GALLERY_EMBED_REFS["youtube"].pattern == web_embed.YOUTUBE_ID_SRC
+    assert public.GALLERY_EMBED_REFS["tradingview"].pattern == web_embed.TRADINGVIEW_REF_SRC
+
+    def kept(provider, ref):
+        node = {"type": "webEmbed", "attrs": {"provider": provider, "ref": ref, "url": "https://youtu.be/x"}}
+        out = _gallery({"type": "doc", "content": [node]})["content"]
+        return bool(out) and "provider" in (out[0].get("attrs") or {})
+    assert kept("youtube", "dQw4w9WgXcQ") and kept("tradingview", "NASDAQ:NVDA")   # control
+    assert not kept("youtube", "dQw4w9WgXcQ\n")
+    assert not kept("tradingview", "NASDAQ:NVDA\n")
+
+
 def test_every_kept_type_with_attributes_has_a_row_and_no_dropped_type_does():
     """A type the gallery keeps but the table does not name loses ALL its attributes (fail
     closed). This pins the rows that exist today, so removing one is a decision."""

@@ -199,6 +199,9 @@ class NotionProvider(NoteProvider):
         # Instance state, lifetime = one provider instance (mirrors
         # RoamProvider._title_to_uid / CraftProvider._doc_meta).
         self._page_meta: dict[str, dict[str, Any]] = {}
+        # media ref -> the failure `fetch_media` answers with, for a database file cell whose
+        # traversal download failed (`_defer_media`). Same lifetime as `_page_meta`.
+        self._deferred_media: dict[str, NoteConnError] = {}
 
     async def aclose(self) -> None:
         if self._owns_client and self._client is not None:
@@ -424,6 +427,9 @@ class NotionProvider(NoteProvider):
         # Task 9 (I-5): a hotlink is copied in through the shared
         # `fetch_content_url` -- http allowed for the download only,
         # redirects followed, the SSRF guard on every hop.
+        deferred = self._deferred_media.get(ref)
+        if deferred is not None:
+            raise deferred
         client = await self._get_client()
         return await fetch_content_url(client, ref, what="Notion media")
 
@@ -441,9 +447,11 @@ class NotionProvider(NoteProvider):
 
         # Plan A Task 12: a `link_to_page` target's title. The search listing (`_page_meta`)
         # answers for free; else ONE `GET /pages/{id}` per target per batch, through the
-        # rate-limited `_request`, memoised (an answer of None included) so a page linked
-        # many times costs one call. Any failure (not shared with the integration, deleted,
-        # rate limited out) is None, and the link keeps "Linked page".
+        # rate-limited `_request`, memoised so a page linked many times costs one call.
+        # A DEFINITIVE refusal (no access: 401/403; not found: 400/404) is None, memoised, and
+        # the link keeps "Linked page". A TRANSIENT one (rate limited out, 5xx, network)
+        # RAISES and is NOT memoised (fix round 1): the converter keeps the link's address as
+        # its text, and the next reference asks again.
         titles: dict[str, str | None] = {}
 
         async def fetch_title(page_id: str) -> str | None:
@@ -453,7 +461,11 @@ class NotionProvider(NoteProvider):
             if meta is None:
                 try:
                     meta = await self._request("GET", f"/pages/{page_id}", token)
-                except NoteConnError:
+                except NoteConnAuthError:
+                    meta = None
+                except NoteConnTransient as exc:
+                    if exc.status not in (400, 404):
+                        raise
                     meta = None
             titles[page_id] = notion_blocks.page_title_or_none(meta)
             return titles[page_id]
@@ -542,7 +554,7 @@ class NotionProvider(NoteProvider):
     async def _query_data_source(self, data_source_id: str, token: str) -> tuple[list[dict[str, Any]], bool]:
         """`(rows, truncated)`. Bounded at `_MAX_DATA_SOURCE_PAGES` pages: a database still
         reporting `has_more` there keeps the rows read so far and says `truncated`, and the
-        converter writes `database_truncated_text` under it -- the page and the rest of the
+        converter writes a `truncated` importNotice under it -- the page and the rest of the
         sync come over, the missing tail is named in the note (Plan A Task 12). It used to
         raise here, which lost the WHOLE page to one large database."""
         rows: list[dict[str, Any]] = []
@@ -584,24 +596,41 @@ class NotionProvider(NoteProvider):
         # the 5 MB inline cap, so an oversize photo is downscaled by `media_policy` instead
         # of refused here. One cap for both kinds now.
         cap = _media_source_max_bytes()
+        ref = f"notion:{block.get('id')}"
+        synthetic = block.get("_synthetic") is True
         try:
             data, content_type = await self._download_internal(block, url, token, cap=cap)
         except _MediaTooLarge:
+            if synthetic:
+                return self._defer_media(ref, kind, name, NoteConnTooLarge(
+                    f"Notion file {name!r} exceeds {cap} bytes", reason="File is larger than the allowed size limit"))
             return {"too_large": True, "name": name}
         if data is None:
+            if synthetic:
+                return self._defer_media(ref, kind, name, NoteConnTransient(
+                    f"Notion file {name!r} could not be downloaded"))
             return None
-        ref = f"notion:{block.get('id')}"
         b64 = base64.b64encode(data).decode("ascii")
         return {"ref": ref, "kind": kind, "name": name, "data_uri": f"data:{content_type};base64,{b64}"}
+
+    def _defer_media(self, ref: str, kind: str, name: str, exc: NoteConnError) -> dict[str, Any]:
+        """Plan A Task 12 fix round 1: a database file cell whose download failed during
+        traversal stays a PLACEHOLDER with a byte-less media entry, and `fetch_media(ref)`
+        answers the engine's media pass with this failure. So the ENGINE writes its notice
+        (`fetch_failed` counted against `MEDIA_RETRY_MAX_ATTEMPTS`, or `too_large`) and lists it
+        in the sync log, exactly as for any other media. Never a second download: the next sync
+        re-reads the database and gets a fresh signed URL."""
+        self._deferred_media[ref] = exc
+        return {"ref": ref, "kind": kind, "name": name}
 
     async def _download_internal(
         self, block: dict[str, Any], url: str, token: str, *, cap: int,
     ) -> tuple[bytes | None, str]:
         data, content_type, status = await self._get_media_bytes(url, cap=cap)
-        # A database `files` cell's file rides a SYNTHESIZED block (`<row>:<column>:<i>`, see
-        # `notion_blocks._database_file_nodes`): there is no block to re-read, and the id is no
+        # A database `files` cell's file rides a SYNTHESIZED block (`_synthetic: True`, see
+        # `notion_blocks._database_file_nodes`): there is no block to re-read, and its id is no
         # path segment to put in a Notion API URL. Its expired link is simply unavailable.
-        if status == 403 and ":" not in str(block.get("id")):
+        if status == 403 and block.get("_synthetic") is not True:
             # Pre-signed url expired mid-traversal — refetch the BLOCK
             # (a normal, authenticated api.notion.com call) for a fresh
             # one, retry the unauthenticated media GET exactly once more.

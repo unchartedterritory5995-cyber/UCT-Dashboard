@@ -40,7 +40,10 @@ from urllib.parse import urlsplit
 
 IMPORT_NOTICE_TYPE = "importNotice"
 
-SERVER_REASONS: tuple[str, ...] = ("too_large", "storage_limit", "unsupported", "fetch_failed", "unsafe")
+#: `truncated` (Plan A Task 12): a bounded read stopped at its cap. Its count rides INSIDE the
+#: name ("the first 20 of 27 files in Shots"), so the five attrs stay the five attrs and both
+#: copy tables derive the same sentence.
+SERVER_REASONS: tuple[str, ...] = ("too_large", "storage_limit", "unsupported", "fetch_failed", "unsafe", "truncated")
 CLIENT_REASONS: tuple[str, ...] = (
     "upload_failed", "type_refused", "unresolvable_src", "decode_failed", "missing_resource")
 #: Plan C (the Obsidian plugin), plugin-only meanings. Codes converted to snake_case.
@@ -64,6 +67,7 @@ NOTICE_COPY: Mapping[str, str] = MappingProxyType({
     "storage_limit": "Not copied: storage limit. {name} will be copied once space frees up",
     "unsupported": "{name} can't be shown here",
     "unsafe": "{name} wasn't copied: its address isn't allowed",
+    "truncated": "Only {name} came over",
     "upload_failed": "Couldn't upload {name}",
     "type_refused": "{name} is a file type that can't be stored here",
     "unresolvable_src": "Couldn't find the image file for {name}",
