@@ -182,7 +182,10 @@ def test_ensure_schema_adds_miss_streak_and_conflicts_to_a_pre_task8_shaped_db(t
 
     from api.services.journal_two.note_connectors.providers.base import RemoteRef
     seen_ref = RemoteRef(remote_id="r1", updated_at="2026-08-02T00:00:00+00:00")
-    dd = engine._run_delete_detection("u1", {"id": "s1", "remoteId": "g"}, [seen_ref])
+    dd = engine._run_delete_detection(
+        "u1", {"id": "s1", "remoteId": "g"}, [seen_ref],
+        stamp_at="2026-08-02T00:00:00+00:00",
+    )
     assert dd["status"] == "ok"
     assert dd["deleted"] == 0
 
@@ -192,3 +195,42 @@ def test_ensure_schema_adds_miss_streak_and_conflicts_to_a_pre_task8_shaped_db(t
     ).fetchone()
     conn3.close()
     assert row["miss_streak"] == 0  # still present/seen — column read+wrote cleanly
+
+
+def test_ensure_schema_adds_last_full_sync_at_and_failures_json_to_an_older_db(tmp_path, monkeypatch):
+    """A DB built before Plan D (no last_full_sync_at / failures_json), with the
+    v3 flag already set, gains both columns from ensure_schema() and a second
+    run is a clean no-op."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    c = sqlite3.connect(tmp_path / "pre_plan_d.db")
+    c.row_factory = sqlite3.Row
+    c.executescript(j2db._J2_SCHEMA)
+    c.execute("ALTER TABLE j2_note_sources DROP COLUMN last_full_sync_at")
+    c.execute("ALTER TABLE j2_note_sync_log DROP COLUMN failures_json")
+    c.commit()
+    (tmp_path / ".notebook_migration_v3").touch()
+    assert "last_full_sync_at" not in {r[1] for r in c.execute("PRAGMA table_info(j2_note_sources)")}
+    assert "failures_json" not in {r[1] for r in c.execute("PRAGMA table_info(j2_note_sync_log)")}
+
+    j2db.ensure_schema(c)
+    j2db.ensure_schema(c)
+
+    cols_src = {r[1] for r in c.execute("PRAGMA table_info(j2_note_sources)")}
+    cols_log = {r[1] for r in c.execute("PRAGMA table_info(j2_note_sync_log)")}
+    assert "last_full_sync_at" in cols_src and "failures_json" in cols_log
+    c.close()
+
+
+def test_fresh_schema_declares_both_new_columns():
+    c = sqlite3.connect(":memory:")
+    c.executescript(j2db._J2_SCHEMA)
+    cols_src = {r[1] for r in c.execute("PRAGMA table_info(j2_note_sources)")}
+    cols_log = {r[1] for r in c.execute("PRAGMA table_info(j2_note_sync_log)")}
+    assert "last_full_sync_at" in cols_src and "failures_json" in cols_log
+    c.close()
+
+
+def test_connector_table_ddl_declares_both_new_columns():
+    for table, col in (("j2_note_sources", "last_full_sync_at"),
+                       ("j2_note_sync_log", "failures_json")):
+        assert col in j2db._NOTE_CONNECTOR_TABLE_DDL[table]
