@@ -18,7 +18,7 @@ import BuilderSheet, { buildDefinition } from './BuilderSheet'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { memberPaneDefinition } from './memberPane/memberPaneDefinition'
-import { SCRIPT_UPGRADE_PASTE_NOTE } from './memberPane/savedScriptUpgrade'
+import { SCRIPT_UPGRADE_PASTE_NOTE, SCRIPT_UPGRADE_RESAVE_NOTE } from './memberPane/savedScriptUpgrade'
 import { parseFormula } from '../engine/ast/parse'
 import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
@@ -143,6 +143,16 @@ describe('3. the legend row’s door: a legacy script document, re-saved from it
     expect(body.pine_source).toBe(SCRIPT)
     expect(body.definition.id).toBe(DEF_ID)
     expect(body.definition.meta.engineVersion).toBe(SCRIPT_ENGINE_VERSION)
+  })
+
+  it('a script whose upgrade could not be saved automatically opens WITH its stored script and the re-save note', async () => {
+    const built = memberPaneDefinition({ source: SCRIPT, id: DEF_ID })
+    const legacy = { ...built.definition, version: 3 }
+    delete legacy.meta.engineVersion
+    mount({ editRow: { def_id: DEF_ID, version: 3, rev: 1, definition: legacy, upgradeScript: true, pine_source: SCRIPT } })
+    await flush()
+    expect(screen.getByTestId('script-upgrade-note').textContent).toBe(SCRIPT_UPGRADE_RESAVE_NOTE)
+    expect(screen.getByTestId('pine-box').querySelector('textarea').value).toBe(SCRIPT)
   })
 
   it('the ordinary "Edit formula" door on the same document is unchanged (no note)', async () => {

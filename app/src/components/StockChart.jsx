@@ -19002,7 +19002,9 @@ export default function StockChart({
           canModify: (() => { try { return !!toolbarRef.current?.canModifyWithIntelligence?.() } catch { return false } })(),
           copyRefusal: copyCheck && !copyCheck.ok ? copyCheck.reason : undefined,
           // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — a script saved before its source was kept.
-          scriptUpgrade: needsScriptForUpgrade(c.defId),
+          // ⛔ L2 — the row is a door into the builder: offered only where that door opens.
+          scriptUpgrade: needsScriptForUpgrade(c.defId)
+            && (() => { try { return !!toolbarRef.current?.canManageIndicators?.() } catch { return false } })(),
           scriptUpgradeLabel: UPGRADE_NOTICE_LABEL,
         })
         const move = items.find((i) => i.key === 'move')
