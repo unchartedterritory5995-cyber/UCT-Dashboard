@@ -112,6 +112,25 @@ def test_both_kinds_register_model_isolated():
 
 # ── breadth.current ───────────────────────────────────────────────────────────────────────────────────
 
+def _assert_isolated_everywhere(out):
+    """F-21: the envelope, its data, and every dict nested in it (rows, components) carry `isolated: true`, so a
+    value copied out of an isolated read still says where it came from."""
+    assert out["isolated"] is True
+    seen = []
+
+    def walk(v):
+        if isinstance(v, dict):
+            assert v.get("isolated") is True, v
+            seen.append(v)
+            for x in v.values():
+                walk(x)
+        elif isinstance(v, list):
+            for x in v:
+                walk(x)
+    walk(out["data"])
+    assert seen                                  # non-vacuity: the data really was walked
+
+
 def test_intraday_current_reading_is_periodic_with_the_vendor_time_and_the_label(monkeypatch):
     calls = _breadth(monkeypatch)
     out = _read("breadth.current", {"universe": "nyse", "metric": "pct_above_50sma"})
@@ -120,7 +139,9 @@ def test_intraday_current_reading_is_periodic_with_the_vendor_time_and_the_label
     assert out["status"] == "ok" and out["freshness"] == "periodic" and out["stale"] is False
     assert out["as_of"] == "2026-11-02T16:52:03Z"                 # observed_at, NOT computed_at (16:53:30Z)
     assert out["notes"][0] == "Intraday · 11:52 AM ET" and out["provider_calls"] == 0
-    assert set(out["data"]) == set(br.DATA_FIELDS) and out["data"]["value"] == 61.4
+    # the adapter's fields, plus the gateway's isolation marker (agent-lead F-21: stamped on the data and every row)
+    assert set(out["data"]) == set(br.DATA_FIELDS) | {"isolated"} and out["data"]["value"] == 61.4
+    _assert_isolated_everywhere(out)
 
 
 @pytest.mark.parametrize("status", ["provisional", "finalized"])
@@ -197,7 +218,8 @@ def test_ratings_as_of_is_the_price_session_close_with_the_uct_and_undated_notes
     assert out["status"] == "ok" and out["freshness"] == "periodic" and out["stale"] is False
     assert out["as_of"] == "2026-10-30T20:00:00Z" and out["provider_calls"] == rt.PROVIDER_CALLS
     assert rt.NOTE_UCT_DERIVED in out["notes"] and rt.NOTE_UNDATED_LEGS in out["notes"]
-    assert set(out["data"]) == set(rt.DATA_FIELDS) and "entity" not in repr(out["data"])
+    assert set(out["data"]) == set(rt.DATA_FIELDS) | {"isolated"} and "entity" not in repr(out["data"])
+    _assert_isolated_everywhere(out)
     assert out["data"]["components"]["smr"] == "B" and out["source"] == "uct-ratings"
 
 
