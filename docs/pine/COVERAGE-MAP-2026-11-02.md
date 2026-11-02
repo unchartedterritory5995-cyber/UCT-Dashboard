@@ -29,6 +29,19 @@ These are door verdicts, not parity verdicts.
 
 ---
 
+> **WIP status (hand-off, 2026-11-02).** All four measurements are DONE and summarised below:
+> production census, runtime-on census, vendor harness both lanes, and the map (both lanes).
+> STILL TO RUN: only the optional engine-door probe (the `COVERAGE_DOOR_OUT` step in section 10);
+> it was queued behind other agents' heavy-lock jobs. Until it lands, `coverage-map.json` in this
+> commit carries an EMPTY `engineTableThroughPineDoor` (the 10-31 file had 83 rows); no count in
+> this document depends on it. Then: re-run `coverage_map.py` with `--engine-door`, and the
+> pre-commit pytest list + `tools/check_repo_hygiene.py`.
+> Raw outputs on the ORIGINAL machine (not committed; reference sources are local-only by licence):
+> `C:\Users\Patrick\uct-worktrees\_w0-2026-11-02\` - `prod/` and `rt/` (census caches with `census.jsonl`),
+> `verdicts-prod/`, `verdicts-rt/` (harness `verdicts.json` + `summary.md`), `ref/pine_v6_reference.json`,
+> `coverage-map.json`, `old-map.json` (the 10-31 committed map), logs `census-*.log`, `harness-*.log`.
+> Tables regenerate with `tools/pine_coverage/w0/targets.py` then `gen_md.py` (section 9).
+
 ## 1. Headline
 
 > **Production lane: 211 of 679 (31.1%) transfer fully, unchanged since 10-31, script for script.**
