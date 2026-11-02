@@ -3286,6 +3286,35 @@ def notes_import_confirm_endpoint(payload: dict[str, Any] = Depends(_json(dict[s
         raise HTTPException(status_code=400, detail=str(e))
 
 
+#: Connector fidelity Plan A Task 4: the heal door's per-member budget. Each call reads at
+#: most 500 named notes plus a 500-note sweep, so it is bounded per call and per minute.
+#: In-process Limiter state (CLAUDE.md's single-process roster): a second process doubles it.
+NOTE_IMPORT_HEAL_RATE = "30/minute"
+SCOPE_NOTE_IMPORT_HEAL = "notebook-import-heal"
+NOTE_IMPORT_HEAL_RATE_SENTENCE = "That's a lot of link repairs in a minute. Try again shortly."
+
+
+@router.post("/notes/import/heal-links")
+def notes_import_heal_links_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
+    """Connector fidelity Plan A Task 4 [B A6]: heal the member's imported links whose
+    target has arrived since -- the named `noteIds` (<= 500; Plan B's file importer names
+    what it just imported) plus a bounded sweep of the member's pending notes. Member-scoped,
+    timestamp-neutral; `unresolved` lists only the NAMED notes' marks still unresolved."""
+    from api.services.journal_two import public_note_payload as public
+    from api.services.journal_two.note_connectors import link_keys
+    note_ids = payload.get("noteIds")
+    if note_ids is None:
+        note_ids = []
+    if not isinstance(note_ids, list) or not all(isinstance(n, str) for n in note_ids):
+        raise HTTPException(status_code=400, detail="noteIds must be a list of note ids")
+    if len(note_ids) > link_keys.HEAL_LIMIT:
+        raise HTTPException(status_code=400, detail=f"at most {link_keys.HEAL_LIMIT} noteIds per call")
+    public.enforce_rate(NOTE_IMPORT_HEAL_RATE, SCOPE_NOTE_IMPORT_HEAL, f"member:{user['id']}",
+                        NOTE_IMPORT_HEAL_RATE_SENTENCE, public=False)
+    out = link_keys.heal_pending_links(user["id"], note_ids=note_ids)
+    return {"healed": out["healed"], "unresolved": out["unresolved"]}
+
+
 @router.post("/notes/enrichment/scan")
 def notes_enrichment_scan_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
     """The arrival-screen enrichment offer (spec §8.1): scan a set of a

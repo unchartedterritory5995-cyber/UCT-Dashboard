@@ -454,6 +454,13 @@ CREATE TABLE IF NOT EXISTS j2_notes (
     -- failed media upload gets retried on the member's next import attempt
     -- instead of being silently and permanently missing forever.
     import_media_pending INTEGER,
+    -- Connector fidelity Plan A Task 4: 1 iff the stored body still carries an
+    -- import-link://<key> mark (a link whose target is not here yet). Split out
+    -- of import_media_pending, which now answers media (import-ref://) only, so
+    -- an unreachable link no longer re-imports the note on every pass; the
+    -- link heal pass (note_connectors/link_keys.py) reads it, through
+    -- idx_j2_notes_links_pending. Mirrored by the ALTER in _PHASE_2_ALTERS.
+    import_links_pending INTEGER,
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
@@ -2109,6 +2116,13 @@ _PHASE_2_ALTERS = [
     # Connector fidelity Plan A Task 1: see the column's comment on the fresh CREATE TABLE.
     # Nullable, no backfill: a NULL reads as "legacy row, use the imported_at fallback".
     "ALTER TABLE j2_notes ADD COLUMN import_remote_rev TEXT",
+    # Connector fidelity Plan A Task 4: see the column's comment on the fresh CREATE TABLE.
+    # Nullable, no backfill: a legacy row whose link is still pending carries
+    # import_media_pending = 1 (the old combined flag), so its next sync re-confirms it once
+    # and both flags are recomputed there. The index is HERE, after its column, never in the
+    # initial executescript (that runs before this ALTER on an existing database).
+    "ALTER TABLE j2_notes ADD COLUMN import_links_pending INTEGER",
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_links_pending ON j2_notes(user_id, import_links_pending)",
     # fin-security I-2: the remembered "unplanned" (plan_grading.MatchScope). One row per trade
     # that had no plan the last time it was matched, with a stamp of everything that could
     # change that. A memo, never a freeze: a stamp that no longer matches is ignored and the
