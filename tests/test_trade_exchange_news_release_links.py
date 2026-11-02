@@ -726,3 +726,121 @@ def test_headline_ingest_proceeds_while_the_resolver_runs(store, env):
     t.join()
     got = {r_["event_id"] for r_ in store.after(0, 1000)}
     assert set(ids) <= got
+
+
+# ── release-candidate QA follow-ups ──────────────────────────────────────────
+
+def test_fmp_rechecks_rotate_when_more_rows_are_pending_than_the_batch(store, env):
+    """More unlinked rows than the batch: every row is still re-checked on later
+    polls (the least-checked first), not only the newest ``fmp_batch``."""
+    ids = [tx(store, f"ACME - Acme Corp Announces Unrelated Item Number {i} Today", ms=T0 + i * MIN) for i in range(5)]
+    r = resolver(store, now=T0 + 30 * MIN)
+    for k in range(6):
+        poll(env, f"2026-10-29T20:{10 + k:02d}:00+00:00")
+        r.run_pass(fmp_batch=3)
+    passes = dict(store._conn().execute("SELECT event_id, fmp_passes FROM release_link_state").fetchall())
+    assert all(passes[i] >= 3 for i in ids), passes
+
+
+def test_a_row_past_the_fmp_window_gets_its_final_check_ahead_of_fresh_rows(store, env):
+    old = tx(store, "ACME - Acme Corp Announces An Older Unrelated Item Today", ms=T0 - 49 * 60 * MIN)
+    for i in range(4):
+        tx(store, f"ACME - Acme Corp Announces Fresh Unrelated Item {i} Today", ms=T0 + i * MIN)
+    r = resolver(store, now=T0 + 30 * MIN)
+    r.run_pass(fmp_batch=10)                       # first look at everything
+    poll(env, "2026-10-29T20:30:00+00:00")
+    r.run_pass(fmp_batch=1)                        # one re-check: the expired row's last one
+    final = store._conn().execute("SELECT fmp_final FROM release_link_state WHERE event_id=?", (old,)).fetchone()[0]
+    assert final == 1
+
+
+def test_sec_live_schedule_goes_ahead_of_the_historical_backlog(store, env):
+    old = T0 - 10 * 86_400_000
+    for i in range(60):
+        tx(store, f"ACME - Acme Corp Announces Archived Item Number {i} Today", ms=old + i * MIN)
+    fresh = tx(store, f"ACME - {TITLE}")
+    st = sec_res(store, FakeSec(EXHIBIT)).run_pass(sec_budget=120)
+    assert st["sec_linked"] == 1 and link_rows(store)[0][0] == fresh
+
+
+def test_sec_submissions_cache_keeps_only_filtered_filings_and_is_bounded(monkeypatch):
+    monkeypatch.setattr(rl, "SEC_SUB_CACHE_MAX", 3)
+    fake = FakeSec(EXHIBIT)
+    sec = rl.SecLookup(get=fake)
+    sec.budget = 100
+    for cik in range(1, 8):
+        assert [f["form"] for f in sec.filings(cik)] == ["8-K"]
+    assert list(sec._subs) == [5, 6, 7]
+    assert all(isinstance(v[1], list) for v in sec._subs.values())   # never the parsed JSON
+    n = len(fake.urls)
+    sec.filings(7)
+    assert len(fake.urls) == n                                       # a cached issuer costs no request
+
+
+def test_sec_budget_has_a_floor_so_one_headline_cannot_stall_the_queue(monkeypatch):
+    from api.services.trade_exchange_news import config
+    monkeypatch.setenv("TXN_RELEASE_LINKS_SEC_BUDGET", "0")
+    assert config.release_links_sec_budget() == 20
+    monkeypatch.setenv("TXN_RELEASE_LINKS_SEC_BUDGET", "500")
+    assert config.release_links_sec_budget() == 120
+
+
+def test_boot_with_the_resolver_off_creates_no_tables(store, env, monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.delenv("TXN_RELEASE_LINKS_ENABLED", raising=False)
+    rl.start(SimpleNamespace(store=store))
+    try:
+        names = {r[0] for r in store._conn().execute("SELECT name FROM sqlite_master")}
+        assert not any(n.startswith("release_link") for n in names)
+        assert rl._thread is None
+    finally:
+        rl.stop()
+
+
+def test_boot_with_the_resolver_off_still_loads_links_stored_earlier(store, env, monkeypatch):
+    from types import SimpleNamespace
+    eid = tx(store, f"ACME - {TITLE}")
+    fmp(env, TITLE, ["ACME"])
+    resolver(store).run_pass()
+    rl._LINKS.clear()
+    monkeypatch.delenv("TXN_RELEASE_LINKS_ENABLED", raising=False)
+    rl.start(SimpleNamespace(store=store))
+    try:
+        assert rl.lookup(eid)["url"] == GNW
+    finally:
+        rl.stop()
+
+
+def test_a_restart_never_revives_the_previous_thread(store, env, monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setenv("TXN_RELEASE_LINKS_ENABLED", "1")
+    monkeypatch.setenv("TXN_RELEASE_LINKS_START_DELAY_S", "3600")
+    pipe = SimpleNamespace(store=store)
+    rl.start(pipe)
+    first_stop, first_thread = rl._stop, rl._thread
+    rl.stop()
+    rl.start(pipe)
+    try:
+        assert first_stop.is_set() and not rl._stop.is_set()
+        assert rl._thread is not first_thread and not first_thread.is_alive()
+    finally:
+        rl.stop()
+
+
+def test_a_gzip_sec_response_is_inflated_with_the_cap(monkeypatch):
+    """A small gzip download that inflates past the cap is refused; within the cap
+    it arrives as plain bytes (the shared client never inflates it again)."""
+    import gzip
+    import urllib.request
+    asked = "https://www.sec.gov/Archives/edgar/data/1/2/ex99-1.htm"
+
+    def resp(body):
+        r = _Resp(asked, gzip.compress(body))
+        r.headers = {"Content-Encoding": "gzip"}
+        return r
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: resp(b"<p>ok</p>"))
+    assert rl._sec_get(asked, 1000) == b"<p>ok</p>"
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: resp(b"a" * 50_000))
+    with pytest.raises(ValueError):
+        rl._sec_get(asked, 1000)

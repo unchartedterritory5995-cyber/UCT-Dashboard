@@ -46,6 +46,8 @@ import re
 import sqlite3
 import threading
 import time
+import zlib
+from collections import OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -86,6 +88,8 @@ SEC_MAX_DOCS = 3
 SEC_DOC_MAX_BYTES = 3_000_000
 SEC_JSON_MAX_BYTES = 12_000_000
 SEC_SUB_TTL_S = 600
+#: Issuers whose filtered 8-K/6-K list is cached (least recently used evicted).
+SEC_SUB_CACHE_MAX = 256
 SEC_TICKERS_TTL_S = 24 * 3600
 MAX_URL = 1024
 
@@ -383,10 +387,16 @@ def ensure_schema(store) -> None:
     store._conn().executescript(_SCHEMA)  # noqa: SLF001 -- same package, own thread-local connection
 
 
-def load(store) -> int:
-    """Fill the in-memory map from the table (boot)."""
-    ensure_schema(store)
-    rows = store._conn().execute("SELECT event_id, kind, url, publisher FROM release_links").fetchall()  # noqa: SLF001
+def load(store, *, create: bool = True) -> int:
+    """Fill the in-memory map from the table (boot). ``create=False`` (resolver
+    off) never creates the tables: a database that never had links is left
+    exactly as it was."""
+    c = store._conn()  # noqa: SLF001
+    if create:
+        ensure_schema(store)
+    elif not c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='release_links'").fetchone():
+        return 0
+    rows = c.execute("SELECT event_id, kind, url, publisher FROM release_links").fetchall()
     with _lock:
         _LINKS.clear()
         for eid, kind, url, pub in rows:
@@ -496,7 +506,9 @@ class SecLookup:
         self._get = get or _sec_get
         self._now = now
         self._tickers: tuple[float, dict[str, int]] | None = None
-        self._subs: dict[int, tuple[float, dict]] = {}
+        # Only each issuer's filtered 8-K/6-K tuples are kept, never the parsed
+        # submissions JSON (about 1 MB each), and at most SEC_SUB_CACHE_MAX issuers.
+        self._subs: OrderedDict[int, tuple[float, list[dict[str, Any]]]] = OrderedDict()
         self.budget = 0
         self.requests = 0
 
@@ -523,10 +535,11 @@ class SecLookup:
 
     def filings(self, cik: int) -> list[dict[str, Any]]:
         hit = self._subs.get(cik)
-        if hit is None or self._now() - hit[0] > SEC_SUB_TTL_S:
-            j = json.loads(self.fetch(f"https://data.sec.gov/submissions/CIK{cik:010d}.json", SEC_JSON_MAX_BYTES))
-            self._subs[cik] = hit = (self._now(), j)
-        rc = hit[1].get("filings", {}).get("recent", {})
+        if hit is not None and self._now() - hit[0] <= SEC_SUB_TTL_S:
+            self._subs.move_to_end(cik)
+            return hit[1]
+        j = json.loads(self.fetch(f"https://data.sec.gov/submissions/CIK{cik:010d}.json", SEC_JSON_MAX_BYTES))
+        rc = j.get("filings", {}).get("recent", {})
         out = []
         for i, form in enumerate(rc.get("form", [])):
             if form not in SEC_FORMS:
@@ -536,6 +549,10 @@ class SecLookup:
                 continue
             out.append({"form": form, "accepted_ms": ms, "accession": rc["accessionNumber"][i],
                         "primary": rc["primaryDocument"][i]})
+        self._subs[cik] = (self._now(), out)
+        self._subs.move_to_end(cik)
+        while len(self._subs) > SEC_SUB_CACHE_MAX:
+            self._subs.popitem(last=False)
         return out
 
     def documents(self, cik: int, accession: str, primary: str) -> list[tuple[str, bytes]]:
@@ -564,7 +581,12 @@ def _sec_get(url: str, max_bytes: int) -> bytes:
 
     class _Capped:
         def __init__(self, resp):
-            self._r, self.headers = resp, resp.headers
+            self._r = resp
+            # A gzip body is inflated HERE, capped, and handed on as plain bytes, so
+            # the shared client never inflates an unbounded body (a small download
+            # must not become an unbounded allocation).
+            self._gzip = resp.headers.get("Content-Encoding") == "gzip"
+            self.headers = {"Content-Encoding": "identity"} if self._gzip else resp.headers
             # ⛔ NO REDIRECTS. urllib follows them silently; the link we store is the
             # URL we asked for, so the bytes we verified must have come from exactly
             # there -- never from wherever a redirect pointed.
@@ -583,6 +605,11 @@ def _sec_get(url: str, max_bytes: int) -> bytes:
             body = self._r.read(max_bytes + 1)
             if len(body) > max_bytes:
                 raise ValueError("SEC document larger than the cap; refused")
+            if self._gzip:
+                d = zlib.decompressobj(16 + zlib.MAX_WBITS)
+                body = d.decompress(body, max_bytes + 1)
+                if len(body) > max_bytes or d.unconsumed_tail:
+                    raise ValueError("SEC document larger than the cap once inflated; refused")
             return body
 
     return sec_client.get_bytes(url, retries=1, timeout=20.0,
@@ -771,10 +798,14 @@ class Resolver:
             try:
                 marker = _fmp_poll_marker(cn)
                 fresh_due = marker != self._marker
+                # New rows first, then rows past the 48 h window (their last check,
+                # which finalizes them), then the least-checked: with more pending
+                # rows than the batch, every row is still re-checked in turn.
                 rows = c.execute(
                     "SELECT event_id, received_at_ms, fmp_passes FROM release_link_state "
                     "WHERE status='pending' AND fmp_final=0 AND (fmp_passes=0 OR ?) "
-                    "ORDER BY (fmp_passes=0) DESC, received_at_ms DESC LIMIT ?", (1 if fresh_due else 0, fmp_batch)).fetchall()
+                    "ORDER BY (fmp_passes=0) DESC, (received_at_ms<=?) DESC, fmp_passes, received_at_ms DESC LIMIT ?",
+                    (1 if fresh_due else 0, now - FMP_WINDOW_MS, fmp_batch)).fetchall()
                 st["fmp_ran"] = bool(rows)
                 writes: list = []
                 for eid, rms, _passes in rows:
@@ -804,9 +835,12 @@ class Resolver:
             st["fmp_db_unavailable"] = True
         if self.sec is not None and config.release_links_sec_enabled():
             self.sec.budget = sec_budget
+            # Headlines still on their live schedule go first; the historical
+            # catch-up drains behind them with whatever budget is left.
             due = c.execute("SELECT event_id, received_at_ms, sec_attempts FROM release_link_state "
                             "WHERE status='pending' AND sec_next_ms IS NOT NULL AND sec_next_ms<=? "
-                            "ORDER BY sec_next_ms LIMIT 50", (now,)).fetchall()
+                            "ORDER BY (received_at_ms>=?) DESC, sec_next_ms LIMIT 50",
+                            (now, now - SEC_DELAYS_MS[-1] - 60 * MIN)).fetchall()
             writes = []
             for eid, rms, attempts in due:
                 tx = self._tx(eid)
@@ -885,9 +919,9 @@ _thread: threading.Thread | None = None
 def start(pipe) -> None:
     """Load stored links (always: they display even with the resolver off), then
     run the resolver thread when TXN_RELEASE_LINKS_ENABLED=1."""
-    global _RESOLVER, _thread
+    global _RESOLVER, _thread, _stop
     try:
-        load(pipe.store)
+        load(pipe.store, create=config.release_links_enabled())
     except Exception:  # noqa: BLE001 -- links are an extra; never block News start
         logger.exception("[txn] release links: load failed")
         return
@@ -898,19 +932,19 @@ def start(pipe) -> None:
         pipe.loop.call_soon_threadsafe(pipe.hub.publish, {"type": "link", "epoch": pipe.store.epoch, "id": event_id,
                                                           "seq": ev["seq"], "link": ev["link"]})
 
-    _RESOLVER = Resolver(pipe.store, sec=SecLookup(), on_link=on_link)
-    _stop.clear()
+    _RESOLVER = resolver = Resolver(pipe.store, sec=SecLookup(), on_link=on_link)
+    _stop = halt = threading.Event()
 
     def loop() -> None:
-        _stop.wait(config.release_links_start_delay_s())
-        while not _stop.is_set():
+        halt.wait(config.release_links_start_delay_s())
+        while not halt.is_set():
             try:
-                _RESOLVER.run_pass(fmp_batch=config.release_links_fmp_batch(),
+                resolver.run_pass(fmp_batch=config.release_links_fmp_batch(),
                                    sec_budget=config.release_links_sec_budget())
             except Exception:  # noqa: BLE001
                 _bump("pass_errors")
                 logger.exception("[txn] release links pass failed")
-            _stop.wait(config.release_links_interval_s())
+            halt.wait(config.release_links_interval_s())
 
     _thread = threading.Thread(target=loop, name="txn-release-links", daemon=True)
     _thread.start()

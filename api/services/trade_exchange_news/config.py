@@ -77,8 +77,11 @@ def release_links_fmp_batch() -> int:
 
 
 def release_links_sec_budget() -> int:
-    """SEC requests per pass (one pass a minute): far under fair access."""
-    return min(120, _int("TXN_RELEASE_LINKS_SEC_BUDGET", 40, lo=0))
+    """SEC requests per pass (one pass a minute): far under fair access. At least
+    20: one headline needs up to 18 (tickers, submissions, 4 filings x index + 3
+    documents), so a smaller budget could leave it stuck at the head of the queue.
+    TXN_RELEASE_LINKS_SEC_ENABLED is the off switch."""
+    return min(120, _int("TXN_RELEASE_LINKS_SEC_BUDGET", 40, lo=20))
 
 
 def db_path() -> str:
