@@ -37,7 +37,7 @@ compiled into a spec only when every part of the message was accounted for (§5)
 |---|---|---|
 | `universe` | sector / industry / theme / index / ETF-or-not / watchlist (`within`) | `in` filters on `sector`, `industry`, `theme`; `eq` on `index_*`, `is_etf`; the `list` key for a watchlist |
 | `size` | market-cap words or bounds | `market_cap` bounds |
-| `liquidity` | dollar-volume words or bounds | `dollar_vol_30d` (an average) or `dollar_vol_1d` (latest session, when the member says "today" / "a day") |
+| `liquidity` | dollar-volume words or bounds | `dollar_vol_30d` (the 30-day average: "a day" / "per day" with no session named) or `dollar_vol_1d` (only when a session is named: "today", "yesterday", "last session") (agent-lead ruling) |
 | `price` | price bounds | `price` bounds |
 | `trend` | moving-average relations, stage, MA stack | `above_50sma`, `ema20_rising`, `ema_stack_intact`, `stage2`, `pct_vs_ema20`, `pct_vs_sma20` |
 | `strength` | RS words or bounds | `rs_rank`, `sector_rs_pct`, `rs_line_trend` |
@@ -91,6 +91,8 @@ with the discovery corpus tolerances, and they need the owner's ruling. A defaul
 
 | Words | Slot → spec | Status |
 |---|---|---|
+| trading over $X a day / per day (no session named) | `dollar_vol_30d > X` (a liquidity screen: average daily dollar volume) | agent-lead ruling; discovery d08 |
+| traded over $X today / yesterday / last session | `dollar_vol_1d > X` (that session) | agent-lead ruling |
 | liquid, tradable | `dollar_vol_30d >= 20000000` | PROPOSED |
 | very liquid | `dollar_vol_30d >= 100000000` | PROPOSED |
 | large caps / small caps / mid caps / mega caps | `market_cap > 10e9` / `< 2e9` / between 2e9 and 10e9 / `> 200e9` | PROPOSED (discovery d19, d22) |
