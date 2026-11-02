@@ -150,6 +150,11 @@ export const FIXTURES = {
     board: { v: 1, items: [{ id: 'c1', kind: 'text', x: 0, y: 0, w: 240, h: 120, text: 'canvascardword' }],
       edges: [], levels: [{ id: 'l1', role: 'entry', label: 'Entry', price: 101.5, chartId: null }] },
     searchText: 'canvascardword' } }), probe: 'canvascardword' },
+  // Connector fidelity (2026-11): an import's "couldn't copy" marker. Its words are DERIVED
+  // (the exports write the sentence); probe: the name, which only the sentence carries.
+  importNotice: { doc: doc({ type: 'importNotice', attrs: {
+    reason: 'fetch_failed', name: 'noticefileword.png', sourceUrl: 'https://example.com/noticefileword.png',
+    ref: 'r1', attempts: 3 } }), probe: 'noticefileword' },
 }
 
 // Wave 13 lane 13H-1: a chart whose plan was DRAWN — roles written by lib/chartPlan.js (the
@@ -381,10 +386,12 @@ describePy('JSON — the lossless round trip through the REAL uct adapter', () =
     // a link whose target did NOT come in is left exactly as stored
     const alone = rewriteBody(a.bodyJson, { mediaUrls: {}, idByKey: {} })
     expect(alone.body.content[0].content[1].attrs.noteId).toBe('lb')
-    // an unresolved IMAGE is dropped (the importer's rule for every image); an unresolved
-    // WIDGET picture lets only the picture go — the widget is still the widget
-    expect(alone.body.content.map((n) => n.type)).toEqual(['paragraph', 'widgetEmbed'])
-    expect(alone.body.content[1].attrs.fallback).toBeNull()
+    // an unresolved IMAGE becomes an importNotice in its place (Plan B Task 4: the importer's
+    // rule for every image); an unresolved WIDGET picture lets only the picture go — the
+    // widget is still the widget
+    expect(alone.body.content.map((n) => n.type)).toEqual(['paragraph', 'importNotice', 'widgetEmbed'])
+    expect(alone.body.content[1].attrs).toMatchObject({ reason: 'missing_resource', ref })
+    expect(alone.body.content[2].attrs.fallback).toBeNull()
     expect(alone.droppedMedia).toEqual([ref, ref])
   })
 

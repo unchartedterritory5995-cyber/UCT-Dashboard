@@ -71,7 +71,7 @@ from ..errors import (
     NoteConnTransient,
     NoteConnUnsupported,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_media_get
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
 
 _API_BASE = "https://api.roamresearch.com/api/graph"
 
@@ -262,7 +262,8 @@ class RoamProvider(NoteProvider):
             # follow_redirects=False is LOAD-BEARING — see module docstring
             # point 1. Never flip this without also removing the manual
             # `_send_with_redirect` re-auth below.
-            self._client = httpx.AsyncClient(follow_redirects=False, timeout=30.0)
+            # Its media hops ride it too: `media_http_client`, never an env proxy.
+            self._client = media_http_client(follow_redirects=False, timeout=30.0)
         return self._client
 
     async def _send_with_redirect(
@@ -419,7 +420,7 @@ class RoamProvider(NoteProvider):
             title_to_uid=self._title_to_uid,
             uid_to_string=uid_to_string,
         )
-        converted = md_to_tiptap(final_md)
+        converted = md_to_tiptap(final_md, unsafe_image_notice=True)
         # Repairs a bare {{[[TODO]]}}/{{[[DONE]]}} block (no other text),
         # which md_to_tiptap alone can't recognize as a task item — see
         # roam_text.fix_empty_task_items's docstring.
@@ -480,12 +481,6 @@ class RoamProvider(NoteProvider):
         # initial URL AND every redirect hop before issuing that hop's
         # request (plain `follow_redirects=True` would happily follow a
         # public-looking URL straight to a private/internal address).
+        # Plan A Task 9 (I-5): a hotlink is copied in -- http allowed for the download only.
         client = await self._get_client()
-        response = await guarded_media_get(client, ref, what="Roam media")
-        if response.status_code >= 400:
-            raise NoteConnTransient(
-                f"Failed to download Roam media ({response.status_code})",
-                status=response.status_code,
-            )
-        content_type = response.headers.get("content-type", "application/octet-stream")
-        return response.content, content_type
+        return await fetch_content_url(client, ref, what="Roam media")

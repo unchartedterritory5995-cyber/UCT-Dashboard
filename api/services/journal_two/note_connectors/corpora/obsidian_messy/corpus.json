@@ -1,0 +1,25 @@
+{
+ "_about": "A messy Obsidian vault for the connector corpora (Plan A Task 14). corpora_gen.py pushes vault/ (pass 1) then pass2/ (pass 2) through the real staging door and syncs it with the real engine. Hotlinked media bodies are built in memory from the `media` specs.",
+ "user": "u-obsidian",
+ "vault_id": "vault-messy",
+ "label": "Trading Vault",
+ "passes": [
+  {"dir": "vault", "full": true},
+  {"dir": "pass2", "full": false}
+ ],
+ "member_edits": {"Member edited.md": "My own notes, written in UCT. Do not overwrite."},
+ "media": {
+  "https://img.example.com/rotated.jpg": {"status": 200, "content_type": "image/jpeg", "body": {"kind": "jpeg", "w": 40, "h": 20, "seed": 11, "quality": 90, "exif_orientation": 6}},
+  "https://img.example.com/scan.tiff": {"status": 200, "content_type": "image/tiff", "body": {"kind": "tiff", "w": 30, "h": 10, "seed": 12}},
+  "https://img.example.com/legacy.bmp": {"status": 200, "content_type": "image/bmp", "body": {"kind": "bmp", "w": 12, "h": 6, "seed": 13}},
+  "https://img.example.com/photo.avif": {"status": 200, "content_type": "image/avif", "body": {"kind": "avif", "w": 32, "h": 24, "seed": 14}},
+  "http://img.example.com/plain.png": {"status": 200, "content_type": "image/png", "body": {"kind": "png", "w": 10, "h": 10, "seed": 15}},
+  "https://img.example.com/logo.svg": {"status": 200, "content_type": "image/svg+xml", "body": {"kind": "text", "text": "<?xml version=\"1.0\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"8\"><rect width=\"8\" height=\"8\"/></svg>"}},
+  "https://img.example.com/bomb.png": {"status": 200, "content_type": "image/png", "body": {"kind": "bomb_png", "w": 30000, "h": 30000}},
+  "https://img.example.com/page.png": {"status": 200, "content_type": "image/png", "body": {"kind": "text", "text": "<!DOCTYPE html><html><body>Not an image</body></html>"}},
+  "https://img.example.com/moved-private.png": {"status": 302, "location": "http://10.0.0.5/internal.png"},
+  "https://img.example.com/huge.zip": {"status": 200, "content_type": "application/zip", "body": {"kind": "filler", "prefix": "PK\u0003\u0004", "size": 400000}},
+  "https://img.example.com/dead.png": {"status": 404},
+  "https://img.example.com/raw.png": {"status": 200, "content_type": "image/png", "body": {"kind": "png", "w": 6, "h": 6, "seed": 16}}
+ }
+}

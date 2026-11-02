@@ -127,9 +127,20 @@ provider-specific grammar. Two syntaxes, two decisions:
     and reaches THIS provider's own `fetch_media` — which honestly raises
     `NoteConnUnsupported` for it (see that method's docstring: the plugin
     never pushes attachment bytes, only markdown text, so there is nothing
-    to fetch). An unresolved target (either syntax) degrades to plain text
-    (the alias, or the target itself) — matching the JS adapter's own
-    unresolved fallback — never a broken link or a crash.
+    to fetch). An unresolved IMAGE embed degrades to plain text, never a
+    broken image. ⭐ Plan A Task 13 (O-4): an unresolved wikilink (or note
+    embed) keeps the member's text under a PENDING mark,
+    `import-link://name:obsidian:<vault_id>/<target, lowercased>`, which
+    `link_keys.resolve_link_keys` resolves with this module's own
+    `_resolve_target` once the note exists -- so a link written before its
+    note heals on a later sync without the linking note being re-pushed.
+    ⚰️ It used to become plain text (the JS adapter still does; the parity
+    rail reports `name:` links under `pending`, server-only). Task 13 also
+    resolves relative `.md` links (`_relative_href_resolver`, through
+    `md_to_tiptap(resolve_href=...)`), this vault's `obsidian://open` deep
+    links, `#Heading` anchors in display text, callouts, raw `<img>`/`<a>`,
+    and duplicate names (same folder, then shortest path) -- see
+    `convert_obsidian_markdown`.
 
     ⛔ Parity-rail finding (2026-09-02, `obsidianParity.contract.test.js` +
     `obsidian_parity_fixtures_gen.py`): the CommonMark link/image destination
@@ -241,17 +252,19 @@ Brief: .superpowers/sdd/2026-09-02-obsidian-ingest-server/task-4-brief.md
 
 from __future__ import annotations
 
+import posixpath
 import re
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 
 from api.services.auth_db import get_connection
 
 from .. import errors
-from ..convert import md_to_tiptap
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_media_get
+from ..convert import LINK_PREFIX, md_to_tiptap
+from ..link_keys import OBSIDIAN_NAME_KIND
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
 
 # ---------------------------------------------------------------------------
 # Wiki-syntax pre-pass (markdown -> markdown, run before md_to_tiptap)
@@ -260,7 +273,13 @@ from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_medi
 # Fence alternative first, mirroring `obsidian.js::CODE_RE` exactly — at a
 # run of 3+ backticks it must win over the inline-span alternative or the
 # inline pattern would consume just the fence's opening backticks.
-_CODE_RE = re.compile(r"```[\s\S]*?```|`[^`\n]*`")
+# Fix round 1 (M-4): a `~~~` fence is code too (CommonMark), and its contents are never
+# rewritten. ⚠️ The client lane's `CODE_RE` still knows only backtick fences.
+# Indented (4-space) code is NOT split out here: a regex cannot tell it from a nested
+# list's continuation lines, and skipping those would stop resolving wikilinks inside
+# nested lists. The callout pass cannot touch indented code (it allows <= 3 spaces).
+_FENCE_SRC = r"```[\s\S]*?```|~~~[\s\S]*?~~~"
+_CODE_RE = re.compile(_FENCE_SRC + r"|`[^`\n]*`")
 
 # One combined regex for both wikilinks and embeds — an optional leading `!`
 # distinguishes them (group 1). `[^\]|]+` stops at the first `|` or `]`,
@@ -308,63 +327,204 @@ def _strip_fragment(target: str) -> str:
     return (target[:idx] if idx != -1 else target).strip()
 
 
-def _build_basename_map(paths: list[str]) -> dict[str, str]:
-    """Lowercased, extension-stripped basename -> full vault path, first
-    occurrence wins — byte-for-byte the same ambiguity rule as
-    `obsidian.js::buildBasenameMap` (accepted for v1: two same-named files
-    in different folders resolve to whichever was seen first)."""
-    out: dict[str, str] = {}
-    for path in paths:
-        key = _basename_sans_ext(path).lower()
-        out.setdefault(key, path)
-    return out
+class _VaultIndex(dict):
+    """A vault's paths, indexed ONCE for every lookup the link rules make (fix round 1,
+    I-1/I-2). As a dict it is the basename map: lowercased, extension-stripped basename
+    -> EVERY full vault path with that name, in the order seen (`_resolve_target` picks
+    among several). Its attributes answer the other lookups in O(1):
+      * `by_lower`  -- lowercased path -> first such path (relative links);
+      * `exact`     -- lowercased path, with or without its extension -> the first path
+                       matching either (path-qualified exact match);
+      * `suffix`    -- every `/`-boundary suffix of each lowercased path, with or
+                       without extension -> the first path ending in it.
+    Built in O(V x depth). ⛔ Never rebuilt per note or per key: a fetch builds one for
+    the batch and the heal builds one per vault per resolve call. ⚰️ Before this, the
+    relative resolver rebuilt a path dict for EVERY note and the path-qualified rule
+    scanned every path for every key -- O(notes x paths) on a first sync, on the loop.
+
+    ⚰️ The basename map used to keep the first path seen, so `[[Plan]]` written beside
+    `Notes/Plan.md` could open `Archive/Old/Plan.md`. The client lane
+    (`obsidian.js::buildBasenameMap`) still keeps the first; the parity rail names that
+    as a known client gap."""
+
+    def __init__(self, paths: list[str]) -> None:
+        super().__init__()
+        self.paths = list(paths)
+        self.by_lower: dict[str, str] = {}
+        self.exact: dict[str, str] = {}
+        self.suffix: dict[str, str] = {}
+        for path in self.paths:
+            self.setdefault(_basename_sans_ext(path).lower(), []).append(path)
+            p_lower = path.lower()
+            self.by_lower.setdefault(p_lower, path)
+            for form in (p_lower, _strip_ext(p_lower)):
+                self.exact.setdefault(form, path)
+                start = form.find("/")
+                while start != -1:
+                    self.suffix.setdefault(form[start + 1:], path)
+                    start = form.find("/", start + 1)
 
 
-def _resolve_path_qualified(target: str, paths: list[str]) -> str | None:
+def _build_basename_map(paths: list[str]) -> _VaultIndex:
+    """THE index of a vault's paths -- see `_VaultIndex`. Build it once per batch."""
+    return _VaultIndex(paths)
+
+
+def _index_of(paths: list[str], basename_map: Any) -> _VaultIndex:
+    return basename_map if isinstance(basename_map, _VaultIndex) else _VaultIndex(paths)
+
+
+def _dir_of(path: str) -> str:
+    return path.rsplit("/", 1)[0] if "/" in path else ""
+
+
+def _resolve_path_qualified(target: str, index: _VaultIndex) -> str | None:
     """Mirrors `obsidian.js::resolvePathQualified`: an exact match (with or
-    without extension) wins immediately; otherwise the first `/`-boundary
-    suffix match is used, so `Setups/VCP` resolves against
-    `Vault/Setups/VCP.md` even though `Vault/` isn't written in the link."""
+    without extension) wins; otherwise the first `/`-boundary suffix match is
+    used, so `Setups/VCP` resolves against `Vault/Setups/VCP.md` even though
+    `Vault/` isn't written in the link. Two dict lookups (`_VaultIndex`)."""
     lower = target.lower()
-    suffix_match: str | None = None
-    for path in paths:
-        p_lower = path.lower()
-        p_sans_ext = _strip_ext(p_lower)
-        if p_lower == lower or p_sans_ext == lower:
-            return path
-        if suffix_match is None and (
-            p_lower.endswith("/" + lower) or p_sans_ext.endswith("/" + lower)
-        ):
-            suffix_match = path
-    return suffix_match
+    return index.exact.get(lower) or index.suffix.get(lower)
 
 
-def _resolve_target(
-    raw_target: str, paths: list[str], basename_map: dict[str, str],
-) -> str | None:
-    target = _strip_fragment(raw_target)
+def _resolve_in(target: str, index: _VaultIndex, from_dir: str | None) -> str | None:
+    """The wikilink rule over an index; `from_dir` is the linking note's folder."""
+    target = _strip_fragment(target)
     if not target:
         return None
     if "/" in target:
-        return _resolve_path_qualified(target, paths)
-    return basename_map.get(_strip_ext(target).lower())
+        return _resolve_path_qualified(target, index)
+    candidates = index.get(_strip_ext(target).lower()) or []
+    if len(candidates) <= 1:
+        return candidates[0] if candidates else None
+    if from_dir is not None:
+        here = from_dir.lower()
+        for c in candidates:
+            if _dir_of(c).lower() == here:
+                return c
+    return min(candidates, key=lambda c: c.count("/"))  # min keeps the first of a tie
+
+
+def _resolve_target(
+    raw_target: str, paths: list[str], basename_map: Any,
+    *, from_path: str | None = None,
+) -> str | None:
+    """The vault path a link target names, else None. THE wikilink rules, used at
+    conversion time AND by the later heal (`resolve_pending_target`). A bare name with
+    several candidates (Plan A Task 13, Obsidian's own order): the one in `from_path`'s
+    folder, else the shortest path (fewest folders), else the first seen."""
+    return _resolve_in(raw_target, _index_of(paths, basename_map),
+                       _dir_of(from_path) if from_path is not None else None)
+
+
+def _escapes_root(path: str) -> bool:
+    return path == ".." or path.startswith("../")
+
+
+def _resolve_relative(path: str, from_dir: str, index: _VaultIndex) -> str | None:
+    """THE relative-link rule (O-5), for conversion and heal alike: `path` beside the
+    linking note's folder, then from the vault root, then by the wikilink rules."""
+    joined = posixpath.normpath(posixpath.join(from_dir, path)) if from_dir else posixpath.normpath(path)
+    rooted = posixpath.normpath(path.lstrip("/"))
+    for candidate in (joined, rooted):
+        if not _escapes_root(candidate):
+            found = index.by_lower.get(candidate.lower())
+            if found:
+                return found
+    return _resolve_in(path, index, from_dir)
+
+
+#: The marker field of a pending RELATIVE-link key (`_name_key`).
+_REL_FIELD = "rel"
+
+
+def resolve_pending_target(rest: str, index: _VaultIndex) -> str | None:
+    """The vault path a pending key's `<target>[|<from dir>[|rel]]` names NOW, by the
+    very rule conversion used (fix round 1, M-1): a wikilink by `_resolve_in` with its
+    note's folder, a relative link by `_resolve_relative`."""
+    parts = rest.split("|")
+    target = parts[0]
+    from_dir = parts[1] if len(parts) > 1 else ""
+    if len(parts) > 2 and parts[2] == _REL_FIELD:
+        return _resolve_relative(target, from_dir, index)
+    return _resolve_in(target, index, from_dir)
+
+
+def _pct(path: str) -> str:
+    """A destination spliced into the markdown BEFORE it is parsed. A literal `%` must
+    survive the ONE decode in `mddoc._destination_as_written`, so it is written as `%25`;
+    and a `|` (the field separator of a pending key, `_name_key`) as `%7C`, because inside a
+    GFM table a bare `|` ends the CELL (fix round 2: `| [[Ghost]] | x |` in a sub-folder
+    note split into broken cells and lost the link). The one decode restores both, so the
+    key stored in the doc is the key `links` reports and the heal matches."""
+    return path.replace("%", "%25").replace("|", "%7C")
+
+
+def _name_key(vault_id: str, target: str, from_path: str | None = None, *,
+              relative: bool = False) -> str:
+    """The pending key of a link whose note is not in the vault YET (Plan A Task 13,
+    O-4): `name:obsidian:<vault_id>/<target as written, fragment stripped, lowercased>`,
+    then -- fix round 1, M-1, so the heal applies the SAME rule conversion did --
+    `|<the linking note's folder, lowercased>` when it is not the vault root, and
+    `|<folder>|rel` for a relative `.md` link. `|` cannot appear in an Obsidian file
+    name, so the fields never collide with a target. `link_keys.resolve_link_keys`
+    resolves it with `resolve_pending_target` once the note exists."""
+    key = f"{OBSIDIAN_NAME_KIND}{vault_id}/{_strip_fragment(target).lower()}"
+    from_dir = _dir_of(from_path).lower() if from_path else ""
+    if relative:
+        return f"{key}|{from_dir}|{_REL_FIELD}"
+    return f"{key}|{from_dir}" if from_dir else key
+
+
+def _pending_link(display: str, vault_id: str, target: str, from_path: str | None) -> str:
+    """A wikilink-shaped link to a note that may arrive later: the member's text, and a
+    `name:` key the heal pass can resolve. Plain text when there is no name to wait for."""
+    if not _strip_fragment(target):
+        return display
+    return f"[{display}](<{LINK_PREFIX}{_pct(_name_key(vault_id, target, from_path))}>)"
+
+
+def _wikilink_display(raw_target: str) -> str:
+    """What a wikilink with no alias shows, as Obsidian shows it: `Note#Risk` reads
+    `Note > Risk`; a block reference (`Note#^abc123`) reads just `Note` (its id is
+    not text anyone wrote); `[[#Risk]]` (this note's own heading) reads `Risk`."""
+    idx = raw_target.find("#")
+    if idx == -1:
+        return raw_target
+    note = raw_target[:idx].strip()
+    anchor = raw_target[idx + 1:].strip()
+    if anchor.startswith("^") or not anchor:
+        return note or raw_target
+    return f"{note} > {anchor}" if note else anchor
+
+
+_NOTE_EXT_RE = re.compile(r"\.md$", re.IGNORECASE)
 
 
 def _transform_wiki_and_embeds(
-    segment: str, paths: list[str], basename_map: dict[str, str],
-    vault_id: str, import_key_fn: Any,
+    segment: str, paths: list[str], basename_map: dict[str, list[str]],
+    vault_id: str, import_key_fn: Any, *, from_path: str | None = None,
 ) -> str:
     def repl(m: "re.Match[str]") -> str:
         is_embed = m.group(1) == "!"
         raw_target = m.group(2).strip()
+        # `[[Note\|alias]]` inside a table cell: the backslash escapes the pipe
+        # from the table, it is not part of the name.
+        if raw_target.endswith("\\"):
+            raw_target = raw_target[:-1].rstrip()
         raw_alias = m.group(3)
-        resolved = _resolve_target(raw_target, paths, basename_map)
+        resolved = _resolve_target(raw_target, paths, basename_map, from_path=from_path)
 
         if is_embed:
             if resolved is None:
-                # Unresolvable embed -> plain text of the target, never a
-                # broken <img> or a phantom media entry (mirrors
-                # obsidian.js's own unresolvable-embed fallback).
+                # An embed of a NOTE not in the vault yet waits like a wikilink does
+                # (Task 13). Anything else unresolvable -> plain text of the target,
+                # never a broken <img> or a phantom media entry (mirrors obsidian.js's
+                # own unresolvable-embed fallback).
+                bare = _strip_fragment(raw_target)
+                if bare and ("." not in _basename(bare) or _NOTE_EXT_RE.search(bare)):
+                    return _pending_link(_NOTE_EXT_RE.sub("", bare), vault_id, raw_target,
+                                         from_path)
                 return raw_target
             if _IMAGE_EXT_RE.search(resolved):
                 # Ordinary, UNPREFIXED markdown image syntax -> md_to_tiptap
@@ -377,20 +537,24 @@ def _transform_wiki_and_embeds(
                 # own default note-naming convention) is not a valid
                 # CommonMark link destination and degrades the whole embed
                 # to LITERAL VISIBLE TEXT, never an image.
-                return f"![{_basename(resolved)}](<{resolved}>)"
+                return f"![{_basename(resolved)}](<{_pct(resolved)}>)"
             # A resolved non-image embed (another note, a PDF, ...) has no
             # transclusion/attachment-chip support here (out of this task's
             # scope) -- degrade to an ordinary link, the most useful thing
-            # this converter CAN represent.
+            # this converter CAN represent. A note reads by its name, never
+            # `Other note.md` (Task 13).
             key = import_key_fn(vault_id, resolved)
-            return f"[{_basename(resolved)}](<import-link://{key}>)"
+            return f"[{_NOTE_EXT_RE.sub('', _basename(resolved))}](<import-link://{_pct(key)}>)"
 
-        display = (raw_alias or raw_target).strip() or raw_target
+        display = (raw_alias or "").strip() or _wikilink_display(raw_target)
         if resolved is None:
-            return display  # unresolved wikilink -> plain text, never a dead link
+            # Not in the vault yet: the member's text, under a key that heals when
+            # the note arrives (Task 13, O-4). ⚰️ It used to become plain text, so a
+            # link written before its note never became a link.
+            return _pending_link(display, vault_id, raw_target, from_path)
         key = import_key_fn(vault_id, resolved)
         # Angle-bracket destination form -- same space-safety fix as above.
-        return f"[{display}](<import-link://{key}>)"
+        return f"[{display}](<import-link://{_pct(key)}>)"
 
     return _WIKI_RE.sub(repl, segment)
 
@@ -425,15 +589,194 @@ def _transform_outside_code(text: str, fn: Any) -> str:
 
 
 def _preprocess_obsidian_markdown(
-    body_md: str, paths: list[str], basename_map: dict[str, str],
-    vault_id: str, import_key_fn: Any,
+    body_md: str, paths: list[str], basename_map: dict[str, list[str]],
+    vault_id: str, import_key_fn: Any, *, from_path: str | None = None,
+    vault_label: str | None = None,
 ) -> str:
     def fn(segment: str) -> str:
-        segment = _transform_wiki_and_embeds(segment, paths, basename_map, vault_id, import_key_fn)
+        segment = _transform_wiki_and_embeds(
+            segment, paths, basename_map, vault_id, import_key_fn, from_path=from_path)
+        segment = _transform_obsidian_uris(
+            segment, paths, basename_map, vault_id, import_key_fn,
+            from_path=from_path, vault_label=vault_label)
         segment = _transform_highlights(segment)
         return segment
 
-    return _transform_outside_code(body_md, fn)
+    return _split_callout_titles(_transform_outside_code(body_md, fn))
+
+
+# ── Obsidian deep links (Plan A Task 13) ─────────────────────────────────────
+#
+# `[x](obsidian://open?vault=<name>&file=<path>)` names a note by its VAULT NAME and its
+# path. The engine's one link policy (`linkify.resolve_href`) turns an `obsidian:` deep
+# link into text, because on its own it cannot say which imported note it means. This
+# provider can, for its OWN vault: the plugin sends the vault's name as the device
+# label (`obsidian-plugin/src/main.ts`, `vault.getName()`), so a deep link whose `vault`
+# is this vault's label (or its id) is rewritten, before parsing, to the note's
+# `import-link://` key -- or, when that note is not here yet, to the same pending
+# `name:` key a wikilink waits under. A deep link into ANY other vault is left exactly
+# as written, for that policy to make text.
+# ⛔ An IMAGE whose src is a deep link (`![x](obsidian://...)`) is left exactly as written
+# (fix round 1, M-2): it is not a link, and rewriting it made an image whose src was an
+# `import-link://` key. Unchanged, it reaches `fetch_media`, which refuses a non-web
+# reference by name, so the member sees the engine's notice, never a silent drop.
+_OBSIDIAN_URI_LINK_RE = re.compile(
+    r"(!?)\[((?:[^\[\]\n]|\[[^\[\]\n]*\])*)\]\(\s*<?(obsidian://[^\s()<>]+)>?\s*\)",
+    re.IGNORECASE)
+
+
+def _transform_obsidian_uris(
+    segment: str, paths: list[str], basename_map: dict[str, list[str]],
+    vault_id: str, import_key_fn: Any, *, from_path: str | None, vault_label: str | None,
+) -> str:
+    def repl(m: "re.Match[str]") -> str:
+        if m.group(1) == "!":
+            return m.group(0)  # an image, never rewritten (M-2)
+        try:
+            parts = urlsplit(m.group(3))
+            query = parse_qs(parts.query, keep_blank_values=True)
+        except ValueError:
+            return m.group(0)
+        if parts.netloc.lower() != "open":
+            return m.group(0)
+        vault = (query.get("vault") or [""])[0].strip()
+        target = (query.get("file") or [""])[0].strip()
+        names = {vault_id.lower(), *([vault_label.strip().lower()] if vault_label else [])}
+        if not target or (vault and vault.lower() not in names):
+            return m.group(0)
+        resolved = _resolve_target(target, paths, basename_map, from_path=from_path)
+        key = (import_key_fn(vault_id, resolved) if resolved
+               else _name_key(vault_id, target, from_path))
+        return f"[{m.group(2)}](<{LINK_PREFIX}{_pct(key)}>)"
+
+    return _OBSIDIAN_URI_LINK_RE.sub(repl, segment)
+
+
+# ── Callouts (Plan A Task 13) ────────────────────────────────────────────────
+#
+# `> [!warning] Size` opens an Obsidian callout. Markdown has no callout, so this is two
+# halves around the shared converter: before it, the marker line is split from the
+# callout's body with an empty quote line (otherwise markdown-it folds title and body
+# into ONE paragraph and the title can no longer be told apart); after it,
+# `_callouts_in_doc` turns each blockquote that opens with a marker into the editor's
+# own `callout` node, its variant one of `GALLERY_CALLOUT_VARIANTS`. ⚰️ The marker used
+# to stay as literal `[!warning]` text in a blockquote. Fenced code is never touched.
+_FENCE_RE = re.compile(_FENCE_SRC)
+_CALLOUT_LINE_RE = re.compile(r"^([ \t]{0,3}(?:>[ \t]?)+)\[!([A-Za-z0-9_-]+)\][+-]?(.*)$")
+_QUOTE_PREFIX_RE = re.compile(r"^[ \t]{0,3}>")
+_CALLOUT_MARK_RE = re.compile(r"^\[!([A-Za-z0-9_-]+)\][+-]?[ \t]*")
+#: Obsidian's callout types -> the editor's five (`calloutNode.js::CALLOUT_VARIANTS`,
+#: `public_note_payload.GALLERY_CALLOUT_VARIANTS`). Any other type is a `note`.
+_CALLOUT_VARIANTS = {
+    "note": "note", "info": "info", "success": "success", "warning": "warning",
+    "danger": "danger", "tip": "success", "caution": "warning", "important": "warning",
+    "bug": "danger", "failure": "danger",
+}
+
+
+def _split_callout_titles(body_md: str) -> str:
+    def lines_pass(text: str) -> str:
+        lines = text.split("\n")
+        out: list[str] = []
+        for i, line in enumerate(lines):
+            out.append(line)
+            m = _CALLOUT_LINE_RE.match(line)
+            opens_quote = i == 0 or not _QUOTE_PREFIX_RE.match(lines[i - 1])
+            if m and opens_quote and i + 1 < len(lines) and _QUOTE_PREFIX_RE.match(lines[i + 1]):
+                out.append(m.group(1).rstrip())
+        return "\n".join(out)
+
+    out: list[str] = []
+    last = 0
+    for m in _FENCE_RE.finditer(body_md):
+        out.append(lines_pass(body_md[last:m.start()]))
+        out.append(m.group(0))
+        last = m.end()
+    out.append(lines_pass(body_md[last:]))
+    return "".join(out)
+
+
+def _callouts_in_doc(node: Any) -> Any:
+    """Every blockquote whose first paragraph opens with `[!type]` -> a `callout` node:
+    `{"variant"}` from `_CALLOUT_VARIANTS`, the title (or the type, capitalised, as
+    Obsidian shows an untitled one and as the client lane writes it) as a bold first
+    paragraph, then the rest of the quote. Pure; returns a new tree."""
+    if not isinstance(node, dict):
+        return node
+    content = node.get("content")
+    if isinstance(content, list):
+        node = {**node, "content": [_callouts_in_doc(c) for c in content]}
+    if node.get("type") != "blockquote":
+        return node
+    blocks = node.get("content") or []
+    first = blocks[0] if blocks else None
+    runs = (first or {}).get("content") or []
+    if not (isinstance(first, dict) and first.get("type") == "paragraph" and runs
+            and runs[0].get("type") == "text" and not runs[0].get("marks")):
+        return node
+    m = _CALLOUT_MARK_RE.match(runs[0].get("text") or "")
+    if m is None:
+        return node
+    kind = m.group(1)
+    rest = (runs[0]["text"])[m.end():]
+    title_runs = ([{**runs[0], "text": rest}] if rest else []) + list(runs[1:])
+    if not any((r.get("text") or "").strip() for r in title_runs if r.get("type") == "text"):
+        title_runs = [{"type": "text", "text": kind[:1].upper() + kind[1:]}]
+    bold = [
+        {**r, "marks": [*(r.get("marks") or []), {"type": "bold"}]}
+        if r.get("type") == "text" and not any(mk.get("type") == "bold" for mk in r.get("marks") or [])
+        else r
+        for r in title_runs
+    ]
+    return {
+        "type": "callout",
+        "attrs": {"variant": _CALLOUT_VARIANTS.get(kind.lower(), "note")},
+        "content": [{"type": "paragraph", "content": bold}, *blocks[1:]],
+    }
+
+
+# ── Relative markdown links (Plan A Task 13, O-5) ────────────────────────────
+
+def _relative_href_resolver(
+    from_path: str, index: _VaultIndex, vault_id: str, import_key_fn: Any,
+) -> Any:
+    """`md_to_tiptap`'s `resolve_href` for one note: a relative `.md` link
+    (`[x](Other%20note.md)`, `[x](../Notes/Other.md)`, `[x](<Other note.md#Heading>)`)
+    -> the note's `import-link://` key by `_resolve_relative` (beside the linking note,
+    then from the vault root, then by the name rules). A `.md` link to a note not here
+    yet waits under a relative `name:` key, which the heal resolves by that same rule.
+    Anything that is not a `.md` path answers None and keeps the engine's one link
+    policy (Task 10): a relative href is never resolved against uctintelligence.com.
+    ⛔ O(1) to build: it closes over the batch's ONE `_VaultIndex` (fix round 1, I-1)."""
+    here = _dir_of(from_path)
+    def resolve(dest: str) -> str | None:
+        path = re.split(r"[#?]", dest, maxsplit=1)[0].strip()
+        if not _NOTE_EXT_RE.search(path):
+            return None
+        resolved = _resolve_relative(path, here, index)
+        if resolved is not None:
+            return f"{LINK_PREFIX}{import_key_fn(vault_id, resolved)}"
+        return f"{LINK_PREFIX}{_name_key(vault_id, path, from_path, relative=True)}"
+
+    return resolve
+
+
+def convert_obsidian_markdown(
+    body_md: str, *, vault_path: str, paths: list[str], basename_map: dict[str, list[str]],
+    vault_id: str, import_key_fn: Any, vault_label: str | None = None,
+) -> dict[str, Any]:
+    """THE Obsidian conversion, `{doc, media, links}`: the wiki-syntax pre-pass, the
+    shared converter with this vault's relative-link resolver, then callouts. What
+    `ObsidianProvider._convert_row` runs and what the parity rail summarises -- one
+    function, so the rail can never watch a different pipeline from the one that syncs."""
+    index = _index_of(paths, basename_map)  # the caller's batch index; built only if absent
+    pre = _preprocess_obsidian_markdown(
+        body_md or "", paths, index, vault_id, import_key_fn,
+        from_path=vault_path, vault_label=vault_label,
+    )
+    out = md_to_tiptap(pre, resolve_href=_relative_href_resolver(
+        vault_path, index, vault_id, import_key_fn), unsafe_image_notice=True)
+    return {**out, "doc": _callouts_in_doc(out["doc"])}
 
 
 def _title_from_doc(doc: dict[str, Any], fallback: str) -> str:
@@ -490,7 +833,7 @@ class ObsidianProvider(NoteProvider):
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=30.0)
+            self._client = media_http_client(timeout=30.0)   # its media hops ride it: no env proxy
         return self._client
 
     # ── vault-path knowledge (for wikilink/embed resolution) ────────────
@@ -621,14 +964,27 @@ class ObsidianProvider(NoteProvider):
         return [RemoteRef(remote_id=r["vault_path"], updated_at=r["recorded_at"]) for r in rows]
 
     def _convert_row(self, vault_path: str, body_md: str, known_paths: list[str],
-                      basename_map: dict[str, str]) -> dict[str, Any]:
-        pre = _preprocess_obsidian_markdown(
-            body_md or "", known_paths, basename_map, self.vault_id, self.import_key,
+                      basename_map: dict[str, list[str]], *,
+                      vault_label: str | None = None) -> dict[str, Any]:
+        return convert_obsidian_markdown(
+            body_md or "", vault_path=vault_path, paths=known_paths,
+            basename_map=basename_map, vault_id=self.vault_id,
+            import_key_fn=self.import_key, vault_label=vault_label,
         )
-        return md_to_tiptap(pre)
 
-    def _note_from_row(self, row: Any, known_paths: list[str], basename_map: dict[str, str]) -> RemoteNote:
-        converted = self._convert_row(row["vault_path"], row["body_md"], known_paths, basename_map)
+    def _vault_label(self, conn: Any) -> str | None:
+        """The vault's NAME, as the plugin sent it at connect (`vault.getName()`) --
+        what an `obsidian://open?vault=<name>` deep link names it by."""
+        row = conn.execute(
+            "SELECT label FROM j2_obsidian_devices WHERE user_id = ? AND vault_id = ?",
+            (self.user_id, self.vault_id),
+        ).fetchone()
+        return row["label"] if row is not None else None
+
+    def _note_from_row(self, row: Any, known_paths: list[str], basename_map: dict[str, list[str]],
+                       vault_label: str | None = None) -> RemoteNote:
+        converted = self._convert_row(row["vault_path"], row["body_md"], known_paths, basename_map,
+                                      vault_label=vault_label)
         fallback_title = _basename_sans_ext(row["vault_path"])
         return RemoteNote(
             remote_id=row["vault_path"],
@@ -651,6 +1007,7 @@ class ObsidianProvider(NoteProvider):
                 (self.user_id, self.vault_id, ref.remote_id),
             ).fetchone()
             known_paths = self._known_paths(conn)
+            label = self._vault_label(conn)
         finally:
             conn.close()
         if row is None:
@@ -658,7 +1015,7 @@ class ObsidianProvider(NoteProvider):
                 f"Obsidian staged note {ref.remote_id!r} is no longer present for this vault",
                 reason="Note content is no longer staged",
             )
-        return self._note_from_row(row, known_paths, _build_basename_map(known_paths))
+        return self._note_from_row(row, known_paths, _build_basename_map(known_paths), label)
 
     async def fetch_many(
         self, credentials: dict[str, Any], refs: list[RemoteRef],
@@ -680,6 +1037,7 @@ class ObsidianProvider(NoteProvider):
                 (self.user_id, self.vault_id, *[r.remote_id for r in refs]),
             ).fetchall()
             known_paths = self._known_paths(conn)
+            label = self._vault_label(conn)
         finally:
             conn.close()
         by_path = {r["vault_path"]: r for r in rows}
@@ -692,7 +1050,7 @@ class ObsidianProvider(NoteProvider):
                     f"Obsidian staged note {ref.remote_id!r} is no longer present for this vault",
                     reason="Note content is no longer staged",
                 )
-            notes.append(self._note_from_row(row, known_paths, basename_map))
+            notes.append(self._note_from_row(row, known_paths, basename_map, label))
         return notes
 
     async def fetch_media(self, credentials: dict[str, Any], ref: str) -> tuple[bytes, str]:
@@ -708,16 +1066,10 @@ class ObsidianProvider(NoteProvider):
         turns into a plain (unfetchable) media ref — is refused honestly
         rather than pretending to succeed."""
         parsed = urlsplit(ref)
-        if (parsed.scheme or "").lower() == "https":
+        if (parsed.scheme or "").lower() in ("http", "https"):
+            # Plan A Task 9 (I-5): a hotlink is copied in -- http allowed for the download only.
             client = await self._get_client()
-            response = await guarded_media_get(client, ref, what="Obsidian media")
-            if response.status_code >= 400:
-                raise errors.NoteConnTransient(
-                    f"Failed to download media ({response.status_code})",
-                    status=response.status_code,
-                )
-            content_type = response.headers.get("content-type", "application/octet-stream")
-            return response.content, content_type
+            return await fetch_content_url(client, ref, what="Obsidian media")
         raise errors.NoteConnUnsupported(
             f"Obsidian push sync does not transfer vault attachments ({ref!r}) — "
             "only note text is pushed by the plugin. Use a public https link for "

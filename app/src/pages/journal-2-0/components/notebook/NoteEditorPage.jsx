@@ -138,6 +138,7 @@ import { loadStyle } from './styles/lazyStyles'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { useNoteNavigation } from '../../lib/splitView'
 import { TranscriptInsertHost } from './TranscriptDoors'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
 import { noteDayOf } from '../../lib/blocks/toolDays'
@@ -4247,9 +4248,24 @@ export default function NoteEditorPage({
   // editor whose view mounts AFTER it would never get the listener and the
   // Image item would silently do nothing. Attach now if the view exists, and
   // again on tiptap's own `mount`/`create`; detach on `unmount`.
+  //
+  // Plan A Task 2 (L-1): an internal note LINK MARK (`/journal?j2tab=notebook&note=<id>`,
+  // e.g. an imported wiki link) opens through `uct:open-note` from linkClickOpen.js, on
+  // the same per-editor target, and is routed by the SAME door a `noteLink` chip uses
+  // (useNoteNavigation: Ctrl/Cmd opens beside, the side pane navigates itself). The ref
+  // keeps this effect keyed on `editor` alone, so a new navigate closure never re-binds.
+  const goToNote = useNoteNavigation()
+  const goToNoteRef = useRef(goToNote)
+  goToNoteRef.current = goToNote
   useEffect(() => {
     if (!editor) return undefined
     const onOpenPicker = () => fileInputRef.current?.click()
+    const onOpenNote = (e) => {
+      const noteId = e?.detail?.noteId
+      if (!noteId) return
+      e.preventDefault()
+      goToNoteRef.current(noteId, e.detail.originalEvent)
+    }
     // Wave 7 lane H1: the slash menu's "Dictate" item, on the SAME per-editor
     // target and for the same reason — with two panes open, only the pane the
     // command ran in may start listening. `start()` refuses where a click on
@@ -4277,6 +4293,7 @@ export default function NoteEditorPage({
         dom.removeEventListener(CANVAS_EVENT, onTradeCanvas)
         dom.removeEventListener(STYLE_EVENT, onStyle)
         dom.removeEventListener(PLAN_EVENT, onPlan)
+        dom.removeEventListener('uct:open-note', onOpenNote)
       }
       dom = null
     }
@@ -4293,6 +4310,7 @@ export default function NoteEditorPage({
       dom.addEventListener(CANVAS_EVENT, onTradeCanvas)
       dom.addEventListener(STYLE_EVENT, onStyle)
       dom.addEventListener(PLAN_EVENT, onPlan)
+      dom.addEventListener('uct:open-note', onOpenNote)
     }
     attach()
     editor.on('mount', attach)

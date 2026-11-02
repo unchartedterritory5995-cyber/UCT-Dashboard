@@ -40,12 +40,16 @@ Spec: docs/superpowers/specs/2026-08-11-note-connectors-design.md §4.
 from __future__ import annotations
 
 import re
+import urllib.parse
 from html.parser import HTMLParser
-from typing import Any
+from typing import Any, Callable
 
 from markdown_it import MarkdownIt
+from markdown_it.common.normalize_url import validateLink as markdown_it_validate_link
 from markdown_it.token import Token
 from mdit_py_plugins.tasklists import tasklists_plugin
+
+from api.services.journal_two import import_notice
 
 from . import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX
 
@@ -60,60 +64,86 @@ def _get_md() -> MarkdownIt:
     if _MD is None:
         md = MarkdownIt("commonmark").enable(["table", "strikethrough"])
         md.use(tasklists_plugin, enabled=True)
+        md.validateLink = _validate_link
         _MD = md
     return _MD
 
 
-class _Ctx:
-    __slots__ = ("media", "links", "media_refs", "data_uri_counter")
+def _validate_link(url: str) -> bool:
+    """markdown-it's destination gate, OPEN: every destination tokenizes, and this module
+    decides what each one becomes (Plan A Task 15, D2).
 
-    def __init__(self) -> None:
+    ⛔ Why open. markdown-it's stock gate (`BAD_PROTO_RE`: javascript, vbscript, file, data)
+    does not refuse a LINK, it refuses to PARSE one: `[text](javascript:alert(1))` was then
+    stored as that raw markdown source. Opened, the destination reaches the two places that
+    already own the decision, each the one guard for its invariant:
+      * a link: `_is_allowed_link_href` (TipTap's own allow-list) refuses the mark, so the
+        visible `text` stays and nothing else does; nothing the stock gate refused can pass
+        it (none of the four schemes is on TipTap's list);
+      * an image: `_image_node` refuses any src the STOCK gate refuses (`_is_unsafe_image_src`)
+        except a `data:image/*` of any MIME (Plan A Task 9, I-6), which it registers as a
+        media entry the engine decodes and rehosts."""
+    return True
+
+
+class _Ctx:
+    __slots__ = ("media", "links", "media_refs", "data_uri_counter", "resolve_href",
+                 "unsafe_image_notice")
+
+    def __init__(self, resolve_href: Callable[[str], str | None] | None = None,
+                 unsafe_image_notice: bool = False) -> None:
+        # Task 15 fix round 1: a connector caller's answer for an unsafe image src
+        # (`_inline_nodes`' image branch): an importNotice `unsafe`, not the text marker.
+        self.unsafe_image_notice = unsafe_image_notice
         self.media: list[dict[str, Any]] = []
         self.links: list[str] = []
         self.media_refs: set[str] = set()  # dedup guard for `_register_media`
         self.data_uri_counter: int = 0  # for synthesizing bounded md-img-N refs
+        # Plan A Task 13: a connector's answer for a scheme-less link (`_link_href`).
+        self.resolve_href = resolve_href
 
 
-# A data-URI image whose MIME isn't one mddoc supports (png/jpeg/gif/webp) never
-# tokenizes as an `image` at all: markdown-it-py's OWN destination validator
-# (`markdown_it.common.normalize_url`, `GOOD_DATA_RE = r"^data:image\/(gif|png|
-# jpeg|webp);"`) already restricts `data:` image sources to exactly those four
-# MIMEs — anything else falls back to literal, UNBOUNDED source text instead (a
-# real base64 payload can run tens of KB; probed: a 20KB SVG produced a single
-# 20,307-char text node, media []). That is worse than the ref-exploding bug
-# `_data_uri_image_node` guards against below — the giant string lands as
-# VISIBLE note content instead of a placeholder, and it never even reaches
-# `_image_node`'s "unsupported -> visible marker" fallback because it never
-# becomes an `image` token in the first place.
+# Plan A Task 9 (I-6): EVERY `data:image/*` destination -- any image MIME, base64 or
+# percent-encoded -- tokenizes as an image (`_validate_link` widens markdown-it's own gate,
+# which admits only `data:image/(gif|png|jpeg|webp);`), and `_data_uri_image_node` registers
+# it as a media entry with a bounded `md-img-N.<ext>` ref. ⚰️ Before this an SVG, a HEIC or
+# a percent-encoded image was refused here and lost.
 #
-# Fix: a pre-tokenization pass over the RAW markdown string, before it ever
-# reaches `_get_md().parse(...)`. Non-greedy on the base64 payload (deliberately,
-# per review) and tolerant of an optional `"title"`/'title' suffix — CommonMark
-# image syntax allows `![alt](url "title")`. A payload with a SUPPORTED mime is
-# left byte-for-byte untouched (`re.Match.group(0)`); it still flows through the
-# normal tokenize -> `_image_node` -> `_data_uri_image_node` path, which assigns
-# it a bounded `md-img-N.<ext>` ref exactly as before.
-_UNSUPPORTED_DATA_IMAGE_MD_RE = re.compile(
+# A NON-image `data:` destination is still refused by markdown-it, and would then fall back
+# to literal, UNBOUNDED source text (a real payload can run tens of KB; probed: 20 KB made a
+# single 20,307-char text node). So a pre-tokenization pass over the RAW markdown replaces
+# exactly that construct with a short visible marker before `_get_md().parse(...)` sees it.
+# Tolerant of an optional `"title"`/'title' suffix (CommonMark allows `![alt](url "title")`)
+# and of balanced parentheses in a percent-encoded payload. An IMAGE MIME is left
+# byte-for-byte untouched (`re.Match.group(0)`) for the tokenizer.
+_DATA_IMAGE_MD_RE = re.compile(
     r"!\[(?P<alt>[^\]]*)\]\("
-    r"\s*data:(?P<mime>[^;,\s]+);base64,(?P<payload>[A-Za-z0-9+/=]*?)"
+    r"\s*data:(?P<mime>[^;,\s)]*)(?:;[^;,\s)]*)*,(?:[^\s()]|\([^\s()]*\))*"
     r"\s*(?:\"[^\"]*\"|'[^']*')?\s*"
-    r"\)"
+    r"\)",
+    re.IGNORECASE,
 )
 
 
-def _strip_unsupported_data_uri_images(md: str) -> str:
+def _extract_data_uri_images(md: str) -> str:
+    """The raw-markdown pass above: every `![alt](data:...)` whose MIME is an image is left
+    for the tokenizer to extract as a media entry; every other one becomes a short visible
+    `[unsupported image: ...]` marker (never an image, never the payload as text)."""
     def _replace(match: "re.Match[str]") -> str:
         mime = match.group("mime").strip()
-        if mime.lower() in _DATA_URI_MIME_EXT:
-            return match.group(0)  # supported — untouched, handled downstream
+        if _is_image_mime(mime):
+            return match.group(0)  # an image -- untouched, extracted downstream
         alt = match.group("alt").strip()
-        marker = f"[unsupported image: {alt}, {mime}]" if alt else f"[unsupported image: {mime}]"
-        return marker
+        shown = mime or "no type"
+        return f"[unsupported image: {alt}, {shown}]" if alt else f"[unsupported image: {shown}]"
 
-    return _UNSUPPORTED_DATA_IMAGE_MD_RE.sub(_replace, md)
+    return _DATA_IMAGE_MD_RE.sub(_replace, md)
 
 
-def md_to_tiptap(md: str | None) -> dict[str, Any]:
+def md_to_tiptap(
+    md: str | None, *, resolve_href: Callable[[str], str | None] | None = None,
+    unsafe_image_notice: bool = False,
+) -> dict[str, Any]:
     """Convert a markdown string into `{doc, media, links}`.
 
     - `doc` — a TipTap JSON document (`{"type": "doc", "content": [...]}`).
@@ -124,10 +154,24 @@ def md_to_tiptap(md: str | None) -> dict[str, Any]:
       encountered that was NOT already an `import-ref://` placeholder.
     - `links` — the target key (prefix stripped) of every `import-link://`
       href encountered, in document order.
+
+    `resolve_href` (Plan A Task 13): a connector's own answer for a link that names
+    something in ITS world, e.g. an Obsidian vault's relative `[x](Other%20note.md)`.
+    See `_link_href`: it is asked only about a scheme-less, non-`#` destination
+    (markdown `[x](...)` or a raw `<a href>`), decoded once. A string answer replaces the
+    href; None keeps today's href, which the engine's one link policy then judges
+    (`linkify.resolve_href`: a relative href with no http(s) source becomes text).
+
+    `unsafe_image_notice` (Task 15 fix round 1, controller ruling): passed True by the
+    CONNECTOR callers only. An image whose src markdown-it's stock gate refuses
+    (`_is_unsafe_image_src`: javascript, vbscript, file, a non-image data URI, read raw AND
+    decoded once) then becomes an importNotice `unsafe` in place. False (the personal API and
+    inbound email, which strip media to their own markers) keeps the `[unsupported image]`
+    text. Either way it is never a media entry.
     """
-    cleaned = _strip_unsupported_data_uri_images(md or "")
+    cleaned = _extract_data_uri_images(md or "")
     tokens = _get_md().parse(cleaned)
-    ctx = _Ctx()
+    ctx = _Ctx(resolve_href, unsafe_image_notice)
     content = _blocks(tokens, 0, len(tokens), ctx)
     return {"doc": {"type": "doc", "content": content}, "media": ctx.media, "links": ctx.links}
 
@@ -168,8 +212,8 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
             # installed @tiptap/extension-heading@3.23.6 source) — it cannot
             # hold a block-level Image node. Hoist any image OUT as a sibling
             # block right after the heading; the heading keeps only its text.
-            text_items = [n for n in flat if n.get("type") != "image"]
-            images = [n for n in flat if n.get("type") == "image"]
+            text_items = [n for n in flat if n.get("type") not in _HOISTABLE_BLOCK_TYPES]
+            images = [n for n in flat if n.get("type") in _HOISTABLE_BLOCK_TYPES]
             out.append({"type": "heading", "attrs": {"level": level}, "content": text_items})
             out.extend(images)
             i += 3
@@ -217,9 +261,13 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
             i += 1
 
         elif t.type == "html_block":
-            text = (t.content or "").strip()
-            if text:
-                out.append({"type": "paragraph", "content": [{"type": "text", "text": text}]})
+            converted = _raw_html_block(t.content or "", ctx)
+            if converted is not None:
+                out.extend(converted)
+            else:
+                text = (t.content or "").strip()
+                if text:
+                    out.append({"type": "paragraph", "content": [{"type": "text", "text": text}]})
             i += 1
 
         else:
@@ -241,7 +289,9 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
 # so the HTML walker's `_html_inline_walk` (which CAN emit one directly, via
 # `ATTACHMENT_REF_PREFIX`) gets the same correct hoisting for free. Widening
 # this set is a strict no-op for existing markdown-walker output.
-_HOISTABLE_BLOCK_TYPES = frozenset({"image", "attachmentChip"})
+#: `importNotice` (Task 15 fix round 1): a block leaf, written in an image's place on the
+#: connector path, hoisted exactly as the image would have been.
+_HOISTABLE_BLOCK_TYPES = frozenset({"image", "attachmentChip", import_notice.IMPORT_NOTICE_TYPE})
 
 
 def _wrap_paragraph(flat: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -441,6 +491,8 @@ def _register_media(
     entry: dict[str, Any] = {"ref": ref, "kind": kind, "name": name}
     if data_uri is not None:
         entry["data_uri"] = data_uri
+    # No `source_url` here: a content URL's ref IS the original, and the engine's notice
+    # links to the ref when the entry names no `source_url` (`engine._media_source_url`).
     ctx.media.append(entry)
 
 
@@ -452,32 +504,105 @@ def _register_media(
 # assign a small counter-based ref instead, and carry the original data URI
 # on the media entry's `data_uri` field so the engine can decode bytes from
 # it directly (no upload-by-URL round trip needed for an already-inline image).
-_DATA_URI_RE = re.compile(r"^data:([^;,]+);base64,([\s\S]*)$")
+#
+# Plan A Task 9 (I-6): the ONE grammar of a data URI -- `data:<mime>[;param...][;base64],
+# <payload>` -- for this module and the engine's `_decode_data_uri`. The payload is base64
+# when a `;base64` parameter is present, else percent-encoded (`data:image/svg+xml,%3Csvg...`).
+DATA_URI_RE = re.compile(
+    r"^\s*data:(?P<mime>[^;,]*)(?P<params>(?:;[^;,]*)*),(?P<payload>[\s\S]*)$", re.IGNORECASE)
+_DATA_IMAGE_PREFIX_RE = re.compile(r"^\s*data:image/[a-z0-9][a-z0-9.+-]*[;,]", re.IGNORECASE)
+_IMAGE_MIME_RE = re.compile(r"^image/[a-z0-9][a-z0-9.+-]*$", re.IGNORECASE)
+#: The ref extension for an image MIME. Any other `image/*` takes its own subtype, sanitised.
 _DATA_URI_MIME_EXT = {
     "image/png": "png",
     "image/jpeg": "jpg",
+    "image/jpg": "jpg",
     "image/gif": "gif",
     "image/webp": "webp",
+    "image/svg+xml": "svg",
+    "image/heic": "heic",
+    "image/heif": "heif",
+    "image/tiff": "tif",
+    "image/bmp": "bmp",
+    "image/avif": "avif",
+    "image/x-icon": "ico",
+    "image/vnd.microsoft.icon": "ico",
 }
 
 
+def _is_image_mime(mime: str) -> bool:
+    return bool(_IMAGE_MIME_RE.match(mime.strip()))
+
+
+def _data_uri_ext(mime: str) -> str:
+    mime = mime.strip().lower()
+    known = _DATA_URI_MIME_EXT.get(mime)
+    if known is not None:
+        return known
+    return re.sub(r"[^a-z0-9]", "", mime.split("/", 1)[1].split("+", 1)[0])[:10] or "img"
+
+
 def _data_uri_image_node(src: str, ctx: _Ctx) -> dict[str, Any] | None:
-    match = _DATA_URI_RE.match(src)
-    if not match:
+    """A `data:image/*` src (any image MIME, base64 or percent-encoded) -> an image node with
+    a bounded `md-img-N.<ext>` ref, the URI carried on the media entry's `data_uri`. `None`
+    (the caller's visible "unsupported" text) for a non-image or malformed data URI."""
+    match = DATA_URI_RE.match(src)
+    if not match or not _is_image_mime(match.group("mime")):
         return None
-    ext = _DATA_URI_MIME_EXT.get(match.group(1).strip().lower())
-    if ext is None:
-        return None
+    ext = _data_uri_ext(match.group("mime"))
     ctx.data_uri_counter += 1
     ref = f"md-img-{ctx.data_uri_counter}.{ext}"
     _register_media(ctx, ref=ref, kind="image", name=ref, data_uri=src)
     return {"type": "image", "attrs": {"src": f"{REF_PREFIX}{ref}"}}
 
 
+_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
+
+
+def _destination_as_written(dest: str, *, markdown_image: bool = False) -> str:
+    """The ONE place a markdown-it-normalized destination is decoded.
+
+    markdown-it percent-encodes a link destination (`<a b>` -> `a%20b`). Two
+    kinds come back encoded and are decoded exactly once, here:
+    an `import-link://` href, and (`markdown_image=True`, markdown token path
+    only) a truly scheme-less image src, i.e. a vault path. EVERYTHING else
+    passes through byte-for-byte: https/mailto/#fragment, relative link
+    hrefs (decoding `%2F%2Fevil.com` would mint a protocol-relative external
+    link), connector-private refs (`dbx-md-media:`, `od-html:` ... which their
+    providers decode themselves) and raw HTML attribute values."""
+    if dest.startswith(LINK_PREFIX):
+        return urllib.parse.unquote(dest)
+    if markdown_image and dest and not _SCHEME_RE.match(dest) and not dest.startswith("//"):
+        return urllib.parse.unquote(dest)
+    return dest
+
+
+def _is_unsafe_image_src(src: str) -> bool:
+    """A markdown image destination markdown-it's STOCK gate refuses (javascript, vbscript,
+    file, a non-image data URI), asked on the token's src as markdown-it normalised it. A
+    `data:image/*` of any MIME is the one widening (Plan A Task 9, I-6). `_validate_link`
+    is open, so this is the image half of what the stock gate used to do."""
+    return not _DATA_IMAGE_PREFIX_RE.match(src) and not markdown_it_validate_link(src)
+
+
 def _image_node(token: Token, ctx: _Ctx) -> dict[str, Any] | None:
     """Returns the TipTap image node, or `None` when the src is an
-    unsupported data URI (caller degrades to visible text in that case)."""
-    src = token.attrs.get("src") or ""
+    unsupported data URI (caller degrades to visible text in that case).
+
+    An unsafe src (`_is_unsafe_image_src`) is asked on the src as markdown-it normalised it
+    AND as `_destination_as_written` decodes it -- the decoded form is the one that would be
+    registered (Task 15 fix round 1: `javascript%3Aalert(1)` passed the raw check and became
+    the media ref `javascript:alert(1)`). Read as a browser reads it (`link_href_as_read`),
+    so `java%09script:` is caught too. It is never a media entry: the connector path
+    (`ctx.unsafe_image_notice`) gets an importNotice `unsafe` in place, everyone else `None`
+    (the caller's visible marker)."""
+    raw = token.attrs.get("src") or ""
+    src = _destination_as_written(raw, markdown_image=True)
+    if _is_unsafe_image_src(raw) or _is_unsafe_image_src(link_href_as_read(src)):
+        if not ctx.unsafe_image_notice:
+            return None
+        return import_notice.notice_node(
+            "unsafe", name=token.content or None, source_url=None, ref=None, attempts=0)
     if src.startswith(REF_PREFIX):
         # Already a connector-supplied placeholder — pass through untouched,
         # no duplicate media entry (the connector already registered it).
@@ -561,6 +686,74 @@ def _is_allowed_link_href(href: str) -> bool:
     return bool(_LINK_URI_RE.match(link_href_as_read(href)))
 
 
+def _is_scheme_less_path(href: str) -> bool:
+    read = link_href_as_read(href)
+    return bool(read) and not read.startswith(("#", "//")) and not _SCHEME_RE.match(read)
+
+
+def _link_href(href: str, ctx: _Ctx) -> str:
+    """Plan A Task 13: the connector's `resolve_href` answer for `href`, else `href`.
+
+    ⛔ THE one place `resolve_href` is asked. It is asked only about a scheme-less,
+    non-`#`, non-`//` destination, and only when its once-decoded form is ALSO one: a
+    `javascript%3A...` or `%2F%2Fhost` must never reach a resolver as `javascript:` or
+    `//host` (see `_destination_as_written` for why relative hrefs are otherwise left
+    encoded). An `import-link://` href is already decoded and never asked."""
+    if ctx.resolve_href is None or not _is_scheme_less_path(href):
+        return href
+    decoded = urllib.parse.unquote(href)
+    if not _is_scheme_less_path(decoded):
+        return href
+    answer = ctx.resolve_href(decoded)
+    return answer if isinstance(answer, str) and answer else href
+
+
+# A raw tag that is ONE `<img ...>` or one opening `<a ...>`, nothing else.
+_RAW_TAG_RE = re.compile(r"^<(img|a)(\s[^<>]*)?/?>$", re.IGNORECASE)
+#: The only tags a raw markdown HTML block may hold to be converted (Task 13).
+_RAW_HTML_BLOCK_TAGS = frozenset({"img", "a"})
+
+
+def _raw_inline_tag(content: str) -> "_HtmlNode | None":
+    """The `<img>` / opening `<a>` element a markdown `html_inline` token holds, parsed by
+    the HTML walker's own tokenizer (attribute entities decoded), else None."""
+    text = content.strip()
+    if not _RAW_TAG_RE.match(text):
+        return None
+    builder = _HtmlDomBuilder()
+    builder.feed(text)
+    builder.close()
+    kids = [k for k in builder.root.children if isinstance(k, _HtmlNode)]
+    return kids[0] if len(kids) == 1 and kids[0].tag in _RAW_HTML_BLOCK_TAGS else None
+
+
+def _raw_html_block(html: str, ctx: _Ctx) -> list[dict[str, Any]] | None:
+    """A markdown HTML block made only of `<img>` / `<a>` elements and text (an `<img>`
+    alone on its line is the common one) -> nodes through the HTML walker. Any other tag,
+    or a connector-private attachment href, -> None: the caller keeps today's literal
+    text, so nothing a member wrote ever vanishes."""
+    if "<" not in html:
+        return None
+    builder = _HtmlDomBuilder()
+    builder.feed(html)
+    builder.close()
+    seen: list[_HtmlNode] = []
+
+    def walk(nodes: list[Any]) -> None:
+        for n in nodes:
+            if isinstance(n, _HtmlNode):
+                seen.append(n)
+                walk(n.children)
+
+    walk(builder.root.children)
+    if not seen or any(n.tag not in _RAW_HTML_BLOCK_TAGS for n in seen):
+        return None
+    if any(n.tag == "a" and (n.attrs.get("href") or "").strip().startswith(ATTACHMENT_REF_PREFIX)
+           for n in seen):
+        return None
+    return _html_blocks_walk(builder.root.children, ctx) or None
+
+
 def _inline_nodes(
     children: list[Token], ctx: _Ctx, lstrip_first: bool = False,
 ) -> list[dict[str, Any]]:
@@ -571,6 +764,7 @@ def _inline_nodes(
     the same text node, mirroring what the real editor's schema produces."""
     items: list[dict[str, Any]] = []
     marks: list[dict[str, Any]] = []
+    raw_links: list[bool] = []  # one entry per open raw `<a>`: did it push a mark?
 
     def push_text(text: str) -> None:
         if text == "":
@@ -625,7 +819,7 @@ def _inline_nodes(
             _pop_mark(marks, "strike")
 
         elif child.type == "link_open":
-            href = child.attrs.get("href") or ""
+            href = _link_href(_destination_as_written(child.attrs.get("href") or ""), ctx)
             if _is_allowed_link_href(href):
                 if href.startswith(LINK_PREFIX):
                     ctx.links.append(href[len(LINK_PREFIX):])
@@ -653,11 +847,34 @@ def _inline_nodes(
             # (providers/obsidian.py) -- the same mark the file importer's
             # generateJSON gives `<mark>`. Any OTHER raw inline HTML degrades
             # to visible literal text rather than silently dropping content.
+            # Plan A Task 13 (§5.2 polish): a raw `<img>` and a raw `<a href>`…`</a>`
+            # pair have homes too, the image node and the link mark, through the HTML
+            # walker's own rules (`_html_image_node`, `_link_href`, the one allow-list).
             tag = (child.content or "").strip().lower()
+            raw = _raw_inline_tag(child.content or "")
             if tag == "<mark>":
                 marks.append({"type": "highlight"})
             elif tag == "</mark>":
                 _pop_mark(marks, "highlight")
+            elif raw is not None and raw.tag == "img":
+                node = _html_image_node(raw, ctx)
+                if node is None:
+                    push_text(child.content or "")
+                else:
+                    items.append(node)
+            elif raw is not None and raw.tag == "a":
+                href = _link_href(_destination_as_written((raw.attrs.get("href") or "").strip()), ctx)
+                opened = _is_allowed_link_href(href) and not href.startswith(ATTACHMENT_REF_PREFIX)
+                if opened:
+                    if href.startswith(LINK_PREFIX):
+                        ctx.links.append(href[len(LINK_PREFIX):])
+                    marks.append({"type": "link", "attrs": {"href": href}})
+                raw_links.append(opened)
+            elif tag == "</a>" and raw_links:
+                # Only a `</a>` closing a RAW `<a>` pops: a stray one never strips the
+                # mark of a markdown link it happens to sit inside.
+                if raw_links.pop():
+                    _pop_mark(marks, "link")
             else:
                 push_text(child.content or "")
 
@@ -881,7 +1098,7 @@ def _html_inline_walk(
             child_marks = marks + [{"type": _HTML_INLINE_MARK_TAGS[tag]}]
             items.extend(_html_inline_walk(n.children, ctx, child_marks))
         elif tag == "a":
-            href = (n.attrs.get("href") or "").strip()
+            href = _link_href(_destination_as_written((n.attrs.get("href") or "").strip()), ctx)
             if href.startswith(ATTACHMENT_REF_PREFIX):
                 # A connector (Dropbox's `_resolve_relative_attachments_html`)
                 # already resolved this `<a href>` to a co-located FILE

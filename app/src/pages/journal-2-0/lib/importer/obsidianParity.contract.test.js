@@ -17,8 +17,8 @@
  *
  * Shape (mirrors `serverConvert.contract.test.js` / `fixtures_gen.py`):
  * `convert/obsidian_parity_fixtures_gen.py` is the AUTHORITY — it runs the
- * REAL server-side pre-pass (`providers.obsidian._preprocess_obsidian_
- * markdown`) + the real converter (`convert.mddoc.md_to_tiptap`) over a
+ * REAL server-side conversion (`ObsidianProvider._convert_row`: the pre-pass,
+ * the real converter `convert.mddoc.md_to_tiptap`, callouts) over a
  * shared set of committed markdown fixtures
  * (`convert/obsidian_fixtures_in/*.md`, each with a `.vault.json` sidecar
  * naming the vault's known paths) and commits the result as a SEMANTIC
@@ -67,6 +67,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { obsidianAdapter } from './adapters/obsidian'
+import { parseImport } from './postParse'
 import { htmlToNote } from './convert'
 import { extractPlainText } from '../tiptap'
 
@@ -95,25 +96,19 @@ const vf = (p, text) => ({
 })
 
 // Mirrors `obsidian_parity_fixtures_gen.py::_normalize_link_href` — strips
-// this lane's own identity-encoding down to the bare resolved vault path.
-// The client lane never had a vault_id segment to begin with (see the file
-// docstring), so there is no vault_id prefix to strip here, only the
-// `import-link://obsidian:` scheme. `decodeURIComponent` is a defensive
-// no-op mirror of the Python side's `urllib.parse.unquote` — the client
-// never percent-encodes (it sets hrefs as raw HTML attribute values), but
-// decoding a string with no `%` escapes is idempotent, so this keeps both
-// normalizers symmetric on purpose.
+// the `import-link://obsidian:` scheme and NOTHING ELSE. The rail compares
+// the stored hrefs byte-for-byte: it used to `decodeURIComponent` the
+// remainder, which hid the defect it exists to catch (a name with a space
+// that stored `%20` and never resolved).
 function normalizeLinkHref(href) {
   const prefix = 'import-link://obsidian:'
-  const remainder = href.startsWith(prefix) ? href.slice(prefix.length) : href
-  return decodeURIComponent(remainder)
+  return href.startsWith(prefix) ? href.slice(prefix.length) : href
 }
 
 // Mirrors `obsidian_parity_fixtures_gen.py::_normalize_image_src`.
 function normalizeImageSrc(src) {
   const prefix = 'import-ref://'
-  const remainder = src.startsWith(prefix) ? src.slice(prefix.length) : src
-  return decodeURIComponent(remainder)
+  return src.startsWith(prefix) ? src.slice(prefix.length) : src
 }
 
 // Mirrors `obsidian_parity_fixtures_gen.py::_walk_semantic` exactly:
@@ -125,10 +120,14 @@ function walkSemantic(node, out) {
   const attrs = node.attrs && typeof node.attrs === 'object' ? node.attrs : {}
   if (node.type === 'text') {
     const linkMark = (node.marks || []).find((m) => m?.type === 'link')
-    if (linkMark) {
+    const href = linkMark ? linkMark.attrs?.href || '' : ''
+    if (linkMark && href.startsWith(PENDING_PREFIX)) {
+      // A link waiting for its note (a `name:` key) is never a resolved link.
+      out.pending.push({ text: node.text || '', key: href.slice('import-link://'.length) })
+    } else if (linkMark) {
       out.links.push({
         text: node.text || '',
-        target: normalizeLinkHref(linkMark.attrs?.href || ''),
+        target: normalizeLinkHref(href),
       })
     }
     // N5: the highlight mark -- its run's text and colour (null = default).
@@ -136,6 +135,8 @@ function walkSemantic(node, out) {
     if (hlMark) out.highlights.push({ text: node.text || '', color: hlMark.attrs?.color ?? null })
   } else if (node.type === 'image') {
     out.images.push(normalizeImageSrc(attrs.src || ''))
+  } else if (node.type === 'callout') {
+    out.callouts.push(attrs.variant ?? null)
   } else if (node.type === 'taskItem') {
     out.task_checked.push(!!attrs.checked)
   }
@@ -147,18 +148,66 @@ function walkSemantic(node, out) {
 // lockstep with the server's `notes.py::extract_plain_text` for the
 // notebook search index — rather than a third hand-rolled text walker.
 function semanticSummary(doc) {
-  const out = { links: [], images: [], task_checked: [], highlights: [] }
+  const out = { links: [], images: [], task_checked: [], highlights: [], pending: [], callouts: [] }
   walkSemantic(doc, out)
   return { text: extractPlainText(doc), ...out }
+}
+
+// Plan A Task 13: `pending` is SERVER-ONLY by design, not a gap. The sync lane keeps a
+// link to a note that has not arrived yet under a `name:` key so a later sync heals it;
+// a one-shot drag-in has no "later", and shows the same text with no link. `text` still
+// compares, so the member reads the same words in both lanes.
+const SERVER_ONLY_FIELDS = ['pending']
+const PENDING_PREFIX = 'import-link://name:obsidian:'
+
+function withoutServerOnly(summary) {
+  const out = { ...summary }
+  for (const field of SERVER_ONLY_FIELDS) delete out[field]
+  return out
 }
 
 async function clientSummaryFor(fixture) {
   const vfiles = fixture.vault_paths.map((p) =>
     vf(p, p === fixture.self_path ? fixture.input_markdown : ''))
-  const { docs } = await obsidianAdapter.parse(vfiles)
+  // The wizard's own call (Plan B Task 3): adapter.parse + the one post-parse pass.
+  const { docs } = await parseImport(obsidianAdapter, vfiles, {})
   const doc = docs.find((d) => d.importKey === `obsidian:${fixture.self_path}`)
   const { bodyJson } = htmlToNote(doc.html)
-  return semanticSummary(bodyJson)
+  const summary = semanticSummary(bodyJson)
+  // Plan B Task 3: the client's post-parse pass turns a hotlinked `<img src="https://…">`
+  // into a remote media item (`import-ref://remote-<md5>`, copied by the fetch door at
+  // commit), where the server summary still names the URL. Same image, two transports: read
+  // the ref back through the doc's OWN media list to the URL it stands for. Only a remote
+  // item is mapped; a vault file or a data: item keeps its ref.
+  const remote = new Map(doc.media.filter((m) => m.remoteUrl).map((m) => [m.ref, m.remoteUrl]))
+  summary.images = summary.images.map((ref) => remote.get(ref) ?? ref)
+  return summary
+}
+
+// Differences the CLIENT importer is known to have against the server lane,
+// named one by one so the rail stays strict for everything else. Never
+// normalize a difference away -- list it here, with the plan that closes it; delete the
+// entry when it closes (the rail turns red until you do).
+// ⚰️ 09 (escaped pipe), 10 (relative links), 11 (anchor text + note embeds),
+// 13 (duplicate names) and 14 (deep links) were listed here until Plan B Task 8 closed
+// them (`obsidianResolve.js` + `adapters/obsidian.js`).
+const knownClientGap = {
+  // Callouts: spec §5.6 polish, not in Plan B (ruling R9) -- the client writes a blockquote
+  // with a bold title, and its marker regex loses the untitled callout's title.
+  '12-callouts.json': {
+    clientReads: {
+      callouts: [],
+      text: 'Callouts Size Keep it small. > Wait for the pivot.',
+    },
+  },
+  // Plan B final review, fix 2 (DELIBERATE, not a Plan B gap): the server knows its vault's
+  // name (the plugin's device label), so `vault=Trading` resolves there. A client drop of
+  // LOOSE files (no `.obsidian/`, no single top folder) cannot show the link is into the
+  // vault it holds, so the deep link stays text rather than resolve by name across the drop
+  // (which opened another vault's note). Dropped as a `Trading/` folder, the client links it.
+  '14-raw-html-and-deep-link.json': {
+    missingLinks: [{ target: 'Plan.md', text: 'the plan' }],
+  },
 }
 
 describe('Obsidian client<->server pre-pass parity', () => {
@@ -171,8 +220,31 @@ describe('Obsidian client<->server pre-pass parity', () => {
 
   describe.each(fixtures.map(({ file, fixture }) => [file, fixture]))('%s', (file, fixture) => {
     it('client adapter agrees with the server provider on the semantic outcome', async () => {
-      const clientSummary = await clientSummaryFor(fixture)
-      expect(clientSummary).toEqual(fixture.server)
+      const clientSummary = withoutServerOnly(await clientSummaryFor(fixture))
+      const server = withoutServerOnly(fixture.server)
+      const gap = knownClientGap[file]
+      if (!gap) {
+        expect(clientSummary).toEqual(server)
+        return
+      }
+      // A named gap stays STRICT: the client must equal the server minus
+      // exactly the listed links (so it cannot widen), and those links must
+      // really be absent (so fixing Plan B forces this entry's removal).
+      const missing = gap.missingLinks || []
+      let expected = {
+        ...server,
+        links: server.links.filter(
+          (l) => !missing.some((m) => m.target === l.target && m.text === l.text)),
+      }
+      expect(expected.links.length).toBe(server.links.length - missing.length)
+      // `clientReads`: the field values the client lane produces TODAY, spelled out in
+      // full. Each must really differ from the server's (a Plan B fix turns this red
+      // and forces the entry's removal), and every field not named still compares.
+      for (const [field, value] of Object.entries(gap.clientReads || {})) {
+        expect(value, `${file}: ${field} is not a gap any more`).not.toEqual(server[field])
+        expected = { ...expected, [field]: value }
+      }
+      expect(clientSummary).toEqual(expected)
     })
   })
 })

@@ -298,6 +298,12 @@ jobs:
       - name: Visibility flags are declared (offline)
         run: python -m pytest tests/test_visibility_flag_ledger.py -q
 
+      # The server reads the saved-script engine number from the browser's
+      # scriptEngineVersion.js. A bump written in a shape it cannot parse reads as None:
+      # every recorded refusal then binds on the server while the chart moves on.
+      - name: The saved-script engine number parses (offline)
+        run: python -m pytest tests/test_script_engine_version_gate.py -q
+
       - name: Line endings match the stored blobs
         run: python tools/check_repo_hygiene.py
 

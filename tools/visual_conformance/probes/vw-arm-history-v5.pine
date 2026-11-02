@@ -1,0 +1,37 @@
+//@version=5
+indicator("UCTPROBE_VW_ARM_HISTORY_V5", overlay = false, max_bars_back = 5000)
+
+// --- 2026-10-31 prod-ternary - WITNESS THE v5 `?:` ARM, SERVED TODAY BY DOCUMENT ---
+//
+// The plot lane withholds a v5 `?:` arm that calls `ta.*` (or a script function that
+// reads its own history) under a test that varies, on TradingView's own word: the
+// to-v5 guide says "the ternary operator is evaluated lazily; only the required value
+// is calculated", and the to-v6 guide that "Pine v5 evaluates all bool expressions
+// except for the `?:` strictly". Only v6 is CAPTURED (`vw-arm-history`). This is the
+// v5 port of its T / K rows, plus the two v5 `and` / `or` rows that must read STRICT
+// (both operands every bar) - the plot lane draws those as it always did.
+//
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults; AMEX:SPY 1D second.
+// NEVER COMPILED ON TRADINGVIEW: a row that does not compile names its line.
+
+up = close > open
+even = bar_index % 2 == 0
+f(src) => src - src[1]
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(ta.sma(close, 5), "E03_sma_every_bar")
+plot(ta.ema(close, 5), "E04_ema_every_bar")
+plot(ta.change(close), "E05_change_every_bar")
+
+plot(up ? ta.sma(close, 5) : close, "T03_sma_in_true_arm")
+plot(up ? ta.ema(close, 5) : close, "T04_ema_in_true_arm")
+plot(up ? ta.change(close) : 0.0, "T05_change_in_true_arm")
+plot(even ? ta.sma(close, 3) : na, "K02_sma3_on_even_bars")
+plot(even ? ta.change(close) : na, "K03_change_on_even_bars")
+plot(up ? f(close) : 0.0, "U01_history_function_in_true_arm")
+
+// v5 `and` / `or`: STRICT - the right side runs on every bar, so these read the
+// every-bar change. (v6 makes them lazy: `vw-andor-history.pine`.)
+plot(up and ta.change(close) > 0 ? 1 : 0, "S01_v5_and_change")
+plot(up or ta.change(close) > 0 ? 1 : 0, "S02_v5_or_change")
+plot(ta.change(close) > 0 ? 1 : 0, "S00_change_positive_CONTROL")

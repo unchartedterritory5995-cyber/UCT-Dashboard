@@ -193,7 +193,8 @@ def agent_config(user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import turn
     from api.services.uct_agent.marketdata import gateway
     return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled(),
-            "data": gateway.data_enabled(), "scan": gateway.scan_enabled()}
+            "data": gateway.data_enabled(), "scan": gateway.scan_enabled(),
+            "data_kinds": sorted(gateway.enabled_kinds())}
 
 
 @router.post("/api/agent/turn/stream")

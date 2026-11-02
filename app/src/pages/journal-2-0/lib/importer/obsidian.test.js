@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { obsidianAdapter } from './adapters/obsidian'
+import { parseImport } from './postParse'
 
 const vf = (path, text) => ({ path, size: text.length, lastModified: null,
                               bytes: async () => new TextEncoder().encode(text) })
@@ -172,10 +173,183 @@ describe('obsidian adapter — link anchors (#Heading / #^block) resolve to the 
     expect(a.links).toHaveLength(2)
     expect(a.links.every((l) => l.targetKey === 'obsidian:Vault/Note.md')).toBe(true)
     expect(a.html).toContain('data-import-link="obsidian:Vault/Note.md"')
-    // ...and the written display text (including the anchor) is preserved,
-    // not silently dropped, since only the RESOLUTION step ignores it.
-    expect(a.html).toContain('Note#Heading')
-    expect(a.html).toContain('Note#^abc123')
+    // ...and the display reads as Obsidian shows it (Plan B Task 8, server
+    // `_wikilink_display`): a heading as `Note > Heading`, a block id not at all.
+    expect(a.html).toContain('>Note &gt; Heading</a>')
+    expect(a.html).toContain('>Note</a>')
+    expect(a.html).not.toContain('abc123')
+  })
+})
+
+// Plan B Task 8 (I-9, O-5, O-8, O-11, `obsidian://`): links and media resolve the way
+// Obsidian (and the server's Obsidian connector) resolves them. Through `parseImport`, the
+// wizard's own call, so the post-parse pass sees what the adapter wrote.
+describe('obsidian adapter — Obsidian resolution (Plan B Task 8)', () => {
+  const docOf = async (files, path) => {
+    const { docs } = await parseImport(obsidianAdapter, files, {})
+    return docs.find((d) => d.importKey === `obsidian:${path}`)
+  }
+
+  it('resolves a relative markdown link to the note', async () => {
+    const d = await docOf([
+      vf('V/.obsidian/app.json', '{}'),
+      vf('V/Notes/Src.md', '[a](../Notes/Other.md) [b](Other%20note.md) [c](<Other note.md#H>) [d](Archive/Deep.md) [e](Ghost.md)'),
+      vf('V/Notes/Other.md', ''), vf('V/Notes/Other note.md', ''), vf('V/Archive/Deep.md', ''),
+    ], 'V/Notes/Src.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:V/Notes/Other.md">a</a>')
+    expect(d.html).toContain('<a data-import-link="obsidian:V/Notes/Other note.md">b</a>')
+    expect(d.html).toContain('<a data-import-link="obsidian:V/Notes/Other note.md">c</a>')
+    expect(d.html).toContain('<a data-import-link="obsidian:V/Archive/Deep.md">d</a>')
+    // A miss is never a link: the post-parse pass makes it its text.
+    expect(d.html).not.toContain('Ghost.md')
+    expect(d.html).toContain('e')
+    expect(d.links.map((l) => l.targetKey)).toEqual(expect.arrayContaining([
+      'obsidian:V/Notes/Other.md', 'obsidian:V/Notes/Other note.md', 'obsidian:V/Archive/Deep.md']))
+  })
+
+  it('makes a relative link to a non-note vault file an attachment chip', async () => {
+    const d = await docOf([
+      vf('V/n.md', '[the deck](files/deck.pdf)'), vf('V/files/deck.pdf', 'x'),
+      vf('V/sub/m.md', '[deck](files/deck.pdf)'),
+    ], 'V/sub/m.md')
+    expect(d.html).toContain('data-type="attachmentChip"')
+    expect(d.html).toContain('href="import-ref://V/files/deck.pdf"')
+    expect(d.media.map((m) => m.ref)).toContain('V/files/deck.pdf')
+  })
+
+  it('resolves a wikilink with an escaped pipe in a table', async () => {
+    const d = await docOf([
+      vf('a.md', '| col |\n| --- |\n| [[Other note\\|alias]] |\n'), vf('Other note.md', ''),
+    ], 'a.md')
+    expect(d.html).toMatch(/<td><a data-import-link="obsidian:Other note.md">alias<\/a><\/td>/)
+    expect(d.links).toEqual([{ targetKey: 'obsidian:Other note.md' }])
+  })
+
+  it('never shows the table escape in the text of an unresolved embed', async () => {
+    const d = await docOf([vf('a.md', '| col |\n| --- |\n| ![[missing.png\\|100]] |\n')], 'a.md')
+    expect(d.html).toMatch(/<td>missing\.png<\/td>/)
+    expect(d.media).toEqual([])
+  })
+
+  it('makes ![[Other note]] a note link, not a file chip', async () => {
+    const d = await docOf([vf('a.md', '![[Other note]] ![[Other note.md#Risk]]'), vf('Other note.md', '')], 'a.md')
+    expect(d.html).not.toContain('attachmentChip')
+    expect(d.html).toContain('<a data-import-link="obsidian:Other note.md">Other note</a>')
+    expect(d.html).not.toContain('Risk')
+    expect(d.media).toEqual([])
+    expect(d.links[0]).toEqual({ targetKey: 'obsidian:Other note.md' })
+  })
+
+  it('resolves a vault-root image path from a subfolder note', async () => {
+    const d = await docOf([
+      vf('V/.obsidian/app.json', '{}'),
+      vf('V/Sub/n.md', '![x](attachments/x.png) ![y](y%20pic.png)'),
+      vf('V/attachments/x.png', 'x'), vf('V/elsewhere/y pic.png', 'y'),
+    ], 'V/Sub/n.md')
+    expect(d.html).toContain('src="import-ref://V/attachments/x.png"')
+    expect(d.html).toContain('src="import-ref://V/elsewhere/y pic.png"')
+    expect(d.media.map((m) => m.ref).sort()).toEqual(['V/attachments/x.png', 'V/elsewhere/y pic.png'])
+  })
+
+  it('resolves an obsidian://open link to the note', async () => {
+    const d = await docOf([
+      vf('Trading/a.md', '[the plan](obsidian://open?vault=Trading&file=Plans%2FPlan) and [gone](obsidian://open?vault=Trading&file=Ghost)'),
+      vf('Trading/Plans/Plan.md', ''),
+    ], 'Trading/a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Trading/Plans/Plan.md">the plan</a>')
+    expect(d.html).not.toContain('obsidian://')
+    expect(d.html).toContain('gone')
+  })
+
+  // Plan B final review, fix 2: with no `.obsidian/` folder, `vault=` must name the drop's
+  // top folder (exact, case-sensitive); otherwise a by-name lookup across the whole drop
+  // opened another vault's note.
+  it('no vault root: a vault= matching the drop top folder links', async () => {
+    const d = await docOf([
+      vf('Personal/a.md', '[p](obsidian://open?vault=Personal&file=Plan)'),
+      vf('Personal/Plan.md', ''),
+    ], 'Personal/a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Personal/Plan.md">p</a>')
+  })
+
+  it('no vault root: a vault= naming another vault is text, never a by-name hit', async () => {
+    const d = await docOf([
+      vf('Work/a.md', '[p](obsidian://open?vault=Personal&file=Plan) [q](obsidian://open?vault=work&file=Plan)'),
+      vf('Work/Plan.md', ''),
+    ], 'Work/a.md')
+    expect(d.html).not.toContain('data-import-link')
+    expect(d.html).not.toContain('obsidian://')
+    expect(d.html).toContain('p')
+    expect(d.html).toContain('q')
+    expect(d.links).toEqual([])
+  })
+
+  it('no vault root and files under several top folders: a vault= link is text', async () => {
+    const d = await docOf([
+      vf('a.md', '[p](obsidian://open?vault=Personal&file=Plan)'),
+      vf('Personal/Plan.md', ''),
+    ], 'a.md')
+    expect(d.html).not.toContain('data-import-link')
+    expect(d.links).toEqual([])
+  })
+
+  it('no vault root: a link with no vault= resolves by name as before', async () => {
+    const d = await docOf([
+      vf('a.md', '[p](obsidian://open?file=Plan)'),
+      vf('Other/Plan.md', ''),
+    ], 'a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Other/Plan.md">p</a>')
+  })
+
+  it('leaves an obsidian:// link into ANOTHER named vault as text', async () => {
+    const d = await docOf([
+      vf('Trading/.obsidian/app.json', '{}'),
+      vf('Trading/a.md', '[mine](obsidian://open?vault=trading&file=Plan) [theirs](obsidian://open?vault=Other&file=Plan)'),
+      vf('Trading/Plan.md', ''),
+    ], 'Trading/a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Trading/Plan.md">mine</a>')
+    expect(d.html).not.toMatch(/<a[^>]*>theirs/)
+  })
+
+  it('makes a wikilink to a non-note file a chip, never a dead note link', async () => {
+    const d = await docOf([
+      vf('a.md', 'See [[deck.pdf]] and [[chart.png|the chart]].'),
+      vf('files/deck.pdf', 'x'), vf('chart.png', 'x'),
+    ], 'a.md')
+    expect(d.html).not.toContain('data-import-link')
+    expect(d.links).toEqual([])
+    expect(d.html).toContain('href="import-ref://files/deck.pdf"')
+    expect(d.html).toMatch(/href="import-ref:\/\/chart\.png"[^>]*>the chart<\/a>/)
+    expect(d.media.map((m) => [m.ref, m.kind]).sort()).toEqual([['chart.png', 'file'], ['files/deck.pdf', 'file']])
+  })
+
+  it('links each vault\'s notes inside that vault in a two-vault drop, and still links loose notes', async () => {
+    const files = [
+      vf('Obsidian/Work/.obsidian/app.json', '{}'), vf('Obsidian/Personal/.obsidian/app.json', '{}'),
+      // Each vault's own copy sits DEEPER than the other vault's, so a whole-drop lookup
+      // (shortest path wins) would cross vaults: only a per-vault index gets both right.
+      vf('Obsidian/Work/a.md', '[[Plan]] ![[c.png]]'), vf('Obsidian/Work/Plan.md', ''), vf('Obsidian/Work/img/c.png', 'w'),
+      vf('Obsidian/Personal/b.md', '[[Plan]] ![[c.png]]'), vf('Obsidian/Personal/Deep/Plan.md', ''), vf('Obsidian/Personal/c.png', 'p'),
+      vf('Obsidian/Loose/loose.md', 'see [[Plan]] and [[Ideas]]'), vf('Obsidian/Ideas.md', ''),
+    ]
+    const a = await docOf(files, 'Obsidian/Work/a.md')
+    const b = await docOf(files, 'Obsidian/Personal/b.md')
+    const loose = await docOf(files, 'Obsidian/Loose/loose.md')
+    expect(a.html).toContain('data-import-link="obsidian:Obsidian/Work/Plan.md"')
+    expect(a.html).toContain('src="import-ref://Obsidian/Work/img/c.png"')
+    expect(b.html).toContain('data-import-link="obsidian:Obsidian/Personal/Deep/Plan.md"')
+    expect(b.html).toContain('src="import-ref://Obsidian/Personal/c.png"')
+    // A note in no vault resolves against the whole drop: into a vault, and beside itself.
+    expect(loose.html).toContain('data-import-link="obsidian:Obsidian/Work/Plan.md"')
+    expect(loose.html).toContain('data-import-link="obsidian:Obsidian/Ideas.md"')
+  })
+
+  it('prefers the note in the linking note\'s own folder over the first one seen', async () => {
+    const d = await docOf([
+      vf('A/Deep/Plan.md', ''), vf('B/Plan.md', ''), vf('Notes/Sub/Plan.md', ''),
+      vf('Notes/Sub/Src.md', 'Follow [[Plan]].'),
+    ], 'Notes/Sub/Src.md')
+    expect(d.html).toContain('data-import-link="obsidian:Notes/Sub/Plan.md"')
   })
 })
 

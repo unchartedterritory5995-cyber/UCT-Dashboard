@@ -778,11 +778,25 @@ def _plans_local_lookup(env) -> bool:
 UNREADABLE_OUTCOME = "[UCT] (an earlier UCT message that is not repeated here)"
 
 
+#: Outcome kinds the browser records WITHOUT `actions` (useAgent.js): UCT's own fixed wording — undo, clarify,
+#: refusal and cancel notes — never a capability's result. Any other row that omits `actions` (an `answered`
+#: row in particular) cannot show it carried no local-only result, so it is unreadable (QA F-11: fail closed).
+ACTIONLESS_OUTCOME_KINDS = frozenset({
+    "authoring-cancelled", "authoring-prompt", "clarify-multichart", "clarify-referent", "clarify-save-target",
+    "clarify-workspace", "compound-stopped", "compound-too-long", "dismissed", "followup-refused",
+    "guide-do-say", "nothing-pending", "reference-refused", "refused-stale", "retarget-refused", "undo",
+    "undo-none", "undo-refused", "undo-refused-mismatch", "undo-refused-protected", "undo-turn",
+    "undo-unsaved", "unsupported",
+})
+
+
 def _row_actions(data) -> list | None:
     """The `actions` a stored row names, [] when it names none, None when the shape is unreadable."""
     if not isinstance(data, dict):
         return None
-    acts = data.get("actions", [])
+    if "actions" not in data:
+        return [] if data.get("kind") in ACTIONLESS_OUTCOME_KINDS else None
+    acts = data.get("actions")
     if not isinstance(acts, list) or not all(isinstance(a, str) for a in acts):
         return None
     return acts
@@ -1195,6 +1209,8 @@ def name_conversation(turns: list[dict], caller: Callable | None = None, meter=N
     for t in turns[-16:]:
         if t.get("role") not in ("member", "agent") or not t.get("text"):
             continue
+        if t["role"] == "agent" and (is_local_row(t) or _strip_isolated(t.get("data"))[1]):
+            continue                                       # QA F-18 / F-22: a local or isolated result never reaches the naming model
         who = "Member" if t["role"] == "member" else "Agent"
         lines.append(f"{who}: {' '.join(str(t['text']).split())[:400]}")
     if not any(ln.startswith("Member:") for ln in lines):
@@ -1491,6 +1507,58 @@ def _context_refs(context: dict) -> set[str]:
     return refs
 
 
+_DROPPED = object()
+
+
+def _strip_isolated(v):
+    """ADR-005 L6: `v` with every object marked `isolated: true` removed (at any depth), and how many were."""
+    if isinstance(v, dict):
+        if v.get("isolated") is True:
+            return _DROPPED, 1
+        out, n = {}, 0
+        for k, x in v.items():
+            y, m = _strip_isolated(x)
+            n += m
+            if y is not _DROPPED:
+                out[k] = y
+        return out, n
+    if isinstance(v, list):
+        out, n = [], 0
+        for x in v:
+            y, m = _strip_isolated(x)
+            n += m
+            if y is not _DROPPED:
+                out.append(y)
+        return out, n
+    return v, 0
+
+
+def strip_isolated_request(context, pending, reference, repair, history):
+    """ADR-005 L6, fail closed: whatever the browser sent, nothing marked isolated reaches a model. Objects
+    carrying the marker are removed from the request's model-bound inputs; a stored history row whose data
+    carries it is replayed as an unreadable (local) row — its text is never sent. The member's own words are
+    never touched. Returns the cleaned inputs and the number of removals (logged content-free)."""
+    total = 0
+    cleaned = []
+    for v in (context, pending, reference, repair):
+        if v is None:
+            cleaned.append(None)
+            continue
+        y, n = _strip_isolated(v)
+        total += n
+        cleaned.append(None if y is _DROPPED else y)
+    rows = []
+    for row in history or []:
+        if isinstance(row, dict) and row.get("role") in ("agent", "outcome") and _strip_isolated(row.get("data"))[1]:
+            rows.append({**row, "data": {"envelope": None, "isolated_dropped": True}})
+            total += 1
+        else:
+            rows.append(row)
+    if total:
+        log.warning("[uct-agent] removed %d isolated value(s) from a model request (ADR-005 L6)", total)
+    return (*cleaned, rows, total)
+
+
 def run_turn(*, message: str, context: dict, history: list[dict], capabilities: list | None = None,
              pending: dict | None = None, recent_outcome: str | None = None,
              caller: Callable[..., Any] | None = None, manifest_version: int | None = None,
@@ -1516,6 +1584,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     SERVER would reject (unknown action, arguments off-schema, a target the browser never offered) is sent
     back to the model once, in this request, if a call is left; the result passes every check as usual."""
     t_build = time.perf_counter()
+    context, pending, reference, repair, history, _ = strip_isolated_request(context, pending, reference, repair, history)
+    context = context or {}
     msg = (message or "").strip()
     if not msg:
         raise TurnError("Say what you'd like UCT Agent to do or explain.")
@@ -1567,10 +1637,10 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         blocks.append(_block("validation_error", repair_in))
     if pending:
         blocks.append(_block("pending_proposal", pending))
-    if recent_outcome and not any(is_local_row(t) for t in (history or []) if isinstance(t, dict)):
-        # ⛔ LOCAL-RESULT BOUNDARY: free text from the browser about the last outcome could repeat a
-        # local result's figures; in a conversation that holds one, it is dropped (fail closed).
-        blocks.append(_block("recent_outcome", recent_outcome))
+    # ⛔ LOCAL-RESULT BOUNDARY (QA F-17): `recent_outcome` is free text from the browser about the last outcome.
+    # The server cannot tell what it repeats, so it is NEVER forwarded to the model (no browser sends it); the
+    # stored transcript — which history_messages screens row by row — is the only account of what happened.
+    del recent_outcome
     if conversation_title:
         blocks.append(_block("conversation_title", conversation_title))
     blocks.append(_block("member_request", msg))

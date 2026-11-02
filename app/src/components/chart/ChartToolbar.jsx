@@ -53,10 +53,13 @@ const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicator
 const SaveReceipt = lazy(() => import('./builder/studio/SaveReceipt'))
 import { mintScope, chartScope, createKey, editKey, draftWillRestore } from './builder/authoring/conversationSessions'
 import { seedFrom } from './builder/agentSeams'
-import { useUserDefinitions } from '../../hooks/useUserDefinitions'
+import { useUserDefinitions, readUserDefinition } from '../../hooks/useUserDefinitions'
+import { scriptUpgradeHeld } from './builder/memberPane/savedScriptUpgrade'
 import { createCustomCopy } from './builder/definitionActions'
 import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
 import PatternToolbarButton from './PatternToolbarButton'
+import ChartIqToolbarButton from './chartIq/ChartIqToolbarButton'
+import { useChartIqAllowed } from './chartIq/chartIqGate'
 import { useAutoStructuresScope } from './autoStructuresGate'
 import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
@@ -1041,6 +1044,9 @@ function ChartToolbar({
   // pattern layer exists for this viewer. Absent = the library is exactly as before.
   libraryExtraRows = null,
   onTogglePatterns = null,
+  showChartIq = false,
+  onToggleChartIq = null,
+  chartIqDaily = true,
   showLevels = false,
   onToggleLevels = null,
   // Admins: false = the team drawing set (default), true = every tier ("All"). null handler = no control.
@@ -1174,6 +1180,7 @@ function ChartToolbar({
   // 'all' (admin) | 'trusted' (paid member, AUTO_STRUCTURES_MEMBERS_ENABLED) | null.
   const autoStructuresScope = useAutoStructuresScope()
   const autoStructuresOn = autoStructuresScope != null
+  const chartIqAllowed = useChartIqAllowed()
   // ⭐ SLICE 2 — THIS chart's new-indicator context. One opaque scope per toolbar
   // (per chart), so closing the dock keeps that chart's draft conversation and a
   // different chart never sees it. Never derived from a symbol, name or formula.
@@ -1239,6 +1246,29 @@ function ChartToolbar({
       releasePreview(agentPreviewToken)
     }
   }, [agentPreviewToken])
+  // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — THE ONE DOOR INTO A SCRIPT DOCUMENT'S UPGRADE: the
+  // builder on the Pine tab, as a revision of the same id, with the stored script in the
+  // box when it is stored (read owner-only, `?source=1`), else an empty box to paste into.
+  const openUpgradeDoor = (row) => {
+    const open = (r) => {
+      setLibraryOpen(false)
+      setCreateOpen(false)
+      setBuilderEditRow({ ...r, upgradeScript: true })
+      setBuilderMode(null)
+      setBuilderEverOpened(true)
+      setBuilderOpen(true)
+    }
+    if (row.has_pine_source === true && typeof row.pine_source !== 'string') {
+      readUserDefinition(row.def_id, { withSource: true })
+        .then((res) => open(res && res.ok && typeof res.row.pine_source === 'string'
+          ? { ...row, pine_source: res.row.pine_source } : row))
+        .catch(() => open(row))
+      return true
+    }
+    open(row)
+    return true
+  }
+
   useImperativeHandle(ref, () => ({
     openSettings: () => {
       setShowColors(false)
@@ -1347,6 +1377,11 @@ function ChartToolbar({
       if (!canManageIndicators) return false
       const row = rowFor(opts)
       if (!row) return false
+      // ⛔⛔ A SCRIPT DOCUMENT TODAY'S ENGINE REFUSED (or could not upgrade) IS NOT OPENED
+      // ON THE FORMULA TAB. Editing its stored maths there would save the known-wrong
+      // translation as the member's own; its door is the script (`openUpgradeDoor`), the
+      // same one the legend's "Updated accuracy available" row opens.
+      if (scriptUpgradeHeld(row)) return openUpgradeDoor(row)
       setLibraryOpen(false)
       setCreateOpen(false)
       setBuilderEditRow(row)
@@ -1362,13 +1397,7 @@ function ChartToolbar({
       if (!canManageIndicators) return false
       const row = rowFor(opts)
       if (!row) return false
-      setLibraryOpen(false)
-      setCreateOpen(false)
-      setBuilderEditRow({ ...row, upgradeScript: true })
-      setBuilderMode(null)
-      setBuilderEverOpened(true)
-      setBuilderOpen(true)
-      return true
+      return openUpgradeDoor(row)
     },
     // ⭐ PHASE 4 — "Create custom copy": a NEW, independent definition (`definitionActions`),
     // added to this chart, then opened for editing — in the studio when the member has
@@ -1666,6 +1695,11 @@ function ChartToolbar({
             on (useAutoStructuresScope — the same predicate StockChart's fetch asks), and for PAID
             members while AUTO_STRUCTURES_MEMBERS_ENABLED is on too (trusted tier only). The Levels
             layer stays admin-only. */}
+        {/* Chart IQ (pattern recognition drawn on the chart): shown only while the server allows this viewer
+            (chart_iq_enabled on the auth payload: CHART_IQ_ENABLED for admins, CHART_IQ_MEMBERS_ENABLED for paid members). */}
+        {chartIqAllowed && !hidePatterns && onToggleChartIq && (
+          <ChartIqToolbarButton active={!!showChartIq} onToggle={onToggleChartIq} daily={chartIqDaily} />
+        )}
         {autoStructuresOn && !hidePatterns && onTogglePatterns && (
           <PatternToolbarButton active={!!showPatterns} onToggle={onTogglePatterns} />
         )}
@@ -1677,7 +1711,7 @@ function ChartToolbar({
             title={showAllDrawings ? 'Drawings: ALL tiers (click for the team set)' : 'Drawings: team set (click for all tiers)'}
             aria-label="Toggle all drawing tiers"
             aria-pressed={!!showAllDrawings}
-            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px' }}
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px', width: 'auto', minWidth: 24, whiteSpace: 'nowrap', flexShrink: 0 }}
           >
             {showAllDrawings ? 'All' : 'Team'}
           </button>
@@ -1690,7 +1724,7 @@ function ChartToolbar({
             title={showLevels ? 'Key levels: ON (nearest support/resistance)' : 'Key levels: OFF'}
             aria-label="Toggle key levels layer"
             aria-pressed={!!showLevels}
-            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px' }}
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px', width: 'auto', minWidth: 24, whiteSpace: 'nowrap', flexShrink: 0 }}
           >
             Levels
           </button>

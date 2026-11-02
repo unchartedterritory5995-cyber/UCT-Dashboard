@@ -68,6 +68,7 @@ import anyio
 from api.services.journal_two.attachment_root import read_candidates_with_roots
 from api.services.journal_two import trade_canvas as _trade_canvas
 from api.services.journal_two import chart_plan as _chart_plan
+from api.services.journal_two import import_notice as _import_notice
 
 _INLINE_MARKS = {
     "bold": ("**", "**"),
@@ -1091,6 +1092,14 @@ def _block(node: dict[str, Any], resolver=None) -> str:
             return ""
         label = _EMBED_LABELS.get(attrs.get("provider"), "Embedded link")
         return _text_with_marks({"text": label, "marks": [{"type": "link", "attrs": {"href": url}}]}, resolver)
+    if ntype == "importNotice":
+        # Connector fidelity (2026-11): what an import could not bring over, as the
+        # quoted sentence the editor shows (import_notice.notice_text, derived from
+        # attrs), then a link to the original only for an http(s) address. Angle
+        # brackets keep a parenthesis in the address inside the link.
+        line = f"> {_prose(_import_notice.notice_text(attrs))}"
+        src = _import_notice.safe_source_url(attrs.get("sourceUrl"))
+        return f"{line} [{_import_notice.OPEN_ORIGINAL}](<{src}>)" if src else line
     if ntype == "attachmentChip":
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None

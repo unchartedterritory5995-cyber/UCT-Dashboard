@@ -77,6 +77,11 @@ Flow per source, per sync:
      this round) stays as an inert intact placeholder rather than being
      silently stripped, so self-heal's substring check keeps a real signal
      to retry against on a future sync.
+     Plan A Task 4: that retry is the link heal pass
+     (`link_keys.heal_pending_links`, run at the end of every round over the
+     member's `import_links_pending` notes), never a re-import: an unresolved
+     link no longer keeps `import_media_pending` set, so it no longer makes
+     `import_confirm` re-write the note or the engine re-download its media.
   6. Cursor advances to `max(ref.updated_at for ref in refs)` ONLY if the
      whole sync completed without raising — a provider exception mid-source
      updates the log row to 'error' and leaves the cursor untouched.
@@ -86,19 +91,30 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
+import copy
+import dataclasses
 import json
 import logging
 import os
 import random
 import sqlite3
 import threading
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import import_notice, media_policy
 from api.services.journal_two import notes as notes_svc
+from api.services.journal_two.import_provenance import edited_since_import
+from api.services.journal_two.notes_quota import NoteQuotaExceeded
 from api.services.journal_two.note_connectors import connections, errors, oauth
-from api.services.journal_two.note_connectors.convert import rewrite_body
+from api.services.journal_two.note_connectors.link_keys import heal_pending_links, resolve_link_keys
+from api.services.journal_two.note_connectors.convert import REF_PREFIX, mddoc, rewrite_body
+from api.services.journal_two.note_connectors.convert.linkify import (
+    finalize_links, import_link_keys,
+)
 from api.services.journal_two.note_connectors.providers.base import (
     NoteProvider, RemoteNote, RemoteRef,
 )
@@ -322,9 +338,13 @@ def _start_log(user_id: str, source_id: str) -> int:
         conn.close()
 
 
+#: The most `failures_json` entries one log row keeps (Plan D's card lists them).
+FAILURES_JSON_CAP = 50
+
+
 def _finish_log(
     log_id: int, *, status: str, counts: dict[str, int], error: str | None = None,
-    source_deleted: int = 0,
+    source_deleted: int = 0, failures_json: list[dict] | None = None,
 ) -> None:
     """`source_deleted` is passed SEPARATELY from `counts` on purpose: the
     sever count is produced by delete detection, not by the per-note import
@@ -333,7 +353,15 @@ def _finish_log(
     `_latest_sync_counts` (routers/note_sync.py) reads the newest log row to
     build the connectors card's counts -- a deletion that is never written to
     this row is invisible to the member no matter what the sync response
-    said in the moment."""
+    said in the moment.
+
+    `failures_json` (Plan A Task 6, read by Plan D's `/log` parser in
+    routers/note_sync.py): the `{noteTitle, reason, name}` of every
+    importNotice this pass wrote, `reason` being the member-readable sentence.
+    Capped at `FAILURES_JSON_CAP`; NULL when there were none. Plan D's DDL
+    always has the column, so it is written unconditionally."""
+    items = list(failures_json or [])[:FAILURES_JSON_CAP]
+    blob = json.dumps(items, ensure_ascii=False) if items else None
     conn = get_connection()
     try:
         conn.execute(
@@ -341,7 +369,8 @@ def _finish_log(
             UPDATE j2_note_sync_log
                SET finished_at = ?, status = ?, error = ?,
                    notes_created = ?, notes_updated = ?, notes_skipped = ?,
-                   media_uploaded = ?, conflicts = ?, source_deleted = ?
+                   media_uploaded = ?, conflicts = ?, source_deleted = ?,
+                   failures_json = ?
              WHERE id = ?
             """,
             (
@@ -349,7 +378,7 @@ def _finish_log(
                 int(counts.get("created", 0)), int(counts.get("updated", 0)),
                 int(counts.get("skipped", 0)), int(counts.get("mediaUploaded", 0)),
                 int(counts.get("conflicts", 0)), int(source_deleted or 0),
-                log_id,
+                blob, log_id,
             ),
         )
         conn.commit()
@@ -503,6 +532,9 @@ async def _do_sync(
     log_id = _start_log(user_id, source_id)
     counts = {"created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0, "conflicts": 0}
     item_failures: list[str] = []
+    # Plan A Task 6: {noteTitle, reason, name} per importNotice written this pass,
+    # for the log row's `failures_json` (the `failures` strings above are unchanged).
+    notice_failures: list[dict[str, Any]] = []
     delete_guard_warning: str | None = None
     deleted_count = 0
     provider: NoteProvider | None = None
@@ -667,6 +699,8 @@ async def _do_sync(
 
         remote_notes, fetch_failures = await _fetch_remote_notes(provider, creds, refs)
         item_failures.extend(fetch_failures)
+        # Plan A Task 10: links finalized here, before anything hashes or stores a doc.
+        remote_notes = await asyncio.to_thread(_finalize_remote_notes, remote_notes)
 
         # ⛔⛔ session-audit.md A1: every ref this pass fetched but never
         # actually got a stored note out of — a fetch failure (never made it
@@ -688,6 +722,7 @@ async def _do_sync(
             counts["mediaUploaded"] += result["mediaUploaded"]
             counts["conflicts"] += result["conflicts"]
             item_failures.extend(result["failures"])
+            notice_failures.extend(result.get("noticeFailures", []))
             not_stored_refs.update(result.get("notStoredRefs", []))
 
         # Task 11 MUST-RESOLVE #1: an opaque cursor the provider published
@@ -748,7 +783,7 @@ async def _do_sync(
         _finish_log(
             log_id, status=status, counts=counts,
             error="; ".join(error_parts) if error_parts else None,
-            source_deleted=deleted_count,
+            source_deleted=deleted_count, failures_json=notice_failures,
         )
 
         result = {
@@ -778,7 +813,8 @@ async def _do_sync(
                 connections.set_connector_status(user_id, source["provider"], "broken")
             except Exception:  # noqa: BLE001 — never let this bookkeeping mask the real error
                 pass
-        _finish_log(log_id, status="error", counts=counts, error=str(e))
+        _finish_log(log_id, status="error", counts=counts, error=str(e),
+                    failures_json=notice_failures)
         raise
     finally:
         if provider is not None:
@@ -944,10 +980,15 @@ def _write_tags_preserving_updated_at(
     conn: sqlite3.Connection, user_id: str, note_id: str, tags: list[str],
 ) -> None:
     """Writes ONLY the `tags` column, deliberately WITHOUT bumping
-    `updated_at` — used EXCLUSIVELY by the engine's own sever/un-sever tag
-    writes (`_tag_note_source_deleted`, `_untag_note_source_reappeared`),
-    never by a real user edit (Fix-round-2 Important, carried from Task 8:
-    made user-visible by round-1's heal path, not introduced by it).
+    `updated_at` — used EXCLUSIVELY by the engine's own tag writes: the
+    sever/un-sever tags (`_tag_note_source_deleted`,
+    `_untag_note_source_reappeared`) and, since Plan A Task 15 (D1), the
+    `sync-conflict` tag on a member-edited original (`_import_remote_notes`'
+    conflict loop and `_reroute_resolved_body_to_sibling`) — never by a real
+    user edit (Fix-round-2 Important, carried from Task 8: made user-visible
+    by round-1's heal path, not introduced by it). Through `update_note` the
+    conflict tag moved the member's edit time to the sync time, so the note
+    jumped to the top of "recently edited".
 
     Root cause: `notes_svc.update_note` (notes.py) unconditionally bumps
     `updated_at` to now on ANY patch, including a tags-only one. `_is_conflict`
@@ -1165,14 +1206,34 @@ async def _fetch_remote_notes(
     return notes, failures
 
 
+def _finalize_remote_doc(doc: dict[str, Any]) -> dict[str, Any]:
+    """Plan A Task 10 (L-3, L-4): THE chokepoint every provider's doc passes through --
+    Notion rich text, Roam, Craft, OneNote, Dropbox and Obsidian alike -- before it is
+    hashed or stored. Existing hrefs go through the one scheme policy first (an unsafe or
+    dead link becomes text), then bare URLs in plain text become links. Pure."""
+    return finalize_links(doc)  # B-14 fix round 1: a refused link's text is never re-linked
+
+
+def _finalize_remote_notes(notes: list[RemoteNote]) -> list[RemoteNote]:
+    """Each note with a finalized doc -- a NEW `RemoteNote`, the provider's object is never
+    mutated. A deep link the policy turned into a pending `import-link://` key joins
+    `links`, so the round's final link pass resolves it like any other. Called through
+    `asyncio.to_thread`: linear, but a large batch is still CPU work off the event loop."""
+    out: list[RemoteNote] = []
+    for rn in notes:
+        doc = _finalize_remote_doc(rn.doc)
+        links = list(rn.links)
+        links.extend(k for k in import_link_keys(doc) if k not in links)
+        out.append(dataclasses.replace(rn, doc=doc, links=links))
+    return out
+
+
 # ── Conflict policy + import_confirm + media/rewrite (spec §6, §3) ──────────
 
 def _is_conflict(meta: dict[str, Any]) -> bool:
-    updated = _parse_iso(meta.get("updatedAt"))
-    imported = _parse_iso(meta.get("importedAt"))
-    if updated is None or imported is None:
-        return False
-    return updated > imported
+    """Edited by the member since the last import -- the ONE predicate
+    (`import_provenance.edited_since_import`, Plan A Task 4 controller ruling 2)."""
+    return edited_since_import(meta.get("updatedAt"), meta.get("importedAt"))
 
 
 def _remote_changed(meta: dict[str, Any], rn: RemoteNote, entry_hash: str) -> bool:
@@ -1238,9 +1299,13 @@ def _bulk_existing_note_meta(
         # "doesn't exist" to the sync engine, same reasoning as
         # notes.py::import_check — otherwise a background sync would
         # silently resurrect a note the member deliberately trashed.
+        # Plan A Task 6: the body is read only for a note still pending media (1 retry
+        # now, 2 waiting for space) -- the only rows whose notices carry attempts the
+        # next try must count from. Read HERE, before confirm overwrites the body.
         rows = conn.execute(
             f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash, "
-            f"import_remote_rev "
+            f"import_remote_rev, "
+            f"CASE WHEN import_media_pending IN (1, 2) THEN body_json END AS pending_body "
             f"FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
             f" AND import_key IN ({placeholders})",
             (user_id, *chunk),
@@ -1254,6 +1319,12 @@ def _bulk_existing_note_meta(
                 "folderId": row["folder_id"],
                 "importHash": row["import_hash"],
                 "importRemoteRev": row["import_remote_rev"],  # Plan A Task 1
+                # Plan A Task 6: {ref: attempts} of this note's notices ({} unless pending)
+                "noticeAttempts": (import_notice.notice_attempts_by_ref(row["pending_body"])
+                                   if row["pending_body"] else {}),
+                # Plan A Task 8 fix round 1 (I4): the resolved body a retry builds on, so
+                # what already resolved is reused, never fetched and stored again.
+                "pendingBody": row["pending_body"],
             }
     return out
 
@@ -1282,25 +1353,55 @@ def _apply_resolved_body(
     the already-resolved content into a conflict sibling instead (spec §6).
 
     audit B5: also recomputes `import_media_pending` from the body this call
-    is ABOUT to write (not the note's prior state) — the same substring scan
-    `_find_stranded_placeholder_ids` already uses. Media resolves fully in
-    one pass, so a media-only note clears the flag here. A note whose links
-    are deliberately left as an inert intact placeholder (the per-provider
-    docstrings above: unresolved marks are never stripped, on purpose, so
-    self-heal has a real signal to retry) correctly STAYS pending — that is
-    what lets `import_confirm`'s own media-pending gate re-offer it for
-    resolution on a later sync without waiting on the separate
-    `_find_stranded_placeholder_ids` re-scan to notice."""
+    is ABOUT to write (not the note's prior state). Media resolves fully in
+    one pass, so a media-only note clears the flag here. Plan A Task 6: this
+    is also the ONLY writer of an `importNotice`'s `attempts` (the retry
+    bookkeeping lives in the body), so the count moves without `updated_at`.
+
+    Plan A Task 4: and `import_links_pending`, separately. A link left as an
+    inert intact placeholder (unresolved marks are never stripped, on
+    purpose) keeps `import_links_pending = 1` and nothing else: media pending
+    would make `import_confirm` re-write the note and the engine re-download
+    its media on every pass, for a link no re-import can resolve. The link
+    heal pass (`link_keys.heal_pending_links`, run at the end of every
+    import round and from the member's heal door) finishes it once its
+    target exists, writing through THIS function."""
     body_plain = notes_svc.extract_plain_text(body)
     body_blob = json.dumps(body)
-    still_pending = 1 if ("import-ref://" in body_blob or "import-link://" in body_blob) else 0
-    cur = conn.execute(
-        "UPDATE j2_notes SET body_json = ?, body_plain = ?, import_media_pending = ? "
-        "WHERE id = ? AND user_id = ? AND updated_at = ?",
-        (body_blob, body_plain, still_pending, note_id, user_id, expected_updated_at),
-    )
+    # Plan A Task 6: tri-state -- 1 while a placeholder or a retryable importNotice
+    # remains (the next sync retries it), 2 while only a storage_limit notice waits.
+    media_pending = import_notice.media_pending_state(body)
+    links_pending = 1 if notes_svc._body_has_import_link(body) else 0
+    # One unit with its sidecars (below): a SAVEPOINT, so a failed projection undoes
+    # THIS note's body write and nothing else the connection may hold.
+    conn.execute("SAVEPOINT apply_resolved_body")
+    try:
+        cur = conn.execute(
+            "UPDATE j2_notes SET body_json = ?, body_plain = ?, import_media_pending = ?, "
+            "import_links_pending = ? "
+            "WHERE id = ? AND user_id = ? AND updated_at = ?",
+            (body_blob, body_plain, media_pending, links_pending, note_id, user_id,
+             expected_updated_at),
+        )
+        applied = cur.rowcount > 0
+        if applied:
+            # Plan A Task 2, controller ruling 1: every other body write rebuilds the
+            # content sidecars in its own transaction, and this one must too -- a link
+            # this pass resolves (import-link:// -> /journal?j2tab=notebook&note=<id>),
+            # or one Task 4's heal pass writes through here, is otherwise never a
+            # backlink or a graph edge. Timestamp-neutral like the UPDATE above:
+            # `_sync_note_sidecars` writes only the sidecar tables, never j2_notes.
+            notes_svc._sync_note_sidecars(conn, user_id, note_id, body, body_plain)
+    except Exception:
+        # The body write is undone with its projection, never left pending for some
+        # later commit to land alone. The caller records a per-note failure (fix
+        # round 1, M1); the stored placeholder body stays for self-heal to retry.
+        conn.execute("ROLLBACK TO SAVEPOINT apply_resolved_body")
+        conn.execute("RELEASE SAVEPOINT apply_resolved_body")
+        raise
+    conn.execute("RELEASE SAVEPOINT apply_resolved_body")
     conn.commit()
-    return cur.rowcount > 0
+    return applied
 
 
 def _find_stranded_placeholder_ids(
@@ -1312,7 +1413,12 @@ def _find_stranded_placeholder_ids(
     resolve step raised, before Critical 3's per-batch pipeline existed, or
     a process crash mid-resolve) and the literal placeholder is still sitting
     in the stored body. Self-heal (Critical 3b): any hit re-enters Phase 2
-    even though its content hash says 'unchanged'."""
+    even though its content hash says 'unchanged'.
+
+    Plan A Task 4: MEDIA placeholders only. A stranded `import-link://` is
+    not a reason to re-enter Phase 2 (that re-downloads the note's media and
+    rewrites it for a link that may never resolve, every pass); the link
+    heal pass at the end of `_import_remote_notes` finishes it instead."""
     if not note_ids:
         return set()
     out: set[str] = set()
@@ -1324,7 +1430,7 @@ def _find_stranded_placeholder_ids(
         ).fetchall()
         for row in rows:
             body = row["body_json"] or ""
-            if "import-ref://" in body or "import-link://" in body:
+            if "import-ref://" in body:
                 out.add(row["id"])
     return out
 
@@ -1383,7 +1489,9 @@ def _reroute_resolved_body_to_sibling(
         cur_tags = json.loads(row["tags"] or "[]")
         if "sync-conflict" not in cur_tags:
             cur_tags.append("sync-conflict")
-            notes_svc.update_note(user_id, row["id"], {"tags": cur_tags}, conn=conn)
+            # Engine bookkeeping, not an edit: the member's own edit time stays (Task 15 D1).
+            _write_tags_preserving_updated_at(conn, user_id, row["id"], cur_tags)
+            conn.commit()
     return sibling_id, failures
 
 
@@ -1411,45 +1519,343 @@ def _build_confirm_entry(
     return entry
 
 
+#: Task 9 fix round 1 (minor a): room for the `data:<mime>;params,` header and line breaks.
+DATA_URI_SLACK_CHARS = 4096
+
+
+def data_uri_max_chars() -> int:
+    """The longest data URI that can decode to a source the media policy would keep: the
+    base64 length of `MEDIA_SOURCE_MAX_BYTES` (read per call, never retyped) plus slack."""
+    return media_policy.MEDIA_SOURCE_MAX_BYTES * 4 // 3 + DATA_URI_SLACK_CHARS
+
+
 def _decode_data_uri(data_uri: str) -> tuple[bytes, str]:
-    header, _, b64_payload = data_uri.partition(",")
-    if ";base64" not in header:
-        raise ValueError(f"unsupported data URI (not base64): {header[:40]!r}")
-    content_type = header[len("data:"):].split(";")[0] or "application/octet-stream"
-    data = base64.b64decode(b64_payload, validate=True)
-    return data, content_type
+    """`(bytes, mime)` for a data URI (Plan A Task 9, I-6): base64 when a `;base64` parameter
+    is present, else percent-encoded (`data:image/svg+xml,%3Csvg...`). The grammar is
+    `mddoc.DATA_URI_RE`, the one copy. Run off the event loop (`asyncio.to_thread`).
+
+    Fix round 1: a URI longer than `data_uri_max_chars()` is `NoteConnTooLarge` (`too_large`)
+    BEFORE any decoding; a malformed URI or bad base64 is `NoteConnUnsupported`, a FINAL
+    `unsupported` notice -- bytes that cannot decode never will, so it is never retried."""
+    if len(data_uri) > data_uri_max_chars():
+        raise errors.NoteConnTooLarge(
+            f"data URI of {len(data_uri)} characters exceeds {data_uri_max_chars()}",
+            reason="Inline image is larger than the allowed size limit")
+    match = mddoc.DATA_URI_RE.match(data_uri)
+    if match is None:
+        raise errors.NoteConnUnsupported(f"malformed data URI: {data_uri[:40]!r}",
+                                         reason="Inline image data is malformed")
+    content_type = match.group("mime").strip().lower() or "application/octet-stream"
+    params = [p.strip().lower() for p in match.group("params").split(";")]
+    payload = match.group("payload")
+    if "base64" in params:
+        try:
+            return base64.b64decode(payload, validate=True), content_type
+        except (binascii.Error, ValueError) as exc:
+            raise errors.NoteConnUnsupported(f"data URI base64 does not decode: {exc}",
+                                             reason="Inline image data is malformed") from exc
+    return urllib.parse.unquote_to_bytes(payload), content_type
+
+
+def media_failure_reason(exc: BaseException) -> str:
+    """The `SERVER_REASONS` code for a media failure, decided by TYPE (see
+    `_notice_for_exception`). The ONE mapping: the engine's notices and the member media-fetch
+    door (`POST /api/j2/notes/media/fetch`, Plan A Task 9) both read it."""
+    if isinstance(exc, media_policy.MediaRejected):
+        return exc.reason
+    if isinstance(exc, errors.NoteConnUnsafeAddress):
+        return "unsafe"
+    if isinstance(exc, errors.NoteConnTooLarge):
+        return "too_large"
+    if isinstance(exc, errors.NoteConnUnsupported):
+        return "unsupported"
+    if isinstance(exc, NoteQuotaExceeded) or isinstance(exc.__cause__, NoteQuotaExceeded):
+        return "storage_limit"
+    if isinstance(exc, notes_svc.NoteValidationError):
+        return "unsupported"
+    return "fetch_failed"
+
+
+def _notice_for_exception(
+    exc: Exception, *, ref: str, name: str | None, source_url: str | None, attempts: int,
+) -> dict:
+    """The importNotice a media failure leaves where the file was (Plan A Task 6).
+
+    Decided by TYPE, never by an error's wording (Plan A Task 8): a `MediaRejected` from the
+    one media policy carries its own reason; `NoteConnUnsafeAddress` (the SSRF guard) is
+    `unsafe`; `NoteConnTooLarge` (a capped download) is `too_large`; any other
+    `NoteConnUnsupported` is final `unsupported`. A `NoteValidationError` from a save is final
+    `unsupported`, except the storage quota (raised `from NoteQuotaExceeded`), which is
+    `storage_limit`: it waits for space (`import_media_pending = 2`). Anything else
+    (`NoteConnTransient`, a network error, a bad data URI) is `fetch_failed`, retried while
+    `attempts < MEDIA_RETRY_MAX_ATTEMPTS`. `attempts` counts fetch tries and is kept only
+    on `fetch_failed`, the one reason it bounds: a waiting or final notice stores 0, so a
+    storage wait can never run a bound out."""
+    reason = media_failure_reason(exc)
+    return import_notice.notice_node(
+        reason, name=name, source_url=source_url, ref=ref,
+        attempts=attempts if reason == "fetch_failed" else 0)
+
+
+def _media_source_url(m: dict[str, Any]) -> str | None:
+    """The address a notice links to: the entry's own `source_url` (http(s) only), else
+    the ref itself when the ref is a safe http(s) address."""
+    return import_notice.safe_source_url(m.get("source_url")) or import_notice.safe_source_url(m.get("ref"))
+
+
+def _placeholder_refs(doc: Any) -> list[str]:
+    """Every media placeholder ref in a body, in document order: an `image`'s `src` or an
+    `attachmentChip`'s `href` reading `import-ref://<ref>` -- exactly what `rewrite_body`
+    resolves."""
+    out: list[str] = []
+    stack = [doc]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+        value = (node.get("attrs") or {}).get(attr) if attr else None
+        if isinstance(value, str) and value.startswith(REF_PREFIX) and value[len(REF_PREFIX):]:
+            out.append(value[len(REF_PREFIX):])
+        content = node.get("content")
+        if isinstance(content, list):
+            stack.extend(reversed(content))
+    return list(dict.fromkeys(out))
+
+
+def _placeholder_nodes(doc: Any) -> dict[str, dict]:
+    """`{ref: placeholder node}` for every media placeholder in a body (first one per ref)."""
+    out: dict[str, dict] = {}
+    stack = [doc]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+        value = (node.get("attrs") or {}).get(attr) if attr else None
+        if isinstance(value, str) and value.startswith(REF_PREFIX) and value[len(REF_PREFIX):]:
+            out.setdefault(value[len(REF_PREFIX):], node)
+        content = node.get("content")
+        if isinstance(content, list):
+            stack.extend(reversed(content))
+    return out
+
+
+def _retry_source(stored_body: str | None, rn: RemoteNote) -> tuple[dict[str, Any], set[str]] | None:
+    """Plan A Task 8 fix round 1 (I4): a media RETRY (a storage wait that freed, or a
+    `fetch_failed` with attempts left) of a note whose remote content is unchanged builds on
+    the body already stored, not on the placeholder doc: every notice still worth retrying
+    goes back to its placeholder, and everything that already resolved stays exactly as
+    stored. Returns `(doc, refs_to_retry)`, or None when the stored body cannot be built on
+    (unreadable, still holding a raw placeholder, or nothing to retry): the caller then
+    imports the whole note as before."""
+    if not stored_body or REF_PREFIX in stored_body:
+        return None
+    try:
+        stored = json.loads(stored_body)
+    except (TypeError, ValueError):
+        return None
+    placeholders = _placeholder_nodes(rn.doc)
+    retry: set[str] = set()
+
+    def walk(node: Any) -> Any:
+        if not isinstance(node, dict):
+            return node
+        if node.get("type") == import_notice.IMPORT_NOTICE_TYPE:
+            attrs = node.get("attrs") or {}
+            ref = attrs.get("ref")
+            if ref in placeholders and (import_notice.is_retryable(attrs)
+                                        or attrs.get("reason") == "storage_limit"):
+                retry.add(ref)
+                return copy.deepcopy(placeholders[ref])
+            return node
+        if isinstance(node.get("content"), list):
+            return {**node, "content": [walk(c) for c in node["content"]]}
+        return node
+
+    doc = walk(stored)
+    return (doc, retry) if retry and isinstance(doc, dict) else None
+
+
+def _note_title(rn: RemoteNote, key: str) -> str:
+    """The title the member sees for the note at `key` (a conflict sibling's included)."""
+    return f"{rn.title} (synced copy)" if key.endswith("#remote") else rn.title
+
+
+def _notice_failures(title: str, body: Any, notices: dict[str, dict]) -> list[dict[str, Any]]:
+    """`failures_json` entries for the notices THIS pass placed in `body`: `{noteTitle,
+    reason, name}`, `reason` being the sentence the member reads in the note."""
+    placed = [a for a in import_notice.iter_notices(body) if a.get("ref") in notices]
+    return [{"noteTitle": title or "Untitled note", "reason": import_notice.notice_text(a),
+             "name": a.get("name")} for a in placed]
+
+
+def _provider_notice_failures(title: str, doc: Any) -> list[dict[str, Any]]:
+    """`failures_json` entries for the notices the provider's converter wrote into the remote
+    doc itself (Plan A Task 12). Those carry no ref (they hold no placeholder), so they never
+    overlap `_notice_failures`, which lists only the notices this pass placed by ref."""
+    return [{"noteTitle": title or "Untitled note", "reason": import_notice.notice_text(a),
+             "name": a.get("name")} for a in import_notice.iter_notices(doc) if not a.get("ref")]
+
+
+def _strip_media_placeholders(node: Any) -> Any:
+    """A copy of `node` with every media placeholder (`image`/`attachmentChip` on an
+    `import-ref://`) removed. Pure, and never through `rewrite_body`: it is the last resort
+    when even `rewrite_body`'s output cannot be stored."""
+    if isinstance(node, list):
+        return [c for c in (_strip_media_placeholders(n) for n in node) if c is not None]
+    if not isinstance(node, dict):
+        return node
+    attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+    value = (node.get("attrs") or {}).get(attr) if attr else None
+    if isinstance(value, str) and value.startswith(REF_PREFIX):
+        return None
+    out = dict(node)
+    if isinstance(node.get("content"), list):
+        out["content"] = _strip_media_placeholders(node["content"])
+    return out
+
+
+def _final_body_without_media(
+    rn: RemoteNote, key: str, doc: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, dict], list[dict[str, Any]]]:
+    """Plan A Task 8 (Task 6 review d): the body to store when the RESOLVED body fails
+    validation, so the note terminates instead of staying pending (which re-fetched every
+    item on every pass with no attempt counted). First choice: every placeholder becomes its
+    FINAL `unsupported` notice (attempts 0). If that body cannot be stored either, the
+    placeholders are removed. Returns `(body, notices, dropped_failures)`: `dropped_failures`
+    are the `failures_json` entries for items removed with no notice left in the note, so the
+    loss is still named. `(None, {}, [])` when nothing storable can be built (cannot happen
+    for a body `import_confirm` accepted; the old leave-in-place behaviour is the fallback).
+    `doc` is the body the pass resolved from (`rn.doc`, or a retry's stored body)."""
+    doc = rn.doc if doc is None else doc
+    names = {m.get("ref"): m.get("name") for m in (rn.media or []) if isinstance(m, dict)}
+    by_ref = {m.get("ref"): m for m in (rn.media or []) if isinstance(m, dict)}
+    final = {ref: import_notice.notice_node(
+        "unsupported", name=names.get(ref),
+        source_url=_media_source_url(by_ref[ref]) if ref in by_ref else import_notice.safe_source_url(ref),
+        ref=ref, attempts=0) for ref in _placeholder_refs(doc)}
+    body, _dropped = rewrite_body(doc, {}, {}, strip_unresolved_links=False, notices=final)
+    try:
+        notes_svc._validate_body_json(body)
+        return body, final, []
+    except notes_svc.NoteValidationError:
+        pass
+    stripped = _strip_media_placeholders(doc)
+    try:
+        notes_svc._validate_body_json(stripped)
+    except notes_svc.NoteValidationError:
+        return None, {}, []
+    title = _note_title(rn, key) or "Untitled note"
+    return stripped, {}, [{"noteTitle": title, "reason": import_notice.notice_text(n["attrs"]),
+                           "name": n["attrs"]["name"]} for n in final.values()]
+
+
+#: At most this many waiting notes come back per pass when storage frees (bounded work).
+STORAGE_WAIT_FLIP_LIMIT = 200
+
+
+def _flip_storage_waits(conn: sqlite3.Connection, user_id: str) -> int:
+    """Plan A Task 8 (spec §15 Q2, "they come back once space frees"): this member's notes
+    waiting for storage (`import_media_pending = 2`) go back to 1 (retry), so the pass that
+    follows re-imports them. Member-scoped, bounded (`STORAGE_WAIT_FLIP_LIMIT`), and
+    timestamp-neutral: only `import_media_pending` moves. The caller decides that space has
+    freed; this commits and returns how many rows moved."""
+    cur = conn.execute(
+        "UPDATE j2_notes SET import_media_pending = 1 WHERE id IN ("
+        "SELECT id FROM j2_notes WHERE user_id = ? AND import_media_pending = 2 LIMIT ?)",
+        (user_id, STORAGE_WAIT_FLIP_LIMIT))
+    conn.commit()
+    return cur.rowcount
+
+
+def _storage_has_freed(budget: media_policy.MediaBudget) -> bool:
+    """Space a waiting note can use: room under the member's media cap for the largest item a
+    sync can copy (`MEDIA_SOURCE_MAX_BYTES`) AND volume headroom (`assert_import_headroom`, the
+    other storage_limit source -- read through `notes`, the same reference every save checks).
+    Final review (promoted minor): merely "under the cap" re-downloaded every waiting note of a
+    member a few bytes under it on every nightly pass, forever, only to hit the cap again."""
+    room = media_policy.MEMBER_IMPORT_MEDIA_CAP_BYTES - budget.used
+    if room < media_policy.MEDIA_SOURCE_MAX_BYTES:
+        return False
+    try:
+        notes_svc.assert_import_headroom(0)
+    except NoteQuotaExceeded:
+        return False
+    return True
+
+
+def _decide_and_store(
+    user_id: str, note_id: str, data: bytes, content_type: str | None, name: str, *,
+    file_intent: bool, budget: media_policy.MediaBudget,
+) -> media_policy.StoredMedia:
+    """One media item through the policy, synchronously -- called via `asyncio.to_thread`.
+    An item the provider listed as a file keeps file intent (fix round 1, I5): `normalize_file`,
+    never decoded, so an attached image is never refused for its pixels."""
+    decide = media_policy.normalize_file if file_intent else media_policy.normalize_media
+    return media_policy.store_media(user_id, note_id, decide(data, content_type, name), budget=budget)
 
 
 async def _upload_media_for_note(
     provider: NoteProvider, creds: dict[str, Any], user_id: str, note_id: str,
-    media_entries: list[dict[str, Any]],
-) -> tuple[dict[str, str], int, list[str]]:
-    """Per-item try/except — one bad media ref is a NAMED failure, dropped
-    from the note's body by `rewrite_body`, never a crash of the whole note
-    (or the whole sync)."""
-    media_urls: dict[str, str] = {}
+    media_entries: list[dict[str, Any]], *, prior_attempts: dict[str, int],
+    budget: media_policy.MediaBudget,
+) -> tuple[dict[str, media_policy.StoredMedia], dict[str, dict], int, list[str]]:
+    """`_upload_media_for_note(provider, creds, user_id, note_id, media_entries, *,
+    prior_attempts, budget) -> (resolved, notices, uploaded, failures)`.
+
+    Per-item try/except — one bad media ref is a NAMED failure, never a crash
+    of the whole note (or the whole sync).
+
+    Plan A Task 8: every item goes through the ONE media policy --
+    `media_policy.normalize_media` (sniff, convert, downscale, classify, refuse) then
+    `media_policy.store_media` under `budget`, the member's `MediaBudget` for this whole
+    pass (one `MediaBudget.for_member` per `_import_remote_notes` call, never per item).
+    `resolved` is `{ref: StoredMedia}` for `rewrite_body(..., resolved=...)`. An item the
+    provider listed as a file (`kind != "image"`) keeps chip intent: `normalize_file`, the
+    bytes stored as a file, never decoded or re-routed inline. Items past the cap are
+    `storage_limit` notices; the note itself still imports. The policy work runs in a
+    worker thread (`asyncio.to_thread`), never on the event loop.
+
+    Plan A Task 6 (spec I-7): a ref that cannot be copied gets an importNotice in
+    `notices`, which `rewrite_body` puts where the file was -- never a silent drop.
+    `prior_attempts` is `{ref: attempts}` from the note's stored notices; a ref that
+    has already used `MEDIA_RETRY_MAX_ATTEMPTS` is not fetched again, it keeps its
+    final notice."""
+    resolved: dict[str, media_policy.StoredMedia] = {}
+    notices: dict[str, dict] = {}
     uploaded = 0
     failures: list[str] = []
     for m in media_entries:
         ref = m.get("ref")
+        prior = prior_attempts.get(ref, 0) if isinstance(ref, str) else 0
+        if prior >= import_notice.MEDIA_RETRY_MAX_ATTEMPTS:
+            notices[ref] = import_notice.notice_node(
+                "fetch_failed", name=m.get("name"), source_url=_media_source_url(m),
+                ref=ref, attempts=prior)
+            continue
         try:
             data_uri = m.get("data_uri")
             if data_uri:
-                data, content_type = _decode_data_uri(data_uri)
+                # Plan A Task 9: decoding (base64 or percent) is off the event loop too.
+                data, content_type = await asyncio.to_thread(_decode_data_uri, data_uri)
             else:
                 data, content_type = await provider.fetch_media(creds, ref)
             name = m.get("name") or ref
-            if m.get("kind") == "image":
-                result = notes_svc.save_note_image_bytes(
-                    user_id, note_id, data, name, content_type, kind="inline")
-            else:
-                result = notes_svc.save_note_attachment_bytes(
-                    user_id, note_id, data, name, content_type)
-            media_urls[ref] = result["url"]
+            # Fix round 1, I2: the decide+store work (a 25 MB decode/downscale, disk writes)
+            # runs OFF the event loop -- a manual "Sync now" runs this on the uvicorn loop.
+            # The policy's own decode semaphore bounds it alongside the upload doors.
+            resolved[ref] = await asyncio.to_thread(
+                _decide_and_store, user_id, note_id, data, content_type, name,
+                file_intent=m.get("kind") != "image", budget=budget)
             uploaded += 1
         except Exception as e:  # noqa: BLE001
             failures.append(f"media {ref!r} on note {note_id}: {e}")
-    return media_urls, uploaded, failures
+            if isinstance(ref, str) and ref:
+                notices[ref] = _notice_for_exception(
+                    e, ref=ref, name=m.get("name"), source_url=_media_source_url(m),
+                    attempts=prior + 1)
+    return resolved, notices, uploaded, failures
 
 
 def _bulk_note_updated_at(conn: sqlite3.Connection, note_ids: list[str]) -> dict[str, str | None]:
@@ -1499,6 +1905,7 @@ def _merge_batch_result(
     totals["conflicts"] += res.get("conflicts", 0)
     totals["failures"].extend(res["failures"])
     totals["notStoredRefs"].extend(res.get("notStoredRefs", []))
+    totals["noticeFailures"].extend(res.get("noticeFailures", []))
     all_touched.extend(res.get("touched", []))
 
 
@@ -1526,8 +1933,8 @@ async def _resolve_links_final_pass(
         return result
 
     link_targets = sorted({lk for rn, _k, _n in candidates for lk in rn.links})
-    link_check = notes_svc.import_check(user_id, link_targets, conn=conn)
-    id_by_key = {k: v["id"] for k, v in link_check["existing"].items()}
+    # Plan A Task 4: every key kind (exact import keys, Evernote titles) through the ONE resolver.
+    id_by_key = resolve_link_keys(conn, user_id, link_targets)
     if not id_by_key:
         return result  # nothing resolvable yet -> leave every mark intact; self-heal retries later
 
@@ -1556,7 +1963,11 @@ async def _resolve_links_final_pass(
             continue
 
         expected = baseline_updated_at.get(note_id)
-        applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        try:
+            applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        except Exception as e:  # noqa: BLE001 -- fix round 1, M1: one note never stops the pass
+            result["failures"].append(f"link pass: resolved body write failed for note {note_id!r}: {e}")
+            continue
         if not applied:
             sibling_id, reroute_failures = _reroute_resolved_body_to_sibling(
                 conn, user_id, source, rn, key, body)
@@ -1573,8 +1984,19 @@ async def _confirm_and_resolve_batch(
     conn: sqlite3.Connection, user_id: str, source: dict[str, Any],
     provider: NoteProvider, creds: dict[str, Any], dest_folder_id: str | None,
     entries: list[dict[str, Any]], pairs: list[tuple[RemoteNote, str]],
+    *, notice_attempts: dict[str, dict[str, int]] | None = None,
+    budget: media_policy.MediaBudget | None = None,
+    retry_bodies: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Confirms ONE batch, then immediately resolves MEDIA (upload +
+    """`budget` (Plan A Task 8): the member's `MediaBudget` for the whole pass; None reads one
+    (a direct caller). `retry_bodies` (fix round 1, I4): `{import_key: stored body}` for a
+    note re-imported only to retry its media (remote unchanged); see `_retry_source`.
+    `notice_attempts` (Plan A Task 6): `{import_key: {ref: attempts}}`, read by
+    `_bulk_existing_note_meta` BEFORE this confirm overwrites the bodies; each
+    failed ref counts on from its prior attempts. `result["noticeFailures"]` holds
+    the `failures_json` entries of every notice this batch wrote.
+
+    Confirms ONE batch, then immediately resolves MEDIA (upload +
     validate + guarded write) for every created/updated note in THAT SAME
     batch, plus any 'skipped' note whose stored body still carries a
     stranded literal placeholder (self-heal). Per Critical 3 (PRIMARY):
@@ -1602,6 +2024,7 @@ async def _confirm_and_resolve_batch(
     result: dict[str, Any] = {
         "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
         "conflicts": 0, "failures": [], "touched": [], "notStoredRefs": [],
+        "noticeFailures": [],
     }
     # Every ref THIS batch is attempting, so a whole-call exception below
     # (a batch-level failure, e.g. a malformed overall payload — NOT a
@@ -1609,6 +2032,8 @@ async def _confirm_and_resolve_batch(
     # bucket and returns normally, see below) can still report every one of
     # them as not-stored — the cursor must not advance past ANY of them.
     remote_id_by_key = {key: rn.remote_id for rn, key in pairs}
+    if budget is None:
+        budget = media_policy.MediaBudget.for_member(user_id)
     try:
         r = notes_svc.import_confirm(
             user_id,
@@ -1676,46 +2101,88 @@ async def _confirm_and_resolve_batch(
             continue  # shouldn't happen, but a lookup miss must never crash the sync
         status, note_id = outcome
         healing = status == "skipped" and note_id in stranded
+        if status != "skipped":
+            # Plan A Task 12 fix round 1: notices the PROVIDER placed (a truncated database, a
+            # file with no address) are failures the member reads in the log too -- listed when
+            # this pass writes the note, never again while it is skipped unchanged.
+            result["noticeFailures"].extend(_provider_notice_failures(_note_title(rn, key), rn.doc))
         if status == "skipped" and not healing:
             continue  # unchanged, no stranded placeholder -> nothing to do
 
-        if not healing and not rn.media:
-            # No media to resolve in THIS pass. If it has links, the final
+        if not healing and not rn.media and not _placeholder_refs(rn.doc):
+            # No media to resolve in THIS pass (Plan A Task 6: and no media
+            # placeholder either -- one with no `media` entry still needs its notice). If it has links, the final
             # link pass reads the confirm-written body directly — nothing
             # else has touched it since, so no write happens here at all.
             if rn.links:
                 result["touched"].append((rn, key, note_id))
             continue
 
-        media_urls: dict[str, str] = {}
-        if rn.media:
-            media_urls, up, med_failures = await _upload_media_for_note(
-                provider, creds, user_id, note_id, rn.media)
+        # Fix round 1, I4: a media retry builds on the stored body, fetching only what is
+        # still missing; anything already resolved is reused, never stored twice.
+        source_doc, media = rn.doc, rn.media
+        retry = _retry_source((retry_bodies or {}).get(key), rn) if status == "updated" else None
+        if retry is not None:
+            source_doc, retry_refs = retry
+            media = [m for m in (rn.media or []) if m.get("ref") in retry_refs]
+
+        resolved: dict[str, media_policy.StoredMedia] = {}
+        notices: dict[str, dict] = {}
+        if media:
+            resolved, notices, up, med_failures = await _upload_media_for_note(
+                provider, creds, user_id, note_id, media,
+                prior_attempts=(notice_attempts or {}).get(key, {}), budget=budget)
             result["mediaUploaded"] += up
             result["failures"].extend(med_failures)
+        # Plan A Task 6, no silent drop: a placeholder the provider never listed in
+        # `media` cannot be fetched at all, so it is a final notice too.
+        for ref in _placeholder_refs(source_doc):
+            if ref not in resolved and ref not in notices:
+                notices[ref] = import_notice.notice_node(
+                    "unsupported", name=None, source_url=import_notice.safe_source_url(ref),
+                    ref=ref, attempts=0)
 
         # MEDIA ONLY in this pass: id_by_key={} + strip_unresolved_links=False
         # means every import-link:// mark passes through completely
         # untouched (not stripped, not resolved) for the final pass to see.
-        body, _dropped = rewrite_body(rn.doc, media_urls, {}, strip_unresolved_links=False)
+        # `notices`: every placeholder without a URL becomes its importNotice.
+        body, _dropped = rewrite_body(
+            source_doc, {}, {}, strip_unresolved_links=False, notices=notices, resolved=resolved)
 
         # Important 6: validate the RESOLVED doc (1MB/shape backstop) before
         # the raw write — a malformed/oversized result must never land in
-        # the DB. Leave the placeholder body in place; the self-heal branch
-        # above retries it on a future sync once the underlying issue clears.
+        # the DB. Plan A Task 8 (Task 6 review d): the placeholder body is NOT
+        # left pending -- that re-fetched the media on every pass with no attempt
+        # counted, outside the I-7 bound. The note gets each item's FINAL notice
+        # instead (or, if even that cannot be stored, loses the placeholders), and
+        # every item is a named failure, so it terminates this pass.
+        dropped_failures: list[dict[str, Any]] = []
         try:
             notes_svc._validate_body_json(body)
         except notes_svc.NoteValidationError as e:
             result["failures"].append(
                 f"resolved body failed validation for note {note_id!r}: {e}"
             )
+            body, notices, dropped_failures = _final_body_without_media(rn, key, source_doc)
+            if body is None:
+                if rn.links:
+                    result["touched"].append((rn, key, note_id))  # placeholder still intact
+                continue
+
+        expected = baseline_updated_at.get(note_id)
+        try:
+            applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        except Exception as e:  # noqa: BLE001 -- fix round 1, M1: one note never stops the source
+            # Its body write was rolled back with its projection, so the confirm-written
+            # placeholder body stays and self-heal retries it on a later sync. Same
+            # shape as the validation failure above.
+            result["failures"].append(f"resolved body write failed for note {note_id!r}: {e}")
             if rn.links:
                 result["touched"].append((rn, key, note_id))  # placeholder still intact
             continue
-
-        expected = baseline_updated_at.get(note_id)
-        applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
         if applied:
+            result["noticeFailures"].extend(_notice_failures(_note_title(rn, key), body, notices))
+            result["noticeFailures"].extend(dropped_failures)
             if rn.links:
                 result["touched"].append((rn, key, note_id))
         else:
@@ -1729,6 +2196,11 @@ async def _confirm_and_resolve_batch(
                 conn, user_id, source, rn, key, body)
             result["failures"].extend(reroute_failures)
             result["conflicts"] += 1
+            if sibling_id:
+                result["noticeFailures"].extend(_notice_failures(
+                    _note_title(rn, f"{key}#remote"), body, notices))
+                result["noticeFailures"].extend(
+                    dict(f, noteTitle=_note_title(rn, f"{key}#remote")) for f in dropped_failures)
             if sibling_id and rn.links:
                 result["touched"].append((rn, f"{key}#remote", sibling_id))
 
@@ -1741,6 +2213,16 @@ async def _import_remote_notes(
 ) -> dict[str, Any]:
     conn = get_connection()
     try:
+        # Plan A Task 8: ONE media budget for this whole pass (one memoised usage read), and
+        # the storage wait: once space has freed, this member's notes waiting at
+        # `import_media_pending = 2` go back to 1 BEFORE the existing-meta read, so the
+        # confirm below re-imports them like any other retry.
+        budget = media_policy.MediaBudget.for_member(user_id)
+        if _storage_has_freed(budget):
+            try:
+                _flip_storage_waits(conn, user_id)
+            except sqlite3.Error as e:   # a busy DB defers the wait one pass; never fails the sync
+                log.warning("[note-sync] storage-wait flip deferred (%s)", type(e).__name__)
         import_keys = [
             provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
         ]
@@ -1755,6 +2237,7 @@ async def _import_remote_notes(
         conflict_tag_updates: dict[str, list[str]] = {}  # original note id -> new tags
         pre_confirm_conflicts = 0
         user_owned_unchanged = 0
+        retry_bodies: dict[str, str] = {}
 
         for rn, key in zip(remote_notes, import_keys):
             meta = existing.get(key)
@@ -1826,11 +2309,19 @@ async def _import_remote_notes(
                 # changed -- no tally, no sibling confirm, no resurrection of
                 # a sibling the user deleted.
                 normal_items.append((entry, rn, key))
+                # Fix round 1 (I4): remote unchanged and media still pending -> this pass
+                # is a media RETRY; it builds on the stored body (`_retry_source`).
+                if (meta is not None and meta.get("pendingBody")
+                        and meta.get("importHash") == notes_svc._import_payload_hash(entry)):
+                    retry_bodies[key] = meta["pendingBody"]
 
         totals: dict[str, Any] = {
             "created": 0, "updated": 0, "skipped": user_owned_unchanged, "mediaUploaded": 0,
             "conflicts": pre_confirm_conflicts, "failures": [], "notStoredRefs": [],
+            "noticeFailures": [],
         }
+        # Plan A Task 6: prior notice attempts per key, read before any confirm below.
+        notice_attempts = {k: m["noticeAttempts"] for k, m in existing.items() if m["noticeAttempts"]}
         all_touched: list[tuple[RemoteNote, str, str]] = []
 
         # Per-batch pipeline (Critical 3, PRIMARY): confirm batch N, resolve
@@ -1847,7 +2338,8 @@ async def _import_remote_notes(
             pairs = [(rn, k) for _e, rn, k in batch]
             res = await _confirm_and_resolve_batch(
                 conn, user_id, source, provider, creds,
-                source.get("destFolderId"), entries, pairs,
+                source.get("destFolderId"), entries, pairs, notice_attempts=notice_attempts,
+                budget=budget, retry_bodies=retry_bodies,
             )
             _merge_batch_result(totals, res, all_touched)
 
@@ -1859,15 +2351,19 @@ async def _import_remote_notes(
         for entry, rn, sibling_key, original_folder_id in sibling_items:
             res = await _confirm_and_resolve_batch(
                 conn, user_id, source, provider, creds,
-                original_folder_id, [entry], [(rn, sibling_key)],
+                original_folder_id, [entry], [(rn, sibling_key)], notice_attempts=notice_attempts,
+                budget=budget,
             )
             _merge_batch_result(totals, res, all_touched)
 
         # Tag the ORIGINAL note in a pre-confirm conflict — add-tag only,
         # body/title untouched. Both the original and its sibling now carry
-        # 'sync-conflict'; neither version was lost.
+        # 'sync-conflict'; neither version was lost. Timestamp-neutral (Task 15 D1): the
+        # original is member-edited, and a tag the ENGINE adds must not move its edit time.
         for note_id, tags in conflict_tag_updates.items():
-            notes_svc.update_note(user_id, note_id, {"tags": tags}, conn=conn)
+            _write_tags_preserving_updated_at(conn, user_id, note_id, tags)
+        if conflict_tag_updates:
+            conn.commit()
 
         # Final pass (Critical 3 round-2 fix, PRIMARY): resolve every
         # import-link:// mark across the WHOLE round now that every batch
@@ -1885,6 +2381,21 @@ async def _import_remote_notes(
             totals["failures"].extend(link_result["failures"])
         except Exception as e:  # noqa: BLE001
             totals["failures"].append(f"link resolution pass failed: {e}")
+
+        # Plan A Task 4: heal the member's still-pending links -- a link written in an
+        # EARLIER round whose target has only now arrived. Bounded (`limit`, index-served
+        # on `import_links_pending`), timestamp-neutral, and never fails the sync: a
+        # failure here is one named failure, and the marks stay for the next round.
+        # Final review I2: up to `HEAL_LIMIT` bodies parsed and rewritten -- never on the event
+        # loop (a manual "Sync now" runs this pass on the uvicorn loop). A worker thread, on
+        # its OWN connection (`conn=None`): a sqlite connection never crosses threads. Same
+        # writes as before (timestamp-neutral, per-note edited re-check inside the heal).
+        try:
+            conn.commit()   # nothing of this pass left open to make the heal's writes wait
+            heal = await asyncio.to_thread(heal_pending_links, user_id)
+            totals["failures"].extend(heal.get("failures", []))
+        except Exception as e:  # noqa: BLE001
+            totals["failures"].append(f"link heal pass failed: {e}")
 
         return totals
     finally:
