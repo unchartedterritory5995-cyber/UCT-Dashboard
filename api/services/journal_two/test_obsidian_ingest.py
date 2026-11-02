@@ -1636,6 +1636,71 @@ def test_record_plugin_version_accepts_only_semver_triples(client):
     assert _device_version() == "9999.0.10"
 
 
+def test_record_plugin_version_writes_only_when_the_version_changes(client, monkeypatch):
+    """Final review I2: an UPDATE that matches no row still takes auth.db's write lock, and
+    this ran on every check, PUT and ingest. It now reads first and writes only on change."""
+    _device_token("user-a")
+    device_id = next(iter(_device_ids("user-a")))
+    writes: list[str] = []
+    real = obsidian_link.get_connection
+
+    class Spy:
+        def __init__(self, conn):
+            self._conn = conn
+
+        def execute(self, sql, *args):
+            if sql.lstrip().upper().startswith("UPDATE"):
+                writes.append(sql)
+            return self._conn.execute(sql, *args)
+
+        def __getattr__(self, name):
+            return getattr(self._conn, name)
+
+    monkeypatch.setattr(obsidian_link, "get_connection", lambda: Spy(real()))
+    obsidian_link.record_plugin_version(device_id, "0.2.0")
+    assert len(writes) == 1 and _device_version() == "0.2.0"
+    for _ in range(3):
+        obsidian_link.record_plugin_version(device_id, "0.2.0")
+    assert len(writes) == 1
+    obsidian_link.record_plugin_version(device_id, "0.2.1")
+    assert len(writes) == 2 and _device_version() == "0.2.1"
+
+
+def test_the_device_gate_runs_off_the_event_loop(client, monkeypatch):
+    """Final review I2: device auth (an UPDATE of last_seen_at), the paid-plan reads and the
+    plugin-version record run in ONE worker-thread call on check, PUT and ingest, never on
+    the event loop, where auth.db's busy timeout could hold every member's request."""
+    import asyncio as _asyncio
+    import hashlib
+
+    tok = _device_token("user-a")
+    on_loop: list[str] = []
+
+    def mark(name, fn):
+        def wrapped(*a, **k):
+            try:
+                _asyncio.get_running_loop()
+                on_loop.append(name)
+            except RuntimeError:
+                pass
+            return fn(*a, **k)
+        return wrapped
+
+    from api.services import auth_service
+    monkeypatch.setattr(obsidian_link, "authenticate_device", mark("auth", obsidian_link.authenticate_device))
+    monkeypatch.setattr(obsidian_link, "record_plugin_version", mark("version", obsidian_link.record_plugin_version))
+    monkeypatch.setattr(auth_service, "get_user_by_id", mark("user", auth_service.get_user_by_id))
+    headers = H(tok, "0.2.0")
+    assert client.post(_CHECK, json={"sha256": []}, headers=headers).status_code == 200
+    assert client.post(_URL, headers=headers, json={"consent": True, "notes": [_note("a.md", "h1")]}).status_code == 200
+    data = b"x"
+    sha = hashlib.sha256(data).hexdigest()
+    r = client.put(f"/api/j2/notes/connectors/obsidian/attachments/{sha}", content=data,
+                   headers={**headers, "Content-Type": "application/pdf", "X-UCT-Attachment-Name": "x.pdf"})
+    assert r.status_code in (200, 400), r.text
+    assert on_loop == []
+
+
 @pytest.mark.parametrize("version,ok", [
     (None, False), ("0.1.4", False), ("0.1.99", False), ("0.2.0", True), ("0.2.1", True),
     ("0.10.0", True), ("1.0.0", True), ("0.0.300", False), ("garbage", False),

@@ -1296,7 +1296,11 @@ def _authenticate_obsidian_device(request: Request) -> dict[str, Any]:
     cross-reference, is how it went unverified for two files at once;
     read `authenticate_device`'s own docstring for the mechanism, not this
     comment."""
-    auth = request.headers.get("authorization") or ""
+    return _device_from_authorization(request.headers.get("authorization"))
+
+
+def _device_from_authorization(header: str | None) -> dict[str, Any]:
+    auth = header or ""
     if not auth.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     raw_token = auth[len("Bearer "):].strip()
@@ -1304,6 +1308,24 @@ def _authenticate_obsidian_device(request: Request) -> dict[str, Any]:
     if device is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return device
+
+
+async def _paid_obsidian_device(request: Request) -> dict[str, Any]:
+    """The plugin's door, shared by ingest, the attachment check and the blob upload: device
+    auth (which writes `last_seen_at`), the paid-plan reads and the plugin-version record,
+    in ONE worker-thread call (final review I2). On the event loop these were up to four
+    SQLite calls, two of them writes, per request, and the upload runs once per BLOB: under
+    auth.db write contention each could hold every member's request for its busy timeout."""
+    authorization = request.headers.get("authorization")
+    version = request.headers.get(PLUGIN_VERSION_HEADER)
+
+    def gate() -> dict[str, Any]:
+        device = _device_from_authorization(authorization)
+        _require_paid_device_user(device["user_id"])
+        obsidian_link.record_plugin_version(device["device_id"], version)
+        return device
+
+    return await asyncio.to_thread(gate)
 
 
 def _require_paid_device_user(user_id: str) -> None:
@@ -1349,9 +1371,7 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
     entry = registry.get_entry("obsidian")
     if not entry.configured():
         raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
-    device = _authenticate_obsidian_device(request)
-    _require_paid_device_user(device["user_id"])
-    obsidian_link.record_plugin_version(device["device_id"], request.headers.get(PLUGIN_VERSION_HEADER))
+    device = await _paid_obsidian_device(request)
 
     try:
         declared = int(request.headers.get("content-length") or 0)
@@ -1505,9 +1525,7 @@ async def obsidian_attachments_check(request: Request) -> dict[str, Any]:
     entry = registry.get_entry("obsidian")
     if not entry.configured():
         raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
-    device = _authenticate_obsidian_device(request)
-    _require_paid_device_user(device["user_id"])
-    obsidian_link.record_plugin_version(device["device_id"], request.headers.get(PLUGIN_VERSION_HEADER))
+    device = await _paid_obsidian_device(request)
 
     raw = await _read_bounded_body(request, _MAX_ATTACHMENT_CHECK_BYTES)
     try:
@@ -1545,9 +1563,7 @@ async def obsidian_attachments_put(sha256: str, request: Request) -> dict[str, A
     entry = registry.get_entry("obsidian")
     if not entry.configured():
         raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
-    device = _authenticate_obsidian_device(request)
-    _require_paid_device_user(device["user_id"])
-    obsidian_link.record_plugin_version(device["device_id"], request.headers.get(PLUGIN_VERSION_HEADER))
+    device = await _paid_obsidian_device(request)
 
     name = _attachment_name(request.headers.get("x-uct-attachment-name"))
     mime = _declared_mime(request.headers.get("content-type"))

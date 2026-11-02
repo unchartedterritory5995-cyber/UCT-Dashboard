@@ -395,6 +395,14 @@ def record_plugin_version(device_id: str, raw: str | None) -> None:
         return
     conn = get_connection()
     try:
+        # ⛔ Final review I2: READ first, write only on a change. An UPDATE that matches no
+        # row still takes auth.db's write lock, and this runs on every check, upload and
+        # push the plugin makes.
+        row = conn.execute(
+            "SELECT plugin_version FROM j2_obsidian_devices WHERE id = ?", (device_id,),
+        ).fetchone()
+        if row is None or row["plugin_version"] == raw:
+            return
         conn.execute(
             "UPDATE j2_obsidian_devices SET plugin_version = ?"
             " WHERE id = ? AND plugin_version IS NOT ?",
