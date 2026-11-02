@@ -211,7 +211,7 @@ Only agent-qa edits this file. Update it in every PR.
   `history_messages` applies.** An unblanked stored local-plan reply reaches the naming call.
   Repro: `-k NAMING`. Latent: such rows are blanked at write, and the model wrote them before any value existed.
 
-- **F-19 (agent-md, `quotes._session_detail`; the helper is `massive._today_et_is_a_trading_day`): `now` is
+- **F-19: FIXED by agent-md #638** (proof `test_F19_PROVEN_…`: an explicit `now` alone decides, whatever the wall clock or the helper says; red on the pre-fix quotes.py). Was: **(agent-md, `quotes._session_detail`; the helper is `massive._today_et_is_a_trading_day`): `now` is
   half-honoured.**
   `_session_detail(now)` uses `now` for the minutes but asks the WALL clock whether it is a trading day. agent-md's
   tests hide this by patching the helper with a hand-picked value per row.
@@ -219,12 +219,12 @@ Only agent-qa edits this file. Update it in every PR.
   gets the wrong state.
   Expected: the day comes from `now`. Actual: it comes from the wall clock.
   Production passes no `now`, so this is latent, but every frozen-clock caller (tests, corpora) is affected.
-- **F-20 (agent-md, `marketDataQuote.answerFromEnvelope`): a refusal or unavailable answer echoes `env.notes[0]`.**
+- **F-20: FIXED by agent-md #638** (proofs `F-20 PROVEN …`: fixed words keyed on status, no digits, no note, even when the note carries a number; red on the pre-fix capability). Was: **(agent-md, `marketDataQuote.answerFromEnvelope`): a refusal or unavailable answer echoes `env.notes[0]`.**
   §4.5 says notes never leave the module and that such an answer has "no number at all". A budget refusal gives
   "I couldn't get a price for NVDA: this turn already made 8 data reads…", which contains a number and a gateway note.
   Repro: `npx vitest run src/agent/qa/md2Quote.test.js -t F-20`.
   Expected: fixed words (or a reason from a closed list), no digits. Actual: the note, verbatim.
-- **O-1 (observation for agent-md, not a defect today):** on an early-close day (2026-11-27), `after-hours` runs from
+- **O-1: TAKEN by agent-md #638; agent-qa agrees** (NYSE half-day extended trading ends at 17:00). The clocks now pin 16:59 after-hours, 17:00 and 19:59 overnight. Was **(observation for agent-md, not a defect today):** on an early-close day (2026-11-27), `after-hours` runs from
   13:00 to 20:00. On NYSE half days, extended trading ends at 17:00, so 17:00–20:00 is labelled after hours when no
   session trades. The answer stays honest, because a print older than 15 minutes says "no trade in the last 15
   minutes … Not a real-time price".
@@ -262,7 +262,7 @@ tests in two ways:
 
 | Area | Result |
 |---|---|
-| Session clocks (19) | PASS. regular · open bell · 09:29 premarket · 04:00 · 03:59 overnight · 16:00 and 19:59 after-hours · 20:00 overnight · Monday 03:59 after a weekend · Saturday · Sunday 21:00 · Thanksgiving (holiday) · its eve 21:00 · observed 2026-07-03 · early close 2026-11-27 (12:59 regular, 13:00 / 19:59 after-hours) · both DST Mondays. A UTC `now` gives the same answer. An unreadable calendar reads closed; an unreadable early close falls back to 16:00 |
+| Session clocks (21, incl. O-1's 16:59 / 17:00 / 19:59 half-day clocks after #638) | PASS. regular · open bell · 09:29 premarket · 04:00 · 03:59 overnight · 16:00 and 19:59 after-hours · 20:00 overnight · Monday 03:59 after a weekend · Saturday · Sunday 21:00 · Thanksgiving (holiday) · its eve 21:00 · observed 2026-07-03 · early close 2026-11-27 (12:59 regular, 13:00 / 19:59 after-hours) · both DST Mondays. A UTC `now` gives the same answer. An unreadable calendar reads closed; an unreadable early close falls back to 16:00 |
 | §4.5 rules, 12 real scenarios (one per answer row, plus a budget refusal) | PASS: only `{text, present}` leave; "live/now" appears iff the read is fresh and live (text and shown figures); no envelope field names, source id or notes are echoed on ok/partial reads. Each row's sentence is checked: stale in the price sentence, extended hours, the last extended print and its time, closed + last trade or last close with its date, priced from a close, `Partial: no price for NOPE.` |
 | As-of reference | PASS: from `fetched_at`; a browser clock moved to 2031 changes nothing |
 | Session from the data, not the words | PASS: P01 "…premarket?" during the regular session answers "regular session", with one `quote` read for purpose `answer` and the open turn id |

@@ -71,7 +71,9 @@ CLOCKS = [
     ("observed Independence Day 2026-07-03", et(2026, 7, 3, 11, 0), "closed"),
     ("early close 12:59 (2026-11-27)", et(2026, 11, 27, 12, 59), "regular"),
     ("early close 13:00", et(2026, 11, 27, 13, 0), "after-hours"),
-    ("early close 19:59", et(2026, 11, 27, 19, 59), "after-hours"),
+    ("early close 16:59 (O-1: half-day extended hours end at 17:00)", et(2026, 11, 27, 16, 59), "after-hours"),
+    ("early close 17:00 is overnight (O-1)", et(2026, 11, 27, 17, 0), "overnight"),
+    ("early close 19:59 is overnight (O-1)", et(2026, 11, 27, 19, 59), "overnight"),
     ("DST end Monday 09:30 (2026-11-02)", et(2026, 11, 2, 9, 30), "regular"),
     ("DST start Monday 09:30 (2026-03-09)", et(2026, 3, 9, 9, 30), "regular"),
 ]
@@ -92,7 +94,8 @@ def test_the_same_instant_in_UTC_gives_the_same_session(monkeypatch):
 
 
 def test_an_unreadable_calendar_is_closed_never_open(monkeypatch):
-    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: (_ for _ in ()).throw(RuntimeError("x")))
+    """Since #638 the calendar `_session_detail` reads is `bars_fetch._is_nyse_holiday` for `now`'s date."""
+    monkeypatch.setattr(bars_fetch, "_is_nyse_holiday", lambda ymd: (_ for _ in ()).throw(RuntimeError("x")))
     assert q._session_detail(et(2026, 11, 10, 10, 31)) == "closed"
 
 
@@ -103,18 +106,18 @@ def test_an_unreadable_EARLY_CLOSE_falls_back_to_16_00(monkeypatch):
 
 
 # ── 2. F-19: `now` is half-honoured ─────────────────────────────────────────────────────────────────────────
-def test_F19_OPEN_PIN_session_detail_asks_the_WALL_clock_whether_it_is_a_trading_day():
-    """With the REAL calendar helper (nothing patched), `_session_detail(now)` uses `now` for the minutes but
-    `massive._today_et_is_a_trading_day()`, which reads the wall clock, for the day. So a `now` whose day type
-    differs from today's gets the wrong answer. Production passes no `now` (consistent), but every caller that
-    freezes a clock (agent-md's tests, QA's freshness and MD-2 harnesses) gets a mixed answer unless it patches the
-    helper. Owner: agent-md (quotes.py) / massive helper. STRICT pin: fails when the day is taken from `now`."""
-    wall_trading = massive._today_et_is_a_trading_day()
-    # a mid-session minute on a day of the OPPOSITE type to today's
-    now = et(2026, 11, 14, 12, 0) if wall_trading else et(2026, 11, 10, 12, 0)    # Saturday, or a plain Tuesday
-    truth = "closed" if wall_trading else "regular"
-    got = q._session_detail(now)
-    assert got != truth, f"F-19 is fixed ({got} == {truth}): flip this pin into a proof"
+def test_F19_PROVEN_an_explicit_now_alone_decides_the_day_whatever_the_wall_clock_says(monkeypatch):
+    """F-19, fixed by agent-md (#638): `_session_detail(now)` takes the trading day from `now`'s own ET date.
+    Nothing is patched here, so the WALL clock really is whatever day this runs on; both day types are asked, so one
+    of them is always the opposite of today's (the case F-19 got wrong). CONTROL: the wall-clock helper is NOT what
+    decides — forcing it to either answer changes nothing."""
+    for now, truth in ((et(2026, 11, 14, 12, 0), "closed"), (et(2026, 11, 10, 12, 0), "regular"),
+                       (et(2026, 11, 26, 12, 0), "closed")):
+        assert q._session_detail(now) == truth, now
+        for forced in (True, False):
+            monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda f=forced: f)
+            assert q._session_detail(now) == truth, (now, forced)
+        monkeypatch.undo()
 
 
 # ── 3. real adapter envelopes, one per §4.5 row ─────────────────────────────────────────────────────────────
