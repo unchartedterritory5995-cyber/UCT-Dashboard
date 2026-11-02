@@ -1,0 +1,711 @@
+{
+ "version": "0.1",
+ "owner": "agent-sc",
+ "contract": "docs/agent/program/contracts/SC-2-nl-scan.md",
+ "about": "SC-2 natural-language scanning corpus. A single item or a chain step expects ONE of: a spec in the Screener's own criteria language (criteria_text, plus optional sort; for a chain step, the WHOLE spec after the step), ask (a local clarifying question about one slot), planner (the existing model path), or refuse. Values follow SC-2 section 4; PROPOSED ones are agent-sc's proposals pending the owner. Validated by tests/test_uct_agent_scan_sc2_corpus.py; scored by agent-qa.",
+ "items": [
+  {
+   "id": "c01",
+   "category": "compound",
+   "text": "liquid semis above the 50-day with RS over 80 and volume picking up",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5"
+   }
+  },
+  {
+   "id": "c02",
+   "category": "compound",
+   "text": "large cap tech near highs with strong RS",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "market_cap > 10000000000 and sector in [\"Technology\"] and dist_52w_high_pct <= 5 and rs_rank >= 80"
+   }
+  },
+  {
+   "id": "c03",
+   "category": "compound",
+   "text": "small caps under $2B up more than 20% this month on volume",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "market_cap < 2000000000 and chg_pct_1m > 20 and vol_ratio >= 1.5"
+   }
+  },
+  {
+   "id": "c04",
+   "category": "compound",
+   "text": "stage 2 software names with revenue growth over 30%",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "stage2 = yes and industry in [\"Software - Application\", \"Software - Infrastructure\"] and rev_growth > 30"
+   }
+  },
+  {
+   "id": "c05",
+   "category": "compound",
+   "text": "tight setups above the 50-day in leaders over $20",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "tight_consolidation = yes and above_50sma = yes and rs_rank >= 80 and price > 20"
+   }
+  },
+  {
+   "id": "c06",
+   "category": "compound",
+   "text": "high ADR liquid names within 3% of their 20-day high",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "adr_pct > 5 and dollar_vol_30d >= 20000000 and dist_20d_high_pct <= 3"
+   }
+  },
+  {
+   "id": "c07",
+   "category": "compound",
+   "text": "oversold large caps in an uptrend",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "rsi14 < 30 and market_cap > 10000000000 and ema_stack_intact = yes"
+   }
+  },
+  {
+   "id": "c08",
+   "category": "compound",
+   "text": "semis gapping up more than 3% today",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "industry in [\"Semiconductors\"] and gap_pct > 3"
+   }
+  },
+  {
+   "id": "c09",
+   "category": "compound",
+   "text": "heavily shorted small caps ripping this week",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "short_float_pct > 20 and market_cap < 2000000000 and chg_pct_1w >= 10"
+   }
+  },
+  {
+   "id": "c10",
+   "category": "compound",
+   "text": "fast growers reporting earnings in the next 5 days",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "rev_growth >= 25 and days_to_earnings >= 0 and days_to_earnings <= 5"
+   }
+  },
+  {
+   "id": "c11",
+   "category": "compound",
+   "text": "NR7 in liquid leaders above the 50-day",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "nr7 = yes and dollar_vol_30d >= 20000000 and rs_rank >= 80 and above_50sma = yes"
+   }
+  },
+  {
+   "id": "c12",
+   "category": "compound",
+   "text": "pullbacks to the 20 EMA in strong semis",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "pct_vs_ema20 >= -2 and pct_vs_ema20 <= 2 and ema20_rising = yes and industry in [\"Semiconductors\"] and rs_rank >= 80"
+   }
+  },
+  {
+   "id": "c13",
+   "category": "compound",
+   "text": "stocks between $10 and $50 with ADR over 4%",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "price >= 10 and price <= 50 and adr_pct > 4"
+   }
+  },
+  {
+   "id": "c14",
+   "category": "compound",
+   "text": "EPS growth over 25% and operating margins above 20% in tech",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "eps_growth > 25 and op_margin > 20 and sector in [\"Technology\"]"
+   }
+  },
+  {
+   "id": "c15",
+   "category": "compound",
+   "text": "very liquid names making new highs",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "dollar_vol_30d >= 100000000 and new_52w_high = yes"
+   }
+  },
+  {
+   "id": "c16",
+   "category": "compound",
+   "text": "mid caps up today with volume at least 2x average",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "market_cap >= 2000000000 and market_cap <= 10000000000 and chg_pct_1d > 0 and rvol_live >= 2",
+    "sort": {
+     "key": "rvol_live",
+     "dir": "desc"
+    }
+   }
+  },
+  {
+   "id": "c17",
+   "category": "compound",
+   "text": "no ETFs, price over $5, up 50% in 3 months",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "is_etf = no and price > 5 and chg_pct_3m > 50"
+   }
+  },
+  {
+   "id": "c18",
+   "category": "compound",
+   "text": "S&P 500 stocks near 52-week highs",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "index_sp500 = yes and dist_52w_high_pct <= 5"
+   }
+  },
+  {
+   "id": "c19",
+   "category": "compound",
+   "text": "Nasdaq 100 names above the 50-day sorted by RS",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "index_ndx = yes and above_50sma = yes",
+    "sort": {
+     "key": "rs_rank",
+     "dir": "desc"
+    }
+   }
+  },
+  {
+   "id": "c20",
+   "category": "compound",
+   "text": "top 3-month performers in software over $10 billion",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "industry in [\"Software - Application\", \"Software - Infrastructure\"] and market_cap > 10000000000",
+    "sort": {
+     "key": "chg_pct_3m",
+     "dir": "desc"
+    }
+   }
+  },
+  {
+   "id": "u01",
+   "category": "units",
+   "text": "names trading over $100M a day",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "dollar_vol_1d > 100000000"
+   }
+  },
+  {
+   "id": "u02",
+   "category": "units",
+   "text": "market cap under 500 million",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "market_cap < 500000000"
+   }
+  },
+  {
+   "id": "u03",
+   "category": "units",
+   "text": "volume 3x normal",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "vol_ratio >= 3"
+   }
+  },
+  {
+   "id": "u04",
+   "category": "units",
+   "text": "stocks under 10 bucks",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "price < 10"
+   }
+  },
+  {
+   "id": "u05",
+   "category": "units",
+   "text": "short float above 15 percent",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "short_float_pct > 15"
+   }
+  },
+  {
+   "id": "u06",
+   "category": "units",
+   "text": "what's ripping today",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "chg_pct_1d >= 5"
+   }
+  },
+  {
+   "id": "u07",
+   "category": "units",
+   "text": "chips that are down today",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "industry in [\"Semiconductors\"] and chg_pct_1d < 0"
+   }
+  },
+  {
+   "id": "u08",
+   "category": "units",
+   "text": "overbought names",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "rsi14 > 70"
+   }
+  },
+  {
+   "id": "v01",
+   "category": "volume",
+   "text": "unusual volume right now",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "",
+    "sort": {
+     "key": "rvol_live",
+     "dir": "desc"
+    }
+   }
+  },
+  {
+   "id": "v02",
+   "category": "volume",
+   "text": "semis with volume picking up today",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "industry in [\"Semiconductors\"] and rvol_live >= 1.5",
+    "sort": {
+     "key": "rvol_live",
+     "dir": "desc"
+    }
+   }
+  },
+  {
+   "id": "v03",
+   "category": "volume",
+   "text": "what's trading heavy this morning in tech",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "sector in [\"Technology\"]",
+    "sort": {
+     "key": "rvol_live",
+     "dir": "desc"
+    }
+   }
+  },
+  {
+   "id": "v04",
+   "category": "volume",
+   "text": "stocks that traded 2x their average volume yesterday",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "vol_ratio >= 2"
+   }
+  },
+  {
+   "id": "a01",
+   "category": "ask",
+   "text": "stocks with volume up",
+   "expect": {
+    "type": "ask",
+    "slot": "volume",
+    "why": "full last session (vol_ratio) or so far today at this time of day (rvol_live)?"
+   }
+  },
+  {
+   "id": "a02",
+   "category": "ask",
+   "text": "financials near highs",
+   "expect": {
+    "type": "ask",
+    "slot": "universe",
+    "why": "the Financial Services sector, or banks only?"
+   }
+  },
+  {
+   "id": "a03",
+   "category": "ask",
+   "text": "only the ones over 50",
+   "expect": {
+    "type": "ask",
+    "slot": "follow_up",
+    "why": "no last screen in the conversation, and 50 has no unit"
+   }
+  },
+  {
+   "id": "a04",
+   "category": "ask",
+   "text": "sort by relative volume",
+   "expect": {
+    "type": "ask",
+    "slot": "follow_up",
+    "why": "no last screen to sort"
+   }
+  },
+  {
+   "id": "a05",
+   "category": "ask",
+   "text": "stocks above 20",
+   "expect": {
+    "type": "ask",
+    "slot": "price",
+    "why": "a bare number: price above $20, or a field the member did not name?"
+   }
+  },
+  {
+   "id": "p01",
+   "category": "planner",
+   "text": "good swing setups for next week",
+   "expect": {
+    "type": "planner",
+    "why": "an opinion with no screen criteria"
+   }
+  },
+  {
+   "id": "p02",
+   "category": "planner",
+   "text": "find stocks like NVDA was in 2023",
+   "expect": {
+    "type": "planner",
+    "why": "an analogy, not criteria"
+   }
+  },
+  {
+   "id": "p03",
+   "category": "planner",
+   "text": "screen for leaders and put the top 5 in my Momentum list",
+   "expect": {
+    "type": "planner",
+    "why": "a screen plus another action"
+   }
+  },
+  {
+   "id": "p04",
+   "category": "planner",
+   "text": "which sectors are leading and what are their best names",
+   "expect": {
+    "type": "planner",
+    "why": "two questions, one is not a screen"
+   }
+  },
+  {
+   "id": "r01",
+   "category": "refusal",
+   "text": "stocks where the 10 EMA crossed the 20 EMA",
+   "expect": {
+    "type": "refuse",
+    "reason": "indicator-condition scans",
+    "why": "a cross is an indicator condition"
+   }
+  },
+  {
+   "id": "r02",
+   "category": "refusal",
+   "text": "MACD bullish crossovers in semis",
+   "expect": {
+    "type": "refuse",
+    "reason": "indicator-condition scans",
+    "why": "no MACD field; indicator condition"
+   }
+  },
+  {
+   "id": "r03",
+   "category": "refusal",
+   "text": "put/call ratio above 1.5",
+   "expect": {
+    "type": "refuse",
+    "reason": "the Screener has no field",
+    "why": "no put/call field; never substituted"
+   }
+  },
+  {
+   "id": "r04",
+   "category": "refusal",
+   "text": "biggest dark pool prints today",
+   "expect": {
+    "type": "refuse",
+    "reason": "flow fields need owner approval",
+    "why": "SC-2 section 6: dp_* refused (owner approval; ADR-003 draft)"
+   }
+  },
+  {
+   "id": "r05",
+   "category": "refusal",
+   "text": "bullish options flow over $5M",
+   "expect": {
+    "type": "refuse",
+    "reason": "flow fields need owner approval",
+    "why": "SC-2 section 6: opt_* refused (owner approval; ADR-003 draft)"
+   }
+  }
+ ],
+ "chains": [
+  {
+   "id": "k01",
+   "about": "agent-lead's example",
+   "steps": [
+    {
+     "text": "liquid semis above the 50-day with RS over 80 and volume picking up",
+     "delta": "new",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5"
+     }
+    },
+    {
+     "text": "only the ones near highs",
+     "delta": "add",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5"
+     }
+    },
+    {
+     "text": "drop anything under $10",
+     "delta": "narrow",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5 and price >= 10"
+     }
+    },
+    {
+     "text": "sort by relative volume",
+     "delta": "sort",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5 and price >= 10",
+      "sort": {
+       "key": "rvol_live",
+       "dir": "desc"
+      }
+     }
+    },
+    {
+     "text": "now just tech",
+     "delta": "replace_universe",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "dollar_vol_30d >= 20000000 and sector in [\"Technology\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5 and price >= 10",
+      "sort": {
+       "key": "rvol_live",
+       "dir": "desc"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "k02",
+   "about": "tighten a bound",
+   "steps": [
+    {
+     "text": "stocks with RS rank above 80",
+     "delta": "new",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "rs_rank > 80"
+     }
+    },
+    {
+     "text": "make that 90",
+     "delta": "add",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "rs_rank > 90"
+     }
+    },
+    {
+     "text": "and ADR over 5%",
+     "delta": "add",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "rs_rank > 90 and adr_pct > 5"
+     }
+    }
+   ]
+  },
+  {
+   "id": "k03",
+   "about": "remove a filter",
+   "steps": [
+    {
+     "text": "large caps above the 50-day with RS over 70",
+     "delta": "new",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "market_cap > 10000000000 and above_50sma = yes and rs_rank > 70"
+     }
+    },
+    {
+     "text": "forget the RS filter",
+     "delta": "remove",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "market_cap > 10000000000 and above_50sma = yes"
+     }
+    },
+    {
+     "text": "show me 25",
+     "delta": "show",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "market_cap > 10000000000 and above_50sma = yes"
+     }
+    }
+   ]
+  },
+  {
+   "id": "k04",
+   "about": "switch universe twice",
+   "steps": [
+    {
+     "text": "software stocks up more than 10% this month",
+     "delta": "new",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "industry in [\"Software - Application\", \"Software - Infrastructure\"] and chg_pct_1m > 10"
+     }
+    },
+    {
+     "text": "same thing in semis",
+     "delta": "replace_universe",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "industry in [\"Semiconductors\"] and chg_pct_1m > 10"
+     }
+    },
+    {
+     "text": "now just tech",
+     "delta": "replace_universe",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "sector in [\"Technology\"] and chg_pct_1m > 10"
+     }
+    }
+   ]
+  },
+  {
+   "id": "k05",
+   "about": "sort then narrow",
+   "steps": [
+    {
+     "text": "liquid names near highs",
+     "delta": "new",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "dollar_vol_30d >= 20000000 and dist_52w_high_pct <= 5"
+     }
+    },
+    {
+     "text": "biggest movers first",
+     "delta": "sort",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "dollar_vol_30d >= 20000000 and dist_52w_high_pct <= 5",
+      "sort": {
+       "key": "chg_pct_1d",
+       "dir": "desc"
+      }
+     }
+    },
+    {
+     "text": "no ETFs",
+     "delta": "narrow",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "dollar_vol_30d >= 20000000 and dist_52w_high_pct <= 5 and is_etf = no",
+      "sort": {
+       "key": "chg_pct_1d",
+       "dir": "desc"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "k06",
+   "about": "remove something that isn't there",
+   "steps": [
+    {
+     "text": "semis above the 50-day",
+     "delta": "new",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "industry in [\"Semiconductors\"] and above_50sma = yes"
+     }
+    },
+    {
+     "text": "without the price limit",
+     "delta": "remove",
+     "expect": {
+      "type": "ask",
+      "slot": "follow_up",
+      "why": "the last screen has no price filter: a local sentence, no model call"
+     }
+    }
+   ]
+  },
+  {
+   "id": "k07",
+   "about": "start over",
+   "steps": [
+    {
+     "text": "oversold large caps",
+     "delta": "new",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "rsi14 < 30 and market_cap > 10000000000"
+     }
+    },
+    {
+     "text": "start over: high ADR small caps",
+     "delta": "reset",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "adr_pct > 5 and market_cap < 2000000000"
+     }
+    }
+   ]
+  },
+  {
+   "id": "k08",
+   "about": "relative volume follow-up",
+   "steps": [
+    {
+     "text": "leaders above the 50-day",
+     "delta": "new",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "rs_rank >= 80 and above_50sma = yes"
+     }
+    },
+    {
+     "text": "which of those have volume picking up right now",
+     "delta": "add",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "rs_rank >= 80 and above_50sma = yes and rvol_live >= 1.5",
+      "sort": {
+       "key": "rvol_live",
+       "dir": "desc"
+      }
+     }
+    }
+   ]
+  }
+ ]
+}
