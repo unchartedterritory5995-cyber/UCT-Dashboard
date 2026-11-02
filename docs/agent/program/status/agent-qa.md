@@ -2,6 +2,14 @@
 
 Only agent-qa edits this file. Update it in every PR.
 
+## Lowercase crypto cashtags (`$btc`, `$eth`, `$sol`): reviewed the REAL answer text, 2026-11-02 (rail `qa/fundLabel.test.js`)
+- `$btc` → `BTC (Grayscale Bitcoin Mini Trust, an ETF) $… ` plus the fund-price sentence; `$eth` is the same (Grayscale
+  Ethereum Mini Trust). **Not silent: acceptable.**
+- `$sol` → `SOL (Emeren Group Ltd) $…`, with NO fund sentence (a stock, not a fund). The only signal that this is a
+  solar company and not Solana is the name. **Not silent, but the weakest of the three. Owner decision:** keep it
+  (a cashtag is an explicit marker), or treat lowercase cashtags on known crypto words like the bare word
+  (the neutral ask).
+
 ## Adversarial quote set 3 (BLIND, 97 rows), committed before agent-md's general lowercase design was seen, 2026-11-02
 - `scores/quote-adversarial-3.json` and the rail `qa/quoteAdversarial.test.js`. It covers clear lowercase tickers, word
   and crypto tickers, explicit-ticker controls, lowercase crypto cashtags, natural commodity/index/crypto phrasing,

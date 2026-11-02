@@ -81,4 +81,18 @@ describe('ETF labelling (owner rulings 2 and 3)', () => {
     expect(r.text).not.toContain('Grayscale')
     expect(r.text).not.toContain(FUND_NOTE)
   })
+  it('lowercase crypto cashtags ($btc / $eth / $sol): executing the listing is NOT silent (owner judgement recorded)', async () => {
+    // A cashtag is an explicit ticker marker, so the listing is priced. The answer must name the listed security,
+    // and for a fund say it is an ETF and that its price is not the coin's. $sol is a STOCK (Emeren), so there is
+    // no fund note: the security's name is the only signal that this is not Solana.
+    const btc = await ask('$btc', 'quote')
+    expect(btc.text).toContain('BTC (Grayscale Bitcoin Mini Trust, an ETF)')
+    expect(count(btc.text, FUND_NOTE)).toBe(1)
+    const eth = await ask('$eth', 'quote')
+    expect(eth.text).toContain('ETH (Grayscale Ethereum Mini Trust, an ETF)')
+    expect(count(eth.text, FUND_NOTE)).toBe(1)
+    const sol = await ask('$sol', 'quote')
+    expect(sol.text).toContain('SOL (Emeren Group Ltd)')
+    expect(sol.text).not.toContain(FUND_NOTE)
+  })
 })
