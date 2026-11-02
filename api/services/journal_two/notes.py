@@ -1329,22 +1329,43 @@ def _import_date(value, fallback):
 
 
 def _body_has_import_placeholder(body_json: Any) -> bool:
-    """True when this body still carries an unresolved import-time
+    """True when this body still carries an unresolved import-time MEDIA
     placeholder — `import-ref://<ref>` (an image/attachmentChip node whose
-    media upload has not yet been confirmed) or `import-link://<key>` (a
-    cross-note link not yet rewritten to a real note URL). A raw substring
-    scan of the serialized JSON, not a node-type walk: correct regardless of
-    which node shape (image, attachmentChip, a link mark nested anywhere in
-    the tree) carries the placeholder, and cheap enough to run on every
+    media upload has not yet been confirmed). A raw substring scan of the
+    serialized JSON, not a node-type walk: correct regardless of which node
+    shape carries the placeholder, and cheap enough to run on every
     import_confirm write. False positive only if a note's OWN authored text
-    happens to contain one of these literal strings — harmless: it merely
-    stays "pending" one write longer than strictly necessary, never loses
-    data (see audit B5 / import_confirm's docstring)."""
+    happens to contain the literal string — harmless: it merely stays
+    "pending" one write longer than strictly necessary, never loses data
+    (see audit B5 / import_confirm's docstring).
+
+    Connector fidelity Plan A Task 4: MEDIA ONLY. An `import-link://<key>`
+    mark used to count here too, so a link that could never resolve (a
+    Notion page not shared with the integration) kept the note pending
+    forever and `import_confirm` re-wrote it, and the engine re-downloaded
+    its media, on every pass. "Pending" means something can still resolve
+    by re-importing; a link is `_body_has_import_link`'s answer
+    (`import_links_pending`), finished by the link heal pass
+    (`note_connectors/link_keys.py`), never by a re-import."""
     try:
         blob = json.dumps(body_json)
     except (TypeError, ValueError):
         return False
-    return "import-ref://" in blob or "import-link://" in blob
+    return "import-ref://" in blob
+
+
+def _body_has_import_link(body_json: Any) -> bool:
+    """True when this body still carries an `import-link://<key>` mark — a
+    cross-note link whose target is not here yet. The `import_links_pending`
+    column is this answer about the STORED body, set by every import writer
+    (`import_confirm`, the engine's `_apply_resolved_body`) and by
+    `update_note`'s body write. Same substring scan as
+    `_body_has_import_placeholder`, same harmless false positive."""
+    try:
+        blob = json.dumps(body_json)
+    except (TypeError, ValueError):
+        return False
+    return "import-link://" in blob
 
 
 # Genuine resource bound on one import-check request — NOT a silent
@@ -1423,6 +1444,9 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
     again and reported via `updated` instead, so a failed media upload gets
     retried on the member's next import attempt rather than silently and
     permanently missing its image forever. See `_body_has_import_placeholder`.
+    Plan A Task 4: that flag is MEDIA only now; an `import-link://` mark sets
+    `import_links_pending` instead (`_body_has_import_link`) and never defeats
+    the skip -- the link heal pass (`note_connectors/link_keys.py`) finishes it.
 
     ⛔⛔ session-audit.md A1/A2: ONE note that cannot be stored (oversized
     body, malformed shape) is isolated to a per-note SAVEPOINT and reported
@@ -1525,6 +1549,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 created_at = _import_date(n.get("createdAt"), now)
                 updated_at = _import_date(n.get("updatedAt"), now)
                 media_pending = 1 if _body_has_import_placeholder(body_json) else 0
+                links_pending = 1 if _body_has_import_link(body_json) else 0  # Plan A Task 4
 
                 # This note's write is isolated in its own SAVEPOINT: a note
                 # that cannot be stored must not discard any sibling note
@@ -1550,6 +1575,9 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                             (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
                              first_image, folder_id, ticker, json.dumps(tags), h, media_pending, now,
                              updated_at, n.get("updatedAt") or None, row["id"], user_id))
+                        # Plan A Task 4: the link half of "pending" (see _body_has_import_link).
+                        conn.execute("UPDATE j2_notes SET import_links_pending=? WHERE id=? AND user_id=?",
+                                     (links_pending, row["id"], user_id))
                         _sync_note_sidecars(conn, user_id, row["id"], body_json, body_plain)
                         conn.execute("RELEASE j2_import_note")
                         # Wave Q1 (2026-09-12): ADDITIVE — the revision this write
@@ -1573,6 +1601,9 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                              json.dumps(body_json), body_plain, first_image, ticker, json.dumps(tags),
                              source, key, h, media_pending, now, created_at, updated_at,
                              n.get("updatedAt") or None))
+                        # Plan A Task 4: the link half of "pending" (see _body_has_import_link).
+                        conn.execute("UPDATE j2_notes SET import_links_pending=? WHERE id=? AND user_id=?",
+                                     (links_pending, new_id, user_id))
                         _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
@@ -4010,6 +4041,10 @@ def update_note(
             sets.append("body_json = ?"); params.append(json.dumps(bj))
             sets.append("body_plain = ?"); params.append(bp)
             sets.append("first_image_url = ?"); params.append(_extract_first_image(bj))
+            # Plan A Task 4: the stored body's link half of "pending", kept true on every
+            # body write so a member's edit that drops (or keeps) an import-link:// mark
+            # says so. The heal pass never rewrites an edited note either way.
+            sets.append("import_links_pending = ?"); params.append(1 if _body_has_import_link(bj) else 0)
         if "folderId" in patch:
             f = patch["folderId"] or None
             if f:

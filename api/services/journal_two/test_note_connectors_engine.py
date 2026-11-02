@@ -1386,12 +1386,18 @@ async def test_oversized_resolved_link_body_fails_validation_in_the_final_pass(
         return huge_doc, []
 
     monkeypatch.setattr(engine, "rewrite_body", fake_rewrite_body)
+    # Plan A Task 4: the link heal pass runs after the final pass and is a THIRD
+    # rewrite site; without the same fake it would (correctly) heal the real link and
+    # hide what this test pins. With it, its own validation backstop is exercised too.
+    from api.services.journal_two.note_connectors import link_keys
+    monkeypatch.setattr(link_keys, "rewrite_body", fake_rewrite_body)
 
     result = await engine.sync_source(source["id"], full=True)
 
     assert result["status"] == "ok"
     assert result["created"] == 2
     assert any("validation" in f.lower() for f in result["failures"])
+    assert any(f.startswith("link heal: write failed") for f in result["failures"])
 
     source_note = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Oversize Link Source")
     assert "import-link://" in json.dumps(_body(source_note))
@@ -2695,3 +2701,114 @@ async def test_a_member_incremental_press_carries_no_removal_check(source, provi
     _at(monkeypatch, T0)
     r = await engine.sync_source(source["id"], member=True)
     assert "removalCheck" not in r
+
+
+# ── Plan A Task 4: pending means "something can still resolve"; links heal later ──
+#
+# `import_media_pending` answers MEDIA only now (`import-ref://`); a link that cannot
+# resolve yet is `import_links_pending`, and it is the heal pass (link_keys.py), not a
+# re-import, that finishes it when the target arrives. Every heal write goes through
+# `engine._apply_resolved_body`: timestamp-neutral, optimistic-locked, projected.
+
+def _row(user_id, import_key):
+    conn = auth_db.get_connection()
+    try:
+        return dict(conn.execute(
+            "SELECT * FROM j2_notes WHERE user_id = ? AND import_key = ?", (user_id, import_key),
+        ).fetchone())
+    finally:
+        conn.close()
+
+
+def _link_para(key, text="see other page"):
+    return {"type": "paragraph", "content": [{
+        "type": "text", "text": text,
+        "marks": [{"type": "link", "attrs": {"href": f"import-link://{key}"}}]}]}
+
+
+def _links_of(note_id):
+    conn = auth_db.get_connection()
+    try:
+        return [r["target_note_id"] for r in conn.execute(
+            "SELECT target_note_id FROM j2_note_links WHERE note_id = ? ORDER BY position", (note_id,))]
+    finally:
+        conn.close()
+
+
+async def test_unresolvable_link_does_not_reimport_or_redownload(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+
+    def remote():
+        rn = _rn("p1", "Page One", links=["fake:fake-graph/UNSHARED"],
+                 media=[{"ref": "img-1", "kind": "image", "name": "chart.png"}])
+        rn.doc["content"].append(_link_para("fake:fake-graph/UNSHARED"))
+        rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://img-1"}})
+        return rn
+
+    provider.notes_by_id = {"p1": remote()}
+    provider.media_by_ref["img-1"] = (PNG_BYTES, "image/png")
+    r1 = await engine.sync_source(source["id"], full=True)
+    assert r1["created"] == 1
+    calls = len(provider.fetch_media_calls)
+
+    provider.notes_by_id = {"p1": remote()}  # remote UNCHANGED
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert (r2["updated"], r2["skipped"]) == (0, 1)
+    assert len(provider.fetch_media_calls) == calls
+    row = _row("u1", "fake:fake-graph/p1")
+    assert (row["import_media_pending"], row["import_links_pending"]) == (0, 1)
+
+
+async def test_link_heals_when_its_target_arrives_later_without_reimport(source, provider):
+    p1_ref = RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")
+    provider.refs = [p1_ref]
+    p1 = _rn("p1", "Page One", links=["fake:fake-graph/p2"])
+    p1.doc["content"].append(_link_para("fake:fake-graph/p2", "Setup Library"))
+    provider.notes_by_id = {"p1": p1}
+    await engine.sync_source(source["id"], full=True)
+    p1_row = _row("u1", "fake:fake-graph/p1")
+    p1_id = p1_row["id"]
+    assert p1_row["import_links_pending"] == 1
+    before_updated_at = notes_svc.get_note("u1", p1_id)["updatedAt"]
+
+    # sync 2 (incremental): only p2 is new; p1 is never re-fetched or re-confirmed
+    provider.refs = [p1_ref, RemoteRef(remote_id="p2", updated_at="2026-08-02T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": p1, "p2": _rn("p2", "Setup Library",
+                                                  updated_at="2026-08-02T00:00:00+00:00")}
+    fetched_before = len(provider.fetch_calls) + sum(len(c) for c in provider.fetch_many_calls)
+    r2 = await engine.sync_source(source["id"], manual=True)
+    assert (r2["created"], r2["updated"]) == (1, 0)
+    fetched = provider.fetch_calls + [i for c in provider.fetch_many_calls for i in c]
+    assert fetched[fetched_before:] == ["p2"]
+
+    p2_id = _row("u1", "fake:fake-graph/p2")["id"]
+    assert "/journal?j2tab=notebook&note=" + p2_id in json.dumps(notes_svc.get_note("u1", p1_id)["bodyJson"])
+    assert _row("u1", "fake:fake-graph/p1")["import_links_pending"] == 0
+    assert notes_svc.get_note("u1", p1_id)["updatedAt"] == before_updated_at
+    # controller ruling 4: the healed link reached the projection (backlinks / graph)
+    assert _links_of(p1_id) == [p2_id]
+
+
+async def test_heal_never_touches_a_member_edited_note(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    p1 = _rn("p1", "Page One", links=["fake:fake-graph/p2"])
+    p1.doc["content"].append(_link_para("fake:fake-graph/p2"))
+    provider.notes_by_id = {"p1": p1}
+    await engine.sync_source(source["id"], full=True)
+    p1_id = _row("u1", "fake:fake-graph/p1")["id"]
+
+    # the member edits the note but keeps the (still unresolved) link
+    edited = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "MEMBER WROTE THIS"}]},
+        _link_para("fake:fake-graph/p2")]}
+    notes_svc.update_note("u1", p1_id, {"bodyJson": edited})
+    member_body = notes_svc.get_note("u1", p1_id)["bodyJson"]
+    member_updated_at = notes_svc.get_note("u1", p1_id)["updatedAt"]
+
+    provider.refs.append(RemoteRef(remote_id="p2", updated_at="2026-08-02T00:00:00+00:00"))
+    provider.notes_by_id["p2"] = _rn("p2", "Target", updated_at="2026-08-02T00:00:00+00:00")
+    await engine.sync_source(source["id"], manual=True)
+
+    kept = notes_svc.get_note("u1", p1_id)
+    assert kept["bodyJson"] == member_body
+    assert kept["updatedAt"] == member_updated_at

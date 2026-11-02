@@ -77,6 +77,11 @@ Flow per source, per sync:
      this round) stays as an inert intact placeholder rather than being
      silently stripped, so self-heal's substring check keeps a real signal
      to retry against on a future sync.
+     Plan A Task 4: that retry is the link heal pass
+     (`link_keys.heal_pending_links`, run at the end of every round over the
+     member's `import_links_pending` notes), never a re-import: an unresolved
+     link no longer keeps `import_media_pending` set, so it no longer makes
+     `import_confirm` re-write the note or the engine re-download its media.
   6. Cursor advances to `max(ref.updated_at for ref in refs)` ONLY if the
      whole sync completed without raising — a provider exception mid-source
      updates the log row to 'error' and leaves the cursor untouched.
@@ -97,7 +102,9 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_svc
+from api.services.journal_two.import_provenance import edited_since_import
 from api.services.journal_two.note_connectors import connections, errors, oauth
+from api.services.journal_two.note_connectors.link_keys import heal_pending_links, resolve_link_keys
 from api.services.journal_two.note_connectors.convert import rewrite_body
 from api.services.journal_two.note_connectors.providers.base import (
     NoteProvider, RemoteNote, RemoteRef,
@@ -1168,11 +1175,9 @@ async def _fetch_remote_notes(
 # ── Conflict policy + import_confirm + media/rewrite (spec §6, §3) ──────────
 
 def _is_conflict(meta: dict[str, Any]) -> bool:
-    updated = _parse_iso(meta.get("updatedAt"))
-    imported = _parse_iso(meta.get("importedAt"))
-    if updated is None or imported is None:
-        return False
-    return updated > imported
+    """Edited by the member since the last import -- the ONE predicate
+    (`import_provenance.edited_since_import`, Plan A Task 4 controller ruling 2)."""
+    return edited_since_import(meta.get("updatedAt"), meta.get("importedAt"))
 
 
 def _remote_changed(meta: dict[str, Any], rn: RemoteNote, entry_hash: str) -> bool:
@@ -1282,26 +1287,31 @@ def _apply_resolved_body(
     the already-resolved content into a conflict sibling instead (spec §6).
 
     audit B5: also recomputes `import_media_pending` from the body this call
-    is ABOUT to write (not the note's prior state) — the same substring scan
-    `_find_stranded_placeholder_ids` already uses. Media resolves fully in
-    one pass, so a media-only note clears the flag here. A note whose links
-    are deliberately left as an inert intact placeholder (the per-provider
-    docstrings above: unresolved marks are never stripped, on purpose, so
-    self-heal has a real signal to retry) correctly STAYS pending — that is
-    what lets `import_confirm`'s own media-pending gate re-offer it for
-    resolution on a later sync without waiting on the separate
-    `_find_stranded_placeholder_ids` re-scan to notice."""
+    is ABOUT to write (not the note's prior state). Media resolves fully in
+    one pass, so a media-only note clears the flag here.
+
+    Plan A Task 4: and `import_links_pending`, separately. A link left as an
+    inert intact placeholder (unresolved marks are never stripped, on
+    purpose) keeps `import_links_pending = 1` and nothing else: media pending
+    would make `import_confirm` re-write the note and the engine re-download
+    its media on every pass, for a link no re-import can resolve. The link
+    heal pass (`link_keys.heal_pending_links`, run at the end of every
+    import round and from the member's heal door) finishes it once its
+    target exists, writing through THIS function."""
     body_plain = notes_svc.extract_plain_text(body)
     body_blob = json.dumps(body)
-    still_pending = 1 if ("import-ref://" in body_blob or "import-link://" in body_blob) else 0
+    media_pending = 1 if notes_svc._body_has_import_placeholder(body) else 0
+    links_pending = 1 if notes_svc._body_has_import_link(body) else 0
     # One unit with its sidecars (below): a SAVEPOINT, so a failed projection undoes
     # THIS note's body write and nothing else the connection may hold.
     conn.execute("SAVEPOINT apply_resolved_body")
     try:
         cur = conn.execute(
-            "UPDATE j2_notes SET body_json = ?, body_plain = ?, import_media_pending = ? "
+            "UPDATE j2_notes SET body_json = ?, body_plain = ?, import_media_pending = ?, "
+            "import_links_pending = ? "
             "WHERE id = ? AND user_id = ? AND updated_at = ?",
-            (body_blob, body_plain, still_pending, note_id, user_id, expected_updated_at),
+            (body_blob, body_plain, media_pending, links_pending, note_id, user_id,
+             expected_updated_at),
         )
         applied = cur.rowcount > 0
         if applied:
@@ -1333,7 +1343,12 @@ def _find_stranded_placeholder_ids(
     resolve step raised, before Critical 3's per-batch pipeline existed, or
     a process crash mid-resolve) and the literal placeholder is still sitting
     in the stored body. Self-heal (Critical 3b): any hit re-enters Phase 2
-    even though its content hash says 'unchanged'."""
+    even though its content hash says 'unchanged'.
+
+    Plan A Task 4: MEDIA placeholders only. A stranded `import-link://` is
+    not a reason to re-enter Phase 2 (that re-downloads the note's media and
+    rewrites it for a link that may never resolve, every pass); the link
+    heal pass at the end of `_import_remote_notes` finishes it instead."""
     if not note_ids:
         return set()
     out: set[str] = set()
@@ -1345,7 +1360,7 @@ def _find_stranded_placeholder_ids(
         ).fetchall()
         for row in rows:
             body = row["body_json"] or ""
-            if "import-ref://" in body or "import-link://" in body:
+            if "import-ref://" in body:
                 out.add(row["id"])
     return out
 
@@ -1547,8 +1562,8 @@ async def _resolve_links_final_pass(
         return result
 
     link_targets = sorted({lk for rn, _k, _n in candidates for lk in rn.links})
-    link_check = notes_svc.import_check(user_id, link_targets, conn=conn)
-    id_by_key = {k: v["id"] for k, v in link_check["existing"].items()}
+    # Plan A Task 4: every key kind (exact import keys, Evernote titles) through the ONE resolver.
+    id_by_key = resolve_link_keys(conn, user_id, link_targets)
     if not id_by_key:
         return result  # nothing resolvable yet -> leave every mark intact; self-heal retries later
 
@@ -1919,6 +1934,16 @@ async def _import_remote_notes(
             totals["failures"].extend(link_result["failures"])
         except Exception as e:  # noqa: BLE001
             totals["failures"].append(f"link resolution pass failed: {e}")
+
+        # Plan A Task 4: heal the member's still-pending links -- a link written in an
+        # EARLIER round whose target has only now arrived. Bounded (`limit`, index-served
+        # on `import_links_pending`), timestamp-neutral, and never fails the sync: a
+        # failure here is one named failure, and the marks stay for the next round.
+        try:
+            heal = heal_pending_links(user_id, conn=conn)
+            totals["failures"].extend(heal.get("failures", []))
+        except Exception as e:  # noqa: BLE001
+            totals["failures"].append(f"link heal pass failed: {e}")
 
         return totals
     finally:
