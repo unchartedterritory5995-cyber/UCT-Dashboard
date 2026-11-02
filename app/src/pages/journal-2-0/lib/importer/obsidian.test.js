@@ -253,12 +253,52 @@ describe('obsidian adapter — Obsidian resolution (Plan B Task 8)', () => {
 
   it('resolves an obsidian://open link to the note', async () => {
     const d = await docOf([
-      vf('a.md', '[the plan](obsidian://open?vault=Trading&file=Plans%2FPlan) and [gone](obsidian://open?vault=Trading&file=Ghost)'),
-      vf('Plans/Plan.md', ''),
-    ], 'a.md')
-    expect(d.html).toContain('<a data-import-link="obsidian:Plans/Plan.md">the plan</a>')
+      vf('Trading/a.md', '[the plan](obsidian://open?vault=Trading&file=Plans%2FPlan) and [gone](obsidian://open?vault=Trading&file=Ghost)'),
+      vf('Trading/Plans/Plan.md', ''),
+    ], 'Trading/a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Trading/Plans/Plan.md">the plan</a>')
     expect(d.html).not.toContain('obsidian://')
     expect(d.html).toContain('gone')
+  })
+
+  // Plan B final review, fix 2: with no `.obsidian/` folder, `vault=` must name the drop's
+  // top folder (exact, case-sensitive); otherwise a by-name lookup across the whole drop
+  // opened another vault's note.
+  it('no vault root: a vault= matching the drop top folder links', async () => {
+    const d = await docOf([
+      vf('Personal/a.md', '[p](obsidian://open?vault=Personal&file=Plan)'),
+      vf('Personal/Plan.md', ''),
+    ], 'Personal/a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Personal/Plan.md">p</a>')
+  })
+
+  it('no vault root: a vault= naming another vault is text, never a by-name hit', async () => {
+    const d = await docOf([
+      vf('Work/a.md', '[p](obsidian://open?vault=Personal&file=Plan) [q](obsidian://open?vault=work&file=Plan)'),
+      vf('Work/Plan.md', ''),
+    ], 'Work/a.md')
+    expect(d.html).not.toContain('data-import-link')
+    expect(d.html).not.toContain('obsidian://')
+    expect(d.html).toContain('p')
+    expect(d.html).toContain('q')
+    expect(d.links).toEqual([])
+  })
+
+  it('no vault root and files under several top folders: a vault= link is text', async () => {
+    const d = await docOf([
+      vf('a.md', '[p](obsidian://open?vault=Personal&file=Plan)'),
+      vf('Personal/Plan.md', ''),
+    ], 'a.md')
+    expect(d.html).not.toContain('data-import-link')
+    expect(d.links).toEqual([])
+  })
+
+  it('no vault root: a link with no vault= resolves by name as before', async () => {
+    const d = await docOf([
+      vf('a.md', '[p](obsidian://open?file=Plan)'),
+      vf('Other/Plan.md', ''),
+    ], 'a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Other/Plan.md">p</a>')
   })
 
   it('leaves an obsidian:// link into ANOTHER named vault as text', async () => {

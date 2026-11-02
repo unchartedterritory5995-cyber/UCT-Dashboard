@@ -152,6 +152,7 @@ async function parse(vfiles, opts = {}) {
   const warnings = []
   const byPath = new Map(vfiles.map((v) => [v.path, v]))
   const resolver = await makeObsidianResolver(vfiles)
+  const topFolder = dropTopFolder(vfiles)
 
   const items = vfiles.filter((v) => /\.md$/i.test(v.path) && !SKIP_DIR_RE.test(v.path))
 
@@ -159,7 +160,7 @@ async function parse(vfiles, opts = {}) {
   let done = 0
   for (const vfile of items) {
     try {
-      const doc = await makeDoc(vfile, byPath, resolver)
+      const doc = await makeDoc(vfile, byPath, resolver, topFolder)
       docs.push(doc)
     } catch (err) {
       warnings.push(`Could not import "${vfile.path}": ${err?.message || err}`)
@@ -183,14 +184,14 @@ async function parse(vfiles, opts = {}) {
   return { docs, warnings }
 }
 
-async function makeDoc(vfile, byPath, resolver) {
+async function makeDoc(vfile, byPath, resolver, topFolder = null) {
   const raw = await readText(vfile)
   const { fields, tags, body } = extractFrontmatter(raw)
 
   const media = []
   const links = []
   const resolve = (target, opts) => resolver.resolve(target, vfile.path, opts)
-  const ctx = { byPath, resolve, media, links }
+  const ctx = { byPath, resolve, media, links, topFolder }
   const processed = preprocessWikiSyntax(body, ctx)
   let html = mdToHtml(processed)
   if (fields.hero_image) {
@@ -400,7 +401,16 @@ function resolveVaultAnchors(html, ctx, root) {
 
 /** `obsidian://open?vault=<v>&file=<f>` -> the path `f` names, as a wikilink target
  *  (`URLSearchParams` has already decoded it once). A drop whose vault folder has a name
- *  answers only for that name; another vault's link is not this import's to resolve. */
+ *  answers only for that name; another vault's link is not this import's to resolve.
+ *
+ *  Plan B final review, fix 2: with NO vault root (no `.obsidian/` above the note) a `vault`
+ *  parameter must equal the drop's top folder name (`dropTopFolder`: the one first path
+ *  segment every dropped file shares), compared EXACTLY -- case-sensitive, after trimming
+ *  whitespace, as Obsidian matches a vault by its name. A drop with no single top folder, or
+ *  a different name, cannot show the link is into THIS vault, so it stays text: resolving
+ *  `vault=Personal&file=Plan` by name across the whole drop opened the wrong vault's note.
+ *  No `vault` parameter at all: resolved as before. With a vault root the comparison is
+ *  unchanged (the root folder's name, any case). */
 function resolveDeepLink(href, ctx, root) {
   let url
   try {
@@ -410,10 +420,26 @@ function resolveDeepLink(href, ctx, root) {
   }
   if (url.hostname.toLowerCase() !== 'open') return null
   const file = (url.searchParams.get('file') || '').trim()
-  const vault = (url.searchParams.get('vault') || '').trim().toLowerCase()
+  const vault = (url.searchParams.get('vault') || '').trim()
   if (!file) return null
-  if (root && vault && vault !== basename(root).toLowerCase()) return null
+  if (root && vault && vault.toLowerCase() !== basename(root).toLowerCase()) return null
+  if (!root && vault && vault !== ctx.topFolder) return null
   return ctx.resolve(file)
+}
+
+/** The first path segment every file in the drop shares (the folder the member dropped),
+ *  or null when files sit at the drop top or under different folders. */
+function dropTopFolder(vfiles) {
+  let top = null
+  for (const v of vfiles) {
+    const path = String(v.path || '')
+    const slash = path.indexOf('/')
+    if (slash <= 0) return null
+    const seg = path.slice(0, slash)
+    if (top === null) top = seg
+    else if (seg !== top) return null
+  }
+  return top
 }
 
 function stripFragment(target) {
