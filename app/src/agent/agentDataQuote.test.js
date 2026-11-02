@@ -14,9 +14,8 @@ import { allCapabilityNames } from './capabilities'
 // the turn id comes from trace.js only (agent-qa's readDataTurnId rail); the tests set it there
 let TURN = 't1'
 vi.mock('./trace', async (orig) => ({ ...(await orig()), currentTurnId: () => TURN }))
-// agent-lead #621's per-kind activation, as /api/agent/config reports it; null = an older server with no list
+// agent-lead #621's per-kind activation, sent as /api/agent/config `data_kinds` (null = an older server: no key)
 let KINDS = null
-vi.mock('./agentClient', async (orig) => ({ ...(await orig()), serverDataKinds: () => KINDS }))
 
 const here = dirname(fileURLToPath(import.meta.url))
 const DOC = readFileSync(resolve(here, '../../../docs/agent/program/contracts/MD-1-phrasings.md'), 'utf8')
@@ -180,7 +179,7 @@ const PROFILE = { name: 'NVIDIA Corp', sector: 'Technology', industry: 'Semicond
 function wire({ data }) {
   globalThis.fetch = vi.fn(async (url, init) => {
     const u = String(url)
-    if (u.endsWith('/api/agent/config')) return json({ stream: false, nl1: false, data, scan: false })
+    if (u.endsWith('/api/agent/config')) return json({ stream: false, nl1: false, data, scan: false, ...(KINDS ? { data_kinds: KINDS } : {}) })
     if (u.startsWith('/api/fundamentals-full/')) return json(PROFILE)
     if (u.startsWith('/api/live-prices')) return json({ NVDA: { price: 142.1, change_pct: 0.87, observed_at: 1793640665 } })
     if (u === '/api/agent/data') {
@@ -242,7 +241,8 @@ describe('stock.quote: flags off is exactly stock.profile; on is one gateway rea
     expect(JSON.stringify(mine)).toBe(JSON.stringify(await answerProfile({ symbol: 'NVDA' })))
     expect(globalThis.fetch.mock.calls.map(c => c[0])).not.toContain('/api/agent/data')
     expect(match('nvda price')).toBeNull()
-    expect(registerMarketDataCapabilities()).toBe(false)
+    registerMarketDataCapabilities()                              // may register stock.dailyBars (bars.daily on)…
+    expect(allCapabilityNames()).not.toContain(CAPABILITY)        // …but never stock.quote
   })
 
   it('on, no turn id: no read, a plain sentence', async () => {
