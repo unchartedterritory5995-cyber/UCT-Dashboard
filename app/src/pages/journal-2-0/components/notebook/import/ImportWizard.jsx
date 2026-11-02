@@ -363,6 +363,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
       // `parseImport` = `adapter.parse` + the ONE post-parse pass (links, media) on every doc.
       const { parseImport } = await import('../../../lib/importer/postParse')
       const { docs: rawDocs, warnings: parseWarnings } = await parseImport(adapter, vfiles, {
+        isCancelled: cancelled,
         onProgress: (p) => {
           if (cancelled()) return
           setScanMessage(`Reading ${adapter.label} — ${p.done}/${p.total}…`)

@@ -27,7 +27,10 @@
  * route takes none of them). `docs/notebook/export-formats.md` says so.
  *
  * This module imports nothing heavy (no editor, no DOM): the adapter registry loads it.
+ * (`./linkPolicy` brings in `adapters/generic.js`, which the registry already loads.)
  */
+
+import { resolveHref } from './linkPolicy'
 
 export const UCT_JSON_FORMAT = 'uct-notebook-note'
 export const UCT_JSON_VERSION = 1
@@ -121,10 +124,21 @@ export function parseUctJsonNote(text, path, byPath) {
       next.attrs = attrs
     }
     if (Array.isArray(node.content)) next.content = node.content.map(walk)
-    if (Array.isArray(node.marks)) next.marks = node.marks.map((m) => (m && typeof m === 'object' ? { ...m } : m))
+    if (Array.isArray(node.marks)) next.marks = node.marks.map(safeMark).filter((m) => m !== null)
     return next
   }
 
+  // ⛔ The one href policy (./linkPolicy.js, Plan B Task 3 fix round 1): a JSON body skips
+  // the HTML post-parse pass, so a crafted note's `javascript:` link mark would otherwise
+  // land in bodyJson as it is. A refused href drops the MARK; the text stays.
+  const safeMark = (m) => {
+    if (!m || typeof m !== 'object') return m
+    if (m.type !== 'link' || !m.attrs || typeof m.attrs !== 'object') return { ...m }
+    const href = resolveHref(m.attrs.href, null)
+    return href === null ? null : { ...m, attrs: { ...m.attrs, href } }
+  }
+
+  const bodyJson = walk(note.bodyJson)
   const tags = Array.isArray(note.tags) ? note.tags.filter((t) => typeof t === 'string') : []
   const folderPath = Array.isArray(note.folderPath) ? note.folderPath.filter((s) => typeof s === 'string' && s) : []
   return {
@@ -136,11 +150,12 @@ export function parseUctJsonNote(text, path, byPath) {
     folderPath,
     ...(typeof note.createdAt === 'string' ? { createdAt: note.createdAt } : {}),
     ...(typeof note.updatedAt === 'string' ? { updatedAt: note.updatedAt } : {}),
-    bodyJson: walk(note.bodyJson),
+    bodyJson,
     // The wizard reads `html` for its size hint and re-derives a body from it for a note it
     // is comparing against an existing one; a HELD body answers that with THIS body, not a
-    // re-conversion (holdBodyForImport below).
-    html: holdBodyForImport(note.bodyJson),
+    // re-conversion (holdBodyForImport below). ⛔ The WALKED body (relinked, hrefs checked):
+    // holding the raw one handed that path the unchecked marks.
+    html: holdBodyForImport(bodyJson),
     media,
     // filled in by the adapter once every note in the drop is known: the note-link targets
     // that came in with this same import

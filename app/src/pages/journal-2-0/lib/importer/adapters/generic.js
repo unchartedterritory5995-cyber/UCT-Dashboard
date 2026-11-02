@@ -122,6 +122,14 @@ async function parse(vfiles, opts = {}) {
     ...singleFiles.map((v) => ({ type: 'file', vfile: v })),
   ]
 
+  // Every note this import makes, by the path a relative link names: a link between two of
+  // them (our own selection export writes `../Other folder/Other note.md`) is a note link.
+  const keyByPath = new Map([
+    ...bundles.map((b) => [b.textVfile.path, `file:${b.bundleDir}`]),
+    ...singleFiles.map((v) => [v.path, `file:${v.path}`]),
+  ])
+  const noteLinkKey = (path) => keyByPath.get(path) ?? null
+
   const docs = []
   // Collected as each doc is built, BEFORE applyFallbackImageBug can strip a
   // ref back out of doc.media below — a file that was genuinely referenced
@@ -137,8 +145,8 @@ async function parse(vfiles, opts = {}) {
     try {
       const doc =
         item.type === 'bundle'
-          ? await makeBundleDoc(item, byPath)
-          : await makeFileDoc(item.vfile, byPath, warnings)
+          ? await makeBundleDoc(item, byPath, noteLinkKey)
+          : await makeFileDoc(item.vfile, byPath, warnings, noteLinkKey)
       for (const m of doc.media || []) consumed.add(m.ref)
       docs.push(doc)
     } catch (err) {
@@ -167,7 +175,7 @@ async function parse(vfiles, opts = {}) {
 // per-file conversion
 // ---------------------------------------------------------------------------
 
-async function makeFileDoc(vfile, byPath, warnings) {
+async function makeFileDoc(vfile, byPath, warnings, noteLinkKey = null) {
   const ext = extOf(vfile.path)
   const dir = dirOf(vfile.path)
   let html
@@ -209,7 +217,7 @@ async function makeFileDoc(vfile, byPath, warnings) {
     throw new Error(`Unsupported file type: ${vfile.path}`)
   }
 
-  const resolved = resolveRelativeMedia(html, dir, byPath)
+  const resolved = resolveRelativeMedia(html, dir, byPath, { noteLinkKey })
   const media = dedupeMedia([...extraMedia, ...resolved.media])
   // Front matter's own `title:` is the author's explicit, authoritative
   // title (the convention every static-site generator honors) — it wins
@@ -225,15 +233,21 @@ async function makeFileDoc(vfile, byPath, warnings) {
     ticker: fmFields.ticker,
     folderPath: dir ? dir.split('/') : [],
     media,
-    links: [],
+    links: dedupeLinks(resolved.links),
     ...(fmDates || datesFromLastModified(vfile.lastModified)),
   }
 }
 
-async function makeBundleDoc(item, byPath) {
+/** One `{targetKey}` per target: `links` only tells the commit that a body has one. */
+function dedupeLinks(list) {
+  const seen = new Set()
+  return list.filter((l) => !seen.has(l.targetKey) && seen.add(l.targetKey))
+}
+
+async function makeBundleDoc(item, byPath, noteLinkKey = null) {
   const { bundleDir, textVfile } = item
   const html = mdToHtml(await readText(textVfile))
-  const resolved = resolveRelativeMedia(html, bundleDir, byPath)
+  const resolved = resolveRelativeMedia(html, bundleDir, byPath, { noteLinkKey })
   const media = dedupeMedia(resolved.media)
   const title = extractH1Title(resolved.html) || bundleTitleFromDir(bundleDir)
   const parentDir = dirOf(bundleDir)
@@ -245,7 +259,7 @@ async function makeBundleDoc(item, byPath) {
     tags: [],
     folderPath: parentDir ? parentDir.split('/') : [],
     media,
-    links: [],
+    links: dedupeLinks(resolved.links),
     ...datesFromLastModified(textVfile.lastModified),
   }
 }
@@ -352,10 +366,18 @@ function escapeAttr(s) {
  * media entries. Also doubles as the ".html -> body as-is" extraction step,
  * since DOMParser populates `.body` whether given a full document or a
  * fragment.
+ *
+ * `opts.noteLinkKey(resolvedPath)` (Plan B Task 3 fix round 1): a relative link to another
+ * note IN THIS IMPORT becomes `href="import-link://<that note's importKey>"` (commit.js
+ * resolves it after the confirm, or keeps it for the heal door) and `{targetKey}` goes into
+ * `links`. Without it -- or when it answers null -- the relative href is left as it is, and
+ * the post-parse pass (../postParse.js) renders an unresolvable one as text.
  */
-export function resolveRelativeMedia(html, dir, byPath) {
+export function resolveRelativeMedia(html, dir, byPath, opts = {}) {
+  const { noteLinkKey = null } = opts
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const media = []
+  const links = []
 
   doc.querySelectorAll('img[src]').forEach((img) => {
     const src = img.getAttribute('src')
@@ -376,9 +398,17 @@ export function resolveRelativeMedia(html, dir, byPath) {
     if (IMAGE_EXT.test(resolvedPath)) return // images are handled via <img>, not <a>
     // A relative link to another importable doc (.md/.txt/.html/.docx/a
     // TextBundle's text.md) is a link BETWEEN notes, not a file attachment —
-    // leave it as an inert relative anchor. Resolving doc-to-doc links into
-    // `data-import-link="<targetKey>"` is the Notion/Obsidian adapters' job.
-    if (SUPPORTED_EXT.test(resolvedPath)) return
+    // resolve it to the target note's link key when the caller can name one, else
+    // leave it as an inert relative anchor (the Notion/Obsidian adapters resolve
+    // their own doc-to-doc links).
+    if (SUPPORTED_EXT.test(resolvedPath)) {
+      const targetKey = noteLinkKey ? noteLinkKey(resolvedPath) : null
+      if (targetKey) {
+        a.setAttribute('href', `import-link://${targetKey}`)
+        links.push({ targetKey, placeholder: href })
+      }
+      return
+    }
     const name = basename(resolvedPath)
     a.setAttribute('data-type', 'attachmentChip')
     a.setAttribute('data-import-ref', resolvedPath)
@@ -391,7 +421,7 @@ export function resolveRelativeMedia(html, dir, byPath) {
     media.push({ ref: resolvedPath, vfile: target, kind: 'file', name })
   })
 
-  return { html: doc.body.innerHTML, media }
+  return { html: doc.body.innerHTML, media, links }
 }
 
 function isAbsoluteRef(src) {
