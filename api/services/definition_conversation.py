@@ -308,6 +308,9 @@ REFUSALS: Mapping[str, str] = {
     "envelope:reference": (
         "the assistant's change named a part of the indicator that does not exist, so "
         "nothing was offered to apply"),
+    "envelope:rename-unrequested": (
+        "the assistant's change also renamed a line you did not name, so nothing was "
+        "offered to apply"),
     "envelope:revision": (
         "the assistant's change was written against a different version of this "
         "indicator, so nothing was offered to apply"),
@@ -1228,6 +1231,107 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
                 "assumption `text` alone.")
 
 
+def _label_text(value: Any) -> str:
+    """A label as the view carries it (``{"untrusted_text": ...}``) or as a patch
+    carries it (a string), folded for comparison: case, outer quotes, whitespace."""
+    if isinstance(value, Mapping):
+        value = value.get("untrusted_text")
+    if not isinstance(value, str):
+        return ""
+    return re.sub(r"\s+", " ", value).strip().strip("\"'“”‘’").strip().casefold()
+
+
+def _said(phrase: str, text: str) -> bool:
+    """``phrase`` occurs in ``text`` as whole words (both already folded)."""
+    return bool(phrase) and re.search(
+        rf"(?<![\w]){re.escape(phrase)}(?![\w])", text) is not None
+
+
+#: Words that make a member's text a request to NAME something. Without one, a label
+#: that merely occurs in the text ("RSI" in "make the RSI length 28") is not a name
+#: the member gave (independent review, 2026-11-02).
+_RENAME_INTENT = re.compile(
+    r"(?<![/\w-])(?:re-?name[sd]?|label(?:l?ed|s)?|call(?:ed|s)?|name[sd]?|title[sd]?)\b"
+    r"(?!\s+(?:ratios?|options?|spreads?)\b)", re.I)
+#: How many words after a naming verb the name itself may sit ("rename the RSI line
+#: to Fast RSI" -- 4 words between). Independent QA 2026-11-02: tying the label to
+#: the verb is what stops "hide the RSI label" or "the put/call ratio next to the
+#: RSI" from counting as a request to name a line "RSI".
+_NAME_WINDOW_WORDS = 10
+
+
+def _named_after_intent(label: str, text: str) -> bool:
+    """`label` occurs, as whole words, within `_NAME_WINDOW_WORDS` words AFTER a
+    naming verb in `text` (both already folded)."""
+    for m in _RENAME_INTENT.finditer(text):
+        window = " ".join(text[m.end():].split()[:_NAME_WINDOW_WORDS])
+        if _said(label, window):
+            return True
+    return False
+
+
+def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
+                         turns: Any = ()) -> None:
+    """⭐ 2026-11-02 -- OPEN-FINDINGS-2026-10 §3. A LINE IS RENAMED ONLY IN THE MEMBER'S
+    OWN WORDS. Measured in production on 10-08: "make the RSI length 28 and call it
+    Momentum Pulse" renamed the indicator correctly AND relabelled the RSI line to
+    "Momentum", which the member never asked for; only the prompt forbade it. This is
+    the definition-name rule (``MEMBER_NAME_RULE``) applied to a line: a
+    ``rename_output`` of an EXISTING line must carry a label the member gave, in this
+    turn or an earlier MEMBER turn of the same conversation (``turns``; a "which
+    line?" clarify answered "the first one" carries the name in the turn before):
+      * words the member wrote, outside their cue names, in text that asks to name
+        something (``_RENAME_INTENT``) -- so "RSI" in "make the RSI length 28" is not
+        a line name; or
+      * their explicit cue name (``naming_split``) -- that is the INDICATOR's name, so
+        it may label a line only on a ONE-line definition, where the plot label
+        follows the indicator's name anyway (``readback.outputNamer``). A fragment of
+        it ("Momentum" out of "Momentum Pulse") never passes.
+
+    Refused like any envelope gate (never stripped -- ``check_envelope`` does not
+    edit a patch), so the model gets its ONE bounded repair with the reason.
+    Passes: a rename of a line this same patch creates or adds (it has no name the
+    member could have chosen yet), and a "rename" to the label it already has."""
+    if envelope.get("disposition") != "change":
+        return
+    ops = [o for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
+    if not any(o.get("op") == "rename_output" for o in ops):
+        return
+    new_keys: set = set()
+    for o in ops:
+        if o.get("op") == "create":
+            new_keys.update(k for k in _create_keys(o) if k)
+        elif o.get("op") == "add_output" and isinstance(o.get("key"), str):
+            new_keys.add(o["key"])
+    d = (view or {}).get("definition") if isinstance(view, Mapping) else None
+    current = {o["key"]: _label_text(o.get("label"))
+               for o in ((d or {}).get("outputs") or [])
+               if isinstance(o, Mapping) and isinstance(o.get("key"), str)}
+    texts = [message if isinstance(message, str) else ""] + [
+        t["text"] for t in (turns or [])
+        if isinstance(t, Mapping) and t.get("role") == "member" and isinstance(t.get("text"), str)]
+    cue_names: set = set()
+    asked: List[str] = []
+    for text in texts:
+        names, rest = conversation_preflight.naming_split(text)
+        cue_names.update(_label_text(n) for n in names)
+        asked.append(_label_text(rest))
+    one_line = len(current) <= 1
+    for i, o in enumerate(ops):
+        if o.get("op") != "rename_output" or o.get("output") in new_keys:
+            continue
+        label = _label_text(o.get("label"))
+        if not label or label == current.get(o.get("output")):
+            continue
+        if (one_line and label in cue_names) or any(_named_after_intent(label, a) for a in asked):
+            continue
+        raise _Refused(
+            "envelope:rename-unrequested",
+            f"ops[{i}] rename_output {o.get('output')!r} -> {o.get('label')!r}: the member did "
+            "not give this line a name this turn. Drop the rename_output and leave the "
+            "line's label as it is; the indicator's own name is rename_definition.")
+
+
 def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, Any]:
     """Structural pre-check of the model's answer. Returns it UNCHANGED, or raises
     ``_Refused``. ⛔ Never applies, never repairs, never strips: an envelope with
@@ -1823,6 +1927,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             trace.setdefault("input_wrapper", wrapper)
         try:
             envelope = check_envelope(candidate, revision, view)
+            check_output_renames(envelope, message, view, turns)
         except _Refused as refused:
             last = refused
             # the diagnostic (op path, validator text) is for the model and a DEBUG
