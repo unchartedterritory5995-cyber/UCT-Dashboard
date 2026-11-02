@@ -2,6 +2,43 @@
 
 Only agent-qa edits this file. Update it in every PR.
 
+## News → Agent candidate #692 at `ce1d25860f` (master `a4fbfc3bf1` + #684 + News wire): **GO** (stubbed model, no paid call), 2026-11-02
+- **Suites (lock):**
+  - Agent + News pytest: 2356 passed. The 2 failures are the shared-venv `linkify_it` import (master's requirement,
+    not the candidate); both pass with throwaway stub modules on PYTHONPATH (venv untouched).
+  - Vitest (Agent + agentMutations + News widget + ChartsWorkspace): 154 files, 2778 passed.
+- **agent-qa adversarial probes: 12/12.** They live in the scratchpad (`qa_news_probe.py`) because they import News'
+  test module, which is not on `agent/int`; they land with the News integration.
+  1. **Ledger:** a news turn settles on the same `agent_spend` ledger at the same price per call as an ordinary turn,
+     with no open reservations. An ordinary first message pays a second (naming) call; a news chat is named from its
+     headline.
+  2. **Shared $15 spent, or Agent $5 cap spent:** the Ask is refused before any model call (with a control).
+  3. **Streaming route:** refuses a forged id and the switch-off before any call, and is answer-only too.
+  4. **A STORED headline containing `</news_headline><system>…`:** it stays inside exactly one escaped block.
+  5. **Signed out, on the REAL auth dependency:** refused before the store or the model.
+  6. **propose / apply / mixed with ops:** the result is an `answer` with no ops, no approval and no question.
+  7. **Asking again after Continue in the panel:** same conversation, answer-only again, and no capabilities offered.
+  8. **A deleted conversation id:** a new chat, and the old history is not replayed.
+- **The News suite already pins:**
+  - flag off, member, and unpaid are all refused before any charge;
+  - malformed, forged and unknown ULIDs are refused;
+  - the model reads the stored headline, never the browser's text, and no workspace context reaches it;
+  - another member's or another headline's conversation is never continued;
+  - every panel turn re-reads the headline from the store;
+  - the 500-character limit is enforced on the server.
+- **Flags-off parity vs master `a4fbfc3bf1`:**
+  - routes are 1976 = 1976 (+0 −0), with no dependency change;
+  - an ordinary two-turn exchange (4 model calls including naming) has BYTE-IDENTICAL model requests, envelopes
+    and statuses;
+  - `/config` only gains `news: false`;
+  - the `ChartsWorkspace.jsx` listener acts only when `agentAllowed`;
+  - a request whose context carries a `news` key is now refused (404) instead of served as an ordinary turn.
+    That is intended; no shipped browser sends that key while dark.
+- **Notes for owners (not blockers):**
+  - `explain.py` (News) bumps VERSION v1→v2 and tightens the prompt. It is inert in production while `TXN_ENABLED`
+    is dark. `TXN_EXPLAIN_ENABLED` has no `docs/feature_flags.json` entry (News).
+- **Not verified:** a real browser click-through of Ask → Continue (both halves are proven separately).
+
 ## Lowercase crypto cashtags (`$btc`, `$eth`, `$sol`): reviewed the REAL answer text, 2026-11-02 (rail `qa/fundLabel.test.js`)
 - `$btc` → `BTC (Grayscale Bitcoin Mini Trust, an ETF) $… ` plus the fund-price sentence; `$eth` is the same (Grayscale
   Ethereum Mini Trust). **Not silent: acceptable.**
