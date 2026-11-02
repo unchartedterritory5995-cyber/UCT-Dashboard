@@ -896,3 +896,25 @@ def test_css_and_head_text_never_push_the_title_down(store, env):
     ex = "<html><head><title>x</title><style>" + ("p { margin: 0 } " * 200) + "</style></head><body>" + EXHIBIT
     sec_res(store, FakeSec(ex)).run_pass()
     assert link_rows(store) and link_rows(store)[0][1] == "sec_filing"
+
+
+def test_unclosed_script_tags_cost_linear_time_not_quadratic():
+    """QA: a 3 MB document full of unclosed <script> took 64 s through a regex and
+    held the GIL; the linear strip must stay well under a second."""
+    import time
+    raw = (("<script>x " * 10_000) + f"<p>{TITLE}</p>" + ("y " * 1_400_000)).encode()
+    t0 = time.perf_counter()
+    text = rl.exhibit_text(raw)
+    assert time.perf_counter() - t0 < 2.0
+    assert text                                       # unclosed: the rest stays document text
+
+
+def test_noise_strip_keeps_text_around_closed_elements():
+    raw = b"<HEAD><Title>t</Title></HEAD><style>p{}</STYLE>Acme <script>z</script>Corp<header>H</header>"
+    assert rl.exhibit_text(raw) == rl._norm("Acme Corp H")
+
+
+def test_sec_title_matches_whole_words_only(store, env):
+    tx(store, "ACME - Acme Corp Reports Third Quarter 2026 Result")
+    sec_res(store, FakeSec(EXHIBIT)).run_pass()          # the exhibit says "...Results"
+    assert link_rows(store) == []

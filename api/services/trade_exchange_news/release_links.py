@@ -123,7 +123,27 @@ _SLUG_SPLIT = re.compile(r"[^a-z0-9]+")
 _SLUG_NOISE = frozenset({"news", "release", "releases", "html", "htm", "en", "home", "aspx", "php"})
 _TAGS = re.compile(r"<[^>]+>")
 #: Markup whose text is never document text (CSS, scripts, the <head> and its <title>).
-_NOISE = re.compile(r"(?is)<(script|style|head)\b.*?</\1\s*>")
+_NOISE_OPEN = re.compile(r"(?i)<(script|style|head)\b")
+_NOISE_CLOSE = {t: re.compile(rf"(?i)</{t}\b") for t in ("script", "style", "head")}
+
+
+def _strip_noise(s: str) -> str:
+    """Drop <script>/<style>/<head> elements in ONE linear scan. An unclosed one
+    keeps the rest of the document as text (a regex scanning ahead for every
+    unclosed tag is quadratic: 64 s on a 3 MB document, holding the GIL)."""
+    out, i = [], 0
+    while True:
+        m = _NOISE_OPEN.search(s, i)
+        if m is None:
+            break
+        c = _NOISE_CLOSE[m.group(1).lower()].search(s, m.end())
+        if c is None:
+            break
+        out.append(s[i:m.start()])
+        close = s.find(">", c.start())
+        i = len(s) if close < 0 else close + 1
+    out.append(s[i:])
+    return " ".join(out)
 _EX99 = re.compile(r"ex[-_]?99|exhibit[-_]?99|ex991|dex99", re.I)
 
 
@@ -307,7 +327,7 @@ def decide_fmp(tx: dict[str, Any], candidates: list[dict[str, Any]]) -> dict[str
 
 def exhibit_text(raw: bytes) -> str:
     """The exhibit's opening, normalized like a headline."""
-    s = _NOISE.sub(" ", raw[:SEC_DOC_MAX_BYTES].decode("utf-8", "replace"))
+    s = _strip_noise(raw[:SEC_DOC_MAX_BYTES].decode("utf-8", "replace"))
     s = _html.unescape(_TAGS.sub(" ", s))
     return _norm(s)[:SEC_TITLE_CHARS * 2]
 
@@ -318,7 +338,9 @@ def decide_sec_text(tx_norm: str, text: str, head: int = SEC_TITLE_HEAD) -> tupl
     share) when >= 90% of its words are in the opening; else None."""
     if not tx_norm:
         return None
-    at = text[:SEC_TITLE_CHARS].find(tx_norm)
+    # Whole words only: padded with spaces, the headline never matches inside a
+    # longer word ("result" in "results"). ``at`` is the offset in ``text``.
+    at = f" {text[:SEC_TITLE_CHARS]} ".find(f" {tx_norm} ")
     if at >= 0 and len(tx_norm.split()) >= SEC_MIN_WORDS:
         return ("exact", 1.0) if at <= head else ("deep", 1.0)
     words = tx_norm.split()
