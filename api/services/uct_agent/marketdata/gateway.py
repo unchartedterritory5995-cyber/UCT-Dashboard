@@ -44,6 +44,10 @@ SCAN_ENV = "UCT_AGENT_SCAN"
 #: so their security never rests on the browser-supplied `purpose` alone. Activation is a separate
 #: owner decision that also needs ADR-005 layers L2-L7 in place.
 ISOLATED_ENV = "UCT_AGENT_ISOLATED"
+#: Per-kind activation allowlist: a comma list of kind names (e.g. "quote"). Read only while UCT_AGENT_DATA is
+#: on. FAILS CLOSED: unset or empty admits NO kind, there is no wildcard, and an unknown name admits nothing.
+#: It narrows, never widens: isolated kinds still need UCT_AGENT_ISOLATED and scan kinds UCT_AGENT_SCAN.
+KINDS_ENV = "UCT_AGENT_DATA_KINDS"
 
 MAX_READS_PER_TURN = 8
 MAX_SCANS_PER_TURN = 1
@@ -58,6 +62,18 @@ CATEGORIES = ("market", "scan")
 
 def data_enabled() -> bool:
     return os.environ.get(DATA_ENV, "").strip() == "1"
+
+
+def enabled_kinds() -> frozenset:
+    """The kinds an operator has activated (UCT_AGENT_DATA_KINDS), or none while the gateway is off."""
+    if not data_enabled():
+        return frozenset()
+    raw = os.environ.get(KINDS_ENV, "")
+    return frozenset(p.strip() for p in raw.split(",") if p.strip())
+
+
+def kind_enabled(name: str) -> bool:
+    return name in enabled_kinds()
 
 
 def isolated_enabled() -> bool:
@@ -166,6 +182,8 @@ def read(kind: str, params: Any = None, *, user_id: Any, turn_id: str, purpose: 
     k = registry().get(kind)
     if k is None:
         return env.refused(kind, params, f"unknown kind {kind!r}")
+    if not kind_enabled(kind):
+        return env.refused(kind, params, f"{kind} is not switched on for UCT Agent ({KINDS_ENV})")
     if k.model_isolated and not isolated_enabled():
         return env.refused(kind, params, "this data is not available to UCT Agent yet")
     if k.model_isolated and purpose != "answer":

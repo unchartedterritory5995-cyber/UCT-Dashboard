@@ -31,6 +31,7 @@ def world(tmp_path, monkeypatch):
     ind = saved_screens.create(ME, "EMA cross", {"filters": [{"key": "scan", "op": "in", "value": ["h1"]}]})
     theirs = saved_screens.create(OTHER, "Not yours", {"filters": [{"key": "price", "op": "gte", "min": 1}]})
     monkeypatch.setenv("UCT_AGENT_DATA", "1")
+    monkeypatch.setenv(gateway.KINDS_ENV, ",".join(gateway.registry().names()))  # every kind on
     monkeypatch.setenv("UCT_AGENT_SCAN", "1")
     gateway._reset_for_test()
     yield {"mine": mine["id"], "ind": ind["id"], "theirs": theirs["id"]}
@@ -67,6 +68,7 @@ def test_saved_is_read_only_and_never_creates_the_table(tmp_path, monkeypatch):
     db = tmp_path / "empty.db"
     monkeypatch.setattr(auth_db, "_DB_PATH", str(db))
     monkeypatch.setenv("UCT_AGENT_DATA", "1")
+    monkeypatch.setenv(gateway.KINDS_ENV, ",".join(gateway.registry().names()))  # every kind on
     monkeypatch.setenv("UCT_AGENT_SCAN", "1")
     gateway._reset_for_test()
     out = _read("screen.saved", {}, "s3")

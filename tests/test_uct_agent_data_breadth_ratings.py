@@ -28,6 +28,7 @@ def _env(monkeypatch):
     # ACTIVE behaviour: both flags on. Model-isolated kinds are DORMANT without UCT_AGENT_ISOLATED (ADR-005, #599);
     # the dormant default is pinned separately below, with the flag deliberately removed.
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
     gw._reset_for_test(None)
     monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", lambda now=None: LATEST)
