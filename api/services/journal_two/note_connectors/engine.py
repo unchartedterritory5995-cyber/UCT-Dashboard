@@ -93,6 +93,7 @@ import asyncio
 import base64
 import binascii
 import copy
+import dataclasses
 import json
 import logging
 import os
@@ -111,6 +112,9 @@ from api.services.journal_two.notes_quota import NoteQuotaExceeded
 from api.services.journal_two.note_connectors import connections, errors, oauth
 from api.services.journal_two.note_connectors.link_keys import heal_pending_links, resolve_link_keys
 from api.services.journal_two.note_connectors.convert import REF_PREFIX, mddoc, rewrite_body
+from api.services.journal_two.note_connectors.convert.linkify import (
+    import_link_keys, linkify_doc, normalize_link_hrefs,
+)
 from api.services.journal_two.note_connectors.providers.base import (
     NoteProvider, RemoteNote, RemoteRef,
 )
@@ -695,6 +699,8 @@ async def _do_sync(
 
         remote_notes, fetch_failures = await _fetch_remote_notes(provider, creds, refs)
         item_failures.extend(fetch_failures)
+        # Plan A Task 10: links finalized here, before anything hashes or stores a doc.
+        remote_notes = await asyncio.to_thread(_finalize_remote_notes, remote_notes)
 
         # ⛔⛔ session-audit.md A1: every ref this pass fetched but never
         # actually got a stored note out of — a fetch failure (never made it
@@ -1193,6 +1199,28 @@ async def _fetch_remote_notes(
                 except Exception as e2:  # noqa: BLE001
                     failures.append(f"fetch failed for {ref.remote_id!r}: {e2}")
     return notes, failures
+
+
+def _finalize_remote_doc(doc: dict[str, Any]) -> dict[str, Any]:
+    """Plan A Task 10 (L-3, L-4): THE chokepoint every provider's doc passes through --
+    Notion rich text, Roam, Craft, OneNote, Dropbox and Obsidian alike -- before it is
+    hashed or stored. Existing hrefs go through the one scheme policy first (an unsafe or
+    dead link becomes text), then bare URLs in plain text become links. Pure."""
+    return linkify_doc(normalize_link_hrefs(doc))
+
+
+def _finalize_remote_notes(notes: list[RemoteNote]) -> list[RemoteNote]:
+    """Each note with a finalized doc -- a NEW `RemoteNote`, the provider's object is never
+    mutated. A deep link the policy turned into a pending `import-link://` key joins
+    `links`, so the round's final link pass resolves it like any other. Called through
+    `asyncio.to_thread`: linear, but a large batch is still CPU work off the event loop."""
+    out: list[RemoteNote] = []
+    for rn in notes:
+        doc = _finalize_remote_doc(rn.doc)
+        links = list(rn.links)
+        links.extend(k for k in import_link_keys(doc) if k not in links)
+        out.append(dataclasses.replace(rn, doc=doc, links=links))
+    return out
 
 
 # ── Conflict policy + import_confirm + media/rewrite (spec §6, §3) ──────────

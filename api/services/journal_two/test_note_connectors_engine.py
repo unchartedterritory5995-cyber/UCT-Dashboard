@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import copy
 import importlib
 import json
 import threading
@@ -3457,3 +3458,64 @@ async def test_percent_encoded_svg_data_uri_is_decoded_and_kept(source, provider
     assert _nodes_of(body, "importNotice") == []
     (chip,) = _nodes_of(body, "attachmentChip")
     assert chip["attrs"]["href"].endswith(".svg")
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 10 (L-3, L-4): every provider doc is finalized -- bare URLs become
+# links, every href goes through the one scheme policy -- before it is hashed.
+# ---------------------------------------------------------------------------
+
+def _link_marks(doc) -> list[tuple[str, str]]:
+    out = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            for m in node.get("marks") or []:
+                if m.get("type") == "link":
+                    out.append((node.get("text"), m["attrs"]["href"]))
+            for c in node.get("content") or []:
+                walk(c)
+    walk(doc)
+    return out
+
+
+async def test_every_provider_doc_is_finalized_before_hashing(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "Links", text="see www.tradingview.com/x. and NVDA.US")
+    rn.doc["content"].append({"type": "paragraph", "content": [
+        {"type": "text", "text": "bad", "marks": [{"type": "link", "attrs": {"href": "javascript:alert(1)"}}]},
+        {"type": "text", "text": " https://in.code/x", "marks": [{"type": "code"}]},
+    ]})
+    provider.notes_by_id = {"p1": rn}
+    original = copy.deepcopy(rn.doc)
+
+    await engine.sync_source(source["id"], full=True)
+
+    (note,) = notes_svc.list_notes("u1")
+    assert _link_marks(_body(note)) == [("www.tradingview.com/x", "https://www.tradingview.com/x")]
+    assert rn.doc == original  # the provider's own object is never mutated
+    # the hash was taken over the FINALIZED body: an unchanged re-push is a no-op
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["updated"] == 0 and result["created"] == 0
+
+
+async def test_a_notion_deep_link_resolves_to_the_imported_note(source, provider):
+    pid = "0123456789abcdef0123456789abcdef"
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:01+00:00"),
+    ]
+    rn = _rn("p1", "Deep")
+    rn.doc["content"].append({"type": "paragraph", "content": [
+        {"type": "text", "text": "Target", "marks": [{"type": "link", "attrs": {"href": f"notion://www.notion.so/T-{pid}"}}]},
+    ]})
+    provider.notes_by_id = {"p1": rn, "p2": _rn("p2", "Target", updated_at="2026-08-01T00:00:01+00:00")}
+    # the fake provider's import key is not a notion key, so map the derived key onto p2's
+    real_import_key = provider.import_key
+    provider.import_key = lambda s, r: "notion:01234567-89ab-cdef-0123-456789abcdef" if r == "p2" else real_import_key(s, r)
+
+    await engine.sync_source(source["id"], full=True)
+
+    target_id = next(n["id"] for n in notes_svc.list_notes("u1") if n["title"] == "Target")
+    deep = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Deep")
+    assert _link_marks(_body(deep)) == [("Target", f"/journal?j2tab=notebook&note={target_id}")]
