@@ -295,24 +295,31 @@ _CODE_RE = re.compile(_FENCE_SRC + r"|`[^`\n]*`")
 # optional group after `|` is an ALIAS; for an embed it is Obsidian's
 # `|width` sizing suffix and is deliberately ignored (mirrors
 # `transformEmbeds`'s `rawTarget.split('|')[0]`).
-# ⛔ A target never runs across an embed's own `![[` (D2 item 3): in `[[![[img.png]]]]` the
-# match is the inner embed, never a wikilink to a note named `![[img.png`.
-_WIKI_RE = re.compile(r"(!)?\[\[((?:(?!!\[\[)[^\]|])+)(?:\|((?:(?!!\[\[)[^\]])+))?\]\]")
+# ⛔ A target or alias never runs across a `[[` (D2 item 3, then D2 fix round 3): in
+# `[[![[img.png]]]]` the match is the inner embed, never a wikilink to a note named
+# `![[img.png`. ⛔ And it is what keeps these patterns LINEAR: a target that could take
+# `[` scanned the rest of a line of `[` at every one of them, so a 20 KB line of `[` cost
+# ~13 s per sync (~20 s on an old-plugin row). Obsidian itself refuses `[` and `]` in a
+# file name, so no real target holds `[[`.
+_WIKI_TARGET = r"(?:(?!\[\[)[^\]|])+"
+_WIKI_ALIAS = r"(?:(?!\[\[)[^\]])+"
+_WIKI_EMBED = rf"!\[\[{_WIKI_TARGET}(?:\|{_WIKI_ALIAS})?\]\]"
+_WIKI_RE = re.compile(rf"(!)?\[\[({_WIKI_TARGET})(?:\|({_WIKI_ALIAS}))?\]\]")
 # D2 fix round 1 (e): an embed in ALIAS position, `[[Plan|![[img.png]]]]` (or the attachment
 # pass's markdown for that embed inside one). It reads as the embed, then the link to the
 # note as a plain `[[Plan]]` would read -- both kept. ⚰️ The alias pattern took `![[img.png`
 # as the alias: raw brackets around the image, and the link lost. The client lane writes
 # the same (`obsidian.js::transformWikiLinks`).
 _ALIAS_EMBED_RE = re.compile(
-    r"\[\[((?:(?!!\[\[)[^\]|])+)\|(!\[\[[^\]|]+(?:\|[^\]]+)?\]\]|!\[\]\(<[^<>\n]*>\))\]\]")
+    rf"\[\[({_WIKI_TARGET})\|({_WIKI_EMBED}|!\[\]\(<[^<>\n]*>\))\]\]")
 #: The same link as an original cut off at the embed's own `]]` (D2 fix round 3, N-I3).
-_CUT_ALIAS_EMBED_RE = re.compile(r"\[\[((?:(?!!\[\[)[^\]|])+)\|(!\[\[[^\]|]+(?:\|[^\]]+)?\]\])")
+_CUT_ALIAS_EMBED_RE = re.compile(rf"\[\[({_WIKI_TARGET})\|({_WIKI_EMBED})")
 # D2 item 3: an embed wrapped in a wikilink, `[[![[img.png]]]]` / `[[![[img.png|300]]|alias]]`,
 # or the attachment pass's markdown for that embed (`![](<obsidian-att:...>)`) inside one.
 # Without an alias it reads as the embed; with one, as the alias alone (item 4). Mirrors
 # what the client's held markup does (`obsidian.js::preprocessWikiSyntax`).
 _NESTED_EMBED_RE = re.compile(
-    r"\[\[(!\[\[[^\]|]+(?:\|[^\]]+)?\]\]|!\[\]\(<[^<>\n]*>\))(?:\|([^\]]+))?\]\]")
+    rf"\[\[({_WIKI_EMBED}|!\[\]\(<[^<>\n]*>\))(?:\|({_WIKI_ALIAS}))?\]\]")
 # ⛔ A trader's prose is full of `==` COMPARISONS ("if rsi == 30 and macd == 0").
 # The old `==([^=\n]+)==` read the span between two comparisons as a highlight and
 # deleted both operators. A highlight now needs a non-space just inside each `==`,

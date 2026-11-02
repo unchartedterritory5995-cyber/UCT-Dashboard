@@ -80,8 +80,12 @@ const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
 // D2 fix round 3, M-new-1: a `~~~` fence is code too, in the same order as the
 // server's `_FENCE_SRC`. ⚰️ An embed in one became an <img> as code TEXT, uploaded.
 const CODE_RE = /```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g
-const EMBED_RE = /!\[\[([^\]]+)\]\]/g
-const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
+// ⛔ A target or alias never runs across a `[[` (D2 fix round 3, the server's
+// `_WIKI_TARGET`/`_WIKI_ALIAS`): it keeps these patterns LINEAR. A target that could take
+// `[` scanned the rest of a line of `[` at every one of them (80 KB: ~2 s, quadratic).
+// Obsidian refuses `[` and `]` in a file name, so no real target holds `[[`.
+const EMBED_RE = /!\[\[((?:(?!\[\[)[^\]])+)\]\]/g
+const WIKILINK_RE = /\[\[((?:(?!\[\[)[^\]|])+)(?:\|((?:(?!\[\[)[^\]])+))?\]\]/g
 // ⛔ A trader's prose is full of `==` COMPARISONS ("if rsi == 30 and macd == 0").
 // The old `/==([^=\n]+)==/` highlighted the span between two comparisons and
 // deleted both operators. A highlight now needs a non-space just inside each

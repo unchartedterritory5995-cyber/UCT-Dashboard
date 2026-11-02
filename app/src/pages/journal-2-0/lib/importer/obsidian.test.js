@@ -863,3 +863,18 @@ describe('obsidian adapter — D2 fix round 3: a ~~~ fence is code', () => {
     expect(doc.content.filter((n) => n.type === 'image')).toHaveLength(1)
   })
 })
+
+// D2 fix round 3 (perf): a wikilink or embed target never runs across `[[`, as on the
+// server, so a long line of `[` (or of `![[`) is linear: each try stops at the next `[[`.
+// ⚰️ 80 KB of `[` cost ~2 s in WIKILINK_RE alone, quadratically more as it grew.
+describe('obsidian adapter — D2 fix round 3: a long run of brackets is linear', () => {
+  for (const [name, body] of [['brackets', '['.repeat(80000)], ['embed openers', '![['.repeat(54000)],
+    ['brackets then close', `${'['.repeat(80000)}]]`]]) {
+    it(`parses 80-160 KB of ${name} in well under a second`, async () => {
+      const started = performance.now()
+      const { docs } = await obsidianAdapter.parse([vf('V/a.md', body), vf('V/Plan.md', 'p')])
+      expect(docs).toHaveLength(2)
+      expect(performance.now() - started).toBeLessThan(1000)
+    })
+  }
+})

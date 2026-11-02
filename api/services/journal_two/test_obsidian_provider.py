@@ -1871,3 +1871,32 @@ def test_a_file_link_original_cut_off_at_its_embeds_brackets_still_keeps_both():
         assert [m["kind"] for m in conv["media"]] == ["image", "file"]
         assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y"
         assert "]]" not in _plain(conv["doc"])
+
+
+@pytest.mark.parametrize("body", ["[" * 20000, "[" * 20000 + "]]", "![[" * 3400, ("x [" * 5000) + "]]"],
+                         ids=["brackets", "brackets-then-close", "embed-openers", "spaced-brackets"])
+def test_a_long_run_of_brackets_converts_in_linear_time(body):
+    """D2 fix round 3 (perf): the wikilink patterns used to retry their whole target at every
+    `[` of a run, so a 20 KB line of `[` took ~13 s to convert (~20 s on an old-plugin row),
+    on every sync. A target or alias can no longer run across `[[`, which bounds each try."""
+    import time
+    for refs in ([], None):
+        started = time.perf_counter()
+        _convert(body, refs=refs)
+        assert time.perf_counter() - started < 1.0, (len(body), refs)
+
+
+def test_every_wikilink_pattern_of_this_provider_is_linear_on_a_bracket_run():
+    """D2 fix round 3 (perf): each wikilink-shaped pattern, alone, over 40 KB of `[` and of
+    `![[`. A whole conversion of a long `![[` run still spends time in the SHARED converter
+    (`mddoc` and markdown-it's own image-opener scan, not this provider), so the provider's
+    own patterns are timed here, where a quadratic one shows by itself."""
+    import time
+
+    from api.services.journal_two.note_connectors.providers import obsidian as provider
+    patterns = ["_WIKI_RE", "_NESTED_EMBED_RE", "_ALIAS_EMBED_RE", "_CUT_ALIAS_EMBED_RE"]
+    for body in ("[" * 40000, "![[" * 13400, "[[a|" * 10000):
+        for name in patterns:
+            started = time.perf_counter()
+            list(getattr(provider, name).finditer(body))
+            assert time.perf_counter() - started < 0.2, (name, body[:4], len(body))
