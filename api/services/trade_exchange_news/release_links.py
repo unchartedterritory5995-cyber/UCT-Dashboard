@@ -83,13 +83,14 @@ SEC_WINDOW = (-3 * 60 * MIN, 72 * 60 * MIN)   # acceptance time vs arrival
 SEC_FORMS = frozenset({"8-K", "8-K/A", "6-K", "6-K/A"})
 SEC_TITLE_CHARS = 3000            # how much of the exhibit is read
 #: Where the exact headline must START in the normalized document to count as the
-#: release itself: within 800 characters, or 300 for a filing accepted more than
-#: 6 h after the headline (a later filing that merely repeats it never qualifies).
-#: Measured on the 163 SEC matches of 2026-11-01: 156 start within 400, every
-#: filing later than 6 h within 150. Deeper matches are shadow-only.
+#: release itself. Measured on the 163 SEC matches of 2026-11-01: 156 start within
+#: 400. Deeper matches are shadow-only (``sec_exhibit_deep``).
 SEC_TITLE_HEAD = 800
-SEC_LATE_TITLE_HEAD = 300
-SEC_LATE_MS = 6 * 60 * MIN
+#: Only a filing accepted within 6 h of the headline is ever LINKED. A later filing
+#: with the exact headline (a combined release, a highlights bullet, a recap) may
+#: be a different release, and text alone cannot always tell: it is shadow-only
+#: (``sec_late_exact``). 4 of the 2026-11-01 SEC-only links were later than 6 h.
+SEC_LINK_MAX_MS = 6 * 60 * MIN
 SEC_MIN_WORDS = 4
 SEC_MAX_FILINGS = 4
 SEC_MAX_DOCS = 3
@@ -123,8 +124,6 @@ _SLUG_NOISE = frozenset({"news", "release", "releases", "html", "htm", "en", "ho
 _TAGS = re.compile(r"<[^>]+>")
 #: Markup whose text is never document text (CSS, scripts, the <head> and its <title>).
 _NOISE = re.compile(r"(?is)<(script|style|head)\b.*?</\1\s*>")
-#: Block-level boundaries: a heading is the whole text of one to three blocks.
-_BLOCK = re.compile(r"(?i)<\s*/?\s*(?:p|div|td|th|tr|li|h[1-6]|table|center|section|article|header)\b[^>]*>")
 _EX99 = re.compile(r"ex[-_]?99|exhibit[-_]?99|ex991|dex99", re.I)
 
 
@@ -311,24 +310,6 @@ def exhibit_text(raw: bytes) -> str:
     s = _NOISE.sub(" ", raw[:SEC_DOC_MAX_BYTES].decode("utf-8", "replace"))
     s = _html.unescape(_TAGS.sub(" ", s))
     return _norm(s)[:SEC_TITLE_CHARS * 2]
-
-
-def is_heading(raw: bytes, tx_norm: str) -> bool:
-    """True when the headline is a WHOLE heading of the document: the full text of
-    one block, or of two or three consecutive blocks (a title set on several
-    lines). A longer heading that merely starts with it ("...; Declares Dividend")
-    is not."""
-    s = _NOISE.sub(" ", raw[:SEC_DOC_MAX_BYTES].decode("utf-8", "replace"))
-    blocks = [b for b in (_norm(_html.unescape(_TAGS.sub(" ", part))) for part in _BLOCK.split(s)[:400]) if b]
-    for i in range(len(blocks)):
-        joined = ""
-        for b in blocks[i:i + 3]:
-            joined = f"{joined} {b}".strip()
-            if joined == tx_norm:
-                return True
-            if len(joined) >= len(tx_norm):
-                break
-    return False
 
 
 def decide_sec_text(tx_norm: str, text: str, head: int = SEC_TITLE_HEAD) -> tuple[str, float] | None:
@@ -687,23 +668,20 @@ def decide_sec(tx: dict[str, Any], sec: SecLookup) -> dict[str, Any]:
             if e.status == 404:
                 continue
             raise
-        late = f["accepted_ms"] - tx["ms"] > SEC_LATE_MS
+        late = f["accepted_ms"] - tx["ms"] > SEC_LINK_MAX_MS
         for url, body in docs:
-            v = decide_sec_text(tx["norm"], exhibit_text(body), SEC_LATE_TITLE_HEAD if late else SEC_TITLE_HEAD)
+            v = decide_sec_text(tx["norm"], exhibit_text(body))
             if v is None:
                 continue
-            # A filing made more than 6 h later counts only when the headline is a
-            # whole heading of it: a later release whose own heading merely starts
-            # with this headline is a different release.
-            if v[0] == "exact" and late and not is_heading(body, tx["norm"]):
-                v = ("deep", 1.0)
+            if v[0] == "exact" and late:
+                v = ("late", 1.0)
             if safe_url(url, (SEC_HOST,)) is None:
                 continue
             ref = f"sec:{f['accession']}"
             if v[0] == "exact":
                 exact.append((f, url, ref))
                 break
-            tier = "sec_exhibit_deep" if v[0] == "deep" else "sec_containment"
+            tier = {"deep": "sec_exhibit_deep", "late": "sec_late_exact"}.get(v[0], "sec_containment")
             out["shadow"].append((tier, {"url": url, "ref": ref, "publisher": "SEC EDGAR"}, v[1],
                                   {"form": f["form"], "delta_ms": f["accepted_ms"] - tx["ms"]}))
         if exact:

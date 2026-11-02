@@ -864,37 +864,30 @@ def test_sec_title_within_the_head_is_linked(store, env):
     assert link_rows(store) and link_rows(store)[0][1] == "sec_filing"
 
 
-def test_a_later_filing_that_repeats_the_headline_below_its_opening_is_not_linked(store, env):
-    """QA M2: an 8-K filed 40 h later that repeats this headline 500 characters in
-    ('as previously announced ...') is a different filing, not this release."""
+LATER_EXHIBITS = {
+    "opens with it": EXHIBIT,
+    "repeats it further down": _filler(500) + f"<p>{TITLE}</p>",
+    "combined heading": f"<p><b>{TITLE.upper()}; ACME CORP DECLARES QUARTERLY DIVIDEND</b></p>",
+    "second heading line": f"<p><b>ACME CORP DECLARES QUARTERLY DIVIDEND</b></p><p><b>{TITLE.upper()}</b></p>",
+    "highlights bullet": f"<p>Acme Corp Declares Dividend Today</p><ul><li>{TITLE}</li></ul>",
+}
+
+
+@pytest.mark.parametrize("shape", sorted(LATER_EXHIBITS))
+def test_a_filing_more_than_6h_after_the_headline_is_never_linked(store, env, shape):
+    """QA M2: a later filing with the exact headline may be a different release (a
+    combined release, a highlights bullet, a recap). Text alone cannot always tell,
+    so it is shadow-only, however it is laid out."""
     eid = tx(store, f"ACME - {TITLE}")
-    later = T0 + 40 * 60 * MIN
-    sec_res(store, FakeSec(_filler(500) + f"<p>{TITLE}</p>", accepted_ms=later), now=later + 10 * MIN).run_pass()
-    assert link_rows(store) == [] and ("sec", "sec_exhibit_deep") in shadow(store, eid)
+    later = T0 + rl.SEC_LINK_MAX_MS + 1 * MIN
+    sec_res(store, FakeSec(LATER_EXHIBITS[shape], accepted_ms=later), now=later + 10 * MIN).run_pass()
+    assert link_rows(store) == [] and ("sec", "sec_late_exact") in shadow(store, eid)
 
 
-def test_a_later_filing_that_opens_with_the_headline_is_still_linked(store, env):
+def test_a_filing_just_inside_6h_is_linked(store, env):
     tx(store, f"ACME - {TITLE}")
-    later = T0 + 22 * 60 * MIN
-    sec_res(store, FakeSec(EXHIBIT, accepted_ms=later), now=later + 10 * MIN).run_pass()
-    assert link_rows(store) and link_rows(store)[0][1] == "sec_filing"
-
-
-def test_a_later_combined_release_that_starts_with_the_headline_is_not_linked(store, env):
-    """QA M2 (round 2): 40 h later, a release headed 'TITLE; Acme Declares Quarterly
-    Dividend' opens with this headline but is a different release."""
-    eid = tx(store, f"ACME - {TITLE}")
-    later = T0 + 40 * 60 * MIN
-    ex = f"<p>Exhibit 99.1</p><p><b>{TITLE.upper()}; ACME CORP DECLARES QUARTERLY DIVIDEND</b></p><p>Body.</p>"
-    sec_res(store, FakeSec(ex, accepted_ms=later), now=later + 10 * MIN).run_pass()
-    assert link_rows(store) == [] and ("sec", "sec_exhibit_deep") in shadow(store, eid)
-
-
-def test_a_later_filing_with_the_headline_set_on_two_lines_is_linked(store, env):
-    tx(store, f"ACME - {TITLE}")
-    later = T0 + 22 * 60 * MIN
-    ex = "<p>Exhibit 99.1</p><p><b>ACME CORP REPORTS</b></p><p><b>THIRD QUARTER 2026 RESULTS</b></p><p>Body.</p>"
-    sec_res(store, FakeSec(ex, accepted_ms=later), now=later + 10 * MIN).run_pass()
+    at = T0 + rl.SEC_LINK_MAX_MS - 1 * MIN
+    sec_res(store, FakeSec(EXHIBIT, accepted_ms=at), now=at + 10 * MIN).run_pass()
     assert link_rows(store) and link_rows(store)[0][1] == "sec_filing"
 
 
