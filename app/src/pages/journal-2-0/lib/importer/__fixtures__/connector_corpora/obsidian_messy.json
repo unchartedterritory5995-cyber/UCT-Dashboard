@@ -965,7 +965,7 @@
        {
         "content": [
          {
-          "text": "Schemes: [script](javascript:alert(1)) | [data page](data:text/html,<b>x</b>) | ",
+          "text": "Schemes: script | data page | ",
           "type": "text"
          },
          {

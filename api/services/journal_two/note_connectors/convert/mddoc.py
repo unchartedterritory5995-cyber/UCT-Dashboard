@@ -68,15 +68,20 @@ def _get_md() -> MarkdownIt:
 
 
 def _validate_link(url: str) -> bool:
-    """markdown-it's destination gate, widened by exactly one thing (Plan A Task 9, I-6): a
-    `data:image/*` destination of ANY image MIME, base64 or percent-encoded (the stock gate
-    admits only `data:image/(gif|png|jpeg|webp);`). It reaches `_image_node`, which registers
-    it as a media entry the engine decodes and rehosts. The same gate also passes links: a
-    `[x](data:image/...)` LINK is still refused downstream by `_is_allowed_link_href`, so it
-    stays text."""
-    if _DATA_IMAGE_PREFIX_RE.match(url):
-        return True
-    return markdown_it_validate_link(url)
+    """markdown-it's destination gate, OPEN: every destination tokenizes, and this module
+    decides what each one becomes (Plan A Task 15, D2).
+
+    ⛔ Why open. markdown-it's stock gate (`BAD_PROTO_RE`: javascript, vbscript, file, data)
+    does not refuse a LINK, it refuses to PARSE one: `[text](javascript:alert(1))` was then
+    stored as that raw markdown source. Opened, the destination reaches the two places that
+    already own the decision, each the one guard for its invariant:
+      * a link: `_is_allowed_link_href` (TipTap's own allow-list) refuses the mark, so the
+        visible `text` stays and nothing else does; nothing the stock gate refused can pass
+        it (none of the four schemes is on TipTap's list);
+      * an image: `_image_node` refuses any src the STOCK gate refuses (`_is_unsafe_image_src`)
+        except a `data:image/*` of any MIME (Plan A Task 9, I-6), which it registers as a
+        media entry the engine decodes and rehosts."""
+    return True
 
 
 class _Ctx:
@@ -555,10 +560,20 @@ def _destination_as_written(dest: str, *, markdown_image: bool = False) -> str:
     return dest
 
 
+def _is_unsafe_image_src(src: str) -> bool:
+    """A markdown image destination markdown-it's STOCK gate refuses (javascript, vbscript,
+    file, a non-image data URI), asked on the token's src as markdown-it normalised it. A
+    `data:image/*` of any MIME is the one widening (Plan A Task 9, I-6). `_validate_link`
+    is open, so this is the image half of what the stock gate used to do."""
+    return not _DATA_IMAGE_PREFIX_RE.match(src) and not markdown_it_validate_link(src)
+
+
 def _image_node(token: Token, ctx: _Ctx) -> dict[str, Any] | None:
     """Returns the TipTap image node, or `None` when the src is an
     unsupported data URI (caller degrades to visible text in that case)."""
     src = _destination_as_written(token.attrs.get("src") or "", markdown_image=True)
+    if _is_unsafe_image_src(token.attrs.get("src") or ""):
+        return None
     if src.startswith(REF_PREFIX):
         # Already a connector-supplied placeholder — pass through untouched,
         # no duplicate media entry (the connector already registered it).

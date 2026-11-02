@@ -560,16 +560,10 @@ def test_corpus_obsidian_schemes_are_kept_upgraded_or_text(hub):
     assert not [h for _, h in _links(hub) if h.lower().startswith(("javascript:", "data:"))]
 
 
-_MARKDOWN_SOURCE_DEFECT = (
-    "REAL DEFECT (Task 14 corpora, minor): in Obsidian markdown a `[text](javascript:...)` or "
-    "`[text](data:text/html,...)` link is refused by markdown-it's validateLink BEFORE the one "
-    "link policy sees it, so the stored note shows the raw markdown source "
-    "`[script](javascript:alert(1))` instead of the link text `script` (the Notion path, and "
-    "the policy's own rule, keep the text and drop only the link).")
-
-
-@pytest.mark.xfail(strict=True, reason=_MARKDOWN_SOURCE_DEFECT)
 def test_corpus_obsidian_unsafe_markdown_link_keeps_only_its_text(hub):
+    """Task 14 found it, Task 15 D2 fixed it: `[script](javascript:...)` and
+    `[data page](data:text/html,...)` keep only their visible text, never the raw markdown
+    source (markdown-it's gate used to refuse to parse them; `mddoc._validate_link`)."""
     assert _para_runs(hub, "Schemes:")[0] == ("Schemes: script | data page | ", None)
 
 

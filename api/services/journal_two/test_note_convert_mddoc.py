@@ -21,6 +21,8 @@ from __future__ import annotations
 import copy
 import json
 
+import pytest
+
 from api.services.journal_two.note_connectors.convert.mddoc import md_to_tiptap
 from api.services.journal_two.note_connectors.convert.rewrite import rewrite_body
 
@@ -894,14 +896,9 @@ def test_link_with_a_default_allowed_scheme_keeps_its_mark():
 
 
 def test_link_with_a_disallowed_scheme_strips_the_mark_keeps_the_text():
-    # `whatsapp://...` is the reachable case: markdown-it-py's OWN link
-    # validator (`normalize_url.BAD_PROTO_RE = ^(vbscript|javascript|file|
-    # data):`) only blocks those four prefixes, so an arbitrary custom
-    # scheme like this one DOES become a link_open token (verified) — unlike
-    # `javascript:`, which markdown-it-py's parser refuses to tokenize as a
-    # link AT ALL (falls back to raw literal source text, a layer earlier
-    # than mddoc.py's own `_is_allowed_link_href` ever runs). This is the
-    # case that actually exercises the Tiptap-allowlist check.
+    # A custom scheme markdown-it never refused. Since Task 15 (D2) `_validate_link` is
+    # open, so `javascript:` & co. reach the same Tiptap-allowlist check too (see
+    # test_an_unsafe_scheme_link_keeps_only_its_visible_text).
     result = md_to_tiptap("[text](whatsapp://send?text=hi)\n")
     para = result["doc"]["content"][0]
     assert _plain_text(para) == "text"
@@ -910,18 +907,45 @@ def test_link_with_a_disallowed_scheme_strips_the_mark_keeps_the_text():
             assert n.get("marks", []) == []
 
 
-def test_javascript_scheme_link_never_becomes_a_mark_either_markdown_it_blocks_it_first():
-    # Documents the OTHER defense layer: markdown-it-py's own parser already
-    # refuses to tokenize a `javascript:` destination as a link at all (same
-    # BAD_PROTO_RE gate noted above), so this never even reaches
-    # `_is_allowed_link_href`. End result is the same (no link mark reaches
-    # the doc) via a different mechanism — raw source text, unparsed.
-    result = md_to_tiptap("[text](javascript:alert(1))\n")
+@pytest.mark.parametrize("href", [
+    "javascript:alert(1)",
+    "JavaScript:alert(1)",
+    "data:text/html,%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+    "data:image/png;base64,AAAA",
+    "vbscript:msgbox(1)",
+    "file:///C:/Windows/win.ini",
+])
+def test_an_unsafe_scheme_link_keeps_only_its_visible_text(href):
+    # Plan A Task 15 (D2). markdown-it-py's own validateLink refuses these four schemes
+    # (`BAD_PROTO_RE`), and a refused destination is not a link token at all: the paragraph
+    # used to store the raw markdown SOURCE, `[text](javascript:alert(1))`. `_validate_link`
+    # now lets the destination tokenize so the ONE link policy (`_is_allowed_link_href`)
+    # decides, and it refuses each of these: the visible text stays, unmarked, nothing else.
+    result = md_to_tiptap(f"before [text]({href}) after\n")
     para = result["doc"]["content"][0]
-    assert "javascript:" in _plain_text(para)
-    for n in para["content"]:
-        if n.get("type") == "text":
-            assert n.get("marks", []) == []
+    assert para["content"] == [{"type": "text", "text": "before text after"}], href
+    assert result["media"] == [] and result["links"] == []
+
+
+def test_an_unsafe_scheme_autolink_is_text_never_a_mark():
+    # The same gate decides `<scheme:...>` autolinks: the address stays as visible text.
+    result = md_to_tiptap("see <javascript:alert(1)> now\n")
+    assert result["doc"]["content"][0]["content"] == [
+        {"type": "text", "text": "see javascript:alert(1) now"}]
+
+
+@pytest.mark.parametrize("src", [
+    "javascript:alert(1)", "vbscript:msgbox(1)", "file:///C:/pic.png",
+])
+def test_an_unsafe_scheme_image_is_never_a_media_entry(src):
+    # The widened gate also lets these reach the IMAGE rule. An image the stock gate refuses
+    # is never registered as media (nothing would ever fetch a `javascript:` "image"): it
+    # degrades to the visible unsupported-image text, as an unusable data URI does.
+    result = md_to_tiptap(f"![pic]({src})\n")
+    assert result["media"] == []
+    dumped = json.dumps(result["doc"])
+    assert '"type": "image"' not in dumped and "import-ref://" not in dumped
+    assert "[unsupported image]" in dumped
 
 
 def test_relative_and_journal_and_import_link_hrefs_still_allowed():
