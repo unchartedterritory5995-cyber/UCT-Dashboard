@@ -374,7 +374,7 @@ function escapeAttr(s) {
  * the post-parse pass (../postParse.js) renders an unresolvable one as text.
  */
 export function resolveRelativeMedia(html, dir, byPath, opts = {}) {
-  const { noteLinkKey = null } = opts
+  const { noteLinkKey = null, fallbackResolve = null } = opts
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const media = []
   const links = []
@@ -382,7 +382,11 @@ export function resolveRelativeMedia(html, dir, byPath, opts = {}) {
   doc.querySelectorAll('img[src]').forEach((img) => {
     const src = img.getAttribute('src')
     if (!src || isAbsoluteRef(src)) return
-    const resolvedPath = resolvePath(dir, src)
+    let resolvedPath = resolvePath(dir, src)
+    // `opts.fallbackResolve(src) -> path|null` (Plan B Task 8, I-9): asked only when the
+    // dir-relative path misses -- the Obsidian adapter finds `attachments/x.png` written in
+    // a sub-folder note at the vault root, as Obsidian does.
+    if (!byPath.has(resolvedPath) && fallbackResolve) resolvedPath = fallbackResolve(src) ?? resolvedPath
     const target = byPath.get(resolvedPath)
     if (!target) return
     img.setAttribute('src', `import-ref://${resolvedPath}`)
