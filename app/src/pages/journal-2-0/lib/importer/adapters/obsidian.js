@@ -232,8 +232,10 @@ function preprocessWikiSyntax(text, ctx) {
       },
       // A string that is exactly one placeholder this segment made (an embed already
       // held): only the importer writes a run of `open`'s length (see below).
-      isHeld: (s) => s.length > open.length && s.startsWith(open)
-        && /^[-]+$/.test(s.slice(open.length)),
+      isHeld: (s) => {
+        const m = HELD_ONLY_RE.exec(s)
+        return !!m && m[1].length === open.length
+      },
     }
     let out = segment
     out = transformEmbeds(out, hctx)
@@ -285,6 +287,8 @@ function preprocessWikiSyntax(text, ctx) {
 const HOLD_SENTINEL = '\uFDD0'
 const HOLD_CLOSE = '\uE001'
 const HOLD_RE = /(\uFDD0+)([\uE010-\uE019]+)\uE001/g
+// A string that is one whole placeholder and nothing else (`isHeld`, D2 fix round 1 (e)).
+const HELD_ONLY_RE = new RegExp(`^${HOLD_RE.source}$`)
 
 function holdOpenFor(segment) {
   let longest = 0
