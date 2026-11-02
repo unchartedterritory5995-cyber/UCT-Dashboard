@@ -101,6 +101,30 @@ async def chart_iq_feedback_export(since: float = Query(default=0.0), limit: int
     return {"rows": rows, "next_since": rows[-1]["updated"] if rows else since}
 
 
+@router.get("/pack/status")
+async def chart_iq_pack_status(user: dict = Depends(require_paid)):
+    """Admin only: the nightly pack's day, rows, errors, seconds and whether a build is running."""
+    if not _gate(user):
+        raise HTTPException(status_code=404, detail="Not found")
+    from api.services.chart_iq import pack
+    return await run_in_threadpool(pack.status)
+
+
+@router.post("/pack/build")
+async def chart_iq_pack_build(force: bool = Query(default=False), user: dict = Depends(require_paid)):
+    """Admin only: start a pack build in the background (refused during the session unless force=1)."""
+    if not _gate(user):
+        raise HTTPException(status_code=404, detail="Not found")
+    import threading
+    from api.services.chart_iq import pack
+    if pack._BUILDING.is_set():
+        return {"started": False, "reason": "already building"}
+    if pack.in_session() and not force:
+        return {"started": False, "reason": "regular session; pass force=1 to build anyway"}
+    threading.Thread(target=pack.build, kwargs={"force": True}, name="chart-iq-pack", daemon=True).start()
+    return {"started": True}
+
+
 @router.post("/{sym}/feedback")
 async def chart_iq_feedback(sym: str, body: FeedbackIn, user: dict = Depends(require_paid)):
     admin = _gate(user)
@@ -126,6 +150,14 @@ async def chart_iq(sym: str, date: str | None = Query(default=None, description=
     from api.services.chart_iq import pipeline   # lazy: the engine loads on first use, never at boot
     key = "chart_iq:%s:%s" % (sym, date or "latest")
     res = _CACHE.get(key)
+    if res is None:
+        # The nightly pack (api/services/chart_iq/pack.py): every stock's latest-session read computed after the close, so a
+        # latest-session ask is one lookup. A past date, a ticker the pack lacks, or a stale pack takes the live path below.
+        from api.services.chart_iq import pack
+        hit = await run_in_threadpool(pack.get, sym)
+        if hit and (date is None or date == hit.get("asof")):
+            res = hit
+            _CACHE.set(key, res, ttl=900)
     if res is None:
         async with _sem():
             res = _CACHE.get(key)
