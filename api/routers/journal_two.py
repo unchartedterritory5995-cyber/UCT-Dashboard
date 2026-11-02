@@ -3390,7 +3390,9 @@ def notes_import_confirm_endpoint(payload: dict[str, Any] = Depends(_json(dict[s
     if isinstance(payload, dict) and sample_marker.reserved_for_the_sample(payload.get("source")):
         raise HTTPException(status_code=400, detail="That import source name is reserved.")
     try:
-        return notes_service.import_confirm(user["id"], payload)
+        # Plan B Task 10: a file import never overwrites a note edited since its import, in
+        # either mode (`keptEdited`); `mode: "recover"` rebuilds the unedited ones.
+        return notes_service.import_confirm(user["id"], payload, guard_edits=True)
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

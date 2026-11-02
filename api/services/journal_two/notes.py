@@ -103,6 +103,7 @@ from api.services.journal_two.attachment_root import (
 from api.services.journal_two.notes_quota import (
     NoteQuotaExceeded, assert_import_headroom,
 )
+from api.services.journal_two import import_provenance
 from api.services.journal_two.import_notice import (
     MEDIA_PENDING_RETRY, MEDIA_PENDING_STORAGE, media_pending_state,
 )
@@ -1450,8 +1451,53 @@ def import_check(user_id: str, import_keys: list[str], conn: sqlite3.Connection 
             conn.close()
 
 
-def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None = None) -> dict:
+def _newest_media_mtime(user_id: str, note_id: str) -> float | None:
+    """The newest mtime of any stored media file under the note's `inline/` and `file/` dirs
+    (where `save_note_image_bytes` / `store_media` write), or None when there is none."""
+    newest = None
+    for sub in ("inline", "file"):
+        base = Path(_ATTACHMENT_ROOT) / user_id / "notes" / note_id / sub
+        try:
+            entries = list(base.rglob("*"))
+        except OSError:
+            continue
+        for p in entries:
+            try:
+                if p.is_file():
+                    m = p.stat().st_mtime
+                    newest = m if newest is None or m > newest else newest
+            except OSError:
+                continue
+    return newest
+
+
+def _edited_since_file_import(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row) -> bool:
+    """Plan B Task 10 (ruling R4): the file importer's "hands off" answer. The ONE predicate
+    (`import_provenance.edited_since_import`) minus the legacy finalize shape -- a note whose
+    only post-import write was the importer's own finalize PUT from before `update_note`
+    stamped `imported_at` (`import_provenance.legacy_finalize_shape`). Never a second rule."""
+    updated_at, imported_at = row["updated_at"], row["imported_at"]
+    if not import_provenance.edited_since_import(updated_at, imported_at):
+        return False
+    later_version = any(
+        import_provenance.is_later(v[0], imported_at)
+        for v in conn.execute("SELECT created_at FROM j2_note_versions WHERE note_id = ?", (row["id"],)))
+    return not import_provenance.legacy_finalize_shape(
+        updated_at, imported_at, _newest_media_mtime(user_id, row["id"]), later_version)
+
+
+def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None = None, *,
+                   guard_edits: bool = False) -> dict:
     """Transactional upsert of notes by fingerprint.
+
+    Plan B Task 10: `guard_edits=True` (the file-import route) never rewrites a note edited
+    since its import (`_edited_since_file_import`): it is reported in `keptEdited`
+    `{importKey, id}` instead. `payload["mode"] == "recover"` (implies the guard) rebuilds
+    every unedited existing note even when its hash matches and nothing is pending, keeping
+    its folder and checkpointing the replaced content in version history; reported in
+    `recovered` `{importKey, id, updatedAt}`. Any other mode is a `NoteValidationError`. The
+    response carries `recovered` and `keptEdited` only under the guard, so the connector
+    engine's call (no guard) keeps its exact shape and behaviour.
 
     Payload shape: {
         "source": str,
@@ -1497,6 +1543,11 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
     if raw_source is not None and not isinstance(raw_source, str):
         raise NoteValidationError("source must be a string")
     source = (raw_source or "file")[:40]
+    mode = payload.get("mode")
+    if mode is not None and (not isinstance(mode, str) or mode != "recover"):
+        raise NoteValidationError('mode must be "recover"')
+    recover = mode == "recover"
+    guard_edits = guard_edits or recover
     dest = payload.get("destFolderId") or ""
     owned = conn is None
     conn = conn or get_connection()
@@ -1517,6 +1568,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
         dest_depth = _folder_depth(conn, user_id, dest) if dest else 0
         max_path_depth = max(0, MAX_FOLDER_DEPTH - dest_depth)
         created, updated, skipped, failed = [], [], [], []
+        recovered, kept_edited = [], []   # Plan B Task 10: reported only under the guard
         # One import operation = one imported_at timestamp, deliberate
         now = _now_iso()
         path_cache: dict[tuple, str] = {}
@@ -1555,7 +1607,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # re-import creates fresh content instead of resurrecting a
                 # note the member deliberately trashed.
                 row = conn.execute(
-                    "SELECT id, import_hash, import_media_pending FROM j2_notes "
+                    "SELECT id, import_hash, import_media_pending, updated_at, imported_at FROM j2_notes "
                     "WHERE user_id = ? AND deleted_at IS NULL AND import_key = ?",
                     (user_id, key)).fetchone()
                 item = {"importKey": key, "id": row["id"] if row else None}
@@ -1571,10 +1623,19 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # via `updated` so the client's media/link phase runs again.
                 # Plan A Task 6: 2 ("waiting for storage space") skips like 0 --
                 # waiting must not re-import and re-download the note every pass.
-                if row and row["import_hash"] == h and (
+                # Plan B Task 10: `recover` rebuilds even an unchanged, settled note.
+                if row and not recover and row["import_hash"] == h and (
                         not row["import_media_pending"]
                         or row["import_media_pending"] == MEDIA_PENDING_STORAGE):
                     skipped.append(item)
+                    continue
+                # Plan B Task 10: never rewrite a note edited since its import. Recover's
+                # stricter caller rule (R4): it rebuilds only a note whose import it can date,
+                # so a missing or unreadable `imported_at` is hands off too.
+                if row and guard_edits and (
+                        (recover and not import_provenance.stamp_readable(row["imported_at"]))
+                        or _edited_since_file_import(conn, user_id, row)):
+                    kept_edited.append(item)
                     continue
                 created_at = _import_date(n.get("createdAt"), now)
                 updated_at = _import_date(n.get("updatedAt"), now)
@@ -1591,7 +1652,29 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # this note wrote.
                 conn.execute("SAVEPOINT j2_import_note")
                 try:
-                    if row:
+                    if row and recover:
+                        # Plan B Task 10: the content being replaced goes into version
+                        # history first (forced: a recover is an explicit member action).
+                        # The UPDATE is the `updated` branch's minus `folder_id`: the member
+                        # chose where the note lives.
+                        full = conn.execute("SELECT * FROM j2_notes WHERE id=? AND user_id=?",
+                                            (row["id"], user_id)).fetchone()
+                        _maybe_capture_version(conn, row["id"], user_id, full, force=True)
+                        conn.execute(
+                            "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
+                            "first_image_url=?, ticker=?, tags=?, import_hash=?, "
+                            "import_media_pending=?, imported_at=?, updated_at=?, "
+                            "import_remote_rev=? "
+                            "WHERE id=? AND user_id=?",
+                            (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
+                             first_image, ticker, json.dumps(tags), h, media_pending, now,
+                             updated_at, n.get("updatedAt") or None, row["id"], user_id))
+                        conn.execute("UPDATE j2_notes SET import_links_pending=? WHERE id=? AND user_id=?",
+                                     (links_pending, row["id"], user_id))
+                        _sync_note_sidecars(conn, user_id, row["id"], body_json, body_plain)
+                        conn.execute("RELEASE j2_import_note")
+                        recovered.append({"importKey": key, "id": row["id"], "updatedAt": updated_at})
+                    elif row:
                         conn.execute(
                             "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
                             "first_image_url=?, folder_id=?, ticker=?, tags=?, import_hash=?, "
@@ -1655,7 +1738,11 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 failed.append({"importKey": key, "error": str(e)})
                 continue
         conn.commit()
-        return {"created": created, "updated": updated, "skipped": skipped, "failed": failed}
+        out = {"created": created, "updated": updated, "skipped": skipped, "failed": failed}
+        if guard_edits:
+            out["recovered"] = recovered
+            out["keptEdited"] = kept_edited
+        return out
     except Exception:
         conn.rollback()
         raise
