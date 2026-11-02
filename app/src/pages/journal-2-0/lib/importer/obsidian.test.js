@@ -271,6 +271,39 @@ describe('obsidian adapter — Obsidian resolution (Plan B Task 8)', () => {
     expect(d.html).not.toMatch(/<a[^>]*>theirs/)
   })
 
+  it('makes a wikilink to a non-note file a chip, never a dead note link', async () => {
+    const d = await docOf([
+      vf('a.md', 'See [[deck.pdf]] and [[chart.png|the chart]].'),
+      vf('files/deck.pdf', 'x'), vf('chart.png', 'x'),
+    ], 'a.md')
+    expect(d.html).not.toContain('data-import-link')
+    expect(d.links).toEqual([])
+    expect(d.html).toContain('href="import-ref://files/deck.pdf"')
+    expect(d.html).toMatch(/href="import-ref:\/\/chart\.png"[^>]*>the chart<\/a>/)
+    expect(d.media.map((m) => [m.ref, m.kind]).sort()).toEqual([['chart.png', 'file'], ['files/deck.pdf', 'file']])
+  })
+
+  it('links each vault\'s notes inside that vault in a two-vault drop, and still links loose notes', async () => {
+    const files = [
+      vf('Obsidian/Work/.obsidian/app.json', '{}'), vf('Obsidian/Personal/.obsidian/app.json', '{}'),
+      // Each vault's own copy sits DEEPER than the other vault's, so a whole-drop lookup
+      // (shortest path wins) would cross vaults: only a per-vault index gets both right.
+      vf('Obsidian/Work/a.md', '[[Plan]] ![[c.png]]'), vf('Obsidian/Work/Plan.md', ''), vf('Obsidian/Work/img/c.png', 'w'),
+      vf('Obsidian/Personal/b.md', '[[Plan]] ![[c.png]]'), vf('Obsidian/Personal/Deep/Plan.md', ''), vf('Obsidian/Personal/c.png', 'p'),
+      vf('Obsidian/Loose/loose.md', 'see [[Plan]] and [[Ideas]]'), vf('Obsidian/Ideas.md', ''),
+    ]
+    const a = await docOf(files, 'Obsidian/Work/a.md')
+    const b = await docOf(files, 'Obsidian/Personal/b.md')
+    const loose = await docOf(files, 'Obsidian/Loose/loose.md')
+    expect(a.html).toContain('data-import-link="obsidian:Obsidian/Work/Plan.md"')
+    expect(a.html).toContain('src="import-ref://Obsidian/Work/img/c.png"')
+    expect(b.html).toContain('data-import-link="obsidian:Obsidian/Personal/Deep/Plan.md"')
+    expect(b.html).toContain('src="import-ref://Obsidian/Personal/c.png"')
+    // A note in no vault resolves against the whole drop: into a vault, and beside itself.
+    expect(loose.html).toContain('data-import-link="obsidian:Obsidian/Work/Plan.md"')
+    expect(loose.html).toContain('data-import-link="obsidian:Obsidian/Ideas.md"')
+  })
+
   it('prefers the note in the linking note\'s own folder over the first one seen', async () => {
     const d = await docOf([
       vf('A/Deep/Plan.md', ''), vf('B/Plan.md', ''), vf('Notes/Sub/Plan.md', ''),
