@@ -10,7 +10,7 @@
  *    this used to silently cap at 5,000 with no signal at all, so a
  *    >5,000-note library's tail came back "not existing" and duplicated on
  *    re-import instead of updating).
- *  - rewriteBody(bodyJson, {mediaUrls, idByKey}) -> {body, droppedMedia}, PURE
+ *  - rewriteBody(bodyJson, {mediaUrls, mediaResults, idByKey}) -> {body, droppedMedia, notices, keptLinks}, PURE
  *  - runImport({source, destFolderId, docs, onProgress}) -> summary
  */
 
@@ -25,6 +25,7 @@ import { settleNoteWrite, settleNoteWrites } from '../offline/settleNoteWrite'
 import { notebookSchemaHeaders } from '../notebookSchema'
 import { noteKeyFor } from './uctJson'
 import { planConfirmBatches, confirmBody, noteTooLargeSentence } from './confirmBatches'
+import { importNoticeNode, NOTICE_REASONS } from './importNotice'
 
 /**
  * @param {Array<{importKey: string}>} docs
@@ -49,32 +50,72 @@ export async function checkExisting(docs) {
 /**
  * Resolves the import-time placeholder refs/links a converted doc's bodyJson
  * carries into their real, post-confirm values:
- *  - image nodes: `attrs.src === 'import-ref://<ref>'` -> `mediaUrls[ref]`.
- *    Unresolvable (upload failed, or the ref was never provided) -> the node
- *    is dropped from its parent's content and `<ref>` is recorded in
- *    `droppedMedia`.
- *  - attachmentChip nodes: same swap, on `attrs.href` instead of `attrs.src`.
+ *  - `mediaResults[ref]` is `{ok:true, src, kind, name, original?}` or
+ *    `{ok:false, reason, name, sourceUrl}`; the legacy `mediaUrls[ref]` string
+ *    still means "stored, as the node's own kind".
+ *  - image nodes (`attrs.src === 'import-ref://<ref>'`): stored as `image` ->
+ *    `src` swapped; stored as `file` (an SVG, say) -> an `attachmentChip`;
+ *    a returned `original` (a HEIC's) -> a chip for it right after the image.
+ *  - attachmentChip nodes: `href` swapped, `name` taken from the result.
+ *  - not stored, or no entry at all -> an `importNotice` IN THE SAME POSITION
+ *    (`./importNotice.js`; reason `missing_resource` when there was no result).
+ *    The ref goes into `droppedMedia` and `{ref, reason, name, sourceUrl}` into
+ *    `notices`. Nothing is dropped in silence (Plan B Task 4).
  *  - link marks: `attrs.href === 'import-link://<targetKey>'` -> resolved via
  *    `idByKey[targetKey]` to `/journal?j2tab=notebook&note=<id>`. Unresolved
- *    (the target note never imported, or was itself dropped) -> the MARK is
- *    removed, but the text run it was attached to is kept as plain text.
+ *    -> the mark is KEPT unchanged (the editor renders it as plain text) and
+ *    `{key, text}` goes into `keptLinks`, so the heal door can fix it later.
  *
  * Deep-walks the whole tree (tables, lists, nested blocks — anywhere a media
- * node or a marked text run can live), and never mutates its input.
+ * node or a marked text run can live; one node can become two), and never
+ * mutates its input.
  *
  * @param {object} bodyJson
- * @param {{mediaUrls?: Record<string,string>, idByKey?: Record<string,string>}} opts
- * @returns {{body: object, droppedMedia: string[]}}
+ * @param {{mediaUrls?: Record<string,string>, mediaResults?: Record<string,object>, idByKey?: Record<string,string>}} opts
+ * @returns {{body: object, droppedMedia: string[], notices: Array<{ref: string, reason: string, name: string|null, sourceUrl: string|null}>, keptLinks: Array<{key: string, text: string}>}}
  */
-export function rewriteBody(bodyJson, { mediaUrls = {}, idByKey = {} } = {}) {
+export function rewriteBody(bodyJson, { mediaUrls = {}, mediaResults = {}, idByKey = {} } = {}) {
   const droppedMedia = []
+  const notices = []
+  const keptLinks = []
 
   function refFromPlaceholder(value) {
     if (typeof value !== 'string' || !value.startsWith(REF_PREFIX)) return null
     return value.slice(REF_PREFIX.length)
   }
 
-  function rewriteMarks(marks) {
+  // `mediaResults[ref]` wins; a legacy `mediaUrls[ref]` string means "stored, as the node's own
+  // kind" (`kind: null` = keep the node type). No entry at all -> undefined (a notice).
+  function resultFor(ref) {
+    const r = Object.prototype.hasOwnProperty.call(mediaResults, ref) ? mediaResults[ref] : undefined
+    if (r && typeof r === 'object') return r
+    const url = Object.prototype.hasOwnProperty.call(mediaUrls, ref) ? mediaUrls[ref] : null
+    return typeof url === 'string' && url ? { ok: true, src: url, kind: null } : undefined
+  }
+
+  const stored = (r) => r && r.ok === true && typeof r.src === 'string' && r.src !== ''
+
+  function noticeFor(ref, result, nodeName) {
+    const failed = result && result.ok === false ? result : null
+    const node = importNoticeNode({
+      reason: failed?.reason ?? NOTICE_REASONS.missingResource,
+      name: failed?.name ?? nodeName ?? null,
+      sourceUrl: failed?.sourceUrl ?? null,
+      ref,
+    })
+    droppedMedia.push(ref)
+    const { reason, name, sourceUrl } = node.attrs
+    notices.push({ ref, reason, name, sourceUrl })
+    return [node]
+  }
+
+  const chipNode = (href, name) => ({ type: 'attachmentChip', attrs: { href, name: typeof name === 'string' && name ? name : 'file' } })
+
+  function textOf(node) {
+    return typeof node?.text === 'string' ? node.text : ''
+  }
+
+  function rewriteMarks(marks, owner) {
     const out = []
     for (const mark of marks) {
       if (mark.type === 'link' && typeof mark.attrs?.href === 'string' && mark.attrs.href.startsWith(LINK_PREFIX)) {
@@ -82,8 +123,13 @@ export function rewriteBody(bodyJson, { mediaUrls = {}, idByKey = {} } = {}) {
         const noteId = idByKey[targetKey]
         if (noteId) {
           out.push({ ...mark, attrs: { ...mark.attrs, href: `/journal?j2tab=notebook&note=${noteId}` } })
+        } else {
+          // Unresolved -> the mark is KEPT, unchanged: the editor renders an `import-link://`
+          // as plain text, and the server's heal door (Task 5) can still point it at the note
+          // once that note exists. Stripping it would lose the target for good.
+          out.push(mark)
+          keptLinks.push({ key: targetKey, text: textOf(owner) })
         }
-        // unresolved -> drop the mark, keep the text run itself
         continue
       }
       out.push(mark)
@@ -91,31 +137,37 @@ export function rewriteBody(bodyJson, { mediaUrls = {}, idByKey = {} } = {}) {
     return out
   }
 
-  // Returns the rewritten node, or `null` if the node should be dropped
-  // entirely from its parent's content array.
-  function walkNode(node) {
-    if (!node || typeof node !== 'object') return node
+  // Returns the ARRAY of nodes this node becomes in its parent's content: one node usually,
+  // two for an image with a kept original. Never empty for a media placeholder: a failure
+  // becomes an importNotice in the same position.
+  function walk(node) {
+    if (!node || typeof node !== 'object') return [node]
 
     if (node.type === 'image') {
       const ref = refFromPlaceholder(node.attrs?.src)
-      if (ref === null) return node
-      const url = mediaUrls[ref]
-      if (url == null) {
-        droppedMedia.push(ref)
-        return null
+      if (ref === null) return [node]
+      const result = resultFor(ref)
+      if (!stored(result)) return noticeFor(ref, result, node.attrs?.alt || node.attrs?.title || null)
+      // The server decides what it stored: `kind: "file"` (an SVG, say) is a chip, never an
+      // <img> of a stored file.
+      const out = result.kind === 'file'
+        ? [chipNode(result.src, result.name)]
+        : [{ ...node, attrs: { ...node.attrs, src: result.src } }]
+      const original = result.original
+      if (original && typeof original === 'object' && typeof original.src === 'string' && original.src) {
+        out.push(chipNode(original.src, original.name))
       }
-      return { ...node, attrs: { ...node.attrs, src: url } }
+      return out
     }
 
     if (node.type === 'attachmentChip') {
       const ref = refFromPlaceholder(node.attrs?.href)
-      if (ref === null) return node
-      const url = mediaUrls[ref]
-      if (url == null) {
-        droppedMedia.push(ref)
-        return null
-      }
-      return { ...node, attrs: { ...node.attrs, href: url } }
+      if (ref === null) return [node]
+      const result = resultFor(ref)
+      if (!stored(result)) return noticeFor(ref, result, node.attrs?.name || null)
+      const attrs = { ...node.attrs, href: result.src }
+      if (typeof result.name === 'string' && result.name) attrs.name = result.name
+      return [{ ...node, attrs }]
     }
 
     // Wave 8 lane 8C — two shapes only our own JSON export carries (`uctJson.js`):
@@ -127,27 +179,26 @@ export function rewriteBody(bodyJson, { mediaUrls = {}, idByKey = {} } = {}) {
     if (node.type === 'widgetEmbed' && node.attrs?.fallback && typeof node.attrs.fallback === 'object') {
       const ref = refFromPlaceholder(node.attrs.fallback.url)
       if (ref !== null) {
-        const url = mediaUrls[ref]
+        const result = resultFor(ref)
+        const url = stored(result) ? result.src : null
         if (url == null) droppedMedia.push(ref)
-        return { ...node, attrs: { ...node.attrs, fallback: url == null ? null : { ...node.attrs.fallback, url } } }
+        return [{ ...node, attrs: { ...node.attrs, fallback: url == null ? null : { ...node.attrs.fallback, url } } }]
       }
     }
     if (node.type === 'noteLink' && typeof node.attrs?.noteId === 'string') {
       const newId = idByKey[noteKeyFor(node.attrs.noteId)]
-      if (newId) return { ...node, attrs: { ...node.attrs, noteId: newId } }
-      return node
+      if (newId) return [{ ...node, attrs: { ...node.attrs, noteId: newId } }]
+      return [node]
     }
 
     const next = { ...node }
-    if (Array.isArray(node.marks)) next.marks = rewriteMarks(node.marks)
-    if (Array.isArray(node.content)) {
-      next.content = node.content.map(walkNode).filter((n) => n !== null)
-    }
-    return next
+    if (Array.isArray(node.marks)) next.marks = rewriteMarks(node.marks, node)
+    if (Array.isArray(node.content)) next.content = node.content.flatMap(walk)
+    return [next]
   }
 
-  const body = walkNode(bodyJson)
-  return { body, droppedMedia }
+  const [body] = walk(bodyJson)
+  return { body, droppedMedia, notices, keptLinks }
 }
 
 // ---------------------------------------------------------------------------
@@ -454,16 +505,20 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
 
     if (sourceDoc && noteId && (hasMedia || hasLinks)) {
       const mediaUrls = {}
+      // A failed upload is recorded as a failed RESULT, so its notice says it could not be
+      // uploaded rather than "couldn't be found" (Task 5 replaces this with storeMediaItem).
+      const mediaResults = {}
       let uploadFailed = false
       for (const item of sourceDoc.media || []) {
         try {
           mediaUrls[item.ref] = await uploadMediaItem(noteId, item)
         } catch (err) {
           summary.failures.push({ name: item.name || item.ref, reason: err?.message || String(err) })
+          mediaResults[item.ref] = { ok: false, reason: NOTICE_REASONS.uploadFailed, name: item.name || null, sourceUrl: null }
           uploadFailed = true
         }
       }
-      const { body: rewritten, droppedMedia } = rewriteBody(sourceDoc.bodyJson, { mediaUrls, idByKey })
+      const { body: rewritten, droppedMedia } = rewriteBody(sourceDoc.bodyJson, { mediaUrls, mediaResults, idByKey })
       if (uploadFailed || droppedMedia.length > 0) summary.attentionKeys.push(importKey)
       // The confirm step already counted this note as created/updated — that
       // outcome stands regardless of what happens here. A failure below is
