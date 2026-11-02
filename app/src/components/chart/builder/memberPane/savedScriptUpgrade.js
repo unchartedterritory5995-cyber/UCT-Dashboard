@@ -84,12 +84,33 @@ export function savedScriptUpgradeEnabled(env) {
   }
 }
 
+/** ⭐ What an engine at least as new as `current` already RECORDED about this exact
+ *  stored version (`definition_engine_status`, served as `row.engine_status`), or
+ *  null. Remembered server-side, so it holds across tabs and devices. */
+export function recordedEngineStatus(row, current = SCRIPT_ENGINE_VERSION) {
+  const st = row && row.engine_status
+  if (!isObj(st) || !Number.isInteger(st.engine) || st.engine < current) return null
+  return (st.status === 'refused' || st.status === 'write-failed') ? st : null
+}
+
 /** What load-time work a store row needs.
- *  @returns {'current'|'retranslate'|'legacy'|'none'} */
+ *  @returns {'current'|'retranslate'|'refused'|'retry'|'legacy'|'none'}
+ *   `refused` — today's engine already refused it (recorded): not drawn, no work;
+ *   `retry`   — its upgrade could not be written back (recorded): drawn as stored,
+ *               the Builder row offered, no translation, no PUT. */
 export function upgradeKindOf(row, current = SCRIPT_ENGINE_VERSION) {
   const def = row && row.definition
+  const recorded = isObj(def) ? recordedEngineStatus(row, current) : null
+  // ⛔⛔ A LIVE REFUSAL HOLDS ANY DOCUMENT, whatever its shape or stamp — the server's
+  // `engine_withheld_reason` never reads either to hold, and the two must agree (no
+  // "chart draws it but alerts withhold it" split). A refusal carried onto a studio
+  // edit (no longer script-shaped) or a share install is held here as there. It
+  // binds only while its engine is today's (`recordedEngineStatus`): past it, a
+  // version holding its script re-translates below, and one without expires.
+  if (recorded && recorded.status === 'refused') return 'refused'
   if (!isScriptDocument(def)) return 'none'
   if (!isStaleStamp(def, current)) return 'current'
+  if (recorded) return 'retry'
   if (typeof row.pine_source === 'string' && row.pine_source.trim()) return 'retranslate'
   // ⛔ A stale row whose script IS stored but was not sent (the list carries it
   // only to a browser that asked with a newer engine) is not legacy — it is a
@@ -99,6 +120,11 @@ export function upgradeKindOf(row, current = SCRIPT_ENGINE_VERSION) {
   // `install_share`) never carries the author's script, and its holder has none to
   // paste — so it is NOT offered the "open in Builder and save" row.
   if (isObj(def.origin)) return 'none'
+  // ⛔ L2 — A HAND-EDITED script document (the Formula tab, the studio, an Undo:
+  // any save that sent no script — `saveUserDefinition` marks it `scriptEdited`)
+  // is the member's own maths now; re-pasting the script would undo their edit, so
+  // it is not offered the row either.
+  if (def.meta.scriptEdited === true) return 'none'
   return 'legacy'
 }
 
@@ -164,6 +190,8 @@ export function retranslateRow(row, memberPaneDefinition) {
 const _memo = new Map()
 const _writeBacks = new Map()   // key → 'pending' | 'saved' | 'conflict' | 'failed'
 const _legacy = new Set()        // def ids offered the "open and save" row
+const _retryLocal = new Set()    // keys whose write-back the store refused (this tab)
+const _recorded = new Set()      // `key:status` already sent to the store
 
 const keyOf = (row, engine = SCRIPT_ENGINE_VERSION) => `${row.def_id}@${row.version}#${engine}`
 
@@ -190,17 +218,19 @@ export function onUpgradeSettled(fn) {
   return () => { _listeners.delete(fn) }
 }
 
-/** ⛔ A held row is hidden until its translation lands, so the wait is BOUNDED: a
- *  translator chunk that never arrives (a stalled network) must not hide a
- *  member's indicator forever. Past this, the row draws as stored (inconclusive). */
+/** ⛔ L4 — A held row is hidden until its translation lands, so the wait is BOUNDED
+ *  IN TOTAL — the chunk download AND the translation. Past this the row is RELEASED:
+ *  drawn as stored, while the upgrade keeps going in the background and swaps in
+ *  (or its refusal wins) the moment it lands. */
 export const TRANSLATOR_LOAD_TIMEOUT_MS = 10000
+const _released = new Set()      // keys drawn as stored while their upgrade continues
 
-function loadWithin(ms) {
-  let timer
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`not loaded within ${ms} ms`)), ms)
-  })
-  return Promise.race([loadTranslator(), timeout]).finally(() => clearTimeout(timer))
+function releaseLater(k) {
+  setTimeout(() => {
+    if (_memo.has(k)) return
+    _released.add(k)
+    notify()
+  }, TRANSLATOR_LOAD_TIMEOUT_MS)
 }
 
 const notify = () => { for (const fn of [..._listeners]) { try { fn() } catch { /* a listener's own problem */ } } }
@@ -231,11 +261,11 @@ function translateEach(entries, mod) {
 
 function flush(rowsByKey) {
   _scheduled = false
-  loadWithin(TRANSLATOR_LOAD_TIMEOUT_MS).then((mod) => {
+  loadTranslator().then((mod) => {
     translateEach([...rowsByKey], mod)
   }, (err) => {
     // ⛔ The translator could not even be loaded (a chunk 404 after a deploy, a
-    // network blip, the timeout): inconclusive, so every held row draws as stored.
+    // network blip): inconclusive, so every held row draws as stored.
     // The next stored version (or the next tab) tries the load again.
     _translator = null
     for (const [k] of rowsByKey) {
@@ -253,6 +283,7 @@ function queueUpgrade(row) {
   if (_memo.has(k) || _pending.has(k)) return
   _pending.add(k)
   _queue.set(k, row)
+  releaseLater(k)
   if (_scheduled) return
   _scheduled = true
   // A microtask, not render: the install runs during render and must stay pure.
@@ -269,25 +300,51 @@ export function upgradedRow(row) {
 
 /**
  * The document to INSTALL for one store row, and what to do about it.
- * @returns {{definition: object|null, refusal: string|null, writeBack: object|null, pending: boolean}}
+ * @returns {{definition: object|null, refusal: string|null, writeBack: object|null,
+ *            record: object|null, pending: boolean}}
  *   `definition: null` + `refusal` = the new translation refused it (do not draw);
- *   `definition: null` + `pending` = its new translation has not landed yet (hold it).
+ *   `definition: null` + `pending` = its new translation has not landed yet (hold it);
+ *   `record` = a refusal this tab just learned, to be remembered server-side once.
  */
 export function resolveRow(row) {
   const stored = row && row.definition
   const kind = savedScriptUpgradeEnabled() ? upgradeKindOf(row) : 'none'
-  if (kind === 'legacy') _legacy.add(row.def_id); else if (row && row.def_id) _legacy.delete(row.def_id)
-  if (kind !== 'retranslate') return { definition: stored, refusal: null, writeBack: null, pending: false }
+  const offer = kind === 'legacy' || kind === 'retry' || (row && _retryLocal.has(keyOf(row)))
+  if (offer) _legacy.add(row.def_id); else if (row && row.def_id) _legacy.delete(row.def_id)
+  const nameOf = () => (isObj(stored.meta) && stored.meta.name) || row.def_id
+  const out = (definition, extra = {}) => ({ definition, refusal: null, writeBack: null, record: null, pending: false, ...extra })
+  if (kind === 'refused') {
+    // ⭐ REMEMBERED: no chunk download, no translation, no request — the refusal wins.
+    return out(null, { refusal: `${nameOf()}: ${row.engine_status.reason}` })
+  }
+  if (kind !== 'retranslate') return out(stored)
   const r = upgradedRow(row)
-  if (!r) return { definition: null, refusal: null, writeBack: null, pending: true }
+  if (!r) {
+    // ⛔ L4 — held, unless its total wait ran out: then drawn as stored meanwhile.
+    return _released.has(keyOf(row)) ? out(stored) : out(null, { pending: true })
+  }
   if (r.status === 'upgraded') {
-    return { definition: r.definition, refusal: null, writeBack: { row, definition: r.definition }, pending: false }
+    // ⛔ L5 — a stored row without an integer version cannot be revision-guarded, so it
+    // is never written back (fail closed — never last-write-wins). It still draws.
+    const guarded = Number.isInteger(row.version) && !_retryLocal.has(keyOf(row))
+    return out(r.definition, guarded ? { writeBack: { row, definition: r.definition } } : {})
   }
   if (r.status === 'refused') {
-    const name = (isObj(stored.meta) && stored.meta.name) || row.def_id
-    return { definition: null, refusal: `${name}: ${r.reason}`, writeBack: null, pending: false }
+    return out(null, {
+      refusal: `${nameOf()}: ${r.reason}`,
+      record: Number.isInteger(row.version)
+        ? { row, status: 'refused', reason: r.reason } : null,
+    })
   }
-  return { definition: stored, refusal: null, writeBack: null, pending: false }
+  return out(stored)
+}
+
+/** ⭐ Is this script document HELD by a recorded engine verdict (refused, or its
+ *  upgrade could not be saved)? Then its only edit door is the script itself
+ *  (`ChartToolbar.openUpgradeDoor`), never the Formula tab on its stored maths. */
+export function scriptUpgradeHeld(row) {
+  const k = savedScriptUpgradeEnabled() ? upgradeKindOf(row) : 'none'
+  return k === 'refused' || k === 'retry'
 }
 
 /** Does this saved definition offer the "Updated accuracy available" row? */
@@ -297,6 +354,12 @@ export function needsScriptForUpgrade(defId) {
 
 /** The plain-words row the legend menu shows for a legacy script document. */
 export const UPGRADE_NOTICE_LABEL = 'Updated accuracy available — open in Builder and save to apply'
+
+/** What the Builder says when it opens a script whose upgrade could not be saved
+ *  automatically (its script is in the box). */
+export const SCRIPT_UPGRADE_RESAVE_NOTE = 'This indicator’s accuracy update could not be saved '
+  + 'automatically — usually because it needs your confirmation. Its script is below: review it '
+  + 'and choose "Save changes" to apply today’s engine.'
 
 /** What the Builder says when that row opens it: the one thing to do. */
 export const SCRIPT_UPGRADE_PASTE_NOTE = 'This indicator was saved before its script was kept. '
@@ -318,23 +381,57 @@ export const SCRIPT_UPGRADE_PASTE_NOTE = 'This indicator was saved before its sc
  * @param {{row: object, definition: object}} plan
  * @param {Function} save `saveUserDefinition` (injected to break an import cycle)
  */
-export async function writeBackOnce(plan, save) {
+export async function writeBackOnce(plan, save, record = null) {
   const { row, definition } = plan
   const k = keyOf(row)
   if (_writeBacks.has(k)) return _writeBacks.get(k)
+  // ⛔ L5 — fail closed: no revision guard, no write.
+  if (!Number.isInteger(row.version)) { _writeBacks.set(k, 'skipped'); return 'skipped' }
   _writeBacks.set(k, 'pending')
   const storedMode = isObj(row.definition.meta) ? row.definition.meta.repaint : null
   const nextMode = isObj(definition.meta) ? definition.meta.repaint : null
   const options = {
-    baseVersion: Number(row.version),
+    baseVersion: row.version,
     pineSource: row.pine_source,
+    // ⭐ MEDIUM-1 — tells the store this is the engine-upgrade write-back, so its
+    // migrated alerts get ONE accuracy-fix notice instead of one per alert.
+    reason: 'engine-upgrade',
     ...(storedMode === 'preview-repaints' && nextMode === 'preview-repaints' ? { previewAcked: true } : {}),
   }
   let res
   try { res = await save(definition, row.def_id, null, options) } catch { res = { ok: false } }
   const status = res && res.ok ? 'saved' : (res && res.conflict ? 'conflict' : 'failed')
   _writeBacks.set(k, status)
+  // ⭐ MEDIUM-2(b) — A STORE THAT ANSWERED NO (a 4xx other than the 409 race, e.g. a
+  // 422 repaint-ack) will answer no again: remember it for every device, stop
+  // translating and PUTting this version, and offer the member the Builder. A
+  // transport failure or a 5xx is transient and is not remembered.
+  const st = res && Number.isInteger(res.status) ? res.status : null
+  if (status === 'failed' && st !== null && st >= 400 && st < 500) {
+    _retryLocal.add(k)
+    _legacy.add(row.def_id)
+    notify()
+    if (typeof record === 'function') {
+      await recordOnce({ row, status: 'write-failed', reason: res.error || `refused (${st})` }, record)
+    }
+  }
   return status
+}
+
+/**
+ * ⭐ MEDIUM-2(a)/(b) — remember, server-side, what this engine learned about one
+ * stored version (`POST /{def_id}/engine-status`), ONCE per stored version per tab.
+ * A failure to record is not retried here: the next load learns it again.
+ */
+export async function recordOnce(plan, record) {
+  const { row, status, reason } = plan
+  const k = `${keyOf(row)}:${status}`
+  if (_recorded.has(k) || !Number.isInteger(row.version)) return false
+  _recorded.add(k)
+  try {
+    const res = await record(row.def_id, { version: row.version, engine: SCRIPT_ENGINE_VERSION, status, reason })
+    return !!(res && res.ok)
+  } catch { return false }
 }
 
 /** Diagnostics: the write-back state of one stored version (tests, support). */
@@ -343,5 +440,6 @@ export function writeBackStatus(row) { return _writeBacks.get(keyOf(row)) || nul
 /** Tests only. */
 export function __resetSavedScriptUpgrade() {
   _memo.clear(); _writeBacks.clear(); _legacy.clear(); _pending.clear(); _queue.clear()
+  _released.clear(); _retryLocal.clear(); _recorded.clear()
   _scheduled = false; _translator = null; _listeners.clear()
 }
