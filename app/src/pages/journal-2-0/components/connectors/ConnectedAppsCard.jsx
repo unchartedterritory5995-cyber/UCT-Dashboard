@@ -57,7 +57,7 @@ import styles from './ConnectedAppsCard.module.css'
 export default function ConnectedAppsCard() {
   const { isPaid, startCheckout } = useAuth()
   const {
-    providers, enabled, isLoading, refresh, connectToken, startOAuth, mintConnectCode, syncSource,
+    providers, enabled, isLoading, refresh, connectToken, startOAuth, mintConnectCode, syncSource, getSourceLog,
     updateSource, disconnect, listFolders, addSource,
   } = useNoteConnectors()
 
@@ -181,7 +181,9 @@ export default function ConnectedAppsCard() {
     setConsentChecked(false)
   }
 
+  // Returns the normalized sync result; SourceRow turns it (or a throw) into its notice.
   const handleSync = (source) => syncSource(source.id)
+  const handleLoadLog = (source) => getSourceLog(source.id)
   const handleTogglePause = (source) => updateSource(source.id, { syncEnabled: !source.syncEnabled })
   const handleDisconnect = async (source) => {
     setActionError(null)
@@ -304,7 +306,9 @@ export default function ConnectedAppsCard() {
                         key={s.id}
                         source={s}
                         providerSourceCount={sources.length}
+                        providerLabel={p.label}
                         onSync={handleSync}
+                        onLoadLog={handleLoadLog}
                         onTogglePause={handleTogglePause}
                         onDisconnect={handleDisconnect}
                         onReconnect={() => openConnect(p)}

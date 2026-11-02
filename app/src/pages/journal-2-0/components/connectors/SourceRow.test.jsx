@@ -10,7 +10,7 @@
  * (session-audit.md A1), so it needs a rail that watches it fail.
  */
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import SourceRow from './SourceRow'
 
 const noop = () => {}
@@ -144,5 +144,215 @@ describe('SourceRow — the dot and the label agree', () => {
     renderRow(makeSource())
     expect(screen.getByText(/^synced /)).toBeInTheDocument()
     expect(screen.queryByText(/problems|failed/i)).not.toBeInTheDocument()
+  })
+})
+
+// ── Task 6: Unchanged stat, pending line, sync notices, recent syncs ────────
+const BUSY = 'A sync is already running for this source. Its results will appear here when it finishes.'
+
+function renderWith(source, props = {}) {
+  return render(
+    <SourceRow
+      source={source}
+      providerLabel="Notion"
+      onSync={noop}
+      onTogglePause={noop}
+      onDisconnect={noop}
+      {...props}
+    />,
+  )
+}
+
+describe('SourceRow — Unchanged and pending removals', () => {
+  it('shows Unchanged from notesSkipped', () => {
+    renderWith(makeSource({ counts: { notesCreated: 1, notesUpdated: 0, notesSkipped: 7, conflicts: 0 } }))
+    const label = screen.getByText('Unchanged')
+    expect(label.previousSibling).toHaveTextContent('7')
+    expect(label.parentElement).toHaveAttribute('title', 'Already up to date in your Notebook')
+  })
+
+  it("says a removal is pending confirmation, in the spec's words", () => {
+    renderWith(makeSource({ pendingRemoval: 3 }))
+    expect(screen.getByText('3 notes look removed in Notion; confirming on the next check.')).toBeInTheDocument()
+  })
+
+  it('singular pending copy', () => {
+    renderWith(makeSource({ pendingRemoval: 1 }))
+    expect(screen.getByText('1 note looks removed in Notion; confirming on the next check.')).toBeInTheDocument()
+  })
+
+  it('defaults the provider label', () => {
+    render(<SourceRow source={makeSource({ pendingRemoval: 2 })} onSync={noop} onTogglePause={noop} onDisconnect={noop} />)
+    expect(screen.getByText(/look removed in the source app;/)).toBeInTheDocument()
+  })
+
+  it('shows no pending line when none are pending', () => {
+    renderWith(makeSource({ pendingRemoval: 0 }))
+    expect(screen.queryByText(/look removed in|looks removed in/)).not.toBeInTheDocument()
+  })
+})
+
+describe('SourceRow — what a Sync now press says', () => {
+  const press = async () => {
+    fireEvent.click(screen.getByRole('button', { name: /sync now/i }))
+  }
+
+  it('a busy press says a sync is already running', async () => {
+    const onSync = vi.fn().mockRejectedValue({ status: 409, detail: BUSY })
+    renderWith(makeSource(), { onSync })
+    await press()
+    expect(await screen.findByRole('status')).toHaveTextContent(BUSY)
+  })
+
+  it('a busy press never renders a non-string detail raw', async () => {
+    const onSync = vi.fn().mockRejectedValue({ status: 409, detail: [{ msg: 'x' }] })
+    renderWith(makeSource(), { onSync })
+    await press()
+    expect(await screen.findByRole('status')).toHaveTextContent(BUSY)
+  })
+
+  it('a non-409 failure is shown, not swallowed', async () => {
+    const onSync = vi.fn().mockRejectedValue({ status: 503, detail: 'x' })
+    renderWith(makeSource(), { onSync })
+    await press()
+    expect(await screen.findByRole('status')).toHaveTextContent('x')
+  })
+
+  it('a non-409 failure with no usable detail gets the generic line', async () => {
+    const onSync = vi.fn().mockRejectedValue({ status: 503, detail: [{ msg: 'y' }] })
+    renderWith(makeSource(), { onSync })
+    await press()
+    expect(await screen.findByRole('status')).toHaveTextContent('Sync failed. Try again shortly.')
+  })
+
+  it('a rate-limited press explains why removals were not checked', async () => {
+    const next = '2026-11-01T15:30:00Z'
+    const onSync = vi.fn().mockResolvedValue({
+      status: 'ok',
+      removalCheck: { ran: false, reason: 'rate_limited', pending: 0, severed: 0, nextAllowedAt: next },
+    })
+    renderWith(makeSource(), { onSync })
+    await press()
+    const t = new Date(next).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    const note = await screen.findByRole('status')
+    expect(note).toHaveTextContent(
+      `Removals were checked less than 10 minutes ago, so this sync brought in new and edited notes only. Press Sync now again after ${t} to check for removals.`,
+    )
+  })
+
+  it('a rate-limited press with no nextAllowedAt still renders a sentence', async () => {
+    const onSync = vi.fn().mockResolvedValue({
+      status: 'ok',
+      removalCheck: { ran: false, reason: 'rate_limited', pending: 0, severed: 0, nextAllowedAt: null },
+    })
+    renderWith(makeSource(), { onSync })
+    await press()
+    const note = await screen.findByRole('status')
+    expect(note.textContent).not.toMatch(/Invalid|undefined|null/)
+    expect(note).toHaveTextContent(/Removals were checked less than 10 minutes ago/)
+  })
+
+  it('refused and enumeration_failed say what happened', async () => {
+    const onSync = vi.fn()
+      .mockResolvedValueOnce({ status: 'ok', removalCheck: { ran: false, reason: 'refused', pending: 0, severed: 0, nextAllowedAt: null } })
+      .mockResolvedValueOnce({ status: 'ok', removalCheck: { ran: false, reason: 'enumeration_failed', pending: 0, severed: 0, nextAllowedAt: null } })
+    renderWith(makeSource(), { onSync })
+    await press()
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      "Couldn't confirm removals this time: Notion returned far fewer notes than expected, so nothing was changed.",
+    )
+    await waitFor(() => expect(screen.getByRole('button', { name: /sync now/i })).not.toBeDisabled())
+    await press()
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(
+      "Couldn't check Notion for removals this time. New and edited notes were still synced.",
+    ))
+  })
+
+  it('a clean result clears the previous notice and adds none', async () => {
+    const onSync = vi.fn()
+      .mockRejectedValueOnce({ status: 409, detail: BUSY })
+      .mockResolvedValueOnce({ status: 'ok', removalCheck: { ran: true, reason: null, pending: 0, severed: 0, nextAllowedAt: null } })
+    renderWith(makeSource(), { onSync })
+    await press()
+    await screen.findByRole('status')
+    await waitFor(() => expect(screen.getByRole('button', { name: /sync now/i })).not.toBeDisabled())
+    await press()
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
+  })
+})
+
+describe('SourceRow — Recent syncs', () => {
+  const ROW = {
+    id: 1, at: '2026-11-01T12:00:00Z', status: 'ok', created: 2, updated: 1, skipped: 4, conflicts: 0,
+    sourceDeleted: 0, failures: [{ noteTitle: 'Big note', name: 'big.png', reason: 'Too large to store (212 KB limit)' }],
+    failuresUnreadable: false,
+  }
+
+  it('is hidden without onLoadLog or a first sync', () => {
+    renderWith(makeSource())
+    expect(screen.queryByRole('button', { name: /recent syncs/i })).not.toBeInTheDocument()
+    renderWith(makeSource({ lastSyncAt: null }), { onLoadLog: vi.fn() })
+    expect(screen.queryByRole('button', { name: /recent syncs/i })).not.toBeInTheDocument()
+  })
+
+  it('names how many items did not come over', () => {
+    renderWith(makeSource({ lastFailureCount: 2 }), { onLoadLog: vi.fn() })
+    expect(screen.getByRole('button', { name: /Recent syncs · 2 items didn't come over/ })).toBeInTheDocument()
+  })
+
+  it('singular item label', () => {
+    renderWith(makeSource({ lastFailureCount: 1 }), { onLoadLog: vi.fn() })
+    expect(screen.getByRole('button', { name: /Recent syncs · 1 item didn't come over/ })).toBeInTheDocument()
+  })
+
+  it('recent syncs list what did not come over, verbatim', async () => {
+    const onLoadLog = vi.fn().mockResolvedValue([{ ...ROW, conflicts: 2, sourceDeleted: 1 }])
+    renderWith(makeSource(), { onLoadLog })
+    const btn = screen.getByRole('button', { name: /^recent syncs/i })
+    expect(btn).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(btn)
+    expect(btn).toHaveAttribute('aria-expanded', 'true')
+    expect(await screen.findByText(/2 new, 1 updated, 4 unchanged, 2 conflicts, 1 removed/)).toBeInTheDocument()
+    expect(screen.getByText('Big note: big.png, Too large to store (212 KB limit)')).toBeInTheDocument()
+  })
+
+  it('omits the name segment and zero conflicts/removed', async () => {
+    const onLoadLog = vi.fn().mockResolvedValue([{ ...ROW, failures: [{ noteTitle: 'N', name: '', reason: 'bad' }] }])
+    renderWith(makeSource(), { onLoadLog })
+    fireEvent.click(screen.getByRole('button', { name: /^recent syncs/i }))
+    expect(await screen.findByText('N: bad')).toBeInTheDocument()
+    expect(screen.queryByText(/conflicts|removed/)).not.toBeInTheDocument()
+  })
+
+  it('recent syncs never reads as "nothing failed" when details were unreadable', async () => {
+    const onLoadLog = vi.fn().mockResolvedValue([{ ...ROW, failures: [], failuresUnreadable: true }])
+    renderWith(makeSource(), { onLoadLog })
+    fireEvent.click(screen.getByRole('button', { name: /^recent syncs/i }))
+    expect(await screen.findByText("Details for this sync couldn't be read.")).toBeInTheDocument()
+  })
+
+  it('loads the log once, on first expand', async () => {
+    const onLoadLog = vi.fn().mockResolvedValue([ROW])
+    renderWith(makeSource(), { onLoadLog })
+    const btn = screen.getByRole('button', { name: /^recent syncs/i })
+    expect(onLoadLog).not.toHaveBeenCalled()
+    fireEvent.click(btn)
+    await screen.findByText(/4 unchanged/)
+    fireEvent.click(btn)
+    fireEvent.click(btn)
+    expect(onLoadLog).toHaveBeenCalledTimes(1)
+    expect(onLoadLog).toHaveBeenCalledWith(expect.objectContaining({ id: 's1' }))
+  })
+
+  it('a rejected load shows its message and Try again reloads', async () => {
+    const onLoadLog = vi.fn()
+      .mockRejectedValueOnce(new Error('Could not load recent syncs.'))
+      .mockResolvedValueOnce([ROW])
+    renderWith(makeSource(), { onLoadLog })
+    fireEvent.click(screen.getByRole('button', { name: /^recent syncs/i }))
+    expect(await screen.findByText('Could not load recent syncs.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }))
+    expect(await screen.findByText(/4 unchanged/)).toBeInTheDocument()
+    expect(onLoadLog).toHaveBeenCalledTimes(2)
   })
 })

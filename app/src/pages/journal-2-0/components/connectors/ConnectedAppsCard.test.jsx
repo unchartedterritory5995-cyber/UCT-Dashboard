@@ -160,6 +160,14 @@ describe('ConnectedAppsCard — provider matrix', () => {
     expect(screen.queryByText(/source-deleted/)).not.toBeInTheDocument()
   })
 
+  it('passes the provider label so the pending line names the app', async () => {
+    const pending = JSON.parse(JSON.stringify(STATUS_MIXED))
+    pending.providers.roam.sources[0].pendingRemoval = 2
+    mockFetch([['/api/j2/notes/connectors/status', { body: pending }]])
+    render(<ConnectedAppsCard />)
+    expect(await screen.findByText('2 notes look removed in Roam Research; confirming on the next check.')).toBeInTheDocument()
+  })
+
   it('Sync now fires POST /sources/{id}/sync', async () => {
     mockFetch([
       ['/api/j2/notes/connectors/status', { body: STATUS_MIXED }],
