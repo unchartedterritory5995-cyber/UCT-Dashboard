@@ -51,6 +51,7 @@ import { fakeLibraryServer } from './fakeLibraryServer'
 import { formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import { timeLabel } from '../../pages/charts/widgets/tradeExchangeNewsModel'
 import { NewsAgentContext } from '../../pages/charts/widgets/tradeExchangeNewsAgent'
+import { openAgent, useAgentAsk } from '../../agent/newsAsk'
 import { CHART_THEME_BY_ID, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, themeWithAppSurface } from '../../components/chart/chartThemes'
 import wsStyles from '../../pages/charts/ChartsWorkspace.module.css'
 
@@ -353,7 +354,9 @@ function useHarnessAsk({ newsId }) {
     setTimeout(() => harnessAnswer(newsId, text, bump), 600)
   } }
 }
-const HARNESS_AGENT = ASK ? { useAsk: useHarnessAsk, openAgent: (x) => { window.__openAgent = x } } : null
+// ?ask=real: UCT Agent's OWN useAgentAsk / openAgent (its /api/agent/* calls are faked by the test, never a model).
+const HARNESS_AGENT = ASK === 'real' ? { useAsk: useAgentAsk, openAgent }
+  : ASK ? { useAsk: useHarnessAsk, openAgent: (x) => { window.__openAgent = x } } : null
 
 function Harness() {
   const [groupSyms, setGroupSyms] = useState({ A: 'DLTX' })

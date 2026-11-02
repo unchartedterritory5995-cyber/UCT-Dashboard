@@ -9,7 +9,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext } from '../../../context/AuthContext'
 import { setAgentFlag } from '../../../agent/agentFlag'
 import { NewsAgentContext } from './tradeExchangeNewsAgent'
-import { useState as useStateForStub } from 'react'
+import { useContext, useState as useStateForStub } from 'react'
+import { openAgent as agentOpenAgent, useAgentAsk } from '../../../agent/newsAsk'
 
 const feed = vi.hoisted(() => {
   const listeners = new Set()
@@ -92,8 +93,8 @@ const BASE = [
 
 function mount(opts = {}, items = BASE, onOptsChange = vi.fn(), { role, agent } = {}) {
   let widget = <TradeExchangeNewsWidget color="A" opts={opts} onOptsChange={onOptsChange} />
-  // `agent`: what UCT Agent provides News ({ useAsk, openAgent }); a test stub until agent-lead's exports land.
-  if (agent) widget = <NewsAgentContext.Provider value={agent}>{widget}</NewsAgentContext.Provider>
+  // `agent`: what UCT Agent provides News ({ useAsk, openAgent }); a stub here, or null for "no Agent". Omitted = the real exports.
+  if (agent !== undefined) widget = <NewsAgentContext.Provider value={agent}>{widget}</NewsAgentContext.Provider>
   // `role`: the signed-in member's role, for what only an admin sees (UCT Agent's mark).
   // Unset = no AuthProvider, which the widget treats as a member.
   const utils = render(role ? <AuthContext.Provider value={{ user: { id: 'u1', role }, isPaid: true }}>{widget}</AuthContext.Provider> : widget)
@@ -1000,7 +1001,7 @@ describe('Ask UCT Agent', () => {
 
   it('shows nowhere the Agent is not allowed: member, admin with the switch off, or no Agent provided yet', async () => {
     for (const [flag, who] of [[true, { role: 'member', agent: agent() }], [false, { role: 'admin', agent: agent() }],
-      [true, { role: 'admin' }], [true, { agent: agent() }]]) {
+      [true, { role: 'admin', agent: null }], [true, { agent: agent() }]]) {
       setAgentFlag(flag)
       const { panel, unmount } = await open(who)
       expect(within(panel).queryByRole('textbox', { name: 'Ask UCT Agent about this headline' })).toBeNull()
@@ -1145,5 +1146,14 @@ describe('Bookmark a headline', () => {
     fireEvent.click(saveBtn(container, 3))
     expect(await screen.findByText(/Your library holds 5,000 headlines/)).toBeTruthy()
     expect(saveBtn(container, 3)).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('News ↔ UCT Agent seam', () => {
+  it('by default News uses UCT Agent’s own News exports (nothing else)', () => {
+    let got
+    function Probe() { got = useContext(NewsAgentContext); return null }
+    render(<Probe />)
+    expect(got).toEqual({ useAsk: useAgentAsk, openAgent: agentOpenAgent })
   })
 })
