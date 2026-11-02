@@ -606,6 +606,12 @@ from api.services.journal_two.note_connectors.errors import NoteConnUnsafeAddres
 from api.services.journal_two.note_connectors.providers.base import fetch_content_url  # noqa: E402
 
 
+def _logical_url(request: httpx.Request) -> str:
+    """The URL a request was FOR: an http hop is sent to the checked IP (fix round 1, I1), with
+    the original authority in `Host`."""
+    return f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
+
+
 async def test_https_only_callers_still_refuse_http():
     # The default is https-only: every caller that does not opt in is unchanged.
     with pytest.raises(NoteConnUnsafeAddress):
@@ -648,8 +654,8 @@ async def test_allow_http_still_checks_the_address_on_every_redirect_hop(monkeyp
     calls = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(str(request.url))
-        if request.url.host == "cdn.example.com":
+        calls.append(_logical_url(request))
+        if request.headers["host"] == "cdn.example.com":
             return httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
         raise AssertionError("must never reach the redirect target")  # pragma: no cover
 
@@ -664,8 +670,8 @@ async def test_allow_http_follows_a_redirect_from_http_to_https(monkeypatch):
     calls = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(str(request.url))
-        if request.url.host == "cdn.example.com":
+        calls.append(_logical_url(request))
+        if request.headers["host"] == "cdn.example.com":
             return httpx.Response(301, headers={"location": "https://cdn2.example.com/real.png"})
         return httpx.Response(200, content=b"real")
 
@@ -691,3 +697,112 @@ async def test_fetch_content_url_returns_bytes_and_type_and_refuses_a_failed_sta
     for path in ("/gone.png", "/moved"):
         with pytest.raises(NoteConnTransient):
             await fetch_content_url(client, f"http://cdn.example.com{path}", what="m")
+
+
+# ---------------------------------------------------------------------------
+# Task 9 fix round 1 (I1): DNS rebinding on a plain-http hop, and non-global ranges
+# ---------------------------------------------------------------------------
+
+
+def _rebinding_resolver(monkeypatch, first: str, then: str) -> list[str]:
+    """A TTL-0 resolver: `first` on the first lookup, `then` on every later one."""
+    asked: list[str] = []
+
+    async def resolve(host):
+        asked.append(host)
+        return [first if len(asked) == 1 else then]
+
+    monkeypatch.setattr(base_module, "_resolve_host", resolve)
+    return asked
+
+
+async def test_an_http_hop_connects_to_the_address_that_passed_the_check(monkeypatch):
+    """The rebinding attack: public on the check, 169.254.169.254 on the connect. The http
+    hop must connect to the PUBLIC address it checked (Host header kept), never ask DNS
+    again -- so the second, internal answer is never used."""
+    asked = _rebinding_resolver(monkeypatch, "142.250.0.1", "169.254.169.254")
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"img", headers={"content-type": "image/png"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    assert await fetch_content_url(client, "http://rebind.example.com:8080/a.png?x=1", what="m") == (
+        b"img", "image/png")
+    (req,) = seen
+    assert req.url.host == "142.250.0.1" and req.url.port == 8080
+    assert req.url.path == "/a.png" and req.url.query == b"x=1"
+    assert req.headers["host"] == "rebind.example.com:8080"
+    assert asked == ["rebind.example.com"]                     # one lookup per hop, no second answer
+
+
+async def test_an_http_hop_to_an_ipv6_address_is_bracketed(monkeypatch):
+    async def resolve(host):
+        return ["2607:f8b0:4004:800::200e"]
+
+    monkeypatch.setattr(base_module, "_resolve_host", resolve)
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"img")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    await fetch_content_url(client, "http://v6.example.com/a.png", what="m")
+    assert seen[0].url.host == "2607:f8b0:4004:800::200e"
+    assert seen[0].headers["host"] == "v6.example.com"
+
+
+async def test_every_redirect_hop_is_pinned_to_its_own_checked_address(monkeypatch):
+    answers = {"a.example.com": "142.250.0.1", "b.example.com": "142.250.0.2"}
+
+    async def resolve(host):
+        return [answers[host]]
+
+    monkeypatch.setattr(base_module, "_resolve_host", resolve)
+    seen: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.host, request.headers["host"]))
+        if request.headers["host"] == "a.example.com":
+            return httpx.Response(302, headers={"location": "http://b.example.com/real.png"})
+        return httpx.Response(200, content=b"img")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    await fetch_content_url(client, "http://a.example.com/a.png", what="m")
+    assert seen == [("142.250.0.1", "a.example.com"), ("142.250.0.2", "b.example.com")]
+
+
+async def test_an_https_hop_keeps_the_hostname(monkeypatch):
+    """https is not pinned: the certificate binds the connection to the name."""
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"img")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    await fetch_content_url(client, "https://cdn.example.com/a.png", what="m")
+    assert seen[0].url.host == "cdn.example.com"
+
+
+@pytest.mark.parametrize("addr", ["100.64.0.1", "100.127.255.254", "198.18.0.1", "192.0.2.10",
+                                  "fd12:3456::1", "fc00::1"])
+async def test_a_non_global_address_is_refused(monkeypatch, addr):
+    async def resolve(host):
+        return [addr]
+
+    monkeypatch.setattr(base_module, "_resolve_host", resolve)
+    with pytest.raises(NoteConnUnsafeAddress):
+        await assert_public_https("http://cgnat.example.com/a.png", allow_http=True)
+
+
+async def test_an_empty_resolution_is_never_a_pass(monkeypatch):
+    async def resolve(host):
+        return []
+
+    monkeypatch.setattr(base_module, "_resolve_host", resolve)
+    with pytest.raises(NoteConnTransient):
+        await assert_public_https("http://nothing.example.com/a.png", allow_http=True)

@@ -16,6 +16,7 @@ Endpoints landing per phase:
 Spec §5, audit §4.3.
 """
 
+import asyncio
 import csv
 import io
 import json
@@ -2681,6 +2682,18 @@ NOTE_MEDIA_FETCH_RATE = "120/minute"
 SCOPE_NOTE_MEDIA_FETCH = "notebook-media-fetch"
 NOTE_MEDIA_FETCH_RATE_SENTENCE = "That's a lot of images to copy in at once. Try again in a minute."
 _MEDIA_FETCH_TIMEOUT_S = 30.0
+#: Task 9 fix round 1 (I2): the whole fetch (every hop, every slow-drip read) has ONE deadline.
+#: `_MEDIA_FETCH_TIMEOUT_S` is per read, so without it a server trickling a byte at a time
+#: holds the socket indefinitely. Waiting for a global slot counts against it too.
+MEDIA_FETCH_DEADLINE_S = 60.0
+#: ...and at most this many downloads at once: per member (over it => 429 at once, never a
+#: queue) and for the whole pod (`notebook_link_preview._SEM`'s pattern). Per-process state,
+#: like that one (CLAUDE.md's single-process roster): a second process doubles both.
+MEDIA_FETCH_PER_MEMBER_INFLIGHT = 2
+MEDIA_FETCH_GLOBAL_INFLIGHT = 8
+_MEDIA_FETCH_SEM = asyncio.Semaphore(MEDIA_FETCH_GLOBAL_INFLIGHT)
+_media_fetch_inflight: dict[str, int] = {}
+NOTE_MEDIA_FETCH_BUSY_SENTENCE = "Already copying images for you. Try again in a moment."
 
 
 def _media_fetch_client():
@@ -2730,9 +2743,25 @@ async def notes_media_fetch_endpoint(payload: dict[str, Any] = Depends(_json(dic
     note_id = hit["id"]
     url = url.strip()
     filename = _hotlink_filename(url)
+    # Fix round 1 (I2): one event loop, no `await` between the check and the increment.
+    if _media_fetch_inflight.get(user_id, 0) >= MEDIA_FETCH_PER_MEMBER_INFLIGHT:
+        raise HTTPException(status_code=429, detail=NOTE_MEDIA_FETCH_BUSY_SENTENCE)
+    _media_fetch_inflight[user_id] = _media_fetch_inflight.get(user_id, 0) + 1
+
+    async def download():
+        async with _MEDIA_FETCH_SEM:
+            async with _media_fetch_client() as client:
+                return await fetch_content_url(client, url, what="Linked image")
+
     try:
-        async with _media_fetch_client() as client:
-            data, content_type = await fetch_content_url(client, url, what="Linked image")
+        try:
+            data, content_type = await asyncio.wait_for(download(), MEDIA_FETCH_DEADLINE_S)
+        finally:
+            left = _media_fetch_inflight.get(user_id, 1) - 1
+            if left > 0:
+                _media_fetch_inflight[user_id] = left
+            else:
+                _media_fetch_inflight.pop(user_id, None)
 
         def decide_and_store():
             result = media_policy.normalize_media(data, content_type, filename)

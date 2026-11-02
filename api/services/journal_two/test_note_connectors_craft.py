@@ -563,7 +563,10 @@ async def test_http_hotlink_is_downloaded_without_the_bearer_even_on_a_craft_hos
     provider = _make_provider(handler)
     for ref in ("http://1.1.1.1/a.png", "http://connect.craft.do/links/x/img.png"):
         assert await provider.fetch_media(CREDS, ref) == (b"img", "image/png")
-    assert [str(r.url) for r in seen] == ["http://1.1.1.1/a.png", "http://connect.craft.do/links/x/img.png"]
+    # fix round 1 (I1): the http hop is sent to the checked address, Host kept
+    assert [(str(r.url), r.headers["host"]) for r in seen] == [
+        ("http://1.1.1.1/a.png", "1.1.1.1"),
+        ("http://142.250.0.1/links/x/img.png", "connect.craft.do")]
     assert all("authorization" not in {k.lower() for k in r.headers.keys()} for r in seen)
 
 

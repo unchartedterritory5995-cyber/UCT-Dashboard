@@ -223,9 +223,15 @@ def _is_disallowed_ip(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bo
     each is named explicitly so a refusal reads as "this is a loopback
     address" rather than an opaque "this is private," and so the check
     doesn't silently stop covering a category if a future Python release
-    ever narrows what `is_private` means."""
+    ever narrows what `is_private` means.
+
+    Task 9 fix round 1 (I1): and anything that is not GLOBAL -- carrier-grade
+    NAT (100.64.0.0/10), benchmarking, documentation and the other ranges the
+    stdlib does not call global. A media fetch only ever needs the public
+    internet."""
     return (
-        addr.is_private
+        not addr.is_global
+        or addr.is_private
         or addr.is_loopback
         or addr.is_link_local
         or addr.is_multicast
@@ -269,7 +275,20 @@ async def assert_public_https(url: str, *, what: str = "media reference", allow_
     can answer differently between the two lookups. See the module-level
     comment above this section for why that gap is accepted here (no
     credential ever rides on this fetch) rather than closed with a
-    connect-by-pinned-IP transport."""
+    connect-by-pinned-IP transport. Task 9 fix round 1 (I1): the two helpers
+    below close that gap on a plain-http hop -- they connect to the exact
+    address this check passed (`_checked_addresses`), with the original Host
+    header; an https hop keeps the hostname, where the certificate binds the
+    connection to the name."""
+    await _checked_addresses(url, what=what, allow_http=allow_http)
+    return url
+
+
+async def _checked_addresses(
+    url: str, *, what: str, allow_http: bool,
+) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """`assert_public_https`'s whole check, returning the addresses that passed it
+    (never empty) so a caller can connect to exactly one of them."""
     parsed = urlsplit(url)
     # Every refusal below is the TYPE `NoteConnUnsafeAddress` (a `NoteConnUnsupported`, so no
     # caller's handling changes): the engine maps the type to an `unsafe` notice (Plan A Task 8).
@@ -294,14 +313,36 @@ async def assert_public_https(url: str, *, what: str = "media reference", allow_
             raise NoteConnTransient(
                 f"Could not resolve host for {what} ({host!r}): {exc}",
             ) from exc
-        addrs = [ipaddress.ip_address(a) for a in resolved]
+        try:
+            addrs = [ipaddress.ip_address(a) for a in resolved]
+        except ValueError as exc:      # e.g. a scoped `fe80::1%eth0`: never public
+            raise NoteConnUnsafeAddress(
+                f"Cannot fetch {what}: host resolves to an unreadable address ({exc})",
+                reason="Media reference points at a private/internal network address",
+            ) from exc
+    if not addrs:
+        raise NoteConnTransient(f"Could not resolve host for {what} ({host!r}): no addresses")
     for addr in addrs:
         if _is_disallowed_ip(addr):
             raise NoteConnUnsafeAddress(
                 f"Cannot fetch {what}: host resolves to a non-public address ({addr})",
                 reason="Media reference points at a private/internal network address",
             )
-    return url
+    return addrs
+
+
+def _pinned_request(url: str, addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> tuple[str, dict[str, str]]:
+    """Task 9 fix round 1 (I1): the request for a plain-http hop, sent to the exact address
+    `_checked_addresses` passed -- the URL's host replaced by that IP (IPv6 bracketed) and
+    the original authority sent as `Host` -- so a rebinding resolver gets no second answer.
+    An https hop is never pinned: there the certificate binds the connection to the name."""
+    parsed = urlsplit(url)
+    ip = f"[{addr}]" if addr.version == 6 else str(addr)
+    netloc = ip if parsed.port is None else f"{ip}:{parsed.port}"
+    host_header = parsed.hostname if parsed.port is None else f"{parsed.hostname}:{parsed.port}"
+    if ":" in (parsed.hostname or "") and not host_header.startswith("["):
+        host_header = f"[{parsed.hostname}]" + ("" if parsed.port is None else f":{parsed.port}")
+    return parsed._replace(netloc=netloc).geturl(), {"Host": host_header}
 
 
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
@@ -521,11 +562,16 @@ async def guarded_media_stream(
     next_url = url
     for _ in range(max_redirects + 1):
         # ⛔ EVERY hop, `allow_http` or not (Plan A Task 9): the address check is the guard.
-        await assert_public_https(next_url, what=what, allow_http=allow_http)
+        addrs = await _checked_addresses(next_url, what=what, allow_http=allow_http)
+        request_url, headers = next_url, {"Accept-Encoding": "identity"}
+        if urlsplit(next_url).scheme.lower() == "http":
+            # Fix round 1 (I1): no TLS on this hop, so nothing binds the connection to the
+            # name -- connect to the address that passed, never a second DNS answer.
+            request_url, host = _pinned_request(next_url, addrs[0])
+            headers.update(host)
         try:
             async with client.stream(
-                "GET", next_url, follow_redirects=False,
-                headers={"Accept-Encoding": "identity"},
+                "GET", request_url, follow_redirects=False, headers=headers,
             ) as response:
                 if response.status_code in _REDIRECT_STATUSES:
                     location = response.headers.get("location")

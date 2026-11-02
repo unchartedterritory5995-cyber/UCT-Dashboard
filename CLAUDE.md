@@ -505,7 +505,10 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   routes), in-process only, so a second process doubles both, and since connector fidelity Plan A
   Task 9 `notebook-media-fetch` (120/minute, keyed on the member, `NOTE_MEDIA_FETCH_RATE` in
   `api/routers/journal_two.py`, the `POST /api/j2/notes/media/fetch` hotlink-copy door), in-process
-  only, so a second process doubles it · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
+  only, so a second process doubles it · that door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
+  (`MEDIA_FETCH_GLOBAL_INFLIGHT` = 8 downloads at once) and `journal_two._media_fetch_inflight`
+  (`MEDIA_FETCH_PER_MEMBER_INFLIGHT` = 2 per member, one more answers 429): a second process
+  doubles both · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
   concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·

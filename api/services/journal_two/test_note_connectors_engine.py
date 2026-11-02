@@ -282,6 +282,46 @@ async def test_corrupt_base64_data_uri_is_a_named_failure_not_a_crash(source, pr
     assert all(n.get("type") != "image" for n in _body(note)["content"])
 
 
+@pytest.mark.parametrize("uri", ["data:image/png;base64,!!!not-valid-base64!!!===", "data:image/png;base64"])
+async def test_a_malformed_data_uri_is_a_final_unsupported_notice(source, provider, uri):
+    """Task 9 fix round 1 (minor b): a data URI that cannot decode will never decode -- a
+    FINAL `unsupported` notice, never a retried `fetch_failed`."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "Bad Inline Image", media=[
+        {"ref": "md-img-1.png", "kind": "image", "name": "md-img-1.png", "data_uri": uri}])
+    rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://md-img-1.png"}})
+    provider.notes_by_id = {"p1": rn}
+    await engine.sync_source(source["id"], full=True)
+    body = _body(notes_svc.list_notes("u1")[0])
+    notice = next(n for n in body["content"] if n.get("type") == "importNotice")
+    assert (notice["attrs"]["reason"], notice["attrs"]["attempts"]) == ("unsupported", 0)
+    conn = auth_db.get_connection()
+    try:
+        pending = conn.execute("SELECT import_media_pending FROM j2_notes WHERE user_id='u1'").fetchone()[0]
+    finally:
+        conn.close()
+    assert pending == 0
+
+
+def test_an_oversized_data_uri_is_refused_before_decoding(monkeypatch):
+    """Task 9 fix round 1 (minor a): a data URI longer than the largest source the policy
+    would keep (base64 of 25 MB, plus slack) is `too_large` -- never decoded."""
+    from api.services.journal_two import media_policy
+    monkeypatch.setattr(media_policy, "MEDIA_SOURCE_MAX_BYTES", 300)
+    limit = engine.data_uri_max_chars()
+    assert limit == 300 * 4 // 3 + engine.DATA_URI_SLACK_CHARS
+    decoded = []
+    monkeypatch.setattr(engine.base64, "b64decode", lambda *a, **k: decoded.append(1) or b"")
+    with pytest.raises(errors.NoteConnTooLarge):
+        engine._decode_data_uri("data:image/png;base64," + "A" * limit)
+    assert decoded == []
+    reason = engine._notice_for_exception(
+        errors.NoteConnTooLarge("x", reason="big"), ref="r", name="a.png", source_url=None, attempts=1)
+    assert reason["attrs"]["reason"] == "too_large"
+    engine._decode_data_uri("data:image/png;base64," + "A" * (limit - len("data:image/png;base64,")))
+    assert decoded == [1]                                     # at the limit: decoded
+
+
 # ---------------------------------------------------------------------------
 # 2. Re-sync (identical content) -> all-skipped
 # ---------------------------------------------------------------------------
@@ -3324,8 +3364,10 @@ def web(provider, monkeypatch):
     state = {"routes": {}, "calls": []}
 
     def handler(request: httpx.Request) -> httpx.Response:
-        state["calls"].append(str(request.url))
-        answer = state["routes"].get(str(request.url))
+        # An http hop is sent to the checked IP with the original Host (fix round 1, I1).
+        url = f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
+        state["calls"].append(url)
+        answer = state["routes"].get(url)
         if answer is None:
             raise AssertionError(f"unexpected request to {request.url}")
         return answer()

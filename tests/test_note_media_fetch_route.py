@@ -12,6 +12,7 @@ No network: the door's client is a mock transport, and DNS is stubbed.
 """
 from __future__ import annotations
 
+import asyncio
 import importlib
 import io
 import os
@@ -19,7 +20,7 @@ import tempfile
 
 import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -67,6 +68,14 @@ def _fresh_limiter():
     limiter.reset()
 
 
+@pytest.fixture(autouse=True)
+def _fresh_inflight(monkeypatch):
+    from api.routers import journal_two as journal_two_router
+    monkeypatch.setattr(journal_two_router, "_MEDIA_FETCH_SEM",
+                        asyncio.Semaphore(journal_two_router.MEDIA_FETCH_GLOBAL_INFLIGHT))
+    monkeypatch.setattr(journal_two_router, "_media_fetch_inflight", {})
+
+
 @pytest.fixture
 def web(monkeypatch):
     """What the door's client answers, per URL; every request is recorded."""
@@ -79,12 +88,15 @@ def web(monkeypatch):
     monkeypatch.setattr(base_module, "_resolve_host", _public)
     state = {"routes": {}, "calls": []}
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        state["calls"].append(str(request.url))
-        answer = state["routes"].get(str(request.url))
+    async def handler(request: httpx.Request) -> httpx.Response:
+        # An http hop is sent to the checked IP with the original Host (fix round 1, I1).
+        url = f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
+        state["calls"].append(url)
+        answer = state["routes"].get(url)
         if answer is None:
-            raise AssertionError(f"unexpected request to {request.url}")
-        return answer()
+            raise AssertionError(f"unexpected request to {url}")
+        out = answer()
+        return await out if asyncio.iscoroutine(out) else out
 
     monkeypatch.setattr(journal_two_router, "_media_fetch_client",
                         lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler)))
@@ -233,3 +245,99 @@ def test_media_fetch_door_is_rate_limited(app, client, web, monkeypatch):
     _login_as(app, "u2")                                     # keyed on the member
     _imported(client, "notion:page-2")
     assert _fetch(client, key="notion:page-2").status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Task 9 fix round 1 (I2): one deadline for the whole fetch; in-flight caps
+# ---------------------------------------------------------------------------
+
+
+def _members_by_header(app):
+    """Concurrent requests from different members: the member is the `x-user` header."""
+    def who(request: Request):
+        return {"id": request.headers["x-user"], "role": "member"}
+
+    app.dependency_overrides[authmw.get_current_user] = who
+
+
+def _async_client(app):
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver")
+
+
+async def _afetch(ac, user, key, url=_HOT):
+    return await ac.post("/api/j2/notes/media/fetch", json={"url": url, "noteImportKey": key},
+                         headers={"x-user": user})
+
+
+async def _until(pred, timeout=5.0):
+    loop = asyncio.get_running_loop()
+    end = loop.time() + timeout
+    while not pred():
+        assert loop.time() < end, "condition never became true"
+        await asyncio.sleep(0.01)
+
+
+def test_a_slow_drip_fetch_hits_the_deadline_as_a_named_422(app, client, web, monkeypatch):
+    from api.routers import journal_two as journal_two_router
+    monkeypatch.setattr(journal_two_router, "MEDIA_FETCH_DEADLINE_S", 0.2)
+    _login_as(app, "u1")
+    _imported(client, "notion:page-1")
+
+    async def drip():
+        await asyncio.sleep(30)                              # never answers inside the deadline
+        return httpx.Response(200, content=PNG)
+
+    web["routes"][_HOT] = drip
+    r = _fetch(client)
+    assert r.status_code == 422, r.text
+    assert r.json() == {"reason": "fetch_failed", "markerText": r.json()["markerText"]}
+    assert "a.png" in r.json()["markerText"]
+    assert journal_two_router._media_fetch_inflight == {}    # the slot is given back
+
+
+async def test_a_member_over_their_in_flight_cap_gets_429_at_once(app, client, web):
+    from api.routers import journal_two as journal_two_router
+    _login_as(app, "u1")
+    _imported(client, "notion:page-1")
+    release = asyncio.Event()
+
+    async def held():
+        await release.wait()
+        return httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+
+    web["routes"][_HOT] = held
+    _members_by_header(app)
+    async with _async_client(app) as ac:
+        first = [asyncio.create_task(_afetch(ac, "u1", "notion:page-1")) for _ in range(2)]
+        await _until(lambda: len(web["calls"]) == 2)
+        third = await asyncio.wait_for(_afetch(ac, "u1", "notion:page-1"), 2)   # not queued
+        assert third.status_code == 429
+        assert len(web["calls"]) == 2                        # the refused call fetched nothing
+        release.set()
+        assert [t.status_code for t in await asyncio.gather(*first)] == [200, 200]
+    assert journal_two_router._media_fetch_inflight == {}
+
+
+async def test_the_whole_pod_runs_at_most_the_global_cap_at_once(app, client, web, monkeypatch):
+    from api.routers import journal_two as journal_two_router
+    monkeypatch.setattr(journal_two_router, "_MEDIA_FETCH_SEM", asyncio.Semaphore(1))
+    for user, key in (("u1", "notion:a"), ("u2", "notion:b")):
+        _login_as(app, user)
+        _imported(client, key)
+    release = asyncio.Event()
+
+    async def held():
+        await release.wait()
+        return httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+
+    web["routes"][_HOT] = held
+    _members_by_header(app)
+    async with _async_client(app) as ac:
+        a = asyncio.create_task(_afetch(ac, "u1", "notion:a"))
+        await _until(lambda: len(web["calls"]) == 1)
+        b = asyncio.create_task(_afetch(ac, "u2", "notion:b"))
+        await asyncio.sleep(0.2)
+        assert len(web["calls"]) == 1                        # u2 waits for the one global slot
+        release.set()
+        assert (await a).status_code == 200 and (await b).status_code == 200
+    assert len(web["calls"]) == 2

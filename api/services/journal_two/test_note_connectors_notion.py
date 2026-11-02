@@ -1137,16 +1137,22 @@ async def test_http_hotlink_is_downloaded_for_the_engine_to_rehost():
     provider = _make_provider(handler)
     data, content_type = await provider.fetch_media(CREDS, "http://cdn.example.com/a.png")
     assert (data, content_type) == (_PNG_BYTES, "image/png")
-    assert [str(r.url) for r in captured] == ["http://cdn.example.com/a.png"]
+    # fix round 1 (I1): an http hop connects to the checked address, Host kept
+    assert [str(r.url) for r in captured] == ["http://142.250.0.1/a.png"]
+    assert captured[0].headers["host"] == "cdn.example.com"
     assert "authorization" not in {k.lower() for k in captured[0].headers.keys()}
+
+
+def _logical_url(request: httpx.Request) -> str:
+    return f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
 
 
 async def test_notion_external_media_follows_redirects():
     calls: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(str(request.url))
-        if request.url.host == "cdn.example.com":
+        calls.append(_logical_url(request))
+        if request.headers["host"] == "cdn.example.com":
             return httpx.Response(302, headers={"location": "https://cdn2.example.com/real.png"})
         return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
 
@@ -1160,8 +1166,8 @@ async def test_notion_external_media_redirect_to_the_metadata_address_is_unsafe(
     calls: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(str(request.url))
-        if request.url.host == "cdn.example.com":
+        calls.append(_logical_url(request))
+        if request.headers["host"] == "cdn.example.com":
             return httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
         raise AssertionError("must never reach the redirect target")  # pragma: no cover
 

@@ -91,6 +91,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
 import copy
 import json
 import logging
@@ -1483,20 +1484,41 @@ def _build_confirm_entry(
     return entry
 
 
+#: Task 9 fix round 1 (minor a): room for the `data:<mime>;params,` header and line breaks.
+DATA_URI_SLACK_CHARS = 4096
+
+
+def data_uri_max_chars() -> int:
+    """The longest data URI that can decode to a source the media policy would keep: the
+    base64 length of `MEDIA_SOURCE_MAX_BYTES` (read per call, never retyped) plus slack."""
+    return media_policy.MEDIA_SOURCE_MAX_BYTES * 4 // 3 + DATA_URI_SLACK_CHARS
+
+
 def _decode_data_uri(data_uri: str) -> tuple[bytes, str]:
     """`(bytes, mime)` for a data URI (Plan A Task 9, I-6): base64 when a `;base64` parameter
     is present, else percent-encoded (`data:image/svg+xml,%3Csvg...`). The grammar is
-    `mddoc.DATA_URI_RE`, the one copy. A malformed URI or bad base64 raises `ValueError` (a
-    `fetch_failed` notice). Run off the event loop (`asyncio.to_thread`): a 25 MB payload is
-    real work."""
+    `mddoc.DATA_URI_RE`, the one copy. Run off the event loop (`asyncio.to_thread`).
+
+    Fix round 1: a URI longer than `data_uri_max_chars()` is `NoteConnTooLarge` (`too_large`)
+    BEFORE any decoding; a malformed URI or bad base64 is `NoteConnUnsupported`, a FINAL
+    `unsupported` notice -- bytes that cannot decode never will, so it is never retried."""
+    if len(data_uri) > data_uri_max_chars():
+        raise errors.NoteConnTooLarge(
+            f"data URI of {len(data_uri)} characters exceeds {data_uri_max_chars()}",
+            reason="Inline image is larger than the allowed size limit")
     match = mddoc.DATA_URI_RE.match(data_uri)
     if match is None:
-        raise ValueError(f"malformed data URI: {data_uri[:40]!r}")
+        raise errors.NoteConnUnsupported(f"malformed data URI: {data_uri[:40]!r}",
+                                         reason="Inline image data is malformed")
     content_type = match.group("mime").strip().lower() or "application/octet-stream"
     params = [p.strip().lower() for p in match.group("params").split(";")]
     payload = match.group("payload")
     if "base64" in params:
-        return base64.b64decode(payload, validate=True), content_type
+        try:
+            return base64.b64decode(payload, validate=True), content_type
+        except (binascii.Error, ValueError) as exc:
+            raise errors.NoteConnUnsupported(f"data URI base64 does not decode: {exc}",
+                                             reason="Inline image data is malformed") from exc
     return urllib.parse.unquote_to_bytes(payload), content_type
 
 
