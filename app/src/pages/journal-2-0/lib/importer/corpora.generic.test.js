@@ -244,30 +244,51 @@ describe('inputs built in memory', () => {
 
 // ── defects the corpora exposed, recorded strictly (spec §10: never normalised away) ───────
 
-describe('KNOWN DEFECTS (strict: each turns red the day it is fixed, then flip it to `it`)', () => {
-  // Found by Task 12. `resolveHref` (and the server's `linkify.resolve_href`, which it mirrors
-  // rule for rule) KEEPS any href whose scheme is not unsafe/app, so these are stored as link
-  // marks. The editor gives none of them a door (`openableLinkHref`: tel: allows no spaces,
-  // https refuses a space or userinfo, ftp:/sms: are not openable, a bare `mailto:` has no "@"),
-  // so the member sees a link that does nothing: Plan A's DOM rail rule "every link has a door,
-  // is plain text, or is a download" does not hold for file imports of real exports. The fix
-  // is a policy call for BOTH runtimes (render as text, or widen the doors), not this task's.
-  const INERT = ['tel:+1 555 0100', 'ftp://example.com/f', 'sms:+15550100', 'https://example.com/a b', 'https://user:pw@example.com/', 'mailto:']
-  async function doorlessLinks() {
-    const html = `<html><body><h1>Inert</h1>${INERT.map((h, i) => `<p><a href="${h}">L${i}</a></p>`).join('')}</body></html>`
-    const run = await importCorpus([vfileOf('inert.html', strToU8(html))], { expectAdapter: 'file' })
-    return renderedLinks(renderBody(run.bodyOf('Inert')))
-      .filter((l) => !l.plain && !(openableLinkHref(l.href) || internalNoteIdFromHref(l.href) || pendingLinkFallbackHref(l.href)))
-      .map((l) => l.href)
-  }
-
-  it.fails('DEFECT: an href with no door (tel: with spaces, ftp:, sms:, a space or userinfo in https, bare mailto:) is stored as an inert link instead of text', async () => {
-    expect(await doorlessLinks()).toEqual([])
+describe('B-14: every imported link has a door or is plain text (the defect Task 12 found)', () => {
+  // Task 12 recorded these six as stored inert links (`resolveHref` kept any scheme it did not
+  // know). The controller ruling: a kept link must have a door, so each is now plain text that
+  // keeps its visible text -- or its URL, when the link had no text of its own.
+  const NO_DOOR = ['tel:+1 555 0100 ext 2', 'ftp://example.com/f', 'sms:+15550100?body=hi', 'https://example.com/a b', 'https://user:pw@example.com/', 'mailto:']
+  // ...while these stay links, and the door opens them (tel:/sms: normalised).
+  const KEPT = [
+    ['tel:+1 555 0100', 'tel:+15550100'], ['sms:+15550100', 'sms:+15550100'],
+    ['mailto:desk@example.com', 'mailto:desk@example.com'], ['https://example.com/a', 'https://example.com/a'],
+  ]
+  let body
+  beforeAll(async () => {
+    const html = '<html><body><h1>Doors</h1>'
+      + NO_DOOR.map((h, i) => `<p>N${i}: <a href="${h}">L${i}</a></p>`).join('')
+      + NO_DOOR.map((h, i) => `<p>E${i}: <a href="${h}"></a></p>`).join('')
+      + KEPT.map(([h], i) => `<p>K${i}: <a href="${h}">K${i}</a></p>`).join('')
+      + '</body></html>'
+    const run = await importCorpus([vfileOf('doors.html', strToU8(html))], { expectAdapter: 'file' })
+    body = run.bodyOf('Doors')
   })
 
-  // The pin that keeps the xfail above honest: it fails for THIS reason (all six stored raw and
-  // rendered door-less), not because the harness broke. Delete it with the fix.
-  it('DEFECT pinned: today exactly these six are stored raw and render with no door', async () => {
-    expect(await doorlessLinks()).toEqual(INERT)
+  it('no stored or rendered link is left without a door', () => {
+    const doorless = renderedLinks(renderBody(body))
+      .filter((l) => !l.plain && !(openableLinkHref(l.href) || internalNoteIdFromHref(l.href) || pendingLinkFallbackHref(l.href)))
+      .map((l) => l.href)
+    expect(doorless).toEqual([])
+  })
+
+  it.each(NO_DOOR.map((h, i) => [h, i]))('%s becomes its visible text', (_h, i) => {
+    const p = paragraph(body, `N${i}:`)
+    expect(p.textContent).toBe(`N${i}: L${i}`)
+    expect(p.querySelector('a')).toBeNull()
+  })
+
+  it.each(NO_DOOR.map((h, i) => [h, i]))('%s with no text of its own keeps its URL as text', (h, i) => {
+    const p = paragraph(body, `E${i}:`)
+    expect(p.textContent).toBe(`E${i}: ${h}`)
+    // The URL is now prose, so linkify reads it like any other prose: `https://example.com/a b`
+    // yields a link on `https://example.com/a` (a door), never one on the refused href.
+    expect(renderedLinks(p).map((l) => l.href)).toEqual(h === 'https://example.com/a b' ? ['https://example.com/a'] : [])
+  })
+
+  it('tel: with spaces, sms:, mailto: and https stay links, and the door opens each', () => {
+    const got = KEPT.map((_, i) => linksIn(body, `K${i}:`))
+    expect(got).toEqual(KEPT.map(([h], i) => [{ text: `K${i}`, href: h }]))
+    expect(KEPT.map(([h]) => openableLinkHref(h))).toEqual(KEPT.map(([, door]) => door))
   })
 })

@@ -20,7 +20,9 @@ _VECTORS = (
     Path(__file__).resolve().parents[5] / "app" / "src" / "pages" / "journal-2-0" / "lib"
     / "importer" / "__fixtures__" / "linkify_vectors.json"
 )
-VECTORS = json.loads(_VECTORS.read_text(encoding="utf-8"))["vectors"]
+_ALL = json.loads(_VECTORS.read_text(encoding="utf-8"))
+VECTORS = _ALL["vectors"]
+HREF_VECTORS = _ALL["href_vectors"]
 EXISTING = "https://existing.example/"
 LINK = "import-link://"
 
@@ -187,11 +189,39 @@ def test_unsafe_and_app_schemes_and_relative_links_become_text(href):
     "/journal?j2tab=notebook&note=abc", "/terminal?cmd=NVDA", "import-link://k",
     "import-ref://media-1", "/api/j2/notes/attachments/a.png",
     "https://x.com/a", "http://x.com", "mailto:me@x.com",
-    "tel:+15551234", "ftp://x.org/f", "zoommtg://zoom.us/join?confno=1",
+    "tel:+15551234", "tel:+1 555 0100", "sms:+15550100",
 ])
 def test_internal_and_pending_links_are_kept(href):
     out = normalize_link_hrefs(_doc(_run("label", _link(href))))
     assert _links(out) == [("label", href)]
+
+
+@pytest.mark.parametrize("v", HREF_VECTORS, ids=[v["name"] for v in HREF_VECTORS])
+def test_shared_href_vectors(v):
+    """B-14 (controller ruling): the kept-link allow-list, from the SHARED vectors the client's
+    linkPolicy.test.js also reads. `want` null = the link becomes plain text."""
+    assert resolve_href(v["href"], v.get("source")) == v["want"]
+
+
+def test_href_vectors_cover_both_sides_of_every_allowed_scheme():
+    """A vector file that only says "kept" (or only "text") for a scheme cannot pin the rule."""
+    kept = {v["href"].split(":", 1)[0].lower() for v in HREF_VECTORS if v["want"] is not None}
+    refused = {v["href"].split(":", 1)[0].lower() for v in HREF_VECTORS if v["want"] is None}
+    for scheme in ("http", "https", "mailto", "tel", "sms"):
+        assert scheme in kept, scheme
+    for scheme in ("https", "mailto", "tel", "sms", "ftp", "zoommtg"):
+        assert scheme in refused, scheme
+
+
+@pytest.mark.parametrize("href", [
+    "ftp://x.org/f", "zoommtg://zoom.us/join?confno=1", "tel:+1 555 0100 ext 2", "sms:",
+    "mailto:", "https://example.com/a b", "https://user:pw@example.com/",
+])
+def test_a_link_with_no_door_becomes_its_text(href):
+    """B-14: a scheme the editor cannot open is never stored as an inert link."""
+    out = normalize_link_hrefs(_doc("before ", _run("label", {"type": "bold"}, _link(href)), " after"))
+    assert _links(out) == []
+    assert out["content"][0]["content"][1] == {"type": "text", "text": "label", "marks": [{"type": "bold"}]}
 
 
 def test_protocol_relative_gets_https_and_whitespace_is_trimmed():

@@ -27,10 +27,17 @@
  * `resolveHref(href, sourceUrl)` -- the href to keep, or `null` meaning "render as text".
  * The scheme is read the way a browser and TipTap's `isAllowedUri` read it (`hrefAsRead`):
  * `java<TAB>script:x` is `javascript:x`, never a "relative" href resolved against the source.
+ * B-14: any other scheme -- and a `//host` or resolved relative href -- is kept only when
+ * `../linkSchemes.js` `keptSchemeHref` gives it a door (http(s), mailto, tel, sms); the
+ * shared `href_vectors` pin it to the server. A linkify match it would refuse is not made.
  *
  * `neutraliseAnchor(a)` -- replaces `a` with its children (formatting and media kept).
+ * `neutraliseRefusedAnchor(a)` -- the same for a link `resolveHref` refused; an anchor with NO
+ * visible content shows its href instead (`refusedLinkText`), so the URL is not lost. Never for
+ * an unsafe scheme or a scheme-less href (as before).
  */
 import { getLinkify } from './adapters/generic'
+import { hrefAsRead, keptSchemeHref } from '../linkSchemes'
 
 // ── linkify (L-3) ────────────────────────────────────────────────────────────
 
@@ -72,7 +79,10 @@ function matches(text) {
     if (!t) continue
     const again = linkify.match(t) || []
     if (again.length !== 1 || again[0].index !== 0 || again[0].lastIndex !== t.length || !kept(again[0])) continue
-    out.push([m.index, m.index + t.length, hrefFor(again[0], t)])
+    const href = hrefFor(again[0], t)
+    // B-14: never make a link the href policy would turn back into text (`https://u:p@x`).
+    if (keptSchemeHref(href) === null) continue
+    out.push([m.index, m.index + t.length, href])
   }
   return out
 }
@@ -111,14 +121,9 @@ export function linkifyTextNodes(root) {
 
 // ── href policy (L-4) ────────────────────────────────────────────────────────
 
-// TipTap `isAllowedUri`'s UNICODE_WHITESPACE_PATTERN, and the server's
-// `mddoc._LINK_URI_INVISIBLE_RE` (the test pins it to TipTap's, code point by code point).
-const INVISIBLE_RE = /[\u0000-\u0020\u00A0\u1680\u180E\u2000-\u2029\u205F\u3000]/g
-
-/** `href` as TipTap's `isAllowedUri` -- and a browser -- reads it: invisible characters removed. */
-export function hrefAsRead(href) {
-  return href.replace(INVISIBLE_RE, '')
-}
+// `hrefAsRead`: `href` as TipTap's `isAllowedUri` -- and a browser -- reads it. Defined in
+// ../linkSchemes.js beside the kept-link allow-list that also reads it; re-exported here.
+export { hrefAsRead }
 
 const KEPT_PREFIXES = ['import-link://', 'import-ref://', '/journal', '/terminal?cmd=', '/api/j2/notes/attachments/']
 const UNSAFE_SCHEMES = new Set(['javascript', 'data', 'vbscript', 'file'])
@@ -158,9 +163,12 @@ function resolveRelative(href, sourceUrl) {
   // ⛔ Never against our own origin: in the app a relative href lands on uctintelligence.com,
   // which is never what the source author meant.
   if (host === APP_HOST || host.endsWith('.' + APP_HOST)) return null
+  // B-14: whitespace in a relative href is text; `new URL` would percent-encode it and the
+  // server's `urljoin` would not, so the two runtimes could not agree on the result.
+  if (hrefAsRead(href) !== href) return null
   try {
     const out = new URL(href, base)
-    return out.protocol === 'http:' || out.protocol === 'https:' ? out.href : null
+    return out.protocol === 'http:' || out.protocol === 'https:' ? keptSchemeHref(out.href) : null
   } catch {
     return null
   }
@@ -184,9 +192,10 @@ export function resolveHref(href, sourceUrl = null) {
       const key = scheme === 'notion' ? notionKey(read.slice(m[0].length)) : null
       return key ? `import-link://${key}` : null
     }
-    return h
+    // B-14: a scheme the editor has no door for is text, never an inert link.
+    return keptSchemeHref(h)
   }
-  if (read.startsWith('//')) return 'https:' + read
+  if (read.startsWith('//')) return keptSchemeHref('https:' + read)
   return resolveRelative(h, sourceUrl)
 }
 
@@ -196,4 +205,24 @@ export function neutraliseAnchor(a) {
   if (!parent) return
   while (a.firstChild) parent.insertBefore(a.firstChild, a)
   parent.removeChild(a)
+}
+
+/**
+ * B-14: the text a REFUSED anchor with no visible content of its own shows -- its trimmed href,
+ * so `<a href="ftp://x/f"></a>` keeps the URL as plain text instead of vanishing -- or null
+ * when it has content (that stays), or when the href names no scheme (a relative or `#`
+ * anchor, as before) or an UNSAFE one (never surfaced, as before).
+ */
+export function refusedLinkText(a) {
+  if (a.textContent.trim() !== '' || a.querySelector('img, picture, video, audio, svg')) return null
+  const href = (a.getAttribute('href') || '').trim()
+  const m = SCHEME_RE.exec(hrefAsRead(href))
+  return m && !UNSAFE_SCHEMES.has(m[1].toLowerCase()) ? href : null
+}
+
+/** A refused link becomes plain text: its content (`neutraliseAnchor`), or its URL when empty. */
+export function neutraliseRefusedAnchor(a) {
+  const text = refusedLinkText(a)
+  if (text !== null) a.replaceChildren(a.ownerDocument.createTextNode(text))
+  neutraliseAnchor(a)
 }

@@ -8,8 +8,8 @@
  *   2. `collectRemoteImages` -- every other `<img>` not already ours becomes a remote item
  *      (its src goes through `resolveHref` inside that pass);
  *   3. EVERY `a[href]`: `resolveHref(href, doc.sourceUrl)`, then the kept href is written
- *      back, or `neutraliseAnchor` (null = "render as text"). ⛔ Every anchor, no
- *      exceptions: the markdown lane's link gate (adapters/generic.js) deliberately lets
+ *      back, or `neutraliseRefusedAnchor` (null = "render as text"; an empty one shows its
+ *      URL, B-14). ⛔ Every anchor, no exceptions: the markdown lane's link gate (adapters/generic.js) deliberately lets
  *      `[t](javascript:x)` emit an anchor, and THIS is where it becomes text;
  *   4. `liftMediaOutOfLinks` -- after step 3, so a link emptied by the lift shows its
  *      RESOLVED href, never the raw relative one;
@@ -27,7 +27,7 @@
  * before each one. Whatever `adapter.parse` throws propagates unchanged.
  */
 import { heldBody } from './uctJson'
-import { linkifyTextNodes, resolveHref, neutraliseAnchor } from './linkPolicy'
+import { linkifyTextNodes, resolveHref, neutraliseRefusedAnchor } from './linkPolicy'
 import { extractDataUriImages, collectRemoteImages, liftMediaOutOfLinks } from './mediaRefs'
 
 export function finishDoc(doc) {
@@ -43,7 +43,7 @@ export function finishDoc(doc) {
   for (const a of [...body.querySelectorAll('a[href]')]) {
     const href = a.getAttribute('href')
     const resolved = resolveHref(href, sourceUrl)
-    if (resolved === null) neutraliseAnchor(a)
+    if (resolved === null) neutraliseRefusedAnchor(a)
     else if (resolved !== href) a.setAttribute('href', resolved)
   }
   liftMediaOutOfLinks(body)

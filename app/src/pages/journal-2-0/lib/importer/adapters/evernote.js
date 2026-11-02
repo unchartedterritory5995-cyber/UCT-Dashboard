@@ -84,7 +84,7 @@
 import SparkMD5 from 'spark-md5'
 import { reportIgnoredFiles } from './reportIgnored'
 import { liftMediaOutOfLinks } from '../mediaRefs'
-import { resolveHref, neutraliseAnchor } from '../linkPolicy'
+import { resolveHref, neutraliseRefusedAnchor } from '../linkPolicy'
 import { isEvernoteNoteHref, resolveEvernoteLinks, settleEvernoteLinks, pyStrip } from '../evernoteLinks'
 
 const ENEX_EXT = /\.enex$/i
@@ -240,7 +240,7 @@ function resolveWebLinks(root, sourceUrl) {
     if (a.hasAttribute('data-evernote-link')) continue
     const href = a.getAttribute('href')
     const resolved = resolveHref(href, sourceUrl || null)
-    if (resolved === null) neutraliseAnchor(a)
+    if (resolved === null) neutraliseRefusedAnchor(a)
     else if (resolved !== href) a.setAttribute('href', resolved)
   }
 }

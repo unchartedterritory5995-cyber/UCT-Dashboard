@@ -17,10 +17,17 @@ once per side:
     writes), so the Task 4 link-key machinery (`link_keys.resolve_link_keys` in the
     engine's final pass, `heal_pending_links` later) turns it into the in-app note link;
     any other deep link -> text;
-  * any other scheme (`https:`, `mailto:`, `tel:`, `ftp:`, `zoommtg:` ...) -> unchanged;
+  * B-14 (controller ruling: every stored link has a door or is plain text) -- any
+    other scheme is kept, unchanged, ONLY when `kept_scheme_href` allows it:
+    `http:`/`https:` (`//` + a host, no whitespace, no userinfo, port <= 65535),
+    `mailto:` with an `@` address, `tel:`/`sms:` with a number (digits, an optional
+    leading `+`, spaces `-` `.` `(` `)`). Everything else (`ftp:`, `zoommtg:`, a bare
+    `mailto:`/`tel:`, `https://a b`, `https://user:pw@...`) -> text;
   * `//host...` -> `https://host...`;
   * relative, `#...`, `?...` -> resolved against the note's own http(s) source URL when
-    one is known, else text. ⛔ Never against uctintelligence.com: in the app a relative
+    one is known, else text. Both results pass `kept_scheme_href` too, and a relative
+    href holding whitespace is text (the two runtimes' URL resolvers read it differently).
+    ⛔ Never against uctintelligence.com: in the app a relative
     href would land on OUR origin, which is never what the source author meant.
 
 `linkify_doc(doc)` -- bare `https://...`, `http://...`, `www....`, `mailto:` and email
@@ -29,7 +36,9 @@ defaults, the same behaviour markdown-it's linkify has on the client), then:
   * keep a match only if its schema is `http:`/`https:`/`mailto:` (a bare email counts),
     or its schema is empty and its raw text starts with `www.` (href gets `https://`).
     Every other fuzzy domain is dropped: `NVDA.US`, `BRK.B`, `example.com` are tickers
-    and prose far more often than links. `ftp:` and `//` matches are dropped too;
+    and prose far more often than links. `ftp:` and `//` matches are dropped too, and
+    (B-14) so is any match whose href `kept_scheme_href` refuses (`https://user:pw@x`),
+    so linkify can never make a link the href policy would turn back into text;
   * ONE trim, identical on the client: cut at the first CJK/fullwidth punctuation mark or
     curly quote (linkify-it keeps `。` and `”` inside a path), strip trailing `.,:;!?`
     (linkify-it keeps a trailing `:`), and keep the result only if linkify-it matches it
@@ -41,7 +50,7 @@ defaults, the same behaviour markdown-it's linkify has on the client), then:
     bold word is still one link; the runs keep their own marks and gain the link mark.
 
 The shared vectors `app/src/pages/journal-2-0/lib/importer/__fixtures__/linkify_vectors.json`
-are asserted by `test_linkify.py` here and by Plan B's client test, so the sides cannot
+(`vectors` for linkify, `href_vectors` for `resolve_href`) are asserted by `test_linkify.py` here and by Plan B's client test, so the sides cannot
 drift. Cost is linear in the text (one linkify scan per run, plus one re-check per kept
 match); the engine still runs it off the event loop (`engine._finalize_remote_notes`).
 """
@@ -158,6 +167,65 @@ def _notion_key(read: str) -> str | None:
     return notion_note_key(pid) if pid else None
 
 
+# ── the kept-link allow-list (B-14) ──────────────────────────────────────────
+# ⛔ The client's `lib/linkSchemes.js` states the same rule; the shared `href_vectors` in
+# `linkify_vectors.json` pin the two together. Change one, change both, add the vector.
+_WEB_RE = re.compile(r"^https?://([^/?#]*)", re.IGNORECASE)
+# host[:port]: a bracketed IPv6 literal, or a name with none of the characters a URL parser
+# treats as a delimiter or forbids in a host (`%` included: a percent-encoded host is decoded
+# by the browser into something other than what the member read).
+_AUTHORITY_RE = re.compile(r'^(\[[0-9A-Fa-f:.]+\]|[^\[\]:@/?#\\%<>^|"`{}]+)(?::([0-9]*))?$')
+_NUMERIC_LABEL_RE = re.compile(r"^(?:[0-9]+|0[xX][0-9A-Fa-f]*)$")
+_IPV4_PART_RE = re.compile(r"^(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$")
+_MAILTO_RE = re.compile(r"^mailto:", re.IGNORECASE)
+_NUMBER_RE = re.compile(r"^(tel|sms):(\+?[0-9 ().\-]*[0-9][0-9 ().\-]*)$", re.IGNORECASE)
+
+
+# U+FEFF is not in TipTap's class but IS whitespace to the editor's door (a JS `\s`), so it
+# is refused too: every kept link stays openable.
+_BOM = chr(0xFEFF)
+
+
+def _clean(x: str) -> bool:
+    return link_href_as_read(x) == x and _BOM not in x
+
+
+def _web_host_ok(h: str) -> bool:
+    m = _WEB_RE.match(h)
+    if m is None:
+        return False
+    a = _AUTHORITY_RE.match(m.group(1))
+    if a is None:
+        return False
+    host, port = a.group(1), a.group(2)
+    if port and int(port) > 65535:
+        return False
+    if host.startswith("["):
+        return True
+    labels = host.split(".")
+    if len(labels) > 1 and labels[-1] == "":
+        labels = labels[:-1]
+    # A numeric last label makes a browser read the host as IPv4; only a plain dotted quad
+    # reads as what the member saw (`1.2.3.999` fails to parse, `1.2.3` is `1.2.0.3`).
+    if _NUMERIC_LABEL_RE.match(labels[-1]):
+        return len(labels) == 4 and all(_IPV4_PART_RE.match(p) for p in labels)
+    return True
+
+
+def kept_scheme_href(h: str) -> str | None:
+    """`h` (already trimmed) when its scheme has a door in the editor, else None (text).
+
+    http(s): `//` + a host, no whitespace or invisible character, no userinfo, a port of at
+    most 65535. mailto: an address with an `@`, no whitespace. tel:/sms: a number -- digits, an
+    optional leading `+`, spaces `-` `.` `(` `)`, at least one digit, nothing else."""
+    if _WEB_RE.match(h):
+        return h if _clean(h) and _web_host_ok(h) else None
+    if _MAILTO_RE.match(h):
+        rest = h[len("mailto:"):]
+        return h if "@" in rest and _clean(rest) else None
+    return h if _NUMBER_RE.match(h) else None
+
+
 def _resolve_relative(href: str, source_url: str | None) -> str | None:
     if not isinstance(source_url, str):
         return None
@@ -170,9 +238,11 @@ def _resolve_relative(href: str, source_url: str | None) -> str | None:
         return None
     if host == _APP_HOST or host.endswith("." + _APP_HOST):
         return None
+    if link_href_as_read(href) != href:
+        return None  # B-14: whitespace in a relative href; the two runtimes' resolvers read it differently
     try:
         # `href` has no scheme (`resolve_href` decided that), so the result keeps the base's.
-        return urljoin(source_url.strip(), href)
+        return kept_scheme_href(urljoin(source_url.strip(), href))
     except ValueError:
         return None
 
@@ -198,9 +268,9 @@ def resolve_href(href: Any, source_url: str | None = None) -> str | None:
         if scheme in _APP_SCHEMES:
             key = _notion_key(read[m.end():]) if scheme == "notion" else None
             return f"{LINK_PREFIX}{key}" if key else None
-        return h
+        return kept_scheme_href(h)
     if read.startswith("//"):
-        return "https:" + read
+        return kept_scheme_href("https:" + read)
     return _resolve_relative(h, source_url)
 
 
@@ -291,7 +361,10 @@ def _matches(text: str) -> list[tuple[int, int, str]]:
             if len(again) != 1 or again[0].index != 0 or again[0].last_index != len(t) \
                     or not _kept(again[0]):
                 continue
-            out.append((m.index, m.index + len(t), _href_for(again[0], t)))
+            href = _href_for(again[0], t)
+            if kept_scheme_href(href) is None:
+                continue  # B-14: never make a link the href policy would turn back into text
+            out.append((m.index, m.index + len(t), href))
         return out
 
 

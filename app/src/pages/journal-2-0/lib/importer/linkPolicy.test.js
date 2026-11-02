@@ -6,7 +6,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import { isAllowedUri } from '@tiptap/extension-link'
-import { linkifyTextNodes, resolveHref, neutraliseAnchor, hrefAsRead } from './linkPolicy'
+import { linkifyTextNodes, resolveHref, neutraliseAnchor, neutraliseRefusedAnchor, refusedLinkText, hrefAsRead } from './linkPolicy'
+import { openableLinkHref } from '../linkClickOpen'
 import { getLinkify, mdToHtml } from './adapters/generic'
 
 const dom = (html) => new DOMParser().parseFromString(html, 'text/html').body
@@ -28,8 +29,8 @@ const CONTEXTS = {
 }
 
 describe('shared linkify vectors (linkify_vectors.json, also read by the server test)', () => {
-  it('the file holds the 35 vectors and every context is mapped', () => {
-    expect(VECTORS.vectors).toHaveLength(35)
+  it('the file holds the 36 vectors and every context is mapped', () => {
+    expect(VECTORS.vectors).toHaveLength(36)
     for (const v of VECTORS.vectors) expect(Object.keys(CONTEXTS)).toContain(v.context)
   })
   it.each(VECTORS.vectors.map((v) => [v.name, v]))('%s', (_name, v) => {
@@ -134,9 +135,9 @@ describe('resolveHref', () => {
     ['/terminal?cmd=NVDA', 'https://news.example.com/p', '/terminal?cmd=NVDA'],
     ['/api/j2/notes/attachments/abc', 'https://news.example.com/p', '/api/j2/notes/attachments/abc'],
     ['mailto:me@example.com', null, 'mailto:me@example.com'],
-    // any OTHER scheme is kept unchanged
-    ['tel:+15551234', null, 'tel:+15551234'], ['ftp://x.org/a', null, 'ftp://x.org/a'],
-    ['zoommtg://zoom.us/join?confno=1', null, 'zoommtg://zoom.us/join?confno=1'],
+    // B-14: only a scheme with a door is kept (the full allow-list is the shared href_vectors)
+    ['tel:+15551234', null, 'tel:+15551234'], ['ftp://x.org/a', null, null],
+    ['zoommtg://zoom.us/join?confno=1', null, null],
     ['', null, null], ['   ', 'https://a.com/', null],
   ])('resolveHref(%j, %j) -> %j', (href, src, want) => expect(resolveHref(href, src)).toBe(want))
 
@@ -186,11 +187,52 @@ describe('resolveHref', () => {
   })
 })
 
+describe('shared href vectors (B-14: every stored link has a door or is plain text)', () => {
+  it.each(VECTORS.href_vectors.map((v) => [v.name, v]))('%s', (_name, v) => {
+    expect(resolveHref(v.href, v.source ?? null)).toBe(v.want)
+  })
+  // The other half of the rule: whatever the policy keeps with a scheme, the editor can open.
+  it.each(VECTORS.href_vectors.filter((v) => 'door' in v).map((v) => [v.name, v]))('%s: the door opens it', (_name, v) => {
+    expect(openableLinkHref(v.want)).toBe(v.door)
+  })
+  it('every kept vector with a scheme names its door', () => {
+    const missing = VECTORS.href_vectors
+      .filter((v) => v.want !== null && /^[a-z][a-z0-9+.-]*:/i.test(v.want) && !v.want.startsWith('import-'))
+      .filter((v) => !('door' in v)).map((v) => v.name)
+    expect(missing).toEqual([])
+  })
+})
+
 describe('neutraliseAnchor', () => {
   it('keeps formatted and media children', () => {
     const b = dom('<p><a href="evernote:///x"><b>Bold</b> <img src="import-ref://h"></a></p>')
     neutraliseAnchor(b.querySelector('a'))
     expect(b.innerHTML).toBe('<p><b>Bold</b> <img src="import-ref://h"></p>')
+  })
+})
+
+describe('neutraliseRefusedAnchor (B-14: a refused link keeps its visible text, or its URL when it had none)', () => {
+  it.each([
+    ['<p>a <a href="ftp://example.com/f">the file</a> b</p>', 'a the file b'],
+    ['<p>a <a href="ftp://example.com/f"></a> b</p>', 'a ftp://example.com/f b'],
+    ['<p>a <a href=" tel:+1 555 0100 ext 2 ">  </a> b</p>', 'a tel:+1 555 0100 ext 2 b'],
+    ['<p>a <a href="mailto:"></a> b</p>', 'a mailto: b'],
+    ['<p>a <a href="https://user:pw@example.com/"></a> b</p>', 'a https://user:pw@example.com/ b'],
+    // unsafe schemes and scheme-less hrefs are never surfaced (as before)
+    ['<p>a <a href="javascript:alert(1)"></a> b</p>', 'a  b'],
+    ['<p>a <a href="java\tscript:alert(1)"></a> b</p>', 'a  b'],
+    ['<p>a <a href="#top"></a> b</p>', 'a  b'],
+  ])('%s -> %j', (html, text) => {
+    const b = dom(html)
+    neutraliseRefusedAnchor(b.querySelector('a'))
+    expect(b.querySelector('a')).toBeNull()
+    expect(b.textContent).toBe(text)
+  })
+  it('an anchor holding only media keeps the media, not the URL', () => {
+    const b = dom('<p><a href="ftp://x/f"><img src="import-ref://h"></a></p>')
+    expect(refusedLinkText(b.querySelector('a'))).toBeNull()
+    neutraliseRefusedAnchor(b.querySelector('a'))
+    expect(b.innerHTML).toBe('<p><img src="import-ref://h"></p>')
   })
 })
 
