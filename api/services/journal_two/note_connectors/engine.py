@@ -1294,26 +1294,32 @@ def _apply_resolved_body(
     body_plain = notes_svc.extract_plain_text(body)
     body_blob = json.dumps(body)
     still_pending = 1 if ("import-ref://" in body_blob or "import-link://" in body_blob) else 0
-    cur = conn.execute(
-        "UPDATE j2_notes SET body_json = ?, body_plain = ?, import_media_pending = ? "
-        "WHERE id = ? AND user_id = ? AND updated_at = ?",
-        (body_blob, body_plain, still_pending, note_id, user_id, expected_updated_at),
-    )
-    applied = cur.rowcount > 0
-    if applied:
-        # Plan A Task 2, controller ruling 1: every other body write rebuilds the
-        # content sidecars in its own transaction, and this one must too -- a link
-        # this pass resolves (import-link:// -> /journal?j2tab=notebook&note=<id>),
-        # or one Task 4's heal pass writes through here, is otherwise never a
-        # backlink or a graph edge. Timestamp-neutral like the UPDATE above:
-        # `_sync_note_sidecars` writes only the sidecar tables, never j2_notes.
-        # One transaction with the body: if the projection raises, the body write
-        # is rolled back too, never left pending for some later commit to land alone.
-        try:
+    # One unit with its sidecars (below): a SAVEPOINT, so a failed projection undoes
+    # THIS note's body write and nothing else the connection may hold.
+    conn.execute("SAVEPOINT apply_resolved_body")
+    try:
+        cur = conn.execute(
+            "UPDATE j2_notes SET body_json = ?, body_plain = ?, import_media_pending = ? "
+            "WHERE id = ? AND user_id = ? AND updated_at = ?",
+            (body_blob, body_plain, still_pending, note_id, user_id, expected_updated_at),
+        )
+        applied = cur.rowcount > 0
+        if applied:
+            # Plan A Task 2, controller ruling 1: every other body write rebuilds the
+            # content sidecars in its own transaction, and this one must too -- a link
+            # this pass resolves (import-link:// -> /journal?j2tab=notebook&note=<id>),
+            # or one Task 4's heal pass writes through here, is otherwise never a
+            # backlink or a graph edge. Timestamp-neutral like the UPDATE above:
+            # `_sync_note_sidecars` writes only the sidecar tables, never j2_notes.
             notes_svc._sync_note_sidecars(conn, user_id, note_id, body, body_plain)
-        except Exception:
-            conn.rollback()
-            raise
+    except Exception:
+        # The body write is undone with its projection, never left pending for some
+        # later commit to land alone. The caller records a per-note failure (fix
+        # round 1, M1); the stored placeholder body stays for self-heal to retry.
+        conn.execute("ROLLBACK TO SAVEPOINT apply_resolved_body")
+        conn.execute("RELEASE SAVEPOINT apply_resolved_body")
+        raise
+    conn.execute("RELEASE SAVEPOINT apply_resolved_body")
     conn.commit()
     return applied
 
@@ -1571,7 +1577,11 @@ async def _resolve_links_final_pass(
             continue
 
         expected = baseline_updated_at.get(note_id)
-        applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        try:
+            applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        except Exception as e:  # noqa: BLE001 -- fix round 1, M1: one note never stops the pass
+            result["failures"].append(f"link pass: resolved body write failed for note {note_id!r}: {e}")
+            continue
         if not applied:
             sibling_id, reroute_failures = _reroute_resolved_body_to_sibling(
                 conn, user_id, source, rn, key, body)
@@ -1729,7 +1739,16 @@ async def _confirm_and_resolve_batch(
             continue
 
         expected = baseline_updated_at.get(note_id)
-        applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        try:
+            applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        except Exception as e:  # noqa: BLE001 -- fix round 1, M1: one note never stops the source
+            # Its body write was rolled back with its projection, so the confirm-written
+            # placeholder body stays and self-heal retries it on a later sync. Same
+            # shape as the validation failure above.
+            result["failures"].append(f"resolved body write failed for note {note_id!r}: {e}")
+            if rn.links:
+                result["touched"].append((rn, key, note_id))  # placeholder still intact
+            continue
         if applied:
             if rn.links:
                 result["touched"].append((rn, key, note_id))

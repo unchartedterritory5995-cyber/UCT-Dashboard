@@ -4137,6 +4137,18 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] could not schedule the terminal seed")
 
+    # Plan A Task 2 (L-2): internal link MARKS already stored become note links.
+    # A flag-file one-shot on a daemon thread with its OWN connection, started HERE --
+    # after `_init_auth_db()` has committed -- never from inside `ensure_schema`, where
+    # it raced the boot connection's remaining schema writes (fix round 1, I1). It
+    # scans ids unlocked and writes in small chunks; see its docstring.
+    try:
+        from api.services.journal_two.db import start_internal_link_projection_backfill
+        start_internal_link_projection_backfill()
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "[startup] could not schedule the internal-link projection backfill")
+
     # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
     # It used to be created only inside _buzz_poll, AFTER its
     # `if not ingest_enabled(): return` guard and only when this process holds

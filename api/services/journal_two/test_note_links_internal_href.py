@@ -233,29 +233,174 @@ def test_backfill_writes_no_flag_over_an_empty_notebook(monkeypatch, tmp_path):
     assert not (tmp_path / ".note_links_internal_href_v1").exists()
 
 
-def test_the_boot_hook_runs_the_backfill_in_a_background_thread(monkeypatch, tmp_path):
-    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+# ── Fix round 1, I1: the backfill never holds the write lock while scanning ────
+
+def _file_db_with_links(tmp_path, n):
+    """A file-backed WAL notebook (a second connection can contend for its write
+    lock) holding `n` notes whose stored bodies carry an internal link mark."""
     path = tmp_path / "j2.db"
-    c = sqlite3.connect(str(path))
+    c = sqlite3.connect(str(path), timeout=0)
     c.row_factory = sqlite3.Row
+    c.execute("PRAGMA journal_mode=WAL")
     ensure_schema(c)
     b = _create(c, "u1", "B", _doc())
-    a = _create(c, "u1", "A", _doc())
-    c.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?",
-              (json.dumps(_doc(_para(_linked("x", _href(b["id"]))))), a["id"]))
+    ids = [_create(c, "u1", f"A{i}", _doc())["id"] for i in range(n)]
+    body = json.dumps(_doc(_para(_linked("x", _href(b["id"])))))
+    c.executemany("UPDATE j2_notes SET body_json = ? WHERE id = ?", [(body, i) for i in ids])
     c.commit()
-    t = j2db.start_internal_link_projection_backfill(c)
-    assert t is not None and t.daemon
-    t.join(timeout=30)
-    assert not t.is_alive()
-    assert _link_rows(c, a["id"]) == [b["id"]]
+    return path, c, b["id"], ids
+
+
+def _another_writer_can_take_the_lock(path):
+    """True when a SECOND connection can take the write lock right now, with no wait."""
+    other = sqlite3.connect(str(path), timeout=0)
+    try:
+        other.execute("BEGIN IMMEDIATE")
+        other.execute("ROLLBACK")
+        return True
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        other.close()
+
+
+def test_backfill_scans_unlocked_and_releases_the_lock_between_chunks(monkeypatch, tmp_path):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setattr(j2db, "_INTERNAL_LINK_BACKFILL_BATCH", 3)
+    monkeypatch.setattr(j2db, "_INTERNAL_LINK_BACKFILL_CHUNK", 2)
+    path, c, b_id, ids = _file_db_with_links(tmp_path, 7)
+
+    scans, pauses = [], []
+    real_scan = j2db._scan_internal_link_candidates
+
+    def watched_scan(conn, after, limit):
+        # The scan runs with NO transaction open, and another writer can get in.
+        scans.append((conn.in_transaction, _another_writer_can_take_the_lock(path)))
+        out = real_scan(conn, after, limit)
+        assert len(out) <= limit
+        return out
+
+    def watched_pause(seconds=0.05):
+        pauses.append((c.in_transaction, _another_writer_can_take_the_lock(path)))
+
+    monkeypatch.setattr(j2db, "_scan_internal_link_candidates", watched_scan)
+    monkeypatch.setattr(j2db, "_internal_link_backfill_pause", watched_pause)
+
+    out = j2db.run_internal_link_projection_backfill(c)
+    assert out["synced"] == 7
+    assert all(_link_rows(c, i) == [b_id] for i in ids)
+    assert len(scans) >= 3 and all(s == (False, True) for s in scans), scans
+    # 7 notes in pages of 3 = chunks of 2+1, 2+1, 1 -> five chunks, five pauses
+    assert len(pauses) == 5 and all(p == (False, True) for p in pauses), pauses
     assert (tmp_path / "data" / ".note_links_internal_href_v1").exists()
-    assert j2db.start_internal_link_projection_backfill(c) is None  # flag present: no thread
+    assert j2db.run_internal_link_projection_backfill(c).get("skipped") is True
     c.close()
 
 
-def test_the_boot_hook_starts_no_thread_for_an_in_memory_db(monkeypatch, tmp_path):
-    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+def test_CONTROL_a_held_lock_is_seen_by_the_probe(tmp_path):
+    """The rail above can only pass by measuring: a connection holding the write
+    lock makes the probe answer False."""
+    path, c, _b, _ids = _file_db_with_links(tmp_path, 1)
+    c.execute("BEGIN IMMEDIATE")
+    try:
+        assert _another_writer_can_take_the_lock(path) is False
+    finally:
+        c.execute("ROLLBACK")
+    assert _another_writer_can_take_the_lock(path) is True
+    c.close()
+
+
+def test_backfill_projects_the_body_as_it_is_when_its_chunk_runs(monkeypatch, tmp_path):
+    """A save that lands between the unlocked scan and the chunk is what gets
+    projected: the chunk re-reads each body by id under the lock."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    path, c, b_id, ids = _file_db_with_links(tmp_path, 1)
+    d = _create(c, "u1", "D", _doc())
+    real_scan = j2db._scan_internal_link_candidates
+
+    def scan_then_member_saves(conn, after, limit):
+        out = real_scan(conn, after, limit)
+        if out:
+            other = sqlite3.connect(str(path))
+            other.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?",
+                          (json.dumps(_doc(_para(_linked("y", _href(d["id"]))))), ids[0]))
+            other.commit()
+            other.close()
+        return out
+
+    monkeypatch.setattr(j2db, "_scan_internal_link_candidates", scan_then_member_saves)
+    j2db.run_internal_link_projection_backfill(c)
+    assert _link_rows(c, ids[0]) == [d["id"]]
+    c.close()
+
+
+def test_the_boot_starter_runs_the_backfill_on_a_daemon_thread_with_its_own_connection(
+        monkeypatch, tmp_path):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    path, c, b_id, ids = _file_db_with_links(tmp_path, 2)
+    opened = []
+
+    def connect():
+        conn = sqlite3.connect(str(path), timeout=30)
+        opened.append(conn)
+        return conn
+
+    t = j2db.start_internal_link_projection_backfill(connect)
+    assert t is not None and t.daemon
+    t.join(timeout=30)
+    assert not t.is_alive()
+    assert len(opened) == 1 and opened[0] is not c
+    assert all(_link_rows(c, i) == [b_id] for i in ids)
+    assert (tmp_path / "data" / ".note_links_internal_href_v1").exists()
+    assert j2db.start_internal_link_projection_backfill(connect) is None  # flagged: no thread
+    c.close()
+
+
+def test_the_backfill_is_started_by_main_after_init_db_never_by_ensure_schema():
+    """Fix round 1, I1: started from the lifespan once `_init_auth_db()` has run and
+    committed, never from inside `ensure_schema`, where it raced the boot
+    connection's remaining schema writes."""
+    import ast
+    import inspect
+
+    ensure_src = inspect.getsource(j2db.ensure_schema)
+    assert "start_internal_link_projection_backfill" not in ensure_src
+    main_src = (REPO / "api/main.py").read_text(encoding="utf-8")
+    tree = ast.parse(main_src)
+    life = next(n for n in ast.walk(tree)
+                if isinstance(n, ast.AsyncFunctionDef) and n.name == "lifespan")
+    calls = [(n.lineno, n.func.id) for n in ast.walk(life)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+             and n.func.id in ("_init_auth_db", "start_internal_link_projection_backfill")]
+    names = [name for _ln, name in sorted(calls)]
+    assert names == ["_init_auth_db", "start_internal_link_projection_backfill"], calls
+
+
+# ── Fix round 1, M2: a failed projection undoes the body write, and only it ────
+
+def test_a_failed_projection_rolls_back_the_engine_body_write(monkeypatch):
+    from api.services.journal_two import notes as notes_mod
     c = _conn()
-    _create(c, "u1", "A", _doc())
-    assert j2db.start_internal_link_projection_backfill(c) is None
+    b = _create(c, "u1", "B", _doc())
+    original = _doc(_para(_linked("my alias", "import-link://notion:b-key")))
+    a = _create(c, "u1", "A", original)
+    c.commit()
+    before = c.execute("SELECT updated_at, body_json FROM j2_notes WHERE id = ?", (a["id"],)).fetchone()
+    # Something else the connection holds, uncommitted: a savepoint must not discard it.
+    c.execute("UPDATE j2_notes SET title = 'kept' WHERE id = ?", (b["id"],))
+
+    def boom(*_a, **_k):
+        raise RuntimeError("projection failed")
+
+    monkeypatch.setattr(notes_mod, "_sync_note_sidecars", boom)
+    resolved = _doc(_para(_linked("my alias", _href(b["id"]))))
+    with pytest.raises(RuntimeError, match="projection failed"):
+        engine._apply_resolved_body(c, "u1", a["id"], resolved, expected_updated_at=before["updated_at"])
+    after = c.execute("SELECT updated_at, body_json FROM j2_notes WHERE id = ?", (a["id"],)).fetchone()
+    assert after["body_json"] == before["body_json"]
+    assert json.loads(after["body_json"]) == original
+    assert after["updated_at"] == before["updated_at"]
+    assert _link_rows(c, a["id"]) == []
+    assert c.execute("SELECT title FROM j2_notes WHERE id = ?", (b["id"],)).fetchone()[0] == "kept"
+
+

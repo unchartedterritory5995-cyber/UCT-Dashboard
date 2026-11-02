@@ -1265,6 +1265,61 @@ async def test_a_failing_sync_still_marks_the_source_broken_no_regression(source
 # place so self-heal can retry after a fix.
 
 
+async def test_a_note_whose_projection_fails_is_a_named_failure_and_the_pass_continues(
+    source, provider, monkeypatch,
+):
+    """Plan A Task 2 fix round 1, M1 + M2. `_apply_resolved_body` now rebuilds the
+    note's sidecars; when that raises for ONE note, its body write is rolled back
+    (placeholder kept, updated_at unmoved) and the media pass records a per-note
+    failure and carries on with the next note instead of stopping the source."""
+    provider.refs = [RemoteRef(remote_id="bad", updated_at="2026-08-01T00:00:00+00:00"),
+                     RemoteRef(remote_id="good", updated_at="2026-08-01T00:00:01+00:00")]
+    bad = _rn("bad", "Bad Note", media=[{"ref": "img-b", "kind": "image", "name": "b.png"}])
+    bad.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://img-b"}})
+    good = _rn("good", "Good Note", media=[{"ref": "img-g", "kind": "image", "name": "g.png"}])
+    good.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://img-g"}})
+    provider.media_by_ref = {"img-b": (PNG_BYTES, "image/png"), "img-g": (PNG_BYTES, "image/png")}
+    provider.notes_by_id = {"bad": bad, "good": good}
+
+    real_sync = notes_svc._sync_note_sidecars
+    seen_baselines: dict[str, str] = {}
+    real_bulk = engine._bulk_note_updated_at
+
+    def recording_bulk(conn, ids):
+        out = real_bulk(conn, ids)
+        seen_baselines.update(out)
+        return out
+
+    def flaky_sync(conn, user_id, note_id, body_json, body_plain):
+        blob = json.dumps(body_json)
+        # Only the ENGINE's resolved write for the bad note fails; confirm's own
+        # sidecar rebuild (placeholder still present) goes through untouched.
+        if "Bad Note" in blob and "import-ref://" not in blob:
+            raise RuntimeError("projection failed")
+        return real_sync(conn, user_id, note_id, body_json, body_plain)
+
+    monkeypatch.setattr(engine, "_bulk_note_updated_at", recording_bulk)
+    monkeypatch.setattr(notes_svc, "_sync_note_sidecars", flaky_sync)
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["status"] == "ok"
+    assert result["created"] == 2
+    assert any("resolved body write failed" in f and "projection failed" in f
+               for f in result["failures"]), result["failures"]
+    by_title = {n["title"]: n for n in notes_svc.list_notes("u1")}
+    bad_note, good_note = by_title["Bad Note"], by_title["Good Note"]
+    assert "import-ref://img-b" in json.dumps(_body(bad_note))       # body write rolled back
+    assert "import-ref://" not in json.dumps(_body(good_note))        # the next note still resolved
+    conn = auth_db.get_connection()
+    try:
+        upd = conn.execute("SELECT updated_at FROM j2_notes WHERE id = ?",
+                           (bad_note["id"],)).fetchone()[0]
+    finally:
+        conn.close()
+    assert upd == seen_baselines[bad_note["id"]]                       # updated_at never moved
+
+
 async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_in_place(
     source, provider, monkeypatch,
 ):
