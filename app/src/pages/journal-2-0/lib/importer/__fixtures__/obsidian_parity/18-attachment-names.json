@@ -5,7 +5,10 @@
   "server": {
     "callouts": [],
     "files": [
-      "q3 report.pdf"
+      {
+        "label": "the report",
+        "name": "q3 report.pdf"
+      }
     ],
     "highlights": [],
     "images": [

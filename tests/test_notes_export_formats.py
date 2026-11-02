@@ -802,3 +802,33 @@ def test_an_import_notice_in_word_is_the_sentence_and_a_link_only_for_http():
     parts = validate_docx(blob)
     assert "Couldn't copy chart.png" in _docx_text(blob) and "open the original" not in _docx_text(blob)
     assert _external_targets(parts) == []
+
+
+# ── D2 item 6: an attachment chip's optional label ───────────────────────────
+# `[the report](q3%20report.pdf)` keeps the member's words as `attrs.label`. Every format
+# shows the label and links (or names) the file; a chip with no label exports exactly as
+# before (the markdown digests above pin that for the whole library).
+
+_LABELED = {"type": "attachmentChip",
+            "attrs": {"href": "https://x.test/q3%20report.pdf", "name": "q3 report.pdf", "label": "the report"}}
+_UNLABELED = {"type": "attachmentChip", "attrs": {"href": "https://x.test/q3%20report.pdf", "name": "q3 report.pdf"}}
+
+
+def test_a_labeled_chip_shows_its_label_and_links_its_file_in_markdown_and_the_web_page():
+    md = notes_export.tiptap_to_markdown(_doc(_LABELED))
+    assert md.strip() == "[the report](https://x.test/q3%20report.pdf)"
+    assert notes_export.tiptap_to_markdown(_doc(_UNLABELED)).strip() == "[q3 report.pdf](https://x.test/q3%20report.pdf)"
+    for blank in ("", "   ", None, 7):
+        chip = {"type": "attachmentChip", "attrs": {**_UNLABELED["attrs"], "label": blank}}
+        assert notes_export.tiptap_to_markdown(_doc(chip)).strip() == "[q3 report.pdf](https://x.test/q3%20report.pdf)"
+    page = F.note_html(_doc(_LABELED), resolver=None, title="t")
+    assert '<a href="https://x.test/q3%20report.pdf" rel="noopener noreferrer">the report</a>' in page
+
+
+def test_a_labeled_chip_shows_its_label_in_word_and_lists_the_file_by_name():
+    text = _docx_text(F.note_docx(_doc(_LABELED), title="t"))
+    assert "the report" in text
+    assert "q3 report.pdf -- a file attachment" in text
+    assert "the report --" not in text
+    plain = _docx_text(F.note_docx(_doc(_UNLABELED), title="t"))
+    assert plain.split("Not included")[0].strip() == "t q3 report.pdf"

@@ -214,9 +214,10 @@ def _walk_semantic(node: Any, vault_id: str, out: dict[str, list],
     elif ntype == "image":
         out["images"].append(_normalize_image_src(attrs.get("src", ""), refs))
     elif ntype == "attachmentChip":
-        # Plan C Task 4: a non-image file is a chip in both lanes. Its NAME, in
-        # document order -- what the member reads on the chip.
-        out["files"].append(attrs.get("name"))
+        # Plan C Task 4: a non-image file is a chip in both lanes. Its NAME (the
+        # download name) and, D2 item 6, its LABEL (the member's link text the chip
+        # shows; None when absent), in document order.
+        out["files"].append({"name": attrs.get("name"), "label": attrs.get("label")})
     elif ntype == "callout":
         # Plan A Task 13: an Obsidian callout is the editor's callout node, by variant.
         out["callouts"].append(attrs.get("variant"))

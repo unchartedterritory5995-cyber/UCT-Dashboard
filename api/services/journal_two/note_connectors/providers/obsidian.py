@@ -718,6 +718,37 @@ def _notice_markdown(reason: str, name: str) -> str:
     return f"![](<{NOTICE_SCHEME}{reason}/{_q(name)}>)"
 
 
+#: D2 item 6: a file chip's LABEL rides its placeholder as a fragment, `obsidian-file:<sha>/
+#: <quoted name>#label=<quoted label>`, from `_ref_markdown` to `_promote_obsidian_placeholders`,
+#: which takes it off again: the stored href and the media ref never carry it. The name and
+#: the label are both fully quoted, so this mark is the only `#` in the placeholder.
+_LABEL_MARK = "#label="
+
+
+def _ref_label(original: Any, name: str) -> str | None:
+    """The member's own words for a file link (D2 item 6): the text of `[the report](...)`
+    or the alias of `[[q3 report.pdf|the report]]`, when it is not just the file's name. An
+    embed has no words of its own, so no label."""
+    if not isinstance(original, str):
+        return None
+    text = None
+    md = _MD_LINK_OR_IMAGE_RE.fullmatch(original)
+    if md is not None and md.group(1) != "!":
+        text = md.group(2)
+    else:
+        wiki = _WIKI_RE.fullmatch(original)
+        if wiki is not None and wiki.group(1) != "!":
+            text = wiki.group(3)
+    text = (text or "").strip()
+    return text if text and text != name else None
+
+
+def _split_label(ref: str) -> tuple[str, str | None]:
+    """`obsidian-file:<sha>/<name>#label=<label>` -> (the ref without the label, the label)."""
+    base, mark, label = ref.partition(_LABEL_MARK)
+    return base, (unquote(label) or None) if mark else None
+
+
 def _ref_markdown(ref: dict[str, Any]) -> str | None:
     """The markdown one ref's `original` becomes (the rewrite table), or None when the ref
     names nothing this pass can write (its original then stays as written)."""
@@ -735,7 +766,11 @@ def _ref_markdown(ref: dict[str, Any]) -> str | None:
         if not isinstance(sha, str) or not sha:
             return None
         image = ref.get("embed") is True and _ext_of(name) in _ATT_IMAGE_EXTS
-        return f"![](<{ATT_SCHEME if image else FILE_SCHEME}{sha}/{_q(name)}>)"
+        if image:
+            return f"![](<{ATT_SCHEME}{sha}/{_q(name)}>)"
+        label = _ref_label(ref.get("original"), name)
+        tail = f"{_LABEL_MARK}{_q(label)}" if label else ""
+        return f"![](<{FILE_SCHEME}{sha}/{_q(name)}{tail}>)"
     reason = _STATUS_REASONS.get(status)
     if reason is None:
         return None
@@ -897,8 +932,11 @@ def _promote_obsidian_placeholders(converted: dict[str, Any]) -> dict[str, Any]:
     def promote(node: dict[str, Any]) -> dict[str, Any]:
         src = (node.get("attrs") or {}).get("src") or ""
         if src.startswith(file_src):
-            return {"type": "attachmentChip",
-                    "attrs": {"href": src, "name": _ref_name(src[len(REF_PREFIX):])}}
+            ref, label = _split_label(src[len(REF_PREFIX):])
+            attrs = {"href": f"{REF_PREFIX}{ref}", "name": _ref_name(ref)}
+            if label:
+                attrs["label"] = label  # D2 item 6: absent, not null, when there is none
+            return {"type": "attachmentChip", "attrs": attrs}
         if src.startswith(notice_src):
             reason, _, quoted = src[len(notice_src):].partition("/")
             return import_notice.notice_node(
@@ -906,12 +944,17 @@ def _promote_obsidian_placeholders(converted: dict[str, Any]) -> dict[str, Any]:
         return node
 
     media: list[dict[str, Any]] = []
+    seen: set[str] = set()
     for m in converted["media"]:
         ref = m.get("ref") or ""
         if ref.startswith(NOTICE_SCHEME):
             continue
         if ref.startswith((ATT_SCHEME, FILE_SCHEME)):
-            m = {**m, "name": _ref_name(ref)}
+            ref = _split_label(ref)[0]
+            if ref in seen:
+                continue  # the same file under another label: one upload
+            seen.add(ref)
+            m = {**m, "ref": ref, "name": _ref_name(ref)}
             if ref.startswith(FILE_SCHEME):
                 m["kind"] = "file"
         media.append(m)

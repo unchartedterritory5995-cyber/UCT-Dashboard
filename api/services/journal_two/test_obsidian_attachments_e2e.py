@@ -272,3 +272,22 @@ async def test_old_plugin_payload_still_imports_text_with_outdated_notice(client
     assert notice["attrs"]["name"] == "chart.png"
     assert _of_type(note["doc"], "image") == []
     assert note["pending"] == 0
+
+
+async def test_a_file_link_lands_as_a_chip_that_keeps_the_members_text(client):
+    """D2 item 6: `[the report](docs/report.pdf)` is stored as a served chip whose label is
+    the member's text and whose download name is the file's; the engine's media rewrite
+    keeps the label."""
+    token, source_id = _connect(client)
+    pdf = (_BIN / "report.pdf").read_bytes()
+    _upload(client, token, pdf, "report.pdf", "application/pdf")
+    original = "[the report](docs/report.pdf)"
+    _ingest(client, token, f"Read {original} first.", [_ref(original, "docs/report.pdf", pdf, embed=False)])
+    await _sync(source_id)
+
+    note = _stored_note()
+    [chip] = _of_type(note["doc"], "attachmentChip")
+    assert chip["attrs"]["name"] == "report.pdf"
+    assert chip["attrs"]["label"] == "the report"
+    assert _sha(_served(chip["attrs"]["href"])) == _sha(pdf)
+    assert note["pending"] == 0

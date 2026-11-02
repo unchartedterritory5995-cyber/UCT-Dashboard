@@ -948,9 +948,11 @@ def test_pdf_embed_and_markdown_file_link_become_attachment_chips():
             REF(original="[report](report.pdf)", embed=False, path="report.pdf", sha256=sha2)]
     conv = _convert("![[report.pdf]]\n\nsee [report](report.pdf) here\n", refs=refs)
     chips = _all(conv["doc"], "attachmentChip")
+    # D2 item 6: the link's own text `report` is kept as the chip's label (the embed has none).
     assert [c["attrs"] for c in chips] == [
         {"href": "import-ref://obsidian-file:" + _SHA + "/report.pdf", "name": "report.pdf"},
-        {"href": "import-ref://obsidian-file:" + sha2 + "/report.pdf", "name": "report.pdf"},
+        {"href": "import-ref://obsidian-file:" + sha2 + "/report.pdf", "name": "report.pdf",
+         "label": "report"},
     ]
     assert _all(conv["doc"], "image") == []
     assert conv["media"] == [
@@ -1725,3 +1727,33 @@ def test_the_client_attachment_extensions_are_the_servers():
     words = " ".join(_re.findall(r"'([^']*)'", block.group(1))).split()
     assert len(words) == len(set(words))
     assert set(words) == set(_UNSENT_ATTACHMENT_EXTS)
+
+
+def test_a_file_link_keeps_the_members_text_as_the_chip_label():
+    """D2 item 6: `[the report](attachments/q3%20report.pdf)` keeps the member's words as the
+    chip's optional `label`; the download name stays `name`. Written only when the text
+    differs from the file name; an embed has no text and gets none. One file, one media
+    entry, whatever its labels."""
+    path = "attachments/q3 report.pdf"
+    refs = [REF(original="[the report](attachments/q3%20report.pdf)", embed=False, path=path),
+            REF(original="[q3 report.pdf](attachments/q3%20report.pdf)", embed=False, path=path),
+            REF(original="[[q3 report.pdf|the sheet]]", embed=False, path=path),
+            REF(original="![[q3 report.pdf]]", path=path)]
+    body = ("Read [the report](attachments/q3%20report.pdf) and "
+            "[q3 report.pdf](attachments/q3%20report.pdf), [[q3 report.pdf|the sheet]], "
+            "![[q3 report.pdf]].")
+    conv = _convert(body, refs=refs)
+    href = "import-ref://obsidian-file:" + _SHA + "/q3%20report.pdf"
+    assert [c["attrs"] for c in _all(conv["doc"], "attachmentChip")] == [
+        {"href": href, "name": "q3 report.pdf", "label": "the report"},
+        {"href": href, "name": "q3 report.pdf"},
+        {"href": href, "name": "q3 report.pdf", "label": "the sheet"},
+        {"href": href, "name": "q3 report.pdf"},
+    ]
+    assert conv["media"] == [{"ref": "obsidian-file:" + _SHA + "/q3%20report.pdf", "kind": "file",
+                              "name": "q3 report.pdf"}]
+    # A label holding the characters the placeholder is written with survives exactly.
+    odd = "50% / #2 (draft) > old"
+    conv = _convert(f"[{odd}](a.pdf)", refs=[REF(original=f"[{odd}](a.pdf)", embed=False, path="a.pdf")])
+    assert _only(conv["doc"], "attachmentChip")["attrs"]["label"] == odd
+    assert conv["media"][0]["ref"] == "obsidian-file:" + _SHA + "/a.pdf"

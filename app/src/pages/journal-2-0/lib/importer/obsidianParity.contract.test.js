@@ -136,8 +136,9 @@ function walkSemantic(node, out) {
     out.images.push(normalizeImageSrc(attrs.src || ''))
   } else if (node.type === 'attachmentChip') {
     // Plan C Task 4: a non-image file is a chip in both lanes; its NAME, in document
-    // order (the client lane writes it from `data-name`, the server from the ref).
-    out.files.push(attrs.name ?? null)
+    // order (the client lane writes it from `data-name`, the server from the ref), and
+    // D2 item 6, its LABEL (the member's link text; null when absent).
+    out.files.push({ name: attrs.name ?? null, label: attrs.label ?? null })
   } else if (node.type === 'callout') {
     out.callouts.push(attrs.variant ?? null)
   } else if (node.type === 'taskItem') {

@@ -1101,9 +1101,12 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         src = _import_notice.safe_source_url(attrs.get("sourceUrl"))
         return f"{line} [{_import_notice.OPEN_ORIGINAL}](<{src}>)" if src else line
     if ntype == "attachmentChip":
+        # D2 item 6: the chip's text is its optional label (the member's link text), else
+        # its name, as the editor shows it; the link is the file either way.
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None
-        return f"[{_closed(_prose(attrs.get('name') or 'attachment'))}]({local or href})"
+        shown = chip_label(attrs) or attrs.get("name") or "attachment"
+        return f"[{_closed(_prose(shown))}]({local or href})"
     if ntype == "videoTimestamp":
         # Mirrors app/src/components/video/playerUtils.js::fmtTime exactly --
         # the same helper the editor's own node view renders with
@@ -1242,6 +1245,14 @@ def _trade_canvas_markdown(attrs: Any) -> str:
         lines.append("")
         lines.extend(f"- {_prose(r)}" for r in rows)
     return "\n".join(lines)
+
+
+def chip_label(attrs: dict[str, Any]) -> str | None:
+    """An attachment chip's optional `label` (D2 item 6): the member's own link text, shown
+    in place of the file name. None when absent, blank or not a string -- a chip written
+    before labels existed exports exactly as it did. Mirrors `attachmentChip.js::chipLabel`."""
+    label = attrs.get("label") if isinstance(attrs, dict) else None
+    return label if isinstance(label, str) and label.strip() else None
 
 
 def tiptap_to_markdown(doc: dict[str, Any] | None, *, attachment_resolver=None) -> str:

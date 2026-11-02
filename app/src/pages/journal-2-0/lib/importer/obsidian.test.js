@@ -712,3 +712,17 @@ describe('obsidian adapter — D2 item 5: no empty paragraph, no lost space', ()
       'doc(paragraph("Top"), image, paragraph("Read "), attachmentChip, paragraph(" before the open."))')
   })
 })
+
+// D2 item 6: a markdown link to a file keeps the member's text as the chip's label.
+describe('obsidian adapter — D2 item 6: a file link keeps its text as the chip label', () => {
+  it('[the report](att/q3%20report.pdf) is a chip named q3 report.pdf that shows "the report"', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/a.md', 'Read [the report](att/q3%20report.pdf) and [q3 report.pdf](att/q3%20report.pdf).'),
+      vf('V/att/q3 report.pdf', 'q')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/a.md')
+    const chips = htmlToNote(d.html).bodyJson.content.filter((n) => n.type === 'attachmentChip')
+    expect(chips.map((c) => [c.attrs.name, c.attrs.label])).toEqual([
+      ['q3 report.pdf', 'the report'], ['q3 report.pdf', null]])
+    expect(d.media.map((m) => m.ref)).toEqual(['V/att/q3 report.pdf'])
+  })
+})

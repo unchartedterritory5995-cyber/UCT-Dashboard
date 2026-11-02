@@ -335,9 +335,15 @@ export function resolveRelativeMedia(html, dir, byPath) {
     // `data-import-link="<targetKey>"` is the Notion/Obsidian adapters' job.
     if (SUPPORTED_EXT.test(resolvedPath)) return
     const name = basename(resolvedPath)
+    // D2 item 6: the member's own link text (`[the report](q3%20report.pdf)`) is the
+    // chip's LABEL, shown in place of the name, when it says something else; the
+    // download name stays `name` (`attachmentChip.js`). The server's Obsidian lane
+    // writes the same (`providers/obsidian.py::_ref_label`).
+    const text = (a.textContent || '').trim()
     a.setAttribute('data-type', 'attachmentChip')
     a.setAttribute('data-import-ref', resolvedPath)
     a.setAttribute('data-name', name)
+    if (text && text !== name) a.setAttribute('data-label', text)
     // The AttachmentChip TipTap node (Task 5) reads `href` in parseHTML — not
     // `data-import-ref` — mirroring the <img src> branch above. Without this,
     // the placeholder never reaches bodyJson and Task 13's rewriteBody (which

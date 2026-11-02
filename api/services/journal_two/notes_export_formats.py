@@ -910,7 +910,9 @@ class _Walker:
                     bundled = None
             if not bundled and href:
                 self.dx.unbundled_files.append(name)
-            return _run(name, "<w:i/>" + extra_props)
+            # D2 item 6: the chip's label (the member's link text) is what it shows; the
+            # list of files the document could not hold names the file itself.
+            return _run(_nx.chip_label(attrs) or name, "<w:i/>" + extra_props)
         if t in ("image", "resizableImage"):
             img = self.dx.image(attrs.get("src"))
             alt = str(attrs.get("alt") or "")
