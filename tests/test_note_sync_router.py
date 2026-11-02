@@ -1142,9 +1142,23 @@ def test_background_sync_passes_member_true_and_survives_a_busy_result(client, m
 
     monkeypatch.setattr(engine, "sync_source", fake_sync_source)
     monkeypatch.setattr(engine, "is_source_busy", lambda sid: False)
-    r = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync?background=1&full=1")
-    assert r.status_code == 200 and r.json() == {"status": "started", "background": True}
-    assert all(c[2] is True and c[3] is True for c in calls)
+
+    async def drive():
+        # Call the route coroutine on a loop we own, so the detached task is
+        # awaited deterministically (TestClient may tear its loop down first).
+        out = await note_sync_router.sync_source_now(
+            source_id, full=True, background=True, user={"id": "u1", "plan": "pro"})
+        for _ in range(100):
+            if calls:
+                break
+            await asyncio.sleep(0.01)
+        await asyncio.sleep(0)  # let the task finish after the busy result
+        return out
+
+    out = asyncio.run(drive())
+    assert out == {"status": "started", "background": True}
+    assert len(calls) == 1  # a vacuous all([]) cannot satisfy this
+    assert calls[0] == (source_id, True, True, True)
 
 
 def test_status_sources_carry_pending_removal_and_last_failure_count(client, monkeypatch):
