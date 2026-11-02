@@ -180,6 +180,14 @@ def test_RUN_stops_before_a_question_whose_worst_case_would_pass_the_runs_cap(le
     heavy = lambda **kw: _resp(_env(reply="ok"), usage=(20000, 200, 0, 0))     # ~$0.021 actual per call  # noqa: E731
     s = sb.run(R, ["d02", "d05"], bound + 0.005, tmp_path, caller=heavy, site_reader=ZERO_SITE)
     assert s["status"] == "STOPPED" and "--max-usd" in s["stopped_because"] and s["questions_run"] == 1
+    assert s["not_reached"] == ["d05"] and s["spent_usd"] <= bound + 0.005          # never past the cap
+    assert len((tmp_path / "raw.jsonl").read_text(encoding="utf-8").splitlines()) == 1   # d05 made no call
+
+
+def test_RUN_with_a_cap_below_the_first_questions_worst_case_makes_no_call_at_all(ledger, tmp_path):
+    model = _model_for({R["requests"]["d02"]["message"]: [_env()]})
+    s = sb.run(R, ["d02"], 0.01, tmp_path, caller=model, site_reader=ZERO_SITE)
+    assert model.calls == [] and s["not_reached"] == ["d02"] and s["answered"] == 0 and budget.state()["committed_usd"] == 0
 
 
 def test_RUN_is_stopped_by_the_shared_15_ledger_and_spends_nothing(ledger, tmp_path):

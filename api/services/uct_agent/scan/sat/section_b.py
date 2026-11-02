@@ -208,6 +208,8 @@ def run(requests: dict, ids: list[str] | None, max_usd: float, out: Path,
             bound = price_request(capture_kwargs(body_args(body, manifests)))["worst_usd"]
             if body.get("reroute_on"):
                 bound += price_request(capture_kwargs(body_args(body["reroute_on"]["body"], manifests)))["worst_usd"]
+            # checked BEFORE the question's first call: a question starts only if what is spent plus its worst case
+            # (every call it may make) fits, so the run can end early but never passes --max-usd
             if spent + bound > max_usd:
                 stopped = f"--max-usd {max_usd:.2f}: {qid} could cost up to ${bound:.4f} with ${spent:.4f} spent"
                 break
@@ -243,8 +245,12 @@ def run(requests: dict, ids: list[str] | None, max_usd: float, out: Path,
         results[qid] = rec
         if stopped and rec.get("outcome", "").startswith("budget_refused"):
             break
+    wanted = [q for q in requests["requests"] if not ids or q in ids]
     summary = {"status": "STOPPED" if stopped else "COMPLETE", "stopped_because": stopped,
-               "questions_run": len(results), "spent_usd": round(spent, 6), "max_usd": max_usd,
+               "questions_run": len(results),
+               "answered": sum(1 for r in results.values() if r.get("outcome") == "ok"),
+               "not_reached": [q for q in wanted if q not in results],
+               "spent_usd": round(spent, 6), "max_usd": max_usd,
                "model_calls": sum(r.get("model_calls") or 0 for r in results.values()),
                "ledger_after": _ledger_view(budget)}
     (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n", encoding="utf-8")
