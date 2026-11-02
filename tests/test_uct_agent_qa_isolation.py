@@ -45,6 +45,7 @@ def _leaks(obj) -> list[str]:
 @pytest.fixture(autouse=True)
 def _gw(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     monkeypatch.setenv(gw.SCAN_ENV, "1")
     gw._reset_for_test(None)
     yield
