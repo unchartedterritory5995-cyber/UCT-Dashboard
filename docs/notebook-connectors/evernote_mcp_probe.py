@@ -6,7 +6,8 @@
 Writes everything to ./out/. Tokens stay in ./out/tokens.json (delete after).
 Scope requested: read only.
 """
-import base64, hashlib, http.server, json, os, secrets, sys, threading, time, urllib.parse, urllib.request, webbrowser
+import http.server as httpserver
+import base64, hashlib, json, os, secrets, sys, threading, time, urllib.parse, urllib.request, webbrowser
 
 AS = "https://accounts.evernote.com"
 MCP = "https://mcp.evernote.com/mcp"
@@ -71,7 +72,7 @@ def authorize(client):
     url = f"{AS}/auth/authorize?" + urllib.parse.urlencode(q)
     got = {}
 
-    class H(http.server.BaseHTTPRequestHandler):
+    class H(httpserver.BaseHTTPRequestHandler):
         def do_GET(self):
             qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             got.update({k: v[0] for k, v in qs.items()})
@@ -80,7 +81,7 @@ def authorize(client):
         def log_message(self, *a):
             pass
 
-    srv = http.server.HTTPServer(("127.0.0.1", PORT), H)
+    srv = httpserver.HTTPServer(("127.0.0.1", PORT), H)
     threading.Thread(target=srv.handle_request, daemon=True).start()
     print("AUTHORIZE URL:\n" + url)
     save("authorize_url.txt", url)
