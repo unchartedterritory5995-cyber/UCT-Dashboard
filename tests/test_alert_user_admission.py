@@ -758,6 +758,17 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
         {"plots": [{"key": "rsi", "style": "line"}, {"key": "levels", "style": "hlines", "levels": [70, 30]}],
          "compute": {"kind": "ast", "ast": _ast_sma(), "trees": {"rsi": _ast_sma()}, "scanPlot": "rsi"}}))
 
+    # ⭐ 2026-11-02 — DRIVEN DIRECTLY: an alert row bound to a line its key no longer
+    # names (a key deleted and typed again). The product-path drives — a real save
+    # sequence, the cache-hit path, a pre-identity row — are in
+    # `tests/test_line_identity.py`.
+    def _a_different_line():
+        def fn(bars, params):
+            return None
+        fn.line_id = "p_" + "1" * 12
+        aus._check_line({"plot_uid": "p_" + "2" * 12, "user_id": USER_A}, ADDRESS, fn)
+    capture("line", _a_different_line)
+
     save(USER_B, defn(), repaint={"value": "repaints"})
     capture("repaint", lambda: aus.admit_user_definition(USER_B, DEF_ID, bars=real_bars))
 

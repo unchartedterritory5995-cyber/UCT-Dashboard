@@ -5,7 +5,8 @@ import { FUND_MARK, parseFundamentalSource } from './fundamentalGrammar'
 import { parseEconomicSource } from './econMark'
 import { catalogMetric } from './fundamentalSeries'
 import { fetchableOtherSymbols } from './otherSymbols'
-import { severInfoValuesTo } from './infoValues'
+import { severInfoValuesTo, liveInstanceOf } from './infoValues'
+import { recordableLine, lineMatches } from './lineIdentity'
 
 function fundamentalOptionLabel(p) {
   const m = catalogMetric(p.metric)
@@ -420,6 +421,133 @@ export function sourceInputsOf(def, instance) {
 }
 
 /** A numeric series from the bars, for a bar-field source. */
+// ─── ⭐⭐ LINE IDENTITY ON A SOURCE REFERENCE (2026-11-02) ─────────────────────
+//
+// `@<instanceId>::<plotKey>` names a KEY, and a key can be removed and taken again by
+// a different line (`lineIdentity.js`). So an instance-source input also records WHICH
+// line it bound to, beside its value and never inside it:
+//
+//     instance.sourceLines = { [inputKey]: '<uid>' | 'k:<key>' | 'retired' }
+//
+// ⭐ ADDITIVE AND OPTIONAL. The value string is unchanged (every reader, hasher and
+// share link keeps working); an instance without `sourceLines` — every one written
+// before this — binds by key exactly as before; an older bundle that ignores the field
+// simply binds by key. `instances.cloneInstance` already preserves unknown fields.
+
+/** The instance field that records the line each source input bound to. */
+export const SOURCE_LINES_KEY = 'sourceLines'
+
+const isPlainObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
+
+/** The line `inst`'s `inputKey` recorded, or null when it recorded none. */
+export function recordedSourceLine(inst, inputKey) {
+  const map = inst && isPlainObj(inst[SOURCE_LINES_KEY]) ? inst[SOURCE_LINES_KEY] : null
+  const v = map ? map[inputKey] : null
+  return typeof v === 'string' && v ? v : null
+}
+
+/** `inst` with `inputKey`'s recorded line set to `line` (null removes it). Returns
+ *  `inst` BY IDENTITY when nothing changes; an emptied map removes the field. */
+export function withSourceLineValue(inst, inputKey, line) {
+  if (!isPlainObj(inst) || typeof inputKey !== 'string') return inst
+  const cur = isPlainObj(inst[SOURCE_LINES_KEY]) ? inst[SOURCE_LINES_KEY] : null
+  const had = cur ? cur[inputKey] : undefined
+  if (line === null || line === undefined) {
+    if (had === undefined) return inst
+    const { [inputKey]: _gone, ...rest } = cur
+    const out = { ...inst }
+    if (Object.keys(rest).length) out[SOURCE_LINES_KEY] = rest
+    else delete out[SOURCE_LINES_KEY]
+    return out
+  }
+  if (had === line) return inst
+  return { ...inst, [SOURCE_LINES_KEY]: { ...(cur || {}), [inputKey]: line } }
+}
+
+/**
+ * `inst` after its `inputKey` source was SET to `value` on `cs`: the line the value now
+ * names is recorded (or the record removed, for anything that is not an instance
+ * source, or whose line cannot be known yet). Setting a source is the member choosing
+ * a line, so it always re-records — the explicit re-point that repairs a broken one.
+ */
+export function withRecordedSourceLine(cs, inst, def, inputKey, value, defOf) {
+  const declared = (def && Array.isArray(def.inputs) ? def.inputs : [])
+    .find((i) => i && i.key === inputKey && i.type === 'source')
+  if (!declared) return inst
+  const parsed = parseSource(value)
+  let line = null
+  if (parsed && parsed.kind === 'instance') {
+    const target = liveInstanceOf(cs, parsed.instanceId)
+    const tdef = target && typeof defOf === 'function' ? defOf(target.defId) : null
+    line = tdef ? recordableLine(tdef, parsed.plotKey) : null
+  }
+  return withSourceLineValue(inst, inputKey, line)
+}
+
+/**
+ * Does `inst`'s `inputKey` (whose value parsed to `parsed`, an instance source) still
+ * read the line it recorded? True when nothing was recorded, when the target is not
+ * on the chart, or its definition is not loaded — each of those is decided where it
+ * always was. False means: treat the source exactly like a missing output.
+ */
+export function sourceLineIntact(inst, inputKey, parsed, targetInst, defOf) {
+  const recorded = recordedSourceLine(inst, inputKey)
+  if (!recorded) return true
+  if (!parsed || parsed.kind !== 'instance' || !targetInst) return true
+  const def = typeof defOf === 'function' ? defOf(targetInst.defId) : null
+  return lineMatches(recorded, def, parsed.plotKey)
+}
+
+/** The same question asked of a settings blob (the settings dialog's source control). */
+export function sourceLineIntactIn(cs, instanceId, inputKey, value, defOf) {
+  const parsed = parseSource(value)
+  if (!parsed || parsed.kind !== 'instance') return true
+  const inst = liveInstanceOf(cs, instanceId)
+  if (!inst) return true
+  return sourceLineIntact(inst, inputKey, parsed, liveInstanceOf(cs, parsed.instanceId), defOf)
+}
+
+/**
+ * ⭐ LEGACY REFERENCES LEARN THEIR LINE AT THE NEXT WRITE (decision 3d).
+ *
+ * A source written before line identity recorded nothing. When a settings write is
+ * being made anyway, each such reference to a LOADED member-authored definition is
+ * stamped with the line it reads right now (or `retired` when that definition no
+ * longer declares the key), so a line later re-added under the same key cannot
+ * inherit it.
+ *
+ * ⛔ PURE, AND ONLY EVER RIDES A WRITE SOMEBODY ELSE IS MAKING — it never causes one,
+ * and nothing calls it from a render. ⛔ An unloaded target, a pending line, a native
+ * definition and a severed value are never stamped. Returns `instances` BY IDENTITY
+ * when nothing was stamped.
+ */
+export function stampLegacySourceLines(instances, defOf) {
+  if (!Array.isArray(instances) || typeof defOf !== 'function') return instances
+  const live = (id) => instances.find((i) => i && i.instanceId === id && i.deleted !== true
+    && typeof i.defId === 'string') || null
+  let changed = false
+  const out = instances.map((inst) => {
+    if (!inst || typeof inst.defId !== 'string' || inst.deleted === true) return inst
+    const def = defOf(inst.defId)
+    if (!def) return inst
+    let next = inst
+    for (const [key, value] of sourceInputsOf(def, inst)) {
+      if (recordedSourceLine(inst, key)) continue
+      const parsed = parseSource(value)
+      if (!parsed || parsed.kind !== 'instance') continue
+      const target = live(parsed.instanceId)
+      const tdef = target ? defOf(target.defId) : null
+      if (!tdef) continue
+      const line = recordableLine(tdef, parsed.plotKey, { retiredWhenMissing: true })
+      if (!line) continue
+      next = withSourceLineValue(next, key, line)
+    }
+    if (next !== inst) changed = true
+    return next
+  })
+  return changed ? out : instances
+}
+
 export function barFieldSeries(bars, field) {
   const n = Array.isArray(bars) ? bars.length : 0
   const out = new Array(n)

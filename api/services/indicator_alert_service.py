@@ -202,6 +202,10 @@ _MIGRATIONS: tuple[tuple[str, str], ...] = (
     # one of its TWO signals (see `_is_user_authored` — the other is structural,
     # so a row that lost this column still cannot accrue one).
     ("def_source", "ALTER TABLE indicator_alerts ADD COLUMN def_source TEXT"),
+    # ⭐ 2026-11-02 -- WHICH LINE, not which key (`user_definitions.line_identity`).
+    # NULL for every builtin row and for every user row stored before this column;
+    # the latter is bound once, on first evaluation, by `alert_user_series._check_line`.
+    ("plot_uid", "ALTER TABLE indicator_alerts ADD COLUMN plot_uid TEXT"),
 )
 
 #: The two provenances. `NULL` in the column reads as `DEF_SOURCE_BUILTIN`
@@ -281,14 +285,28 @@ def _row_to_dict(row: tuple) -> dict:
         # NULL and therefore reads `"builtin"`, which is what they have always
         # been.
         "def_source": row[23] or DEF_SOURCE_BUILTIN,
+        # ⭐ 2026-11-02 -- the line a USER alert is bound to (None: builtin, or not
+        # yet bound). Read by `alert_user_series._check_line`.
+        "plot_uid": row[24],
     }
+
+
+def bind_plot_uid(alert_id: int, plot_uid: str) -> bool:
+    """Record the line a pre-identity user alert is bound to. ONCE: a row that
+    already carries a `plot_uid` is never rebound, so a later line can never be
+    adopted by an alert that was bound to an earlier one."""
+    with _conn() as db:
+        cur = db.execute(
+            "UPDATE indicator_alerts SET plot_uid=? WHERE id=? AND plot_uid IS NULL",
+            (str(plot_uid), int(alert_id)))
+        return cur.rowcount == 1
 
 
 _COLS = (
     "id, user_id, sym, indicator, condition, threshold, tf, params_json, "
     "active, last_value, last_evaluated_at, triggered_at, trigger_count, created_at, "
     "state, state_detail, state_at, arm_epoch, snooze_until, last_fire_key, "
-    "instance_id, instance_missing_at, scope, def_source"
+    "instance_id, instance_missing_at, scope, def_source, plot_uid"
 )
 
 
@@ -377,6 +395,12 @@ def create(
         user_id, indicator, sym.upper(), tf,
         params=_ev._parse_params({"params_json": params_json}))
     source = None if admitted is None else DEF_SOURCE_USER
+    # ⭐ 2026-11-02 -- the LINE this alert is bound to, read off the function the
+    # arm just admitted (`fn.line_id`). None for a builtin.
+    plot_uid = None
+    if admitted is not None:
+        plot_uid = getattr(alert_user_series.user_value_function(user_id, indicator),
+                           "line_id", None)
 
     now = int(time.time())
     # ⛔⛔ `BEGIN IMMEDIATE` BEFORE THE COUNT, AND THE CAP DEPENDS ON IT.
@@ -404,8 +428,8 @@ def create(
             "INSERT INTO indicator_alerts "
             "(user_id, sym, indicator, condition, threshold, tf, params_json, "
             "active, trigger_count, created_at, state, state_at, arm_epoch, "
-            "instance_id, scope, def_source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?, ?)",
+            "instance_id, scope, def_source, plot_uid) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?, ?, ?)",
             (
                 str(user_id),
                 sym.upper(),
@@ -425,6 +449,7 @@ def create(
                 # NULL for a builtin — the same "absence means what it always
                 # meant" rule the `scope` column above is built on.
                 source,
+                plot_uid,
             ),
         )
         new_id = int(cur.lastrowid)

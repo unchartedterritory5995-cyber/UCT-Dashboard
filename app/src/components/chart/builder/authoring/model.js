@@ -29,6 +29,7 @@ import { evaluateFormula } from '../FormulaField'
 import { declaredInputs } from '../../engine/ast/lint'
 import { astHash } from '../../engine/ast/parse'
 import { FILL_STAMP_FIELD, fillStampSurvivesEdit } from '../../engine/memberDocumentMigration'
+import { NEW_LINE_FLAG } from '../../engine/lineIdentity'
 
 export class AuthoringError extends Error {
   constructor(code, message, extra = {}) {
@@ -115,6 +116,9 @@ export function modelOf(def) {
       dialect: ev.dialect || 'native',
     }
     for (const f of ROW_PRESENTATION) if (p[f] !== undefined) row[f] = clone(p[f])
+    // ⭐ LINE IDENTITY — a line ADDED earlier in this (unsaved) conversation stays a new
+    // line through every later turn (`buildDefinition` writes the marker back).
+    if (p[NEW_LINE_FLAG] === true) row[NEW_LINE_FLAG] = true
     return row
   })
   const chromeKeys = new Set(chromeInputsFor(rows).map((s) => s.key))
@@ -400,6 +404,9 @@ export function graftCarried(next, stored, before, after, carry, { fillOpacityNa
     const g = groupOf(p)
     if (g.plotKey !== undefined) {
       if (!plotOf(doc, g.plotKey) || !rowIn(after, g.plotKey)) { dropped.push(p); continue }   // removed on purpose
+      // ⭐ LINE IDENTITY — a stored line's `uid` never lands on a NEW line that took its
+      // key in this conversation (the store would ignore it; the document must not lie).
+      if (parsePath(p)[2].k === 'uid' && rowIn(after, g.plotKey)[NEW_LINE_FLAG] === true) { dropped.push(p); continue }
       const b = rowIn(before, g.plotKey)
       const a = rowIn(after, g.plotKey)
       // ⛔ a band's door stamp is not a setting to conflict over: when the patch

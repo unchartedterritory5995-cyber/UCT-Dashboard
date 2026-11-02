@@ -322,6 +322,10 @@ _ADDED_COLUMNS = (
     # (never inside it). NULL for every row written before this column and for
     # every row a non-script door writes. See `MAX_PINE_SOURCE_BYTES`.
     ("user_definitions", "pine_source", "TEXT"),
+    # ⭐ 2026-11-02 — LINE IDENTITY, kept BESIDE the document (never inside it, the
+    # `pine_source` precedent): `{plotKey: "p_<12 hex>"}` for this version's lines.
+    # NULL on every row written before it; such a line's identity is `k:<key>`.
+    ("user_definitions", "line_ids", "TEXT"),
     # ⭐ PRE-BUMP F3 — the MATHS a `refused` verdict is about (`_maths_identity` of the
     # refused version), copied unchanged onto every carry. Past its engine, a scriptless
     # version expires only when its own maths DIFFERS. NULL on every row written before
@@ -785,6 +789,225 @@ def trees_identity(definition: Any) -> Optional[str]:
         return trees_hash(compute["trees"])
     except ValueError:
         return UNHASHABLE_TREES
+
+
+# ─── line identity (2026-11-02) ──────────────────────────────────────────────
+#
+# ⭐ A LINE IS NOT ITS KEY. A plot's `key` is its public handle (`u_x.<key>`,
+# `@<instance>::<key>`), and a key that is DELETED and later typed again -- by a
+# member, by the model, or by a script door that numbers keys by position -- used
+# to be the same handle, so every alert and every chart reference to the deleted
+# line silently started reading the new one (OUTPUT-IDENTITY-PROPOSAL-2026-11-02).
+# Owner decision 2026-11-02: a newly created line must never inherit a deleted
+# line's references or alerts.
+#
+# THE RULE, decided HERE and only here (a client's `uid` is never trusted):
+#   * a key that the IMMEDIATELY PREVIOUS stored version also declares is the same
+#     line -- its `uid` is carried forward exactly (an edit of the line's maths, a
+#     colour, a rename of its LABEL all keep it);
+#   * a key the previous version did NOT declare is a NEW line and gets a fresh
+#     `uid`, even when an older version used that key.
+#
+# ⛔ THE DOCUMENT IS NEVER CHANGED. The identities are stored in the version row's
+# own `line_ids` column, never in `definition`: the save door's contract is that a
+# document is stored and reopened EXACTLY as sent (tests/test_batch2_save_door.py,
+# the runtime round-trips). A browser receives them on the SERVED copy
+# (`with_served_uids`, the router), may send them back, and they are stripped
+# (`strip_line_fields`) with the draft marker before anything else reads the
+# document. A version row stored before this rule has no `line_ids`; its lines'
+# identity is the implicit `k:<key>`, and a line that continues keeps it.
+PLOT_UID_RE = re.compile(r"^p_[0-9a-f]{12}$")
+LEGACY_LINE_PREFIX = "k:"
+#: The draft marker for a row ADDED before this save. Mirrored by
+#: `app/src/components/chart/engine/lineIdentity.js::NEW_LINE_FLAG`.
+NEW_LINE_FLAG = "newLine"
+_SERVED_PLOT_FIELDS = ("uid", NEW_LINE_FLAG)
+
+
+def new_plot_uid() -> str:
+    return "p_" + secrets.token_hex(6)
+
+
+def strip_line_fields(definition: Any) -> tuple:
+    """``(document, new_line_keys)``: the document without any plot `uid` /
+    `newLine` (a served copy sent back, or the draft's marker), and the keys whose
+    row was marked ADDED. Returns the SAME object when there is nothing to strip,
+    so a document from an older client is untouched to the byte."""
+    if not isinstance(definition, Mapping) or not isinstance(definition.get("plots"), list):
+        return definition, frozenset()
+    if not any(isinstance(p, Mapping) and any(f in p for f in _SERVED_PLOT_FIELDS)
+               for p in definition["plots"]):
+        return definition, frozenset()
+    new_keys = set()
+    plots = []
+    for p in definition["plots"]:
+        if isinstance(p, Mapping) and any(f in p for f in _SERVED_PLOT_FIELDS):
+            if p.get(NEW_LINE_FLAG) is True and isinstance(p.get("key"), str):
+                new_keys.add(p["key"])
+            p = {k: v for k, v in p.items() if k not in _SERVED_PLOT_FIELDS}
+        plots.append(p)
+    return {**definition, "plots": plots}, frozenset(new_keys)
+
+
+def _plot_keys_of(definition: Any) -> list:
+    plots = (definition or {}).get("plots") if isinstance(definition, Mapping) else None
+    return [p["key"] for p in plots or []
+            if isinstance(p, Mapping) and isinstance(p.get("key"), str)]
+
+
+def row_line_ids(row: Any) -> dict:
+    """The `line_ids` a version row stores (``{}`` for a row from before them)."""
+    try:
+        raw = row["line_ids"]
+    except (IndexError, KeyError, TypeError):
+        return {}
+    try:
+        val = json.loads(raw) if isinstance(raw, str) and raw else {}
+    except ValueError:
+        return {}
+    return {k: v for k, v in val.items()
+            if isinstance(k, str) and isinstance(v, str) and PLOT_UID_RE.match(v)} \
+        if isinstance(val, dict) else {}
+
+
+def decide_line_ids(definition: Any, prev_definition: Any, prev_line_ids: Mapping,
+                    new_line_keys: Any = frozenset()) -> dict:
+    """The `line_ids` for a version: a key the previous version also declared keeps
+    its stored uid (none, for a line from before line identity); a key it did not
+    declare -- or one the draft marked ADDED -- gets a fresh uid."""
+    prev_keys = set(_plot_keys_of(prev_definition)) if prev_definition is not None else set()
+    out: dict = {}
+    for key in _plot_keys_of(definition):
+        if key in prev_keys and key not in new_line_keys:
+            uid = prev_line_ids.get(key)
+            if uid:
+                out[key] = uid
+        else:
+            out[key] = new_plot_uid()
+    return out
+
+
+def line_identity(key: str, line_ids: Mapping) -> str:
+    """One line's identity: its stored uid, or `k:<key>` for a line from before."""
+    return line_ids.get(key) or (LEGACY_LINE_PREFIX + key)
+
+
+def _has_line_ids(row: Any) -> bool:
+    try:
+        return row["line_ids"] is not None
+    except (IndexError, KeyError, TypeError):
+        return False
+
+
+def _effective_line_ids(c: sqlite3.Connection, user_id: Any, def_id: str,
+                        version: Optional[int] = None) -> dict:
+    """``{plotKey: uid}`` for one version, robust to a version row whose `line_ids`
+    is NULL (written before the column, or by a path that did not set it): a key
+    that version declares takes its uid from the NEAREST earlier row that recorded
+    identities, as long as the key is declared in every version in between -- the
+    same continuity rule `decide_line_ids` applies. Usually the first row answers."""
+    params: list = [str(user_id), def_id]
+    where = "user_id=? AND def_id=?"
+    if version is not None:
+        where += " AND version<=?"
+        params.append(int(version))
+    out: dict = {}
+    pending: Optional[set] = None
+    for r in c.execute(f"SELECT version, definition, line_ids FROM user_definitions "
+                       f"WHERE {where} ORDER BY version DESC", params):
+        try:
+            keys = set(_plot_keys_of(json.loads(r["definition"])))
+        except (TypeError, ValueError):
+            break
+        if pending is None:
+            pending = set(keys)
+        for k in list(pending):
+            if k not in keys:            # the line began after this row: no identity recorded
+                pending.discard(k)
+        if _has_line_ids(r):
+            ids = row_line_ids(r)
+            for k in list(pending):
+                if k in ids:
+                    out[k] = ids[k]
+            pending.clear()
+        if not pending:
+            break
+    return out
+
+
+def line_identities(user_id: Any, def_id: str, version: Optional[int] = None) -> dict:
+    """``{plotKey: identity}`` for one stored version (the newest by default);
+    ``{}`` when there is no such version."""
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        if version is None:
+            row = _newest(c, user_id, def_id)
+        else:
+            row = c.execute(
+                "SELECT * FROM user_definitions WHERE user_id=? AND def_id=? AND version=?",
+                (str(user_id), def_id, int(version))).fetchone()
+        if row is None:
+            return {}
+        ids = _effective_line_ids(c, user_id, def_id, row["version"])
+    try:
+        keys = _plot_keys_of(json.loads(row["definition"]))
+    except (TypeError, ValueError):
+        return {}
+    return {k: line_identity(k, ids) for k in keys}
+
+
+def with_served_uids(definition: Any, identities: Mapping) -> Any:
+    """A COPY of `definition` whose plots carry `uid` -- for the browser only, at
+    the router. Implicit (`k:`) identities are not served: the browser derives
+    those itself (`lineIdentity.js`)."""
+    if not isinstance(definition, Mapping) or not isinstance(definition.get("plots"), list):
+        return definition
+    plots = []
+    for p in definition["plots"]:
+        uid = identities.get(p.get("key")) if isinstance(p, Mapping) else None
+        if isinstance(uid, str) and PLOT_UID_RE.match(uid):
+            p = {**p, "uid": uid}
+        plots.append(p)
+    return {**definition, "plots": plots}
+
+
+def line_continuous_since(user_id: Any, def_id: str, plot_key: str,
+                          since: Any) -> Optional[str]:
+    """The current identity of `plot_key` IF that line has existed without a break
+    from the version in force at `since` (epoch seconds) to the newest live version;
+    else None. The binding test for an alert stored before line identity existed:
+    a key absent from ANY version in between was deleted and re-added, and the
+    alert must not follow the new line."""
+    try:
+        since_ts = int(since)
+    except (TypeError, ValueError):
+        since_ts = 0      # unknown creation time: judged from the first version
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        rows = c.execute(
+            "SELECT * FROM user_definitions WHERE user_id=? AND def_id=? "
+            "ORDER BY version ASC", (str(user_id), def_id)).fetchall()
+        if not rows or rows[-1]["deleted_at"] is not None:
+            return None
+        effective = {r["version"]: _effective_line_ids(c, user_id, def_id, r["version"])
+                     for r in rows}
+    start = 0
+    for i, r in enumerate(rows):
+        if int(r["created_at"]) <= since_ts:
+            start = i
+    ident = None
+    for r in rows[start:]:
+        try:
+            keys = _plot_keys_of(json.loads(r["definition"]))
+        except (TypeError, ValueError):
+            return None
+        if plot_key not in keys:
+            return None
+        cur = line_identity(plot_key, effective[r["version"]])
+        if ident is not None and cur != ident and not ident.startswith(LEGACY_LINE_PREFIX):
+            return None
+        ident = cur
+    return ident
 
 
 # ─── the shared-graph document (Wave C2C) ────────────────────────────────────
@@ -2439,6 +2662,10 @@ def save(user_id: Any, def_id: str, definition: dict,
     _check_def_id(def_id)
     if not isinstance(definition, dict):
         raise ValueError(f"definition: expected an object, got {type(definition).__name__}")
+    # ⭐ 2026-11-02 -- LINE IDENTITY: a served `uid` and the draft's `newLine` marker
+    # never reach the document (`strip_line_fields`); the identities are decided in
+    # the lock (`decide_line_ids`) and stored in the row's own `line_ids` column.
+    definition, _new_line_keys = strip_line_fields(definition)
     if definition.get("id") not in (None, def_id):
         raise ValueError(
             f"definition.id is {definition.get('id')!r} but it is being stored at "
@@ -2482,7 +2709,8 @@ def save(user_id: Any, def_id: str, definition: dict,
         # does not pass it is treated as a member, never as an admin.
         return _save_runtime(user_id, def_id, definition, limits, role=role,
                              repaint_acknowledged=repaint_acknowledged,
-                             copy_of_stored=_copy_of_stored)
+                             copy_of_stored=_copy_of_stored,
+                             new_line_keys=_new_line_keys)
     if not isinstance(compute, dict) or compute.get("kind") != "ast":
         raise ValueError(
             "definition: a user definition is a FORMULA — compute.kind must be "
@@ -2725,7 +2953,10 @@ def save(user_id: Any, def_id: str, definition: dict,
             # pre-feature document re-saved from its script, unchanged maths) is
             # a fact worth a version: it is what lets the next engine fix reach
             # this document. No source sent = nothing new to record.
+            # ⭐ 2026-11-02 -- a draft that marked a row ADDED is an edit even when the
+            # bytes match: the member deleted a line and made a new one (`newLine`).
             if (prev["definition"] == blob and prev["deleted_at"] is None
+                    and not _new_line_keys
                     and (pine_source is None or pine_source == _pine_source_of(prev))):
                 return {
                     "def_id": def_id, "version": prev["version"], "rev": prev["rev"],
@@ -2843,10 +3074,15 @@ def save(user_id: Any, def_id: str, definition: dict,
         c.execute(
             "INSERT INTO user_definitions "
             "(user_id, def_id, version, rev, ast_hash, definition, repaint, "
-            " requirements, pine_source, deleted_at, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,NULL,?)",
+            " requirements, pine_source, line_ids, deleted_at, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,NULL,?)",
             (str(user_id), def_id, version, rev, new_hash, blob, repaint,
-             requirements, pine_source, now),
+             requirements, pine_source,
+             json.dumps(decide_line_ids(
+                 stored, prev_doc,
+                 _effective_line_ids(c, user_id, def_id, prev["version"]) if prev is not None else {},
+                 _new_line_keys), sort_keys=True, separators=(",", ":")),
+             now),
         )
         # ⛔⛔ A REFUSAL IS NOT LIFTED BY SAVING AROUND IT. A version today's engine
         # refused stays withheld on the next version UNLESS that version came from the
@@ -2998,7 +3234,8 @@ def _admit_runtime(definition: dict, repaint_acknowledged: Any = None) -> None:
 
 def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
                   role: Any = None, repaint_acknowledged: Any = None,
-                  copy_of_stored: bool = False) -> dict:
+                  copy_of_stored: bool = False,
+                  new_line_keys: Any = frozenset()) -> dict:
     """RT1 — append a version of a RUNTIME-LANE document.
 
     The same table, the same version/tombstone rules and the same count cap as a
@@ -3145,7 +3382,8 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
         if prev is None:
             version, rev, rev_bumped = 1, FIRST_REV, False
         else:
-            if prev["definition"] == blob and prev["deleted_at"] is None:
+            if (prev["definition"] == blob and prev["deleted_at"] is None
+                    and not new_line_keys):
                 return {
                     "def_id": def_id, "version": prev["version"], "rev": prev["rev"],
                     "rev_bumped": False, "migrated": 0, "notified": 0,
@@ -3167,9 +3405,16 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
         c.execute(
             "INSERT INTO user_definitions "
             "(user_id, def_id, version, rev, ast_hash, definition, repaint, "
-            " requirements, deleted_at, created_at) VALUES (?,?,?,?,?,?,?,?,NULL,?)",
+            " requirements, line_ids, deleted_at, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,NULL,?)",
             (str(user_id), def_id, version, rev, new_hash, blob, repaint,
-             requirements, now),
+             requirements,
+             # ⭐ 2026-11-02 -- LINE IDENTITY, the same rule as the formula lane.
+             json.dumps(decide_line_ids(
+                 definition, prev_doc,
+                 _effective_line_ids(c, user_id, def_id, prev["version"]) if prev is not None else {},
+                 new_line_keys), sort_keys=True, separators=(",", ":")),
+             now),
         )
         c.commit()
 
@@ -3200,16 +3445,19 @@ def soft_delete(user_id: Any, def_id: str) -> bool:
         c.execute(
             "INSERT INTO user_definitions "
             "(user_id, def_id, version, rev, ast_hash, definition, repaint, "
-            " requirements, pine_source, deleted_at, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            " requirements, pine_source, line_ids, deleted_at, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (str(user_id), def_id, prev["version"] + 1, prev["rev"],
              prev["ast_hash"], prev["definition"], prev["repaint"],
              # ⛔ CARRIED, NEVER RE-DERIVED. A tombstone is the same document at a
              # later version; re-deriving here would make a delete the one place
              # the stamp could silently move. The script rides with it for the
-             # same reason (a tombstone is the same document).
+             # same reason (a tombstone is the same document). So do its lines.
              json.dumps(_requirements_of(prev), separators=(",", ":")),
-             _pine_source_of(prev), now, now),
+             _pine_source_of(prev),
+             json.dumps(_effective_line_ids(c, user_id, def_id, prev["version"]),
+                        sort_keys=True, separators=(",", ":")),
+             now, now),
         )
         # ⛔ the refusal rides the tombstone too, so a resurrect cannot launder it
         _carry_refusal(c, user_id, def_id, prev["version"], prev["version"] + 1, now)

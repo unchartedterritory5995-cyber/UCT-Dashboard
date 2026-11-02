@@ -20,7 +20,7 @@
 // (`!@inst:…`) does not parse, takes no option, and lands there by construction.
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { sourceOptions, symbolSource } from './engine/sourceRef'
+import { sourceOptions, symbolSource, sourceLineIntactIn } from './engine/sourceRef'
 import useSymbolDiscovery from './useSymbolDiscovery'
 
 /** The sentinel that opens the symbol search. ⛔ It is never a stored value —
@@ -54,7 +54,11 @@ export default function SourceField({
   // `sym:SPY:close`. Its own header states the rule: a value must be
   // representable in the control that edits it.
   const groups = sourceOptions(settings, defOf, row?.instanceId, value)
+  // ⭐ LINE IDENTITY — an option under the same key is a DIFFERENT line when the one
+  // this input recorded was removed and the key re-used; that reads "Source
+  // unavailable" exactly as a removed output does, until the member picks again.
   const known = groups.some((g) => g.options.some((o) => o.value === value))
+    && sourceLineIntactIn(settings, row?.instanceId, field?.key, value, defOf)
 
   const { results, loading, error } = useSymbolDiscovery(query, searching, { fetcher })
 

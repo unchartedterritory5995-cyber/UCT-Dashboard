@@ -85,6 +85,7 @@ GATES: tuple[str, ...] = (
     "withheld",       # the lane answers "no number" for this plot on EVERY bar
     "scalar",         # P0 0F: reads a current-only screener scalar (no history)
     "presentation",   # UIE P6: an `hlines` guide plot — drawn at fixed levels, not a value
+    "line",           # 2026-11-02: the line this alert watched was deleted; a new line reuses its key
 )
 
 
@@ -152,6 +153,10 @@ REFUSAL_FRAGMENTS: Mapping[str, str] = {
     # levels — presentation, not a value (save and lint already treat it as not data-bearing).
     # Refused for ITSELF only, so "RSI with level lines" can alert on its RSI line.
     "presentation": "is a level-line guide drawn at fixed values, not a value an alert can watch",
+    # ⭐ 2026-11-02 -- LINE IDENTITY (owner decision: a new line never inherits a deleted
+    # line's alerts). The key resolves, but to a line created after the one this alert
+    # was bound to (`user_definitions.line_identity`).
+    "line": "watched a line that was deleted; a newer line using the same name is not watched by this alert",
 }
 
 #: The SECOND repaint refusal — the acknowledgement half — kept deliberately
@@ -809,6 +814,18 @@ def _make_value_fn(def_id: str, plot_key: str,
     return fn
 
 
+def _with_line(fn: Any, user_id: Any, def_id: str, plot_key: str,
+               version: Any = None) -> Any:
+    """⭐ 2026-11-02 -- stamp the LINE a value function computes, by identity rather
+    than by key (`user_definitions.line_identities`, the row's `line_ids` column).
+    The registry is keyed by ADDRESS, so two alert rows bound to two different
+    lines that shared one key would share this object; `_check_line` compares each
+    row's `plot_uid` with it."""
+    from api.services import user_definitions as _ud
+    fn.line_id = _ud.line_identities(user_id, def_id, version).get(plot_key)  # type: ignore[attr-defined]
+    return fn
+
+
 def lookback_for_alert(alert: Mapping[str, Any]) -> Optional[int]:
     """A USER alert's declared lookback, or ``None`` for a builtin address.
 
@@ -1194,6 +1211,7 @@ def admit_user_definition(user_id: Any, def_id: str,
     with _REGISTRY_LOCK:
         admissible, withheld = plot_admissions(def_id, definition)
         for address, fn in admissible:
+            _with_line(fn, user_id, def_id, split_user_address(address)[1], row.get("version"))
             USER_FUNCS[scoped_key(user_id, address)] = fn
             addresses.append(address)
     admitted = {
@@ -1263,7 +1281,8 @@ def user_value_function(user_id: Any, address: str
             "definition",
             f"{address!r} {REFUSAL_FRAGMENTS['definition']} — "
             f"{def_id} declares plots {sorted(keys)}")
-    return _make_value_fn(def_id, plot_key, definition)
+    return _with_line(_make_value_fn(def_id, plot_key, definition), user_id, def_id,
+                      plot_key, row.get("version") if isinstance(row, Mapping) else None)
 
 
 def value_function_for_alert(alert: Mapping[str, Any], bars: Optional[list] = None
@@ -1310,7 +1329,7 @@ def value_function_for_alert(alert: Mapping[str, Any], bars: Optional[list] = No
     user_id = alert.get("user_id")
     fn = USER_FUNCS.get(scoped_key(user_id, address))
     if fn is not None:
-        return fn
+        return _check_line(alert, address, fn)
     # ⭐ L1 — the re-arm is asked with the row's own params, as the arm was
     from api.services import indicator_alert_evaluator as ev
     arm_for_alert(user_id, address, str(alert.get("sym") or ""),
@@ -1319,7 +1338,49 @@ def value_function_for_alert(alert: Mapping[str, Any], bars: Optional[list] = No
     # Re-read rather than trusting the admission's own list: a definition that
     # no longer declares THIS plot admits its other plots fine, and the refusal
     # that names the missing plot is `user_value_function`'s to raise.
-    return user_value_function(user_id, address)
+    return _check_line(alert, address, user_value_function(user_id, address))
+
+
+#: The `plot_uid` a pre-identity alert row is stamped with when its line was
+#: deleted and re-added before the row was ever bound: it equals no identity, so
+#: the row stays refused at the `line` gate instead of adopting the new line.
+RETIRED_LINE = "retired"
+
+
+def _check_line(alert: Mapping[str, Any], address: str, fn: Any) -> Any:
+    """⭐ 2026-11-02 -- THE ROW IS BOUND TO A LINE, NOT TO A KEY.
+
+    A row carrying `plot_uid` is admitted only while the plot under its key is that
+    same line. A row stored before line identity (NULL) is bound on first sight:
+    to the current line when the key has existed WITHOUT A BREAK since the row was
+    created (`user_definitions.line_continuous_since`), else to `RETIRED_LINE`,
+    because a key absent from any version in between was deleted and re-added."""
+    current = getattr(fn, "line_id", None)
+    if current is None:
+        return fn
+    bound = alert.get("plot_uid")
+    if not bound:
+        from api.services import user_definitions as _ud
+        def_id, plot_key = split_user_address(address)
+        continuous = _ud.line_continuous_since(alert.get("user_id"), def_id, plot_key,
+                                               alert.get("created_at"))
+        bound = current if continuous == current else RETIRED_LINE
+        if alert.get("id") is not None:
+            from api.services import indicator_alert_service as _ias
+            try:
+                _ias.bind_plot_uid(int(alert["id"]), bound)
+            except Exception as exc:                     # noqa: BLE001
+                # The decision below stands either way; an unrecorded binding is
+                # simply decided again from the history on the next cycle.
+                import logging
+                logging.getLogger(_logger_name).warning(
+                    "[alert-user-series] could not record the line of alert %s: %s",
+                    alert.get("id"), type(exc).__name__)
+    if bound != current:
+        raise AdmissionRefused(
+            "line",
+            f"{address!r} {REFUSAL_FRAGMENTS['line']}")
+    return fn
 
 
 def refusal_for_alert(alert: Mapping[str, Any]) -> Optional[AdmissionRefused]:

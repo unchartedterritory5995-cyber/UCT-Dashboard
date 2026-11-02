@@ -72,11 +72,13 @@ import { getDefinition } from './nativeRegistry'
 import {
   isWritableDisplayTarget, TARGET_EXPLICIT, automaticTargetOf,
 } from './displayTarget'
-import { parsePaneOfTarget, severReferencesTo } from './sourceRef'
+import {
+  parsePaneOfTarget, severReferencesTo, withRecordedSourceLine, stampLegacySourceLines, SOURCE_LINES_KEY,
+} from './sourceRef'
 // ⭐ P1 — a delete SEVERS the header's info values that read the deleted instance
 // (a visible gravestone), so a re-add under the same deterministic id can never
 // silently reconnect them. Identity when none pointed at it. See `infoValues.js`.
-import { severInfoValuesTo } from './infoValues'
+import { severInfoValuesTo, stampLegacyInfoValueLines } from './infoValues'
 import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
          CANDLE_COLOR_KEYS, LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES,
          DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE } from './presentation'
@@ -323,7 +325,13 @@ export function withInstances(cs, instances, registry) {
   const order = stackOrderRank(registry)
   const sorted = [...instances].sort((a, b) =>
     (order.get(a && a.defId) ?? 1e9) - (order.get(b && b.defId) ?? 1e9))
-  return { ...cs, indicatorInstances: sorted, preset: 'custom' }
+  // ⭐ LINE IDENTITY, DECISION 3d — a reference written before line identity learns
+  // the line it reads NOW, riding this write (never causing one). Only references to
+  // a LOADED member-authored definition; identity when there is nothing to stamp.
+  const defOf = registry ? resolveRegistry(registry) : null
+  const stamped = defOf ? stampLegacySourceLines(sorted, defOf) : sorted
+  const out = { ...cs, indicatorInstances: stamped, preset: 'custom' }
+  return defOf ? stampLegacyInfoValueLines(out, defOf) : out
 }
 
 /** The marker a DEFINITION-level hide leaves on each instance it hid (A1, D3). It means
@@ -655,8 +663,12 @@ export function setInstanceInput(cs, instanceId, key, value, registry) {
   if (!checked.ok) return cs
   const coerced = checked.value
 
+  // ⭐ LINE IDENTITY — a source input records WHICH line it now reads (`sourceRef`).
+  const defOf = resolveRegistry(registry)
   const next = cs.indicatorInstances.map(i => (
-    i && i.instanceId === instanceId ? { ...i, inputs: { ...(i.inputs || {}), [key]: coerced } } : i
+    i && i.instanceId === instanceId
+      ? withRecordedSourceLine(cs, { ...i, inputs: { ...(i.inputs || {}), [key]: coerced } }, def, key, coerced, defOf)
+      : i
   ))
   const out = withInstances(cs, next, registry)
 
@@ -784,8 +796,11 @@ export function setIndicatorInput(cs, defId, key, value, registry) {
   // stays hidden while its input or colour is edited.
   const withInstance = ensureLegacyInstance(cs, defId, registry)
   const id = legacyInstanceId(defId)
+  const defOf = resolveRegistry(registry)
   const instances = (withInstance.indicatorInstances || []).map(i => (
-    i && i.instanceId === id ? { ...i, inputs: { ...(i.inputs || {}), [key]: coerced } } : i
+    i && i.instanceId === id
+      ? withRecordedSourceLine(withInstance, { ...i, inputs: { ...(i.inputs || {}), [key]: coerced } }, def, key, coerced, defOf)
+      : i
   ))
   return { ...withInstances(withInstance, instances, registry), indicators }
 }
@@ -1326,8 +1341,11 @@ export function addInstanceCopy(cs, body, registry) {
   const def = defId ? resolveRegistry(registry)(defId) : null
   if (!def) return cs
   const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
+  // ⛔ `sourceLines` is NOT copied either: the lines it recorded were on the chart the
+  // body was captured from; the caller's re-point (`setInstanceInput`) records anew.
   const {
-    instanceId: _id, scope: _scope, group: _group, deleted: _deleted, defVersion: _v, hidden, hiddenVia: _via, ...rest
+    instanceId: _id, scope: _scope, group: _group, deleted: _deleted, defVersion: _v, hidden, hiddenVia: _via,
+    [SOURCE_LINES_KEY]: _lines, ...rest
   } = body
   const copy = JSON.parse(JSON.stringify(rest))
   const added = {

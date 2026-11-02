@@ -45,6 +45,7 @@ import { evaluability, LANES, STATUS } from '../../engine/evaluability'
 import { signalAlertGate, numericAlertGate, NUMERIC_CONDITIONS } from '../../engine/triggerPolicy'
 import { infoValueOutputExists } from '../../engine/infoValueResolve'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
+import { NEW_LINE_FLAG } from '../../engine/lineIdentity'
 import { MARKER_SIZE_RANGE } from '../../engine/defSchema'
 import { reconcileParams, ATTACHED } from '../paramEdit'
 import { symTickersOf, storeTickerOf } from '../../engine/otherSymbols'
@@ -354,7 +355,8 @@ function putHelper(st, key, tree, owner, i) {
   }
   if (!existing) {
     if (m.rows.length >= PATCH_LIMITS.maxOutputs) throw err('output:limit', `At most ${PATCH_LIMITS.maxOutputs} outputs (a colour rule needs one hidden column).`)
-    m.rows.push(newRow(key, `${owner.key} colour rule`, true))
+    const helper = newRow(key, `${owner.key} colour rule`, true)
+    m.rows.push(st.ctx.editingStored === true ? { ...helper, [NEW_LINE_FLAG]: true } : helper)
     st.changes.push({ op: i, kind: 'helper-added', output: key, of: owner.key })
   }
   regate(st, helperRow(m, key), tree)
@@ -476,7 +478,12 @@ const OPS = {
     if (st.model.rows.some((r) => r.key === op.key)) throw err('output:duplicate', `An output "${op.key}" already exists.`)
     if (op.key === LEVELS_PLOT_KEY) throw err('output:reserved', `"${LEVELS_PLOT_KEY}" is reserved.`)
     if (st.model.rows.length >= PATCH_LIMITS.maxOutputs) throw err('output:limit', `At most ${PATCH_LIMITS.maxOutputs} outputs.`)
-    const row = newRow(op.key, op.label, op.hidden)
+    // ⭐ LINE IDENTITY — an output ADDED by this patch to a STORED definition is a NEW
+    // line, even under a key removed earlier in the same conversation
+    // (`lineIdentity.NEW_LINE_FLAG`). A create has no stored line to inherit from.
+    const row = st.ctx.editingStored === true
+      ? { ...newRow(op.key, op.label, op.hidden), [NEW_LINE_FLAG]: true }
+      : newRow(op.key, op.label, op.hidden)
     st.model.rows.push(row)
     Object.assign(row, gateTree(op.tree, scopeOf(st.model), op.key))
     st.touched.add(op.key)
