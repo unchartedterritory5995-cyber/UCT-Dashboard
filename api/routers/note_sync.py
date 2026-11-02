@@ -55,6 +55,8 @@ log = logging.getLogger("note_connectors.router")
 
 router = APIRouter(prefix="/api/j2/notes/connectors", tags=["note-connectors"])
 
+BUSY_DETAIL = "A sync is already running for this source. Its results will appear here when it finishes."
+
 _paid = require_plan(list(PAID_PLANS))
 
 # ⛔ FIN (2026-10-06): no route here declares a JSON body parameter. FastAPI reads a
@@ -352,6 +354,60 @@ def _latest_sync_counts(user_id: str, source_ids: list[str]) -> dict[str, dict[s
     return out
 
 
+def _parse_failures(raw: Any) -> tuple[list[dict[str, Any]], bool]:
+    """`failures_json` -> (failures, unreadable). NULL/empty -> ([], False);
+    malformed or wrong-shaped -> ([], True) so the client can say "details
+    unavailable" instead of claiming there were none."""
+    if raw is None or raw == "":
+        return [], False
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return [], True
+    if not isinstance(data, list):
+        return [], True
+    out: list[dict[str, Any]] = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        title = item.get("noteTitle")
+        reason = item.get("reason")
+        name = item.get("name")
+        out.append({
+            "noteTitle": title if isinstance(title, str) else "Untitled note",
+            "reason": reason if isinstance(reason, str) else "",
+            "name": name if isinstance(name, str) else None,
+        })
+    return out, False
+
+
+def _latest_failure_counts(user_id: str, source_ids: list[str]) -> dict[str, int]:
+    """Per-source failure count from the newest `j2_note_sync_log` row's
+    `failures_json` (0 for NULL or unreadable). Same newest-row subquery as
+    `_latest_sync_counts`; one bulk query, never N+1."""
+    if not source_ids:
+        return {}
+    placeholders = ",".join("?" * len(source_ids))
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT source_id, failures_json
+              FROM j2_note_sync_log
+             WHERE user_id = ? AND source_id IN ({placeholders})
+               AND id IN (
+                   SELECT MAX(id) FROM j2_note_sync_log
+                    WHERE user_id = ? AND source_id IN ({placeholders})
+                    GROUP BY source_id
+               )
+            """,
+            (user_id, *source_ids, user_id, *source_ids),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {r["source_id"]: len(_parse_failures(r["failures_json"])[0]) for r in rows}
+
+
 @router.get("/status")
 def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """Providers configured/connected + per-source freshness (spec §8).
@@ -359,11 +415,16 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     than re-querying `j2_note_connectors` directly."""
     connectors = {c["provider"]: c for c in connections.list_connectors(user["id"])}
     all_sources = connections.list_sources(user["id"])
-    counts_by_source = _latest_sync_counts(user["id"], [s["id"] for s in all_sources])
+    source_ids = [s["id"] for s in all_sources]
+    counts_by_source = _latest_sync_counts(user["id"], source_ids)
+    failure_counts = _latest_failure_counts(user["id"], source_ids)
+    pending = connections.pending_removal_counts(user["id"], source_ids)
     sources_by_provider: dict[str, list[dict[str, Any]]] = {}
     for s in all_sources:
         s = dict(s)
         s["counts"] = counts_by_source.get(s["id"], dict(_ZERO_COUNTS))
+        s["pendingRemoval"] = int(pending.get(s["id"], 0))
+        s["lastFailureCount"] = int(failure_counts.get(s["id"], 0))
         sources_by_provider.setdefault(s["provider"], []).append(s)
 
     providers: dict[str, Any] = {}
@@ -765,9 +826,14 @@ async def sync_source_now(
         raise HTTPException(status_code=404, detail="source not found")
 
     if background:
+        if engine.is_source_busy(source_id):
+            raise HTTPException(status_code=409, detail=BUSY_DETAIL)
+
         async def _bg() -> None:
             try:
-                await engine.sync_source(source_id, full=full, manual=True)
+                # A busy result here (lost the race after the peek) is a
+                # quiet no-op: the other run's results will land in the log.
+                await engine.sync_source(source_id, full=full, manual=True, member=True)
             except Exception:  # noqa: BLE001
                 log.exception("[note_sync] background sync failed for source %s", source_id)
 
@@ -775,11 +841,14 @@ async def sync_source_now(
         return {"status": "started", "background": True}
 
     try:
-        return await engine.sync_source(source_id, full=full, manual=True)
+        result = await engine.sync_source(source_id, full=full, manual=True, member=True)
     except errors.NoteConnError as e:
         _raise_for_provider_error(e)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    if isinstance(result, dict) and result.get("status") == "busy":
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL)
+    return result
 
 
 # ── PUT /sources/{id} ──────────────────────────────────────────────────────────
@@ -876,7 +945,24 @@ def source_log(source_id: str, limit: int = 20, user: dict = Depends(get_current
             "ORDER BY id DESC LIMIT ?",
             (source_id, user["id"], bounded),
         ).fetchall()
-        return {"rows": [dict(r) for r in rows]}
+        out = []
+        for r in rows:
+            failures, unreadable = _parse_failures(r["failures_json"])
+            if unreadable:
+                log.warning("[note_sync] unreadable failures_json on sync log row %s", r["id"])
+            out.append({
+                "id": r["id"],
+                "at": r["finished_at"] or r["started_at"],
+                "status": r["status"],
+                "created": r["notes_created"] or 0,
+                "updated": r["notes_updated"] or 0,
+                "skipped": r["notes_skipped"] or 0,
+                "conflicts": r["conflicts"] or 0,
+                "sourceDeleted": r["source_deleted"] or 0,
+                "failures": failures,
+                "failuresUnreadable": unreadable,
+            })
+        return {"rows": out}
     finally:
         conn.close()
 

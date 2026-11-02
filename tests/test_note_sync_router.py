@@ -10,6 +10,7 @@ isolation), against a temp auth.db.
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 from cryptography.fernet import Fernet
@@ -1044,18 +1045,18 @@ def test_manual_sync_fires_the_engine_with_the_right_args(client, monkeypatch):
 
     calls = []
 
-    async def fake_sync_source(sid, *, full=False, manual=False):
-        calls.append((sid, full, manual))
+    async def fake_sync_source(sid, *, full=False, manual=False, member=False):
+        calls.append((sid, full, manual, member))
         return {"status": "ok", "sourceId": sid, "created": 0, "updated": 0, "skipped": 0}
 
     monkeypatch.setattr(engine, "sync_source", fake_sync_source)
 
     r2 = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync")
     assert r2.status_code == 200
-    assert calls == [(source_id, False, True)]
+    assert calls == [(source_id, False, True, True)]
 
     r3 = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync?full=true")
-    assert calls[-1] == (source_id, True, True)
+    assert calls[-1] == (source_id, True, True, True)
 
 
 def test_manual_sync_background_returns_immediately(client, monkeypatch):
@@ -1067,7 +1068,7 @@ def test_manual_sync_background_returns_immediately(client, monkeypatch):
 
     started = asyncio.Event()
 
-    async def fake_sync_source(sid, *, full=False, manual=False):
+    async def fake_sync_source(sid, *, full=False, manual=False, member=False):
         started.set()
         return {"status": "ok"}
 
@@ -1076,6 +1077,133 @@ def test_manual_sync_background_returns_immediately(client, monkeypatch):
     r2 = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync?background=true")
     assert r2.status_code == 200
     assert r2.json() == {"status": "started", "background": True}
+
+
+# ── Plan D: Sync now busy/409, status fields, camelCase log ───────────────────
+
+def _connect_roam(client, monkeypatch):
+    fake = FakeTokenProvider(label="my-graph")
+    monkeypatch.setattr(registry, "build_provider", lambda name, source=None: fake)
+    r = client.post("/api/j2/notes/connectors/roam/connect",
+                    json={"consent": True, "graphName": "my-graph", "token": "tok"})
+    return r.json()["source"]["id"]
+
+
+def _insert_log(source_id, *, finished_at, failures_json, created=0, updated=0, skipped=0,
+                status="ok"):
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO j2_note_sync_log (source_id, user_id, started_at, finished_at, status, "
+            "notes_created, notes_updated, notes_skipped, media_uploaded, conflicts, source_deleted, "
+            "failures_json) VALUES (?, 'u1', 's', ?, ?, ?, ?, ?, NULL, 0, NULL, ?)",
+            (source_id, finished_at, status, created, updated, skipped, failures_json),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_manual_sync_on_a_busy_source_is_a_fast_409(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+
+    async def fake_sync_source(sid, *, full=False, manual=False, member=False):
+        return {"status": "busy", "sourceId": sid}
+
+    monkeypatch.setattr(engine, "sync_source", fake_sync_source)
+    r = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync?full=1")
+    assert r.status_code == 409 and r.json()["detail"] == note_sync_router.BUSY_DETAIL
+    assert note_sync_router.BUSY_DETAIL == (
+        "A sync is already running for this source. Its results will appear here when it finishes.")
+
+
+def test_background_sync_on_a_busy_source_is_409_and_schedules_nothing(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    calls = []
+
+    async def fake_sync_source(sid, *, full=False, manual=False, member=False):
+        calls.append(sid)
+        return {"status": "ok"}
+
+    monkeypatch.setattr(engine, "sync_source", fake_sync_source)
+    monkeypatch.setattr(engine, "is_source_busy", lambda sid: True)
+    r = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync?background=1")
+    assert r.status_code == 409 and r.json()["detail"] == note_sync_router.BUSY_DETAIL
+    assert calls == []
+
+
+def test_background_sync_passes_member_true_and_survives_a_busy_result(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    calls = []
+
+    async def fake_sync_source(sid, *, full=False, manual=False, member=False):
+        calls.append((sid, full, manual, member))
+        return {"status": "busy", "sourceId": sid}
+
+    monkeypatch.setattr(engine, "sync_source", fake_sync_source)
+    monkeypatch.setattr(engine, "is_source_busy", lambda sid: False)
+    r = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync?background=1&full=1")
+    assert r.status_code == 200 and r.json() == {"status": "started", "background": True}
+    assert all(c[2] is True and c[3] is True for c in calls)
+
+
+def test_status_sources_carry_pending_removal_and_last_failure_count(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    conn = auth_db.get_connection()
+    try:
+        for rid in ("r1", "r2"):
+            conn.execute(
+                "INSERT INTO j2_note_remote_index (user_id, source_id, remote_id, import_key, seen_at, "
+                "miss_streak) VALUES ('u1', ?, ?, ?, 't', 1)", (source_id, rid, "k" + rid))
+        conn.commit()
+    finally:
+        conn.close()
+    _insert_log(source_id, finished_at="t1", failures_json=json.dumps([{"noteTitle": "old"}]))
+    _insert_log(source_id, finished_at="t2", failures_json=json.dumps([
+        {"noteTitle": "a", "reason": "x"}, {"noteTitle": "b", "reason": "y"}, {"noteTitle": "c", "reason": "z"}]))
+    status = client.get("/api/j2/notes/connectors/status").json()
+    src = status["providers"]["roam"]["sources"][0]
+    assert src["pendingRemoval"] == 2 and src["lastFailureCount"] == 3
+    assert set(src["counts"]) == {"notesCreated", "notesUpdated", "notesSkipped",
+                                  "mediaUploaded", "conflicts", "sourceDeleted"}
+
+
+def test_status_sources_default_pending_removal_and_failure_count_to_zero(client, monkeypatch):
+    _connect_roam(client, monkeypatch)
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["roam"]["sources"][0]
+    assert src["pendingRemoval"] == 0 and src["lastFailureCount"] == 0
+
+
+def test_status_last_failure_count_is_zero_for_unreadable_json(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    _insert_log(source_id, finished_at="t1", failures_json="{not json")
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["roam"]["sources"][0]
+    assert src["lastFailureCount"] == 0
+
+
+def test_source_log_rows_are_camelcase_with_failures_parsed(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    _insert_log(source_id, finished_at="t1", failures_json=None)
+    _insert_log(source_id, finished_at="t2", created=1, updated=2, skipped=3, failures_json=json.dumps([
+        {"noteTitle": "Trip", "reason": "Image couldn't be copied", "name": "a.heic", "extra": "dropped"}]))
+    rows = client.get(f"/api/j2/notes/connectors/sources/{source_id}/log?limit=5").json()["rows"]
+    assert isinstance(rows[0].pop("id"), int)
+    assert rows[0] == {"at": "t2", "status": "ok", "created": 1, "updated": 2, "skipped": 3,
+                       "conflicts": 0, "sourceDeleted": 0, "failuresUnreadable": False,
+                       "failures": [{"noteTitle": "Trip", "reason": "Image couldn't be copied",
+                                     "name": "a.heic"}]}
+    assert rows[1]["failures"] == [] and rows[1]["failuresUnreadable"] is False
+    assert not any("_" in k for k in rows[0])
+
+
+def test_source_log_marks_unreadable_failures_instead_of_reporting_none(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    _insert_log(source_id, finished_at="t1", failures_json="{not json")
+    _insert_log(source_id, finished_at="t2", failures_json=json.dumps([{"noteTitle": 5, "reason": "r"}]))
+    rows = client.get(f"/api/j2/notes/connectors/sources/{source_id}/log").json()["rows"]
+    assert rows[0]["failuresUnreadable"] is False
+    assert rows[0]["failures"] == [{"noteTitle": "Untitled note", "reason": "r", "name": None}]
+    assert rows[1]["failures"] == [] and rows[1]["failuresUnreadable"] is True
 
 
 def test_manual_sync_unknown_source_404(client):
