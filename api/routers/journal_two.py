@@ -3286,6 +3286,35 @@ def notes_import_confirm_endpoint(payload: dict[str, Any] = Depends(_json(dict[s
         raise HTTPException(status_code=400, detail=str(e))
 
 
+#: Connector fidelity Plan A Task 4: the heal door's per-member budget. Each call reads at
+#: most 500 named notes plus a 500-note sweep, so it is bounded per call and per minute.
+#: In-process Limiter state (CLAUDE.md's single-process roster): a second process doubles it.
+NOTE_IMPORT_HEAL_RATE = "30/minute"
+SCOPE_NOTE_IMPORT_HEAL = "notebook-import-heal"
+NOTE_IMPORT_HEAL_RATE_SENTENCE = "That's a lot of link repairs in a minute. Try again shortly."
+
+
+@router.post("/notes/import/heal-links")
+def notes_import_heal_links_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
+    """Connector fidelity Plan A Task 4 [B A6]: heal the member's imported links whose
+    target has arrived since -- the named `noteIds` (<= 500; Plan B's file importer names
+    what it just imported) plus a bounded sweep of the member's pending notes. Member-scoped,
+    timestamp-neutral; `unresolved` lists only the NAMED notes' marks still unresolved."""
+    from api.services.journal_two import public_note_payload as public
+    from api.services.journal_two.note_connectors import link_keys
+    note_ids = payload.get("noteIds")
+    if note_ids is None:
+        note_ids = []
+    if not isinstance(note_ids, list) or not all(isinstance(n, str) for n in note_ids):
+        raise HTTPException(status_code=400, detail="noteIds must be a list of note ids")
+    if len(note_ids) > link_keys.HEAL_LIMIT:
+        raise HTTPException(status_code=400, detail=f"at most {link_keys.HEAL_LIMIT} noteIds per call")
+    public.enforce_rate(NOTE_IMPORT_HEAL_RATE, SCOPE_NOTE_IMPORT_HEAL, f"member:{user['id']}",
+                        NOTE_IMPORT_HEAL_RATE_SENTENCE, public=False)
+    out = link_keys.heal_pending_links(user["id"], note_ids=note_ids)
+    return {"healed": out["healed"], "unresolved": out["unresolved"]}
+
+
 @router.post("/notes/enrichment/scan")
 def notes_enrichment_scan_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
     """The arrival-screen enrichment offer (spec §8.1): scan a set of a
@@ -3893,33 +3922,85 @@ async def _hand_off_to_documents(user_id: str, note_id: str, saved: dict, conten
 # dependency caps the body WHILE it is read and runs AFTER `user` (declaration
 # order), so an anonymous caller reads nothing. The caps and sentences are the
 # service's own, read per request.
+from api.services.journal_two import media_policy  # noqa: E402
+
+# `/hero` keeps the 5 MB inline-image cap and its own behaviour. `/images` reads up to the
+# media policy's SOURCE cap (25 MB) since Plan A Task 8: an oversize photo is downscaled by the
+# policy, not refused at the door.
 _NOTE_IMAGE_UPLOAD = body_cap.capped_upload(
     "file", lambda: notes_service._MAX_IMAGE_BYTES, lambda: notes_service.IMAGE_TOO_BIG_SENTENCE)
+_NOTE_MEDIA_UPLOAD = body_cap.capped_upload(
+    "file", lambda: media_policy.MEDIA_SOURCE_MAX_BYTES, lambda: notes_service.FILE_TOO_BIG_SENTENCE)
 _NOTE_FILE_UPLOAD = body_cap.capped_upload(
     "file", lambda: notes_service._MAX_FILE_BYTES, lambda: notes_service.FILE_TOO_BIG_SENTENCE)
+
+
+def _stored_media_payload(stored: "media_policy.StoredMedia") -> dict[str, Any]:
+    """[B A1] The upload doors' answer: additive over the old `{url, width, height}` (images)
+    and `{url, name, size}` (files), so an older client keeps reading what it read."""
+    return {
+        "url": stored.url, "kind": stored.kind, "name": stored.name, "size": stored.size,
+        "mime": stored.mime, "width": stored.width, "height": stored.height,
+        "original": ({"url": stored.original.url, "name": stored.original.name}
+                     if stored.original is not None else None),
+    }
+
+
+async def _upload_through_media_policy(user_id: str, note_id: str, file: UploadFile,
+                                       *, file_intent: bool) -> Any:
+    """Plan A Task 8 [B A1]: the ONE media policy behind both editor upload doors. The raw
+    bytes go through `normalize_media` (sniff, convert, downscale, refuse) then `store_media`
+    under ONE `MediaBudget` for this request (the member's memoised usage: an upload burst
+    never rescans their tree per file). `file_intent` (the `/attachments` door) decides with
+    `normalize_file` instead: the bytes are kept as a file, never decoded, converted or
+    re-routed inline (fix round 1, I5). The 2 GB cap applies
+    to every upload here: the doors cannot tell an import from an editor upload.
+
+    The decode/encode and the disk work run off the event loop. A refusal is a 400
+    `{"detail": <the sentence>, "reason": <reason>}`; the legacy `NoteValidationError`
+    answer stays `{"detail": str}`. The stored primary hands off to documents with its
+    STORED kind and type (an SVG sent to `/images` hands off as a file)."""
+    from fastapi.responses import JSONResponse
+    from starlette.concurrency import run_in_threadpool
+    raw = await file.read()
+    name = file.filename or ("attachment" if file_intent else "image")
+
+    def decide_and_store():
+        # Fix round 1, I5: an attachment is the member's bytes, never decoded.
+        decide = media_policy.normalize_file if file_intent else media_policy.normalize_media
+        result = decide(raw, file.content_type, name)
+        budget = media_policy.MediaBudget.for_member(user_id)
+        return media_policy.store_media(user_id, note_id, result, budget=budget)
+
+    try:
+        stored = await run_in_threadpool(decide_and_store)
+    except media_policy.MediaRejected as e:
+        # Fix round 1, M1: the import notice promises a retry once space frees; nothing
+        # retries an editor upload, so the door says so in its own words.
+        detail = (media_policy.UPLOAD_STORAGE_LIMIT_SENTENCE if e.reason == "storage_limit"
+                  else e.marker_text)
+        return JSONResponse(status_code=400, content={"detail": detail, "reason": e.reason})
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    payload = _stored_media_payload(stored)
+    # Wave 7 seam S1: every saved attachment reports to document_extraction,
+    # which decides whether it becomes a searchable document. The decision
+    # lives THERE so this router never grows a per-type branch (lane G adds
+    # image OCR / docx behind its own gate without touching this file).
+    await _hand_off_to_documents(user_id, note_id, payload, stored.mime, kind=stored.kind)
+    return payload
 
 
 @router.post("/notes/{note_id}/images")
 async def upload_note_image_endpoint(
     note_id: str,
     user: dict = Depends(get_current_user),
-    file: UploadFile = Depends(_NOTE_IMAGE_UPLOAD),
-) -> dict[str, Any]:
+    file: UploadFile = Depends(_NOTE_MEDIA_UPLOAD),
+) -> Any:
     n = notes_service.get_note(user["id"], note_id)
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    try:
-        img = await notes_service.save_note_image(
-            user["id"], note_id, file, kind="inline",
-        )
-    except NoteValidationError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    # Wave 7 seam S1: every saved attachment reports to document_extraction,
-    # which decides whether it becomes a searchable document. The decision
-    # lives THERE so this router never grows a per-type branch (lane G adds
-    # image OCR / docx behind its own gate without touching this file).
-    await _hand_off_to_documents(user["id"], note_id, img, file.content_type, kind="image")
-    return img
+    return await _upload_through_media_policy(user["id"], note_id, file, file_intent=False)
 
 
 @router.post("/notes/{note_id}/hero")
@@ -3964,17 +4045,10 @@ async def upload_note_attachment_endpoint(
     note_id: str,
     user: dict = Depends(get_current_user),
     file: UploadFile = Depends(_NOTE_FILE_UPLOAD),
-) -> dict[str, Any]:
+) -> Any:
     n = notes_service.get_note(user["id"], note_id)
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    content_type = file.content_type
-    try:
-        att = await notes_service.save_note_attachment(
-            user["id"], note_id, file,
-        )
-    except NoteValidationError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     # Wave I: a PDF attachment gets a document row + async page-aware text
     # extraction, queued AFTER the upload itself already succeeded — never
     # blocking this response, and a failed/slow extraction can never make
@@ -3982,8 +4056,13 @@ async def upload_note_attachment_endpoint(
     # Wave 7 seam S1: the "is this a document?" decision moved into
     # document_extraction.on_attachment_saved (PDF today; lane G adds docx
     # and image kinds behind its own gate there, never here).
-    await _hand_off_to_documents(user["id"], note_id, att, content_type, kind="file")
-    return att
+    # Plan A Task 8: every file type is kept (the policy refuses only web pages).
+    return await _upload_through_media_policy(user["id"], note_id, file, file_intent=True)
+
+
+#: Plan A Task 8: a stored file with one of these extensions is served download-only, in a
+#: sandbox, so an SVG or anything markup-shaped can never run in the app's origin.
+_DOWNLOAD_ONLY_EXTS = frozenset({".svg", ".html", ".htm", ".xml", ".js", ".bin"})
 
 
 @router.get("/notes/attachments/{user_id_param}/{note_id}/{sub}/{filename}")
@@ -3999,7 +4078,15 @@ def serve_note_attachment(
     path = notes_service.serve_note_image_path(user_id_param, note_id, sub, filename)
     if path is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(str(path))
+    headers: dict[str, str] = {}
+    if sub == "file":
+        # Plan A Task 8: a kept file is never sniffed into something else by the browser,
+        # and a risky one is a download in a sandbox, never a page in our origin.
+        headers["X-Content-Type-Options"] = "nosniff"
+        if os.path.splitext(filename)[1].lower() in _DOWNLOAD_ONLY_EXTS:
+            headers["Content-Disposition"] = "attachment"
+            headers["Content-Security-Policy"] = "sandbox"
+    return FileResponse(str(path), headers=headers)
 
 
 # ── Wave I: document processing status + page-aware search ──────────────────

@@ -1038,6 +1038,17 @@ class _Walker:
             if isinstance(desc, str) and desc.strip():
                 out.append(self.para(_run(" ".join(desc.split())), self._ppr(ctx, "Quote")))
             return out
+        if t == "importNotice":
+            # Connector fidelity (2026-11): the sentence the editor shows, as a quote, and a
+            # link to the original only for an http(s) address -- the Markdown writer's line.
+            ni = _nx._import_notice
+            line = _run(ni.notice_text(attrs))
+            src = ni.safe_source_url(attrs.get("sourceUrl"))
+            rid = self.dx.hyperlink_id(src) if src else None
+            if rid:
+                line += _run(" ") + (f'<w:hyperlink r:id="{rid}">'
+                                     f'{_run(ni.OPEN_ORIGINAL, _HYPERLINK_STYLE)}</w:hyperlink>')
+            return [self.para(line, self._ppr(ctx, "Quote"))]
         if t == "webEmbed":
             url = attrs.get("url") if isinstance(attrs.get("url"), str) else ""
             if not _nx._WEB_LINK.match(url):

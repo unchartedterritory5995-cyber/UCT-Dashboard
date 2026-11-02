@@ -41,6 +41,7 @@ from fastapi.testclient import TestClient
 
 from api.middleware import auth_middleware as authmw
 from api.services import request_body_cap as cap
+from api.services.journal_two import media_policy as _media_policy
 from api.services.journal_two import notes as notes_svc
 from api.services.journal_two import voice_notes as vn
 
@@ -244,7 +245,9 @@ def _files_under(root: Path) -> list[Path]:
 
 NOTE_DOORS = [
     # (suffix, MIME, the route's own cap, the route's own sentence)
-    ("images", "image/png", lambda: notes_svc._MAX_IMAGE_BYTES, lambda: notes_svc.IMAGE_TOO_BIG_SENTENCE),
+    # Plan A Task 8: `/images` reads up to the media policy's SOURCE cap (25 MB) and lets the
+    # policy downscale; `/hero` keeps the 5 MB inline cap.
+    ("images", "image/png", lambda: _media_policy.MEDIA_SOURCE_MAX_BYTES, lambda: notes_svc.FILE_TOO_BIG_SENTENCE),
     ("hero", "image/png", lambda: notes_svc._MAX_IMAGE_BYTES, lambda: notes_svc.IMAGE_TOO_BIG_SENTENCE),
     ("attachments", "text/plain", lambda: notes_svc._MAX_FILE_BYTES, lambda: notes_svc.FILE_TOO_BIG_SENTENCE),
 ]

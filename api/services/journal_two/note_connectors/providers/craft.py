@@ -59,6 +59,7 @@ from ..errors import (
     NoteConnAuthError,
     NoteConnRateLimited,
     NoteConnTransient,
+    NoteConnUnsafeAddress,
     NoteConnUnsupported,
 )
 from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, assert_public_https
@@ -451,7 +452,10 @@ class CraftProvider(NoteProvider):
         parsed = urlsplit(ref)
         scheme = (parsed.scheme or "").lower()
         if scheme != "https":
-            raise NoteConnUnsupported(
+            # Plan A Task 8: typed. A non-https scheme is an address refusal (`unsafe`); no
+            # scheme at all is a ref this provider cannot read (`unsupported`).
+            refusal = NoteConnUnsafeAddress if scheme else NoteConnUnsupported
+            raise refusal(
                 f"Cannot fetch Craft media over a non-https URL ({scheme or 'no scheme'!r})",
                 reason="Media reference is not a secure (https) URL",
             )

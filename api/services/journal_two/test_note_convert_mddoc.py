@@ -1365,3 +1365,32 @@ def test_html_never_emits_a_foreign_node_type_stress_fixture():
     )
     result = html_to_tiptap(stress_html)
     _assert_in_vocabulary(result["doc"])
+
+
+def test_link_destination_decoded_once_only_for_internal_and_relative():
+    external = md_to_tiptap("[x](https://a.com/a%20b)")
+    assert json.dumps(external).count("https://a.com/a%20b") == 1
+    internal = md_to_tiptap("[x](<import-link://k/a b>)")
+    assert internal["links"] == ["k/a b"]
+    assert "import-link://k/a b" in json.dumps(internal)
+    assert "%20" not in json.dumps(internal)
+
+
+def test_connector_private_media_ref_with_a_literal_percent_passes_through_unchanged():
+    for scheme in ("dbx-md-media", "od-md-media"):
+        ref = f"{scheme}:/team/file%20name.png"
+        out = md_to_tiptap(f"![x]({ref})")
+        assert [m["ref"] for m in out["media"]] == [ref]
+
+
+def test_a_relative_link_is_never_decoded_into_a_protocol_relative_url():
+    dumped = json.dumps(md_to_tiptap("[x](%2F%2Fevil.com)"))
+    assert "%2F%2Fevil.com" in dumped
+    assert "//evil.com" not in dumped.replace("%2F%2Fevil.com", "")
+
+
+def test_a_raw_html_img_src_is_not_decoded():
+    from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+
+    out = html_to_tiptap('<p><img src="a%20b.png"></p>')
+    assert [m["ref"] for m in out["media"]] == ["a%20b.png"]

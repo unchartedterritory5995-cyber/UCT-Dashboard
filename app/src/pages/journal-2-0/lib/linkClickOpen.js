@@ -30,7 +30,8 @@
  * own FYI 2, 2026-09-30:
  *   - there is no caret to protect, so a PLAIN click or tap on a link opens
  *     it directly (new tab, `noopener,noreferrer`), under the same
- *     `openableLinkHref` safety rule (http(s) and mailto only);
+ *     `openableLinkHref` safety rule (http(s) and mailto only), plus the two
+ *     Plan A doors named below;
  *   - a touch reader can never satisfy "the caret is already inside the
  *     link" — there is no caret to be inside — so the editable branch's
  *     touch-reopen distinction does not apply here: ANY click opens;
@@ -38,14 +39,27 @@
  *     view, since there is no second gesture left to name (the plain click
  *     already opens).
  *
- * ⛔ Only an http(s) or `mailto:` href ever opens, in EITHER branch.
- * `openableLinkHref` reuses `webLinkNodes.js`'s `safeLinkHref` — the SAME
- * rule already applied to a pasted link-preview card's target — for the
- * http(s) half, and adds `mailto:` itself. A `javascript:` href, the import
- * pipeline's temporary `import-link://` placeholder, or an internal
- * `/journal...` path (the Link mark's `isAllowedUri` lets all three past the
- * schema, same file) all answer null here — never opened, never hinted,
- * regardless of `view.editable`.
+ * ⛔ Only an http(s) or `mailto:` href ever opens in a new tab through
+ * `openableLinkHref`, in EITHER branch. It reuses `webLinkNodes.js`'s
+ * `safeLinkHref` — the SAME rule already applied to a pasted link-preview
+ * card's target — for the http(s) half, and adds `mailto:` itself. A
+ * `javascript:` href, an `import-link://` placeholder or a `/journal...` path
+ * (the Link mark's `isAllowedUri` lets all three past the schema, same file)
+ * answer null there. Plan A Task 2 adds exactly TWO more doors, by the same
+ * gestures (read-only plain click, Ctrl/Cmd+click, touch re-tap):
+ *   1. (L-1) an INTERNAL NOTE LINK, exactly `/journal?j2tab=notebook&note=<id>`
+ *      (`internalNoteIdFromHref`), opens IN-APP: a cancelable `uct:open-note`
+ *      CustomEvent on `view.dom` (NoteEditorPage routes it like a `noteLink`
+ *      chip, split view and side pane included); unhandled, it falls back to
+ *      `history.pushState` + `popstate` — never a new tab, never a reload.
+ *   2. (B A5) an `import-link://notion:<page id>` placeholder whose key is a
+ *      REAL 32-hex Notion id (`pendingLinkFallbackHref`) opens that page on
+ *      notion.so in a new tab. EVERY OTHER `import-link://` is plain text: no
+ *      hint, nothing opens, and a click that would have opened is swallowed so
+ *      the browser cannot follow it either. ⛔ Decided HERE in JS
+ *      (`isPlainTextPendingLink`, which tiptap.js's Link renderHTML also reads
+ *      to style it), never by a CSS `notion:` prefix: Plan B writes path-based
+ *      `import-link://notion:<path>` keys that must stay plain text.
  *
  * ⭐ TERM-056: ONE internal form opens too, and only while its gate is on: a
  * terminal command link, `/terminal?cmd=<command>` (lib/../terminal/
@@ -85,6 +99,78 @@ export function openableLinkHref(href) {
     return rest && rest.includes('@') && !/\s/.test(rest) ? trimmed : null
   }
   return safeLinkHref(trimmed)
+}
+
+// L-1: exactly `/journal?j2tab=notebook&note=<id>`, the two params in either order,
+// nothing else in the query, no fragment. ⛔ api/services/journal_two/notes.py
+// `_internal_note_id` accepts the same shape (it is what makes such a link a
+// backlink); test_note_links_internal_href.py pins the two against each other.
+const INTERNAL_NOTE_RE = /^\/journal\?(?:j2tab=notebook&note=([A-Za-z0-9_-]+)|note=([A-Za-z0-9_-]+)&j2tab=notebook)$/
+
+/** The note id an in-app note link names, or null for any other href. */
+export function internalNoteIdFromHref(href) {
+  if (typeof href !== 'string') return null
+  const m = INTERNAL_NOTE_RE.exec(href.trim())
+  return m ? (m[1] || m[2]) : null
+}
+
+const PENDING_PREFIX = 'import-link://'
+// A real Notion page id: 32 hex, either undashed or in the 8-4-4-4-12 form.
+const NOTION_PENDING_RE = /^import-link:\/\/notion:([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
+
+/**
+ * The web address an UNRESOLVED import placeholder may open, or null. Only
+ * `import-link://notion:<real page id>` has one: the page on notion.so. Any
+ * other `import-link://` (a path key, a row key, another provider) is null and
+ * renders and behaves as plain text ([B A5]).
+ */
+export function pendingLinkFallbackHref(href) {
+  if (typeof href !== 'string') return null
+  const m = NOTION_PENDING_RE.exec(href.trim())
+  return m ? `https://www.notion.so/${m[1].replace(/-/g, '').toLowerCase()}` : null
+}
+
+/** True for an `import-link://` placeholder with no door: it is plain text. */
+export function isPlainTextPendingLink(href) {
+  return typeof href === 'string' && href.trim().startsWith(PENDING_PREFIX)
+    && pendingLinkFallbackHref(href) === null
+}
+
+/** Whether a gesture on `href` has anywhere to go (and so earns the hover hint). */
+function hasDoor(href) {
+  return !!(openableLinkHref(href) || internalNoteIdFromHref(href) || pendingLinkFallbackHref(href))
+}
+
+/**
+ * Open `href` for a gesture that is allowed to open. Returns true when the
+ * click was consumed (opened, or a plain-text placeholder swallowed).
+ */
+function openFromGesture(view, event, href) {
+  const noteId = internalNoteIdFromHref(href)
+  if (noteId) {
+    event.preventDefault()
+    const open = new CustomEvent('uct:open-note', {
+      bubbles: true, cancelable: true, detail: { noteId, originalEvent: event },
+    })
+    const handled = !view.dom.dispatchEvent(open)
+    if (!handled) {
+      window.history.pushState(null, '', href.trim())
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+    return true
+  }
+  const url = openableLinkHref(href) || pendingLinkFallbackHref(href)
+  if (url) {
+    event.preventDefault()
+    window.open(url, '_blank', 'noopener,noreferrer')
+    return true
+  }
+  if (isPlainTextPendingLink(href)) {
+    // Plain text: nothing opens, and the browser must not follow the anchor.
+    event.preventDefault()
+    return true
+  }
+  return false
 }
 
 /** The hover hint's text — reuses platform.js's one answer to "is this a Mac". */
@@ -140,7 +226,7 @@ export const LinkClickOpen = Extension.create({
             // no second gesture to hint at.
             if (!view.editable) return false
             const a = linkElementAt(event.target, view.dom)
-            if (a && openableLinkHref(a.getAttribute('href'))) a.title = linkOpenHint()
+            if (a && hasDoor(a.getAttribute('href'))) a.title = linkOpenHint()
             return false
           },
           click: (view, event) => {
@@ -153,13 +239,7 @@ export const LinkClickOpen = Extension.create({
             // no caret to protect, and a touch reader can never satisfy
             // "the caret is already inside the link" — there is no caret.
             // ANY click opens an openable link.
-            if (!view.editable) {
-              const url = openableLinkHref(href)
-              if (!url) return false
-              event.preventDefault()
-              window.open(url, '_blank', 'noopener,noreferrer')
-              return true
-            }
+            if (!view.editable) return openFromGesture(view, event, href)
             const modClick = !!(event.ctrlKey || event.metaKey)
             // The SAME link, by href, the caret was already inside — on a
             // TOUCH-originated gesture only (a mouse re-click must keep
@@ -167,11 +247,7 @@ export const LinkClickOpen = Extension.create({
             const touchReopen = !!prior && prior.pointerType === 'touch'
               && prior.href === href && prior.caretWasAt === href
             if (!modClick && !touchReopen) return false
-            const url = openableLinkHref(href)
-            if (!url) return false
-            event.preventDefault()
-            window.open(url, '_blank', 'noopener,noreferrer')
-            return true
+            return openFromGesture(view, event, href)
           },
         },
       },

@@ -131,7 +131,9 @@ def test_the_ledger_entry_for_the_gate_is_decided_and_agrees_with_itself():
 
 def test_the_canvas_node_is_schema_level_3_on_the_server():
     assert nbs.NOTEBOOK_TYPE_SCHEMA["tradeCanvas"] == 3
-    assert max(nbs.NOTEBOOK_TYPE_SCHEMA.values()) == 3
+    # The canvas is level 3's only type. ⚰️ This pinned `max(...) == 3` until connector
+    # fidelity (2026-11) added `importNotice` at 5; the claim is about the canvas, not the top.
+    assert [t for t, lvl in nbs.NOTEBOOK_TYPE_SCHEMA.items() if lvl == 3] == ["tradeCanvas"]
     assert nbs.required_schema(canvas_doc()) == 3
     # CONTROL: an ordinary body needs nothing newer than before
     assert nbs.required_schema({"type": "doc", "content": [{"type": "paragraph"}]}) == 0

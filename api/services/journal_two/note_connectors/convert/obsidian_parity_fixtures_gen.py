@@ -108,28 +108,24 @@ FIXTURES_OUT_DIR = (
 
 def _normalize_link_href(href: str, vault_id: str) -> str:
     """Strips this lane's identity-encoding down to the bare resolved vault
-    path — see the module docstring's "Shape" section. Mirrors
+    path -- see the module docstring's "Shape" section. Mirrors
     `obsidianParity.contract.test.js::normalizeLinkHref`, minus the
     vault_id segment the client lane never had in the first place.
 
-    `urllib.parse.unquote` undoes markdown-it-py's percent-encoding of the
-    angle-bracket link destination (`Target Note.md` -> a literal href
-    ending `...Target%20Note.md`; see the "Parity-rail finding" note in
-    `providers/obsidian.py`'s module docstring) -- the client lane never
-    percent-encodes (it sets the href as a raw HTML attribute value), so
-    without this the two lanes would disagree on a difference that is a
-    markdown-parser artifact, not a real semantic divergence."""
+    The rail compares the STORED hrefs byte-for-byte: it removes the prefix
+    and nothing else. It used to `urllib.parse.unquote` the remainder, which
+    hid the very defect it exists to catch (a wikilink to a name with a space
+    stored `%20` and never resolved). The one decode now lives in
+    `mddoc._destination_as_written`."""
     prefix = f"import-link://obsidian:{vault_id}/"
-    remainder = href[len(prefix):] if href.startswith(prefix) else href
-    return urllib.parse.unquote(remainder)
+    return href[len(prefix):] if href.startswith(prefix) else href
 
 
 def _normalize_image_src(src: str) -> str:
     """Mirrors `obsidianParity.contract.test.js::normalizeImageSrc`. Same
-    percent-decode rationale as `_normalize_link_href` above."""
+    byte-for-byte rule as `_normalize_link_href` above."""
     prefix = "import-ref://"
-    remainder = src[len(prefix):] if src.startswith(prefix) else src
-    return urllib.parse.unquote(remainder)
+    return src[len(prefix):] if src.startswith(prefix) else src
 
 
 def _walk_semantic(node: Any, vault_id: str, out: dict[str, list]) -> None:

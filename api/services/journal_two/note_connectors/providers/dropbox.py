@@ -1133,7 +1133,10 @@ class DropboxProvider(NoteProvider):
         # since plain httpx auto-follow re-validates nothing between hops).
         parsed = urlsplit(ref)
         if (parsed.scheme or "").lower() != "https":
-            raise errors.NoteConnUnsupported(
+            # A scheme that is not https is an address refusal (`unsafe`); no scheme at all is
+            # a relative path that found no file (`unsupported`). Plan A Task 8: typed.
+            refusal = errors.NoteConnUnsafeAddress if parsed.scheme else errors.NoteConnUnsupported
+            raise refusal(
                 f"Cannot fetch media over a non-Dropbox, non-https reference ({ref!r})",
                 reason="Media reference did not resolve to a file in the synced "
                        "folder and is not a secure (https) URL",

@@ -350,6 +350,12 @@ def _resolve_target(
     return basename_map.get(_strip_ext(target).lower())
 
 
+def _pct(path: str) -> str:
+    """A literal `%` in a name must survive the ONE decode in
+    `mddoc._destination_as_written`, so it is written as `%25`."""
+    return path.replace("%", "%25")
+
+
 def _transform_wiki_and_embeds(
     segment: str, paths: list[str], basename_map: dict[str, str],
     vault_id: str, import_key_fn: Any,
@@ -357,6 +363,10 @@ def _transform_wiki_and_embeds(
     def repl(m: "re.Match[str]") -> str:
         is_embed = m.group(1) == "!"
         raw_target = m.group(2).strip()
+        # `[[Note\|alias]]` inside a table cell: the backslash escapes the pipe
+        # from the table, it is not part of the name.
+        if raw_target.endswith("\\"):
+            raw_target = raw_target[:-1].rstrip()
         raw_alias = m.group(3)
         resolved = _resolve_target(raw_target, paths, basename_map)
 
@@ -377,20 +387,20 @@ def _transform_wiki_and_embeds(
                 # own default note-naming convention) is not a valid
                 # CommonMark link destination and degrades the whole embed
                 # to LITERAL VISIBLE TEXT, never an image.
-                return f"![{_basename(resolved)}](<{resolved}>)"
+                return f"![{_basename(resolved)}](<{_pct(resolved)}>)"
             # A resolved non-image embed (another note, a PDF, ...) has no
             # transclusion/attachment-chip support here (out of this task's
             # scope) -- degrade to an ordinary link, the most useful thing
             # this converter CAN represent.
             key = import_key_fn(vault_id, resolved)
-            return f"[{_basename(resolved)}](<import-link://{key}>)"
+            return f"[{_basename(resolved)}](<import-link://{_pct(key)}>)"
 
         display = (raw_alias or raw_target).strip() or raw_target
         if resolved is None:
             return display  # unresolved wikilink -> plain text, never a dead link
         key = import_key_fn(vault_id, resolved)
         # Angle-bracket destination form -- same space-safety fix as above.
-        return f"[{display}](<import-link://{key}>)"
+        return f"[{display}](<import-link://{_pct(key)}>)"
 
     return _WIKI_RE.sub(repl, segment)
 

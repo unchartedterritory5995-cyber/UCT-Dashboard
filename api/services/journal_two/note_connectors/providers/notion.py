@@ -80,7 +80,16 @@ from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, assert_publi
 # media bytes (`save_note_image_bytes`/`save_note_attachment_bytes`) —
 # imported, never retyped, so nothing that clears the guard below can later
 # fail that stricter, downstream check.
-from ...notes import _MAX_FILE_BYTES, _MAX_IMAGE_BYTES
+from ...notes import _MAX_FILE_BYTES, _MAX_IMAGE_BYTES  # noqa: F401 -- cited in docstrings
+from ... import media_policy as _media_policy
+
+
+def _media_source_max_bytes() -> int:
+    """The largest source the one media policy reads (`media_policy.MEDIA_SOURCE_MAX_BYTES`),
+    read per call. Plan A Task 8: images included -- an oversize photo is the policy's to
+    downscale, not this download's to refuse."""
+    return _media_policy.MEDIA_SOURCE_MAX_BYTES
+
 
 _API_BASE = "https://api.notion.com/v1"
 
@@ -551,7 +560,10 @@ class NotionProvider(NoteProvider):
             # separate cap needed here for content we never download now.
             return {"ref": url, "kind": kind, "name": name}
 
-        cap = _MAX_IMAGE_BYTES if kind == "image" else _MAX_FILE_BYTES
+        # Plan A Task 8: an image downloads up to the media policy's SOURCE cap (25 MB), not
+        # the 5 MB inline cap, so an oversize photo is downscaled by `media_policy` instead
+        # of refused here. One cap for both kinds now.
+        cap = _media_source_max_bytes()
         try:
             data, content_type = await self._download_internal(block, url, token, cap=cap)
         except _MediaTooLarge:

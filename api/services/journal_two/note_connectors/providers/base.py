@@ -28,7 +28,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 from ...notes import _MAX_FILE_BYTES
-from ..errors import NoteConnTransient, NoteConnUnsupported
+from ..errors import NoteConnTooLarge, NoteConnTransient, NoteConnUnsafeAddress, NoteConnUnsupported
 
 
 @dataclass
@@ -261,14 +261,16 @@ async def assert_public_https(url: str, *, what: str = "media reference") -> str
     credential ever rides on this fetch) rather than closed with a
     connect-by-pinned-IP transport."""
     parsed = urlsplit(url)
+    # Every refusal below is the TYPE `NoteConnUnsafeAddress` (a `NoteConnUnsupported`, so no
+    # caller's handling changes): the engine maps the type to an `unsafe` notice (Plan A Task 8).
     if (parsed.scheme or "").lower() != "https":
-        raise NoteConnUnsupported(
+        raise NoteConnUnsafeAddress(
             f"Cannot fetch {what} over a non-https URL ({parsed.scheme or 'no scheme'!r})",
             reason="Media reference is not a secure (https) URL",
         )
     host = parsed.hostname
     if not host:
-        raise NoteConnUnsupported(
+        raise NoteConnUnsafeAddress(
             f"Cannot fetch {what}: URL has no host",
             reason="Media reference has no host",
         )
@@ -284,7 +286,7 @@ async def assert_public_https(url: str, *, what: str = "media reference") -> str
         addrs = [ipaddress.ip_address(a) for a in resolved]
     for addr in addrs:
         if _is_disallowed_ip(addr):
-            raise NoteConnUnsupported(
+            raise NoteConnUnsafeAddress(
                 f"Cannot fetch {what}: host resolves to a non-public address ({addr})",
                 reason="Media reference points at a private/internal network address",
             )
@@ -331,8 +333,8 @@ async def _read_side_body(response: httpx.Response) -> bytes:
     return bytes(out)
 
 
-def _over_cap(what: str, max_bytes: int, how: str) -> NoteConnUnsupported:
-    return NoteConnUnsupported(
+def _over_cap(what: str, max_bytes: int, how: str) -> NoteConnTooLarge:
+    return NoteConnTooLarge(
         f"Cannot fetch {what}: exceeds the {max_bytes}-byte cap ({how})",
         reason=f"{what} is larger than the allowed size limit",
     )
@@ -528,7 +530,7 @@ async def guarded_media_stream(
                 if content_length is not None:
                     try:
                         if int(content_length) > max_bytes:
-                            raise NoteConnUnsupported(
+                            raise NoteConnTooLarge(
                                 f"Cannot fetch {what}: exceeds the {max_bytes}-byte cap "
                                 f"(reported size {content_length} bytes)",
                                 reason=f"{what} is larger than the allowed size limit",

@@ -148,3 +148,42 @@ def test_identical_image_uploads_dedupe_to_one_file(root):
     files = sorted(p.name for p in inline.iterdir())
     assert len(files) == 2
     assert all(attachment_gc._UPLOAD_NAME_RE.match(f) for f in files)
+
+
+def _set_media_pending(conn, note_id, value):
+    conn.execute("UPDATE j2_notes SET import_media_pending = ? WHERE id = ?", (value, note_id))
+    conn.commit()
+
+
+@pytest.mark.parametrize("pending,kept", [(1, True), (2, True), (0, False), (None, False)])
+def test_a_note_still_importing_media_keeps_its_files(conn, root, pending, kept):
+    """Plan A Task 8 fix round 2 (N1): while a note's media is pending (1 retry, 2 waiting for
+    storage), its stored body is the PLACEHOLDER doc `import_confirm` wrote and the files a
+    retry will reuse are referenced by nothing. They are kept until the import finishes;
+    once it has (0, or a legacy NULL), the normal rules apply (the control)."""
+    note = notes_mod.create_note("u1", {"title": "importing", "bodyJson": {"type": "doc", "content": []}},
+                                 conn=conn)
+    _set_media_pending(conn, note["id"], pending)
+    f = _mkfile(root, "u1", note["id"], "inline", _upload_name())
+    chip = _mkfile(root, "u1", note["id"], "file", _upload_name(".csv"))
+    rep = attachment_gc.sweep_orphaned_attachments(conn=conn)
+    assert f.exists() is kept and chip.exists() is kept
+    assert rep["deleted"] == (0 if kept else 2)
+    assert rep["skipped_import_pending"] == (2 if kept else 0)
+
+
+def test_a_pending_note_protects_only_its_own_directory(conn, root):
+    busy = notes_mod.create_note("u1", {"title": "a", "bodyJson": {"type": "doc", "content": []}}, conn=conn)
+    idle = notes_mod.create_note("u1", {"title": "b", "bodyJson": {"type": "doc", "content": []}}, conn=conn)
+    _set_media_pending(conn, busy["id"], 2)
+    kept = _mkfile(root, "u1", busy["id"], "inline", _upload_name())
+    gone = _mkfile(root, "u1", idle["id"], "inline", _upload_name())
+    other_member = _mkfile(root, "u2", busy["id"], "inline", _upload_name())   # same id, not theirs
+    attachment_gc.sweep_orphaned_attachments(conn=conn)
+    assert kept.exists() and not gone.exists() and not other_member.exists()
+
+
+def test_the_pending_lookup_is_member_scoped_and_index_served(conn):
+    plan = " ".join(r[3] for r in conn.execute(
+        "EXPLAIN QUERY PLAN " + attachment_gc._PENDING_NOTES_SQL, ("u1",)).fetchall())
+    assert "USING" in plan and "INDEX" in plan, plan             # never a full-table SCAN

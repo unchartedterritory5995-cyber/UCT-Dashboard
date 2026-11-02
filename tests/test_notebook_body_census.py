@@ -97,7 +97,8 @@ def test_the_census_is_not_vacuous(rows):
     by_key = {_key(r): r for r in rows}
     # one of each kind of bounded door, found where it is known to be
     upload = by_key[("POST", "/api/j2/notes/{note_id}/images")]
-    assert upload.reads[0].how == "capped" and upload.reads[0].limit_bytes == 5 * 1024 * 1024
+    # Plan A Task 8: /images reads to the media policy's 25 MB source cap (it downscales).
+    assert upload.reads[0].how == "capped" and upload.reads[0].limit_bytes == 25 * 1024 * 1024
     email = by_key[("POST", "/api/j2/inbound-email")]
     assert email.reads[0].how == "stream-loop" and email.reads[0].limit_bytes == 36 * 1024 * 1024
     gallery = by_key[("POST", "/api/j2/template-gallery")]
