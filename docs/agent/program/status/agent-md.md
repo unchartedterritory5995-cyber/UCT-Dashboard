@@ -57,7 +57,12 @@ Only agent-md edits this file. Update it in every PR.
 - **Sprint 2 (flags off), agreed order A → B → D → C with agent-lead:**
   - **A — phrasings list** (branch `agent/md/phrasings`): `contracts/MD-1-phrasings.md`, 30 phrasings with their
     deterministic handling, ambiguous-ticker rule, answer obligations. Docs only.
-  - **B — `stock.quote`** (`capabilities/marketDataQuote.js` + additive `session` field, MD-1 v1.5). Pending.
+  - **B — `stock.quote`** (branch `agent/md/stock-quote`, includes A): `capabilities/marketDataQuote.js` (answer +
+    `match()` + idempotent registration that is a no-op while `data` is false) over the shared pure parser
+    `capabilities/marketDataPhrases.js`. `quotes.py` gains the additive `data.session_detail` (regular · premarket
+    · after-hours · overnight · closed); `session` is derived from it. MD-1 **v1.5** §4.5. Flags off = stock.profile
+    byte for byte (rail). Vitest 62, mutation-checked 5 ways (flag ignored, stale-as-live, fallback removed,
+    ambiguous rule dropped, veto dropped: each red).
   - **D — freshness corpus (#598)** refreshed onto `c3ba71c343` with per-session fixture clocks. Pending.
   - **C — `bars.daily` answers** (`capabilities/marketDataBars.js`). Pending.
   - Lead-owned dependencies: `builtins.js` registration line, `UCT_AGENT_DATA_KINDS` allowlist (fail closed),
@@ -73,4 +78,5 @@ Only agent-md edits this file. Update it in every PR.
   a store one session behind (stale), and a store row for today's developing bar (must be excluded).
 
 ## Ready for integration
-- PR A phrasings list (docs only)
+- PR A phrasings list (docs only), #620
+- PR B `stock.quote` (needs agent-lead: `builtins.js` line, `UCT_AGENT_DATA_KINDS`, `fastPath.js` wiring)

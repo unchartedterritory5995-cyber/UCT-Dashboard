@@ -206,12 +206,13 @@ export function match(text) {
 }
 
 let registered = false
+let unregister = null
 /** Idempotent; registers nothing while the server does not serve the data gateway, so the model's manifest and
  *  every flags-off answer stay exactly as they are. Call it after /api/agent/config has loaded. */
 export function registerMarketDataCapabilities() {
   if (registered || !serverServesData()) return false
   registered = true
-  registerCapability({
+  unregister = registerCapability({
     name: CAPABILITY,
     surfaces: ['charts'],
     target: 'market', query: true,
@@ -224,4 +225,4 @@ export function registerMarketDataCapabilities() {
   })
   return true
 }
-export const _resetForTest = () => { registered = false }
+export const _resetForTest = () => { if (unregister) unregister(); unregister = null; registered = false }
