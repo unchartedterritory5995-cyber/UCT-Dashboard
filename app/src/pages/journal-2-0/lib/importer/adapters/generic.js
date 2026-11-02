@@ -26,15 +26,21 @@ function getMd() {
 // and the post-parse pass's `resolveHref` (../linkPolicy.js) turns a refused href into its
 // visible text, the same answer as the server (`mddoc._validate_link`). Every other caller
 // of the gate keeps the stock answer: images (Task 2 handles `data:image`), reference
-// definitions (an image may use one, and is not re-validated) and markdown-it's autolinks.
-// ⛔ The INNERMOST rule decides: the link rule parses its label (which may hold an image)
-// before and after it validates its destination, so a nested image pushes its own frame
-// and gets the stock answer, never the link's open one.
+// definitions (an image may use one, and is not re-validated) and `<autolink>`s --
+// including when they sit inside a link's label.
+// ⛔ The INNERMOST rule decides: the link rule tokenizes its label (which may hold an
+// image, an `<autolink>` or a bare URL) INSIDE its own call, so every other inline rule
+// that asks the gate pushes its own frame and gets the stock answer, never the link's open
+// one. ⚰️ Fix round 1: only `image` pushed a frame, so `[<javascript:x>](https://a.com)`
+// opened the autolink and emitted a nested `<a href="javascript:x">` inside the link.
+// (The inline `linkify` rule needs no frame: it returns early inside a link label,
+// `state.linkLevel > 0`, so it never runs under the link's frame.)
+const GATED_INLINE_RULES = ['link', 'image', 'autolink']
 function openInlineLinkGate(md) {
   const stock = md.validateLink
   const frames = []
   md.validateLink = (url) => frames[frames.length - 1] === 'link' || stock(url)
-  for (const name of ['link', 'image']) {
+  for (const name of GATED_INLINE_RULES) {
     const rule = md.inline.ruler.__rules__.find((r) => r.name === name)
     if (!rule) throw new Error(`markdown-it has no inline rule "${name}"`)
     const original = rule.fn
