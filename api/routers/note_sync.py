@@ -1208,6 +1208,11 @@ async def _read_bounded_body(request: Request, limit: int) -> bytes:
 # Plan C wire protocol (docs/superpowers/plans/2026-11-01-connector-fidelity-c-obsidian.md,
 # "The wire protocol"). Every plugin request carries this header; a 0.1.x plugin sends none.
 PLUGIN_VERSION_HEADER = "X-UCT-Plugin-Version"
+# The plugin's own cap (it sends at most 5000 refs per note). Kept at 5000 after final review
+# I1: the attachment pass is now one scan of the body per original
+# (`providers/obsidian.py::_apply_attachment_refs`), measured at ~0.8 s for 5000 refs over a
+# 1 MB body, and it runs in a worker thread, off the event loop
+# (`test_the_attachment_pass_is_bounded_at_the_ref_cap`).
 _MAX_ATTACHMENTS_PER_NOTE = 5000
 # The statuses that carry a staged blob's hash; every other status carries none.
 _REF_STATUSES_WITH_HASH = frozenset({"ok", "storage-limit"})

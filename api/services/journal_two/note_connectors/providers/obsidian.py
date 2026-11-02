@@ -1084,15 +1084,28 @@ def _apply_attachment_refs(
     code_starts = [c[0] for c in code]
     starts: list[int] = []  # sorted; spans[i] starts at starts[i]
     spans: list[tuple[int, int, str]] = []
+    # ⛔ Final review I1: a refused occurrence resumes where the NEXT valid one can start, not
+    # at `at + 1`. Inside a claimed span, or running into the next one, no start before that
+    # span's end can be free (every start in between overlaps it), so the search jumps there;
+    # inside a code span likewise jumps to its end. ⚰️ Overlapping originals (`a`, `aa`, ...)
+    # rescanned every claimed span one character at a time: a 200 KB note with 200 refs took
+    # 15.8 s. Now each original's scan is one pass over the body.
     for original in sorted(table, key=len, reverse=True):
         at = segment.find(original)
         while at != -1:
             end = at + len(original)
             i = bisect.bisect_right(starts, at)
-            if ((i and spans[i - 1][1] > at) or (i < len(spans) and spans[i][0] < end)
-                    or not _clear_of_code(at, end, code, code_starts)):
-                # inside a longer original's span, or inside / across a code span
-                at = segment.find(original, at + 1)
+            if i and spans[i - 1][1] > at:
+                at = segment.find(original, spans[i - 1][1])  # inside a longer original's span
+                continue
+            if i < len(spans) and spans[i][0] < end:
+                at = segment.find(original, spans[i][1])  # runs into the next claimed span
+                continue
+            if not _clear_of_code(at, end, code, code_starts):
+                j = bisect.bisect_right(code_starts, at) - 1
+                inside = j >= 0 and code[j][1] > at
+                # inside a code span: no start before its end is clear; across one: try on
+                at = segment.find(original, code[j][1] if inside else at + 1)
                 continue
             starts.insert(i, at)
             spans.insert(i, (at, end, table[original]))
@@ -1833,7 +1846,16 @@ class ObsidianProvider(NoteProvider):
             updated_at=row["updated_at"],
         )
 
+    # ⛔ Final review I1: the reads AND the conversion run in a worker thread
+    # (`asyncio.to_thread`), never on the web pod's one event loop. The engine awaits these
+    # from a sync started on a request's loop, and a member's note decides what a
+    # conversion costs (the attachment pass, the safety net's rounds, the shared parse), so
+    # on the loop one crafted note stalled every member's request. Everything below is pure
+    # given the row, the vault's paths, its label and the plugin flag.
     async def fetch(self, credentials: dict[str, Any], ref: RemoteRef) -> RemoteNote:
+        return await asyncio.to_thread(self._fetch_sync, ref)
+
+    def _fetch_sync(self, ref: RemoteRef) -> RemoteNote:
         conn = get_connection()
         try:
             row = conn.execute(
@@ -1861,9 +1883,13 @@ class ObsidianProvider(NoteProvider):
         SQL row order. Raises on any missing row (mirrors
         `DropboxProvider.fetch_many`'s "ALL-OR-NOTHING batch" contract) so
         the engine's own `_fetch_remote_notes` falls back to a per-ref
-        `fetch()` loop, isolating one bad ref to one named failure."""
+        `fetch()` loop, isolating one bad ref to one named failure. Off the loop, as
+        `fetch` (final review I1)."""
         if not refs:
             return []
+        return await asyncio.to_thread(self._fetch_many_sync, refs)
+
+    def _fetch_many_sync(self, refs: list[RemoteRef]) -> list[RemoteNote]:
         conn = get_connection()
         try:
             placeholders = ",".join("?" for _ in refs)

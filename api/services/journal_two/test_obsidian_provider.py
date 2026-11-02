@@ -273,6 +273,33 @@ async def test_fetch_many_preserves_ref_order_and_batches_in_one_query(db):
     assert [n.title for n in notes] == ["B", "A"]
 
 
+async def test_fetch_and_fetch_many_convert_off_the_event_loop(db, monkeypatch):
+    """Final review I1: a staged note's conversion (and its database reads, and every safety
+    net round) runs in a worker thread, never on the web pod's one event loop, which an
+    authenticated member's crafted note could otherwise hold for minutes."""
+    import threading
+
+    from api.services.journal_two.note_connectors.providers import obsidian as provider_mod
+
+    loop_thread = threading.get_ident()
+    seen: list[int] = []
+    real = provider_mod.convert_obsidian_markdown
+
+    def spy(*args, **kwargs):
+        seen.append(threading.get_ident())
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(provider_mod, "convert_obsidian_markdown", spy)
+    _stage("user-a", "vault-1", "a.md", "# A", T1)
+    _stage("user-a", "vault-1", "b.md", "# B", T2)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
+    await provider.fetch_many({}, [RemoteRef(remote_id="a.md", updated_at=T1),
+                                   RemoteRef(remote_id="b.md", updated_at=T2)])
+    assert len(seen) == 3
+    assert loop_thread not in seen
+
+
 async def test_fetch_many_raises_on_a_missing_row_so_the_engine_can_fall_back(db):
     _stage("user-a", "vault-1", "a.md", "# A", T1)
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
@@ -1902,6 +1929,40 @@ def test_a_file_link_original_cut_off_at_its_embeds_brackets_still_keeps_both():
         assert [m["kind"] for m in conv["media"]] == ["image", "file"]
         assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y"
         assert "]]" not in _plain(conv["doc"])
+
+
+def test_the_attachment_pass_is_near_linear_in_overlapping_originals():
+    """Final review I1: originals `a`, `aa`, ... over a 200 KB body of `a` took 15.8 s: each
+    original rescanned the body from `at + 1` inside the spans the longer ones claimed. A
+    search now resumes at the end of the claimed span it hit."""
+    import time
+
+    from api.services.journal_two.note_connectors.providers.obsidian import _apply_attachment_refs
+    refs = [REF(original="a" * n, embed=False, path=f"f{n}.pdf", sha256=_SHA) for n in range(1, 201)]
+    started = time.perf_counter()
+    out = _apply_attachment_refs("a" * 200_000, refs, True)
+    assert time.perf_counter() - started < 1.0
+    assert "obsidian-file:" in out and "a" not in out.replace("obsidian-file:", "").split("(")[0]
+    # The same originals all inside one code span: every occurrence is refused, and the
+    # search jumps past the span instead of stepping through it.
+    code = "`" + "a" * 200_000 + "`"
+    started = time.perf_counter()
+    assert _apply_attachment_refs(code, refs, True) == code
+    assert time.perf_counter() - started < 1.0
+
+
+def test_the_attachment_pass_is_bounded_at_the_ref_cap():
+    """Final review I1: 5000 refs (the ingest cap), none of them in a 1 MB body, still cost a
+    bounded time; past the pass's work budget the rest of the originals stay as written."""
+    import time
+
+    from api.services.journal_two.note_connectors.providers.obsidian import _apply_attachment_refs
+    refs = [REF(original=f"![[missing-{i}.png]]", path=f"m{i}.png") for i in range(5000)]
+    body = ("plain trading prose " * 50_000) + "![[missing-4999.png]]"
+    started = time.perf_counter()
+    out = _apply_attachment_refs(body, refs, True)
+    assert time.perf_counter() - started < 2.0
+    assert out.startswith("plain trading prose")
 
 
 @pytest.mark.parametrize("body", ["[" * 20000, "[" * 20000 + "]]", "![[" * 3400, ("x [" * 5000) + "]]"],
