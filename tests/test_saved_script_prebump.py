@@ -348,7 +348,7 @@ def test_a_fork_of_a_refused_definition_is_refused_too(store):
 
 
 def test_the_withhold_sentence_names_the_real_door():
-    st = {"engine_status": {"engine": 1, "status": "refused", "reason": "r"}}
+    st = {"engine_status": {"engine": svc.SCRIPT_ENGINE_VERSION, "status": "refused", "reason": "r"}}
     assert "Pine tab" in svc.engine_withheld_reason(st)
 
 
@@ -369,6 +369,7 @@ def _bump(monkeypatch, n):
 
 
 def test_a_carried_refusal_on_a_SCRIPTLESS_descendant_expires_when_the_engine_passes_it(store, monkeypatch):
+    _bump(monkeypatch, 1)                             # today = the refusing engine (independent of the shipped number)
     _refused(store)                                   # v1 refused by engine 1 (today's)
     edited = defn(23)
     edited["meta"]["scriptEdited"] = True
