@@ -1765,7 +1765,9 @@ def test_a_chip_label_is_the_rendered_text_of_the_link_never_its_markdown():
     emphasis and strikethrough read as their words, raw HTML tags add nothing. A wikilink
     alias likewise."""
     cases = [("**the** report", "the report"), (r"the\_x", "the_x"), ("*q3* ~~deck~~", "q3 deck"),
-             ("a <b>bold</b> one", "a bold one"), ("**q3 report.pdf**", None)]
+             ("a <b>bold</b> one", "a bold one"), ("**q3 report.pdf**", None),
+             # D2 fix round 2, N3: an Obsidian highlight reads as its words, as on the client.
+             ("==hi== there", "hi there"), ("if rsi == 30", "if rsi == 30")]
     for text, label in cases:
         original = f"[{text}](attachments/q3%20report.pdf)"
         conv = _convert(f"see {original} now",

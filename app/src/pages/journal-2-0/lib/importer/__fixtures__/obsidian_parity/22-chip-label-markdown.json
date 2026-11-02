@@ -1,6 +1,6 @@
 {
   "id": "22-chip-label-markdown",
-  "input_markdown": "# Chip labels\n\nRead [**the** report](attachments/q3%20report.pdf) and [the\\_x](attachments/x.pdf) now.\n",
+  "input_markdown": "# Chip labels\n\nRead [**the** report](attachments/q3%20report.pdf) and [the\\_x](attachments/x.pdf) now.\n\nThen [==hi== there](attachments/h.pdf) too.\n",
   "self_path": "a.md",
   "server": {
     "callouts": [],
@@ -12,6 +12,10 @@
       {
         "label": "the_x",
         "name": "x.pdf"
+      },
+      {
+        "label": "hi there",
+        "name": "h.pdf"
       }
     ],
     "highlights": [],
@@ -19,12 +23,13 @@
     "links": [],
     "pending": [],
     "task_checked": [],
-    "text": "Chip labels Read  [file: q3 report.pdf]  and  [file: x.pdf]  now."
+    "text": "Chip labels Read  [file: q3 report.pdf]  and  [file: x.pdf]  now. Then  [file: h.pdf]  too."
   },
   "vault_id": "vault-1",
   "vault_paths": [
     "a.md",
     "attachments/q3 report.pdf",
-    "attachments/x.pdf"
+    "attachments/x.pdf",
+    "attachments/h.pdf"
   ]
 }

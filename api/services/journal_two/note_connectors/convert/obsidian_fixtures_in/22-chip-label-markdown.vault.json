@@ -5,7 +5,8 @@
   "vault_paths": [
     "a.md",
     "attachments/q3 report.pdf",
-    "attachments/x.pdf"
+    "attachments/x.pdf",
+    "attachments/h.pdf"
   ],
   "attachments": [
     {"original": "[**the** report](attachments/q3%20report.pdf)", "embed": false,
@@ -13,6 +14,9 @@
      "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
     {"original": "[the\\_x](attachments/x.pdf)", "embed": false,
      "path": "attachments/x.pdf", "size": 100,
-     "sha256": "1f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a7988", "status": "ok"}
+     "sha256": "1f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a7988", "status": "ok"},
+    {"original": "[==hi== there](attachments/h.pdf)", "embed": false,
+     "path": "attachments/h.pdf", "size": 100,
+     "sha256": "2a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"}
   ]
 }

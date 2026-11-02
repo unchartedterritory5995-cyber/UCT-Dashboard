@@ -765,6 +765,9 @@ def _rendered_text(markdown: str) -> str:
     chip showed literal asterisks and backslashes."""
     if not markdown:
         return ""
+    # D2 fix round 2, N3: an Obsidian `==highlight==` reads as its words (CommonMark has no
+    # highlight; the client's markdown does), by this provider's own highlight rule.
+    markdown = _HIGHLIGHT_RE.sub(lambda m: m.group(1) + m.group(2), markdown)
     out: list[str] = []
     for token in _get_md().parseInline(markdown):
         for child in token.children or []:
