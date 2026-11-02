@@ -673,6 +673,20 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   `find_go_signal_hourly.py`, retire the 40 daily Go Signal drafts (queue positions 1-40), source_ruling fixtures;
   re-show NVDA 2026-09-09 Gap Support with a longer window.
 
+- **2026-11-02: PAUSED BY THE OWNER** ("yEAh i think we need to pause this and revisit the plan for this educational
+  interactive thing"). Before the pause: the review screen was replayed LOCALLY (Vite + a scratchpad replay server
+  fed by a form-post from the signed-in production tab, since `gh pr merge` stays denied) so the hourly charts could
+  be captured without a deploy; the open arrow landed five bars late (ET shift) -> fixed e3d4934375; the owner on
+  the close-ups: "None of these are really go signals, the first hourly candle should go green to red and take out
+  previous day close, for the most part", then "Can't see with them all white honestly. And I need a go signal to go
+  red to green in the first or second hourly candle essentially" -> white paint replaced by white DOTS under the
+  three open bars on both screens (463d75abe9). Captures: gow_01..41 (white, superseded) and god_01..15 (dotted) in
+  the 2026-10-31 sheet folder; `hourly_ids_order_2026-11-01.json` maps position -> id. Local re-screen of the 41
+  against the owner's key (red below the prior close then green by the 2nd hourly candle): 2 VGZ(cut) 10 DUOL
+  17 VEON 25 INTC 31 RKLB 39 AAPL by candle 1; 6 DASH 15 RKLB 21 CELH 22 CCI 26 CSCO 35 DOCN 38 MSFT by candle 2.
+  NEXT: revisit the Study plan WITH the owner (his call) before any more items are shown or built; PR #559 still
+  needs his merge (GitHub green button) whenever he wants the fixes live.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
