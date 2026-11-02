@@ -304,6 +304,20 @@ def test_file_key_relative_link(db):
     assert _hrefs(out) == [_note_href(target)]
 
 
+def test_a_file_link_that_leaves_the_drop_names_nothing(db):
+    """I-2 (review P15): `file:` keys join by `posixpath.normpath`. A link that climbs above
+    the drop is outside it, never folded onto a top-level file the member did not name."""
+    _import("Files (2)", "file:x.md")
+    doc = _doc(_para(_t("x", _link("../../x.md"))))
+    out, actions = _repair(doc, import_key="file:a/b.md", import_source="Files (2)")
+    assert out == doc and actions == ["relative_unresolved"]
+    # Notion keeps the client's folding (`resolvePath`): a `..` above the top stays at the top
+    plan = _import("Notion", "notion:Plan.md")
+    out, _ = _repair(_doc(_para(_t("p", _link(f"../../Plan%20{HEX}.md")))),
+                     import_key="notion:Export/Home.md", import_source="Notion")
+    assert _hrefs(out) == [_note_href(plan)]
+
+
 # ── what cannot resolve ───────────────────────────────────────────────────────
 
 def test_unresolvable_relative_note_href_is_left_as_written_and_counted(db):

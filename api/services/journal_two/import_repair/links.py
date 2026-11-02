@@ -136,8 +136,9 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
 
 
 def _join(base_dir: str, rel: str) -> str:
-    """`rel` beside `base_dir`, `.`/`..`/empty segments folded the way the client's
-    `resolvePath` folds them (a `..` above the top stays at the top)."""
+    """`rel` beside `base_dir`, `.`/`..`/empty segments folded the way the client's Notion
+    `resolvePath` folds them (a `..` above the top stays at the top). NOTION ONLY: `file:`
+    keys use `posixpath.normpath` (fix round 1, I-2)."""
     stack = base_dir.split("/") if base_dir else []
     for part in rel.split("/"):
         if part in ("", "."):
@@ -248,7 +249,11 @@ def relative_target(href: str, *, import_key: str, import_source: str,
         m = _NOTION_PAGE_ID_RE.search(path.rsplit("/", 1)[-1])
         return (linkify.notion_note_key(m.group(1)), TO_NOTE) if m else (None, UNRESOLVED)
     if import_key.startswith(_FILE):
-        path = _join(posixpath.dirname(import_key[len(_FILE):]), target)
+        # Fix round 1, I-2: `posixpath.normpath` (the brief's rule; there is no client resolver
+        # to match here). A path that climbs above the drop names nothing in it.
+        path = posixpath.normpath(posixpath.join(posixpath.dirname(import_key[len(_FILE):]), target))
+        if obsidian_provider._escapes_root(path):
+            return None, UNRESOLVED if _GENERIC_NOTE_EXT_RE.search(path) else FILE_UNRESOLVED
         key = _FILE + path
         if key in index.keys:
             return key, TO_NOTE
