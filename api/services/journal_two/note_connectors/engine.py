@@ -143,6 +143,12 @@ def _release_source(source_id: str) -> None:
     with _inflight_lock:
         _inflight_sources.discard(source_id)
 
+
+def is_source_busy(source_id: str) -> bool:
+    """True while a sync of this source is in flight (read-only peek)."""
+    with _inflight_lock:
+        return source_id in _inflight_sources
+
 # Backoff ladder after a transient sqlite3 "database is locked" (mirrors
 # broker/sync.py's _LOCKED_RETRY_DELAYS exactly). Jittered so parallel
 # retriers don't re-collide in lockstep.
@@ -280,6 +286,7 @@ def _finish_log(
 
 async def sync_source(
     source_id: str, *, full: bool = False, manual: bool = False,
+    member: bool = False,
 ) -> dict[str, Any]:
     """Sync one source. Serialized per source via a loop-agnostic in-flight
     guard (Fix-round-1 #4 — see `_try_acquire_source`'s module-level
@@ -293,7 +300,14 @@ async def sync_source(
     `except`). Only after every attempt is still busy does this return a
     `"busy"` status rather than raising — a caller in a race with the
     nightly full pass or another "Sync now" click gets a clean, actionable
-    answer, never a crash."""
+    answer, never a crash.
+
+    `member=True` is a person waiting on "Sync now": it implies
+    `manual=True` (no cooldown) and makes exactly ONE acquire attempt — if
+    the source is busy it returns `busy` at once, never walking the sleep
+    ladder. The sqlite "locked" retry ladder is unchanged for every caller."""
+    if member:
+        manual = True
     source = connections.get_source_by_id(source_id)
     if source is None:
         raise ValueError(f"unknown note-connector source {source_id!r}")
@@ -304,7 +318,7 @@ async def sync_source(
     attempts = 1 + len(_LOCKED_RETRY_DELAYS)
     for attempt in range(attempts):
         if not _try_acquire_source(source_id):
-            if attempt == attempts - 1:
+            if member or attempt == attempts - 1:
                 return {"status": "busy", "sourceId": source_id}
             await asyncio.sleep(_LOCKED_RETRY_DELAYS[attempt] * random.uniform(0.5, 1.5))
             continue

@@ -2023,3 +2023,60 @@ async def test_a_member_edit_survives_a_resync_of_a_note_with_an_unresolvable_li
         assert result["updated"] == 0
         assert result["conflicts"] == 0
         assert len(notes_svc.list_notes("u1")) == 1
+
+
+# ── Plan D task 2: a member caller never waits through the busy ladder ───────
+
+async def test_a_member_sync_on_a_busy_source_returns_busy_without_sleeping(
+    source, provider, monkeypatch,
+):
+    slept = []
+
+    async def fake_sleep(s):
+        slept.append(s)
+
+    monkeypatch.setattr(engine.asyncio, "sleep", fake_sleep)
+    assert engine._try_acquire_source(source["id"])
+    try:
+        r = await engine.sync_source(source["id"], member=True)
+    finally:
+        engine._release_source(source["id"])
+    assert r == {"status": "busy", "sourceId": source["id"]}
+    assert slept == []  # the ladder was not walked
+    assert provider.list_changed_calls == []
+
+
+async def test_a_scheduler_sync_on_a_busy_source_still_walks_the_ladder(
+    source, provider, monkeypatch,
+):
+    slept = []
+
+    async def fake_sleep(s):
+        slept.append(s)
+
+    monkeypatch.setattr(engine.asyncio, "sleep", fake_sleep)
+    assert engine._try_acquire_source(source["id"])
+    try:
+        r = await engine.sync_source(source["id"])
+    finally:
+        engine._release_source(source["id"])
+    assert r == {"status": "busy", "sourceId": source["id"]}
+    assert len(slept) == len(engine._LOCKED_RETRY_DELAYS)
+    assert provider.list_changed_calls == []
+
+
+async def test_a_member_sync_skips_the_cooldown(source, provider):
+    first = await engine.sync_source(source["id"], manual=True)
+    assert first.get("status") != "busy"
+    again = await engine.sync_source(source["id"], member=True)
+    assert again.get("status") not in ("cooldown", "busy")
+
+
+def test_is_source_busy_reflects_the_inflight_set(source):
+    assert engine.is_source_busy(source["id"]) is False
+    assert engine._try_acquire_source(source["id"])
+    try:
+        assert engine.is_source_busy(source["id"]) is True
+    finally:
+        engine._release_source(source["id"])
+    assert engine.is_source_busy(source["id"]) is False
