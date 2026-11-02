@@ -79,7 +79,9 @@
 // with the script in hand. Two questions, two numbers.
 
 /** 1 = the first stamped engine (C45/C48 `blockRuns` withholding is in it). */
-export const SCRIPT_ENGINE_VERSION = 1
+/** 2 = the first real bump (2026-11-02): saved scripts re-translate once with every engine
+ *  change merged since 1 was stamped (#610), now that refusals are remembered (#673). */
+export const SCRIPT_ENGINE_VERSION = 2
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
