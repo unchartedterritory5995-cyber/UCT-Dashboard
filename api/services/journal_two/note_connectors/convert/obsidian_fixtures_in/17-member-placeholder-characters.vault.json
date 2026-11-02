@@ -1,0 +1,9 @@
+{
+  "vault_id": "vault-1",
+  "self_path": "Src.md",
+  "vault_paths": [
+    "Other.md",
+    "Plan.md",
+    "Src.md"
+  ]
+}

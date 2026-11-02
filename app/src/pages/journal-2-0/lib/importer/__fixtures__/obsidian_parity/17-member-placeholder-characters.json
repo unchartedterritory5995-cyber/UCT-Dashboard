@@ -1,0 +1,73 @@
+{
+  "id": "17-member-placeholder-characters",
+  "input_markdown": "# Member text that looks like a placeholder\n\nx  y [[Plan]] and  [[Other]].\n\nIndex 00:  [[Plan]], lone [[Plan]].\n\na == [[Plan]]== b, near  [[Ghost.Name]].\n\nSentinel runs: ﷐ [[Plan]] ﷐﷐ x﷐[[Other]]﷐.\n\nGlyphs:    and Pomicons  [[Plan]].\n\n> [!note]  [[Plan]]\n> body\n",
+  "self_path": "Src.md",
+  "server": {
+    "callouts": [
+      "note"
+    ],
+    "highlights": [
+      {
+        "color": null,
+        "text": " "
+      },
+      {
+        "color": null,
+        "text": "Plan"
+      }
+    ],
+    "images": [],
+    "links": [
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      },
+      {
+        "target": "Other.md",
+        "text": "Other"
+      },
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      },
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      },
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      },
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      },
+      {
+        "target": "Other.md",
+        "text": "Other"
+      },
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      },
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      }
+    ],
+    "pending": [
+      {
+        "key": "name:obsidian:vault-1/ghost.name",
+        "text": "Ghost.Name"
+      }
+    ],
+    "task_checked": [],
+    "text": "Member text that looks like a placeholder x  y Plan and  Other. Index 00:  Plan, lone Plan. a  Plan b, near  Ghost.Name. Sentinel runs: ﷐ Plan ﷐﷐ x﷐Other﷐. Glyphs:    and Pomicons  Plan.  Plan body"
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "Other.md",
+    "Plan.md",
+    "Src.md"
+  ]
+}

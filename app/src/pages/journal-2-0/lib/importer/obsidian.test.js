@@ -370,7 +370,7 @@ describe('obsidian adapter — D1 fix round 3', () => {
     for (const c of node?.content || []) marksOf(c, out)
     return out
   }
-  const noPlaceholder = (s) => expect(/[\uE000-\uF8FF]/.test(s)).toBe(false)
+  const noPlaceholder = (s) => expect(/[\uE000-\uF8FF\uFDD0-\uFDEF]/.test(s)).toBe(false)
 
   it('keeps an unresolved dotted name plain "Ghost.Name" inside a highlight (N1)', async () => {
     const r = await stored('a ==[[Ghost.Name]]== b')
@@ -406,4 +406,62 @@ describe('obsidian adapter — D1 fix round 3', () => {
     expect(marksOf(r.doc).find(([t]) => t === 'Plan')?.[1]).toBe('bold+link')
     noPlaceholder(r.html)
   })
+})
+
+// ---------------------------------------------------------------------------
+// D1 fix round 4 (re-review P1): the member's own text can never collide with
+// the importer's held-markup placeholders. Every row keeps the member's
+// characters byte-exact, with only `[[...]]` replaced, and adds no link. Parity
+// fixture 17-member-placeholder-characters pins the server lane on the same
+// characters.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D1 fix round 4: member text vs held-markup placeholders', () => {
+  const O = ''
+  const C = ''
+  const D = (n) => String.fromCharCode(0xe010 + n)
+  const F = '﷐'
+  const textOf = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/Other.md', 'o')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const { bodyJson } = htmlToNote(d.html)
+    const links = [...d.html.matchAll(/data-import-link="obsidian:V\/([^"]+)"/g)].length
+    return { text: extractPlainText(bodyJson).replace(/\s+/g, ' ').trim(), links }
+  }
+  const eleven = '[[Plan]] '.repeat(10) + '[[Other]] '
+  const ROWS = [
+    // [name, body, expected stored text, expected link count]
+    ['valid index, before a link', `x ${O}${D(0)}${C} y [[Plan]]`, `x ${O}${D(0)}${C} y Plan`, 1],
+    ['valid index, after a link', `[[Plan]] then ${O}${D(0)}${C}`, `Plan then ${O}${D(0)}${C}`, 1],
+    ['index 1 with two links', `${O}${D(1)}${C} [[Plan]] [[Other]]`, `${O}${D(1)}${C} Plan Other`, 2],
+    ['index "00"', `${O}${D(0)}${D(0)}${C} [[Plan]]`, `${O}${D(0)}${D(0)}${C} Plan`, 1],
+    ['index past 10, 11 links', `${eleven}${O}${D(1)}${D(0)}${C}`,
+      `${'Plan '.repeat(10)}Other ${O}${D(1)}${D(0)}${C}`, 11],
+    ['inside a highlight', `a ==${O}${D(0)}${C} [[Plan]]== b`, `a ${O}${D(0)}${C} Plan b`, 1],
+    ['inside a callout title', `> [!note] ${O}${D(0)}${C} [[Plan]]\n> body`, `${O}${D(0)}${C} Plan body`, 1],
+    ['next to an unresolved dotted name', `${O}${D(0)}${C} and [[Ghost.Name]]`, `${O}${D(0)}${C} and Ghost.Name`, 0],
+    ['Nerd Font / Powerline / Font Awesome glyphs',
+      ' branch  home  [[Plan]] ' + O + C, ' branch  home  Plan ' + O + C, 1],
+    ['glyphs in a highlight', '== [[Plan]] ==', ' Plan ', 1],
+    ['glyphs in a callout title', '> [!tip]  [[Plan]] \n> b', ' Plan  b', 1],
+    ['Pomicons run', `${O}${C} [[Plan]]`, `${O}${C} Plan`, 1],
+    ['lone E000 / E001 around a link', `${O}[[Plan]]${C}`, `${O}Plan${C}`, 1],
+    ['adjacent E000 E010 before a link', `${O}${D(0)}[[Plan]]`, `${O}${D(0)}Plan`, 1],
+    ['inside a code span', `\`${O}${D(0)}${C}\` [[Plan]]`, `${O}${D(0)}${C} Plan`, 1],
+    // The importer's own sentinel, U+FDD0, in the member's text.
+    ['U+FDD0 run with an index', `${F}${D(0)}${C} [[Plan]]`, `${F}${D(0)}${C} Plan`, 1],
+    ['double U+FDD0 run', `${F}${F}${D(0)}${C} [[Plan]] ${F}`, `${F}${F}${D(0)}${C} Plan ${F}`, 1],
+    ['U+FDD0 touching a link', `x${F}[[Plan]]${F}${F}y`, `x${F}Plan${F}${F}y`, 1],
+    ['mixed E000 and U+FDD0 runs', `${O}${D(0)}${C}${F}${D(1)}${C} [[Plan]] [[Other]]`,
+      `${O}${D(0)}${C}${F}${D(1)}${C} Plan Other`, 2],
+  ]
+
+  for (const [name, body, expected, links] of ROWS) {
+    it(`keeps the member's characters byte-exact: ${name}`, async () => {
+      const r = await textOf(body)
+      expect(r.text).toBe(expected)
+      expect(r.links).toBe(links)
+    })
+  }
 })

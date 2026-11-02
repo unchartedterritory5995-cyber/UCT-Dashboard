@@ -221,37 +221,56 @@ async function makeDoc(vfile, vfiles, byPath, basenameMap) {
 function preprocessWikiSyntax(text, ctx) {
   return transformOutsideCode(text, (segment) => {
     const held = []
-    const hctx = { ...ctx, hold: (html) => holdMarkup(held, html) }
+    const open = holdOpenFor(segment)
+    const hctx = { ...ctx, hold: (html) => holdMarkup(held, html, open) }
     let out = segment
     out = transformEmbeds(out, hctx)
     out = transformWikiLinks(out, hctx)
     out = transformCallouts(out)
     out = transformHighlights(out)
-    return releaseMarkup(out, held)
+    return releaseMarkup(out, held, open)
   })
 }
 
 // ⛔ The embed and wikilink passes emit finished HTML (`<a ...>`, `<img>`, an
 // entity-encoded unresolved name), and the callout and highlight passes after
 // them ESCAPE their text. So each finished piece is HELD: the pass writes a
-// private-use placeholder (no `&`, `<`, `>`, `=` or ASCII digit for a later
+// placeholder of noncharacter and private-use code points (no `&`, `<`, `>`, `=` or ASCII digit for a later
 // pass to escape or match), and the real markup goes back in only after every
 // pass has run, right before `mdToHtml`. ⚰️ D1 fix round 2 wrote `&#46;` straight
 // into the text, and a highlight or callout title escaped it again into a
 // visible `&#46;`; a link inside `==...==` lost the highlight, and one in a
 // callout title showed as escaped `<a>` markup (D1 fix round 3, N1/N2).
-const HOLD_OPEN = '\uE000'
+//
+// \u26D4 The OPEN is chosen PER SEGMENT so it can never be the member's own text:
+// a run of U+FDD0 (a Unicode noncharacter, reserved for internal use like
+// this) one longer than the longest U+FDD0 run already in the segment. The
+// passes only ever ADD placeholders, so every `open digits CLOSE` the release
+// regex can match starts with a run the importer wrote. A shorter member run
+// cannot match, and a member run right before ours cannot either: the regex
+// needs a digit right after exactly `open`, and the character there is our
+// own U+FDD0. There is no exhaustion case: a longer run always exists.
+// \u26B0\uFE0F D1 fix round 3 used a fixed U+E000 open, so a member's own
+// `U+E000 U+E010 U+E001` was swapped for another link's markup: a duplicate
+// link appeared and their text was lost (D1 re-review P1, fix round 4).
+const HOLD_SENTINEL = '\uFDD0'
 const HOLD_CLOSE = '\uE001'
-const HOLD_RE = /\uE000([\uE010-\uE019]+)\uE001/g
 
-function holdMarkup(held, html) {
-  held.push(html)
-  const digits = String(held.length - 1).replace(/[0-9]/g, (d) => String.fromCharCode(0xe010 + Number(d)))
-  return HOLD_OPEN + digits + HOLD_CLOSE
+function holdOpenFor(segment) {
+  let longest = 0
+  for (const m of segment.matchAll(/\uFDD0+/g)) longest = Math.max(longest, m[0].length)
+  return HOLD_SENTINEL.repeat(longest + 1)
 }
 
-function releaseMarkup(text, held) {
-  return text.replace(HOLD_RE, (whole, digits) => {
+function holdMarkup(held, html, open) {
+  held.push(html)
+  const digits = String(held.length - 1).replace(/[0-9]/g, (d) => String.fromCharCode(0xe010 + Number(d)))
+  return open + digits + HOLD_CLOSE
+}
+
+function releaseMarkup(text, held, open) {
+  const holdRe = new RegExp(`${open}([\\uE010-\\uE019]+)\\uE001`, 'g')
+  return text.replace(holdRe, (whole, digits) => {
     const idx = Number(digits.replace(/[\uE010-\uE019]/g, (c) => String(c.charCodeAt(0) - 0xe010)))
     return idx < held.length ? held[idx] : whole
   })

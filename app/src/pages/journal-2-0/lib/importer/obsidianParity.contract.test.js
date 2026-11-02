@@ -225,6 +225,12 @@ const knownClientGap = {
   '16-links-in-highlights-and-callouts.json': {
     clientReads: { callouts: [] },
   },
+  // The same callout gap again and nothing else: member text holding the client's
+  // placeholder characters (U+E000 runs, U+FDD0 runs, icon-font glyphs) compares
+  // strictly on text, links, highlights and pending names (D1 fix round 4, P1).
+  '17-member-placeholder-characters.json': {
+    clientReads: { callouts: [] },
+  },
   // ⚰️ 13-duplicate-basenames: closed by D1 fix round 2 (M1). Both lanes now share one
   // tie-break (same folder, then shortest path, then sort order).
   // Plan B task "Obsidian deep links" (spec L-4): the client drops an
