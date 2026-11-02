@@ -2,6 +2,24 @@
 
 Only agent-qa edits this file. Update it in every PR.
 
+## PR #691 (`7648fd6631`, neutral ask + ETF labelling): **GO** as the fallback; pins updated, 2026-11-02
+- Owner ruling 1 (neutral ask): every ask in both held-out sets (18) and all 15 MD-1-phrasings ask rows is the
+  `clarifyText` sentence. It names the word as typed, never offers a candidate and names no index security.
+- Ruling 2 (explicit ETF named as the fund): "BTC price" gives `BTC (Grayscale Bitcoin Mini Trust, an ETF)`, and
+  "SPY price" is labelled the same way. NVDA carries no marker (new rail `qa/fundLabel.test.js`, quote + bars).
+- Ruling 3 (an ETF is not the underlying): `FUND_NOTE` appears exactly once on an ETF quote and on an ETF daily-bars
+  answer, and never on a stock.
+- Ruling 4 (zero confident-wrong answers): set 1 has 35 pass / 9 safe-miss / **0 FAIL**, and set 2 has 52 / 2 / **0 FAIL**.
+  The outcome mixes are identical to before (only the ask detector changed).
+- **Trade-off for the owner (pinned in `qa/quoteHeldout.test.js`):** of the 18 held-out asks, **13 used to suggest
+  exactly the security the member meant** and now show the neutral sentence: H01 MSFT, H02 GOOGL, H05 AMZN, H09 NFLX,
+  H13 NVDA, H22 MSFT, H23 GOOGL, H29 AAPL, H36 BRK-B, V05 TSLA, V06 NVDA, V09 NFLX, V47 NVDA. **5 used to suggest a
+  security the member probably did not mean**, and are now fixed: H26 BTC, H28 GOLD, V12 DOW, V22 ETH, V24 SOL.
+  For four set-2 rows `expect` is null; agent-qa recorded what they meant in `MEANT_WHEN_NULL`.
+- Flags off: #691 changes no server file. The md2Panel dark config shapes (5) still make no read and offer no
+  `stock.quote`.
+- Suites on #691 + pins, under the lock: Agent pytest 1733 passed; vitest 138 files, 2494 passed.
+
 ## In flight
 - **PR 1 — program fixtures** (`agent/qa/fixtures-v1`): fake-provider DataEnvelopes for all 12 MD-1 v1 kinds and
   the 3 SC-1 kinds; cases live · delayed · periodic · historical · stale · market-closed · unavailable · refused ·
