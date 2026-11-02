@@ -21,7 +21,7 @@ from api.services.uct_agent.marketdata import instruments as ins
 
 REPO = Path(__file__).resolve().parents[1]
 SCORES = REPO / "app" / "src" / "agent" / "__fixtures__" / "program" / "scores"
-SETS = [SCORES / "quote-heldout.json", SCORES / "quote-heldout-2.json"]
+SETS = [SCORES / "quote-heldout.json", SCORES / "quote-heldout-2.json", SCORES / "quote-adversarial-3.json"]
 PHRASES = REPO / "docs" / "agent" / "program" / "contracts" / "MD-1-phrasings.md"
 OUT = REPO / "app" / "src" / "agent" / "__fixtures__" / "program" / "md2" / "resolve-qa-index.json"
 BUILT_AT = 1793232000.0          # a fixed build time, so the fixture is deterministic
@@ -37,6 +37,10 @@ QA_INDEX = [
     ("NOW", "ServiceNow, Inc.", "stock"), ("CAN", "Canaan Inc.", "stock"), ("A", "Agilent Technologies, Inc.", "stock"),
     ("SPY", "SPDR S&P 500 ETF Trust", "etf"), ("QQQ", "Invesco QQQ Trust", "etf"), ("BTC", "Grayscale Bitcoin Mini Trust", "etf"),
     ("ETH", "Grayscale Ethereum Mini Trust", "etf"), ("SLV", "iShares Silver Trust", "etf"), ("USO", "United States Oil Fund", "etf"),
+    ("GOOG", "Alphabet Inc. Class C", "stock"), ("CAT", "Caterpillar Inc.", "stock"), ("CAR", "Avis Budget Group, Inc.", "stock"),
+    ("FUN", "Six Flags Entertainment Corporation", "stock"), ("LINK", "Interlink Electronics, Inc.", "stock"),
+    ("GLD", "SPDR Gold Shares", "etf"), ("DIA", "SPDR Dow Jones Industrial Average ETF Trust", "etf"),
+    ("IBIT", "iShares Bitcoin Trust ETF", "etf"),
     ("VIX", "CBOE Volatility Index", "index"), ("SPX", "S&P 500 Index", "index"), ("NDX", "Nasdaq-100 Index", "index"),
 ]
 
