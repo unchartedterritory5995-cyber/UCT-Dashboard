@@ -57,6 +57,7 @@ _PCT_RE = re.compile(r"%[0-9A-Fa-f]{2}")
 #: The generic file importer's note files and its TextBundle text (`adapters/generic.js`).
 _GENERIC_NOTE_EXT_RE = re.compile(r"\.(md|txt|html|docx)$", re.IGNORECASE)
 _TEXTBUNDLE_TEXT_RE = re.compile(r"\.textbundle/text\.md$", re.IGNORECASE)
+_TEXTBUNDLE_DIR_RE = re.compile(r"(^|/)[^/]+\.textbundle/", re.IGNORECASE)
 
 # ── action codes (fix round 1) ───────────────────────────────────────────────
 # WRITES: the body changed. COUNTS: nothing was written for that link; it stays exactly as
@@ -68,9 +69,12 @@ TRASHED = "relative_target_trashed"     # count: the exact path names a note in 
 UNRESOLVED = "relative_unresolved"      # count: a note link nothing names (yet)
 FILE_UNRESOLVED = "relative_file_unresolved"  # count: a link to a file that is not a note;
 #                                         T4/T6 place the visible `missing_from_import` marker
+HOSTLIKE_LINKED = "relative_hostlike_linked"  # write: `www.x.tld/...` became linkify's URL
+HOSTLIKE = "relative_hostlike"          # count: another host-like href; no marker, not a file
 #: Step 2's codes, in the order `repair_links` reports them.
-RELATIVE_ACTIONS = (TO_NOTE, BY_NAME, AMBIGUOUS, TRASHED, UNRESOLVED, FILE_UNRESOLVED)
-COUNT_ONLY_ACTIONS = frozenset({AMBIGUOUS, TRASHED, UNRESOLVED, FILE_UNRESOLVED})
+RELATIVE_ACTIONS = (TO_NOTE, BY_NAME, HOSTLIKE_LINKED, AMBIGUOUS, TRASHED, UNRESOLVED,
+                    FILE_UNRESOLVED, HOSTLIKE)
+COUNT_ONLY_ACTIONS = frozenset({AMBIGUOUS, TRASHED, UNRESOLVED, FILE_UNRESOLVED, HOSTLIKE})
 
 
 def strip_notion_id_path(path: str) -> str:
@@ -235,6 +239,25 @@ def _obsidian_target(path: str, full: str, index: FileKeyIndex) -> tuple[str | N
     return None, UNRESOLVED
 
 
+def _hostlike(href: str) -> tuple[bool, str | None]:
+    """`(is a web address written without a scheme, linkify's URL for it or None)`.
+
+    Host-like: the live linkify matcher reads the WHOLE href as one web address, and it starts
+    `www.` or has a path (`example.com/x`). A bare `name.tld` is not enough: `deck.mov` and
+    `notes.md` are file names that end in a real TLD. The URL is linkify's own (`_matches`, the
+    live allow-list: `www.` and http(s) only), so the repair links exactly what linkify would
+    link if the member had typed that text."""
+    h = href.strip()
+    with linkify._LINKIFY_LOCK:
+        found = linkify._LINKIFY.match(h) or []
+    whole = len(found) == 1 and found[0].index == 0 and found[0].last_index == len(h)
+    if not whole or not (h[:4].lower() == "www." or "/" in h):
+        return False, None
+    kept = linkify._matches(h)
+    url = kept[0][2] if len(kept) == 1 and kept[0][:2] == (0, len(h)) else None
+    return True, url
+
+
 def relative_target(href: str, *, import_key: str, import_source: str,
                     index: FileKeyIndex) -> tuple[str | None, str]:
     """`(import key, action)` for a relative href in a FILE note. With a key, the action is a
@@ -242,6 +265,9 @@ def relative_target(href: str, *, import_key: str, import_source: str,
     stays exactly as written: never a guess, and never made worse (fix round 1, I-3)."""
     if not isinstance(href, str) or not isinstance(import_key, str):
         return None, UNRESOLVED
+    is_host, url = _hostlike(href)
+    if is_host:  # never a lost file, never a note (fix round 1 follow-up, concern 2)
+        return None, HOSTLIKE_LINKED if url else HOSTLIKE
     # M-1: the comparison is in NFC on both sides (a macOS export stores NFD names); every
     # answer is mapped back to the key as STORED (`index.stored`).
     target = _nfc(unquote(href)).split("#", 1)[0].strip()
@@ -273,12 +299,18 @@ def relative_target(href: str, *, import_key: str, import_source: str,
         path = posixpath.normpath(posixpath.join(posixpath.dirname(import_key[len(_FILE):]), target))
         if obsidian_provider._escapes_root(path):
             return None, UNRESOLVED if _GENERIC_NOTE_EXT_RE.search(path) else FILE_UNRESOLVED
+        # A TextBundle is ONE note keyed `file:<bundle dir>`, and its `text.md` maps to that key
+        # (`generic.js` keyByPath, exact path); any other bundle member is a file, never a note.
+        if _TEXTBUNDLE_TEXT_RE.search(path):
+            stored = index.stored(_FILE + path[:-len("/text.md")])
+            return (stored, TO_NOTE) if stored is not None else (None, UNRESOLVED)
+        if _TEXTBUNDLE_DIR_RE.search(path):
+            return None, FILE_UNRESOLVED
         stored = index.stored(_FILE + path)
         if stored is not None:
             return stored, TO_NOTE
-        # A bundle's text file, or anything the generic importer never makes a note of.
-        if _TEXTBUNDLE_TEXT_RE.search(path) or not _GENERIC_NOTE_EXT_RE.search(path):
-            return None, FILE_UNRESOLVED
+        if not _GENERIC_NOTE_EXT_RE.search(path):
+            return None, FILE_UNRESOLVED  # anything the generic importer never makes a note of
         return None, UNRESOLVED
     return None, UNRESOLVED
 
@@ -347,6 +379,8 @@ def _repair_relative(doc: dict, *, import_key: str, import_source: str,
                                       index=index)
         if key is not None:
             marks[i] = {**marks[i], "attrs": {**marks[i]["attrs"], "href": LINK_PREFIX + key}}
+        elif action == HOSTLIKE_LINKED:
+            marks[i] = {**marks[i], "attrs": {**marks[i]["attrs"], "href": _hostlike(href)[1]}}
         seen.add(action)
 
     _walk_link_marks(doc, fix)

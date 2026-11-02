@@ -361,7 +361,8 @@ def test_unresolvable_relative_note_href_is_left_as_written_and_counted(db):
     ("attachments/x.png", "obsidian:Vault/Here.md", "Obsidian"),
     (f"Home/Budget%20{HEX}.csv", "notion:Export/Home.md", "Notion"),
     ("files/deck.pdf", "file:notes/a.md", "Files (2)"),
-    ("../Trip.textbundle/text.md", "file:notes/a.md", "Files (2)"),  # a bundle's text file
+    ("Trip.textbundle/assets/a.png", "file:notes/a.md", "Files (2)"),  # a bundle member
+    ("deck.mov", "obsidian:Vault/Here.md", "Obsidian"),  # `.mov` is a TLD, still a file
 ])
 def test_a_non_note_file_link_is_left_as_written_and_counted_apart(db, href, key, source):
     """I-3: a link to a file that is not a note is a lost file, counted under its own code so
@@ -371,10 +372,45 @@ def test_a_non_note_file_link_is_left_as_written_and_counted_apart(db, href, key
     assert out == doc and actions == ["relative_file_unresolved"]
 
 
+@pytest.mark.parametrize("key,source", [
+    ("obsidian:Vault/Here.md", "Obsidian"), ("notion:Export/Home.md", "Notion"),
+    ("file:notes/a.md", "Files (2)"),
+])
+def test_a_host_written_without_a_scheme_is_never_a_lost_file(db, key, source):
+    """Fix round 1 follow-up (concern 2): `www.example.com` as an href is a web address the
+    member wrote without `https://`, not a file that didn't come over. When linkify's live
+    allow-list would link that text, the href becomes linkify's own URL (a write); any other
+    host-like href (`example.com/path`, which the allow-list does not link) stays as written
+    under its own count, with no `missing_from_import` marker."""
+    out, actions = _repair(_doc(_para(_t("site", _link("www.example.com/a?b=1")))),
+                           import_key=key, import_source=source)
+    assert _hrefs(out) == ["https://www.example.com/a?b=1"]
+    assert actions == ["relative_hostlike_linked"]
+    assert linkify._matches("www.example.com/a?b=1") == [(0, 21, "https://www.example.com/a?b=1")]
+    doc = _doc(_para(_t("site", _link("example.com/path"))))
+    out, actions = _repair(doc, import_key=key, import_source=source)
+    assert out == doc and actions == ["relative_hostlike"]
+
+
+def test_a_textbundle_text_link_opens_the_bundle_note(db):
+    """Concern 3: the generic importer keys a TextBundle as ONE note, `file:<bundle dir>`, and
+    maps its `text.md` to that key (`generic.js` keyByPath). The repair does the same."""
+    bundle = _import("Files (2)", "file:notes/Trip.textbundle")
+    doc = _doc(_para(_t("trip", _link("Trip.textbundle/text.md"))),
+               _para(_t("trip2", _link("../notes/Trip.TEXTBUNDLE/Text.md"))))
+    out, actions = _repair(doc, import_key="file:notes/a.md", import_source="Files (2)")
+    assert _hrefs(out) == [_note_href(bundle), "../notes/Trip.TEXTBUNDLE/Text.md"]
+    assert actions == ["relative_to_note", "relative_unresolved", "link_resolved:1"]
+    # a bundle that was not imported is a missing NOTE, not a lost file
+    doc = _doc(_para(_t("gone", _link("Gone.textbundle/text.md"))))
+    out, actions = _repair(doc, import_key="file:notes/a.md", import_source="Files (2)")
+    assert out == doc and actions == ["relative_unresolved"]
+
+
 def test_action_codes_split_into_writes_and_counts():
     assert links.COUNT_ONLY_ACTIONS == frozenset({
         "relative_ambiguous", "relative_target_trashed", "relative_unresolved",
-        "relative_file_unresolved"})
+        "relative_file_unresolved", "relative_hostlike"})
 
 
 def test_relative_hrefs_are_repaired_in_file_notes_only(db):
