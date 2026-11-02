@@ -377,9 +377,10 @@ def test_pack_build_stores_reads_and_skips_safely(packdb, monkeypatch):
     assert pack.build() == {"skipped": "regular session"}                   # never during the session unless forced
     monkeypatch.setattr(pack, "in_session", lambda now=None: False)
     monkeypatch.setattr(pipeline, "latest_day", lambda: "2026-10-30")
-    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: {"error": "x"} if t == "BAD" else dict(FAKE, ticker=t, asof=d, bars=[1], timing={}))
-    rep = pack.build(tickers=["AAA", "BAD", "CCC"], sleep=lambda s: None)
-    assert rep["ok"] == 2 and rep["errors"] == 1 and rep["day"] == "2026-10-30"
+    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: {"error": "x"} if t == "BAD" else
+                        dict(FAKE, ticker=t, asof="2026-03-16" if t == "DEAD" else d, bars=[1], timing={}))
+    rep = pack.build(tickers=["AAA", "BAD", "CCC", "DEAD"], sleep=lambda s: None)
+    assert rep["ok"] == 2 and rep["errors"] == 2 and rep["day"] == "2026-10-30"   # a dead symbol (last bar months back) is not packed
     got = pack.get("aaa", today="2026-11-02")
     assert got["ticker"] == "AAA" and got["asof"] == "2026-10-30" and "bars" not in got and "timing" not in got
     assert pack.get("BAD", today="2026-11-02") is None
