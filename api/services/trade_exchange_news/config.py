@@ -38,6 +38,34 @@ def _float(key: str, default: float) -> float:
         return default
 
 
+def release_links_enabled() -> bool:
+    """Run the press-release link resolver (release_links.py). Off: stored links
+    still display; nothing new is resolved."""
+    return os.environ.get("TXN_RELEASE_LINKS_ENABLED", "").strip() == "1"
+
+
+def release_links_sec_enabled() -> bool:
+    """The SEC EDGAR stage of the resolver (free; the repo's fair-access client)."""
+    return os.environ.get("TXN_RELEASE_LINKS_SEC", "").strip() == "1"
+
+
+def release_links_interval_s() -> float:
+    return max(15.0, _float("TXN_RELEASE_LINKS_INTERVAL_S", 60.0))
+
+
+def release_links_start_delay_s() -> float:
+    return _float("TXN_RELEASE_LINKS_START_DELAY_S", 90.0)
+
+
+def release_links_fmp_batch() -> int:
+    return min(1000, _int("TXN_RELEASE_LINKS_FMP_BATCH", 300, lo=1))
+
+
+def release_links_sec_budget() -> int:
+    """SEC requests per pass (one pass a minute): far under fair access."""
+    return min(120, _int("TXN_RELEASE_LINKS_SEC_BUDGET", 40, lo=0))
+
+
 def db_path() -> str:
     return os.environ.get("TXN_DB_PATH") or os.path.join(
         os.environ.get("DATA_DIR", "/data"), "trade_exchange_news.db")

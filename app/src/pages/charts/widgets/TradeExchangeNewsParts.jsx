@@ -31,6 +31,7 @@ import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanat
   dayLabel, dayStatus, cleanTime, MAX_PRESETS, monthGrid, MONTHS, tickerTitle, tickerTone, timeLabel, tokenize,
   WEEKDAYS } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
+import { releaseLinkFor } from '../../../lib/tradeExchangeNewsReleaseLink'
 
 const TONE_CLASS = { up: 'symUp', down: 'symDown', flat: 'symFlat', none: 'symNone' }
 
@@ -174,6 +175,24 @@ function CopyButton({ text }) {
   )
 }
 
+/** "Original release ↗" / "SEC filing ↗" — only for a link the server verified
+ *  and the browser re-checked (tradeExchangeNewsReleaseLink). New tab, no opener,
+ *  no referrer; a click never selects the row or links the chart. */
+function ReleaseLink({ item }) {
+  const link = releaseLinkFor(item)
+  if (!link) return null
+  return (
+    // The slot takes only the line's leftover space (basis 0), so a narrow row
+    // truncates the label instead of wrapping the row actions onto a new line.
+    <span className={styles.releaseSlot}>
+      <a className={styles.releaseLink} href={link.href} target="_blank" rel="noopener noreferrer nofollow"
+        referrerPolicy="no-referrer" title={link.title} onClick={(e) => e.stopPropagation()}>
+        <span className={styles.releaseLabel}>{link.label}</span><span className={styles.releaseArrow} aria-hidden="true">↗</span>
+      </a>
+    </span>
+  )
+}
+
 export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional,
   clampLines, expanded, onToggleExpand, flashing, showCategory, timeOnly = false, groupCount = 0, groupOpen = false,
   onToggleGroup, related = false, onActions, actionsOpen, onExplain, explainOpen, onCloseExplain, onSave, saved = false,
@@ -201,6 +220,7 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
             {groupOpen ? 'Hide' : '+'}{groupOpen ? ' related' : `${groupCount} related`}
           </button>
         )}
+        <ReleaseLink item={item} />
         <span className={styles.rowActions}>
           {onExplain && explainable(item) && (
             <button

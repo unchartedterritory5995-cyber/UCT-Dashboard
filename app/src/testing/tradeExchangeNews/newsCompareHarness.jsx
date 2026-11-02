@@ -157,7 +157,19 @@ const ROWS = ROWS_N
     ? WIRE.map(([source, content, oldT, newT, category, extra]) => ({ source, content,
       tickers: WIRE_MODE === 'old' ? oldT : newT, ...(WIRE_MODE === 'old' ? {} : { category, ...(extra || {}) }) }))
     : HEADLINES.map(([content, tickers]) => ({ source: 'TXNews1', content, tickers }))
+// ?links=1: SYNTHETIC verified links on press releases (alternating wire / SEC),
+// as release_links.py would attach them. The paths are invented; nothing is fetched.
+const LINKS = params.get('links') === '1'
+let _linkN = 0
+const harnessLink = (r) => {
+  if (!LINKS || r.source !== 'TX-PressRelease') return {}
+  _linkN += 1
+  return _linkN % 2
+    ? { link: { kind: 'original_release', url: `https://www.globenewswire.com/news-release/2026/10/29/${_linkN}/0/en/SYNTHETIC-Example-Release.html`, publisher: 'GlobeNewswire' } }
+    : { link: { kind: 'sec_filing', url: `https://www.sec.gov/Archives/edgar/data/${_linkN}/0000000000000000${_linkN}/ex99-1.htm`, publisher: 'SEC EDGAR' } }
+}
 const NEWS = ROWS.map(({ ageMs, fresh, ...r }, i) => ({
+  ...harnessLink(r),
   type: 'headline', epoch: 'harness0harness0', seq: i + 1, id: `HARNESS${String(i).padStart(18, '0')}`,
   ...r, received_at_ms: fresh ? NOW - 40_000 : NOW - (ROWS.length - i) * (WIRE_MODE === 'terminal' ? 120_000 : 97_000) - (ageMs || 0),
   repeat_count: !WIRE_MODE && i === 4 ? 1 : 0, via: !WIRE_MODE && i === 2 ? 'reconcile' : 'push', delayed: !WIRE_MODE && i === 2,

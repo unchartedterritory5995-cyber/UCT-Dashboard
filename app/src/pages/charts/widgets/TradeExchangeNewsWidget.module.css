@@ -274,6 +274,24 @@
   white-space: nowrap;
 }
 .compact .category { font-size: 9px; line-height: 1.15; }
+/* The verified original press release / SEC filing: as quiet as the category,
+   underlined only on hover or focus. */
+.releaseSlot { flex: 1 1 0; min-width: 0; display: flex; overflow: hidden; }
+.releaseLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.releaseArrow { flex: none; margin-left: 3px; }
+.releaseLink {
+  display: inline-flex;
+  min-width: 12px;
+  font-size: 9.5px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0.3px;
+  color: var(--txn-chrome, var(--text-muted));
+  text-decoration: none;
+  white-space: nowrap;
+}
+.releaseLink:hover, .releaseLink:focus-visible { color: var(--txn-chrome-strong, var(--text)); text-decoration: underline; }
+.compact .releaseLink { font-size: 9px; line-height: 1.15; }
 .time {
   font-size: 10.5px;
   font-weight: 400;
