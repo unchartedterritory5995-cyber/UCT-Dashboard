@@ -60,7 +60,9 @@ markdown-it-py>=4.0.0,<5  # server-side markdown->TipTap converter (api/services
 mdit-py-plugins>=0.6.0,<1  # GFM tables + tasklists plugin, used alongside markdown-it-py above
 numpy>=1.26.0
 scipy>=1.13.0
-Pillow>=10.0.0
+Pillow>=11.3.0  # AVIF decode ships in the wheels from 11.3 (bundled libavif)
+pi-heif>=0.18,<1  # HEIC/HEIF decode for imported photos (api/services/journal_two/media_policy.py); decode-only build of pillow-heif, no x265 encoder
+linkify-it-py>=2.0,<3  # bare-URL linkify for server imports (note_connectors/convert/linkify.py), the Python port of the client's linkify-it
 # PDF text extraction. Was ALREADY a real runtime dependency of
 # api/services/voice_document_service.py (Compass Document Q&A) without ever
 # being pinned here — found unpinned during the Wave I notebook-attachments
