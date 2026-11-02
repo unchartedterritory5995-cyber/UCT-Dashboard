@@ -495,3 +495,26 @@ def test_pack_file_is_warmed_once_per_file(tmp_path, monkeypatch):
     monkeypatch.setattr(pack.threading, "Thread", lambda target, **kw: type("T", (), {"start": lambda self: (started.append(1), target())})())
     pack.warm_file(str(f)); pack.warm_file(str(f))
     assert started == [1]                                                   # once per file per process
+
+
+
+def test_a_dead_symbol_asked_for_now_fails_fast(tmp_path, monkeypatch):
+    """A symbol whose newest bar is far behind the latest session (delisted) answers at once on a latest ask; the same symbol
+    on a past date still gets its point-in-time read."""
+    import datetime
+    last = _bars_db(str(tmp_path / "bars.db"))
+    c = sqlite3.connect(str(tmp_path / "bars.db"))
+    rows = c.execute("SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker='TST' ORDER BY ts").fetchall()
+    cut = rows[-60][0]
+    c.executemany("INSERT INTO ohlcv VALUES ('DEAD','D',?,?,?,?,?,?)", [r for r in rows if r[0] <= cut]); c.commit(); c.close()
+    monkeypatch.undo()
+    monkeypatch.setenv("CHART_IQ_BARS_DB", str(tmp_path / "bars.db"))
+    monkeypatch.setenv("INDUSTRY_MAP_DB_PATH", str(tmp_path / "missing_industry.db"))
+    from api.services.chart_iq import pipeline
+    from api.services.chart_iq.engine import _db
+    monkeypatch.setattr(_db, "_TL", type(_db._TL)())
+    r = pipeline.analyze("DEAD")
+    cut_s = "%s-%s-%s" % (str(cut)[:4], str(cut)[4:6], str(cut)[6:])
+    assert r == {"error": "DEAD: no daily bars since %s" % cut_s}
+    assert "error" not in pipeline.analyze("DEAD", cut_s)                   # point in time: still a full read
+    assert "error" not in pipeline.analyze("TST")                           # an active symbol: unchanged

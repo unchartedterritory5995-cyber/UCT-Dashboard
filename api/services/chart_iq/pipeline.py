@@ -30,6 +30,14 @@ def _ymd(t):
     return "%s-%s-%s" % (s[:4], s[4:6], s[6:8])
 
 
+STALE_LATEST_DAYS = 10
+
+
+def _days(a, b):
+    import datetime
+    return (datetime.date.fromisoformat(b) - datetime.date.fromisoformat(a)).days
+
+
 def latest_day():
     row = _db.bars().execute("SELECT max(ts) FROM ohlcv WHERE tf='D' AND ticker='SPY'").fetchone()
     return _ymd(row[0]) if row and row[0] else None
@@ -49,6 +57,7 @@ def _analyze(ticker, asof):
     def lap(name):
         now = time.perf_counter(); T[name] = round(now - tk[0], 3); tk[0] = now
 
+    latest = asof is None
     asof = asof or latest_day()
     if not asof:
         return {"error": "no daily bars available"}
@@ -59,6 +68,10 @@ def _analyze(ticker, asof):
     if len(rows) < 120:
         return {"error": "%s: not enough daily bars as of %s (%d)" % (ticker, asof, len(rows))}
     last = _ymd(rows[-1][0])
+    if latest and _days(last, asof) > STALE_LATEST_DAYS:
+        # A delisted / halted symbol asked for "now": its newest bar is long gone. Say so at once instead of running the whole
+        # engine on a dead chart (on the web pod that was a 25 s timeout, CFLT 2026-11-02). Point-in-time asks are unchanged.
+        return {"error": "%s: no daily bars since %s" % (ticker, last)}
     w = rows[-WINDOW:]
     hi, lo = max(x[2] for x in w), min(x[3] for x in w)
     cid = "L_%s_%s" % (ticker, last.replace("-", ""))

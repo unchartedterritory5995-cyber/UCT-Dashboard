@@ -165,6 +165,7 @@ describe('errorText: says why a read failed', () => {
   it('maps the engine reasons and keeps everything else generic', () => {
     expect(errorText({ status: 404, detail: 'NEWCO: not enough daily bars as of 2026-10-30 (40)' })).toMatch(/6 months of daily history/)
     expect(errorText({ status: 404, detail: 'no daily bars available' })).toMatch(/no daily bars/)
+    expect(errorText({ status: 404, detail: 'CFLT: no daily bars since 2026-03-16' })).toBe('No recent trading for this symbol (last bar 2026-03-16)')
     expect(errorText({ status: 503, detail: 'Chart IQ is busy, try again' })).toMatch(/still reading/)
     expect(errorText({ status: 404, detail: 'ABC: KeyError' })).toBe('Chart IQ could not read this chart')
     expect(errorText(null)).toBe('')

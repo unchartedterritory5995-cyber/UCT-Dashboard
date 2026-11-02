@@ -81,6 +81,8 @@ export function errorText(error) {
   const d = String(error.detail || '')
   if (error.status === 503) return 'Chart IQ is still reading this chart...'   // the hook retries a 503 by itself
   if (/not enough daily bars/i.test(d)) return 'Chart IQ needs about 6 months of daily history; this chart does not have it yet'
+  const since = d.match(/no daily bars since (\d{4}-\d{2}-\d{2})/i)
+  if (since) return `No recent trading for this symbol (last bar ${since[1]})`
   if (/no daily bars|no bars/i.test(d)) return 'Chart IQ has no daily bars for this symbol'
   return 'Chart IQ could not read this chart'
 }
