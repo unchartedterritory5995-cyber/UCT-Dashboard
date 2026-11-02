@@ -32,6 +32,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
+import useSessionChartSettings from '../../components/chart/pane/useSessionChartSettings'
 import { appendForwardBars, normalizeBars } from '../study/useStudySession'
 import Textarea from '../../components/ui/Textarea'
 import UIcon from '../../components/ui/UIcon'
@@ -563,10 +564,14 @@ export default function StudyReview() {
   const houseSettings = houseData?.chart_settings || null
   // A Slingshot draft carries the E4H (4-EMA of highs) beside the house
   // averages, exactly as the member's chart does (owner ruling 2026-10-25).
-  const settingsOverride = useMemo(
+  const studyOverride = useMemo(
     () => studySettingsOverride(chartOpts, houseSettings, { instances: slingshotInstances(sel) }),
     [chartOpts, houseSettings, sel],
   )
+  // ⭐ Policy A (2026-11-02): an exhibit has no stored settings of its own, so an
+  // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
+  // session instead of falling through to the member's global chart_settings.
+  const sessionChart = useSessionChartSettings(studyOverride, sel?.id || null)
   const markers = useMemo(() => {
     if (!sel?.asof) return null
     return [{ time: sel.asof, position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'member sees to here', id: 'study-asof' }]
@@ -763,7 +768,8 @@ export default function StudyReview() {
                     entryDate={frame?.entryDate || null}
                     exitDate={frame?.exitDate || null}
                     exactDateRange
-                    settingsOverride={settingsOverride}
+                    settingsOverride={sessionChart.settingsOverride}
+                    onSettingsPersist={sessionChart.onSettingsPersist}
                     markers={markers}
                     priceLines={priceLines}
                     annotations={annotations}

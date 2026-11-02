@@ -75,6 +75,23 @@ export function reconcileCells(cells, cellCount) {
 }
 
 const VALID_TFS = new Set(['1', '5', '15', '30', '60', 'D', 'W', 'M'])
+
+// ⭐ A CELL'S OWN CHART SETTINGS (owner ruling 2026-11-02, policy A: "changes to an
+// individual chart should remain scoped to that chart"). A cell that has never been
+// edited carries no `settings` and renders the member's own chart; its first edit
+// forks the full settings blob onto the cell, exactly as a /charts Chart widget
+// forks onto `opts.settings`. The blob is opaque here (StockChart's own merge reads
+// it), so this only refuses shapes that cannot be a settings blob and bounds the
+// size: up to 16 cells share ONE pref, and an unbounded blob per cell would let one
+// bad writer swell every save of the board.
+export const CELL_SETTINGS_MAX_BYTES = 64 * 1024
+export function sanitizeCellSettings(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null
+  let size
+  try { size = JSON.stringify(v).length } catch { return null }
+  if (!Number.isFinite(size) || size > CELL_SETTINGS_MAX_BYTES) return null
+  return v
+}
 // Derived from the canonical picker list so sanitizer and picker cannot drift.
 const VALID_CHART_TYPES = new Set(CHART_TYPE_OPTIONS.map(([code]) => code))
 
@@ -130,6 +147,10 @@ export function sanitizeState(raw) {
       sym: typeof c?.sym === 'string' && c.sym.trim() ? c.sym.trim().toUpperCase() : null,
       tf: VALID_TFS.has(c?.tf) ? c.tf : 'D',
       chartType: VALID_CHART_TYPES.has(c?.chartType) ? c.chartType : null,
+      // ⛔ CARRIED EXPLICITLY — this map is an allow-list, so a cell's forked
+      // settings not named here would be silently dropped on every hydrate and the
+      // cell would snap back to the member's main chart after a reload.
+      ...(sanitizeCellSettings(c?.settings) ? { settings: c.settings } : {}),
     }))
   const group = sanitizeGroup(raw.group)
   return {

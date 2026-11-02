@@ -112,7 +112,9 @@ export default function MultiChartMenu({ mc, onClose, flyout = false, features =
           kind: 'multichart',
           widgets: [],
           layout: mc.state.layout,
-          cells: mc.state.cells.map(c => ({ sym: c.sym, tf: c.tf, chartType: c.chartType || null })),
+          // A forked cell's own chart settings travel with the named layout
+          // (policy A) — sanitizeState carries them back on apply.
+          cells: mc.state.cells.map(c => ({ sym: c.sym, tf: c.tf, chartType: c.chartType || null, ...(c.settings ? { settings: c.settings } : {}) })),
           group: mc.state.group || null,
         },
         groups: null,
