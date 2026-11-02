@@ -166,3 +166,59 @@ def test_only_the_index_public_read_api_is_used():
     assert not re.search(r"(?<![A-Za-z0-9_])(idx|ticker_search_index)\._", src)
     assert "build_index" not in src and "start_background_build" not in src
     assert not re.search(r"import massive|massive\.", src)
+
+
+# ── held to the SAME doc and the SAME index as the client (agentDataResolve.test.js) ────────────────────────────────
+import json as _json
+import pathlib as _pl
+import re as _re
+
+_ROOT = _pl.Path(__file__).resolve().parents[1]
+_SHARED = _json.loads((_ROOT / "app/src/agent/marketdata/__fixtures__/symbol-index.json").read_text(encoding="utf-8"))
+_DOC = (_ROOT / "docs/agent/program/contracts/MD-1-phrasings.md").read_text(encoding="utf-8")
+
+
+def _doc_rows():
+    out = []
+    for line in _DOC.splitlines():
+        if not _re.match(r"^\| P\d\d \|", line):
+            continue
+        c = [x.strip() for x in line.split("|")]
+        if c[4] == "—":
+            continue
+        cands = [(t.rsplit(":", 1)[0], t.rsplit(":", 1)[1]) for t in _re.findall(r"`([^`]+)`", c[4])[0].split(" ")]
+        out.append((c[1], cands, c[5]))
+    return out
+
+
+def _outcome(results):
+    """MD-1 §4.7.3 precedence, from the server's classes alone."""
+    for k in ("non_equity", "unknown"):
+        if any(r["class"] == k for r in results):
+            return "limit"
+    for k in ("name_match", "symbol_typed_lowercase"):
+        hit = next((r for r in results if r["class"] == k), None)
+        if hit:
+            return f"ask:{hit['candidate']['symbol']}"
+    return "price-or-bars"
+
+
+@pytest.mark.parametrize("rid,cands,want", _doc_rows(), ids=[r[0] for r in _doc_rows()])
+def test_the_server_classes_give_the_doc_outcome_for_every_claimed_row(monkeypatch, rid, cands, want):
+    _seed(monkeypatch, rows=[tuple(r) for r in _SHARED["rows"]])
+    out = _resolve(*cands)
+    assert out["status"] == "ok", out["notes"]
+    got = _outcome(out["data"]["results"])
+    assert got == ("price-or-bars" if want in ("price", "bars") else want), (rid, out["data"]["results"])
+    if want in ("price", "bars"):
+        assert out["data"]["all_symbols"] is True and all(r["name"] for r in out["data"]["results"])
+
+
+def test_the_doc_has_every_server_class_in_its_claimed_rows(monkeypatch):
+    _seed(monkeypatch, rows=[tuple(r) for r in _SHARED["rows"]])
+    seen = set()
+    for _rid, cands, _want in _doc_rows():
+        # the adapter directly: one gateway turn holds only 8 reads, and this walks every claimed row
+        e = ins.read_instruments({"symbols": [{"text": t, "form": f} for t, f in cands]}, {})
+        seen |= {r["class"] for r in e["data"]["results"]}
+    assert seen == set(ins.CLASSES)

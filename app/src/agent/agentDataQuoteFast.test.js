@@ -13,17 +13,20 @@ import { registerBuiltins } from './builtins'
 import { fastParse } from './fastPath'
 import { getCapability, registerCapability } from './capabilities'
 import { registerMarketDataCapabilities, _resetForTest, CAPABILITY } from './capabilities/marketDataQuote'
+import { resolveEnvelope } from './marketdata/__fixtures__/fakeResolve'
 
 let TURN = 't-fast'
 vi.mock('./trace', async (orig) => ({ ...(await orig()), currentTurnId: () => TURN }))
-let KINDS = ['quote', 'quotes']
+let KINDS = ['instrument.resolve', 'quote', 'quotes']
 
 registerBuiltins()
 
 const here = dirname(fileURLToPath(import.meta.url))
 const DOC = readFileSync(resolve(here, '../../../docs/agent/program/contracts/MD-1-phrasings.md'), 'utf8')
+// MD-1-phrasings §3 (MD-1 §4.7 format): every row whose intent is a quote is CLAIMED by stock.quote (what resolve then
+// decides is agentDataResolve.test.js's job)
 const QUOTE_ROWS = DOC.split('\n').filter(l => /^\| P\d\d \|/.test(l)).map(l => l.split('|').map(s => s.trim()))
-  .filter(c => c[3] === 'fast' && /`quote\.(one|many)`/.test(c[4])).map(c => ({ id: c[1], phrase: c[2] }))
+  .filter(c => c[3] === 'quote').map(c => ({ id: c[1], phrase: c[2] }))
 
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
 const ENV = {
@@ -34,17 +37,20 @@ const ENV = {
     session: 'extended', session_detail: 'premarket' },
 }
 function wire(data) {
-  globalThis.fetch = vi.fn(async (url) => {
+  globalThis.fetch = vi.fn(async (url, init) => {
     const u = String(url)
     if (u.endsWith('/api/agent/config')) return json({ stream: false, nl1: false, data, scan: false, ...(KINDS ? { data_kinds: KINDS } : {}) })
-    if (u === '/api/agent/data') return json(ENV)
+    if (u === '/api/agent/data') {
+      const b = JSON.parse(init.body)
+      return json(b.kind === 'instrument.resolve' ? resolveEnvelope(b.params) : ENV)
+    }
     return json({}, 404)
   })
 }
 const urls = () => globalThis.fetch.mock.calls.map(c => String(c[0]))
 
 describe('stock.quote on the real fast path', () => {
-  beforeEach(() => { _resetAgentConfig(); _resetForTest(); vi.restoreAllMocks(); TURN = 't-fast'; KINDS = ['quote', 'quotes'] })
+  beforeEach(() => { _resetAgentConfig(); _resetForTest(); vi.restoreAllMocks(); TURN = 't-fast'; KINDS = ['instrument.resolve', 'quote', 'quotes'] })
   afterEach(() => _resetForTest())
 
   it('served: the Sprint 2 sentence is answered with zero model turns', async () => {
@@ -54,8 +60,9 @@ describe('stock.quote on the real fast path', () => {
     const f = fastParse("what's NVDA trading at premarket?", {})
     expect(f).toMatchObject({ kind: 'ops', ops: [{ action: CAPABILITY, args: { symbols: ['NVDA'] } }] })
     const out = await getCapability(CAPABILITY).answer(null, f.ops[0].args)
-    expect(out.text).toContain('NVDA $142.10 in premarket trading, +$1.23 (+0.87%) vs the previous close — live, extended hours (thin trading), as of 7:45 AM ET.')
-    expect(urls().filter(u => u !== '/api/agent/config')).toEqual(['/api/agent/data'])   // no /api/agent/turn, no /api/live-prices
+    expect(out.text).toContain('NVDA (NVIDIA Corporation) $142.10 in premarket trading, +$1.23 (+0.87%) vs the previous close — live, extended hours (thin trading), as of 7:45 AM ET.')
+    // resolve, then the quote: two gateway reads and nothing else (no /api/agent/turn, no /api/live-prices)
+    expect(urls().filter(u => u !== '/api/agent/config')).toEqual(['/api/agent/data', '/api/agent/data'])
   })
 
   it.each(QUOTE_ROWS)('served: $id "$phrase" is claimed by stock.quote alone among the builtins', async ({ phrase }) => {
@@ -81,7 +88,7 @@ describe('stock.quote on the real fast path', () => {
     } finally { off() }
   })
 
-  it.each([[false, ['quote', 'quotes']], [true, null], [true, []], [true, ['quote']]])('dark (data %s, kinds %j): no claim, no gateway call', async (data, kinds) => {
+  it.each([[false, ['instrument.resolve', 'quote', 'quotes']], [true, null], [true, []], [true, ['quote']], [true, ['quote', 'quotes']]])('dark (data %s, kinds %j): no claim, no gateway call', async (data, kinds) => {
     KINDS = kinds
     wire(data)
     await loadAgentConfig()

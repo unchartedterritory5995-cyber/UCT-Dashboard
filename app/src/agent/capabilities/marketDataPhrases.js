@@ -1,109 +1,126 @@
-// UCT Agent market data — the shared, PURE phrase parser behind the price and daily-bars fast paths (owner: agent-md).
-// The list it is held to is docs/agent/program/contracts/MD-1-phrasings.md; agentDataPhrases.test.js runs every row.
+// UCT Agent market data — the shared, PURE INTENT parser behind the price and daily-bars fast paths (owner: agent-md).
+// Contract: MD-1 §4.7.1. The rows it is held to: docs/agent/program/contracts/MD-1-phrasings.md.
 //
-// The rules (MD-1-phrasings §1):
-//   • pure and fail-closed: no I/O, no clock; `null` means "not mine, or not sure" and the sentence goes on to the
-//     normal path. It never guesses.
-//   • an ambiguous ticker (CAN, ALL, NOW, LOW, IT, …) counts only with a `$` prefix or written in UPPERCASE.
-//   • more than one ticker needs a list separator (and / , / &); more than MAX_TICKERS is a list, not a price ask.
-//   • a fixed typo list only — no fuzzy matching.
+// It decides only WHAT is being asked — a current quote, a last close, an N-session change, a 52-week range, or none —
+// and which words are CANDIDATES for a security, recorded exactly as the member typed them. It never decides what a
+// word refers to: that is the server's `instrument.resolve`, from UCT's canonical symbol index (§4.7.2). So nothing
+// here is a list of tickers, companies, commodities or coins; the lists below are intent GRAMMAR only.
+//
+// Not claimed (null → the model, as today): a time it cannot resolve without a clock, a different request (why, news,
+// options, alerts …), `&`, more than MAX_TICKERS candidates, two candidates without "and" / "," (unless all are `$`),
+// or a sentence with no candidate. Pure and fail-closed: no I/O, no clock.
 
 export const MAX_TICKERS = 5
 
-// English words that are also listed symbols: a ticker only when `$`-prefixed or written in UPPERCASE.
-export const AMBIGUOUS = new Set(['CAN', 'ALL', 'NOW', 'LOW', 'IT', 'ON', 'A', 'ARE', 'SO', 'BE', 'GO', 'DO', 'FOR',
-  'ONE', 'REAL', 'OPEN', 'HAS', 'KEY', 'FAST', 'CAR', 'PLAY', 'SEE', 'TRUE', 'WELL', 'LOVE', 'AT', 'BIG', 'NEW', 'OUT',
-  'ANY', 'HE', 'AM', 'PM', 'AH', 'UP', 'TWO', 'MAN', 'RUN', 'EAT', 'FUN', 'HOT', 'JOB', 'LIFE', 'MOVE', 'NICE', 'PEAK',
-  'SAFE', 'SHOP', 'SNOW', 'STAY', 'TECH', 'VERY', 'WISH', 'YOU', 'EVER', 'WEEK', 'DAY', 'CASH', 'GAIN', 'BEST', 'HIGH'])
+// Intent grammar. A word here is never a candidate when typed lowercase. ALWAYS_GRAMMAR words are never candidates
+// in any case ("NVDA PRICE", "TSLA AH"); the rest become candidates when typed UPPERCASE in a mixed-case sentence,
+// because the member then wrote a symbol ("what's IT trading at", "what's NOW at").
+const ALWAYS_GRAMMAR = new Set(('price prices pricing quote quotes trading traded premarket pre market mkt afterhours ah '
+  + 'postmarket post overnight close closed closing change changes performance day days week weeks wk wks session '
+  + 'sessions range today todays currently current latest what whats where wheres how hows the of me please pls '
+  + 'is are was and vs versus').split(/\s+/))
+const GRAMMAR = new Set([...ALWAYS_GRAMMAR, ...('a an get got give show tell trade at doing did d w past last high low '
+  + 'year years yearly month months twelve can you i my it its up down on in to with by from much does do hi hey ok '
+  + 'okay just quick stock stocks share shares check look lookup also both move moved moving sitting right now for '
+  + 'pm hours hour after').split(/\s+/)])
 
-// ordinary words that are never tickers in a price question (lowercase forms)
-const STOP = new Set(('what whats where wheres how hows is are was the a an of for me get got give show tell please '
-  + 'price prices pricing quote quotes trading trade traded at doing today todays premarket pre market mkt pm after '
-  + 'hours hour afterhours ah postmarket post overnight and or vs versus close closed closing did yesterday yesterdays '
-  + 'day days daily week weeks past last change changes performance high low year years w wk d can you i my it up '
-  + 'down now right on in to with by from much many does do so be has have hi hey ok okay pls thx thanks just quick '
-  + 'currently current latest stock stocks share shares ticker tickers check look lookup also both all session sessions '
-  + 'move moved moving go going this that').split(/\s+/))
-
+// intent words only (never a symbol): the parser's own fixed typo list (MD-1-phrasings §1.6)
 const TYPOS = { wats: "what's", whats: "what's", wat: 'what', tradin: 'trading', tradeing: 'trading', pirce: 'price',
   prcie: 'price', pric: 'price', qoute: 'quote', quoet: 'quote', premarkt: 'premarket', premaket: 'premarket',
-  prmarket: 'premarket', afterhour: 'afterhours', overnite: 'overnight', clsoe: 'close', 'cloes': 'close' }
+  prmarket: 'premarket', afterhour: 'afterhours', overnite: 'overnight', clsoe: 'close', cloes: 'close' }
 
-// a sentence about one of these is not a price read (MD-1-phrasings §1.7)
+// a different request: not a price read
 const VETO = [/\bwhy\b/, /\bnews\b/, /\bmarket\s*cap\b/, /\bp\/?e\b/, /\bpe ratio\b/, /\bearnings?\b/, /\bcalls?\b/,
   /\bputs?\b/, /\boptions?\b/, /\bflow\b/, /\bdark\s*pool/, /\balerts?\b/, /\btell me when\b/, /\bnotify\b/,
-  /\bhits?\b/, /\bcross(es)?\b/, /\bthis (week|month|year)\b/, /\bwatchlist\b/, /\bchart\b/, /\bdividend/,
-  /\bbuy\b/, /\bsell\b/, /\bshould i\b/, /\btarget\b/, /\bforecast\b/, /\bpredict/,
-  // chart commands that share a price word ("show nvda at 5 minutes", "add rsi at 14"): never a quote
+  /\bhits?\b/, /\bcross(es)?\b/, /\bwatchlist\b/, /\bchart\b/, /\bdividend/, /\bbuy\b/, /\bsell\b/, /\bshould i\b/,
+  /\btarget\b/, /\bforecast\b/, /\bpredict/, /\bfutures?\b/, /\bvolume\b/, /\beuros?\b|\bpounds?\b|\byen\b|\bin [a-z]+ (dollars|currency)\b/,
   /\b\d+\s*(m|min|mins|minutes?|h|hr|hrs|hourly)\b/, /\btime\s*frame\b/, /\bindicators?\b/, /\b(rsi|macd|ema|sma|vwap|bollinger)\b/,
   /\b\d{1,2}(:\d\d)?\s*(am|pm)\b/, /\bzoom\b/, /\bdraw/, /\bswitch\b/, /\bopen\b.*\bchart/]
 
-const PRICE_CTX = /\b(price|prices|pricing|quote|quotes|trading|trade at|traded at|at|doing|worth|up|down)\b|\b(pre[\s-]?(market|mkt)|premarket|after[\s-]?hours|afterhours|ah|post[\s-]?market|overnight)\b/
-const SESSION_WORD = /\b(pre[\s-]?(market|mkt)|premarket|after[\s-]?hours|afterhours|post[\s-]?market|overnight)\b/
+// a time the parser cannot resolve without a clock: never "now", never "the last session" (§4.7.1)
+const TIME_VETO = [/\bhistor(y|ical|ic)\b/, /\bago\b/, /\bsince\b/, /\bbefore\b/, /\buntil\b/, /\byesterday('?s)?\b/,
+  /\btomorrow\b/, /\btonight\b/, /\b(mon|tues?|wed(nes)?|thu(rs)?|fri|sat(ur)?|sun)(day)?s?\b/,
+  /\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sept?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b/,
+  /\b\d{1,2}\/\d{1,2}\b/, /\b\d{4}-\d{2}(-\d{2})?\b/, /\b(19|20)\d\d\b/, /\b(this|last|next) (week|month|quarter|year|session)\b/,
+  /\ball[\s-]?time\b/, /\bytd\b/, /\byear[\s-]to[\s-]date\b/, /\bmtd\b/, /\bqtd\b/, /\bopen(ing)? (price|print)\b/,
+  /\bon (the )?\d/, /\bintraday\b/, /\btoday'?s (high|low|open|range)\b/, /\b(high|low) today\b/]
 
-const TOKEN = /^\$?[A-Za-z][A-Za-z0-9]{0,5}([.-][A-Za-z])?$/
+const TOKEN = /^\$?[A-Za-z][A-Za-z0-9]{0,9}([.-][A-Za-z]{1,2})?$/
+const SESSION_RE = /\b(pre[\s-]?(market|mkt)|premarket|after[\s-]?hours|afterhours|post[\s-]?market|overnight)\b/
 
 function normalise(text) {
-  let s = String(text || '').replace(/[’`]/g, "'").trim().replace(/[?!.]+$/, '').trim()
-  s = s.split(/\s+/).map(w => (TYPOS[w.toLowerCase()] ? TYPOS[w.toLowerCase()] : w)).join(' ')
-  return s
+  const s = String(text || '').replace(/[’`]/g, "'").trim().replace(/[?!.]+$/, '').trim()
+  return s.split(/\s+/).map(w => TYPOS[w.toLowerCase()] || w).join(' ')
 }
 
-/** The tickers named in `s`, in order, or null when the sentence is ambiguous about them. */
-export function tickersOf(s) {
-  const raw = s.split(/[\s,&/]+/).filter(Boolean)
+/** How a candidate was typed: `cashtag` ($nvda), `upper` (NVDA), or `lower` (nvda, Nvda). */
+export function formOf(text, sentenceIsAllCaps = false) {
+  if (String(text).startsWith('$')) return 'cashtag'
+  const bare = String(text)
+  if (!sentenceIsAllCaps && bare.length > 1 && bare === bare.toUpperCase() && /[A-Z]/.test(bare)) return 'upper'
+  return 'lower'
+}
+
+/**
+ * The candidate words of `s`, in order, each { text, form } — or null when a word is neither grammar nor a possible
+ * symbol (a shape the parser does not claim).
+ */
+export function candidatesOf(s) {
+  const letters = s.replace(/[^A-Za-z]/g, '')
+  const allCaps = letters.length > 0 && letters === letters.toUpperCase()
   const out = []
-  for (let w of raw) {
-    w = w.replace(/^[("']+|[)"':;]+$/g, '').replace(/'s$/i, '')
-    if (!w || !TOKEN.test(w)) continue
-    const cash = w.startsWith('$')
-    const bare = cash ? w.slice(1) : w
-    const up = bare.toUpperCase()
-    if (cash) { if (!out.includes(up)) out.push(up); continue }
-    if (AMBIGUOUS.has(up)) {
-      if (bare === up && bare.length > 1 && !out.includes(up)) out.push(up)   // UPPERCASE: the member means the symbol
-      continue
+  for (let w of s.split(/[\s,/]+/).filter(Boolean)) {
+    w = w.replace(/^[("']+|[)"':;]+$/g, '').replace(/'s$/i, '').replace(/'$/, '')
+    if (!w) continue
+    if (/^\d+([.-]\d+)?$/.test(w) || /^\d+[-]?(day|d|week|wk|w|session)s?$/i.test(w) || /^52[-]?(w|wk|week)s?$/i.test(w)) continue
+    const lower = w.toLowerCase().replace(/'/g, '')
+    if (/^(what|where|how|it|that)'(s|re)$/i.test(w)) continue
+    const form = formOf(w, allCaps)
+    if (ALWAYS_GRAMMAR.has(lower)) continue
+    if (GRAMMAR.has(lower) && form === 'lower') continue
+    if (!TOKEN.test(w)) return null
+    if (!out.some(c => c.text.toUpperCase().replace(/^\$/, '') === w.toUpperCase().replace(/^\$/, ''))) {
+      out.push({ text: form === 'lower' ? w.toLowerCase() : w, form })
     }
-    if (STOP.has(bare.toLowerCase())) continue
-    if (/^\d/.test(bare)) continue
-    if (bare.length > 5 && !/[.-]/.test(bare)) continue
-    if (!out.includes(up)) out.push(up)
   }
   return out
 }
 
 /**
- * Parse one member sentence into a price/bars intent, or null.
- *   { intent: 'quote', symbols, sessionWord }                    price / quote / session words
- *   { intent: 'bars.lastClose' | 'bars.change' | 'bars.range52w', symbol, n? }
+ * One member sentence → an intent with its candidate words, or null.
+ *   { intent: 'quote', candidates, sessionWord }
+ *   { intent: 'bars.lastClose' | 'bars.change' | 'bars.range52w', candidates (exactly one), n? }
  */
 export function parsePriceSentence(text) {
   const s = normalise(text)
   if (!s || s.length > 160) return null
   const low = s.toLowerCase()
-  if (VETO.some(re => re.test(low))) return null
-  const syms = tickersOf(s)
-  if (!syms.length || syms.length > MAX_TICKERS) return null
-  if (syms.length > 1 && !/(\band\b|,|&)/i.test(s)) return null
+  if (/&/.test(s)) return null
+  if (VETO.some(re => re.test(low)) || TIME_VETO.some(re => re.test(low))) return null
+  const candidates = candidatesOf(s)
+  if (!candidates || !candidates.length || candidates.length > MAX_TICKERS) return null
+  const allCash = candidates.every(c => c.form === 'cashtag')
+  if (candidates.length > 1 && !allCash && !/(\band\b|,)/i.test(s)) return null
 
-  // daily bars: completed sessions only (claimed by marketDataBars.js)
   if (/\b52[\s-]?(weeks?|wks?|w)\b|\byear(ly)?[\s-](high|low|range)\b|\b(12|twelve)[\s-]month (high|low|range)\b/.test(low)) {
-    return syms.length === 1 ? { intent: 'bars.range52w', symbol: syms[0] } : null
+    return candidates.length === 1 ? { intent: 'bars.range52w', candidates } : null
   }
   const nd = low.match(/\b(\d{1,3})[\s-]?(day|d|session)s?\b/) || low.match(/\bpast (\d{1,2}) (day|session)s\b/)
   const nw = low.match(/\b(\d{1,2})[\s-]?(week|wk)s?\b/)
   if (nd || nw) {
     const n = nd ? Number(nd[1]) : Number(nw[1]) * 5
-    return syms.length === 1 && n >= 1 && n <= 499 ? { intent: 'bars.change', symbol: syms[0], n } : null
+    return candidates.length === 1 && n >= 1 && n <= 499 && /\b(change|changes|performance|move|moved|past|last|up|down)\b/.test(low)
+      ? { intent: 'bars.change', candidates, n } : null
   }
+  if (/\b(month|months|year|years|quarter)\b/.test(low)) return null
   if (/\b(close|closed|closing)\b/.test(low)) {
-    return syms.length === 1 && !SESSION_WORD.test(low) ? { intent: 'bars.lastClose', symbol: syms[0] } : null
+    return candidates.length === 1 && !SESSION_RE.test(low) && !/\btoday\b/.test(low)
+      ? { intent: 'bars.lastClose', candidates } : null
   }
-
-  // a quote: a price word, a session word, or a bare cashtag
-  const bareCashtags = /^(\$[A-Za-z][A-Za-z0-9.-]{0,9}[\s,&]*)+(and\s+\$[A-Za-z][A-Za-z0-9.-]{0,9}\s*)*$/.test(s)
-  if (!PRICE_CTX.test(low) && !bareCashtags) return null
-  if (/\btoday\b/.test(low) && !/\b(price|quote|trading|doing|at|up|down)\b/.test(low)) return null
-  const m = low.match(SESSION_WORD)
-  return { intent: 'quote', symbols: syms, sessionWord: m ? m[0] : null }
+  const PRICE_CTX = /\b(price|prices|pricing|quote|quotes|trading|trade|traded|at|doing|up|down)\b/
+  const onlyCashtags = allCash && s.split(/[\s,]+/).filter(Boolean).every(w => /^\$/.test(w) || /^and$/i.test(w))
+  if (!PRICE_CTX.test(low) && !SESSION_RE.test(low) && !onlyCashtags) return null
+  if (/\b(high|low|range)\b/.test(low) && !candidates.some(c => /^(HIGH|LOW)$/.test(c.text))) return null
+  const m = low.match(SESSION_RE)
+  return { intent: 'quote', candidates, sessionWord: m ? m[0] : null }
 }
