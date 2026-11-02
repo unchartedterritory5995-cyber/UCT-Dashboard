@@ -235,26 +235,39 @@ function preprocessWikiSyntax(text, ctx) {
 // ⛔ The embed and wikilink passes emit finished HTML (`<a ...>`, `<img>`, an
 // entity-encoded unresolved name), and the callout and highlight passes after
 // them ESCAPE their text. So each finished piece is HELD: the pass writes a
-// placeholder of noncharacter and private-use code points (no `&`, `<`, `>`, `=` or ASCII digit for a later
-// pass to escape or match), and the real markup goes back in only after every
-// pass has run, right before `mdToHtml`. ⚰️ D1 fix round 2 wrote `&#46;` straight
-// into the text, and a highlight or callout title escaped it again into a
-// visible `&#46;`; a link inside `==...==` lost the highlight, and one in a
-// callout title showed as escaped `<a>` markup (D1 fix round 3, N1/N2).
+// placeholder of noncharacter and private-use code points (no `&`, `<`, `>`,
+// `=` or ASCII digit for a later pass to escape or match), and the real markup
+// goes back in only after every pass has run, right before `mdToHtml`.
+// ⚰️ D1 fix round 2 wrote `&#46;` straight into the text, and a highlight or
+// callout title escaped it again into a visible `&#46;`; a link inside
+// `==...==` lost the highlight, and one in a callout title showed as escaped
+// `<a>` markup (D1 fix round 3, N1/N2).
 //
-// \u26D4 The OPEN is chosen PER SEGMENT so it can never be the member's own text:
+// ⛔ The OPEN is chosen PER SEGMENT so it can never be the member's own text:
 // a run of U+FDD0 (a Unicode noncharacter, reserved for internal use like
 // this) one longer than the longest U+FDD0 run already in the segment. The
-// passes only ever ADD placeholders, so every `open digits CLOSE` the release
-// regex can match starts with a run the importer wrote. A shorter member run
-// cannot match, and a member run right before ours cannot either: the regex
-// needs a digit right after exactly `open`, and the character there is our
-// own U+FDD0. There is no exhaustion case: a longer run always exists.
-// \u26B0\uFE0F D1 fix round 3 used a fixed U+E000 open, so a member's own
+// passes only ever ADD placeholders and never join two member runs, so a
+// U+FDD0 run followed by index digits and the close that is at least `open`
+// long ends in OUR open; whatever comes before that is the member's own text,
+// put back unchanged. A shorter run is the member's and is left alone.
+// The release regex is CONSTANT-SIZE and the length is checked in code: the
+// open can be any length (a 40,000-long member run makes a 40,001-long open),
+// and V8 refuses a regex of 32,768+ characters, which failed the whole note
+// (D1 re-review M-a, fix round 5). The cost is placeholder size,
+// O(links x longest run).
+// ⚰️ D1 fix round 3 used a fixed U+E000 open, so a member's own
 // `U+E000 U+E010 U+E001` was swapped for another link's markup: a duplicate
 // link appeared and their text was lost (D1 re-review P1, fix round 4).
+//
+// ⛔ Release is RECURSIVE: a held piece can contain an EARLIER placeholder
+// (`[[![[img.png]]]]` holds the embed's `<img>`, then holds the outer
+// unresolved name, whose text is that first placeholder). A piece only ever
+// contains placeholders created before it, so the recursion ends.
+// ⚰️ One flat pass left U+FDD0 U+E010 U+E001 in the stored text and lost
+// the image (D1 re-review M-b, fix round 5).
 const HOLD_SENTINEL = '\uFDD0'
 const HOLD_CLOSE = '\uE001'
+const HOLD_RE = /(\uFDD0+)([\uE010-\uE019]+)\uE001/g
 
 function holdOpenFor(segment) {
   let longest = 0
@@ -269,10 +282,11 @@ function holdMarkup(held, html, open) {
 }
 
 function releaseMarkup(text, held, open) {
-  const holdRe = new RegExp(`${open}([\\uE010-\\uE019]+)\\uE001`, 'g')
-  return text.replace(holdRe, (whole, digits) => {
+  return text.replace(HOLD_RE, (whole, run, digits) => {
+    if (run.length < open.length) return whole
     const idx = Number(digits.replace(/[\uE010-\uE019]/g, (c) => String(c.charCodeAt(0) - 0xe010)))
-    return idx < held.length ? held[idx] : whole
+    if (idx >= held.length) return whole
+    return run.slice(0, run.length - open.length) + releaseMarkup(held[idx], held, open)
   })
 }
 

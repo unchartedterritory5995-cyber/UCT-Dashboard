@@ -422,13 +422,16 @@ describe('obsidian adapter — D1 fix round 4: member text vs held-markup placeh
   const D = (n) => String.fromCharCode(0xe010 + n)
   const F = '﷐'
   const textOf = async (body) => {
-    const { docs } = await obsidianAdapter.parse([
-      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/Other.md', 'o')])
+    const { docs, warnings } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/Other.md', 'o'), vf('V/img.png', 'i')])
     const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    expect(d, `not imported: ${warnings.join('; ')}`).toBeTruthy()
     const { bodyJson } = htmlToNote(d.html)
     const links = [...d.html.matchAll(/data-import-link="obsidian:V\/([^"]+)"/g)].length
-    return { text: extractPlainText(bodyJson).replace(/\s+/g, ' ').trim(), links }
+    return { text: extractPlainText(bodyJson).replace(/\s+/g, ' ').trim(), links, html: d.html, doc: bodyJson,
+      media: d.media.map((m) => m.ref) }
   }
+  const RUN = F.repeat(40000)
   const eleven = '[[Plan]] '.repeat(10) + '[[Other]] '
   const ROWS = [
     // [name, body, expected stored text, expected link count]
@@ -455,6 +458,13 @@ describe('obsidian adapter — D1 fix round 4: member text vs held-markup placeh
     ['U+FDD0 touching a link', `x${F}[[Plan]]${F}${F}y`, `x${F}Plan${F}${F}y`, 1],
     ['mixed E000 and U+FDD0 runs', `${O}${D(0)}${C}${F}${D(1)}${C} [[Plan]] [[Other]]`,
       `${O}${D(0)}${C}${F}${D(1)}${C} Plan Other`, 2],
+    // Fix round 5, M-a: a run past V8's regex size limit (32,767) still imports.
+    ['40,000-long U+FDD0 run, no links', `a ${RUN} b`, `a ${RUN} b`, 0],
+    ['40,000-long U+FDD0 run with links', `${RUN}${D(0)}${C} [[Plan]]${RUN}[[Other]] ${RUN}`,
+      `${RUN}${D(0)}${C} Plan${RUN}Other ${RUN}`, 2],
+    // Fix round 5, M-b: a held piece holding an earlier placeholder.
+    ['note embed nested in a wikilink', '[[![[Plan]]]] after', 'Plan after', 1],
+    ['note embed nested in an alias', '[[Other|![[Plan]]]] after', 'Plan after', 2],
   ]
 
   for (const [name, body, expected, links] of ROWS) {
@@ -464,4 +474,27 @@ describe('obsidian adapter — D1 fix round 4: member text vs held-markup placeh
       expect(r.links).toBe(links)
     })
   }
+
+  // No row, and no nested piece, may leave a placeholder character behind: the
+  // output holds no more U+FDD0 / U+E000-U+E019 / U+E001 than the input did.
+  const NESTED_IMAGE = '[[![[img.png]]]] after'
+  const count = (s, re) => (s.match(re) || []).length
+  for (const [name, body] of [...ROWS, ['image embed nested in a wikilink', NESTED_IMAGE]]) {
+    it(`adds no placeholder character to the output: ${name}`, async () => {
+      const r = await textOf(body)
+      const doc = JSON.stringify(r.doc)
+      for (const re of [/﷐/g, /[-]/g]) {
+        expect(count(r.html, re)).toBeLessThanOrEqual(count(body, re))
+        expect(count(doc, re)).toBeLessThanOrEqual(count(body, re))
+      }
+    })
+  }
+
+  it('keeps the image of [[![[img.png]]]] and lists it in media (M-b)', async () => {
+    const r = await textOf(NESTED_IMAGE)
+    expect(r.html).toContain('<img src="import-ref://V/img.png">')
+    expect(r.media).toContain('V/img.png')
+    expect(r.text).toBe('after')
+    expect(JSON.stringify(r.doc)).toContain('import-ref://V/img.png')
+  })
 })
