@@ -161,6 +161,26 @@ describe('C48 plot lane — a var written from a ta.* call in a block that skips
       expectWithheld(RDDT, source.split('@n').join(String.fromCharCode(10)))
     })
   }
+  // ⛔⛔ F-A (re-review) — A GRADIENT CAN HIDE THE PLOT TOO. `color.from_gradient`'s
+  // end colour baked fully transparent (`color.new(c, 100)`), or the whole gradient
+  // wrapped in `color.new(…, 100)`, draws nothing at that end: withheld whole.
+  for (const [name, source] of [
+    ['var form, a gradient whose bottom colour is transparent', condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = color.from_gradient(s, 140, 160, color.new(color.green, 100), color.green))\n')],
+    ['non-`var` form, a gradient whose bottom colour is transparent', `${H}float m = na\nif close > open\n    m := ta.sma(close, 3)\nplot(close, color = color.from_gradient(m, 140, 160, color.new(color.green, 100), color.green))\n`],
+    ['a gradient whose TOP colour is transparent', condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = color.from_gradient(s, 140, 160, color.red, color.new(color.green, 100)))\n')],
+    ['a gradient wrapped in `color.new(…, 100)`', condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = color.new(color.from_gradient(s, 140, 160, color.red, color.green), 100))\n')],
+    ['a plotchar whose colour hides it (`? color.red : na`)', condVar('close > open', 'ta.sma(close, 3)', 'plotchar(close > open, char = "x", color = close > s ? color.red : na)\n')],
+  ]) {
+    it(`⛔ ${name}: the colour can hide the plot, so the plot is withheld whole`, () => {
+      expectWithheld(RDDT, source)
+    })
+  }
+  it('⛔ #674\'s ARM path, the same rule: a `?:` arm in a gradient whose bottom colour is transparent withholds the plot whole', () => {
+    expectWithheld(RDDT, `${H}up = close > open\nplot(close, color = color.from_gradient(up ? ta.sma(close, 3) : close, 140, 160, color.new(color.green, 100), color.green))\n`)
+  })
+  it('🔴 CONTROL — a gradient between two real colours is withheld as a colour alone', () => {
+    expectColourWithheld(condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = color.from_gradient(s, 140, 160, color.red, color.green))\n'))
+  })
   it('🔴 CONTROL — a three-way chain of real colours is withheld as a colour alone', () => {
     expectColourWithheld(condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = close > s ? color.green : close < s * 0.9 ? color.red : color.gray)\n'))
   })
@@ -389,6 +409,22 @@ describe('C48 — a function reads a var where it is CALLED (Pine), refused wher
   })
   it('`s[k]` with an offset that may be 0 is refused', () => {
     expectRefusedReassign('var float s = na\nk = bar_index % 2\nf() => s[k]\ns := close\nplot(f())\n')
+  })
+  // ⛔ LOW (re-review) — A NAMED ARGUMENT IS NOT A READ. `ta.sma(close, length = 3)`
+  // names the built-in's parameter `length`; it reads nothing called `length`, so a
+  // later write of a var `length` makes nothing stale. (A named argument to a USER
+  // function is refused on its own, `pine:named-argument`, so a built-in is the
+  // shape that reaches this guard.)
+  it('a named argument that shares a var\'s name is not a read of it: drawn exactly', () => {
+    const { col, refusal } = plotOf('var float length = na\nf() => ta.sma(close, length = 3)\nlength := open\nplot(f())\n')
+    expect(refusal).toBeNull()
+    expect(last(col)).toBeCloseTo((B[n - 1].c + B[n - 2].c + B[n - 3].c) / 3, 9)
+  })
+  it('🔴 CONTROL — the same var passed POSITIONALLY is a read: refused as stale', () => {
+    expectRefusedReassign('var float s = na\nf() => nz(s, close)\ns := open\nplot(f())\n')
+  })
+  it('🔴 CONTROL — `s == close` inside a call is a comparison that reads `s`: refused', () => {
+    expectRefusedReassign('var float s = na\nf() => nz(s == close ? 1 : 0)\ns := open\nplot(f())\n')
   })
   it('a function called BEFORE the write reads the value there, and is drawn exactly', () => {
     // `s` before the write on this bar is the previous bar's close

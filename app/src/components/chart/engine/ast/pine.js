@@ -6551,9 +6551,14 @@ const COLOUR_BLOCK_RUNS = '_colourBlockRuns'
 export function colourWithholdsAlone(pres) {
   if (!pres) return false
   if (pres.opacity === 0) return false
+  // ⛔ F-A — a gradient wrapped whole in `color.new(…, 100)` hides at every position
+  const g = pres.colorGradient || null
+  if (g && g.transparency === 100) return false
   // the two-colour pair too: `c ? color.new(green, 100) : red` bakes each branch's
-  // own alpha into `colorUp` / `colorDown` (`#RRGGBB00` is a branch that hides)
-  const palette = [pres.colorUp, pres.colorDown, ...(Array.isArray(pres.colorPalette) ? pres.colorPalette : [])]
+  // own alpha into `colorUp` / `colorDown` (`#RRGGBB00` is a branch that hides),
+  // and a gradient's ends (`from` / `to`, `#RRGGBB00` for a transparent end)
+  const palette = [pres.colorUp, pres.colorDown, g && g.from, g && g.to,
+    ...(Array.isArray(pres.colorPalette) ? pres.colorPalette : [])]
   return !palette.some((e) => e === TRANSPARENT_PALETTE_ENTRY || /^#[0-9a-f]{6}00$/i.test(String(e)))
 }
 
@@ -15117,11 +15122,20 @@ function outerStateReadsOf(headToks, sub, beforeFn, fnEnv) {
       && k && k.kind === 'number' && Number.isInteger(k.value) && k.value >= 1
       && close && close.kind === 'punct' && close.value === ']')
   }
+  // ⛔ (re-review LOW) …nor is a NAMED ARGUMENT's name (`g(s = close)` names g's
+  // parameter, it reads no `s`): an identifier straight after `(` or `,` and
+  // straight before a lone `=` (`==` is its own token, and still a read).
+  const namedArg = (toks, i) => {
+    const prev = toks[i - 1]
+    const next = toks[i + 1]
+    return !!(prev && prev.kind === 'punct' && (prev.value === '(' || prev.value === ',')
+      && next && next.kind === 'punct' && next.value === '=')
+  }
   const walk = (toks) => {
     const list = toks || []
     for (let i = 0; i < list.length; i += 1) {
       const t = list[i]
-      if (t && t.kind === 'ident' && !historyOnly(list, i)) names.add(t.value)
+      if (t && t.kind === 'ident' && !historyOnly(list, i) && !namedArg(list, i)) names.add(t.value)
     }
   }
   walk(headToks)
