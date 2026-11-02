@@ -4167,7 +4167,15 @@ def update_note(
                 restored_from_version_id=restored_from_version_id,
             )
 
-        sets.append("updated_at = ?"); params.append(_now_iso())
+        now = _now_iso()
+        sets.append("updated_at = ?"); params.append(now)
+        if "importMediaPending" in patch:
+            # Plan B Task 10 (R5/H1): only the importer's own post-confirm write carries
+            # `importMediaPending`, so it re-stamps `imported_at` with the SAME instant as
+            # `updated_at`. Without this, that write read as a member edit
+            # (`import_provenance.edited_since_import`) and every file-imported note was
+            # left un-healed and un-recoverable.
+            sets.append("imported_at = ?"); params.append(now)
         params.extend([note_id, user_id])
         conn.execute(
             f"UPDATE j2_notes SET {', '.join(sets)} WHERE id = ? AND user_id = ?",

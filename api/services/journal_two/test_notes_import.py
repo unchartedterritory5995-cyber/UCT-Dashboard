@@ -744,3 +744,34 @@ def test_import_confirm_handles_pathological_titles_without_corrupting_siblings(
     # The malformed title is isolated -- named by importKey, not silently
     # dropped and not aborting its healthy siblings above.
     assert any(f["importKey"] == "x:bad-title" for f in r["failed"]), r["failed"]
+
+
+# ── Plan B Task 10: the edit guard, mode="recover", the finalize-write stamp ──
+#
+# "Edited since import" has ONE definition, `import_provenance.edited_since_import`
+# (Plan A controller ruling 2). The file importer's guard is that predicate minus the
+# legacy finalize shape (`import_provenance.legacy_finalize_shape`, ruling R4).
+
+from api.services.journal_two import import_provenance  # noqa: E402
+
+
+def _provenance(conn, note_id):
+    return conn.execute("SELECT updated_at, imported_at FROM j2_notes WHERE id=?", (note_id,)).fetchone()
+
+
+def test_importer_finalize_put_does_not_count_as_an_edit(conn):
+    """R5/H1: commit.js's post-confirm PUT carries `importMediaPending`. It is the importer's
+    own write, so it stamps `imported_at` with the SAME instant as `updated_at`; a member's
+    later save (no `importMediaPending`) still reads as an edit."""
+    out = notes_svc.import_confirm("u1", {"source": "x", "notes": [_mk_import_note_with_media("x:fin")]},
+                                   conn=conn)
+    note_id = out["created"][0]["id"]
+    resolved = {"type": "doc", "content": [{"type": "image", "attrs": {"src": "/api/j2/notes/attachments/r.png"}}]}
+    notes_svc.update_note("u1", note_id, {"bodyJson": resolved, "importMediaPending": False}, conn=conn)
+    row = _provenance(conn, note_id)
+    assert row["imported_at"] == row["updated_at"]
+    assert not import_provenance.edited_since_import(row["updated_at"], row["imported_at"])
+    # control: a member's own save moves updated_at past the stamp
+    notes_svc.update_note("u1", note_id, {"title": "mine"}, conn=conn)
+    row = _provenance(conn, note_id)
+    assert import_provenance.edited_since_import(row["updated_at"], row["imported_at"])
