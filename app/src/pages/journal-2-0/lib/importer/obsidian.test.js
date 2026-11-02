@@ -272,8 +272,8 @@ describe('obsidian adapter — wikilinks to notes with a dot in the name', () =>
       vf('V/src.md', '[[Dr.Smith]] [[People/Dr.Smith]] [[report.pdf]] [[chart]]'),
       vf('V/People/Dr.md', 'x'), vf('V/report.png', ''), vf('V/Files/chart.png', '')])
     const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
-    // Only the dot-less `[[chart]]` keeps its stem match.
-    expect(linkOf(src.html).map(([k]) => k)).toEqual(['obsidian:V/Files/chart.png'])
+    // Plan C Task 4 fix round 1: no stem match, dot or not (`[[chart]]` names `chart.md`).
+    expect(linkOf(src.html).map(([k]) => k)).toEqual([])
   })
 
   it('leaves [[Dr.Smith]] as text when no such note exists', async () => {
@@ -306,9 +306,27 @@ describe('obsidian adapter — D1 fix round 2', () => {
     expect(await resolveIn('archive.tar', ['archive.tar.gz'])).toBeNull()
     expect(await resolveIn('v1.2 notes', ['v1.2 notes.pdf'])).toBeNull()
     expect(await resolveIn('Plan.md', ['Notes/Plan.md.bak'])).toBeNull()
-    expect(await resolveIn('chart', ['img/chart.png'])).toBe('img/chart.png')
-    expect(await resolveIn('img/chart', ['img/chart.png'])).toBe('img/chart.png')
-    expect(await resolveIn('v1.2/chart', ['v1.2/chart.png'])).toBe('v1.2/chart.png')
+    // Plan C Task 4 fix round 1: a dot-less name has no stem match either.
+    expect(await resolveIn('chart', ['img/chart.png'])).toBeNull()
+    expect(await resolveIn('img/chart', ['img/chart.png'])).toBeNull()
+    expect(await resolveIn('v1.2/chart', ['v1.2/chart.png'])).toBeNull()
+    expect(await resolveIn('chart', ['img/chart.png', 'Notes/chart.md'])).toBe('Notes/chart.md')
+    expect(await resolveIn('img/chart', ['img/chart.png', 'img/chart.md'])).toBe('img/chart.md')
+  })
+
+  it('opens a file whose full name holds a # before splitting an anchor (Plan C Task 4)', async () => {
+    const name = 'attachments/my chart #1 (v2).png'
+    expect(await resolveIn('my chart #1 (v2).png', [name])).toBe(name)
+    expect(await resolveIn('attachments/my chart #1 (v2).png', [name])).toBe(name)
+    expect(await resolveIn('MY CHART #1 (V2).PNG', [name])).toBe(name)
+    expect(await resolveIn('Other note#Risk', ['Other note.md'])).toBe('Other note.md')
+    expect(await resolveIn('Other note#^abc123', ['Other note.md'])).toBe('Other note.md')
+    expect(await resolveIn('my chart #1 (v2).png', ['my chart.md'])).toBe('my chart.md')
+    const { docs } = await obsidianAdapter.parse([
+      vf(`V/${name}`, ''), vf('V/src.md', '![[my chart #1 (v2).png]]')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    expect(d.media.map((m) => m.ref)).toEqual([`V/${name}`])
+    expect(d.html).toContain('<img')
   })
 
   it('takes only the exact note, never a note file with a second extension (I2)', async () => {

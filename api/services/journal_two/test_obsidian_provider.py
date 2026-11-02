@@ -1472,7 +1472,8 @@ def test_an_unknown_dot_suffix_is_never_stripped_to_open_another_note():
     assert resolve("Dr.Smith", ["People/Dr.md"]) is None
     assert resolve("People/Dr.Smith", ["People/Dr.md"]) is None
     assert resolve("report.pdf", ["report.png"]) is None
-    assert resolve("chart", ["Files/chart.png"]) == "Files/chart.png"   # no dot: stem match stays
+    # Plan C Task 4 fix round 1: no stem match at all. `[[chart]]` names `chart.md` only.
+    assert resolve("chart", ["Files/chart.png"]) is None
     out = _convert("[[Dr.Smith]]", ["Dr.md"])
     assert out["links"] == [f"name:obsidian:{_V}/dr.smith|notes"]
 
@@ -1505,10 +1506,28 @@ def test_a_dotted_target_never_reaches_a_file_by_its_stem():
     assert _r("archive.tar", ["archive.tar.gz"]) is None
     assert _r("v1.2 notes", ["v1.2 notes.pdf"]) is None
     assert _r("Plan.md", ["Notes/Plan.md.bak"]) is None
-    # A dot-less name keeps its stem match, bare and folder-qualified.
-    assert _r("chart", ["img/chart.png"]) == "img/chart.png"
-    assert _r("img/chart", ["img/chart.png"]) == "img/chart.png"
-    assert _r("v1.2/chart", ["v1.2/chart.png"]) == "v1.2/chart.png"
+    # Plan C Task 4 fix round 1: a dot-less name has no stem match either. Obsidian
+    # assumes `.md` for a link with no extension: `[[chart]]` names `chart.md` only.
+    assert _r("chart", ["img/chart.png"]) is None
+    assert _r("img/chart", ["img/chart.png"]) is None
+    assert _r("v1.2/chart", ["v1.2/chart.png"]) is None
+    assert _r("chart", ["img/chart.png", "Notes/chart.md"]) == "Notes/chart.md"
+    assert _r("img/chart", ["img/chart.png", "img/chart.md"]) == "img/chart.md"
+
+
+def test_a_target_holding_a_hash_that_exactly_names_a_file_opens_that_file():
+    """Plan C Task 4 fix round 1: the FULL target, anchor text included, is checked
+    against the vault's file names first; only otherwise is the anchor split off."""
+    name = "attachments/my chart #1 (v2).png"
+    assert _r("my chart #1 (v2).png", [name]) == name
+    assert _r("attachments/my chart #1 (v2).png", [name]) == name
+    assert _r("MY CHART #1 (V2).PNG", [name]) == name
+    # No file of that full name: the anchor splits as before.
+    assert _r("Other note#Risk", ["Other note.md"]) == "Other note.md"
+    assert _r("Other note#^abc123", ["Other note.md"]) == "Other note.md"
+    assert _r("my chart #1 (v2).png", ["my chart.md"]) == "my chart.md"
+    out = _convert("![[my chart #1 (v2).png]]", [name])
+    assert out["media"] and out["media"][0]["ref"] == name
 
 
 def test_the_exact_note_step_takes_only_the_note_never_a_note_with_a_second_extension():

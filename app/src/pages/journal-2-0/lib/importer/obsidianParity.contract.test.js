@@ -242,41 +242,21 @@ const knownClientGap = {
   '14-raw-html-and-deep-link.json': {
     missingLinks: [{ target: 'Plan.md', text: 'the plan' }],
   },
-  // Plan C Task 4 made the server lane realistic: staging holds NOTES only, and a file
-  // reaches the server solely as an attachment ref the plugin sends. `[[chart]]` (no
-  // extension, no ref) therefore has nothing to stem-match server-side and waits as a
-  // pending note link, which is also what Obsidian's own resolver shows for it. The
-  // client still sees `img/chart.png` in the dragged folder and its stem rule links it.
-  // Owner decision needed on which lane is right; no Plan B task covers it yet. Delete
-  // this entry when the lanes agree.
-  '15-dotted-names.json': {
-    clientReads: {
-      links: [
-        { target: 'People/Dr.Smith.md', text: 'Dr.Smith' },
-        { target: 'Reviews/Q3.Review.md', text: 'the review' },
-        { target: 'People/Dr.Smith.md', text: 'the intro' },
-        { target: 'v1.2 notes.md', text: 'v1.2 notes' },
-        { target: 'Files/report.pdf.md', text: 'report.pdf' },
-        { target: 'Files/report.pdf.md', text: 'Files/report.pdf' },
-        { target: 'Brief.txt.md', text: 'Brief.txt' },
-        { target: 'Notes/Plan.md', text: 'Notes/Plan' },
-        { target: 'Notes/Plan.md', text: 'Plan' },
-        { target: 'B/Setup.md', text: 'Setup' },
-        { target: 'img/chart.png', text: 'chart' },
-        { target: 'People/Dr.Smith.md', text: 'Dr.Smith' },
-      ],
-    },
-  },
-  // Plan B (client importer), I-9 attachment names: the client reads the `#` in
-  // `![[my chart #1 (v2).png]]` as a heading anchor, resolves `my chart`, finds nothing
-  // and shows the name as text, so the image is lost. The server takes the plugin's
-  // resolved ref and keeps it. The text differs by that name and by one space around
-  // the file chip (the server hoists the chip out of the sentence). The Unicode name
-  // and the `%20` file link agree on both lanes.
+  // ⚰️ 15-dotted-names and 18-attachment-names: closed by Plan C Task 4 fix round 1.
+  // Both lanes dropped the no-dot stem rule (`[[chart]]` names `chart.md` only), and
+  // both check a `#`-holding target against the vault's full file names before
+  // splitting an anchor (`![[my chart #1 (v2).png]]` keeps its image).
+  // 18-attachment-names: images, files and links now agree. What is left is TEXT
+  // whitespace only, from the client's HTML parse, not from either resolver: (a) the
+  // markdown image `![](attachments/...)` renders as `<p><img></p>`, and the shared
+  // parse (`convert.js::htmlToNote`) leaves an EMPTY paragraph beside the block image
+  // (the server hoists the image out, no paragraph); (b) `Read ` loses its trailing
+  // space when the block chip splits the paragraph (the server keeps `Read `). The
+  // member reads the same words. AWAITING A RULING (Plan C Task 4 fix round 1): fix in
+  // the client parse, or accept; no Plan B task covers it yet.
   '18-attachment-names.json': {
     clientReads: {
-      images: ['attachments/Ünïcode.png'],
-      text: 'Attachment names my chart #1 (v2).png  Read [file: q3 report.pdf]  before the open.',
+      text: 'Attachment names  Read [file: q3 report.pdf]  before the open.',
     },
   },
 }

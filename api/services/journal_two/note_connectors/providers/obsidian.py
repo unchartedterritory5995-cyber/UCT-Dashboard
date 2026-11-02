@@ -402,42 +402,45 @@ def _ends_at(form: str, want: str) -> bool:
     return form == want or form.endswith("/" + want)
 
 
-def _stem_path(path: str) -> str:
-    """`path` without its file's extension (`v1.2/chart.png` -> `v1.2/chart`)."""
-    folder = _dir_of(path)
-    stem = _basename_sans_ext(path)
-    return f"{folder}/{stem}" if folder else stem
-
-
 def _resolve_in(target: str, index: _VaultIndex, from_dir: str | None) -> str | None:
     """The wikilink rule over an index; `from_dir` is the linking note's folder. A target
     with a `/` is matched against the end of each path at a folder boundary; a bare one
-    against the file name. In order:
+    against the file name. First, a target holding a `#` (an anchor, or part of a NAME:
+    `my chart #1 (v2).png`) that EXACTLY names a vault file opens that file; only
+    otherwise is the anchor split off (Plan C Task 4 fix round 1). Then, in order:
       1. the exact note `_note_file_of(target)` names (`[[Dr.Smith]]` -> `Dr.Smith.md`,
          `[[report.pdf]]` -> `report.pdf.md`), always first;
-      2. a file whose full name IS the target (`[[report.pdf]]` -> `report.pdf`);
-      3. ONLY for a target whose name has no dot, a file whose name without its extension
-         is the target (`[[chart]]` -> `chart.png`).
-    Each step compares a candidate's FULL name (step 3: its full name minus one extension),
-    never an extension-stripped form against a dotted target. So `[[Dr.Smith]]` never opens
-    `Dr.md` or `Dr.Smith.csv`, `[[report.pdf]]` never `report.pdf.png`, `[[Notes/Plan]]`
-    never `Notes/Plan.md.bak`: a wrong file is worse than a visible pending link.
+      2. a file whose full name IS the target (`[[report.pdf]]` -> `report.pdf`).
+    Each step compares a candidate's FULL name, never an extension-stripped form. So
+    `[[Dr.Smith]]` never opens `Dr.md` or `Dr.Smith.csv`, `[[report.pdf]]` never
+    `report.pdf.png`, `[[Notes/Plan]]` never `Notes/Plan.md.bak`: a wrong file is worse
+    than a visible pending link. ⚰️ A third step stem-matched a dot-less name to a file
+    (`[[chart]]` -> `chart.png`). Obsidian assumes `.md` for a link with no extension, so
+    `[[chart]]` names `chart.md` only; the step is gone (Plan C Task 4 fix round 1).
     Same-named candidates go through `_pick`. Mirrors `obsidian.js::resolveTarget`."""
+    whole = target.strip()
+    if "#" in whole:
+        hit = _resolve_steps(whole, index, from_dir, exact_file_only=True)
+        if hit is not None:
+            return hit
     target = _strip_fragment(target)
     if not target:
         return None
+    return _resolve_steps(target, index, from_dir)
+
+
+def _resolve_steps(target: str, index: _VaultIndex, from_dir: str | None, *,
+                   exact_file_only: bool = False) -> str | None:
+    """Steps 1 and 2 of `_resolve_in` over an anchor-free `target` (`exact_file_only`:
+    step 2 alone, the full-name check a `#`-holding target gets first)."""
     lower = target.lower()
     note_file = _note_file_of(target)
     name = _basename(lower)
     near = None if "/" in lower else from_dir
-    steps = [
-        (_basename_sans_ext(note_file), note_file, str.lower),
-        (_strip_ext(name), lower, str.lower),
-    ]
-    if "." not in name:
-        steps.append((name, lower, lambda c: _stem_path(c).lower()))
-    for key, want, form in steps:
-        hits = [c for c in index.get(key) or [] if _ends_at(form(c), want)]
+    steps = [] if exact_file_only else [(_basename_sans_ext(note_file), note_file)]
+    steps.append((_strip_ext(name), lower))
+    for key, want in steps:
+        hits = [c for c in index.get(key) or [] if _ends_at(c.lower(), want)]
         if hits:
             return _pick(hits, near)
     return None

@@ -401,34 +401,45 @@ function noteFileOf(target) {
 /**
  * Resolves an embed/link target to a full vault path, or null. THE rule of
  * `providers/obsidian.py::_resolve_in`, step for step (the parity fixture
- * `15-dotted-names` pins both). A trailing `#Heading` / `#^blockId` anchor is
- * stripped first. A target with a `/` is matched against the end of each path
- * at a folder boundary (`Setups/VCP` -> `Vault/Setups/VCP.md`); a bare one
- * against the file name. In order:
+ * `15-dotted-names` pins both). A target with a `/` is matched against the end
+ * of each path at a folder boundary (`Setups/VCP` -> `Vault/Setups/VCP.md`); a
+ * bare one against the file name. First, a target holding a `#` (an anchor, or
+ * part of a NAME: `my chart #1 (v2).png`) that EXACTLY names a vault file opens
+ * that file; only otherwise is the `#Heading` / `#^blockId` anchor stripped
+ * (Plan C Task 4 fix round 1). Then, in order:
  *  1. the exact note `noteFileOf(target)` (`[[Dr.Smith]]` -> `Dr.Smith.md`,
  *     `[[report.pdf]]` -> `report.pdf.md`), always first;
- *  2. a file whose full name IS the target (`[[report.pdf]]` -> `report.pdf`);
- *  3. ONLY for a target whose name has no dot, a file whose name without its
- *     extension is the target (`[[chart]]` -> `chart.png`).
- * Never an extension-stripped form against a dotted target: `[[Dr.Smith]]`
- * never opens `Dr.md` or `Dr.Smith.csv`, `[[Notes/Plan]]` never
- * `Notes/Plan.md.bak`. Same-named candidates go through `pick`.
+ *  2. a file whose full name IS the target (`[[report.pdf]]` -> `report.pdf`).
+ * Never an extension-stripped form: `[[Dr.Smith]]` never opens `Dr.md` or
+ * `Dr.Smith.csv`, `[[Notes/Plan]]` never `Notes/Plan.md.bak`. ⚰️ A third step
+ * stem-matched a dot-less name to a file (`[[chart]]` -> `chart.png`); Obsidian
+ * assumes `.md` for a link with no extension, so it is gone (fix round 1).
+ * Same-named candidates go through `pick`.
  */
 function resolveTarget(rawTarget, vfiles, basenameMap, fromDir = null) {
-  const target = stripFragment((rawTarget || '').trim())
+  const whole = (rawTarget || '').trim()
+  if (whole.includes('#')) {
+    const hit = resolveSteps(whole, basenameMap, fromDir, true)
+    if (hit) return hit
+  }
+  const target = stripFragment(whole)
   if (!target) return null
+  return resolveSteps(target, basenameMap, fromDir, false)
+}
+
+// Steps 1 and 2 of `resolveTarget` over an anchor-free target (`exactFileOnly`:
+// step 2 alone, the full-name check a `#`-holding target gets first). Mirrors
+// `providers/obsidian.py::_resolve_steps`.
+function resolveSteps(target, basenameMap, fromDir, exactFileOnly) {
   const byStem = BY_STEM.get(basenameMap) || new Map()
   const lower = target.toLowerCase()
   const noteFile = noteFileOf(target)
   const name = basename(lower)
   const near = lower.includes('/') ? null : fromDir
-  const steps = [
-    [stripExt(basename(noteFile)), noteFile, (p) => p.toLowerCase()],
-    [stripExt(name), lower, (p) => p.toLowerCase()],
-  ]
-  if (!name.includes('.')) steps.push([name, lower, (p) => stemPath(p).toLowerCase()])
-  for (const [key, want, form] of steps) {
-    const hits = (byStem.get(key) || []).filter((p) => endsAt(form(p), want))
+  const steps = exactFileOnly ? [] : [[stripExt(basename(noteFile)), noteFile]]
+  steps.push([stripExt(name), lower])
+  for (const [key, want] of steps) {
+    const hits = (byStem.get(key) || []).filter((p) => endsAt(p.toLowerCase(), want))
     if (hits.length) return pick(hits, near)
   }
   return null
@@ -453,12 +464,6 @@ function pick(candidates, fromDir) {
 
 function endsAt(form, want) {
   return form === want || form.endsWith(`/${want}`)
-}
-
-function stemPath(path) {
-  const folder = dirOf(path)
-  const stem = stripExt(basename(path))
-  return folder ? `${folder}/${stem}` : stem
 }
 
 function stripFragment(target) {
