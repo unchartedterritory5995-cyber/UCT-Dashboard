@@ -38,6 +38,7 @@ import UIcon from '../../components/ui/UIcon'
 import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
 import { studyAnnotations, studyHighlightBars, STUDY_HIGHLIGHT_COLOR } from '../study/studyOverlays'
+import { toChartTime } from '../../components/chart/patternTime'
 import { slingshotInstances } from '../study/slingshotOverlay'
 import styles from './StudyReview.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
@@ -573,7 +574,8 @@ export default function StudyReview() {
     // under the arrow are the ones the reader judges (owner 2026-10-31).
     const firstHour = isHourlyItem(sel) ? sel.reveal_json?.facts?.first_hour_t : null
     if (firstHour != null) {
-      return [{ time: Number(firstHour), position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'the open: first 3 hours in white', id: 'study-open' }]
+      // StockChart feeds intraday bars at t + ET_OFFSET (adjustTime); the marker rides the same shift or it lands hours late.
+      return [{ time: toChartTime(Number(firstHour), '60'), position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'the open: first 3 hours in white', id: 'study-open' }]
     }
     return [{ time: sel.asof, position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'member sees to here', id: 'study-asof' }]
   }, [sel])
