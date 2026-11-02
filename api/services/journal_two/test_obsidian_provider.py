@@ -667,9 +667,10 @@ def _key(path):
 
 def test_unresolved_wikilink_keeps_display_text_and_a_pending_key():
     out = _convert("see [[Ghost Note]] and [[Ghost Note#Risk|the risk]].", [])
-    pending = f"import-link://name:obsidian:{_V}/ghost note"
+    # `|notes`: the linking note's folder, so the heal applies the same-folder rule too.
+    pending = f"import-link://name:obsidian:{_V}/ghost note|notes"
     assert _link_marks(out["doc"]) == [("Ghost Note", pending), ("the risk", pending)]
-    assert out["links"] == [f"name:obsidian:{_V}/ghost note"] * 2
+    assert out["links"] == [f"name:obsidian:{_V}/ghost note|notes"] * 2
     assert extract_plain_text(out["doc"]) == "see Ghost Note and the risk."
 
 
@@ -686,7 +687,8 @@ def test_relative_markdown_links_resolve():
         ("d", _key("Archive/Deep.md")),          # not beside the note: the vault root
         ("e", "https://example.com/x.md"),       # a scheme is never the vault's business
         ("f", "#local"),                         # left to the one link policy (Task 10)
-        ("g", f"import-link://name:obsidian:{_V}/notes/missing.md"),  # may arrive later
+        # May arrive later: as written, with the linking note's folder, marked relative.
+        ("g", f"import-link://name:obsidian:{_V}/missing.md|notes|rel"),
         ("h", _key("Notes/Other.md")),
     ]
 
@@ -762,3 +764,55 @@ def test_raw_img_and_a_html_become_image_and_link():
     assert [m["ref"] for m in out["media"]] == ["https://example.com/c.png", "files/d.png"]
     text = extract_plain_text(out["doc"])
     assert "<" not in text and "bad" in text
+
+
+# ── Fix round 1 ──────────────────────────────────────────────────────────────
+
+async def test_one_vault_index_per_fetch_batch_not_one_per_note(db, monkeypatch):
+    """I-1: the vault's path index is built ONCE per `fetch_many` and shared by every
+    note's link resolution. ⚰️ The relative resolver rebuilt a path dict per note
+    (O(notes x paths) on a first sync, on the event loop)."""
+    from api.services.journal_two.note_connectors.providers import obsidian as obs
+
+    built: list[int] = []
+    real_init = obs._VaultIndex.__init__
+
+    def counting_init(self, paths):
+        built.append(len(paths))
+        real_init(self, paths)
+
+    monkeypatch.setattr(obs._VaultIndex, "__init__", counting_init)
+    names = [f"Notes/n{i}.md" for i in range(6)]
+    for i, path in enumerate(names):
+        _stage("user-a", "vault-1", path,
+               f"[next](n{(i + 1) % 6}.md) [[Ghost {i}]] [up](../Notes/n0.md)", T1)
+    _manifest("user-a", "vault-1", names)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    notes = await provider.fetch_many({}, [RemoteRef(remote_id=p, updated_at=T1) for p in names])
+    assert len(notes) == 6
+    assert all(n.links[0].startswith("obsidian:vault-1/Notes/n") for n in notes)
+    assert built == [6]
+
+
+def test_an_image_whose_src_is_a_deep_link_is_left_alone():
+    """M-2: only a LINK to `obsidian://open` is this vault's business. An image with
+    that src is never rewritten into an `import-link://` image; it stays a media ref
+    the provider refuses by name (a visible notice), and joins no `links`."""
+    body = ("![pic](obsidian://open?vault=Trading&file=Plan) "
+            "[see [the] plan](obsidian://open?vault=Trading&file=Plan)")
+    out = _convert(body, ["Plan.md"], label="Trading")
+    images = [n["attrs"]["src"] for n in out["doc"]["content"] if n["type"] == "image"]
+    assert images == ["import-ref://obsidian://open?vault=Trading&file=Plan"]
+    assert out["links"] == [f"obsidian:{_V}/Plan.md"]
+    assert _link_marks(out["doc"]) == [("see [the] plan", _key("Plan.md"))]
+
+
+def test_tilde_fences_are_code_for_every_obsidian_pass():
+    """M-4: a `~~~` fence is code: no wikilink, highlight, deep link or callout inside it
+    is rewritten."""
+    fenced = ("> [!note] Title\n> body\n[[Plan]] ==hi== "
+              "[d](obsidian://open?vault=Trading&file=Plan)")
+    out = _convert(f"~~~\n{fenced}\n~~~\n\n[[Plan]]", ["Plan.md"], label="Trading")
+    code = next(n for n in out["doc"]["content"] if n["type"] == "codeBlock")
+    assert code["content"][0]["text"] == fenced
+    assert out["links"] == [f"obsidian:{_V}/Plan.md"]  # the one OUTSIDE the fence

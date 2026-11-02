@@ -469,7 +469,7 @@
           "marks": [
            {
             "attrs": {
-             "href": "import-link://name:obsidian:vault-messy/ghost note"
+             "href": "import-link://name:obsidian:vault-messy/ghost note|notes"
             },
             "type": "link"
            }
@@ -574,7 +574,7 @@
           "marks": [
            {
             "attrs": {
-             "href": "import-link://name:obsidian:vault-messy/notes/missing.md"
+             "href": "import-link://name:obsidian:vault-messy/missing.md|notes|rel"
             },
             "type": "link"
            }

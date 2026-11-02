@@ -436,6 +436,34 @@ async def test_fetch_resolves_a_relative_image_reference_via_the_path_map():
     assert content_type == "image/png"
 
 
+async def test_a_raw_relative_html_img_in_markdown_is_a_named_refusal_never_a_request(monkeypatch):
+    """Plan A Task 13 fix round 1 (trace): `md_to_tiptap` now turns a raw `<img>` in
+    markdown into an image (it used to be literal text). Its src is NOT run through this
+    provider's markdown path map, so a relative one reaches `fetch_media` as written. It
+    must end as a NAMED refusal (`NoteConnUnsupported` with a reason, which the engine
+    writes as a visible importNotice), and never as a request: not to Dropbox, and not to
+    a protocol-relative host."""
+    body = b'# Trading\n\n<img src="pic.png"> and <img src="//evil.example/x.png">\n'
+    monkeypatch.setitem(FILE_CONTENTS, TRADING_MD_PATH, body)
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return _default_handler(request)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    note = await provider.fetch(CREDS, next(r for r in refs if r.remote_id == TRADING_MD_PATH))
+    assert [m["ref"] for m in note.media] == ["pic.png", "//evil.example/x.png"]
+
+    seen.clear()
+    for ref in ("pic.png", "//evil.example/x.png"):
+        with pytest.raises(NoteConnUnsupported) as exc:
+            await provider.fetch_media(CREDS, ref)
+        assert exc.value.reason
+    assert seen == []
+
+
 async def test_fetch_before_list_changed_raises_runtime_error():
     """Mirrors `RoamProvider`'s `_require_enumerated` precedent -- the
     path->entry map `fetch()` depends on (relative media resolution, titles,

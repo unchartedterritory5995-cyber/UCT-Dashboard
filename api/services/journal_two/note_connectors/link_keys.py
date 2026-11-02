@@ -19,7 +19,10 @@ real in-app link (`/journal?j2tab=notebook&note=<id>`). Two things live here:
     conversion time (basename or path-qualified, `.md` optional, case-insensitive,
     shortest of duplicate names). Written by the provider for a wikilink or relative link
     whose note has not arrived yet, so the note can come later and the link still heal.
-    The vault id runs to the first `/` (vault ids are plugin-minted UUIDs);
+    The vault id runs to the first `/` (vault ids are plugin-minted UUIDs). A key may
+    carry `|<linking note's folder>` and `|<folder>|rel` (a relative link): the heal reads
+    them through the provider's `resolve_pending_target`, so it picks the same note
+    conversion would have (fix round 1, M-1);
   * any other kind resolves to nothing.
 
 `heal_pending_links` -- rewrite the marks that can resolve NOW, in notes imported
@@ -74,9 +77,15 @@ def _norm_title(t: Any) -> str:
 def _resolve_obsidian_names(conn: sqlite3.Connection, user_id: str, keys: list[str]) -> dict[str, str]:
     """`{name key: note_id}` -- see the module docstring. One query per vault named, over
     that vault's import keys only (a range on `import_key`, so `vault-1x` is never read
-    for `vault-1`, and no LIKE wildcard in a vault id can widen it)."""
+    for `vault-1`, and no LIKE wildcard in a vault id can widen it).
+
+    Fix round 1: ⛔ ONE `_VaultIndex` per vault per call, then O(1) lookups per key
+    (I-2) -- the engine's final link pass hands this every touched note's links, uncapped,
+    so a per-key scan of the vault was O(keys x paths) on the event loop. And the key's
+    own fields (the linking note's folder; a relative link) go through
+    `resolve_pending_target`, the very rule conversion used (M-1)."""
     from api.services.journal_two.note_connectors.providers.obsidian import (
-        _build_basename_map, _resolve_target,
+        _build_basename_map, resolve_pending_target,
     )
 
     by_vault: dict[str, list[tuple[str, str]]] = {}
@@ -94,10 +103,9 @@ def _resolve_obsidian_names(conn: sqlite3.Connection, user_id: str, keys: list[s
             (user_id, prefix, prefix[:-1] + chr(ord("/") + 1)),
         ):
             id_by_path.setdefault(row["import_key"][len(prefix):], row["id"])
-        paths = sorted(id_by_path)
-        basename_map = _build_basename_map(paths)
+        index = _build_basename_map(sorted(id_by_path))
         for k, target in wanted:
-            path = _resolve_target(target, paths, basename_map)
+            path = resolve_pending_target(target, index)
             if path is not None:
                 out[k] = id_by_path[path]
     return out

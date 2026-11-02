@@ -490,7 +490,8 @@ def test_corpus_obsidian_duplicate_basename_prefers_the_same_folder(obsidian, hu
 
 
 def test_corpus_obsidian_unresolvable_wikilink_waits_under_a_name_key(hub):
-    assert _href(hub, "Ghost Note") == f"import-link://name:obsidian:{VAULT}/ghost note"
+    # `|notes`: Hub's folder, so the heal applies conversion's same-folder rule (Task 13 M-1).
+    assert _href(hub, "Ghost Note") == f"import-link://name:obsidian:{VAULT}/ghost note|notes"
 
 
 def test_corpus_obsidian_literal_percent_name_resolves(obsidian, hub):
@@ -503,7 +504,8 @@ def test_corpus_obsidian_relative_links_resolve(obsidian, hub):
         ("angle", _to(obsidian, "Notes/Other note.md")), (" ", None),
         ("up a folder", _to(obsidian, "Archive/Deep.md")), (" ", None),
         ("dot", _to(obsidian, "Notes/Plan.md")), (" ", None),
-        ("missing", f"import-link://name:obsidian:{VAULT}/notes/missing.md"), (".", None)]
+        # As written, Hub's folder, relative: the heal reruns the relative rule (M-1).
+        ("missing", f"import-link://name:obsidian:{VAULT}/missing.md|notes|rel"), (".", None)]
 
 
 def test_corpus_obsidian_deep_link_resolves_in_its_own_vault_only(obsidian, hub):

@@ -131,6 +131,75 @@ def test_obsidian_name_key_resolves_with_the_conversion_rules(db):
     }
 
 
+def _pending_keys_from(body, self_path):
+    """The pending keys the REAL Obsidian conversion writes for `body` in an empty vault."""
+    from api.services.journal_two.note_connectors.providers.obsidian import (
+        ObsidianProvider, _build_basename_map,
+    )
+    paths = [self_path]
+    provider = ObsidianProvider(user_id="u1", vault_id="v1")
+    return provider._convert_row(self_path, body, paths, _build_basename_map(paths))["links"]
+
+
+def test_a_healed_wikilink_prefers_the_linking_notes_folder_like_conversion_does(db):
+    """Fix round 1, M-1: conversion resolves a duplicate name to the linking note's folder
+    first; the heal must too, not the shortest path."""
+    [key] = _pending_keys_from("[[Plan]]", "Notes/Sub/Src.md")
+    _import("u1", "obsidian", "obsidian:v1/B/Plan.md", "Shorter")
+    beside = _import("u1", "obsidian", "obsidian:v1/Notes/Sub/Plan.md", "Beside")
+    assert _resolve("u1", [key]) == {key: beside}
+
+
+def test_a_healed_relative_link_uses_the_same_rooted_and_name_fallbacks(db):
+    """M-1: `[x](Other.md)` in `Notes/Src.md` resolves beside the note, then from the vault
+    root, then by name. A pending one heals by that SAME rule."""
+    [rooted_key] = _pending_keys_from("[x](Other.md)", "Notes/Src.md")
+    [named_key] = _pending_keys_from("[y](Far.md)", "Notes/Src.md")
+    root_other = _import("u1", "obsidian", "obsidian:v1/Other.md", "Other")
+    far = _import("u1", "obsidian", "obsidian:v1/Archive/Deep/Far.md", "Far")
+    assert _resolve("u1", [rooted_key, named_key]) == {rooted_key: root_other, named_key: far}
+    # And beside the note wins over the root, as it does at conversion time.
+    beside = _import("u1", "obsidian", "obsidian:v1/Notes/Other.md", "Other beside")
+    assert _resolve("u1", [rooted_key]) == {rooted_key: beside}
+
+
+def test_resolving_many_name_keys_over_a_large_vault_is_not_keys_times_paths(db, monkeypatch):
+    """Fix round 1, I-2: the engine's final link pass hands every touched note's links to
+    `resolve_link_keys`, uncapped. 2,000 keys over a 20,000-note vault resolve with ONE
+    index build and in well under a second (a per-key scan of the vault took ~40M path
+    comparisons)."""
+    import time
+    from api.services.journal_two.note_connectors.providers import obsidian as obs
+
+    conn = auth_db.get_connection()
+    try:
+        conn.executemany(
+            "INSERT INTO j2_notes (id, user_id, import_key, created_at, updated_at)"
+            " VALUES (?, 'u1', ?, '2026-08-01', '2026-08-01')",
+            [(f"n{i}", f"obsidian:v1/F{i % 40}/Sub{i % 7}/Note {i}.md") for i in range(20000)])
+        conn.commit()
+    finally:
+        conn.close()
+    keys = []
+    for i in range(500):
+        j = i * 37
+        keys += [f"name:obsidian:v1/note {j}",                            # bare name
+                 f"name:obsidian:v1/sub{j % 7}/note {j}|f{i % 40}",        # path-qualified
+                 f"name:obsidian:v1/nowhere/missing {i}",                  # unresolvable
+                 f"name:obsidian:v1/missing {i}.md|f1|rel"]                # relative, unresolvable
+    builds: list[int] = []
+    real = obs._build_basename_map
+    monkeypatch.setattr(obs, "_build_basename_map", lambda p: builds.append(1) or real(p))
+
+    started = time.perf_counter()
+    got = _resolve("u1", keys)
+    elapsed = time.perf_counter() - started
+
+    assert len(got) == 1000 and got["name:obsidian:v1/note 37"] == "n37"
+    assert builds == [1]
+    assert elapsed < 1.0, f"{elapsed:.2f}s for 2,000 keys over 20,000 paths"
+
+
 # ── heal_pending_links ───────────────────────────────────────────────────────
 
 def test_heal_resolves_a_title_link_timestamp_neutrally_and_projects_it(db):
