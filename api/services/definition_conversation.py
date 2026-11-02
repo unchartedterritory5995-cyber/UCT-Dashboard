@@ -547,7 +547,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "follow a yes/no output -- colorWhen / backgroundWhen, e.g. green where bullish, red where "
     "not -- a yes/no cell may show its own `labels`, `size` sets text size and `span` merges a "
     "title across columns); remove_table removes it. Formula functions linreg, correlation, "
-    "vwma, roc, mom, kcUpper / kcMiddle / kcLower may be called in any tree (their lengths are "
+    "vwma, roc, mom, kcUpper / kcMiddle / kcLower, bbUpper / bbMiddle / bbLower may be called in any tree (their lengths are "
     "whole-number literals; `capabilities.formulaFunctions` lists them). A number the "
     "MEMBER sets (account size, risk %, entry, stop): declare it as an input (create `inputs`, "
     "or set_input) and read it in a tree as a series named by its key. NEVER invent the member's "

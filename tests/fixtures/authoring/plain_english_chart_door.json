@@ -26,6 +26,8 @@
     {"message": "plot the Moving Average Convergence Divergence", "model": true, "terms": ["macd"]},
     {"message": "show the Bollinger Band Width", "model": true, "terms": ["bbw"]},
     {"message": "an Anchored VWAP from the earnings gap", "model": true, "terms": ["avwap"]},
+    {"message": "show Bollinger Bands 20 2", "model": true, "terms": ["bbUpper"]},
+    {"message": "highlight when close is above the upper Bollinger Band", "model": true, "terms": ["bbUpper"]},
     {"message": "show relative strength versus SPY", "model": true, "not_terms": ["rsi"]},
     {"message": "Add the McGinley Dynamic", "refused": "McGinley Dynamic"},
     {"message": "show the Chaikin Money Flow", "refused": "Chaikin Money Flow"},

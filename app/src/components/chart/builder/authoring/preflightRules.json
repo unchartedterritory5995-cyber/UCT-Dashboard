@@ -259,7 +259,8 @@
       ["volume weighted average price", "vwap"],
       ["anchored vwap", "avwap"], ["anchored volume weighted average price", "avwap"],
       ["percent rank", "percentrank"], ["rank correlation index", "rci"],
-      ["balance of power", "bop"]
+      ["balance of power", "bop"],
+      ["bollinger band", "bbUpper"], ["bollinger bands", "bbUpper"], ["bollinger", "bbUpper"]
     ]
   },
   "questionShape": {
