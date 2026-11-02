@@ -857,20 +857,59 @@ def test_engine_call_without_guard_is_unchanged(conn):
 def _legacy_shape(conn, tmp_path, monkeypatch, note_id):
     """A note finalized BEFORE the stamp shipped: updated_at 600 s after imported_at, a media
     file written 5 s before that write, no version after the import."""
-    import os
     from datetime import datetime
     root = tmp_path / "att"
     monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", root)
-    imported = conn.execute("SELECT imported_at FROM j2_notes WHERE id=?", (note_id,)).fetchone()[0]
+    imported = "2026-10-01T12:00:00+00:00"     # before LEGACY_FINALIZE_CUTOFF: a legacy import
     updated = _shift(imported, 600)
-    conn.execute("UPDATE j2_notes SET updated_at=? WHERE id=?", (updated, note_id))
+    conn.execute("UPDATE j2_notes SET imported_at=?, updated_at=? WHERE id=?", (imported, updated, note_id))
     conn.commit()
-    media = root / "u1" / "notes" / note_id / "inline" / "x.png"
-    media.parent.mkdir(parents=True)
-    media.write_bytes(b"png")
-    stamp = datetime.fromisoformat(updated).timestamp() - 5
-    os.utime(media, (stamp, stamp))
+    _media_at(root, note_id, datetime.fromisoformat(updated).timestamp() - 5)
     return imported
+
+
+def _media_at(root, note_id, mtime):
+    import os
+    media = root / "u1" / "notes" / note_id / "inline" / "x.png"
+    media.parent.mkdir(parents=True, exist_ok=True)
+    media.write_bytes(b"png")
+    os.utime(media, (mtime, mtime))
+
+
+def test_a_post_cutoff_image_only_member_save_reads_as_edited(conn, tmp_path, monkeypatch):
+    """Fix round 1: after the stamp shipped, the legacy shape is a member's image paste (an
+    image adds no text, so no version is captured). It must read as EDITED: recover keeps it
+    and a guarded import of a changed export keeps it."""
+    from datetime import datetime
+    root = tmp_path / "att"
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", root)
+    note_id = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")])["created"][0]["id"]
+    imported = conn.execute("SELECT imported_at FROM j2_notes WHERE id=?", (note_id,)).fetchone()[0]
+    assert import_provenance.is_later(imported, import_provenance.LEGACY_FINALIZE_CUTOFF)
+    body = notes_svc.get_note("u1", note_id, conn=conn)["bodyJson"]
+    body["content"].append({"type": "image", "attrs": {"src": "/api/j2/notes/attachments/u1/x.png"}})
+    notes_svc.update_note("u1", note_id, {"bodyJson": body}, conn=conn)       # the member's paste
+    updated = conn.execute("SELECT updated_at FROM j2_notes WHERE id=?", (note_id,)).fetchone()[0]
+    t_imported = datetime.fromisoformat(imported).timestamp()
+    t_updated = datetime.fromisoformat(updated).timestamp()
+    _media_at(root, note_id, (t_imported + t_updated) / 2)     # stored between import and save
+    # non-vacuity: WITHOUT the cutoff this note has the legacy shape exactly
+    assert import_provenance.legacy_finalize_shape(updated, imported, (t_imported + t_updated) / 2, False)
+    assert not conn.execute("SELECT 1 FROM j2_note_versions WHERE note_id=?", (note_id,)).fetchone()
+    out = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")], mode="recover")
+    assert out["keptEdited"] == [{"importKey": "obsidian:a.md", "id": note_id}] and not out["recovered"]
+    out = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha2")], guard_edits=True)
+    assert out["keptEdited"] == [{"importKey": "obsidian:a.md", "id": note_id}] and not out["updated"]
+    stored = notes_svc.get_note("u1", note_id, conn=conn)["bodyJson"]["content"]
+    assert stored[-1]["type"] == "image"
+
+
+def test_the_finalize_stamp_is_only_written_on_an_imported_note(conn):
+    """Fix round 1 hardening: a hand-crafted PUT carrying importMediaPending on a note nobody
+    imported must not invent an imported_at."""
+    note = notes_svc.create_note("u1", {"title": "mine"}, conn=conn)
+    notes_svc.update_note("u1", note["id"], {"title": "mine2", "importMediaPending": False}, conn=conn)
+    assert conn.execute("SELECT imported_at FROM j2_notes WHERE id=?", (note["id"],)).fetchone()[0] is None
 
 
 def test_legacy_finalize_shape_reads_as_unedited(conn, tmp_path, monkeypatch):

@@ -61,6 +61,20 @@ def edited_since_import(updated_at: Any, imported_at: Any) -> bool:
 #: land, and how soon after the newest media file its finalize PUT follows.
 LEGACY_FINALIZE_WINDOW_S = 7200
 LEGACY_FINALIZE_SLACK_S = 120
+#: Fix round 1 (controller ruling): the legacy shape describes only imports from BEFORE
+#: `update_note` stamped `imported_at` on the finalize PUT. After that, a member pasting an
+#: image soon after an import has exactly the same shape (an image adds no text, so no version
+#: is captured), and reading it as unedited would let a recover or a guarded import overwrite
+#: it. Imports between this cutoff and the deploy read as edited: fail-safe.
+#: ⚠️ ACCEPTED RESIDUAL: before the cutoff the ambiguity remains -- a pre-cutoff import whose
+#: only member edit was an image-only save within the window reads as the importer's finalize.
+LEGACY_FINALIZE_CUTOFF = "2026-11-02T00:00:00+00:00"
+
+
+def predates_finalize_stamp(imported_at: Any) -> bool:
+    """True when `imported_at` is readable and earlier than `LEGACY_FINALIZE_CUTOFF`: the only
+    imports `legacy_finalize_shape` may describe."""
+    return is_later(LEGACY_FINALIZE_CUTOFF, imported_at)
 
 
 def legacy_finalize_shape(updated_at: Any, imported_at: Any, newest_media_mtime: Any,
@@ -72,7 +86,8 @@ def legacy_finalize_shape(updated_at: Any, imported_at: Any, newest_media_mtime:
     (a member's text edit captures one). Anything unreadable, or no media, answers False.
 
     ⛔ Not a second definition of "edited": callers use
-    `edited_since_import(...) and not legacy_finalize_shape(...)`. Only the file importer's
+    `edited_since_import(...) and not (predates_finalize_stamp(imported_at) and
+    legacy_finalize_shape(...))` -- the shape alone is ambiguous after the cutoff. Only the file importer's
     recover/guard reads it -- the heal pass's SQL prefilter cannot read file mtimes, so a legacy
     file-imported note is healed by a recover, never by the heal pass."""
     updated = _instant(updated_at)

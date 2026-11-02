@@ -64,3 +64,13 @@ def test_legacy_finalize_shape_refuses_unreadable_stamps():
 
 def test_the_window_and_slack_constants():
     assert ip.LEGACY_FINALIZE_WINDOW_S == 7200 and ip.LEGACY_FINALIZE_SLACK_S == 120
+
+
+def test_only_an_import_before_the_cutoff_predates_the_stamp():
+    assert ip.LEGACY_FINALIZE_CUTOFF == "2026-11-02T00:00:00+00:00"
+    assert ip.predates_finalize_stamp("2026-11-01T23:59:59+00:00")
+    assert ip.predates_finalize_stamp("2026-11-01T23:59:59Z")
+    assert not ip.predates_finalize_stamp("2026-11-02T00:00:00+00:00")
+    assert not ip.predates_finalize_stamp("2026-11-02T00:00:01Z")
+    for junk in (None, "", "nope"):
+        assert not ip.predates_finalize_stamp(junk), junk   # undatable never earns the exemption

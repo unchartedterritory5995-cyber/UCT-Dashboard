@@ -1479,6 +1479,9 @@ def _edited_since_file_import(conn: sqlite3.Connection, user_id: str, row: sqlit
     updated_at, imported_at = row["updated_at"], row["imported_at"]
     if not import_provenance.edited_since_import(updated_at, imported_at):
         return False
+    # Fix round 1 (ruling): the legacy shape describes only imports from before the stamp.
+    if not import_provenance.predates_finalize_stamp(imported_at):
+        return True
     later_version = any(
         import_provenance.is_later(v[0], imported_at)
         for v in conn.execute("SELECT created_at FROM j2_note_versions WHERE note_id = ?", (row["id"],)))
@@ -4256,7 +4259,9 @@ def update_note(
 
         now = _now_iso()
         sets.append("updated_at = ?"); params.append(now)
-        if "importMediaPending" in patch:
+        if "importMediaPending" in patch and existing["import_key"]:
+            # Fix round 1: only an IMPORTED note carries import provenance to stamp; a
+            # hand-crafted PUT on a note nobody imported must not invent an `imported_at`.
             # Plan B Task 10 (R5/H1): only the importer's own post-confirm write carries
             # `importMediaPending`, so it re-stamps `imported_at` with the SAME instant as
             # `updated_at`. Without this, that write read as a member edit
