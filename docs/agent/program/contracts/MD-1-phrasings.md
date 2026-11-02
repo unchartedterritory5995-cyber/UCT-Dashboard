@@ -40,9 +40,9 @@ this list, but it must handle every row exactly as written. The test suites read
 
 | outcome | when | what the member gets |
 |---|---|---|
-| `price` | quote intent, every candidate `symbol` | the §4.5 answer, naming each security: `NVDA (NVIDIA Corporation) $142.10 …`; a fund reads `BTC (Grayscale Bitcoin Mini Trust, an ETF) …` and the answer adds the fund-price sentence (MD-1 §4.7.3) |
+| `price` | quote intent, every candidate `symbol` (a lowercase word is `symbol` only when MD-1 §4.7.5 confirms it) | the §4.5 answer, naming each security: `NVDA (NVIDIA Corporation) $142.10 …`; a fund reads `BTC (Grayscale Bitcoin Mini Trust, an ETF) …` and the answer adds the fund-price sentence (MD-1 §4.7.3) |
 | `bars` | bars intent, the candidate `symbol` | the §4.6 answer, naming the security |
-| `ask:SYM` | a candidate is `symbol_typed_lowercase` or `name_match` (SYM is the index's candidate, recorded for the tests; the member is never shown it) | `I'm not sure which instrument "<word>" means. I can quote US-listed stocks and ETFs by ticker. Type the ticker in capitals and I'll get it.` |
+| `ask:SYM` | a candidate is `symbol_typed_lowercase` (a lowercase symbol §4.7.5 does not confirm) or `name_match` (SYM is the index's candidate, recorded for the tests; the member is never shown it) | `I'm not sure which instrument "<word>" means. I can quote US-listed stocks and ETFs by ticker. Type the ticker in capitals and I'll get it.` |
 | `limit` | a candidate is `non_equity` or `unknown` | `I can quote US-listed stocks and ETFs by ticker. <word> isn't one I can price here.` |
 | `model` | the parser does not claim it | the normal path (a safe miss) |
 
@@ -60,29 +60,29 @@ this list, but it must handle every row exactly as written. The test suites read
 | # | phrasing (verbatim) | intent | candidates | outcome |
 |---|---|---|---|---|
 | P01 | what's NVDA trading at premarket? | quote | `NVDA:upper` | price |
-| P02 | nvda price | quote | `nvda:lower` | ask:NVDA |
+| P02 | nvda price | quote | `nvda:lower` | price |
 | P03 | $nvda | quote | `$nvda:cashtag` | price |
-| P04 | where's tsla at | quote | `tsla:lower` | ask:TSLA |
-| P05 | how's aapl doing today | quote | `aapl:lower` | ask:AAPL |
+| P04 | where's tsla at | quote | `tsla:lower` | price |
+| P05 | how's aapl doing today | quote | `aapl:lower` | price |
 | P06 | NVDA and AMD premarket | quote | `NVDA:upper AMD:upper` | price |
-| P07 | quotes for msft, googl, meta | quote | `msft:lower googl:lower meta:lower` | ask:MSFT |
-| P08 | wats nvda tradin at | quote | `nvda:lower` | ask:NVDA |
-| P09 | pirce of amd | quote | `amd:lower` | ask:AMD |
+| P07 | quotes for msft, googl, meta | quote | `msft:lower googl:lower meta:lower` | ask:GOOGL |
+| P08 | wats nvda tradin at | quote | `nvda:lower` | price |
+| P09 | pirce of amd | quote | `amd:lower` | price |
 | P10 | what's NOW trading at | quote | `NOW:upper` | price |
 | P11 | what's now trading at | none | — | model |
 | P12 | $CAN price | quote | `$CAN:cashtag` | price |
-| P13 | can you get me the price of amd | quote | `amd:lower` | ask:AMD |
+| P13 | can you get me the price of amd | quote | `amd:lower` | price |
 | P14 | is it up after hours | none | — | model |
 | P15 | NVDA after hours | quote | `NVDA:upper` | price |
 | P16 | spy overnight | quote | `spy:lower` | ask:SPY |
-| P17 | brk.b price | quote | `brk.b:lower` | ask:BRK-B |
+| P17 | brk.b price | quote | `brk.b:lower` | price |
 | P18 | how did AAPL close yesterday | none | — | model |
-| P19 | aapl close | bars.lastClose | `aapl:lower` | ask:AAPL |
+| P19 | aapl close | bars.lastClose | `aapl:lower` | bars |
 | P20 | NVDA's 5-day change | bars.change n=5 | `NVDA:upper` | bars |
 | P21 | how much is tsla up this week | none | — | model |
 | P22 | AMD past 2 weeks | bars.change n=10 | `AMD:upper` | bars |
 | P23 | NVDA 52-week high | bars.range52w | `NVDA:upper` | bars |
-| P24 | aapl 52w low | bars.range52w | `aapl:lower` | ask:AAPL |
+| P24 | aapl 52w low | bars.range52w | `aapl:lower` | bars |
 | P25 | what's LOW at | quote | `LOW:upper` | price |
 | P26 | what's the low on nvda today | none | — | model |
 | P27 | why is nvda up | none | — | model |
@@ -100,13 +100,19 @@ this list, but it must handle every row exactly as written. The test suites read
 | P39 | nvda close on friday | none | — | model |
 | P40 | $nvda $amd $tsla | quote | `$nvda:cashtag $amd:cashtag $tsla:cashtag` | price |
 | P41 | NVDA and nvdia price | quote | `NVDA:upper nvdia:lower` | limit |
-| P42 | WHAT'S NVDA AT | quote | `nvda:lower` | ask:NVDA |
+| P42 | WHAT'S NVDA AT | quote | `nvda:lower` | price |
 
 **Notes on the rows:**
 - **P35 and P41 (all or nothing):** one unresolved word blocks the whole compound. Nothing is priced, and the
   first problem by precedence is named.
 - **P31, P33 (`btc`, `gold`):** the index holds a stock or ETF whose ticker is the word, but the member most likely
-  means the asset. The clarification is neutral and names no security (owner ruling, 2026-11-02).
+  means the asset. MD-1 §4.7.5 does not confirm them: `btc` is a fund (L1), and `gold` is an ordinary word in
+  instrument names (L3). The clarification is neutral and names no security (owner ruling, 2026-11-02).
+- **P02, P05, P17 (`nvda`, `aapl`, `brk.b`):** confirmed by §4.7.5 (a stock, the ticker abbreviates its own name,
+  no collision in the index), so they are priced with the security named.
+- **P07 (`googl`, `meta`):** not confirmed: `googl` does not spell "Alphabet" (L2) and `meta` is a word of its own
+  name (L3). All or nothing, so the whole compound asks; the member types the capitals.
+- **P16 (`spy`):** a fund, so a lowercase `spy` asks (L1).
 - **P32 (`BTC` in capitals):** the member typed a ticker, so the listed fund is priced, labelled `an ETF`, with the
   sentence that its price is the fund's share price, not bitcoin's.
 - **P42 (an all-caps sentence):** when the whole sentence is in capitals, capitals carry no evidence, so every

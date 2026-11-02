@@ -17,6 +17,17 @@
     ["BTC", "Grayscale Bitcoin Mini Trust", "etf"],
     ["IBIT", "iShares Bitcoin Trust ETF", "etf"],
     ["GOLD", "Barrick Gold Corporation", "stock"],
-    ["SPX", "S&P 500 Index", "index"]
+    ["SPX", "S&P 500 Index", "index"],
+    ["GOOG", "Alphabet Inc. Class C", "stock"],
+    ["GLD", "SPDR Gold Shares", "etf"],
+    ["DOW", "Dow Inc.", "stock"],
+    ["DIA", "SPDR Dow Jones Industrial Average ETF Trust", "etf"],
+    ["FBTC", "Fidelity Wise Origin Bitcoin Fund", "etf"],
+    ["ETH", "Grayscale Ethereum Mini Trust", "etf"],
+    ["ETHA", "iShares Ethereum Trust ETF", "etf"],
+    ["SOL", "Emeren Group Ltd", "stock"],
+    ["SOLZ", "Volatility Shares Solana ETF", "etf"],
+    ["NVDL", "GraniteShares 2x Long NVDA Daily ETF", "etf"],
+    ["KEY", "KeyCorp", "stock"]
   ]
 }
