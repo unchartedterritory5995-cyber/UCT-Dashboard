@@ -2616,6 +2616,11 @@ def definitions_to_sweep() -> list:
         # refusal the member already read.
         if user_definitions.consumer_refusal("sweep", row.get("requirements")):
             continue
+        # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is
+        # not swept (silent here for the reason above: the member reads it BY NAME
+        # at `routers/user_definitions._stamped`, gate `withheld`).
+        if user_definitions.engine_withheld_reason(row):
+            continue
         compute = definition.get("compute")
         if not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
             continue

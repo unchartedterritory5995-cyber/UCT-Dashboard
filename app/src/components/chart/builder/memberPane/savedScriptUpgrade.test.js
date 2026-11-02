@@ -205,7 +205,7 @@ describe('writeBackOnce', () => {
     expect(doc).toBe(definition)
     expect(defId).toBe(ID)
     expect(telemetry).toBe(null)
-    expect(options).toEqual({ baseVersion: 7, pineSource: SCRIPT })
+    expect(options).toEqual({ baseVersion: 7, pineSource: SCRIPT, reason: 'engine-upgrade' })
     expect(writeBackStatus(row)).toBe('conflict')
   })
 
