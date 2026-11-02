@@ -252,6 +252,76 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
+## ⭐ F-16 FINAL RULING: agent-qa's INDEPENDENT review of fields that could reproduce a hidden UCT ranking
+For the owner (via agent-lead). Written **without reading agent-sc's list**, from the code on agent/int `0a1cda2216`:
+`api/services/screener/enrich.py`, `research/ratings.py`, `rs_weighted_return.py`, `screener/setup_score.py`,
+`pattern_join.py`, `earnings_context.py`/`setup_grade.py` and `filters.field_catalog()` (187 fields).
+Hidden by the ruling (26): `uct_composite`, `rating_eps/growth/value/smr`, `sponsorship`, `accdis`, `rs_rank`,
+`rs_return`, `dp_*` (4), `opt_*` (3), `candle_score`, `earnings_setup_grade`, `pattern_engine_*` (5), `in_uct20`.
+**The mechanism to watch is SORT and THRESHOLD over the inputs.** A hidden rating that is a universe percentile of
+a visible input has exactly that input's order. And counts at thresholds, run one name at a time, bisect any value.
+
+**A. Still VISIBLE, and it reproduces a hidden field EXACTLY or in exact order**
+
+| # | Hidden | Visible route | How exact | Source |
+|---|---|---|---|---|
+| A1 | `rs_return`, `rs_rank` | `chg_pct_3m`, `chg_pct_6m`, `chg_pct_1m`, `chg_pct_1w` | **Exact formula**: `rs_return = 0.40·3m + 0.20·6m + 0.20·1m + 0.20·1w` (renormalised when a term is missing). `rs_rank` is its percentile, so ordering by that sum IS the RS Rank order. The change fields come from the same `returns` dict, keys `3m` and `6m` | `rs_weighted_return.RS_TERMS`; `snapshot_builder.py:~377` |
+| A2 | `candle_score` (Setup Score) | `pct_vs_ema20`, `vol_nweek_low`, `avg_body_pct_5`, `close_position`, `close_cv_pct`, `pole_pct`, `vol_updown_ratio` | **Exact**: a fixed points table over exactly these seven (25/18/10/5 · 20/13/8 · 15/8 · 15/8 · 10/5 · 15/10/5 · 10/5) | `setup_score.py:115-160` |
+| A3 | `rating_value` | `peg` | Exact order: the inverted universe percentile of PEG (PEG > 0) | `enrich.py` value leg |
+| A4 | `rating_growth` | `blended_growth` | Exact order: the universe percentile of `blended_growth` (the field itself is visible) | `enrich.py` growth leg |
+| A5 | `sponsorship` | `inst_pct` | Monotone: a letter of the universe percentile of `inst_pct` | `enrich.py` sponsorship |
+| A6 | `rating_eps` | `eps_growth` | The percentile of the `earnings_growth` metric. Same order IF `eps_growth` is that metric (not verified) | `enrich.py` eps leg |
+| A7 | `rating_smr` | `rev_growth`, `op_margin`, `roe` | The mean of their three universe percentiles. All three are visible; close order within a screen | `enrich.py` smr leg |
+
+**B. Still VISIBLE and IS a UCT-computed ranking or Pattern Engine output: recommend adding it to the hidden list**
+
+| # | Field | Why |
+|---|---|---|
+| B1 | `sector_rs_pct` (Sector RS) | The **sector percentile of the hidden `rs_return`**: a UCT RS ranking under another name (`enrich.py:216`, `snapshot_builder.py:1591`) |
+| B2 | `pattern_entry_dist_pct`, `pattern_stop_dist_pct`, `pattern_expectancy_r` | Pattern Engine outputs (`pattern_join.py:433`, `snapshot_db.py:128`) that do not carry the `pattern_engine_` prefix, so the ruling's prefix misses them. `pattern_expectancy_r` is UCT's synthetic expectancy |
+
+**C. Reconstructable APPROXIMATELY**
+- C1 `uct_composite` = `_composite(eps, rs, growth, value, smr, accdis)`. Five of its six inputs are A1, A3, A4, A6 and A7.
+  The sixth, `accdis`, is a 65-day up/down volume ratio, which is not a field. `vol_updown_ratio` is setup_score's
+  shorter window and only a proxy. So the composite's ORDER can be closely approximated from visible fields.
+- C2 `earnings_setup_grade`: four weighted inputs (beat streak 0.30, revisions, IV premium, RS), published on
+  /methodology §12. Only the RS term (A1) and the move fields (`implied_move_pct`, `last_report_move_pct`) are fields,
+  so this is partial.
+- C3 `accdis` from `vol_updown_ratio`: different window, coarse.
+
+**D. Owner questions (not rankings)**
+- D1 `archive_calls_n` (Team Archive Calls): a count of the team's own archived calls per ticker, a proprietary
+  editorial signal. Not covered by the ruling.
+- D2 `theme` (UCT Theme taxonomy), `stage2`/`stage4`, `ma_stack`, `hvc_52w`: either taxonomy or public methods, so no
+  action recommended.
+
+**Recommendation (owner decision)**
+1. Add B1 and B2 to the hidden set. They are UCT's own computed outputs and the ruling's intent covers them.
+2. A1–A7 are ordinary market data (returns, PEG, growth, margins, ownership). Hiding them would gut the Agent's
+   screener, so the honest options are:
+   - (i) accept that a ranking rebuildable from public inputs is not protected, and protect only UCT's computed
+     outputs; or
+   - (ii) additionally refuse the specific *combinations* that ARE the formula (A1's four-term weighted sort, A2's
+     seven-input set). That is brittle, because a model can sort on one input at a time.
+   QA recommends (i), stated explicitly on the ruling, plus B1 and B2.
+3. Outside the Agent, for the owner: `/methodology` says UCT Rating components are "scored against fixed thresholds
+   … will change to a ranked percentile when that job lands". The code ranks by universe percentile when available,
+   and CLAUDE.md records `RATINGS_PERCENTILE_ENABLED=1` on production, so a member-facing page may be stale.
+   Not verified live.
+QA's rails for the implemented ruling will take the hidden set as data, so B1 and B2 join with a one-line change
+if the owner agrees.
+
+**OWNER DECISION on this review (relayed by agent-lead):** the recommendation is ACCEPTED.
+- **The final hidden set (31)** = the ruling's 26 + B1 (`sector_rs_pct`) + B2 (`pattern_entry_dist_pct`,
+  `pattern_stop_dist_pct`, `pattern_expectancy_r`) + **`archive_calls_n`** (newly hidden as proprietary research).
+- **Visible:** public inputs (price changes, PEG, growth, institutional %, technicals). A ranking on public data that
+  the member asks for is allowed. The Agent must not deliberately reproduce UCT formulas or expose their weights.
+- **Enforcement:** server-side, with QA rails and adversarial tests (to come, against agent-sc's implementation).
+
+| Matrix cell | State |
+|---|---|
+| F-16-R: a hidden UCT output reconstructed from visible public inputs (A1–A7, C1–C3 above) | **ACCEPTED RESIDUAL (owner decision), not an OPEN cell.** Hiding the outputs does not guarantee they cannot be reconstructed. The protected things are UCT's computed outputs and its formulas and weights. The rails will check the Agent never names a UCT weight or formula (manifest, hints, system prompt, answers). They will not check that a member's own public-data sort can't resemble one |
+
 ## Sprint 2 task 2: MD-2 ACCEPTANCE HARNESS for agent-md's `stock.quote` (#624, MD-1 v1.5 §4.5)
 Files: server `tests/test_uct_agent_qa_md2.py`, browser `app/src/agent/qa/md2Quote.test.js`, and fixtures
 `app/src/agent/__fixtures__/program/md2/scenarios.json` (generated with `--write`). It is independent of agent-md's own
