@@ -1,3 +1,4 @@
+import { ET_OFFSET } from '../../components/chart/barTime'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent, waitFor, within } from '../../test-utils'
 import PatternReview from './PatternReview'
@@ -22,6 +23,7 @@ vi.mock('../../components/StockChart', () => ({
       <span>annotations:{annotations ? annotations.map((a) => `${a.type}@${a.points[0].time}${a.points[0].price != null ? '=' + a.points[0].price : ''}`).join('|') : '-'}</span>
       <span>annotationsVisible:{annotationsVisible ? '1' : '0'}</span>
       <span>highlight:{Array.isArray(highlightBarTime) ? highlightBarTime.join('|') : '-'}{highlightColor ? '@' + highlightColor : ''}</span>
+      <span>dots:{(markers || []).filter((m) => m.shape === 'circle' && m.position === 'belowBar').map((m) => m.time).join('|') || '-'}{(markers || []).some((m) => m.shape === 'circle') ? '@' + markers.find((m) => m.shape === 'circle').color : ''}</span>
       <span>instances:{(settingsOverride?.indicatorInstances || []).map((i) => i.instanceId).join('|') || '-'}</span>
     </div>
   ),
@@ -221,15 +223,16 @@ describe('StudyReview card', () => {
     expect(chart).toHaveTextContent('annotationsVisible:1')
   })
 
-  it('paints the first three hourly bars of the ruled session white and points the arrow at the open (owner 2026-10-31)', () => {
+  it('dots the first three hourly bars of the ruled session and points the arrow at the open (owner 2026-10-31, colours kept 2026-11-01)', () => {
     STORED_BARS = { id: 'sb_h', tf: '60', bars: [1793104200, 1793107800, 1793111400, 1793115000, 1793118600].map((t, i) => ({ t, o: 10, h: 11, l: 9, c: 10.5, v: 1 + i })), forward: [] }
     DRAFTS = [{ ...SPOT_A, id: 'si_hourly', sym: 'WING', asof: '2026-10-27', skill_id: 'setup.intraday.go_signal',
       prompt_json: { ...SPOT_A.prompt_json, chart: { window_bars: 112, tf: '60' } },
       reveal_json: { facts: { flag_start_t: 1793104200, first_hour_t: 1793107800, flag_low: 9.5, flag_high: 10.8 } } }, SPOT_C, RECALL_B]
     renderWithProviders(<StudyReview />)
     const chart = screen.getByTestId('stock-chart')
-    expect(chart).toHaveTextContent('highlight:1793107800|1793111400|1793115000@#ffffff')
-    expect(chart).toHaveTextContent('markers:the open: first 3 hours in white')
+    expect(chart).toHaveTextContent('highlight:-')
+    expect(chart).toHaveTextContent('markers:the open: first 3 hours dotted|||')
+    expect(chart).toHaveTextContent('dots:' + [1793107800, 1793111400, 1793115000].map((t) => t + ET_OFFSET).join('|') + '@#ffffff')
     expect(screen.getByTestId('study-closeup')).toHaveTextContent('Open close-up')
   })
 

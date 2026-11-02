@@ -12,6 +12,7 @@ import { hveAnnotations, isHveItem } from './hveOverlay'
 import { gapAnnotations, isGapSupportItem } from './gapSupportOverlay'
 import { goSignalAnnotations, goSignalOpenBarTimes, isGoSignalHourlyItem } from './goSignalOverlay'
 import { bearGapAnnotations, isBearGapItem } from './bearGapOverlay'
+import { toChartTime } from '../../components/chart/patternTime'
 
 export function studyAnnotations(item, bars) {
   if (!item) return null
@@ -22,16 +23,25 @@ export function studyAnnotations(item, bars) {
   return null
 }
 
-/** Painted in white on both screens: the bar keys an item wants the reader to look at. Hourly Go Signal: the ruled
- *  session's first three hourly bars (the open). Anything else: none. */
-export function studyHighlightBars(item, bars) {
-  if (!item) return null
-  if (isGoSignalHourlyItem(item)) return goSignalOpenBarTimes(item, bars)
-  return null
-}
+/** The colour of the open marks on every Study chart: white, so it never reads as the gold setup level. */
+export const STUDY_OPEN_MARK_COLOR = '#ffffff'
 
-/** The colour of the highlighted bars on every Study chart: white, so it never reads as the gold setup level. */
-export const STUDY_HIGHLIGHT_COLOR = '#ffffff'
+/**
+ * The bars an item wants the reader to look at, as StockChart markers: a white dot UNDER each of an hourly Go
+ * Signal's first three bars of the ruled session (the open). The candles keep their own red/green: painting
+ * them white hid the one thing the reader has to see (owner 2026-11-01: "Can't see with them all white
+ * honestly"). Marker times ride StockChart's intraday shift (toChartTime) like every other hourly marker.
+ * Anything else: null. Same on the member's reveal and the reviewer's card.
+ */
+export function studyOpenMarkers(item, bars) {
+  if (!item || !isGoSignalHourlyItem(item)) return null
+  const times = goSignalOpenBarTimes(item, bars)
+  if (!times) return null
+  return times.map((t, i) => ({
+    time: toChartTime(Number(t), '60'), position: 'belowBar', color: STUDY_OPEN_MARK_COLOR, shape: 'circle',
+    text: '', id: `study-open-${i + 1}`,
+  }))
+}
 
 export function hasStudyOverlay(item) {
   return isHveItem(item) || isGapSupportItem(item) || isGoSignalHourlyItem(item) || isBearGapItem(item)
