@@ -29,12 +29,12 @@
 
 import { mdToHtml } from './generic'
 import { reportIgnoredFiles } from './reportIgnored'
+import { IMAGE_EXT } from '../mediaRefs'
 
 const NOTION_FILE_RE = / [0-9a-f]{32}\.(md|html|csv)$/i
 const NOTION_DIR_RE = / [0-9a-f]{32}$/i
 const STRIP_ID_RE = / [0-9a-f]{32}(?=(\.[a-z]+)?$)/i
 const PAGE_EXT = /\.(md|html)$/i
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic)$/i
 const CSV_MAX_ROWS = 50
 
 export const notionAdapter = {
