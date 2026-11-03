@@ -1,0 +1,91 @@
+"""UCT Agent COACH (Wave 3, owner-authorized 2026-11-03) -- the intelligent trading coach, DARK by default.
+
+Everything under this package is behind ONE server flag, `UCT_AGENT_COACH` (default off; reported by
+/api/agent/config as `coach`), on top of the Agent's own admin-dark gate. Off, nothing here runs: the browser
+registers no coach capability, the model gets no coach block, the concepts route is 404 and the guard is never
+consulted (an ordinary turn is served exactly as before).
+
+  concepts.py   the curated knowledge base (docs/agent/coach/concepts/*.md), parsed once, served to the browser
+  guard.py      the deterministic evaluation suite: every coach reply is checked server-side (unsupported claims,
+                order language, untraceable figures, missing uncertainty); a violating reply is REPLACED
+  prompt.py     the `coach` prompt block: use the concept text, explain -> what to check -> one question back
+  review.py     descriptive statistics over the member's own journal rows (W3-3): counts and stats only
+
+Hard rules (PROGRAM.md Wave 3): no autonomous trading, no orders, no price targets, no guarantee; every figure in a
+coach answer comes from an envelope or the member's own journal rows; "Educational, not advice" on every coach
+answer; the journal is read only after the member's explicit per-conversation consent (store.STATE_KEYS
+`coachConsent`); journal writes are limited to a PROPOSED note; telemetry is value-free (codes and counts).
+"""
+from __future__ import annotations
+
+import os
+from typing import Any
+
+FLAG_ENV = "UCT_AGENT_COACH"
+
+
+def enabled() -> bool:
+    return str(os.environ.get(FLAG_ENV) or "").strip().lower() in ("1", "true", "on", "yes")
+
+
+def is_coach_turn(context: Any) -> bool:
+    """A turn is the coach's when the browser's coach context provider published its entry (it does so only
+    while the server reports `coach` on) AND the flag is on here. Both, so a stale browser cannot make the
+    server coach while the flag is off."""
+    if not enabled() or not isinstance(context, dict):
+        return False
+    sec = context.get("coach")
+    return isinstance(sec, list) and any(isinstance(x, dict) and x.get("ref") for x in sec)
+
+
+def coach_entry(context: Any) -> dict | None:
+    """The coach context entry (the first one), or None."""
+    if not isinstance(context, dict):
+        return None
+    sec = context.get("coach")
+    if not isinstance(sec, list):
+        return None
+    return next((x for x in sec if isinstance(x, dict) and x.get("ref")), None)
+
+
+def guard_inputs(context: Any, message: str) -> list[str]:
+    """The texts a coach reply's figures may come from: the coach entry's concept text, observation and review
+    stats (as the browser published them), and the member's own message."""
+    import json
+    entry = coach_entry(context) or {}
+    out: list[str] = []
+    for k in ("concept", "observation", "review"):
+        v = entry.get(k)
+        if v:
+            out.append(v if isinstance(v, str) else json.dumps(v, ensure_ascii=False))
+    out.append(str(message or ""))
+    return out
+
+
+def guard_envelope(envelope: dict, context: Any, message: str, usage: dict | None = None) -> dict:
+    """Apply guard.enforce to a coach turn's reply (and a clarify question's text). A violating text is REPLACED
+    by the fixed sentence; the codes are logged value-free and noted in `usage['coach_guard']` (codes only)."""
+    import logging
+    from api.services.uct_agent.coach import guard
+    log = logging.getLogger(__name__)
+    if not isinstance(envelope, dict):
+        return envelope
+    inputs = guard_inputs(context, message)
+    out = dict(envelope)
+    codes: list[str] = []
+    reply = out.get("reply")
+    if isinstance(reply, str) and reply.strip():
+        res = guard.enforce(reply, inputs)
+        codes += res["violations"]
+        out["reply"] = res["text"] if (res["violations"] or out.get("disposition") == "answer") else reply
+    q = out.get("question")
+    if isinstance(q, dict) and isinstance(q.get("text"), str) and q["text"].strip():
+        qcodes = guard.check(q["text"], inputs)
+        if qcodes:
+            codes += qcodes
+            out["question"] = {**q, "text": guard.FIXED}
+    if codes:
+        log.info("[uct-agent] coach guard replaced text codes=%s", sorted(set(codes)))
+    if usage is not None:
+        usage["coach_guard"] = sorted(set(codes))
+    return out
