@@ -252,6 +252,3 @@ tools/scan_handoff_out.json
 # docs/pine/support-loop/PHASE-B.md
 /.support-loop-work/
 
-# Wave 1 A-03: the repo-relative fallback of the cumulative eval ledger (never committed)
-tools/.agent-eval-ledger.db*
-tools/agent-eval-cap.json

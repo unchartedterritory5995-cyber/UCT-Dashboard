@@ -9,6 +9,10 @@ the call and SETTLES it from the provider's usage after — the same protocol as
   python tools/agent_eval_ledger.py status            # cumulative reserved / settled / remaining + per-run rows
   python tools/agent_eval_ledger.py release <id> --confirm "<why>"   # the OWNER drops a crashed run's reservation
 
+THE LEDGER IS ONE FILE: C:/UCT/agent-eval-ledger.db (the directory is created; if it cannot be, every reservation
+is refused — there is NO fallback path, so no worktree or session can start a ledger of its own). The
+UCT_AGENT_EVAL_LEDGER override exists for the test suite only: it is honoured under pytest (PYTEST_CURRENT_TEST) and
+refused anywhere else, so it can never relocate the cap file to a fresh $21.
 THE CAP = min(CUMULATIVE_CAP_USD, the owner-edited sibling file `agent-eval-cap.json` {"cap_usd": 21.0}).
 Raising it needs BOTH a code change and the file; the file alone can only lower it. A missing or
 unreadable file, or an unreachable ledger, REFUSES every reservation (fail closed). No environment variable
@@ -43,9 +47,8 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 #: The mandate's number, in code. NOT an environment variable: an override is an increase waiting to happen.
 CUMULATIVE_CAP_USD = 21.0
-LEDGER_ENV = "UCT_AGENT_EVAL_LEDGER"
-DEFAULT_LEDGER = r"C:\UCT\agent-eval-ledger.db"
-FALLBACK_LEDGER = os.path.join(HERE, ".agent-eval-ledger.db")      # repo-relative, git-ignored name
+LEDGER_ENV = "UCT_AGENT_EVAL_LEDGER"                   # tests only (see under_pytest)
+DEFAULT_LEDGER = r"C:\UCT\agent-eval-ledger.db"      # THE ledger, for every worker and session on this machine
 CAP_FILE_NAME = "agent-eval-cap.json"
 EVAL_KEY_ENV = "UCT_AGENT_EVAL_API_KEY"
 PROD_KEY_ENV = "ANTHROPIC_API_KEY"
@@ -64,16 +67,25 @@ class LedgerRefused(Exception):
 
 
 # ── where the ledger lives ──────────────────────────────────────────────────────────────────────
+def under_pytest() -> bool:
+    return bool(os.environ.get("PYTEST_CURRENT_TEST"))
+
+
 def ledger_path() -> str:
+    """The one pinned ledger file. The env override is honoured ONLY under pytest (a test's scratch ledger); anywhere
+    else it is refused outright — a relocated ledger would come with a relocated cap file. No fallback: a machine
+    where the pinned directory cannot be created makes no paid call."""
     p = os.environ.get(LEDGER_ENV, "").strip()
     if p:
+        if not under_pytest():
+            raise LedgerRefused("unavailable", f"{LEDGER_ENV} is honoured only under pytest; the ledger is {DEFAULT_LEDGER} — no paid call")
         return p
     d = os.path.dirname(DEFAULT_LEDGER)
     try:
         os.makedirs(d, exist_ok=True)
-        return DEFAULT_LEDGER
-    except OSError:
-        return FALLBACK_LEDGER
+    except OSError as e:
+        raise LedgerRefused("unavailable", f"the ledger directory {d} cannot be created ({type(e).__name__}); no paid call")
+    return DEFAULT_LEDGER
 
 
 def cap_file_path(path: str | None = None) -> str:
@@ -256,8 +268,13 @@ def check_model(client, model: str) -> str:
 
 # ── reserve / settle / release ──────────────────────────────────────────────────────────────────
 class Ledger:
-    def __init__(self, path: str | None = None):
+    def __init__(self, path: str | None = None, *, readonly: bool = False):
+        """`path`: a test's scratch ledger (pytest only) or, with `readonly=True`, a file to REPORT on (never to reserve
+        against: the report tool). Anything else is the pinned ledger."""
+        if path and not readonly and not under_pytest():
+            raise LedgerRefused("unavailable", f"an explicit ledger path is honoured only under pytest; the ledger is {DEFAULT_LEDGER}")
         self.path = path or ledger_path()
+        self.readonly = readonly
 
     def _conn(self):
         return contextlib.closing(_connect(self.path))
@@ -279,6 +296,8 @@ class Ledger:
     def reserve(self, run_id: str, worst_case_usd: float, *, tool: str = "", model: str | None = None,
                 key_fp: str | None = None) -> int:
         """Admit one paid call or raise LedgerRefused. BEGIN IMMEDIATE: the sum and the insert are one transaction."""
+        if self.readonly:
+            raise LedgerRefused("unavailable", "a read-only ledger handle (the report) never reserves")
         cap = self.cap()                                   # the file is read every time: lowering it takes effect at once
         worst = round(float(worst_case_usd), 6)
         if worst <= 0:
