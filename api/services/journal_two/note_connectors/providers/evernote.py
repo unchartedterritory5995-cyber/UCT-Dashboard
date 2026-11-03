@@ -104,6 +104,8 @@ class EvernoteProvider(NoteProvider):
     #: `fetch` is one `get_note` plus the instance's notebook and tag maps, which it loads itself:
     #: nothing a listing call filled. The engine may retry pending media on unlisted notes.
     fetch_is_listing_independent = True
+    #: A resource's kind comes from its declared MIME; content wins for a raster (concern 5).
+    promote_raster_files = True
 
     PAGE_SIZE = 100
     CURSOR_OVERLAP_S = 120

@@ -113,6 +113,7 @@ from api.services.journal_two.note_connectors import connections, errors, oauth
 from api.services.journal_two.note_connectors import adoption
 from api.services.journal_two.note_connectors.link_keys import heal_pending_links, resolve_link_keys
 from api.services.journal_two.note_connectors.convert import REF_PREFIX, mddoc, rewrite_body
+from api.services.journal_two.note_connectors.convert.rewrite import chips_to_images
 from api.services.journal_two.note_connectors.convert.linkify import (
     finalize_links, import_link_keys,
 )
@@ -2043,12 +2044,18 @@ async def _upload_media_for_note(
             else:
                 data, content_type = await provider.fetch_media(creds, ref)
             name = m.get("name") or ref
+            file_intent = m.get("kind") != "image"
+            if (file_intent and getattr(provider, "promote_raster_files", False) is True
+                    and media_policy.raster_signature(data)):
+                # Plan E Task 9 fix round 1 (concern 5): content wins for a raster the provider
+                # listed under a generic type. The caller turns its placeholder into an image.
+                file_intent = False
             # Fix round 1, I2: the decide+store work (a 25 MB decode/downscale, disk writes)
             # runs OFF the event loop -- a manual "Sync now" runs this on the uvicorn loop.
             # The policy's own decode semaphore bounds it alongside the upload doors.
             resolved[ref] = await asyncio.to_thread(
                 _decide_and_store, user_id, note_id, data, content_type, name,
-                file_intent=m.get("kind") != "image", budget=budget)
+                file_intent=file_intent, budget=budget)
             uploaded += 1
         except Exception as e:  # noqa: BLE001
             failures.append(f"media {ref!r} on note {note_id}: {e}")
@@ -2344,6 +2351,13 @@ async def _confirm_and_resolve_batch(
                 prior_attempts=(notice_attempts or {}).get(key, {}), budget=budget)
             result["mediaUploaded"] += up
             result["failures"].extend(med_failures)
+            # Concern 5: a file the bytes said is a raster was stored as an image; its chip
+            # placeholder becomes an image placeholder before the rewrite (opted-in providers only:
+            # for any other, a file-kind item is never stored as an image).
+            promoted = {m["ref"] for m in media if m.get("kind") != "image" and isinstance(m.get("ref"), str)
+                        and getattr(resolved.get(m["ref"]), "kind", None) == "image"}
+            if promoted:
+                source_doc = chips_to_images(source_doc, promoted)
         # Plan A Task 6, no silent drop: a placeholder the provider never listed in
         # `media` cannot be fetched at all, so it is a final notice too.
         for ref in _placeholder_refs(source_doc):

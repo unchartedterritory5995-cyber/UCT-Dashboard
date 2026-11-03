@@ -109,6 +109,13 @@ class NoteProvider(ABC):
     #: note as its raw id at the folder root. Default False; Evernote declares True.
     fetch_is_listing_independent: bool = False
 
+    #: Plan E Task 9 fix round 1 (concern 5): True when this provider types media from a declared
+    #: MIME that may be generic (Evernote's `application/octet-stream`), so content must win: a
+    #: file-kind item whose downloaded bytes carry a raster signature (PNG, JPEG, GIF, WebP; never
+    #: SVG) is stored as an inline image and its placeholder becomes an image. Default False: every
+    #: other provider keeps its file intent exactly as before.
+    promote_raster_files: bool = False
+
     def import_key(self, source_remote_id: str, remote_id: str) -> str:
         """Formats the durable `import_key` a synced note upserts under
         (`j2_note_remote_index.import_key`). The ENGINE never hand-builds

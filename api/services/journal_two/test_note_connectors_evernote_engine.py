@@ -279,17 +279,18 @@ def test_null_resources_note_imports_with_no_media(notes):
 
 
 def test_media_wall_kinds(work, wall):
-    """PNG/JPEG inline, HEIC converted with its original kept, PDF/SVG/octet-stream as files, a
-    missing resource named, the unreferenced resource appended last."""
+    """PNG/JPEG inline, HEIC converted with its original kept, PDF/SVG as files, a PNG typed
+    application/octet-stream inline (fix round 1, concern 5: content wins), a missing resource
+    named, the unreferenced resource appended last."""
     kinds = [(n["type"], n["attrs"].get("name") or n["attrs"].get("reason"))
              for n in wall["content"] if n["type"] != "paragraph"]
     assert kinds == [
         ("image", None), ("image", None), ("image", None), ("attachmentChip", "IMG_0412.heic"),
-        ("attachmentChip", "report.pdf"), ("attachmentChip", "logo.svg"), ("attachmentChip", "shot.png"),
+        ("attachmentChip", "report.pdf"), ("attachmentChip", "logo.svg"), ("image", None),
         ("importNotice", "archive.zip"), ("image", None), ("importNotice", "moved.png"),
         ("importNotice", "missing_resource"), ("image", None), ("image", None)]
     sizes = [_image_size(work, n) for n in _nodes(wall, "image")]
-    assert sizes == [((40, 20), "PNG"), ((30, 18), "JPEG"), ((16, 32), "JPEG"), ((16, 16), "PNG"),
+    assert sizes == [((40, 20), "PNG"), ((30, 18), "JPEG"), ((16, 32), "JPEG"), ((24, 12), "PNG"), ((16, 16), "PNG"),
                      ((20, 10), "PNG"), ((12, 6), "PNG")]
     heic = next(n for n in wall["content"] if n["type"] == "attachmentChip" and n["attrs"]["name"] == "IMG_0412.heic")
     assert _file(work, heic["attrs"]["href"]).read_bytes() == gen.HEIC_FIXTURE.read_bytes()

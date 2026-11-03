@@ -37,6 +37,11 @@ saying the same thing about every note. Do NOT merge the two lanes to fix a red:
     it as `unsafe` too (Task 3 carry-in). A `data:image/*` `<img>` is uploaded by both lanes
     (controller ruling "content wins", after Task 4; it was a named gap until then); the summary
     names it `data:<md5 of its bytes>`. `10-foreign-images`.
+  - A raster typed `application/octet-stream` (Task 9 fix round 1, concern 5): content wins on
+    both lanes. The client sniffs the resource bytes at parse time; the server decides in the
+    engine's media stage, after download, and this generator applies that same decision from the
+    sidecar's bytes. Raster signatures only (PNG, JPEG, GIF, WebP): an SVG stays a file.
+    `12-octet-stream-raster`.
   - A leading space on a later line (Task 3 re-review R4): the client is the reference. An ENML
     line `<div>` has no parse rule, so the editor adds its text at the container level, where a
     later line keeps one leading space and the first line does not; a real `<p>` always loses
@@ -59,12 +64,14 @@ import pathlib
 import urllib.parse
 from typing import Any
 
+from api.services.journal_two.media_policy import raster_signature
 from api.services.journal_two.notes import extract_plain_text
 
 from . import REF_PREFIX
 from .enml import EVERNOTE_RES_SCHEME, EVERNOTE_TITLE_KIND, LIVE_KEY_PREFIX, enml_to_tiptap
 from .linkify import finalize_links
 from .mddoc import DATA_URI_RE
+from .rewrite import chips_to_images
 
 _HERE = pathlib.Path(__file__).resolve().parent
 FIXTURES_IN_DIR = _HERE / "enml_fixtures_in"
@@ -156,7 +163,15 @@ def server_doc(enml_text: str, note: dict[str, Any]) -> tuple[dict[str, Any], li
                   "sizeBytes": 0} for i, r in enumerate(note.get("resources") or [])]
     result = enml_to_tiptap(enml_text, resources or None, note_guid=note["guid"],
                             source_url=note.get("sourceUrl"))
-    return finalize_links(result["doc"]), result["media"]
+    # The engine's media stage (Task 9 fix round 1, concern 5): a file whose bytes are a raster
+    # is stored as an image and its chip becomes an image (Evernote declares
+    # `promote_raster_files`). Applied here from the fixture's own bytes, the same decision
+    # (`media_policy.raster_signature`) through the same helper (`rewrite.chips_to_images`).
+    data_by_hash = {r["hash"]: base64.b64decode(r["data_b64"]) for r in note.get("resources") or []}
+    promoted = {m["ref"] for m in result["media"] if m.get("kind") != "image"
+                and raster_signature(data_by_hash.get(m["ref"].rsplit("/", 1)[-1], b""))}
+    doc = chips_to_images(result["doc"], promoted) if promoted else result["doc"]
+    return finalize_links(doc), result["media"]
 
 
 def _doc_and_notes(enml_text: str, note: dict[str, Any]) -> tuple:

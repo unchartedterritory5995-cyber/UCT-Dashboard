@@ -145,7 +145,7 @@
           "marks": [
            {
             "attrs": {
-             "href": "/journal?j2tab=notebook&note=f88c83baffb0487ca1b2881042d83940"
+             "href": "/journal?j2tab=notebook&note=596e0889c7ba4f65a828722d7a5f9a7a"
             },
             "type": "link"
            }
@@ -558,11 +558,9 @@
        },
        {
         "attrs": {
-         "href": "/api/j2/notes/attachments/u-evernote/c250237cb34a4bcb90ae4c4e29eabe2d/file/57bdb71023ae4095beccfc65669fb5ed.png",
-         "name": "shot.png",
-         "size": 848
+         "src": "/api/j2/notes/attachments/u-evernote/c250237cb34a4bcb90ae4c4e29eabe2d/inline/04a0af3b4c59902846fe03000466fbd7.png"
         },
-        "type": "attachmentChip"
+        "type": "image"
        },
        {
         "content": [
@@ -27820,7 +27818,7 @@
       "Markets",
       "Trading"
      ],
-     "id": "61a72ad3dbc245aa9f9bc98ae9ad7bde",
+     "id": "f88c83baffb0487ca1b2881042d83940",
      "importKey": "evernote:guid:e0000000-0000-4000-8000-000000000008#remote",
      "importLinksPending": 0,
      "importMediaPending": 0,
@@ -27882,7 +27880,7 @@
       "Markets",
       "Research"
      ],
-     "id": "f88c83baffb0487ca1b2881042d83940",
+     "id": "596e0889c7ba4f65a828722d7a5f9a7a",
      "importKey": "evernote:guid:e0000000-0000-4000-8000-000000000010",
      "importLinksPending": 0,
      "importMediaPending": 0,

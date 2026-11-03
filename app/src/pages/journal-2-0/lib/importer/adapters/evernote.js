@@ -83,7 +83,7 @@
 
 import SparkMD5 from 'spark-md5'
 import { reportIgnoredFiles } from './reportIgnored'
-import { liftMediaOutOfLinks } from '../mediaRefs'
+import { liftMediaOutOfLinks, rasterSignature } from '../mediaRefs'
 import { resolveHref, neutraliseRefusedAnchor } from '../linkPolicy'
 import { isEvernoteNoteHref, resolveEvernoteLinks, settleEvernoteLinks, pyStrip } from '../evernoteLinks'
 
@@ -296,9 +296,16 @@ async function parseResource(resourceEl) {
   const b64 = (dataEl?.textContent || '').replace(/\s+/g, '')
   const bytes = base64ToBytes(b64)
   const hash = SparkMD5.ArrayBuffer.hash(bytes.buffer).toLowerCase()
-  const mime = mimeEl?.textContent?.trim() || 'application/octet-stream'
+  const declared = mimeEl?.textContent?.trim() || 'application/octet-stream'
+  // Plan E Task 9 fix round 1 (concern 5): content wins. A resource typed as anything but an
+  // image (Evernote writes `application/octet-stream` for some) whose bytes are a raster is an
+  // inline image; raster signatures only, so an SVG stays a file. The server lane decides the
+  // same in its media stage (`media_policy.raster_signature`); ENML parity fixture 12 pins both.
+  const sniffed = declared.startsWith('image/') ? null : rasterSignature(bytes)
+  const mime = sniffed || declared
   const kind = mime.startsWith('image/') ? 'image' : 'file'
-  const name = fileNameEl?.textContent?.trim() || `attachment.${extFromMime(mime)}`
+  // the fallback name follows the DECLARED type, as the server's `_Resources` does
+  const name = fileNameEl?.textContent?.trim() || `attachment.${extFromMime(declared)}`
 
   const vfile = {
     path: hash,

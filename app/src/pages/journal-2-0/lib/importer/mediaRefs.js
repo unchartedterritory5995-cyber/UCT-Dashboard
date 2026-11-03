@@ -30,6 +30,23 @@ export const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic|heif|avif|tiff?)$/i
 
 /** The server's `media_policy.MEDIA_SOURCE_MAX_BYTES` (= `notes._MAX_FILE_BYTES`, 25 MB). */
 export const MEDIA_SOURCE_MAX_BYTES = 25 * 1024 * 1024
+
+/**
+ * The inline raster type (PNG, JPEG, GIF, WebP) the bytes' own signature names, else null.
+ * Never SVG, a web page, or a raster that needs converting (TIFF, BMP, HEIC). Plan E Task 9 fix
+ * round 1 (concern 5): content wins for a resource typed `application/octet-stream`. The server
+ * twin is `media_policy.raster_signature`; the ENML parity rail (fixture 12) keeps them agreeing.
+ */
+export function rasterSignature(bytes) {
+  if (!bytes || typeof bytes.length !== 'number') return null
+  const at = (i) => bytes[i]
+  const ascii = (from, to) => String.fromCharCode(...Array.from(bytes.slice(from, to)))
+  if (bytes.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((b, i) => at(i) === b)) return 'image/png'
+  if (bytes.length >= 3 && at(0) === 0xff && at(1) === 0xd8 && at(2) === 0xff) return 'image/jpeg'
+  if (bytes.length >= 6 && ['GIF87a', 'GIF89a'].includes(ascii(0, 6))) return 'image/gif'
+  if (bytes.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp'
+  return null
+}
 /** The server's `engine.DATA_URI_SLACK_CHARS`: room for the header and line breaks. */
 const DATA_URI_SLACK_CHARS = 4096
 const DATA_URI_MAX_CHARS = Math.floor((MEDIA_SOURCE_MAX_BYTES * 4) / 3) + DATA_URI_SLACK_CHARS
