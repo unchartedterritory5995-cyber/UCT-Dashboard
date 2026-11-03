@@ -340,7 +340,10 @@ describe('htmlToNote — D3 item 3: linear on a big list note', () => {
     + '<a href="https://e.com/b">a</a> <mark>hl</mark> <strong>bold</strong> ' + i + '</li>'
   const note = (n) => `<ul>${Array.from({ length: n }, (_, i) => line(i)).join('\n')}</ul>`
 
-  it('converts a 2,000-line list note in a few seconds, and scales linearly', () => {
+  // D3 review M5: no wall-clock ceiling (a shared suite runs 2-3x slower under fork contention).
+  // The linearity is the RATIO of two timings taken under the same load, and the defect itself
+  // is pinned structurally below.
+  it('converts a 2,000-line list note, and scales linearly', () => {
     let started = performance.now()
     const small = htmlToNote(note(500))
     const t500 = performance.now() - started
@@ -350,10 +353,20 @@ describe('htmlToNote — D3 item 3: linear on a big list note', () => {
     // Every line arrived (each item opens with a chip, so the parser splits the list per item).
     expect(big.bodyPlain.match(/\bbold \d+/g)).toHaveLength(2000)
     expect(small.bodyPlain.match(/\bbold \d+/g)).toHaveLength(500)
-    expect(t2000).toBeLessThan(6000)
     // Quadratic is 16x for 4x the lines; linear is ~4x. Allow noise, never 16x.
     expect(t2000 / Math.max(t500, 1)).toBeLessThan(9)
   }, 60000)
+
+  // The structural pin. A spy on `getElementsByTagName` cannot be it: jsdom's own selector
+  // engine answers `querySelectorAll('*')` through that very call (measured: two calls with
+  // '*', a static result). So the pin is the code: no live-collection walk in the converter.
+  it('never walks a live element collection (the quadratic step itself)', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const src = fs.readFileSync(path.join(__dirname, 'convert.js'), 'utf8')
+    const code = src.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
+    expect(code).not.toMatch(/getElementsBy(TagName|ClassName|Name)\s*\(/)
+  })
 })
 
 // D3 follow-up (fixture 28's last gap): a raw HTML block in markdown renders on both lanes,
