@@ -23,10 +23,12 @@ MODES
                              has that much left. It launches its OWN isolated backend on :54714 (stop any
                              other first) with the eval key, a fresh scratch cost ledger and the Agent's
                              own per-turn ceiling UCT_AGENT_COST_CAP_DAILY = max-usd − one turn's worst
-                             case, so the batch can never pass --max-usd. Before EVERY turn one turn's
-                             worst case is RESERVED in the cumulative ledger and settled from the captured
-                             usage after (a failed turn settles at the worst case). Research (Perplexity)
-                             is off (no key passed).
+                             case, so the batch can never pass --max-usd. Before EVERY /api/agent/turn
+                             request the page sends (the calls the chain can see), one turn's worst case is
+                             RESERVED in the cumulative ledger and settled from that response's usage after;
+                             a response without usage, or not 200, or a failed fetch settles at the FULL
+                             worst case (the backend may have charged it). Research (Perplexity) is off
+                             (no key passed).
 
   python tools/agent_live_chain.py --mode scripted
   python tools/agent_live_chain.py --mode live --max-usd 0.20 --out results.json
@@ -77,16 +79,18 @@ def live_preflight(max_usd: float | None):
     return led, key, key_fp
 
 
-def turn_actual_usd(usages: list) -> float:
-    """What the captured /turn responses say the turn cost, at the verified prices (+ the naming allowance)."""
-    total = NAMING_ALLOWANCE_USD
-    for u in usages:
-        if not isinstance(u, dict):
-            continue
-        total += ledger.cost_usd(str(u.get("model") or CHAIN_MODEL), input=int(u.get("input_tokens") or 0),
-                                 output=int(u.get("output_tokens") or 0), cache_read=int(u.get("cache_read_tokens") or 0),
-                                 cache_write=int(u.get("cache_write_tokens") or 0))
-    return total
+def chain_charge(status: int | None, usage) -> float:
+    """What ONE /api/agent/turn response is settled at: its usage at the verified prices + the naming allowance when the
+    response is a 200 that carries token counts; otherwise (a 5xx, a timeout, no usage) the FULL worst case — the child
+    backend may have charged it. Never below what the usage says."""
+    tokens = usage if isinstance(usage, dict) else {}
+    counted = any(isinstance(tokens.get(k), (int, float)) for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens"))
+    if status != 200 or not counted:
+        return WORST_TURN_USD
+    actual = NAMING_ALLOWANCE_USD + ledger.cost_usd(
+        str(tokens.get("model") or CHAIN_MODEL), input=int(tokens.get("input_tokens") or 0), output=int(tokens.get("output_tokens") or 0),
+        cache_read=int(tokens.get("cache_read_tokens") or 0), cache_write=int(tokens.get("cache_write_tokens") or 0))
+    return actual
 
 # A first-person / progressive claim that a UCT action happened or is happening.
 CLAIM_RE = re.compile(
@@ -199,6 +203,7 @@ def run(mode: str, max_usd: float | None, out_path: str | None, phrasing: str = 
             c.add_init_script("localStorage.setItem('uct.feature.agent','1'); localStorage.setItem('uct.agent.open','1'); localStorage.setItem('uct.agent.welcomed','1'); localStorage.removeItem('uct.agent.conversation')")
             captured: list[dict] = []
             state = {"turn": 0}
+            stopped = {"why": None}
 
             def on_turn(route):
                 req = json.loads(route.request.post_data or "{}")
@@ -213,11 +218,27 @@ def run(mode: str, max_usd: float | None, out_path: str | None, phrasing: str = 
                     captured.append({"turn": state["turn"], "request": req, "envelope": env, "raw_envelope": raw, "status": 200})
                     route.fulfill(status=200, content_type="application/json", body=json.dumps({"conversationId": cid, "envelope": env, "usage": {}}))
                     return
-                resp = route.fetch()                                   # the REAL backend → the real model
+                # ⛔ the cumulative ledger: one turn's worst case RESERVED before THIS request reaches the backend
+                rid = None
+                if led is not None:
+                    try:
+                        rid = led.reserve(run_id, WORST_TURN_USD, tool="agent_live_chain", model=CHAIN_MODEL, key_fp=key_fp)
+                    except ledger.LedgerRefused as e:
+                        stopped["why"] = str(e)
+                        route.abort()
+                        return
+                try:
+                    resp = route.fetch()                               # the REAL backend → the real model
+                except BaseException:
+                    if rid is not None:
+                        led.settle(rid, None, outcome="worst_case")    # the request may have run: the full worst case
+                    raise
                 try:
                     data = resp.json()
                 except Exception:  # noqa: BLE001
                     data = {"raw": resp.text()[:500]}
+                if rid is not None:
+                    led.settle(rid, chain_charge(resp.status, data.get("usage")), model=CHAIN_MODEL)
                 captured.append({"turn": state["turn"], "request": req, "envelope": data.get("envelope"), "usage": data.get("usage"), "status": resp.status})
                 route.fulfill(response=resp)
 
@@ -232,23 +253,11 @@ def run(mode: str, max_usd: float | None, out_path: str | None, phrasing: str = 
             count = lambda tid: pg.locator(SEL[tid]).count()
             for i, text in enumerate(TURNS_MODEL if phrasing == "model" else TURNS):
                 state["turn"] = i
-                rid = None
-                if led is not None:
-                    # ⛔ one turn's worst case RESERVED in the cumulative ledger before the turn is sent
-                    try:
-                        rid = led.reserve(run_id, WORST_TURN_USD, tool="agent_live_chain", model=CHAIN_MODEL, key_fp=key_fp)
-                    except ledger.LedgerRefused as e:
-                        print(f"STOP before turn {i + 1}: {e}")
-                        break
-                try:
-                    row = _one_turn(pg, c, i, text, state, captured, SEL, count)
-                except BaseException:
-                    if rid is not None:
-                        led.settle(rid, None, outcome="worst_case")
-                    raise
-                if rid is not None:
-                    led.settle(rid, turn_actual_usd(row["usage"]), model=CHAIN_MODEL)
+                row = _one_turn(pg, c, i, text, state, captured, SEL, count)
                 rows.append(row)
+                if stopped["why"]:
+                    print(f"STOP at turn {i + 1}: {stopped['why']}")
+                    break
                 print(json.dumps({k: row[k] for k in ("turn", "said", "path", "ms", "model_calls", "dispositions", "proposed_ops", "model_text", "evidence", "unbacked_claims", "raw_claims_before_server_gate")}, default=str))
             b.close()
     finally:
