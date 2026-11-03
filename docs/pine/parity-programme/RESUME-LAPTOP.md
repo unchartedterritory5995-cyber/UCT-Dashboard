@@ -2,9 +2,12 @@
 
 Last updated: 2026-11-02 ~18:00 CT on the LAPTOP (coordinator session af33efb6). Update this file at every hand-off.
 
-## 1. What is live (production `cfc35a3b3f` at 2026-11-02 ~17:40 CT; the Pine engine is still the one from `1cfb77fbc2`)
+## 1. What is live (production `e055b21e7f` at 2026-11-03 ~04:40 CT; SCRIPT_ENGINE_VERSION = 5)
+
 #613 de3f480f98 · #673 B d525ed6c6c · #674 A a223e7b745 · #675 engine bump 9a1f99ef49 ·
-#676 C 3568af3722 (engine 3) · #679 D 1cfb77fbc2 (engine 4). SCRIPT_ENGINE_VERSION = 4.
+#676 C 3568af3722 (engine 3) · #679 D 1cfb77fbc2 (engine 4) · #709 E ad571054dd ·
+#710 W0 e6740b5b08 · #736 W1 0afa7645dd (engine 5) · #737 W5 T12 + design doc e055b21e7f.
+Every merge since #709 was checked with scripts/verify_deploy_nologin.sh (VERIFY PASS each time).
 
 ## 2. Where the programme stands
 - Plan + mockups: `PLAN.md` (this folder). Agent rules: `AGENT-RULES.md` (this folder; its absolute
@@ -12,16 +15,16 @@ Last updated: 2026-11-02 ~18:00 CT on the LAPTOP (coordinator session af33efb6).
 - Owner decisions so far: server-side interpreter = separate sandboxed service; strategies in scope.
 - Workstream branches (all pushed to GitHub; `git fetch origin` to see them):
 
-| stream | branch | state on the laptop (2026-11-02 ~18:00 CT) |
+| stream | branch | state on the laptop (2026-11-03 ~04:45 CT) |
 |---|---|---|
-| E evidence engine | `feat/pine-evidence-engine` | READY TO MERGE. Merged tip `33e518f6ff` (master `4d059b10ae`). Review GO at `f924d174aa`. Rails 56 passed + the known pre-existing red manifest test; mutations 52/52 KILLED; gates 52; hygiene clean; full chart+hooks vitest on the merged tip 3 failed files / 1320 passed / 27 skipped, all master's (app/ byte-identical to master). PR body drafted. Waiting only on a working signed-in smoke (see section 5). 5 low review findings queued as a follow-up. |
-| W0 measure | `docs/pine-coverage-2026-11-02` | Review GO at `b1f4247452` (status note final: engine-door list not measured). Fix round in progress for 2 medium + 3 low findings (section 10 wording; runtime-on capture targets filtered on the production verdict; tool determinism), then re-review. Docs/tools only. |
-| W1 names | `feat/pine-w1-names` | `541909eb52`: round-1 fixes (obv/pvt/wad held from drawings, cog window decided by budget.js, bare-spelling arm change railed); 622/622 targeted, 9/9 mutations. Round-2 review NO-GO: HIGH `ta.iii` multiplies by volume where TradingView's published body divides; MEDIUM paints reading a window-dependent level get no history-depth badge; LOW dark runtime pane drawings not held. Round-2 fix in progress (also: every W1 formula re-verified against TradingView's published text, sources committed). Then measure-pair (prod + rt), final-tip, engine bump to 5, merge. |
-| Editor status panel | `feat/pine-editor-status` | `31be0dd78e`: round-1 fixes done (Dockerfile ENV line, paneFor, block-run/period reads, held rule, families); 33/33 mutations; 71 rails. Round-2 review NO-GO: 2 HIGH (rows answered from the wrong lane), 2 MEDIUM, 4 LOW. Round-2 fix in progress. Flag stays dark. |
-| W2 arming packet | `feat/pine-w2-arming` | `585b303341`, not yet resumed on the laptop. Next (Sonnet builder, Opus review): merge master, J1 allowlist-parity rail + mutations, python rails, J4 readiness census, J5 vite build (B4), worker probe B1/B2/B5, ARMING-PACKET-2026-11-02.md. Arming decisions are delegated to the coordinator (stage 1 admins first). |
-| W3 drawings | `feat/pine-w3-drawings` | `492185859e`, not yet resumed. Next (Fable builder, Opus review): slice S1, the 22 table cells the text reader leaves unexplained (`textNodeOf`). |
-| W5 server runtime | `docs/pine-w5-server-runtime` | `3f819db7e3`: design + the eight owner rulings (section 9.1). Wave 1 next: T12 admission + flags (worktree `pine-w5-t12`, branch `feat/pine-w5-t12-admission`), then T1, T3, T6. |
-| Language coverage | `docs/pine-language-coverage` | NEW (worktree `pine-lang`, from master `cfc35a3b3f`): a scoreboard of every Pine v6 reference item that works exactly per lane, the owner's "any indicator" measure. Sonnet builder next. |
+| E evidence engine | `feat/pine-evidence-engine` | MERGED #709 -> `ad571054dd` (web SKIPPED, no-login verify PASS). 5 low review findings queued as a follow-up. |
+| W0 measure | `docs/pine-coverage-2026-11-02` | MERGED #710 -> `e6740b5b08` (VERIFY PASS). Two lows queued for the next W0 re-run (section 7.1 lane credit; capture count overstated by up to 11) plus the engine-door probe. |
+| W1 names | `feat/pine-w1-names` | MERGED #736 -> `0afa7645dd`, SCRIPT_ENGINE_VERSION 5. measure-pair: production attached 394->402, runtime-on 477->486, 0 losses, 0 of 331 harness verdicts changed; mutations 6/6; final vitest 2 failed files (master's own). VERIFY PASS. |
+| Editor status panel | `feat/pine-editor-status` | PARKED after round 3 NO-GO: the chart row ignores the meta.otherSymbols / lowerTf stamps. Flag stays dark. |
+| W2 arming packet | `feat/pine-w2-arming` | Round-1 review NO-GO (P11 six-shard gate not run; S8 rails need linkify; packet INTERIM; re-pin to production after W1; B5 x4 miss). Round-2 fix in workflow wf_42d2affb-4e4. Coordinator accepts the B5 x4 miss for adx-only stage 1. Nothing is armed. |
+| W3 drawings | `feat/pine-w3-drawings` | S1 `5f7da680d0` round-1 NO-GO (percent half-tie guess; measured on an old base; engine bump). Round-2 fix (Opus) in wf_42d2affb-4e4; the coordinator bumps the engine to 6 at merge. |
+| W5 server runtime | `docs/pine-w5-server-runtime` | Design doc + T12 MERGED #737 -> `e055b21e7f` (server lanes admit only the graded allowlist; PINE_RUNTIME_SERVER_STAGE dark). T3 codec `43db4f59a8` review GO, closing its medium/lows in wf_42d2affb-4e4. Next: T1, T6. |
+| Language coverage | `docs/pine-language-coverage` | `13257ce426` round-1 NO-GO (EXACT credited from uncompared outputs; DIVERGE corroboration; pine:timeout blame). Round-2 fix in wf_42d2affb-4e4. |
 | W4, W6-W9 | not started (see WAVE-TASKS.md) | The W4 task breakdown (Fable) is queued after the first laptop wave. |
 
 Detailed task list for every stream: `WAVE-TASKS.md` (this folder).
@@ -56,6 +59,10 @@ The coordinator updates this table at hand-off with each branch's tip SHA and wh
 1. Clone UCT-Dashboard; create a worktrees folder, e.g. `~/uct-worktrees`.
 2. One shared install: `git worktree add --detach ~/uct-worktrees/pine-base origin/master`, then
    `cd pine-base/app && npm ci`. Every other worktree junctions/symlinks `app/node_modules` to it.
+   A worktree WITHOUT that junction fails Python rails that shell out to node (`Cannot find module 'acorn'`,
+   e.g. tests/test_refusal_reaches_every_surface.py): `cmd /c mklink /J <wt>\app\node_modules <pine-base>\app\node_modules`.
+   The venv also needs `linkify-it-py` (requirements.txt) or any test importing api.main fails to collect;
+   installed in uct-venv 2026-11-03 (2.2.0).
 3. Smoke worktree for deploy verification: `git worktree add --detach ~/uct-worktrees/_smoke-1031 origin/master`.
    `tools/hub_nav_smoke.py --auth` needs `SMOKE_EMAIL` / `SMOKE_PASSWORD` in the environment (never in the repo).
    Railway CLI must be logged in (`railway login`) and linked to the project for `verify_deploy.sh`.
