@@ -5,12 +5,12 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 ## W1-A Planner (builder-a, `agent/w1/planner`)
 | id | task | paths | depends | state | PR | evidence |
 |---|---|---|---|---|---|---|
-| A-01 | `contracts/STEP-1.md`: step protocol (server loop ↔ browser executor), frozen for the wave | docs/agent/program/contracts/STEP-1.md | — | todo | | |
-| A-02 | Eval prerequisites (free): `UCT_AGENT_EFFORT` → `output_config.effort`, MAX_TOKENS 4096 when thinking is on; Haiku 5.5 row in `narrative_cost_guard._PRICES`; capture bodies for dev-nl1 / live batch / latency (no model calls); dry-run cost estimates recorded in EVAL.md | api/services/uct_agent/turn.py, api/services/narrative_cost_guard.py, app/src/agent/agent*Capture*.test.* | — | todo | | |
-| A-03 | **Owner-approved 2026-11-02; acceptance = the six proofs in EVAL.md §0.** Cumulative cross-run eval ledger: `tools/agent_eval_ledger.py` (shared SQLite, BEGIN IMMEDIATE, reserve worst case before every call, settle with actual usage incl. cache write/read + thinking, hard cumulative cap read from a file the owner sets; every eval runner must acquire it) | tools/agent_eval_ledger.py, tools/agent_eval_run.py, tools/agent_live_batch.py, tools/agent_latency_probe.py, tools/agent_live_chain.py, tests/test_uct_agent_eval_ledger.py | — | todo | | |
-| A-04 | Server loop `run_turn_v2` behind `UCT_AGENT_PLANNER=v2` (default off): tools from the manifest (12 always-loaded domain tools + deferred capability tools + tool search), ≤ N rounds (6) with per-turn $ cap, per-step `sanitize`/`enforce_approval`, step events streamed; scripted-model tests only | api/services/uct_agent/turn_v2.py (new), turn.py (dispatch only), api/routers/uct_agent.py (stream events), tests/test_uct_agent_planner_v2*.py | A-01 | todo | | |
-| A-05 | Browser step executor: each step → `planOps`/`decideMode`/`commitPlan` → tool_result back; proposal pauses the loop; "do it" resumes; turn-level Undo group ("undo all of that") | app/src/agent/useAgent.js (v2 path only), app/src/agent/steps.js (new), app/src/agent/agentPlannerV2*.test.jsx | A-01 | todo | | |
-| A-06 | Deterministic acceptance for the flagship scenario with the scripted model (every step executes against the panel harness, receipts + one approval card + Undo) | app/src/agent/agentFlagshipV2.test.jsx | A-04, A-05 | todo | | |
+| A-01 | `contracts/STEP-1.md`: step protocol (server loop ↔ browser executor), frozen for the wave | docs/agent/program/contracts/STEP-1.md | — | rc | #712/#713/#714 | merged into agent/int; in RC #718 |
+| A-02 | Eval prerequisites (free): `UCT_AGENT_EFFORT` → `output_config.effort`, MAX_TOKENS 4096 when thinking is on; Haiku 5.5 row in `narrative_cost_guard._PRICES`; capture bodies for dev-nl1 / live batch / latency (no model calls); dry-run cost estimates recorded in EVAL.md | api/services/uct_agent/turn.py, api/services/narrative_cost_guard.py, app/src/agent/agent*Capture*.test.* | — | rc | #712/#713/#714 | merged into agent/int; in RC #718 |
+| A-03 | **Owner-approved 2026-11-02; acceptance = the six proofs in EVAL.md §0.** Cumulative cross-run eval ledger: `tools/agent_eval_ledger.py` (shared SQLite, BEGIN IMMEDIATE, reserve worst case before every call, settle with actual usage incl. cache write/read + thinking, hard cumulative cap read from a file the owner sets; every eval runner must acquire it) | tools/agent_eval_ledger.py, tools/agent_eval_run.py, tools/agent_live_batch.py, tools/agent_latency_probe.py, tools/agent_live_chain.py, tests/test_uct_agent_eval_ledger.py | — | rc | #712/#713/#714 | merged into agent/int; in RC #718 |
+| A-04 | Server loop `run_turn_v2` behind `UCT_AGENT_PLANNER=v2` (default off): tools from the manifest (12 always-loaded domain tools + deferred capability tools + tool search), ≤ N rounds (6) with per-turn $ cap, per-step `sanitize`/`enforce_approval`, step events streamed; scripted-model tests only | api/services/uct_agent/turn_v2.py (new), turn.py (dispatch only), api/routers/uct_agent.py (stream events), tests/test_uct_agent_planner_v2*.py | A-01 | rc | #712/#713/#714 | merged into agent/int; in RC #718 |
+| A-05 | Browser step executor: each step → `planOps`/`decideMode`/`commitPlan` → tool_result back; proposal pauses the loop; "do it" resumes; turn-level Undo group ("undo all of that") | app/src/agent/useAgent.js (v2 path only), app/src/agent/steps.js (new), app/src/agent/agentPlannerV2*.test.jsx | A-01 | rc | #712/#713/#714 | merged into agent/int; in RC #718 |
+| A-06 | Deterministic acceptance for the flagship scenario with the scripted model (every step executes against the panel harness, receipts + one approval card + Undo) | app/src/agent/agentFlagshipV2.test.jsx | A-04, A-05 | rc | #712/#713/#714 | merged into agent/int; in RC #718 |
 | A-07 | Model-path evaluation (PAID — blocked until the owner authorizes and spending controls are verified) | tools/, docs/agent/program/EVAL.md | A-02, A-03, owner | blocked (owner) | | |
 
 ## W1-B Operator (builder-b, `agent/w1/operator`)
@@ -51,7 +51,44 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 | I-05 | #684 (already marked merged by GitHub once agent/int contained it) and #665 closed with containment evidence | done | rev-list 0 |
 | I-06 | Spending-controls report (owner's mandate) | done | appendix H; owner decision recorded in EVAL.md §0 |
 | I-07 | Production flag verification (owner runs the read-only command) | blocked (owner) | |
-| I-08 | ONE combined Wave 1 RC (SEC + A + B + C + Agent CI) — owner decision 2026-11-02; needs: all merges green on agent/int, combined integration run, independent QA, release manifest with GO/HOLD | todo | |
+| I-08 | ONE combined Wave 1 RC (SEC + A + B + C + #716 + Agent CI) | done → DEPLOYED: master 463a4bcba5 (PR #718, owner GO), gate passed, promoted 04:21Z, live 04:30:42Z (bundle index-ePgCEn0Q.js); flags untouched; Phase 1 live testing next (I-12) | manifest RELEASE-W1-MANIFEST.md; QA-W1-COMBINED.md; Agent CI on 6342332731: 2095 / 2688 / 0 |
 | I-09 | (folded into I-08 by owner decision: no separate deploys) | done | |
-| I-11 | LIVE-TESTING.md (Phase 1 checklist) + OWNER-ACCEPTANCE.md (Phase 2 suite, ≥30 prompts, scorecard) ready before deployment | doing | |
+| I-11 | LIVE-TESTING.md (Phase 1 checklist) + OWNER-ACCEPTANCE.md (Phase 2 suite, 38 prompts, scorecard) ready before deployment | done | committed b8af07c506 |
+| I-12 | Phase 1 live production testing | done (first pass 2026-11-03 04:45–05:30Z): ~55 turns, 41 model calls ≈ $0.64; verdict TECHNICALLY DEPLOYED; findings LT-1..LT-12 (LT-3, LT-4, LT-8 to fix before Phase 2 scoring); flags were already all ON (no activation needed) | LIVE-TESTING-RESULTS-2026-11-03.md |
+| I-13 | Phase 2 owner hands-on acceptance session; scorecard | todo | after I-12 |
 | I-10 | Notify Indicators/News/Charts sessions of Wave 1 branches and RC windows | done | blake-4c (News #629) and blake-ee (News widget) acked: no master RC pending, no Agent files touched |
+
+## Wave 1.1 repairs (overnight 2026-11-03; branches agent/w11/*, PRs into agent/int; one RC; conditional deploy)
+| id | task | owner | state | PR | evidence |
+|---|---|---|---|---|---|
+| R-01 | LT-3: live model's args for chart.setSetting promoted rows, chart.replay (exit), screener refinement sort, widget.addCharts+indicators are refused as off-schema; make the server's compact-args expansion accept what the production model actually sends (and tighten hints), with regression tests that replay the exact failing shapes | repair-a | todo | | |
+| R-02 | LT-1: empty-board "add a daily chart of nvda to this board" → plans widget.addCharts, not a chart target | repair-a | todo | | |
+| R-03 | LT-9: "rename <layout> to x" → layout.rename (protected-layout refusal reachable); LT-10: nonsense input → clarify with choices, never the FAILED sentence | repair-a | todo | | |
+| R-04 | LT-4: routing offers the indicatorAlerts group for cross/alert phrasings; the planner never claims "can't create them yet" when the capability is in the manifest | repair-b | todo | | |
+| R-05 | LT-8: hidden-field phrases ("rs rank", "uct rating", "composite"…) in refinements and new screens hit the F-16 sentence BEFORE any catalog look-alike mapping; LT-11: the refusal offers the public alternative on every path | repair-b | todo | | |
+| R-06 | LT-12: "when does X report" surfaces the next report date; F-16/F-23 isolation re-check on the merged tree | repair-b | todo | | |
+| R-07 | Investigation record: which production flags were on before Wave 1 and since when; `charts_active_template` read-only verification | integrator | doing | — | FLAGS-INVESTIGATION-2026-11-03.md written; template read-back pending the live rerun |
+| R-08 | Wave 1.1 RC: independent review of the combined diff, agent-ci green, master sync, conditional deploy decision per the eight conditions; live rerun of the failed scenarios | integrator | todo | | |
+
+## Wave 2 (overnight start 2026-11-03; integration branch agent/int-w2; NOT deployed)
+| id | task | owner | state | PR | evidence |
+|---|---|---|---|---|---|
+| W2-A1 | Multi-turn context: clarify threading (a new request while a clarify is open starts fresh; answers to choices bind to the open question), follow-up referents | w2-a | todo | | |
+| W2-A2 | Planner v2 eval readiness: scripted-model acceptance set for v2 (≥ 30 multi-step cases), step protocol hardening, tool-search miss telemetry, cost/round accounting rails; v2 stays OFF | w2-a | todo | | |
+| W2-A3 | Schema-constrained args: server-side normalizers for the catalog's arg shapes + a golden "model output → args" corpus from production failures; deterministic coverage | w2-a | todo | | |
+| W2-B1 | Research capability (RS-1 v1): grounded answer with facts / interpretation / unknowns and timestamped sources, composing gateway kinds + the existing web search; research never emits a figure the gateway did not return | w2-b | todo | | |
+| W2-B2 | Historical analysis: dated ranges/comparisons ("compare this pullback to …"), post-event behaviour via the existing event_study service (value-free to the model), freshness notes | w2-b | todo | | |
+| W2-B3 | Grounded TA workflow: describe a chart's setup from served bars/indicators (no invented levels), conversational follow-ups | w2-b | todo | | |
+| W2-C1 | App-level AgentProvider + page host adapters (screener, breadth, calendar, journal notes read), capability `surfaces` beyond charts; queries available everywhere | w2-c | todo | | |
+| W2-C2 | Explain / Show / Do guide targets on the new pages | w2-c | todo | | |
+| W2-C3 | Cross-feature workflows + Undo across pages (where writers exist) | w2-c | todo | | |
+
+## Wave 3 (coach foundations; integration branch agent/int-w3; NOT deployed; flag UCT_AGENT_COACH default off)
+| id | task | owner | depends | state | PR | evidence |
+|---|---|---|---|---|---|---|
+| W3-1 | Educational explanations: `coach.explain` (query) over a curated, reviewed knowledge base (docs/agent/coach/concepts/*.md): price action, volume, risk & position sizing, market conditions; rails: no figures unless from an envelope, "educational, not advice", no guarantees | w3-a | none | todo | | |
+| W3-2 | Deterministic coach evaluation suite: unsupported-conclusion detector (guarantee/certainty/order language), uncertainty-stated check, figure-traceability check; ≥ 20 adversarial phrasings; wired as rails on every coach answer | w3-a | none | todo | | |
+| W3-3 | Trade review foundations: `journal.reviewTrades` reading the member's own `/api/j2/trades` (and notes) with explicit per-conversation consent (`coach.consent` capability, stored on the conversation state), descriptive stats only, proposed note as the only write | w3-a | none (W2-C1 journal host for page context later) | todo | | |
+| W3-4 | Coaching conversation workflow: ask → explain → check → next step; explicit uncertainty; uses W2-A1 threading once merged (single-turn fallback) | w3-a | W2-A1 (soft) | todo | | |
+| W3-5 | Setup analysis + explanation on top of `chart.describeSetup` | w3-a | W2-B3 merged + reviewed | blocked (dependency) | | |
+| W3-6 | Historical setup comparison on top of `history.eventStudy` / dated ranges | w3-a | W2-B2 merged + reviewed | blocked (dependency) | | |

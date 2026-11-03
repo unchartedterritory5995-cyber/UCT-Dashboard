@@ -29,6 +29,7 @@ import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
 import { registerGuideCapabilities } from './capabilities/guide'
 import { registerMarketDataCapabilities } from './capabilities/marketDataQuote'
 import { registerMarketFactsCapabilities } from './capabilities/marketDataFacts'
+import { registerKnowledgeCapabilities } from './capabilities/knowledge'
 
 let done = false
 export function registerBuiltins() {
@@ -68,4 +69,5 @@ export function registerBuiltins() {
 export function registerServerGatedBuiltins() {
   registerMarketDataCapabilities()
   registerMarketFactsCapabilities()      // W1-C C-02: stock.themes while the server serves `themes`
+  registerKnowledgeCapabilities()        // KN-1: playbook.* while the server serves the knowledge kinds
 }

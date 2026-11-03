@@ -936,6 +936,11 @@ def _local_requests(data) -> str:
     return ("The member asked for: " + "; ".join(parts) + ".") if parts else ""
 
 
+def _kn_frame():
+    from api.services.uct_agent.knowledge import frame
+    return frame
+
+
 def outcome_for_model(t: dict) -> str:
     """The text a stored OUTCOME row may contribute to a model request — the ONLY door for one."""
     data = t.get("data")
@@ -947,6 +952,9 @@ def outcome_for_model(t: dict) -> str:
     # Label what UCT ACTUALLY did. A proposal was never executed, so it
     # must not read as "[UCT executed]" in the model's memory.
     label = _OUTCOME_LABEL.get(data.get("kind"), "[UCT]")
+    from api.services.uct_agent.knowledge import frame as kn_frame          # KN-1 review B2: knowledge text replayed
+    if any(kn_frame.is_knowledge_action(a) for a in (_row_actions(data) or [])):
+        return f"{label} {kn_frame.REPLAY_STUB}"          # N-8: never replay passage text; re-ask to re-gate
     return f"{label} {t['text']}"
 
 
@@ -968,6 +976,10 @@ def history_messages(turns: list[dict]) -> list[dict]:
             env = (t.get("data") or {}).get("envelope") if isinstance(t.get("data"), dict) else None
             ours = isinstance(env, dict) and env.get("local_notice") is True and t.get("text") in LOCAL_NOTICES
             text = f"[UCT] {t['text']}" if ours else ""
+        elif t["role"] == "agent" and _kn_frame().used_knowledge(t.get("data")):
+            # KN-1 r3 B-1: the model's own reply in a knowledge turn quotes or paraphrases the passages; it is never
+            # replayed (citation-only, aligned with the retention direction), and its stub keeps web research blocked
+            text = f"[UCT] {_kn_frame().REPLAY_STUB}"
         else:
             text = t["text"]
         if not text:
@@ -1264,6 +1276,8 @@ def name_conversation(turns: list[dict], caller: Callable | None = None, meter=N
             continue
         if t["role"] == "agent" and (is_local_row(t) or _strip_isolated(t.get("data"))[1]):
             continue                                       # QA F-18 / F-22: a local or isolated result never reaches the naming model
+        if t["role"] == "agent" and _kn_frame().used_knowledge(t.get("data")):
+            continue                                       # KN-1 r4: knowledge-derived text never reaches the naming model
         who = "Member" if t["role"] == "member" else "Agent"
         lines.append(f"{who}: {' '.join(str(t['text']).split())[:400]}")
     if not any(ln.startswith("Member:") for ln in lines):
@@ -1834,6 +1848,16 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             if news:
                 wants = False
                 usage["local_research_skipped"] = True
+        if wants:
+            from api.services.uct_agent.knowledge import frame as kn_frame      # KN-1 owner decision 5: separation
+            if kn_frame.seen(messages):
+                wants = False
+                usage["research_skipped"] = "knowledge_separation"
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
+                env = {**env, "reply": kn_frame.RESEARCH_BLOCKED, "research": None, "question": None}
+                if env.get("disposition") == "clarify":
+                    env["disposition"] = "answer"
         researched = None
         if wants and meter is not None:
             # ⭐ PHASE 0A/0B: research is followed by one more model call, so it runs only when the request
