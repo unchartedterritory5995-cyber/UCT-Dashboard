@@ -71,7 +71,9 @@ describe('dark by construction', () => {
     const before = manifestFor({ surface: 'charts' }).map(c => c.name)
     registerServerGatedBuiltins()
     expect(manifestFor({ surface: 'charts' }).map(c => c.name)).toEqual(before)
-    expect(allCapabilityNames().some(n => n.startsWith('coach.') || n.startsWith('journal.'))).toBe(false)
+    // train2: W2-C1's journal page registers journal.listNotes / journal.createNote (its own surface, ungated), so the
+    // coach's absence is checked by the coach's own names, not the journal.* prefix
+    expect(allCapabilityNames().some(n => n.startsWith('coach.') || n === 'journal.reviewTrades' || n === 'journal.proposeNote')).toBe(false)
   })
   it('an older server (no coach key) and a refused config are both off', async () => {
     globalThis.fetch = vi.fn(async () => json({ stream: false }))
