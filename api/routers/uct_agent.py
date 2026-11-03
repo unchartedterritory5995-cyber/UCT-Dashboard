@@ -3,9 +3,10 @@
   POST /api/agent/turn                     one model turn -> structured envelope
   POST /api/agent/turn/stream              the same turn as text/event-stream (an answer streams when
                                            UCT_AGENT_STREAM is on; the final event is /turn's JSON)
-  GET  /api/agent/config                   {stream, nl1, news, data, scan, planner}: does this server stream turns (UCT_AGENT_STREAM),
+  GET  /api/agent/config                   {stream, nl1, news, data, scan, planner, coach}: does this server stream turns (UCT_AGENT_STREAM),
                                            does it serve NL-1 (UCT_AGENT_NL1), the MD-1 data gateway
                                            (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN); planner v1 | v2
+  GET  /api/agent/coach/concepts           Wave 3 coach (UCT_AGENT_COACH, default off): the concept knowledge base
   POST /api/agent/turn/step                planner v2 (UCT_AGENT_PLANNER=v2) only: the browser's outcome of ONE step
   POST /api/agent/turn/resume              planner v2 only: continue a turn paused on an approval card (event stream)
   POST /api/agent/data                     one MD-1 market-data read -> DataEnvelope (read-only, no model;
@@ -194,9 +195,29 @@ def agent_config(user: dict = Depends(require_admin_dark)):
     NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on."""
     from api.services.uct_agent import news, turn, turn_v2
     from api.services.uct_agent.marketdata import gateway
+    from api.services.uct_agent import coach
     return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled(), "news": news.enabled(),
             "data": gateway.data_enabled(), "scan": gateway.scan_enabled(),
-            "data_kinds": sorted(gateway.enabled_kinds()), "planner": turn_v2.planner()}
+            "data_kinds": sorted(gateway.enabled_kinds()), "planner": turn_v2.planner(),
+            # Wave 3 (W3-1): the coach, UCT_AGENT_COACH (default off) -- the browser registers coach.* only on true
+            "coach": coach.enabled()}
+
+
+# ── COACH (Wave 3, UCT_AGENT_COACH, default off): the curated concept knowledge base the browser explains from ──
+# docs/agent/coach/concepts/*.md, parsed by services/uct_agent/coach/concepts.py. Read-only, no model call, no
+# member data. 404 while the flag is off (the route does not exist for a dark server), admin-dark like every route.
+@router.get("/api/agent/coach/concepts")
+def agent_coach_concepts(user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import coach
+    from api.services.uct_agent.coach import concepts
+    if not coach.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"concepts": concepts.public_rows(), "footer": coach_footer()}
+
+
+def coach_footer() -> str:
+    from api.services.uct_agent.coach import guard
+    return guard.FOOTER
 
 
 # ── PLANNER v2 (Wave 1 A-04, docs/agent/program/contracts/STEP-1.md): the step registry ───────────────────
@@ -555,7 +576,9 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     # PLANNER v2 (UCT_AGENT_PLANNER=v2): only a STREAMED, ordinary turn (no headline, no reroute) takes the step loop;
     # its rounds are metered by the daily cap per call (request_id None: the 2-call ceiling is v1's), never by routing
     v2 = None
-    if on_event is not None and planner_v2() and headline is None and not body.reroute:
+    # (a COACH turn stays on v1: its prompt block and server guard live there -- W3 review C1)
+    from api.services.uct_agent import coach as agent_coach
+    if on_event is not None and planner_v2() and headline is None and not body.reroute and not agent_coach.is_coach_turn(body.context):
         token, v2 = _v2_register(uid)
     try:
         out = agent.run_turn(message=body.message, context=body.context, history=history,

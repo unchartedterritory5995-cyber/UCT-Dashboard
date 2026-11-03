@@ -1644,6 +1644,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     model as data with news.RULES. `answer_only` (the News Ask box): no web research runs and any op the model
     writes is dropped -- the turn can only answer."""
     if v2 is not None:
+        # W3 review C1: a COACH turn never takes the v2 step loop (it has no coach block and no coach guard): it is
+        # served on this v1 path, where the coach prompt, the no-streaming rule and the server guard all apply.
+        from api.services.uct_agent import coach as _coach
+        if _coach.is_coach_turn(context):
+            v2 = None
+    if v2 is not None:
         from api.services.uct_agent import turn_v2
         return turn_v2.run_turn_v2(message=message, context=context, history=history, capabilities=capabilities,
                                    pending=pending, caller=caller, meter=meter, on_event=on_event, reference=reference,
@@ -1700,6 +1706,14 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     if headline is not None:
         from api.services.uct_agent import news as agent_news
         parts = parts + [agent_news.RULES + (agent_news.ANSWER_ONLY if answer_only else "")]
+    # Wave 3 (W3-1/W3-4, UCT_AGENT_COACH): a turn whose context carries the browser's coach entry gets the coach
+    # block (use the concept text; explain -> what to check -> one question; no conclusions, no orders, grounded
+    # figures, uncertainty stated) and its reply passes coach.guard before it is returned. Flag off: nothing here.
+    from api.services.uct_agent import coach as agent_coach
+    coach_turn = agent_coach.is_coach_turn(context)
+    if coach_turn:
+        from api.services.uct_agent.coach import prompt as coach_prompt
+        parts = parts + [coach_prompt.RULES]
     system_blocks = [{"type": "text", "text": t, "cache_control": {"type": "ephemeral"}} for t in parts]
     if headline is not None:
         blocks.append(_block("news_headline", headline))
@@ -1732,8 +1746,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         t_call = time.perf_counter()
         # This call's reply may stream only if it can be the final answer: the post-research call
         # always is; the first one is not when UCT will force research on an answer (current facts).
+        # (a coach turn never streams its reply: the guard must see the whole text before the member does)
         rs = (ReplyStream(lambda text: on_event({"t": "delta", "text": text}),
-                          allowed=(round_ > 0 or not forced_research) and pre_research is None)
+                          allowed=(round_ > 0 or not forced_research) and pre_research is None and not coach_turn)
               if streaming and stream_caller is not None else None)
         call = (lambda **kw: stream_caller(rs.feed, **kw)) if rs is not None else caller
         category = ("reroute" if reroute else "turn") if round_ == 0 else ("repair" if usage.get("repaired") == "server" else "after_research")
@@ -1900,6 +1915,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             env = {**env, "disposition": pre_research["disposition"], "ops": pre_research["ops"],
                    "question": None, "research": None}
             envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids), env), caps)
+            if coach_turn:
+                envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
@@ -1920,6 +1937,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             env = {**env, "disposition": "answer", "ops": [], "question": None,
                    "reply": env.get("reply") or "I can only answer questions about this headline here."}
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice), env), caps)
+        if coach_turn:
+            envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         title = clean_title(env) if conversation_title and not envelope.get("need_groups") else None
