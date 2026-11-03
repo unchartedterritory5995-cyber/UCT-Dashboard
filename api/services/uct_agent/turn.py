@@ -750,19 +750,23 @@ def is_breadth_question(message: str) -> bool:
 
 
 #: A COUNT or LIST of stocks meeting a condition is UCT's own Screener, never the web (2026-11-03, production:
-#: "how many stocks are up more than 5% today" was web-researched). Mirrors the screener words in
-#: app/src/agent/routing.js that select the group for exactly these questions.
-_SCREEN_Q = re.compile(r"\b(how many|which|what) (stocks|names|tickers|equities)\b|"
-                       r"\b(stocks|names|tickers|equities) (are |were |that are |that were )?(up|down|gained|lost|gaining|"
-                       r"losing|rose|fell|rising|falling|green|red)\b", re.I)
+#: "how many stocks are up more than 5% today" was web-researched). A STRICTER subset of the screener words in
+#: app/src/agent/routing.js: routing ADDS a group, this SUBTRACTS research — so it needs the universe words AND a
+#: numeric condition ("what stocks did Pelosi buy", "are stocks up today" keep their web research; agent-sc review).
+_SCREEN_UNIV = re.compile(r"\b(how many|which|what) (stocks|names|tickers|equities)\b|"
+                          r"\b(stocks|names|tickers|equities) (are |were |that are |that were )?(up|down|gained|lost|gaining|"
+                          r"losing|rose|fell|rising|falling|green|red)\b", re.I)
+_SCREEN_COND = re.compile(r"(more than|over|above|under|below|at least|less than|>=|<=|>|<)\s*\$?-?\d+(\.\d+)?\s*(%|x\b|percent\b)|"
+                          r"\b(up|down|gained|lost|rose|fell)\s+\d+(\.\d+)?\s*(%|percent\b)", re.I)
 SCREEN_RULE = ("SCREENS: a count or list of stocks meeting a price, volume, change or other field condition (\"how many "
                "stocks are up more than 5%\", \"which stocks gained over 5%\") is UCT's Screener — plan screener.run, never "
-               "research it and never answer it from memory. Screen data is the latest UCT snapshot: say the as-of date it "
-               "reports, never promise a live intraday count.")
+               "research it and never answer it from memory. Say the Screener snapshot date the result reports, never "
+               "promise a live intraday count.")
 
 
 def is_screen_question(message: str) -> bool:
-    return bool(_SCREEN_Q.search(message or ""))
+    m = message or ""
+    return bool(_SCREEN_UNIV.search(m) and _SCREEN_COND.search(m))
 
 
 #: Every notice UCT may give on a local plan — the ONLY agent text of such a plan ever shown or replayed.

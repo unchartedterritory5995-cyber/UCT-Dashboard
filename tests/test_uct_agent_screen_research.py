@@ -35,13 +35,20 @@ def test_the_golden_manifest_offers_the_screener():
 
 
 @pytest.mark.parametrize("q", ["how many stocks are up more than 5% today", "which stocks gained over 5% today",
-                               "what stocks are down more than 3% this week", "stocks up more than 5% today"])
+                               "what stocks are down more than 3% this week", "stocks up more than 5% today",
+                               "which names are down 10% this week", "how many stocks fell more than 3%",
+                               "what tickers are up over 2x average volume", "which stocks are above $50 and up 4%"])
 def test_SCREEN_QUESTIONS_are_recognised(q):
     assert turn.is_screen_question(q)
 
 
 @pytest.mark.parametrize("q", ["is NVDA up more than 5% today", "nvda price", "latest news on Tesla",
-                               "what percent of stocks are above the 50 day"])
+                               "what percent of stocks are above the 50 day",
+                               # agent-sc review: universe words with NO numeric condition keep their web research
+                               "what stocks did Pelosi buy this week", "which stocks does Buffett own",
+                               "what stocks should I buy today", "what stocks are reporting earnings today",
+                               "are stocks up today", "stocks are red today, what happened",
+                               "what names are moving after hours", "why are stocks down today"])
 def test_NOT_SCREEN_QUESTIONS(q):
     assert not turn.is_screen_question(q)
 
@@ -75,3 +82,12 @@ def test_PROMPT_names_the_screen_rule_only_when_the_screener_is_offered():
     assert turn.SCREEN_RULE in turn.system_prompt(SCREEN_CAPS)
     assert turn.SCREEN_RULE not in turn.system_prompt([c for c in _GOLDEN if c["name"] == "breadth.show"])
     assert "never research" in turn.SCREEN_RULE and "never promise a live intraday count" in turn.SCREEN_RULE
+
+
+def test_a_NEWS_SHAPED_stock_question_keeps_its_web_research(searched):
+    m = ScriptedModel()
+    m.queue = [{**env("answer", reply="Let me look."), "research": {"query": "pelosi stock trades", "recency": "week"}},
+               env("answer", reply="Here is what was reported.")]
+    out = turn.run_turn(message="what stocks did Pelosi buy this week", context=CTX, history=[],
+                        capabilities=SCREEN_CAPS, caller=m)
+    assert searched and out["usage"].get("screen_research_blocked") is None
