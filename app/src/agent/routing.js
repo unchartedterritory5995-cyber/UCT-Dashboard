@@ -81,7 +81,8 @@ export const GROUPS = [
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
-  { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP', domains: [],
+  // `fillLast` like every specialised group: never a filler, so a message nothing named still carries the screener (F-SB-1).
+  { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP', domains: [], fillLast: true,
     actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap'],
     words: [/\b(draw|add|put|place|plot|anchor|drop|mark)\b.*\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|boxe?s?|notes?|text|anchored vwap|avwap)\b/,
       /\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|anchored vwap|avwap)\b.*\b(from|between|starting|anchored|since)\b/, /\banchored vwap\b|\bavwap\b/] },
