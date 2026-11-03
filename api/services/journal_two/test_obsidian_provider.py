@@ -2049,8 +2049,8 @@ def test_a_file_link_original_cut_off_at_its_embeds_brackets_still_keeps_both():
 
 def test_a_markdown_image_as_the_alias_of_a_file_link_keeps_the_image_and_the_chip():
     """Issue #3 (plugin repo): real Obsidian caches `[[q.pdf|![](att/img.png)]]` as ONE link
-    and no embed. Sent as one ref (plugin 0.2.0/0.2.1) or beside the image's own embed ref
-    (0.2.2+), it reads as the image, then the chip, as the wiki-embed alias does. The whole
+    and no embed. Sent as one ref (plugin 0.2.0) or beside the image's own embed ref
+    (0.2.1), it reads as the image, then the chip, as the wiki-embed alias does. The whole
     link used to claim the text, so the image the member wrote was gone."""
     original = "[[q.pdf|![](att/img.png)]]"
     pdf = REF(original=original, embed=False, path="att/q.pdf", sha256="b" * 64)
