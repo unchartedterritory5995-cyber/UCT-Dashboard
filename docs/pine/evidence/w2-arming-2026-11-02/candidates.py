@@ -10,9 +10,11 @@ Reads only COMMITTED inputs (and the optional measurement files named above):
     runtime-on lane); a capture whose verdict is MATCH with the runtime pane on and was NOT
     MATCH with it off was drawn BY THE RUNTIME LANE (the host lane answered otherwise), so
     those rows are the only runtime-lane evidence there is;
-  * ``tests/fixtures/vendor/harness/<id>.json``  each capture's source text (for a script
-    that has no ``corpus/committed`` file, the witness scripts the programme wrote itself);
-  * ``corpus/committed/*.pine``  the committed script sources;
+  * ``tests/fixtures/vendor/harness/<id>.json``  each capture's source text, checked against
+    its recorded sha256;
+  * ``corpus/committed/*.pine``  the committed script sources, and
+    ``tools/visual_conformance/probes/*.pine``  the programme's own witness scripts (the probes
+    pasted into TradingView); a script is matched to either by source sha256;
   * ``api/data/pine_runtime_allowlist.json``  the committed registry.
 
 For every script that has a runtime-lane MATCH capture it records: the census capabilities
@@ -43,6 +45,7 @@ from tools.pine_coverage import coverage_map as cm  # noqa: E402
 
 HARNESS = os.path.join(ROOT, "tests", "fixtures", "vendor", "harness")
 CORPUS = os.path.join(ROOT, "corpus", "committed")
+PROBES = os.path.join(ROOT, "tools", "visual_conformance", "probes")
 ALLOWLIST = os.path.join(ROOT, "api", "data", "pine_runtime_allowlist.json")
 LANE_DIFF = os.path.join(HERE, "harness-lane-diff.json")
 ROLLOUT_GATE = os.path.join(ROOT, "api", "services", "rollout_gate.py")
@@ -99,6 +102,16 @@ def corpus_by_hash():
     return out
 
 
+def probes_by_hash():
+    """The programme's own witness scripts (the probes pasted into TradingView), by source sha256."""
+    out = {}
+    for f in sorted(os.listdir(PROBES)):
+        if f.endswith(".pine"):
+            with open(os.path.join(PROBES, f), encoding="utf-8") as fh:
+                out[sha256_text(fh.read())] = f
+    return out
+
+
 def slug_of(corpus_file, capture_id):
     if corpus_file:
         return corpus_file.split("__")[0]
@@ -117,6 +130,7 @@ def main(argv=None):
     registry = read_json(ALLOWLIST)["capabilities"]
     admission = real_admission()
     corpus = corpus_by_hash()
+    probes = probes_by_hash()
 
     # captures by script identity (the capture's own recorded source hash)
     rows = {r["file"]: r for r in diff["all"]}
@@ -145,6 +159,7 @@ def main(argv=None):
         if sha256_text(text) != cap["source"]["sha256"] or cap["source"]["sha256"] != h:
             raise SystemExit(f"{first_match['file']}: source text does not hash to its recorded sha256")
         corpus_file = corpus.get(h)
+        probe_file = probes.get(h)
         slug = slug_of(corpus_file, first_match["file"][:-5])
         caps = census_capabilities(text)
         matches = [{"id": r["file"][:-5], "production": r["production"], "runtimeOn": r["runtimeOn"],
@@ -156,8 +171,10 @@ def main(argv=None):
         pool.append({
             "slug": slug,
             "sha256": h,
-            "source": f"corpus/committed/{corpus_file}" if corpus_file else "witness script: capture source only, no committed corpus file",
-            "kind": "corpus" if corpus_file else "witness",
+            "source": (f"corpus/committed/{corpus_file}" if corpus_file
+                       else f"tools/visual_conformance/probes/{probe_file}" if probe_file
+                       else "capture source only (no committed .pine file hashes to it)"),
+            "kind": "corpus" if corpus_file else "probe" if probe_file else "capture-only",
             "captures": matches,
             "runtimeMatchCaptures": sum(1 for m in matches if m["lane"] == "runtime-MATCH"),
             "runtimeDivergeCaptures": sum(1 for m in matches if m["lane"] == "runtime-DIVERGE"),
@@ -175,9 +192,18 @@ def main(argv=None):
             continue
         d = [r for r in caps_rows if lane(r) == "runtime-DIVERGE"]
         if d:
-            diverge_only.append({"sha256": h, "source": f"corpus/committed/{corpus[h]}" if h in corpus else None,
-                                 "captures": [{"id": r["file"][:-5], "runtimeOn": r["runtimeOn"],
-                                               "reason": r["reasonRuntimeOn"]} for r in d]})
+            with open(os.path.join(HARNESS, d[0]["file"]), encoding="utf-8") as fh:
+                dcaps = census_capabilities(json.load(fh)["source"]["text"])
+            diverge_only.append({
+                "sha256": h,
+                "source": (f"corpus/committed/{corpus[h]}" if h in corpus
+                           else f"tools/visual_conformance/probes/{probes[h]}" if h in probes else None),
+                "slug": slug_of(corpus.get(h), d[0]["file"][:-5]),
+                "capabilities": dcaps,
+                "capabilitiesWithoutARow": [c for c in dcaps if c not in registry],
+                "divergentCapabilities": [c for c in dcaps if (registry.get(c) or {}).get("status") == "divergent"],
+                "captures": [{"id": r["file"][:-5], "runtimeOn": r["runtimeOn"],
+                              "reason": r["reasonRuntimeOn"]} for r in d]})
 
     # capability matrix: per census capability, who uses it among the runtime-lane MATCH scripts
     conformant = {c for c, v in registry.items() if v.get("status") == "conformant"}
@@ -230,18 +256,31 @@ def main(argv=None):
                               "error": (x["error"] or {}).get("guard") if x.get("error") else None} for x in r["runs"]],
                     "budget": r["budget"],
                 }
-    for flag, key in (("probe", "probeDesktop"), ("probe_x4", "probeX4")):
+    for flag, key in (("probe", "desktop"), ("probe_x4", "x4")):
         path = getattr(args, flag)
         if not path:
             continue
         probe = read_json(path)
-        results = probe.get("results") or probe.get("scripts") or []
-        index = {}
-        for res in results:
-            index.setdefault(res.get("slug"), []).append(res)
+        low = probe.get("lowEnd") or {}
+        src = probe if key == "desktop" else low
+        out.setdefault("probeRuns", {})[key] = {
+            "file": os.path.basename(path), "verdict": src.get("verdict", probe.get("verdict")),
+            "workerBytes": probe.get("workerBytes"), "options": probe.get("options"),
+            "worstMainFrameGapMs": probe.get("worstMainFrameGapMs") if key == "desktop" else None,
+            "instrumentControl": probe.get("control") if key == "desktop" else low.get("control"),
+        }
+        summ = {(r["slug"], r["length"]): r for r in src.get("summary", [])}
+        ticks = {c["slug"]: c for c in src.get("checkpoint", [])}
         for entry in pool:
-            if entry["slug"] in index:
-                entry.setdefault("probe", {})[key] = index[entry["slug"]]
+            row = summ.get((entry["slug"], "D 5000"))
+            tick = ticks.get(entry["slug"])
+            if row is None and tick is None:
+                continue
+            entry.setdefault("probe", {})[key] = {
+                "D5000": {k: row[k] for k in ("n", "coldMs", "p50Ms", "p95Ms", "answers", "withinBudget")} if row else None,
+                "b5Tick": {k: tick[k] for k in ("fullMs", "fullAnswer", "ticks", "tickP50Ms", "tickP95Ms", "tickMaxMs",
+                                                "answers")} if tick else None,
+            }
     with open(args.out, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(json.dumps(out, indent=1, sort_keys=True) + "\n")
     print(f"wrote {os.path.relpath(args.out, ROOT)}: {len(pool)} scripts with a runtime-lane MATCH, "
