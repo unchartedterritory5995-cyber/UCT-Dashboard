@@ -34,9 +34,9 @@ saying the same thing about every note. Do NOT merge the two lanes to fix a red:
     verbatim, media found inside placed after the block). `07-codeblock` pins both lanes.
   - A `javascript:`/`vbscript:`/`file:` `<img>` (or a forged placeholder) in ENML: the server
     writes an `unsafe` notice; the client read `unresolvable_src`. The client adapter now refuses
-    it as `unsafe` too (Task 3 carry-in). A `data:` `<img>` stays a NAMED GAP
-    (`enmlParity.contract.test.js::knownClientGap`): the client uploads it (Plan B, tested), the
-    server refuses it (Task 3 I4 ruling). `10-foreign-images`.
+    it as `unsafe` too (Task 3 carry-in). A `data:image/*` `<img>` is uploaded by both lanes
+    (controller ruling "content wins", after Task 4; it was a named gap until then); the summary
+    names it `data:<md5 of its bytes>`. `10-foreign-images`.
   - A leading space on a later line (Task 3 re-review R4): the client is the reference. An ENML
     line `<div>` has no parse rule, so the editor adds its text at the container level, where a
     later line keeps one leading space and the first line does not; a real `<p>` always loses
@@ -52,8 +52,11 @@ Runnable directly:
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import pathlib
+import urllib.parse
 from typing import Any
 
 from api.services.journal_two.notes import extract_plain_text
@@ -61,6 +64,7 @@ from api.services.journal_two.notes import extract_plain_text
 from . import REF_PREFIX
 from .enml import EVERNOTE_RES_SCHEME, EVERNOTE_TITLE_KIND, LIVE_KEY_PREFIX, enml_to_tiptap
 from .linkify import finalize_links
+from .mddoc import DATA_URI_RE
 
 _HERE = pathlib.Path(__file__).resolve().parent
 FIXTURES_IN_DIR = _HERE / "enml_fixtures_in"
@@ -71,10 +75,26 @@ FIXTURES_OUT_DIR = (_REPO_ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib"
 _LINK_PREFIX = "import-link://"
 
 
-def _image_ref(src: str) -> str:
+def _data_key(data_uri: str) -> str:
+    """`data:<md5 of the decoded bytes>`: the identity both lanes give an uploaded data image
+    (client ref `data-<md5>`, server ref `md-img-N` carrying the URI)."""
+    match = DATA_URI_RE.match(data_uri)
+    if match is None:
+        return data_uri
+    payload = match.group("payload")
+    if ";base64" in match.group("params").lower():
+        raw = base64.b64decode("".join(payload.split()))
+    else:
+        raw = urllib.parse.unquote_to_bytes(payload)
+    return f"data:{hashlib.md5(raw).hexdigest()}"
+
+
+def _image_ref(src: str, data_refs: dict[str, str]) -> str:
     ref = src[len(REF_PREFIX):] if src.startswith(REF_PREFIX) else src
     if ref.startswith(EVERNOTE_RES_SCHEME):
         return ref.rsplit("/", 1)[-1]  # the bare md5
+    if ref in data_refs:
+        return data_refs[ref]  # an uploaded data image
     return ref  # a web hotlink: its URL
 
 
@@ -89,7 +109,8 @@ def _link_target(href: str, notes: dict[str, str]) -> str:
     return key
 
 
-def _walk(node: Any, notes: dict[str, str], out: dict[str, list]) -> None:
+def _walk(node: Any, notes: dict[str, str], out: dict[str, list],
+          data_refs: dict[str, str]) -> None:
     """Mirrors `enmlParity.contract.test.js::summarize`'s walk (document order)."""
     if not isinstance(node, dict):
         return
@@ -104,35 +125,43 @@ def _walk(node: Any, notes: dict[str, str], out: dict[str, list]) -> None:
     elif ntype == "taskItem":
         out["task_checked"].append(bool(attrs.get("checked")))
     elif ntype == "image":
-        out["images"].append(_image_ref(attrs.get("src", "")))
+        out["images"].append(_image_ref(attrs.get("src", ""), data_refs))
     elif ntype == "attachmentChip":
         out["chips"].append(attrs.get("name"))
     elif ntype == "importNotice":
         out["notices"].append(attrs.get("reason"))
     for child in node.get("content") or []:
-        _walk(child, notes, out)
+        _walk(child, notes, out, data_refs)
 
 
-def semantic_summary(doc: dict[str, Any], notes: dict[str, str]) -> dict[str, Any]:
+def semantic_summary(doc: dict[str, Any], notes: dict[str, str],
+                     media: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Ordered top-level blocks (type + text), task checked flags, image refs (bare md5 or URL),
     attachment chip names, notice reasons and link targets. `text` reuses
     `notes.extract_plain_text`, pinned in lockstep with the client's `extractPlainText`."""
     out: dict[str, list] = {"blocks": [], "task_checked": [], "images": [], "chips": [],
                             "notices": [], "links": []}
+    data_refs = {m["ref"]: _data_key(m["data_uri"]) for m in media or [] if m.get("data_uri")}
     for block in doc.get("content") or []:
         out["blocks"].append({"type": block.get("type"),
                               "text": extract_plain_text({"type": "doc", "content": [block]})})
-        _walk(block, notes, out)
+        _walk(block, notes, out, data_refs)
     return out
 
 
-def server_doc(enml_text: str, note: dict[str, Any]) -> dict[str, Any]:
-    """The server lane exactly as the sync stores it: the converter, then the engine's finalize."""
+def server_doc(enml_text: str, note: dict[str, Any]) -> tuple[dict[str, Any], list[dict]]:
+    """The server lane exactly as the sync stores it: the converter, then the engine's finalize.
+    Returns the doc and the converter's media list."""
     resources = [{"id": str(i), "hash": r["hash"], "mime": r["mime"], "name": r.get("name"),
                   "sizeBytes": 0} for i, r in enumerate(note.get("resources") or [])]
     result = enml_to_tiptap(enml_text, resources or None, note_guid=note["guid"],
                             source_url=note.get("sourceUrl"))
-    return finalize_links(result["doc"])
+    return finalize_links(result["doc"]), result["media"]
+
+
+def _doc_and_notes(enml_text: str, note: dict[str, Any]) -> tuple:
+    doc, media = server_doc(enml_text, note)
+    return doc, note.get("notes") or {}, media
 
 
 def _render(obj: dict[str, Any]) -> str:
@@ -149,7 +178,7 @@ def render_all(in_dir: pathlib.Path = FIXTURES_IN_DIR) -> dict[str, str]:
             "id": enml_path.stem,
             "enml": enml_text,
             "note": note,
-            "server": semantic_summary(server_doc(enml_text, note), note.get("notes") or {}),
+            "server": semantic_summary(*_doc_and_notes(enml_text, note)),
         }
         out[f"{enml_path.stem}.json"] = _render(fixture)
     return out

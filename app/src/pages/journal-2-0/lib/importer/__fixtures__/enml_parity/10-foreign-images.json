@@ -33,7 +33,7 @@
       },
       {
         "text": "",
-        "type": "importNotice"
+        "type": "image"
       },
       {
         "text": "end",
@@ -42,11 +42,11 @@
     ],
     "chips": [],
     "images": [
-      "https://e.example.com/pics/x.png"
+      "https://e.example.com/pics/x.png",
+      "data:e9dd2797018cad79186e03e8c5aec8dc"
     ],
     "links": [],
     "notices": [
-      "unsafe",
       "unsafe"
     ],
     "task_checked": []

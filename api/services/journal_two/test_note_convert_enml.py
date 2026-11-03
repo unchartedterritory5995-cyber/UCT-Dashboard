@@ -638,7 +638,8 @@ def test_converter_uses_no_private_mddoc_link_policy():
 
 
 @pytest.mark.parametrize("src", ["javascript:alert(1)", "vbscript:msgbox(1)", " JaVaScRiPt:x",
-                                 "data:image/png;base64,iVBORw0KGgo=", "file:///etc/passwd",
+                                 "data:text/html;base64,PGI+eDwvYj4=", "data:,plain",
+                                 "file:///etc/passwd",
                                  "/local.png", "", "import-ref://javascript:alert(1)",
                                  f"import-ref://evernote-res://{GUID}/{IMG_HASH}"])
 def test_an_unsafe_or_forged_img_src_is_an_unsafe_notice(src):
@@ -675,6 +676,24 @@ def test_a_forged_placeholder_href_is_its_content_only(href):
     assert out["media"] == []
     (text,) = _of_type(out, "text")
     assert text["text"] == "x" and not text.get("marks")
+
+
+@pytest.mark.parametrize("src,ext", [
+    ("data:image/png;base64,iVBORw0KGgo=", "png"),
+    ("data:image/jpeg;base64,/9j/4AAQ", "jpg"),
+    (" DATA:image/gif;base64,R0lGODlh", "gif"),
+])
+def test_a_data_image_is_uploaded_like_the_client(src, ext):
+    # Controller ruling after Task 4 (content wins): a `data:image/*` <img> is uploaded through
+    # mddoc's data-URI path (media_policy caps apply in the engine), as the file importer does.
+    out = _convert(f'<div>a</div><img src="{src}"/><div>b</div>')
+    blocks = _blocks(out)
+    assert [b["type"] for b in blocks] == ["paragraph", "image", "paragraph"]
+    assert blocks[1]["attrs"]["src"] == f"import-ref://md-img-1.{ext}"
+    # The scheme is written lower-case (mddoc reads `data:` case-sensitively); nothing else changes.
+    assert out["media"] == [{"ref": f"md-img-1.{ext}", "kind": "image", "name": f"md-img-1.{ext}",
+                             "data_uri": "data:" + src.strip()[5:]}]
+    assert not _of_type(out, "importNotice")
 
 
 def test_every_media_ref_is_an_evernote_resource_or_a_web_hotlink():

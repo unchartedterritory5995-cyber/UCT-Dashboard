@@ -48,7 +48,7 @@ from api.services.journal_two import import_notice
 
 from . import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX
 from .linkify import resolve_href
-from .mddoc import html_to_tiptap
+from .mddoc import html_to_tiptap, is_data_image_uri
 
 EVERNOTE_RES_SCHEME = "evernote-res://"
 LIVE_KEY_PREFIX = "evernote:guid:"
@@ -462,6 +462,11 @@ def _rule_refuse_foreign_media(root: _Node, notices: _Notices) -> None:
             url = None if src.lower().startswith(placeholders) else _web_image_url(src)
             if url:
                 return [_Node("img", {"src": url})]  # every other attribute dropped
+            if is_data_image_uri(src):
+                # Ruling after Task 4 (content wins): a `data:image/*` image is uploaded as the
+                # file importer uploads it; the walker's data-URI path, media_policy caps in the
+                # engine. Scheme lower-cased: the walker reads `data:` case-sensitively.
+                return [_Node("img", {"src": "data:" + src[5:]})]
             return [notices.placeholder("unsafe")]
         if n.tag == "a" and (n.attrs.get("href") or "").strip().lower().startswith(placeholders):
             return list(n.children)
@@ -927,7 +932,7 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     refs = {m["ref"] for m in media}
     for entry in result["media"]:
         ref = entry.get("ref")
-        if isinstance(ref, str) and ref not in refs and _web_image_url(ref):
+        if isinstance(ref, str) and ref not in refs and (_web_image_url(ref) or entry.get("data_uri")):
             refs.add(ref)
             media.append(entry)
     return {"doc": result["doc"], "media": media, "links": result["links"]}

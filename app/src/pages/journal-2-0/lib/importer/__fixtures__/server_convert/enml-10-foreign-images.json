@@ -46,13 +46,9 @@
       },
       {
         "attrs": {
-          "attempts": 0,
-          "name": null,
-          "reason": "unsafe",
-          "ref": null,
-          "sourceUrl": null
+          "src": "import-ref://md-img-1.png"
         },
-        "type": "importNotice"
+        "type": "image"
       },
       {
         "content": [
@@ -72,6 +68,12 @@
       "kind": "image",
       "name": "x.png",
       "ref": "https://e.example.com/pics/x.png"
+    },
+    {
+      "data_uri": "data:image/png;base64,iVBORw0KGgo=",
+      "kind": "image",
+      "name": "md-img-1.png",
+      "ref": "md-img-1.png"
     }
   ]
 }

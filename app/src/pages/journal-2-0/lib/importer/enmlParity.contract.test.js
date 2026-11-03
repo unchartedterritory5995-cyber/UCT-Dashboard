@@ -114,6 +114,8 @@ async function clientSummary(fixture) {
   return summarize(bodyJson, {
     imageRef: (src) => {
       const ref = src.startsWith(REF) ? src.slice(REF.length) : src
+      // An uploaded data image is `data-<md5 of its bytes>`: the summary's `data:<md5>`.
+      if (ref.startsWith('data-') && media.get(ref)?.vfile) return `data:${ref.slice('data-'.length)}`
       return media.get(ref)?.remoteUrl ?? ref
     },
     noticeFor: (src) => {
@@ -133,29 +135,9 @@ async function clientSummary(fixture) {
 // rail stays strict for everything else (the obsidianParity convention). Each entry spells out
 // what the client reads TODAY; it must really differ from the server (a fix turns the entry red
 // and forces its removal), and every field not named still compares.
-const knownClientGap = {
-  // OWNER: Plan E controller. A `data:` image written in the ENML. The file importer UPLOADS it
-  // (Plan B, pinned by corpora.evernote.test.js: "data: image is uploaded"); the live sync REFUSES
-  // it as `unsafe` (Plan E Task 3 I4 ruling: the converter emits only `evernote-res://` and web
-  // refs). ENML forbids `<img>`, so a live note should never carry one. Closing it means one side
-  // changing: the server keeping it as a data-URI upload (mddoc already supports that), or the
-  // client refusing it. Until then the client reads:
-  '10-foreign-images.json': {
-    clientReads: {
-      blocks: [
-        { text: 'A hotlink:', type: 'paragraph' },
-        { text: '', type: 'image' },
-        { text: 'An unsafe image:', type: 'paragraph' },
-        { text: '', type: 'importNotice' },
-        { text: 'A data image:', type: 'paragraph' },
-        { text: '', type: 'image' },
-        { text: 'end', type: 'paragraph' },
-      ],
-      images: ['https://e.example.com/pics/x.png', 'data-e9dd2797018cad79186e03e8c5aec8dc'],
-      notices: ['unsafe'],
-    },
-  },
-}
+// ⚰️ `10-foreign-images` (a `data:` image: uploaded by the client, refused by the server) was a
+// named gap here until the controller ruled "content wins": the server now uploads it too.
+const knownClientGap = {}
 
 describe('Evernote client .enex <-> server ENML parity', () => {
   it('found at least one committed fixture', () => expect(fixtures.length).toBeGreaterThan(0))

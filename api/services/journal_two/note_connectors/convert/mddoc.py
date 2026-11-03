@@ -535,6 +535,13 @@ def _is_image_mime(mime: str) -> bool:
     return bool(_IMAGE_MIME_RE.match(mime.strip()))
 
 
+def is_data_image_uri(src: str) -> bool:
+    """True for a `data:image/*` URI this walker uploads (`_data_uri_image_node`). Public so a
+    pre-pass (Plan E `enml.py`) asks the walker's own rule instead of keeping a copy."""
+    match = DATA_URI_RE.match(src)
+    return bool(match and _is_image_mime(match.group("mime")))
+
+
 def _data_uri_ext(mime: str) -> str:
     mime = mime.strip().lower()
     known = _DATA_URI_MIME_EXT.get(mime)
