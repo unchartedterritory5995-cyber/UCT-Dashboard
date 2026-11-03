@@ -256,7 +256,7 @@ export function registerBarsCapability() {
   registered = true
   unregister = registerCapability({
     name: CAPABILITY,
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Answer questions about ONE stock\'s COMPLETED daily sessions from UCT\'s daily bars: the close (latest, or on a date), one session\'s open/high/low/close, '
       + 'the change over N sessions, the high and low of a window (a week, a month, N sessions), or the 52-week range — each as of a date when one is given. Use this (disposition apply, research null) '

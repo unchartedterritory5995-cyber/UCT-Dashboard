@@ -120,7 +120,7 @@ export function registerGuideCapabilities() {
   })
 
   // fastWhole: a question is read WHOLE ("the difference between an indicator AND a condition" is one question)
-  const common = { surfaces: ['charts'], target: 'guide', query: true, fastWhole: true, available: (ctx) => ctx.surface === 'charts' }
+  const common = { surfaces: ['*'], target: 'guide', query: true, fastWhole: true }
   registerCapability({
     ...common,
     name: 'guide.explain',

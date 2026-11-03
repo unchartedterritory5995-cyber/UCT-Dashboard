@@ -309,7 +309,7 @@ export function registerMarketFactsCapabilities() {
   registered = true
   unregister = registerCapability({
     name: THEMES_CAPABILITY,
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Show which of UCT\'s curated themes are leading or lagging over a period (1d, 1w, 1m, 3m, 1y, ytd): equal-weight theme returns '
       + 'from UCT\'s Theme Tracker. Use this (disposition apply, research null) for "which themes are leading this week?", "worst themes this month".',
