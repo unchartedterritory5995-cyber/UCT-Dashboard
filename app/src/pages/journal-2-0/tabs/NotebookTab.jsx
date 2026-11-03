@@ -147,6 +147,34 @@ const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalen
 const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
 const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
 const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
+// Plan F Task 10: the one-time notice for imports that lost pictures. Fetched only when the server
+// says there is one to show, so the first-open bytes are unchanged for everyone else.
+const ImportRepairNotice = lazyView(() => import('../components/notebook/ImportRepairNotice'), 'import repair notice', null)
+
+// Plan F Task 10: ONE read of the notice per page load, shared by every mount of this tab (no
+// polling, and switching tabs and back does not ask again). Resolves to the count of notes that
+// lost something, or 0 for "nothing to show" -- a failed read included, so it never blocks the list.
+const REPAIR_NOTICE_URL = '/api/j2/notes/import/repair-notice'
+let repairNoticeRead = null
+function readRepairNotice() {
+  if (!repairNoticeRead) {
+    repairNoticeRead = fetch(REPAIR_NOTICE_URL, { credentials: 'include' })
+      .then((r) => (r && r.ok ? r.json() : null))
+      .then((b) => {
+        const n = Number(b?.lossNotes)
+        return b?.show === true && Number.isInteger(n) && n > 0 ? n : 0
+      })
+      .catch(() => 0)
+  }
+  return repairNoticeRead
+}
+// Either button retires it for this page load at once; the POST retires it for good. A failed POST
+// leaves the server row, so the notice can come back on a later load: never lost, never repeated here.
+function dismissRepairNotice() {
+  repairNoticeRead = Promise.resolve(0)
+  return fetch(`${REPAIR_NOTICE_URL}/dismiss`, { method: 'POST', credentials: 'include' }).catch(() => null)
+}
+export function __resetRepairNoticeForTests() { repairNoticeRead = null }
 const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
 // Wave 9 (lane 9D, D2): the sidebar's Publish-folder confirmation, fetched on its first open.
 const PublishFolderSheet = lazyDialog(() => import('../components/notebook/PublishFolderSheet'), 'publish folder')
@@ -441,6 +469,23 @@ export default function NotebookTab() {
   // false | true | 'kinds' (Notebook P1: "From a style" opens the sheet with focus on the first kind, not the search box)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  // Plan F Task 10: the wizard opened from the repair notice starts with "Re-import to recover" ticked.
+  const [importRecover, setImportRecover] = useState(false)
+  const [repairLossNotes, setRepairLossNotes] = useState(0)
+  useEffect(() => {
+    let live = true
+    readRepairNotice().then((n) => { if (live) setRepairLossNotes(n) })
+    return () => { live = false }
+  }, [])
+  const dismissRepair = useCallback(() => {
+    setRepairLossNotes(0)
+    return dismissRepairNotice()
+  }, [])
+  const recoverFromRepairNotice = useCallback(async () => {
+    await dismissRepair()
+    setImportRecover(true)
+    setImportOpen(true)
+  }, [dismissRepair])
   // Notebook P1: the Styles manager. `?styles=1` (the Settings card's link) asks to open it, once, and leaves the URL
   // clean. The request is kept even if the switch has not latched yet; ONLY the render gate below decides whether
   // anything shows (one guard, not two).
@@ -2645,9 +2690,18 @@ export default function NotebookTab() {
 
         <NoteConnectorsTrustStrip />
 
+        {repairLossNotes > 0 && (
+          <ImportRepairNotice
+            lossNotes={repairLossNotes}
+            onRecover={recoverFromRepairNotice}
+            onDismiss={dismissRepair}
+          />
+        )}
+
         <ImportWizard
           open={importOpen}
-          onClose={() => setImportOpen(false)}
+          initialRecover={importRecover}
+          onClose={() => { setImportOpen(false); setImportRecover(false) }}
           onImported={handleImported}
         />
 
