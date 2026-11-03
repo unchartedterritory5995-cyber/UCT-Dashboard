@@ -173,7 +173,7 @@ def test_callback_exchanges_with_verifier_from_state_and_creates_one_source(clie
     code, state, secret = calls[0]
     assert (code, state, secret) == ("authcode", q["state"], ns._state_secret())
     assert evernote_oauth.pkce_challenge(evernote_oauth.pkce_verifier(state, secret)) == q["code_challenge"]
-    assert seen and seen[0]["user_id"] == "u1" and seen[0]["creds"]["accessToken"] == "ev-at"
+    assert seen and seen[0]["user_id"] is None and seen[0]["creds"]["accessToken"] == "ev-at"
 
     conn = connections.get_connector("u1", "evernote")
     assert conn is not None and conn["accountLabel"] == "Evernote"
@@ -297,6 +297,25 @@ def test_callback_folder_name_of_other_providers_is_unchanged(client_admin, monk
     assert r.status_code == 302 and "connected=1" in r.headers["location"]
     src = next(s for s in connections.list_sources("u1") if s["provider"] == "notion")
     assert _folder_name("u1", src["destFolderId"]) == "Notion — Acme"
+
+
+def test_callback_validates_the_new_token_without_a_refresh_hook(client_admin, monkeypatch):
+    """T7-m2: the callback's provider has no user, so a 401 on the NEW token can never refresh
+    (and rotate) the member's OLD stored connection; validation proves the new token alone."""
+    _seed_evernote_source()
+    refreshed: list = []
+
+    async def no_refresh(*a, **k):
+        refreshed.append((a, k))
+        return None
+
+    monkeypatch.setattr(evernote_oauth, "refresh_if_needed", no_refresh)
+    _fake_exchange(monkeypatch)
+    seen = _fake_validate(monkeypatch)
+    assert _callback(client_admin, ns._sign_state("u1", "evernote")).status_code == 302
+    assert seen and seen[0]["user_id"] is None
+    assert seen[0]["creds"]["accessToken"] == "ev-at"
+    assert refreshed == []
 
 
 # ── the other member doors ───────────────────────────────────────────────────

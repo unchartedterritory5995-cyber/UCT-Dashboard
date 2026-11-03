@@ -751,7 +751,9 @@ async def oauth_callback(
             from api.services.journal_two.note_connectors import evernote_oauth
             from api.services.journal_two.note_connectors.providers.evernote import EvernoteProvider
             creds = await evernote_oauth.exchange_code(code, state, _state_secret())
-            provider_obj = EvernoteProvider(user_id=user_id)
+            # Task 7 review m2: NO user, so validation proves the NEW token alone; a 401 here can
+            # never refresh (and rotate) a still-stored OLD connection.
+            provider_obj = EvernoteProvider(user_id=None)
             try:
                 await provider_obj.validate(creds)
             finally:
