@@ -70,6 +70,30 @@ def consent_state(stored: Any) -> str:
     return "unknown"
 
 
+def stored_consent(user_id: Any, conversation_id: str) -> str:
+    """The member's consent for THIS conversation as the server stored it (store.STATE_KEYS `coachConsent`):
+    granted | revoked | unknown. Fails closed (unknown) on any error."""
+    try:
+        from api.services.uct_agent import store
+        row = store.get_state(user_id, conversation_id, "coachConsent")
+    except Exception:  # noqa: BLE001 -- unreadable: nothing is granted
+        return "unknown"
+    v = (row or {}).get("value")
+    if isinstance(v, dict) and v.get("granted") is True:
+        return "granted"
+    if isinstance(v, dict) and v.get("granted") is False:
+        return "revoked"
+    return "unknown"
+
+
+def with_stored_consent(context: Any, consent: str) -> Any:
+    """Review fix: the coach entry's `consent` is the SERVER's stored record, never the browser's claim."""
+    if not isinstance(context, dict) or not isinstance(context.get("coach"), list):
+        return context
+    c = consent if consent in CONSENT_STATES else "unknown"
+    return {**context, "coach": [({**e, "consent": c} if isinstance(e, dict) else e) for e in context["coach"]]}
+
+
 def sanitize_context(context: Any) -> Any:
     """What the MODEL may see of the coach entry: the concept text and observation (bounded), the consent state,
     the concept ids, and the review ONLY through review.model_view (counts and stats; never a trade's prices,

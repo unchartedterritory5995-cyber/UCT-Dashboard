@@ -709,7 +709,8 @@ _OUTCOME_LABEL = {
 # the member reads it — and THIS is the one place that decides what a stored row may say to a model.
 #: Actions whose results are local only. Decided by NAME on the server (never trusted from the
 #: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
-LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history"})
+# journal.reviewTrades (W3 review B3): the member's own journal stats are shown, never replayed to a model
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "journal.reviewTrades"})
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
                      "from it. To answer about it again, plan the same lookup.]")
