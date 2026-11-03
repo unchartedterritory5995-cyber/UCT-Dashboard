@@ -161,8 +161,11 @@ def search(params: dict, ctx: dict) -> dict:
         cls = policy.classify(r.get("source"))
         if cls["state"] != "admitted":           # defence in depth: the SQL filter already admitted it
             continue
+        trader, trf = guard.check(policy.trader(r.get("trader")) or "UCT Team", 60)
+        if "instruction_like" in trf:
+            trader = "UCT Team"
         p = {"kb_id": int(r["kb_id"]), "title": title, "category": cat,
-             "trader": policy.trader(r.get("trader")) or "UCT Team", "source": cls["label"],
+             "trader": trader, "source": cls["label"],
              "licence": cls["licence"], "epoch": r.get("epoch") or None, "updated_at": r.get("updated_at") or None,
              "excerpt": text}
         if cat in dated:
@@ -280,9 +283,10 @@ def playbook(params: dict, ctx: dict) -> dict:
     if not isinstance(t, dict) or not t.get("ok"):
         return _envelope(kind, params, status="unavailable",
                          notes=[str((t or {}).get("reason") or (t or {}).get("error") or "the playbook could not answer")])
-    data = {"name": t.get("name") or res["name"], "aliases": _clean_value(res["aliases"]),
+    name = _clean_value(str(t.get("name") or res["name"])) or res["name"]
+    data = {"name": name, "aliases": _clean_value(res["aliases"]),
             "resolved_by": res["matched"], "licence": "firm_curated",
-            "source": f"UCT setup template: {t.get('name') or res['name']}",
+            "source": f"UCT setup template: {name}",
             "link": {"href": "/setup-library", "label": "Open the Setup Library"}}
     for f in _TEMPLATE_FIELDS:
         v = _clean_value(t.get(f))
@@ -309,8 +313,9 @@ def _stats_rows(table: str, names: list[str], regime: str) -> list[dict]:
 
 
 def _stale(row: dict) -> bool:
+    """Fails CLOSED: a record with no readable refresh date is treated as stale."""
     age = _days_since(row.get("updated_at"))
-    return age is not None and age > policy.pack_setting("stats_stale_days", 14)
+    return age is None or age > policy.pack_setting("stats_stale_days", 14)
 
 
 def record(params: dict, ctx: dict) -> dict:
@@ -329,9 +334,11 @@ def record(params: dict, ctx: dict) -> dict:
         perf = {**meta, **{k: w.get(k) for k in ("total_trades", "wins", "losses", "win_rate_pct", "avg_gain_pct",
                                                  "avg_loss_pct", "expectancy") if w.get(k) is not None}}
     else:
-        perf = {"total_trades": meta.get("total_trades") if meta.get("total_trades") is not None else 0}
+        # the facade did not answer (engine unavailable, or its own n < 5): only the pack's own row may stand in,
+        # and only with its own wins — never a figure built from a count alone
+        perf = dict(meta) if meta else {"total_trades": 0}
     engine = stats.engine_block(perf, n_min, "the brain's own logged trades for this setup")
-    if meta and _stale(meta) and engine["label"] != "insufficient_sample":
+    if _stale(meta or {}) and engine["label"] not in ("insufficient_sample",):
         engine = {"label": "stale_record", "label_text": "the record has not been refreshed recently; figure withheld",
                   "updated_at": meta.get("updated_at"), "method": engine["method"]}
     trig_rows = _stats_rows("trigger_performance", list(dict.fromkeys([name, *res["aliases"]])), regime)
@@ -343,6 +350,7 @@ def record(params: dict, ctx: dict) -> dict:
     data = {"setup": name, "regime": regime, "engine": engine, "triggers": triggers, "caution": stats.CAUTION}
     arch = stats.archive_block(w.get("team_archive"), n_min)
     if arch:
+        arch["scope"] = "all market conditions (the archive's own cut; not filtered by the regime asked)"
         data["team_archive"] = arch
     notes = ["Every figure is historical and descriptive. Repeat a figure only with its n, its method and its label."]
     if engine["label"] == "insufficient_sample" and triggers["label"] == "insufficient_sample" and not arch:

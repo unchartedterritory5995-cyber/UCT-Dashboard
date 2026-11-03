@@ -78,7 +78,7 @@ def report() -> dict:
 
 def write() -> dict:
     r = report()
-    tmp = health_path() + ".tmp"
+    tmp = f"{health_path()}.{os.getpid()}-{int(time.time() * 1000)}.tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(r, fh, indent=1, sort_keys=True)
     os.replace(tmp, health_path())

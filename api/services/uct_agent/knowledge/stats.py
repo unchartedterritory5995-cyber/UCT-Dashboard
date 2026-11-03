@@ -42,13 +42,16 @@ def engine_block(perf: Optional[dict], n_min: int, method: str) -> dict:
     """One floored, labelled record block from an engine stats row."""
     perf = perf or {}
     n = int(_num(perf.get("total_trades")) or 0)
-    wins = int(_num(perf.get("wins")) or 0)
-    if n < n_min:
+    w_raw = _num(perf.get("wins"))
+    if n < n_min or w_raw is None or not (0 <= w_raw <= n):
+        # below the floor, OR no trustworthy win count: no figure (a count alone never becomes a rate)
+        if n >= n_min:
+            return {"label": "insufficient_sample", "label_text": "the record carries no usable win count; no figure is stated",
+                    "n": n, "n_min": n_min, "method": method}
         return {"label": "insufficient_sample", "label_text": LABELS["insufficient_sample"],
                 "n": n if n else None, "n_min": n_min, "method": method}
-    wr = _num(perf.get("win_rate_pct"))
-    if wr is None or not (0 <= wr <= 100):
-        wr = round(100.0 * wins / n, 1) if n else None
+    wins = int(w_raw)
+    wr = round(100.0 * wins / n, 1)                    # the interval and the rate come from the same counts
     out = {"label": "descriptive_uncontrolled", "label_text": LABELS["descriptive_uncontrolled"], "n": n,
            "wins": wins, "losses": int(_num(perf.get("losses")) or max(0, n - wins)), "win_rate_pct": wr,
            "win_rate_ci95": wilson(wins, n), "method": method, "n_min": n_min}

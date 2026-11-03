@@ -358,7 +358,7 @@ def test_flag_off_refuses(kn, monkeypatch):
     for k, p in (("knowledge.search", {"question": "ep"}), ("setup.playbook", {"setup": "EP"}),
                  ("setup.record", {"setup": "EP"})):
         out = read(k, p)
-        assert out["status"] == "refused" and "UCT_AGENT_KNOWLEDGE" in out["notes"][0]
+        assert out["status"] == "refused" and ("UCT_AGENT_KNOWLEDGE" in out["notes"][0] or "not switched on" in out["notes"][0])
 
 
 def test_kind_not_listed_refuses(kn, monkeypatch):
@@ -449,8 +449,6 @@ def test_knowledge_kinds_are_not_isolated_and_read_no_proprietary_scores():
             assert col not in src, f"{f.name} mentions {col}"
 
 
-def test_gateway_does_not_register_knowledge_until_the_hook_lands():
-    assert "api.services.uct_agent.knowledge.kinds" not in gateway.REGISTRARS or "knowledge" in gateway.CATEGORIES
 
 
 # ── health / coverage report ───────────────────────────────────────────────────────────────────────────
@@ -492,3 +490,68 @@ def test_registered_but_flag_off_is_inert(kn, monkeypatch, tmp_path):
     assert not (tmp_path / "never.db").exists()
     assert read("knowledge.search", {"question": "episodic pivot"})["status"] == "refused"
     assert not (tmp_path / "never.db").exists()      # a refused read never builds the index
+
+
+# ── review round 1 regressions ─────────────────────────────────────────────────────────────────────────
+def test_engine_unavailable_never_fabricates_a_rate(kn, monkeypatch):
+    monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {"ok": False, "error": "brain not available"})
+    out = read("setup.record", {"setup": "EP"})
+    e = out["data"]["engine"]
+    assert e["label"] == "descriptive_uncontrolled" and e["n"] == 40 and e["wins"] == 22 and e["win_rate_pct"] == 55.0
+
+
+def test_a_count_without_wins_is_never_a_rate():
+    b = stats.engine_block({"total_trades": 60, "win_rate_pct": 40.0}, 30, "m")
+    assert b["label"] == "insufficient_sample" and "win_rate_pct" not in b and "win_rate_ci95" not in b
+    b2 = stats.engine_block({"total_trades": 60, "wins": 75}, 30, "m")
+    assert b2["label"] == "insufficient_sample"
+
+
+def test_rate_and_interval_come_from_the_same_counts():
+    b = stats.engine_block({"total_trades": 40, "wins": 22, "win_rate_pct": 99.0}, 30, "m")
+    assert b["win_rate_pct"] == 55.0 and b["win_rate_ci95"] == stats.wilson(22, 40)
+
+
+def test_undated_statistics_are_treated_as_stale(kn):
+    c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
+    c.execute("UPDATE setup_performance SET updated_at = NULL WHERE setup_type = 'Episodic Pivot'")
+    c.commit(); c.close()
+    out = read("setup.record", {"setup": "EP"})
+    assert out["data"]["engine"]["label"] == "stale_record" and "win_rate_pct" not in out["data"]["engine"]
+
+
+def test_team_archive_carries_its_own_scope(kn, monkeypatch):
+    real = brain_service.setup_winrate
+
+    def with_archive(*a, **k):
+        r = real(*a, **k)
+        return {**r, "team_archive": {"stats": {"n_scored": 120, "win20": 0.5, "edgeR_z": 1.0, "verdict": "not proven"}}}
+    monkeypatch.setattr(brain_service, "setup_winrate", with_archive)
+    out = read("setup.record", {"setup": "EP", "regime": "RED"})
+    a = out["data"]["team_archive"]
+    assert a["label"] == "not_proven" and "not filtered by the regime asked" in a["scope"]
+
+
+def test_record_output_keys_are_whitelisted(kn):
+    d = read("setup.record", {"setup": "EP"})["data"]
+    assert set(d) <= {"setup", "regime", "engine", "triggers", "team_archive", "caution"}
+    allowed = {"label", "label_text", "n", "wins", "losses", "win_rate_pct", "win_rate_ci95", "method", "n_min",
+               "expectancy", "expectancy_r", "avg_gain_pct", "avg_loss_pct", "sample_start", "sample_end", "updated_at"}
+    assert set(d["engine"]) <= allowed and set(d["triggers"]) <= allowed
+
+
+def test_config_never_advertises_knowledge_kinds_while_the_flag_is_off(kn, monkeypatch):
+    assert set(kinds.KIND_NAMES) <= gateway.enabled_kinds()
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE", "0")
+    assert not set(kinds.KIND_NAMES) & gateway.enabled_kinds()
+    monkeypatch.setenv("UCT_AGENT_DATA_KINDS", "quote," + KINDS)
+    assert gateway.enabled_kinds() == frozenset({"quote"})
+
+
+def test_failed_build_cools_down_instead_of_retrying_every_read(kn, monkeypatch):
+    calls = []
+    monkeypatch.setattr(index, "build", lambda: (calls.append(1), index._FAILED.update(at=time.time()), {"ok": False, "reason": "x"})[2])
+    index._FAILED["at"] = 0.0
+    index.ensure(); index.ensure(); index.ensure()
+    assert len(calls) == 1
+    index._FAILED["at"] = 0.0

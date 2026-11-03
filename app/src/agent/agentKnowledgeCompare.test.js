@@ -92,3 +92,16 @@ describe('dark routing is unchanged: with the kinds off, the playbook group neve
     expect(wordsSelect('playbook', m)).toBe(false)
   })
 })
+
+describe('review round 1: dark routing stays pre-routing for the phrasings that regressed', () => {
+  beforeAll(async () => { _resetAgentConfig(); _resetKnowledgeForTest(); wire([]); await loadAgentConfig(); registerKnowledgeCapabilities() })
+  it.each(['What is a pullback, in plain words?', 'explain this breakout', 'what is a tight flag', 'rules for a breakout'])(
+    '"%s" → with the kinds off, nothing new is recognised (the full manifest goes, as before)', (m) => {
+      expect(wordsSelect('playbook', m)).toBe(false)
+      expect(selectGroups(m).selected.includes('playbook') && selectGroups(m).matched && !selectGroups(m).priority.some(id => id !== 'playbook' && wordsSelect(id, m))).toBe(false)
+    })
+  it('control prompts are not vacuous: most own actions exist in the charts manifest', () => {
+    const have = CONTROL_PROMPTS.filter(([, own]) => manifestFor(CTX).some(c => c.name === own)).length
+    expect(have).toBeGreaterThanOrEqual(5)
+  })
+})

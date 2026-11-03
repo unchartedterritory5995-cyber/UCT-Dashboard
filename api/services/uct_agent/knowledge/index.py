@@ -26,6 +26,8 @@ log = logging.getLogger(__name__)
 ENV_PATH = "UCT_AGENT_KNOWLEDGE_INDEX"
 SCHEMA = 1
 _LOCK = threading.Lock()
+FAIL_COOLDOWN_S = 60
+_FAILED: dict = {"at": 0.0}
 
 _STOP = frozenset("""a an and are as at be by can do does for from has have how i in into is it its me my of on or
 our so that the their them then there these they this to uct was we what when where which who why will with you
@@ -63,12 +65,13 @@ def _norm_title(t: str) -> str:
 
 def build() -> dict:
     """(Re)build the index from the installed pack. Returns {ok, rows, duplicates, pack_ts} or {ok: False, reason}."""
+    ts = pack.pack_ts()                      # the version FIRST: a swap after this read is caught by the next ensure()
     src = pack.connect()
     if src is None:
         return {"ok": False, "reason": "no Brain Pack installed"}
-    ts = pack.pack_ts()
     target = index_path()
     tmp = f"{target}.build-{os.getpid()}-{int(time.time() * 1000)}"
+    dst = None
     try:
         cols = {r[1] for r in src.execute("PRAGMA table_info(knowledge_base)")}
         if not {"id", "category", "title", "content", "source", "active"} <= cols:
@@ -108,6 +111,7 @@ def build() -> dict:
         dst.executemany("INSERT INTO meta VALUES (?,?)", [(k, str(v)) for k, v in meta.items()])
         dst.commit()
         dst.close()
+        dst = None
         os.replace(tmp, target)
         tmp = None
         log.info("[uct-agent knowledge] index built rows=%s duplicates=%s pack_ts=%s", len(rows), dups, ts)
@@ -117,10 +121,16 @@ def build() -> dict:
         except Exception:  # noqa: BLE001 — the report is advisory; a failure never blocks the index
             log.warning("[uct-agent knowledge] health report failed")
         return {"ok": True, **meta}
-    except sqlite3.Error as e:
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         log.warning("[uct-agent knowledge] index build failed: %s", type(e).__name__)
+        _FAILED["at"] = time.time()
         return {"ok": False, "reason": "index build failed"}
     finally:
+        if dst is not None:
+            try:
+                dst.close()
+            except sqlite3.Error:
+                pass
         src.close()
         if tmp and os.path.exists(tmp):
             try:
@@ -141,6 +151,8 @@ def ensure() -> dict:
         info = built_info()
         if info.get("pack_ts") == str(ts) and info.get("schema") == str(SCHEMA):
             return {"ok": True, **info}
+        if time.time() - _FAILED["at"] < FAIL_COOLDOWN_S:
+            return {"ok": False, "reason": "the knowledge index is being rebuilt; try again shortly"}
         return build()
 
 

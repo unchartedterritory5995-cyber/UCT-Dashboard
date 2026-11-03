@@ -70,7 +70,12 @@ def enabled_kinds() -> frozenset:
     if not data_enabled():
         return frozenset()
     raw = os.environ.get(KINDS_ENV, "")
-    return frozenset(p.strip() for p in raw.split(",") if p.strip())
+    kinds = frozenset(p.strip() for p in raw.split(",") if p.strip())
+    # KN-1: the knowledge kinds also need UCT_AGENT_KNOWLEDGE, so /api/agent/config never advertises a kind every read
+    # of which would be refused (the browser registers its capabilities from that list)
+    if str(os.environ.get("UCT_AGENT_KNOWLEDGE") or "").strip().lower() not in ("1", "true", "on", "yes"):
+        kinds = kinds - {"knowledge.search", "setup.playbook", "setup.record"}
+    return kinds
 
 
 def kind_enabled(name: str) -> bool:
