@@ -26,3 +26,22 @@ export function rayAt(bar, which = 'l', { color = GOLD, id = 'ray', label = '' }
 }
 
 export const pct = (a, b) => ((b - a) / a) * 100
+
+/** THE POINTER, round 7 (owner: "THIS CANDLE and the arrow can be more of a production and cooler look"): a thicker
+ *  gold arrow with a bigger head, the label as a gold chip in capitals, and a soft gold halo around the candle when a
+ *  bar follows it (the halo needs a time on both sides of the candle). Used on every chart that points at something. */
+export function spot(bars, i, { label = 'this candle', color = '#dcbb5e', id = 'spot', gap = 7, halo = true } = {}) {
+  if (!bars || i < 0 || i >= bars.length) return []
+  const b = bars[i]
+  const price = (b.o + b.c) / 2
+  const from = bars[Math.max(0, i - gap)], to = bars[Math.max(0, i - 1)]
+  const out = [{ id: `${id}-arrow`, type: 'arrow', points: [{ time: from.t, price }, { time: to.t, price }], color, lineWidth: 3, arrowSize: 20 }]
+  const at = bars[Math.max(0, i - gap - Math.max(3, Math.ceil(label.length / 3)))]
+  const lift = Math.max(b.h - b.l, Math.abs(b.c) * 0.012) * 1.35
+  out.push({ id: `${id}-chip`, type: 'text', points: [{ time: at.t, price: price + lift }], text: `  ${label.toUpperCase()}  `, color: '#111111', fontSize: 13, bgEnabled: true, bgColor: color })
+  if (halo && i > 0 && i + 1 < bars.length) {
+    const pad = (b.h - b.l) * 0.35
+    out.push({ id: `${id}-halo`, type: 'circle', points: [{ time: bars[i - 1].t, price: b.h + pad }, { time: bars[i + 1].t, price: b.l - pad }], color, lineWidth: 2 })
+  }
+  return out
+}

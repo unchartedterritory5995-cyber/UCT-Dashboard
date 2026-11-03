@@ -31,8 +31,18 @@ import Piece27AnswerV6 from './pieces/Piece27AnswerV6'
 import Piece28StoryV2 from './pieces/Piece28StoryV2'
 import Piece29FinishBrand from './pieces/Piece29FinishBrand'
 import Piece30HomeV2 from './pieces/Piece30HomeV2'
+import Piece31LoopV5 from './pieces/Piece31LoopV5'
+import Piece32AnswerV7 from './pieces/Piece32AnswerV7'
+import Piece33StoryV3 from './pieces/Piece33StoryV3'
+import Piece34FinishV3 from './pieces/Piece34FinishV3'
+import Piece35HomeV3 from './pieces/Piece35HomeV3'
 
 const PIECES = {
+  31: Piece31LoopV5,
+  32: Piece32AnswerV7,
+  33: Piece33StoryV3,
+  34: Piece34FinishV3,
+  35: Piece35HomeV3,
   26: Piece26LoopV4,
   27: Piece27AnswerV6,
   28: Piece28StoryV2,

@@ -895,6 +895,57 @@ NEXT: batch-6 scores -> ingest -> round 7. Still unruled: house STOP per entry; 
   is wider than 3.5% is flagged (prefer the tighter entry).
 - TICKER on a question card: "Show it".
 - HOME ORDER: "COmbo of all of it i think but progressing sensibly" (Foundations and setups mixed).
+## 2026-11-02 ROUND 6 FEEDBACK: FULL ANALYSIS AND THE ROUND-7 PLAN (owner: "take time to fully analyze all of my
+feedback thoroughly each time ... implemented as a full plan and fix fully")
+
+1 LOOP 70 - "THIS CANDLE and the arrow can be a little more of a production and cooler look"
+   -> a designed pointer used EVERYWHERE (loop, answer, story, finish): thicker gold arrow with a bigger head, the label as
+      a gold chip (uppercase, dark text), a soft gold halo ring around the candle where a bar follows it (the halo needs a
+      time on both sides). Piece 31.
+2 ANSWER 2 - three separate points:
+   a "visual and the font of the check mark and the answer can be more of a production" -> verdict header redesigned:
+     big display word in a gold gradient, a ringed check with glow, the definition as a one-line quote. Piece 32.
+   b "font and production and visual of the arrow and kicker label" -> the same new pointer chip. Piece 32.
+   c "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB" -> I had the
+     previous day wrong: it is the RED day (the day before the Kicker). Entry 1 = a stop-buy $0.01 over the red day's high
+     ($11.05), triggered on DAY 1 (the Kicker day) when price crosses it; entry 2 = the day-1 30-minute ORB. Both on day 1.
+     The old 'day 2 over the Kicker's high' row is removed. Stop per the ruling (Kicker low within 3.5%, else 3.5%).
+3 STORY 2 - three points:
+   a "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+     -> a MANAGE chapter three sessions after the Kicker: the coach asks where you would take some off; the member taps a
+     candle; no grading and no invented rule; the card says the sell rules get written with the owner later. Piece 33.
+   b "don't need to go 20 sessions out" -> forward cut to 8 sessions. Piece 33.
+   c "use the space better so I don't have to scroll a ton to click buttons" -> two-column desktop layout: chart left,
+     caption + question + buttons right, all inside one screen; chart height tied to the viewport. Piece 33.
+4 FINISH 2 - "those boxes A LOT better, high quality production and visual" -> premium cards: gold metallic frame, dark
+   glass inner, icon, number counting up, a shine sweep, glow, staggered entrance; the streak and goal screens get the same
+   treatment. Piece 34.
+5 HOME 2 ("this is good") - three points:
+   a "more of OUR BRAND and our layout" -> the site's own TileCard panels and gold tile headers, the site's type; the
+     setup glyph art from the Setup Library as unit artwork. Piece 35.
+   b "increase the quality of the production by 3X" -> artwork per unit, node states animated, press/hover polish, a
+     rank card. Piece 35.
+   c "improve the reward system and scoring of the app a lot more" -> a written economy, shown on the home and in a
+     Rewards tile: XP 10 per right answer; combo +5 per step (cap +25); perfect lesson +30; crowns per level by accuracy
+     (1 at 60%, 2 at 80%, 3 at 100%); daily goal 5 right -> a chest; streak = days with a lesson; ranks by total XP
+     (Rookie 0, Apprentice 250, Trader 750, Pro 1500, Mentor 3000); weekly league by XP; a badge per setup at 3 crowns on
+     all its levels. Owner to confirm the numbers. Piece 35.
+## 2026-11-02 (late): WORKBENCH ROUND 7 LIVE (pieces 31-35) — built against the analysis above, every item covered
+
+- pointers.js spot(): gold arrow (3px, head 20), chip label in capitals on a gold background, halo ellipse (type 'circle')
+  when a bar follows the candle. Used by 31, 32, 33, 34.
+- 31 Piece31LoopV5: the loop with the new pointer.
+- 32 Piece32AnswerV7: entries both on DAY 1: stop-buy $0.01 over the RED day's high ($11.05, filled 9:30 ET from the
+  30-min bars), and the day-1 30-min ORB; the day-2 row removed; hero header (ringed check, gold KICKER, quote); the
+  Kicker and the red day as chips; stop per the ruling; 30m/1h/1D override.
+- 33 Piece33StoryV3: two-column (.split, sticky side), 8 forward sessions, MANAGE chapter 3 sessions after the Kicker:
+  tap where you'd take some off, ungraded, 'sell rules written with the owner next'; no fixed footer in the wide layout.
+- 34 Piece34FinishV3: Gem cards (metallic frame, glass inner, icon, count-up, shine sweep, staggered entrance) on all
+  four screens (XP / Sharp / Best run; week; chest + crowns).
+- 35 Piece35HomeV3: the site's TileCard panels (Today, Your path, Rewards, This week's league); SetupGlyph art from
+  pages/modelbook/SetupsView + SETUP_CATALOG as unit artwork; rank card (Rookie 0 / Apprentice 250 / Trader 750 /
+  Pro 1500 / Mentor 3000 XP); the reward rules stated; units mixed Foundations/setups per the ruling.
+NEXT: batch-7 scores -> full analysis -> round 8. Open: the reward numbers are a proposal for the owner to confirm.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
