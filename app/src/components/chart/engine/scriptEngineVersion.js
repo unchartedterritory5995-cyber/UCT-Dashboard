@@ -85,7 +85,10 @@
  *  v6 unmatched bool, moved for-bound, continued switch arms). */
 /** 4 = the plot lane withholds a var filled from a ta.* call in a block that skips (C48);
  *  a function reading a var written later is refused; hiding colours withhold the whole output. */
-export const SCRIPT_ENGINE_VERSION = 5
+/** 5 = W1: Pine v4-v6 builtin names and lookback reads (#736). */
+/** 6 = W4 T4: a v6 root `?:` arm with sma/ema/rma/change runs only when chosen; a `?:` off the
+ *  column route no longer steps unchosen arms every bar (now refused by name). */
+export const SCRIPT_ENGINE_VERSION = 6
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
