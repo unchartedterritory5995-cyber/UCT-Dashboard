@@ -883,7 +883,10 @@ CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_run_note ON j2_import_repair
 -- store.failed_hotlinks(note_id): a dead hotlink's history across runs, an index seek.
 CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_note ON j2_import_repair_log(note_id, outcome);
 -- The member's one notice that some of their imported notes lost pictures or files.
--- Dismissing it is an UPDATE; a later run never re-arms it (INSERT OR IGNORE).
+-- Written by import_repair.store.record_notice as an upsert: ON CONFLICT(user_id) DO UPDATE SET
+-- loss_notes = MAX(loss_notes, new count) WHERE dismissed_at IS NULL, so while it is pending a later
+-- run can only raise the count, and created_at keeps the first time. Dismissing it is an UPDATE
+-- (dismissed_at); the WHERE clause means a later run never re-arms or changes a dismissed notice.
 CREATE TABLE IF NOT EXISTS j2_import_repair_notices (
     user_id      TEXT PRIMARY KEY,
     loss_notes   INTEGER NOT NULL,
