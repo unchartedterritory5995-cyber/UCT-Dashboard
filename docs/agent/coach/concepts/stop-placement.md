@@ -1,7 +1,7 @@
 ---
 id: stop-placement
 title: Stop placement principles
-aliases: stop, stops, stop loss, stop placement, where to put a stop, protective stop, trailing stop, invalidation
+aliases: stop loss, stop placement, where to put a stop, protective stop, trailing stop, invalidation
 observe: ma
 ---
 ## What it is

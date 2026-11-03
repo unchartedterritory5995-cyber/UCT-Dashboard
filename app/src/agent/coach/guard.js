@@ -12,12 +12,34 @@ export const CODES = ['unsupported', 'order', 'figure', 'uncertainty']
 
 const NEGATED = /\b(?:no|not|never|isn't|isnt|aren't|arent|without|cannot be|can't be|cant be|nothing is|there is no|there's no|there are no|doesn't|does not|don't|do not)\s+(?:a\s+|any\s+)?guarantee[sd]?\b/gi
 
+// W3 review: every check reads NORMALISED text — NFKC, curly quotes to straight, zero-width characters dropped and a
+// small set of Cyrillic / Greek look-alikes mapped to Latin (the server's guard.normalize, same table)
+const CONFUSABLES = {
+  '\u2018': "'", '\u2019': "'", '\u02bc': "'", '\u00b4': "'", '\u0060': "'", '\u201c': '"', '\u201d': '"',
+  '\u0430': 'a', '\u0435': 'e', '\u043e': 'o', '\u0440': 'p', '\u0441': 'c', '\u0443': 'y', '\u0445': 'x',
+  '\u0456': 'i', '\u0458': 'j', '\u0455': 's', '\u0501': 'd', '\u04bb': 'h', '\u04cf': 'l', '\u043a': 'k',
+  '\u0410': 'A', '\u0412': 'B', '\u0415': 'E', '\u041a': 'K', '\u041c': 'M', '\u041d': 'H', '\u041e': 'O',
+  '\u0420': 'P', '\u0421': 'C', '\u0422': 'T', '\u0425': 'X', '\u0406': 'I',
+  '\u03bf': 'o', '\u03b1': 'a', '\u03b5': 'e', '\u03b9': 'i', '\u03bd': 'v', '\u03c1': 'p', '\u03c4': 't', '\u03ba': 'k',
+  '\u039f': 'O', '\u0391': 'A', '\u0395': 'E', '\u0399': 'I', '\u039a': 'K', '\u03a1': 'P', '\u03a4': 'T',
+  '\u200b': '', '\u200c': '', '\u200d': '', '\u2060': '', '\ufeff': '', '\u00ad': '',
+}
+const CONFUSABLE_RX = new RegExp(`[${Object.keys(CONFUSABLES).join('')}]`, 'g')
+export const normalize = (text) => String(text || '').normalize('NFKC').replace(CONFUSABLE_RX, ch => CONFUSABLES[ch])
+// the mandated footer is NOT a hedge: removed before the uncertainty check (W3 review C2)
+const FOOTER_RX = /educational,?\s*not\s+(?:financial\s+|investment\s+)?advice\.?/gi
+
 const MOVE = '(?:go|move|head|trade|rally|rip|run|climb|rise|fall|drop|tank|crash|break ?out|bounce|recover|double|triple|soar|plunge|squeeze|explode|moon|continue|hold|keep going|take off|hit|reach)'
 export const UNSUPPORTED = [
   ['guarantee', /\bguarantee[sd]?\b/i],
   ['will-move', new RegExp(`\\bwill\\s+(?:definitely\\s+|certainly\\s+|surely\\s+|almost certainly\\s+|probably\\s+)?${MOVE}\\b`, 'i')],
-  ['going-to', new RegExp(`\\b(?:is|are|it's|its|this is|that's)\\s+going to\\s+${MOVE}\\b`, 'i')],
-  ['cant-lose', /\bcan(?:'t|not|t)\s+(?:lose|fail|miss|go wrong)\b/i],
+  ['going-to', new RegExp(`\\b(?:is|are|it's|its|this is|that's)\\s+(?:going to|gonna)\\s+${MOVE}\\b`, 'i')],
+  ['cant-lose', /\bcan(?:'t|not|t)\s+(?:lose|fail|miss|go wrong|go down|go lower)\b/i],
+  ['wont-lose', /\b(?:won't|wont|will not)\s+(?:lose|fail|miss|go wrong|go down|go lower|drop|fall|break down)\b/i],
+  ['confident', /\b(?:i'm|i am|im|we're|we are|i feel)\s+(?:very\s+|pretty\s+|quite\s+|fairly\s+|really\s+|highly\s+|so\s+)?(?:confident|certain|convinced)\b/i],
+  ['headed-to', /\b(?:heads?|headed|heading|going|goes|gets?|run(?:s|ning)?|climb(?:s|ing)?|rall(?:y|ies|ying)|ride (?:it|this|them|that))\s+(?:up\s+|back\s+|higher\s+|lower\s+|all the way\s+)?(?:to|toward|towards|for)\s+\$?\d/i],
+  ['ride-it', /\bride (?:it|this|them|that)\s+(?:up|higher|to|all the way)\b/i],
+  ['odds-favor', /\b(?:odds|chances|probabilit(?:y|ies))\s+(?:strongly\s+|heavily\s+|clearly\s+|really\s+)?(?:favou?r|are (?:good|high|great|strong|in (?:your|our|the bulls'?|the bears'?) favou?r))\b/i],
   ['sure-thing', /\b(?:sure (?:thing|bet|win|winner|shot)|for sure|dead cert|no[- ]brainer|slam dunk|lock)\b/i],
   ['certain', /\b(?:is|are|it's|its|this is|that's)\s+(?:a\s+)?(?:certain|definite|definitely|certainly|sure)\s+(?:to|thing|bet|win|winner)\b/i],
   ['buy-sell-now', /\b(?:buy|sell|short)\s+(?:it\s+|this\s+|them\s+|here\s+)?(?:now|today|immediately|right now|asap)\b/i],
@@ -26,15 +48,16 @@ export const UNSUPPORTED = [
 ]
 
 export const ORDER = [
-  ['trade-now', /\b(?:buy|sell|short|cover|go long|go short|get long|get short|enter|exit|load up|size up|double down|add to (?:your |the )?position)\b[^.!?\n]{0,40}?\b(?:now|today|here|immediately|right now|at the open|at open|before the close|into the close|tomorrow|premarket|pre-market)\b/i],
+  ['trade-now', /\b(?:buy(?:ing)?|sell(?:ing)?|short(?:ing)?|cover(?:ing)?|go long|go short|get long|get short|enter|exit|load(?:ing)? up|size up|double down|trim(?:ming)?|take profits?|scale (?:in|out)|grab(?:bing)? (?:a |some )?(?:position|shares|stake)|open(?:ing)? a position|add to (?:your |the )?position)\b[^.!?\n]{0,40}?\b(?:now|today|here|immediately|right now|at the open|at open|before the close|into the close|tomorrow|premarket|pre-market)\b/i],
   ['shares', /\b(?:buy|sell|short|purchase|pick up|grab|dump|unload)\s+(?:\d[\d,]*\s+|some\s+|more\s+|a few\s+)?shares\b/i],
   ['place-order', /\b(?:place|put in|enter|submit|set|execute)\s+(?:an?\s+|the\s+|your\s+)?(?:buy|sell|limit|market|stop|stop-loss|bracket)?\s*(?:order|trade)\b/i],
-  ['you-should', /\b(?:you should|you need to|you must|you have to|i would|i'd|i'd say|go ahead and|my advice is to|time to)\s+(?:buy|sell|short|cover|go long|go short|get in|get out|take the trade|take this trade|add|enter|exit|bail|dump)\b/i],
+  ['you-should', /\b(?:you should|you need to|you must|you have to|i would|i'd|i'd say|go ahead and|my advice is to|time to|consider|i'd be|i would be|i'm|i am)\s+(?:(?:buy|sell|short)(?:ing)?|cover|go long|go short|get in|get out|take the trade|take this trade|add|enter|exit|bail|dump)\b/i],
+  ['load-up', /\bload(?:ing)? up\b|\btrim(?:ming)?\s+(?:half|some|a third|a quarter|\d)/i],
   ['take-trade', /\b(?:take|make) (?:the|this|that) trade\b|\bpull the trigger\b|\bget in (?:now|here|today)\b|\bget out (?:now|here|today)\b/i],
 ]
 
-export const OUTCOME = /\b(?:will|likely|unlikely|probab\w*|odds|chances?|expect\w*|outcomes?|follow[- ]?through|work(?:s|ed)? out|play(?:s|ed)? out|next (?:move|session|week|day|leg)|going to|succeed\w*|fail\w*|targets?|upside|downside|forecast\w*|predict\w*|rally|rallies|bounce\w*|break ?outs?|breakdowns?|continu\w*|resolv\w*|should (?:hold|work|go|rally|bounce))\b/i
-export const HEDGE = /\b(?:may|might|could|often|sometimes|tends? to|tend|not guaranteed|no guarantee|no guarantees|isn't guaranteed|uncertain\w*|not certain|no certainty|no way to know|cannot know|can't know|nobody knows|unknown|doesn't always|does not always|not always|don't always|do not always|depends|historically|in the past|hypothesis|one input|not a forecast|not a prediction|not a promise|not predictions|educational|can fail|could fail|might fail|may fail|can reverse|could reverse|can break|could break|can still|could still|may still|no pattern|cannot be known|can't be known|possibility|possible|possibly|perhaps|not a signal|not a rule|not rules|describes|description|estimate\w*)\b/i
+export const OUTCOME = /\b(?:will|likely|unlikely|probab\w*|odds|chances?|expect\w*|outcomes?|follow[- ]?through|work(?:s|ed)? out|play(?:s|ed)? out|next (?:move|session|week|day|leg)|going to|gonna|succeed\w*|fail\w*|targets?|upside|downside|forecast\w*|predict\w*|rally|rallies|bounce\w*|break ?outs?|breakdowns?|continu\w*|resolv\w*|should (?:hold|work|go|rally|bounce))\b/i
+export const HEDGE = /\b(?:may|might|could|often|sometimes|tends? to|tend|not guaranteed|no guarantee|no guarantees|isn't guaranteed|uncertain\w*|not certain|no certainty|no way to know|cannot know|can't know|nobody knows|unknown|doesn't always|does not always|not always|don't always|do not always|depends|historically|in the past|hypothesis|one input|not a forecast|not a prediction|not a promise|not predictions|can fail|could fail|might fail|may fail|can reverse|could reverse|can break|could break|can still|could still|may still|no pattern|cannot be known|can't be known|possibility|possible|possibly|perhaps|not a signal|not a rule|not rules|estimate\w*)\b/i
 
 // a figure: 20, 20.5, 1,000, $10, 15%, 2R; a letter or digit BEFORE it is not a figure ("v2"). Prefix captured, no lookbehind.
 const FIGURE = /(^|[^A-Za-z0-9])[-+]?\$?(\d[\d,]*(?:\.\d+)?)%?/g
@@ -54,21 +77,22 @@ export function figures(text) {
 }
 const inputText = (inputs) => (inputs == null ? '' : typeof inputs === 'string' ? inputs : inputs.filter(Boolean).map(String).join('\n'))
 
-export const unsupported = (text) => { const t = String(text || '').replace(NEGATED, ' '); return UNSUPPORTED.filter(([, rx]) => rx.test(t)).map(([n]) => n) }
-export const orderLanguage = (text) => { const t = String(text || ''); return ORDER.filter(([, rx]) => rx.test(t)).map(([n]) => n) }
+export const unsupported = (text) => { const t = normalize(text).replace(NEGATED, ' '); return UNSUPPORTED.filter(([, rx]) => rx.test(t)).map(([n]) => n) }
+export const orderLanguage = (text) => { const t = normalize(text); return ORDER.filter(([, rx]) => rx.test(t)).map(([n]) => n) }
 export function untraceableFigures(text, inputs) {
   const allowed = figures(inputText(inputs))
   return [...figures(text)].filter(f => !allowed.has(f)).sort()
 }
-export const aboutOutcomes = (text) => OUTCOME.test(String(text || ''))
-export const hasHedge = (text) => HEDGE.test(String(text || ''))
+export const aboutOutcomes = (text) => OUTCOME.test(normalize(text))
+/** A real hedge — the mandated footer is stripped first, so it never stands in for one (W3 review C2). */
+export const hasHedge = (text) => HEDGE.test(normalize(text).replace(FOOTER_RX, ' '))
 
 /** The violation codes of a text (empty = clean), in CODES order. */
 export function check(text, inputs = null) {
   const codes = []
   if (unsupported(text).length) codes.push('unsupported')
   if (orderLanguage(text).length) codes.push('order')
-  if (untraceableFigures(text, inputs).length) codes.push('figure')
+  if (untraceableFigures(normalize(text), inputs).length) codes.push('figure')
   if (aboutOutcomes(text) && !hasHedge(text)) codes.push('uncertainty')
   return codes
 }

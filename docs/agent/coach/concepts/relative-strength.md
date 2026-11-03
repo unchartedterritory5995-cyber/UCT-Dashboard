@@ -1,7 +1,7 @@
 ---
 id: relative-strength
 title: Relative strength
-aliases: rs, rs line, relative strength line, relative strength, outperformance, relative performance, leader, leadership
+aliases: rs line, relative strength line, relative strength, outperformance, relative performance, leadership
 observe: ma
 ---
 ## What it is

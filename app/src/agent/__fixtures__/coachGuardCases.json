@@ -3,7 +3,8 @@
   "inputs": [
     "Moving averages as context. Commonly watched lengths are the 20-day, 50-day and 200-day.",
     "On this chart (NVDA, through 2026-10-30): the last close is above its 20-day average, and the 20-day average is above the 50-day average.",
-    "Review of your last 10 closed trades: 6 wins, 4 losses, win rate 60%, average R 0.8."
+    "Review of your last 10 closed trades: 6 wins, 4 losses, win rate 60%, average R 0.8.",
+    "Member: will NVDA get to 200?"
   ],
   "cases": [
     {
@@ -97,7 +98,7 @@
       "codes": [
         "unsupported"
       ],
-      "why": "price-target (should reach $) — 200 is in the inputs"
+      "why": "price-target (should reach $) \u2014 200 is in the inputs"
     },
     {
       "text": "This pattern always works in a bull market.",
@@ -140,7 +141,7 @@
       "codes": [
         "order"
       ],
-      "why": "shares (+ trade-now) — 200 is in the inputs"
+      "why": "shares (+ trade-now) \u2014 200 is in the inputs"
     },
     {
       "text": "Place a buy order above the high.",
@@ -230,9 +231,10 @@
     {
       "text": "The odds favour a breakout here.",
       "codes": [
+        "unsupported",
         "uncertainty"
       ],
-      "why": "odds + breakout, no hedge"
+      "why": "odds-favor (+ uncertainty: odds + breakout, no hedge)"
     },
     {
       "text": "A guaranteed breakout: buy 300 shares now, target 250.",
@@ -303,6 +305,124 @@
       "text": "The report for NVDA was on 2026-10-30 according to the chart data shown. Educational, not advice.",
       "codes": [],
       "why": "a date from the observation input"
+    },
+    {
+      "text": "The breakout likely follows through.\n\nEducational, not advice.",
+      "codes": [
+        "uncertainty"
+      ],
+      "why": "C2: footer is not a hedge (outcome words + footer only)"
+    },
+    {
+      "text": "Volume expansion usually means the trend continues. Educational, not advice.",
+      "codes": [
+        "uncertainty"
+      ],
+      "why": "C2: footer is not a hedge"
+    },
+    {
+      "text": "This breakout may fail; watch whether the close holds the level.\n\nEducational, not advice.",
+      "codes": [],
+      "why": "C2: a real hedge plus the footer is clean"
+    },
+    {
+      "text": "You can\u2019t lose here.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "cant-lose (curly apostrophe, normalised)"
+    },
+    {
+      "text": "This won't lose money.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "wont-lose"
+    },
+    {
+      "text": "It won\u2019t go down from here.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "wont-lose (curly apostrophe)"
+    },
+    {
+      "text": "I'm confident it heads to 200.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "confident + headed-to (a member-typed number never licenses a target)"
+    },
+    {
+      "text": "It is headed to 200.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "headed-to"
+    },
+    {
+      "text": "Ride it to two hundred.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "ride-it"
+    },
+    {
+      "text": "Consider buying here.",
+      "codes": [
+        "order"
+      ],
+      "why": "trade-now (buying) + you-should (consider)"
+    },
+    {
+      "text": "Selling now makes sense.",
+      "codes": [
+        "order"
+      ],
+      "why": "trade-now (-ing form)"
+    },
+    {
+      "text": "Grab a position at the open.",
+      "codes": [
+        "order"
+      ],
+      "why": "trade-now (grab a position)"
+    },
+    {
+      "text": "Load up into strength.",
+      "codes": [
+        "order"
+      ],
+      "why": "load-up"
+    },
+    {
+      "text": "Trim half now.",
+      "codes": [
+        "order"
+      ],
+      "why": "trade-now (trim) + load-up (trim half)"
+    },
+    {
+      "text": "This one is gonna rip.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "going-to (gonna) (+ uncertainty)"
+    },
+    {
+      "text": "This setup is guarant\u0435\u0435d.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "guarantee (Cyrillic homoglyph, normalised)"
+    },
+    {
+      "text": "Odds favor the bulls and it might work.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "odds-favor is never cleared by a hedge word"
     }
   ]
 }

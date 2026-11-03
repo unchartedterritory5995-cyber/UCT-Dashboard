@@ -1,7 +1,7 @@
 ---
 id: expectancy
 title: Expectancy
-aliases: expectancy, edge, win rate, average win, average loss, profit factor, positive expectancy, average r
+aliases: expectancy, win rate, average win, average loss, profit factor, positive expectancy, average r
 observe: none
 ---
 ## What it is
