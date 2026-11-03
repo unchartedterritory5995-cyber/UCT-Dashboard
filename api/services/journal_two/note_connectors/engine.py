@@ -92,9 +92,11 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import bisect
 import copy
 import dataclasses
 import hashlib
+import itertools
 import json
 import logging
 import math
@@ -257,32 +259,80 @@ FOLLOW_UP_BACKOFF_BASE_S = 120
 # loses its stamp; the hourly tick carries on with it.
 FOLLOW_UP_MAX_ERRORS = 3
 # D4: at most this many passes of an opt-in provider (Evernote) run at once in this process:
-# first syncs, Sync now, follow-ups and the scheduler ticks alike (`_acquire_pass_slot`), each still
-# under its source's in-flight lock. Follow-up passes are launched together and wait for a slot,
-# so many members importing at once proceed in parallel. Bounded because whether Evernote's limit
-# is per user or per app is unknown: measured in simulation, 50 first passes started at once
-# against a shared per-app limit thrashed it and learned a 10 s pace each (D3 then carried it),
-# taking 5.5 h for what three at a time do in about an hour. `evernote_mcp`'s process-level trip
-# guard holds new sessions back on top when trips across sessions spike.
-# ⚠️ SINGLE-PROCESS state (a threading lock and a counter, loop-agnostic like
+# first syncs, Sync now, follow-ups and the scheduler ticks alike, each still under its source's
+# in-flight lock. Bounded because whether Evernote's limit is per user or per app is unknown:
+# measured in simulation, 50 first passes started at once against a shared per-app limit thrashed
+# it and learned a 10 s pace each (D3 then carried it), taking 5.5 h for what three at a time do
+# in about an hour. `evernote_mcp`'s process-level trip guard holds new sessions back on top when
+# trips across sessions spike.
+#
+# Who gets a slot (final hardening, before Evernote opens to every member):
+#   * WAITING (`_acquire_pass_slot`) is an ordered queue: priority first (SLOT_MEMBER, a member's
+#     Sync now; then SLOT_FIRST_SYNC, a source's first sync after connecting; then SLOT_BACKGROUND,
+#     a follow-up), then arrival. A Sync now outranks first syncs too: measured in simulation, with
+#     the two sharing one level a Sync now pressed while 50 members were connecting waited behind
+#     every one of their first passes (over two hours); a level of its own, it waits for one slot
+#     to free (one pass, minutes). Only
+#     the head of the queue may take a free slot, so a member never waits behind follow-ups and
+#     no waiter is starved by the polling order. Chosen over reserving a slot for members: a
+#     reserved slot idles whenever no member is pressing (a third of the pool, most of the day),
+#     while the queue keeps all three busy and still puts a member next.
+#   * The SERIAL loops (the hourly tick, the nightly pass) never wait (`_try_acquire_pass_slot`):
+#     a free slot only when nobody is queued, else the pass is skipped (hourly) or booked as a
+#     follow-up full pass (nightly). See `sync_due_sources` / `sync_all_active_sources_full`.
+#   * The follow-up job claims only as many sources as there are free slots
+#     (`_pass_slot_room`), so its passes never queue at all.
+# A waiter's source reads "queued" on /status (`is_source_queued`) and has no log row yet: the
+# pass opens its log row only once it holds a slot.
+# ⚠️ SINGLE-PROCESS state (a threading lock, a counter and the waiter list, loop-agnostic like
 # `_try_acquire_source`, because the scheduler's jobs run on their own event loops): a second web
 # process has its own slots.
 FOLLOW_UP_CONCURRENCY = 3
 PASS_SLOT_POLL_S = 1.0
+SLOT_MEMBER = 0
+SLOT_FIRST_SYNC = 1
+SLOT_BACKGROUND = 2
 _PASS_SLOTS_LOCK = threading.Lock()
 _pass_slots_used = 0
+#: Waiting tickets `(priority, arrival, source_id)`, kept sorted; the head may take a free slot.
+_slot_waiters: list[tuple[int, int, str]] = []
+_slot_arrivals = itertools.count()
 
 
-async def _acquire_pass_slot() -> None:
-    """D4: wait for one of FOLLOW_UP_CONCURRENCY process-wide pass slots (polls; never blocks
-    the event loop)."""
+async def _acquire_pass_slot(source_id: str, *, priority: int = SLOT_BACKGROUND) -> None:
+    """D4: wait, in priority-then-arrival order, for one of FOLLOW_UP_CONCURRENCY process-wide
+    pass slots. Polls (never blocks the event loop). A waiter cancelled while it waits leaves the
+    queue and holds nothing: the slot is only ever taken in the same locked step that returns."""
     global _pass_slots_used
-    while True:
-        with _PASS_SLOTS_LOCK:
-            if _pass_slots_used < FOLLOW_UP_CONCURRENCY:
-                _pass_slots_used += 1
-                return
-        await asyncio.sleep(PASS_SLOT_POLL_S)
+    ticket = (priority, next(_slot_arrivals), source_id)
+    with _PASS_SLOTS_LOCK:
+        bisect.insort(_slot_waiters, ticket)
+    granted = False
+    try:
+        while True:
+            with _PASS_SLOTS_LOCK:
+                if _pass_slots_used < FOLLOW_UP_CONCURRENCY and _slot_waiters[0] == ticket:
+                    _slot_waiters.pop(0)
+                    _pass_slots_used += 1
+                    granted = True
+                    return
+            await asyncio.sleep(PASS_SLOT_POLL_S)
+    finally:
+        if not granted:
+            with _PASS_SLOTS_LOCK:
+                if ticket in _slot_waiters:
+                    _slot_waiters.remove(ticket)
+
+
+def _try_acquire_pass_slot() -> bool:
+    """D4-3: take a slot only if one is free AND nobody is waiting (a serial loop never jumps the
+    queue, and never waits)."""
+    global _pass_slots_used
+    with _PASS_SLOTS_LOCK:
+        if _pass_slots_used < FOLLOW_UP_CONCURRENCY and not _slot_waiters:
+            _pass_slots_used += 1
+            return True
+        return False
 
 
 def _release_pass_slot() -> None:
@@ -294,6 +344,42 @@ def _release_pass_slot() -> None:
 def _pass_slots_in_use() -> int:
     with _PASS_SLOTS_LOCK:
         return _pass_slots_used
+
+
+def _pass_slot_room() -> int:
+    """D4-1: slots no pass holds and no waiter is already lined up for."""
+    with _PASS_SLOTS_LOCK:
+        return max(0, FOLLOW_UP_CONCURRENCY - _pass_slots_used - len(_slot_waiters))
+
+
+def is_source_queued(source_id: str) -> bool:
+    """True while a pass of this source waits for a pass slot (/status reads "queued")."""
+    with _PASS_SLOTS_LOCK:
+        return any(t[2] == source_id for t in _slot_waiters)
+
+
+# NEW-4: three pool passes importing at once each opened a write transaction on auth.db (busy
+# timeout 3 s, `auth_db.get_connection`): a collision raised "database is locked", which re-runs
+# the WHOLE pass, and a member's own save queued behind several of them could miss its 3 s. The
+# `import_confirm` batches of opt-in (pooled) passes therefore run one at a time under this lock,
+# in a worker thread (never on an event loop: a thread waiting on it would freeze the uvicorn
+# loop), and the lock wraps the confirm call ONLY, never a network call: media downloads, link
+# heals and the listing all run outside it. ⚠️ SINGLE-PROCESS state, like the pass slots.
+_IMPORT_WRITE_LOCK = threading.Lock()
+
+
+def _import_confirm_serialized(user_id: str, payload: dict[str, Any],
+                               conn: sqlite3.Connection) -> dict[str, Any]:
+    with _IMPORT_WRITE_LOCK:
+        return notes_svc.import_confirm(user_id, payload, conn=conn)
+
+
+def _pooled_provider(provider_name: str) -> bool:
+    """D4-3: does this provider's pass use the pass slots (`follow_up_on_rate_limit`, read from
+    the provider CLASS through the registry, the same authority the pass reads on its instance)?
+    The serial loops run such a source's pass beside the loop instead of inside it."""
+    from . import registry  # lazy, as `_default_provider_factory` imports it
+    return registry.runs_sync_in_background(provider_name)
 
 # Server-side cap on notes_svc.import_confirm is 500/batch; the engine stays
 # well under it.
@@ -363,12 +449,12 @@ async def _member_full_pass(user_id: str, source_id: str) -> dict[str, Any]:
     now = _utcnow()
     last = _last_full_pass_at(current.get("lastFullSyncAt"), now)
     if last is not None and (now - last).total_seconds() < MEMBER_FULL_PASS_MIN_INTERVAL_S:
-        result = await _do_sync(user_id, source_id, full=False)
+        result = await _do_sync(user_id, source_id, full=False, member=True)
         result["removalCheck"] = _removal_check_summary(
             user_id, source_id, ran=False, reason="rate_limited", severed=0,
         )
         return result
-    return await _do_sync(user_id, source_id, full=False, removal_check=True)
+    return await _do_sync(user_id, source_id, full=False, removal_check=True, member=True)
 
 
 def _chunks(seq: list, n: int):
@@ -503,7 +589,7 @@ def _finish_log(
 
 async def sync_source(
     source_id: str, *, full: bool = False, manual: bool = False,
-    member: bool = False,
+    member: bool = False, slot_wait: bool = True,
 ) -> dict[str, Any]:
     """Sync one source. Serialized per source via a loop-agnostic in-flight
     guard (Fix-round-1 #4 — see `_try_acquire_source`'s module-level
@@ -526,7 +612,12 @@ async def sync_source(
 
     `member=True, full=True` runs the removal check (`_member_full_pass`),
     rate-limited by `MEMBER_FULL_PASS_MIN_INTERVAL_S`; its result carries a
-    `removalCheck` block. Only that combination carries it."""
+    `removalCheck` block. Only that combination carries it.
+
+    D4: a pass of an opt-in provider (Evernote) runs only while it holds one of the process-wide
+    pass slots. `slot_wait=False` (the serial scheduler loops) never waits for one: with none
+    free the pass does nothing and returns `{"status": "no_slot"}`. A member's pass (`member`)
+    and a source's first sync wait at the front of the queue."""
     if member:
         manual = True
     source = connections.get_source_by_id(source_id)
@@ -546,7 +637,8 @@ async def sync_source(
         try:
             if member and full:
                 return await _member_full_pass(source["userId"], source_id)
-            return await _do_sync(source["userId"], source_id, full=full)
+            return await _do_sync(source["userId"], source_id, full=full, member=member,
+                                  slot_wait=slot_wait)
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower() or attempt == attempts - 1:
                 raise
@@ -577,7 +669,7 @@ def _same_revision(a: Any, b: Any) -> bool:
 def _classify_listed(
     user_id: str, source: dict[str, Any], provider: NoteProvider, refs: list[RemoteRef],
     want_rows: bool = False,
-) -> tuple[set[str], set[str]]:
+) -> tuple[set[str], set[str], set[str]]:
     """Fix round 1 (D1) and round 2 (N1): `(unchanged, has_row)` for the listed refs.
 
     `unchanged`: refs that need no fetch: the provider names a real listing revision
@@ -587,7 +679,14 @@ def _classify_listed(
     fetch order puts the rest first). Read from `j2_notes`, NEVER from `j2_note_remote_index`
     (C2). A note adoption could still claim has no row under the live key, so it is never
     skipped. `want_rows` asks for `has_row` even when no ref has a revision. Worker thread: one
-    bulk read per 500 keys."""
+    bulk read per 500 keys.
+
+    `trashed` (NEW-7): refs with NO live row whose trashed row (the member trashed the note in
+    UCT) carries the listing's own revision. `import_confirm` treats a trashed row as absent (Wave
+    0 trash: its key never matches, so a confirm CREATES a fresh note), so fetching such a ref
+    would bring back a note the member threw away as soon as an interrupted import listed it
+    again. It is not fetched and counts as stored. A remote edit after the trash changes the
+    revision, and the ref is fetched and imported exactly as before (a fresh note)."""
     listing_revision = getattr(provider, "listing_revision", None)
     revs: dict[str, str] = {}
     if listing_revision is not None:
@@ -596,30 +695,35 @@ def _classify_listed(
             if rev:
                 revs[r.remote_id] = rev
     if not revs and not want_rows:
-        return set(), set()
+        return set(), set(), set()
     by_key = {provider.import_key(source["remoteId"], r.remote_id): r.remote_id for r in refs}
     unchanged: set[str] = set()
     has_row: set[str] = set()
+    trashed_same: set[str] = set()
     keys = list(by_key)
     conn = get_connection()
     try:
         for i in range(0, len(keys), 500):  # sqlite variable-limit safety
             chunk = keys[i:i + 500]
             rows = conn.execute(
-                f"SELECT import_key, import_remote_rev, import_media_pending FROM j2_notes "
-                f"WHERE user_id = ? AND deleted_at IS NULL "
+                f"SELECT import_key, import_remote_rev, import_media_pending, deleted_at "
+                f"FROM j2_notes WHERE user_id = ? "
                 f"AND import_key IN ({','.join('?' * len(chunk))})",
                 (user_id, *chunk)).fetchall()
             for row in rows:
                 rid = by_key[row["import_key"]]
-                has_row.add(rid)
                 rev = revs.get(rid)
+                if row["deleted_at"] is not None:
+                    if rev and _same_revision(row["import_remote_rev"], rev):
+                        trashed_same.add(rid)
+                    continue
+                has_row.add(rid)
                 if rev and (row["import_media_pending"] or 0) == import_notice.MEDIA_PENDING_NONE \
                         and _same_revision(row["import_remote_rev"], rev):
                     unchanged.add(rid)
     finally:
         conn.close()
-    return unchanged, has_row
+    return unchanged, has_row, trashed_same - has_row
 
 
 def _load_sync_state(source: dict[str, Any]) -> dict[str, Any]:
@@ -637,9 +741,15 @@ def _load_sync_state(source: dict[str, Any]) -> dict[str, Any]:
 
 def _save_sync_state(user_id: str, source_id: str, source: dict[str, Any],
                      state: dict[str, Any]) -> None:
-    raw = json.dumps(state, sort_keys=True) if state else None
-    if raw != (source.get("syncState") or None):
-        connections.set_sync_state(user_id, source_id, raw)
+    """NEW-5: write what THIS pass changed, key by key, against the state it read (`source`):
+    a key it set or changed is set, a key it dropped is removed, and every other key (the
+    follow-up job's `followUpErrors`, the nightly pass's `fullPending`, written by other writers
+    meanwhile) is left exactly as it is now. One atomic `UPDATE` (`connections.patch_sync_state`)."""
+    base = _load_sync_state(source)
+    changed = {k: v for k, v in state.items() if k not in base or base[k] != v}
+    removed = [k for k in base if k not in state]
+    if changed or removed:
+        connections.patch_sync_state(user_id, source_id, set_keys=changed, remove_keys=removed)
 
 
 def _seeded_interval(pace: Any, now: datetime) -> float | None:
@@ -686,7 +796,10 @@ def _schedule_follow_up(user_id: str, source_id: str, retry_afters: list[float |
     passes = connections.count_passes_since(
         user_id, source_id, (now - timedelta(hours=1)).isoformat())
     if passes >= FOLLOW_UP_MAX_PASSES_PER_HOUR:
-        connections.set_follow_up(user_id, source_id, None)
+        # D4-3: a pending full pass is never dropped with the stamp; it waits an hour instead.
+        connections.clear_follow_up(
+            user_id, source_id,
+            full_pending_at=(now + timedelta(seconds=FOLLOW_UP_MAX_DELAY_S)).isoformat())
         return False
     known = [r for r in retry_afters if isinstance(r, (int, float)) and math.isfinite(r) and r >= 0]
     delay = (max(known) if known else 0) + FOLLOW_UP_MARGIN_S
@@ -734,39 +847,29 @@ async def _listing_rate_limited(
 
 
 async def sync_follow_up_sources() -> dict[str, int]:
-    """Scheduler entry for the quick follow-up passes (`note_sync_follow_up`). Each due source's
-    stamp is LEASED (FOLLOW_UP_LEASE_S ahead) before its pass, so a pass that raises re-fires only
-    once the lease runs out, never every tick; the pass books the next one itself if notes are
-    still left, or clears the stamp. A source another pass is already
-    syncing is skipped with its stamp KEPT: that pass replaces or clears it. Serial, and one failing
-    source never blocks the others. `manual=True`: a follow-up runs inside the 10 min cooldown."""
-    now = datetime.now(timezone.utc)
-    ran = busy = 0
-    claimed: list[dict[str, Any]] = []
-    for source in connections.list_follow_up_due(now.isoformat()):
-        if is_source_busy(source["id"]):
-            busy += 1
-            continue
-        # I9: the hourly bound is enforced here too, not only when a pass books a follow-up.
-        if connections.count_passes_since(
-                source["userId"], source["id"],
-                (now - timedelta(hours=1)).isoformat()) >= FOLLOW_UP_MAX_PASSES_PER_HOUR:
-            connections.set_follow_up(source["userId"], source["id"], None)
-            continue
-        # I9: a LEASE, not a clear: the pass replaces or clears it when it ends, and a pass that
-        # crashed fires again once the lease runs out.
-        connections.set_follow_up(source["userId"], source["id"],
-                                  (now + timedelta(seconds=FOLLOW_UP_LEASE_S)).isoformat())
-        ran += 1
-        claimed.append(source)
+    """Scheduler entry for the quick follow-up passes (`note_sync_follow_up`, every 2 minutes).
 
-    # D4: the claimed passes are launched together; the process-wide pass slots (taken inside
-    # `_do_sync`) let FOLLOW_UP_CONCURRENCY of them run at once.
+    D4-1: the job claims only what it can run. Each round it takes at most `_pass_slot_room()`
+    due sources (free slots nobody is queued for), oldest stamp first, LEASES each one's stamp
+    (FOLLOW_UP_LEASE_S ahead, so a pass that raises re-fires only once the lease runs out) and
+    runs it; the moment a pass ends it claims again, so a slot never idles behind the slowest
+    pass of a batch (the job has `max_instances=1`, so the next tick would not have come). A
+    source left unclaimed keeps its stamp untouched for the next round or tick: it is not leased,
+    has no log row and never reads "syncing now" while nothing runs it. The job ends when nothing
+    it started is still running. A source another pass is already syncing is skipped with its
+    stamp KEPT (that pass replaces or clears it). One failing source never blocks the others.
+    `manual=True`: a follow-up runs inside the 10 min cooldown. A source whose `sync_state`
+    carries `fullPending` (D4-3: the nightly pass found no free slot) runs as a FULL pass."""
+    ran = busy = 0
+    running: set[asyncio.Task] = set()
+    seen_busy: set[str] = set()
+
     async def run(source: dict[str, Any]) -> bool:
         failed = False
         was_busy = False
+        full = bool(_load_sync_state(source).get("fullPending"))
         try:
-            result = await sync_source(source["id"], manual=True)
+            result = await sync_source(source["id"], full=full, manual=True)
             was_busy = isinstance(result, dict) and result.get("status") == "busy"
         except errors.NoteConnRateLimited:
             log.info("[note-sync] follow-up pass for source %s was rate limited", source["id"])
@@ -780,43 +883,119 @@ async def sync_follow_up_sources() -> dict[str, int]:
                 log.exception("[note-sync] follow-up bookkeeping failed for %s", source["id"])
         return was_busy
 
-    outcomes = await asyncio.gather(*(run(s) for s in claimed))
-    busy += sum(1 for b in outcomes if b)
-    return {"ran": ran, "busy": busy}
+    def claim() -> None:
+        """One claiming round: lease and start at most the free slots' worth of due sources."""
+        nonlocal ran, busy
+        room = _pass_slot_room()
+        if room <= 0:
+            return
+        now = datetime.now(timezone.utc)
+        started = 0
+        for source in connections.list_follow_up_due(now.isoformat()):
+            if started >= room:
+                break
+            if is_source_busy(source["id"]):
+                if source["id"] not in seen_busy:
+                    seen_busy.add(source["id"])
+                    busy += 1
+                continue
+            # I9: the hourly bound is enforced here too, not only when a pass books a follow-up.
+            if connections.count_passes_since(
+                    source["userId"], source["id"],
+                    (now - timedelta(hours=1)).isoformat()) >= FOLLOW_UP_MAX_PASSES_PER_HOUR:
+                # A pending full pass is never dropped: it waits an hour instead.
+                connections.clear_follow_up(
+                    source["userId"], source["id"],
+                    full_pending_at=(now + timedelta(seconds=FOLLOW_UP_MAX_DELAY_S)).isoformat())
+                continue
+            # I9: a LEASE, not a clear: the pass replaces or clears it when it ends, and a pass that
+            # crashed fires again once the lease runs out.
+            connections.set_follow_up(source["userId"], source["id"],
+                                      (now + timedelta(seconds=FOLLOW_UP_LEASE_S)).isoformat())
+            ran += 1
+            started += 1
+            running.add(asyncio.create_task(run(source)))
+
+    claim()
+    while running:
+        done, _pending = await asyncio.wait(running, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            running.discard(task)
+            if task.result():
+                busy += 1
+        claim()
+    waiting = len(connections.list_follow_up_due(datetime.now(timezone.utc).isoformat()))
+    return {"ran": ran, "busy": busy, "waiting": waiting}
 
 
 def _note_follow_up_outcome(source: dict[str, Any], failed: bool) -> None:
     """N5: count follow-up passes in a row that raised (not a rate limit). At
-    FOLLOW_UP_MAX_ERRORS the stamp is cleared and the count reset: the hourly tick carries on. A
-    pass that did not raise resets the count. Reads the row fresh (the pass may have written it)."""
-    current = connections.get_source_by_id(source["id"])
-    if current is None:
+    FOLLOW_UP_MAX_ERRORS the stamp is cleared and the count reset (a pending full pass with it:
+    the next night books it again): the hourly tick carries on. A pass that did not raise resets
+    the count. NEW-5: one key at a time, atomically, so the pass's own state is never rewritten
+    from a copy read after it."""
+    user_id, source_id = source["userId"], source["id"]
+    if not failed:
+        connections.patch_sync_state(user_id, source_id, remove_keys=["followUpErrors"])
         return
-    state = _load_sync_state(current)
-    if failed:
-        errors_in_a_row = int(state.get("followUpErrors") or 0) + 1
-        if errors_in_a_row >= FOLLOW_UP_MAX_ERRORS:
-            log.warning("[note-sync] source %s: %d follow-up passes failed in a row; leaving it "
-                        "to the hourly sync", source["id"], errors_in_a_row)
-            connections.set_follow_up(current["userId"], current["id"], None)
-            state.pop("followUpErrors", None)
-        else:
-            state["followUpErrors"] = errors_in_a_row
-    else:
-        state.pop("followUpErrors", None)
-    _save_sync_state(current["userId"], current["id"], current, state)
+    errors_in_a_row = connections.bump_sync_state_counter(user_id, source_id, "followUpErrors")
+    if errors_in_a_row >= FOLLOW_UP_MAX_ERRORS:
+        log.warning("[note-sync] source %s: %d follow-up passes failed in a row; leaving it "
+                    "to the hourly sync", source_id, errors_in_a_row)
+        connections.patch_sync_state(user_id, source_id,
+                                     remove_keys=["followUpErrors", "fullPending"])
+        connections.set_follow_up(user_id, source_id, None)
+
+
+async def _pass_beside_the_loop(source: dict[str, Any], *, full: bool) -> None:
+    """D4-3: one opt-in source's pass in a serial loop, run as its own task so the loop never
+    waits on it, and with `slot_wait=False` so it never waits for a slot either. Nightly (`full`),
+    no free slot (or another pass of this source running) books a follow-up flagged as a full
+    pass, due now, which the pool runs as a full pass: the removal check still runs tonight."""
+    try:
+        result = await sync_source(source["id"], full=full, manual=full, slot_wait=False)
+    except Exception:  # noqa: BLE001 -- isolate per-source failures
+        log.exception("note-connector %s sync failed for source %s",
+                      "FULL" if full else "due", source["id"])
+        return
+    status = result.get("status") if isinstance(result, dict) else None
+    if full and status in ("no_slot", "busy"):
+        await asyncio.to_thread(_book_full_follow_up, source["userId"], source["id"])
+    elif status == "no_slot":
+        log.info("[note-sync] source %s: no free pass slot; the hourly pass is skipped (its "
+                 "follow-up or the next tick covers it)", source["id"])
+
+
+def _book_full_follow_up(user_id: str, source_id: str) -> None:
+    connections.patch_sync_state(user_id, source_id, set_keys={"fullPending": True})
+    connections.book_follow_up_no_later_than(
+        user_id, source_id, datetime.now(timezone.utc).isoformat())
+    log.info("[note-sync] source %s: no free pass slot for the nightly pass; booked as a full "
+             "follow-up pass", source_id)
 
 
 async def sync_due_sources() -> None:
     """Scheduler entry: serial iteration over every due source, across all
-    users. One failing source is logged and never blocks the others."""
+    users. One failing source is logged and never blocks the others.
+
+    D4-3: an opt-in source (Evernote) never runs IN the loop: its pass is a task beside it
+    (`_pass_beside_the_loop`) that takes a slot only if one is free right now, else is skipped
+    (its follow-up chain or the next tick covers it). So no other member's hourly pass waits on
+    Evernote work or on a slot; the tick ends when the passes it started have."""
     interval = int(os.environ.get("NOTE_SYNC_INTERVAL_MIN", "30"))
     due = connections.list_due_sources(interval)
+    beside: list[asyncio.Task] = []
     for source in due:
+        if _pooled_provider(source.get("provider") or ""):
+            beside.append(asyncio.create_task(_pass_beside_the_loop(source, full=False)))
+            await asyncio.sleep(0)  # let it take its slot in due order
+            continue
         try:
-            await sync_source(source["id"])
+            await sync_source(source["id"], slot_wait=False)
         except Exception:  # noqa: BLE001 — isolate per-source failures
             log.exception("note-connector sync failed for source %s", source["id"])
+    if beside:
+        await asyncio.gather(*beside)
 
 
 async def sync_all_active_sources_full() -> None:
@@ -831,13 +1010,25 @@ async def sync_all_active_sources_full() -> None:
     delete detection is built, tested, and green, but UNREACHABLE in
     production — the exact defect class this repo's `lesson_built_tested_
     green_and_unreachable` names. Serial + exception-walled per source,
-    mirroring `sync_due_sources`."""
+    mirroring `sync_due_sources`.
+
+    D4-3: an opt-in source runs beside the loop and never waits for a slot; with none free it
+    is booked as a follow-up FULL pass (`fullPending`), which the pool runs within minutes."""
     sources = connections.list_all_sources()
+    beside: list[asyncio.Task] = []
     for source in sources:
+        if _pooled_provider(source.get("provider") or ""):
+            beside.append(asyncio.create_task(_pass_beside_the_loop(source, full=True)))
+            await asyncio.sleep(0)
+            continue
         try:
-            await sync_source(source["id"], full=True, manual=True)
+            result = await sync_source(source["id"], full=True, manual=True, slot_wait=False)
+            if isinstance(result, dict) and result.get("status") == "no_slot":
+                await asyncio.to_thread(_book_full_follow_up, source["userId"], source["id"])
         except Exception:  # noqa: BLE001 — isolate per-source failures
             log.exception("note-connector FULL sync failed for source %s", source["id"])
+    if beside:
+        await asyncio.gather(*beside)
 
 
 # ── Credential resolution (Fix-round-1 Important #1) ────────────────────────
@@ -888,6 +1079,7 @@ async def _resolve_credentials(user_id: str, provider_name: str) -> dict[str, An
 
 async def _do_sync(
     user_id: str, source_id: str, *, full: bool, removal_check: bool = False,
+    member: bool = False, slot_wait: bool = True,
 ) -> dict[str, Any]:
     """`full` is the scheduler's nightly pass. `removal_check` is a member's
     full pass (`_member_full_pass`): a complete listing feeds delete
@@ -899,7 +1091,9 @@ async def _do_sync(
     if source is None:
         raise ValueError(f"unknown note-connector source {source_id!r}")
 
-    log_id = await asyncio.to_thread(_start_log, user_id, source_id)
+    # D4-2: the log row is opened once the pass holds its slot (below), so a pass waiting for one
+    # reads "queued", never a "syncing" row that sits open for as long as the queue is.
+    log_id: int | None = None
     counts = {"created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0, "conflicts": 0,
               "adopted": 0,  # Plan E Task 8: file-imported notes re-keyed onto live sync
               # Fix round 2 (N8): listed notes D1 did not fetch (stored revision match). Its own
@@ -925,8 +1119,18 @@ async def _do_sync(
         provider = await asyncio.to_thread(_provider_factory, source["provider"], source)
         follow_up = getattr(provider, "follow_up_on_rate_limit", False) is True
         if follow_up:
-            await _acquire_pass_slot()  # D4: released in the `finally` below
-            slot_held = True
+            if slot_wait:
+                # D4-2: a member's pass, then a first sync, go to the front of the queue.
+                priority = (SLOT_MEMBER if member else
+                            SLOT_FIRST_SYNC if not source.get("lastSyncAt") else SLOT_BACKGROUND)
+                await _acquire_pass_slot(source_id, priority=priority)
+            elif not _try_acquire_pass_slot():
+                # D4-3: a serial loop never waits; the caller decides what a skip means.
+                return {"status": "no_slot", "sourceId": source_id}
+            slot_held = True  # released in the `finally` below
+            # The row may have moved while this pass waited (a pass of another kind, a pause).
+            source = await asyncio.to_thread(connections.get_source_by_id, source_id) or source
+        log_id = await asyncio.to_thread(_start_log, user_id, source_id)
         sync_state = _load_sync_state(source)
         if follow_up and hasattr(provider, "seed_pacing"):
             seed = _seeded_interval(sync_state.get("pace"), _utcnow())
@@ -1210,10 +1414,16 @@ async def _do_sync(
         # `j2_notes` ONLY: `_touch_remote_index` above already stamped every listed ref, fetched
         # or not, so the remote index would skip the very notes that were never read (C2). Never
         # on the nightly full pass (a converter change must still reach every changed note).
-        unchanged, has_row = await asyncio.to_thread(
+        unchanged, has_row, trashed = await asyncio.to_thread(
             _classify_listed, user_id, source, provider, fetch_refs, follow_up)
         listed_count = len(fetch_refs)
         skipped_now: set[str] = set()
+        if trashed:
+            # NEW-7: the member's trash is respected on every kind of pass, the nightly one too.
+            fetch_refs = [r for r in fetch_refs if r.remote_id not in trashed]
+            fetched_ids.update(trashed)
+            log.info("[note-sync] source %s: %d listed note(s) the member trashed, unchanged "
+                     "since, not imported again", source_id, len(trashed))
         if not full and unchanged:
             skipped_now = unchanged
             fetch_refs = [r for r in fetch_refs if r.remote_id not in unchanged]
@@ -1317,6 +1527,12 @@ async def _do_sync(
         # that opts in they are a first import still catching up: a quick follow-up pass is booked,
         # the member reads a progress sentence, and they are neither "lost" nor "couldn't be read".
         leftovers = {rid for rid in rate_limited if rid in not_stored_refs} if follow_up else set()
+        if follow_up and full:
+            # D4-3: this IS the full pass a nightly booking asked for (its listing and removal
+            # check ran, leftovers or not); the follow-ups after it are incremental again.
+            sync_state.pop("fullPending", None)
+            await asyncio.to_thread(connections.patch_sync_state, user_id, source_id,
+                                    remove_keys=["fullPending"])
         member_failures = item_failures
         progress: str | None = None
         stalled = False
@@ -1347,8 +1563,11 @@ async def _do_sync(
                 notes="note" if total == 1 else "notes")
         else:
             sync_state.pop("importing", None)
-            if follow_up and source.get("warmingUntil"):
-                await asyncio.to_thread(connections.set_follow_up, user_id, source_id, None)
+            if follow_up:
+                # Nothing left over: the stamp goes, unless a full pass is still pending (booked
+                # by the nightly pass while this one ran): then it stays, due now.
+                await asyncio.to_thread(connections.clear_follow_up, user_id, source_id,
+                                        full_pending_at=_now_iso())
         if follow_up:
             learned = getattr(provider, "learned_pacing", None)
             interval, tripped = learned() if learned is not None else (None, False)
@@ -1426,6 +1645,8 @@ async def _do_sync(
         member_error = _member_hard_error(source, e)
         await asyncio.to_thread(
             connections.record_sync_result, user_id, source_id, ok=False, error=member_error)
+        if log_id is None:  # it failed before the pass opened its row (building the provider)
+            log_id = await asyncio.to_thread(_start_log, user_id, source_id)
         if isinstance(e, errors.NoteConnAuthError):
             # Auth rejected (incl. NoteConnTokenExpired, a subclass) — retrying
             # on the next scheduled sync would just fail identically forever
@@ -2985,12 +3206,13 @@ async def _confirm_and_resolve_batch(
     title_by_key = {e.get("importKey"): e.get("title") for e in entries}
     if budget is None:
         budget = media_policy.MediaBudget.for_member(user_id)
+    payload = {"source": source["provider"], "destFolderId": dest_folder_id, "notes": entries}
     try:
-        r = notes_svc.import_confirm(
-            user_id,
-            {"source": source["provider"], "destFolderId": dest_folder_id, "notes": entries},
-            conn=conn,
-        )
+        if getattr(provider, "follow_up_on_rate_limit", False) is True:
+            # NEW-4: a pooled pass's write transaction waits its turn, off the event loop.
+            r = await asyncio.to_thread(_import_confirm_serialized, user_id, payload, conn)
+        else:
+            r = notes_svc.import_confirm(user_id, payload, conn=conn)
     except Exception as e:  # noqa: BLE001 — one bad batch must not strand others or abort the sync
         log.warning("[note-sync] confirm failed for a batch of %d note(s): %s", len(entries), e)
         reason = NOT_STORED_RETRY_REASON
