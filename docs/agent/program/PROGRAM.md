@@ -108,6 +108,12 @@ AUDIT is the integrator for PR #735 (agent/kn/knowledge-poc, Trading Brain knowl
 - **D2 Planner v2 cost cap: KEEP $0.25 per turn.** Authorized: efficient planner architecture (relevant capability selection, smaller catalogs, deferred tool discovery, prompt/token optimization, cost-aware routing incl. evaluating Haiku 5.5). No production model switch; v2 stays OFF; free deterministic tests first; paid evals only within separately approved limits; measure tokens, cost, routing and tool-selection accuracy, multi-step success; if quality cannot fit the cap, report tradeoffs, never weaken the limit.
 - Freeze unchanged: no merge or deploy without explicit approval. Priorities: (1) Wave 1.1 reviews, (2) Wave 2 integration issues, (3) planner v2 readiness within the cap, (4) Wave 3 coach testing, (5) #735 review and cross-wave compatibility.
 
+
+## Owner decisions at resume (after the weekly-limit reset, 2026-11-03)
+- **A/D line:** approved as a PUBLIC Screener field only if it is the conventional accumulation/distribution line computed entirely from public OHLCV with the canonical calculation; the UCT `accdis` rating stays hidden (F-16). If only the proprietary field exists → HOLD and report.
+- **Wave 1.1:** GO to finish and prepare the combined candidate (#727 blocking fixes, #725 hardening, assembly on agent/rc/w11, full tests, independent review). NOT merged or deployed; the release decision comes back to the owner with the exact commit, tests, security assessment, rollback plan and GO/HOLD.
+- Resume priorities: 1 Wave 1.1 · 2 research B1/B2 · 3 planner within $0.25 · 4 coach C1/C2 · 5 #735 review · 6 chart setup, Explain/Show/Do, Wisdom mapping in parallel. Waves 2/3 and the Brain must not delay Wave 1.1.
+
 ## Activation checklist (admin-only; owner sets flags; order is mandatory)
 1. `UCT_AGENT_STREAM=1` — after production flags are verified.
 2. `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,quotes,instrument.resolve` — after RC1.
