@@ -622,3 +622,49 @@ _KNOWN_DIFFERENCES = json.loads(_HTML_VECTORS_PATH.read_text(encoding="utf-8"))[
 def test_known_differences_server_side(v):
     assert v["server"] != v["client"]
     assert _shape(md_to_tiptap(v["md"])["doc"]) == v["server"]
+
+
+# ── fix round 2, N1: deep nesting flattens structure, never drops content ─────
+
+from api.services.journal_two.note_connectors.convert import deep_nesting_cases as _deep  # noqa: E402
+
+_DEEP_CASES = _deep.cases()
+
+
+def _expected(html: str) -> tuple[set[str], set[str], set[str]]:
+    import re
+    words = set(re.findall(r"\b(?:[wsa]\d+|L\d+|second)\b", re.sub(r"<[^>]*>", " ", html)))
+    hrefs = set(re.findall(r'href="([^"]+)"', html))
+    images = set(re.findall(r'src="([^"]+)"', html))
+    return words, hrefs, images
+
+
+@pytest.mark.parametrize("case", _DEEP_CASES, ids=[c["name"] for c in _DEEP_CASES])
+def test_deep_nesting_keeps_every_word_link_and_image(case):
+    """D3 fix round 2 (N1): past the depth cap, structure may flatten but no text, link or
+    image is ever dropped, and every image is registered as media and referenced."""
+    out = html_to_tiptap(case["html"])
+    words, hrefs, images = _expected(case["html"])
+    text = " ".join(r["text"] for r in _texts(out["doc"]))
+    got_words = set(text.replace(" ", "  ").split())
+    assert words - got_words == set()
+    got_hrefs = {h for _, h in _links(out["doc"])}
+    assert hrefs - got_hrefs == set()
+    got_images = set()
+
+    def walk(n):
+        if isinstance(n, dict):
+            if n.get("type") == "image":
+                got_images.add(n["attrs"]["src"][len("import-ref://"):])
+            for c in n.get("content") or []:
+                walk(c)
+
+    walk(out["doc"])
+    assert images - got_images == set()
+    assert images - {m["ref"] for m in out["media"]} == set()
+    assert not _orphan_media(out)
+
+
+def test_the_deep_nesting_fixture_is_current(tmp_path):
+    written = _deep.generate(tmp_path / "cases.json")
+    assert written.read_bytes() == _deep.OUT_PATH.read_bytes()

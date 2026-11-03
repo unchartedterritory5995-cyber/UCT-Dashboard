@@ -98,7 +98,22 @@ const corpusBodies = fs.existsSync(CORPORA_DIR)
   })
   : []
 
+// D3 fix round 2 (N1): the deep-nesting cases (`convert/deep_nesting_cases.py`): every
+// container type at, under and past the server's depth cap, as `html_to_tiptap` wrote it.
+const DEEP_PATH = path.join(__dirname, '__fixtures__', 'deep_nesting', 'cases.json')
+const deepCases = fs.existsSync(DEEP_PATH) ? JSON.parse(fs.readFileSync(DEEP_PATH, 'utf-8')) : []
+
 describe('every server-written body passes the schema check()', () => {
+  it('found the deep-nesting cases (non-vacuity)', () => {
+    expect(deepCases.length).toBe(35)
+  })
+
+  for (const c of deepCases) {
+    it(`deep nesting ${c.name}`, () => {
+      expect(() => schema.nodeFromJSON(c.doc).check()).not.toThrow()
+    })
+  }
+
   it('found the corpora notes (non-vacuity)', () => {
     expect(corpusBodies.length).toBeGreaterThan(10)
   })

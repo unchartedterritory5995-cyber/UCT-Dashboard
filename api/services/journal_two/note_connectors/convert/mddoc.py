@@ -1340,9 +1340,15 @@ class _HtmlDomBuilder(HTMLParser):
         self.root = _HtmlNode("root", {})
         self._stack: list[_HtmlNode] = [self.root]
         self._skip_depth = 0
-        # D3 review M1: start tags past `_HTML_MAX_DEPTH` that were kept FLAT (as siblings, not
-        # children), per name, so their own close tags are swallowed, not matched outward.
-        self._flat_open: dict[str, int] = {}
+        # D3 fix round 2 (N1): past `_HTML_MAX_DEPTH` the parse goes FLAT (`_flat_*` below):
+        # no deeper tree, but every word, link and image is kept, in paragraphs of a box the
+        # walkers render. `_flat` is None outside that mode, else the flat-open elements as
+        # `[tag, attrs, is_inline]`, outermost first.
+        self._flat: list[list[Any]] | None = None
+        self._flat_box: _HtmlNode | None = None
+        self._flat_para: _HtmlNode | None = None
+        self._flat_marks: dict[str, int] = {}  # open inline tags per name, flat or seeded
+        self._flat_links: list[dict[str, str | None]] = []  # open anchors' attrs, innermost last
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
@@ -1351,16 +1357,94 @@ class _HtmlDomBuilder(HTMLParser):
             return
         if self._skip_depth:
             return
-        node = _HtmlNode(tag, {k.lower(): v for k, v in attrs})
+        attrs_d = {k.lower(): v for k, v in attrs}
+        if self._flat is None and tag not in _HTML_VOID_TAGS and len(self._stack) > _HTML_MAX_DEPTH:
+            self._enter_flat()
+        if self._flat is not None:
+            self._flat_start(tag, attrs_d)
+            return
+        node = _HtmlNode(tag, attrs_d)
         self._stack[-1].children.append(node)
         if tag in _HTML_VOID_TAGS:
             return
-        if len(self._stack) > _HTML_MAX_DEPTH:
-            # Too deep: the element stays empty and what follows is its sibling, so no walker
-            # recurses past the cap ("imports flattened", never a RecursionError).
-            self._flat_open[tag] = self._flat_open.get(tag, 0) + 1
-            return
         self._stack.append(node)
+
+    # ── the flat mode past the depth cap (D3 fix round 2, N1) ──────────────────────────────
+
+    def _enter_flat(self) -> None:
+        """Too deep: open a BOX in the nearest element the walkers render as blocks (never a
+        table, row or list, whose walkers skip loose children), seeded with the inline elements
+        open above that element, so the text that follows keeps their marks and links."""
+        at = len(self._stack) - 1
+        while at > 0 and self._stack[at].tag not in _FLAT_HOLDERS:
+            at -= 1
+        self._flat_box = _HtmlNode("div", {})
+        self._stack[at].children.append(self._flat_box)
+        self._flat, self._flat_para = [], None
+        self._flat_marks, self._flat_links = {}, []
+        for el in self._stack[at + 1:]:
+            if el.tag not in _FLAT_BREAK_TAGS:
+                self._flat_push_inline(el.tag, el.attrs)
+
+    def _flat_push_inline(self, tag: str, attrs: dict[str, str | None]) -> None:
+        self._flat_marks[tag] = self._flat_marks.get(tag, 0) + 1
+        if tag == "a":
+            self._flat_links.append(attrs)
+
+    def _flat_paragraph(self) -> _HtmlNode:
+        if self._flat_para is None:
+            self._flat_para = _HtmlNode("p", {})
+            self._flat_box.children.append(self._flat_para)
+        return self._flat_para
+
+    def _flat_chain(self, leaf: Any) -> Any:
+        """`leaf` inside ONE element per open inline tag NAME (at most a few levels, never the
+        nesting depth): the innermost anchor's href, and each mark tag once."""
+        node = leaf
+        for name in sorted(n for n, c in self._flat_marks.items() if c > 0 and n != "a"):
+            wrap = _HtmlNode(name, {})
+            wrap.children = [node]
+            node = wrap
+        if self._flat_marks.get("a") and self._flat_links:
+            wrap = _HtmlNode("a", dict(self._flat_links[-1]))
+            wrap.children = [node]
+            node = wrap
+        return node
+
+    def _flat_start(self, tag: str, attrs: dict[str, str | None]) -> None:
+        if tag == "img":
+            self._flat_paragraph().children.append(self._flat_chain(_HtmlNode("img", attrs)))
+            return
+        if tag == "br":
+            self._flat_paragraph().children.append(_HtmlNode("br", {}))
+            return
+        if tag in _HTML_VOID_TAGS or tag in _FLAT_BREAK_TAGS:
+            self._flat_para = None  # a block boundary: the next words start a new paragraph
+            if tag in _HTML_VOID_TAGS:
+                return
+            self._flat.append([tag, attrs, False])
+            return
+        self._flat.append([tag, attrs, True])
+        self._flat_push_inline(tag, attrs)
+
+    def _flat_end(self, tag: str) -> bool:
+        """True when a flat element closed; False when `tag` closes no flat element (it may
+        close one of the real tree's, so the flat mode ends)."""
+        for i in range(len(self._flat) - 1, -1, -1):
+            if self._flat[i][0] == tag:
+                for closed in self._flat[i:]:
+                    if closed[2]:
+                        self._flat_marks[closed[0]] -= 1
+                        if closed[0] == "a" and self._flat_links:
+                            self._flat_links.pop()
+                    else:
+                        self._flat_para = None
+                del self._flat[i:]
+                if not self._flat:
+                    self._flat = None  # back at the cap: the next start tag opens a new box
+                return True
+        self._flat = None
+        return False
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
@@ -1370,8 +1454,7 @@ class _HtmlDomBuilder(HTMLParser):
             return
         if self._skip_depth or tag in _HTML_VOID_TAGS:
             return
-        if self._flat_open.get(tag):
-            self._flat_open[tag] -= 1
+        if self._flat is not None and self._flat_end(tag):
             return
         for i in range(len(self._stack) - 1, 0, -1):
             if self._stack[i].tag == tag:
@@ -1385,6 +1468,10 @@ class _HtmlDomBuilder(HTMLParser):
 
     def handle_data(self, data: str) -> None:
         if self._skip_depth or not data:
+            return
+        if self._flat is not None:
+            if data.strip() or self._flat_para is not None:
+                self._flat_paragraph().children.append(self._flat_chain(data))
             return
         self._stack[-1].children.append(data)
 
@@ -1400,6 +1487,16 @@ _HTML_BLOCK_WRAPPERS = frozenset({
 })
 #: Parents whose children are items or rows, never blocks: a wrapper there still unwraps.
 _HTML_ITEM_PARENTS = frozenset({"ul", "ol", "table", "tr"})
+#: D3 fix round 2 (N1): where the flat box past the depth cap may stand: elements whose
+#: children the walkers render as blocks (never a table, a row or a list).
+_FLAT_HOLDERS = frozenset({"root", "html", "body", "td", "th", "li", "blockquote", "details",
+                           "aside", *_HTML_BLOCK_WRAPPERS})
+#: Tags that end a paragraph in the flat mode (block elements); any other tag is inline.
+_FLAT_BREAK_TAGS = frozenset({
+    "p", "li", "td", "th", "tr", "table", "thead", "tbody", "tfoot", "ul", "ol", "dl", "dt",
+    "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "details", "summary", "aside",
+    "hr", *_HTML_BLOCK_WRAPPERS,
+})
 
 
 def _unwrap_unknown_html(nodes: list[Any], parent: str = "root") -> list[Any]:
@@ -1746,7 +1843,7 @@ def _html_list_or_tasklist(
     return out
 
 
-def _html_convert_table(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
+def _html_convert_table(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any] | None:
     """`<table>` -> TipTap `table`. `thead`/`tbody`/`tfoot` are not in the
     declared vocabulary, so `_unwrap_unknown_html` has already spliced them
     away by the time this runs — `table`'s direct children are always bare
@@ -1764,8 +1861,11 @@ def _html_convert_table(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
                 content = [{"type": "paragraph", "content": []}]
             cell_type = "tableHeader" if cell.tag == "th" else "tableCell"
             cells.append({"type": cell_type, "content": content})
-        rows.append({"type": "tableRow", "content": cells})
-    return {"type": "table", "content": rows}
+        if cells:  # a row with no cell is no row (the schema's `tableRow` needs a cell)
+            rows.append({"type": "tableRow", "content": cells})
+    # A table with no row is nothing (the schema's `table` needs a row). D3 fix round 2: past
+    # the depth cap a table's rows go to the flat box beside it, leaving the table empty.
+    return {"type": "table", "content": rows} if rows else None
 
 
 # ── D3 follow-up (difference 2): `<aside>` and `<details>`, as the client maps them ───────────
@@ -1927,7 +2027,9 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
             out.extend(_html_list_or_tasklist(n, ctx, ordered=True))
         elif tag == "table":
             flush()
-            out.append(_html_convert_table(n, ctx))
+            table = _html_convert_table(n, ctx)
+            if table is not None:
+                out.append(table)
         elif tag == "pre":
             flush()
             out.append(_html_convert_pre(n))
