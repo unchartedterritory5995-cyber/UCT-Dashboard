@@ -72,6 +72,7 @@ _(filled from each builder's wrap-up message)_
 ## Open PRs at stop
 - #702 docs audit (draft, master) — leave.
 - #723 (peer session, docs only): Brain Pack → Agent integration proposal; owner decisions D1–D6 pending.
+- #735 (peer session blake-d8, DRAFT, agent/kn/knowledge-poc @ f80c3c5de9 → agent/int-w2): Trading Brain knowledge kinds (knowledge.search / setup.playbook / setup.record) behind `UCT_AGENT_KNOWLEDGE` (default off; dark; enabled_kinds drops them while off — check that gateway change at reconciliation); six additive hooks landed; full suites server 2156 / browser 2653, 0 failed; two review rounds; resume note docs/agent/program/RESUME-KN.md on that branch. Owner-authorized overnight; merge only with the rest when merges reopen.
 - Wave 1.1 / Wave 2 / Wave 3 draft PRs: listed in the builder reports.
 
 ## Running / unfinished tests at stop
