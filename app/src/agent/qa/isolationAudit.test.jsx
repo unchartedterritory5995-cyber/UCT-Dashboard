@@ -20,6 +20,7 @@ import { _resetScreenerCache, loadMeta } from '../capabilities/screener'
 import { _resetTurns } from '../trace'
 import { makeBoard } from '../__fixtures__/board'
 import { leaksOf } from '../__fixtures__/program/sentinels'
+import { RATINGS_REFUSAL } from '../capabilities/scanHidden'
 
 vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from '../AgentPanel'
@@ -69,50 +70,47 @@ async function screenThenAsk() {
   const say = async (t) => { await waitFor(() => expect(box.disabled).toBe(false), { timeout: 6000 }); fireEvent.change(box, { target: { value: t } }); fireEvent.keyDown(box, { key: 'Enter' }) }
   envelopes.push((b) => plan([{ action: 'screener.run', target: b.context.screener?.[0]?.ref, args: RUN }]))
   await say('could you dig up whichever names currently carry the strongest uct composite scores for me')
-  await waitFor(() => expect(scans).toHaveLength(1), { timeout: 6000 })
-  await waitFor(() => expect(records.some(r => r.outcomeData?.kind === 'answered')).toBe(true), { timeout: 6000 })
+  await waitFor(() => expect(records.some(r => r.outcomeData)).toBe(true), { timeout: 6000 })
   envelopes.push(answer)
   await say('thanks, which of those would you look at first?')
   await waitFor(() => expect(turnBodies).toHaveLength(2), { timeout: 6000 })
-  return records.find(r => r.outcomeData?.kind === 'answered')
+  return records.find(r => r.outcomeData)
 }
 
-describe('agent-qa isolation audit: COMPOSITION through the (non-isolated) screener', () => {
-  it('non-vacuity: the real catalog carries UCT-derived ratings fields, and the scan really sorted by the composite', async () => {
+// F-16 FINAL RULING (agent-sc #654 server / #657 client): these four cells were OPEN strict pins (the screener's
+// UCT-derived fields let the composite's RANKING and threshold COUNT reach the model). They are now PROOFS.
+describe('agent-qa isolation audit: COMPOSITION through the screener — CLOSED by F-16', () => {
+  it('non-vacuity: the MEMBER registry still carries the rating fields, and the plan really asked for the composite', async () => {
     const keys = new Set(META.fields.map(f => f.key))
     for (const k of ['uct_composite', 'rating_eps', 'rating_growth', 'rating_value', 'rating_smr', 'sponsorship', 'accdis', 'rs_rank']) expect(keys.has(k), k).toBe(true)
     await screenThenAsk()
-    expect(scans[0].sort).toEqual({ key: 'uct_composite', dir: 'desc' })
     expect(turnBodies[0].context.screener?.[0]?.ref, 'the plan targeted the real screener entry').toBeTruthy()
+    expect(RUN.sort_field).toBe('uct_composite')
   }, 30000)
 
-  it('PROVEN: no raw composite value reaches the next model request (text, context, memory, title, telemetry, traces)', async () => {
+  it('PROVEN: the composite screen is REFUSED with the clear sentence; no scan ran; no value anywhere', async () => {
     const row = await screenThenAsk()
-    expect(leaks(row.outcomeData?.views ?? row.outcomeData).length, 'CONTROL: the member DID see the values (stored views)').toBeGreaterThan(0)
-    expect(leaks(row.outcome), 'outcome text (replayed for a non-local row)').toEqual([])
+    expect(scans, 'the Screener was never asked').toHaveLength(0)
+    expect(JSON.stringify(row)).toContain(RATINGS_REFUSAL.slice(0, 40))
     turnBodies.forEach((b, i) => expect(leaks(b), `turn body ${i + 1}`).toEqual([]))
     records.forEach(r => expect(leaks(r.telemetry), 'telemetry').toEqual([]))
-    expect(leaks(globalThis.window.__uctAgentTurns()), 'trace turns').toEqual([])
   }, 30000)
 
-  it('OPEN (strict pin): the composite RANKING reaches the model — memory.symbols_in_order, in composite order', async () => {
+  it('PROVEN: no composite RANKING reaches the model (no result set in memory, no lastScreen in context)', async () => {
     await screenThenAsk()
     const mem = turnBodies[1].context?.conversation_memory
-    const set = mem?.recent_results?.[0]
-    expect(set, JSON.stringify(mem)).toBeTruthy()
-    expect(set.symbols_in_order).toEqual(ORDER)
-    expect(turnBodies[1].context.screener?.[0]?.lastScreen?.sort).toBe('uct_composite desc')   // and what it is ranked BY
+    expect(mem?.recent_results ?? [], JSON.stringify(mem)).toEqual([])
+    expect(turnBodies[1].context.screener?.[0]?.lastScreen).toBeUndefined()
   }, 30000)
 
-  it('OPEN (strict pin): the COUNT above a member-chosen composite threshold reaches the model — outcome text AND context', async () => {
+  it('PROVEN: no COUNT above a composite threshold reaches the model (outcome text and context)', async () => {
     const row = await screenThenAsk()
-    expect(row.outcome).toMatch(/\b3 stocks match/)                                    // replayed next turn (non-local row)
-    expect(turnBodies[1].context.screener?.[0]?.lastScreen).toMatchObject({ matches: 3 })
-    expect(JSON.stringify(turnBodies[1].context.screener[0].lastScreen.filters)).toMatch(/UCT Composite/)
+    expect(String(row.outcome || '')).not.toMatch(/\b\d+ stocks? match/)
+    expect(JSON.stringify(turnBodies[1].context.screener?.[0] ?? {})).not.toMatch(/"matches"/)
+    expect(JSON.stringify(turnBodies[1].context.screener?.[0]?.fields ?? '')).not.toMatch(/uct_composite/)
   }, 30000)
 })
 
-// ── F-12: stock.compare's UCT composite, its OWN row (owner: DISPLAY-ONLY iff server-enforced isolation holds) ──
 describe('agent-qa isolation audit: F-12 stock.compare composite', () => {
   async function compareThenAsk() {
     const realFetch = globalThis.fetch
