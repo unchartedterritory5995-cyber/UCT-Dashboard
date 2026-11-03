@@ -204,3 +204,91 @@ def test_nothing_under_coach_touches_the_journal():
         assert "journal_two" not in code.replace("app/src/agent/coach/", ""), f.name
         assert not re.search(r"['\"]/api/j2/", code), f.name
     assert "coachConsent" in store.STATE_KEYS
+
+
+# ── W3 review B3: the journal review is LOCAL — never replayed to a model, never stored as text ─────────────────────
+
+REVIEW_ROW_TEXT = "Your last 10 closed trades: 6 wins, 4 losses, win rate 63%, average R 0.81; tags: chased, fomo."
+STAT_BITS = ("63%", "0.81", "chased", "fomo", "6 wins")
+
+
+def _rows(text=REVIEW_ROW_TEXT, local=True):
+    data = {"kind": "answered", "actions": ["journal.reviewTrades"]}
+    if local:
+        data.update({"local": True, "requests": [{"count": 10}]})
+    return [{"role": "member", "text": "review my trades", "data": None},
+            {"role": "agent", "text": "", "data": {"envelope": {"disposition": "answer", "reply": "", "ops": [{"action": "journal.reviewTrades", "args": {"count": 10}}]}}},
+            {"role": "outcome", "text": text, "data": data},
+            {"role": "member", "text": "stop using my journal", "data": None},
+            {"role": "outcome", "text": "Stopped the coach using your journal in this chat.", "data": {"kind": "applied", "actions": ["coach.consent"]}}]
+
+
+def test_b3_journal_review_is_a_local_only_action():
+    assert "journal.reviewTrades" in turn.LOCAL_ONLY_ACTIONS
+
+
+@pytest.mark.parametrize("local", [True, False])          # False: an older browser that did not flag the row
+def test_b3_history_never_carries_the_review_even_if_a_row_kept_its_text(local):
+    msgs = turn.history_messages(_rows(local=local))
+    blob = json.dumps(msgs)
+    for bit in STAT_BITS:
+        assert bit not in blob, bit
+    assert "review my trades" in blob                      # the member's own words stay
+
+
+def _capture():
+    seen = {}
+
+    def caller(**kw):
+        seen["messages"] = kw["messages"]
+        e = {"disposition": "answer", "reply": "Sure. What would you like to look at next?", "question": None, "ops": [],
+             "unsupported_category": None, "research": None}
+        return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text=json.dumps(e))], stop_reason="end_turn",
+                                     usage=types.SimpleNamespace(input_tokens=1, output_tokens=1))
+    return seen, caller
+
+
+def test_b3_a_later_turn_after_revoke_never_contains_journal_content(on):
+    seen, caller = _capture()
+    # a later ordinary (non-coach) turn and a later coach turn with consent revoked
+    for ctx in ({"charts": [{"ref": "c1", "label": "Chart", "symbol": "NVDA"}]}, _ctx({"consent": "revoked", "review": review.stats(FX["rows"], 10)})):
+        turn.run_turn(message="what next?", context=ctx, history=_rows(), capabilities=CAPS, caller=caller)
+        blob = json.dumps(seen["messages"])
+        for bit in STAT_BITS:
+            assert bit not in blob, bit
+        assert '"winRatePct"' not in blob
+
+
+def test_b3_a_v2_turn_never_contains_journal_content():
+    """Planner v2 builds its history with turn.history_messages and marks localOnly steps isolated."""
+    from api.services.uct_agent import turn_v2
+    import inspect
+    assert "t1.history_messages(history)" in inspect.getsource(turn_v2)
+    blob = json.dumps(turn.history_messages(_rows()))
+    for bit in STAT_BITS:
+        assert bit not in blob, bit
+    cap = {"name": "journal.reviewTrades"}
+    assert cap["name"] in turn.LOCAL_ONLY_ACTIONS          # turn_v2 isolates a step whose action is local-only
+
+
+# ── review: the server checks consent against its own stored record ─────────────────────────────────────────────────
+
+def test_consent_comes_from_the_stored_record_not_the_browser(on):
+    cid = store.create_conversation(ME["id"], "t")
+    assert coach.stored_consent(ME["id"], cid) == "unknown"
+    forged = _ctx({"consent": "granted", "review": review.stats(FX["rows"], 10)})
+    ctx = coach.with_stored_consent(forged, coach.stored_consent(ME["id"], cid))
+    assert ctx["coach"][0]["consent"] == "unknown"
+    assert "review" not in coach.sanitize_context(ctx)["coach"][0]
+    store.set_state(ME["id"], cid, "coachConsent", {"granted": True, "at": "2026-11-03T00:00:00Z"})
+    assert coach.stored_consent(ME["id"], cid) == "granted"
+    store.set_state(ME["id"], cid, "coachConsent", {"granted": False, "at": "2026-11-03T00:00:01Z"})
+    assert coach.stored_consent(ME["id"], cid) == "revoked"
+    assert coach.stored_consent(OTHER["id"], cid) == "unknown"          # another member's record is never read
+
+
+def test_the_router_applies_the_stored_consent():
+    import inspect
+    src = inspect.getsource(rx)
+    assert "with_stored_consent(turn_context, agent_coach.stored_consent(uid, cid))" in src
+    assert "context=turn_context" in src

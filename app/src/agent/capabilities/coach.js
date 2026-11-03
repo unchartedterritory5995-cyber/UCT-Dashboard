@@ -33,6 +33,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import * as agentClient from '../agentClient'
+import { GROUPS } from '../routing'
 import { explainWords, explainTopic } from '../guide/explain'
 import { loadConcepts, conceptsLoaded, conceptFor, conceptTitles, coachFooter } from '../coach/concepts'
 import { observe, lastObserved, observedChart, barsServed } from '../coach/observe'
@@ -64,17 +65,30 @@ export function coachTopic(raw) {
 
 let registered = false
 let lastConceptId = null
-let lastReview = null                   // { stats, text } of the latest consented review (for the context entry, the note guard)
+// { stats, text } of the latest consented review PER CONVERSATION (review fix: chat A's stats never ride into chat B)
+const reviews = new Map()
+const chatKey = () => String(agentClient.activeConversationId() || '')
+const lastReviewNow = () => reviews.get(chatKey()) || null
 let lastMessage = ''                    // the member's latest coaching message (a note may echo its figures)
 let disposers = []
-export const _resetCoachForTest = () => { for (const d of disposers) { try { d() } catch { /* */ } } disposers = []; registered = false; lastConceptId = null; lastReview = null; lastMessage = '' }
-export const _lastReview = () => lastReview
 
+// review B1: the coach routing group's words, live ONLY while the coach capabilities are registered (routing.js keeps
+// the group's words empty), so a dark server routes exactly as the base does
+// N5 (2026-11-03): COACHING phrasings only — a bare setup / concept question routes to the playbook group
+export const COACH_ROUTE_WORDS = [/\b(coach|coaching|teach me|help me understand|quiz me|walk me through|how (?:should|do) i (?:think about|apply|use)|how to apply|my (?:trades|trading|journal|last \d+ trades|recent trades|win rate|results)|review my|use my journal|stop using my journal)\b/]
+function armRouting(on) {
+  const g = GROUPS.find(x => x.id === 'coach')
+  if (g) g.words.splice(0, g.words.length, ...(on ? COACH_ROUTE_WORDS : []))
+}
+export const _resetCoachForTest = () => { for (const d of disposers) { try { d() } catch { /* */ } } disposers = []; registered = false; lastConceptId = null; reviews.clear(); lastMessage = ''; armRouting(false) }
+export const _lastReview = () => lastReviewNow()
+
+export const JOURNAL_MARKER = 'Reviewed your journal in this chat (shown here only: not saved, never sent to the model).'
 const CONSENT_NEEDED = `I can only look at your journal after you allow it in this chat — say “yes, use my journal” (and “stop using my journal” whenever you want me to stop). ${coachFooter()}`
 const NOTE_MAX_TITLE = 120
 const NOTE_MAX_BODY = 2000
 /** The texts a proposed note's figures may come from: the latest review, the loaded concept texts, the member's words. */
-const noteInputs = () => [lastReview?.text || '', ...((conceptsLoaded() || []).map(c => c.text)), lastMessage]
+const noteInputs = () => [lastReviewNow()?.text || '', ...((conceptsLoaded() || []).map(c => c.text)), lastMessage]
 /** A TipTap doc of plain paragraphs — the journal's own body shape (api/services/journal_two/notes._validate_body_json). */
 export const noteBody = (text) => ({ type: 'doc', content: String(text || '').split(/\n{2,}|\n/).map(s => s.trim()).filter(Boolean)
   .map(t => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })) })
@@ -89,7 +103,7 @@ export async function reviewTrades(count) {
   }
   const stats = reviewStats(rows, clampN(count ?? DEFAULT_N))
   const text = `${reviewText(stats)}\n\n${coachFooter()}`
-  lastReview = { stats, text }
+  reviews.set(chatKey(), { stats, text })
   const present = reviewPresent(stats)
   const next = nextFor({ after: 'review', consent: 'granted', concepts: conceptsLoaded() || [] })
   return present ? { text, present: { ...present, details: { text } }, title: present.title, next } : { text, next }
@@ -169,6 +183,8 @@ export async function explainConcept(topic, host, { teach = true } = {}) {
 export function registerCoachCapabilities() {
   if (registered || !agentClient.serverServesCoach()) return
   registered = true
+  armRouting(true)
+  disposers.push(() => armRouting(false))
   loadConcepts()                                   // once per page; the fast path uses it once it has arrived
   const self = () => ({ ref: 'coach', label: LABEL, consent: consentState(), note: null })
   disposers.push(registerTargetKind({
@@ -208,7 +224,8 @@ export function registerCoachCapabilities() {
       const ids = (conceptsLoaded() || []).map(x => x.id)
       lastMessage = String(message || '')
       const consent = consentState()
-      const review = consent === 'granted' && lastReview ? modelView(lastReview.stats) : null
+      const mine = lastReviewNow()
+      const review = consent === 'granted' && mine ? modelView(mine.stats) : null
       return [{
         ref: refFor('coach', 'coach'), label: LABEL,
         ...(c ? { conceptId: c.id, concept: c.text } : {}),
@@ -261,6 +278,11 @@ export function registerCoachCapabilities() {
 
   disposers.push(registerCapability({
     ...common, name: 'journal.reviewTrades', query: true, fastWhole: true,
+    // ⛔ review B3: the member SEES the review; it is never replayed to a model (localOnly + turn.LOCAL_ONLY_ACTIONS) and
+    // never stored as text — the transcript keeps only this value-free marker (useAgent). The model gets journal stats only
+    // through the consent-checked coach context entry.
+    localOnly: true,
+    storedAs: JOURNAL_MARKER,
     summary: `COACH, with the member’s consent in this chat: a DESCRIPTIVE review of their own recent journal trades (last N, default ${DEFAULT_N}, max ${MAX_N}): count, win rate, average R, holding time, largest win/loss as R, their own tags. Never a recommendation, never a single trade’s prices.`,
     hints: 'target = the coach entry. count = how many recent trades (null = default). Without consent the answer asks for it — never read the journal another way.',
     args: { type: 'object', properties: { count: { type: ['integer', 'null'] } }, required: ['count'], additionalProperties: false },
