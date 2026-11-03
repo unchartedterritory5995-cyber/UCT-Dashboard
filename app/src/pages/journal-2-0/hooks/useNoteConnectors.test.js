@@ -22,9 +22,12 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
   it('always returns every registered provider key, even from an empty/undefined payload', () => {
     for (const raw of [undefined, null, {}, { providers: {} }]) {
       const out = normalizeStatus(raw)
+      // Derived from the registry list itself, never a retyped copy: the retyped list went
+      // stale the day Evernote joined it (8 providers, 7 typed here).
       expect(Object.keys(out.providers).sort()).toEqual(
-        ['craft', 'dropbox', 'notion', 'obsidian', 'onedrive', 'onenote', 'roam']
+        NOTE_CONNECTOR_PROVIDERS.map((p) => p.key).sort()
       )
+      expect(Object.keys(out.providers)).toContain('evernote')
       for (const p of NOTE_CONNECTOR_PROVIDERS) {
         expect(out.providers[p.key]).toEqual({
           configured: false, connected: false, connectKind: null, accountLabel: null, status: null, sources: [],

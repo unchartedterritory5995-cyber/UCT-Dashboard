@@ -123,7 +123,8 @@ async def test_an_interrupted_import_resumes_with_only_the_remainder(db, monkeyp
     before = len(p.fetch_calls)
     result = await engine.sync_source(src["id"], manual=True)
     assert sorted(_fetched_this_pass(p, before)) == sorted(f"p{i}" for i in range(4, 10))
-    assert result["status"] == "ok" and result["created"] == 6 and result["skipped"] == 4
+    # Fix round 2 (N8): D1's skips are their own `unchanged` count.
+    assert result["status"] == "ok" and result["created"] == 6 and result["unchanged"] == 4
     assert _row(db, src["id"])["cursor"] is not None  # the skipped 4 count as stored
 
 
@@ -515,7 +516,8 @@ async def test_a_rate_limited_listing_books_the_follow_up(db, monkeypatch):
     p.raise_on_list_changed = errors.NoteConnRateLimited("listing limited", retry_after=200.0)
     src = _source(db)
     t0 = datetime.now(timezone.utc)
-    with pytest.raises(errors.NoteConnRateLimited):
-        await engine.sync_source(src["id"], manual=True)
+    # Fix round 2 (concern 4): an opt-in provider's rate-limited listing no longer raises.
+    result = await engine.sync_source(src["id"], manual=True)
+    assert result["status"] == "importing"
     until = datetime.fromisoformat(_row(db, src["id"])["warmingUntil"])
     assert abs((until - t0).total_seconds() - 230) < 5

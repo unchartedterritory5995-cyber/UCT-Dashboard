@@ -166,7 +166,10 @@ def test_every_pass_completed(passes):
          "adopted": 0, "sourceDeleted": 1},
         {"status": "ok", "created": 0, "updated": 0, "skipped": 13, "mediaUploaded": 0, "conflicts": 0,
          "adopted": 0, "sourceDeleted": 1},
-        {"status": "ok", "created": 0, "updated": 0, "skipped": 13, "mediaUploaded": 0, "conflicts": 0,
+        # Pass 4 (a member's removal check, an incremental pass): rate-limit fix round 1 (D1) does
+        # not fetch the 11 notes whose stored revision matches the listing, and round 2 (N8)
+        # counts them as `unchanged`, never `skipped` (the card's "Unchanged"): 2 were fetched.
+        {"status": "ok", "created": 0, "updated": 0, "skipped": 2, "mediaUploaded": 0, "conflicts": 0,
          "adopted": 0, "sourceDeleted": 0}]
     assert passes[3]["removalCheckRan"] is True   # pass 4: a member's removal-check pass
 

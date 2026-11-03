@@ -220,6 +220,20 @@ class EvernoteProvider(NoteProvider):
         different `totalResultCount` from page 0 (review I2): offset paging over a set that
         changed mid-read can skip a note without any other sign."""
         client = self._client(creds)
+        # Fix round 2 (N2): each listing has its own clock allowance in the client, sized by its
+        # page count once page 0 says how many results there are, and closed when it ends.
+        begin = getattr(client, "begin_listing", None)
+        end = getattr(client, "end_listing", None)
+        if begin is not None:
+            begin()
+        try:
+            async for item in self._paged(client, query):
+                yield item
+        finally:
+            if end is not None:
+                end()
+
+    async def _paged(self, client: Any, query: str):
         start = 0
         first_total: Any = None
         for _ in range(_MAX_PAGES):
@@ -228,6 +242,9 @@ class EvernoteProvider(NoteProvider):
                 "maxResults": self.PAGE_SIZE, "startIndex": start})
             if start == 0:
                 first_total = page.get("totalResultCount")
+                size = getattr(client, "size_listing", None)
+                if size is not None and isinstance(first_total, (int, float))                         and not isinstance(first_total, bool):
+                    size(max(1, -(-int(first_total) // self.PAGE_SIZE)))
             elif page.get("totalResultCount") != first_total:
                 raise _ListingMoved()
             hits = []

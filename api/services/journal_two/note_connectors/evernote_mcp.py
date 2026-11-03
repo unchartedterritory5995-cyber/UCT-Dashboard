@@ -109,6 +109,53 @@ SESSION_BUDGET_S = 600.0
 # session), so a doubling a penalty forced is given back slowly.
 RAMP_DOWN_AFTER_CALLS = 50
 RAMP_DOWN_FACTOR = 0.9
+# Fix round 2 (N2): SESSION_BUDGET_S is the clock of the FETCH phase only. It starts at the first
+# of these tools; listings (`search_*`) are never charged to it.
+FETCH_TOOLS: frozenset[str] = frozenset({"get_note", "get_attachment"})
+# N2: each listing (`begin_listing` .. `end_listing`: the main listing, and on a full pass each
+# removal listing) gets its own allowance: max(LISTING_ALLOWANCE_MIN_S, pages x the HIGHEST pacing
+# interval seen during the listing x LISTING_ALLOWANCE_FACTOR), read at every check, so a trip
+# mid-listing widens it and a ramp-down never shrinks it. The
+# rate-limit wait budget and the provider's page cap (`_MAX_PAGES`) bound it on top.
+LISTING_ALLOWANCE_MIN_S = 900.0
+LISTING_ALLOWANCE_FACTOR = 1.5
+# N6: only a wait over this closes the session (a server telling us to go away). A wait over
+# MAX_RETRY_AFTER_S up to this is slept ONCE per call, charged to the wait budget.
+LONG_WAIT_S = 120.0
+# D4: the process-level guard. Whether Evernote's limit is per user or per app is unknown; the
+# adaptive pacing reacts to a session's own trips either way. On top, every trip of every
+# session in this process is logged, and while GLOBAL_TRIP_THRESHOLD or more landed in the last
+# RATE_WINDOW_S, a NEW session waits before its first call (until the oldest leaves the window),
+# at most GLOBAL_GATE_MAX_WAIT_S. Six a minute is each of the follow-up pool's three slots
+# tripping twice. ⚠️ SINGLE-PROCESS state, like the other module-level bounds CLAUDE.md lists: a
+# second web process keeps its own log, so each would only see its own trips.
+GLOBAL_TRIP_THRESHOLD = 6
+GLOBAL_GATE_MAX_WAIT_S = 120.0
+_GLOBAL_TRIPS: deque[float] = deque()
+
+
+def _global_clock() -> float:
+    """The process-level trip log's clock (tests replace it)."""
+    return time.monotonic()
+
+
+def _prune_global_trips(now: float) -> None:
+    while _GLOBAL_TRIPS and _GLOBAL_TRIPS[0] <= now - RATE_WINDOW_S:
+        _GLOBAL_TRIPS.popleft()
+
+
+def _record_global_trip() -> None:
+    now = _global_clock()
+    _GLOBAL_TRIPS.append(now)
+    _prune_global_trips(now)
+    while len(_GLOBAL_TRIPS) > 4096:  # a memory bound
+        _GLOBAL_TRIPS.popleft()
+
+
+def recent_global_trips() -> int:
+    """How many Evernote rate-limit trips this process saw in the last RATE_WINDOW_S."""
+    _prune_global_trips(_global_clock())
+    return len(_GLOBAL_TRIPS)
 
 CLIENT_INFO = {"name": "uct-notebook-sync", "version": "1.0"}
 # The same User-Agent as our media fetches (`providers/base.py`).
@@ -317,6 +364,13 @@ class EvernoteMcpClient:
         self._tripped = False
         self._clean_calls = 0
         self._started_at: float | None = None
+        # Fix round 2 (N2): the fetch clock's start, the current listing's start and size (None
+        # outside a listing), and which phases ran out of clock ("fetch", "listing").
+        self._fetch_started_at: float | None = None
+        self._listing_started_at: float | None = None
+        self._listing_pages: int | None = None
+        self._listing_peak_interval = MIN_CALL_INTERVAL_S
+        self._phase_closed: set[str] = set()
         self._closed_reason: str | None = None
         self._closed_retry_after: float | None = None
         self._unmatched_logged = False
@@ -337,7 +391,10 @@ class EvernoteMcpClient:
             # At most ONE `on_unauthorized` per call_tool: each refresh rotates the refresh token.
             self._refresh_spent = False
             if self._started_at is None:
+                await self._global_gate()  # D4: a new session waits out a burst of trips
                 self._started_at = self._clock()
+            if name in FETCH_TOOLS and self._fetch_started_at is None:
+                self._fetch_started_at = self._clock()  # N2: the fetch clock starts here
             limited = 0
             while True:
                 self._refuse_if_closed(name)
@@ -346,7 +403,7 @@ class EvernoteMcpClient:
                     # the next new call.
                     await self._pace(name)
                 try:
-                    result = await self._call_once(name, arguments)
+                    result = await self._call_once(name, arguments, self._deadline(name))
                     wait = _tool_rate_limit_wait_s(result)
                     status = None
                 except _HttpRateLimited as hit:
@@ -373,6 +430,61 @@ class EvernoteMcpClient:
         self._adapted = True
         self._estimate = ADAPTIVE_MIN_INTERVAL_S
 
+    def begin_listing(self) -> None:
+        """N2: a listing starts (the provider calls this before its first page). Its search_notes
+        calls are charged to their own allowance, never to the fetch clock."""
+        self._listing_started_at = self._clock()
+        self._listing_pages = None
+        self._listing_peak_interval = self.call_interval_s
+        self._phase_closed.discard("listing")
+
+    def size_listing(self, pages: int) -> None:
+        """N2: the listing's page count, once page 0 has said how many results there are."""
+        if isinstance(pages, int) and pages >= 0:
+            self._listing_pages = pages
+
+    def end_listing(self) -> None:
+        self._listing_started_at = None
+        self._listing_pages = None
+        self._phase_closed.discard("listing")
+
+    def listing_allowance_s(self) -> float:
+        """Sized by the HIGHEST interval seen during this listing: a trip widens it, and a
+        ramp-down never shrinks it below what the listing already spent."""
+        self._listing_peak_interval = max(self._listing_peak_interval, self.call_interval_s)
+        return max(LISTING_ALLOWANCE_MIN_S,
+                   (self._listing_pages or 0) * self._listing_peak_interval
+                   * LISTING_ALLOWANCE_FACTOR)
+
+    def _phase(self, name: str) -> str | None:
+        if name in FETCH_TOOLS:
+            return "fetch"
+        if name == "search_notes" and self._listing_started_at is not None:
+            return "listing"
+        return None
+
+    def _deadline(self, name: str) -> float | None:
+        """N2: when the clock of this tool's phase runs out (None: uncharged)."""
+        phase = self._phase(name)
+        if phase == "fetch" and self._fetch_started_at is not None:
+            return self._fetch_started_at + SESSION_BUDGET_S
+        if phase == "listing":
+            return self._listing_started_at + self.listing_allowance_s()
+        return None
+
+    async def _global_gate(self) -> None:
+        """D4: before a session's first call, wait while this process saw GLOBAL_TRIP_THRESHOLD
+        or more Evernote trips in the last minute, at most GLOBAL_GATE_MAX_WAIT_S in all."""
+        waited = 0.0
+        while waited < GLOBAL_GATE_MAX_WAIT_S and recent_global_trips() >= GLOBAL_TRIP_THRESHOLD:
+            oldest = _GLOBAL_TRIPS[0]
+            step = max(1.0, oldest + RATE_WINDOW_S - _global_clock())
+            step = min(step, GLOBAL_GATE_MAX_WAIT_S - waited)
+            log.info("evernote mcp: %d trips in the last minute across sessions; a new session "
+                     "waits %.0f s", len(_GLOBAL_TRIPS), step)
+            await self._sleep(step)
+            waited += step
+
     def learned_interval(self) -> tuple[float | None, bool]:
         """(the session's adaptive interval or None, whether a rate limit tripped this session).
         The engine stores the interval only when it was learned THIS session (D3)."""
@@ -386,36 +498,54 @@ class EvernoteMcpClient:
                      reason)
 
     def _refuse_if_closed(self, name: str) -> None:
-        if self._closed_reason is None and self._started_at is not None and (
-                self._clock() - self._started_at >= SESSION_BUDGET_S):
-            self._close("wall clock spent")
+        phase = self._phase(name)
+        deadline = self._deadline(name)
+        if phase is not None and deadline is not None and self._clock() >= deadline:
+            self._phase_closed.add(phase)
         if self._closed_reason is not None:
             raise errors.NoteConnRateLimited(
                 f"evernote mcp: {name} not sent: this sync's Evernote budget is spent "
                 f"({self._closed_reason})", retry_after=self._closed_retry_after,
                 code="evernote_session_closed")
+        if phase is not None and phase in self._phase_closed:
+            raise errors.NoteConnRateLimited(
+                f"evernote mcp: {name} not sent: this sync's {phase} clock is spent",
+                code="evernote_session_closed")
 
-    def _within_wall_clock(self, seconds: float) -> bool:
-        return (self._started_at is None
-                or self._clock() + seconds - self._started_at <= SESSION_BUDGET_S)
+    def _within_wall_clock(self, seconds: float, name: str) -> bool:
+        deadline = self._deadline(name)
+        return deadline is None or self._clock() + seconds <= deadline
+
+    def _out_of_clock(self, name: str) -> errors.NoteConnRateLimited:
+        phase = self._phase(name)
+        if phase is not None:
+            self._phase_closed.add(phase)
+        return errors.NoteConnRateLimited(
+            f"evernote mcp: {name} not sent: this sync's {phase or 'session'} clock is spent",
+            code="evernote_session_closed")
 
     async def _rate_limited(self, name: str, wait: float, limited: int, status: int | None) -> int:
         """The ONE handler for a rate limit, tool-level or HTTP 429 (I5): slow the session, then
         wait and retry the same call, or raise. Returns the new retry count."""
         self._slow_down()
-        if wait > MAX_RETRY_AFTER_S:
-            # I7: never slept through. The session is closed (nothing more is sent this pass)
-            # and the real wait goes up, so the engine books the follow-up for then.
+        if wait > LONG_WAIT_S:
+            # I7 + N6: never slept through. The session is closed (nothing more is sent this
+            # pass) and the real wait goes up, so the engine books the follow-up for then.
             self._close("Evernote asked for a long wait", retry_after=wait)
             raise errors.NoteConnRateLimited(
                 f"evernote mcp: {name} rate limited by Evernote for {wait:.0f} s",
                 retry_after=wait, status=status, code="evernote_tool_rate_limited")
+        # N6: a wait over MAX_RETRY_AFTER_S (up to LONG_WAIT_S) is slept once per call; a second
+        # one on the same call raises, leaving the session open for the next call.
+        second_long = wait > MAX_RETRY_AFTER_S and limited > 0
         delay = wait + RATE_LIMIT_MARGIN_S
         over_budget = self._rate_limit_waited_s + delay > RATE_LIMIT_WAIT_BUDGET_S
-        over_clock = not self._within_wall_clock(delay)
-        if over_budget or over_clock:
-            self._close("rate-limit wait budget spent" if over_budget else "wall clock spent")
-        if limited >= TOOL_RATE_LIMIT_RETRIES or over_budget or over_clock:
+        over_clock = not self._within_wall_clock(delay, name)
+        if over_budget:
+            self._close("rate-limit wait budget spent")
+        elif over_clock:
+            self._out_of_clock(name)
+        if limited >= TOOL_RATE_LIMIT_RETRIES or over_budget or over_clock or second_long:
             raise errors.NoteConnRateLimited(
                 f"evernote mcp: {name} rate limited by Evernote after {limited} "
                 f"retr{'y' if limited == 1 else 'ies'}", retry_after=wait, status=status,
@@ -446,14 +576,16 @@ class EvernoteMcpClient:
         log.warning("evernote mcp: %s returned a tool error that is not a rate limit: %s",
                     name, _tool_error_text(result)[:300])
 
-    async def _call_once(self, name: str, arguments: dict[str, Any]) -> Any:
+    async def _call_once(self, name: str, arguments: dict[str, Any],
+                         deadline: float | None = None) -> Any:
         for attempt in range(2):
             try:
                 # Inside the try: a 404 on the handshake's `notifications/initialized` is a lost
                 # session too, and must never leak `_SessionLost` (review m3).
                 await self._ensure_session()
                 return await self._request(
-                    "tools/call", {"name": name, "arguments": arguments}, tool=name)
+                    "tools/call", {"name": name, "arguments": arguments}, tool=name,
+                    deadline=deadline)
             except _SessionLost:
                 self._session_id = None
                 self._initialized = False
@@ -473,10 +605,9 @@ class EvernoteMcpClient:
             return
         wait = self.call_interval_s - (self._clock() - self._last_call_at)
         if wait > 0:
-            if not self._within_wall_clock(wait):
-                # D2: pacing is charged to the wall clock too.
-                self._close("wall clock spent")
-                self._refuse_if_closed(name)
+            if not self._within_wall_clock(wait, name):
+                # D2: pacing is charged to the phase's clock too.
+                raise self._out_of_clock(name)
             await self._sleep(wait)
 
     def _slow_down(self) -> None:
@@ -485,6 +616,7 @@ class EvernoteMcpClient:
         whose window holds almost nothing, included) doubles. Clamped, and only ever slower."""
         self._tripped = True
         self._clean_calls = 0
+        _record_global_trip()  # D4
         if not self._adapted:
             now = self._clock()
             while self._sent_at and self._sent_at[0] <= now - RATE_WINDOW_S:
@@ -528,7 +660,10 @@ class EvernoteMcpClient:
         return headers
 
     async def _request(self, method: str, params: dict | None, *, notification: bool = False,
-                       tool: str | None = None) -> Any:
+                       tool: str | None = None, deadline: float | None = None) -> Any:
+        """`deadline` (N7): the clock the call's phase ends at. A transport or 5xx retry whose
+        ladder sleep would end past it is not taken: the call raises `NoteConnRateLimited` (a
+        leftover), so one call overruns the clock by at most one REQUEST_DEADLINE_S."""
         payload: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
         if params is not None:
             payload["params"] = params
@@ -558,7 +693,12 @@ class EvernoteMcpClient:
                     raise errors.NoteConnTransient(
                         f"evernote mcp: transport error ({type(exc).__name__}) on {method}"
                     ) from None
-                await self._sleep(RETRY_DELAYS_S[attempt] * self._jitter())
+                delay = RETRY_DELAYS_S[attempt] * self._jitter()
+                if deadline is not None and self._clock() + delay > deadline:
+                    raise errors.NoteConnRateLimited(
+                        f"evernote mcp: {method} not retried: this sync's clock is spent",
+                        code="evernote_session_closed") from None
+                await self._sleep(delay)
                 attempt += 1
                 continue
 
@@ -587,6 +727,10 @@ class EvernoteMcpClient:
                     retry_after = min(retry_after, MAX_RETRY_AFTER_S)
                 delay = retry_after if retry_after is not None else (
                     RETRY_DELAYS_S[attempt] * self._jitter())
+                if deadline is not None and self._clock() + delay > deadline:
+                    raise errors.NoteConnRateLimited(
+                        f"evernote mcp: {method} not retried: this sync's clock is spent",
+                        status=status, code="evernote_session_closed")
                 await self._sleep(delay)
                 attempt += 1
                 continue

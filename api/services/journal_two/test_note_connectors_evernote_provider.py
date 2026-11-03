@@ -824,3 +824,48 @@ async def test_seed_pacing_reaches_the_client_and_learned_pacing_reads_it():
     await p.list_changed(CREDS, None)  # the client is made on the first call
     assert fake.seeds == [3.0]
     assert p.learned_pacing() == (2.5, True)
+
+
+# ── fix round 2 (N2): each listing opens, sizes and closes its own allowance ─
+
+class _ListingFake(FakeMcp):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.events: list = []
+
+    def begin_listing(self):
+        self.events.append("begin")
+
+    def size_listing(self, pages):
+        self.events.append(("size", pages))
+
+    def end_listing(self):
+        self.events.append("end")
+
+
+async def test_every_listing_opens_sizes_and_closes_its_allowance():
+    fake = _ListingFake(active=[_hit(i) for i in range(250)], trash=[_hit(900 + i) for i in range(3)])
+    p = _provider(fake)
+    await p.list_changed(CREDS, None)
+    assert fake.events == ["begin", ("size", 3), "end"]
+    fake.events.clear()
+    await p.list_deleted(CREDS)  # a removal listing of a full pass: its own allowance
+    assert fake.events == ["begin", ("size", 1), "end"]
+
+
+async def test_a_listing_that_raises_still_closes_its_allowance():
+    fake = _ListingFake(active=[_hit(i) for i in range(150)])
+    p = _provider(fake)
+    real = fake.call_tool
+    n = {"calls": 0}
+
+    async def failing(name, arguments):
+        n["calls"] += 1
+        if name == "search_notes" and n["calls"] == 2:
+            raise errors.NoteConnRateLimited("limited")
+        return await real(name, arguments)
+
+    fake.call_tool = failing
+    with pytest.raises(errors.NoteConnRateLimited):
+        await p.list_changed(CREDS, None)
+    assert fake.events[0] == "begin" and fake.events[-1] == "end"
