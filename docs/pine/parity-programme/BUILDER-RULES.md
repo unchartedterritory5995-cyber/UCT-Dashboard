@@ -26,8 +26,12 @@ script. Full rules: AGENT-RULES.md (this folder). Its absolute paths are the des
   unfinished work. Wait with ONE blocking foreground until-loop (`sleep 300`) on your job's output
   marker. Re-run it if it times out.
 - Scripts in `docs/pine/parity-programme/scripts/` (pine-handoff worktree):
-  - `measure-pair.sh <out> tip:<wt> base:<pine-base> <runtimeOn 0|1> 1` compares tip with base.
-    Fast-forward pine-base to origin/master first (if clean). Run it with both 0 and 1.
+  - `measure-pair.sh <out> tip:<wt> base:<base-wt> <runtimeOn 0|1> 1` compares tip with base. Run it
+    with both 0 and 1. The base must be the tip's OWN master. Set it INSIDE the same hl job:
+    `M=$(git -C <wt> merge-base HEAD origin/master); git -C <base-wt> switch -q --detach $M`.
+    `<base-wt>` is the machine's measure-pair base worktree (desktop: `pine-dsk-mpbase`;
+    laptop: `pine-base`), with the node_modules junction. Record M as tested-on-master.
+    Run `npm ci` only inside an hl job.
   - `final-tip.sh <wt> <label> [pytest files]` runs the gate pytest, hygiene and the full chart+hooks
     vitest.
   - `mutate.py <muts.json> <test files...>` is the mutation proof. Restores are byte-exact.
@@ -52,8 +56,15 @@ script. Full rules: AGENT-RULES.md (this folder). Its absolute paths are the des
 - An engine change has measure-pair on BOTH lanes against pine-base at the same master. Classify
   every census, C18 and harness diff as intended or not; 0 unintended.
 - final-tip on the final tree, compared with the baseline. Hygiene clean.
-- `docs/pine/evidence/<YYYY-MM-DD>-<lane>/EVIDENCE.md` on the branch: numbers, diff
-  classifications, log paths. No licence-held text. The reviewer on the other machine cannot read
-  your local logs, so this file must carry everything they need.
+- `docs/pine/evidence/<YYYY-MM-DD>-<lane>/EVIDENCE.md` on the branch. The reviewer on the other
+  machine cannot read your local logs, so this file carries everything they need:
+  - for each check: the command, the tip SHA and tested-on-master SHA, and the totals line;
+  - the names of the rail tests that fail on master and pass on the tip;
+  - a mutation table (mutation → the test that kills it; equivalent survivors named as such);
+  - the measure-pair `== side` SHAs for runtime 0 and 1, with every census, C18 and harness diff
+    classified;
+  - log paths.
+  No licence-held text. The status branch `runs/` takes summary lines only, never census/,
+  harness-* or out-*.json.
 - Final text: a report of 250 words or fewer with the final SHA, what changed, the checks with
   their numbers, the open items, and whether an engine bump is needed.

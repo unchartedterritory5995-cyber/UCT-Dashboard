@@ -33,7 +33,7 @@ yardstick that ranks which language features block real code; it is not the targ
 - Fix specs name file:line, the exact rail and the exact mutation, so a round closes in one pass.
 - Re-reviews read only the commits since the last review plus the prior findings, not the whole branch.
 - Reports <= 250 words. No pasted logs; cite the log path and the totals line.
-- No polling loops while waiting for the lock: start the hl job in the background and wait for its
+- Coordinator only (builders follow BUILDER-RULES' blocking wait): no polling loops while waiting for the lock: start the hl job in the background and wait for its
   notification. Batch rails into one hl job instead of one job per file.
 - A dark, non-member-facing stream that is still NO-GO after round 3 is parked with its findings
   recorded, not given round 4, until member-facing work is merged.

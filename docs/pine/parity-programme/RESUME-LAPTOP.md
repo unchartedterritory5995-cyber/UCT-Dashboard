@@ -96,11 +96,19 @@ harness; 0 unintended diffs) -> bump SCRIPT_ENGINE_VERSION +1 if translator outp
 merge to promote) -> `scripts/verify_deploy.sh <merge-sha>` (expect `SMOKE PASS (authenticated)`).
 Known pre-existing failures that are not ours: `pollingSites.rail`, the `converseClient.conversationId`
 random-id flake, `definition_concierge` x5, `require_paid` sentence, `test_entitlements` NUMBERS.
-Laptop baseline, master `4d059b10ae` (E's merged tip, app/ identical): 3 failed files / 1320 passed /
+Laptop baseline is now 2 failed files (`targetScriptReport.measure`, `pollingSites.rail`; 2026-11-03,
+W4 T1/T4 final-tips). Older note: master `4d059b10ae` (E's merged tip, app/ identical): 3 failed files / 1320 passed /
 27 skipped: `pollingSites.rail` (2), `vendorHarness.coverageAudit` (2: fibonacci-dolphintradebot SPY and
 delta-rsi RDDT, `it.fails` rows that no longer fail) and `targetScriptReport.measure` (1).
 A branch with no app/ change carries master's vitest result (`tools/gate_carry_over.py <gated> <landing>
 <base>`); C4-PYTHON still runs on the landing tree.
+
+**Laptop half of the two-machine loop (DESKTOP-PROMPT.md sections 2 and 8):**
+- Keep a background poll on `ops/pine-desktop`.
+- On READY: set `REVIEWING @tip`, then run the Opus review.
+- Write `ASSIGNMENTS.md` and `reviews/<lane>.md` to `ops/pine-coord` with
+  `scripts/status-push.sh`. Every laptop state names the tip it judged (`@sha10`).
+- Engine numbers are taken in merge order and recorded in ASSIGNMENTS.md.
 
 ## 5. Owner items open
 - SMOKE: finish the password reset on the laptop (window "UCT smoke password reset"), then update
