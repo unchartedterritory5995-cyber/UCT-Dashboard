@@ -24,6 +24,8 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `17e553f48b` | with/without-Brain comparison suite (K-07) |
 | `3f3afea069` | fix: dark routing regression, isolation rail (literal kinds), clock rail |
 | `f9a03577da` | independent review round 1 fixes (findings 2–7, 9) |
+| `224f057b8e` | board, QA record, RESUME-KN |
+| `8a4993b520` | independent review round 2 fixes (live figure not withheld; pack-scoped cooldown) |
 
 ## Tasks
 | id | task | state | evidence |
@@ -39,15 +41,16 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | K-08 | Real-snapshot demo (scratchpad only) | done | QA-RESULTS.md §2 |
 | K-09 | Hooks | done (1–4); 5 deferred to integrator; 6 dropped (ledger lists no Agent flags) | `68c401482a` |
 | K-10 | Independent review round 1 | done; all findings fixed except 8 (known limitation) | QA-RESULTS.md §5 |
-| K-11 | Full Agent suites on head `f9a03577da` | running at handoff time if not recorded below | logs: scratchpad `kn-runs/server-f9a035.log`, `browser-f9a035.log` |
-| K-12 | Draft PR into `agent/int-w2` + RESUME-KN note | todo → see RESUME-KN | |
-| K-13 | Second review round on the final head | todo | |
+| K-11 | Full Agent suites on head `f9a03577da` | done: all green | server 2,156 passed; browser 2,653 passed, 6 skipped |
+| K-12 | Draft PR into `agent/int-w2` + RESUME-KN note | done | PR #735 (draft) |
+| K-13 | Second review round | done: 0 blocking; findings 1, 2, 4 fixed in `8a4993b520`; 3 and 5 recorded | |
 
 ## Full-suite record
 | Head | Server (tests/test_uct_agent*.py + brain tests) | Browser (src/agent) |
 |---|---|---|
 | `68c401482a` | 2,148 passed, 1 failed (clock rail — this branch; fixed) | 2,576 passed, 3 failed (this branch; fixed) |
-| `f9a03577da` | (pending) | (pending) |
+| `f9a03577da` | 2,156 passed, 0 failed | 2,653 passed, 6 skipped, 0 failed |
+| `8a4993b520` | knowledge + clock rail 69 passed (change is knowledge-package only) | knowledge suites 87 passed |
 
 ## Blocked / needs the owner
 - Admitting `self_review`, `manual`, `chart_intake:*` or any `intake:*` source (policy.json is the switch; default-deny until the owner rules).
@@ -57,9 +60,12 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 
 ## Known limitations (recorded for the integrator)
 - With the feature ON, a message that matches ONLY the playbook group narrows the routed request to it (review finding 8). Does not affect dark mode.
+- Routing words are armed when the capabilities register and only disarmed by the test reset; nothing unregisters them at runtime today (review round 2, latent).
+- A facade row with a win rate but no win count is withheld (fails closed).
 - Retrieval is lexical (FTS5, porter stemming); no embeddings by design (no external calls).
 
 ## Next step to resume
-1. Read the two `kn-runs/*-f9a035.log` tails (or rerun: from `C:/w/kn-1`, `python tools/agent_suite_lock.py run --who agent-kn -- <python> -m pytest tests/test_uct_agent*.py -q`; from `C:/w/kn-1/app`, `... -- npx vitest run src/agent`) and record them above.
-2. If green: open the draft PR into `agent/int-w2` (K-12) and run review round 2 (K-13).
+The PoC is complete and reviewed; it is waiting on the owner. Release candidate = PR #735 head (GO for owner evaluation as a dark admin-only RC; HOLD on activation until the owner admits sources and sets the flag).
+1. Owner: review PR #735; decide sources beyond team-owned; when merges reopen, the integrator merges into `agent/int-w2` and regenerates the golden manifest.
+2. Optional free work within scope: an FTS synonym table for UCT slang (EP, U&R, HTF) to raise recall; health card on the Admin page (needs a page-owner OK).
 3. Do not merge anything; merges are frozen until the owner returns.

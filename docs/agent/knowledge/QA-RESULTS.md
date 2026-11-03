@@ -50,7 +50,8 @@ Index build over the full snapshot: 0.66 s. No external call is made on any path
 | `app/src/agent/agentKnowledgeCompare.test.js` (with vs without Brain, dark routing) | 74 passed (with the 3 previously regressed files: 132) |
 | Full Agent server suite + brain tests, head 68c401482a | 2,148 passed, 1 failed (clock rail, caused by this branch, fixed in 3f3afea069) |
 | Full Agent browser suite, head 68c401482a | 2,576 passed, 3 failed (dark-routing regression + isolation rail, caused by this branch, fixed in 3f3afea069) |
-| Full suites on head f9a03577da | see STATUS.md (rerun recorded there) |
+| Full Agent server suite + brain tests, head f9a03577da | 2,156 passed, 0 failed |
+| Full Agent browser suite, head f9a03577da | 2,653 passed, 6 skipped, 0 failed |
 
 ## 4. With vs without Brain retrieval (deterministic routing comparison)
 
@@ -65,3 +66,5 @@ A paid real-model comparison (answer quality with and without the passages) is N
 ## 5. Independent review
 
 Round 1 (diff-only subagent): 2 blocking (dark routing changed; a possible 0 % rate from a count alone), 7 non-blocking. All fixed in 3f3afea069 and f9a03577da with a regression test each, except finding 8 (with the feature ON, a message matching only the playbook group narrows the routed request), recorded as a known limitation for the integrator.
+
+Round 2 (diff-only, on the fix commits): 0 blocking. Fixed in 8a4993b520: a live facade figure was withheld when the pack had no row; the rebuild cooldown delayed a new pack; a redundant assertion. Recorded: routing words never disarmed at runtime (latent); a rate without a win count is withheld (fails closed).
