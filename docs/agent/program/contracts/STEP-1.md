@@ -52,3 +52,15 @@ end: {"t":"final", conversationId, turnId (row id), envelope: {disposition:"answ
 - A step failure compensates newest-first (existing runtime) and the model is told `is_error`.
 - Member (non-admin) → 403 before any provider call (`require_admin_dark`, G4 rail), unchanged.
 - Flag off → v1 byte-identical (`run_turn` dispatch only; one test diffs the v1 request kwargs with and without the dispatch).
+
+## Amendment W2-A2 (2026-11-03) — the index tool layout (cost; owner kept the $0.25 per-turn cap)
+- Default layout is now `index` (`UCT_AGENT_V2_TOOLS=search` restores the layout above): the system prompt carries
+  `<action_index>` (every manifest action: exact tool name + ≤40-char summary); the request's fixed tools are
+  `load_actions {names: [tool names]}` (strict) + `research__web` when metered. A load appends each known action's strict
+  tool (lean description: no leading signature) to the turn's tools for the following rounds; unknown names → an error
+  tool_result (counted as `tool_search_misses`). Everything from a step's `tool_use` on is unchanged (manifest check,
+  args_match, mode, SSE `step`, pause/resume, receipts, Undo).
+- v2 rounds reserve `max_tokens` 1024 on models without thinking (v1's ceiling when effort is set).
+- `usage.rails` (value-free, per turn): args_normalized, args_refused, tool_search_calls (load calls in index layout),
+  tool_search_misses, unknown_actions, rounds, usd, worst_round_usd, paused, resumed — also in the `_v2_finish` log line.
+- Measurements and tradeoffs: docs/agent/program/PLANNER-V2-COST.md.
