@@ -891,6 +891,11 @@ def main():
     _start_prewarmer()
     _start_universe_crawler()
     _start_bars_freshness_watchdog()
+    try:   # Chart IQ pack backup builder: OFF unless CHART_IQ_PACK_WORKER_ENABLED=1 (api/services/chart_iq/pack_backup.py)
+        from api.services.chart_iq import pack_backup as _ciq_backup
+        _ciq_backup.start_loop()
+    except Exception as e:
+        log.warning(f"chart-iq pack backup did not start (non-fatal): {e}")
     _start_deep_history_warm()
     _start_massive_ws()
     _start_keepwarm()

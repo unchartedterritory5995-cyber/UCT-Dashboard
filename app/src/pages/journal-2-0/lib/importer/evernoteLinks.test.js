@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   isEvernoteNoteHref, normTitle, pyStrip, titleKeyText, resolveEvernoteLinks,
-  PY_WHITESPACE_CLASS, SERVER_TITLE_MAX,
+  PY_WHITESPACE_CLASS, SERVER_TITLE_MAX, LINKED_NOTE_LABEL,
 } from './evernoteLinks'
 import { parseImport } from './postParse'
 import { htmlToNote } from './convert'
@@ -141,16 +141,64 @@ describe('resolveEvernoteLinks through the Evernote adapter', () => {
     expect(a.textContent).toBe('Target Note')
   })
 
-  it('keeps the image of an image-only note link, and says the link could not be kept (no title to resolve by)', async () => {
+  // Plan E Task 9 fix round 1 (concern 2, ruling): the link survives, right after the image.
+  it('keeps the image of an image-only note link and adds the link right after it, heal-able by its GUID', async () => {
     const { docs, warnings } = await evernoteAdapter.parse([enexFile('Book.enex', [
       note('Source', `<div>Lead <a href="evernote:///view/1/s1/abc/abc/"><en-media type="image/png" hash="${PNG_MD5}"/></a> tail</div>`, undefined, PNG_RES),
     ])])
     const d = docs[0]
-    expect(d.html).toContain(`<img src="import-ref://${PNG_MD5}">`)
-    expect(d.html).not.toContain('evernote:')
-    expect(bodyOf(d.html).querySelector('a')).toBeNull()
-    expect(d.links).toEqual([])
-    expect(warnings).toContain('A link to another note in "Source" was kept as its content: it has no text, and Evernote links name their note only by its title.')
+    const b = bodyOf(d.html)
+    const img = b.querySelector(`img[src="import-ref://${PNG_MD5}"]`)
+    const a = b.querySelector('a')
+    expect(img).not.toBeNull()
+    expect(img.nextSibling).toBe(a)
+    expect(a.getAttribute('data-import-link')).toBe('evernote:guid:abc')
+    expect(a.hasAttribute('href')).toBe(false)
+    // fix round 2 (concern 5 ruling): no alt -> the fixed label, never the URL (user id and shard)
+    expect(a.textContent).toBe(LINKED_NOTE_LABEL)
+    expect(d.html).not.toContain('/view/1/s1')
+    expect(d.links).toEqual([{ targetKey: 'evernote:guid:abc' }])
+    expect(warnings.filter((w) => w.includes('was kept as its content'))).toEqual([])
+  })
+
+  it('labels an image-only /shard/.../nl/ note link with no alt as a linked note, never its URL', async () => {
+    const { docs } = await evernoteAdapter.parse([enexFile('Book.enex', [
+      note('Source', `<div><a href="https://www.evernote.com/shard/s1/nl/123/abc/"><en-media type="image/png" hash="${PNG_MD5}"/></a></div>`, undefined, PNG_RES),
+    ])])
+    const a = bodyOf(docs[0].html).querySelector('a')
+    expect(a.textContent).toBe(LINKED_NOTE_LABEL)
+    expect(a.getAttribute('data-import-link')).toBe('evernote:guid:abc')
+    expect(docs[0].html).not.toContain('shard/s1')
+  })
+
+  it('reads LINKED_NOTE_LABEL from enml.py, never restates it', () => {
+    let dir = HERE
+    while (!readdirHas(dir, 'api')) {
+      const up = path.dirname(dir)
+      if (up === dir) throw new Error('repo root not found')
+      dir = up
+    }
+    const src = readFileSync(path.join(dir, 'api', 'services', 'journal_two', 'note_connectors', 'convert', 'enml.py'), 'utf8')
+    expect(src.match(/^LINKED_NOTE_LABEL = "([^"]+)"/m)[1]).toBe(LINKED_NOTE_LABEL)
+  })
+
+  it("names an image-only link by the image's alt", async () => {
+    const { docs } = await evernoteAdapter.parse([enexFile('Book.enex', [
+      note('Source', `<div><a href="https://www.evernote.com/l/AbCd"><en-media type="image/png" hash="${PNG_MD5}" alt="Q3 plan"/></a></div>`, undefined, PNG_RES),
+    ])])
+    const a = bodyOf(docs[0].html).querySelector('a')
+    expect(a.textContent).toBe('Q3 plan')
+    expect(a.getAttribute('data-import-link')).toBe('evernote-title:Q3 plan')
+  })
+
+  it('keeps an image-only share link with no alt as a web link to the share page', async () => {
+    const { docs } = await evernoteAdapter.parse([enexFile('Book.enex', [
+      note('Source', `<div><a href="https://www.evernote.com/l/AbCd"><en-media type="image/png" hash="${PNG_MD5}"/></a></div>`, undefined, PNG_RES),
+    ])])
+    const a = bodyOf(docs[0].html).querySelector('a')
+    expect(a.getAttribute('href')).toBe('https://www.evernote.com/l/AbCd')
+    expect(a.textContent).toBe('https://www.evernote.com/l/AbCd')
+    expect(a.hasAttribute('data-import-link')).toBe(false)
   })
 
   it('resolves across two .enex files dropped together', async () => {
@@ -248,7 +296,11 @@ describe('the cross-import key matches the title the SERVER stores: strip()[:300
     }
     const src = readFileSync(path.join(dir, 'api', 'services', 'journal_two', 'notes.py'), 'utf8')
     expect(Number(src.match(/^MAX_TITLE_CHARS = (\d+)/m)[1])).toBe(SERVER_TITLE_MAX)
-    expect(src).toContain('title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]')
+    // The rule lives in `import_title` (strip, then the `[:MAX_TITLE_CHARS]` cut), and the import
+    // path stores through it. The cut must be import_title's OWN return line, not the same shape
+    // anywhere else in the file, and `import_confirm` must call it.
+    expect(src).toMatch(/def import_title\(raw: Any\) -> str:[\s\S]*?\n {4}return \(raw or "Untitled"\)\.strip\(\)\[:MAX_TITLE_CHARS\]\r?\n/)
+    expect(src).toMatch(/title = import_title\(n\.get\("title"\)\)/)
   })
 
   it('cuts a 301-character title at 300', () => {

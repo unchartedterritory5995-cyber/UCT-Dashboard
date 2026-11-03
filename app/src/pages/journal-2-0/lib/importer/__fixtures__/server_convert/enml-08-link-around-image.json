@@ -1,0 +1,177 @@
+{
+  "doc": {
+    "content": [
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000008/365dccce50f2d8411c4e737c7ff0057d"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://example.com/chart"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "chart page",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000008/2532ebd4e83baf1960c50dccf0919a3d"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://example.com/only-image"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "https://example.com/only-image",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000008/365dccce50f2d8411c4e737c7ff0057d"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "import-link://evernote:guid:22222222-0000-4000-8000-00000000000a"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "Linked note",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "href": "import-ref://evernote-res://11111111-0000-4000-8000-000000000008/752edbf5288dd63f3481a3f7fe6adc94",
+          "name": "report.pdf"
+        },
+        "type": "attachmentChip"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000008/2532ebd4e83baf1960c50dccf0919a3d"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "import-link://evernote-title:Second chart"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "Second chart",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000008/2532ebd4e83baf1960c50dccf0919a3d"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://www.evernote.com/l/ZzYyXx"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "https://www.evernote.com/l/ZzYyXx",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000008/2532ebd4e83baf1960c50dccf0919a3d"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "import-link://evernote:guid:22222222-0000-4000-8000-00000000000a"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "Linked note",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [
+    "evernote:guid:22222222-0000-4000-8000-00000000000a",
+    "evernote-title:Second chart",
+    "evernote:guid:22222222-0000-4000-8000-00000000000a"
+  ],
+  "media": [
+    {
+      "kind": "image",
+      "mime": "image/png",
+      "name": "chart.png",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000008/365dccce50f2d8411c4e737c7ff0057d"
+    },
+    {
+      "kind": "image",
+      "mime": "image/png",
+      "name": "second.png",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000008/2532ebd4e83baf1960c50dccf0919a3d"
+    },
+    {
+      "kind": "file",
+      "mime": "application/pdf",
+      "name": "report.pdf",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000008/752edbf5288dd63f3481a3f7fe6adc94"
+    }
+  ]
+}

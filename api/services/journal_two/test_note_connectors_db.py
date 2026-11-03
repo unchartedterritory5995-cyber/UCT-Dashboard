@@ -207,6 +207,7 @@ def test_ensure_schema_adds_last_full_sync_at_and_failures_json_to_an_older_db(t
     c.executescript(j2db._J2_SCHEMA)
     c.execute("ALTER TABLE j2_note_sources DROP COLUMN last_full_sync_at")
     c.execute("ALTER TABLE j2_note_sync_log DROP COLUMN failures_json")
+    c.execute("ALTER TABLE j2_note_sync_log DROP COLUMN adopted")  # Plan E Task 8
     c.commit()
     (tmp_path / ".notebook_migration_v3").touch()
     assert "last_full_sync_at" not in {r[1] for r in c.execute("PRAGMA table_info(j2_note_sources)")}
@@ -218,6 +219,7 @@ def test_ensure_schema_adds_last_full_sync_at_and_failures_json_to_an_older_db(t
     cols_src = {r[1] for r in c.execute("PRAGMA table_info(j2_note_sources)")}
     cols_log = {r[1] for r in c.execute("PRAGMA table_info(j2_note_sync_log)")}
     assert "last_full_sync_at" in cols_src and "failures_json" in cols_log
+    assert "adopted" in cols_log  # Plan E Task 8
     c.close()
 
 

@@ -530,6 +530,10 @@ async function uploadLocal(noteId, item, name, retry) {
 // ---------------------------------------------------------------------------
 
 const HEAL_DOOR = '/api/j2/notes/import/heal-links'
+
+/** Notice reasons a re-import of the same export can never bring over (fix round 1, M-2):
+ *  the file is not in the export at all. Such a drop leaves the note NOT media-pending. */
+const NEVER_IN_THIS_EXPORT = new Set([NOTICE_REASONS.notFound])
 /** The door refuses more than this many noteIds in one call (400). */
 export const HEAL_CHUNK = 500
 /** How an unresolved link in a note this import did not name is attributed in the summary. */
@@ -868,7 +872,10 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
       // means this note's import is NOT actually done — say so, so a later
       // re-import of the same export retries this note's media instead of
       // matching its fingerprint and skipping it (and the still-missing
-      // image) forever.
+      // image) forever. ⛔ Fix round 1, M-2: EXCEPT a drop no re-import of the same export can
+      // bring (`NEVER_IN_THIS_EXPORT`, a file the vault does not hold): a note whose only drops
+      // are those is done, or every later import re-opens it for nothing.
+      const mediaPending = notices.some((n) => !NEVER_IN_THIS_EXPORT.has(n.reason))
       try {
         const putRes = await fetch(`/api/j2/notes/${noteId}`, {
           method: 'PUT',
@@ -878,7 +885,7 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
           // refuses it on a note the importer itself just wrote with a wave-5
           // type (the Obsidian adapter's ==x== is a highlight mark).
           headers: { 'Content-Type': 'application/json', ...(await notebookSchemaHeaders()) },
-          body: JSON.stringify({ bodyJson: rewritten, importMediaPending: droppedMedia.length > 0 }),
+          body: JSON.stringify({ bodyJson: rewritten, importMediaPending: mediaPending }),
         })
         if (!putRes.ok) {
           summary.failures.push({

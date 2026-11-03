@@ -59,7 +59,22 @@ export const NOTE_CONNECTOR_PROVIDERS = [
   { key: 'onenote', label: 'OneNote', tokenKind: 'oauth' },
   { key: 'onedrive', label: 'OneDrive', tokenKind: 'oauth' },
   { key: 'obsidian', label: 'Obsidian', tokenKind: 'device' },
+  // Plan E Task 10. `beta` shows a "Beta" pill on the Settings tile (Evernote's own connection is beta).
+  { key: 'evernote', label: 'Evernote', tokenKind: 'oauth', beta: true },
 ]
+
+// Providers the server gates PER MEMBER (`registry.provider_allowed_for`; only Evernote). `/status`
+// lists them to every member, with `configured: false` while the flag is off or the member is not
+// allowed -- deliberately the same answer as "not set up", so a member cannot tell the modes apart.
+// So a gated provider shows NO tile at all (not "Coming soon") until the server says configured.
+// EXCEPT while the member is already connected (coordinator ruling): a connection must never be
+// invisible or unremovable, so the tile stays, in its sync-off state (Disconnect and the log are
+// ungated on the server; Sync now and pause are not). Every surface asks `isProviderShown`.
+export const MEMBER_GATED_PROVIDERS = new Set(['evernote'])
+
+export function isProviderShown(key, info) {
+  return !MEMBER_GATED_PROVIDERS.has(key) || !!(info && (info.configured || info.connected))
+}
 
 // Providers whose sync unit is a PICKED FOLDER, not a whole account —
 // mirrors the backend's `_FOLDER_PICKER_PROVIDERS` frozenset
