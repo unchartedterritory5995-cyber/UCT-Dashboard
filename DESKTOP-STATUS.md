@@ -1,11 +1,11 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-03 21:11 CT
+updated: 2026-11-03 21:43 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
-free RAM: 14872 MB · builder cap: 4 (max 2 Opus); currently 4 running (1 Opus, 3 Sonnet)
+free RAM: 18056 MB · builder cap: 4 (max 2 Opus); currently 4 running (1 Opus, 3 Sonnet)
 master at start: 5d95103c8a
-baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): PENDING; failed files recorded here when it finishes
+baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
 poll on ops/pine-coord: ARMED (15 min); ASSIGNMENTS.md last read at a coordinator commit with all 8 desktop lanes QUEUED
 
 ### Setup verification (DESKTOP-PROMPT section 3)
@@ -22,7 +22,7 @@ poll on ops/pine-coord: ARMED (15 min); ASSIGNMENTS.md last read at a coordinato
 4. Owner's standing PC-load memory says 1 build agent at a time. This plan's RAM rule allows 4. Running 4, with heavy jobs serialised by the lock. Reported to the owner, who has not asked for fewer.
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
-- pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; removed after baseline)
+- pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
 - lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11 (created by builders)
 
 ### Queue (in order, as slots and dependencies allow)
