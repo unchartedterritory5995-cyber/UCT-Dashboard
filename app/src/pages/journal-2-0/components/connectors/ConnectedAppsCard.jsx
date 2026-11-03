@@ -297,6 +297,8 @@ export default function ConnectedAppsCard() {
                 <div className={styles.tileHead}>
                   <span className={styles.tileName}>
                     {p.label}
+                    {/* Review M2: the visual gap is margin only, so a hidden ", " gives a screen reader "Evernote, Beta". */}
+                    {p.beta && <span className="sr-only">, </span>}
                     {p.beta && <span className={styles.betaPill}>Beta</span>}
                   </span>
                   {!configured && connected ? (

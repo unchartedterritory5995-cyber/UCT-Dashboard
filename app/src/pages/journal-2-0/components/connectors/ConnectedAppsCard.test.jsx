@@ -1175,6 +1175,10 @@ describe('ConnectedAppsCard — Evernote (Plan E Task 10)', () => {
     const tile = await screen.findByTestId('connector-tile-evernote')
     expect(within(tile).getByText('Beta')).toBeInTheDocument()
     expect(screen.getAllByText('Beta')).toHaveLength(1)
+    // Review M2: a real separator, so a screen reader says "Evernote, Beta", never "EvernoteBeta".
+    const name = within(tile).getByText('Beta').parentElement
+    expect(name.textContent).toBe('Evernote, Beta')
+    expect(name.querySelector('.sr-only')?.textContent).toBe(', ')
     for (const k of ALL.filter((x) => x !== 'evernote')) {
       expect(within(screen.getByTestId(`connector-tile-${k}`)).queryByText('Beta')).toBeNull()
     }
