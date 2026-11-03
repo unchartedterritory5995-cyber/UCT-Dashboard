@@ -48,7 +48,7 @@ from api.services.journal_two import import_notice
 
 from . import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX
 from .linkify import resolve_href
-from .mddoc import html_to_tiptap, is_data_image_uri
+from .mddoc import html_to_tiptap, is_data_image_uri, repair_list_items
 
 EVERNOTE_RES_SCHEME = "evernote-res://"
 LIVE_KEY_PREFIX = "evernote:guid:"
@@ -649,46 +649,9 @@ def _todo_item(div: _Node) -> _Node:
     return _Node("li", {"data-uct-task": "1" if checked else "0"}, list(div.children))
 
 
-_LIST_TYPES = ("bulletList", "orderedList")
-
-
-def _split_list(lst: dict) -> list[dict]:
-    """One list, repaired the way the client's editor parser repairs it (Task 4, measured by the
-    ENML parity rail; it replaces Task 3 m4's one-level guess). A list item's content must start
-    with a paragraph. When an item's first child is a block (a task list, a nested list), the
-    parser closes that item with an empty paragraph and the item's content moves up a level,
-    after the list. The list's later items continue there in a NEW `bulletList` (the parser's
-    default wrapper, even under an `<ol>`), itself repaired the same way."""
-    items = lst.get("content") or []
-    for idx, item in enumerate(items):
-        content = item.get("content") or []
-        if content and content[0].get("type") != "paragraph":
-            before = {**lst, "content": [*items[:idx], {**item, "content": [{"type": "paragraph", "content": []}]}]}
-            out = [before, *content]
-            rest = items[idx + 1:]
-            if rest:
-                out.extend(_split_list({"type": "bulletList", "content": rest}))
-            return out
-    return [lst]
-
-
-def _repair_list_items(node: Any) -> None:
-    """Bottom-up: inner lists first, so a block that moves up into an item at its START makes that
-    item break in turn (the client's `<li><ul><li><todo>` shape)."""
-    if not isinstance(node, dict):
-        return
-    content = node.get("content")
-    if not isinstance(content, list):
-        return
-    for child in content:
-        _repair_list_items(child)
-    repaired: list[Any] = []
-    for child in content:
-        if isinstance(child, dict) and child.get("type") in _LIST_TYPES:
-            repaired.extend(_split_list(child))
-        else:
-            repaired.append(child)
-    node["content"] = repaired
+# Task 4 list repair: `mddoc.repair_list_items` / `mddoc._split_list` (D3 item 8), the ONE
+# implementation, iterative (D3 review I1). This module kept its own recursive copy until the
+# merge of #721; the ENML parity fixtures regenerate byte-identical through the shared one.
 
 
 def _rule_append_uncited(root: _Node, res: _Resources) -> None:
@@ -976,7 +939,7 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     result = html_to_tiptap("".join(_serialize(c) for c in root.children))
 
     names = {e["ref"]: e["name"] for e in res.unique if e["kind"] == "file"}
-    _repair_list_items(result["doc"])  # before the post-pass: it reads each block's final place
+    repair_list_items(result["doc"])  # before the post-pass: it reads each block's final place
     _post_pass(result["doc"], names, notices)
 
     # Two kinds of ref only, by construction (I4 + the hotlink ruling): the note's resources

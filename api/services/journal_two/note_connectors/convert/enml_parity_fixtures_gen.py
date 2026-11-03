@@ -49,7 +49,7 @@ saying the same thing about every note. Do NOT merge the two lanes to fix a red:
   - A to-do (or any block) first in a list item: the client's editor closes the item with an
     empty paragraph and moves the block up a level; the list's later items continue in a new
     bulletList. A to-do after the item's own text stays nested. The server ports that repair
-    (`enml._repair_list_items`), replacing Task 3 m4's one-level guess. `01-todo`.
+    (`mddoc.repair_list_items`), replacing Task 3 m4's one-level guess. `01-todo`.
 
 Runnable directly:
     python -m api.services.journal_two.note_connectors.convert.enml_parity_fixtures_gen
