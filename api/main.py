@@ -3320,6 +3320,19 @@ def register_chart_iq_pack_jobs(scheduler):
         pass
     scheduler.add_job(_sync, trigger=IntervalTrigger(minutes=15), id="chart_iq_pack_sync", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=600)
+    def _behind_alert():
+        try:
+            from api.services.chart_iq import pack
+            pack.alert_if_behind()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] behind-alert job error: %s", exc)
+
+    # After the PC's build window (nightly 22:30 CT + 15 min sync) and after its 06:00 CT retry: page ops if members are
+    # still reading an older session than the market's last one.
+    scheduler.add_job(_behind_alert, trigger=CronTrigger(day_of_week="tue-sat", hour=0, minute=20, timezone=_ET),
+                      id="chart_iq_pack_behind_evening", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    scheduler.add_job(_behind_alert, trigger=CronTrigger(day_of_week="mon-fri", hour=7, minute=35, timezone=_ET),
+                      id="chart_iq_pack_behind_morning", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
     from api.services.chart_iq import pack as _ciq_pack_gate
     if not _ciq_pack_gate.server_build_allowed():   # the in-pod build took the pod down 11/02; the PC owns the build
         return True

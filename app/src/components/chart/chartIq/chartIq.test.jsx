@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { buildPlan, defaultLayers, LAYERS } from './chartIqPlan'
 import { chartIqAllowed } from './chartIqGate'
 import { chartIqKey, chartIqRetry } from '../../../hooks/useChartIq'
-import ChartIqPanel, { firstSentence, ChartIqFeedback, errorText } from './ChartIqPanel'
+import ChartIqPanel, { firstSentence, ChartIqFeedback, errorText, closeLabel } from './ChartIqPanel'
 
 const BARS = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30']
 const PAYLOAD = {
@@ -112,6 +112,15 @@ describe('ChartIqPanel', () => {
     expect(screen.getByText('Chart IQ is reading the chart...')).toBeTruthy()
     rerender(<ChartIqPanel data={null} error={new Error('x')} layers={defaultLayers()} onLayer={() => {}} />)
     expect(screen.getByText('Chart IQ could not read this chart')).toBeTruthy()
+  })
+  it('names the close the read is built from, collapsed or open, so members never mistake it for live action', () => {
+    render(<ChartIqPanel data={{ ...PAYLOAD, asof: '2026-10-30' }} layers={defaultLayers()} onLayer={() => {}} />)
+    expect(screen.getByTestId('chart-iq-asof').textContent).toBe('Oct 30 close')
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+    expect(screen.getByTestId('chart-iq-asof').textContent).toBe('Oct 30 close')
+    expect(closeLabel('2026-01-02')).toBe('Jan 2 close')
+    expect(closeLabel('bad')).toBe('')
+    expect(closeLabel(undefined)).toBe('')
   })
   it('firstSentence', () => {
     expect(firstSentence('A b. C d.')).toBe('A b.')
