@@ -1240,6 +1240,24 @@ def _untag_note_source_reappeared(conn: sqlite3.Connection, user_id: str, import
 NOT_STORED_RETRY_REASON = "This note couldn't be saved this time. It will be tried again on the next sync."
 
 
+#: The `import_confirm` failures that are already member sentences (m1). Anything else (a
+#: developer's validation message, a raw DB error) is never shown: see `_member_reason`.
+_MEMBER_NOT_STORED_SENTENCES = frozenset({
+    notes_svc.TOO_LONG_BODY_DETAIL, notes_svc.TOO_DEEP_BODY_DETAIL,
+    notes_svc.UNBUILDABLE_BODY_DETAIL, notes_svc.S_TITLE_TOO_LONG,
+})
+
+
+def _member_reason(error: Any, *, key: Any) -> str:
+    """What a member reads for a note `import_confirm` could not store (Plan E Task 9 fix round 2,
+    m1): a known member sentence as it is, else `NOT_STORED_RETRY_REASON`. The raw text is logged
+    server-side only."""
+    if isinstance(error, str) and error in _MEMBER_NOT_STORED_SENTENCES:
+        return error
+    log.warning("[note-sync] note %r could not be stored: %s", key, error)
+    return NOT_STORED_RETRY_REASON
+
+
 def _not_stored_notice(title: Any, key: Any, reason: str) -> dict[str, Any]:
     """`failures_json`'s `{noteTitle, reason, name}` for a note that was not stored (concern 4):
     its title, else its import key, so the row always names something."""
@@ -2254,8 +2272,9 @@ async def _confirm_and_resolve_batch(
             conn=conn,
         )
     except Exception as e:  # noqa: BLE001 — one bad batch must not strand others or abort the sync
+        log.warning("[note-sync] confirm failed for a batch of %d note(s): %s", len(entries), e)
         result["failures"].append(
-            f"confirm failed for a batch of {len(entries)} note(s): {e}"
+            f"confirm failed for a batch of {len(entries)} note(s): {NOT_STORED_RETRY_REASON}"
         )
         result["notStoredRefs"].extend(remote_id_by_key.values())
         result["noticeFailures"].extend(
@@ -2283,16 +2302,12 @@ async def _confirm_and_resolve_batch(
     # rather than skipping it as already-seen.
     for item in r.get("failed", []):
         fkey = item.get("importKey")
-        result["failures"].append(
-            f"note {fkey!r} could not be stored: {item.get('error')}"
-        )
+        reason = _member_reason(item.get("error"), key=fkey)  # m1: never raw text for a member
+        result["failures"].append(f"note {fkey!r} could not be stored: {reason}")
         rid = remote_id_by_key.get(fkey)
         if rid is not None:
             result["notStoredRefs"].append(rid)
-        error = item.get("error")
-        result["noticeFailures"].append(_not_stored_notice(
-            title_by_key.get(fkey), fkey, error if isinstance(error, str) and error.strip()
-            else NOT_STORED_RETRY_REASON))
+        result["noticeFailures"].append(_not_stored_notice(title_by_key.get(fkey), fkey, reason))
 
     # Self-heal (Critical 3, SAFETY NET): a note marked 'skipped' this round
     # (content hash unchanged) may still carry a stranded import-ref://

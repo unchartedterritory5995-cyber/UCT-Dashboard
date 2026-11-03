@@ -1125,9 +1125,7 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
         # name, with no idea what to do about it. One raise site fixes
         # both surfaces; a per-surface translation would fix neither for
         # the other and would be a second authority over this sentence.
-        raise NoteValidationError(
-            "This note is too long to save as one page. "
-            "Split it into two or more notes and try again.")
+        raise NoteValidationError(TOO_LONG_BODY_DETAIL)
     # ⛔ Wave 10 (10C): never STORE a note no door can serve back -- see MAX_BODY_DEPTH.
     if _json_depth_exceeds(raw, MAX_BODY_DEPTH):
         raise NoteValidationError(TOO_DEEP_BODY_DETAIL)
@@ -1148,6 +1146,13 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
 # goes red rather than notes going unreadable. Notes already stored deeper than this
 # still 500 on read -- that half is the router's (the 10C report names it).
 MAX_BODY_DEPTH = 97
+
+#: The sentence a body over MAX_BODY_JSON_BYTES is refused with; it reaches a member verbatim (see
+#: its raise site in `_validate_body_json`). Named so the sync engine can recognise it (Plan E Task 9
+#: fix round 2, m1) without restating it.
+TOO_LONG_BODY_DETAIL = (
+    "This note is too long to save as one page. "
+    "Split it into two or more notes and try again.")
 
 TOO_DEEP_BODY_DETAIL = (
     "This note has too many lists, quotes or toggles nested inside each other to "

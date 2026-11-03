@@ -193,7 +193,9 @@ async def test_pending_media_retry_never_moves_or_holds_the_cursor(db, monkeypat
     monkeypatch.setattr(notes_svc, "import_confirm", real_confirm)
     assert any("'fake:B' could not be stored" in f for f in result["failures"])
     # concern 4: a retried note that cannot be stored is named by its title for the member
-    assert _last_log_failures(src) == [{"noteTitle": "Note B", "reason": "disk full", "name": None}]
+    # (fix round 2, m1: "disk full" is raw text, so the member reads the generic sentence)
+    assert _last_log_failures(src) == [{"noteTitle": "Note B", "reason": engine.NOT_STORED_RETRY_REASON,
+                                        "name": None}]
     assert _cursor(src) == a4.updated_at
     a3 = a4
 
