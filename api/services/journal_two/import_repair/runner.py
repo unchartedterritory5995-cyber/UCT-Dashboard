@@ -251,7 +251,7 @@ def scan(conn, *, run_id: str, members: list[str] | None = None, sleep_ms: int =
             totals["hotlinksToFetch"] += len(plan.hotlinks)
             totals["lostLinks"] += plan.lost_links
             mine["lostLinks"] += plan.lost_links
-            if plan.new_doc is not None:
+            if plan.new_doc is not None or plan.hotlinks:  # M-2: a hotlink swap is a write too
                 totals["wouldRepairNotes"] += 1
                 mine["wouldRepair"] += 1
             if plan.loss:

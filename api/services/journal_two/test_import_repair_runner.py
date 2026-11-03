@@ -253,6 +253,15 @@ def test_plan_note_for_a_file_note_links_marks_and_lists_hotlinks(db):
     assert "linkified" in plan.actions and "relative_file_unresolved" in plan.actions
 
 
+def test_a_hotlink_only_note_would_be_repaired(db):
+    """Fix round 1, M-2: the apply replaces the hotlink's `src` with our copy, a write, so the
+    owner's go/no-go number counts it."""
+    _note("u1", "Notion", "notion:Export/H.md", _doc({"type": "image", "attrs": {"src": "https://cdn.example.com/x.png"}}))
+    report = _scan()
+    assert (report["totals"]["hotlinksToFetch"], report["totals"]["wouldRepairNotes"]) == (1, 1)
+    assert report["perMember"][0]["wouldRepair"] == 1
+
+
 @pytest.mark.parametrize("edited", [False, True])
 def test_a_lost_file_link_is_a_loss_the_member_is_told_about(db, edited):
     """Fix round 1, I-1: a FILE note whose ONLY problem is a link to a file that never came over
