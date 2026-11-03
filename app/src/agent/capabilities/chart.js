@@ -748,7 +748,8 @@ const CAPABILITIES = [
     args: { type: 'object', properties: { date: { type: ['string', 'null'] } }, required: ['date'], additionalProperties: false },
     // W1.1 R-01 (LT-3, live "exit replay" refused as off-schema): the cutoff under another key, and the exit said as a word
     argAliases: { date: ['cutoff', 'to', 'until', 'day', 'at', 'as_of', 'asOf', 'replay_date', 'replayDate'] },
-    coerce: { date: { exit: null, off: null, stop: null, end: null, false: null, clear: null, 'exit replay': null } },
+    // (W1.1 review NB-1: "none"/"nothing" are no longer null words for a string arg — replay declares them itself)
+    coerce: { date: { exit: null, off: null, stop: null, end: null, false: null, clear: null, 'exit replay': null, none: null, nothing: null, nil: null } },
     shape: '{"date":"YYYY-MM-DD"} to replay from a date; {"date":null} to EXIT replay ("exit replay", "leave replay", "replay off", '
       + '"show every bar again") — the JSON null, never the word "null" and never an "exit" or "enabled" key.',
     check(st, { date }) {

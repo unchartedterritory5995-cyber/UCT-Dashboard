@@ -54,6 +54,7 @@ def test_the_golden_manifest_carries_the_tolerance_declarations_and_the_server_k
     assert cap("chart.setSetting")["argAliases"] == {"setting": BY["chart.setSetting"]["argAliases"]["setting"]}
     assert cap("chart.replay")["coerce"]["date"]["exit"] is None
     assert cap("screener.run")["defaults"] == {"filters": []}
+    assert cap("screener.run")["defaultsWhen"] == {"filters": {"mode": ["refine"]}}   # W1.1 review NB-2
     assert "sort.field" in cap("screener.run")["argAliases"]["sort_field"]
     assert "symbols.count" in cap("widget.addCharts")["argAliases"]["symbols.top"]
     # a capability that declares nothing carries nulls (the manifest's keys are fixed — agentContracts.test.js)
@@ -190,13 +191,31 @@ SORT_OK = [
     '{"sort_by":"chg_pct_3m","sort_order":"desc","mode":"refine"}',
     '{"sortBy":"chg_pct_3m","sortDir":"desc","mode":"refine","limit":null}',
     '{"order_by":"chg_pct_3m","direction":"high to low","mode":"refine","conditions":[]}',
-    '{"sort_field":"chg_pct_3m","sort_dir":"desc","mode":"refine","show":"null","as":"","within":"none"}',   # null words
+    '{"sort_field":"chg_pct_3m","sort_dir":"desc","mode":"refine","show":"null","as":"","within":"null"}',   # null words
 ]
 
 
 @pytest.mark.parametrize("args_json", SORT_OK)
 def test_screener_refinement_sort_live_shapes_expand(args_json):
     assert expand("screener.run", args_json) == WANT_SORT
+
+
+def test_nb1_an_explicit_none_word_is_kept_where_the_field_is_a_name():
+    # W1.1 review NB-1: a list / screen literally named "None" is not lost; "null" / "" still read as null
+    out = expand("screener.run", '{"sort_field":"chg_pct_3m","sort_dir":"desc","mode":"refine","as":"Nothing","within":"none"}')
+    assert out["within"] == "none" and out["as"] == "Nothing"
+    assert expand("screener.run", '{"sort_field":"chg_pct_3m","sort_dir":"desc","mode":"refine","as":"NIL","within":""}')["as"] == "NIL"
+    # a field with no string type still reads the words (show is integer|null)
+    assert expand("screener.run", '{"sort_field":"chg_pct_3m","sort_dir":"desc","mode":"refine","show":"none"}')["show"] is None
+
+
+def test_nb2_filters_default_only_for_a_refinement_never_a_new_screen():
+    # W1.1 review NB-2: a NEW screen with filters left out is refused as before (never universe-wide); a refinement is read
+    refuses("screener.run", '{"sort_field":"chg_pct_3m","sort_dir":"desc","mode":"new"}')
+    refuses("screener.run", '{"filters":null,"sort_field":null,"sort_dir":null,"mode":"new"}')
+    refuses("screener.run", '{"sort_field":"chg_pct_3m","sort_dir":"desc","mode":"fresh"}')       # coerced to new first
+    assert expand("screener.run", '{"filters":[],"sort_field":null,"sort_dir":null,"mode":"new"}')["filters"] == []   # explicit [] kept
+    assert expand("screener.run", '{"sort_field":"chg_pct_3m","sort_dir":"desc","mode":"refine"}')["filters"] == []
 
 
 def test_screener_show_as_a_string_number_and_a_nested_sort_leave_no_container_behind():
@@ -316,7 +335,7 @@ def _resp(env_dict):
 CTX = {"surface": "charts", "charts": [{"ref": "c1", "label": "Chart (SPY)", "symbol": "SPY"}]}
 
 
-@pytest.mark.parametrize("message", ["asdf qwer", "qwerty", "asdfgh jkl", "zxcv", "aaaa", "???", "...", "ASDF", "asdf, qwer!", "hjkl;"])
+@pytest.mark.parametrize("message", ["asdf qwer", "qwerty", "asdfgh jkl", "zxcv", "aaaa", "???", "...", "asdf, qwer!", "hjkl;"])
 def test_a_keyboard_run_is_a_clarify_with_choices_and_zero_model_calls(message):
     assert turn.looks_like_nonsense(message)
     calls = []
@@ -333,7 +352,10 @@ def test_a_keyboard_run_is_a_clarify_with_choices_and_zero_model_calls(message):
 
 
 @pytest.mark.parametrize("message", ["nvda", "ok", "undo", "weekly", "add the 9 and 20 ema", "spy", "sell 100 nvda", "123", "what", "hi",
-                                     "sad", "pop", "a", "go", "rename Main Trading to x", "sort them by 3 month performance", "x"])
+                                     "sad", "pop", "a", "go", "rename Main Trading to x", "sort them by 3 month performance", "x",
+                                     # W1.1 review NB-5: a ticker as written ($-prefixed or ALL CAPS) is never nonsense, even on a
+                                     # keyboard row ("ASDF" in caps is now read as a ticker; lower-case "asdf" stays nonsense)
+                                     "MMM", "RTY", "$RTY", "AAA", "$aaa", "ASDF", "chart RTY"])
 def test_ordinary_words_tickers_and_numbers_are_never_nonsense(message):
     assert not turn.looks_like_nonsense(message)
 

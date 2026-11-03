@@ -54,6 +54,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -227,6 +228,7 @@
      }
     },
     "defaults": null,
+    "defaultsWhen": null,
     "shape": "{\"symbols\":[\"NVDA\"],\"timeframe\":\"D\",\"chart_type\":null,\"exact\":null} or {\"symbols\":{\"from\":\"<watchlist ref or screen as>\",\"top\":2},\"timeframe\":null,\"chart_type\":null,\"exact\":null}; timeframe 1|5|15|30|60|D|W|M (D daily, W weekly, M monthly, 60 hourly). No other keys: indicators, a row or a position cannot be set here — plan the charts alone and say in `reply` that indicators can be added next. ⛔ With NO chart in <workspace_context>, \"add / open / show a <timeframe> chart of <symbol>\" is THIS op on the workspace entry — never chart.setSymbol / chart.setTimeframe on a chart that does not exist."
    },
    {
@@ -416,6 +418,13 @@
     "defaults": {
      "filters": []
     },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
     "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
@@ -457,6 +466,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -478,6 +488,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -499,6 +510,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -526,6 +538,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -560,6 +573,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -591,6 +605,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -618,6 +633,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -645,6 +661,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -694,6 +711,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -737,6 +755,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -779,6 +798,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -810,6 +830,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -849,6 +870,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -890,6 +912,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -921,6 +944,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -959,6 +983,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -990,6 +1015,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1040,6 +1066,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1075,6 +1102,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1129,6 +1157,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1156,6 +1185,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1207,6 +1237,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1234,6 +1265,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1261,6 +1293,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1312,6 +1345,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    }
   ],
@@ -1503,6 +1537,13 @@
     "defaults": {
      "filters": []
     },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
     "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
@@ -1544,6 +1585,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1565,6 +1607,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1586,6 +1629,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1613,6 +1657,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1647,6 +1692,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1678,6 +1724,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1705,6 +1752,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -1756,6 +1804,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    }
   ],
@@ -1947,6 +1996,13 @@
     "defaults": {
      "filters": []
     },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
     "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
@@ -1988,6 +2044,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2009,6 +2066,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2030,6 +2088,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2165,6 +2224,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2279,6 +2339,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2306,6 +2367,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2340,6 +2402,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2371,6 +2434,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2398,6 +2462,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2449,6 +2514,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    }
   ],
@@ -2486,6 +2552,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2523,6 +2590,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2550,6 +2618,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2581,6 +2650,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2613,6 +2683,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2697,6 +2768,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2724,6 +2796,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2761,6 +2834,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2793,6 +2867,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2924,6 +2999,7 @@
     },
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": "args {\"setting\": <one id from the list>, \"value\": …} — \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported."
    },
    {
@@ -2951,6 +3027,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2972,6 +3049,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -2999,6 +3077,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3040,6 +3119,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3082,6 +3162,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3271,6 +3352,13 @@
     "defaults": {
      "filters": []
     },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
     "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
@@ -3312,6 +3400,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3333,6 +3422,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3354,6 +3444,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3404,6 +3495,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3443,6 +3535,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3464,6 +3557,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3491,6 +3585,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3518,6 +3613,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3548,6 +3644,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3683,6 +3780,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3797,6 +3895,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3818,6 +3917,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3868,6 +3968,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3902,6 +4003,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -3952,6 +4054,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4026,6 +4129,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4060,6 +4164,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4087,6 +4192,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4119,6 +4225,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4146,6 +4253,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4180,6 +4288,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4211,6 +4320,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4238,6 +4348,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4320,6 +4431,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4404,6 +4516,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4456,6 +4569,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4487,6 +4601,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4518,6 +4633,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4553,6 +4669,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": "only for a chart widget's TAB the member names as a tab (\"rename the tab\"). \"rename <a layout name> to …\" is layout.rename."
    },
    {
@@ -4598,6 +4715,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4633,6 +4751,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4687,6 +4806,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4714,6 +4834,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4765,6 +4886,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4792,6 +4914,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4819,6 +4942,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4870,6 +4994,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4897,6 +5022,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -4937,6 +5063,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    }
   ],
@@ -4974,6 +5101,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5011,6 +5139,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5038,6 +5167,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5069,6 +5199,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5101,6 +5232,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5185,6 +5317,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5212,6 +5345,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5249,6 +5383,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5281,6 +5416,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5412,6 +5548,7 @@
     },
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": "args {\"setting\": <one id from the list>, \"value\": …} — \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported."
    },
    {
@@ -5439,6 +5576,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5460,6 +5598,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5487,6 +5626,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5528,6 +5668,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5570,6 +5711,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5759,6 +5901,13 @@
     "defaults": {
      "filters": []
     },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
     "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
@@ -5800,6 +5949,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5821,6 +5971,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5842,6 +5993,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5869,6 +6021,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5903,6 +6056,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5934,6 +6088,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -5961,6 +6116,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6045,6 +6201,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6097,6 +6254,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6128,6 +6286,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6159,6 +6318,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6194,6 +6354,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": "only for a chart widget's TAB the member names as a tab (\"rename the tab\"). \"rename <a layout name> to …\" is layout.rename."
    },
    {
@@ -6239,6 +6400,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6290,6 +6452,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    }
   ],
@@ -6327,6 +6490,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6364,6 +6528,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6391,6 +6556,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6422,6 +6588,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6454,6 +6621,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6538,6 +6706,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6565,6 +6734,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6602,6 +6772,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6634,6 +6805,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6765,6 +6937,7 @@
     },
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": "args {\"setting\": <one id from the list>, \"value\": …} — \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported."
    },
    {
@@ -6792,6 +6965,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6813,6 +6987,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6840,6 +7015,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6881,6 +7057,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -6923,6 +7100,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7112,6 +7290,13 @@
     "defaults": {
      "filters": []
     },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
     "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
@@ -7153,6 +7338,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7174,6 +7360,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7195,6 +7382,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7222,6 +7410,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7256,6 +7445,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7287,6 +7477,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7314,6 +7505,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7398,6 +7590,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7450,6 +7643,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7481,6 +7675,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7512,6 +7707,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7547,6 +7743,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": "only for a chart widget's TAB the member names as a tab (\"rename the tab\"). \"rename <a layout name> to …\" is layout.rename."
    },
    {
@@ -7592,6 +7789,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7627,6 +7825,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7681,6 +7880,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7708,6 +7908,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7759,6 +7960,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7786,6 +7988,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7813,6 +8016,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -7864,6 +8068,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    }
   ],
@@ -8055,6 +8260,13 @@
     "defaults": {
      "filters": []
     },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
     "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
@@ -8096,6 +8308,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8117,6 +8330,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8138,6 +8352,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8165,6 +8380,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8199,6 +8415,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8230,6 +8447,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8257,6 +8475,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8292,6 +8511,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8346,6 +8566,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8373,6 +8594,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8424,6 +8646,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8451,6 +8674,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8478,6 +8702,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8529,6 +8754,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    }
   ],
@@ -8720,6 +8946,13 @@
     "defaults": {
      "filters": []
     },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
     "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
@@ -8761,6 +8994,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8782,6 +9016,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8803,6 +9038,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8830,6 +9066,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8857,6 +9094,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8887,6 +9125,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8921,6 +9160,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8948,6 +9188,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -8975,6 +9216,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -9009,6 +9251,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -9040,6 +9283,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -9067,6 +9311,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    },
    {
@@ -9118,6 +9363,7 @@
     "argAliases": null,
     "coerce": null,
     "defaults": null,
+    "defaultsWhen": null,
     "shape": null
    }
   ]

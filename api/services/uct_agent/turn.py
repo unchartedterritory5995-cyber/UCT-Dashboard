@@ -257,6 +257,8 @@ def validate_manifest(caps: Any, limit: int = MAX_CAPABILITIES) -> list[dict]:
 #   argAliases  {canonical: [alias, …]}   other KEY names (dotted = nested) read as the canonical arg when it is absent
 #   coerce      {arg: {word: value}}      VALUE synonyms for one arg ("descending" → "desc", "exit" → null)
 #   defaults    {arg: value}              the value of a REQUIRED non-nullable arg the model left out or set null
+#   defaultsWhen {arg: {other: [values]}} (W1.1 review NB-2) the default applies ONLY when every named other arg (after
+#                                         aliases / coerce) holds one of its values (screener: filters [] for a refinement)
 # Plus the schema-driven rules every action gets (string → boolean / number / null when the schema says so, enum
 # case-folding, numeric → enum string). Every rule applied is LOGGED by name and key — never a value — and nothing is
 # ever guessed: a shape no rule covers still fails args_match exactly as before.
@@ -267,7 +269,7 @@ MAX_COERCE_WORDS = 48
 
 def _tolerance_of(name: str, args: dict, c: dict) -> dict:
     props = args.get("properties") or {}
-    out: dict = {"argAliases": None, "coerce": None, "defaults": None}
+    out: dict = {"argAliases": None, "coerce": None, "defaults": None, "defaultsWhen": None}
     aliases = c.get("argAliases")
     if isinstance(aliases, dict) and aliases:
         kept: dict[str, list[str]] = {}
@@ -306,6 +308,18 @@ def _tolerance_of(name: str, args: dict, c: dict) -> dict:
             else:
                 log.warning("[uct-agent] %s defaults: %r dropped (not a value its schema allows)", name, arg[:40])
         out["defaults"] = kept_d or None
+    when = c.get("defaultsWhen")
+    if isinstance(when, dict) and when:
+        kept_w: dict = {}
+        for arg, cond in when.items():
+            arg = str(arg)
+            if (arg in (out["defaults"] or {}) and isinstance(cond, dict) and cond
+                    and all(str(k) in props and isinstance(vals, list) and vals
+                            and all(isinstance(x, (str, int, float, bool)) for x in vals) for k, vals in cond.items())):
+                kept_w[arg] = {str(k): list(vals) for k, vals in cond.items()}
+            else:
+                log.warning("[uct-agent] %s defaultsWhen: %r dropped (not a declared default with {arg: [values]})", name, arg[:40])
+        out["defaultsWhen"] = kept_w or None
     return out
 
 
@@ -429,6 +443,9 @@ def _wrap_lone_argument(schema: dict, args: dict) -> dict:
 _TRUE_WORDS = frozenset({"true", "on", "yes", "enabled", "enable", "show", "1"})
 _FALSE_WORDS = frozenset({"false", "off", "no", "disabled", "disable", "hide", "0"})
 _NULL_WORDS = frozenset({"null", "none", "nil", "nothing", ""})
+#: W1.1 review NB-1: where the schema also allows a STRING (a name: a list, a screen, a layout called "None"), only the
+#: JSON-ish null spellings become null; an explicit word ("none", "nil", "nothing") is kept as the name it may be
+_NULL_WORDS_FOR_STRINGS = frozenset({"null", ""})
 _NUMBER_TEXT = re.compile(r"^[-+]?\$?\s*(\d{1,3}(,\d{3})+|\d+)(\.\d+)?\s*%?$")
 
 
@@ -498,7 +515,7 @@ def _coerce_schema(spec: dict, v: Any, path: str, applied: list[str]) -> Any:
     enum = spec.get("enum") or []
     if isinstance(v, str):
         low = v.strip().lower()
-        if "null" in types and low in _NULL_WORDS:
+        if "null" in types and low in (_NULL_WORDS_FOR_STRINGS if "string" in types else _NULL_WORDS):
             applied.append(f"{path}:null-word")
             return None
         if "string" not in types:
@@ -561,6 +578,13 @@ def _coerce_schema(spec: dict, v: Any, path: str, applied: list[str]) -> Any:
     return v
 
 
+def _holds(v: Any, vals: list) -> bool:
+    """defaultsWhen: the arg holds one of the values (a string case-insensitively, as enum case-folding will read it)."""
+    if isinstance(v, str):
+        return v.strip().lower() in {x.strip().lower() for x in vals if isinstance(x, str)}
+    return v is not _DROPPED and v in vals
+
+
 def normalize_args(cap: dict, args: Any) -> tuple[Any, list[str]]:
     """The model's args for `cap`, with the capability's declared aliases / value synonyms / defaults and the
     schema-driven coercions applied. Returns (args, [rules applied — names and keys only, never values]).
@@ -587,8 +611,12 @@ def normalize_args(cap: dict, args: Any) -> tuple[Any, list[str]]:
         if isinstance(v, str) and v.strip().lower() in words:
             _set_path(out, arg, words[v.strip().lower()])
             applied.append(f"{arg}:word")
+    when = cap.get("defaultsWhen") or {}
     for arg, v in (cap.get("defaults") or {}).items():
         cur = out.get(arg, _DROPPED)
+        cond = when.get(arg)
+        if isinstance(cond, dict) and not all(_holds(out.get(k, _DROPPED), vals) for k, vals in cond.items()):
+            continue                                         # W1.1 review NB-2: not the case the default is declared for
         if cur is _DROPPED or (cur is None and "null" not in _types_of(props.get(arg) or {})):
             out[arg] = json.loads(json.dumps(v))
             applied.append(f"{arg}:default")
@@ -1527,6 +1555,10 @@ def looks_like_nonsense(message: str) -> bool:
     if not toks:
         return True                                   # punctuation only ("???", "...")
     if len(toks) > 6 or any(t.isdigit() for t in toks):
+        return False
+    # W1.1 review NB-5: a ticker as the member wrote it — "$RTY" or an ALL-CAPS 1-5 letter word ("MMM", "RTY", "AAA") —
+    # is a real request, never the nonsense clarify
+    if re.search(r"\$[A-Za-z]{1,6}\b|(?<![A-Za-z0-9])[A-Z]{1,5}(?![A-Za-z0-9])", text):
         return False
     return all(_keyboard_run(t) for t in toks)
 

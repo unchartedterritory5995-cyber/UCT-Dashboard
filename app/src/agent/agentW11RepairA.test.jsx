@@ -36,7 +36,7 @@ describe('R-01 — the tolerance declarations are part of the manifest', () => {
     for (const n of FAMILIES) {
       expect(by[n].shape, n).toBeTruthy()
       expect(by[n].shape.length, n).toBeLessThanOrEqual(MAX_SHAPE)
-      expect(Object.keys(by[n]).sort()).toEqual(['argAliases', 'args', 'coerce', 'defaults', 'domain', 'hints', 'name', 'query', 'reversible', 'risk', 'shape', 'summary', 'target', 'undo'])
+      expect(Object.keys(by[n]).sort()).toEqual(['argAliases', 'args', 'coerce', 'defaults', 'defaultsWhen', 'domain', 'hints', 'name', 'query', 'reversible', 'risk', 'shape', 'summary', 'target', 'undo'])
     }
     expect(by['chart.setSetting'].argAliases.setting).toContain('key')
     expect(by['chart.replay'].coerce.date.exit).toBe(null)
@@ -191,6 +191,39 @@ describe('R-02 — an empty board: "add a daily chart of NVDA to this board"', (
     expect(screenEmptyBoardChart([{ action: 'chart.setTimeframe', target: 'w1', args: { timeframe: 'D' } }], empty).corrected).toBe(false)         // no symbol
     expect(screenEmptyBoardChart([sym, { action: 'indicator.add', target: 'w1', args: {} }], empty).corrected).toBe(false)                          // another kind of op
     expect(screenEmptyBoardChart([sym, { action: 'chart.setTimeframe', target: 'w1', args: { timeframe: '2h' } }], empty).corrected).toBe(false)   // not a native timeframe
+  })
+})
+
+describe('W1.1 review NB-1 / NB-2 / NB-3 — the tolerance never invents a value or skips a guard', () => {
+  it('NB-1: an explicit "none" / "nothing" is kept where the field is a name; "null" / "" still read as null', () => {
+    const base = { sort_field: 'chg_pct_3m', sort_dir: 'desc', mode: 'refine' }
+    const { args } = normalizeArgs('screener.run', { ...base, as: 'Nothing', within: 'none' })
+    expect(args.as).toBe('Nothing')
+    expect(args.within).toBe('none')
+    expect(normalizeArgs('screener.run', { ...base, as: 'null', within: '' }).args).toMatchObject({ as: null, within: null })
+    expect(normalizeArgs('screener.run', { ...base, show: 'none' }).args.show).toBe(null)       // integer|null: still the word
+    expect(normalizeArgs('chart.replay', { date: 'none' }).args.date).toBe(null)               // replay declares it itself
+  })
+  it('NB-2: filters defaults to [] only for a refinement; a new screen without filters is still refused', () => {
+    expect(normalizeArgs('screener.run', { sort_field: 'chg_pct_3m', sort_dir: 'desc', mode: 'Refine' }).args.filters).toEqual([])
+    for (const mode of ['new', 'fresh']) {
+      const { args } = normalizeArgs('screener.run', { sort_field: 'chg_pct_3m', sort_dir: 'desc', mode })
+      expect(args.filters, mode).toBeUndefined()
+      expect(shapeError('screener.run', args, CTX), mode).toBeTruthy()
+    }
+    expect(normalizeArgs('screener.run', { filters: [], sort_field: null, sort_dir: null, mode: 'new' }).args.filters).toEqual([])
+  })
+  it('NB-3: planOps hands the guards the NORMALIZED ops — a rename by an aliased key is refused by the protected name', () => {
+    const host = { layouts: { snapshot: () => ({ entries: [{ id: '2', name: 'Agent Test' }], active: { id: '2' } }) } }
+    const raw = [{ action: 'layout.rename', target: 'layouts', args: { id: 'Main Trading', name: 'x' } }]
+    // the raw op names no `layout`: the old call (raw ops) missed it
+    expect(protectionRefusal(host, { ok: true, plans: [] }, raw)).toBe(null)
+    const { host: board } = makeBoard([{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20 }], { A: 'AAPL' })
+    const plan = planOps(collectTargets(board, ['chart']), [{ action: 'chart.setSetting', target: 'c', args: { key: 'grid.visible', value: 'false' } }], {}, CTX)
+    expect(plan.normalizedOps[0].args).toEqual({ setting: 'grid.visible', value: 'false' })
+    expect(Object.keys(plan)).not.toContain('normalizedOps')                       // non-enumerable: a plan's shape is unchanged
+    const norm = raw.map(o => ({ ...o, args: normalizeArgs(o.action, o.args).args }))
+    expect(protectionRefusal(host, { ok: true, plans: [] }, norm)).toMatch(/never renames or deletes/)
   })
 })
 

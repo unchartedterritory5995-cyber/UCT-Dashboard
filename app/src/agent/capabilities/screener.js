@@ -728,6 +728,8 @@ export function registerScreenerCapabilities() {
       mode: { refinement: 'refine', refined: 'refine', update: 'refine', modify: 'refine', narrow: 'refine', fresh: 'new', create: 'new', run: 'new' },
     },
     defaults: { filters: [] },
+    // W1.1 review NB-2: only a REFINEMENT may leave filters out; a new screen without filters is still refused (never universe-wide)
+    defaultsWhen: { filters: { mode: ['refine'] } },
     shape: 'a refinement that only changes the ORDER ("sort them by 3-month performance") is {"filters":[],"sort_field":"chg_pct_3m",'
       + '"sort_dir":"desc","mode":"refine","show":null,"as":null,"within":null} — filters is ALWAYS present ([] when nothing is added), '
       + 'sort_field is a key from `fields`, sort_dir is exactly "asc" or "desc" (never "descending"), and there is no nested "sort" object.',

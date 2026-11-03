@@ -161,7 +161,11 @@ export function planOps(targets, opsIn, env = {}, ctx = null) {
     p.changed = !!p.patch || p.virtual
     if (p.changed) changed = true
   }
-  return { ok: true, plans, lines: summarize(plans), changed, noops: plans.flatMap(p => p.noops) }
+  const out = { ok: true, plans, lines: summarize(plans), changed, noops: plans.flatMap(p => p.noops) }
+  // W1.1 review NB-3: the NORMALIZED ops (canonical arg keys) for the guards that run after planning
+  // (protectionRefusal); non-enumerable, so a plan's shape and equality are unchanged
+  Object.defineProperty(out, 'normalizedOps', { value: ops, enumerable: false })
+  return out
 }
 
 /**

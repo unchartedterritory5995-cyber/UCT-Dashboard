@@ -76,6 +76,7 @@ guess: a shape no rule covers still fails `args_match` / `shapeError` as before.
 argAliases: { setting: ['key', 'id'] },           // other KEY names (dotted = nested: 'symbols.top': ['symbols.count', 'top'])
 coerce:     { sort_dir: { descending: 'desc' } }, // VALUE synonyms for one arg (case-insensitive; a value may be null)
 defaults:   { filters: [] },                      // a REQUIRED non-nullable arg the model left out or set null
+defaultsWhen: { filters: { mode: ['refine'] } },  // the default ONLY when every named arg holds one of its values
 shape:      '{"date":null} to exit replay…',       // ONE exact example, printed under the action's catalog line (≤ limits.maxShape)
 ```
 

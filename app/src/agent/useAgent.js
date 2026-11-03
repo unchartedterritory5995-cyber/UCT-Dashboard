@@ -705,7 +705,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       for (const o of fan) {
         const one = planOps(collectTargets(host, kindsOf([o])), [o], await prepareOps([o]), capCtx)
         if (one.ok) binds.push(approvalBinding(one, host))
-        const guard = one.ok ? protectionRefusal(host, one, [o]) : null
+        const guard = one.ok ? protectionRefusal(host, one, one.normalizedOps || [o]) : null   // W1.1 review NB-3: normalized
         const why = !one.ok ? refusalText(one.refusals) : (guard ? `I didn't change anything: ${guard}` : null)
         if (why) {
           refusalPush(why)
@@ -759,7 +759,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     // PROTECTED LAYOUTS (Main Trading…): checked after planning — so it covers a new request, a
     // proposal's Apply (which re-plans here) and a composed plan alike — and before anything writes.
-    const guarded = protectionRefusal(host, plan, ops)
+    const guarded = protectionRefusal(host, plan, plan.normalizedOps || ops)   // W1.1 review NB-3: the NORMALIZED ops
     if (guarded) {
       const text = `I didn't change anything: ${guarded}`
       refusalPush(text)

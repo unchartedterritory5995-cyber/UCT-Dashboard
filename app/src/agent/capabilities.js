@@ -77,6 +77,8 @@ export function registerCapability(cap) {
 //   argAliases  { canonical: [alias, …] }   other KEY names (dotted = nested) read as the canonical arg when it is absent
 //   coerce      { arg: { word: value } }    VALUE synonyms for one arg ("descending" → "desc", "exit" → null)
 //   defaults    { arg: value }              the value of a REQUIRED non-nullable arg the model left out or set null
+//   defaultsWhen { arg: { other: [values] } } (W1.1 review NB-2) the default applies ONLY when every named other arg
+//                                           (after aliases / coerce) holds one of its values
 //   shape       'one exact example…'        printed under the action's catalog line (≤ MAX_SHAPE chars)
 // Plus the schema-driven rules every action gets: a string the schema types as boolean / number / null, enum
 // case-folding, a number whose text is an enum string. A malformed declaration throws here (never ships).
@@ -107,12 +109,26 @@ function checkTolerance(cap) {
     if (!isObj(cap.defaults)) throw new Error(`${cap.name}: defaults must be {arg: value}`)
     for (const arg of Object.keys(cap.defaults)) if (!(arg in props)) throw new Error(`${cap.name}: defaults ${arg} is not an argument`)
   }
+  if (cap.defaultsWhen != null) {
+    if (!isObj(cap.defaultsWhen)) throw new Error(`${cap.name}: defaultsWhen must be {arg: {other: [values]}}`)
+    for (const [arg, cond] of Object.entries(cap.defaultsWhen)) {
+      if (!isObj(cap.defaults) || !(arg in cap.defaults)) throw new Error(`${cap.name}: defaultsWhen ${arg} has no declared default`)
+      if (!isObj(cond) || !Object.keys(cond).length) throw new Error(`${cap.name}: defaultsWhen ${arg} must name {other: [values]}`)
+      for (const [k, vals] of Object.entries(cond)) {
+        if (!(k in props) || !Array.isArray(vals) || !vals.length || vals.some(x => !['string', 'number', 'boolean'].includes(typeof x))) {
+          throw new Error(`${cap.name}: defaultsWhen ${arg}.${k} must be an argument with a list of scalar values`)
+        }
+      }
+    }
+  }
   if (cap.shape != null && (typeof cap.shape !== 'string' || cap.shape.length > MAX_SHAPE)) throw new Error(`${cap.name}: shape is a string of at most ${MAX_SHAPE} characters`)
 }
 
 const TRUE_WORDS = new Set(['true', 'on', 'yes', 'enabled', 'enable', 'show', '1'])
 const FALSE_WORDS = new Set(['false', 'off', 'no', 'disabled', 'disable', 'hide', '0'])
 const NULL_WORDS = new Set(['null', 'none', 'nil', 'nothing', ''])
+// W1.1 review NB-1: where the schema also allows a STRING (a name), only the JSON-ish null spellings become null
+const NULL_WORDS_FOR_STRINGS = new Set(['null', ''])
 const NUMBER_TEXT = /^[-+]?\$?\s*(\d{1,3}(,\d{3})+|\d+)(\.\d+)?\s*%?$/
 const typesOf = (spec) => {
   const t = spec?.type
@@ -142,7 +158,7 @@ function coerceSchema(spec, v, path, applied) {
   const enumVals = spec.enum || []
   if (typeof v === 'string') {
     const low = v.trim().toLowerCase()
-    if (types.includes('null') && NULL_WORDS.has(low)) { applied.push(`${path}:null-word`); return null }
+    if (types.includes('null') && (types.includes('string') ? NULL_WORDS_FOR_STRINGS : NULL_WORDS).has(low)) { applied.push(`${path}:null-word`); return null }
     if (!types.includes('string')) {
       if (types.includes('boolean') && (TRUE_WORDS.has(low) || FALSE_WORDS.has(low))) { applied.push(`${path}:string->boolean`); return TRUE_WORDS.has(low) }
       if ((types.includes('number') || types.includes('integer')) && NUMBER_TEXT.test(v.trim())) {
@@ -217,6 +233,9 @@ export function normalizeArgs(name, args) {
     }
   }
   for (const [arg, v] of Object.entries(c.defaults || {})) {
+    const cond = c.defaultsWhen?.[arg]
+    const holds = (v, vals) => (typeof v === 'string' ? vals.some(x => typeof x === 'string' && x.trim().toLowerCase() === v.trim().toLowerCase()) : v !== undefined && vals.includes(v))
+    if (cond && !Object.entries(cond).every(([k, vals]) => holds(out[k], vals))) continue   // W1.1 review NB-2 (strings case-insensitive)
     if (!(arg in out) || (out[arg] === null && !typesOf(props[arg]).includes('null'))) { out[arg] = JSON.parse(JSON.stringify(v)); applied.push(`${arg}:default`) }
   }
   for (const [k, spec] of Object.entries(props)) {
@@ -333,7 +352,8 @@ export function manifestFor(ctx = {}) {
     name: c.name, domain: c.domain, target: c.target, summary: c.summary,
     hints: c.hints || null, args: c.args, risk: c.risk, reversible: c.reversible !== false, undo: c.undo, query: !!c.query,
     // W1.1 R-01: the capability's args tolerance (null when it declares none) and its exact-shape example
-    argAliases: c.argAliases || null, coerce: c.coerce || null, defaults: c.defaults || null, shape: c.shape || null,
+    argAliases: c.argAliases || null, coerce: c.coerce || null, defaults: c.defaults || null, defaultsWhen: c.defaultsWhen || null,
+    shape: c.shape || null,
   }))
 }
 
