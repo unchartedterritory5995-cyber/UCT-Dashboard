@@ -237,6 +237,9 @@ async def test_retry_only_ref_whose_hash_moved_is_skipped_and_named_never_confir
     assert p.fetched == ["B"]
     assert _row("B") == before                     # title, folder, updated_at, pending: untouched
     assert any("Note B" in f and "media retry skipped" in f for f in result["failures"])
+    # fix round 2, m2: named by its stored title in the Sync log too (Concern 4's path)
+    assert _last_log_failures(src) == [{"noteTitle": "Note B", "reason": engine.RETRY_SKIPPED_REASON,
+                                        "name": None}]
 
 
 async def test_onenote_old_page_with_pending_image_is_never_rewritten(db, monkeypatch):

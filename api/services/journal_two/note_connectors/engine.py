@@ -1238,6 +1238,10 @@ def _untag_note_source_reappeared(conn: sqlite3.Connection, user_id: str, import
 
 #: The member's sentence for a note that could not be stored, when nothing better was said.
 NOT_STORED_RETRY_REASON = "This note couldn't be saved this time. It will be tried again on the next sync."
+#: The member's sentence for a media retry the hash gate skipped (C1's belt guard; fix round 2, m2):
+#: the note is kept as it is, and its pending images are tried again on a later full pass.
+RETRY_SKIPPED_REASON = ("An image in this note couldn't be copied this time, because the note looks "
+                        "different from the copy here. It will be tried again on the next sync.")
 
 
 #: The `import_confirm` failures that are already member sentences (m1). Anything else (a
@@ -2533,7 +2537,7 @@ async def _import_remote_notes(
                     retry_bodies[key] = meta["pendingBody"]
                 else:
                     user_owned_unchanged += 1
-                    retry_skipped.append((meta or {}).get("title") or rn.title or key)
+                    retry_skipped.append(((meta or {}).get("title") or rn.title or key, key))
                 continue
             # Fix-round-3 Important (live-gate 23rd check): a conflict is only
             # a conflict when the REMOTE side actually changed. `_is_conflict`
@@ -2614,7 +2618,10 @@ async def _import_remote_notes(
         totals["adopted"] = len(adopted)
         totals["failures"].extend(
             f"media retry skipped for {title!r}: the note as fetched now differs from the stored "
-            f"one, so it was left as it is" for title in retry_skipped)
+            f"one, so it was left as it is" for title, _key in retry_skipped)
+        # m2: named for the member by title, through Concern 4's one naming path
+        totals["noticeFailures"].extend(
+            _not_stored_notice(title, key, RETRY_SKIPPED_REASON) for title, key in retry_skipped)
         totals["noticeFailures"].extend(adoption_failures)
         totals["failures"].extend(f["reason"] for f in adoption_failures)
         # Plan A Task 6: prior notice attempts per key, read before any confirm below.
