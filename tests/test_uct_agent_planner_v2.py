@@ -228,6 +228,28 @@ def test_a_DISMISSED_proposal_resumes_as_a_refusal_the_model_is_told_about():
     assert o2["envelope"]["reply"] == turn.NOTHING_DONE
 
 
+def test_RAILS_count_tool_search_misses_unknown_names_rounds_dollars_and_pauses_value_free():
+    """W2-A2: usage.rails carries per-turn counts only (no args, targets or results)."""
+    search = types.SimpleNamespace(type="server_tool_use", id="st1", name="tool_search_tool_regex", input={"pattern": "chart__set"})
+    hit = types.SimpleNamespace(type="tool_search_tool_result", tool_use_id="st1",
+                                content={"type": "tool_search_tool_search_result", "tool_references": [{"type": "tool_reference", "tool_name": "chart__setTimeframe"}]})
+    search2 = types.SimpleNamespace(type="server_tool_use", id="st2", name="tool_search_tool_regex", input={"pattern": "nope"})
+    miss = types.SimpleNamespace(type="tool_search_tool_result", tool_use_id="st2",
+                                 content={"type": "tool_search_tool_search_result", "tool_references": []})
+    c = scripted(resp(search, hit, search2, miss, tool_use("chart__nope", {"target": "c1", "args": {}}, "tu0")),
+                 resp(tool_use("watchlist__create", {"target": "wl", "args": {"name": "M", "as": None}}, "tu1")),
+                 resp(text("Done.")))
+    out = run(c, waiter({"status": "proposed"}))
+    r = out["usage"]["rails"]
+    assert (r["tool_search_calls"], r["tool_search_misses"], r["unknown_actions"], r["paused"], r["resumed"]) == (2, 1, 1, 1, 0)
+    assert r["rounds"] == 2 and r["usd"] > 0 and r["worst_round_usd"] > 0
+    out2 = v2.run_turn_v2(message="", context={}, history=[], caller=c, resume=out["state"], resume_result={"id": "s1", "status": "done"})
+    r2 = out2["usage"]["rails"]
+    assert r2["resumed"] == 1 and r2["paused"] == 1 and r2["rounds"] == 3
+    assert set(r2) == set(v2.new_rails())
+    assert all(isinstance(v, (int, float)) for v in r2.values())         # value-free: numbers only
+
+
 # ── caps BEFORE the call ──────────────────────────────────────────────────────────────────────
 def test_the_ROUND_CAP_ends_the_turn_after_N_calls(monkeypatch):
     c = scripted(resp(tool_use("chart", {})))                           # a model that never finishes

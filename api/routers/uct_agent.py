@@ -294,13 +294,18 @@ def _v2_finish(uid, cid: str, out: dict, voice: bool, background: BackgroundTask
         "clarified": False, "latency_ms": usage.get("latency_ms"), "model": usage.get("model"), "cost_usd": usage.get("cost_usd"),
         "research_calls": usage.get("research_calls"), "unsupported": None, "voice": voice,
     })
-    log.info("[uct-agent] v2 turn rounds=%s steps=%s calls=%s in=%s out=%s cache_read=%s stopped=%s", usage.get("rounds"),
-             usage.get("steps"), usage.get("model_calls"), usage.get("input_tokens"), usage.get("output_tokens"),
-             usage.get("cache_read_tokens"), usage.get("stopped"))
+    rails = usage.get("rails") or {}
+    # value-free: counts, tokens and dollars only (never a step's args, target or result)
+    log.info("[uct-agent] v2 turn rounds=%s steps=%s calls=%s in=%s out=%s cache_read=%s stopped=%s usd=%s worst_round_usd=%s "
+             "tool_search=%s tool_search_miss=%s unknown_actions=%s paused=%s resumed=%s args_normalized=%s args_refused=%s",
+             usage.get("rounds"), usage.get("steps"), usage.get("model_calls"), usage.get("input_tokens"), usage.get("output_tokens"),
+             usage.get("cache_read_tokens"), usage.get("stopped"), rails.get("usd"), rails.get("worst_round_usd"),
+             rails.get("tool_search_calls"), rails.get("tool_search_misses"), rails.get("unknown_actions"), rails.get("paused"),
+             rails.get("resumed"), rails.get("args_normalized"), rails.get("args_refused"))
     return {"conversationId": cid, "turnId": turn_id, "envelope": env,
             "usage": {**{k: usage.get(k) for k in ("model", "input_tokens", "output_tokens", "cost_usd", "latency_ms", "research_calls",
                                                    "citations", "model_calls", "cache_read_tokens", "cache_write_tokens", "rounds", "steps")},
-                      "stages": usage.get("stages")}}
+                      "stages": usage.get("stages"), "rails": usage.get("rails")}}
 
 
 @router.post("/api/agent/turn/step")

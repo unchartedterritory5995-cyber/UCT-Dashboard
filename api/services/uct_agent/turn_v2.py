@@ -256,8 +256,36 @@ def _call_cost(model_id: str, resp: Any) -> float:
         cache_creation_tokens=int(getattr(u, "cache_creation_input_tokens", 0) or 0)))
 
 
+def new_rails() -> dict:
+    return {"args_normalized": 0, "args_refused": 0, "tool_search_calls": 0, "tool_search_misses": 0, "unknown_actions": 0,
+            "rounds": 0, "usd": 0.0, "worst_round_usd": 0.0, "paused": 0, "resumed": 0}
+
+
+def _rails(state: dict) -> dict:
+    """The turn's rails, brought up to date (older parked states lack the W2-A2 keys)."""
+    r = state["usage"].setdefault("rails", {})
+    for k, v in new_rails().items():
+        r.setdefault(k, v)
+    r["rounds"] = state["round"]
+    r["usd"] = round(float(state["spent"]), 6)
+    return r
+
+
+def count_tool_search(rails: dict, content: list[dict]) -> None:
+    """Server-side tool search in one response: each call, and each that loaded nothing (an error or no reference)."""
+    for b in content:
+        if b.get("type") == "server_tool_use" and str(b.get("name") or "").startswith("tool_search_tool"):
+            rails["tool_search_calls"] += 1
+        elif b.get("type") == "tool_search_tool_result":
+            c = b.get("content") or {}
+            refs = c.get("tool_references") if isinstance(c, dict) else None
+            if not refs:
+                rails["tool_search_misses"] += 1
+
+
 def _final(state: dict, reply: str, usage_note: str | None = None) -> dict:
     usage = state["usage"]
+    _rails(state)
     usage["latency_ms"] = int((time.monotonic() - state["started"]) * 1000)
     usage["rounds"] = state["round"]
     usage["steps"] = len(state["steps"])
@@ -289,6 +317,7 @@ def run_turn_v2(*, message: str, context: dict, history: list[dict], capabilitie
     else:
         state = resume
         state["started"] = time.monotonic()
+        _rails(state)["resumed"] += 1
         aw = state.pop("awaiting", None)
         if not aw:
             raise t1.TurnError("That turn can no longer be continued. Ask again.")
@@ -343,8 +372,9 @@ def _start(message, context, history, capabilities, pending, reference, repair, 
         "usage": {"model": t1.model(), "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "research_calls": 0,
                   "model_calls": 0, "citations": [], "cache_read_tokens": 0, "cache_write_tokens": 0, "planner": "v2",
                   "stages": {"model": [], "steps": []},
-                  # RAILS (value-free counts per turn): what the args normalizer did (W2-A3)
-                  "rails": {"args_normalized": 0, "args_refused": 0}},
+                  # RAILS (value-free counts per turn): what the args normalizer did (W2-A3); tool search calls and
+                  # misses, unknown tool names, rounds, $ spent / the largest single-round reservation, pauses (W2-A2)
+                  "rails": new_rails()},
     }
 
 
@@ -362,6 +392,8 @@ def _rounds(state: dict, caller, meter, on_event, wait_step) -> dict:
         if e:
             kwargs["output_config"] = {"effort": e}
         worst = budget.worst_case_usd(kwargs)
+        rails = _rails(state)
+        rails["worst_round_usd"] = round(max(float(rails["worst_round_usd"]), float(worst)), 6)
         if round(state["spent"] + worst, 6) > round(cap_usd, 6):
             return _final(state, TURN_CAP, "turn_cap")
         t0 = time.perf_counter()
@@ -376,6 +408,7 @@ def _rounds(state: dict, caller, meter, on_event, wait_step) -> dict:
             raise t1.TurnError("UCT Agent can't help with that request.")
         content = [_block_param(b) for b in (getattr(resp, "content", []) or [])]
         state["messages"].append({"role": "assistant", "content": content})
+        count_tool_search(_rails(state), content)
         uses = [b for b in content if b.get("type") == "tool_use"]
         text = "\n".join(str(b.get("text") or "") for b in content if b.get("type") == "text").strip()
         if getattr(resp, "stop_reason", None) == "max_tokens" and not uses:
@@ -404,6 +437,7 @@ def _run_pending_steps(state: dict, on_event, wait_step, meter=None) -> dict | N
             continue
         cap = state["caps"].get(cap_name_of(name))
         if cap is None:
+            state["usage"]["rails"]["unknown_actions"] += 1
             state["results"].append(_tool_result(uid, f"unknown action: {_clean(name, 60)} is not in this member's catalog (ask a domain tool)", True))
             continue
         if len(state["steps"]) >= MAX_STEPS_PER_TURN:
@@ -451,6 +485,7 @@ def _run_pending_steps(state: dict, on_event, wait_step, meter=None) -> dict | N
             step["status"] = "proposed"
             state["awaiting"] = {"tool_use_id": uid, "step": step, "cap": cap}
             state["expires"] = time.time() + PAUSE_TTL_S
+            _rails(state)["paused"] += 1
             if on_event is not None:
                 on_event({"t": "paused", "turnId": state["token"], "id": step["id"]})
             return {"paused": True, "state": state, "turn_token": state["token"], "usage": state["usage"],
