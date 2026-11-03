@@ -105,7 +105,7 @@ describe('host.indicatorAlerts — the hook\'s own writers, nothing beside them'
 })
 
 describe('indicatorAlert.create — the popover\'s own payload from the chart\'s instance and the served catalog', () => {
-  it('proposed (confirm); commit posts EXACTLY the popover\'s fields (symbol + timeframe of the chart, the instance\'s own inputs, instance_id, no scope); read back; Undo deletes exactly it', async () => {
+  it('proposed (confirm); commit posts the same shape as the popover (symbol + timeframe of the chart; params = the instance\'s own inputs, not the catalog defaults; instance_id; no scope); read back; Undo deletes exactly it', async () => {
     const h = host()
     const { p, env } = await plan(h, [op('indicatorAlert.create', 'indicatorAlerts', CREATE)])
     expect(p.ok).toBe(true)
