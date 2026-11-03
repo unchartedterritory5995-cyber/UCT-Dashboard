@@ -84,15 +84,25 @@ def _filter_keys(filters: Any) -> list:
     return [f.get("key") for f in filters if isinstance(f, dict)] if isinstance(filters, list) else []
 
 
+#: a `list` filter's display label (the watchlist's name, capabilities/screener.js describeFilter) is the only label
+#: kept, capped; every other browser-side decoration (`pending`, a label on a catalog filter) is dropped before storage
+LABEL_MAX = 60
+
+
 def _check_filters(filters: Any, what: str) -> list:
     if not isinstance(filters, list) or not all(isinstance(f, dict) for f in filters):
         raise RefineError(f"`{what}` must be a list of screener filters")
+    out = []
     for f in filters:
         if not isinstance(f.get("key"), str) or not f["key"]:
             raise RefineError(f"every {what} filter names a field (`key`)")
         if f.get("op") not in _OPS:
             raise RefineError(f"`{f['key']}` has no comparison the Screener knows")
-    return filters
+        clean = {k: v for k, v in f.items() if k not in ("pending", "label")}
+        if f["key"] == "list" and isinstance(f.get("label"), str) and f["label"]:
+            clean["label"] = f["label"][:LABEL_MAX]
+        out.append(clean)
+    return out
 
 
 def validate_last_screen(value: Any) -> dict:
@@ -114,7 +124,7 @@ def validate_last_screen(value: Any) -> dict:
         raise RefineError(why)
     try:
         # the catalog decides what a filter key is; `list` / `universe` scopes pass as the screener's own specials
-        checked = scan_spec.validate({"filters": [{k: v for k, v in f.items() if k not in ("pending", "label")} for f in filters],
+        checked = scan_spec.validate({"filters": [{k: v for k, v in f.items() if k != "label"} for f in filters],
                                       **({"sort": sort} if sort else {})})
     except scan_spec.SpecError as e:
         raise RefineError(str(e)) from None
