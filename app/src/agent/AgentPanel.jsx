@@ -149,6 +149,16 @@ function OpenLink({ link }) {
     : <a className={styles.openLink} href={link.href} data-testid="agent-open-link">{link.label}</a>
 }
 
+/** ⭐ W3-4 `coach.next`: suggested next messages under a coach answer; a tap is the member's own message. */
+function NextChips({ it, agent }) {
+  if (!(it.next?.length > 0)) return null
+  return (
+    <div className={styles.choices} data-testid="agent-next">
+      {it.next.map((t, i) => <button key={i} type="button" className={styles.choice} disabled={agent.busy} onClick={() => agent.send(t)}>{t}</button>)}
+    </div>
+  )
+}
+
 function Item({ it, agent, member, at, cont }) {
   switch (it.role) {
     case 'member':
@@ -163,7 +173,7 @@ function Item({ it, agent, member, at, cont }) {
       )
     case 'agent':
       // ⭐ an answer VIEW (present.js) renders through the one presentation component
-      if (it.present) return <AgentSays at={at} cont={cont} wide={WIDE_VIEWS.has(it.present.kind)}><AgentResult view={it.present} onOpenChart={agent.openChart} busy={agent.busy} /></AgentSays>
+      if (it.present) return <AgentSays at={at} cont={cont} wide={WIDE_VIEWS.has(it.present.kind)}><AgentResult view={it.present} onOpenChart={agent.openChart} busy={agent.busy} /><NextChips it={it} agent={agent} /></AgentSays>
       // ⛔ never an empty bubble (an older restored row, a blank reply)
       if (!String(it.text || '').trim() && !it.table && !it.link) return null
       return (
@@ -178,6 +188,7 @@ function Item({ it, agent, member, at, cont }) {
               ))}
             </div>
           )}
+          <NextChips it={it} agent={agent} />
         </AgentSays>
       )
     case 'question':

@@ -15,6 +15,9 @@
 //   journal.proposeNote   a WRITE, confirm-risk, always a PROPOSAL: a review note the member approves →
 //                         POST /api/j2/notes (the ONLY journal write under coach/, railed). The note's text passes
 //                         the mirror guard first (no claim, no order, no figure outside the review).
+//   ⭐ W3-4 workflow (single-turn): explain → what to check → one question back is the model's structure
+//   (coach/prompt.py); the browser's own answers carry `next` — `coach.next` quick replies (coach/next.js) the
+//   panel shows as chips; a tap is the member's own next message. W2-A1 threading replaces the chips at integration.
 //
 // Everything here registers ONLY once /api/agent/config has answered `coach: true` (builtins.registerServerGatedBuiltins):
 // on a dark server the registry, the manifest and the golden contract are exactly as before. The Agent itself is
@@ -34,6 +37,7 @@ import { explainWords, explainTopic } from '../guide/explain'
 import { loadConcepts, conceptsLoaded, conceptFor, conceptTitles, coachFooter } from '../coach/concepts'
 import { observe, lastObserved, observedChart, barsServed } from '../coach/observe'
 import { enforce as guardEnforce, check as guardCheck } from '../coach/guard'
+import { nextFor } from '../coach/next'
 import { consentState, readConsent, writeConsent } from '../coach/consent'
 import { reviewStats, reviewText, reviewPresent, modelView, fetchTrades, clampN, DEFAULT_N, MAX_N, DESCRIPTIVE } from '../coach/review'
 
@@ -84,7 +88,8 @@ export async function reviewTrades(count) {
   const text = `${reviewText(stats)}\n\n${coachFooter()}`
   lastReview = { stats, text }
   const present = reviewPresent(stats)
-  return present ? { text, present: { ...present, details: { text } }, title: present.title } : { text }
+  const next = nextFor({ after: 'review', consent: 'granted', concepts: conceptsLoaded() || [] })
+  return present ? { text, present: { ...present, details: { text } }, title: present.title, next } : { text, next }
 }
 
 /** The concept explanation + one observation (when served) + the footer → { text, title } (mirror-guarded). */
@@ -102,7 +107,8 @@ export async function explainConcept(topic, host) {
   const body = obs ? `${c.text}\n\n${obs}` : c.text
   // belt and braces: the browser's own answer passes the mirror guard (its inputs are exactly its sources)
   const g = guardEnforce(body, [c.text, obs || ''])
-  return { text: g.text, title: c.title }
+  const next = nextFor({ after: 'explain', conceptId: c.id, consent: consentState(), hasChart: !!observedChart(host), concepts: rows })
+  return { text: g.text, title: c.title, next }
 }
 
 export function registerCoachCapabilities() {

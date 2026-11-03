@@ -678,7 +678,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         const syms = getCapability(o.action)?.localOnly ? null : tickersOfAnswer(answers[i])
         if (syms) memoryRef.current.noteResults({ source: o.action, label: answers[i]?.title || null, symbols: syms })
       })
-      answers.forEach((a, i) => push(views[i] ? { role: 'agent', present: views[i], text: a.text || '' } : { role: 'agent', text: a.text, table: a.table || null, link: a.link || null }))
+      // ⭐ W3-4 `coach.next`: a capability's suggested next messages ride on the answer row as chips (≤ 3 short
+      // strings; a tap sends one as the member's own message). Never saved, never read into a model request.
+      const nextOf = (a) => (Array.isArray(a?.next) && a.next.length ? { next: a.next.slice(0, 3).map(s => String(s).slice(0, 120)) } : {})
+      answers.forEach((a, i) => push(views[i] ? { role: 'agent', present: views[i], text: a.text || '', ...nextOf(a) } : { role: 'agent', text: a.text, table: a.table || null, link: a.link || null, ...nextOf(a) }))
       const text = answers.map(a => a.text).filter(Boolean).join('\n\n')
       // the member's transcript keeps the views (restored on reload); never read into a model request
       const saved = compactViews(views.filter(Boolean))
