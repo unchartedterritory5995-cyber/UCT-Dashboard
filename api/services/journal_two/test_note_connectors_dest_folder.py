@@ -5,10 +5,13 @@ Found in production: a Notion source pointed at a folder the member had deleted.
 notes "will be tried again on the next sync", the cursor stayed pinned, and 20 of 20 log rows read
 "warning" with nothing stored. Nothing could ever succeed.
 
-  * Self-heal: a pass whose source points at a missing folder recreates the source's default
-    folder (the connect flow's own "<Provider> — <account>" name, `dest_folder`) and re-points
-    the source, then imports normally. Never for a disabled, paused or disconnected source;
-    idempotent; nothing already imported is moved.
+  * Self-heal: a pass whose source points at a missing folder repairs it the way prevention
+    would have: a source with imported notes goes to the root (where the old delete put its
+    folders; review I1), one with none gets its default folder back (the connect flow's own
+    "<Provider> — <account>" name, `dest_folder`). Never for a disabled, paused or disconnected
+    source; idempotent; nothing already imported is moved; a failure leaves the row for retry.
+  * A folder move is not a content edit: `delete_folder` keeps an unedited import unedited
+    (review I2), and never hides a member's edit.
   * Prevention: `notes.delete_folder` re-points every source whose folder it removes at the
     folder the notes climb to (the parent, or the root as None, which import_confirm accepts).
   * Honest message: a failure a retry cannot fix never says "tried again", and the source row's
@@ -185,7 +188,7 @@ async def test_a_stuck_source_with_a_pinned_cursor_heals_on_its_next_pass(db, mo
     _drop_folder_raw(src["destFolderId"])
     # A stuck pass as it ran before this fix: no heal.
     monkeypatch.setattr(dest_folder, "heal_missing_dest_folder",
-                        lambda *a, **k: dest_folder.HealResult("refused", None))
+                        lambda *a, **k: dest_folder.HealResult("failed", None))
     first = await _pass(monkeypatch, src, Fake({"a": (3, [])}))
     assert first["status"] == "warning" and first["created"] == 0
     assert connections.get_source_by_id(src["id"])["cursor"] is None
@@ -209,7 +212,7 @@ def test_heal_is_idempotent_called_twice(db):
     _drop_folder_raw(src["destFolderId"])
     first = dest_folder.heal_missing_dest_folder(USER, src["id"])
     second = dest_folder.heal_missing_dest_folder(USER, src["id"])
-    assert first.outcome == "healed" and second.outcome == "present"
+    assert first.outcome == "remade" and second.outcome == "present"
     assert first.dest_folder_id == second.dest_folder_id
     assert len(_folders_named("Notion — Acme")) == 1
 
@@ -220,27 +223,79 @@ def test_heal_reuses_a_root_folder_that_already_has_the_name(db):
     src = _source()
     _drop_folder_raw(src["destFolderId"])
     mine = notes_svc.create_folder(USER, "Notion — Acme")
-    assert dest_folder.heal_missing_dest_folder(USER, src["id"]).dest_folder_id == mine["id"]
+    heal = dest_folder.heal_missing_dest_folder(USER, src["id"])
+    assert heal.dest_folder_id == mine["id"] and heal.folder_name == "Notion — Acme"
     assert len(_folders_named("Notion — Acme")) == 1
 
 
+def test_a_present_folder_never_takes_the_write_lock(db, monkeypatch):
+    """Review M2: every healthy pass runs this check, so it is a plain read."""
+    src = _source()
+
+    def no_lock(*_a, **_k):
+        raise AssertionError("BEGIN IMMEDIATE taken for a source whose folder exists")
+
+    monkeypatch.setattr(notes_svc, "_begin_immediate", no_lock)
+    assert dest_folder.heal_missing_dest_folder(USER, src["id"]).outcome == "present"
+    notes_svc.delete_folder(USER, src["destFolderId"])  # the source now points at the root
+    assert dest_folder.heal_missing_dest_folder(USER, src["id"]).outcome == "root"
+
+
+async def test_a_heal_that_raises_never_aborts_the_pass(db, monkeypatch):
+    src = _source()
+
+    def boom(*_a, **_k):
+        raise RuntimeError("heal exploded")
+
+    monkeypatch.setattr(dest_folder, "heal_missing_dest_folder", boom)
+    result = await _pass(monkeypatch, src, Fake({"a": (1, [])}))
+    assert result["status"] == "ok" and result["created"] == 1
+
+
+async def test_the_pass_imports_where_the_row_points_now(db, monkeypatch):
+    """Review M1: the source dict was read before the check; the row (re-pointed since) wins."""
+    src = _source()
+    elsewhere = notes_svc.create_folder(USER, "Elsewhere")
+    real = dest_folder.heal_missing_dest_folder
+
+    def repointed(user_id, source_id):
+        _x("UPDATE j2_note_sources SET dest_folder_id = ? WHERE id = ?", (elsewhere["id"], source_id))
+        return real(user_id, source_id)
+
+    monkeypatch.setattr(dest_folder, "heal_missing_dest_folder", repointed)
+    await _pass(monkeypatch, src, Fake({"a": (1, [])}))
+    assert _note("a")["folder_id"] == elsewhere["id"]
+
+
 @pytest.mark.parametrize("state", ["disabled", "paused"])
-async def test_a_disabled_or_paused_source_is_never_given_a_folder(db, monkeypatch, state):
+async def test_a_disabled_or_paused_source_is_never_repaired(db, monkeypatch, state):
     src = _source()
     _drop_folder_raw(src["destFolderId"])
     if state == "disabled":
         connections.set_source_status(USER, src["id"], "disabled")
+        expected = dest_folder.dest_folder_disabled_sentence("Notion")
     else:
         connections.set_sync_enabled(USER, src["id"], False)
+        expected = dest_folder.dest_folder_gone_sentence("Notion")
     result = await _pass(monkeypatch, src, Fake({"a": (1, [])}))
     assert _folders_named("Notion — Acme") == []
+    assert connections.get_source_by_id(src["id"])["destFolderId"] == src["destFolderId"]
     assert result["created"] == 0 and result["status"] == "warning"
     row = connections.get_source_by_id(src["id"])
     # M2: a failure a retry cannot fix never promises a retry, and says what to do.
     assert "tried again" not in row["lastSyncError"]
-    assert row["lastSyncError"] == dest_folder.dest_folder_gone_sentence("Notion")
-    reasons = {f["reason"] for f in _log_failures(src)}
-    assert reasons == {dest_folder.dest_folder_gone_sentence("Notion")}
+    assert row["lastSyncError"] == expected
+    if state == "disabled":  # review M3: a member cannot clear 'disabled'; never "turn sync on"
+        assert "Turn sync back on" not in expected
+    assert {f["reason"] for f in _log_failures(src)} == {expected}
+
+
+def test_a_broken_source_is_repaired(db):
+    """Review M3: 'broken' is cleared by the very pass that runs the heal (auth worked)."""
+    src = _source()
+    _drop_folder_raw(src["destFolderId"])
+    connections.set_source_status(USER, src["id"], "broken")
+    assert dest_folder.heal_missing_dest_folder(USER, src["id"]).outcome == "remade"
 
 
 def test_a_disconnected_source_is_never_given_a_folder(db):
@@ -251,18 +306,56 @@ def test_a_disconnected_source_is_never_given_a_folder(db):
     assert _folders_named("Notion — Acme") == []
 
 
-async def test_the_heal_moves_no_note_already_imported(db, monkeypatch):
+async def test_a_folder_that_cannot_be_made_leaves_the_source_for_the_next_pass(db, monkeypatch):
+    """Review M5: never a silent None. The row keeps its id, the member is told it is retried,
+    and the next pass repairs it."""
+    src = _source()
+    _drop_folder_raw(src["destFolderId"])
+    real = dest_folder.default_folder_id
+    monkeypatch.setattr(dest_folder, "default_folder_id", lambda *a, **k: None)
+    first = await _pass(monkeypatch, src, Fake({"a": (1, [])}))
+    row = connections.get_source_by_id(src["id"])
+    assert first["created"] == 0 and row["destFolderId"] == src["destFolderId"]
+    assert row["lastSyncError"] == dest_folder.DEST_FOLDER_RETRY_SENTENCE
+    monkeypatch.setattr(dest_folder, "default_folder_id", real)
+    second = await _pass(monkeypatch, src, Fake({"a": (1, [])}))
+    assert second["created"] == 1 and _folders_named("Notion — Acme")
+
+
+# ── review I1: a source that already imported goes to the ROOT ──────────────
+
+async def test_a_source_with_imports_is_pointed_at_the_root_not_a_new_folder(db, monkeypatch):
     src = _source()
     await _pass(monkeypatch, src, Fake({"a": (1, [])}))
     _drop_folder_raw(src["destFolderId"])
     _x("UPDATE j2_notes SET folder_id = NULL WHERE import_key = ?", ("fake:ws1:a",))  # where it climbed to
     await _pass(monkeypatch, src, Fake({"a": (1, []), "b": (2, [])}))
-    healed = connections.get_source_by_id(src["id"])["destFolderId"]
+    assert connections.get_source_by_id(src["id"])["destFolderId"] is None
+    assert _folders_named("Notion — Acme") == []
     assert _note("a")["folder_id"] is None  # unchanged remote: left exactly where it is
-    assert _note("b")["folder_id"] == healed
+    assert _note("b")["folder_id"] is None
+
+
+async def test_a_path_bearing_source_keeps_one_folder_tree_after_the_old_delete(db, monkeypatch):
+    """`probe_path.py`: the pre-fix delete moved "Notion — Acme"/Trading to the root and left the
+    source on the dead id. A remote edit must land in that SAME Trading, never a second tree
+    under a recreated "Notion — Acme"; and, the move not being an edit, never a conflict copy."""
+    src = _source()
+    await _pass(monkeypatch, src, Fake({"a": (1, ["Trading"]), "b": (1, ["Trading"])}))
+    old = src["destFolderId"]
+    notes_svc.delete_folder(USER, old)
+    _x("UPDATE j2_note_sources SET dest_folder_id = ? WHERE id = ?", (old, src["id"]))  # pre-fix state
+    r = await _pass(monkeypatch, src, Fake({"a": (5, ["Trading"]), "b": (1, ["Trading"])}))
+    assert r["status"] == "ok" and r["conflicts"] == 0 and r["updated"] == 1
+    trading = _q("SELECT id, parent_id FROM j2_note_folders WHERE name = 'Trading'")
+    assert len(trading) == 1 and trading[0]["parent_id"] == ""
+    assert _note("a")["folder_id"] == trading[0]["id"] == _note("b")["folder_id"]
+    assert _folders_named("Notion — Acme") == []
+    assert not _q("SELECT 1 FROM j2_notes WHERE title LIKE '%(synced copy)%'")
 
 
 async def test_obsidian_vault_subfolders_land_under_the_recreated_vault_folder(db, monkeypatch):
+    """A source that has imported nothing yet gets its default folder back."""
     src = _source(provider="obsidian", remote_id="v1", display_name=None)
     assert _folders_named("Obsidian — Vault (v1)")
     _drop_folder_raw(src["destFolderId"])
@@ -275,9 +368,9 @@ async def test_obsidian_vault_subfolders_land_under_the_recreated_vault_folder(d
     assert _note("a", "v1")["folder_id"] == setups["id"]
 
 
-async def test_a_folder_deleted_mid_pass_heals_at_the_end_of_that_pass(db, monkeypatch):
-    """The heal at the start of the pass found the folder; it vanished before the confirm. The
-    pass heals again before it finishes, so "will be saved on the next sync" is true."""
+async def test_a_folder_deleted_mid_pass_heals_in_that_pass(db, monkeypatch):
+    """The check at the start of the pass found the folder; it vanished before the confirm. The
+    failing batch repairs it, so "will be saved there on the next sync" is true."""
     src = _source()
     real_confirm = notes_svc.import_confirm
     calls = {"n": 0}
@@ -293,9 +386,16 @@ async def test_a_folder_deleted_mid_pass_heals_at_the_end_of_that_pass(db, monke
     assert first["created"] == 0
     row = connections.get_source_by_id(src["id"])
     assert row["destFolderId"] != src["destFolderId"] and _folders_named("Notion — Acme")
-    assert row["lastSyncError"] == dest_folder.DEST_FOLDER_REMADE_SENTENCE
+    assert row["lastSyncError"] == dest_folder.dest_folder_remade_sentence("Notion — Acme")
     second = await _pass(monkeypatch, src, Fake({"a": (1, [])}))
     assert second["created"] == 1 and _note("a")["folder_id"] == row["destFolderId"]
+
+
+def test_every_folder_sentence_carries_the_prefix_the_engine_reads():
+    for s in (dest_folder.dest_folder_remade_sentence("X"), dest_folder.DEST_FOLDER_MOVED_SENTENCE,
+              dest_folder.DEST_FOLDER_RETRY_SENTENCE, dest_folder.dest_folder_gone_sentence("Notion"),
+              dest_folder.dest_folder_disabled_sentence("Notion")):
+        assert dest_folder.is_dest_folder_sentence(s), s
 
 
 # ── behaviour 2: delete_folder re-points ─────────────────────────────────────
@@ -337,6 +437,48 @@ async def test_a_source_pointed_at_the_root_imports_there_with_no_heal(db, monke
     assert _folders_named("Notion — Acme") == []  # root is a real destination, not a missing one
 
 
+# ── review I2: a folder move is not a content edit ───────────────────────────
+
+def _stamps(rid: str) -> dict:
+    return _q("SELECT updated_at, imported_at FROM j2_notes WHERE import_key = ?", (f"fake:ws1:{rid}",))[0]
+
+
+async def test_deleting_the_folder_keeps_an_unedited_import_unedited(db, monkeypatch):
+    """`probe_conflict.py`: the move bumped `updated_at` alone, so the next remote edit read as a
+    member edit and made a "(synced copy)". It now moves `imported_at` with it."""
+    src = _source()
+    await _pass(monkeypatch, src, Fake({"a": (1, []), "b": (1, [])}))
+    notes_svc.delete_folder(USER, src["destFolderId"])
+    st = _stamps("a")
+    assert st["updated_at"] == st["imported_at"]
+    r = await _pass(monkeypatch, src, Fake({"a": (5, []), "b": (1, [])}))
+    assert r["conflicts"] == 0 and r["updated"] == 1
+    assert not _q("SELECT 1 FROM j2_notes WHERE title LIKE '%(synced copy)%'")
+
+
+async def test_deleting_the_folder_never_hides_a_member_edit(db, monkeypatch):
+    """The negative case: a note the member edited stays edited, so a remote change still makes a
+    copy instead of overwriting their work."""
+    src = _source()
+    await _pass(monkeypatch, src, Fake({"a": (1, []), "b": (1, [])}))
+    _x("UPDATE j2_notes SET updated_at = '2099-01-01T00:00:00+00:00', body_plain = 'mine' "
+       "WHERE import_key = ?", ("fake:ws1:b",))
+    before = _stamps("b")["imported_at"]
+    notes_svc.delete_folder(USER, src["destFolderId"])
+    assert _stamps("b")["imported_at"] == before
+    r = await _pass(monkeypatch, src, Fake({"a": (1, []), "b": (5, [])}))
+    assert r["conflicts"] == 1
+    assert _q("SELECT 1 FROM j2_notes WHERE title LIKE '%(synced copy)%'")
+
+
+def test_deleting_the_folder_leaves_a_hand_written_note_alone(db):
+    folder = notes_svc.create_folder(USER, "Mine")
+    note = notes_svc.create_note(USER, {"title": "hand", "folderId": folder["id"]})
+    imported = _q("SELECT imported_at FROM j2_notes WHERE id = ?", (note["id"],))[0]["imported_at"]
+    notes_svc.delete_folder(USER, folder["id"])
+    assert _q("SELECT imported_at FROM j2_notes WHERE id = ?", (note["id"],))[0]["imported_at"] == imported
+
+
 # ── behaviour 3: the member's words ──────────────────────────────────────────
 
 async def test_the_source_error_has_no_batch_jargon_and_no_raw_note_id(db, monkeypatch):
@@ -348,6 +490,44 @@ async def test_the_source_error_has_no_batch_jargon_and_no_raw_note_id(db, monke
     assert text, "an image that didn't come over must still be reported"
     for leak in ("batch", "confirm failed", note_b, "media '", "fake:ws1"):
         assert leak not in text, f"developer text reached the member: {text!r}"
-    assert text == "1 item didn't come over. Open Recent syncs to see which."
-    # the log row names the note by its title
+    assert text == engine.NOTES_INCOMPLETE_REASON
+    assert "didn't come over" not in text  # review M6: the Recent syncs toggle already says it
     assert any(f["noteTitle"] == "Note b" for f in _log_failures(src))
+
+
+async def test_a_fetch_failure_is_counted_not_pointed_at_the_log(db, monkeypatch):
+    """Review M6: the log rows never name a note whose fetch failed, so the row says how many and
+    that they are retried, beside the per-note pointer."""
+    src = _source()
+
+    class FailsC(Fake):
+        async def fetch(self, credentials, r):
+            if r.remote_id == "c":
+                raise errors.NoteConnTransient("timeout talking to api.notion.com for page c")
+            return await super().fetch(credentials, r)
+
+    await _pass(monkeypatch, src, FailsC({"a": (1, []), "b": (2, []), "c": (3, [])}, bad_media={"b"}))
+    text = connections.get_source_by_id(src["id"])["lastSyncError"]
+    assert text == ("1 note couldn't be read from Notion this time. It will be tried again on the "
+                    "next sync. " + engine.NOTES_INCOMPLETE_REASON)
+    assert "api.notion.com" not in text
+
+
+@pytest.mark.parametrize("auth", [False, True])
+async def test_a_pass_that_stops_shows_a_sentence_and_logs_the_raw_text(db, monkeypatch, caplog, auth):
+    """Review M7: the hard-error path never puts `str(e)` on the source row."""
+    import logging
+    caplog.set_level(logging.WARNING)
+    src = _source()
+    raw = "sqlite3.OperationalError: secret_internal_column"
+
+    class Stops(Fake):
+        async def list_changed(self, credentials, cursor=None):
+            raise errors.NoteConnAuthError(raw) if auth else RuntimeError(raw)
+
+    with pytest.raises(Exception):
+        await _pass(monkeypatch, src, Stops({}))
+    row = connections.get_source_by_id(src["id"])
+    expected = (engine.RECONNECT_REASON if auth else engine.SYNC_STOPPED_REASON).format(label="Notion")
+    assert row["lastSyncError"] == expected and raw not in row["lastSyncError"]
+    assert raw in caplog.text

@@ -5951,16 +5951,31 @@ def delete_folder(
         # longer be found by the folder they used to be in. Reading them after
         # would return an empty list and land nothing, which is exactly the
         # shape of a fix that looks present and does nothing.
-        moved = [r["id"] for r in conn.execute(
-            "SELECT id FROM j2_notes WHERE folder_id = ? AND user_id = ?",
-            (folder_id, user_id)).fetchall()]
+        moved_rows = conn.execute(
+            "SELECT id, import_key, updated_at, imported_at FROM j2_notes "
+            "WHERE folder_id = ? AND user_id = ?", (folder_id, user_id)).fetchall()
+        moved = [r["id"] for r in moved_rows]
+        # ⛔ A FOLDER MOVE IS NOT A CONTENT EDIT (review I2, `probe_conflict.py`). The note sync
+        # engine reads `updated_at > imported_at` as "the member edited this"
+        # (`import_provenance.edited_since_import`), so bumping `updated_at` alone made every
+        # later remote edit of an imported note a "(synced copy)" sibling. An imported note that
+        # was UNEDITED before the move has `imported_at` advanced to the same stamp, in the same
+        # UPDATE, so it stays unedited. ⛔ Never one the member had already edited (or whose stamps
+        # cannot be read): hiding a real edit would let a remote change overwrite their work.
+        unedited_imports = [
+            r["id"] for r in moved_rows
+            if r["import_key"] and import_provenance.instant(r["updated_at"]) is not None
+            and import_provenance.instant(r["imported_at"]) is not None
+            and not import_provenance.edited_since_import(r["updated_at"], r["imported_at"])]
         # Delete the folder first to avoid UNIQUE constraint violations when re-parenting
         cur = conn.execute(
             "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?", (folder_id, user_id))
         # notes climb to the parent; at root ('' parent) they go Unfiled (NULL)
         conn.execute(
-            "UPDATE j2_notes SET folder_id = ?, updated_at = ? WHERE folder_id = ? AND user_id = ?",
-            (parent or None, now, folder_id, user_id))
+            "UPDATE j2_notes SET folder_id = ?, updated_at = ?, "
+            "imported_at = CASE WHEN id IN (SELECT value FROM json_each(?)) THEN ? ELSE imported_at END "
+            "WHERE folder_id = ? AND user_id = ?",
+            (parent or None, now, json.dumps(unedited_imports), now, folder_id, user_id))
         conn.execute(
             "UPDATE j2_note_folders SET parent_id = ? WHERE parent_id = ? AND user_id = ?",
             (parent, folder_id, user_id))
