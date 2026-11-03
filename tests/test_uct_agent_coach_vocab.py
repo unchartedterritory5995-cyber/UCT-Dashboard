@@ -133,6 +133,22 @@ def test_the_marker_literal_is_735s_frame_ref():
 
 
 @pytest.mark.parametrize("text", [
+    "<uct_knowledge_ref/> UCT showed the member an answer from its approved knowledge here.",
+    f"From UCT's playbook — Failed breakouts: {PASSAGE} (UCT Playbook)",       # flag only, no marker in the text
+])
+def test_a_replayed_brain_led_coach_row_keeps_web_research_blocked(text):
+    """train2 integration: KN-1's frame.seen() recognises the coach's stored row, so research stays blocked after a
+    Brain-led coach answer (the replay carries frame.REF)."""
+    from api.services.uct_agent.knowledge import frame as kn_frame
+    assert kn_frame.REF == turn.KNOWLEDGE_REF
+    msgs = turn.history_messages(_knowledge_rows(text))
+    assert kn_frame.seen(msgs)
+    plain = [{"role": "member", "text": "what is a breakout", "data": None},
+             {"role": "outcome", "text": "A breakout is…", "data": {"kind": "answered", "actions": ["coach.explain"]}}]
+    assert not kn_frame.seen(turn.history_messages(plain))
+
+
+@pytest.mark.parametrize("text", [
     "<uct_knowledge_ref/> UCT showed the member an answer from its approved knowledge here. Cited: knowledge base entry #12.",
     f"From UCT's playbook — Failed breakouts: {PASSAGE} (UCT Playbook)",       # an older / buggy browser kept the text
 ])
