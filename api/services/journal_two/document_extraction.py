@@ -1320,6 +1320,24 @@ def _process_queued(document_id: str) -> None:
             _QUEUED.discard(document_id)
 
 
+#: Round 2 S-2: the sweep's first pass waits at least this long after the web process booted
+#: (a deploy has enough to do, and a backlog older than the deploy is drained at 20 per tick).
+SWEEP_STARTUP_GRACE_S = 600
+#: When the importing process booted, for the grace (`time.monotonic()`).
+_PROCESS_STARTED = time.monotonic()
+
+
+def pending_sweep_tick(*, started_monotonic: float | None = None, now_monotonic: float | None = None,
+                       now: datetime | None = None) -> dict[str, Any]:
+    """ONE tick of the web pod's `j2_doc_pending_sweep` job: nothing within
+    `SWEEP_STARTUP_GRACE_S` of boot, else `requeue_stale_pending`."""
+    started = _PROCESS_STARTED if started_monotonic is None else started_monotonic
+    clock = time.monotonic() if now_monotonic is None else now_monotonic
+    if clock - started < SWEEP_STARTUP_GRACE_S:
+        return {"skipped": "startup_grace"}
+    return requeue_stale_pending(now=now)
+
+
 def requeue_stale_pending(*, now: datetime | None = None, older_than_s: float = STALE_PENDING_S,
                           limit: int = PENDING_SWEEP_LIMIT, conn=None) -> dict[str, int]:
     """The web pod's sweep (Plan F Task 7 re-review I-5): re-queue `pending` documents older

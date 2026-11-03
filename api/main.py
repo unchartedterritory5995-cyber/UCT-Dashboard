@@ -6245,10 +6245,12 @@ async def lifespan(app: FastAPI):
             from api.services.journal_two import document_extraction as _doc_pending
 
             def _doc_requeue_pending() -> None:
-                out = _doc_pending.requeue_stale_pending()
-                if out.get("requeued"):
+                # One tick: waits out a startup grace (round 2 S-2), then re-queues.
+                out = _doc_pending.pending_sweep_tick()
+                if out.get("requeued") or out.get("failed"):
                     logging.getLogger(__name__).info(
-                        "[doc-extract] sweep re-queued %s pending document(s)", out["requeued"])
+                        "[doc-extract] sweep re-queued %s pending document(s), failed %s",
+                        out.get("requeued", 0), out.get("failed", 0))
 
             _scheduler.add_job(
                 _doc_requeue_pending,

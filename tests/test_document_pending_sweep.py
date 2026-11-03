@@ -114,4 +114,16 @@ def test_queue_extraction_marks_and_the_worker_unmarks(conn, monkeypatch):
 def test_the_sweep_is_registered_on_the_web_scheduler():
     from pathlib import Path
     src = (Path(__file__).resolve().parents[1] / "api" / "main.py").read_text(encoding="utf-8")
-    assert 'id="j2_doc_pending_sweep"' in src and "requeue_stale_pending" in src
+    assert 'id="j2_doc_pending_sweep"' in src and "pending_sweep_tick" in src
+
+
+def test_the_first_sweep_waits_out_a_startup_grace(conn, submitted):
+    """Round 2 S-2: right after a boot (a deploy) the web pod has enough to do; the sweep's
+    first pass runs no sooner than `SWEEP_STARTUP_GRACE_S` (10 min) after it."""
+    _doc(conn, "stale", minutes_old=60)
+    assert dx.SWEEP_STARTUP_GRACE_S >= 600
+    assert dx.pending_sweep_tick(started_monotonic=1000.0, now_monotonic=1000.0 + 599, now=NOW) == {
+        "skipped": "startup_grace"}
+    assert submitted == []
+    out = dx.pending_sweep_tick(started_monotonic=1000.0, now_monotonic=1000.0 + 600, now=NOW)
+    assert out["requeued"] == 1 and submitted == ["stale"]

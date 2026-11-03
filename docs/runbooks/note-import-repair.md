@@ -73,6 +73,21 @@ The Obsidian re-list (`--obsidian-relist`) is OFF unless passed (C10). Pass it O
 fidelity Plan C is merged and deployed; before that, a re-list converts once with the old converter
 and never again.
 
+## Before the deploy: count the stale pending documents (read-only)
+
+The same deploy adds the web pod's `j2_doc_pending_sweep`. It re-queues `pending` searchable-document
+rows older than 10 minutes, 20 per tick, first tick no sooner than 10 minutes after boot. Production
+may already hold rows a crash or redeploy left `pending` since Wave I. Record their number first:
+
+```
+railway ssh --service web
+/opt/venv/bin/python -c "import sqlite3; c = sqlite3.connect('file:/data/auth.db?mode=ro', uri=True); print(c.execute(\"SELECT COUNT(*), MIN(created_at) FROM j2_note_documents WHERE status = 'pending' AND created_at < strftime('%Y-%m-%dT%H:%M:%S', 'now', '-10 minutes')\").fetchone())"
+```
+
+(`created_at` is stored as ISO text with a `T`, so the cutoff is built in the same shape.) At 20 rows
+per 10 minutes, N rows take N/2 minutes to drain. A row the sweep cannot finish after 3 tries is
+marked failed, never retried forever.
+
 ## Before arming: the lock test must pass on Linux
 
 `tests/test_note_import_repair_cli.py::test_second_run_exits_3_while_locked` is POSIX-only and has
