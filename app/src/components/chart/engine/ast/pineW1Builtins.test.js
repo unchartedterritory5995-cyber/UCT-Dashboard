@@ -136,11 +136,21 @@ describe('ta.pvt — REFERENCE: ta.cum((ta.change(close) / close[1]) * volume), 
 
 // ─── ta.iii / ta.wvad / ta.wad ───────────────────────────────────────────────
 
+// ⛔ W1 RE-REVIEW (2026-11-02): `ta.iii` DIVIDES BY THE VOLUME. The published body
+// is `(2 * close - high - low) / ((high - low) * volume)`: TradingView's v4 reference
+// prints it, and TradingView's own exported `ta.iii` values (PyneCore's export
+// fixture, below) agree with it on every row. The v5/v6 pages print
+// `((2 * close - high - low) / (high - low)) * volume`, which this rail was first
+// written from — and passed, because the engine had been built from the same quote.
+// Sources: `docs/pine/evidence/2026-11-02-w1/formula-sources.md`.
 describe('ta.iii, ta.wvad — REFERENCE: TradingView\'s per-bar bodies; a screen may read them', () => {
-  const iii = (b) => ((2 * b.c - b.h - b.l) / (b.h - b.l)) * b.v
+  const iii = (b) => (2 * b.c - b.h - b.l) / ((b.h - b.l) * b.v)
   const wvad = (b) => ((b.c - b.o) / (b.h - b.l)) * b.v
+  // the engine's one rule for a division by zero, applied here as the reference's own
+  // last step: IEEE division (`interpret.js::BINARY['/']`), and whatever is not finite
+  // is `na` at the column (`interpret.js::toColumn`)
+  const fin = (xs) => xs.map((x) => (Number.isFinite(x) ? x : NaN))
   it('every bar, holes included (a hole in close is a hole in both)', () => {
-    const fin = (xs) => xs.map((x) => (Number.isFinite(x) ? x : NaN))
     for (const [name, ref] of [['ta.iii', iii], ['ta.wvad', wvad]]) {
       for (const opts of [undefined, pane]) {
         const ours = interpret(treeOf(V6(`plot(${name})`), opts).tree, holedBars)
@@ -150,6 +160,42 @@ describe('ta.iii, ta.wvad — REFERENCE: TradingView\'s per-bar bodies; a screen
         expect(want.filter(Number.isFinite).length).toBeGreaterThan(1470)
       }
     }
+  })
+  it('⛔ ta.iii by hand: the volume divides; a zero range and a zero volume are gaps, by the engine\'s x / 0 rule', () => {
+    const bars = [
+      // 2 * 769.64 - 772 - 765 = 2.28, and 2.28 / (7 * 46,335,000) = 7.0296e-9
+      { t: 1, o: 768, h: 772.00, l: 765.00, c: 769.64, v: 46335000 },
+      // high == low: (2 * 100 - 100 - 100) / (0 * 5000) = 0 / 0 → NaN → na
+      { t: 2, o: 100, h: 100, l: 100, c: 100, v: 5000 },
+      // volume == 0: (21 - 11 - 9) / (2 * 0) = 1 / 0 = Infinity → na
+      { t: 3, o: 10, h: 11, l: 9, c: 10.5, v: 0 },
+      // volume == 0 over a zero numerator: 0 / 0 → NaN → na
+      { t: 4, o: 10, h: 11, l: 9, c: 10, v: 0 },
+    ]
+    for (const opts of [undefined, pane]) {
+      const { tree, formula } = treeOf(V6('plot(ta.iii)'), opts)
+      expect(formula).toBe('(2 * close - high - low) / ((high - low) * volume)')
+      const ours = Array.from(interpret(tree, bars))
+      expect(Math.abs(ours[0] / 7.0296e-9 - 1), String(ours[0])).toBeLessThan(1e-5)
+      expect(Math.abs(ours[0] / (2.28 / (7 * 46335000)) - 1), String(ours[0])).toBeLessThan(1e-12)
+      expect(ours.slice(1).map((x) => (Number.isFinite(x) ? x : null)), JSON.stringify(ours)).toEqual([null, null, null])
+      // and the reference, independently, says the same of all four bars
+      same(fin(ours), fin(bars.map(iii)), 1e-12)
+      // the v4 bare spelling is the same tree
+      expect(treeOf(V(4, 'plot(iii)'), opts).formula).toBe(formula)
+    }
+  })
+  it('a second witness, TradingView\'s own exported values: PyneCore\'s fixture tests/t01_lib/t20_ta/data/iii+nvi+obv.csv, rows 1-3', () => {
+    // github.com/PyneSys/pynecore @ fe29d4a4c5 (a TradingView chart-data export by its
+    // format); OHLCV as exported, `ta.iii` as TradingView computed it
+    const rows = [
+      [1.06994, 1.06994, 1.06912, 1.06918, 100, -0.008536585365854584],
+      [1.06918, 1.06925, 1.06664, 1.06789, 824, -0.00005114756537591343],
+      [1.06789, 1.06837, 1.06628, 1.06785, 5684, 0.0000883871119805718],
+    ]
+    const bars = rows.map(([o, h, l, c, v], i) => ({ t: i + 1, o, h, l, c, v }))
+    const ours = Array.from(interpret(treeOf(V6('plot(ta.iii)')).tree, bars))
+    same(ours, rows.map((r) => r[5]), 1e-12)
   })
   it('v4 bare spellings are TradingView\'s; v6 bare spellings are refused by name', () => {
     expect(treeOf(V(4, 'plot(iii)')).formula).toBe(treeOf(V6('plot(ta.iii)')).formula)

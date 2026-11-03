@@ -1201,6 +1201,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // as much as one that references forty. `Array.isArray([])` is the test, never
   // `.length`.
   const objectPassOwnsDrawing = Array.isArray(opts.objectTrees)
+  /** ⭐⭐ RT5 — does this build DRAW ITS OWN OBJECTS? (What that means, and where
+   *  its drawing calls are lowered: "THE RUN DRAWS ITS OWN OBJECTS", below.)
+   *  Decided here, once, so the Resolver is told before any value resolves
+   *  (`objectDoorOpts`). */
+  const objectsInRun = opts.objectsInRun === true && !objectPassOwnsDrawing
 
   /** How many drawing-as-value creates this build has lowered. ⛔ THIS LANE'S
    *  OWN ORDINAL — see `runtime/handles.js`: it is NOT the object program's
@@ -1402,9 +1407,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⛔ W1 (review, 2026-11-02) — THE OBJECT DOOR TELLS THE RESOLVER, and the
   // Resolver alone decides what that withholds (`pine.js::seriesTreeOf`,
   // `PINE_DRAWING_HELD_SERIES`: a running total served to the pane is refused by
-  // name to a drawing script). Absent on every other build, whose options stay
-  // byte-identical.
-  const objectDoorOpts = atObjectDoor ? { objectDoor: true } : {}
+  // name to a drawing script).
+  // ⛔ W1 RE-REVIEW (2026-11-02) — AND SO DOES A BUILD THAT DRAWS ITS OWN OBJECTS
+  // (`objectsInRun`: the runtime pane's own labels, tables and lines), through the
+  // same flag, so the one rule there decides for it too. Its plots and its drawings
+  // read one Resolver, so such a build that reads one of those running totals
+  // anywhere is refused by name, and the door answers as it does for any drawing
+  // build it cannot make (`runtimeObjectsDoor.js::runtimeOwnObjectsOf`): the plots'
+  // own build where that stands, else a decline under this refusal.
+  // Absent on every other build, whose options stay byte-identical.
+  const objectDoorOpts = (atObjectDoor || objectsInRun) ? { objectDoor: true } : {}
   const resolverOpts = opts.pane === true
     ? {
       pineVersion,
@@ -2791,7 +2803,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // and an argument this map cannot place is a refusal by name, never a drop: a
   // `color` that silently fell off would draw the default blue where the author
   // painted red.
-  const objectsInRun = opts.objectsInRun === true && !objectPassOwnsDrawing
+  // (`objectsInRun` itself is decided once, beside `objectPassOwnsDrawing`, above.)
   // ⛔⛔ P3 WS-A ON THE OBJECT DOOR (WS-D's gate, `atObjectDoor` / `objectDoorRefuses`,
   // above). The WS-A grammar (multi-statement arms, `switch` statements, `var x =
   // if/switch`, comma statements, tuple and switch-ending function bodies, the subject

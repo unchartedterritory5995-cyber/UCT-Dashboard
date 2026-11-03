@@ -1454,22 +1454,29 @@ const BUILTIN_SERIES_TREE = Object.freeze({
     cSeries('volume'),
   ])]),
   // ⭐ W1 (2026-11-02) — the three remaining volume built-ins, each TradingView's
-  // published reference body verbatim (the "the same on pine" half of each
-  // variable's own reference example):
-  //     ta.iii  = ((2 * close - high - low) / (high - low)) * volume
+  // published reference body (the "the same on pine" half of each variable's own
+  // reference example; every source and second witness, name by name, is in
+  // `docs/pine/evidence/2026-11-02-w1/formula-sources.md`):
+  //     ta.iii  = (2 * close - high - low) / ((high - low) * volume)
   //     ta.wvad = (close - open) / (high - low) * volume
   //     ta.wad  = ta.cum(mom > 0 ? close - math.min(low, close[1])
   //                      : mom < 0 ? close - math.max(high, close[1]) : 0),  mom = ta.change(close)
+  // ⛔ W1 RE-REVIEW (2026-11-02): IN `ta.iii` THE VOLUME DIVIDES. That is the v4
+  // reference's body, PyneCore's, and the answer TradingView's own exported values
+  // give on every row of PyneCore's export fixture (100 of 100). The v5/v6 pages
+  // print `((2 * close - high - low) / (high - low)) * volume`, which W1 first built
+  // from and which those same values contradict on every row (0 of 100). A zero
+  // range or a zero volume is a division by zero, and it meets the engine's one rule
+  // for that: IEEE division (`interpret.js::BINARY['/']`, mirrored by
+  // `ast_interpret._binary_div`), and a non-finite answer is `na` at the column
+  // (`interpret.js::toColumn`), a gap.
   // `iii` and `wvad` are per-bar (no state), so a screen may read them. `wad` is a
   // running total and joins the `cum` bargain (pane only). Its bar 0 is 0, not
   // `na`: `mom` is `na` there and both comparisons answer false, exactly as the
-  // reference body reads in Pine. ⚠️ No capture yet (capture queue W1-C).
-  iii: () => cOp('*', [
-    cOp('/', [
-      cOp('-', [cOp('-', [cOp('*', [cNum(2), cSeries('close')]), cSeries('high')]), cSeries('low')]),
-      cOp('-', [cSeries('high'), cSeries('low')]),
-    ]),
-    cSeries('volume'),
+  // reference body reads in Pine. ⚠️ No capture of ours yet (capture queue W1-C).
+  iii: () => cOp('/', [
+    cOp('-', [cOp('-', [cOp('*', [cNum(2), cSeries('close')]), cSeries('high')]), cSeries('low')]),
+    cOp('*', [cOp('-', [cSeries('high'), cSeries('low')]), cSeries('volume')]),
   ]),
   wvad: () => cOp('*', [
     cOp('/', [cOp('-', [cSeries('close'), cSeries('open')]), cOp('-', [cSeries('high'), cSeries('low')])]),
@@ -1533,13 +1540,14 @@ const PHASE1_MODERN_SPELLING = Object.freeze({
  *  chart loaded, so their LEVEL is a fact about where the history starts. A pane
  *  PLOT carries that fact to the member: its tree raises the `window_dependent`
  *  requirement tag, and the pane says how much history it drew. A table cell or a
- *  label does not — the tags are read off the plot trees only
- *  (`memberPaneDefinition.js::requirementTagsRaised`) — so it would print a number
- *  that moves with the fetch, unmarked: on SPY, whose chart does not start at the
- *  listing, an OBV TradingView never printed (`vendorHarness.h5MulticatorValues`).
- *  So both drawing doors refuse them BY NAME (`Resolver.seriesTreeOf`) until a
- *  capture grades a drawing of the level: the host object pass (`objectPass`) and
- *  the runtime lane's object door (`objectDoor`). The bounded rewrites (`obvN`,
+ *  label does not — the tags are read off the pane's plots and colours, never its
+ *  drawings (`memberPaneDefinition.js::requirementTagsRaised`) — so it would print
+ *  a number that moves with the fetch, unmarked: on SPY, whose chart does not start
+ *  at the listing, an OBV TradingView never printed (`vendorHarness.h5MulticatorValues`).
+ *  So every drawing door refuses them BY NAME (`Resolver.seriesTreeOf`) until a
+ *  capture grades a drawing of the level: the host object pass (`objectPass`), the
+ *  runtime lane's object door and, since the W1 re-review, a runtime build that
+ *  draws its own objects (both `objectDoor`). The bounded rewrites (`obvN`,
  *  `pvtN`) are not these names and keep drawing.
  *  ⚠️ Phase 1's three (`accdist`, `nvi`, `pvi`) are running totals as well and are
  *  NOT held here: they reach drawings on master already, and withdrawing a drawing
@@ -7178,9 +7186,10 @@ export class Resolver {
     /** ⛔ W1 (review, 2026-11-02) — THE RUNTIME LANE'S OBJECT DOOR. Set by
      *  `pineRuntimeFrontend.js` when it builds a drawing script's values
      *  (`atObjectDoor`: `runtimeColumns.js::probeObjectRuntime` /
-     *  `runtimeObjectValues`) and by nothing else. Read in ONE place,
-     *  `seriesTreeOf`: a running total `PINE_DRAWING_HELD_SERIES` holds is refused
-     *  there by name, exactly as the host object pass refuses it. */
+     *  `runtimeObjectValues`) and, since the W1 re-review, when a build draws its
+     *  own objects (`objectsInRun`, the runtime pane's drawings) — by nothing else.
+     *  Read in ONE place, `seriesTreeOf`: a running total `PINE_DRAWING_HELD_SERIES`
+     *  holds is refused there by name, exactly as the host object pass refuses it. */
     this.objectDoor = opts.objectDoor === true
     /** ⭐ C22 — the op the object pass is converting (`{topTok, siteIndex}`),
      *  so a window read inside a helper is placed at its call (`windowReadPos`). */

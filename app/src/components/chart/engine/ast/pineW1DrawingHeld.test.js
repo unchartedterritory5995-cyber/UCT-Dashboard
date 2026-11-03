@@ -11,7 +11,9 @@
 // `PINE_DRAWING_HELD_SERIES`):
 //   · the host object pass (`translatePine`'s object program; `objectPass`);
 //   · the runtime lane's object door (`runtimeColumns.js::probeObjectRuntime`, which
-//     builds with `objectDoor`, as `runtimeObjectValues` does).
+//     builds with `objectDoor`, as `runtimeObjectValues` does);
+//   · (W1 re-review) a runtime build that draws its own objects (`objectsInRun`: the
+//     runtime pane's labels and tables), told through the same `objectDoor` flag.
 // The member door end to end is `vendorHarness.h5MulticatorValues.test.js` (OBV in
 // multicator-table's cells, RDDT and SPY); this rail holds all three names at each door.
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -23,7 +25,7 @@ import { translatePine, Resolver } from './pine'
 import { TABLE } from './parse'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { runtimeClockOpts } from './pineRuntimeClock.js'
-import { probeObjectRuntime } from '../runtime/runtimeColumns.js'
+import { probeObjectRuntime, probeRuntimeProgram } from '../runtime/runtimeColumns.js'
 import { requirementTagsRaised, memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import { objectReaderFor } from '../objectColumns'
 import { evaluateObjects } from '../objectRuntime'
@@ -160,6 +162,50 @@ describe('⛔ W1 review 1 — the member door prints none of the three in a draw
     for (const src of [v6('plot(close)', ...label('close')), v6(...STATE, 'v = k * 0 + close', ...label('v'))]) {
       const texts = doorLabels(src)
       expect(texts.filter((t) => /\d/.test(t)).length, `${JSON.stringify(texts)} for ${src}`).toBeGreaterThan(0)
+    }
+  })
+})
+
+// ─── W1 RE-REVIEW (2026-11-02) — A RUNTIME BUILD THAT DRAWS ITS OWN OBJECTS ──────────
+//
+// The runtime pane (dark, behind its flag) can make a script's labels and tables in the
+// run itself (`objectsInRun`, `runtimeObjectsDoor.js::runtimeOwnObjectsOf`). Those builds
+// were not told they draw, so `ta.obv` printed in such a label was the published
+// running total. They are told through the flag `seriesTreeOf` already reads
+// (`objectDoor`; `pineRuntimeFrontend.js::objectDoorOpts`). The level is read at top
+// level here, on every bar, so nothing else in the build refuses it: without the hold
+// these builds stand and print it (measured, `objectOps` 1).
+describe('⛔ W1 re-review 5 — a runtime build that draws its own objects holds the three as well', () => {
+  const printed = (expr) => [
+    v6('plot(close)', `v = ${expr}`, ...label('v')),
+    v6('plot(close)', `label.new(bar_index, high, str.tostring(${expr}))`),
+  ]
+
+  it.each(HELD)('an objectsInRun build printing %s in a label is refused by name', (name) => {
+    for (const src of printed(name)) {
+      const p = probeRuntimeProgram(src, { objectsInRun: true })
+      expect(p.ok, src).toBe(false)
+      expect(p.refusal.guard, src).toBe(WD)
+      expect(p.refusal.message).toMatch(new RegExp(`\`${esc(name)}\` is a running total from the first bar the chart loaded`))
+    }
+    // the v4 bare spelling too
+    const v4 = ['//@version=4', 'study("p", overlay = true)', 'plot(close)', `v = ${name.slice('ta.'.length)}`,
+      'if barstate.islast', '    label.new(bar_index, high, tostring(v))'].join(NL)
+    const p4 = probeRuntimeProgram(v4, { objectsInRun: true })
+    expect(p4.ok).toBe(false)
+    expect(p4.refusal.guard).toBe(WD)
+  })
+
+  it('CONTROL: the same builds printing close stand and draw; the plots\' own build still serves the running total', () => {
+    for (const src of printed('close')) {
+      const p = probeRuntimeProgram(src, { objectsInRun: true })
+      expect(p.ok, `${src} — ${p.refusal && p.refusal.guard}: ${p.refusal && p.refusal.message}`).toBe(true)
+      expect(p.objectOps).toBeGreaterThan(0)
+    }
+    // the build the door falls back to when the drawing build cannot be made (no objectsInRun)
+    for (const name of HELD) {
+      const p = probeRuntimeProgram(v6(`plot(${name})`))
+      expect(p.ok, `${name} — ${p.refusal && p.refusal.guard}`).toBe(true)
     }
   })
 })
