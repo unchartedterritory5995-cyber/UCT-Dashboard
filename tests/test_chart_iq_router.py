@@ -549,3 +549,16 @@ def test_behind_alert_pages_only_when_members_read_an_older_session(monkeypatch)
     def boom(msg): raise OSError("discord down")
     monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
     assert pack.alert_if_behind(post=boom)               # a failed post never raises into the scheduler
+
+
+def test_reads_are_counted_by_how_they_were_served_for_the_past_date_decision(tmp_path, monkeypatch):
+    from api.services.chart_iq import prewarm
+    monkeypatch.setenv("CHART_IQ_ROW_CACHE_DB", str(tmp_path / "rows.db"))
+    monkeypatch.setattr(prewarm, "_et_day", lambda: "2026-11-03")
+    prewarm._ASKS.clear()
+    for kind, secs in (("pack", 0.01), ("pack", 0.03), ("live_past", 4.0), ("cache", 0.0)):
+        prewarm.record_ask(kind, secs)
+    got = prewarm.ask_summary()["2026-11-03"]
+    assert got["pack"] == {"n": 2, "avg_s": 0.02} and got["live_past"] == {"n": 1, "avg_s": 4.0} and got["cache"]["n"] == 1
+    prewarm.record_ask("pack", 0.05)                      # a second flush ADDS to the day, never replaces it
+    assert prewarm.ask_summary()["2026-11-03"]["pack"]["n"] == 3

@@ -8,9 +8,15 @@
     "highlights": [],
     "images": [],
     "links": [],
+    "notices": [
+      {
+        "name": "my chart #1 (v2).png",
+        "reason": "not_found"
+      }
+    ],
     "pending": [],
     "task_checked": [],
-    "text": "Missing files with a hash in the name see report #2.pdf and the sheet now my chart #1 (v2).png stays text."
+    "text": "Missing files with a hash in the name see report #2.pdf and the sheet now  stays text."
   },
   "vault_id": "vault-1",
   "vault_paths": [

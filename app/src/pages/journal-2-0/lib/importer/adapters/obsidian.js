@@ -83,8 +83,11 @@ import { mdToHtml, mdInlineText, resolveRelativeMedia, dedupeMedia, markAttachme
 import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 import { reportIgnoredFiles } from './reportIgnored'
 import { IMAGE_EXT } from '../mediaRefs'
+import { NOTICE_REASONS } from '../importNotice'
 import { makeObsidianResolver } from '../obsidianResolve'
 
+/** The media ref of an embed of a file the vault does not hold (live audit F3): no vault path. */
+const MISSING_REF_PREFIX = 'obsidian-missing:'
 const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
 // Fence alternative MUST come first — at a run of 3+ backticks it has to win
 // over the inline-span alternative, or the inline pattern would consume just
@@ -546,14 +549,23 @@ function transformEmbeds(text, ctx) {
     const resolvedPath = ctx.resolve(written)
     if (!resolvedPath) {
       // A missing NOTE reads as the note's name (`![[Ghost#Risk]]`, `![[Ghost.md]]`
-      // -> `Ghost`), as the server's pending link does; a missing FILE as written
-      // (D2 item 8, `providers/obsidian.py::_transform_wiki_and_embeds`). Never a broken
-      // <img> or a phantom media entry.
+      // -> `Ghost`), as the server's pending link does (D2 item 8,
+      // `providers/obsidian.py::_transform_wiki_and_embeds`). Never a broken <img>.
       const bare = unresolvedBareTarget(target)
-      if (bare && (NOTE_RE.test(bare) || !isAttachmentName(bare))) {
+      if (!bare) return ctx.hold(unresolvedText(target))
+      if (NOTE_RE.test(bare) || !isAttachmentName(bare)) {
         return ctx.hold(unresolvedText(bare.replace(NOTE_RE, '')))
       }
-      return ctx.hold(unresolvedText(target))
+      // Live audit 2026-11-03, F3: a missing FILE is the live lane's notice. The plugin sends
+      // it as a `missing` ref named by this same bare target, and the server writes
+      // "<name> wasn't found in the vault." A failed media item (no bytes, no request) is
+      // what the commit turns into that notice in place, listed under "Couldn't be copied"
+      // and counted in Needs attention. ⚰️ It was the name as plain text: nothing said the
+      // file was missing. Its ref is this adapter's own scheme, never a vault path.
+      const ref = `${MISSING_REF_PREFIX}${bare}`
+      return ctx.hold(`<img src="import-ref://${escapeAttr(ref)}">`,
+        () => ctx.media.push({ ref, kind: 'image', name: basename(bare),
+          failed: { reason: NOTICE_REASONS.notFound, sourceUrl: null } }))
     }
 
     const name = basename(resolvedPath)
