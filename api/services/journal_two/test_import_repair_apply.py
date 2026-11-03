@@ -200,6 +200,44 @@ def test_the_write_is_locked_on_the_listing_rows_stamp(armed, monkeypatch):
     assert _outcomes(note) == ["repair_started", "race_lost"] and report["raceLost"] == 1
 
 
+@pytest.mark.parametrize("when", ["before_fetch", "before_write"])
+def test_a_timestamp_neutral_write_since_planning_is_never_overwritten(armed, web, monkeypatch, when):
+    """Fix round 1 (review M-2): the live link heal pass writes through `_apply_resolved_body`
+    without moving `updated_at`, so the stamp lock cannot see it. The stored body is compared
+    with the one the plan was made from; any difference is `race_lost`, never an overwrite."""
+    note = _note("u1", "Notion", "notion:Export/H.md", _doc(
+        {"type": "image", "attrs": {"src": HOT}}, _para(_t("see https://example.com/a"))))
+    web["routes"][HOT] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+    healed = _doc(_para(_t("healed by the heal pass")))
+
+    def heal(note_id):
+        c = auth_db.get_connection()
+        try:
+            stamp = c.execute("SELECT updated_at FROM j2_notes WHERE id = ?", (note_id,)).fetchone()[0]
+            assert engine._apply_resolved_body(c, "u1", note_id, healed, expected_updated_at=stamp)
+        finally:
+            c.close()
+
+    if when == "before_fetch":
+        real = runner.plan_note
+        monkeypatch.setattr(runner, "plan_note", lambda conn, user_id, row, cls, index: (
+            lambda plan: (heal(row.id), plan)[1])(real(conn, user_id, row, cls, index)))
+    else:
+        real_fetch = hotlink_fetch.fetch_and_store
+
+        async def fetch_then_heal(user_id, note_id, url, **kw):
+            stored = await real_fetch(user_id, note_id, url, **kw)
+            heal(note_id)
+            return stored
+
+        monkeypatch.setattr(hotlink_fetch, "fetch_and_store", fetch_then_heal)
+    report = _apply()
+    assert json.loads(_note_row(note)[0]) == healed
+    assert _outcomes(note)[-1] == "race_lost" and report["raceLost"] == 1
+    if when == "before_fetch":
+        assert web["calls"] == []  # nothing downloaded for a plan that is already stale
+
+
 def test_an_edit_before_the_fetch_stops_the_fetch(armed, web, monkeypatch):
     """C7: `updated_at` is re-read right before fetching; a moved stamp means no download (no
     orphan file on the member's budget) and `race_lost`."""

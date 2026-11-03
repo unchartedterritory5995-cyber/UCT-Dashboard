@@ -22,6 +22,7 @@ rows), C11 (`byClassShape`: shapes per class), Task 3/4 (count-only actions neve
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -79,6 +80,14 @@ class NotePlan:
     unreadable_stamp: bool = False
     #: The stored body is not a JSON object; nothing is planned.
     unreadable_body: bool = False
+    #: Task 7 review M-2: sha256 of the stored body text the plan was made from. The apply writes
+    #: only while the stored body still hashes to it (a timestamp-neutral writer, such as the
+    #: live link heal pass, does not move `updated_at`).
+    body_sha: str | None = None
+
+
+def body_sha(text: str) -> str:
+    return hashlib.sha256((text or "").encode("utf-8")).hexdigest()
 
 
 def iter_members(conn) -> Iterator[str]:
@@ -139,6 +148,7 @@ def plan_note(conn, user_id: str, row: NoteRow, note_class: str, index: links.Fi
         orphans = shapes.orphan_media_count(user_id, row.id, body_text)
         if orphans:
             found["orphan_media"] = orphans
+    planned_sha = body_sha(body_text)
     del body_text
     # Fix round 1, I-1: a link to a file that never came over is a lost file too. Counted for
     # EVERY FILE note, edited or not (counting reads; only the write waits on the guard).
@@ -178,7 +188,7 @@ def plan_note(conn, user_id: str, row: NoteRow, note_class: str, index: links.Fi
     # Count-only actions (links.COUNT_ONLY_ACTIONS) leave the body as it was: a write is planned
     # only when the body changed.
     return NotePlan(note_class, found, False, False, out if out != doc else None, actions, hotlinks, loss,
-                    lost_links=lost_links)
+                    lost_links=lost_links, body_sha=planned_sha)
 
 
 def _peak_rss_mb() -> float:
@@ -381,15 +391,18 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
         return "unchanged"  # C12: counted, never logged
     try:
         # C7: a member edit since the listing means hands off, BEFORE anything is downloaded
-        # (a lost race must not leave an orphan file on the member's budget).
-        if _current_updated_at(conn, row.id) != row.updated_at:
+        # (a lost race must not leave an orphan file on the member's budget). Review M-2: so
+        # does a timestamp-neutral write (the link heal pass), seen as a different stored body.
+        current = load_body(conn, row.id)
+        if _current_updated_at(conn, row.id) != row.updated_at or body_sha(current) != plan.body_sha:
             store.log_note(conn, run_id, user_id, row.id, "race_lost", plan.shapes, plan.actions, None)
             conn.commit()
             return "race_lost"
         doc = plan.new_doc
         changed = doc is not None
         if doc is None:
-            doc = json.loads(load_body(conn, row.id))
+            doc = json.loads(current)
+        del current
         failed: list[str] = []
         for url in plan.hotlinks:
             if counts["fetched"] + counts["fetchFailed"] >= max_fetches:
@@ -416,6 +429,10 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
         if not store.renew_lease(conn, run_id, user_id, holder):
             return "lease_lost"
         before = load_body(conn, row.id)
+        if body_sha(before) != plan.body_sha:  # review M-2: changed while downloading
+            store.log_note(conn, run_id, user_id, row.id, "race_lost", plan.shapes, plan.actions, None)
+            conn.commit()
+            return "race_lost"
         store.log_started(conn, run_id, user_id, row.id, plan.shapes, plan.actions, before)  # C7, commits
         applied = engine._apply_resolved_body(conn, user_id, row.id, body, expected_updated_at=row.updated_at)
         outcome = "repaired" if applied else "race_lost"
