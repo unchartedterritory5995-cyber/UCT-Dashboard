@@ -6,10 +6,11 @@
 // by `uct_composite`; the scan rows carry SENTINEL composite values. Each test pins what reaches the next model
 // request:
 //   PROVEN  the raw values (outcome text, context, memory, title, telemetry, traces)
-//   OPEN    the RANKING (memory.forModel `symbols_in_order`) and the COUNT (outcome text + context `lastScreen.matches`)
+//   PROVEN  the RANKING (memory.forModel `symbols_in_order`) and the COUNT (outcome text + context `lastScreen.matches`)
 //           — derived numbers that reconstruct the protected value (a one-name `within` screen at `>= X`, repeated,
-//           bisects a stock's composite). STRICT pins: they fail the day the owner changes the policy.
-// No model call, no network: panelHarness-style fetch stubs. The fix is a policy decision (owner / agent-lead).
+//           bisects a stock's composite). These were OPEN strict pins until F-16 (agent-sc #654/#657): the composite
+//           screen is now REFUSED before any scan, so no ranking and no count exist (matrix cells 23 and 24, closed).
+// No model call, no network: panelHarness-style fetch stubs.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
