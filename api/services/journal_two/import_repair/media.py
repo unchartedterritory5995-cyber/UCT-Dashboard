@@ -17,12 +17,14 @@ from __future__ import annotations
 
 import copy
 import posixpath
+import uuid
 from typing import Any
 from urllib.parse import unquote
 
 from api.services.journal_two import import_notice
 from api.services.journal_two.import_repair import links, shapes
-from api.services.journal_two.note_connectors.convert import rewrite_body
+from api.services.journal_two.note_connectors import link_keys
+from api.services.journal_two.note_connectors.convert import REF_PREFIX, rewrite_body
 
 REASON = "missing_from_import"
 
@@ -142,6 +144,51 @@ def replace_src(doc: dict, old: str, new: str) -> dict:
 
     walk(out)
     return out
+
+
+def place_stored(doc: dict, url: str, stored: Any) -> dict:
+    """A deep copy of `doc` with every image whose `src == url` replaced by what the media
+    policy STORED for it (Task 7 review I-1), by the one rule the member door and `commit.js`
+    use, through the server's own placeholder rewrite (`rewrite_body`'s `resolved`):
+      * `kind == "image"`: the image, `src` swapped, other attrs kept;
+      * `kind == "file"` (an SVG, bytes that are not an image): a chip in its place, never an
+        <img> of a stored file;
+      * a kept `original` (an animation, a HEIC source): a chip right after the image, so
+        nothing stored is left unreferenced.
+    Inside an `imageFigure` (`image imageCaption`, Task 4 I-1) a chip never stays: an original's
+    chip goes after the figure, and a file kind dissolves the figure into the chip and its
+    caption as a paragraph (as `uctJson.js` does)."""
+    token = "repair-hotlink-" + uuid.uuid4().hex
+    marked = replace_src(doc, url, REF_PREFIX + token)
+    out, _dropped = rewrite_body(marked, link_keys._media_passthrough(marked), {},
+                                 strip_unresolved_links=False, resolved={token: stored})
+    return _fix_figures(out)
+
+
+def _fix_figures(node: Any) -> Any:
+    """Restore `image imageCaption` in a figure the rewrite just changed."""
+    if isinstance(node, list):
+        out: list = []
+        for child in node:
+            fixed = _fix_figures(child)
+            out.extend(fixed if isinstance(fixed, list) else [fixed])
+        return out
+    if not isinstance(node, dict):
+        return node
+    content = node.get("content")
+    if node.get("type") == "imageFigure" and isinstance(content, list):
+        kinds = [c.get("type") if isinstance(c, dict) else None for c in content]
+        if kinds == ["image", "imageCaption"]:
+            return node
+        captions = [c for c in content if isinstance(c, dict) and c.get("type") == "imageCaption"]
+        rest = [c for c in content if not (isinstance(c, dict) and c.get("type") == "imageCaption")]
+        if rest and isinstance(rest[0], dict) and rest[0].get("type") == "image":
+            return [{**node, "content": [rest[0], *captions]}, *rest[1:]]
+        paragraphs = [{"type": "paragraph", "content": c["content"]} for c in captions if c.get("content")]
+        return [*rest, *paragraphs]
+    if isinstance(content, list):
+        return {**node, "content": _fix_figures(content)}
+    return node
 
 
 def _link_hrefs(block: dict) -> list[tuple[str, str]]:

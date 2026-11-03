@@ -403,7 +403,7 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
                 logger.info("import repair: hotlink not copied for note %s: %s", row.id, exc)
                 continue
             counts["fetched"] += 1
-            doc = media.replace_src(doc, url, stored.url)
+            doc = media.place_stored(doc, url, stored)  # I-1: kind and original, as the door
             changed = True
         if failed:
             store.log_note(conn, run_id, user_id, row.id, "fetch_failed", plan.shapes,
