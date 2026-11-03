@@ -26,7 +26,7 @@ Each branch's newest WIP commit holds the exact next step.
 |---|---|---|
 | W5-T3 codec | QUEUED | `feat/pine-w5-t3-codec` @ cd61d6741d. Review r2 fixes are in; run final-tip and write EVIDENCE.md, then READY (for delta review). No engine bump. |
 | W4-T0 census peel | QUEUED | `fix/pine-w0-census-peel` @ 75c4c400c2. Run `docs/pine/evidence/2026-11-03-w0-peel/job.sh` (with desktop env), then write coverage-map.json, targets, COVERAGE-MAP-2026-11-03.md and the 7.1 corrigendum. READY. |
-| W4-T3 fix round | QUEUED | `feat/pine-w4-t3-session-text` @ f7fbf49425 (or newer). Finish M1/L1 (tuple-shadow refusal, rails, mutations), EVIDENCE.md, final-tip. READY. Engine 7 at merge. |
+| W4-T3 fix round | QUEUED | `feat/pine-w4-t3-session-text` @ 572376edf6. M1/L1 are done; run ONLY the final-tip (command at the end of its EVIDENCE.md) and record it. READY. Engine 7 at merge. |
 | W3 S1 round 2 | QUEUED | `feat/pine-w3-drawings` @ 7eaca7777f. Finish the pending checks in its newest commit (measure-pair both lanes, final-tip). READY. Engine 8 at merge. |
 | W2 round 3 | QUEUED | `feat/pine-w2-arming` @ 1a8dddb408. Follow round2/WIP-STATE.md + round3-job.sh: classify P11, edit the packet. READY. NEVER arm or touch flags. |
 | E evidence-engine lows | QUEUED | `fix/pine-evidence-engine-lows` (if pushed) - offline tooling. |
