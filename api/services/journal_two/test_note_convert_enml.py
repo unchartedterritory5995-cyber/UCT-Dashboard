@@ -258,12 +258,36 @@ def test_todo_inside_a_list_item_takes_the_client_shape():
     assert item["attrs"]["checked"] is True and _text(item) == "a"
 
 
-def test_todos_inside_nested_list_items_move_after_the_outermost_list():
-    out = _convert('<ul><li>x<ul><li><div><en-todo/>a</div></li></ul></li><li>y</li></ul>')
-    blocks = _blocks(out)
-    assert [b["type"] for b in blocks] == ["bulletList", "taskList"]
-    assert "x" in _text(blocks[0]) and "y" in _text(blocks[0]) and "a" not in _text(blocks[0])
-    assert _text(blocks[1]) == "a"
+def _shape(node: Any) -> Any:
+    """Types only, nested: `(type, [children...])`, text nodes as their text."""
+    if node.get("type") == "text":
+        return node["text"]
+    return (node["type"], [_shape(c) for c in node.get("content") or []])
+
+
+# Task 4: measured on the client (the editor parser's list-item repair); replaces Task 3 m4's
+# "after the outermost list" guess, which held for one level only.
+@pytest.mark.parametrize("body,shape", [
+    ('<ul><li>outer<ul><li><div><en-todo/>deep</div></li></ul></li><li>second</li></ul>',
+     [("bulletList", [("listItem", [("paragraph", ["outer"]),
+                                    ("bulletList", [("listItem", [("paragraph", [])])]),
+                                    ("taskList", [("taskItem", [("paragraph", ["deep"])])])]),
+                      ("listItem", [("paragraph", ["second"])])])]),
+    ('<ul><li>text<div><en-todo checked="true"/>a</div></li><li>z</li></ul>',
+     [("bulletList", [("listItem", [("paragraph", ["text"]),
+                                    ("taskList", [("taskItem", [("paragraph", ["a"])])])]),
+                      ("listItem", [("paragraph", ["z"])])])]),
+    ('<ul><li><ul><li><div><en-todo/>deep</div></li></ul></li></ul>',
+     [("bulletList", [("listItem", [("paragraph", [])])]),
+      ("bulletList", [("listItem", [("paragraph", [])])]),
+      ("taskList", [("taskItem", [("paragraph", ["deep"])])])]),
+    ('<ol><li><div><en-todo/>a</div></li><li>b</li></ol>',
+     [("orderedList", [("listItem", [("paragraph", [])])]),
+      ("taskList", [("taskItem", [("paragraph", ["a"])])]),
+      ("bulletList", [("listItem", [("paragraph", ["b"])])])]),
+])
+def test_todo_placement_in_lists_matches_the_client(body, shape):
+    assert [_shape(b) for b in _blocks(_convert(body))] == shape
 
 
 @pytest.mark.parametrize("value,checked", [("true", True), ("TRUE", False), ("True", False),
@@ -464,6 +488,24 @@ def test_a_space_after_a_line_break_is_dropped_and_nbsp_is_never_trimmed():
     out = _convert("<div>x <br/> y</div><div>&nbsp;z&nbsp;</div>")
     assert _inline(out, 0) == [("text", "x ", ()), ("hardBreak", None, ()), ("text", "y", ())]
     assert _inline(out, 1) == [("text", "\xa0z\xa0", ())]
+
+
+@pytest.mark.parametrize("body,texts", [
+    ("<div>x</div><div> b</div>", ["x", " b"]),          # a later line keeps one leading space
+    ("<div> a</div><div>b</div>", ["a", "b"]),            # the first line of a container does not
+    ("<div>x</div><div>   b</div>", ["x", " b"]),         # collapsed to one
+    ("<div>x</div><div> <b>y</b></div>", ["x", "y"]),     # whitespace-only text before content
+    ("<div>x</div><p> p</p>", ["x", "p"]),                # a real <p> always loses it
+    ("<ul><li><div> a</div><div> b</div></li></ul>", None),  # per container (checked below)
+])
+def test_leading_space_on_a_later_line_matches_the_client(body, texts):
+    # Task 4 (re-review R4), measured by the ENML parity rail (`11-formatting-and-whitespace`).
+    out = _convert(body)
+    if body.startswith("<ul>"):
+        (item,) = _of_type(out, "listItem")
+        assert [_text(p) for p in item["content"]] == ["a", " b"]
+        return
+    assert [_text(b) for b in _blocks(out)] == texts
 
 
 def test_code_block_whitespace_is_untouched():

@@ -1,0 +1,110 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "Source: ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://site.com/articles/today"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "https://site.com/articles/today",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Clipped article. See ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://site.com/chart"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "the chart",
+            "type": "text"
+          },
+          {
+            "text": " and ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://cdn.site.com/x"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "the cdn",
+            "type": "text"
+          },
+          {
+            "text": ".",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000009/365dccce50f2d8411c4e737c7ff0057d"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://site.com/gallery"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "https://site.com/gallery",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Unsafe: click",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": [
+    {
+      "kind": "image",
+      "mime": "image/png",
+      "name": "chart.png",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000009/365dccce50f2d8411c4e737c7ff0057d"
+    }
+  ]
+}

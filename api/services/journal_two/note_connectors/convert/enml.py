@@ -595,34 +595,46 @@ def _todo_item(div: _Node) -> _Node:
     return _Node("li", {"data-uct-task": "1" if checked else "0"}, list(div.children))
 
 
-def _is_task_list(n: Any) -> bool:
-    return isinstance(n, _Node) and n.tag == "ul" and any(
-        isinstance(li, _Node) and li.tag == "li" and "data-uct-task" in li.attrs for li in n.children)
+_LIST_TYPES = ("bulletList", "orderedList")
 
 
-def _rule_todos_leave_lists(root: _Node) -> None:
-    """Task 3 review m4: a to-do run inside an ordinary list item takes the client's shape. In the
-    editor a task list cannot sit in a plain list item, so it comes out to just after the
-    OUTERMOST plain list, in order, and the item keeps an (empty) paragraph. Probed on the client
-    for one level; nested levels follow the same rule. One bottom-up pass."""
-    def fn(n: _Node) -> list[Any] | None:
-        if n.tag not in ("ul", "ol") or _is_task_list(n):
-            return None
-        hoisted: list[_Node] = []
-        for li in n.children:
-            if isinstance(li, _Node) and li.tag == "li":
-                kept = []
-                for c in li.children:
-                    (hoisted if _is_task_list(c) else kept).append(c)
-                li.children = kept
-            elif _is_task_list(li):  # hoisted out of a nested list into this one's items
-                hoisted.append(li)
-        if not hoisted:
-            return None
-        n.children = [c for c in n.children if not _is_task_list(c)]
-        return [n, *hoisted]
+def _split_list(lst: dict) -> list[dict]:
+    """One list, repaired the way the client's editor parser repairs it (Task 4, measured by the
+    ENML parity rail; it replaces Task 3 m4's one-level guess). A list item's content must start
+    with a paragraph. When an item's first child is a block (a task list, a nested list), the
+    parser closes that item with an empty paragraph and the item's content moves up a level,
+    after the list. The list's later items continue there in a NEW `bulletList` (the parser's
+    default wrapper, even under an `<ol>`), itself repaired the same way."""
+    items = lst.get("content") or []
+    for idx, item in enumerate(items):
+        content = item.get("content") or []
+        if content and content[0].get("type") != "paragraph":
+            before = {**lst, "content": [*items[:idx], {**item, "content": [{"type": "paragraph", "content": []}]}]}
+            out = [before, *content]
+            rest = items[idx + 1:]
+            if rest:
+                out.extend(_split_list({"type": "bulletList", "content": rest}))
+            return out
+    return [lst]
 
-    _map_elements(root, fn)
+
+def _repair_list_items(node: Any) -> None:
+    """Bottom-up: inner lists first, so a block that moves up into an item at its START makes that
+    item break in turn (the client's `<li><ul><li><todo>` shape)."""
+    if not isinstance(node, dict):
+        return
+    content = node.get("content")
+    if not isinstance(content, list):
+        return
+    for child in content:
+        _repair_list_items(child)
+    repaired: list[Any] = []
+    for child in content:
+        if isinstance(child, dict) and child.get("type") in _LIST_TYPES:
+            repaired.extend(_split_list(child))
+        else:
+            repaired.append(child)
+    node["content"] = repaired
 
 
 def _rule_append_uncited(root: _Node, res: _Resources) -> None:
@@ -747,6 +759,28 @@ def _is_whitespace_only(children: list[Any]) -> bool:
     return all(isinstance(c, str) and not c.strip() for c in children)
 
 
+def _rule_native_p_leading(root: _Node) -> None:
+    """A `<p>` written in the ENML is a real paragraph to the client's editor, which always drops
+    its leading whitespace (see `_trim_block_edges`). Runs before line divs become `<p>` too."""
+    for p in _iter(root, "p"):
+        stack: list[Any] = [p]
+        while stack:
+            node = stack.pop()
+            for i, c in enumerate(node.children):
+                if isinstance(c, str):
+                    stripped = c.lstrip(_PM_SPACE)
+                    node.children[i] = stripped
+                    if stripped:
+                        stack.clear()
+                        break
+                    continue
+                if c.tag in _VOID_TAGS:
+                    stack.clear()
+                    break
+                stack.append(c)  # descend into the first inline element
+                break
+
+
 def _rule_div_lines(root: _Node) -> None:
     def fn(n: _Node) -> list[Any] | None:
         if n.tag != "div":
@@ -783,11 +817,18 @@ _PM_SPACE = " \t\r\n\f"  # ProseMirror's whitespace class; a no-break space is n
 _TRIMMED_BLOCKS = frozenset({"paragraph", "heading"})
 
 
-def _trim_block_edges(block: dict) -> None:
+def _trim_block_edges(block: dict, *, later_line: bool = False) -> None:
     """Review n2: the client's editor parser (ProseMirror, whitespace not preserved) drops a
     leading space at the start of a text block, right after a line break, or after text that
     already ends in a space; and drops trailing whitespace at the end of the block. Ported so
-    `see ` / ` Multi space title ` come out as the client stores them. Code blocks are left alone."""
+    `see ` / ` Multi space title ` come out as the client stores them. Code blocks are left alone.
+
+    Task 4 (re-review R4), measured on the client by the ENML parity rail: an ENML line is a
+    `<div>`, which has no parse rule, so ProseMirror adds its text at the CONTAINER level. There
+    a whitespace-only text run is skipped, and a leading space survives when the container
+    already holds a block before it (`later_line`): `<div>x</div><div> b</div>` stores ` b`. The
+    first line of a container loses it. (A member-written `<p>` is a real paragraph to
+    ProseMirror and always loses it: `_rule_native_p_leading` strips that one up front.)"""
     items = block.get("content")
     if not isinstance(items, list):
         return
@@ -796,9 +837,13 @@ def _trim_block_edges(block: dict) -> None:
         if isinstance(item, dict) and item.get("type") == "text":
             text = item.get("text", "")
             prev = out[-1] if out else None
+            if prev is None and not text.strip(_PM_SPACE):
+                continue  # whitespace only, before the line has any content: skipped
             if text[:1] in tuple(_PM_SPACE) and (
-                    prev is None or prev.get("type") == "hardBreak"
-                    or (prev.get("type") == "text" and prev.get("text", "")[-1:] in tuple(_PM_SPACE))):
+                    (prev is None and not later_line) or (prev is not None and (
+                        prev.get("type") == "hardBreak"
+                        or (prev.get("type") == "text"
+                            and prev.get("text", "")[-1:] in tuple(_PM_SPACE))))):
                 text = text[1:]
             if not text:
                 continue
@@ -816,8 +861,6 @@ def _trim_block_edges(block: dict) -> None:
 def _post_pass(node: Any, names: dict[str, str], notices: _Notices) -> None:
     if not isinstance(node, dict):
         return
-    if node.get("type") in _TRIMMED_BLOCKS:
-        _trim_block_edges(node)
     content = node.get("content")
     if isinstance(content, list):
         marker = REF_PREFIX + _NOTICE_SCHEME
@@ -826,6 +869,8 @@ def _post_pass(node: Any, names: dict[str, str], notices: _Notices) -> None:
             if isinstance(child, dict) and child.get("type") == "image" and src.startswith(marker):
                 content[i] = dict(notices.nodes[int(src[len(marker):])])
                 continue
+            if isinstance(child, dict) and child.get("type") in _TRIMMED_BLOCKS:
+                _trim_block_edges(child, later_line=i > 0 and child.get("type") == "paragraph")
             _post_pass(child, names, notices)
     if node.get("type") == "attachmentChip":
         href = (node.get("attrs") or {}).get("href", "")
@@ -860,17 +905,18 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     _rule_note_links(root)             # 3
     _rule_en_media(root, res, notices)  # 4
     _rule_todos(root)                  # 5
-    _rule_todos_leave_lists(root)      # 5, the client's shape for a to-do in a list item (m4)
     _rule_append_uncited(root, res)    # 6
     _rule_source_line(root, source_url)  # 7
     _rule_resolve_web_links(root, _source_line_url(source_url))  # 8, the client's resolveWebLinks
     _rule_lift_media(root)             # 8
     _rule_codeblocks(root)             # 9
+    _rule_native_p_leading(root)       # before line divs become <p> (Task 4, R4)
     _rule_div_lines(root)
 
     result = html_to_tiptap("".join(_serialize(c) for c in root.children))
 
     names = {e["ref"]: e["name"] for e in res.unique if e["kind"] == "file"}
+    _repair_list_items(result["doc"])  # before the post-pass: it reads each block's final place
     _post_pass(result["doc"], names, notices)
 
     # Two kinds of ref only, by construction (I4 + the hotlink ruling): the note's resources

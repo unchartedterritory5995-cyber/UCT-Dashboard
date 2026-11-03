@@ -196,6 +196,7 @@ async function makeNoteDoc(noteEl, notebookName) {
   const enNote = innerDoc.querySelector('en-note') || innerDoc.body
 
   replaceEnCrypt(enNote)
+  const unsafe = refuseUnsafeImages(innerDoc, enNote) // Plan E Task 4: before any <img> of ours exists
   // Before the lift: an emptied note link is unwrapped (data-evernote-link), never shown as its
   // raw `evernote:///…` href.
   markEvernoteLinks(enNote)
@@ -207,10 +208,12 @@ async function makeNoteDoc(noteEl, notebookName) {
 
   const sourceUrl = noteSourceUrl(noteEl)
   if (sourceUrl) prependSourceLine(innerDoc, enNote, sourceUrl)
+  convertCodeBlocks(innerDoc, enNote) // Plan E Task 4: the server's rule 9, pinned by enml_parity
 
   const media = dedupeMedia([
     ...resources.map((r) => ({ ref: r.hash, vfile: r.vfile, kind: r.kind, name: r.name, mime: r.mime })),
     ...missing,
+    ...unsafe,
   ])
 
   return {
@@ -516,6 +519,78 @@ function extractTodoChecked(div) {
   const checked = todo.getAttribute('checked') === 'true'
   unwrapInPlace(todo)
   return checked
+}
+
+// ---------------------------------------------------------------------------
+// Plan E Task 4 (ENML parity rail, `enml_parity_fixtures_gen.py`): two rules the live-sync
+// converter (`convert/enml.py`) has, ported so a note means the same by file and by sync.
+// ---------------------------------------------------------------------------
+
+const CODEBLOCK_STYLE_RE = /-en-codeblock\s*:\s*true/i
+const OUR_REF_PREFIXES = ['import-ref://', 'import-attachment-ref://']
+// Read as a browser reads a scheme: whitespace and control characters inside it are ignored.
+const UNSAFE_IMG_SCHEME_RE = /^(?:javascript|vbscript|file):/i
+
+/** An `<img>` written in the note whose src is a script or local-file address (`javascript:`,
+ *  `vbscript:`, `file:`), or a forged `import-ref://` placeholder, becomes an `unsafe` notice IN
+ *  PLACE (a failed media item the commit turns into the notice), as `enml.py`'s refusal does.
+ *  Never an empty paragraph. Every other `<img>` (http(s), relative, `data:`) is left to the
+ *  post-parse pass exactly as before: copied in, resolved against the clip, or uploaded. */
+function refuseUnsafeImages(doc, root) {
+  const unsafe = []
+  for (const img of [...root.querySelectorAll('img')]) {
+    const src = (img.getAttribute('src') || '').trim()
+    const read = src.replace(/[\u0000- ]/g, '').toLowerCase()
+    const refused = UNSAFE_IMG_SCHEME_RE.test(read) || OUR_REF_PREFIXES.some((p) => read.startsWith(p))
+    if (!refused) continue
+    const ref = `unsafe-${unsafe.length + 1}`
+    unsafe.push({ ref, kind: 'image', name: null, failed: { reason: 'unsafe', sourceUrl: null } })
+    const placeholder = doc.createElement('img')
+    placeholder.setAttribute('src', `import-ref://${ref}`)
+    img.replaceWith(placeholder)
+  }
+  return unsafe
+}
+
+/** Text of a code block, verbatim: each child line (`<div>`/`<p>`) and each `<br>` is one `\n`,
+ *  nothing trimmed. The port of `enml.py::_code_text`. */
+function codeText(node) {
+  const parts = []
+  for (const c of node.childNodes) {
+    if (c.nodeType === 3) {
+      parts.push(c.nodeValue)
+    } else if (c.nodeType === 1) {
+      const tag = c.tagName.toLowerCase()
+      if (tag === 'br') {
+        parts.push('\n')
+      } else if (tag === 'div' || tag === 'p') {
+        let line = codeText(c)
+        if (line.endsWith('\n')) line = line.slice(0, -1)
+        if (parts.length && !parts[parts.length - 1].endsWith('\n')) parts.push('\n')
+        parts.push(line + '\n')
+      } else {
+        parts.push(codeText(c))
+      }
+    }
+  }
+  return parts.join('')
+}
+
+/** `<div style="…-en-codeblock:true…">` -> `<pre><code>` with its text verbatim; media found
+ *  inside it (an image, a chip) follows the block rather than vanish. The server's rule 9. */
+function convertCodeBlocks(doc, root) {
+  for (const div of [...root.querySelectorAll('div[style]')]) {
+    if (!div.isConnected || !CODEBLOCK_STYLE_RE.test(div.getAttribute('style') || '')) continue
+    let text = codeText(div)
+    if (text.endsWith('\n')) text = text.slice(0, -1)
+    const pre = doc.createElement('pre')
+    const code = doc.createElement('code')
+    code.textContent = text
+    pre.appendChild(code)
+    const media = [...div.querySelectorAll('img, [data-type="attachmentChip"]')]
+      .filter((el) => !el.parentElement.closest('[data-type="attachmentChip"]'))
+    div.replaceWith(pre, ...media)
+  }
 }
 
 // ---------------------------------------------------------------------------
