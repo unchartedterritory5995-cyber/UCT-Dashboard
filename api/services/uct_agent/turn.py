@@ -648,6 +648,8 @@ def _catalog_lines(capabilities: list[dict], lean: bool = False) -> list[str]:
                 lines.append(f"  {k} ids: " + ", ".join(map(str, vals)))
     if any(a["name"] == "breadth.show" for a in capabilities):
         lines.append(BREADTH_RULE)
+    if any(a["name"] == "screener.run" for a in capabilities):
+        lines.append(SCREEN_RULE)
     return lines
 
 
@@ -745,6 +747,22 @@ def _last_breadth_row(history) -> bool:
 
 def is_breadth_question(message: str) -> bool:
     return bool(_BREADTH_Q.search(message or ""))
+
+
+#: A COUNT or LIST of stocks meeting a condition is UCT's own Screener, never the web (2026-11-03, production:
+#: "how many stocks are up more than 5% today" was web-researched). Mirrors the screener words in
+#: app/src/agent/routing.js that select the group for exactly these questions.
+_SCREEN_Q = re.compile(r"\b(how many|which|what) (stocks|names|tickers|equities)\b|"
+                       r"\b(stocks|names|tickers|equities) (are |were |that are |that were )?(up|down|gained|lost|gaining|"
+                       r"losing|rose|fell|rising|falling|green|red)\b", re.I)
+SCREEN_RULE = ("SCREENS: a count or list of stocks meeting a price, volume, change or other field condition (\"how many "
+               "stocks are up more than 5%\", \"which stocks gained over 5%\") is UCT's Screener — plan screener.run, never "
+               "research it and never answer it from memory. Screen data is the latest UCT snapshot: say the as-of date it "
+               "reports, never promise a live intraday count.")
+
+
+def is_screen_question(message: str) -> bool:
+    return bool(_SCREEN_Q.search(message or ""))
 
 
 #: Every notice UCT may give on a local plan — the ONLY agent text of such a plan ever shown or replayed.
@@ -1743,8 +1761,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         if breadth_q and isinstance(req, dict) and not (_NEWS_WORDS.search(msg) or _EXPLAIN_WORDS.search(msg)):
             req = None                # ⛔ a breadth LOOKUP is UCT's own data: never the web
             usage["breadth_research_blocked"] = True
+        screen_q = "screener.run" in cap_names and is_screen_question(msg)
+        if screen_q and isinstance(req, dict) and not (_NEWS_WORDS.search(msg) or _EXPLAIN_WORDS.search(msg)):
+            req = None                # ⛔ a count / list of stocks is UCT's Screener: never the web
+            usage["screen_research_blocked"] = True
         if (round_ == 0 and disp == "answer" and not (isinstance(req, dict) and str(req.get("query") or "").strip())
-                and not breadth_q and not nl1 and _needs_current_facts(msg)):
+                and not breadth_q and not screen_q and not nl1 and _needs_current_facts(msg)):
             # A clearly time-sensitive external question answered from memory: look it up once,
             # with the member's own words as the query (never the model's answer).
             req = {"query": msg, "recency": "week"}

@@ -105,7 +105,13 @@ export const GROUPS = [
       /\b(rsi|adx|cci|stochastics?|mfi)\s*(is |reading |readings? )?(over|above|under|below|greater than|less than|>|<)\s*-?\d+/,
       /\b(ema|sma|ma)\s*\d+\s+cross\w*\s+(above|below|over|under)\b/, /\b(macd|rsi|momentum) (just )?(turned|turning|crossed|went) (positive|negative|up|down|bullish|bearish)\b/,
       /\bshort (float|interest)\b/, /\b(earnings|reporting|reports?|report) (in|within) the next \d+ (days?|weeks?)\b|\b(reporting|earnings) (this|next) week\b/,
-      /\bsectors?'? leaders\b|\bleaders (in|of) (the )?(strongest|top|leading|best) (sectors?|groups?|industries)\b/],
+      /\bsectors?'? leaders\b|\bleaders (in|of) (the )?(strongest|top|leading|best) (sectors?|groups?|industries)\b/,
+      // COUNT / LIST OF STOCKS ON A MOVE (2026-11-03, production miss): "how many stocks are up more than 5% today",
+      // "which stocks gained over 5%", "stocks up more than 5%" named no screen word, so the model never saw the
+      // screener and answered from the web. A question over a UNIVERSE of stocks — never one named ticker ("is
+      // NVDA up more than 5%" stays a quote). Mirrored by turn.py `_SCREEN_Q` (no web research for these).
+      /\b(how many|which|what) (stocks|names|tickers|equities)\b/,
+      /\b(stocks|names|tickers|equities) (are |were |that are |that were )?(up|down|gained|lost|gaining|losing|rose|fell|rising|falling|green|red)\b/],
     // ⭐ Gate B (0C): TRADING VOCABULARY that names a SCREEN without the word "screen" (soft, see
     // selectGroups). Routing only: it changes which actions the model SEES first, never what a word
     // means (meanings are Phase 1B) and never drops a group that would otherwise have been sent.
