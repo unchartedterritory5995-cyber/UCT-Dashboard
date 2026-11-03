@@ -74,6 +74,8 @@ KB = [
     (13, "SETUP", "Unknown source episodic pivot", "episodic pivot gap volume from a new source", "brand_new_source", "X", 1),
 ]
 
+FIXTURE_TAGS = {2: "ep,EP,episodic pivot,gap,setup_knowledge"}      # as the real setup_knowledge sync writes them
+
 TEMPLATES = [
     ("Episodic Pivot", "Gap & Catalyst", "TSDR", "A gap on a fresh catalyst.", ["EP", "episodic pivot"],
      {"primary": "opening range high"}, {"initial": "low of day"}, 8.0, {"structural": "gap fills"}, ["chasing"]),
@@ -103,7 +105,7 @@ def _make_pack(root: Path, data_dir: Path, ts: int, kb=KB, perf_htf_days=60) -> 
               " knowledge_epoch TEXT, created_at TEXT, updated_at TEXT)")
     for (i, cat, t, body, src, tr, d) in kb:
         c.execute("INSERT INTO knowledge_base VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  (i, cat, t, body, "", tr, f"ref:{i}", "", 2, 1, src, "2026", _iso(d), _iso(d)))
+                  (i, cat, t, body, FIXTURE_TAGS.get(i, ""), tr, f"ref:{i}", "", 2, 1, src, "2026", _iso(d), _iso(d)))
     c.execute("CREATE TABLE setup_templates (id INTEGER PRIMARY KEY, name TEXT, family TEXT, origin_trader TEXT,"
               " description TEXT, aliases TEXT, ideal_regime TEXT, entry_triggers TEXT, stop_methods TEXT,"
               " max_stop_pct REAL, profit_logic TEXT, invalidation TEXT, common_mistakes TEXT, active INTEGER)")
@@ -396,7 +398,7 @@ def test_no_pack_is_refused_honestly(kn, monkeypatch, tmp_path):
 def test_new_pack_version_rebuilds_the_index_and_serves_new_teaching(kn):
     first = read("knowledge.search", {"question": "volatility contraction pattern"})
     assert first["data"]["passages"] == []
-    kb = list(KB) + [(14, "SETUP", "UCT team playbook: VCP", "Volatility contraction pattern: tighter pullbacks into "
+    kb = list(KB) + [(14, "FRAMEWORK", "UCT team playbook: VCP", "Volatility contraction pattern: tighter pullbacks into "
                       "a pivot on drying volume.", "setup_knowledge", "UCT Team", 1)]
     new_ts = int(time.time()) + 1
     _make_pack(kn["brain"], kn["data"], new_ts, kb=kb)
@@ -588,7 +590,8 @@ def test_alias_expansion_is_whole_word_and_data_driven(kn):
 def test_shorthand_question_finds_the_spelled_out_teaching(kn):
     c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
     c.execute("INSERT INTO knowledge_base VALUES (30,'SETUP','UCT team playbook: catalyst gaps','A fresh catalyst gap: "
-              "Episodic Pivot rules from the team.','','UCT Team','ref:30','',2,1,'setup_knowledge','2026',?,?)",
+              "Episodic Pivot rules from the team.','ep,EP,episodic pivot,gap,setup_knowledge','UCT Team','ref:30','',2,1,"
+              "'setup_knowledge','2026',?,?)",
               (time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime()),) * 2)
     c.commit(); c.close()
     (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 3), encoding="utf-8")
@@ -613,7 +616,7 @@ def test_adjacent_words_are_phrase_terms_and_stay_injection_safe():
 def test_excerpt_starts_where_the_question_matches(kn):
     long_body = ("Intro sentence about the market. " * 20) + "The kicker trigger is the gap over the moving averages. More."
     c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
-    c.execute("INSERT INTO knowledge_base VALUES (31,'SETUP','UCT team playbook: notes','" + long_body + "','','UCT Team',"
+    c.execute("INSERT INTO knowledge_base VALUES (31,'SETUP','UCT team playbook: notes','" + long_body + "','kicker,kicker,gap,setup_knowledge','UCT Team',"
               "'ref:31','',2,1,'setup_knowledge','2026',?,?)", (time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime()),) * 2)
     c.commit(); c.close()
     (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 4), encoding="utf-8")
@@ -1309,3 +1312,23 @@ def test_n14_trimmed_excerpts_never_exceed_the_turn_budget(kn, monkeypatch, tmp_
     monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
     out = gateway.read("knowledge.search", {"question": "episodic pivot gap volume", "k": 3}, user_id=10, turn_id="n14")
     assert sum(len(p["excerpt"]) for p in out["data"]["passages"]) <= 333
+
+
+# ── N-15: a setup_knowledge SETUP row that resolves to no template fails CLOSED ────────────────────────
+def test_n15_unresolved_setup_rows_are_withheld_and_other_rows_are_not(kn):
+    c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
+    now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+    c.execute("INSERT INTO knowledge_base VALUES (50,'SETUP','UCT team playbook: zebra squeeze','Zebra squeeze setup: "
+              "stripes tighten.','zebra_squeeze,zebra squeeze,squeeze,setup_knowledge','UCT Team','ref:50','',2,1,"
+              "'setup_knowledge','2026',?,?)", (now, now))
+    c.execute("INSERT INTO knowledge_base VALUES (51,'PRINCIPLE','UCT team playbook: zebra patience','Zebra patience "
+              "principle: wait for stripes.','zebra,patience,principle,setup_knowledge','UCT Team','ref:51','',2,1,"
+              "'setup_knowledge','2026',?,?)", (now, now))
+    c.commit()
+    c.close()
+    (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 8), encoding="utf-8")
+    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "zebra squeeze stripes patience", "k": 3})["data"]["passages"]}
+    assert 50 not in ids                       # SETUP, no template: withheld
+    assert 51 in ids                           # a principle row keeps its handling
+    ep = {p["kb_id"] for p in read("knowledge.search", {"question": "episodic pivot catalyst gap trigger", "k": 3})["data"]["passages"]}
+    assert 2 in ep                             # a SETUP row tied to an admitted team template is served

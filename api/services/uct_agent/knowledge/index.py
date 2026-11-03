@@ -180,19 +180,27 @@ def _linked_templates(d: dict, alias_to_templates: dict) -> list:
 
 
 def excluded_by_template(template_admitted) -> list:
-    """kb_ids of setup_knowledge rows whose linked templates are ALL not admitted (N-7b). `template_admitted(name)`
-    answers per template; rows linked to no template (principles, market reads) are never excluded here."""
+    """kb_ids of setup_knowledge SETUP rows that may describe a blocked setup (N-7b, N-15), fail closed:
+      - linked templates ALL not admitted -> excluded;
+      - a SETUP row whose tags resolve to NO template -> excluded (presence is not approval: a row we cannot tie to an
+        admitted template may describe a blocked setup).
+    Non-SETUP rows (principles, market reads, frameworks) are never excluded here."""
     if not os.path.isfile(index_path()):
         return []
     c = _connect()
     try:
         rows = c.execute("SELECT kb_id, setup_templates FROM docs WHERE source = 'setup_knowledge' "
-                         "AND setup_templates != ''").fetchall()
+                         "AND category = 'SETUP'").fetchall()
     except sqlite3.Error:
         return []
     finally:
         c.close()
-    return [int(r[0]) for r in rows if not any(template_admitted(n) for n in str(r[1]).split("|") if n)]
+    out = []
+    for kb_id, linked in rows:
+        names = [n for n in str(linked or "").split("|") if n]
+        if not names or not any(template_admitted(n) for n in names):
+            out.append(int(kb_id))
+    return out
 
 
 def ensure() -> dict:
