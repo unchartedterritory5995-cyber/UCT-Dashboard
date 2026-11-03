@@ -51,9 +51,19 @@ _CONFUSABLES = str.maketrans({
 })
 
 
+# review: Arabic-Indic / extended Arabic-Indic digits read as ASCII digits (the browser mirror's \d is ASCII-only)
+_DIGITS = str.maketrans({**{chr(0x0660 + i): str(i) for i in range(10)}, **{chr(0x06F0 + i): str(i) for i in range(10)}})
+# a (non-breaking) hyphen INSIDE a word is dropped ("guaran‑teed" is "guaranteed")
+_INWORD_HYPHEN = re.compile(r"([A-Za-z])[‐‑]([A-Za-z])")
+
+
 def normalize(text: str) -> str:
-    """The text every check reads (NFKC + the confusables above)."""
-    return unicodedata.normalize("NFKC", str(text or "")).translate(_CONFUSABLES)
+    """The text every check reads: NFKD with accents stripped, then NFKC (NBSP -> space), the confusables above,
+    ASCII digits, and in-word hyphens dropped."""
+    t = unicodedata.normalize("NFKD", str(text or ""))
+    t = "".join(ch for ch in t if not unicodedata.combining(ch))
+    t = unicodedata.normalize("NFKC", t).translate(_CONFUSABLES).translate(_DIGITS)
+    return _INWORD_HYPHEN.sub(r"\1\2", t)
 
 
 # the mandated footer is NOT a hedge: it is removed before the uncertainty check (W3 review C2)
@@ -63,7 +73,15 @@ _MOVE = (r"(?:go|move|head|trade|rally|rip|run|climb|rise|fall|drop|tank|crash|b
          r"triple|soar|plunge|squeeze|explode|moon|continue|hold|keep going|take off|hit|reach)")
 UNSUPPORTED = [
     ("guarantee", re.compile(r"\bguarantee[sd]?\b", re.I)),
-    ("will-move", re.compile(r"\bwill\s+(?:definitely\s+|certainly\s+|surely\s+|almost certainly\s+|probably\s+)?" + _MOVE + r"\b", re.I)),
+    ("will-move", re.compile(r"(?:\bwill|[a-z]'ll)\s+(?:definitely\s+|certainly\s+|surely\s+|almost certainly\s+|probably\s+)?" + _MOVE + r"\b", re.I)),
+    # review B2: a promised result, a certainty stated as a negation, hype-predictive verbs
+    ("will-profit", re.compile(r"(?:\bwill|[a-z]'ll)\s+(?:definitely\s+|certainly\s+|surely\s+|probably\s+)?(?:make (?:you )?(?:money|a profit|profits|gains?|bank)|"
+                               r"profit|win|earn|pay off|be profitable|be a winner|be a big winner)\b", re.I)),
+    ("no-chance", re.compile(r"\b(?:zero|no|nil|little|almost no|essentially no|practically no)\s+(?:chance|way|risk|possibility)\s+"
+                             r"(?:that\s+)?(?:this|it|that|the stock|the setup|the trade)\s+(?:\w+\s+)?(?:fails?|loses?|drops?|goes down|go down|"
+                             r"breaks? down|doesn't work|won't work|reverses?)\b", re.I)),
+    ("hype", re.compile(r"\b(?:poised|primed|set|ready|due|destined|about)\s+to\s+(?:soar|explode|rip|rocket|moon|skyrocket|surge|"
+                        r"rally|break ?out|take off|run|pop|fly|squeeze)\b|\bto the moon\b|\bcan't[- ]miss\b", re.I)),
     ("going-to", re.compile(r"\b(?:is|are|it's|its|this is|that's)\s+(?:going to|gonna)\s+" + _MOVE + r"\b", re.I)),
     ("cant-lose", re.compile(r"\bcan(?:'t|not|t)\s+(?:lose|fail|miss|go wrong|go down|go lower)\b", re.I)),
     ("wont-lose", re.compile(r"\b(?:won't|wont|will not)\s+(?:lose|fail|miss|go wrong|go down|go lower|drop|fall|break down)\b", re.I)),
@@ -96,11 +114,21 @@ ORDER = [
     ("you-should", re.compile(r"\b(?:you should|you need to|you must|you have to|i would|i'd|i'd say|go ahead and|my advice is to|time to|"
                               r"consider|i'd be|i would be|i'm|i am)\s+"
                               r"(?:(?:buy|sell|short)(?:ing)?|cover|go long|go short|get in|get out|take the trade|take this trade|add|enter|exit|bail|dump)\b", re.I)),
+    # review B2: advice by recommendation, "you might want to", opening / building a position, "worth trading"
+    ("recommend", re.compile(r"\b(?:recommend|suggest|advise|urge)\s+(?:that you\s+|you\s+)?(?:(?:buy|sell|short)(?:ing)?|picking up|adding|"
+                             r"taking (?:a|the) (?:trade|position)|entering|getting (?:in|long|short)|going (?:long|short)|accumulat\w+|"
+                             r"initiat\w+|opening a|starting a|a (?:starter|full|small|long|short) position|a position)\b", re.I)),
+    ("want-to", re.compile(r"\byou (?:might|may|could|should|would|will) (?:want|wish|like) to\s+(?:buy|sell|short|accumulate|add|enter|exit|"
+                           r"initiate|start|open|pick up|grab|load|trim|get (?:in|long|short)|go (?:long|short))\b", re.I)),
+    ("position", re.compile(r"\b(?:initiat\w*|open(?:ing)?|start(?:ing)?|establish\w*|build(?:ing)?|take|taking)\s+(?:a |an |your )?"
+                            r"(?:new |starter |small |full |initial )?(?:long |short )position\b", re.I)),
+    ("worth-trading", re.compile(r"\b(?:worth|good (?:time|spot|place|entry|idea)|great (?:time|spot|entry)|ideal (?:time|spot|entry))\s+"
+                                 r"(?:(?:trading|buying|selling|shorting|owning)\b|to (?:buy|sell|short|trade|initiate|enter|get in|start|own)\b)", re.I)),
     ("load-up", re.compile(r"\bload(?:ing)? up\b|\btrim(?:ming)?\s+(?:half|some|a third|a quarter|\d)", re.I)),
     ("take-trade", re.compile(r"\b(?:take|make) (?:the|this|that) trade\b|\bpull the trigger\b|\bget in (?:now|here|today)\b|\bget out (?:now|here|today)\b", re.I)),
 ]
 
-OUTCOME = re.compile(r"\b(?:will|likely|unlikely|probab\w*|odds|chances?|expect\w*|outcomes?|follow[- ]?through|work(?:s|ed)? out|"
+OUTCOME = re.compile(r"\b(?:will|\w+'ll|likely|unlikely|probab\w*|odds|chances?|expect\w*|outcomes?|follow[- ]?through|work(?:s|ed)? out|"
                      r"play(?:s|ed)? out|next (?:move|session|week|day|leg)|going to|gonna|succeed\w*|fail\w*|targets?|upside|downside|"
                      r"forecast\w*|predict\w*|rally|rallies|bounce\w*|break ?outs?|breakdowns?|continu\w*|resolv\w*|should (?:hold|work|go|rally|bounce))\b", re.I)
 HEDGE = re.compile(r"\b(?:may|might|could|often|sometimes|tends? to|tend|not guaranteed|no guarantee|no guarantees|isn't guaranteed|"

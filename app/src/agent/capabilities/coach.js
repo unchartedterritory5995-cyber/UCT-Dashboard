@@ -30,6 +30,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import * as agentClient from '../agentClient'
+import { GROUPS } from '../routing'
 import { explainWords, explainTopic } from '../guide/explain'
 import { loadConcepts, conceptsLoaded, conceptFor, conceptTitles, coachFooter } from '../coach/concepts'
 import { observe, lastObserved, observedChart, barsServed } from '../coach/observe'
@@ -60,7 +61,15 @@ let lastConceptId = null
 let lastReview = null                   // { stats, text } of the latest consented review (for the context entry, the note guard)
 let lastMessage = ''                    // the member's latest coaching message (a note may echo its figures)
 let disposers = []
-export const _resetCoachForTest = () => { for (const d of disposers) { try { d() } catch { /* */ } } disposers = []; registered = false; lastConceptId = null; lastReview = null; lastMessage = '' }
+
+// review B1: the coach routing group's words, live ONLY while the coach capabilities are registered (routing.js keeps
+// the group's words empty), so a dark server routes exactly as the base does
+export const COACH_ROUTE_WORDS = [/\b(coach|coaching|teach me about|help me understand|how (?:should|do) i think about|my (?:trades|trading|journal|last \d+ trades|recent trades|win rate|results)|review my|use my journal|stop using my journal|position siz\w+|risk per trade|r[- ]multiple|expectancy|drawdown|relative strength|support and resistance|consolidation|tightness|failed breakouts?|earnings gaps?|stop placement|where to put (?:a|my) stop)\b/]
+function armRouting(on) {
+  const g = GROUPS.find(x => x.id === 'coach')
+  if (g) g.words.splice(0, g.words.length, ...(on ? COACH_ROUTE_WORDS : []))
+}
+export const _resetCoachForTest = () => { for (const d of disposers) { try { d() } catch { /* */ } } disposers = []; registered = false; lastConceptId = null; lastReview = null; lastMessage = ''; armRouting(false) }
 export const _lastReview = () => lastReview
 
 const CONSENT_NEEDED = `I can only look at your journal after you allow it in this chat — say “yes, use my journal” (and “stop using my journal” whenever you want me to stop). ${coachFooter()}`
@@ -108,6 +117,8 @@ export async function explainConcept(topic, host) {
 export function registerCoachCapabilities() {
   if (registered || !agentClient.serverServesCoach()) return
   registered = true
+  armRouting(true)
+  disposers.push(() => armRouting(false))
   loadConcepts()                                   // once per page; the fast path uses it once it has arrived
   const self = () => ({ ref: 'coach', label: LABEL, consent: consentState(), note: null })
   disposers.push(registerTargetKind({
