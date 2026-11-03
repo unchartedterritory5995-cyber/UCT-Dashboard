@@ -712,3 +712,244 @@ def test_the_splitter_equals_the_whole_buffer_split_for_any_chunking():
         got = [e for piece in pieces for e in splitter.feed(piece)] + splitter.finish()
         want = body.replace("\r\n", "\n").split("\n\n")
         assert [e for e in got if e] == [e for e in want if e], (body, pieces)
+
+
+# --------------------------------------------------------------------------- tool-level rate limit
+#
+# Live gate 2026-11-03: the owner's first Evernote pass created 75 of 215 notes; the other 140
+# failed with `get_note: Rate limit exceeded: "get_note" is being called faster than allowed. Wait
+# about 60 second(s)...`. Evernote's hosted MCP server reports its per-minute limit as a TOOL-LEVEL
+# error (`isError: true` and that text), not an HTTP 429, so it used to be a final
+# `NoteConnUnsupported` and every remaining `get_note` in the pass failed fast.
+
+def _limited(seconds: int | None = 60, tool: str = "get_note") -> dict:
+    """Evernote's measured wording (production log 2026-11-03)."""
+    text = f'Rate limit exceeded: "{tool}" is being called faster than allowed.'
+    if seconds is not None:
+        text += f" Wait about {seconds} second(s) before trying again."
+    return _ok({}, is_error=True, text=text)
+
+
+class FakeTime:
+    """A clock that only moves when the client sleeps or the fake server says a call took time.
+    Nothing ever really sleeps."""
+
+    def __init__(self, t: float = 5000.0) -> None:
+        self.t = t
+        self.sleeps: list[float] = []
+
+    def clock(self) -> float:
+        return self.t
+
+    async def sleep(self, s: float) -> None:
+        self.sleeps.append(s)
+        self.t += s
+
+
+def _timed_client(server: Server, ft: FakeTime):
+    http = httpx.AsyncClient(transport=httpx.MockTransport(server))
+    client = evernote_mcp.EvernoteMcpClient(
+        TOKEN, http=http, sleep=ft.sleep, clock=ft.clock, jitter=lambda: 1.0)
+    client._test_server = server
+    return client
+
+
+def _wait(seconds: float) -> float:
+    return min(seconds, evernote_mcp.MAX_RETRY_AFTER_S) + evernote_mcp.RATE_LIMIT_MARGIN_S
+
+
+async def test_tool_level_rate_limit_is_retried_after_the_parsed_wait():
+    ft = FakeTime()
+    n = {"calls": 0}
+
+    def on_call(req, body):
+        n["calls"] += 1
+        return _limited(42) if n["calls"] == 1 else _ok({"title": "back"})
+
+    client = _timed_client(Server(on_call), ft)
+    assert await client.call_tool("get_note", {"noteId": "n1"}) == {"title": "back"}
+    assert ft.sleeps == [pytest.approx(_wait(42))]
+    calls = client._test_server.calls()
+    # The SAME call, retried: same tool, same arguments.
+    assert [_rpc(r)["params"] for r in calls] == [
+        {"name": "get_note", "arguments": {"noteId": "n1"}}] * 2
+
+
+@pytest.mark.parametrize("text, waited", [
+    ('RATE LIMIT EXCEEDED: "get_note". WAIT ABOUT 9 SECOND(S).', 9),
+    ('"get_note" is being called faster than allowed. wait about 12 seconds', 12),
+    ("Rate limit exceeded.", None),  # no wait in the text: the default
+    ('"search_notes" is Being Called Faster Than Allowed', None),
+])
+async def test_tool_level_rate_limit_matches_case_insensitively(text, waited):
+    ft = FakeTime()
+    n = {"calls": 0}
+
+    def on_call(req, body):
+        n["calls"] += 1
+        return _ok({}, is_error=True, text=text) if n["calls"] == 1 else _ok({"ok": 1})
+
+    client = _timed_client(Server(on_call), ft)
+    assert await client.call_tool("get_note", {"noteId": "n1"}) == {"ok": 1}
+    expected = waited if waited is not None else evernote_mcp.TOOL_RATE_LIMIT_DEFAULT_WAIT_S
+    assert ft.sleeps == [pytest.approx(_wait(expected))]
+
+
+async def test_tool_level_rate_limit_wait_is_capped():
+    ft = FakeTime()
+    n = {"calls": 0}
+
+    def on_call(req, body):
+        n["calls"] += 1
+        return _limited(3600) if n["calls"] == 1 else _ok({})
+
+    client = _timed_client(Server(on_call), ft)
+    await client.call_tool("get_note", {"noteId": "n1"})
+    assert ft.sleeps == [pytest.approx(
+        evernote_mcp.MAX_RETRY_AFTER_S + evernote_mcp.RATE_LIMIT_MARGIN_S)]
+
+
+async def test_tool_level_rate_limit_retries_are_bounded_then_rate_limited():
+    ft = FakeTime()
+    client = _timed_client(Server(lambda req, body: _limited(20)), ft)
+    with pytest.raises(errors.NoteConnRateLimited) as ei:
+        await client.call_tool("get_note", {"noteId": "n1"})
+    assert not isinstance(ei.value, errors.NoteConnUnsupported)
+    assert ei.value.retry_after == 20.0
+    assert ei.value.code == "evernote_tool_rate_limited"
+    assert len(client._test_server.calls()) == 1 + evernote_mcp.TOOL_RATE_LIMIT_RETRIES
+    waits = [s for s in ft.sleeps if s >= _wait(20) - 0.01]
+    assert waits == [pytest.approx(_wait(20))] * evernote_mcp.TOOL_RATE_LIMIT_RETRIES
+
+
+async def test_a_non_rate_limit_tool_error_is_unchanged():
+    ft = FakeTime()
+    client = _timed_client(Server(
+        lambda req, body: _ok({}, is_error=True, text="Note size limit exceeded for n1")), ft)
+    with pytest.raises(errors.NoteConnUnsupported) as ei:
+        await client.call_tool("get_note", {"noteId": "n1"})
+    assert not isinstance(ei.value, errors.NoteConnRateLimited)
+    assert ei.value.code == "evernote_tool_error"
+    assert ei.value.reason == "Note size limit exceeded for n1"
+    assert len(client._test_server.calls()) == 1  # never retried
+    assert ft.sleeps == []
+    assert client.call_interval_s == evernote_mcp.MIN_CALL_INTERVAL_S  # pacing untouched
+
+
+async def test_pacing_engages_only_after_a_rate_limit_trip():
+    ft = FakeTime()
+    state = {"calls": 0, "trip_at": 31}
+
+    def on_call(req, body):
+        state["calls"] += 1
+        ft.t += 0.5  # each call takes half a second: well over MIN_CALL_INTERVAL_S
+        return _limited(30) if state["calls"] == state["trip_at"] else _ok({"ok": 1})
+
+    client = _timed_client(Server(on_call), ft)
+    # A healthy pass: 30 calls, no trip, no pacing sleep at all.
+    for i in range(30):
+        await client.call_tool("get_note", {"noteId": f"n{i}"})
+    assert ft.sleeps == []
+    assert client.call_interval_s == evernote_mcp.MIN_CALL_INTERVAL_S
+
+    # Call 31 trips. 31 calls went out in the 60 s before it (15.5 s of them), so the session now
+    # paces at ADAPTIVE_RATE_FRACTION of that observed rate: 60 / 31 / 0.8.
+    await client.call_tool("get_note", {"noteId": "n30"})
+    assert ft.sleeps == [pytest.approx(_wait(30))]
+    expected = evernote_mcp.RATE_WINDOW_S / 31 / evernote_mcp.ADAPTIVE_RATE_FRACTION
+    assert client.call_interval_s == pytest.approx(expected)
+
+    # Every later call in this session waits out the slower interval (minus the call's own 0.5 s).
+    ft.sleeps.clear()
+    for i in range(3):
+        await client.call_tool("get_note", {"noteId": f"m{i}"})
+    assert ft.sleeps == [pytest.approx(expected - 0.5)] * 3
+
+    # A NEW session (a new client: the next pass) starts fast again.
+    ft2 = FakeTime()
+    fresh = _timed_client(Server(lambda req, body: _ok({"ok": 1})), ft2)
+    assert fresh.call_interval_s == evernote_mcp.MIN_CALL_INTERVAL_S
+
+
+async def test_adaptive_interval_is_bounded_above():
+    ft = FakeTime()
+    plan = {"calls": 0}
+
+    def on_call(req, body):
+        plan["calls"] += 1
+        ft.t += 0.1
+        return _limited(5) if plan["calls"] in (1, 3) else _ok({})
+
+    client = _timed_client(Server(on_call), ft)
+    # One call in the window at the first trip: 60 / 1 / 0.8 = 75 s, clamped to the maximum.
+    await client.call_tool("get_note", {"noteId": "a"})
+    assert client.call_interval_s == evernote_mcp.ADAPTIVE_MAX_INTERVAL_S
+    await client.call_tool("get_note", {"noteId": "b"})  # trips again (call 3)
+    assert client.call_interval_s == evernote_mcp.ADAPTIVE_MAX_INTERVAL_S  # never above it
+
+
+async def test_a_second_trip_doubles_the_interval():
+    ft = FakeTime()
+    plan = {"calls": 0}
+
+    def on_call(req, body):
+        plan["calls"] += 1
+        ft.t += 0.1
+        # 201 fast calls (0.1 s each), the last one trips; then a trip on the 4th call after.
+        return _limited(1) if plan["calls"] in (201, 206) else _ok({})
+
+    client = _timed_client(Server(on_call), ft)
+    for i in range(201):
+        await client.call_tool("get_note", {"noteId": f"n{i}"})
+    first = client.call_interval_s
+    assert first == evernote_mcp.ADAPTIVE_MIN_INTERVAL_S  # 60 / 201 / 0.8 = 0.37, floored
+    for i in range(4):
+        await client.call_tool("get_note", {"noteId": f"m{i}"})
+    assert client.call_interval_s == pytest.approx(2 * first)
+
+
+async def test_the_session_wait_budget_bounds_rate_limit_waiting():
+    ft = FakeTime()
+    client = _timed_client(Server(lambda req, body: _limited(60)), ft)
+    for i in range(20):
+        with pytest.raises(errors.NoteConnRateLimited):
+            await client.call_tool("get_note", {"noteId": f"n{i}"})
+    waited = sum(s for s in ft.sleeps if s >= _wait(60) - 0.01)
+    assert 0 < waited <= evernote_mcp.RATE_LIMIT_WAIT_BUDGET_S
+    # Once the budget is spent a rate-limited call fails fast: one request, no rate-limit wait.
+    before = len(client._test_server.calls())
+    ft.sleeps.clear()
+    with pytest.raises(errors.NoteConnRateLimited):
+        await client.call_tool("get_note", {"noteId": "last"})
+    assert len(client._test_server.calls()) == before + 1
+    assert all(s < _wait(60) - 0.01 for s in ft.sleeps)
+
+
+def test_rate_limit_constants():
+    assert evernote_mcp.TOOL_RATE_LIMIT_RETRIES == 3
+    assert evernote_mcp.TOOL_RATE_LIMIT_DEFAULT_WAIT_S == 60.0
+    assert evernote_mcp.RATE_LIMIT_MARGIN_S == 1.0
+    assert evernote_mcp.RATE_WINDOW_S == 60.0
+    assert evernote_mcp.ADAPTIVE_RATE_FRACTION == 0.8
+    assert evernote_mcp.ADAPTIVE_MIN_INTERVAL_S == 1.0
+    assert evernote_mcp.ADAPTIVE_MAX_INTERVAL_S == 10.0
+    assert evernote_mcp.RATE_LIMIT_WAIT_BUDGET_S == 600.0
+
+
+async def test_only_calls_inside_the_window_set_the_adaptive_interval():
+    ft = FakeTime()
+    plan = {"calls": 0}
+
+    def on_call(req, body):
+        plan["calls"] += 1
+        ft.t += 0.1
+        return _limited(1) if plan["calls"] == 130 else _ok({})
+
+    client = _timed_client(Server(on_call), ft)
+    for i in range(100):
+        await client.call_tool("get_note", {"noteId": f"old{i}"})
+    ft.t += 120.0  # those 100 calls are now outside the 60 s window
+    for i in range(30):
+        await client.call_tool("get_note", {"noteId": f"new{i}"})
+    # 30 calls in the window (not 130): 60 / 30 / 0.8 = 2.5 s.
+    assert client.call_interval_s == pytest.approx(2.5)

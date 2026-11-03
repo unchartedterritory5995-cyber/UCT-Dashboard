@@ -34,7 +34,9 @@ import json
 import logging
 import math
 import random
+import re
 import time
+from collections import deque
 from email.utils import parsedate_to_datetime
 from typing import Any, Awaitable, Callable
 
@@ -62,6 +64,40 @@ TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 # `TIMEOUT` is per operation, so a stream that keeps sending keep-alives resets it forever; this
 # wall-clock bound covers one whole request (send + read). Expiry is retried like a timeout.
 REQUEST_DEADLINE_S = 120.0
+
+# Tool-level rate limit (live gate 2026-11-03). Evernote's hosted MCP server reports its per-minute
+# limit ("tool calls are rate-limited per minute -- both per tool and across all tools", no numbers
+# published) as a TOOL error, not an HTTP 429: a `tools/call` result with `isError: true` and the
+# text `Rate limit exceeded: "get_note" is being called faster than allowed. Wait about 60
+# second(s)...`. The owner's first pass created 75 of 215 notes and failed the other 140 fast,
+# because that result used to be a final `NoteConnUnsupported`.
+#
+# Handling, the same as an HTTP 429: wait min(N, MAX_RETRY_AFTER_S) + RATE_LIMIT_MARGIN_S, N parsed
+# from "Wait about N second(s)" (TOOL_RATE_LIMIT_DEFAULT_WAIT_S when absent), then send the SAME call
+# again, at most TOOL_RATE_LIMIT_RETRIES times; after that `NoteConnRateLimited`. Any other
+# `isError` is the final `NoteConnUnsupported` it always was.
+_TOOL_RATE_LIMIT_RE = re.compile(r"rate limit exceeded|being called faster than allowed", re.IGNORECASE)
+_TOOL_RATE_LIMIT_WAIT_RE = re.compile(r"wait\s+about\s+(\d+(?:\.\d+)?)\s*second", re.IGNORECASE)
+TOOL_RATE_LIMIT_RETRIES = 3
+TOOL_RATE_LIMIT_DEFAULT_WAIT_S = 60.0
+RATE_LIMIT_MARGIN_S = 1.0
+# Adaptive pacing. Before the first rate limit of a session (one client = one sync pass) calls are
+# paced only MIN_CALL_INTERVAL_S apart, so a healthy pass stays fast. At a trip, the calls sent in
+# the RATE_WINDOW_S before it are the best measure of the limit we have, so the interval becomes
+# RATE_WINDOW_S / that count / ADAPTIVE_RATE_FRACTION (80% of the rate that tripped), and at least
+# double the previous adaptive interval on a second trip; always clamped to
+# [ADAPTIVE_MIN_INTERVAL_S, ADAPTIVE_MAX_INTERVAL_S]. It only ever slows, and only for the rest of
+# that session. The interval runs from the START of the previous call, so a call's own latency
+# counts toward it.
+RATE_WINDOW_S = 60.0
+ADAPTIVE_RATE_FRACTION = 0.8
+ADAPTIVE_MIN_INTERVAL_S = 1.0
+ADAPTIVE_MAX_INTERVAL_S = 10.0
+# The most one session spends WAITING on tool-level rate limits. Once spent, a rate-limited call
+# raises `NoteConnRateLimited` at once, so a server that keeps refusing cannot hold a pass for hours
+# (215 notes x 3 retries x 61 s would be ~11 h). The notes not read stay pending: the engine holds
+# the cursor for any listed note it did not store, and the next pass asks again.
+RATE_LIMIT_WAIT_BUDGET_S = 600.0
 
 CLIENT_INFO = {"name": "uct-notebook-sync", "version": "1.0"}
 # The same User-Agent as our media fetches (`providers/base.py`).
@@ -106,6 +142,30 @@ def _retry_after_s(resp: httpx.Response) -> float | None:
     if not math.isfinite(value) or value < 0:
         return None
     return min(value, MAX_RETRY_AFTER_S)
+
+
+def _tool_error_text(result: dict) -> str:
+    """The first text block of an `isError` tool result ('' when none)."""
+    for block in result.get("content") or []:
+        if isinstance(block, dict) and block.get("type") == "text":
+            return str(block.get("text") or "")
+    return ""
+
+
+def _tool_rate_limit_wait_s(result: Any) -> float | None:
+    """For a tool-level rate-limit result: the server's asked-for wait in seconds, capped at
+    `MAX_RETRY_AFTER_S` (`TOOL_RATE_LIMIT_DEFAULT_WAIT_S` when the text names none). None for
+    anything that is not a rate-limit error."""
+    if not isinstance(result, dict) or not result.get("isError"):
+        return None
+    text = _tool_error_text(result)
+    if not _TOOL_RATE_LIMIT_RE.search(text):
+        return None
+    wait = TOOL_RATE_LIMIT_DEFAULT_WAIT_S
+    m = _TOOL_RATE_LIMIT_WAIT_RE.search(text)
+    if m:
+        wait = float(m.group(1))  # digits only: always finite and >= 0
+    return min(wait, MAX_RETRY_AFTER_S)
 
 
 def _sse_event_data(event: str) -> str | None:
@@ -223,6 +283,13 @@ class EvernoteMcpClient:
         self._initialized = False
         self._next_id = 0
         self._last_call_at: float | None = None
+        # Adaptive pacing state (see RATE_WINDOW_S): this session's per-call interval, whether a
+        # rate limit has slowed it yet, the send times of recent tool calls, and the seconds spent
+        # waiting on tool-level rate limits (bounded by RATE_LIMIT_WAIT_BUDGET_S).
+        self.call_interval_s = MIN_CALL_INTERVAL_S
+        self._adapted = False
+        self._sent_at: deque[float] = deque()
+        self._rate_limit_waited_s = 0.0
         self._refresh_spent = False
         self._lock = asyncio.Lock()
         # The name of every `tools/call` actually sent (each attempt), kept for rails.
@@ -237,24 +304,47 @@ class EvernoteMcpClient:
                 reason="This connector only reads from Evernote.",
                 code="evernote_write_refused")
         async with self._lock:
-            await self._pace()
             # At most ONE `on_unauthorized` per call_tool: each refresh rotates the refresh token.
             self._refresh_spent = False
-            for attempt in range(2):
-                try:
-                    # Inside the try: a 404 on the handshake's `notifications/initialized` is a lost
-                    # session too, and must never leak `_SessionLost` (review m3).
-                    await self._ensure_session()
-                    result = await self._request(
-                        "tools/call", {"name": name, "arguments": arguments}, tool=name)
-                    break
-                except _SessionLost:
-                    self._session_id = None
-                    self._initialized = False
-                    if attempt == 1:
-                        raise errors.NoteConnTransient(
-                            "evernote mcp: session lost twice in a row", status=404) from None
-            return self._structured(name, result)
+            limited = 0
+            while True:
+                await self._pace()
+                result = await self._call_once(name, arguments)
+                wait = _tool_rate_limit_wait_s(result)
+                if wait is None:
+                    return self._structured(name, result)
+                # A tool-level rate limit: the same handling as an HTTP 429 (see the
+                # TOOL_RATE_LIMIT_* and RATE_WINDOW_S notes above).
+                self._slow_down()
+                delay = wait + RATE_LIMIT_MARGIN_S
+                if (limited >= TOOL_RATE_LIMIT_RETRIES
+                        or self._rate_limit_waited_s + delay > RATE_LIMIT_WAIT_BUDGET_S):
+                    raise errors.NoteConnRateLimited(
+                        f"evernote mcp: {name} rate limited by Evernote after {limited} "
+                        f"retr{'y' if limited == 1 else 'ies'}", retry_after=wait,
+                        code="evernote_tool_rate_limited")
+                limited += 1
+                self._rate_limit_waited_s += delay
+                log.info("evernote mcp: %s rate limited; waiting %.0f s (retry %d of %d), "
+                         "pacing %.2f s per call", name, delay, limited,
+                         TOOL_RATE_LIMIT_RETRIES, self.call_interval_s)
+                await self._sleep(delay)
+
+    async def _call_once(self, name: str, arguments: dict[str, Any]) -> Any:
+        for attempt in range(2):
+            try:
+                # Inside the try: a 404 on the handshake's `notifications/initialized` is a lost
+                # session too, and must never leak `_SessionLost` (review m3).
+                await self._ensure_session()
+                return await self._request(
+                    "tools/call", {"name": name, "arguments": arguments}, tool=name)
+            except _SessionLost:
+                self._session_id = None
+                self._initialized = False
+                if attempt == 1:
+                    raise errors.NoteConnTransient(
+                        "evernote mcp: session lost twice in a row", status=404) from None
+        raise AssertionError("unreachable")
 
     async def aclose(self) -> None:
         if self._owns_http:
@@ -265,9 +355,22 @@ class EvernoteMcpClient:
     async def _pace(self) -> None:
         if self._last_call_at is None:
             return
-        wait = MIN_CALL_INTERVAL_S - (self._clock() - self._last_call_at)
+        wait = self.call_interval_s - (self._clock() - self._last_call_at)
         if wait > 0:
             await self._sleep(wait)
+
+    def _slow_down(self) -> None:
+        """A rate limit tripped: slow this session's calls (see RATE_WINDOW_S). Only ever slower."""
+        now = self._clock()
+        while self._sent_at and self._sent_at[0] <= now - RATE_WINDOW_S:
+            self._sent_at.popleft()
+        observed = max(len(self._sent_at), 1)
+        interval = RATE_WINDOW_S / observed / ADAPTIVE_RATE_FRACTION
+        if self._adapted:
+            interval = max(interval, 2 * self.call_interval_s)
+        interval = min(max(interval, ADAPTIVE_MIN_INTERVAL_S), ADAPTIVE_MAX_INTERVAL_S)
+        self.call_interval_s = max(self.call_interval_s, interval)
+        self._adapted = True
 
     async def _ensure_session(self) -> None:
         if self._initialized:
@@ -317,6 +420,9 @@ class EvernoteMcpClient:
             if tool is not None:
                 self.tool_calls.append(tool)
                 self._last_call_at = self._clock()
+                self._sent_at.append(self._last_call_at)
+                if len(self._sent_at) > 4096:  # a memory bound; each trip prunes to the window
+                    self._sent_at.popleft()
             try:
                 status, resp, reply = await asyncio.wait_for(
                     self._send(body, headers, rid, method), REQUEST_DEADLINE_S)
@@ -441,12 +547,7 @@ class EvernoteMcpClient:
         if not isinstance(result, dict):
             raise errors.NoteConnTransient(f"evernote mcp: {name} returned no result")
         if result.get("isError"):
-            text = ""
-            for block in result.get("content") or []:
-                if isinstance(block, dict) and block.get("type") == "text":
-                    text = str(block.get("text") or "")
-                    break
-            text = text or f"{name} failed"
+            text = _tool_error_text(result) or f"{name} failed"
             raise errors.NoteConnUnsupported(
                 f"evernote mcp: {name}: {text}", reason=text, code="evernote_tool_error")
         sc = result.get("structuredContent")
