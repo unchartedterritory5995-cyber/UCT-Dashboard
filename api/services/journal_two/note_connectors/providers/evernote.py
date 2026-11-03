@@ -101,6 +101,9 @@ class EvernoteProvider(NoteProvider):
     name = "evernote"
     #: Task 8 reads this to adopt notes imported earlier from `.enex` (`import_source`).
     adopt_import_source = "evernote"
+    #: `fetch` is one `get_note` plus the instance's notebook and tag maps, which it loads itself:
+    #: nothing a listing call filled. The engine may retry pending media on unlisted notes.
+    fetch_is_listing_independent = True
 
     PAGE_SIZE = 100
     CURSOR_OVERLAP_S = 120

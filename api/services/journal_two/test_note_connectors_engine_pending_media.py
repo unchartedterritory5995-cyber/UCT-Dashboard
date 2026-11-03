@@ -109,6 +109,11 @@ class Fake(NoteProvider):
         return _png(), "image/png"
 
 
+class ListingBound(Fake):
+    """The same provider without the opt-in: its fetch may read listing state."""
+    fetch_is_listing_independent = False
+
+
 def _source() -> dict:
     connections.upsert_connector(USER, "fake", {"accessToken": "t"}, account_label="Fake")
     return connections.create_source(USER, "fake", "acct", display_name="Fake")
@@ -153,11 +158,12 @@ async def test_pending_media_retry_never_moves_or_holds_the_cursor(db, monkeypat
     assert _row("B")["import_media_pending"] == import_notice.MEDIA_PENDING_RETRY
     assert _cursor(src) == a2.updated_at
 
-    # B is fetched but cannot be STORED: still never holds the cursor
+    # B comes back different (here: too big to store): a retry-only ref is never confirmed
+    # with new content (C1's belt guard); it is skipped and named, and never holds the cursor
     a3 = ref("A", 3)
     p = Fake([a3], [a3, b], unstorable={"B"})
     result = await _pass(monkeypatch, src, p, full=True)
-    assert any("'fake:B' could not be stored" in f for f in result["failures"])
+    assert any("media retry skipped for 'Note B'" in f for f in result["failures"])
     assert _cursor(src) == a3.updated_at
 
     # B is unchanged but `import_confirm` cannot store it: named, never holds the cursor
@@ -189,6 +195,85 @@ async def test_pending_media_retry_never_moves_or_holds_the_cursor(db, monkeypat
     p = Fake([a3], [a3, b])
     await _pass(monkeypatch, src, p, full=False)
     assert p.fetched == ["A"]
+
+
+# ── C1: opt-in, and the belt guard ─────────────────────────────────────────────────
+
+async def test_retry_is_opt_in_per_provider(db, monkeypatch):
+    src = _source()
+    a, b = ref("A", 1), ref("B", 9)
+    await _pass(monkeypatch, src, ListingBound([a, b], fail_media={"B"}), full=True)
+    p = ListingBound([], [a, b])
+    await _pass(monkeypatch, src, p, full=True)
+    assert p.fetched == []
+    assert _row("B")["import_media_pending"] == import_notice.MEDIA_PENDING_RETRY
+
+
+async def test_retry_only_ref_whose_hash_moved_is_skipped_and_named_never_confirmed(db, monkeypatch):
+    """A retry-only ref is a MEDIA retry, never a content sync: when what it fetched would
+    hash differently from the stored note (here its title came back as the raw id, as a fetch
+    without listing metadata does), the note is not written and the pass names it."""
+    src = _source()
+    a, b = ref("A", 1), ref("B", 9)
+    await _pass(monkeypatch, src, Fake([a, b], fail_media={"B"}), full=True)
+    before = _row("B")
+    p = Fake([], [a, b], titles={"B": "B"})
+    result = await _pass(monkeypatch, src, p, full=True)
+    assert p.fetched == ["B"]
+    assert _row("B") == before                     # title, folder, updated_at, pending: untouched
+    assert any("Note B" in f and "media retry skipped" in f for f in result["failures"])
+
+
+async def test_onenote_old_page_with_pending_image_is_never_rewritten(db, monkeypatch):
+    """C1 through the REAL OneNoteProvider: its `fetch` takes title and folder from `_page_meta`,
+    which `list_changed` fills only for pages at or after the watermark. An old page waiting on an
+    image keeps its title, folder and edit time on a full pass."""
+    import httpx
+
+    from api.services.journal_two.broker.rate_limit import AsyncRateLimiter
+    from api.services.journal_two.note_connectors.providers.onenote import OneNoteProvider
+
+    page = {"id": "PAGE-1", "title": "Bee", "lastModifiedDateTime": "2026-08-01T00:00:00Z"}
+    html = ('<html><body><p>Chart</p><img src="https://graph.microsoft.com/v1.0/me/onenote/resources/'
+            'RES-1/$value" /></body></html>')
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/v1.0/me/onenote/notebooks":
+            return httpx.Response(200, json={"value": [{"displayName": "Trading", "sectionGroups": [],
+                                                        "sections": [{"id": "SEC-1", "displayName": "Setups"}]}]})
+        if path == "/v1.0/me/onenote/sections/SEC-1/pages":
+            return httpx.Response(200, json={"value": [page]})
+        if path == "/v1.0/me/onenote/pages/PAGE-1/content":
+            return httpx.Response(200, text=html, headers={"content-type": "text/html"})
+        return httpx.Response(404)  # the resource: a retryable fetch failure
+
+    async def no_sleep(_s):
+        return None
+
+    def build(_name, source=None):
+        return OneNoteProvider(client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+                               sleep_fn=no_sleep, rate_limiter=AsyncRateLimiter(1000.0))
+
+    monkeypatch.setattr(engine, "_provider_factory", build)
+    connections.upsert_connector(USER, "onenote", {"accessToken": "t"}, account_label="OneNote")
+    src = connections.create_source(USER, "onenote", "account", display_name="OneNote")
+    await engine.sync_source(src["id"], full=True, manual=True)
+
+    def row() -> dict:
+        conn = auth_db.get_connection()
+        try:
+            return dict(conn.execute("SELECT title, folder_id, updated_at, import_media_pending FROM j2_notes "
+                                     "WHERE import_key = 'onenote:PAGE-1'").fetchone())
+        finally:
+            conn.close()
+
+    before = row()
+    assert before["title"] == "Bee" and before["folder_id"]
+    assert before["import_media_pending"] == import_notice.MEDIA_PENDING_RETRY
+    # the next full pass: the watermark is past PAGE-1, so `list_changed` selects nothing
+    await engine.sync_source(src["id"], full=True, manual=True)
+    assert row() == before
 
 
 # ── C2: a member's removal-check pass never retries ─────────────────────────────────

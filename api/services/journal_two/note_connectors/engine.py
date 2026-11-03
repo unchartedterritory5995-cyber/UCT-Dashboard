@@ -744,18 +744,27 @@ async def _do_sync(
 
         _touch_remote_index(user_id, source, provider, index_refs)
 
-        # Plan E Task 9 (found by the messy Evernote corpus), fix round 1 (C2):
-        # a provider with `list_present_refs` keeps its stored cursor on a full
-        # pass, so a note whose remote never changes is never listed again, and
-        # an image that failed to copy on it ("retrying on the next sync") was
-        # never retried. ONLY on a scheduler full pass whose complete listing
-        # succeeded (never a member's removal-check pass, which is an
-        # incremental pass), the listed notes still waiting on a retryable copy
-        # are fetched too. They never feed the cursor (OneNote's is a drain
-        # watermark a newer ref would jump) and never hold it.
+        # Plan E Task 9 (found by the messy Evernote corpus), fix round 1: a
+        # provider with `list_present_refs` keeps its stored cursor on a full
+        # pass, so a note whose remote never changes is never listed again,
+        # and an image that failed to copy on it ("retrying on the next
+        # sync") was never retried. ONLY on a scheduler full pass whose
+        # complete listing succeeded (never a member's removal-check pass,
+        # which is an incremental pass; review C2), and ONLY for a provider
+        # whose `fetch` needs no listing state (`fetch_is_listing_independent`,
+        # Evernote; review C1), the listed notes still waiting on a retryable
+        # copy are fetched too. Each is a media retry and nothing else:
+        # `_import_remote_notes` lets it through only when its payload hash
+        # equals the stored one (C1's belt guard). They never feed the cursor
+        # (OneNote's is a drain watermark a newer ref would jump) and never
+        # hold it.
         fetch_refs = refs
-        if full and present_fn is not None and not enumeration_failed:
-            fetch_refs = refs + _pending_media_refs(user_id, source, provider, refs, index_refs)
+        retry_ids: set[str] = set()
+        if (full and present_fn is not None and not enumeration_failed
+                and getattr(provider, "fetch_is_listing_independent", False) is True):
+            retries = _pending_media_refs(user_id, source, provider, refs, index_refs)
+            retry_ids = {r.remote_id for r in retries}
+            fetch_refs = refs + retries
 
         # ⛔⛔ session-audit.md A1: every ref this pass fetched but never
         # actually got a stored note out of — a fetch failure (never made it
@@ -789,7 +798,7 @@ async def _do_sync(
                 imported_any = True
                 result = await _import_remote_notes(
                     user_id, source, provider, creds, chunk_notes, heal=False,
-                    adoption_state=adoption_state)
+                    adoption_state=adoption_state, retry_only=retry_ids)
                 linked_note_ids.extend(result.get("linkedNoteIds", []))
                 counts["created"] += result["created"]
                 counts["updated"] += result["updated"]
@@ -1470,7 +1479,7 @@ def _bulk_existing_note_meta(
         # now, 2 waiting for space) -- the only rows whose notices carry attempts the
         # next try must count from. Read HERE, before confirm overwrites the body.
         rows = conn.execute(
-            f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash, "
+            f"SELECT id, import_key, title, updated_at, imported_at, tags, folder_id, import_hash, "
             f"import_remote_rev, "
             f"CASE WHEN import_media_pending IN (1, 2) THEN body_json END AS pending_body "
             f"FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
@@ -1480,6 +1489,7 @@ def _bulk_existing_note_meta(
         for row in rows:
             out[row["import_key"]] = {
                 "id": row["id"],
+                "title": row["title"],  # Plan E Task 9 fix round 1: names a skipped retry
                 "updatedAt": row["updated_at"],
                 "importedAt": row["imported_at"],
                 "tags": json.loads(row["tags"] or "[]"),
@@ -2403,7 +2413,13 @@ def _adopt_file_imports(
 async def _import_remote_notes(
     user_id: str, source: dict[str, Any], provider: NoteProvider, creds: dict[str, Any],
     remote_notes: list[RemoteNote], *, heal: bool = True, adoption_state: dict | None = None,
+    retry_only: set[str] | None = None,
 ) -> dict[str, Any]:
+    """`retry_only` (Plan E Task 9 fix round 1, C1): remote ids in this call ONLY to retry their
+    pending media (`_pending_media_refs`). Such a note goes through the media-retry path
+    (`retry_bodies`) when its payload hash equals the stored `import_hash`; otherwise it is not
+    written at all, counted as skipped and named. A retry is never a content sync."""
+    retry_only = retry_only or set()
     conn = get_connection()
     try:
         # Plan A Task 8: ONE media budget for this whole pass (one memoised usage read), and
@@ -2436,6 +2452,7 @@ async def _import_remote_notes(
         pre_confirm_conflicts = 0
         user_owned_unchanged = 0
         retry_bodies: dict[str, str] = {}
+        retry_skipped: list[str] = []
 
         for rn, key in zip(remote_notes, import_keys):
             meta = existing.get(key)
@@ -2444,6 +2461,16 @@ async def _import_remote_notes(
             # built unconditionally (not just in the else-branch) because
             # Fix-round-3 needs its hash regardless of which path is taken.
             entry = _build_confirm_entry(rn, key)
+            if rn.remote_id in retry_only:
+                # C1 belt guard: a retry-only ref may only retry media on the stored body.
+                if (meta is not None and not edited and meta.get("pendingBody")
+                        and meta.get("importHash") == notes_svc._import_payload_hash(entry)):
+                    normal_items.append((entry, rn, key))
+                    retry_bodies[key] = meta["pendingBody"]
+                else:
+                    user_owned_unchanged += 1
+                    retry_skipped.append((meta or {}).get("title") or rn.title or key)
+                continue
             # Fix-round-3 Important (live-gate 23rd check): a conflict is only
             # a conflict when the REMOTE side actually changed. `_is_conflict`
             # alone (`updated_at > imported_at`) is permanently true for any
@@ -2521,6 +2548,9 @@ async def _import_remote_notes(
         }
         # Plan E Task 8: the adoption seam's count and its Plan D-shaped failures.
         totals["adopted"] = len(adopted)
+        totals["failures"].extend(
+            f"media retry skipped for {title!r}: the note as fetched now differs from the stored "
+            f"one, so it was left as it is" for title in retry_skipped)
         totals["noticeFailures"].extend(adoption_failures)
         totals["failures"].extend(f["reason"] for f in adoption_failures)
         # Plan A Task 6: prior notice attempts per key, read before any confirm below.

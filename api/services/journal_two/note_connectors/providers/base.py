@@ -101,6 +101,14 @@ class NoteProvider(ABC):
     # provider would be a breaking change to three others for no reason.
     opaque_cursor: str | None = None
 
+    #: Plan E Task 9 fix round 1 (C1): True only when `fetch(creds, ref)` builds the WHOLE note
+    #: (title, folder, tags, body) from the ref alone, with no state a listing call filled. Only
+    #: then may the engine fetch a note this pass did not list, to retry its pending media
+    #: (`engine._pending_media_refs`). OneNote's `fetch` reads `_page_meta`, OneDrive's and
+    #: Dropbox's read their listing's item metadata: a fetch outside the listing would rebuild the
+    #: note as its raw id at the folder root. Default False; Evernote declares True.
+    fetch_is_listing_independent: bool = False
+
     def import_key(self, source_remote_id: str, remote_id: str) -> str:
         """Formats the durable `import_key` a synced note upserts under
         (`j2_note_remote_index.import_key`). The ENGINE never hand-builds
