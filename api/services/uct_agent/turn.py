@@ -826,6 +826,7 @@ If <pending_proposal> is present and the member adjusts it ("leave Volume", "onl
 STYLE
 Concise, trader to trader, plain text (short paragraphs or "- " bullets, no headings, no markdown tables). Educational, not personalized buy/sell advice.
 Answer in one or two sentences unless the member asks for detail; never show formulas, code, settings or how UCT works inside unless they ask, and never repeat what a receipt or card already says.
+DATA ANSWERS. When a plan reads data (stock.*, news.*, a screen), `reply` states no figures, dates, estimates, beats or misses: UCT's card shows them, and you have not seen them.
 Never put the double-quote character inside reply, question or choice text: write names plainly or in “curly quotes”.
 
 NEVER A FALSE LIMITATION. Never tell the member that something is unavailable, not possible, or "not yet" from here when an action under AVAILABLE ACTIONS (or MORE AVAILABLE ACTIONS, or an action group named below as not listed) does it: indicator alerts (an EMA / SMA cross, RSI, MACD…), price alerts, drawings, layouts, watchlists, screens, templates, replay. Plan it with that action, ask for its group, or clarify the one thing you need (which chart, which indicator, which level). If <validation_error> says an action IS available, plan with it or clarify — never repeat the claim.
@@ -1015,6 +1016,16 @@ _OUTCOME_LABEL = {
 #: Actions whose results are local only. Decided by NAME on the server (never trusted from the
 #: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
 LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history"})
+#: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
+#: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
+#: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written
+#: BEFORE anything is read, so any figure, date, estimate or beat/miss in it is invented. A plan made ONLY of
+#: these is served with an empty reply (the card leads, exactly as for an apply). A plan with any write keeps its
+#: reply (the other rails still apply). Decided by NAME on the server, never from the browser's flags.
+DATA_READ_ACTIONS = frozenset({
+    "stock.profile", "stock.earnings", "stock.compare", "stock.quote", "stock.dailyBars", "stock.themes",
+    "news.latest", "news.catalysts", "screener.run", "screener.runSaved",
+})
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
                      "from it. To answer about it again, plan the same lookup.]")
@@ -1742,8 +1753,9 @@ def false_capability_claim(env: Any, cap_names: set[str] | None, unselected_ids:
 
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
                       unselected_ids: set[str] | None = None, local_notice: str | None = None,
-                      claim_repaired: bool = False) -> dict:
-    """The server-side gate between the model and the browser."""
+                      claim_repaired: bool = False, grounded: bool = False) -> dict:
+    """The server-side gate between the model and the browser. `grounded`: the reply was written from research
+    results (the post-research call of a mixed request), not before any data was read."""
     need = env.get("need_groups") if unselected_ids else None
     need = [g for g in need if g in unselected_ids] if isinstance(need, list) else []
     if need:
@@ -1829,6 +1841,12 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         # so the next turn's history does not believe it either. (Shape only in the log.)
         log.warning("uct_agent claim without action: replaced a %d-char answer", len(reply))
         reply = NOTHING_DONE
+    if disp in MUTATING and ops and not grounded and all(o.get("action") in DATA_READ_ACTIONS for o in ops):
+        # ⛔ DATA-READ ANSWERS: the card states the facts; the model's pre-read words never do (codes only in the log)
+        if reply:
+            log.info("uct_agent data-read plan: dropped a %d-char model reply (%s)", len(reply),
+                     ",".join(sorted({str(o.get("action")) for o in ops})))
+        reply = ""
     if disp in MUTATING and any(o.get("action") in LOCAL_ONLY_ACTIONS for o in ops):
         # ⛔ LOCAL-RESULT BOUNDARY: the model planned a lookup whose figures it never sees, so any
         # figure in its reply is invented. UCT's own answer is the reply; this text is not shown,
@@ -2404,7 +2422,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             env = {**env, "disposition": pre_research["disposition"], "ops": pre_research["ops"],
                    "question": None, "research": None}
             envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids,
-                                                                 claim_repaired=bool(usage.get("false_claim"))), env), caps)
+                                                                 claim_repaired=bool(usage.get("false_claim")),
+                                                                 grounded=True), env), caps)
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
