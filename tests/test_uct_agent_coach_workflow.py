@@ -86,7 +86,7 @@ def test_the_shapes_the_workflow_forbids_are_replaced(on, bad, codes):
 def test_the_model_may_restate_the_observation_and_the_members_figure(on):
     ctx = {**CTX, "coach": [{**CTX["coach"][0], "observation": "On this chart (NVDA, daily bars through 2026-10-30): the last close is above its 20-day average."}]}
     reply = ("A breakout is a move through a level. On this chart (NVDA, daily bars through 2026-10-30): the last close is above its "
-             "20-day average — that describes the chart so far, not what comes next.\n- Where was the boundary?\nWhat was your plan at the 20-day?")
+             "20-day average — that describes the chart so far, and it may change.\n- Where was the boundary?\nWhat was your plan at the 20-day?")
     out = turn.run_turn(message="is NVDA above the 20-day?", context=ctx, history=[], capabilities=CAPS, caller=scripted(env(reply)))
     assert out["usage"]["coach_guard"] == []
     assert out["envelope"]["reply"].startswith("A breakout is a move")
