@@ -170,6 +170,20 @@ def test_scan_counts_an_edited_note_and_plans_no_write(db, monkeypatch, source, 
         assert _scan()["totals"]["legacyFinalize"] == 1
 
 
+@pytest.mark.parametrize("patch", [{"tags": ["mine"]}, {"title": "My title"}])
+def test_a_real_edit_through_the_door_is_hands_off(db, patch):
+    """Fix round 1, M-1: no synthetic stamp. A member edit through the live door
+    (`notes.update_note`), right after a real import, keeps the note out of the repair."""
+    out = notes_svc.import_confirm("u1", {"source": "Notion", "destFolderId": None, "notes": [{
+        "importKey": "notion:Export/A.md", "title": "t", "bodyJson": BARE, "tags": [], "folderPath": [],
+        "updatedAt": "2026-08-01T00:00:00+00:00"}]})
+    note = (out["created"] + out["updated"])[0]["id"]
+    assert _scan()["totals"]["wouldRepairNotes"] == 1  # unedited: the bare URL would be linked
+    notes_svc.update_note("u1", note, patch)
+    t = _scan()["totals"]
+    assert (t["keptEdited"], t["wouldRepairNotes"]) == (1, 0)
+
+
 def test_the_guard_is_what_stops_the_write(db, monkeypatch):
     """Control: with `hands_off` forced False the edited note IS planned, so the edited test
     above cannot pass for another reason."""
