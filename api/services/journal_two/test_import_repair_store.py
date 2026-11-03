@@ -1,0 +1,161 @@
+"""Plan F Task 5: the import repair's progress, per-note log and notice tables, and their store.
+
+Real schema (`ensure_schema` on a temp auth.db). Commits are checked from a SECOND connection,
+so "commits" means another reader sees it, not just this connection.
+"""
+from __future__ import annotations
+
+import json
+import sqlite3
+
+import pytest
+
+from api.services import auth_db
+from api.services.journal_two import account_purge
+from api.services.journal_two.db import ensure_schema
+from api.services.journal_two.import_repair import store
+
+RUN = "run-1"
+TABLES = ("j2_import_repair_progress", "j2_import_repair_log", "j2_import_repair_notices")
+
+
+@pytest.fixture
+def conn(tmp_path, monkeypatch):
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth.db"))
+    c = auth_db.get_connection()
+    ensure_schema(c)
+    yield c
+    c.close()
+
+
+def _other():
+    """A second connection: what it sees is what was committed."""
+    c = auth_db.get_connection()
+    c.row_factory = sqlite3.Row
+    return c
+
+
+def _columns(c, table):
+    return [(r[1], r[2], bool(r[3]), r[5]) for r in c.execute(f"PRAGMA table_info({table})")]
+
+
+def test_tables_are_exactly_the_briefs(conn):
+    assert _columns(conn, "j2_import_repair_progress") == [
+        ("run_id", "TEXT", True, 1), ("user_id", "TEXT", True, 2), ("status", "TEXT", True, 0),
+        ("notes_checked", "INTEGER", True, 0), ("notes_repaired", "INTEGER", True, 0),
+        ("started_at", "TEXT", True, 0), ("finished_at", "TEXT", False, 0)]
+    assert _columns(conn, "j2_import_repair_log") == [
+        ("id", "INTEGER", False, 1), ("run_id", "TEXT", True, 0), ("user_id", "TEXT", True, 0),
+        ("note_id", "TEXT", True, 0), ("outcome", "TEXT", True, 0), ("shapes_json", "TEXT", True, 0),
+        ("actions_json", "TEXT", True, 0), ("before_body_json", "TEXT", False, 0),
+        ("created_at", "TEXT", True, 0)]
+    assert _columns(conn, "j2_import_repair_notices") == [
+        ("user_id", "TEXT", False, 1), ("loss_notes", "INTEGER", True, 0),
+        ("created_at", "TEXT", True, 0), ("dismissed_at", "TEXT", False, 0)]
+    indexed = [r[1] for r in conn.execute("PRAGMA index_list(j2_import_repair_log)")]  # (seq, name, ...)
+    cols = {name: [r[2] for r in conn.execute(f"PRAGMA index_info({name})")] for name in indexed}
+    assert ["run_id", "user_id"] in cols.values()
+
+
+def test_ensure_schema_adds_the_tables_to_an_existing_database(conn):
+    """A pod whose auth.db predates Plan F gets the tables on its next boot (`_J2_SCHEMA` runs
+    on every `ensure_schema`, the path Plan C's new table takes too)."""
+    for table in TABLES:
+        conn.execute(f"DROP TABLE {table}")
+    conn.commit()
+    ensure_schema(conn)
+    names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    assert set(TABLES) <= names
+
+
+def test_outcomes_include_unchanged_and_the_started_row():
+    """Brief + C12 (`unchanged`, counted, never logged) + C7 (`repair_started`, the undo copy
+    committed BEFORE the write)."""
+    assert store.OUTCOMES == ("repaired", "kept_edited", "race_lost", "failed", "fetch_failed",
+                              "relist_requested", "unchanged", "repair_started")
+
+
+def test_progress_marks_and_resumes(conn):
+    assert store.member_done(conn, RUN, "u1") is False
+    store.start_member(conn, RUN, "u1")
+    conn.commit()
+    row = _other().execute("SELECT * FROM j2_import_repair_progress").fetchone()
+    assert (row["status"], row["notes_checked"], row["notes_repaired"], row["finished_at"]) == (
+        "in_progress", 0, 0, None)
+    assert store.member_done(conn, RUN, "u1") is False  # in progress is not done: resume it
+    store.start_member(conn, RUN, "u1")  # a resumed run: INSERT OR IGNORE keeps the first start
+    started = row["started_at"]
+    store.finish_member(conn, RUN, "u1", checked=5, repaired=2)  # commits
+    row = _other().execute("SELECT * FROM j2_import_repair_progress").fetchone()
+    assert (row["status"], row["notes_checked"], row["notes_repaired"]) == ("done", 5, 2)
+    assert row["started_at"] == started and row["finished_at"] is not None
+    assert store.member_done(conn, RUN, "u1") is True
+    assert store.member_done(conn, "run-2", "u1") is False  # another run starts over
+    assert store.member_done(conn, RUN, "u2") is False
+
+
+def test_record_notice_never_rearms_a_dismissed_notice(conn):
+    assert store.pending_notice(conn, "u1") is None
+    store.record_notice(conn, "u1", 3)
+    assert store.pending_notice(conn, "u1") == 3
+    store.record_notice(conn, "u1", 9)  # INSERT OR IGNORE: the first count stands
+    assert store.pending_notice(conn, "u1") == 3
+    assert store.dismiss_notice(conn, "u1") is True
+    assert store.pending_notice(conn, "u1") is None
+    store.record_notice(conn, "u1", 5)  # a later run never re-arms it
+    assert store.pending_notice(conn, "u1") is None
+    assert store.dismiss_notice(conn, "u1") is False  # already dismissed
+    assert store.dismiss_notice(conn, "nobody") is False
+
+
+def test_dismiss_is_an_update(conn):
+    store.record_notice(conn, "u1", 2)
+    conn.commit()
+    created = _other().execute("SELECT created_at FROM j2_import_repair_notices").fetchone()[0]
+    assert store.dismiss_notice(conn, "u1") is True  # commits
+    rows = _other().execute("SELECT * FROM j2_import_repair_notices").fetchall()
+    assert len(rows) == 1  # never a DELETE
+    assert (rows[0]["user_id"], rows[0]["loss_notes"], rows[0]["created_at"]) == ("u1", 2, created)
+    assert rows[0]["dismissed_at"] is not None
+
+
+def test_log_note_round_trips(conn):
+    shapes = {"stranded_media_ref": 1, "bare_url": 1}
+    actions = ["linkified", "relative_unresolved"]
+    before = json.dumps({"type": "doc", "content": []})
+    store.log_note(conn, RUN, "u1", "n1", "repaired", shapes, actions, before)
+    store.log_note(conn, RUN, "u1", "n2", "kept_edited", {"bare_url": 1}, [], None)
+    conn.commit()
+    rows = _other().execute("SELECT * FROM j2_import_repair_log ORDER BY id").fetchall()
+    assert [(r["run_id"], r["user_id"], r["note_id"], r["outcome"]) for r in rows] == [
+        (RUN, "u1", "n1", "repaired"), (RUN, "u1", "n2", "kept_edited")]
+    assert json.loads(rows[0]["shapes_json"]) == shapes and json.loads(rows[0]["actions_json"]) == actions
+    assert rows[0]["before_body_json"] == before and rows[1]["before_body_json"] is None
+    assert all(r["created_at"] for r in rows)
+
+
+def test_log_note_refuses_an_unknown_outcome_and_never_logs_unchanged(conn):
+    with pytest.raises(ValueError):
+        store.log_note(conn, RUN, "u1", "n1", "fixed", {}, [], None)
+    store.log_note(conn, RUN, "u1", "n1", "unchanged", {}, [], None)  # C12: counted, not logged
+    assert conn.execute("SELECT COUNT(*) FROM j2_import_repair_log").fetchone()[0] == 0
+
+
+def test_the_started_row_is_committed_first_and_the_outcome_supersedes_it(conn):
+    """C7: the undo copy is durable BEFORE the body is replaced; a crash between the two leaves
+    `repair_started` as the note's latest outcome, holding the body to restore."""
+    before = json.dumps({"type": "doc", "content": [{"type": "paragraph"}]})
+    store.log_started(conn, RUN, "u1", "n1", {"bare_url": 1}, ["linkified"], before)  # commits
+    assert _other().execute("SELECT outcome, before_body_json FROM j2_import_repair_log").fetchone()[:] == (
+        "repair_started", before)
+    assert store.latest_outcome(conn, RUN, "n1") == "repair_started"
+    store.log_note(conn, RUN, "u1", "n1", "repaired", {"bare_url": 1}, ["linkified"], before)
+    assert store.latest_outcome(conn, RUN, "n1") == "repaired"
+    assert store.latest_outcome(conn, RUN, "n2") is None
+    assert store.latest_outcome(conn, "run-2", "n1") is None
+
+
+def test_the_member_tables_leave_with_the_account():
+    """C2: all three are keyed on the member, and the log holds member note bodies."""
+    for table in TABLES:
+        assert table in account_purge._DIRECT_USER_TABLES, table

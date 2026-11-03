@@ -818,6 +818,49 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_connect_epoch (
     epoch   INTEGER NOT NULL DEFAULT 0
 );
 
+-- ── Import repair (connector fidelity Plan F, Task 5) ───────────────────────
+-- The one-off repair of notes members already imported (tools/note_import_repair.py,
+-- runbook docs/runbooks/note-import-repair.md). The store is
+-- api/services/journal_two/import_repair/store.py. All three are member tables, purged
+-- with the account (account_purge._DIRECT_USER_TABLES); the log holds note bodies.
+-- Declared ONCE, here: `_J2_SCHEMA` runs on every `ensure_schema`, so an existing
+-- database gets them on its next boot (the path Plan C's j2_obsidian_attachments takes).
+-- Per-member progress of one run, so a stopped run resumes where it stopped.
+CREATE TABLE IF NOT EXISTS j2_import_repair_progress (
+    run_id          TEXT NOT NULL,
+    user_id         TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    notes_checked   INTEGER NOT NULL DEFAULT 0,
+    notes_repaired  INTEGER NOT NULL DEFAULT 0,
+    started_at      TEXT NOT NULL,
+    finished_at     TEXT,
+    PRIMARY KEY (run_id, user_id)
+);
+-- One row per note outcome. `before_body_json` is the pre-repair body of a note the run
+-- wrote: the undo source (an UPDATE by the owner), never a j2_note_versions row, which would
+-- surface in the member's History and change what legacy_finalize_shape reads. A
+-- `repair_started` row holding it is committed BEFORE the write; the outcome row supersedes it.
+CREATE TABLE IF NOT EXISTS j2_import_repair_log (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id           TEXT NOT NULL,
+    user_id          TEXT NOT NULL,
+    note_id          TEXT NOT NULL,
+    outcome          TEXT NOT NULL,
+    shapes_json      TEXT NOT NULL,
+    actions_json     TEXT NOT NULL,
+    before_body_json TEXT,
+    created_at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_run_user ON j2_import_repair_log(run_id, user_id);
+-- The member's one notice that some of their imported notes lost pictures or files.
+-- Dismissing it is an UPDATE; a later run never re-arms it (INSERT OR IGNORE).
+CREATE TABLE IF NOT EXISTS j2_import_repair_notices (
+    user_id      TEXT PRIMARY KEY,
+    loss_notes   INTEGER NOT NULL,
+    created_at   TEXT NOT NULL,
+    dismissed_at TEXT
+);
+
 -- ── Notebook widget-embed sidecar (Journal Widgets) ─────────────────────────
 -- One row per widgetEmbed node in a note's body_json, kept in sync on every
 -- note write by notes._sync_note_sidecars (create/update/import/delete). This is

@@ -1,0 +1,119 @@
+"""Plan F Task 5: the import repair's progress, per-note log and notice tables.
+
+Every function takes an open connection. None commits except where its docstring says so: the
+runner owns the transaction, and the three that commit do so because their effect must be
+durable on its own (a member finished; the undo copy before a write; a dismissal).
+
+Tables (`db._J2_SCHEMA`, purged with the account):
+  * `j2_import_repair_progress`: one row per (run, member), so a stopped run resumes;
+  * `j2_import_repair_log`: one row per note outcome. `before_body_json` keeps the pre-repair
+    body of a note the run wrote: the undo source (an owner UPDATE). It is never a
+    `j2_note_versions` row, which would surface in the member's History and change what
+    `legacy_finalize_shape` reads;
+  * `j2_import_repair_notices`: the member's one loss notice; dismissing it is an UPDATE, and
+    a later run never re-arms it.
+"""
+from __future__ import annotations
+
+import json
+import sqlite3
+from datetime import datetime, timezone
+
+#: The brief's six, then C12's `unchanged` (counted in the report, never logged: log volume) and
+#: C7's `repair_started` (the undo copy, committed BEFORE the write; the outcome row supersedes it).
+OUTCOMES = ("repaired", "kept_edited", "race_lost", "failed", "fetch_failed", "relist_requested",
+            "unchanged", "repair_started")
+UNCHANGED = "unchanged"
+STARTED = "repair_started"
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def member_done(conn: sqlite3.Connection, run_id: str, user_id: str) -> bool:
+    """True once `finish_member` ran for this member in this run."""
+    row = conn.execute(
+        "SELECT status FROM j2_import_repair_progress WHERE run_id = ? AND user_id = ?",
+        (run_id, user_id)).fetchone()
+    return row is not None and row[0] == "done"
+
+
+def start_member(conn: sqlite3.Connection, run_id: str, user_id: str) -> None:
+    """Mark the member in progress. INSERT OR IGNORE: a resumed run keeps the first start."""
+    conn.execute(
+        "INSERT OR IGNORE INTO j2_import_repair_progress (run_id, user_id, status, started_at)"
+        " VALUES (?, ?, 'in_progress', ?)", (run_id, user_id, _now()))
+
+
+def finish_member(conn: sqlite3.Connection, run_id: str, user_id: str, *, checked: int,
+                  repaired: int) -> None:
+    """Mark the member done with its counts. COMMITS."""
+    conn.execute(
+        "UPDATE j2_import_repair_progress SET status = 'done', notes_checked = ?, notes_repaired = ?,"
+        " finished_at = ? WHERE run_id = ? AND user_id = ?",
+        (checked, repaired, _now(), run_id, user_id))
+    conn.commit()
+
+
+def _insert_log(conn: sqlite3.Connection, run_id: str, user_id: str, note_id: str, outcome: str,
+                shapes: dict, actions: list, before_body_json: str | None) -> None:
+    conn.execute(
+        "INSERT INTO j2_import_repair_log (run_id, user_id, note_id, outcome, shapes_json, actions_json,"
+        " before_body_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (run_id, user_id, note_id, outcome, json.dumps(shapes, sort_keys=True), json.dumps(list(actions)),
+         before_body_json, _now()))
+
+
+def log_note(conn: sqlite3.Connection, run_id: str, user_id: str, note_id: str, outcome: str,
+             shapes: dict, actions: list, before_body_json: str | None) -> None:
+    """One outcome row. `unchanged` writes NOTHING (C12: the report counts it). An outcome not
+    in `OUTCOMES` raises ValueError."""
+    if outcome not in OUTCOMES:
+        raise ValueError(f"unknown repair outcome {outcome!r}")
+    if outcome == UNCHANGED:
+        return
+    _insert_log(conn, run_id, user_id, note_id, outcome, shapes, actions, before_body_json)
+
+
+def log_started(conn: sqlite3.Connection, run_id: str, user_id: str, note_id: str, shapes: dict,
+                actions: list, before_body_json: str) -> None:
+    """C7: the `repair_started` row holding the body about to be replaced. COMMITS, so the undo
+    copy is durable before the write; the note's outcome row, logged after, supersedes it."""
+    _insert_log(conn, run_id, user_id, note_id, STARTED, shapes, actions, before_body_json)
+    conn.commit()
+
+
+def latest_outcome(conn: sqlite3.Connection, run_id: str, note_id: str) -> str | None:
+    """The note's newest outcome in this run. `repair_started` means the run stopped between the
+    undo copy and the outcome: the body may or may not have been replaced."""
+    row = conn.execute(
+        "SELECT outcome FROM j2_import_repair_log WHERE run_id = ? AND note_id = ?"
+        " ORDER BY id DESC LIMIT 1", (run_id, note_id)).fetchone()
+    return row[0] if row is not None else None
+
+
+def record_notice(conn: sqlite3.Connection, user_id: str, loss_notes: int) -> None:
+    """The member's loss notice. INSERT OR IGNORE: never re-arms a dismissed notice, and the first
+    count stands."""
+    conn.execute(
+        "INSERT OR IGNORE INTO j2_import_repair_notices (user_id, loss_notes, created_at) VALUES (?, ?, ?)",
+        (user_id, loss_notes, _now()))
+
+
+def pending_notice(conn: sqlite3.Connection, user_id: str) -> int | None:
+    """`loss_notes` while the notice is not dismissed, else None."""
+    row = conn.execute(
+        "SELECT loss_notes FROM j2_import_repair_notices WHERE user_id = ? AND dismissed_at IS NULL",
+        (user_id,)).fetchone()
+    return row[0] if row is not None else None
+
+
+def dismiss_notice(conn: sqlite3.Connection, user_id: str) -> bool:
+    """Dismiss the member's notice: an UPDATE, never a DELETE. True when a pending notice was
+    dismissed. COMMITS."""
+    cur = conn.execute(
+        "UPDATE j2_import_repair_notices SET dismissed_at = ? WHERE user_id = ? AND dismissed_at IS NULL",
+        (_now(), user_id))
+    conn.commit()
+    return cur.rowcount > 0
