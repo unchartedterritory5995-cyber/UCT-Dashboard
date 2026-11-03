@@ -27,7 +27,7 @@ from datetime import datetime
 from typing import Any
 
 from api.services.journal_two import import_provenance
-from api.services.journal_two.notes import extract_plain_text
+from api.services.journal_two.notes import extract_plain_text, import_title
 from api.services.journal_two.note_connectors.convert import enml
 from api.services.journal_two.note_connectors.providers.base import RemoteNote
 
@@ -69,7 +69,9 @@ def _file_rows_by_title(conn: sqlite3.Connection, user_id: str, import_source: s
             (user_id, import_source.lower(), len(prefix), prefix, *chunk),
         ).fetchall()
         for row in rows:
-            out.setdefault((row["title"] or "").strip(), []).append(row)
+            # Keyed on the title EXACTLY as stored: `import_confirm` wrote it through
+            # `notes.import_title`, so a cut title may end in a space and must not be re-stripped.
+            out.setdefault(row["title"] or "", []).append(row)
     return out
 
 
@@ -85,8 +87,10 @@ def adopt_file_imports(
     failures: list[dict] = []
     if not candidates:
         return adopted, failures
+    # Task 8 review (concern 1): the live title goes through the file importer's OWN rule (strip,
+    # cut to MAX_TITLE_CHARS) before comparing, so a long-titled `.enex` note adopts.
     by_title = _file_rows_by_title(
-        conn, user_id, import_source, [(rn.title or "").strip() for _k, rn in candidates])
+        conn, user_id, import_source, [import_title(rn.title) for _k, rn in candidates])
     used: set[str] = set()
     named: set[str] = set()
     for live_key, rn in candidates:
@@ -94,7 +98,7 @@ def adopt_file_imports(
         minute = _minute(rn.created_at)
         if not title or minute is None:
             continue
-        matches = [row for row in by_title.get(title, [])
+        matches = [row for row in by_title.get(import_title(rn.title), [])
                    if row["id"] not in used and _minute(row["created_at"]) == minute]
         if not matches:
             continue

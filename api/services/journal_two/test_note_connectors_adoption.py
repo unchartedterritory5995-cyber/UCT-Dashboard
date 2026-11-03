@@ -219,6 +219,19 @@ async def test_adoption_matches_stripped_title_and_zone_spellings(tmp_db, monkey
     assert [r["import_key"] for r in _rows()] == [LIVE]
 
 
+async def test_a_long_title_adopts_through_the_file_importers_own_truncation(tmp_db, monkeypatch):
+    """Task 8 concern 1: the file importer stored the title cut to MAX_TITLE_CHARS; the live title
+    goes through the SAME rule before comparing, so the note adopts instead of duplicating."""
+    long_title = "  " + "Quarterly plan " * 30 + "  "  # 450+ chars, padded
+    assert len(long_title.strip()) > notes_svc.MAX_TITLE_CHARS
+    _enex(title=long_title, key="evernote:Notebook/long/x")
+    stored = _rows()[0]["title"]
+    assert len(stored) == notes_svc.MAX_TITLE_CHARS
+    result, _src = await _sync(tmp_db, monkeypatch, LiveEvernote([_rn(title=long_title)]))
+    assert result["adopted"] == 1 and result["created"] == 0
+    assert [r["import_key"] for r in _rows()] == [LIVE]
+
+
 async def test_a_different_minute_is_not_adopted(tmp_db, monkeypatch):
     _enex(created="2026-03-04T10:15:59Z")
     result, _src = await _sync(tmp_db, monkeypatch, LiveEvernote([_rn(created="2026-03-04T10:16:00Z")]))
