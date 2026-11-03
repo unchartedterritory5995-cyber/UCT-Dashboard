@@ -451,3 +451,23 @@ def test_knowledge_kinds_are_not_isolated_and_read_no_proprietary_scores():
 
 def test_gateway_does_not_register_knowledge_until_the_hook_lands():
     assert "api.services.uct_agent.knowledge.kinds" not in gateway.REGISTRARS or "knowledge" in gateway.CATEGORIES
+
+
+# ── health / coverage report ───────────────────────────────────────────────────────────────────────────
+def test_health_report_counts_coverage_without_content(kn, monkeypatch, tmp_path):
+    from api.services.uct_agent.knowledge import health
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_HEALTH", str(tmp_path / "h.json"))
+    index.build()
+    r = json.loads((tmp_path / "h.json").read_text(encoding="utf-8"))
+    cov = r["coverage"]
+    assert cov["by_state"]["admitted"] == 8 and cov["by_state"]["excluded"] == 3
+    assert cov["by_state"]["pending"] == 1 and cov["by_state"]["unknown"] == 1
+    assert cov["duplicates"] == 1
+    assert r["statistics"]["setup_templates"]["rows"] == 4
+    assert set(r["pack"]["manifest_fields_missing"]) == set(pack.OPTIONAL_MANIFEST_FIELDS)
+    blob = json.dumps(r)
+    assert "episodic" not in blob.lower()          # counts only, never content
+    _make_pack(kn["brain"], kn["data"], int(NOW) + 9, kb=list(KB) + [(20, "RULE", "t", "c", "brand_new_2", "X", 1)])
+    index.build()
+    r2 = json.loads((tmp_path / "h.json").read_text(encoding="utf-8"))
+    assert r2["new_sources_since_last_report"] == ["brand_new_2"]

@@ -111,6 +111,11 @@ def build() -> dict:
         os.replace(tmp, target)
         tmp = None
         log.info("[uct-agent knowledge] index built rows=%s duplicates=%s pack_ts=%s", len(rows), dups, ts)
+        try:
+            from api.services.uct_agent.knowledge import health
+            health.write()
+        except Exception:  # noqa: BLE001 — the report is advisory; a failure never blocks the index
+            log.warning("[uct-agent knowledge] health report failed")
         return {"ok": True, **meta}
     except sqlite3.Error as e:
         log.warning("[uct-agent knowledge] index build failed: %s", type(e).__name__)
