@@ -27,6 +27,7 @@ import { registerBreadthCapabilities } from './capabilities/breadth'
 import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
 import { registerGuideCapabilities } from './capabilities/guide'
 import { registerMarketDataCapabilities } from './capabilities/marketDataQuote'
+import { registerMarketFactsCapabilities } from './capabilities/marketDataFacts'
 
 let done = false
 export function registerBuiltins() {
@@ -64,4 +65,5 @@ export function registerBuiltins() {
 // model's manifest and every flags-off answer stay exactly as they are while the gateway is dark.
 export function registerServerGatedBuiltins() {
   registerMarketDataCapabilities()
+  registerMarketFactsCapabilities()      // W1-C C-02: stock.themes while the server serves `themes`
 }
