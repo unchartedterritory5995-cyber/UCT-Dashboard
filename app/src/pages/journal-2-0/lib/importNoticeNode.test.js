@@ -64,6 +64,14 @@ describe('the importNotice block', () => {
       expect(dom.textContent).not.toContain('{name}')
     })
 
+  it('renders the repair reason missing_from_import, pointing at Re-import to recover', () => {
+    // Plan F Task 2: the literal sentence, not NOTICE_COPY[...]: a reason missing from the
+    // table would otherwise fall back to `unsupported` on both sides and still agree.
+    const [dom] = mount(notice({ reason: 'missing_from_import', name: 'a.png', attempts: 0 }))
+    expect(dom.textContent).toBe(
+      "a.png didn't come over in the original import. Import the same export again with Re-import to recover turned on to bring it back")
+  })
+
   it('an unknown reason renders the unsupported sentence', () => {
     const [unknown, missing, named] = mount(notice({ reason: 'from_the_future' }), notice({ reason: null, name: null }),
       notice({ reason: 'too-large' }))

@@ -2132,12 +2132,14 @@ def test_a_note_wikilink_whose_alias_holds_a_code_span_is_a_link():
     """D2 fix round 4, N-I4: the wikilink and deep-link passes run over the whole body with
     code spans protected, as the attachment pass (round 2) and the client (round 3) do.
     `[[Plan|the `x` plan]]` used to be cut at its code span: raw brackets, no link."""
+    # D3 item 2: the code run inside the link keeps the link and loses the code mark, so the
+    # link is ONE run (it was three: `the `, `x` as link+code, ` plan`).
     out = _convert("see [[Plan|the `x` plan]] end", ["Plan.md"])
-    assert [h for _, h in _link_marks(out["doc"])] == [_key("Plan.md")] * 3
+    assert [h for _, h in _link_marks(out["doc"])] == [_key("Plan.md")]
     assert extract_plain_text(out["doc"]) == "see the x plan end"
     callout = _convert("> [!tip] See [[Plan|the `x`]]\n> body", ["Plan.md"])["doc"]["content"][0]
     assert callout["type"] == "callout"
-    assert [h for _, h in _link_marks(callout["content"][0])] == [_key("Plan.md")] * 2
+    assert [h for _, h in _link_marks(callout["content"][0])] == [_key("Plan.md")]
     assert extract_plain_text(callout) == "See the x body"
 
 

@@ -1208,4 +1208,28 @@ describe('ImportWizard — re-import to recover (Plan B Task 11)', () => {
     await waitFor(() => expect(confirms).toHaveLength(1), { timeout: 10000 })
     expect('mode' in confirms[0]).toBe(false)
   })
+
+  // Plan F Task 10: the one-time repair notice opens the wizard with the box already ticked.
+  it('initialRecover ticks the recover box once a re-import is possible', async () => {
+    const existing = { 'file:hello.md': { id: 'n1', updatedAt: '2026-10-01T00:00:00Z', importHash: null } }
+    const confirms = mockServer({ existing })
+    // Mounted closed first, the way NotebookTab's lazy dialog keeps it: the tick must land on OPEN.
+    const view = render(<ImportWizard open={false} initialRecover onClose={() => {}} onImported={() => {}} />)
+    view.rerender(<ImportWizard open initialRecover onClose={() => {}} onImported={() => {}} />)
+    // A first-import scan has nothing to recover, so nothing is offered yet.
+    expect(screen.queryByTestId('import-recover-mode')).toBeNull()
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
+    expect(screen.getByTestId('import-recover-mode')).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(confirms).toHaveLength(1), { timeout: 10000 })
+    expect(confirms[0].mode).toBe('recover')
+
+    // Closed and reopened by an ordinary Import (no initialRecover): off again.
+    view.rerender(<ImportWizard open={false} onClose={() => {}} onImported={() => {}} />)
+    view.rerender(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
+    expect(screen.getByTestId('import-recover-mode')).not.toBeChecked()
+  })
 })
