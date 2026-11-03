@@ -84,11 +84,29 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
             <span className={styles.consumerLabel}>{r.label}</span>
             {r.ok === true && r.note && <span className={styles.consumerWhy}>{`(${r.note})`}</span>}
             {r.ok === 'partial' && <span className={styles.consumerWhy}>(draws, with values withheld below)</span>}
-            {!r.ok && r.why && <span className={styles.consumerWhy}>{r.why}</span>}
+            {!r.ok && r.why && (
+              <span className={styles.consumerWhy} data-testid="pine-status-consumer-why">
+                {r.subject ? `${r.subject}: ${r.why}` : r.why}
+              </span>
+            )}
             {!r.ok && r.detail && (
               <details className={styles.details}>
                 <summary>Details</summary>
                 <span>{r.detail}</span>
+              </details>
+            )}
+            {/* ⭐ The screener lane's refusals of single plots: facts about SCREENS,
+                named, verbatim. Never a line mark, never "Tell us". */}
+            {Array.isArray(r.refused) && r.refused.length > 0 && (
+              <details className={styles.details} data-testid="pine-status-refused">
+                <summary>{`Plots it cannot use: ${r.refused.length}`}</summary>
+                <ul className={styles.refusedList}>
+                  {r.refused.map((x, i) => (
+                    <li key={`${x.name}-${i}`} data-guard={x.guard || ''}>
+                      <b>{x.name}</b>{x.why ? `: ${x.why}` : ''}
+                    </li>
+                  ))}
+                </ul>
               </details>
             )}
           </li>
@@ -164,8 +182,8 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
     && (report.dialect === 'pine' || report.faultDialect === 'pine'))
   const pane = useMemo(() => (isPine ? computePane(report, inspectedSource) : null),
     [isPine, report, inspectedSource, computePane])
-  return useMemo(() => (isPine ? editorStatus({ report, pane, savedRow }) : null),
-    [isPine, report, pane, savedRow])
+  return useMemo(() => (isPine ? editorStatus({ report, pane, savedRow, inspectedSource }) : null),
+    [isPine, report, pane, savedRow, inspectedSource])
 }
 
 /**

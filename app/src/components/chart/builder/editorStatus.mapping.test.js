@@ -2,7 +2,8 @@
 //
 // Each named rail below is the one a mutation of the mapping turns red:
 //   M1 out-of-range drop       `lineMarks` keeps a mark past the last line (or clamps)
-//   M2 refusal line priority   `statusItems` uses the output's line over the refusal's
+//   M2 refusal line priority   `statusItems` uses the output's line over the refusal's (the
+//                              chart door's translation, the only source of line items)
 //   M3 severity merge          two items on one line keep the FIRST severity, not the worst
 //   M4 stale-source gate       `lineMarksToDiagnostics` marks a buffer the marks were not computed on
 import { describe, it, expect } from 'vitest'
@@ -53,14 +54,15 @@ describe('lineMarks', () => {
   })
 })
 
-describe('statusItems line choice', () => {
+describe('statusItems line choice (the chart door\'s own translation)', () => {
+  // the chart door refuses the whole script: its translation's refusals are the items
+  const refusedPane = (refusal) => ({
+    ok: false, reason: 'no', guard: refusal.guard,
+    translation: { outputs: [{ kind: 'plot', title: 'S', line: 4, formula: null, refusal }] },
+  })
+
   it('M2: a refusal\'s own line wins over its output\'s plot line', () => {
-    const report = {
-      ok: true, dialect: 'pine', outcome: { missing: [], semantic: [] }, ignored: [],
-      outputs: [{ kind: 'plot', title: 'S', line: 4, formula: null,
-        refusal: { guard: 'pine:request', message: 'no', line: 3, column: 5, token: 'request.security' } }],
-    }
-    const items = statusItems(report)
+    const items = statusItems(null, refusedPane({ guard: 'pine:request', message: 'no', line: 3, column: 5, token: 'request.security' }))
     expect(items).toHaveLength(1)
     expect(items[0].line).toBe(3)
     expect(items[0].column).toBe(5)
@@ -68,11 +70,15 @@ describe('statusItems line choice', () => {
   })
 
   it('falls back to the output line when the refusal names none', () => {
+    expect(statusItems(null, refusedPane({ guard: 'pine:builtin', message: 'no' }))[0].line).toBe(4)
+  })
+
+  it('a report refusal alone is no item: the report is the screener lane, not the chart', () => {
     const report = {
-      ok: true, dialect: 'pine', outcome: { missing: [], semantic: [] }, ignored: [],
-      outputs: [{ kind: 'plot', line: 4, formula: null, refusal: { guard: 'pine:builtin', message: 'no' } }],
+      ok: false, dialect: 'pine', outcome: { missing: [], semantic: [] }, ignored: [],
+      outputs: [{ kind: 'plot', title: 'S', line: 4, formula: null, refusal: { guard: 'pine:window-dependent', message: 'no', line: 3 } }],
     }
-    expect(statusItems(report)[0].line).toBe(4)
+    expect(statusItems(report, { ok: true, definition: { plots: [] }, notes: [], translation: { outputs: [] } })).toEqual([])
   })
 })
 

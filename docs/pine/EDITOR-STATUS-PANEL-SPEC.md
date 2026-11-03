@@ -14,7 +14,9 @@ A Pine author on the Builder's Pine tab sees, for the script in the editor:
 4. what still works,
 
 and never a silent wrong value. The panel decides nothing. Every fact on it is read from
-a reader that already exists and is already the authority for that fact. The panel adds
+a reader that already exists and is already the authority for that fact, and each consumer
+row answers from the lane that consumer ACTUALLY uses (the chart door for the chart, the report
+for screens, every stored definition the alert lane reads for alerts; section 5). The panel adds
 exactly two things of its own: a plain-English heading per refusal FAMILY (section 4) and
 the line mapping (section 6). The engine's own sentence is always shown too, verbatim.
 
@@ -42,18 +44,23 @@ BuilderSheet (Pine tab)
 | what the paste translated to, per output, with each refusal `{guard, message, line, column, token}` | `PineBox.jsx::inspectSource` (the report PasteBox already holds) | refusal text verbatim |
 | the import verdict (exact / disclosed / partial / unsupported / error) and its `missing` / `semantic` lists | `engine/ast/importOutcome.js::importOutcome` (`report.outcome`) | Pine is passthrough in `importVerdict.js`, so `importOutcome` is Pine's verdict |
 | which TradingView built-ins the paste lost (closed allowlist) | `supportLoop/importGaps.js::importGaps` | feeds the support-loop log and dialog |
-| what a CHART would draw, and which lane draws it | `builder/memberPane/memberPaneDefinition.js::memberPaneDefinition({source})` -> `{ok, reason, guard, lane, notes, requirementTags, definition, rows, translation}` | the same door "Add to chart" and the saved-script upgrade use. `lane === 'runtime'` = per-bar runtime lane, else host lane. ⛔ Asked for EVERY Pine report that is not an engine fault or a foreign language, whatever `report.ok` says: the report is the screener lane's translation, and it refuses a strategy and an objects-only script the chart door draws (`PineEditorStatus.jsx::paneFor`) |
-| per output, per consumer: can it run there | `engine/evaluability.js::evaluability(def, key, lane)` for `LANES.CHART`, `LANES.ALERT`, `LANES.SCAN` over the pane document's data plots | the shared P1 gate; its alert answer is held equal to `alert_user_series.py` by `tests/fixtures/ast/p1_evaluability_alert.json` |
-| which consumers refuse a requirement tag (`window_dependent`, `occurrence_dependent`) | `closedTable.json::_requirement_tags[tag].refused_by` via `parse.js::TABLE` | the same roster `user_definitions.consumer_refusal` reads; consumer names `alert`, `screener`, `sweep` |
+| what a CHART would draw, and which lane draws it | `builder/memberPane/memberPaneDefinition.js::memberPaneDefinition({source})` -> `{ok, reason, guard, lane, notes, requirementTags, definition, rows, translation, withheld}` (the CHART DOOR) | the same door "Add to chart" and the saved-script upgrade use. `lane === 'runtime'` = per-bar runtime lane, else the strict host lane. ⛔ Asked for EVERY Pine report that is not an engine fault or a foreign language, whatever `report.ok` says (`PineEditorStatus.jsx::paneFor`). ⛔ THE CHART ROW AND THE PER-LINE WITHHELD LIST COME FROM THIS DOOR ALONE (section 5) |
+| Screener and Scans: what "Use this formula" can save as a screen | the report (`inspectSource`, the screener lane's translation): the box offers its outputs only while `report.ok`, and offers exactly `usable` (a formula, not hidden, `PineBox.jsx::PasteBox`). Each is asked `evaluability(doc, key, LANES.SCAN)` over `doc` = those outputs' own trees (`editorStatus.js::reportLane`) | `evaluability` reads only `compute.kind`, the plot keys and each plot's own tree, and the saved document carries exactly those trees (C2D.1: one translation result), so this asks it what it would ask of the saved screen |
+| Alerts: what the alert lane can arm | every stored definition of the account (`alert_user_series.py::user_catalog` over `user_definitions.list_for_user`). Two doors write one: "Use this formula" (the report lane above, then the Formula tab's save), and the Pine tab's attach (`BuilderSheet.jsx::attachPineAs`, the chart door's document). Each shown plot is asked `evaluability(..., LANES.ALERT)`; any yes is a yes | ⛔ An `alertcondition` reaches alerts through "Use this formula" ONLY: `memberPaneDefinition.js` drops `kind === 'alertcondition'` from `carryable` (ruling D1), and the report offers it as a column. A runtime document is refused by the alert lane's `lane` gate (`compute.kind !== 'ast'`), which `evaluability` already answers |
+| screener-lane refusals of single plots | the report's outputs with no formula (`refusal`), or whose formula the formula lane cannot evaluate (`downstream.ok === false`) | named, verbatim, on the Screener and Scans rows (`refused`). ⛔ Never a withheld chart value, never a line mark, never "Tell us": the chart door may draw that plot (`ta.cum`, `barstate.isfirst`, the period anchors are refused by the screener lane at the door and drawn by the chart's host lane) |
+| the alert lane's own refusal sentences | `evaluability.js::ALERT_SENTENCE` through `evaluability(..., LANES.ALERT)` | the shared P1 gate; its alert answer is held equal to `alert_user_series.py` by `tests/fixtures/ast/p1_evaluability_alert.json` |
+| which consumers refuse a requirement tag (`window_dependent`, `occurrence_dependent`) | `closedTable.json::_requirement_tags[tag].refused_by` via `parse.js::TABLE`; the tags a document raises: `memberPaneDefinition.js::requirementTagsRaised` (the chart door's `requirementTags`; the report lane's document through the same function) | the same roster `user_definitions.consumer_refusal` reads; consumer names `alert`, `screener`, `sweep`. A tag refuses the whole document, as the server's `requirements` gate does |
 | plots that may be withheld on some charts (code that does not run on every bar, C45/C48) | the pane document's `definition.meta.blockRuns.keys` (`{key, gates: [{why, guard, what}]}`), the stamp the chart's bind reads (`engine/blockRuns.js::blockRunsRefusal`; the server's twin is `api/services/block_runs.py`). The plot is named through `definition.plots` and the pane's `rows`: a row's tree IS its output's tree, so the output (title, `plot(...)` line) is found by identity; a derived colour column is named `colour of <plot>` | data-dependent: the panel says "may be withheld on some charts", never "withheld". Reason = the gate's `why`, verbatim. ⚰️ This read each report output's `_blockRuns`, which is non-enumerable and host-lane only, so it never reached the report and the list could never fill |
 | plots that may be withheld on some chart periods (C29) | the pane document's `definition.meta.periodReads.keys` (`{key, names}`) | the bind refuses such a plot on a chart whose period gives a different value. Reason = `engine/periodReads.js::periodReadsRefusalFor(def, key, tf)`, verbatim, on the first period of the stamp's own ladder (`byTf`) that it refuses |
-| a SAVED version held by the script engine (#673/#675) | `memberPane/savedScriptUpgrade.js::upgradeKindOf(row) === 'refused'`, the browser's twin of `user_definitions.engine_withheld_reason` | detail = the row's `engine_status.reason`, verbatim; only when the Builder is editing a saved row. ⛔ NOT `scan_refusal.gate === 'withheld'`: the sweep's C45 check (`scan_definition.assert_scannable`) refuses under that same gate |
-| the server's answer for screening a saved version | the served row's `scan_refusal` (`routers/user_definitions.py::_stamped`), any gate, when the version is not held | its `detail`, verbatim, on the Screener and Scans rows only |
-| a strategy's orders and backtest (missing parts) | `importOutcome` over the chart door's translation notes (`MISSING_PART_CODES`), and the report's own `outcome.missing` | the report's lane refuses a strategy outright and names no parts; the chart door reads it and notes what it leaves out |
-| runtime-lane disclosures (what the runtime document does not draw) | `memberPaneDefinition(...).notes` (`{name, note}`) | verbatim. ⛔ A note whose sentence is already listed (a fold note the report's outcome also carries, a withheld paint's disclosure that wraps the paint's own reason) is not listed again: one fact, one item |
-| withheld paints (`bgcolor` / `barcolor`) | the chart door's translation, `pane.translation.presentation.paints[].withheld.reason` (paints are carried on the HOST lane only, `pine.js::resolvePaints`); the report's when there is no such translation | verbatim, as a withheld value on the paint's line |
+| a SAVED version held by the script engine (#673/#675) | `editorStatus.js::isHeld`: `memberPane/savedScriptUpgrade.js::upgradeKindOf(row) === 'refused'`, or `upgradeKindOf(row) === 'retranslate'` with `engine_status.status === 'refused'` (an older engine's refusal waiting for today's engine, `user_definitions.py::_awaits_retranslation`). Together the browser's twin of `user_definitions.engine_withheld_reason` | detail = the row's `engine_status.reason`, verbatim; only when the Builder is editing a saved row. ⛔ NOT `scan_refusal.gate === 'withheld'`: the sweep's C45 check (`scan_definition.assert_scannable`) refuses under that same gate |
+| the server's answer for screening a saved version | the served row's `scan_refusal` (`routers/user_definitions.py::_stamped`), any gate, when the version is not held | its `detail`, verbatim, on the Screener and Scans rows only. ⛔ ONLY WHILE THE EDITOR HOLDS THAT VERSION'S OWN SCRIPT (`row.pine_source`, or a runtime document's `compute.source`, equal to the inspected text): for any other text the rows answer live |
+| what the chart door draws when it refuses the whole script | the chart door's own translation (`pane.translation`): each refused output, on its line, and its top refusal when that IS the door's refusal (`pane.reason`); else one item for a door refusal that has a guard | a host-lane refusal of one plot refuses the whole script, so the chart withholds every plot because of it. ⛔ A dirty objects-only program is refused for its lost removal while its translation carries `pine:objects-only` (a screening fact): that top refusal is not listed |
+| a strategy's orders and backtest, a drawing program that lost a removal (missing parts) | `importOutcome` over the chart door's translation notes (`MISSING_PART_CODES`) and, on the host lane, its object program (`assessObjectLoss`) | the report's lane refuses a strategy outright and names no parts; the chart door reads it and notes what it leaves out. A runtime document draws its own drawings (or names them in its notes) |
+| runtime-lane disclosures (what the runtime document does not draw) | `memberPaneDefinition(...).notes` (`{name, note}`) | verbatim. ⛔ A note whose sentence is already listed (a fold note the report's outcome also carries, a withheld paint's or row's disclosure) is not listed again: one fact, one item |
+| runtime-lane rows the document does not draw | `memberPaneDefinition(...).withheld` (labels) | a withheld value, named by its label, with the document's own disclosure (`<label> is not drawn: ...`) as the reason, on the plot's line where the plot is titled |
+| withheld paints (`bgcolor` / `barcolor`) | HOST lane: the chart door's translation, `pane.translation.presentation.paints[].withheld.reason` (`pine.js::resolvePaints`). RUNTIME lane: the runtime document's own disclosure for the paint (`<paint> (line N) is not drawn: ...`); a host record it colours from its own run (`RUNTIME_PAINT_COLOUR_CODES`) is drawn and not listed | verbatim, as a withheld value on the paint's line |
 
-The pure module `builder/editorStatus.js::editorStatus({report, pane, savedRow})` folds these
+The pure module `builder/editorStatus.js::editorStatus({report, pane, savedRow, inspectedSource})` folds these
 into one status object. It never throws (a throw becomes the ENGINE FAULT state) and writes
 nothing.
 
@@ -64,10 +71,15 @@ nothing.
 | `hidden` | flag off, no text, or a non-Pine report | (panel not rendered) |
 | `checking` | the editor text differs from the text the shown report was computed on (the 250 ms debounce window) | `Checking your script...` |
 | `engine-error` | `outcome.verdict === 'error'` | the `fault` family's sentence: `Our engine could not finish this script. That is on us, not your script.` |
-| `not-yet` | no consumer can run anything (`chart`, `alerts`, `screener`, `scans` all no) | `Not yet: <family label of the first blocker>`, the label exactly as section 4 writes it. The blocker is the chart door's refusal guard when it has one, else the first withheld item |
-| `runs-withheld` | something runs, and at least one withheld item exists | `Runs, <n> value(s) withheld (not guessed)` |
-| `runs-with-notes` | something runs, nothing withheld, but there are disclosed differences or may-be-withheld plots | `Runs, with <n> note(s)` |
-| `runs` | everything runs and nothing is withheld or disclosed | `Runs fully` |
+| `not-yet` | no consumer runs anything (`chart`, `alerts`, `screener`, `scans` all `[--]`, each from its own lane) | `Not yet: <family label of the first blocker>`, the label exactly as section 4 writes it. The blocker is the chart door's refusal guard when it has one, else the first withheld item, else the report's refusal |
+| `runs-elsewhere` | the chart door draws nothing, and some other consumer runs | `<where>; the chart cannot draw it yet: <why>`, `<why>` = the family label of the chart door's guard, else the door's own sentence (`pane.reason`). ⛔ NEVER `Not yet` while any consumer runs |
+| `runs-withheld` | the chart runs, and at least one withheld item exists | `<where>, <n> value(s) withheld (not guessed)` |
+| `runs-with-notes` | the chart runs, nothing withheld, but there are disclosed differences or may-be-withheld plots | `<where>, with <n> note(s)` |
+| `runs` | the chart runs, nothing withheld or disclosed | `Runs fully` ONLY when every consumer row runs; else `<where>; not in <what does not>` (`not in screens or scans`) |
+
+`<where>` names what runs, each from its own row: `Runs` (all four), `Runs on the chart`,
+`Runs on the chart and in alerts`, `Runs in alerts, screens and scans`. Screener reads
+`screens`, Scans `scans`.
 
 Below the headline, always in this order:
 
@@ -78,9 +90,14 @@ Below the headline, always in this order:
    `Details` disclosure holding the engine's own sentence verbatim.
 4. **May be withheld on some charts** list (block-runs gates), same row shape.
 5. **Notes** (disclosed differences: `outcome.semantic`, runtime-lane `notes`), verbatim.
-6. **What still works**: `What still works: <n> plot(s)` (the visible plots the chart draws) plus
-   `and its drawings` when the document draws an object program or paints, or
-   `Nothing else runs yet.`
+   The Screener and Scans rows also carry the screener lane's refusals of single plots
+   (`Plots it cannot use: N`, each named with the engine's sentence): never a line mark,
+   never counted in the headline, never "Tell us".
+6. **What still works**: the union of what each consumer row says runs, each from its own
+   lane: `What still works: 2 plots on the chart; RSI and OB in alerts; OB in screens and
+   scans.` (the chart's visible plots, `and its drawings` when the document draws an object
+   program or paints; then each server consumer's own outputs, consumers with the same list
+   sharing one clause), or `Nothing else runs yet.`
 7. `Tell us you need this` (only when the support-loop report door is on,
    `useReportsConfig().reportsEnabled`): opens the existing `LazyReportMismatchDialog` with
    the same payload `ImportGapNotice` sends (`gapLogPayload(importGaps(report))`). The gap LOG
@@ -104,7 +121,8 @@ A family is chosen from the guard by `editorStatus.js::familyOf(guard)` (exact n
 then prefixes). The family supplies a LABEL and a WHY sentence. The engine's sentence is never
 replaced, only placed under `Details`. A guard no rule matches falls to `unknown`, which is
 honest but generic; the rail `editorStatus.families.test.js` reads every `'pine:*'` and
-`'runtime:*'` guard literal out of `pine.js` and `runtime/*.js` and fails BY NAME for any that
+`'runtime:*'` guard literal out of `pine.js`, `pineRuntimeFrontend.js` and `runtime/*.js` (and the
+member door's two files) and fails BY NAME for any that
 falls to `unknown`, so a new guard must be given a family when it ships.
 
 | family | guards (prefix or exact) | label | Why: |
@@ -116,8 +134,8 @@ falls to `unknown`, so a new guard must be given a family when it ships.
 | `state` | `pine:state`, `pine:reassign`, `pine:history-ref`, `pine:live-bar-state`, `pine:na`, `runtime:history-*`, `runtime:conditional-history`, `runtime:varip`, `runtime:realtime-untold`, `runtime:call-*-state`, `runtime:input-state`, `runtime:function-global-state`, `runtime:chart-clock`, `runtime:clock-zone`, `runtime:na-test` | Values carried from bar to bar | This value depends on what the script remembered on earlier bars, in a way we cannot reproduce exactly yet. |
 | `block` | `pine:block` | Code that does not run on every bar | On a chart where this code skips a bar and then runs again, TradingView's value depends on history we do not keep, so that value is withheld on that chart. |
 | `collection` | `pine:collection`, `pine:type`, `pine:member`, `pine:vector*`, `pine:tuple`, `runtime:array`, `runtime:udt*`, `runtime:tuple`, `runtime:prop` | Arrays, maps and custom types | Collections and custom types are not computed here yet. |
-| `function` | `pine:function`, `pine:function-def`, `runtime:function`, `runtime:recursion`, `runtime:unbound`, `runtime:discarded-value` | Your own functions | This function is written in a way we cannot run exactly yet. |
-| `builtin` | `pine:builtin`, `pine:arity`, `pine:named-argument`, `pine:undefined`, `runtime:builtin-args`, `runtime:call-undeclared-builtin-state` | A TradingView built-in we do not compute yet | This built-in is not computed here yet, so anything that reads it is withheld. |
+| `function` | `pine:function-def`, `runtime:function`, `runtime:recursion`, `runtime:unbound`, `runtime:discarded-value` | Your own functions | This function is written in a way we cannot run exactly yet. |
+| `builtin` | `pine:builtin`, `pine:function`, `pine:arity`, `pine:named-argument`, `pine:undefined`, `runtime:builtin-args`, `runtime:call-undeclared-builtin-state` | A TradingView built-in we do not compute yet | This built-in is not computed here yet, so anything that reads it is withheld. |
 | `library` | `pine:module`, `pine:declaration-library`, `runtime:library` | Imported libraries | This script imports a library we cannot load yet. |
 | `input` | `pine:input-kind`, `runtime:member-inputs` | Inputs | This kind of input cannot be offered here yet. |
 | `presentation` | `pine:colour-value`, `pine:text-value`, `pine:plot-offset`, `pine:offset-*`, `pine:alert-message`, `pine:paint-pane`, `paint:*`, `runtime:colour`, `runtime:presentation`, `runtime:fill-*`, `runtime:plot-id` | How it is drawn | The value is computed, but this way of drawing it is not supported yet, so it is not drawn rather than drawn differently. |
@@ -126,10 +144,35 @@ falls to `unknown`, so a new guard must be given a family when it ships.
 | `shape` | `pine:no-output`, `pine:objects-only`, `pine:hidden-only`, `pine:constant-only`, `pine:presentation-only`, `runtime:no-output`, `runtime:object-tree-outputs`, `runtime:withheld-all`, `runtime:nothing-drawn` | Nothing a chart can draw | The script has nothing a chart can draw: no visible plot, or only constant or hidden values. |
 | `fault` | `import:internal-error`, `runtime:worker-*`, `runtime:failed`, `runtime:build`, `runtime:unnamed-refusal`, `runtime:not-from-listing`, `runtime:output-map`, `runtime:document` | Engine fault | Our engine could not finish this script. That is on us, not your script. |
 | `unverified` | `runtime:killed`, `runtime:not-yet-graded`, `runtime:repaint-unstated` | Switched off or not yet verified | The bar-by-bar engine that could draw this is switched off for this script, or has not yet been checked against TradingView for it, so it is not used. |
-| `held` | `engine:withheld` (a saved row whose `upgradeKindOf` is `refused`) | Held by the script engine | Today's script engine has not accepted this saved version, so alerts, screens and scans hold it until it is saved again from the Pine tab. |
+| `held` | `engine:withheld` (a saved row `isHeld` holds, section 2) | Held by the script engine | Today's script engine has not accepted this saved version, so alerts, screens and scans hold it until it is saved again from the Pine tab. |
 | `unknown` | anything else | Not supported yet | This part is not supported yet, so its value is withheld rather than guessed. |
 
 No copy in this table, and no copy the panel writes, contains an em dash.
+
+`pine:function` is in `builtin`, not `function`: every one of its throw sites in `pine.js` is
+about a TradingView built-in (`time_close`, the period anchors, `time(<tf>, <session>)`, a bare
+pre-v5 name, a call whose tuple cannot be carried), and `doorCoverage.js::UNKNOWN_NAME_GUARDS`
+groups it with `pine:builtin` and `pine:undefined`. An exact listing beats a glob, in this table
+as in `familyOf` (exact before prefix): `runtime:udt-method` and `runtime:call-text-state` are
+`language`, `runtime:call-undeclared-builtin-state` is `builtin`, `runtime:history-start` is
+`limits`, `pine:offset-literal` is `language`. The rail `editorStatus.families.test.js` PARSES
+the guard column of this table and asks `familyOf` for every listed guard (a glob through the
+engine's real guard literals it matches, or a probe name when it matches none), so this table and
+`FAMILIES` cannot drift.
+
+**Panel-written reasons.** The panel writes a reason of its own only where no engine sentence
+exists in the browser, and only a factual one. There is one:
+
+* `It uses <calls>, whose value depends on how much history is loaded, so <alerts refuse it |
+  the screener refuses it | scans refuse it>.` (`editorStatus.js::tagSentence`), for a
+  requirement tag (`_requirement_tags[tag].refused_by`) that refuses a consumer. The engine's
+  sentence for that refusal (`user_definitions.consumer_refusal`) is written on the server at save
+  or arm time and has no browser twin; the call names are the manifest's own.
+
+(⚰️ Round 1 also wrote `Alerts / Screens / Scans run on the server, which cannot run the
+bar-by-bar engine yet.` for a runtime-lane document. Gone: the alert lane's own sentence for a
+runtime document (`evaluability.js::ALERT_SENTENCE.lane`) answers for alerts, and screens answer
+from the report, which a runtime-routed chart does not change.)
 
 Three rows are judgements, recorded so they are not re-litigated by accident:
 `pine:objects-only` is in `shape`, not `drawing`: it is the screener lane's fact that a script
@@ -145,38 +188,48 @@ every literal.)
 
 ## 5. "Runs on": derivation
 
-Computed by `editorStatus.js::runsOn(pane, savedRow)` on the PANE document
-(`memberPaneDefinition`), because that is the document a chart attach installs and the
-saved-script upgrade writes. Shown plots = `definition.plots` that are not `hlines` guides
-(the `nativeRegistry.astPlotKey` / `evaluability.dataPlotKeys` predicate) AND are not hidden.
-⛔ A hidden row is a `fill` anchor, the anchor `0` an objects-only document carries, or a derived
-colour column: no alert watches it and no screen filters on it, so it never answers for a
-consumer. (Counted, a table-only script read Alerts `[OK]` off its anchor, and a plot coloured by
-a 0/1 condition read Screener `[OK]` off its colour column.)
+Computed by `editorStatus.js::runsOn(pane, savedRow, {report, inspectedSource})`. ⛔ ONE
+AUTHORITY PER VALUE: every row answers from the lane that consumer ACTUALLY uses, by calling that
+lane's own function, never by re-deriving (section 2):
+
+* **Chart** = the chart door (`memberPaneDefinition`): the strict host lane, or the runtime lane
+  when it routes. Its shown plots = `definition.plots` that are not `hlines` guides (the
+  `nativeRegistry.astPlotKey` / `evaluability.dataPlotKeys` predicate) AND are not hidden. ⛔ A
+  hidden row is a `fill` anchor, the anchor `0` an objects-only document carries, or a derived
+  colour column: no alert watches it and no screen filters on it, so it never answers for a
+  consumer. The per-line withheld list is the chart door's too: a plot is withheld ONLY if the
+  chart door withholds it.
+* **Screener, Scans** = the report lane (`reportLane`): the outputs "Use this formula" offers,
+  `evaluability(doc, key, LANES.SCAN)`.
+* **Alerts** = every stored definition the alert lane reads: the report lane's document (the only
+  door an `alertcondition` reaches) and the chart door's host document (the Pine tab's attach),
+  each `evaluability(..., LANES.ALERT)`. Any yes is a yes.
 
 | consumer | OK when | `[--]` reason (first that applies), always an existing sentence |
 |---|---|---|
 | chart | `pane.ok` and at least one shown plot is not refused by `evaluability(def, key, LANES.CHART, {})`, or the document draws objects/paints | no document: `pane.reason` verbatim, under the family of `pane.guard`. Every shown plot refused: the first refusal's `evaluability` reason verbatim |
-| alerts | some shown plot answers `supported` for `LANES.ALERT`, and no raised requirement tag lists `alert` in `refused_by` | no document: `pane.reason` verbatim. Runtime lane: "Alerts run on the server, which cannot run the bar-by-bar engine yet." Requirement tag: "It uses <calls>, whose value depends on how much history is loaded, so alerts refuse it." No shown plot: the report's screening refusal below, verbatim, when there is one. Else the first plot's `evaluability` reason verbatim |
-| screener | some shown plot answers `supported` for `LANES.SCAN`, no raised tag lists `screener` | as alerts (the tag sentence ends "so the screener refuses it"). The report's screening refusal (below) when the chart door answers `ok`. Else the first plot's `evaluability` reason verbatim (`A screen keeps the symbols where a yes/no is true; this output is not a yes/no.`) |
+| alerts | a report-lane output, or a shown plot of the chart door's host document, answers `supported` for `LANES.ALERT`, and no raised requirement tag of that document lists `alert` in `refused_by` | the report's refusal (`report.refusal.message`, named by its plot when it is one plot's refusal); the tag sentence (section 4); the first report-lane output's `evaluability` reason; the chart door's tag sentence; its first plot's `evaluability` reason (a runtime document: the alert lane's `lane` sentence); no document: `pane.reason` |
+| screener | a report-lane output answers `supported` for `LANES.SCAN`, and no raised tag lists `screener` | held / served (below); the report's refusal (`report.refusal.message`, named by its plot when it is one plot's refusal: `OBV: <sentence>`); the tag sentence; else the first output's `evaluability` reason (`A screen keeps the symbols where a yes/no is true; this output is not a yes/no.`) |
 | scans | as screener, with consumer `sweep` | as screener (the tag sentence ends "so scans refuse it") |
 
-**The report's screening refusals.** The report is the screener lane's translation. Its top
-refusals `pine:declaration-strategy`, `pine:no-output` and `pine:objects-only`
-(`editorStatus.js::SCREENER_LANE_REFUSALS`) are facts about SCREENING: while the chart door answers
-`ok` (it draws the strategy's plots, the objects-only script's drawings, the paint-only overlay's
-paint), the refusal's message is shown verbatim on the Screener and Scans rows (and on Alerts when
-the document has no shown plot), and it is NOT listed as a withheld value. A strategy's orders and
-backtest are still listed, from the chart door's own notes (section 2).
+**The report's refusals are facts about SCREENING.** The report is the screener lane's
+translation. Its top refusal (`pine:declaration-strategy`, `pine:no-output`, `pine:objects-only`,
+or a plot the lane refuses at the door: `pine:window-dependent` for `ta.cum` and
+`barstate.isfirst`, the period anchors) is shown verbatim on the Screener and Scans rows and
+never as a withheld value; each refused plot is named there with its own sentence
+(`Plots it cannot use`). A strategy's orders and backtest are still listed, from the chart door's
+own notes (section 2).
 
 **A saved row.** When the Builder is editing a saved row:
 
-* held (`savedScriptUpgrade.upgradeKindOf(row) === 'refused'`, the browser's twin of
-  `engine_withheld_reason`): alerts, screener and scans all become `[--]`, family `held`, with the
-  row's `engine_status.reason` verbatim under Details. The server lanes hold that stored version
+* held (`isHeld`, section 2: `upgradeKindOf` says `refused`, or `retranslate` with a refused
+  `engine_status`): alerts, screener and scans all become `[--]`, family `held`, with the row's
+  `engine_status.reason` verbatim under Details. The server lanes hold that stored version
   whatever the editor shows.
 * not held, with a served `scan_refusal` (any gate, the sweep's C45 `withheld` included): its
-  `detail` verbatim on the Screener and Scans rows only. The Alerts row is not changed.
+  `detail` verbatim on the Screener and Scans rows only, and ⛔ ONLY while the inspected text IS
+  that version's own script (`row.pine_source`, or a runtime document's `compute.source`). For
+  any other text (the member has edited it) the rows answer live. The Alerts row is not changed.
 * the chart row is never changed by a saved row (the chart draws today's translation).
 
 `[~]` (partial) is shown for chart when it draws but something is withheld, and for
@@ -188,8 +241,11 @@ something; `evaluability` is a preflight and the server is the authority.
 
 `editorStatus.js::lineMarks(status, docText)` turns status items into per-line marks:
 
-* an item's line is, in order: its refusal's `line` (translator, 1-based), else its output's
-  `line` (where `plot(...)` was written), else none.
+* ⛔ only the CHART door's items are marked (section 5). A screener-lane refusal of a plot the
+  chart draws is on the Screener and Scans rows and never on a line.
+
+* an item's line is, in order: its refusal's `line` (the chart door's translation, 1-based),
+  else its output's `line` (where `plot(...)` was written), else none.
 * a line outside `1..lineCount(docText)` is DROPPED, never clamped (a clamped line is a mark on
   the wrong line).
 * items with no line are listed in the panel as `This script` and get no mark.
@@ -215,9 +271,10 @@ merge, the stale-source gate in `CodeEditor`.
 1. Paste source into the Pine tab (the existing CodeEditor). Pasting a TradingView URL is NOT
    built here: fetching a script from TradingView needs a server fetch path and a licence check
    per script (`docs/pine/LICENSING.md`), which is a separate decision.
-2. Within the 250 ms debounce the panel shows `Checking your script...`, then one of
-   `Runs fully` / `Runs, N values withheld (not guessed)` / `Runs, with N notes` /
-   `Not yet: X`.
+2. Within the 250 ms debounce the panel shows `Checking your script...`, then one of the
+   section 3 headlines: `Runs fully` / `<where>, N values withheld (not guessed)` /
+   `<where>, with N notes` / `<where>; not in ...` / `Runs in ...; the chart cannot draw it
+   yet: X` / `Not yet: X`.
 3. The actions stay the Builder's existing doors (Use this formula, Save, Add to chart from
    the chart). The "Runs on" rows tell the author which of those doors will accept the script
    before they press one; the panel adds no new save path.
@@ -248,5 +305,6 @@ merge, the stale-source gate in `CodeEditor`.
 * Verified-vs-TradingView line (needs a served capture verdict per script).
 * TradingView URL import (needs a server fetch + licence decision).
 * New action buttons (the existing doors are reused).
-* Server-side interpreter (W5): until it lands, a runtime-lane script reads `[--]` for alerts,
-  screener and scans, by name.
+* Server-side interpreter (W5): until it lands, a runtime-lane DOCUMENT runs on no server lane
+  (the alert lane's `lane` gate refuses it, by its own sentence). Screens and alerts still answer
+  from the report lane ("Use this formula"), which a runtime-routed chart does not change.

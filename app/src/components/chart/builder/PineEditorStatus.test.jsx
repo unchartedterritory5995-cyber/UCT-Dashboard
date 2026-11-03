@@ -47,10 +47,21 @@ const RUNS = `//@version=6
 indicator("RSI")
 r = ta.rsi(close, 14)
 plot(r, "RSI")`
+// every consumer runs it: the RSI line, and a 0/1 plot a screen can filter on
+const EVERYWHERE = `//@version=6
+indicator("RSI Swing")
+r = ta.rsi(close, 14)
+plot(r, "RSI")
+plot(r > 70 ? 1 : 0, "OB")`
+// the screener lane refuses `ta.cum` at the door; the chart door draws it
+const OBV = `//@version=5
+indicator("OBV")
+plot(ta.cum(math.sign(ta.change(close)) * volume), "OBV")
+plot(close > open ? 1 : 0, "Up")`
 
 const statusFor = (src) => {
   const report = inspectSource(src, 'auto')
-  return { report, status: editorStatus({ report, pane: paneFor(report, src) }) }
+  return { report, status: editorStatus({ report, pane: paneFor(report, src), inspectedSource: src }) }
 }
 const flush = async () => { await act(async () => { await Promise.resolve(); await Promise.resolve() }) }
 
@@ -64,11 +75,45 @@ describe('PineEditorStatus', () => {
     await flush()
     const head = screen.getByTestId('pine-status-headline')
     expect(head.getAttribute('role')).toBe('status')
-    expect(head.textContent).toBe('Runs fully')
+    // ⛔ not "Runs fully": a number line is no screen, and the headline says so
+    expect(head.textContent).toBe('Runs on the chart and in alerts; not in screens or scans')
     const rows = within(screen.getByTestId('pine-status-runs-on')).getAllByRole('listitem')
     expect(rows.map((r) => r.getAttribute('data-consumer'))).toEqual(['chart', 'alerts', 'screener', 'scans'])
     expect(screen.getByTestId('pine-status-engine').textContent).toBe('Engine: host (fast path)')
     expect(screen.getByText(POLICY_TEXT)).toBeTruthy()
+  })
+
+  it('"Runs fully" only when every consumer row runs', async () => {
+    const { report, status } = statusFor(EVERYWHERE)
+    render(<PineEditorStatus status={status} report={report} inspectedSource={EVERYWHERE} currentText={EVERYWHERE} />)
+    await flush()
+    expect(screen.getByTestId('pine-status-headline').textContent).toBe('Runs fully')
+    const rows = within(screen.getByTestId('pine-status-runs-on')).getAllByRole('listitem')
+    expect(rows.map((r) => r.getAttribute('data-ok'))).toEqual(['true', 'true', 'true', 'true'])
+  })
+
+  it('a screener-lane refusal of a plot the chart draws: named on the screen rows, no line, no "Tell us"', async () => {
+    reports.enabled = true
+    const { report, status } = statusFor(OBV)
+    render(<PineEditorStatus status={status} report={report} inspectedSource={OBV} currentText={OBV} />)
+    await flush()
+    expect(screen.queryByTestId('pine-status-item')).toBeNull()
+    expect(screen.queryByTestId('pine-status-tell-us')).toBeNull()
+    const refused = report.outputs.find((o) => !o.formula)
+    const lists = screen.getAllByTestId('pine-status-refused')
+    expect(lists).toHaveLength(2)
+    for (const l of lists) expect(l.textContent).toContain(`OBV: ${refused.refusal.message}`)
+  })
+
+  it('the chart draws nothing but alerts and screens run: the headline says where, never "Not yet"', async () => {
+    const src = '//@version=5\nindicator("ac")\nalertcondition(ta.crossover(close, ta.sma(close, 20)), "Cross up")'
+    const { report, status } = statusFor(src)
+    render(<PineEditorStatus status={status} report={report} inspectedSource={src} currentText={src} />)
+    await flush()
+    const head = screen.getByTestId('pine-status-headline')
+    expect(head.getAttribute('data-state')).toBe('runs-elsewhere')
+    expect(head.textContent).toMatch(/^Runs in alerts, screens and scans; the chart cannot draw it yet: /)
+    expect(screen.getByTestId('pine-status-still').textContent).toBe('What still works: Cross up in alerts, screens and scans.')
   })
 
   it('a withheld line is a real button named for its line, and it moves the editor there', async () => {
@@ -82,8 +127,8 @@ describe('PineEditorStatus', () => {
     expect(btn.getAttribute('type')).toBe('button')
     fireEvent.click(btn)
     expect(onGoToLine).toHaveBeenCalledWith(Number(item.getAttribute('data-line')))
-    // the engine's sentence, verbatim, under Details
-    const refused = report.outputs.find((o) => !o.formula)
+    // the CHART DOOR's own sentence, verbatim, under Details
+    const refused = paneFor(report, REQUEST).translation.outputs.find((o) => !o.formula)
     expect(within(item).getByTestId('pine-status-reason').textContent).toBe(refused.refusal.message)
   })
 

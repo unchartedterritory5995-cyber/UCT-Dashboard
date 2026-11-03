@@ -20,6 +20,9 @@ function sourcesIn(dir) {
 
 const FILES = [
   path.join(ENGINE, 'ast', 'pine.js'),
+  // the runtime lane's front end throws most `runtime:*` guards (`runtime:udt-method`,
+  // `runtime:call-*-state`, the history guards), so its literals are in the roster too
+  path.join(ENGINE, 'ast', 'pineRuntimeFrontend.js'),
   ...sourcesIn(path.join(ENGINE, 'runtime')),
   path.join(HERE, 'memberPane', 'memberPaneDefinition.js'),
   path.join(HERE, 'memberPane', 'runtimeObjectsDoor.js'),
@@ -79,6 +82,11 @@ describe('refusal families', () => {
     expect(familyOf('bind:period-reads').id).toBe('period')
   })
 
+  it('pine:function is a built-in refusal (every throw site is a TradingView built-in), not your own function', () => {
+    expect(familyOf('pine:function').id).toBe('builtin')
+    expect(familyOf('pine:function-def').id).toBe('function')
+  })
+
   it('every family has its row in the spec\'s section 4 table', () => {
     const spec = fs.readFileSync(path.join(HERE, '..', '..', '..', '..', '..', 'docs', 'pine', 'EDITOR-STATUS-PANEL-SPEC.md'), 'utf8')
     const section = spec.slice(spec.indexOf('## 4.'), spec.indexOf('## 5.'))
@@ -101,5 +109,80 @@ describe('refusal families', () => {
   it('family ids are unique', () => {
     const ids = FAMILIES.map((f) => f.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+// ⭐ SPEC SECTION 4 IS READ, NOT RETYPED: every guard its table lists is asked of
+// `familyOf`, so the table and `FAMILIES` cannot drift. An exact listing beats a
+// glob (as an exact entry beats a prefix in `familyOf`); a glob is checked through
+// every real guard literal it matches that no row lists exactly, or through a probe
+// name when it matches none.
+function specRows() {
+  const spec = fs.readFileSync(path.join(HERE, '..', '..', '..', '..', '..', 'docs', 'pine', 'EDITOR-STATUS-PANEL-SPEC.md'), 'utf8')
+    .replace(/\r\n/g, '\n')
+  const section = spec.slice(spec.indexOf('## 4.'), spec.indexOf('## 5.'))
+  const rows = []
+  for (const line of section.split('\n')) {
+    const m = /^\| `([a-z]+)` \| ([^|]*) \|/.exec(line)
+    if (!m) continue
+    const guards = [...m[2].matchAll(/`([^`]+)`/g)].map((g) => g[1]).filter((g) => g.includes(':') && /^[a-z0-9:*-]+$/.test(g))
+    rows.push({ family: m[1], guards })
+  }
+  return rows
+}
+// a guard (and so a glob) is spelled in `[a-z0-9:-]` only (`specRows` keeps no other token),
+// so a glob needs no escaping: `*` stands for the rest of one guard name
+const globRe = (glob) => new RegExp('^' + glob.split('*').join('[a-z0-9-]*') + '$')
+
+describe('spec section 4 is the same table as FAMILIES', () => {
+  const rows = specRows()
+  const exact = new Map()
+  for (const r of rows) for (const g of r.guards) if (!g.includes('*')) exact.set(g, r.family)
+
+  it('reads the table (control: every family row, and the guards they list)', () => {
+    expect(rows.map((r) => r.family).sort()).toEqual([...FAMILIES.map((f) => f.id), UNKNOWN_FAMILY.id].sort())
+    expect(exact.get('pine:request')).toBe('request')
+    expect(exact.size).toBeGreaterThan(80)
+  })
+
+  it('every guard the table lists exactly has that family in familyOf', () => {
+    const wrong = [...exact].filter(([g, fam]) => familyOf(g).id !== fam)
+      .map(([g, fam]) => `${g}: spec ${fam}, familyOf ${familyOf(g).id}`)
+    expect(wrong).toEqual([])
+  })
+
+  it('every glob the table lists answers its family for the guards it covers', () => {
+    const roster = [...new Set([...guardLiterals().keys(), ...exact.keys()])]
+    const wrong = []
+    for (const r of rows) {
+      for (const glob of r.guards.filter((g) => g.includes('*'))) {
+        const re = globRe(glob)
+        const covered = roster.filter((g) => re.test(g) && !exact.has(g))
+        const probes = covered.length ? covered : [glob.replace(/\*/g, 'probe')]
+        for (const g of probes) if (familyOf(g).id !== r.family) wrong.push(`${g} (${glob}): spec ${r.family}, familyOf ${familyOf(g).id}`)
+      }
+    }
+    expect(wrong).toEqual([])
+  })
+
+  it('every exact guard in FAMILIES is listed in its own row (exactly, or by a glob of that row)', () => {
+    const missing = []
+    for (const f of FAMILIES) {
+      const row = rows.find((r) => r.family === f.id)
+      for (const g of f.exact || []) {
+        const listed = !!row && (row.guards.includes(g) || row.guards.some((x) => x.includes('*') && globRe(x).test(g)))
+        if (!listed) missing.push(`${g} (${f.id})`)
+      }
+    }
+    expect(missing).toEqual([])
+  })
+
+  it('the guards the round-1 review found split between the two now agree', () => {
+    expect(familyOf('runtime:udt-method').id).toBe('language')
+    expect(familyOf('runtime:call-text-state').id).toBe('language')
+    expect(familyOf('runtime:call-undeclared-builtin-state').id).toBe('builtin')
+    // control: the prefixes they used to fall to still answer for their siblings
+    expect(familyOf('runtime:udt-field').id).toBe('collection')
+    expect(familyOf('runtime:call-windowed-state').id).toBe('state')
   })
 })

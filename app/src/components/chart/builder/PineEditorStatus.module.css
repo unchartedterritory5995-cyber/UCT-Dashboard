@@ -72,6 +72,7 @@
 
 .details { font-size: 11px; color: var(--text-muted); }
 .details summary { cursor: pointer; min-height: var(--tap-min, 44px); display: flex; align-items: center; }
+.refusedList { list-style: none; margin: 4px 0 0; padding: 0 0 0 8px; display: flex; flex-direction: column; gap: 2px; line-height: 1.5; }
 
 .lineBtn, .action {
   background: none;
