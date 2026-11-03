@@ -743,6 +743,20 @@ async def _do_sync(
 
         _touch_remote_index(user_id, source, provider, index_refs)
 
+        # Plan E Task 9 (found by the messy Evernote corpus): a provider with
+        # `list_present_refs` keeps its stored cursor on a full pass, so a note
+        # whose remote never changes is never listed again -- and an image that
+        # failed to copy on it (`fetch_failed`, "retrying on the next sync")
+        # was never retried. When this pass has a complete listing, the notes
+        # in it that still wait on a retryable copy (`import_media_pending =
+        # 1`, bounded by MEDIA_RETRY_MAX_ATTEMPTS) are fetched too. They are
+        # fetched only: never part of the cursor (OneNote's cursor is a
+        # bounded drain watermark a newer ref would jump) and never a reason
+        # to hold it.
+        fetch_refs = refs
+        if index_refs is not refs:
+            fetch_refs = refs + _pending_media_refs(user_id, source, provider, refs, index_refs)
+
         # ⛔⛔ session-audit.md A1: every ref this pass fetched but never
         # actually got a stored note out of — a fetch failure (never made it
         # into `remote_notes`) or a per-note storage failure `import_confirm`
@@ -764,7 +778,7 @@ async def _do_sync(
         linked_note_ids: list[str] = []
         adoption_state: dict = {}  # Task 8 concern 4: what this pass adopted, across chunks
         imported_any = False
-        for chunk_refs in _chunks(refs, IMPORT_CHUNK_NOTES):
+        for chunk_refs in _chunks(fetch_refs, IMPORT_CHUNK_NOTES):
             chunk_notes, fetch_failures = await _fetch_remote_notes(provider, creds, chunk_refs)
             item_failures.extend(fetch_failures)
             _drain_provider_item_failures(provider, item_failures, notice_failures)
@@ -788,7 +802,9 @@ async def _do_sync(
                 not_stored_refs.update(result.get("notStoredRefs", []))
                 _drain_provider_item_failures(provider, item_failures, notice_failures)
             del chunk_notes  # this chunk's docs are not held while the next is fetched
-        not_stored_refs.update({r.remote_id for r in refs} - fetched_ids)
+        listed_ids = {r.remote_id for r in refs}
+        not_stored_refs = {rid for rid in not_stored_refs if rid in listed_ids}  # retries never hold the cursor
+        not_stored_refs.update(listed_ids - fetched_ids)
         if imported_any:
             item_failures.extend(await asyncio.to_thread(
                 _heal_after_pass, user_id, linked_note_ids))
@@ -1201,6 +1217,37 @@ def _untag_note_source_reappeared(conn: sqlite3.Connection, user_id: str, import
         return
     tags = [t for t in tags if t != "source-deleted"]
     _write_tags_preserving_updated_at(conn, user_id, row["id"], tags)
+
+
+def _pending_media_refs(
+    user_id: str, source: dict[str, Any], provider: NoteProvider,
+    refs: list[RemoteRef], index_refs: list[RemoteRef],
+) -> list[RemoteRef]:
+    """The refs of the complete listing `index_refs` that `refs` (this pass's delta) does not
+    hold and whose stored note waits on a retryable media copy (`import_media_pending = 1`;
+    2, waiting for storage space, is not a retry). Listing order kept. See the call site."""
+    listed = {r.remote_id for r in refs}
+    by_key: dict[str, RemoteRef] = {}
+    for r in index_refs:
+        if r.remote_id not in listed:
+            by_key.setdefault(provider.import_key(source["remoteId"], r.remote_id), r)
+    if not by_key:
+        return []
+    keys = list(by_key)
+    pending: set[str] = set()
+    conn = get_connection()
+    try:
+        for i in range(0, len(keys), 500):
+            chunk = keys[i:i + 500]
+            rows = conn.execute(
+                f"SELECT import_key FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL "
+                f"AND import_media_pending = ? AND import_key IN ({','.join('?' * len(chunk))})",
+                (user_id, import_notice.MEDIA_PENDING_RETRY, *chunk),
+            ).fetchall()
+            pending.update(row["import_key"] for row in rows)
+    finally:
+        conn.close()
+    return [by_key[k] for k in keys if k in pending]
 
 
 def _touch_remote_index(
