@@ -593,6 +593,7 @@ async def _do_sync(
         # this listing fails, the check does not run (no strike, no stamp)
         # and the pass carries on as an ordinary incremental one.
         removal_listing: list[RemoteRef] | None = None
+        enumeration_failed = False  # set below on a full pass whose complete listing fails
         removal_reason: str | None = None
         if removal_check:
             try:
@@ -743,18 +744,17 @@ async def _do_sync(
 
         _touch_remote_index(user_id, source, provider, index_refs)
 
-        # Plan E Task 9 (found by the messy Evernote corpus): a provider with
-        # `list_present_refs` keeps its stored cursor on a full pass, so a note
-        # whose remote never changes is never listed again -- and an image that
-        # failed to copy on it (`fetch_failed`, "retrying on the next sync")
-        # was never retried. When this pass has a complete listing, the notes
-        # in it that still wait on a retryable copy (`import_media_pending =
-        # 1`, bounded by MEDIA_RETRY_MAX_ATTEMPTS) are fetched too. They are
-        # fetched only: never part of the cursor (OneNote's cursor is a
-        # bounded drain watermark a newer ref would jump) and never a reason
-        # to hold it.
+        # Plan E Task 9 (found by the messy Evernote corpus), fix round 1 (C2):
+        # a provider with `list_present_refs` keeps its stored cursor on a full
+        # pass, so a note whose remote never changes is never listed again, and
+        # an image that failed to copy on it ("retrying on the next sync") was
+        # never retried. ONLY on a scheduler full pass whose complete listing
+        # succeeded (never a member's removal-check pass, which is an
+        # incremental pass), the listed notes still waiting on a retryable copy
+        # are fetched too. They never feed the cursor (OneNote's is a drain
+        # watermark a newer ref would jump) and never hold it.
         fetch_refs = refs
-        if index_refs is not refs:
+        if full and present_fn is not None and not enumeration_failed:
             fetch_refs = refs + _pending_media_refs(user_id, source, provider, refs, index_refs)
 
         # ⛔⛔ session-audit.md A1: every ref this pass fetched but never

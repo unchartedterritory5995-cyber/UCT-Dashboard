@@ -1,144 +1,220 @@
 """A full pass with a complete listing retries pending media copies (Plan E Task 9).
 
 Found by the messy Evernote corpus (`test_note_connectors_evernote_engine.py`): a provider with
-`list_present_refs` (Evernote, OneNote) keeps its stored cursor on a full pass, so a note whose
-remote never changes was never listed again and an image that failed to copy on it stayed
-"retrying on the next sync" forever. `engine._pending_media_refs` now adds those notes to a full
-pass's fetch, without letting them move or hold the cursor.
+`list_present_refs` keeps its stored cursor on a full pass, so a note whose remote never changes
+was never listed again and an image that failed to copy on it stayed "retrying on the next sync"
+forever. `engine._pending_media_refs` adds those notes to the fetch of a SCHEDULER full pass, and
+only for a provider that declares `fetch_is_listing_independent` (Evernote). Task 9 fix round 1:
+
+  * C1: a provider whose `fetch` reads listing state (OneNote's `_page_meta`) would rebuild a
+    retried note without its title and folder and overwrite it. Opt-in only, and a retry-only ref
+    whose payload hash differs from the stored one is skipped and named, never confirmed.
+  * C2: a member's removal-check pass never retries (it is an incremental pass).
+  * I1: a note the member edited is never retried (`engine._is_conflict`, the one predicate).
+  * I2: at most `MEDIA_RETRY_NOTES_PER_PASS` retries per pass, stalest import first.
+Retried refs never move or hold the cursor.
 """
 from __future__ import annotations
 
+from typing import Any
+
+import pytest
+from cryptography.fernet import Fernet
+
+from api.services import auth_db
 from api.services.journal_two import import_notice
+from api.services.journal_two import notes as notes_svc
+from api.services.journal_two.db import ensure_schema
+from api.services.journal_two.note_connectors import connections, engine, errors
+from api.services.journal_two.note_connectors.providers.base import (
+    AccountInfo, NoteProvider, RemoteNote, RemoteRef,
+)
+
+USER = "u1"
 
 
-async def test_pending_media_retry_never_moves_or_holds_the_cursor(tmp_path, monkeypatch):
-    """Unit: on a full pass with a complete listing, a listed-but-unchanged note waiting on a
-    retryable copy is fetched; its (newer) listing time never becomes the cursor (OneNote's cursor
-    is a drain watermark) and its failure never holds the cursor."""
-    from cryptography.fernet import Fernet
-
-    from api.services import auth_db
-    from api.services.journal_two import notes as notes_svc
-    from api.services.journal_two.db import ensure_schema
-    from api.services.journal_two.note_connectors import connections, engine
-    from api.services.journal_two.note_connectors.providers.base import (
-        AccountInfo, NoteProvider, RemoteNote, RemoteRef,
-    )
-
+@pytest.fixture
+def db(tmp_path, monkeypatch):
     monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth.db"))
     conn = auth_db.get_connection()
     ensure_schema(conn)
     conn.close()
     monkeypatch.setenv("NOTE_ENCRYPTION_KEY", Fernet.generate_key().decode())
     monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "att")
+    monkeypatch.setattr(engine, "MEMBER_FULL_PASS_MIN_INTERVAL_S", 0)
 
     async def creds(_u, _p):
         return {"accessToken": "t"}
 
     monkeypatch.setattr(engine, "_resolve_credentials", creds)
 
-    def doc(text, image=False):
-        content = [{"type": "paragraph", "content": [{"type": "text", "text": text}]}]
-        if image:
-            content.append({"type": "image", "attrs": {"src": "import-ref://res-1"}})
-        return {"type": "doc", "content": content}
 
-    class Fake(NoteProvider):
-        name = "fake"
+def _png() -> bytes:
+    from api.services.journal_two.note_connectors.corpora.corpora_gen import _media_body
+    return _media_body({"kind": "png", "w": 4, "h": 4, "seed": 1})
 
-        def __init__(self, delta, present, fail_media_once, fail_fetch_b=False):
-            self.delta, self.present, self.fetched = delta, present, []
-            self.fail_media = fail_media_once
-            self.fail_fetch_b = fail_fetch_b
 
-        def import_key(self, source_remote_id, remote_id):
-            return f"fake:{remote_id}"
+def _doc(text: str, rid: str | None = None) -> dict:
+    content: list[dict] = [{"type": "paragraph", "content": [{"type": "text", "text": text}]}]
+    if rid:
+        content.append({"type": "image", "attrs": {"src": f"import-ref://res-{rid}"}})
+    return {"type": "doc", "content": content}
 
-        async def validate(self, credentials):
-            return AccountInfo(label="Fake")
 
-        async def list_changed(self, credentials, cursor=None):
-            return list(self.delta)
+def ref(rid: str, day: int) -> RemoteRef:
+    return RemoteRef(remote_id=rid, updated_at=f"2026-01-{day:02d}T00:00:00.000+00:00")
 
-        async def list_present_refs(self, credentials):
-            return list(self.present)
 
-        async def fetch(self, credentials, ref):
-            self.fetched.append(ref.remote_id)
-            if ref.remote_id == "B" and self.fail_fetch_b == "store":
-                # fetched, but too big to store: `import_confirm` isolates it (notStoredRefs)
-                big = "x" * (notes_svc.MAX_BODY_JSON_BYTES + 10)
-                return RemoteNote(remote_id="B", title="B", doc=doc(big),
-                                  updated_at="2026-01-09T00:00:00.000+00:00")
-            if ref.remote_id == "B" and self.fail_fetch_b:
-                raise engine.errors.NoteConnTransient("get_note timed out")
-            if ref.remote_id == "B":
-                return RemoteNote(remote_id="B", title="B", doc=doc("b", image=True),
-                                  media=[{"ref": "res-1", "kind": "image", "name": "b.png"}],
-                                  updated_at="2026-01-09T00:00:00.000+00:00")
-            return RemoteNote(remote_id=ref.remote_id, title=ref.remote_id, doc=doc(ref.remote_id),
-                              updated_at=ref.updated_at)
+class Fake(NoteProvider):
+    """Every note has one image `res-<id>`. `fail_media`: ids whose image download fails this
+    pass. `fail_fetch`: ids whose fetch raises. `unstorable`: ids fetched with a body over the
+    size limit. `titles`: a title override per id (a fetch that lost its listing metadata)."""
+    name = "fake"
+    fetch_is_listing_independent = True
 
-        async def fetch_media(self, credentials, ref):
-            if self.fail_media:
-                self.fail_media = False
-                raise engine.errors.NoteConnTransient("expired")
-            from api.services.journal_two.note_connectors.corpora.corpora_gen import _media_body
-            return _media_body({"kind": "png", "w": 4, "h": 4, "seed": 1}), "image/png"
+    def __init__(self, delta, present=None, *, fail_media=(), fail_fetch=(), unstorable=(), titles=None):
+        self.delta, self.present = list(delta), list(present if present is not None else delta)
+        self.fail_media, self.fail_fetch, self.unstorable = set(fail_media), set(fail_fetch), set(unstorable)
+        self.titles = titles or {}
+        self.fetched: list[str] = []
 
-    a = RemoteRef(remote_id="A", updated_at="2026-01-01T00:00:00.000+00:00")
-    b = RemoteRef(remote_id="B", updated_at="2026-01-09T00:00:00.000+00:00")
-    connections.upsert_connector("u1", "fake", {"accessToken": "t"}, account_label="Fake")
-    src = connections.create_source("u1", "fake", "acct", display_name="Fake")
-    monkeypatch.setattr(engine, "MEMBER_FULL_PASS_MIN_INTERVAL_S", 0)
+    def import_key(self, source_remote_id, remote_id):
+        return f"fake:{remote_id}"
 
-    # pass 1: B is listed and its image fails -> pending retry
-    first = Fake([a, b], [a, b], fail_media_once=True)
-    monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: first)
-    await engine.sync_source(src["id"], full=True, manual=True)
-    connections.update_cursor("u1", src["id"], "2026-01-01T00:00:00.000+00:00")  # a drain watermark
+    async def validate(self, credentials):
+        return AccountInfo(label="Fake")
 
-    def pending_b():
-        c = auth_db.get_connection()
-        try:
-            return c.execute("SELECT import_media_pending FROM j2_notes WHERE import_key = 'fake:B'"
-                             ).fetchone()[0]
-        finally:
-            c.close()
+    async def list_changed(self, credentials, cursor=None):
+        return list(self.delta)
 
-    assert pending_b() == import_notice.MEDIA_PENDING_RETRY
-    cursor = lambda: connections.get_source_by_id(src["id"])["cursor"]  # noqa: E731
+    async def list_present_refs(self, credentials):
+        return list(self.present)
 
-    # pass 2: the delta holds only A (edited); B (unchanged) is in the complete listing only, and
-    # fetching it fails. The retry is attempted, and its failure does not hold the cursor.
-    a2 = RemoteRef(remote_id="A", updated_at="2026-01-02T00:00:00.000+00:00")
-    second = Fake([a2], [a2, b], fail_media_once=False, fail_fetch_b=True)
-    monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: second)
-    await engine.sync_source(src["id"], full=True, manual=True)
-    assert set(second.fetched) == {"A", "B"}   # a failing batch is retried item by item
-    assert pending_b() == import_notice.MEDIA_PENDING_RETRY
-    assert cursor() == "2026-01-02T00:00:00.000+00:00"
+    async def fetch(self, credentials, r):
+        rid = r.remote_id
+        self.fetched.append(rid)
+        if rid in self.fail_fetch:
+            raise errors.NoteConnTransient("get_note timed out")
+        if rid in self.unstorable:
+            return RemoteNote(remote_id=rid, title=rid, doc=_doc("x" * (notes_svc.MAX_BODY_JSON_BYTES + 10)),
+                              updated_at=r.updated_at)
+        return RemoteNote(remote_id=rid, title=self.titles.get(rid, f"Note {rid}"), doc=_doc(f"body {rid}", rid),
+                          media=[{"ref": f"res-{rid}", "kind": "image", "name": f"{rid}.png"}],
+                          updated_at=r.updated_at)
 
-    # pass 2b: A edited again; B is fetched but cannot be STORED. Still never holds the cursor.
-    a3 = RemoteRef(remote_id="A", updated_at="2026-01-03T00:00:00.000+00:00")
-    second_b = Fake([a3], [a3, b], fail_media_once=False, fail_fetch_b="store")
-    monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: second_b)
-    result = await engine.sync_source(src["id"], full=True, manual=True)
+    async def fetch_media(self, credentials, media_ref):
+        rid = media_ref[len("res-"):]
+        if rid in self.fail_media:
+            raise errors.NoteConnTransient("expired")
+        return _png(), "image/png"
+
+
+def _source() -> dict:
+    connections.upsert_connector(USER, "fake", {"accessToken": "t"}, account_label="Fake")
+    return connections.create_source(USER, "fake", "acct", display_name="Fake")
+
+
+async def _pass(monkeypatch, src, provider, **kw) -> dict:
+    monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: provider)
+    return await engine.sync_source(src["id"], manual=True, **kw)
+
+
+def _row(rid: str) -> dict[str, Any]:
+    conn = auth_db.get_connection()
+    try:
+        row = conn.execute("SELECT id, title, folder_id, updated_at, imported_at, import_media_pending "
+                           "FROM j2_notes WHERE import_key = ?", (f"fake:{rid}",)).fetchone()
+        return dict(row) if row else {}
+    finally:
+        conn.close()
+
+
+def _cursor(src) -> str | None:
+    return connections.get_source_by_id(src["id"])["cursor"]
+
+
+# ── the retry, and the cursor ──────────────────────────────────────────────────────
+
+async def test_pending_media_retry_never_moves_or_holds_the_cursor(db, monkeypatch):
+    """On a scheduler full pass, a listed-but-unchanged note waiting on a retryable copy is
+    fetched; its (newer) listing time never becomes the cursor (OneNote's is a drain watermark),
+    and neither its fetch failure nor a storage failure holds the cursor."""
+    src = _source()
+    a, b = ref("A", 1), ref("B", 9)
+    await _pass(monkeypatch, src, Fake([a, b], fail_media={"B"}), full=True)
+    connections.update_cursor(USER, src["id"], a.updated_at)  # a drain watermark
+    assert _row("B")["import_media_pending"] == import_notice.MEDIA_PENDING_RETRY
+
+    # B's fetch fails: attempted, never holds the cursor
+    a2 = ref("A", 2)
+    p = Fake([a2], [a2, b], fail_fetch={"B"})
+    await _pass(monkeypatch, src, p, full=True)
+    assert set(p.fetched) == {"A", "B"}   # a failing batch is retried item by item
+    assert _row("B")["import_media_pending"] == import_notice.MEDIA_PENDING_RETRY
+    assert _cursor(src) == a2.updated_at
+
+    # B is fetched but cannot be STORED: still never holds the cursor
+    a3 = ref("A", 3)
+    p = Fake([a3], [a3, b], unstorable={"B"})
+    result = await _pass(monkeypatch, src, p, full=True)
     assert any("'fake:B' could not be stored" in f for f in result["failures"])
-    assert pending_b() == import_notice.MEDIA_PENDING_RETRY
-    assert cursor() == "2026-01-03T00:00:00.000+00:00"
-    a2 = a3
+    assert _cursor(src) == a3.updated_at
 
-    # pass 3: the retry lands; B's newer listing time never becomes the cursor
-    third = Fake([a2], [a2, b], fail_media_once=False)
-    monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: third)
-    await engine.sync_source(src["id"], full=True, manual=True)
-    assert third.fetched == ["A", "B"]
-    assert pending_b() == import_notice.MEDIA_PENDING_NONE
-    assert cursor() == "2026-01-03T00:00:00.000+00:00"
+    # B is unchanged but `import_confirm` cannot store it: named, never holds the cursor
+    real_confirm = notes_svc.import_confirm
+
+    def refuse_b(user_id, payload, **kw):
+        keep = [n for n in payload["notes"] if n["importKey"] != "fake:B"]
+        out = real_confirm(user_id, {**payload, "notes": keep}, **kw)
+        if len(keep) != len(payload["notes"]):
+            out.setdefault("failed", []).append({"importKey": "fake:B", "error": "disk full"})
+        return out
+
+    monkeypatch.setattr(notes_svc, "import_confirm", refuse_b)
+    a4 = ref("A", 4)
+    result = await _pass(monkeypatch, src, Fake([a4], [a4, b]), full=True)
+    monkeypatch.setattr(notes_svc, "import_confirm", real_confirm)
+    assert any("'fake:B' could not be stored" in f for f in result["failures"])
+    assert _cursor(src) == a4.updated_at
+    a3 = a4
+
+    # the retry lands; B's newer listing time never becomes the cursor
+    p = Fake([a3], [a3, b])
+    await _pass(monkeypatch, src, p, full=True)
+    assert p.fetched == ["A", "B"]
+    assert _row("B")["import_media_pending"] == import_notice.MEDIA_PENDING_NONE
+    assert _cursor(src) == a3.updated_at
 
     # an incremental pass (no complete listing) adds nothing
-    fourth = Fake([a2], [a2, b], fail_media_once=False)
-    monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: fourth)
-    await engine.sync_source(src["id"], full=False, manual=True)
-    assert fourth.fetched == ["A"]
+    p = Fake([a3], [a3, b])
+    await _pass(monkeypatch, src, p, full=False)
+    assert p.fetched == ["A"]
+
+
+# ── C2: a member's removal-check pass never retries ─────────────────────────────────
+
+async def test_removal_check_pass_never_retries(db, monkeypatch):
+    src = _source()
+    a, b = ref("A", 1), ref("B", 9)
+    await _pass(monkeypatch, src, Fake([a, b], fail_media={"B"}), full=True)
+    p = Fake([a], [a, b])
+    result = await _pass(monkeypatch, src, p, full=True, member=True)
+    assert result["removalCheck"]["ran"] is True
+    assert p.fetched == ["A"]
+    assert _row("B")["import_media_pending"] == import_notice.MEDIA_PENDING_RETRY
+
+
+async def test_failed_complete_listing_never_retries(db, monkeypatch):
+    src = _source()
+    a, b = ref("A", 1), ref("B", 9)
+    await _pass(monkeypatch, src, Fake([a, b], fail_media={"B"}), full=True)
+    p = Fake([a], [a, b])
+
+    async def broken(_creds):
+        raise errors.NoteConnTransient("listing failed")
+
+    p.list_present_refs = broken  # type: ignore[assignment]
+    await _pass(monkeypatch, src, p, full=True)
+    assert p.fetched == ["A"]
+
+
