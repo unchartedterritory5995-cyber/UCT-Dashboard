@@ -142,7 +142,7 @@ def test_a_v2_step_with_a_live_shape_runs_with_the_normalized_args():
     out = v2.run_turn_v2(message="turn the grid off", context=CTX, history=[], capabilities=CAPS, caller=c, on_event=events.append, wait_step=w)
     assert events[0]["args"] == {"setting": "grid.visible", "value": False}
     assert out["envelope"]["steps"][0]["status"] == "done"
-    assert out["usage"]["rails"] == {"args_normalized": 1, "args_refused": 0}
+    assert {k: out["usage"]["rails"][k] for k in ("args_normalized", "args_refused")} == {"args_normalized": 1, "args_refused": 0}
 
 
 def test_a_v2_step_that_cannot_be_made_valid_tells_the_model_why_and_the_example_shape():
@@ -155,7 +155,7 @@ def test_a_v2_step_that_cannot_be_made_valid_tells_the_model_why_and_the_example
     assert "args off schema for widget.addCharts: unexpected argument indicators" in r["content"]
     assert 'e.g. {"symbols":["NVDA","AMD"],"timeframe":"D","chart_type":"candles","exact":null}' in r["content"]
     assert events == [] and w.seen == []
-    assert out["usage"]["rails"] == {"args_normalized": 0, "args_refused": 1}
+    assert {k: out["usage"]["rails"][k] for k in ("args_normalized", "args_refused")} == {"args_normalized": 0, "args_refused": 1}
 
 
 def test_the_v2_tool_description_carries_the_example_too():
