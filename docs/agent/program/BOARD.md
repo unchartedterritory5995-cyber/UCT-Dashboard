@@ -57,3 +57,28 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 | I-12 | Phase 1 live production testing | done (first pass 2026-11-03 04:45–05:30Z): ~55 turns, 41 model calls ≈ $0.64; verdict TECHNICALLY DEPLOYED; findings LT-1..LT-12 (LT-3, LT-4, LT-8 to fix before Phase 2 scoring); flags were already all ON (no activation needed) | LIVE-TESTING-RESULTS-2026-11-03.md |
 | I-13 | Phase 2 owner hands-on acceptance session; scorecard | todo | after I-12 |
 | I-10 | Notify Indicators/News/Charts sessions of Wave 1 branches and RC windows | done | blake-4c (News #629) and blake-ee (News widget) acked: no master RC pending, no Agent files touched |
+
+## Wave 1.1 repairs (overnight 2026-11-03; branches agent/w11/*, PRs into agent/int; one RC; conditional deploy)
+| id | task | owner | state | PR | evidence |
+|---|---|---|---|---|---|
+| R-01 | LT-3: live model's args for chart.setSetting promoted rows, chart.replay (exit), screener refinement sort, widget.addCharts+indicators are refused as off-schema; make the server's compact-args expansion accept what the production model actually sends (and tighten hints), with regression tests that replay the exact failing shapes | repair-a | todo | | |
+| R-02 | LT-1: empty-board "add a daily chart of nvda to this board" → plans widget.addCharts, not a chart target | repair-a | todo | | |
+| R-03 | LT-9: "rename <layout> to x" → layout.rename (protected-layout refusal reachable); LT-10: nonsense input → clarify with choices, never the FAILED sentence | repair-a | todo | | |
+| R-04 | LT-4: routing offers the indicatorAlerts group for cross/alert phrasings; the planner never claims "can't create them yet" when the capability is in the manifest | repair-b | todo | | |
+| R-05 | LT-8: hidden-field phrases ("rs rank", "uct rating", "composite"…) in refinements and new screens hit the F-16 sentence BEFORE any catalog look-alike mapping; LT-11: the refusal offers the public alternative on every path | repair-b | todo | | |
+| R-06 | LT-12: "when does X report" surfaces the next report date; F-16/F-23 isolation re-check on the merged tree | repair-b | todo | | |
+| R-07 | Investigation record: which production flags were on before Wave 1 and since when (from git/docs/PR bodies; no Railway writes); `charts_active_template` read-only verification | integrator | todo | | |
+| R-08 | Wave 1.1 RC: independent review of the combined diff, agent-ci green, master sync, conditional deploy decision per the eight conditions; live rerun of the failed scenarios | integrator | todo | | |
+
+## Wave 2 (overnight start 2026-11-03; integration branch agent/int-w2; NOT deployed)
+| id | task | owner | state | PR | evidence |
+|---|---|---|---|---|---|
+| W2-A1 | Multi-turn context: clarify threading (a new request while a clarify is open starts fresh; answers to choices bind to the open question), follow-up referents | w2-a | todo | | |
+| W2-A2 | Planner v2 eval readiness: scripted-model acceptance set for v2 (≥ 30 multi-step cases), step protocol hardening, tool-search miss telemetry, cost/round accounting rails; v2 stays OFF | w2-a | todo | | |
+| W2-A3 | Schema-constrained args: server-side normalizers for the catalog's arg shapes + a golden "model output → args" corpus from production failures; deterministic coverage | w2-a | todo | | |
+| W2-B1 | Research capability (RS-1 v1): grounded answer with facts / interpretation / unknowns and timestamped sources, composing gateway kinds + the existing web search; research never emits a figure the gateway did not return | w2-b | todo | | |
+| W2-B2 | Historical analysis: dated ranges/comparisons ("compare this pullback to …"), post-event behaviour via the existing event_study service (value-free to the model), freshness notes | w2-b | todo | | |
+| W2-B3 | Grounded TA workflow: describe a chart's setup from served bars/indicators (no invented levels), conversational follow-ups | w2-b | todo | | |
+| W2-C1 | App-level AgentProvider + page host adapters (screener, breadth, calendar, journal notes read), capability `surfaces` beyond charts; queries available everywhere | w2-c | todo | | |
+| W2-C2 | Explain / Show / Do guide targets on the new pages | w2-c | todo | | |
+| W2-C3 | Cross-feature workflows + Undo across pages (where writers exist) | w2-c | todo | | |

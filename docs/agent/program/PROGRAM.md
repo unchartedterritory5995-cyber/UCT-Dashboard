@@ -54,6 +54,21 @@ Ownership = the paths each package touches, listed in `BOARD.md` per task. Anyth
 
 - 2026-11-03 02:30Z (via agent-lead's session, owner's choice): PR #717 (separate "scans release") CLOSED; scans ship in the combined Wave 1 RC; #716 (scan routing, agent-sc GO, agent-qa GO, AUDIT review APPROVE) merges into agent/int last, with one SAT-1 capture re-bless (d26 moves to screener+agent). The owner explicitly chose to keep `UCT_AGENT_SCAN=1` in production (set 01:52Z, admin-only) until the RC ships F-16 enforcement — recorded as an accepted interim exposure, not an oversight. agent-lead's session has ended; the Agent project continues in this integrator session.
 
+
+## Overnight authorization 2026-11-03 (owner; verbatim intent recorded)
+- **Wave 1.1 = Agent-only repairs of the Phase 1 live findings** (LT-1, LT-3, LT-4, LT-8, LT-9, LT-10, LT-11, LT-12; F-16/F-23 isolation re-check; regression tests that reproduce the production failures; investigation of the pre-enabled production flags; read-only verification of `charts_active_template`). One consolidated RC. **Conditional overnight deploy** allowed ONLY if all eight conditions hold (fix-only scope; independent review approves the combined RC; all Agent/security/isolation/master gates pass; no unrelated change, no security weakening, no migration, nothing destructive; no new flag or member access; gate idle + synced with latest master; rollback verified; compatible with current production config). Otherwise HOLD, preserve the RC, continue safe work. After deploy: verify commit/health/auth/budgets/flags, rerun the failed live scenarios within the production Agent budget, never touch real user data. Wave 1.1 is NOT owner-accepted overnight.
+- **Wave 2 starts now in parallel** on its own integration branch `agent/int-w2` (from master e6740b5b08): Builder A intelligence (NL/multi-turn, planner v2 eval readiness, multi-step planning, schema-constrained args, deterministic evals; v2 stays OFF), Builder B market intelligence (research capability with citations, historical analysis/comparison, grounded TA workflows, follow-ups, freshness; licensing + F-16 boundaries), Builder C website operations (Agent beyond Charts via canonical APIs, Explain/Show/Do, cross-feature workflows + Undo). Integrator keeps PROGRAM/BOARD/EVAL, CI, independent review, merges green reviewed PRs into `agent/int-w2`, prepares bundled RCs. **Not authorized overnight:** deploying Wave 2; planner v2 ON; the $21 paid eval; spending increases; member access; flow-worker; isolation weakening; destructive tests; unrelated production changes.
+
+### Wave 1.1 / Wave 2 worktrees
+| Worktree | Branch | Owner | Scope |
+|---|---|---|---|
+| C:/w/w11-a | agent/w11/args | repair-a | LT-3 (args off-schema on live model), LT-1 (empty-board add), LT-9 (rename), LT-10 (nonsense → clarify) |
+| C:/w/w11-b | agent/w11/routing-f16 | repair-b | LT-4 (indicatorAlerts routing + false-claim wording), LT-8 (hidden-field phrase in refinement → F-16 sentence), LT-11 (public alternative), LT-12 (next report date), F-16/F-23 isolation re-check |
+| C:/w/w2-int | agent/int-w2 | integrator | Wave 2 integration |
+| C:/w/w2-a | agent/w2/intelligence | w2-a | Builder A |
+| C:/w/w2-b | agent/w2/market | w2-b | Builder B |
+| C:/w/w2-c | agent/w2/webops | w2-c | Builder C |
+
 ## Activation checklist (admin-only; owner sets flags; order is mandatory)
 1. `UCT_AGENT_STREAM=1` — after production flags are verified.
 2. `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,quotes,instrument.resolve` — after RC1.
