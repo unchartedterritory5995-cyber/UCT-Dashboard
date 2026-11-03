@@ -1246,6 +1246,23 @@ whether to bring in a real 3D library: "Yeah show me 12 different examples all t
   logs the local test account in against 8077 and replays the cookie for 127.0.0.1, so one click from the shell's
   "Sign the sandbox in" link or the lab's SignedOut card signs every piece in; the typed form stays as a fallback.
 - Commit d8e2b64037 on feat/study-hourly-review-1031 (pushed). Awaiting the owner's pick of a step (or a step 13).
+## 2026-11-03 (late night): THE LOGO DECIDED (owner: "decide now and get it all done perfectly and fully")
+
+Decision: ladder step 12 with the halo at 0.3 (the glow turned down a touch). Commit 0fe0fda88e (pushed).
+- Product: three@0.160.0 is a dependency; components/study/StudyMark.jsx lazy-loads StudyMark3D (its own chunk, never
+  on the entry); the still public/brand/study-mark-256.png is the fallback (no WebGL, reduced motion, chunk loading);
+  the mark sits in the Study landing hero (heroHead). Rails: StudyMark.test.jsx (fallback, preference, still exists).
+- Brand assets under docs/brand/study-mark (1024/128/64 png, Discord 512, favicon 32 + .ico, spin gif) and
+  public/brand (256/512). Export rig: scratchpad local_study/pw_export.py through lab piece 59 (bare frame, transparent
+  page; the rig asserts transparent corners). Pillow was installed into the Python that has Playwright.
+- Workbench: lab/Logo = the decided mark everywhere (canvas fallback in LogoCanvas.jsx = ladder step 0); piece 60 =
+  the product landing from the real component on fixture progress; shell batch 14 = the decision + the landing.
+- MEASURED while writing the owed StockChart.onChartTap test: the subscription was keyed on the prop alone, and the
+  chart is created in a later effect, so on first mount it subscribed to NOTHING (jsdom: 0 handlers). Keyed on
+  chartReady now. Lab taps had worked only because something re-ran the effect later. Test: 4 cases, green.
+- Not done, on purpose: the site favicon is unchanged (the compass + candle IS the brand mark, but swapping the whole
+  site's icon is the owner's call; the .ico is ready). No npm build was run before the commit; a background build
+  check follows this entry.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
