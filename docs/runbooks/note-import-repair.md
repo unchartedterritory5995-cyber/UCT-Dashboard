@@ -88,8 +88,20 @@ railway ssh --service web
 
 (`created_at` is stored as ISO text with a `T`, so the cutoff is built in the same shape.) At 20 rows
 per 10 minutes, N rows take N/2 minutes to drain. A row the sweep cannot finish after 3 tries is
-marked failed, never retried forever. Kill switch: `NOTEBOOK_DOC_PENDING_SWEEP_DISABLED=1` on `web`,
-read at each tick (no redeploy needed to stop it; unset it to resume).
+marked failed, never retried forever.
+
+Kill switch: `NOTEBOOK_DOC_PENDING_SWEEP_DISABLED=1` on `web`. The sweep reads it at each tick, but
+from the PROCESS environment, and a Railway variable change reaches the process only on a new boot.
+So a change takes effect after a redeploy, never at "the next tick":
+
+1. Stop: `railway variable set NOTEBOOK_DOC_PENDING_SWEEP_DISABLED=1 --service web`.
+   Resume: `railway variable delete NOTEBOOK_DOC_PENDING_SWEEP_DISABLED --service web` (a delete
+   never restarts the pod).
+2. `railway redeploy --service web --yes`.
+3. Confirm from the pod, never from `--kv` (which reads the service, not the process): the
+   `/api/health` uptime reset, and `railway ssh --service web` then
+   `tr '\0' '\n' < /proc/1/environ | grep NOTEBOOK_DOC_PENDING_SWEEP_DISABLED` prints `=1` after a
+   stop and nothing after a resume.
 
 ## Before arming: the lock test must pass on Linux
 

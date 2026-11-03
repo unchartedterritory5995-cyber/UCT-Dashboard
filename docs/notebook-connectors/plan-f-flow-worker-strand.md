@@ -44,7 +44,10 @@ The deploy adds the web pod's `j2_doc_pending_sweep`. It re-queues `pending` sea
 rows that were never extracted (`processed_at IS NULL`; a `pending` row with `processed_at` set is
 waiting for OCR and is never touched) and are older than 10 minutes, at most 20 per tick, with the first tick no sooner than 10 minutes after
 boot. A row it cannot finish after 3 tries is marked `processing_failed`. Kill switch:
-`NOTEBOOK_DOC_PENDING_SWEEP_DISABLED=1` on `web`, read per tick.
+`NOTEBOOK_DOC_PENDING_SWEEP_DISABLED=1` on `web`. It takes effect only on a new boot: `railway
+variable set` (or `railway variable delete` to resume), then `railway redeploy --service web --yes`,
+then confirm from the pod (uptime reset, and the running process's `/proc/1/environ`), never from
+`--kv`. Full steps: `docs/runbooks/note-import-repair.md`, "Before the deploy".
 
 Production may already hold rows that crashes and redeploys left `pending` since Wave I. Count them
 first and record the answer here:
