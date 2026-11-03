@@ -199,7 +199,9 @@ def _links(doc: dict[str, Any]) -> list[tuple[str, str]]:
 
 @pytest.mark.parametrize("src, expected", [
     ("[x](www.example.com)", [("x", "https://www.example.com")]),
-    ("[x](example.com/path)", [("x", "https://example.com/path")]),
+    # Ruling: linkify's own decision. No `www.`, so not a web address linkify makes; TipTap's
+    # allow-list refuses the bare path too, so it is text, as before D3.
+    ("[x](example.com/path)", []),
     ('<a href="www.example.com/a?b=1">x</a> y', [("x", "https://www.example.com/a?b=1")]),
     # A note link is never a host: it stays as written for the engine's policy to judge.
     ("[x](notes.md)", [("x", "notes.md")]),
@@ -210,8 +212,17 @@ def test_markdown_host_like_hrefs(src, expected):
 
 
 def test_html_walker_host_like_href():
-    assert _links(html_to_tiptap('<p><a href="example.com/p">x</a></p>')["doc"]) == [
-        ("x", "https://example.com/p")]
+    assert _links(html_to_tiptap('<p><a href="www.example.com/p">x</a></p>')["doc"]) == [
+        ("x", "https://www.example.com/p")]
+    assert _links(html_to_tiptap('<p><a href="example.com/p">x</a></p>')["doc"]) == []
+
+
+@pytest.mark.parametrize("ticker", ["NVDA.US", "AAPL.O", "BRK.B"])
+def test_a_ticker_href_never_becomes_a_link(ticker):
+    """Ruling: an href is host-like only when linkify would link that exact string."""
+    from api.services.journal_two.note_connectors.convert.linkify import finalize_links, host_like_href
+    assert host_like_href(ticker) is None
+    assert _links(finalize_links(md_to_tiptap(f"[x]({ticker})")["doc"])) == []
 
 
 def test_a_connector_note_answer_wins_over_host_like():

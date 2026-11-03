@@ -13,10 +13,6 @@
         "text": "the site"
       },
       {
-        "target": "https://example.com/path?x=1",
-        "text": "the page"
-      },
-      {
         "target": "Plan.md",
         "text": "the plan"
       }

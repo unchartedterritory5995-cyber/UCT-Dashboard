@@ -255,25 +255,25 @@ _NOTE_PATH_RE = re.compile(r"\.md$", re.IGNORECASE)
 
 
 def host_like_href(h: str) -> str | None:
-    """D3 item 6: `https://<h>` when the scheme-less href `h` is a HOST as linkify reads one
-    (`www.example.com`, `example.com/path`), else None.
+    """D3 item 6: the `https://` URL linkify WOULD MAKE of the scheme-less href `h`, else None.
 
-    The test is linkify's own: the one `LinkifyIt()` matches all of `h` as exactly one fuzzy
-    link (no schema; an email is not a host), and the `https://` URL passes `kept_scheme_href`,
-    the same allow-list a linkified URL meets. A path ending `.md` is a note link and never a
-    host; a connector that resolves a link to a note (`mddoc._link_href`'s `resolve_href`)
-    answers before this is asked. ⚰️ Until D3 such an href was "relative" with no source, so
-    the link became text and its target was lost. The client's `linkPolicy.js::hostLikeHref`
-    is the same rule; the shared `href_vectors` pin the two."""
+    ⛔ Linkify's own decision, never a second one (controller ruling): `_matches(h)` -- the same
+    instance, allow-list, trim and `kept_scheme_href` the prose pass uses -- must make exactly
+    one link spanning all of `h`, and it must be a web address (`https://`, so an email is
+    not). So `www.example.com/x` links, while `example.com/path`, `NVDA.US`, `AAPL.O` and
+    `BRK.B` stay text exactly as linkify leaves them in prose. A path ending `.md` is a note
+    link and never a host; a connector that resolves a link to a note (`mddoc._link_href`'s
+    `resolve_href`) answers before this is asked. ⚰️ Until D3 a `www.` href was "relative" with
+    no source, so the link became text and its target was lost. The client's
+    `linkPolicy.js::hostLikeHref` is the same rule; the shared `href_vectors` pin the two."""
     if not h or h.startswith(("/", ".", "#", "?")) or not _clean(h):
         return None
     if _NOTE_PATH_RE.search(re.split(r"[?#]", h, maxsplit=1)[0]):
         return None
-    with _LINKIFY_LOCK:
-        found = _LINKIFY.match(h) or []
-    if len(found) != 1 or found[0].index != 0 or found[0].last_index != len(h) or found[0].schema != "":
+    found = _matches(h)
+    if len(found) != 1 or found[0][:2] != (0, len(h)) or not found[0][2].startswith("https://"):
         return None
-    return kept_scheme_href("https://" + h)
+    return found[0][2]
 
 
 def resolve_href(href: Any, source_url: str | None = None) -> str | None:

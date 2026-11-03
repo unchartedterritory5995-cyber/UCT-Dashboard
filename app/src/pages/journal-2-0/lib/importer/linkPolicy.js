@@ -183,20 +183,22 @@ function resolveRelative(href, sourceUrl) {
 const NOTE_PATH_RE = /\.md$/i
 
 /**
- * D3 item 6: `https://<h>` when the scheme-less href `h` is a HOST as linkify reads one
- * (`www.example.com`, `example.com/path`), else null. The server's `host_like_href`, pinned by
- * the shared `href_vectors`: linkify-it matches all of `h` as exactly one fuzzy link (no
- * schema; an email is not a host), and the `https://` URL passes `keptSchemeHref`. A path
- * ending `.md` is a note link, never a host; an adapter that resolves a link to a note writes
- * `data-import-link` before this runs. ⚰️ Until D3 such an href was "relative" with no source,
- * so the link became text and its target was lost.
+ * D3 item 6: the `https://` URL linkify WOULD MAKE of the scheme-less href `h`, else null.
+ * ⛔ Linkify's own decision, never a second one (controller ruling): `matches(h)` -- the same
+ * instance, allow-list, trim and `keptSchemeHref` the prose pass uses -- must make exactly one
+ * link spanning all of `h`, a web address (`https://`; an email is not). So `www.example.com/x`
+ * links, while `example.com/path`, `NVDA.US`, `AAPL.O` and `BRK.B` stay text, as in prose.
+ * The server's `host_like_href`, pinned by the shared `href_vectors`. A path ending `.md` is a
+ * note link, never a host; an adapter that resolves a link to a note writes `data-import-link`
+ * before this runs. ⚰️ Until D3 a `www.` href was "relative" with no source, so the link became
+ * text and its target was lost.
  */
 export function hostLikeHref(h) {
   if (!h || /^[/.#?]/.test(h) || !clean(h)) return null
   if (NOTE_PATH_RE.test(h.split(/[?#]/, 1)[0])) return null
-  const found = getLinkify().match(h) || []
-  if (found.length !== 1 || found[0].index !== 0 || found[0].lastIndex !== h.length || found[0].schema !== '') return null
-  return keptSchemeHref('https://' + h)
+  const found = matches(h)
+  if (found.length !== 1 || found[0][0] !== 0 || found[0][1] !== h.length || !found[0][2].startsWith('https://')) return null
+  return found[0][2]
 }
 
 /**
