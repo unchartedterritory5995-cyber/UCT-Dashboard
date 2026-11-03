@@ -1,3 +1,9 @@
+# promotion-gate: no — ADDITIVE CI for the Agent program's branches (agent/**, PRs into
+#   agent/int and master from them). It never decides promotion: the master deploy gate keeps
+#   every Agent step it has today, and tools/promotion_gate.py classifies this file as "no".
+#   Owner-approved 2026-11-02: tests/test_uct_agent_deploy_gate.py::test_no_OTHER_workflow_is_an_agent_gate
+#   exempts promotion-gate:no workflows (pinned by name) and keeps refusing any gating or
+#   unclassified workflow that names the Agent suites; the gate's own Agent steps stay mandatory.
 # UCT Agent CI — the Agent program's own integration check (Wave 1, 2026-11-02).
 #
 # ADDITIVE. This does not change the master deploy gate; the gate keeps every step it has
@@ -39,6 +45,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Some QA rails diff the tree against the integration branch (e.g. the F-16 rail that proves
+      # the member Screener's server code is untouched). A shallow checkout has no such ref.
+      - name: Fetch the integration branch for diff-based rails
+        run: git fetch --no-tags --quiet origin +refs/heads/agent/int:refs/remotes/origin/agent/int +refs/heads/master:refs/remotes/origin/master
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

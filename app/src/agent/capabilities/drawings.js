@@ -510,7 +510,7 @@ function registerAnchoredDrawingCapabilities(common) {
       'from / to = {date, price}: the two anchors in time order ("from the Oct 15 low at 180 to last Friday at 195"). A point the member describes without a date AND a price ("the recent low") has no anchor — clarify, never guess.'],
     ['drawing.addRay', 'ray', 'Draw a RAY from one point (date + price) through a second, extended to the right — the toolbar\'s own ray tool. Every chart on that symbol shows it; Undo removes it.',
       'from = the start {date, price}; to = a second point it passes through {date, price}, after the first.'],
-    ['drawing.addRectangle', 'rect', 'Draw a RECTANGLE between two opposite corners (date + price each) on a chart\'s symbol — the toolbar\'s own rectangle, e.g. a consolidation box. Undo removes it.',
+    ['drawing.addRectangle', 'rect', 'Draw a RECTANGLE between two opposite corners (date + price each) on a chart\'s symbol — the toolbar\'s own rectangle. Undo removes it.',
       'from / to = {date, price}: opposite corners ("a box from Oct 1 at 170 to Oct 20 at 185").'],
     ['drawing.addFib', 'fib', 'Draw a FIBONACCI RETRACEMENT between two points (date + price each) on a chart\'s symbol — the toolbar\'s own tool with its standard levels. Undo removes it.',
       'from = the swing start {date, price} (the low for an up move); to = the swing end {date, price}. "Fib from the Oct 7 low at 150 to the Oct 28 high at 190".'],

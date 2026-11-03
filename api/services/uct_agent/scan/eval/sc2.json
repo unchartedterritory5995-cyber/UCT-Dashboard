@@ -9,8 +9,9 @@
    "category": "compound",
    "text": "liquid semis above the 50-day with RS over 80 and volume picking up",
    "expect": {
-    "type": "spec",
-    "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5"
+    "type": "refuse",
+    "reason": "UCT proprietary ratings",
+    "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
    }
   },
   {
@@ -18,8 +19,9 @@
    "category": "compound",
    "text": "large cap tech near highs with strong RS",
    "expect": {
-    "type": "spec",
-    "criteria_text": "market_cap > 10000000000 and sector in [\"Technology\"] and dist_52w_high_pct <= 5 and rs_rank >= 80"
+    "type": "refuse",
+    "reason": "UCT proprietary ratings",
+    "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
    }
   },
   {
@@ -45,8 +47,9 @@
    "category": "compound",
    "text": "tight setups above the 50-day in leaders over $20",
    "expect": {
-    "type": "spec",
-    "criteria_text": "tight_consolidation = yes and above_50sma = yes and rs_rank >= 80 and price > 20"
+    "type": "refuse",
+    "reason": "UCT proprietary ratings",
+    "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
    }
   },
   {
@@ -99,17 +102,18 @@
    "category": "compound",
    "text": "NR7 in liquid leaders above the 50-day",
    "expect": {
-    "type": "spec",
-    "criteria_text": "nr7 = yes and dollar_vol_30d >= 20000000 and rs_rank >= 80 and above_50sma = yes"
+    "type": "refuse",
+    "reason": "UCT proprietary ratings",
+    "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
    }
   },
   {
    "id": "c12",
    "category": "compound",
-   "text": "pullbacks to the 20 EMA in strong semis",
+   "text": "pullbacks to the 20 EMA in semis",
    "expect": {
     "type": "spec",
-    "criteria_text": "pct_vs_ema20 >= -2 and pct_vs_ema20 <= 2 and ema20_rising = yes and industry in [\"Semiconductors\"] and rs_rank >= 80"
+    "criteria_text": "pct_vs_ema20 >= -2 and pct_vs_ema20 <= 2 and ema20_rising = yes and industry in [\"Semiconductors\"]"
    }
   },
   {
@@ -175,12 +179,9 @@
    "category": "compound",
    "text": "Nasdaq 100 names above the 50-day sorted by RS",
    "expect": {
-    "type": "spec",
-    "criteria_text": "index_ndx = yes and above_50sma = yes",
-    "sort": {
-     "key": "rs_rank",
-     "dir": "desc"
-    }
+    "type": "refuse",
+    "reason": "UCT proprietary ratings",
+    "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
    }
   },
   {
@@ -478,19 +479,69 @@
     "reason": "flow fields need owner approval",
     "why": "SC-2 section 6: opt_* refused (owner approval; ADR-003 draft)"
    }
+  },
+  {
+   "id": "f01",
+   "category": "refusal",
+   "text": "stocks with RS rank above 90",
+   "expect": {
+    "type": "refuse",
+    "reason": "UCT proprietary ratings",
+    "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
+   }
+  },
+  {
+   "id": "f02",
+   "category": "refusal",
+   "text": "sort by UCT composite",
+   "expect": {
+    "type": "refuse",
+    "reason": "UCT proprietary ratings",
+    "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
+   }
+  },
+  {
+   "id": "f03",
+   "category": "refusal",
+   "text": "strongest sectors' leaders",
+   "expect": {
+    "type": "refuse",
+    "reason": "UCT proprietary ratings",
+    "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
+   }
+  },
+  {
+   "id": "f04",
+   "category": "refusal",
+   "text": "high setup score names",
+   "expect": {
+    "type": "refuse",
+    "reason": "UCT proprietary ratings",
+    "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
+   }
+  },
+  {
+   "id": "f05",
+   "category": "refusal",
+   "text": "stocks in the UCT 20",
+   "expect": {
+    "type": "refuse",
+    "reason": "UCT proprietary ratings",
+    "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
+   }
   }
  ],
  "chains": [
   {
    "id": "k01",
-   "about": "agent-lead's example",
+   "about": "agent-lead's example, with its RS condition swapped for a return (RS is refused: f01)",
    "steps": [
     {
-     "text": "liquid semis above the 50-day with RS over 80 and volume picking up",
+     "text": "liquid semis above the 50-day up more than 20% this month and volume picking up",
      "delta": "new",
      "expect": {
       "type": "spec",
-      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5"
+      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and chg_pct_1m > 20 and vol_ratio >= 1.5"
      }
     },
     {
@@ -498,7 +549,7 @@
      "delta": "add",
      "expect": {
       "type": "spec",
-      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5"
+      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and chg_pct_1m > 20 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5"
      }
     },
     {
@@ -506,7 +557,7 @@
      "delta": "narrow",
      "expect": {
       "type": "spec",
-      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5 and price >= 10"
+      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and chg_pct_1m > 20 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5 and price >= 10"
      }
     },
     {
@@ -514,7 +565,7 @@
      "delta": "sort",
      "expect": {
       "type": "spec",
-      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5 and price >= 10",
+      "criteria_text": "dollar_vol_30d >= 20000000 and industry in [\"Semiconductors\"] and above_50sma = yes and chg_pct_1m > 20 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5 and price >= 10",
       "sort": {
        "key": "rvol_live",
        "dir": "desc"
@@ -526,7 +577,7 @@
      "delta": "replace_universe",
      "expect": {
       "type": "spec",
-      "criteria_text": "dollar_vol_30d >= 20000000 and sector in [\"Technology\"] and above_50sma = yes and rs_rank > 80 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5 and price >= 10",
+      "criteria_text": "dollar_vol_30d >= 20000000 and sector in [\"Technology\"] and above_50sma = yes and chg_pct_1m > 20 and vol_ratio >= 1.5 and dist_52w_high_pct <= 5 and price >= 10",
       "sort": {
        "key": "rvol_live",
        "dir": "desc"
@@ -540,27 +591,27 @@
    "about": "tighten a bound",
    "steps": [
     {
-     "text": "stocks with RS rank above 80",
+     "text": "stocks with ADR over 5%",
      "delta": "new",
      "expect": {
       "type": "spec",
-      "criteria_text": "rs_rank > 80"
+      "criteria_text": "adr_pct > 5"
      }
     },
     {
-     "text": "make that 90",
+     "text": "make that 6",
      "delta": "add",
      "expect": {
       "type": "spec",
-      "criteria_text": "rs_rank > 90"
+      "criteria_text": "adr_pct > 6"
      }
     },
     {
-     "text": "and ADR over 5%",
+     "text": "and price over $20",
      "delta": "add",
      "expect": {
       "type": "spec",
-      "criteria_text": "rs_rank > 90 and adr_pct > 5"
+      "criteria_text": "adr_pct > 6 and price > 20"
      }
     }
    ]
@@ -570,15 +621,15 @@
    "about": "remove a filter",
    "steps": [
     {
-     "text": "large caps above the 50-day with RS over 70",
+     "text": "large caps above the 50-day with RSI over 70",
      "delta": "new",
      "expect": {
       "type": "spec",
-      "criteria_text": "market_cap > 10000000000 and above_50sma = yes and rs_rank > 70"
+      "criteria_text": "market_cap > 10000000000 and above_50sma = yes and rsi14 > 70"
      }
     },
     {
-     "text": "forget the RS filter",
+     "text": "forget the RSI filter",
      "delta": "remove",
      "expect": {
       "type": "spec",
@@ -713,11 +764,11 @@
    "about": "relative volume follow-up",
    "steps": [
     {
-     "text": "leaders above the 50-day",
+     "text": "high ADR names above the 50-day",
      "delta": "new",
      "expect": {
       "type": "spec",
-      "criteria_text": "rs_rank >= 80 and above_50sma = yes"
+      "criteria_text": "adr_pct > 5 and above_50sma = yes"
      }
     },
     {
@@ -725,11 +776,34 @@
      "delta": "add",
      "expect": {
       "type": "spec",
-      "criteria_text": "rs_rank >= 80 and above_50sma = yes and rvol_live >= 1.5",
+      "criteria_text": "adr_pct > 5 and above_50sma = yes and rvol_live >= 1.5",
       "sort": {
        "key": "rvol_live",
        "dir": "desc"
       }
+     }
+    }
+   ]
+  },
+  {
+   "id": "k09",
+   "about": "a follow-up may not ADD a hidden key to the last screen (owner F-16)",
+   "steps": [
+    {
+     "text": "semis above the 50-day",
+     "delta": "new",
+     "expect": {
+      "type": "spec",
+      "criteria_text": "industry in [\"Semiconductors\"] and above_50sma = yes"
+     }
+    },
+    {
+     "text": "only the ones with RS over 80",
+     "delta": "add",
+     "expect": {
+      "type": "refuse",
+      "reason": "UCT proprietary ratings",
+      "why": "owner F-16: RS Rank, Sector RS and every UCT rating are hidden from the Agent; 'strong' / 'leaders' / 'top RS' read as RS Rank in UCT's vocabulary (SC-2 §4), so the screen is refused clearly, never answered with a substitute"
      }
     }
    ]
