@@ -21,6 +21,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
 import { mutate as globalMutate } from 'swr'
+import { kindServed, readQuoteMap } from './marketDataFacts'
 
 const ROUTE = '/api/watchlist-alerts'
 const TTL_MS = 20_000
@@ -70,22 +71,17 @@ const rows = () => cache.rows || []
 // Every Alerts surface (widget, bell, chart menus) re-reads after an Agent write.
 const revalidateAlertViews = () => { try { globalMutate(k => typeof k === 'string' && k.startsWith(ROUTE)) } catch { /* never breaks a write */ } }
 
-/** Last prices for these symbols from the same quotes route the app uses; {} if unavailable. */
+/** Last prices for these symbols from the MD-1 gateway's `quotes` kind (one read for the open turn); {} if unavailable.
+ *  ⛔ W1-C C-04 (builder-c): NEVER /api/live-prices — on a cache miss that route runs the member's alert checker
+ *  (api/services/live_prices.py), and an Agent read must never trigger an alert. While `quotes` is not served the
+ *  check is simply not made, and the proposal says so (`alertQuotesChecked`). Rail: qa/noLivePrices.test.js. */
 export async function quotesFor(symbols) {
   const syms = [...new Set(symbols.map(upper).filter(Boolean))]
   if (!syms.length) return {}
-  try {
-    const r = await req(`/api/live-prices?tickers=${encodeURIComponent(syms.join(','))}`, { cache: 'no-store' })
-    if (!r.ok) return {}
-    const body = await r.json()
-    const out = {}
-    for (const s of syms) {
-      const p = Number(body?.[s]?.price)
-      if (Number.isFinite(p) && p > 0) out[s] = p
-    }
-    return out
-  } catch { return {} }
+  try { return await readQuoteMap(syms) } catch { return {} }
 }
+/** Whether a current price can be checked at all on this server (the gateway serves `quotes`). */
+export const quotesChecked = () => kindServed('quotes')
 
 const etDay = (iso) => {
   try { return new Date(iso).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) } catch { return null }
@@ -317,7 +313,7 @@ export function registerAlertCapabilities() {
         // turning the failure into a null that reads like an empty book (TERM-033).
         loadAlerts({ force: true }).then(() => true, () => false),
       ])
-      return { unknownSymbols: unknown, alertQuotes: quotes, alertBookFresh: fresh }
+      return { unknownSymbols: unknown, alertQuotes: quotes, alertQuotesChecked: quotesChecked(), alertBookFresh: fresh }
     },
     check(st, { symbol, price, direction }, env) {
       const sym = upper(symbol)
@@ -338,9 +334,12 @@ export function registerAlertCapabilities() {
       return null
     },
     apply: (st, { symbol, price, direction }) => ({ ...st, creates: [...st.creates, { sym: upper(symbol), price: Number(price), direction }] }),
-    describe(b, a, { symbol, price, direction }) {
+    describe(b, a, { symbol, price, direction }, env) {
       if (a.creates.length <= b.creates.length) return null
-      return `Price alert: ${alertPhrase({ sym: upper(symbol), price: Number(price), direction })} — goes off once, checked while the market is open`
+      // C-04: without the gateway's `quotes` kind the current price is not read (never /api/live-prices), so the
+      // member is told the level was not checked against it — the alert is still created as asked.
+      const unchecked = env && env.alertQuotesChecked === false ? " (the current price isn't available to the Agent, so this level wasn't checked against it)" : ''
+      return `Price alert: ${alertPhrase({ sym: upper(symbol), price: Number(price), direction })} — goes off once, checked while the market is open${unchecked}`
     },
   })
 

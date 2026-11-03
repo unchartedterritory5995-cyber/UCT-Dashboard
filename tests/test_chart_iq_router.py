@@ -322,8 +322,10 @@ def test_prewarm_warms_each_recently_opened_industry_once(tmp_path, monkeypatch)
     monkeypatch.setenv("CHART_IQ_ROW_CACHE_DB", str(tmp_path / "rows.db"))
     assert prewarm.warm() == {"skipped": "disabled"}                       # off by default
     monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PREWARM_ENABLED", "1")
+    prewarm._PENDING.clear()                                               # other tests' reads share the in-memory buffer
     for t in ("AAA", "AAB", "BBB", "FND", "OLD"):
         prewarm.record_view(t)
+    assert prewarm.flush() == 5                                            # views are batched; flush writes them
     import time as _t
     c = prewarm._conn(); c.execute("UPDATE viewed SET at=? WHERE ticker='OLD'", (_t.time() - 10 * 86400,)); c.commit(); c.close()
     monkeypatch.setattr(CX, "IM", {"AAA": ("S", "Semis"), "AAB": ("S", "Semis"), "BBB": ("T", "Software"), "FND": ("F", "Exchange Traded Fund"),
@@ -371,13 +373,17 @@ def test_pack_build_stores_reads_and_skips_safely(packdb, monkeypatch):
     from api.services.chart_iq import pack, pipeline
     assert pack.build() == {"skipped": "disabled"}
     monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.delenv("CHART_IQ_PACK_FALLBACK_ENABLED", raising=False)
+    assert pack.build() == {"skipped": "server build disabled"}            # the web pod never builds unless armed
+    monkeypatch.setenv("CHART_IQ_PACK_FALLBACK_ENABLED", "1")
     monkeypatch.setattr(pack, "in_session", lambda now=None: True)
     assert pack.build() == {"skipped": "regular session"}                   # never during the session unless forced
     monkeypatch.setattr(pack, "in_session", lambda now=None: False)
     monkeypatch.setattr(pipeline, "latest_day", lambda: "2026-10-30")
-    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: {"error": "x"} if t == "BAD" else dict(FAKE, ticker=t, asof=d, bars=[1], timing={}))
-    rep = pack.build(tickers=["AAA", "BAD", "CCC"], sleep=lambda s: None)
-    assert rep["ok"] == 2 and rep["errors"] == 1 and rep["day"] == "2026-10-30"
+    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: {"error": "x"} if t == "BAD" else
+                        dict(FAKE, ticker=t, asof="2026-03-16" if t == "DEAD" else d, bars=[1], timing={}))
+    rep = pack.build(tickers=["AAA", "BAD", "CCC", "DEAD"], sleep=lambda s: None)
+    assert rep["ok"] == 2 and rep["errors"] == 2 and rep["day"] == "2026-10-30"   # a dead symbol (last bar months back) is not packed
     got = pack.get("aaa", today="2026-11-02")
     assert got["ticker"] == "AAA" and got["asof"] == "2026-10-30" and "bars" not in got and "timing" not in got
     assert pack.get("BAD", today="2026-11-02") is None
@@ -401,7 +407,7 @@ def test_pack_session_window():
 def test_route_answers_a_latest_read_from_the_pack_without_computing(packdb, monkeypatch, fbdb):
     from api.services.chart_iq import pack, pipeline
     monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_MEMBERS_ENABLED", "1")
-    monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PACK_FALLBACK_ENABLED", "1")
     monkeypatch.setattr(pack, "in_session", lambda now=None: False)
     monkeypatch.setattr(pipeline, "latest_day", lambda: "2026-10-30")
     monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: dict(FAKE, ticker=t, asof="2026-10-30", thesis="packed"))
@@ -428,6 +434,12 @@ def test_pack_admin_endpoints_and_jobs(packdb, monkeypatch):
     monkeypatch.delenv("CHART_IQ_PACK_ENABLED", raising=False)
     assert M.register_chart_iq_pack_jobs(sched) is False and jobs == []
     monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.delenv("CHART_IQ_PACK_FALLBACK_ENABLED", raising=False)
+    assert M.register_chart_iq_pack_jobs(sched) is True and jobs == ["chart_iq_pack_sync"]   # no in-pod build by default
+    assert client(ADMIN, monkeypatch).post("/api/chart-iq/pack/build").json()["started"] is False
+    from api.services.chart_iq import pack as _p
+    assert _p.build(force=True) == {"skipped": "server build disabled"}
+    jobs.clear(); monkeypatch.setenv("CHART_IQ_PACK_FALLBACK_ENABLED", "1")
     assert M.register_chart_iq_pack_jobs(sched) is True and sorted(jobs) == ["chart_iq_pack_evening", "chart_iq_pack_morning", "chart_iq_pack_sync"]
 
 
@@ -480,3 +492,39 @@ def test_pack_sync_installs_a_pc_built_pack_and_refuses_bad_ones(tmp_path, monke
     s3.put(104, _pack_blob(tmp_path, "2026-11-02"))
     assert pack.sync_from_r2(s3=s3).get("installed") == 104 and pack._path().endswith("chart_iq_pack-104.db")
     assert not any(f.startswith(".chart_iq_pack-") for f in os.listdir(d))   # no staging files left behind
+
+
+def test_pack_file_is_warmed_once_per_file(tmp_path, monkeypatch):
+    from api.services.chart_iq import pack
+    reads = []
+    real_open = open
+    f = tmp_path / "p.db"; f.write_bytes(b"x" * 1000)
+    monkeypatch.setattr(pack, "_WARMED", set())
+    import threading as _th
+    started = []
+    monkeypatch.setattr(pack.threading, "Thread", lambda target, **kw: type("T", (), {"start": lambda self: (started.append(1), target())})())
+    pack.warm_file(str(f)); pack.warm_file(str(f))
+    assert started == [1]                                                   # once per file per process
+
+
+
+def test_a_dead_symbol_asked_for_now_fails_fast(tmp_path, monkeypatch):
+    """A symbol whose newest bar is far behind the latest session (delisted) answers at once on a latest ask; the same symbol
+    on a past date still gets its point-in-time read."""
+    import datetime
+    last = _bars_db(str(tmp_path / "bars.db"))
+    c = sqlite3.connect(str(tmp_path / "bars.db"))
+    rows = c.execute("SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker='TST' ORDER BY ts").fetchall()
+    cut = rows[-60][0]
+    c.executemany("INSERT INTO ohlcv VALUES ('DEAD','D',?,?,?,?,?,?)", [r for r in rows if r[0] <= cut]); c.commit(); c.close()
+    monkeypatch.undo()
+    monkeypatch.setenv("CHART_IQ_BARS_DB", str(tmp_path / "bars.db"))
+    monkeypatch.setenv("INDUSTRY_MAP_DB_PATH", str(tmp_path / "missing_industry.db"))
+    from api.services.chart_iq import pipeline
+    from api.services.chart_iq.engine import _db
+    monkeypatch.setattr(_db, "_TL", type(_db._TL)())
+    r = pipeline.analyze("DEAD")
+    cut_s = "%s-%s-%s" % (str(cut)[:4], str(cut)[4:6], str(cut)[6:])
+    assert r == {"error": "DEAD: no daily bars since %s" % cut_s}
+    assert "error" not in pipeline.analyze("DEAD", cut_s)                   # point in time: still a full read
+    assert "error" not in pipeline.analyze("TST")                           # an active symbol: unchanged

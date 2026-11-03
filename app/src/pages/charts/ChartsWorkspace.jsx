@@ -14,7 +14,7 @@ import { WorkspaceContext } from './WorkspaceContext'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
 // for anyone who never opens it. The host only READS the chart registry below.
 import useSWR, { useSWRConfig } from 'swr'
-import { useAgentFlag, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
+import { useAgentFlag, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
 import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
 import { useInRouterContext } from 'react-router-dom'
@@ -3112,6 +3112,10 @@ function ChartsWorkspaceBoard() {
   const agentPrefsRef = useRef(null)
   agentPrefsRef.current = { prefs, setPref }
   const agentNavRef = useRef(null)
+  // ⭐ W1-B B-06: Replay Mode for UCT Agent — the SAME handlers the Replay dialog uses (startReplay with no timeframe
+  // change / exitReplayMode) and the shared cutoff, read through a ref so the host memo stays dependency-free.
+  const agentReplayRef = useRef(null)
+  agentReplayRef.current = { cutoff: replayCutoff, start: startReplay, exit: exitReplayMode }
   const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
@@ -3163,6 +3167,10 @@ function ChartsWorkspaceBoard() {
       },
     },
     navigate: (to) => agentNavRef.current?.(to),
+    replay: {
+      read: () => agentReplayRef.current?.cutoff ?? null,
+      set: (iso) => { const r = agentReplayRef.current; if (!r) return; if (iso) r.start(iso, null); else r.exit() },
+    },
   }), [])
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
   // Modify door opens the Agent on THAT chart (it asks what to build) instead of the chart-side dock.
@@ -3183,6 +3191,18 @@ function ChartsWorkspaceBoard() {
       return true
     })
   }, [agentAllowed, agentHost, setAgentOpen])
+  // UCT News "Continue in UCT Agent" (agent/newsAsk.openAgent): the panel opens on that conversation.
+  useEffect(() => {
+    if (!agentAllowed) return undefined
+    const onOpen = (e) => {
+      const conversationId = e?.detail?.conversationId
+      if (typeof conversationId !== 'string' || !conversationId) return
+      setAgentOpen(true)
+      setAgentRequest({ id: ++agentRequestSeq.current, kind: 'conversation', conversationId })
+    }
+    window.addEventListener(AGENT_OPEN_EVENT, onOpen)
+    return () => window.removeEventListener(AGENT_OPEN_EVENT, onOpen)
+  }, [agentAllowed, setAgentOpen])
 
   if (isMobile) {
     // Phone: the chart-first mobile app (full-bleed chart + bottom-sheet

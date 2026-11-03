@@ -15,6 +15,7 @@ each bounded by a timeout, and every answer is cached (a past day for a day, the
 from __future__ import annotations
 
 import asyncio
+import time
 import os
 import re
 import weakref
@@ -117,6 +118,8 @@ async def chart_iq_pack_build(force: bool = Query(default=False), user: dict = D
         raise HTTPException(status_code=404, detail="Not found")
     import threading
     from api.services.chart_iq import pack
+    if not pack.server_build_allowed():
+        return {"started": False, "reason": "server build disabled (CHART_IQ_PACK_FALLBACK_ENABLED); the lab PC builds the pack"}
     if pack._BUILDING.is_set():
         return {"started": False, "reason": "already building"}
     if pack.in_session() and not force:
@@ -150,6 +153,7 @@ async def chart_iq(sym: str, date: str | None = Query(default=None, description=
     from api.services.chart_iq import pipeline   # lazy: the engine loads on first use, never at boot
     key = "chart_iq:%s:%s" % (sym, date or "latest")
     res = _CACHE.get(key)
+    t_req = time.perf_counter(); served = "cache" if res is not None else None
     if res is None:
         # The nightly pack (api/services/chart_iq/pack.py): every stock's latest-session read computed after the close, so a
         # latest-session ask is one lookup. A past date, a ticker the pack lacks, or a stale pack takes the live path below.
@@ -157,6 +161,7 @@ async def chart_iq(sym: str, date: str | None = Query(default=None, description=
         hit = await run_in_threadpool(pack.get, sym)
         if hit and (date is None or date == hit.get("asof")):
             res = hit
+            served = "pack"
             _CACHE.set(key, res, ttl=900)
     if res is None:
         async with _sem():
@@ -172,12 +177,12 @@ async def chart_iq(sym: str, date: str | None = Query(default=None, description=
         raise HTTPException(status_code=404, detail=res["error"])
     out = {k: res[k] for k in _MEMBER_FIELDS if k in res}
     from api.services.chart_iq import prewarm
-    await run_in_threadpool(prewarm.record_view, sym)   # which industries members open: the nightly pre-warm warms only those
+    prewarm.record_view(sym)   # in-memory, batched to disk by a background thread: never blocks the read
     if not admin:   # members see no performance numbers yet (tracked privately, not displayed): drop each buy day's run since
         out["buydays"] = [{k: v for k, v in b.items() if k != "run"} for b in out.get("buydays") or []]
     from api.services.chart_iq import feedback
     out["my_feedback"] = await run_in_threadpool(feedback.mine, str(user.get("id")), sym, out.get("asof") or "")
     if admin:
         out["raw"] = res.get("raw", [])            # every level / line the engines found, not only the drawn ones (admin debugging)
-        out["timing"] = res.get("timing", {})      # seconds per pipeline stage + database time and query count (admin diagnostics)
+        out["timing"] = dict(res.get("timing") or {}, served=served or "live", request_s=round(time.perf_counter() - t_req, 3))
     return out

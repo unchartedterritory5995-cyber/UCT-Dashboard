@@ -14,6 +14,7 @@
 // old stored headline is never presented as breaking news.
 
 import { registerCapability } from '../capabilities'
+import { kindServed, answerNewsServed } from './marketDataFacts'
 
 const TICKER = /^[A-Z][A-Z0-9.-]{0,9}$/
 const upper = (s) => String(s || '').trim().toUpperCase().replace(/^\$/, '')
@@ -48,6 +49,9 @@ const clip = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); 
 export async function answerLatest({ symbol, limit }) {
   const sym = upper(symbol)
   if (!TICKER.test(sym)) return `“${symbol}” doesn't look like a ticker.`
+  // W1-C C-02 (builder-c): the gateway serves `news.company` → UCT's news store through the MD-1 door with its
+  // ingest-health freshness; the legacy route below only while the gateway says the kind is off.
+  if (kindServed('news.company')) return answerNewsServed(sym, limit)
   const n = Math.min(Math.max(Number(limit) || SHOW_DEFAULT, 1), SHOW_MAX)
   let body
   try { body = await get(`/api/company-news/${encodeURIComponent(sym)}?limit=${n}`) } catch (e) { return fail(sym, e) }

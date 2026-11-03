@@ -21,6 +21,8 @@ logged or written to any output file.
     max_tokens of output, at the HIGHER of this file's price and the server's conservative estimator) is added to
     the spend so far; if that could pass the ceiling, the run stops;
   • the model exists on the eval account (a free models lookup, made first).
+  • the CUMULATIVE ledger (tools/agent_eval_ledger.py, owner's $21 across every run and session) admits the call:
+    its worst case is RESERVED there before the call and settled from usage after (A-03).
 ABORTS during a run (the run stops, results so far are written):
   • the ceiling (above);  • a call that cost more than its own pre-call worst case (the estimate is wrong);
   • 2 API errors or timeouts in a row;  • 2 calls ending in `refusal` or `max_tokens` (truncated by reasoning);
@@ -39,6 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import (every *_DB_PATH → a sandbox)
 from api.services import narrative_cost_guard  # noqa: E402
 from api.services.uct_agent import turn  # noqa: E402
+from tools import agent_eval_ledger as ledger  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PRICES = os.path.join(HERE, "agent_eval_prices.json")
@@ -137,11 +140,10 @@ def refusal(args, prices: dict) -> str | None:
         return "tools/agent_eval_prices.json is not verified: check the live prices first"
     if args.model not in prices.get("models", {}):
         return f"no verified price for {args.model}"
-    key = os.environ.get(EVAL_KEY_ENV, "")
-    if not key:
-        return f"{EVAL_KEY_ENV} is not set (a separate, non-production eval key)"
-    if key == os.environ.get("ANTHROPIC_API_KEY", ""):
-        return f"{EVAL_KEY_ENV} is the production key: the eval never spends the production budget"
+    try:
+        ledger.eval_key()                     # the ONE place the production key is read (to refuse it)
+    except ledger.LedgerRefused as e:
+        return str(e)
     return None
 
 
@@ -302,15 +304,16 @@ def _run(a, items: list[dict], prices: dict) -> int:  # pragma: no cover - paid 
     os.environ["UCT_AGENT_MODEL"] = a.model
     if a.mode == "nl1":
         os.environ[turn.NL1_ENV] = "1"          # this process only: the eval asks the server's NL-1 path
-    client = anthropic.Anthropic(api_key=os.environ[EVAL_KEY_ENV], max_retries=0, timeout=a.timeout_s)
+    ledger.stub_research(turn)
     try:
-        client.models.retrieve(a.model)         # free lookup: the model exists on THIS account
-    except Exception as e:  # noqa: BLE001
-        print(f"refused: model {a.model} is not available on the eval account ({type(e).__name__})")
+        led, key, key_fp = ledger.preflight(turn, max_usd=a.max_usd)
+        client = anthropic.Anthropic(api_key=key, max_retries=0, timeout=a.timeout_s)
+        ledger.check_model(client, a.model)      # free lookup: the model exists on the EVAL account (printed)
+    except ledger.LedgerRefused as e:
+        print(f"refused: {e}")
         return 2
-    print(f"model {a.model}: available on the eval account")
-    turn._research = lambda *_a, **_k: {"results": [], "citations": [], "note": "research disabled for the eval"}
-    turn._record_cost = lambda _resp: 0.0
+    run_id = f"eval_run-{int(time.time())}"
+    print(f"cumulative ledger: ${led.remaining():.4f} left of ${led.cap():.2f} (run {run_id})")
     spent = {"usd": 0.0, "calls": 0}
     mon = Monitor(a.mode == "nl1")
     calls: list[dict] = []
@@ -321,18 +324,18 @@ def _run(a, items: list[dict], prices: dict) -> int:  # pragma: no cover - paid 
     def caller(**kw):
         if a.effort and a.model != "claude-haiku-4-5":
             kw["output_config"] = {**kw["output_config"], "effort": a.effort}
-        chars = len(json.dumps(kw.get("system"), default=str)) + len(json.dumps(kw.get("messages"), default=str)) \
-            + len(json.dumps(kw.get("output_config"), default=str))
-        tok = int(chars / CHARS_PER_TOKEN_HIGH)
-        max_out = int(kw.get("max_tokens") or turn.MAX_TOKENS)
-        worst = max(usd(prices, a.model, cache_write=tok, out=max_out),
-                    narrative_cost_guard.estimate_cost(a.model, 0, max_out, cache_creation_tokens=tok))
-        if spent["usd"] + worst > a.max_usd:
-            raise Stop(f"${spent['usd']:.4f} spent + worst ${worst:.4f} for the next call would pass ${a.max_usd:.2f}")
+        # ⛔ BOTH CEILINGS BEFORE EVERY CALL: this run's --max-usd, then the cumulative ledger's reservation (the whole
+        # request as a cache write + max_tokens output, at the dearer of prices.json and the server's estimator)
+        def run_cap(worst: float) -> str | None:
+            if spent["usd"] + worst > a.max_usd:
+                return f"${spent['usd']:.4f} spent + worst ${worst:.4f} for the next call would pass ${a.max_usd:.2f}"
+            return None
         t0 = time.monotonic()
         try:
-            resp = client.messages.create(**kw)
-        except Exception as e:  # noqa: BLE001 -- an API error / timeout: counted, then re-raised to the turn
+            resp, worst = led.guarded_call(run_id, client.messages.create, kw, tool="agent_eval_run", key_fp=key_fp, per_run_cap=run_cap)
+        except ledger.LedgerRefused as e:
+            raise Stop(str(e)) from e
+        except Exception as e:  # noqa: BLE001 -- an API error / timeout: counted (the ledger settled it), then re-raised to the turn
             why = mon.after_error()
             calls.append({"error": type(e).__name__, "ms": int((time.monotonic() - t0) * 1000)})
             if why:
@@ -400,6 +403,7 @@ def _run(a, items: list[dict], prices: dict) -> int:  # pragma: no cover - paid 
     reads = [c for c in calls if "cache_read" in c]
     hit = sum(c["cache_read"] for c in reads) / max(1, sum(c["cache_read"] + c["cache_write"] + c["input"] for c in reads))
     thinking = [c["thinking"] for c in reads if c.get("thinking") is not None]
+    print(f"cumulative ledger: ${led.remaining():.4f} left of ${led.cap():.2f}")
     print(f"done {len(out)}/{len(items)} requests, {spent['calls']} calls, spent ${spent['usd']:.4f} of ${a.max_usd:.2f}"
           f"   cache-read share of input {hit:.0%}   thinking tokens max {max(thinking) if thinking else 'n/a'}"
           f"   truncated {sum(1 for c in reads if c['stop'] == 'max_tokens')}" + (f"   ABORTED: {stopped}" if stopped else ""))

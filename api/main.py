@@ -3313,8 +3313,16 @@ def register_chart_iq_pack_jobs(scheduler):
         except Exception as exc:  # noqa: BLE001
             logging.getLogger(__name__).warning("[chart_iq_pack] fallback job error: %s", exc)
 
+    try:   # boot: page the installed pack in now, so the first member after a deploy is not the one who waits on the disk
+        from api.services.chart_iq import pack as _ciq_pack
+        _ciq_pack.warm_file(_ciq_pack._path())
+    except Exception:  # noqa: BLE001
+        pass
     scheduler.add_job(_sync, trigger=IntervalTrigger(minutes=15), id="chart_iq_pack_sync", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=600)
+    from api.services.chart_iq import pack as _ciq_pack_gate
+    if not _ciq_pack_gate.server_build_allowed():   # the in-pod build took the pod down 11/02; the PC owns the build
+        return True
     scheduler.add_job(_fallback, trigger=CronTrigger(day_of_week="mon-fri", hour=23, minute=0, timezone=_ET),
                       id="chart_iq_pack_evening", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
     scheduler.add_job(_fallback, trigger=CronTrigger(day_of_week="mon-fri", hour=6, minute=30, timezone=_ET),

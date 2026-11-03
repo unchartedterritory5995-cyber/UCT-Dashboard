@@ -47,6 +47,37 @@ describe('one builder: native == Pine import, by hash', () => {
     expect(astHash(nativeTree('kcUpper(close, 20, 2)'))).toBe(astHash(pineTree(body('u'))))
     expect(astHash(nativeTree('kcLower(close, 20, 2)'))).toBe(astHash(pineTree(body('l'))))
   })
+
+  it('Bollinger bands == the three parts of Pine ta.bb (middle, upper, lower)', () => {
+    const body = (part) => `[m, u, l] = ta.bb(close, 20, 2)\nplot(${part})`
+    expect(astHash(nativeTree('bbMiddle(close, 20)'))).toBe(astHash(pineTree(body('m'))))
+    expect(astHash(nativeTree('bbUpper(close, 20, 2)'))).toBe(astHash(pineTree(body('u'))))
+    expect(astHash(nativeTree('bbLower(close, 20, 2)'))).toBe(astHash(pineTree(body('l'))))
+  })
+})
+
+describe('Bollinger Bands (2026-11-01)', () => {
+  const at = (src, i) => interpret(nativeTree(src), BARS)[i]
+  const closes = BARS.map((b) => b.c)
+
+  it('the bands are the 20-bar mean ± 2 population standard deviations', () => {
+    const i = 120
+    const w = closes.slice(i - 19, i + 1)
+    const mean = w.reduce((a, b) => a + b, 0) / 20
+    const sd = Math.sqrt(w.reduce((a, b) => a + (b - mean) ** 2, 0) / 20)
+    expect(at('bbMiddle(close, 20)', i)).toBeCloseTo(mean, 9)
+    expect(at('bbUpper(close, 20, 2)', i)).toBeCloseTo(mean + 2 * sd, 9)
+    expect(at('bbLower(close, 20, 2)', i)).toBeCloseTo(mean - 2 * sd, 9)
+  })
+
+  it('a stored band reads back by name; a bare sma stays an sma unless asked', () => {
+    expect(recogniseExpansion(nativeTree('bbUpper(close, 20, 2)'))).toMatchObject({ name: 'bbUpper' })
+    expect(recogniseExpansion(nativeTree('bbLower(close, 20, 2)'))).toMatchObject({ name: 'bbLower' })
+    expect(recogniseExpansion(nativeTree('sma(close, 20)'))).toBe(null)
+    expect(recogniseExpansion(nativeTree('sma(close, 20)'), { allowBareSma: true })).toMatchObject({ name: 'bbMiddle' })
+    // a Keltner band is never mistaken for a Bollinger band, nor the reverse
+    expect(recogniseExpansion(nativeTree('kcUpper(close, 20, 2)'))).toMatchObject({ name: 'kcUpper' })
+  })
 })
 
 describe('the numbers are the published definitions', () => {

@@ -2,6 +2,124 @@
 
 Only agent-qa edits this file. Update it in every PR.
 
+## G2 / PR #699 (`a5067f8603`, §4.7.5 L6 stale index): **GO**, 2026-11-02
+- **Measured on the head, independent of agent-md's tests:** every QA phrase (sets 1-4) through the REAL `read_instruments`,
+  over QA's index and the production union, with a fresh index, then an old one (3 days + 1 h), then an undated one
+  (`built_at` 0). That is 796 phrase/index combinations.
+  - The 44 lowercase words a fresh index prices all became the neutral ask with `basis` `["index_stale"]`, the same candidate kept.
+  - Every word already an ask gained `index_stale` as the last basis entry and nothing else.
+  - No lowercase word was priced on a stale index. UPPERCASE and all-capitals cashtags did not change.
+  - The envelope said `stale: true` on every stale read and `false` on every fresh one.
+- **Client:** `decide()` asks on the class alone, so the new basis entry needs no client change; the vitest's stub matches the
+  real server shape (`symbol: null`, candidate kept).
+- **Rebuild path:** a failed or empty rebuild keeps the prior `built_at`, so a refresh that keeps failing turns into
+  the ask after 3 days. That is the safe direction, and the envelope says `stale: true`; nothing pages, though. Not covered:
+  a rebuild that succeeds with a truncated row set gets a fresh `built_at`. That is out of G2's scope.
+- **Pins:** none move. QA's generator calls `classify` without the flag and pins the shell to `stale: false`. That is
+  deliberate: QA's fixed `BUILT_AT` (2026-10-29) is already over 3 days old. agent-md's `_seed` is relative to now.
+- **Suites on the head:** `tests/test_uct_agent_qa_*.py` + `test_uct_agent_data_instruments.py`: 488 passed; QA vitest +
+  `agentDataResolve.test.js` through the lock: 14 files, 315 passed. Probe script kept in the session scratchpad;
+  agent-qa will land it as a rail once #699 is in agent/int.
+
+## G4: a signed-in NON-admin member is refused, before any provider call — rail `tests/test_uct_agent_qa_member_refused.py`, 2026-11-02
+- Drives the REAL `api.main:app` through the REAL auth chain (a real users row, `create_session`, `comp_user_access`),
+  with no dependency overridden. Gateway ON: `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,instrument.resolve`.
+- A **paid** (comped, role `member`) member gets **403 "Admin access required"** on `GET /api/agent/config`,
+  `POST /api/agent/turn`, `POST /api/agent/turn/stream`, and `POST /api/agent/data` for `quote` and `instrument.resolve`.
+  On every one, the model client is never acquired, no market-data adapter runs, and the daily request counter is not charged.
+- An **unpaid** member is refused earlier, by `require_paid`: **402**, also with no provider call. That is why the
+  403 rows use a paid member: a 402 would prove the plan gate, not the admin gate. Signed out stays 401.
+- **Non-vacuity:** the same requests from an admin reach the spies (the model client on both turn routes; the `quote` and
+  `instrument.resolve` adapters on `/data`).
+- **Mutation-proved:** with `require_admin_dark` returning the user instead of calling `require_admin`, exactly the five
+  403 rows went red (5 failed, 17 passed). The router was restored and verified unchanged against HEAD.
+
+## Lowercase crypto cashtags (`$btc`, `$eth`, `$sol`): reviewed the REAL answer text, 2026-11-02 (rail `qa/fundLabel.test.js`)
+- `$btc` → `BTC (Grayscale Bitcoin Mini Trust, an ETF) $… ` plus the fund-price sentence; `$eth` is the same (Grayscale
+  Ethereum Mini Trust). **Not silent: acceptable.**
+- `$sol` → `SOL (Emeren Group Ltd) $…`, with NO fund sentence (a stock, not a fund). The only signal that this is a
+  solar company and not Solana is the name. **Not silent, but the weakest of the three. Owner decision:** keep it
+  (a cashtag is an explicit marker), or treat lowercase cashtags on known crypto words like the bare word
+  (the neutral ask).
+
+## Adversarial quote set 3 (BLIND, 97 rows), committed before agent-md's general lowercase design was seen, 2026-11-02
+- `scores/quote-adversarial-3.json` and the rail `qa/quoteAdversarial.test.js`. It covers clear lowercase tickers, word
+  and crypto tickers, explicit-ticker controls, lowercase crypto cashtags, natural commodity/index/crypto phrasing,
+  misspellings and share classes, historical phrasing, compounds and controls.
+- The bar: FAIL = 0 (no wrong, coincidental or current-for-historical execution); `must_execute` (22) for clear tickers.
+- QA index +8 real listings (GOOG, CAT, CAR, FUN, LINK, GLD, DIA, IBIT); the resolve fixture was regenerated. All
+  existing QA pins are unchanged (12 files, 180 passed).
+- **Baseline on #691: 0 FAIL; 14 must-execute misses** (every clear lowercase ticker and compound). `$btc/$eth/$sol`
+  execute the listing, which is allowed ONLY if the answer names it. That needs a text review on the real answer.
+
+## PR #691 (`7648fd6631`, neutral ask + ETF labelling): **GO** as the fallback; pins updated, 2026-11-02
+- Owner ruling 1 (neutral ask): every ask in both held-out sets (18) and all 15 MD-1-phrasings ask rows is the
+  `clarifyText` sentence. It names the word as typed, never offers a candidate and names no index security.
+- Ruling 2 (explicit ETF named as the fund): "BTC price" gives `BTC (Grayscale Bitcoin Mini Trust, an ETF)`, and
+  "SPY price" is labelled the same way. NVDA carries no marker (new rail `qa/fundLabel.test.js`, quote + bars).
+- Ruling 3 (an ETF is not the underlying): `FUND_NOTE` appears exactly once on an ETF quote and on an ETF daily-bars
+  answer, and never on a stock.
+- Ruling 4 (zero confident-wrong answers): set 1 has 35 pass / 9 safe-miss / **0 FAIL**, and set 2 has 52 / 2 / **0 FAIL**.
+  The outcome mixes are identical to before (only the ask detector changed).
+- **Trade-off for the owner (pinned in `qa/quoteHeldout.test.js`):** of the 18 held-out asks, **13 used to suggest
+  exactly the security the member meant** and now show the neutral sentence: H01 MSFT, H02 GOOGL, H05 AMZN, H09 NFLX,
+  H13 NVDA, H22 MSFT, H23 GOOGL, H29 AAPL, H36 BRK-B, V05 TSLA, V06 NVDA, V09 NFLX, V47 NVDA. **5 used to suggest a
+  security the member probably did not mean**, and are now fixed: H26 BTC, H28 GOLD, V12 DOW, V22 ETH, V24 SOL.
+  For four set-2 rows `expect` is null; agent-qa recorded what they meant in `MEANT_WHEN_NULL`.
+- Flags off: #691 changes no server file. The md2Panel dark config shapes (5) still make no read and offer no
+  `stock.quote`.
+- Suites on #691 + pins, under the lock: Agent pytest 1733 passed; vitest 138 files, 2494 passed.
+
+## PR #695 at `f0b1dee621` (F-24 fixed): **GO** — FAIL = 0 on all four sets, 2026-11-02
+- The fix is my measured one-liner: L3 now treats an upper-case ticker in the token's OWN name as a word. I reviewed the
+  diff: `instruments.py` changes by 1 line plus a comment, and agent-md's test file gains a rail.
+- Re-scored independently on the real classifier and the REAL `ticker_search_index.search`, with fixtures regenerated:
+  - set 1: 41 pass / 3 safe-miss / **0 FAIL** (unchanged);
+  - set 2: 52 / 2 / **0 FAIL**;
+  - set 3: **0 FAIL**, 5 must-miss (spy, qqq, googl and their compounds);
+  - set 4 (fresh, production rows): **0 FAIL, 0 must-miss.** "nice, nvda price", "ok nice, aapl price" and
+    "nice, now whats nvda at" no longer execute anything; pins, nke, wmt, adbe+orcl and qcom+panw execute.
+- F-24 rails moved:
+  - the xfail is now a passing bar check with an NVDA control;
+  - the fix is proven to bite: reverting it as a mutation re-opens exactly nice, asml and mara;
+  - the name_word bite list gains asml, mara and nice;
+  - ltc leaves the root-only list (LTC Properties now also fails L3); the L1 backstop is btc and gld.
+- Costs the owner should know: asml and mara now ask. spy, qqq and googl still ask (L1 fund rule; Alphabet).
+- Flags off: the allowlist probe passes 21/21. Suites (lock): Agent pytest 1813 passed; vitest 140 files, 2509 passed.
+
+## PR #695 (`a4a1179044`, MD-1 §4.7.5 lowercase tickers): **NOT YET — one blocking finding (F-24), fix measured**, 2026-11-02
+- **Scored on the REAL classifier and the REAL `ticker_search_index.search`.** My generator previously used a toy
+  search; it is now seeded with QA's rows, so L3/L4/L5 see production's ranking. The fixtures were regenerated and the
+  pins refreshed to measured values.
+  - Set 1: 41 pass / 3 safe-miss / **0 FAIL**. Set 2: 52 / 2 / **0 FAIL**.
+  - Set 3: **0 FAIL**, 5 must-miss (spy, qqq, googl and their two compounds). Lowercase crypto cashtags now ask (this
+    settles the `$sol` question).
+  - Of the 13 helpful suggestions #691 gave up, 6 now EXECUTE (msft, amzn, nflx, nvda, msft, brk.b).
+  - Set 3 rows A10 and C12 were used by agent-md to tune the parser, so set 3 is no longer blind for them.
+- **FRESH set 4 (22 rows, unseen by agent-md), scored end to end over PRODUCTION rows.** It uses two read-only probes
+  of the public `/api/ticker-search`, agent-lead's 34 words + agent-qa's 132, as one 3,453-row index.
+  - All 5 must-execute rows execute.
+  - **3 FAIL:** "nice, nvda price" → NICE+NVDA; "ok nice, aapl price" → NICE+AAPL; "nice, now whats nvda at" → NICE+NVDA.
+- **F-24 (owner: agent-md) — BLOCKING.** `nice` is confirmed as NICE Ltd. L3 treats an upper-case word equal to the
+  ticker inside a mixed-case name as a ticker REFERENCE, and that exemption applies to the token's OWN row ("NICE Ltd").
+  The parser makes "nice," (a chat interjection) a list item.
+  - **Fix measured:** skip the reference only on OTHER rows (`if not is_own and _ticker_ref(...)`). Then `nice` asks;
+    the cost is `asml` and `mara` becoming safe asks.
+  - Optional defence in depth: an interjection before a comma should not become a list item.
+  - Rails: strict xfail `test_BAR_no_english_interjection_resolves`, plus `it.fails` on set 4. Both go red once the fix
+    lands, so the pins move with it.
+- **Each check bites on PRODUCTION rows.** Dropping one check alone flips:
+  - L2: fizz, grow (+avgo, fang, googl);
+  - L3: gold, dow, now, open, real, safe, love, well, jack, plug, rare, wing, … (30);
+  - L4: bch (Bitcoin Cash), ltc (Litecoin), cl (crude), si (silver), hd, gm, ba, ups, tsm, ibm;
+  - L1 never decides alone (every probed fund also shares a root); with L4 dropped it is the backstop for btc, gld, xrp;
+  - L5: only a scan below its limit prices.
+- With all production rows at once, agent-md's 13 priced and 21 ask tokens hold. No other interjection resolves:
+  38 tried, including wow, cool, well, good, sure, lit and man.
+- **Flags off:** the 21-check allowlist probe passes 21/21 on this tree; #695 changes only the resolve classifier and the
+  browser parser, both behind the data flags; the md2Panel dark shapes pass.
+- **Suites (lock):** Agent pytest 1810 passed + 1 xfailed; vitest 140 files green (QA 13 files, 184 passed).
+
 ## In flight
 - **PR 1 — program fixtures** (`agent/qa/fixtures-v1`): fake-provider DataEnvelopes for all 12 MD-1 v1 kinds and
   the 3 SC-1 kinds; cases live · delayed · periodic · historical · stale · market-closed · unavailable · refused ·
@@ -274,6 +392,21 @@ Only agent-qa edits this file. Update it in every PR.
   - `md2Panel` checks **every row's outcome column end to end** through the real panel: 48/48.
 - Suites (lock) on `c9fd4437ea` + this PR: pytest **1733**, vitest **136 files, 2480 passed**.
 
+## F-16 FINAL RULING: QA rails (independent of agent-sc), on agent-sc #654 + #657 (`d379f1fcc4`)
+**Count correction (mine):** the ruling's original list is **24** fields, not "26" as written in the review below
+(7 ratings · rs_rank + rs_return · 7 flow · candle_score · earnings_setup_grade · 5 pattern_engine_* · in_uct20). So
+"the 31" below is 29: QA's set = 24 + set B (4) + archive_calls_n + the owner's 4 (base_structure,
+base_relation_count, hvc_52w, theme) = **33**. agent-sc's enforced set is 35: QA's 33 plus base_pivot_px (a UCT
+base-detector output) and blended_growth (UCT's growth blend). It is a superset with no gap.
+
+| Rail | Result |
+|---|---|
+| Server (`tests/test_uct_agent_qa_f16.py`, QA's 33 written in the file) | 40/40. **Every** name is refused, with the exact sentence, in each of: filter, `other`, logic all/not, arith term, sort, rank criterion, columns. A view asked for by name that shows one is refused. No order means market_cap desc + the receipt note. The member Screener's server files are unchanged. No UCT weight or formula (the RS_TERMS weights, `rs_weighted_return`, `setup_score`) appears in the system prompt or glossary. CONTROL: public inputs (chg_pct_3m, peg, inst_pct, eps_growth, roe) still screen, sort and show. Mutation-proved: no arith check → 33 red; no sort check → 33 red; default sort = composite → red |
+| Browser (`qa/f16Rails.test.jsx`, the real panel, the real field registry) | 13/13. Non-vacuity: the member registry still carries all 33. The model-bound body has no prohibited catalog KEY (all 33) and no distinctive name anywhere; `theme` is checked as a key only, because the word is also the app's colour theme. Refused with the clear sentence and NO scan: a rating filter, a flow filter, a theme filter, a sort by rs_rank or archive_calls_n, a saved screen using a rating (refused, never stripped), and a follow-up refine adding sector_rs_pct. CONTROL: a public saved screen runs. "show me my strongest stocks" makes 0 model turns and no scan, with the refusal. A screen with no order is sorted market_cap desc and the receipt says so. Mutation-proved: the pre-F-16 screener.js → 11 red |
+| Narrowed strength refusal (agent-sc #657 @ `9c28e17`; QA's own phrasings) | 19/19 browser. "find the strongest stocks in the market", "screen for the strongest names in tech" and "sort everything by relative strength" are NOT claimed by the narrow fast path. **MEASURED: each costs one model call.** The PLANNER path is refused too: the natural plan (a sort by rs_rank or uct_composite) is refused with the clear sentence and no scan. So it is safe, not free. Other senses of "strong" ("which of nvda and amd looks stronger", "add the strongest one of those to my watchlist", "the market feels really strong") are not refused |
+| Flips | isolationAudit's 4 COMPOSITION pins (the ranking and the count reaching the model) are now PROOFS: the composite screen is refused, no scan, no result set in memory, no lastScreen, no count. fastPathCorpus's control is two-sided: a saved screen is claimed with 1 scan, and "strongest" is a local refusal with 0 scans |
+| Baselines (regenerated deliberately, diff reviewed) | grammar-direct 5/31 → **10/31**: an ARTIFACT, because agent-sc's corpus now expects d01/d02/d03/d13/d25 to be refused and grammar-direct refuses all English. The oracle is still 31/31. The fast-path candidates and the cost baseline are UNCHANGED: no discovery question is the exact "strongest" phrasing, so all 31 still go to the planner, and the cost is 64 model calls |
+
 ## ⭐ FINAL VERDICT: Sprint 2 release candidate `608ad6adaec6207fb29accb3fcf72ad5741c391f`
 **GO to deploy DARK (every flag off). HOLD on activating quote (`UCT_AGENT_DATA=1` + `UCT_AGENT_DATA_KINDS=quote,quotes`) until
 the held-out misreads (item 7) are fixed.**
@@ -514,8 +647,8 @@ gateway's exception log, the local-plan reply drop, and the `recent_outcome` gua
 | 20 | Isolated reader end to end: context, memory, pending, title, telemetry, traces | L5/L7 | PROVEN for a `localOnly` reader, with a leaking CONTROL that is caught | `app/src/agent/qa/modelIsolation.test.jsx` (2) | - |
 | 21 | stock.compare composite (F-12) | L4/L5 | **REMOVED with `5aabae8a73`** (owner display-only rule): the rating is absent from views, text, turn bodies, memory, traces and telemetry, while the served payload carried it (CONTROL), and a source rail forbids reading it | `modelIsolation.test.jsx::F-12 FIXED …` · `isolationAudit.test.jsx::F-12 …` (mutation-proved) | agent-lead (done) |
 | 22 | **Screener composition, raw values**: the catalog carries `uct_composite`, `rating_*`, `sponsorship`, `accdis`, `rs_rank`, the same UCT Ratings (`screener/enrich.py`) | L4/L5/L7 | PROVEN: values stay in the stored table; text, context, memory, telemetry and traces are clean | `app/src/agent/qa/isolationAudit.test.jsx::PROVEN ...` | - |
-| 23 | **Screener composition, RANKING**: a screen sorted by `uct_composite` puts `memory.recent_results[0].symbols_in_order` in composite order, plus `lastScreen.sort` | L5/L7 | **OPEN** (F-16) | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... RANKING ...` | owner + agent-lead |
-| 24 | **Screener composition, COUNT**: matches at a member-chosen threshold in the replayed text AND in context `lastScreen.matches`; a one-name `within` screen at `>= X`, repeated, bisects a stock's exact composite | L4/L6 | **OPEN** (F-16) | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... COUNT ...` | owner + agent-lead |
+| 23 | **Screener composition, RANKING**: a screen sorted by `uct_composite` puts `memory.recent_results[0].symbols_in_order` in composite order, plus `lastScreen.sort` | L5/L7 | **PROVEN with agent-sc #654/#657** (F-16): refused, no scan, no result set, no lastScreen | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... RANKING ...` | owner + agent-lead |
+| 24 | **Screener composition, COUNT**: matches at a member-chosen threshold in the replayed text AND in context `lastScreen.matches`; a one-name `within` screen at `>= X`, repeated, bisects a stock's exact composite | L4/L6 | **PROVEN with #654/#657** (F-16): refused before any count exists | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... COUNT ...` | owner + agent-lead |
 | 25 | Telemetry: unknown keys dropped; 5 short free-text columns not value-checked | L7 | PROVEN for unknown keys; the free text relies on the browser (railed for the isolated reader in #20) | `test_L7_telemetry_...` | - |
 | 26 | Server logs on a turn carrying sentinels in context and history | L7 | PROVEN (none logged) | `test_L7_a_scripted_turn_...` | - |
 | 27 | Web research results | L6 | out of scope: web text, not UCT data (research is forced off in these tests) | - | - |

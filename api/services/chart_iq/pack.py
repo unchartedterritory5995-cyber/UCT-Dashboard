@@ -87,16 +87,53 @@ def _days_between(a: str, b: str) -> int:
     return (datetime.date.fromisoformat(b) - datetime.date.fromisoformat(a)).days
 
 
+_TL = threading.local()
+
+
+def _reader():
+    """A per-thread read connection, reopened when the active pack file changes (a sync installs a new versioned file)."""
+    p = _path()
+    held = getattr(_TL, "conn", None)
+    if held is None or held[0] != p:
+        if held is not None:
+            try:
+                held[1].close()
+            except Exception:  # noqa: BLE001
+                pass
+        _conn().close()   # schema / WAL set up once per file
+        held = (p, sqlite3.connect(p, timeout=5, check_same_thread=False))
+        _TL.conn = held
+        warm_file(p)
+    return held[1]
+
+
+_WARMED: set = set()
+
+
+def warm_file(path: str) -> None:
+    """Read the pack file once, sequentially, in the background, so its pages sit in the OS page cache: the first lookups on a
+    fresh pod were 1-2 s each on the network disk (measured 2026-11-02) while a sequential read of the whole file is fast. No
+    copy is held in the process; the kernel may evict the pages as it likes. Once per file per process."""
+    if path in _WARMED:
+        return
+    _WARMED.add(path)
+
+    def _run():
+        try:
+            with open(path, "rb") as fh:
+                while fh.read(8 * 1024 * 1024):
+                    pass
+        except OSError:
+            pass
+    threading.Thread(target=_run, name="chart-iq-pack-warm", daemon=True).start()
+
+
 def get(ticker: str, today: str | None = None) -> dict | None:
     """The packed read for this ticker, or None (pack off, no pack, not in it, or older than STALE_DAYS). Never raises."""
     if not enabled():
         return None   # rollback is the flag: an old pack file on disk is never served once it is off
     try:
-        c = _conn()
-        try:
-            r = c.execute("SELECT asof, body FROM reads WHERE ticker=?", (str(ticker).upper(),)).fetchone()
-        finally:
-            c.close()
+        r = _reader().execute("SELECT asof, body FROM reads WHERE ticker=?", (str(ticker).upper(),)).fetchone()
         if not r:
             return None
         today = today or _et_now().date().isoformat()
@@ -143,10 +180,18 @@ def universe() -> list[str]:
     return uniq
 
 
+def server_build_allowed() -> bool:
+    """The in-process build reads every stock inside the web pod: on 11/02 (20:20 CT) it took the pod down (restart, ~1 min of
+    502s). Off unless CHART_IQ_PACK_FALLBACK_ENABLED=1; the lab PC builds the pack and the pod only installs it from R2."""
+    return os.environ.get("CHART_IQ_PACK_FALLBACK_ENABLED", "0") == "1"
+
+
 def build(force: bool = False, tickers: list[str] | None = None, sleep=time.sleep, clock=time.time) -> dict:
     """Read every ticker for the latest session into the pack. Returns a report; never raises."""
     if not enabled() and not force:
         return {"skipped": "disabled"}
+    if not server_build_allowed():
+        return {"skipped": "server build disabled"}
     if in_session() and not force:
         return {"skipped": "regular session"}
     if _BUILDING.is_set():
@@ -171,6 +216,8 @@ def build(force: bool = False, tickers: list[str] | None = None, sleep=time.slee
                     res = pipeline.analyze(t, day)
                 except Exception:  # noqa: BLE001
                     res = {"error": "exception"}
+                if "error" not in res and _days_between(res.get("asof") or day, day) > pipeline.STALE_LATEST_DAYS:
+                    res = {"error": "stale"}   # a dead symbol is not packed: its latest ask answers "no daily bars since" at once
                 if "error" in res:
                     err += 1
                 else:
@@ -272,6 +319,7 @@ def sync_from_r2(s3=None) -> dict:
                     os.remove(os.path.join(_data_dir(), f))
                 except OSError:
                     pass
+        warm_file(target)
         rep = {"installed": latest, "day": day, "rows": rows}
         log.info("[chart_iq_pack] synced %s", rep)
         return rep

@@ -169,12 +169,12 @@ describe('stock.quote: flags off is exactly stock.profile; on is one gateway rea
     const two = await answerQuote({ symbols: ['NVDA', '$amd'] })
     expect(two.text).toContain('AMD (Advanced Micro Devices, Inc.)')
     TURN = 't3'
-    expect(await answerQuote({ symbols: ['nvda'] })).toBe("Did you mean NVDA (NVIDIA Corporation)? Type the ticker in capitals, like NVDA, and I'll get it.")
+    expect(await answerQuote({ symbols: ['gold'] })).toBe('I\'m not sure which instrument "gold" means. I can quote US-listed stocks and ETFs by ticker. Type the ticker in capitals and I\'ll get it.')
     const posts = globalThis.fetch.mock.calls.filter(c => c[0] === '/api/agent/data').map(c => JSON.parse(c[1].body))
     expect(posts.map(p => [p.kind, p.turn_id])).toEqual([
       ['instrument.resolve', 't1'], ['quote', 't1'],
       ['instrument.resolve', 't2'], ['quotes', 't2'],
-      ['instrument.resolve', 't3'],                                  // lowercase: asked, never priced
+      ['instrument.resolve', 't3'],                                  // a word-like lowercase ticker (§4.7.5): asked, never priced
     ])
     expect(posts[1].params).toEqual({ symbol: 'NVDA' })
     expect(posts[2].params).toEqual({ symbols: [{ text: 'NVDA', form: 'upper' }, { text: '$amd', form: 'cashtag' }] })
@@ -204,7 +204,11 @@ describe('stock.quote: flags off is exactly stock.profile; on is one gateway rea
     await loadAgentConfig()
     const mine = await answerQuote({ symbols: ['NVDA'] })
     expect(JSON.stringify(mine)).toBe(JSON.stringify(await answerProfile({ symbol: 'NVDA' })))
-    expect(globalThis.fetch.mock.calls.map(c => c[0])).not.toContain('/api/agent/data')
+    // W1-C C-04: stock.profile's own price line reads the `quote` kind when THAT kind is served (never resolve, never
+    // `quotes`, never /api/live-prices); with `quote` not activated there is no gateway read at all.
+    const posts = globalThis.fetch.mock.calls.filter(c => c[0] === '/api/agent/data').map(c => JSON.parse(c[1].body).kind)
+    expect(posts).toEqual((kinds || []).includes('quote') ? ['quote', 'quote'] : [])
+    expect(globalThis.fetch.mock.calls.some(c => String(c[0]).startsWith('/api/live-prices'))).toBe(false)
     expect(match('nvda price')).toBeNull()
     registerMarketDataCapabilities()                              // may register stock.dailyBars (bars.daily on)…
     expect(allCapabilityNames()).not.toContain(CAPABILITY)        // …but never stock.quote

@@ -1,0 +1,66 @@
+{
+  "id": "21-heading-link-display",
+  "input_markdown": "# Heading link display\n\nMissing: [[Ghost#Risk]], [[Ghost#^abc]], [[Ghost# Risk ]], [[Ghost#]] and [[Ghost#Risk#Sub]].\n\nThis note: [[#Risk]] and [[#^abc]].\n\nResolved: [[Other note#Risk]], [[Other note#^abc]] and [[Other note#Risk|the risk]].\n\nFiles: [[report #2.pdf]] and [[q3 #4.xlsx|the sheet]].\n\nEmbeds: ![[Ghost#Risk]], ![[Ghost.md]], ![[missing.png]] and ![[Other note#Risk]].\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [],
+    "highlights": [],
+    "images": [],
+    "links": [
+      {
+        "target": "Other note.md",
+        "text": "Other note > Risk"
+      },
+      {
+        "target": "Other note.md",
+        "text": "Other note"
+      },
+      {
+        "target": "Other note.md",
+        "text": "the risk"
+      },
+      {
+        "target": "Other note.md",
+        "text": "Other note"
+      }
+    ],
+    "pending": [
+      {
+        "key": "name:obsidian:vault-1/ghost",
+        "text": "Ghost > Risk"
+      },
+      {
+        "key": "name:obsidian:vault-1/ghost",
+        "text": "Ghost"
+      },
+      {
+        "key": "name:obsidian:vault-1/ghost",
+        "text": "Ghost > Risk"
+      },
+      {
+        "key": "name:obsidian:vault-1/ghost",
+        "text": "Ghost"
+      },
+      {
+        "key": "name:obsidian:vault-1/ghost",
+        "text": "Ghost > Risk#Sub"
+      },
+      {
+        "key": "name:obsidian:vault-1/ghost",
+        "text": "Ghost"
+      },
+      {
+        "key": "name:obsidian:vault-1/ghost.md",
+        "text": "Ghost"
+      }
+    ],
+    "task_checked": [],
+    "text": "Heading link display Missing: Ghost > Risk, Ghost, Ghost > Risk, Ghost and Ghost > Risk#Sub. This note: Risk and #^abc. Resolved: Other note > Risk, Other note and the risk. Files: report #2.pdf and the sheet. Embeds: Ghost, Ghost, missing.png and Other note."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "Other note.md"
+  ]
+}

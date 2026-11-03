@@ -4,6 +4,7 @@
   "self_path": "a.md",
   "server": {
     "callouts": [],
+    "files": [],
     "highlights": [],
     "images": [
       "https://example.com/c.png"

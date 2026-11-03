@@ -1,5 +1,9 @@
 {
   "vault_id": "vault-1",
   "self_path": "a.md",
-  "vault_paths": ["a.md", "Notes/Target Note.md", "Other note.md", "attachments/My Img.png"]
+  "vault_paths": ["a.md", "Notes/Target Note.md", "Other note.md", "attachments/My Img.png"],
+  "attachments": [
+    {"original": "![[My Img.png]]", "embed": true, "path": "attachments/My Img.png", "size": 1234,
+     "sha256": "1ef7028093e382459a9c7fe396458ae861670f85eb3e4bc8f511f54252498be7", "status": "ok"}
+  ]
 }

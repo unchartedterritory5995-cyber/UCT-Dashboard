@@ -25,7 +25,7 @@ from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 from api.services.uct_agent.marketdata import envelope as env
-from api.services.uct_agent.scan import sources
+from api.services.uct_agent.scan import hidden, sources
 from api.services.uct_agent.scan import spec as scan_spec
 
 SOURCE = "uct-screener"
@@ -204,10 +204,16 @@ def run(params: dict, ctx: dict) -> dict:
         return _refused(kind, params, f"the Screener refused this spec: {e}")
     cov, listed = _coverage(spec, user_id)
     as_of, stale, notes = _provenance_fields(prov)
-    fields = list(spec.get("columns") or out.get("view_columns") or [])
+    # SC-1 §2d: a view's own column set may carry a rating or flow column; the Agent never returns its values
+    # SC-1 §2d: columns the member ASKED FOR that are hidden were refused in spec.validate; the default view's own
+    # hidden columns (overview carries RS Rank) were never asked for, and their values are simply not returned
+    catalog = scan_spec.catalog_keys()
+    fields = [f for f in (spec.get("columns") or out.get("view_columns") or []) if hidden.agent_column(f, catalog)]
     rows = _project((out.get("rows") or [])[:scan_spec.ROW_CAP], fields)
     snap = out.get("snapshot") or {}
     notes += _coverage_notes(cov) + _live_note(snap.get("live"))
+    if spec.get("sort") == scan_spec.DEFAULT_SORT:
+        notes.append(scan_spec.DEFAULT_ORDER_NOTE)
     total = int(out.get("total") or 0)
     if total > len(rows):
         notes.append(f"Showing {len(rows)} of {total} matches.")
@@ -265,6 +271,14 @@ def saved(params: dict, ctx: dict) -> dict:
         except scan_spec.SpecError as e:
             entry["runnable"] = False
             entry["reason"] = str(e)
+            # SC-1 §2d: a spec that names a hidden field ANYWHERE never reaches the model, whatever refused it
+            # first (an unknown key, a bad tree, the hidden sentence itself): the spec is nulled and the reason is
+            # the hidden sentence, so no criterion name leaks through the listing (W1-SEC #704 review follow-up)
+            sentence = str(e) if str(e) in (hidden.RATINGS_REFUSAL, hidden.FLOW_REFUSAL) else None
+            sentence = sentence or hidden.refusal_for(scan_spec.named_fields(r.get("spec")))
+            if sentence:
+                entry["spec"] = None
+                entry["reason"] = sentence
         if i < 100:
             screens.append(entry)
         ts = r.get("updated_at") or r.get("created_at")

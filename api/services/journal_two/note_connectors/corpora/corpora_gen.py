@@ -390,6 +390,9 @@ def _run_environment(work_dir: pathlib.Path) -> Iterator[dict[str, Any]]:
         setenv("NOTION_CLIENT_ID", "corpus-client")
         setenv("NOTION_CLIENT_SECRET", "corpus-secret")
         setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
+        # The messy vault's corpus pins the attachment layer ON (final review I3 made the
+        # master switch default OFF; the OFF conversion is pinned by the provider's tests).
+        setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1")
         setenv("PUSH_SECRET", "corpus-push-secret")
         patch(auth_db, "_DB_PATH", str(work_dir / "auth.db"))
         patch(notes_svc, "_ATTACHMENT_ROOT", work_dir / "att")
