@@ -321,8 +321,21 @@ def test_the_engine_strings_still_have_rows_when_the_engine_db_is_reachable(voca
 
 # ── 5. the vocabulary follows the owner's rulings ────────────────────────────
 
+#: The W1 working list is the first 32 entries; later entries are post-W1 additions (the 2026-11-03
+#: Brain-template proposal, docs/wisdom/vocabulary/BRAIN-MAPPING-2026-11-03.md), all candidates until
+#: a Wisdom author source is located (W1 §3.1). tests/test_wisdom_vocab_brain_expansion.py proves the
+#: 32 are byte-identical to the pre-change file.
+W1_ENTRY_COUNT = 32
+
+
+def test_the_post_w1_entries_are_candidates_without_author_evidence(vocabulary):
+    for entry in vocabulary["entries"][W1_ENTRY_COUNT:]:
+        assert entry["status"] == "candidate" and entry["evidence_strength"] == "none", entry["name"]
+        assert entry["evidence_count"] == 0 and entry["evidence"] == [] and entry.get("coined_by") is None, entry["name"]
+
+
 def test_the_vocabulary_follows_the_w1_rulings(vocabulary):
-    entries = vocabulary["entries"]
+    entries = vocabulary["entries"][:W1_ENTRY_COUNT]
     assert len(entries) == 32
     assert len({e["vocab_id"] for e in entries}) == 32 and len({e["name"].casefold() for e in entries}) == 32
     kinds = [e["kind"] for e in entries]

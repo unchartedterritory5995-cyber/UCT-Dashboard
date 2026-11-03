@@ -33,7 +33,7 @@ import pytest
 REPO = pathlib.Path(__file__).resolve().parents[1]
 VOCAB_FILE = REPO / "docs" / "wisdom" / "vocabulary" / "setup-vocabulary-v1.json"
 BEFORE_FILE = REPO / "tests" / "fixtures" / "wisdom_vocab" / "setup-vocabulary-v1.pre-brain-2026-11-03.json"
-BEFORE_CANONICAL_SHA256 = "__FILL__"
+BEFORE_CANONICAL_SHA256 = "8fcaf287bfea862781fc74317c73ddcda3a3c104e9b382515509d30ef05e7c76"
 
 NEW_IDS = (
     "ascending_triangle", "base_on_base", "cup_with_handle", "descending_triangle", "double_bottom",

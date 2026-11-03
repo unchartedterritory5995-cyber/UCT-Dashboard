@@ -948,6 +948,380 @@
     "engine": null
    },
    "note": null
+  },
+  {
+   "vocab_id": "ascending_triangle",
+   "name": "Ascending Triangle",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Ascending Triangle' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "ascending triangle breakout",
+    "flat top triangle"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Classical Pattern', origin 'Brandt'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "base_on_base",
+   "name": "Base-on-Base",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Base-on-Base' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "base on base",
+    "stacked bases"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Base Breakout', origin 'O'Neil'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "cup_with_handle",
+   "name": "Cup with Handle",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Cup with Handle' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "cup and handle",
+    "cup & handle",
+    "cup-and-handle",
+    "CWH"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Base Breakout', origin 'O'Neil'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "descending_triangle",
+   "name": "Descending Triangle",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Descending Triangle' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "descending triangle breakdown",
+    "flat-bottom triangle"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Classical Pattern', origin 'Brandt'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "double_bottom",
+   "name": "Double Bottom",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Double Bottom' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "double-bottom",
+    "double bottom base",
+    "W-pattern"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Base Breakout', origin 'O'Neil'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "ema_crossover",
+   "name": "EMA Crossover",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'EMA Crossover' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "EMA-crossover"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Remount & Recovery', origin 'various'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "head_and_shoulders",
+   "name": "Head & Shoulders",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Head & Shoulders' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "head and shoulders",
+    "H&S",
+    "head-and-shoulders"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Classical Pattern', origin 'Brandt'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "late_stage_climax",
+   "name": "Late-Stage Climax",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Late-Stage Climax' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "climax top",
+    "exhaustion top"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Short Setup', origin 'O'Neil'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "mean_reversion",
+   "name": "Mean Reversion",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Mean Reversion' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "mean-reversion"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Remount & Recovery', origin 'various'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "parabolic_short",
+   "name": "Parabolic Short",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Parabolic Short' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "parabolic-short",
+    "parabolic fade"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Short Setup', origin 'Qullamaggie'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "pocket_pivot",
+   "name": "Pocket Pivot",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Pocket Pivot' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "pocket-pivot"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Base Breakout', origin 'Morales'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "stage_2_breakout",
+   "name": "Stage 2 Breakout",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Stage 2 Breakout' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "stage2 breakout",
+    "stage2-breakout"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Momentum Continuation', origin 'Weinstein'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "stage_2_momentum",
+   "name": "Stage 2 Momentum",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Stage 2 Momentum' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "stage2 momentum",
+    "stage2-momentum"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Momentum Continuation', origin 'Weinstein'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "stage_4_breakdown",
+   "name": "Stage 4 Breakdown",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Stage 4 Breakdown' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "stage4-breakdown",
+    "stage 4 decline",
+    "weinstein stage 4"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Short Setup', origin 'Weinstein'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "symmetrical_triangle",
+   "name": "Symmetrical Triangle",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Symmetrical Triangle' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "symmetrical coil"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Classical Pattern', origin 'Brandt'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "wyckoff_accumulation",
+   "name": "Wyckoff Accumulation",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Wyckoff Accumulation' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "wyckoff-accumulation"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Classical Pattern', origin 'Wyckoff'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
+  },
+  {
+   "vocab_id": "wyckoff_lpsy",
+   "name": "Wyckoff LPSY",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "additive Trading Brain template coverage, proposed 2026-11-03 (BRAIN-MAPPING-2026-11-03.md): no Wisdom author source located yet, so it stays a candidate (W1 §3.1, §3.6)",
+   "coined_by": null,
+   "evidence_strength": "none",
+   "definition": null,
+   "definition_locator": "Trading Brain setup_templates 'Wyckoff LPSY' (description, entry_triggers); partner Brain Pack, not this repository; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "wyckoff-lpsy",
+    "LPSY"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Brain template family 'Classical Pattern', origin 'Wyckoff'. Proposal only: needs Wisdom maintainer review; other lists naming this setup are not re-mapped here."
   }
  ],
  "maps": {
@@ -3027,9 +3401,9 @@
     },
     {
      "external_name": "Ascending Triangle",
-     "vocab_id": null,
+     "vocab_id": "ascending_triangle",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "BGU",
@@ -3039,9 +3413,9 @@
     },
     {
      "external_name": "Base-on-Base",
-     "vocab_id": null,
+     "vocab_id": "base_on_base",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Box Theory",
@@ -3051,21 +3425,21 @@
     },
     {
      "external_name": "Cup with Handle",
-     "vocab_id": null,
+     "vocab_id": "cup_with_handle",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Descending Triangle",
-     "vocab_id": null,
+     "vocab_id": "descending_triangle",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Double Bottom",
-     "vocab_id": null,
+     "vocab_id": "double_bottom",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "EMA Crossback",
@@ -3075,9 +3449,9 @@
     },
     {
      "external_name": "EMA Crossover",
-     "vocab_id": null,
+     "vocab_id": "ema_crossover",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "EP",
@@ -3129,9 +3503,9 @@
     },
     {
      "external_name": "Head & Shoulders",
-     "vocab_id": null,
+     "vocab_id": "head_and_shoulders",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Kicker Candle",
@@ -3141,9 +3515,9 @@
     },
     {
      "external_name": "Late-Stage Climax",
-     "vocab_id": null,
+     "vocab_id": "late_stage_climax",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Launchpad",
@@ -3159,9 +3533,9 @@
     },
     {
      "external_name": "Mean Reversion",
-     "vocab_id": null,
+     "vocab_id": "mean_reversion",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Measured Move",
@@ -3189,15 +3563,15 @@
     },
     {
      "external_name": "Parabolic Short",
-     "vocab_id": null,
+     "vocab_id": "parabolic_short",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Pocket Pivot",
-     "vocab_id": null,
+     "vocab_id": "pocket_pivot",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Power Play",
@@ -3231,27 +3605,27 @@
     },
     {
      "external_name": "Stage 2 Breakout",
-     "vocab_id": null,
+     "vocab_id": "stage_2_breakout",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Stage 2 Momentum",
-     "vocab_id": null,
+     "vocab_id": "stage_2_momentum",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Stage 4 Breakdown",
-     "vocab_id": null,
+     "vocab_id": "stage_4_breakdown",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Symmetrical Triangle",
-     "vocab_id": null,
+     "vocab_id": "symmetrical_triangle",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Tight Flag",
@@ -3279,9 +3653,9 @@
     },
     {
      "external_name": "Wyckoff Accumulation",
-     "vocab_id": null,
+     "vocab_id": "wyckoff_accumulation",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Wyckoff Distribution",
@@ -3291,9 +3665,9 @@
     },
     {
      "external_name": "Wyckoff LPSY",
-     "vocab_id": null,
+     "vocab_id": "wyckoff_lpsy",
      "mismatch": 0,
-     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+     "note": "proposed 2026-11-03: new candidate entry for this Brain template (BRAIN-MAPPING-2026-11-03.md)"
     },
     {
      "external_name": "Wyckoff SOS",
