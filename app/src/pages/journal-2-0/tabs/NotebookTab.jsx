@@ -2717,6 +2717,7 @@ export default function NotebookTab() {
               onClick={() => createNote()}
               disabled={creating}
               data-tour="new-note"
+              data-guide="journal.newNote"
             >
               + New note
             </button>

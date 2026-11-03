@@ -232,7 +232,7 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
   }
 
   return (
-    <div ref={railRootRef} className={variant === 'sheet' ? styles.railSheet : styles.rail} data-testid="filter-rail">
+    <div ref={railRootRef} className={variant === 'sheet' ? styles.railSheet : styles.rail} data-testid="filter-rail" data-guide="screener.filters">
       <div className={styles.railSearchRow}>
         <UIcon name="search" size={12} />
         <Input ref={searchRef} className={styles.railSearch}

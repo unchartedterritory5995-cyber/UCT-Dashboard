@@ -228,7 +228,7 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
       <Seal snapshot={snapshot} snapshotDate={snapshotDate} />
       <span className={styles.toolGroup}>
         <span className={styles.pickerAnchor} ref={pickerAnchorRef}>
-          <button type="button" className={styles.toolBtn} aria-label="Choose columns"
+          <button type="button" className={styles.toolBtn} data-guide="screener.columns" aria-label="Choose columns"
             aria-expanded={pickerOpen} onClick={() => setPickerOpen(o => !o)}>
             <UIcon name="columns" size={13} /> Columns
           </button>

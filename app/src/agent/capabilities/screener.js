@@ -692,7 +692,7 @@ export function registerScreenerCapabilities() {
   // ── screener.run ──
   registerCapability({
     name: 'screener.run',
-    target: 'screener', query: true, surfaces: ['charts'],
+    target: 'screener', query: true, surfaces: ['*'],
     // tried on the WHOLE message first, so "rank them by RS" is the screener's, never read as a plural chart target
     fastWhole: true,
     summary: 'Run a stock screen on UCT\'s Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for "show me / find stocks with …".',
@@ -794,7 +794,7 @@ export function registerScreenerCapabilities() {
   }
   registerCapability({
     name: 'screener.runSaved',
-    target: 'screener', query: true, surfaces: ['charts'],
+    target: 'screener', query: true, surfaces: ['*'],
     summary: 'Run one of the member\'s saved screens (or a UCT starter screen) and show the real matches.',
     hints: 'target = the ref of the screener entry; screen = the id of an entry in savedScreens (never invent one; clarify with the real names if unsure). show: rows (null = 10). '
       + 'as: name its RESULT when a later op in the same request uses its stocks; else null.',
@@ -844,7 +844,7 @@ export function registerScreenerCapabilities() {
   // ── screener.state / screener.listSaved ──
   registerCapability({
     name: 'screener.state',
-    target: 'screener', query: true, surfaces: ['charts'],
+    target: 'screener', query: true, surfaces: ['*'],
     summary: 'Say what the last screen run here was: its filters, sort and number of matches.',
     hints: 'target = the ref of the screener entry.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
@@ -859,7 +859,7 @@ export function registerScreenerCapabilities() {
   })
   registerCapability({
     name: 'screener.listSaved',
-    target: 'screener', query: true, surfaces: ['charts'],
+    target: 'screener', query: true, surfaces: ['*'],
     summary: 'List the member\'s saved screens and UCT\'s starter screens.',
     hints: 'target = the ref of the screener entry.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
