@@ -26,8 +26,18 @@ import Piece22AnswerV5 from './pieces/Piece22AnswerV5'
 import Piece23Story from './pieces/Piece23Story'
 import Piece24FinishSeq from './pieces/Piece24FinishSeq'
 import Piece25Home from './pieces/Piece25Home'
+import Piece26LoopV4 from './pieces/Piece26LoopV4'
+import Piece27AnswerV6 from './pieces/Piece27AnswerV6'
+import Piece28StoryV2 from './pieces/Piece28StoryV2'
+import Piece29FinishBrand from './pieces/Piece29FinishBrand'
+import Piece30HomeV2 from './pieces/Piece30HomeV2'
 
 const PIECES = {
+  26: Piece26LoopV4,
+  27: Piece27AnswerV6,
+  28: Piece28StoryV2,
+  29: Piece29FinishBrand,
+  30: Piece30HomeV2,
   21: Piece21LoopDuo,
   22: Piece22AnswerV5,
   23: Piece23Story,

@@ -864,6 +864,30 @@ week, daily goal separate). Round 5 (batch 5, new app/src/lab/duo.module.css):
   pebble nodes, START bubble, chests/trophies, coach, popup under node, bottom tabs.
 
 NEXT: batch-5 scores -> ingest -> round 6. Still unruled: house STOP per entry; ticker shown on questions; unit order.
+## 2026-11-02 (night): WORKBENCH ROUND 6 LIVE (pieces 26-30), on brand
+
+Round-5 verdicts (verbatim in owner_verdicts.jsonl, dc21c4f1bc): loop 50 (widget slightly too small; bubbles better; the
+arrows pointing where to look are missing); answer 2 (chart failed to load in his Chrome; presentation; "entry is supposed to
+trigger OVER previous day high not at mkt close"); story 2 but "very good so far" (no per-day flashing, faster between main
+days, TICK BY TICK from 30-min/hourly closes, text must not bounce); finish 2 ("good and better; more ON BRAND"); home 2
+("cool but a lot better and higher quality production").
+
+Round 6 (batch 6): duo.module.css rewritten to the brand (site gold, candle green/red, OLED black).
+- Hourly JBI bars 2023-10-20..2024-01-17 (514) fetched ONCE through the owner's signed-in production tab: a form POST
+  from the production page to the workbench server's new POST /bars (browser fetch to 127.0.0.1 is blocked from https; a
+  form navigation is not) -> walkthrough/data/JBI_60m.json. lab/intraday.js: ET session filter (09:30 <= t < 16:00, the
+  vendor's 16:00 bar is a stray closing print), byDay, forming(), resample().
+- WidgetChart: `barsByTf` (per-timeframe override, tfCodes limited to what has data), `onTfChange`.
+- 26 Piece26LoopV4: taller widget (540), gold arrow back on the candle in question, brand bubble/cards.
+- 27 Piece27AnswerV6: no fetch (30m/1h/1D override), chart runs past the Kicker, entry = stop-buy OVER the day-1 high as
+  a ray + a marker under the day-2 bar that crossed it; one table, both tactics, click a row; hourly trimmed to 5 sessions
+  after the Kicker so 1h opens on the trigger. (priceLines did not draw in override mode; rays via annotations do.)
+- 28 Piece28StoryV2: each daily candle forms from hourly closes (last tick = the real daily bar); fast 110 ms ticks,
+  slow 420 ms on the red day and the Kicker; no caption animation; chapter questions kept.
+- 29 Piece29FinishBrand: the four screens on brand, the miss on the firm's chart.
+- 30 Piece30HomeV2: brand palette, SVG curved path (viewBox 100 units wide, non-scaling stroke), crowns, unit progress,
+  sticky unit banner, XP instead of gems.
+NEXT: batch-6 scores -> ingest -> round 7. Still unruled: house STOP per entry; ticker shown on questions; unit order.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
