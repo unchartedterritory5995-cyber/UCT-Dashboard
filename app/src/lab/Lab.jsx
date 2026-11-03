@@ -41,8 +41,18 @@ import Piece37HitBuy from './pieces/Piece37HitBuy'
 import Piece38DailySet from './pieces/Piece38DailySet'
 import Piece39IntroFlow from './pieces/Piece39IntroFlow'
 import Piece40Profile from './pieces/Piece40Profile'
+import Piece41Blitz from './pieces/Piece41Blitz'
+import Piece42Boss from './pieces/Piece42Boss'
+import Piece43Hard from './pieces/Piece43Hard'
+import Piece44DrawIt from './pieces/Piece44DrawIt'
+import Piece45Trap from './pieces/Piece45Trap'
 
 const PIECES = {
+  41: Piece41Blitz,
+  42: Piece42Boss,
+  43: Piece43Hard,
+  44: Piece44DrawIt,
+  45: Piece45Trap,
   36: Piece36Coach,
   37: Piece37HitBuy,
   38: Piece38DailySet,

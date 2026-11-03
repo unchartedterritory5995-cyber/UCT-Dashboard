@@ -965,6 +965,21 @@ map + voice player, mutable, localStorage study.sfx.muted).
   Review, 12-week heat map, league card (placeholders labelled).
 Round 7 (31-35) is still unscored; batches 7 and 8 are both in the shell. NEXT: his scores -> full analysis -> fixes,
 then round 9 (Blitz, Boss, Hard mode, Draw-it, Spot-the-trap) per the plan.
+## 2026-11-02 (night): ROUND 9 LIVE (pieces 41-45), the challenge modes (owner: "Go for it!")
+
+- 41 Piece41Blitz: 60 s, no hearts, keys 1-4, multiplier x2/x3/x4/x5 at combo 1/3/6/9, resets on a miss, end gems.
+- 42 Piece42Boss: 10 charts, one heart; fail screen names the missed setup + review card; win = trophy + chest + 150 XP.
+- 43 Piece43Hard: widget stripped by settingsOverride (studySettingsOverride({overlays:false, volume:false})) +
+  hideWatermark/hideLegend, density mini; perfect run = legendary 4th crown, XP x2.
+- 44 Piece44DrawIt: annotationsEditable + showDrawingTools through stockChartProps; the member draws an hray; graded by
+  distance from the house stop (0.5% perfect / 1.5% close); house line drawn on Check.
+- 45 Piece45Trap: look-alikes FOUND in the bars by the owner's rules (red day before < 1% = baby; close in the lower
+  half = weak) + the real Kicker; A/B/C chips, reasons shown on Check. On JBI: A 2023-08-21 weak close, B 2023-10-11
+  baby red day, C 2023-12-14 the Kicker.
+Fix: .slideIn no longer uses transform (a transformed ancestor broke the fixed footer in pieces 39/42/43); it animates
+`left` on a relative box. Known cosmetic: pointer chips can clip at the chart's top edge for the topmost candle.
+Batches 7, 8, 9 all await scores. NEXT per PRODUCTION_PLAN.md: round 10 (Guidebook, sell-rules unit scaffold, share
+card, league results + friend streak + Discord badge post, replay-the-week).
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
