@@ -80,3 +80,7 @@ The same query is in `docs/runbooks/note-import-repair.md`, "Before the deploy".
 
 - `base.py`: flow-worker uses only `_is_disallowed_ip`, which is unchanged. It is reached through `alert_taxonomy.outbound_webhooks`.
 - `db.py`: the new nullable column `j2_note_sources.sync_state` and its ALTER run only inside `auth_db.init_db`, which flow-worker never runs.
+
+## 2026-11-03: Evernote slot scheduling (`fix/evernote-slot-scheduling`)
+
+`tools/flow_worker_watch_coverage.py` flags `api/services/journal_two/notes.py`. Classification: **inert strand, no flow-worker redeploy.** flow-worker reaches it by one path, `flow_worker_main` -> `flow_router` -> `flow_admin_auth` -> `auth_service` -> `auth_db` -> `journal_two.db`, and `db.py` imports it LAZILY inside the one-shot Playbook migration (`convert_playbook_to_tiptap`, `extract_plain_text`, both unchanged), which runs only from `auth_db.init_db`, never in flow-worker. The change is inside `import_confirm` (each note's CPU work moved ahead of the write transaction), which flow-worker never calls. `engine.py`, `connections.py` and `providers/evernote.py` are not in its closure.
