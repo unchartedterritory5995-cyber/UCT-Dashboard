@@ -909,6 +909,20 @@ describe('ConnectedAppsCard — device modal (obsidian, Task 5)', () => {
   // tile click, never rendering ObsidianConnectModal directly. That is the
   // exact shape this repo's export door was missing (every test rendered
   // the dialog directly, so deleting the door left them all green).
+  it('the consent promises images and files only when /status says attachments are on', async () => {
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: { ...OBSIDIAN_CONFIGURED_STATUS, obsidianAttachments: true } }],
+    ])
+    render(<ConnectedAppsCard />)
+    const obsidianTile = await screen.findByTestId('connector-tile-obsidian')
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 20))
+    fireEvent.click(within(obsidianTile).getByRole('button', { name: /connect/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/and the images and files your notes use/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/does not upload attachments/)).toBeNull()
+  })
+
   it('minting a connect code is reachable from the Obsidian tile\'s own Connect button', async () => {
     mockFetch([
       ['/api/j2/notes/connectors/status', { body: OBSIDIAN_CONFIGURED_STATUS }],
@@ -922,6 +936,8 @@ describe('ConnectedAppsCard — device modal (obsidian, Task 5)', () => {
     // Phase 1: explanation + required consent checkbox — no POST yet.
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/markdown text of your notes/i)).toBeInTheDocument()
+    // Final review I3: no `obsidianAttachments` in /status -> the text-only consent.
+    expect(within(dialog).getByText(/does not upload attachments/)).toBeInTheDocument()
     const generateBtn = within(dialog).getByRole('button', { name: /generate code/i })
     expect(generateBtn).toBeDisabled()
     await new Promise((r) => setTimeout(r, 20))

@@ -35,6 +35,7 @@ from api.middleware.auth_middleware import (
 # Slice 3: the ONE route below that an external door may reach opts into this by
 # name. `get_current_user` above is untouched -- see api/middleware/capture_scope.
 from api.middleware.capture_scope import require_capture_scope
+from api.services.upload_gate import UPLOAD_BUSY_SENTENCE, UploadGate
 
 logger = logging.getLogger(__name__)
 from api.services.journal_two import (
@@ -4108,32 +4109,12 @@ _stored_media_payload = hotlink_fetch.stored_payload
 #: single-process roster): a second process doubles both.
 UPLOAD_PER_MEMBER_INFLIGHT = 2
 UPLOAD_GLOBAL_INFLIGHT = 4
-UPLOAD_BUSY_SENTENCE = "Too many uploads at once. Try again in a moment."
 
 
-class _UploadGate:
-    """The two in-flight counts. Event-loop state only: `acquire` and `release` never await,
-    so a check and its increment cannot interleave with another request."""
-
-    def __init__(self) -> None:
-        self.total = 0
-        self.by_member: dict[str, int] = {}
-
-    def acquire(self, user_id: str) -> bool:
-        mine = self.by_member.get(user_id, 0)
-        if mine >= UPLOAD_PER_MEMBER_INFLIGHT or self.total >= UPLOAD_GLOBAL_INFLIGHT:
-            return False
-        self.by_member[user_id] = mine + 1
-        self.total += 1
-        return True
-
-    def release(self, user_id: str) -> None:
-        self.total = max(0, self.total - 1)
-        left = self.by_member.get(user_id, 1) - 1
-        if left > 0:
-            self.by_member[user_id] = left
-        else:
-            self.by_member.pop(user_id, None)
+def _UploadGate() -> UploadGate:  # noqa: N802 -- kept name: a fresh gate for this door's limits
+    """This door's gate: the shared class (`api/services/upload_gate.py`, Plan C final review
+    M4) with this door's two constants. The Obsidian blob PUT keeps its OWN instance."""
+    return UploadGate(per_member=UPLOAD_PER_MEMBER_INFLIGHT, total=UPLOAD_GLOBAL_INFLIGHT)
 
 
 _UPLOAD_GATE = _UploadGate()

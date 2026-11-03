@@ -78,10 +78,36 @@ describe('makeObsidianResolver', () => {
     expect(noA.resolve('x.png', 'V/C/m.md')).toBe('V/B/x.png')
   })
 
-  it('breaks a same-depth tie by the shorter path, then lexicographically', async () => {
+  it('breaks a same-depth tie lexicographically, never by path length (the server\'s _pick)', async () => {
     const r = await makeObsidianResolver(withConfig('{}',
       ['V/C/m.md', 'V/Bbb/x.png', 'V/Bb/x.png', 'V/Ba/x.png']))
     expect(r.resolve('x.png', 'V/C/m.md')).toBe('V/Ba/x.png')
+    // Merge of Plan B with D1/D2: one tie-break on both lanes. A shorter path does not win.
+    const len = await makeObsidianResolver(withConfig('{}', ['V/C/m.md', 'V/Z/x.png', 'V/Long/x.png']))
+    expect(len.resolve('x.png', 'V/C/m.md')).toBe('V/Long/x.png')
+  })
+
+  it('a wikilink takes the exact note first, a #-holding file name whole, and no stem', async () => {
+    const r = await makeObsidianResolver([vf('a.md'), vf('report.pdf'), vf('report.pdf.md'),
+      vf('my chart #1 (v2).png'), vf('chart.png'), vf('Dr.Smith.md'), vf('Dr.md')])
+    expect(r.resolve('report.pdf', 'a.md')).toBe('report.pdf.md')
+    expect(r.resolve('my chart #1 (v2).png', 'a.md')).toBe('my chart #1 (v2).png')
+    expect(r.resolve('chart', 'a.md')).toBe(null)
+    expect(r.resolve('Dr.Smith', 'a.md')).toBe('Dr.Smith.md')
+  })
+
+  it('a leading-/ wikilink is root-relative, the exact note first (the server\'s _resolve_rooted)', async () => {
+    const r = await makeObsidianResolver([vf('Plan.md'), vf('Notes/Plan.md'), vf('Notes/Src.md'),
+      vf('files/deck.pdf'), vf('report.pdf'), vf('report.pdf.md')])
+    expect(r.resolve('/Plan', 'Notes/Src.md')).toBe('Plan.md')
+    expect(r.resolve('/notes/plan.md#Risk', 'Src.md')).toBe('Notes/Plan.md')
+    expect(r.resolve('/report.pdf', 'Src.md')).toBe('report.pdf.md')
+    expect(r.resolve('/Notes/../Plan', 'Src.md')).toBe('Plan.md')
+    for (const miss of ['/Ghost', '/../Plan', '/deck.pdf', '/']) {
+      expect(r.resolve(miss, 'Notes/Src.md')).toBe(null)
+    }
+    // A markdown href keeps the path as written first: it names a FILE.
+    expect(r.resolve('/report.pdf', 'Src.md', { decode: true })).toBe('report.pdf')
   })
 
   it('decodes a markdown href once and appends .md', async () => {

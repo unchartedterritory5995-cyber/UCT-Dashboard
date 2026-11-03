@@ -129,6 +129,26 @@
 .cellStyleSelect:hover { color: var(--text-bright, #e5e9f0); }
 .cellStyleSelect option { background: var(--bg-elevated, #12171f); }
 
+/* "Reset to my chart" — shown only on a cell that has forked its own settings
+   (policy A). Sits beside the per-cell Style picker it belongs with, same size
+   and ink, so a fork is never frozen for good and never hidden. */
+.cellResetBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  background: transparent;
+  color: var(--text-muted, #9aa4b2);
+  border: 1px solid var(--border, #2a3340);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 1px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cellResetBtn:hover { color: var(--ut-gold, #dcbb5e); border-color: var(--ut-gold, #dcbb5e); }
+
 /* Header collapse for narrow/dense cells (queried against the CELL width via
    the container-type above). Only the session toggle + clock collapse — they're
    the widest, least-essential controls. The Market Cap / Next Earnings / UCT

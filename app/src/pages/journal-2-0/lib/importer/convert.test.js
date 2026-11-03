@@ -205,3 +205,69 @@ describe('markdown -> TipTap JSON blowup through the wizard converter (SIZE regi
     expect(bodyPlain).toContain(`Reviewed trade idea ${bullets.length - 1}`)
   })
 })
+
+// ---------------------------------------------------------------------------
+// D2 item 5: the shared parse keeps whitespace and adds no empty paragraph
+// around a block atom (an image or an attachment chip) that splits a
+// paragraph. (a) `<p><img></p>` left an EMPTY paragraph before the image;
+// (b) the text before a block atom lost its trailing space (`Read ` read
+// `Read`). Every file importer goes through `htmlToNote`; the per-importer
+// tests (obsidian, notion, evernote, generic) show it end to end.
+// ---------------------------------------------------------------------------
+
+const CHIP = '<a data-type="attachmentChip" href="import-ref://x.pdf" data-name="x.pdf">x.pdf</a>'
+const shape = (n) => (n.type === 'text'
+  ? JSON.stringify(n.text) + (n.marks ? `[${n.marks.map((m) => m.type).join('+')}]` : '')
+  : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+const shapeOf = (html) => shape(htmlToNote(html).bodyJson)
+// Noncharacters, spelled by code point so an editor shows them (they render as nothing).
+const NC0 = String.fromCharCode(0xfdd0)
+const NC1 = String.fromCharCode(0xfdd1)
+
+describe('htmlToNote — D2 item 5: block atoms split paragraphs without losing whitespace', () => {
+  it('leaves no empty paragraph before an image that is the whole paragraph', () => {
+    expect(shapeOf('<p><img src="import-ref://a.png"></p>')).toBe('doc(image)')
+    expect(shapeOf('<p>  <img src="import-ref://a.png"> after</p>')).toBe('doc(image, paragraph(" after"))')
+    expect(shapeOf(`<p>${CHIP}</p>`)).toBe('doc(attachmentChip)')
+  })
+
+  it('keeps the space before a chip or image that splits a paragraph', () => {
+    expect(shapeOf(`<p>Read ${CHIP} before the open.</p>`))
+      .toBe('doc(paragraph("Read "), attachmentChip, paragraph(" before the open."))')
+    expect(shapeOf('<p><strong>Read </strong><img src="import-ref://a.png"> after</p>'))
+      .toBe('doc(paragraph("Read "[bold]), image, paragraph(" after"))')
+    expect(shapeOf(`<div>Read ${CHIP} more</div>`))
+      .toBe('doc(paragraph("Read "), attachmentChip, paragraph(" more"))')
+    expect(shapeOf(`<ul><li>Read ${CHIP} more</li></ul>`))
+      .toBe('doc(bulletList(listItem(paragraph("Read "), attachmentChip, paragraph(" more"))))')
+  })
+
+  it('no atom, atoms side by side, and a list item that must open with a paragraph', () => {
+    expect(shapeOf('<p>a  b </p>')).toBe('doc(paragraph("a b"))')
+    expect(shapeOf('<p></p><p>x</p>')).toBe('doc(paragraph, paragraph("x"))')
+    expect(shapeOf('<p>x <img src="import-ref://a.png"> <img src="import-ref://b.png"> y</p>'))
+      .toBe('doc(paragraph("x "), image, image, paragraph(" y"))')
+    // A list item's schema needs a first paragraph: the empty one stays, as before.
+    expect(shapeOf('<ul><li><p><img src="import-ref://a.png"> x</p></li></ul>'))
+      .toBe('doc(bulletList(listItem(paragraph, image, paragraph(" x"))))')
+    // An image straight inside a bare <li> is parsed exactly as before.
+    expect(shapeOf('<ul><li><img src="import-ref://a.png"> x</li></ul>'))
+      .toBe('doc(bulletList(listItem(paragraph)), image, paragraph(" x"))')
+  })
+
+  it('never takes the member\'s own noncharacters for its marker', () => {
+    const own = `${NC0}${NC1} `
+    const { bodyJson, bodyPlain } = htmlToNote(`<p>x${own}<img src="import-ref://a.png"></p><p>${NC0}</p>`)
+    expect(shape(bodyJson)).toBe(`doc(paragraph(${JSON.stringify(`x${own}`)}), image, paragraph("${NC0}"))`)
+    expect(bodyPlain).toContain(`${NC0}${NC1}`)
+  })
+})
+
+// D2 fix round 1 (M1): the marker is picked against the DECODED note, so a noncharacter the
+// member wrote as an entity (`&#xFDD0;`) is the member's text, never taken for the marker.
+describe('htmlToNote — D2 fix round 1: an entity-encoded noncharacter is the member\'s', () => {
+  it('keeps &#xFDD0; text and its paragraph beside a split', () => {
+    const { bodyJson } = htmlToNote('<p>keep &#xFDD0;</p><p>&#xFDD0;</p><p>Read <img src="import-ref://a.png"></p>')
+    expect(shape(bodyJson)).toBe(`doc(paragraph("keep ${NC0}"), paragraph("${NC0}"), paragraph("Read "), image)`)
+  })
+})

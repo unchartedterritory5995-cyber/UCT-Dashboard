@@ -2077,6 +2077,21 @@
       "where": [],
       "note": "Plan F (Task 7 round 2, S-3): the KILL SWITCH of the web pod's j2_doc_pending_sweep job (api/main.py; document_extraction.pending_sweep_tick), which re-queues searchable-document rows left 'pending' (older than 10 min, 20 per tick, a row failed after 3 tries, first tick 10 min after boot). SHIPS ON: unset, or any value but 1/true/yes/on, means the sweep runs. Set it to 1 on web to stop the sweep; it is read PER TICK, so no redeploy is needed to stop it, and unsetting it resumes it at the next tick."
     },
+    "NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-02",
+      "where": [
+        "web"
+      ],
+      "default": "0",
+      "values": [
+        "0",
+        "admin",
+        "1"
+      ],
+      "owner": "connector fidelity Plan C (Obsidian attachments), Task 2; master switch since the final review (I3)",
+      "note": "MASTER SWITCH for the Obsidian attachment layer, DEFAULT OFF (final review I3): it ships dark because plugin 0.2.0 is not yet released, and with the layer on every member would be told to install an update that does not exist. Read per request by api/services/journal_two/note_connectors/obsidian_attachments.py::attachments_mode() / attachments_enabled_for(). SERVICE: web. VALUES: \"0\" (and unset, and any unknown value) OFF; \"admin\" on for admins only; \"1\" on for everyone. OFF for a member means Plan C does not exist for them: POST /api/j2/notes/connectors/obsidian/attachments/check and PUT .../obsidian/attachments/{sha256} answer 404 (at \"0\" before authenticating; at \"admin\" right after device auth, before the paid gate, so a non-admin never sees a 403) -- a 0.2.0 plugin reads 404 as 'this server takes no attachments' and syncs text only; GET /status reports pluginSupportsAttachments null (the card's update hint never shows) and obsidianAttachments false (the connect modal shows the text-only consent); and the provider converts every staged row with NO attachment pass, exactly as before Plan C, so no 'update the plugin' or 'will be retried' notice is ever written (this also settles final review M2). /obsidian/ingest still accepts and stores per-note refs (attachments_json) and records the plugin version, and the final-push GC still runs; staged blobs already on disk stay until that GC or the vault's disconnect. The whole connector's own switch is NOTE_SYNC_OBSIDIAN_ENABLED. ARM (after plugin 0.2.0 is published): railway variables --set NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED=admin --service web, prove it on an admin vault, then --set ...=1; confirm a fresh boot each time. OFF again: railway variables --set NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED=0 --service web (a --set restarts web; a variable delete does NOT restart the pod, so after a delete run railway redeploy --service web --yes and confirm from the pod). ACCEPTED COST (final review M3): a staged blob is a SECOND copy of every synced attachment (the note's stored media is the first), kept while any staged note of that vault references it, so an imported attachment costs about 2x disk on /data, inside the member's 2 GB staged bound (obsidian_attachments.remaining_bytes) and the volume headroom check. It is released by the final-push GC once no staged note references it (obsidian_attachments.gc_unreferenced), by the vault's disconnect (obsidian_link.revoke_devices) or by the account purge (account_purge -> obsidian_attachments purge). Not released at import: the plugin pushes a note's refs again on every edit, and a retry of a pending media item reads the blob."
+    },
     "OI_MASSIVE_ENABLED": {
       "status": "armed",
       "where": [
