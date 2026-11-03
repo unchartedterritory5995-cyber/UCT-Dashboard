@@ -51,7 +51,7 @@ export default function Piece45Trap() {
     <div className={d5.lesson}>
       <div className={d5.topbar}><button type="button" className={d5.close} aria-label="Close">✕</button><div className={d5.prog}>{Array.from({ length: 10 }, (_, k) => <i key={k} className={k < 7 ? d5.on : k === 7 ? d5.cur : ''} />)}</div><div className={d5.hearts}><span>♥</span><span>♥</span><span>♥</span></div></div>
       <div className={d5.ask}><Logo mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : ok ? 'happy' : 'oops'} size={72} /><div className={d5.bubble}>{state === 'ask' ? `${cands.length} candles are marked. Only one is a Kicker. Tap the real one.` : ok ? 'That is the Kicker. The others fail a rule.' : 'That one fails a rule. The Kicker is the green one.'}</div></div>
-      <div className={`${s.chartBox} ${state === 'ask' && pick == null ? s.pulse : ''}`}>
+      <div className={`${s.chartBox} `}>
         {state === 'ask' && pick == null ? <span className={s.tapHint}>tap a marked candle</span> : null}
         <WidgetChart sym={d.sym} bars={vis} annotations={annotations} height={460} density="compact" defaultBars={70} onBarTap={state === 'ask' ? ({ index }) => { const c = cands.find((x) => Math.abs(x.i - index) <= 1); if (c) setPick(c.i) } : null} />
       </div>

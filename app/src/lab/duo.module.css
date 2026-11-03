@@ -447,3 +447,31 @@
 .heartBroken .heartL { transform: translate(-9%, 4%) rotate(-10deg); } .heartBroken .heartR { transform: translate(9%, 6%) rotate(10deg); }
 .wayBtn { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; color: var(--mut); font: inherit; font-size: 12px; cursor: pointer; }
 .wayBtn.on { border-color: var(--g); color: var(--gb); background: #1a1708; }
+
+/* ── round 11: the style pass (the app's typeface, a tighter scale) and the new bits ──── */
+.lesson { font-family: var(--font-sans, 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif); letter-spacing: .005em; }
+.lesson .heroWord { font-size: 46px; letter-spacing: -.02em; }
+.lesson .bubble { font-size: 18px; font-weight: 600; line-height: 1.35; padding: 13px 16px; }
+.lesson .card { font-size: 16px; font-weight: 600; padding: 14px 16px; }
+.lesson .startLead { font-size: 15px; color: #d9d4c8; }
+.lesson .gem { min-width: 128px; } .lesson .gemIn b { font-size: 26px; } .lesson .gemIn { padding: 12px 14px 10px; }
+.lesson .startBtn { padding: 12px 16px 12px 12px; } .lesson .startIcon { width: 40px; height: 40px; } .lesson .startText b { font-size: 15px; letter-spacing: .12em; }
+.lesson .eyebrowG { font-size: 11px; letter-spacing: .2em; }
+.lesson .btn { font-size: 15px; letter-spacing: .1em; }
+.qLine { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 2px 2px 0; }
+.qSetup { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--gb); font-weight: 800; background: #1a1708; border: 1px solid #3a3115; border-radius: 999px; padding: 4px 10px; }
+.qText { font-size: 15px; color: #e6e1d6; font-weight: 500; }
+.whyLine { margin: 0; font-size: 14px; color: #d9d4c8; padding: 10px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
+.runLog { width: 100%; display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; text-align: left; }
+.runLog > div { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; font-size: 13px; padding: 6px 10px; border-radius: 8px; background: var(--card); }
+.runLog small { color: var(--mut); } .runOk b { color: #8fe3b1; } .runBad b { color: #ff9d9d; }
+.stepRow { flex: 1; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.stepPill { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 800; color: var(--mut); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
+.stepPill.now { color: var(--gb); border-color: var(--g); background: #1a1708; } .stepPill.done { color: #8fe3b1; border-color: #1d7a45; }
+.riskTag { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--mut); padding: 0 8px; } .riskTag b { color: var(--gb); }
+.nudge button { font-size: 16px; min-width: 52px; user-select: none; touch-action: none; }
+.ruleList { display: flex; flex-direction: column; gap: 4px; width: 100%; margin-top: 4px; }
+.ruleList > span { display: grid; grid-template-columns: 18px 1fr; gap: 2px 8px; font-size: 12px; align-items: baseline; }
+.ruleList > span small { grid-column: 2; color: var(--mut); font-size: 11px; }
+.ruleOk b { color: #8fe3b1; } .ruleBad b { color: #ff9d9d; }
+@media (max-width: 640px) { .lesson .heroWord { font-size: 36px; } .lesson .bubble { font-size: 16px; } .runLog { max-height: 160px; } }

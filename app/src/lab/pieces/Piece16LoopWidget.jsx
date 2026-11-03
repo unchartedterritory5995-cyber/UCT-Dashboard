@@ -59,7 +59,7 @@ function Question({ idx, total, score, combo, onDone }) {
         <span className={s.combo}>{combo > 1 ? `🔥 ${combo} in a row` : `${score} XP`}</span>
       </div>
       <h1 className={s.h1}>{Q.q}</h1>
-      <div className={`${s.chartBox} ${isTap && !tap && state === 'ask' ? s.pulse : ''}`}>
+      <div className={`${s.chartBox} `}>
         {isTap && !tap && state === 'ask' ? <span className={s.tapHint}>tap a candle</span> : null}
         <WidgetChart sym={d.sym} bars={all} annotations={annotations} height={440} onBarTap={isTap && state === 'ask' ? ({ index }) => { if (index >= 0) setTap({ index }) } : null} />
       </div>

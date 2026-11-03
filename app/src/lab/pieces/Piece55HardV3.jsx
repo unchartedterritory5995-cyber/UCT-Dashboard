@@ -1,0 +1,143 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import WidgetChart from '../WidgetChart'
+import Logo from '../Logo'
+import StartCard, { StartButton } from '../StartCard'
+import { Confetti, Stamp } from '../bits'
+import { useRunOn } from '../fx'
+import { useSample } from '../Lab'
+import { spot, rayAt, pct } from '../pointers'
+import { studySettingsOverride } from '../../pages/study/studyChartLook'
+import { sfx, voice } from '../sfx'
+import s from '../lab.module.css'
+import d5 from '../duo.module.css'
+import { XP } from '../rewards'
+
+const HARD = { settingsOverride: studySettingsOverride({ overlays: false, volume: false }), hideWatermark: true, hideLegend: true, showVolume: false }
+const MAX_STOP_PCT = 3.5
+const r2 = (v) => Math.round(v * 100) / 100
+const money = (v) => `$${v.toFixed(2)}`
+
+/** Round 11, piece 4: HARD MODE V3 (owner, batch 10: "show the next candles a bit slower and also give more of an
+ *  interactive lesson for the buy day of where and how to enter and where to place your stop"). One chart, three
+ *  steps on it: NAME IT (candles only, what fired?) -> ENTER IT (where do you buy? tap the line: the previous day's
+ *  high, the house's day-1 trigger) -> STOP IT (tap where the stop goes, graded against the house rule). Then the
+ *  next candles arrive slowly, one every third of a second, so the follow-through is watched. */
+function Crowns({ lit = false }) {
+  return <div className={d5.crownRow}><span>♛</span><span>♛</span><span>♛</span><span className={`${d5.dimC} ${lit ? d5.lit : ''}`}>♛</span></div>
+}
+
+const STEPS = ['name', 'enter', 'stop', 'run']
+
+function Lesson({ onDone }) {
+  const d = useSample('JBI_2023-12-14')
+  const [step, setStep] = useState('name')
+  const [pick, setPick] = useState(null)
+  const [verdict, setVerdict] = useState(null)      // per step: 'ok' | 'bad'
+  const [entryPick, setEntryPick] = useState(null)  // price tapped for the entry
+  const [stopPick, setStopPick] = useState(null)
+  const [stripped, setStripped] = useState(false)
+  const [veil, setVeil] = useState(false)
+  const [right, setRight] = useState(0)
+  const vis = d?.visible
+  const n = vis?.length || 0
+  const kick = n ? vis[n - 1] : null
+  const red = n > 1 ? vis[n - 2] : null
+  const entry = red ? r2(red.h + 0.01) : null
+  const house = useMemo(() => { if (!kick || !entry) return null; const lowDist = pct(entry, kick.l) * -1; return lowDist > MAX_STOP_PCT ? r2(entry * (1 - MAX_STOP_PCT / 100)) : kick.l }, [kick, entry])
+  const all = useRunOn(vis, d?.forward, step === 'run', 330)
+  useEffect(() => {
+    if (!d) return undefined
+    const a = setTimeout(() => setVeil(true), 900), b = setTimeout(() => setStripped(true), 1350), c = setTimeout(() => setVeil(false), 2000)
+    return () => { clearTimeout(a); clearTimeout(b); clearTimeout(c) }
+  }, [d])
+  const ann = useMemo(() => {
+    if (!n || !all || !red) return null
+    const a = []
+    if (step === 'name') a.push(...spot(all, n - 1, { label: verdict ? 'the Kicker' : 'this candle', id: 'k', color: verdict === 'bad' ? '#df4646' : verdict === 'ok' ? '#2faf68' : '#dcbb5e' }))
+    else a.push(...spot(all, n - 1, { label: 'day 1 · the Kicker', id: 'k', color: '#2faf68', halo: step === 'run' }))
+    if (step !== 'name') {
+      a.push({ id: 'e', type: 'hray', points: [{ time: vis[Math.max(0, n - 38)].t, price: entry }], color: '#2faf68', lineWidth: 2, lineStyle: step === 'enter' && !verdict ? 'dashed' : 'solid' })
+      a.push({ id: 'e-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 38)].t, price: entry }], text: step === 'enter' && !verdict ? '  THE LINE  ' : `  ENTRY ${money(entry)} · over yesterday's high  `, color: '#ffffff', fontSize: 12, bgEnabled: true, bgColor: '#2faf68', locked: true })
+      if (step === 'enter' && !verdict) { a.push({ id: 'dc', type: 'hray', points: [{ time: vis[Math.max(0, n - 44)].t, price: red.c }], color: '#9a958a', lineWidth: 1, lineStyle: 'dotted' }); a.push({ id: 'dc-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 44)].t, price: red.c }], text: "  yesterday's close  ", color: '#111', fontSize: 11, bgEnabled: true, bgColor: '#9a958a', locked: true }); a.push({ id: 'ko', type: 'hray', points: [{ time: vis[Math.max(0, n - 36)].t, price: kick.o }], color: '#9a958a', lineWidth: 1, lineStyle: 'dotted' }); a.push({ id: 'ko-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 36)].t, price: kick.o }], text: "  today's open  ", color: '#111', fontSize: 11, bgEnabled: true, bgColor: '#9a958a', locked: true }) }
+    }
+    if (step === 'enter' && entryPick != null) a.push({ id: 'ep', type: 'hray', points: [{ time: vis[Math.max(0, n - 14)].t, price: entryPick }], color: verdict === 'ok' ? '#2faf68' : '#dcbb5e', lineWidth: 2.5, lineStyle: 'dashed' })
+    if ((step === 'stop' || step === 'run') && stopPick != null) { a.push({ id: 'sp', type: 'hray', points: [{ time: vis[Math.max(0, n - 28)].t, price: stopPick }], color: '#ff6b6b', lineWidth: 2.5, lineStyle: 'dashed' }); a.push({ id: 'sp-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 28)].t, price: stopPick }], text: `  YOUR STOP ${money(stopPick)}  `, color: '#fff', fontSize: 12, bgEnabled: true, bgColor: '#df4646', locked: true }) }
+    if ((step === 'stop' && verdict) || step === 'run') { a.push({ id: 'hs', type: 'hray', points: [{ time: vis[Math.max(0, n - 18)].t, price: house }], color: '#2faf68', lineWidth: 2 }); a.push({ id: 'hs-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 18)].t, price: house }], text: `  HOUSE STOP ${money(house)} · the Kicker's low  `, color: '#fff', fontSize: 12, bgEnabled: true, bgColor: '#2faf68', locked: true }) }
+    if (step === 'run') a.push(...rayAt(vis[n - 1], 'l', { id: 'l', label: '' }))
+    return a
+  }, [all, vis, n, red, kick, entry, house, step, verdict, entryPick, stopPick])
+  const onTap = useCallback(({ price }) => {
+    if (!Number.isFinite(price) || verdict) return
+    if (step === 'enter') setEntryPick(r2(price))
+    if (step === 'stop') setStopPick(r2(price))
+  }, [step, verdict])
+  const check = () => {
+    let ok = false
+    if (step === 'name') ok = pick === 1
+    if (step === 'enter') ok = entryPick != null && Math.abs(pct(entry, entryPick)) <= 0.6
+    if (step === 'stop') ok = stopPick != null && Math.abs(pct(house, stopPick)) <= 1.5
+    setVerdict(ok ? 'ok' : 'bad'); sfx(ok ? 'right' : 'wrong'); if (ok) setRight((v) => v + 1)
+    if (ok && step === 'enter') voice('entry'); if (ok && step === 'stop') voice('line')
+  }
+  const next = () => { const k = STEPS.indexOf(step); setVerdict(null); setStep(STEPS[k + 1]) }
+  useEffect(() => {
+    const k = (e) => { if (verdict) { if (e.key === 'Enter') (step === 'stop' ? next() : next()); return } if (step === 'name' && /^[1-4]$/.test(e.key)) setPick(+e.key - 1); if (e.key === 'Enter') check() }
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
+  })
+  if (!d) return <div className={s.col}><p className={s.hint}>Loading</p></div>
+  const ready = step === 'name' ? pick != null : step === 'enter' ? entryPick != null : step === 'stop' ? stopPick != null : true
+  const bubble = step === 'name' ? (verdict == null ? (stripped ? 'Candles only. What setup, if any, just fired?' : 'Watch: the averages and the volume are about to go.') : verdict === 'ok' ? 'Kicker. Now the buy day.' : 'It was the Kicker: a real red day, then an open above its body and a strong close.')
+    : step === 'enter' ? (verdict == null ? `Day 1. Yesterday was a real red day and its high was ${money(red.h)}. Where does the house buy? Tap the line.` : verdict === 'ok' ? `Over ${money(entry)}: a stop-buy one cent over yesterday's high. The moment price trades there, yesterday's sellers are beaten.` : `Not there. The house buys over ${money(entry)}, one cent above yesterday's high, with a stop-buy. Never at the open, never at the close.`)
+      : step === 'stop' ? (verdict == null ? `You are in over ${money(entry)}. Where is your stop? Tap where it goes.` : verdict === 'ok' ? `Under the Kicker's low, ${money(house)}. If that breaks, the candle failed.` : `The house stop is the Kicker's low, ${money(house)}, or ${MAX_STOP_PCT}% under the entry when that low is further. Yours was ${Math.abs(pct(house, stopPick)).toFixed(1)}% off.`)
+        : 'Now watch it run, one day at a time. Did your stop hold?'
+  return (
+    <div className={`${d5.lesson} ${d5.slideIn} ${verdict === 'bad' ? d5.shakeHard : ''}`}>
+      <div className={d5.topbar}><span className={`${d5.hardTag} ${d5.pulse}`}>HARD</span><div className={d5.stepRow}>{['Name it', 'Enter it', 'Stop it', 'Run'].map((t, k) => <span key={t} className={`${d5.stepPill} ${STEPS.indexOf(step) > k ? d5.done : STEPS.indexOf(step) === k ? d5.now : ''}`}>{t}</span>)}</div><span className={d5.legend}>♛♛♛<b>♛</b></span></div>
+      <div className={d5.ask}><Logo mood={verdict == null ? (ready ? 'think' : 'idle') : verdict === 'ok' ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{bubble}</div></div>
+      <div className={s.chartBox}>
+        {veil ? <><div className={d5.veil} /><div className={d5.stripNote}>candles only</div></> : null}
+        {verdict ? <Stamp ok={verdict === 'ok'} /> : null}
+        {(step === 'enter' || step === 'stop') && !verdict ? <span className={s.tapHint}>{step === 'enter' ? 'tap the line you buy over' : 'tap where the stop goes'}</span> : null}
+        <WidgetChart sym={d.sym} bars={all} annotations={ann} height={460} density="mini" defaultBars={60} hideTicker extra={stripped ? HARD : null} onBarTap={step === 'enter' || step === 'stop' ? onTap : null} />
+      </div>
+      {step === 'name' ? <div className={`${d5.cards} ${d5.cascade}`}>{['Launchpad', 'Kicker', 'Slingshot', 'None of these'].map((c, k) => { let cls = d5.card; if (!verdict && pick === k) cls += ` ${d5.sel}`; if (verdict && k === 1) cls += ` ${d5.right}`; if (verdict === 'bad' && pick === k) cls += ` ${d5.wrong}`; return <button key={c} type="button" className={cls} style={{ '--i': k }} disabled={!!verdict} onClick={() => setPick(k)}><span className={d5.key}>{k + 1}</span>{c}</button> })}</div>
+        : <div className={`${d5.live} ${d5.four}`}><div><small>Yesterday's high</small><b>{money(red.h)}</b></div><div><small>Entry</small><b>{step === 'enter' && !verdict ? (entryPick != null ? money(entryPick) : 'tap the line') : money(entry)}</b></div><div><small>Your stop</small><b>{stopPick != null ? money(stopPick) : (step === 'stop' ? 'tap it' : '')}</b></div><div><small>House stop</small><b>{(step === 'stop' && verdict) || step === 'run' ? money(house) : ''}</b></div></div>}
+      <div className={`${d5.footer} ${verdict === 'ok' ? d5.good : verdict === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
+        {step === 'run' ? <button type="button" className={`${d5.btn} ${d5.live}`} onClick={() => onDone(right)}>Finish</button>
+          : verdict == null ? <button type="button" className={`${d5.btn} ${ready ? d5.live : ''}`} disabled={!ready} onClick={check}>Check</button>
+            : <button type="button" className={`${d5.btn} ${verdict === 'ok' ? d5.live : d5.red}`} onClick={next}>{step === 'stop' ? 'Watch it run' : 'Next'}</button>}
+      </div></div>
+    </div>
+  )
+}
+
+export default function Piece55HardV3() {
+  const [phase, setPhase] = useState('intro')
+  const [right, setRight] = useState(0)
+  const [run, setRun] = useState(0)
+  const start = () => { setPhase('play'); setRight(0); setRun((r) => r + 1) }
+  if (phase === 'intro') {
+    return (
+      <div className={d5.lesson}>
+        <StartCard tone="dark" eyebrow="Kicker · Learn 2" title="Hard mode" art={<Crowns />}
+          lead="No averages. No volume. Just the candles. Name it, then enter it, then place the stop, on one chart. Three for three earns the legendary fourth crown."
+          button={<StartButton icon="crown" label="Start hard mode" sub="candles only · name, enter, stop · x2 XP" onClick={start} />}>
+          <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>On a perfect run</small><b>Legendary</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>XP</small><b>x{XP.HARD_MULT}</b></div></div></div>
+        </StartCard>
+      </div>
+    )
+  }
+  if (phase === 'done') {
+    const perfect = right === 3
+    return (
+      <div className={d5.lesson}>{perfect ? <Confetti /> : null}
+        <StartCard tone="dark" eyebrow="Kicker · Learn 2" title={perfect ? 'Legendary' : `${right} of 3`} art={<Crowns lit={perfect} />}
+          lead={perfect ? 'Named it, entered it, stopped it, with nothing to lean on. The fourth crown is yours.' : 'Three for three is needed for the fourth crown. Try again.'}
+          button={<StartButton icon="crown" label="Again" sub="candles only" onClick={start} />}>
+          <div className={d5.gems}><div className={`${d5.gem} ${perfect ? '' : d5.dim}`}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>Kicker · Learn 2</small><b>{perfect ? '4 crowns' : '3 crowns'}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>XP</small><b>+{right * XP.RIGHT * XP.HARD_MULT}</b></div></div></div>
+        </StartCard>
+      </div>
+    )
+  }
+  return <Lesson key={run} onDone={(r) => { setRight(r); setPhase('done'); sfx(r === 3 ? 'levelup' : 'streak') }} />
+}

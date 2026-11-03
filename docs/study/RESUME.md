@@ -1151,6 +1151,29 @@ LINE BY LINE (batch 10)
 
 ROUND 11 PIECES (batch 11): 52 the logo in real 3D, 53 Blitz V3 (bank-fed, style pass), 54 Boss V3, 55 Hard V3
 (Name -> Enter -> Stop), 56 Draw-it V3, 57 Trap V3. Six again.
+## 2026-11-03 (afternoon): ROUND 11 LIVE (pieces 52-57, batch 11 in the shell)
+
+Built from the batch 10 analysis above. lab/Logo.jsx is now REAL 3D: the mark authored as geometry (four ring arcs,
+two spikes, two points, the split candle, wicks) and extruded on a canvas with lit side faces and a sheen, slow
+turntable, bob and throb kept; moods = tempo, tilt, glow. app/lab.html loads the app's self-hosted Instrument Sans
+(the workbench had been on a system font the whole time; measured: computed font-family now 'Instrument Sans').
+lab/bank.js: the sandbox serves the REAL Study bank (POST /api/study/sessions kind=skill per setup, spot items with
+bars inline; seven setups carry chart items, ~170 in a pool of 30-sized sets, more in the bank); POST /api/study/attempts
+scores on the server and returns the reveal with forward bars. 53 Blitz V3 and 54 Boss V3 are bank-fed and server-scored
+(the bank's own Yes/No question per item; the key never reaches the browser). 55 Hard V3 = Name it -> Enter it (tap the
+line you buy over; yesterday's high/close and today's open drawn) -> Stop it (tap, graded on the house rule) -> Run (one
+bar every third of a second). 56 Draw-it V3: the entry line with why/where/how from the start, no pulsing border, a tall
+quiet chart (no toolbar/legend/range bar, 48 candles), tap to place, tap to move, HOLD an arrow to slide, type, ray tool
+as a toggle. 57 Trap V3: candidates painted gold via the widget's highlightBarTime, letter badges, rule cards on Check
+(red day size / open above body / strong close, each ticked or crossed from the bars). The pulsing chart border is
+removed from every piece. Style pass in duo.module.css (type scale, tighter cards). Lint clean; desktop interactions
+verified by Playwright (pw_r11.py: taps place the entry at $11.04-$11.05, the stop, the hold slides a cent at a time;
+Blitz scores 20 points on a right bank answer); phone pass 390 px clean for 52-57.
+Test trap learned: the Logo is now a <canvas>, so a Playwright test must pick the chart canvas by width (> 300 px).
+Open: Blitz asks the bank's Yes/No on a named setup (a 'name the setup' question needs the key, which the API hides by
+design; ask the owner which he wants); drag of the stop line is the ray tool's job (tap/hold/type cover the rest);
+the setups beyond the Kicker have no full ride (entry/stop lessons) yet; the sandbox's live-price and stream routes
+answer 503 (no vendor keys), harmless in the lab.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.

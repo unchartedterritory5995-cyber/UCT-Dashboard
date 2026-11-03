@@ -75,7 +75,7 @@ function Question({ idx, total, hearts, combo, onDone }) {
         <img src={coach} alt="" className={d5.coach} />
         <div className={d5.bubble}>{Q.q}</div>
       </div>
-      <div className={`${s.chartBox} ${isTap && !tap && state === 'ask' ? s.pulse : ''}`}>
+      <div className={`${s.chartBox} `}>
         {isTap && !tap && state === 'ask' ? <span className={s.tapHint}>tap a candle</span> : null}
         <WidgetChart sym={d.sym} bars={all} annotations={annotations} height={400} density="compact" onBarTap={isTap && state === 'ask' ? ({ index }) => { if (index >= 0) setTap({ index }) } : null} />
       </div>

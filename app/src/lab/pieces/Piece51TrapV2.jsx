@@ -91,7 +91,7 @@ export default function Piece51TrapV2() {
     <div className={`${d5.lesson} ${state === 'bad' ? d5.shakeHard : ''}`}>
       <div className={d5.topbar}><button type="button" className={d5.close} aria-label="Close">✕</button><div className={d5.prog}>{Array.from({ length: 10 }, (_, k) => <i key={k} className={k < 7 ? d5.on : k === 7 ? d5.cur : ''} />)}</div><div className={d5.hearts}><span>♥</span><span>♥</span><span>♥</span></div></div>
       <div className={d5.ask}><Logo mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : ok ? 'happy' : 'oops'} size={64} /><div className={d5.bubble}>{state === 'ask' ? `${cands.length} candles are marked and breathing. Only one is a Kicker. Tap the real one.` : ok ? 'That is the Kicker. The others each fail a rule.' : 'That one fails a rule. The Kicker is the green one.'}</div></div>
-      <div className={`${s.chartBox} ${state === 'ask' && pick == null ? s.pulse : ''}`}>
+      <div className={`${s.chartBox} `}>
         {state === 'ask' && pick == null ? <span className={s.tapHint}>tap a marked candle</span> : null}
         {state !== 'ask' ? <Stamp ok={ok} /> : null}
         <WidgetChart sym={d.sym} bars={all} annotations={annotations} height={460} density="compact" defaultBars={view} exactBars onBarTap={state === 'ask' ? ({ index }) => { if (index < 0) return; const near = cands.map((c) => ({ c, dd: Math.abs(c.i - index) })).sort((p, q) => p.dd - q.dd)[0]; if (near && near.dd <= 3) { setPick(near.c.i); sfx('tick') } } : null} />

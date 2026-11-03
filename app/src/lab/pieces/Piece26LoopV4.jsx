@@ -73,7 +73,7 @@ function Question({ idx, total, hearts, combo, onDone }) {
         <div className={d5.hearts}>{Array.from({ length: 3 }, (_, i) => <span key={i} className={i < hearts ? '' : d5.lost}>♥</span>)}</div>
       </div>
       <div className={d5.ask}><img src={coach} alt="" className={d5.coach} /><div className={d5.bubble}>{Q.q}</div></div>
-      <div className={`${s.chartBox} ${isTap && !tap && state === 'ask' ? s.pulse : ''}`}>
+      <div className={`${s.chartBox} `}>
         {isTap && !tap && state === 'ask' ? <span className={s.tapHint}>tap a candle</span> : null}
         <WidgetChart sym={d.sym} bars={all} annotations={annotations} height={540} density="compact" defaultBars={90} onBarTap={isTap && state === 'ask' ? ({ index }) => { if (index >= 0) setTap({ index }) } : null} />
       </div>

@@ -52,7 +52,7 @@ function Question({ idx, onDone }) {
           <div><div className={d5.sbLabel} style={{ color: '#8fe3b1' }}>The trigger</div><div className={s.chartBox}><StudyChart bars={missRight} annotations={spot(missRight, Math.min(30, n - 1), { label: 'trigger', color: '#2faf68', id: 'm2', gap: 5 })} height={230} /></div></div>
         </div>
       ) : (
-        <div className={`${s.chartBox} ${isTap && !tap && state === 'ask' ? s.pulse : ''}`}>
+        <div className={`${s.chartBox} `}>
           {isTap && !tap && state === 'ask' ? <span className={s.tapHint}>tap a candle</span> : null}
           <WidgetChart sym={d.sym} bars={all} annotations={annotations} height={440} density="compact" defaultBars={90} onBarTap={isTap && state === 'ask' ? ({ index }) => { if (index >= 0) setTap({ index }) } : null} />
         </div>
