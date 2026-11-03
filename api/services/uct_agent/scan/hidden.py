@@ -65,16 +65,21 @@ EXTRA_FLOW: frozenset = frozenset()
 #: patterns are matched against the member's text (lower-cased) BEFORE any catalog or look-alike matching, in the
 #: refinement path, the new-screen fast path and the server turn; a hit is the F-16 sentence plus the public
 #: alternative (refine.refusal_for_text / scanRefine.refineRefusalForText). (pattern, hidden key) pairs, written in the
-#: regex subset Python and JavaScript share (\b, \s, \d, (?:…), ?, |); the mirror carries them verbatim.
+#: regex subset Python and JavaScript share (\b, \s, \d, (?:…), ?, |, fixed-width (?!…) / (?<!…)); the mirror carries
+#: them verbatim.
 #: Generic trading words that are not UCT's names ("vcp", "flat base", bare "ratings", bare "premium") are NOT here:
 #: a wrong mapping of those is still refused at the key level (hidden_keys), never silently run.
 HIDDEN_PHRASES: tuple = (
     (r"\brs[\s-]?(?:rank|ranks|ranked|ranking|rating|ratings|score|scores)\b", "rs_rank"),
     (r"\brelative[\s-]strength[\s-](?:rank|ranks|ranked|ranking|rating|ratings|score|scores)\b", "rs_rank"),
     (r"\brs\s*(?:>=?|<=?|=|over|above|under|below|at least|at most|more than|less than|greater than|higher than|lower than|of at least)\s*\d", "rs_rank"),
-    (r"\bhighest[\s-]rs\b|\blowest[\s-]rs\b|\brs[\s-]leaders?\b", "rs_rank"),
+    (r"\bhighest[\s-]rs\b(?![\s-]line)|\blowest[\s-]rs\b(?![\s-]line)|\brs[\s-]leaders?\b", "rs_rank"),
     (r"\brs[\s-]?(?:weighted[\s-])?returns?\b", "rs_return"),
-    (r"\b(?:uct[\s-]?)?composites?\b", "uct_composite"),
+    # W1.1 review BLOCKING-2: a bare "composite" is the public index ("the nasdaq composite"); only "uct composite",
+    # "composite score/rating/rank" or a composite THRESHOLD ("composite over 85") names the UCT rating
+    (r"\buct[\s-]?composites?\b|\bcomposite[\s-](?:score|scores|rating|ratings|rank|ranks|ranking)\b|"
+     r"(?<!nasdaq )(?<!nyse )\bcomposite\s*(?:>=?|<=?|=|over|above|under|below|at least|at most|more than|less than|of at least)\s*\d",
+     "uct_composite"),
     (r"\buct[\s-]?(?:score|scores|rating|ratings|rank|ranks|ranking)\b", "uct_composite"),
     (r"\b(?:uct'?s?[\s-])?proprietary[\s-](?:ratings?|scores?|ranks?|rankings?)\b", "uct_composite"),
     (r"\beps[\s-]rating\b", "rating_eps"),
@@ -82,6 +87,8 @@ HIDDEN_PHRASES: tuple = (
     (r"\bsmr(?:[\s-]rating)?\b", "rating_smr"),
     (r"\bvalue[\s-]rating\b", "rating_value"),
     (r"\bblended[\s-]growth\b", "blended_growth"),
+    # owner 2026-11-03: a conventional OHLCV A/D line would be public, but the catalog's ONLY A/D field is the
+    # proprietary `accdis` grade (no public A/D-line field exists) → HOLD: "accumulation distribution line" stays refused
     (r"\bacc(?:umulation)?[\s/-]*dis(?:t|tribution)?(?:[\s-](?:grade|grades|rating|ratings|score|scores))?\b", "accdis"),
     (r"\ba\/d[\s-](?:grade|rating|score)\b", "accdis"),
     (r"\bsponsorship(?:[\s-](?:grade|rating|score))?\b", "sponsorship"),

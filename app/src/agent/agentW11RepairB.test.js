@@ -98,7 +98,19 @@ const PHRASES = [
   ['stocks with net premium over 5m', 'opt_net_premium_1d'],
 ]
 const NOT_PHRASES = ['stocks with rsi over 70', 'rs line above spy', 'above the 20 ema with volume 2x', 'now only tech',
-  'sort them by 3 month performance', 'price over 10 bucks', 'which stocks gained over 5% today', 'show me my strongest stocks']
+  'sort them by 3 month performance', 'price over 10 bucks', 'which stocks gained over 5% today', 'show me my strongest stocks',
+  // W1.1 review BLOCKING-2: the public RS line and the Nasdaq Composite index are not hidden fields
+  'sort by highest rs line', 'sort by lowest rs line', 'highest relative strength line', 'stocks above the nasdaq composite',
+  'outperforming the nasdaq composite']
+
+describe('W1.1 review BLOCKING-2: the hidden forms are still refused next to the public ones', () => {
+  for (const [text, key] of [['sort by highest rs', 'rs_rank'], ['sort them by uct composite', 'uct_composite'],
+    ['composite rating above 90', 'uct_composite'], ['filter to composite over 85', 'uct_composite'],
+    // owner HOLD 2026-11-03: the only A/D field is the proprietary accdis grade
+    ['accumulation distribution line rising', 'accdis']]) {
+    it(`"${text}" → ${key}`, () => expect(hiddenPhraseIn(text)?.key).toBe(key))
+  }
+})
 
 describe('R-05: a hidden-field phrase is named by the member\'s words, with the sentence and a public alternative', () => {
   for (const [text, key] of PHRASES) {

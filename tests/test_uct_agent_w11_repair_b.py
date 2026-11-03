@@ -104,11 +104,44 @@ def test_no_false_positive_on_honest_or_unrelated_replies(e):
     assert turn.false_capability_claim(e, NAMES, {"lists"}) is None
 
 
-def test_price_alert_words_do_not_fire_the_indicator_family_and_vice_versa():
-    c = turn.false_capability_claim(env("answer", reply="Price alerts aren't available from here yet."), NAMES)
-    assert c and c["family"] == "alerts" and "price level" in c["question"]
-    # "indicator alerts" never counts as a price-alert claim when only alert.* exists
+def test_only_the_live_families_are_checked_and_price_alerts_are_out_of_scope():
+    # W1.1 review BLOCKING-1: the check covers the families seen live (indicator alerts, rename) only
+    assert turn.false_capability_claim(env("answer", reply="Price alerts aren't available from here yet."), NAMES) is None
+    assert [f[0] for f in turn.CLAIM_FAMILIES] == ["indicatorAlerts", "rename"]
+    # "indicator alerts" never counts when only alert.* exists
     assert turn.false_capability_claim(env("answer", reply="Indicator alerts aren't available from here yet."), {"alert.create"}) is None
+
+
+# W1.1 review BLOCKING-1: the reviewer's six probes — honest PARTIAL limits, never a claim (no repair, no clarify)
+HONEST_PARTIAL = [
+    "Screens run on end-of-day data, so a live intraday count isn't available.",
+    "Alerts by SMS aren't supported yet.",
+    "Exporting a layout to a file isn't possible from here.",
+    "Sharing drawings with other members isn't available from here.",
+    "I can't share a watchlist with another member.",
+    "I can't place trades from here, but I can set a price alert.",
+]
+
+
+@pytest.mark.parametrize("reply", HONEST_PARTIAL)
+@pytest.mark.parametrize("disp", ["answer", "unsupported"])
+def test_honest_partial_limits_are_never_claims(reply, disp):
+    e = env(disp, reply=reply, cat="account" if disp == "unsupported" else None)
+    assert turn.false_capability_claim(e, NAMES) is None
+    assert turn.false_capability_claim(e, NAMES, {"lists", "layouts", "alerts", "drawings", "screener", "indicatorAlerts"}) is None
+
+
+@pytest.mark.parametrize("reply", HONEST_PARTIAL)
+def test_honest_partial_limits_are_served_with_one_call(reply):
+    c = caller_of(_resp(env("answer", reply=reply)))
+    out = turn.run_turn(message="can you do that", context=CTX2, history=[], capabilities=ALL, caller=c)
+    assert out["usage"]["model_calls"] == 1 and "false_claim" not in out["usage"]
+    assert out["envelope"]["disposition"] == "answer" and out["envelope"]["reply"] == reply
+
+
+def test_a_qualified_indicator_alert_limit_is_honest():
+    # an indicator-alert limit about a CHANNEL is a partial limit, not the family
+    assert turn.false_capability_claim(env("answer", reply="I can't send indicator alerts by SMS from here yet."), NAMES) is None
 
 
 # ── R-04: the turn — one repair round, then a clarify; never the claim ─────────────────────────────────────────────
@@ -134,14 +167,16 @@ def test_the_false_claim_gets_one_repair_round_and_the_repaired_plan_is_served(i
     assert "can't" not in out["envelope"]["reply"]
 
 
-def test_a_repeated_claim_becomes_a_clarify_never_the_claim():
-    c = caller_of(_resp(_unsupported(LT4_REPLY)), _resp(env("answer", reply="Indicator alerts still aren't available from here yet.")))
-    out = turn.run_turn(message="mark when the 9 ema crosses above the 20 on this chart", context=CTX2, history=[], capabilities=ALL, caller=c)
-    assert out["usage"]["model_calls"] == 2
+def test_a_repeated_claim_after_the_repair_serves_the_models_reply_and_logs_codes_only(caplog):
+    # W1.1 review BLOCKING-1: the detector is a heuristic; after its one repair the model's own reply is served
+    c = caller_of(_resp(_unsupported(LT4_REPLY)), _resp(_unsupported(LT4_REPLY)))
+    with caplog.at_level("WARNING"):
+        out = turn.run_turn(message="mark when the 9 ema crosses above the 20 on this chart", context=CTX2, history=[], capabilities=ALL, caller=c)
+    assert out["usage"]["model_calls"] == 2 and out["usage"]["false_claim"] == "indicatorAlerts"
     e = out["envelope"]
-    assert e["disposition"] == "clarify" and e["ops"] == [] and e["reply"] == "" and e.get("false_claim") == "indicatorAlerts"
-    assert "indicator alerts" in e["question"]["text"].lower() and "which chart" in e["question"]["text"].lower()
-    assert "can't" not in json.dumps(e)
+    assert e["disposition"] == "unsupported" and e["ops"] == [] and e["reply"] == LT4_REPLY and not e.get("false_claim")
+    logged = " | ".join(r.getMessage() for r in caplog.records if "false capability" in r.getMessage())
+    assert "repeated after repair (indicatorAlerts)" in logged and "Indicator Alerts panel" not in logged
 
 
 def test_no_call_left_means_the_clarify_at_once_and_a_reply_that_names_a_real_limit_is_served():
@@ -213,7 +248,27 @@ PHRASES = [
     ("find stocks with dark pool prints over 10m", "dp_notional_1d"),
     ("only names with bullish options flow", "opt_net_premium_1d"),
     ("stocks with net premium over 5m", "opt_net_premium_1d"),
+    # W1.1 review BLOCKING-2: the hidden forms next to the public ones stay refused
+    ("sort by highest rs", "rs_rank"),
+    ("composite rating above 90", "uct_composite"),
+    # owner HOLD 2026-11-03: the catalog's only A/D field is the proprietary accdis grade (no public OHLCV A/D line)
+    ("accumulation distribution line rising", "accdis"),
 ]
+
+
+@pytest.mark.parametrize("text", ["sort by highest rs line", "sort by lowest rs line", "highest relative strength line",
+                                  "stocks above the nasdaq composite", "outperforming the nasdaq composite"])
+def test_blocking2_public_rs_line_and_nasdaq_composite_are_not_hidden(text):
+    assert hidden.hidden_phrase_in(text) is None and refine.refusal_for_text(text) is None
+
+
+def test_no_public_ad_line_field_exists_so_the_ad_phrase_stays_refused():
+    # owner 2026-11-03: a conventional OHLCV A/D line would be public; if one is ever added to the catalog, this fails
+    # and the accdis phrase must be narrowed to the rating words
+    from api.services.screener import filters
+    ad = [f["key"] for f in filters.field_catalog()
+          if any(w in (f["key"] + " " + str(f.get("label") or "")).lower() for w in ("accum", "distrib", "a/d", "acc/dis", "accdis"))]
+    assert ad == ["accdis"] and "accdis" in hidden.hidden_keys()
 
 
 @pytest.mark.parametrize("text,key", PHRASES)
