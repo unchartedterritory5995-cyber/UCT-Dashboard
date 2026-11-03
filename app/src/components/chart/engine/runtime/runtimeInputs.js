@@ -139,9 +139,13 @@ const TEXT_KIND_OF_CALL = Object.freeze({
   'input.string': 'string', 'input.text_area': 'text_area', 'input.session': 'session',
   'input.timeframe': 'timeframe', 'input.symbol': 'symbol',
 })
+// W4 T3: v1-v3 spelled the type with a bare word (`input("0930-1600", "S", type = session)`,
+// `type = resolution`, `type = string`); v4 renamed them `input.session` / `input.resolution` /
+// `input.string`. Same inputs, same values, so one table reads both spellings.
 const TEXT_KIND_OF_LEGACY_TYPE = Object.freeze({
   'input.string': 'string', 'input.resolution': 'timeframe', 'input.timeframe': 'timeframe',
   'input.session': 'session', 'input.symbol': 'symbol',
+  string: 'string', resolution: 'timeframe', session: 'session',
 })
 
 /** Which TEXT input this call is (`string`, `text_area`, `session`, `timeframe`, `symbol`),

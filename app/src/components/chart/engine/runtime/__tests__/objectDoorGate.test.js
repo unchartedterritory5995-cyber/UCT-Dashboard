@@ -54,6 +54,15 @@ const SHAPES = {
   // `inputConsts` the door drew "146.05" / "299.06" here (reviewer's probes, RDDT 1D).
   cv_int: ['', false, 'var int LEN = 5\nlen = input.int(LEN, "L")\n', 'v = ta.sma(close, len) + k * 0\n'],
   cv_float: ['', false, 'var float M = 2.0\nm = input.float(M, "M")\n', 'v = close * m + k * 0\n'],
+  // W4 T3: a session / timeframe text fixed before bar 0 (the chart's own timeframe through a
+  // parameter, two texts joined with `+`, a `var` nothing reassigns). Widened predicates: the door
+  // falls back to master's arms, which refuse a session clock whose arguments are not literals.
+  sess_ownTf: ['', false, 'inS(r, s) => not na(time(r, s))\n', 'v = (inS(timeframe.period, "0930-1600:23456") ? 1 : 0) + k * 0\n'],
+  sess_join: ['', false, 'inS(s) => not na(time(timeframe.period, s + ":23456"))\n', 'v = (inS("0930-1600") ? 1 : 0) + k * 0\n'],
+  sess_var: ['', false, 'var string SESS = "0930-1600:23456"\n', 'v = (not na(time(timeframe.period, SESS)) ? 1 : 0) + k * 0\n'],
+  // The same join as the argument of a C47 `switch` over a parameter: the door keeps master's refusal
+  // (`runtime:block-value`), the pane picks the arm the joined text selects.
+  sw_join: ['', false, 'ma(src, m) =>\n    switch m\n        "WMA" => ta.wma(src, 3)\n        "HMA" => ta.hma(src, 3)\n        => ta.sma(src, 3)\n', 'v = ma(close + k * 0, "W" + "MA")\n'],
 }
 // [body, named] or ['', named, prelude (before the state loop), body]
 const sourceOf = (shape, tail) => {

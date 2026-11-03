@@ -5093,6 +5093,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
           && !env.has(g.name)) { rebuilt.push(g); continue }
         if (k === 2 && isExchangeZoneNode(g, scope)) { rebuilt.push(g); continue }
         const c = constantArgOf(g, scope)
+        // ⭐⭐ W4 T3 — the timeframe is the chart's own through a name or a parameter the call
+        // site fixed (`timeinrange(res, sess) => time(res, sess)` called with `timeframe.period`)
+        if (k === 0 && typeof c.ownTf === 'string') {
+          rebuilt.push({ type: 'name', name: c.ownTf, tok: node.tok })
+          continue
+        }
         if (c.frameName) {
           throw frameBoundRefusal(c.frameName, at,
             `is the ${['timeframe', 'session', 'zone'][k]} \`time\` reads the clock on`)
@@ -10331,6 +10337,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // `input.string` at the value in force, a text this frame's own call site
       // fixed) is a constant of the call site too.
       else if (typeof c.text === 'string') consts.set(p, c.text)
+      // ⭐⭐ W4 T3 — the chart's own timeframe (`timeframe.period`, v4's `period`): fixed for the run
+      else if (typeof c.ownTf === 'string') consts.set(p, { ownTf: c.ownTf })
       else if (c.frameName) blockedBy.set(p, c.frameName)
     })
     const unfixed = (err) => {
@@ -10448,6 +10456,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // default and cannot see the member's choice.
     const text = fixedTextOf(n, scope)
     if (text !== null) return { value: null, text }
+    // ⭐⭐ W4 T3 — the chart's own timeframe is fixed for the call site too: it is the chart's, the
+    // same on every bar of the run (`ownTimeframeNameOf`). It is NOT a text (its spelling is the
+    // chart's, read where the clock is read), so it travels as its own field.
+    const own = ownTimeframeNameOf(n, scope)
+    if (own !== null) return { value: null, ownTf: own }
     const fromCount = (n && n.type === 'name' && scope && scope.lookup(n.name) !== null) ? null : fromLiteralSizeOf(n)
     if (fromCount !== null) return { value: fromCount }
     let canonical
@@ -10543,7 +10556,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐ C35 / C47 — a call-site constant as the PARSE node that reads it. */
   const frameConstNode = (v, tok) => (typeof v === 'string'
     ? { type: 'string', value: v, tok }
-    : { type: 'number', value: v, tok })
+    : (v && typeof v === 'object' && typeof v.ownTf === 'string'
+      // ⭐ W4 T3 — the chart's own timeframe, as the name that reads it
+      ? { type: 'name', name: v.ownTf, tok }
+      : { type: 'number', value: v, tok }))
 
   /** ⭐⭐ C47 — THE TEXT AN ARGUMENT IS BEFORE BAR 0, or `null`.
    *
@@ -10566,9 +10582,52 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // `var` and a frame's own names are slots and are not here, so none of them
       // reads as fixed (`vendorHarness.c47SimpleSwitch`: the reassigned `pick`).
       const bound = env.get(node.name)
-      return bound && bound.kind === 'expr' ? fixedTextOf(bound.node, scope, depth + 1) : null
+      if (bound) return bound.kind === 'expr' ? fixedTextOf(bound.node, scope, depth + 1) : null
+      // ⭐⭐ W4 T3 — `var string SESS = "0930-1600"` THAT NOTHING REASSIGNS is that literal on
+      // every bar (`runtimeInputs.js::constantVarsOf`: declared once at the top level, never the
+      // target of `:=` or a compound assignment, never bound a second time). Only the MAIN
+      // program's own slot: a frame's parameter of the same name is the call's value, not this.
+      // ⛔ A `var` written per bar is not in that map, so it stays the slot it is.
+      const lit = inputConsts.get(node.name)
+      if (lit && lit.type === 'string' && typeof lit.value === 'string') {
+        const sl = scope ? scope.lookup(node.name) : null
+        if (sl === null || (slots[sl] && slots[sl].owner === null)) return lit.value
+      }
+      return null
+    }
+    // ⭐⭐ W4 T3 — TWO FIXED TEXTS JOINED WITH `+` ARE A FIXED TEXT (`_sessPeriod + ":1234567"`,
+    // `OR_sess + ":23456"`): Pine's `+` on two strings is their concatenation, exactly, and both
+    // halves are decided before bar 0 or the join is not. The columnar lane reads the same shape
+    // (`pine.js::sessionTextOf`), so the two lanes cannot disagree about a session.
+    // ⛔ BOTH operands must be fixed text: one text and one number is not a string `+` (it is a
+    // type error in Pine), and one fixed half beside a per-bar half is a per-bar text. ⛔ NOT AT
+    // THE OBJECT DOOR: a widened predicate keeps master's answer there (`atObjectDoor`).
+    if (!atObjectDoor && node.type === 'binary' && node.op === '+') {
+      const l = fixedTextOf(node.left, scope, depth + 1)
+      if (l === null) return null
+      const r = fixedTextOf(node.right, scope, depth + 1)
+      return r === null ? null : l + r
     }
     return null
+  }
+
+  /** ⭐⭐ W4 T3 — IS THIS ARGUMENT THE CHART'S OWN TIMEFRAME? → its spelling
+   *  (`timeframe.period`, or v1-v4's `period`), or `null`.
+   *
+   *  ⛔⛔ THE BINDING IS CONSULTED FIRST, AND THE ORDER IS THE WHOLE GUARD (the rule
+   *  `pine.js::ownTimeframeOf` states for the columnar half): `period` is a bare
+   *  identifier in v2-v4 and a script may rebind it (`period = "15"` means fifteen
+   *  minutes), so a name this script binds is read through its binding, and a slot
+   *  (a `var`, a reassigned name, a frame's own name) is not the chart's timeframe.
+   *  The object door needs no gate here: the only readers of this answer are `runtimeClockLowering`
+   *  (which returns `null` at the door, so master's own arm answers) and the call-site constants
+   *  of a function held on a session clock, which at the door is never held on a frame name. */
+  const ownTimeframeNameOf = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24 || node.type !== 'name') return null
+    if (scope && scope.lookup(node.name) !== null) return null
+    const bound = env.get(node.name)
+    if (bound) return bound.kind === 'expr' ? ownTimeframeNameOf(bound.node, scope, depth + 1) : null
+    return OWN_TF_NAMES.has(node.name) ? node.name : null
   }
 
   /** ⭐⭐ C47 — is this body's LAST statement `switch <name>` over a bare name this
