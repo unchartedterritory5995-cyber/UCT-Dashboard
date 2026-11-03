@@ -182,6 +182,24 @@ def test_a_note_edited_after_planning_is_not_overwritten(armed, monkeypatch):
     assert _outcomes(note)[-1] == "race_lost" and report["raceLost"] == 1
 
 
+def test_the_write_is_locked_on_the_listing_rows_stamp(armed, monkeypatch):
+    """Fix round 1, I-4: a member edit AFTER the pre-fetch re-check (during the downloads, or
+    after the undo copy) is caught only by the optimistic lock on the LISTING row's
+    `updated_at`. A real `update_note` lands right after `log_started`: `race_lost`, and the
+    member's body stands."""
+    note = _work_note()
+    real = store.log_started
+
+    def then_edit(conn, run_id, user_id, note_id, shapes, actions, before):
+        real(conn, run_id, user_id, note_id, shapes, actions, before)
+        notes_svc.update_note("u1", note_id, {"bodyJson": _doc(_para(_t("member wrote this")))})
+
+    monkeypatch.setattr(store, "log_started", then_edit)
+    report = _apply()
+    assert "member wrote this" in _note_row(note)[0]
+    assert _outcomes(note) == ["repair_started", "race_lost"] and report["raceLost"] == 1
+
+
 def test_an_edit_before_the_fetch_stops_the_fetch(armed, web, monkeypatch):
     """C7: `updated_at` is re-read right before fetching; a moved stamp means no download (no
     orphan file on the member's budget) and `race_lost`."""
