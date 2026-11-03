@@ -38,12 +38,17 @@ The rules it never breaks:
 
 Bounds in code (C8):
 - **RSS watchdog.** Every 25 notes, memory more than 250 MB above the start aborts the run with
-  exit code 4. Finished members stay done, and the run resumes with the same `--run-id`.
+  exit code 4. This applies to the dry run as well as `--apply`. Finished members stay done, and
+  the run resumes with the same `--run-id`.
 - **Batches.** `--max-members N` and `--max-notes N`; a batch counts only notes still needing work.
   The FIRST apply runs on the owner's own account: `--member <owner user id>`.
-- **Market hours.** `--apply` refuses 9:30-16:00 ET on a weekday (exit 2), and re-checks before
-  each member, stopping cleanly (`stoppedForMarketHours: true`). `--allow-market-hours` overrides
-  it; don't use it on the pod.
+- **Market hours.** The dry run and `--apply` both refuse 9:30-16:00 ET on a weekday (exit 2).
+  `--apply` also re-checks before each member, stopping cleanly (`stoppedForMarketHours: true`).
+  `--allow-market-hours` overrides it; don't use it on the pod.
+- **No extraction in the repair process.** A repaired image or file gets its searchable-document
+  row created `pending`; extraction and OCR never run in this process. The web pod's sweep
+  (`j2_doc_pending_sweep`, every 10 minutes, at most 20 per tick, through the same bounded pool)
+  picks the rows up.
 - **Downloads.** Hotlink fetches are strictly sequential and capped by `--max-fetches`.
   `media_policy` caps decoded pixels (`MAX_DECODE_PIXELS = 50_000_000`, checked on the header) and
   runs at most 2 decodes at once (`DECODE_CONCURRENCY`).
@@ -58,6 +63,7 @@ Exit codes:
 | Code | Meaning |
 |---|---|
 | 0 | ok |
+| 1 | an unexpected error outside a single note's handling (a traceback in the log), e.g. "database is locked" while claiming a member. Nothing is half-written; re-run with the same `--run-id` |
 | 2 | refused: flag off for `--apply`, or market hours |
 | 3 | another run holds the lock |
 | 4 | memory ceiling reached: the run aborted itself, resumable |
@@ -67,6 +73,17 @@ The Obsidian re-list (`--obsidian-relist`) is OFF unless passed (C10). Pass it O
 fidelity Plan C is merged and deployed; before that, a re-list converts once with the old converter
 and never again.
 
+## Before arming: the lock test must pass on Linux
+
+`tests/test_note_import_repair_cli.py::test_second_run_exits_3_while_locked` is POSIX-only and has
+not run on the Windows dev box. Run it once on the pod (or a Linux CI) before step 4, and record
+that it passed. It MUST pass:
+
+```
+railway ssh --service web
+cd /app && /opt/venv/bin/python -m pytest tests/test_note_import_repair_cli.py -q -k second_run_exits_3_while_locked
+```
+
 ## Steps
 
 1. Precondition: the 2026-11-03 01:47 ET nightly ran (`sourcesNotFullSyncedSinceConverter == 0` in the dry run).
@@ -74,9 +91,17 @@ and never again.
 3. Owner review checklist: `byShape` unedited vs edited; `wouldRepairNotes`; `hotlinksToFetch`; `keptEdited` and `legacyFinalize`; `noticeMembers`; `peakRssMb` under 300.
    Also read `byClassShape` (shapes per class), `lostLinks`, `unreadableStamp` and `tooLargeToScan`.
 4. Arm: `railway variables --set NOTE_IMPORT_REPAIR_ENABLED=1 --service web` (this redeploys `web`).
+   Never assume the redeploy happened: `--set` has been measured both restarting and NOT restarting
+   `web` (CLAUDE.md). Confirm a NEW boot (`/api/health` uptime reset), else run
+   `railway redeploy --service web --yes` and confirm again. Without a new boot the variable is not
+   in the pod's environment and `--apply` exits 2 (it fails safe). Arming restarts `web`, so do it
+   outside market hours.
 5. Apply: `railway ssh --service web`, then `nohup nice -n 19 /opt/venv/bin/python tools/note_import_repair.py --apply --out /data/import_repair/apply-1.json > /data/import_repair/apply-1.log 2>&1 &`.
    First run: add `--member <owner user id>` and read the result before running for everyone.
 6. Kill switch: `railway variable delete NOTE_IMPORT_REPAIR_ENABLED --service web` then `railway redeploy --service web --yes` (a delete alone does not restart the pod; the redeploy ends the run, and `--apply` refuses to start again). Resume later with the same `--run-id`.
+   The redeploy kills the process without its cleanup, so the member it was working on keeps its
+   lease for up to 10 minutes. Wait 10 minutes before resuming; a resume sooner reports that
+   member in `busyMembers` and skips it.
 7. After: disarm as in 6; re-run the dry run; writable shapes on unedited file notes should be 0 apart from `fetch_failed` hotlinks and unresolvable pending keys.
    Read it per class (`byClassShape`): zero is expected only for the (class, shape) pairs the runner repairs. Connector notes get link repair only; live and re-listed connector notes are never written. A residual `obsidian_pct_key` count is expected for keys whose decoded form still holds `%xx` and names no note.
 8. Known limits of the link repair, accepted (Task 3 re-review N-4). The stored keys of an Obsidian file import do not record where a drop's vaults were rooted (`.obsidian/` is not stored), so two links that the member wrote as exact paths are taken at their word even when the client would have kept them inside one vault:
@@ -91,7 +116,8 @@ and never again.
    So the owner reviews these numbers before arming.
 9. Undo one note (Task 5 review M-5).
    - The undo source for (run, note) is the OLDEST logged body, never the newest (a resumed run can log its own output as a later "before"): `SELECT user_id, before_body_json, created_at FROM j2_import_repair_log WHERE run_id = ? AND note_id = ? AND before_body_json IS NOT NULL ORDER BY id LIMIT 1`.
-   - Apply it ONLY through `engine._apply_resolved_body(conn, user_id, note_id, json.loads(before_body_json), expected_updated_at=<the note's current updated_at>)`.
+   - Apply it ONLY through `engine._apply_resolved_body(conn, user_id, note_id, json.loads(before_body_json), expected_updated_at=<the note's current updated_at>, expected_body_hash=engine.stored_body_sha(<the body read when deciding to undo>))`. The hash makes the undo refuse if anything wrote the body after that read, including a timestamp-neutral heal-pass write.
+   - An undo leaves the copies the repair stored for that note unreferenced; they are handled as in step 12.
    - Apply it only when the note's `updated_at` has not moved past that row's `created_at`, compared as parsed timestamps, never as strings. The repair does not move `updated_at`; a member edit does, and an undo then would clobber it.
    - NEVER a raw `UPDATE j2_notes SET body_json = ...`: it skips the sidecars (plain text, links, embeds, the media and links pending flags) and the optimistic lock.
 10. Retention of the undo copies (Task 5 review).
@@ -107,14 +133,18 @@ and never again.
     - (b) `byClass.connector_orphaned` counts every connector-imported note whose provider has no source that is BOTH `status = 'active'` AND `sync_enabled = 1`: a disconnected source, but also one that is `broken` or paused. Those notes get link repair only (timestamp-neutral), never media markers; a broken connector that later recovers is unaffected.
 12. Files a stopped run can leave behind (Task 7 review M-9).
     - Why they exist: a hotlink is downloaded and stored BEFORE the note is written. If the run stops between the two (a crash, ^C, the RSS abort, a lost lease, a race the last re-check catches), or the note's write then loses its race, the stored copy is on the member's storage but referenced by no note.
-    - The repair never deletes a file. They are visible: the next dry run counts them per note as `orphan_media`.
-    - Cleanup is a separate, owner-approved step, never part of the run:
-      1. Compare that count with the run's log (`fetch_failed`, `race_lost`, a lone `repair_started`).
-      2. List the unreferenced files of those notes on the pod.
-      3. Review them.
-      4. Only then remove them by hand.
-    - Account purge removes them with the member in any case.
+    - The repair never deletes a file, and neither does this runbook: NO manual delete.
+    - They are visible: the next dry run counts them per note as `orphan_media`.
+    - They are collected by the existing attachment GC (`api/services/journal_two/attachment_gc.py`):
+      user-wide references, a 48-hour age gate, and files of notes with pending connector media kept.
+      - The nightly job runs only while `J2_ATTACHMENT_GC_ENABLED=1`.
+      - Otherwise the admin endpoint `POST /api/j2/notes/attachments/gc` (dry run by default) reports
+        what it WOULD remove, with example paths. The owner decides there.
+    - Until then the files stay, counted, on the member's storage. Account purge removes them with the
+      member in any case.
 13. Reading the log.
     - `relist_requested` rows carry the Obsidian SOURCE id in `note_id` (the log has no source column) and the prior cursor in `actions_json` (`prior_cursor:<value>`).
     - A member skipped because another runner held it appears only in `busyMembers`; re-run with `--member <id>` after the other run ends.
     - A hotlink the `--max-fetches` cap deferred is counted in `fetchDeferred`, and its member is left unfinished: resume with the same `--run-id` to fetch the rest.
+    - A hotlink that failed to copy (`fetchFailed`) keeps its image and is done for that run; a NEW `--run-id` retries it once more, never again after that.
+    - `failed > 0`: those notes are not retried in the same run (a transient "database is locked" is the usual cause). Once the run is finished, run again with a NEW `--run-id` (e.g. `...-f2`); it retries them, and every note already repaired reads as unchanged.
