@@ -14,8 +14,11 @@
 //
 // ⭐ READ-ONLY. Running a screen here changes nothing in UCT (the Screener page's
 // own state lives inside that page), so every action is a QUERY: nothing to undo,
-// nothing to propose. The Agent remembers only its LAST screen in this session, so
-// "add price above $10" can refine it.
+// nothing to propose. The Agent remembers its LAST screen so "add price above $10"
+// can refine it — per CONVERSATION, kept on the server (W1-C C-01, scanRefine.js):
+// a reload or a chat switch restores it, so "now only technology", "exclude anything
+// under $10", "sort them by three-month performance" still compose onto it. A refinement
+// that would add a hidden UCT field is refused with the F-16 sentence + one public alternative.
 //
 // ⭐ NO FIELD LIST HERE. Fields come from the live catalog; a field the Screener
 // gains is usable the moment `/fields` lists it. Range, yes/no and LIST fields (sector,
@@ -39,9 +42,10 @@
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
 import { matchName } from '../nl/match'
-import { serverServesScan, serverDataKinds } from '../agentClient'
+import { serverServesScan, serverDataKinds, activeConversationId } from '../agentClient'
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
+import { composeRefine, persistLastScreen, restoreLastScreen, NO_LAST_SCREEN } from './scanRefine'
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
 const SAVED_TTL_MS = 60 * 1000
@@ -71,8 +75,43 @@ async function json(r, what) {
   return r.json()
 }
 
-const cache = { meta: null, metaAt: 0, metaP: null, options: null, optionsAt: 0, optionsP: null, saved: null, savedAt: 0, last: null }
-export function _resetScreenerCache() { cache.meta = null; cache.metaAt = 0; cache.metaP = null; cache.options = null; cache.optionsAt = 0; cache.optionsP = null; cache.saved = null; cache.savedAt = 0; cache.last = null }
+const cache = { meta: null, metaAt: 0, metaP: null, options: null, optionsAt: 0, optionsP: null, saved: null, savedAt: 0, last: null, lastConv: null, restoreP: null }
+export function _resetScreenerCache() { cache.meta = null; cache.metaAt = 0; cache.metaP = null; cache.options = null; cache.optionsAt = 0; cache.optionsP = null; cache.saved = null; cache.savedAt = 0; cache.last = null; cache.lastConv = null; cache.restoreP = null }
+
+// ── the LAST SCREEN, per conversation (W1-C C-01) ──
+/** Record the screen just run as the conversation's last screen and persist it server-side (fire-and-forget). */
+function setLast(last) {
+  cache.last = last
+  cache.lastConv = activeConversationId()
+  persistLastScreen(last)
+}
+/** Is the screen held here the CURRENT conversation's? A screen run before the chat had an id (a new chat gets its
+ *  id on its first turn) belongs to whichever chat is open now; one from another chat does not. Sync. */
+function lastIsCurrent() {
+  if (!cache.last) return false
+  const conv = activeConversationId()
+  if (cache.lastConv == null) {
+    if (conv) { cache.lastConv = conv; persistLastScreen(cache.last) }   // adopt: the id arrived after the screen ran
+    return true
+  }
+  return cache.lastConv === conv
+}
+/** The last screen for the member's CURRENT conversation: the one run here, else the server's copy (a reload, a
+ *  chat switch). One read per conversation switch; null when there is none. */
+export function ensureLast() {
+  if (lastIsCurrent()) return Promise.resolve(cache.last)
+  const conv = activeConversationId()
+  if (!conv) { cache.last = null; cache.lastConv = null; return Promise.resolve(null) }   // a new chat: the old chat's screen is not its
+  if (!cache.restoreP) {
+    cache.restoreP = restoreLastScreen().then(l => {
+      if (activeConversationId() !== conv) return lastIsCurrent() ? cache.last : null    // the chat changed meanwhile
+      cache.last = l
+      cache.lastConv = conv
+      return l
+    }).catch(() => (lastIsCurrent() ? cache.last : null)).finally(() => { cache.restoreP = null })
+  }
+  return cache.restoreP
+}
 
 export function loadMeta() {
   if (cache.meta && Date.now() - cache.metaAt < META_TTL_MS) return Promise.resolve(cache.meta)
@@ -372,7 +411,7 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
   }
   const valueOf = (row, k) => (mkeys.includes(k) ? r.values[row.ticker]?.[k] : row[k])
   const total = r.total
-  cache.last = { spec, name, savedId, total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols: rows.map(x => x.ticker), ms }
+  setLast({ spec, name, savedId, total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols: rows.map(x => x.ticker), ms })
   const head = `${name ? `${name}: ` : ''}${Number(total).toLocaleString()} stock${total === 1 ? '' : 's'} match${total === 1 ? 'es' : ''}`
   const all = [...(spec.filters || []), ...(spec.post || [])]
   const what = all.length ? ` (${all.map(describeFilter).join(' · ')})` : ''
@@ -439,7 +478,7 @@ async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId =
     return f?.unit === '$' || k === 'price' ? `$${n}` : f?.unit === '%' ? `${n}%` : n
   }
   const asOfDay = typeof env.as_of === 'string' ? env.as_of.slice(0, 10) : null
-  cache.last = { spec, name: name || d.origin?.name || null, savedId, total, asOf: asOfDay, live: null, symbols: rows.map(x => x.ticker), ms, envelope: { as_of: env.as_of, stale: env.stale, coverage: env.coverage, freshness: env.freshness } }
+  setLast({ spec, name: name || d.origin?.name || null, savedId, total, asOf: asOfDay, live: null, symbols: rows.map(x => x.ticker), ms, envelope: { as_of: env.as_of, stale: env.stale, coverage: env.coverage, freshness: env.freshness } })
   const head = `${name ? `${name}: ` : ''}${total.toLocaleString()} stock${total === 1 ? '' : 's'} match${total === 1 ? 'es' : ''}`
   const what = (spec.filters || []).length ? ` (${spec.filters.map(describeFilter).join(' · ')})` : ''
   const { label: sortLabel, ranked } = sortCoverage(spec, rows, {})
@@ -487,16 +526,23 @@ function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, wi
     wire = [...wire.filter(f => f.key !== 'list'), { key: 'list', op: 'in', value: `wl:${within}`, label: l?.name || null }]
   }
   let postF = w.post
-  let sort = cache.last && mode === 'refine' ? cache.last.spec.sort : null
-  if (mode === 'refine' && cache.last) {
-    const mine = new Set([...wire, ...postF].map(f => f.key))
-    wire = [...(cache.last.spec.filters || []).filter(f => !mine.has(f.key)), ...wire]
-    postF = [...(cache.last.spec.post || []).filter(f => !mine.has(f.key)), ...postF]
-  }
+  let sort = null
   if (sortField) {
     const sf = fieldOf(sortField)
     if (!sf || sf.provider || sf.type === 'list') return { error: `the Screener has no field “${sortField}” to sort by` }
     sort = { key: sortField, dir: sortDir === 'asc' ? 'asc' : 'desc' }
+  }
+  if (mode === 'refine') {
+    // SC-2 §3 (W1-C C-01): a follow-up is a DELTA on the last screen — add / narrow replace by key, a sector or
+    // industry replaces the universe slot, a sort replaces only the sort — and a hidden UCT field is refused with
+    // the F-16 sentence + one public alternative (scanRefine.js). No last screen: ask, never guess.
+    if (!lastIsCurrent()) return { error: NO_LAST_SCREEN.replace(/\.$/, '') }
+    const c = composeRefine(cache.last.spec, { wire: wire.filter(f => f.key !== 'list'), post: postF, sort })
+    if (c.error) return { error: c.error.replace(/\.$/, '') }
+    const listF = wire.find(f => f.key === 'list')
+    wire = listF ? [...c.spec.filters.filter(f => f.key !== 'list'), listF] : c.spec.filters
+    postF = c.spec.post
+    sort = c.spec.sort
   }
   if (!wire.length && !postF.length && !sort) return { error: 'which conditions? For example: ADR above 5% and price above $10' }
   return { spec: settleClock({ filters: wire, post: postF, sort: sort || null }), notes: w.notes }
@@ -516,7 +562,7 @@ async function produceSymbols(spec, { name = null, savedId = null, notes: extra 
   // it is refused downstream (compose); some → the count is said on the receipt line.
   const unranked = spec.sort && r.rows.length && cov.ranked === 0 ? { label: cov.label, dir: spec.sort.dir } : null
   const partial = spec.sort && cov.ranked > 0 && cov.ranked < r.rows.length ? `only ${cov.ranked} of ${r.rows.length} have ${cov.label} values; the rest are not ranked by it` : null
-  cache.last = { spec, name, savedId, total: r.total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols, ms: 0 }
+  setLast({ spec, name, savedId, total: r.total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols, ms: 0 })
   const what = name ? `${name} (${specWords(spec)})` : specWords(spec)
   const notes = [...extra, ...coverageNotes(spec), ...r.notes, ...(unranked ? [`${unranked.label} data is unavailable for these results`] : []), ...(partial ? [partial] : [])]
   const when = r.asOf ? ` on ${r.asOf}` : ''
@@ -563,6 +609,7 @@ const usesList = (args) => (args?.filters || []).some(x => fieldOf(String(x?.fie
 async function specFor(args, host = null) {
   await loadMeta()
   if (usesList(args)) await loadOptions()
+  if (args?.mode === 'refine') await ensureLast()        // a reload / chat switch: the conversation's last screen
   return buildSpec(args, { host })
 }
 
@@ -582,7 +629,10 @@ export function registerScreenerCapabilities() {
   registerContextProvider({
     key: 'screener',
     build: (_host, refFor, { message = '', nl1 = false } = {}) => {
-      const last = cache.last
+      // W1-C C-01: the conversation's last screen may live only on the server yet (a reload); start the one read
+      // so the model sees `lastScreen` from the next turn on, and a refine in THIS turn awaits it in specFor
+      if (!lastIsCurrent() && activeConversationId()) ensureLast()
+      const last = lastIsCurrent() ? cache.last : null
       // CONTEXT RELEVANCE: the full catalog (key:Label(unit), ~5 KB) only when the request could
       // be about screening; otherwise its KEYS (~2 KB) — the model can still see every field it
       // could screen on and discover a screen is wanted, it just gets no labels/units.
@@ -604,7 +654,7 @@ export function registerScreenerCapabilities() {
   // "Put the top 10 in Momentum" after a screen: the LAST screen, re-run fresh at apply.
   registerOutputSource({
     ref: 'lastScreen', type: SYMBOLS,
-    available: () => !!cache.last,
+    available: () => lastIsCurrent(),
     summary: () => `Use your last screen (${specWords(cache.last.spec)}) — run fresh when you apply`,
     resolve: () => produceSymbols(cache.last.spec, { name: cache.last.name, savedId: cache.last.savedId }),
   })

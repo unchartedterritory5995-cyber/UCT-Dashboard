@@ -73,6 +73,14 @@ CREATE TABLE IF NOT EXISTS agent_telemetry (
   voice           INTEGER NOT NULL DEFAULT 0,
   created_at      INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS agent_conversation_state (
+  conversation_id TEXT NOT NULL,
+  user_id         TEXT NOT NULL,
+  key             TEXT NOT NULL,          -- STATE_KEYS: lastScreen (W1-C C-01)
+  value_json      TEXT NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  PRIMARY KEY (conversation_id, key)
+);
 """
 
 
@@ -257,9 +265,54 @@ def delete_conversation(user_id: int, conversation_id: str) -> bool:
         return False
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute("DELETE FROM agent_turns WHERE conversation_id = ? AND user_id = ?", (str(conversation_id), _uid(user_id)))
+        c.execute("DELETE FROM agent_conversation_state WHERE conversation_id = ? AND user_id = ?", (str(conversation_id), _uid(user_id)))
         cur = c.execute("DELETE FROM agent_conversations WHERE id = ? AND user_id = ?", (str(conversation_id), _uid(user_id)))
         c.commit()
     return cur.rowcount == 1
+
+
+# ── per-conversation STATE (W1-C C-01, builder-c) ─────────────────────────────────────────────────────
+# Small, keyed JSON the browser keeps for a chat beyond the session: today only `lastScreen` — the last
+# screen's spec + result ids, so a follow-up ("now only technology") composes onto it after a reload.
+# One row per (conversation, key); owner-scoped like every read here; a foreign or deleted conversation
+# is never written into. The VALUE is the browser's (validated by the route before it gets here); it
+# holds a screener spec and tickers, never a model's text and never a market value.
+STATE_KEYS = ("lastScreen",)
+STATE_MAX_CHARS = 20000
+
+
+def set_state(user_id: int, conversation_id: str, key: str, value: Any) -> bool:
+    """Replace the member's state `key` for their own conversation. False when the conversation is not
+    theirs (or gone); ValueError for an unknown key or an over-size value."""
+    if key not in STATE_KEYS:
+        raise ValueError(f"unknown state key {key!r}")
+    dump = json.dumps(value, separators=(",", ":"))
+    if len(dump) > STATE_MAX_CHARS:
+        raise ValueError(f"state {key!r} is over {STATE_MAX_CHARS} characters")
+    if not owns(user_id, conversation_id):
+        return False
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("INSERT INTO agent_conversation_state (conversation_id, user_id, key, value_json, updated_at) "
+                  "VALUES (?,?,?,?,?) ON CONFLICT(conversation_id, key) DO UPDATE SET value_json = excluded.value_json, "
+                  "updated_at = excluded.updated_at, user_id = excluded.user_id",
+                  (str(conversation_id), _uid(user_id), key, dump, _now()))
+        c.commit()
+    return True
+
+
+def get_state(user_id: int, conversation_id: str, key: str) -> dict | None:
+    """{value, updated_at} for the member's own conversation, else None (also for an unknown key)."""
+    if key not in STATE_KEYS:
+        return None
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT value_json, updated_at FROM agent_conversation_state WHERE conversation_id = ? "
+                        "AND user_id = ? AND key = ?", (str(conversation_id), _uid(user_id), key)).fetchone()
+    if row is None:
+        return None
+    try:
+        return {"value": json.loads(row["value_json"]), "updated_at": int(row["updated_at"])}
+    except ValueError:
+        return None
 
 
 SEARCH_LIMIT = 60
