@@ -153,7 +153,7 @@ def main(argv=None) -> int:
     try:
         path = a.ledger or ledger.ledger_path()
     except ledger.LedgerRefused as e:
-        path = ledger.DEFAULT_LEDGER
+        path = ledger.pinned_ledger()
         print(f"(ledger path: {e})")
     print(report(ledger_path=path, agent_db=a.agent_db, catalyst_db=a.catalyst_db, auth_db=a.auth_db, days=max(1, a.days)))
     return 0

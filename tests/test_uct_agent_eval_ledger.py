@@ -254,10 +254,20 @@ def test_the_ledger_path_is_shared_and_resolved_the_same_way_everywhere(monkeypa
     assert L.ledger_path() == str(tmp_path / "x.db")                 # under pytest: a scratch ledger (its cap file beside it)
     assert L.cap_file_path() == str(tmp_path / L.CAP_FILE_NAME)
     monkeypatch.delenv(L.LEDGER_ENV)
-    assert L.ledger_path() == L.DEFAULT_LEDGER == r"C:\UCT\agent-eval-ledger.db"
-    assert L.cap_file_path() == r"C:\UCT\agent-eval-cap.json"
+    # the pinned location per platform — the RESOLVER's answer (the real directory is never created by a test)
+    monkeypatch.setattr(L.os, "name", "nt")
+    assert L.pinned_ledger() == L.WINDOWS_LEDGER == r"C:\UCT\agent-eval-ledger.db"
+    monkeypatch.setattr(L.os, "name", "posix")
+    assert L.pinned_ledger() == L.POSIX_LEDGER == "/var/lib/uct-agent-eval/agent-eval-ledger.db"
+    assert str(L._pure(L.POSIX_LEDGER).parent) == "/var/lib/uct-agent-eval"          # never an empty dirname
+    assert L.cap_file_path(L.POSIX_LEDGER) == "/var/lib/uct-agent-eval/agent-eval-cap.json"
+    monkeypatch.setattr(L.os, "name", "nt")
+    assert L.cap_file_path(L.WINDOWS_LEDGER) == r"C:\UCT\agent-eval-cap.json"
+    monkeypatch.undo()
+    assert L.pinned_ledger() == (L.WINDOWS_LEDGER if os.name == "nt" else L.POSIX_LEDGER)
     with open(L.__file__, encoding="utf-8") as f:
-        assert "PRAGMA journal_mode=WAL" in f.read()
+        src = f.read()
+    assert "PRAGMA journal_mode=WAL" in src and 'environ.get("HOME' not in src and "expanduser" not in src and "USERPROFILE" not in src
     for t in PAID_TOOLS:                                          # every tool resolves the path through the ONE module
         src = open(os.path.join(ROOT, "tools", t), encoding="utf-8").read()
         assert "from tools import agent_eval_ledger as ledger" in src
@@ -280,12 +290,26 @@ def test_the_override_is_refused_outside_pytest_and_there_is_no_fallback_ledger(
     with pytest.raises(L.LedgerRefused):
         ro.reserve("r", 0.01)                                        # …never reserve against it
     monkeypatch.delenv(L.LEDGER_ENV)
-    assert L.ledger_path() == L.DEFAULT_LEDGER                       # outside pytest, without the override: the pinned file
-    # the pinned directory cannot be created → refused, never a fallback
-    monkeypatch.setattr(L.os, "makedirs", lambda *a, **k: (_ for _ in ()).throw(OSError("read-only")))
+    # outside pytest, without the override: the pinned file of THIS platform — asserted through the resolver with the
+    # directory step stubbed (a test never creates the real pinned directory; CI cannot)
+    made = []
+    monkeypatch.setattr(L.os, "makedirs", lambda d, exist_ok=False: made.append(d))
+    monkeypatch.setattr(L.os, "access", lambda p, m: True)
+    for name, pinned, parent in (("nt", L.WINDOWS_LEDGER, r"C:\UCT"), ("posix", L.POSIX_LEDGER, "/var/lib/uct-agent-eval")):
+        monkeypatch.setattr(L.os, "name", name)
+        assert L.ledger_path() == pinned
+        assert made[-1] == parent                                    # a real directory name on both platforms, never ''
+    # the pinned directory cannot be created → refused, never a fallback (the POSIX branch is still patched in)
+    monkeypatch.setattr(L.os, "makedirs", lambda d, exist_ok=False: (_ for _ in ()).throw(OSError("read-only")))
     with pytest.raises(L.LedgerRefused) as e:
         L.ledger_path()
-    assert "cannot be created" in str(e.value)
+    assert "cannot be created" in str(e.value) and "/var/lib/uct-agent-eval" in str(e.value)
+    # …or exists but is not writable → refused too
+    monkeypatch.setattr(L.os, "makedirs", lambda d, exist_ok=False: None)
+    monkeypatch.setattr(L.os, "access", lambda p, m: False)
+    with pytest.raises(L.LedgerRefused) as e:
+        L.ledger_path()
+    assert "not writable" in str(e.value)
 
 
 def test_live_chain_settles_each_turn_request_at_the_worst_case_without_usage_or_a_non_200():
