@@ -7347,6 +7347,9 @@
      "symbol": "NVDA",
      "type": "stock"
     }
+   ],
+   "routes": [
+    null
    ]
   },
   "delay_s": null,
