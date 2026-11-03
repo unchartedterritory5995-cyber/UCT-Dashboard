@@ -762,9 +762,45 @@ def _rule_div_lines(root: _Node) -> None:
 # ---------------------------------------------------------------------------
 
 
+_PM_SPACE = " \t\r\n\f"  # ProseMirror's whitespace class; a no-break space is not in it
+_TRIMMED_BLOCKS = frozenset({"paragraph", "heading"})
+
+
+def _trim_block_edges(block: dict) -> None:
+    """Review n2: the client's editor parser (ProseMirror, whitespace not preserved) drops a
+    leading space at the start of a text block, right after a line break, or after text that
+    already ends in a space; and drops trailing whitespace at the end of the block. Ported so
+    `see ` / ` Multi space title ` come out as the client stores them. Code blocks are left alone."""
+    items = block.get("content")
+    if not isinstance(items, list):
+        return
+    out: list[dict] = []
+    for item in items:
+        if isinstance(item, dict) and item.get("type") == "text":
+            text = item.get("text", "")
+            prev = out[-1] if out else None
+            if text[:1] in tuple(_PM_SPACE) and (
+                    prev is None or prev.get("type") == "hardBreak"
+                    or (prev.get("type") == "text" and prev.get("text", "")[-1:] in tuple(_PM_SPACE))):
+                text = text[1:]
+            if not text:
+                continue
+            item["text"] = text
+        out.append(item)
+    if out and out[-1].get("type") == "text":
+        last = out[-1]["text"].rstrip(_PM_SPACE)
+        if last:
+            out[-1]["text"] = last
+        else:
+            out.pop()
+    block["content"] = out
+
+
 def _post_pass(node: Any, names: dict[str, str], notices: _Notices) -> None:
     if not isinstance(node, dict):
         return
+    if node.get("type") in _TRIMMED_BLOCKS:
+        _trim_block_edges(node)
     content = node.get("content")
     if isinstance(content, list):
         marker = REF_PREFIX + _NOTICE_SCHEME

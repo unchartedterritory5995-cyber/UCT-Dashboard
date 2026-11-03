@@ -351,6 +351,44 @@ def test_a_styled_block_marks_the_text_of_every_line_inside_it():
     assert _marks_of(out, "a") == ["bold"] and _marks_of(out, "b") == ["bold"]
 
 
+# ---- n2: block-edge whitespace, as the client editor's parser trims it ------------------------
+
+
+def _inline(out: dict, i: int = 0) -> list[tuple]:
+    return [(n.get("type"), n.get("text"), tuple(m["type"] for m in n.get("marks") or []))
+            for n in _blocks(out)[i]["content"]]
+
+
+def test_link_text_at_the_end_of_a_line_loses_its_trailing_space():
+    out = _convert(f'<div><a href="https://e.com">see <en-media hash="{PDF_HASH}" '
+                   f'type="application/pdf"/></a></div>', [PDF])
+    assert _inline(out, 1) == [("text", "see", ("link",))]
+
+
+def test_link_text_at_the_start_and_end_of_a_line_is_trimmed():
+    out = _convert('<div><a href="https://www.evernote.com/l/Ab">  Multi\n  space  title </a></div>')
+    assert _inline(out) == [("text", "Multi space title", ("link",))]
+    assert out["links"] == ["evernote-title:Multi space title"]
+
+
+def test_inner_spaces_are_kept_and_a_doubled_space_across_marks_collapses():
+    out = _convert("<div>a <b>b</b> c</div><div>x <b> y</b></div>")
+    assert _inline(out, 0) == [("text", "a ", ()), ("text", "b", ("bold",)), ("text", " c", ())]
+    assert _inline(out, 1) == [("text", "x ", ()), ("text", "y", ("bold",))]
+
+
+def test_a_space_after_a_line_break_is_dropped_and_nbsp_is_never_trimmed():
+    out = _convert("<div>x <br/> y</div><div>&nbsp;z&nbsp;</div>")
+    assert _inline(out, 0) == [("text", "x ", ()), ("hardBreak", None, ()), ("text", "y", ())]
+    assert _inline(out, 1) == [("text", "\xa0z\xa0", ())]
+
+
+def test_code_block_whitespace_is_untouched():
+    out = _convert('<div style="-en-codeblock:true"><div>  indented  </div></div>')
+    (code,) = _of_type(out, "codeBlock")
+    assert _text(code) == "  indented  "
+
+
 # --------------------------------------------------------------------------- links
 
 
