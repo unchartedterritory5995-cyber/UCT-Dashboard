@@ -8137,7 +8137,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -8145,7 +8145,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -8393,7 +8393,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -8401,7 +8401,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -8647,7 +8647,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -8655,7 +8655,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -8902,7 +8902,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -8910,7 +8910,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -9164,7 +9164,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -9172,7 +9172,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -9418,7 +9418,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -9426,7 +9426,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -9673,7 +9673,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -9681,7 +9681,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -9928,7 +9928,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -9936,7 +9936,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -10451,7 +10451,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -10459,7 +10459,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -10707,7 +10707,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -10715,7 +10715,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -10961,7 +10961,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -10969,7 +10969,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -11476,7 +11476,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -11484,7 +11484,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -11732,7 +11732,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -11740,7 +11740,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -12255,7 +12255,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -12263,7 +12263,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -12771,7 +12771,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -12779,7 +12779,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -13287,7 +13287,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -13295,7 +13295,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -13542,7 +13542,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -13550,7 +13550,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -14065,7 +14065,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -14073,7 +14073,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -14320,7 +14320,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -14328,7 +14328,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -14582,7 +14582,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -14590,7 +14590,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -14844,7 +14844,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -14852,7 +14852,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -15106,7 +15106,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -15114,7 +15114,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -15361,7 +15361,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -15369,7 +15369,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -15877,7 +15877,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -15885,7 +15885,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -16132,7 +16132,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -16140,7 +16140,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -16387,7 +16387,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -16395,7 +16395,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -16910,7 +16910,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -16918,7 +16918,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -17426,7 +17426,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -17434,7 +17434,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -17942,7 +17942,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -17950,7 +17950,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -18458,7 +18458,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -18466,7 +18466,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -18712,7 +18712,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -18720,7 +18720,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",

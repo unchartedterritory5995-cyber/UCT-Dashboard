@@ -51,7 +51,7 @@ export function positionWord(w, all) {
   return distinct ? spanWord(w, all) : centreWord(w, all)
 }
 
-export function buildChartSource({ chartApiById, getWidgets, selectedChart = null }) {
+export function buildChartSource({ chartApiById, getWidgets, selectedChart = null, replay = null }) {
   function entries() {
     const widgets = getWidgets() || []
     const byId = new Map(widgets.map(w => [w.id, w]))
@@ -89,6 +89,9 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
           view: e.api.agent.view?.() || null,
           // the exact symbol string StockChart keys its drawings by (useChartDrawings(sym))
           drawSym: e.api.agent.drawSym?.() || e.r.symbol,
+          // ⭐ W1-B B-06: the workspace's Replay Mode cutoff ('YYYY-MM-DD' | null) — ONE shared value every linked chart
+          // reads (StockChart `replayCutoff`); absent (undefined) when this host has no replay source
+          ...(replay ? { replay: replay.read() ?? null } : {}),
         },
       }
     })
@@ -118,6 +121,8 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
       const e = entries().find(x => x.ref === ref)
       return e ? e.api.agent.commit(patch) : false
     },
+    // ⭐ W1-B B-06: Replay Mode through ChartsWorkspace's OWN handlers (startReplay / exitReplayMode) — view only
+    ...(replay ? { setReplay: (iso) => { replay.set(iso ?? null); return true } } : {}),
     // INDICATORS M1 — the chart's own Create Indicator door (ChartPane handle, Indicators-owned):
     // the button's access answer, and the opener's STRUCTURED result. The Agent adds nothing.
     canCreateIndicator: (ref) => {
@@ -530,7 +535,7 @@ export function buildIndicatorAlertSource({ fetchFn = (u, o) => fetch(u, o) } = 
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -538,7 +543,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
   } : null
   return {
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }) } : {}),
-    charts: buildChartSource({ chartApiById, getWidgets, selectedChart }),
+    charts: buildChartSource({ chartApiById, getWidgets, selectedChart, replay }),
     drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets })),
     indicatorAlerts: buildIndicatorAlertSource(),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),

@@ -15,6 +15,10 @@
 //                      change, ONE exact Undo (new charts closed, cells, links, tickers and timeframes back).
 //   • chart.applyThemeAll = chartThemes.themeAllChartWidgets (the theme gallery's "all charts").
 //   • widget.showList / showScan write exactly the opts the widget's own picker writes.
+//   • widget.setOption (W1-B B-05) writes ONE per-widget option — a key the widget registry's own param schema
+//     declares (enum | boolean | number, never an identity key) — exactly as the widget's settings panel does
+//     (ChartsWorkspace.handleOptsChange: `{...w, opts}` + scheduleSave; the board writer's `set[id].opts` is
+//     that same write). Undo puts the previous opts object back, exactly.
 // Before ANY write the resulting board must pass boardProblems (inside the grid, min sizes,
 // no overlap). Undo restores the exact widgets touched (a removed widget comes back with its
 // id, geometry, link colour, settings and tabs) and refuses if any of them changed since.
@@ -32,7 +36,7 @@ import { registerCapability, registerTargetKind, registerContextProvider } from 
 import { afterRender } from '../frames'
 import { lastCreatedList, resolveListByName } from './watchlist'
 import { namesAnotherKind } from '../nl/collisions'
-import { labelMap } from '../../widgets/registry'
+import { labelMap, WIDGET_REGISTRY, WORKSPACE_MENU_TYPES } from '../../widgets/registry'
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
 import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from '../../pages/charts/colorGroups'
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
@@ -858,6 +862,59 @@ export function registerBoardCapabilities() {
       return o && n && !same(o.opts, n.opts) ? `The ${nameOf(o, b.board)} now shows “${n.opts.watchName}”` : null
     },
     noop: () => 'It already shows that list',
+  })
+
+  // ── widget.setOption (W1-B B-05): ONE option of ONE widget, validated against the registry's param schema ──
+  // The registry (widgets/registry.js paramsSchema) is the product's own description of each widget's options.
+  // Offered: the SCALAR ones (enum | boolean | number) that are not identity (`required`) keys and not capture-only
+  // bookkeeping (a notebook stamp's fields). Everything else — lists, blobs, symbols, keys — has its own capability or none.
+  const OPTION_TYPES = new Set(['enum', 'boolean', 'number'])
+  // marketcontext: a notebook stamp's own keys; profile.statYear: a capture's frozen clock — neither is a widget control
+  const NOT_OPTIONS = new Set(['fields', 'uncaptured', 'reason', 'statYear'])
+  const optionsOf = (type) => (WIDGET_REGISTRY[type]?.paramsSchema || []).filter(f => OPTION_TYPES.has(f.type) && !f.required && !NOT_OPTIONS.has(f.key))
+  const TRUE_WORDS = ['true', 'on', 'yes', 'show', 'enabled'], FALSE_WORDS = ['false', 'off', 'no', 'hide', 'disabled']
+  /** The value in the option's own type, or a refusal. */
+  const coerceOption = (f, raw) => {
+    if (f.type === 'enum') {
+      const hit = (f.options || []).find(o => String(o).toLowerCase() === String(raw).trim().toLowerCase())
+      return hit !== undefined ? { value: hit } : { why: `“${f.key}” can be ${(f.options || []).join(', ')} — not “${raw}”.` }
+    }
+    if (f.type === 'boolean') {
+      if (typeof raw === 'boolean') return { value: raw }
+      const s = String(raw).trim().toLowerCase()
+      return TRUE_WORDS.includes(s) ? { value: true } : FALSE_WORDS.includes(s) ? { value: false } : { why: `“${f.key}” is on or off.` }
+    }
+    const n = typeof raw === 'number' ? raw : Number(String(raw).trim())
+    return Number.isFinite(n) ? { value: n } : { why: `“${f.key}” is a number.` }
+  }
+  const optionWord = (f) => `${f.key}${f.type === 'enum' ? ` (${(f.options || []).join('|')})` : f.type === 'boolean' ? ' (on/off)' : ' (number)'}`
+  const OPTION_HINT = WORKSPACE_MENU_TYPES.map(t => [t, optionsOf(t)]).filter(([, os]) => os.length).map(([t, os]) => `${t}: ${os.map(optionWord).join(', ')}`).join('; ')
+  reg({
+    ...common,
+    name: 'widget.setOption',
+    summary: 'Change ONE option of a widget on the board — what its own settings control writes (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope, the Terminal\'s star filter…). Undo puts the previous value back.',
+    hints: `target = the ref of the board entry; widget = the widget id; key = the option name from the widget type's own list below (never invented); value = one of its allowed values. Options by widget type — ${OPTION_HINT}. A widget type not listed has no options here.`,
+    args: { type: 'object', properties: { widget: widgetArg, key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['widget', 'key', 'value'], additionalProperties: false },
+    check(st, { widget, key, value }) {
+      const t = widgetOf(st, widget)
+      if (!t) return notOnBoard(widget)
+      const opts = optionsOf(t.type)
+      if (!opts.length) return `The ${label(t.type)} has no options I can change here.`
+      const f = opts.find(o => o.key === String(key))
+      if (!f) return `The ${label(t.type)} has no option “${key}” — its options are ${opts.map(o => o.key).join(', ')}.`
+      return coerceOption(f, value).why || null
+    },
+    apply(st, { widget, key, value }) {
+      const t = widgetOf(st, widget)
+      const f = optionsOf(t.type).find(o => o.key === String(key))
+      const opts = { ...(t.opts || {}), [f.key]: coerceOption(f, value).value }
+      return same(opts, t.opts) ? st : { ...st, board: st.board.map(w => (w.id === t.id ? { ...w, opts } : w)) }
+    },
+    describe(b, a, { widget, key }) {
+      const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
+      return o && n && !same(o.opts, n.opts) ? `The ${nameOf(o, b.board)}: ${key} is now ${String(n.opts[key])}${o.opts && o.opts[key] !== undefined ? ` (was ${String(o.opts[key])})` : ''}` : null
+    },
+    noop: (b, a, { key, value } = {}) => `${key} is already ${String(value)}`,
   })
 
   // ── watchlist.open: "open it in my workspace" (the product's ?openWatchlist= door) ──
