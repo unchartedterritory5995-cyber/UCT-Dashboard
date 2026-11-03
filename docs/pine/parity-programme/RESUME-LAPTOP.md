@@ -7,6 +7,15 @@ Last updated: 2026-11-03 ~16:45 CT by the LAPTOP coordinator (session af33efb6),
 > `DESKTOP-PROMPT.md`. Builder rules for both machines: `BUILDER-RULES.md`. The laptop stays the only
 > reviewer/merger/engine-bumper/deployer.
 
+> **PAUSED 2026-11-03 ~17:00 CT by the owner.** Every laptop lane is pushed and stopped. The desktop
+> was told to pause through ASSIGNMENTS.md (it sets each lane `PAUSED` with a `next:` line). To
+> resume, the new coordinator:
+> 1. Reads `git show origin/ops/pine-desktop:DESKTOP-STATUS.md` to see where each desktop lane stopped.
+> 2. Replaces the PAUSE banner in ASSIGNMENTS.md with "RESUMED 2026-..": `PAUSED` lanes go back to
+>    `QUEUED`, and the re-homed laptop lanes stay QUEUED for the desktop.
+> 3. Asks the owner to re-paste the DESKTOP PROMPT line on the desktop.
+> 4. Starts the merge queue below.
+
 ## 1. What is live (production `d8d4f0937d` at 2026-11-03 16:08 CT; SCRIPT_ENGINE_VERSION = 5)
 
 #613 de3f480f98 · #673 B d525ed6c6c · #674 A a223e7b745 · #675 engine bump 9a1f99ef49 ·

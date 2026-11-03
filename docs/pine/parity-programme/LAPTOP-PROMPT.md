@@ -49,6 +49,10 @@ STEP 2 - set up this machine (RESUME-LAPTOP.md section 3), then verify before an
   - Arm the background poll on `ops/pine-desktop` (DESKTOP-PROMPT section 2 shows the loop
     shape). Wake only on READY / BLOCKED / RELEASED.
 
+STEP 2b - if RESUME-LAPTOP.md says PAUSED: follow its resume box first (read DESKTOP-STATUS.md,
+replace the PAUSE banner in ASSIGNMENTS.md with RESUMED, re-queue the lanes, ask the owner to
+re-paste the DESKTOP PROMPT line on the desktop).
+
 STEP 3 - land what is ready, closest-to-done first. RESUME-LAPTOP.md "Merge queue" has the exact
 order and state. Then:
   - Review every desktop READY lane with an independent Opus reviewer. On GO: land it. On NO-GO:
