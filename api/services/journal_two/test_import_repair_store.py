@@ -123,6 +123,14 @@ def test_record_notice_never_rearms_a_dismissed_notice(conn):
     assert store.dismiss_notice(conn, "nobody") is False
 
 
+@pytest.mark.parametrize("count", [0, -2])
+def test_a_notice_needs_a_loss(conn, count):
+    """Fix round 1, M-6: a notice reading "0 notes" never reaches a member."""
+    store.record_notice(conn, "u1", count)
+    assert conn.execute("SELECT COUNT(*) FROM j2_import_repair_notices").fetchone()[0] == 0
+    assert store.pending_notice(conn, "u1") is None
+
+
 def test_dismiss_is_an_update(conn):
     store.record_notice(conn, "u1", 2)
     conn.commit()
