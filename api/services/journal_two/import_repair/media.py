@@ -63,11 +63,9 @@ def missing_notices(doc: dict) -> tuple[dict, list[str]]:
     notices: dict[str, dict] = {}
     names: list[str] = []
 
-    def walk(node: Any) -> Any:
-        if isinstance(node, list):
-            return [walk(child) for child in node]
-        if not isinstance(node, dict):
-            return node
+    def lost(node: dict) -> dict | None:
+        """The marker for a lost media node, or None when it is not lost. A stranded ref's
+        marker is also registered for the one placeholder rewrite below."""
         attrs = _attrs(node)
         ref = _stranded_ref(node)
         if ref is not None:
@@ -75,13 +73,44 @@ def missing_notices(doc: dict) -> tuple[dict, list[str]]:
                 notices[ref] = _marker(_text(attrs.get("alt")) or _text(attrs.get("title"))
                                        or _text(attrs.get("name")) or _basename(ref))
             names.append(notices[ref]["attrs"]["name"] or import_notice.NAME_FALLBACK)
-            return node  # replaced below, by the one placeholder rewrite
+            return notices[ref]
         if _is_empty_image(node):
             marker = _marker(_text(attrs.get("alt")) or _text(attrs.get("title")))
             names.append(marker["attrs"]["name"] or import_notice.NAME_FALLBACK)
             return marker
+        return None
+
+    def walk_list(children: list) -> list:
+        out: list = []
+        for child in children:
+            done = walk(child)
+            out.extend(done if isinstance(done, list) else [done])
+        return out
+
+    def walk(node: Any) -> Any:
+        """A node, or a LIST of nodes to splice in (a dissolved figure)."""
+        if not isinstance(node, dict):
+            return node
+        if node.get("type") == "imageFigure" and isinstance(node.get("content"), list):
+            # Fix round 1, I-1: `imageFigure` is `image imageCaption`, so a marker cannot stay
+            # inside it. As `uctJson.js` does for a refused image, the figure becomes the marker
+            # and its caption as a paragraph (an empty caption leaves nothing).
+            image = next((c for c in node["content"] if isinstance(c, dict) and c.get("type") == "image"), None)
+            marker = lost(image) if image is not None else None
+            if marker is not None:
+                out: list = [copy.deepcopy(marker)]
+                for c in node["content"]:
+                    if isinstance(c, dict) and c.get("type") == "imageCaption" and c.get("content"):
+                        out.append({"type": "paragraph", "content": c["content"]})
+                return out
+        if _stranded_ref(node) is not None:
+            lost(node)
+            return node  # replaced below, by the one placeholder rewrite
+        marker = lost(node)
+        if marker is not None:
+            return marker
         if isinstance(node.get("content"), list):
-            node = {**node, "content": walk(node["content"])}
+            node = {**node, "content": walk_list(node["content"])}
         return node
 
     out = walk(copy.deepcopy(doc))
@@ -153,7 +182,10 @@ def lost_file_link_notices(doc: dict, *, import_key: str, import_source: str,
     def names_lost(block: dict) -> list[str]:
         nonlocal lost
         names: list[str] = []
-        for href, text in _link_hrefs(block):
+        found = _link_hrefs(block)
+        if block.get("type") == "imageFigure":  # I-1: a caption's links count for the figure
+            found = [h for c in block.get("content") or [] if isinstance(c, dict) for h in _link_hrefs(c)]
+        for href, text in found:
             if not shapes.is_relative_href(href):
                 continue
             _key, action = links.relative_target(href, import_key=import_key,
@@ -177,7 +209,8 @@ def lost_file_link_notices(doc: dict, *, import_key: str, import_source: str,
                 i += 1
                 continue
             names = names_lost(child)
-            walk(child)
+            if child.get("type") != "imageFigure":  # `image imageCaption`: never insert inside (I-1)
+                walk(child)
             j = i + 1
             present: set[str] = set()
             while j < len(content) and isinstance(content[j], dict) \

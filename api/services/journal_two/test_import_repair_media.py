@@ -111,6 +111,42 @@ def test_missing_notices_is_a_fixed_point():
     assert twice == once and names == []
 
 
+def _figure(image, *caption):
+    return {"type": "imageFigure", "content": [image, {"type": "imageCaption", "content": list(caption)}]}
+
+
+def _assert_figures_are_well_formed(node):
+    """TipTap's `imageFigure` content rule is `image imageCaption` (imageFigureNode.js)."""
+    if isinstance(node, list):
+        for child in node:
+            _assert_figures_are_well_formed(child)
+    elif isinstance(node, dict):
+        if node.get("type") == "imageFigure":
+            assert [c.get("type") for c in node.get("content") or []] == ["image", "imageCaption"], node
+        _assert_figures_are_well_formed(node.get("content"))
+
+
+def test_a_lost_image_inside_a_figure_dissolves_the_figure_as_the_importer_does():
+    """Fix round 1, I-1: a marker cannot sit inside `imageFigure`. As `uctJson.js` does for a
+    refused image, the figure becomes the marker and its caption as a paragraph (an empty
+    caption leaves nothing)."""
+    doc = _doc(
+        _figure(_img(src=None, alt="Q3 chart"), _t("Revenue, "), _t("by quarter", {"type": "bold"})),
+        _figure(_img(src=REF_PREFIX + "imgs/b.png")),
+        _figure(_img(src="/api/j2/notes/attachments/u1/n1/inline/ok.png"), _t("fine")),
+    )
+    out, names = media.missing_notices(doc)
+    assert out == _doc(
+        _notice("Q3 chart"), _para(_t("Revenue, "), _t("by quarter", {"type": "bold"})),
+        _notice("b.png"),
+        doc["content"][2],  # a resolved figure is untouched
+    )
+    assert names == ["Q3 chart", "b.png"]
+    _assert_figures_are_well_formed(out)
+    again, more = media.missing_notices(out)
+    assert again == out and more == []
+
+
 # ── hotlinks / replace_src ────────────────────────────────────────────────────
 
 def test_hotlinks_are_distinct_in_document_order_by_the_one_predicate():
@@ -183,6 +219,19 @@ def test_lost_file_links_inside_a_list_and_two_in_one_paragraph(db):
     assert lost == 2
     item = out["content"][0]["content"][0]["content"]
     assert item[1:] == [_notice("a.pdf"), _notice("b.png")]
+
+
+def test_a_lost_file_link_in_a_figure_caption_is_marked_after_the_figure(db):
+    """I-1: never inside `imageFigure` (`image imageCaption`): the marker follows the figure."""
+    fig = _figure(_img(src="/api/j2/notes/attachments/u1/n1/inline/ok.png"),
+                  _t("source: "), _t("data", _link("data/table.csv")))
+    doc = _doc(fig, _para(_t("after")))
+    out, lost = _lost(doc)
+    assert lost == 1
+    assert out == _doc(fig, _notice("table.csv"), _para(_t("after")))
+    _assert_figures_are_well_formed(out)
+    again, _ = _lost(out)
+    assert again == out
 
 
 def test_lost_file_links_are_marked_only_in_file_notes_by_their_source_rule(db):
