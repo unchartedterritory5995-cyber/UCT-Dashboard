@@ -304,9 +304,9 @@ export default function ConnectedAppsCard() {
                     {p.beta && <span className={styles.betaPill}>Beta</span>}
                   </span>
                   {!configured && connected ? (
-                    <span className={styles.comingSoon}>Sync off</span>
+                    <span className={styles.statusPill}>Sync off</span>
                   ) : !configured ? (
-                    <span className={styles.comingSoon}>Coming soon</span>
+                    <span className={styles.statusPill}>Coming soon</span>
                   ) : needsFolder ? (
                     <button
                       type="button"

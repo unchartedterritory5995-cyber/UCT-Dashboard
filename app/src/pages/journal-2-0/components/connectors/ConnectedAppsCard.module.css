@@ -90,9 +90,11 @@
 
 .tileName { font-size: 14px; font-weight: 600; }
 
-.comingSoon {
+/* The quiet state pill ("Coming soon", "Sync off"). Review M4: was `.comingSoon` at opacity 0.6, which
+   put the text at 4.1:1 in light; now --text-muted at full strength (rendered rail: notebookContrast). */
+.statusPill {
   font-size: 12px;
-  opacity: 0.6;
+  color: var(--text-muted);
   padding: 3px 10px;
   border: 1px solid var(--color-border, #333);
   border-radius: var(--radius-pill);

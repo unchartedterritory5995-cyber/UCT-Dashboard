@@ -380,6 +380,21 @@ describe('Evernote offer links, rendered: 4.5:1 with every ancestor opacity appl
     expect(failures(note)).toEqual([])
   })
 
+  // Review M4: the "Sync off" pill borrowed `.comingSoon`. Both pills now share a neutral `.statusPill`, and
+  // both are measured here as rendered.
+  it('the Sync off and Coming soon pills, with the pill class each one carries', async () => {
+    const off = { configured: false, connected: true, sources: [] }
+    const dark = { configured: false, connected: false, sources: [] }
+    installFetch([[/\/connectors\/status$/, { providers: { ...STATUS.providers, evernote: off, notion: dark } }]])
+    render(h(Providers, { route: '/settings' }, h(ConnectedAppsCard)))
+    const syncOff = await within(await screen.findByTestId('connector-tile-evernote')).findByText('Sync off')
+    const soon = within(screen.getByTestId('connector-tile-notion')).getByText('Coming soon')
+    for (const pill of [syncOff, soon]) {
+      expect([...pill.classList]).toEqual(['statusPill'])
+      expect(failures(pill)).toEqual([])
+    }
+  })
+
   it('CONTROL: the walk multiplies the opacity of an ancestor', () => {
     const p = document.createElement('p'); p.className = 'muted'
     const a = document.createElement('a'); a.className = 'offerLink'; p.appendChild(a); document.body.appendChild(p)
