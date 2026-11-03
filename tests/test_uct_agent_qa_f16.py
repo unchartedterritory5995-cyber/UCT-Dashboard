@@ -60,7 +60,12 @@ def test_every_USE_of_a_prohibited_field_is_refused_with_the_clear_sentence(k):
         "logic not": {"logic": {"not": {"key": k, "op": "gte", "min": 1}}},
         "arith": {"filters": [{"key": "arith", "op": "gt", "lhs": {"o": "*", "a": {"f": k}, "b": {"n": 1}}, "rhs": {"n": 0}}]},
         "sort": {"sort": {"key": k, "dir": "desc"}},
-        "rank": {"rank": {"criteria": [{"column": k, "weight": 1}]}},
+        "rank": {"rank": {"criteria": [{"key": k, "weight": 1}]}},                  # the screener's own shape
+        "rank column": {"rank": {"criteria": [{"column": k, "weight": 1}]}},
+        # BYPASS (found by the agent-int review of W1-SEC #704): the screener's ranking reads `key` and ignores a
+        # `column` on the request, so a public column beside a hidden key once validated and ranked by the rating
+        "rank public column, hidden key": {"rank": {"criteria": [{"column": "price", "key": k, "weight": 1}]}},
+        "rank hidden column, public key": {"rank": {"criteria": [{"column": k, "key": "price", "weight": 1}]}},
         "columns": {"columns": ["ticker", k]},
     }
     for how, spec in cases.items():
@@ -72,6 +77,10 @@ def test_CONTROL_public_inputs_still_screen_sort_and_rank():
     ok = scan_spec.validate({"filters": [{"key": "chg_pct_3m", "op": "gte", "min": 10}, {"key": "peg", "op": "lte", "max": 2}],
                              "sort": {"key": "inst_pct", "dir": "desc"}, "columns": ["ticker", "eps_growth", "roe"]})
     assert ok["sort"] == {"key": "inst_pct", "dir": "desc"}
+    # a rank by a public field, in the screener's own criterion shape, is accepted and kept (no default sort added)
+    ranked = scan_spec.validate({"filters": [], "rank": {"criteria": [{"key": "price", "weight": 1}], "top_n": 5}})
+    assert ranked["rank"] == {"criteria": [{"key": "price", "weight": 1}], "top_n": 5} and "sort" not in ranked
+    assert "rank criterion names" in _refused({"filters": [], "rank": {"criteria": [{"weight": 1}]}})   # no key
 
 
 def test_a_view_asked_for_by_name_that_shows_a_prohibited_column_is_refused():

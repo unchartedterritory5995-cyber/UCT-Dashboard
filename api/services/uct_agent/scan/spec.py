@@ -73,6 +73,25 @@ def _arith_fields(e: Any, depth: int = 0) -> list:
     return _arith_fields(e.get("a"), depth + 1) + _arith_fields(e.get("b"), depth + 1)
 
 
+def named_fields(spec: Any, depth: int = 0) -> list:
+    """Every field name a spec carries, in any shape: a `key`, `other`, `f` or `column` string at any depth, the
+    `columns` list, and the columns of a named `view`. No validation; a listing uses it to decide whether a spec
+    that failed validation for ANY reason still names a hidden field (screen.saved nulls it then)."""
+    if depth > 24:
+        return []
+    if isinstance(spec, list):
+        return [n for x in spec for n in named_fields(x, depth + 1)]
+    if not isinstance(spec, dict):
+        return []
+    out = [spec[k] for k in ("key", "other", "f", "column") if isinstance(spec.get(k), str)]
+    if depth == 0:
+        if isinstance(spec.get("columns"), list):
+            out += [c for c in spec["columns"] if isinstance(c, str)]
+        if isinstance(spec.get("view"), str):
+            out += view_columns(spec["view"])
+    return out + [n for v in spec.values() for n in named_fields(v, depth + 1)]
+
+
 def _leaves(spec: dict) -> list:
     leaves = list(spec.get("filters") or [])
     if spec.get("logic"):
@@ -178,12 +197,24 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
     if rank is not None and not isinstance(rank, dict):
         raise SpecError("`rank` must be a screener rank object")
     if isinstance(rank, dict):
-        named = [c.get("column") for c in rank.get("criteria") or [] if isinstance(c, dict)]
+        # The screener's ranking reads each criterion's `key` (screener/ranking.py) and resolves the column itself;
+        # a `column` on the request is ignored there. BOTH are checked here, so neither shape can name a hidden
+        # field (a public `column` beside a hidden `key` once rode through — agent-int review of W1-SEC #704).
+        criteria = rank.get("criteria") or []
+        if not isinstance(criteria, list) or not all(isinstance(c, dict) for c in criteria):
+            raise SpecError("`rank.criteria` must be a list of {key, weight} objects")
+        named = [c[k] for c in criteria for k in ("key", "column") if isinstance(c.get(k), str)]
         if hidden.refusal_for(named):
             raise SpecError(hidden.refusal_for(named))
-        raw = [c for c in named if c not in catalog]
-        if raw:
-            raise SpecError(f"the Screener has no field {raw[0]!r} to rank by")
+        for c in criteria:
+            key = c.get("key")
+            if not isinstance(key, str) or not key:
+                raise SpecError("every rank criterion names a screener field (`key`)")
+            if key not in catalog:
+                raise SpecError(f"the Screener has no field {key!r} to rank by")
+            col = c.get("column")
+            if col is not None and (not isinstance(col, str) or (col not in catalog and col not in hidden.IDENTITY_COLUMNS)):
+                raise SpecError(f"the Screener has no field {col!r} to rank by")
 
     out = {k: spec[k] for k in SPEC_KEYS if k in spec and spec[k] is not None}
     out.setdefault("filters", [])

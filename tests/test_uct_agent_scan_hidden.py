@@ -84,7 +84,11 @@ FLOWED = hidden.FLOW_REFUSAL
     ({"filters": [], "sort": {"key": "rs_return", "dir": "desc"}}, RATED),
     ({"filters": [], "sort": {"key": "opt_net_premium_1d", "dir": "desc"}}, FLOWED),
     ({"filters": [], "columns": ["ticker", "price", "candle_score"]}, RATED),
+    ({"filters": [], "rank": {"criteria": [{"key": "rs_rank", "weight": 1}], "top_n": 10}}, RATED),
     ({"filters": [], "rank": {"criteria": [{"column": "rs_rank", "weight": 1}], "top_n": 10}}, RATED),
+    # the screener's ranking reads `key` and ignores `column`: a public column beside a hidden key is no bypass
+    ({"filters": [], "rank": {"criteria": [{"column": "price", "key": "rs_rank", "weight": 1}], "top_n": 10}}, RATED),
+    ({"filters": [], "rank": {"criteria": [{"column": "price", "key": "dp_notional_1d", "weight": 1}]}}, FLOWED),
     ({"filters": [], "view": "uct_ratings"}, RATED),
     ({"filters": [], "view": "flow"}, FLOWED),
 ])
@@ -119,6 +123,32 @@ def test_a_saved_screen_on_a_rating_or_flow_is_listed_not_run_and_its_criteria_n
     for sid, sentence, turn in ((world["rated"], RATED, "s2"), (world["flow"], FLOWED, "s3")):
         out = _read("screen.run", {"saved_id": sid}, turn)
         assert out["status"] == "refused" and sentence in out["notes"][0]
+
+
+def test_a_rank_by_a_public_field_runs_in_the_screeners_own_shape_and_a_hidden_key_never_orders_the_rows(world):
+    # non-vacuity: every fixture row carries the same rs_rank while price rises with the index, so an order that
+    # follows price is the public rank and nothing else
+    out = _read("screen.run", {"spec": {"filters": [], "rank": {"criteria": [{"key": "price", "weight": 1}], "top_n": 5}},
+                               "limit": 5}, "k1")
+    assert out["status"] in ("ok", "partial"), out["notes"]
+    assert [r["symbol"] for r in out["data"]["rows"]] == ["T29", "T28", "T27", "T26", "T25"]
+    assert [c["key"] for c in out["data"]["spec"]["rank"]["criteria"]] == ["price"]
+    out = _read("screen.run", {"spec": {"filters": [], "rank": {"criteria": [{"column": "price", "key": "rs_rank", "weight": 1}],
+                                                                    "top_n": 5}}, "limit": 5}, "k2")
+    assert out["status"] == "refused" and RATED in out["notes"][0] and "rs_rank" not in str(out.get("data"))
+
+
+def test_saved_nulls_any_spec_that_names_a_hidden_field_whatever_refused_it_first(world):
+    from api.services.screener import saved_screens
+    # refused by the unknown top-level key BEFORE the hidden check reaches the filter: the spec still names rs_rank
+    saved_screens.create(ME, "Odd", {"filters": [{"key": "rs_rank", "op": "gte", "min": 90}], "foo": 1})
+    saved_screens.create(ME, "RankedHidden", {"filters": [], "rank": {"criteria": [{"column": "price", "key": "uct_composite", "weight": 1}], "top_n": 5}})
+    saved_screens.create(ME, "RankedPublic", {"filters": [], "rank": {"criteria": [{"key": "price", "weight": 1}], "top_n": 5}})
+    listed = {s["name"]: s for s in _read("screen.saved", {}, "s9")["data"]["screens"]}
+    for name in ("Odd", "RankedHidden"):
+        assert listed[name]["runnable"] is False and listed[name]["spec"] is None and listed[name]["reason"] == RATED, name
+    assert listed["RankedPublic"]["runnable"] is True and listed["RankedPublic"]["spec"]["rank"]["criteria"][0]["key"] == "price"
+    assert "rs_rank" not in str(listed["Odd"]) and "uct_composite" not in str(listed["RankedHidden"])
 
 
 # ── results never carry a hidden column ─────────────────────────────────────────────────────────
@@ -163,7 +193,8 @@ def test_a_raw_snapshot_column_outside_the_catalog_cannot_be_sorted_requested_or
     for col in ("archive_setup_edge_r", "archive_traders_n", "base_matches", "pattern_engine_ids"):
         for spec in ({"filters": [], "sort": {"key": col, "dir": "desc"}},
                      {"filters": [], "columns": ["ticker", col]},
-                     {"filters": [], "rank": {"criteria": [{"column": col, "weight": 1}], "top_n": 5}}):
+                     {"filters": [], "rank": {"criteria": [{"key": col, "weight": 1}], "top_n": 5}},
+                     {"filters": [], "rank": {"criteria": [{"key": "price", "column": col, "weight": 1}], "top_n": 5}}):
             with pytest.raises(scan_spec.SpecError):
                 scan_spec.validate(spec)
     assert scan_spec.validate({"filters": [], "columns": ["ticker", "company", "price"]})   # identity + public: fine

@@ -271,8 +271,14 @@ def saved(params: dict, ctx: dict) -> dict:
         except scan_spec.SpecError as e:
             entry["runnable"] = False
             entry["reason"] = str(e)
-            if str(e) in (hidden.RATINGS_REFUSAL, hidden.FLOW_REFUSAL):
-                entry["spec"] = None          # SC-1 §2d: its rating / flow criteria never reach the model
+            # SC-1 §2d: a spec that names a hidden field ANYWHERE never reaches the model, whatever refused it
+            # first (an unknown key, a bad tree, the hidden sentence itself): the spec is nulled and the reason is
+            # the hidden sentence, so no criterion name leaks through the listing (W1-SEC #704 review follow-up)
+            sentence = str(e) if str(e) in (hidden.RATINGS_REFUSAL, hidden.FLOW_REFUSAL) else None
+            sentence = sentence or hidden.refusal_for(scan_spec.named_fields(r.get("spec")))
+            if sentence:
+                entry["spec"] = None
+                entry["reason"] = sentence
         if i < 100:
             screens.append(entry)
         ts = r.get("updated_at") or r.get("created_at")
