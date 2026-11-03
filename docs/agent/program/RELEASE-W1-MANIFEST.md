@@ -1,6 +1,6 @@
 # Wave 1 combined release manifest — UCT Agent
 
-**Candidate:** `agent/int` @ `fded87e447` = `origin/master` `7b6b7a1b4f` + Wave 1 (zero behind master). Prepared 2026-11-03 by the integrator (session AUDIT). **Status: DRAFT until the owner's GO.** Nothing has been merged to master, deployed, or activated.
+**Candidate:** `agent/int` @ `fded87e447` = `origin/master` `7b6b7a1b4f` + Wave 1 (zero behind master). Prepared 2026-11-03 by the integrator (session AUDIT). **Status: DEPLOYED 2026-11-03.** Owner GO received; PR #718 merged to master as `463a4bcba5` (final RC head 6342332731 = master ad571054dd + Wave 1); master deploy gate passed (both Agent suites inside the gate: server 2095 passed); promoted 04:21Z (`production` = 463a4bcba5); live on the web pod at **04:30:42Z** (uptime reset, bundle `assets/index-ePgCEn0Q.js`; `/api/health` ok; anonymous `/api/agent/config` → 401). **No flag changed; nothing activated; planner v2 off.** Phase 1 live testing is next; Wave 1 is 'technically deployed', not owner-accepted.
 
 ## 1. Included work (merge commits on agent/int, in order)
 

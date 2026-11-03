@@ -50,6 +50,8 @@ import re
 import time
 from typing import Any, Callable
 
+from api.services.uct_agent.scan import refine as scan_refine
+
 DISPOSITIONS = ("answer", "clarify", "apply", "propose", "unsupported")
 MUTATING = ("apply", "propose")
 # The one capability whose explicit-words path runs without a card when every condition holds (indicator
@@ -126,6 +128,7 @@ MAX_CAPABILITIES_NL1 = MAX_CAPABILITIES
 NL1_ENV = "UCT_AGENT_NL1"
 MAX_CAP_BYTES = 6000
 MAX_HINTS = 1000
+MAX_SHAPE = 600          # W1.1: a capability's exact-shape example (manifest `shape`), printed under its catalog line
 _CAP_NAME = re.compile(r"^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$")
 _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum", "const",
                 "items", "anyOf", "description"}
@@ -240,7 +243,85 @@ def validate_manifest(caps: Any, limit: int = MAX_CAPABILITIES) -> list[dict]:
             "reversible": c.get("reversible") is not False,
             "undo": "none" if c.get("undo") == "none" else "exact",
             "args": args,
+            # W1.1 R-01 (LT-3): the capability's exact-shape example for the catalog (see _catalog_lines)
+            "shape": str(c.get("shape"))[:MAX_SHAPE] if c.get("shape") else None,
+            # W1.1 R-01 (LT-3): the capability's OWN tolerance declarations, honoured by normalize_args — never
+            # invented here. A malformed declaration is dropped (logged), never the capability.
+            **_tolerance_of(name, args, c),
         })
+    return out
+
+
+# ── W1.1 R-01 (LT-3, live planner 2026-11-03): what the production model actually SENDS for an action is often a
+# recoverable variant of its schema — a value typed as a string ("false", "90%"), a key named differently ("key" for
+# "setting", "tickers" for "symbols"), a nested {sort:{field,dir}} for two flat args, a required list left out of a
+# refinement. Each capability may DECLARE the variants it accepts (manifest fields, app/src/agent/README.md):
+#   argAliases  {canonical: [alias, …]}   other KEY names (dotted = nested) read as the canonical arg when it is absent
+#   coerce      {arg: {word: value}}      VALUE synonyms for one arg ("descending" → "desc", "exit" → null)
+#   defaults    {arg: value}              the value of a REQUIRED non-nullable arg the model left out or set null
+#   defaultsWhen {arg: {other: [values]}} (W1.1 review NB-2) the default applies ONLY when every named other arg (after
+#                                         aliases / coerce) holds one of its values (screener: filters [] for a refinement)
+# Plus the schema-driven rules every action gets (string → boolean / number / null when the schema says so, enum
+# case-folding, numeric → enum string). Every rule applied is LOGGED by name and key — never a value — and nothing is
+# ever guessed: a shape no rule covers still fails args_match exactly as before.
+_ALIAS_PATH = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$")
+MAX_ALIASES = 16
+MAX_COERCE_WORDS = 48
+
+
+def _tolerance_of(name: str, args: dict, c: dict) -> dict:
+    props = args.get("properties") or {}
+    out: dict = {"argAliases": None, "coerce": None, "defaults": None, "defaultsWhen": None}
+    aliases = c.get("argAliases")
+    if isinstance(aliases, dict) and aliases:
+        kept: dict[str, list[str]] = {}
+        for canon, alist in aliases.items():
+            canon = str(canon)
+            top = canon.split(".")[0]
+            if (not _ALIAS_PATH.match(canon) or top not in props or not isinstance(alist, list)
+                    or ("." in canon and "object" not in _types_of(props[top]))):
+                log.warning("[uct-agent] %s argAliases: %r dropped (not an argument path)", name, canon[:40])
+                continue
+            good = [a for a in alist if isinstance(a, str) and _ALIAS_PATH.match(a) and a != canon
+                    and not (a.split(".")[0] in props and "." not in a)][:MAX_ALIASES]
+            if good:
+                kept[canon] = good
+        out["argAliases"] = kept or None
+    coerce = c.get("coerce")
+    if isinstance(coerce, dict) and coerce:
+        kept_c: dict[str, dict] = {}
+        for arg, words in coerce.items():
+            arg = str(arg)
+            if not _ALIAS_PATH.match(arg) or arg.split(".")[0] not in props or not isinstance(words, dict):
+                log.warning("[uct-agent] %s coerce: %r dropped (not an argument path)", name, arg[:40])
+                continue
+            table = {str(k).strip().lower(): v for k, v in list(words.items())[:MAX_COERCE_WORDS]
+                     if isinstance(v, (str, int, float, bool, type(None)))}
+            if table:
+                kept_c[arg] = table
+        out["coerce"] = kept_c or None
+    defaults = c.get("defaults")
+    if isinstance(defaults, dict) and defaults:
+        kept_d: dict = {}
+        for arg, v in defaults.items():
+            arg = str(arg)
+            if arg in props and _value_ok(props[arg], v):
+                kept_d[arg] = v
+            else:
+                log.warning("[uct-agent] %s defaults: %r dropped (not a value its schema allows)", name, arg[:40])
+        out["defaults"] = kept_d or None
+    when = c.get("defaultsWhen")
+    if isinstance(when, dict) and when:
+        kept_w: dict = {}
+        for arg, cond in when.items():
+            arg = str(arg)
+            if (arg in (out["defaults"] or {}) and isinstance(cond, dict) and cond
+                    and all(str(k) in props and isinstance(vals, list) and vals
+                            and all(isinstance(x, (str, int, float, bool)) for x in vals) for k, vals in cond.items())):
+                kept_w[arg] = {str(k): list(vals) for k, vals in cond.items()}
+            else:
+                log.warning("[uct-agent] %s defaultsWhen: %r dropped (not a declared default with {arg: [values]})", name, arg[:40])
+        out["defaultsWhen"] = kept_w or None
     return out
 
 
@@ -305,6 +386,15 @@ def _value_ok(spec: dict, v: Any) -> bool:
         return False
     if isinstance(v, list) and isinstance(spec.get("items"), dict):
         return all(_value_ok(spec["items"], x) for x in v)
+    # W1.1 R-01: the schema's NESTED shapes are checked as the grammar checks them on the embedded path — a value under
+    # anyOf must fit one branch whole, and an object branch is closed (exactly its properties, each checked). Before,
+    # {"symbols": {"from": "w1", "top": "two"}} passed here and failed in the browser with the wrong sentence.
+    if isinstance(spec.get("anyOf"), list) and spec["anyOf"]:
+        return any(isinstance(b, dict) and _value_ok(b, v) for b in spec["anyOf"])
+    if isinstance(spec.get("properties"), dict):
+        if not isinstance(v, dict) or set(v) != set(spec["properties"]):
+            return False
+        return all(_value_ok(spec["properties"][k], v[k]) for k in v)
     return True
 
 
@@ -351,9 +441,196 @@ def _wrap_lone_argument(schema: dict, args: dict) -> dict:
     return args
 
 
+# ── W1.1 R-01: the args normalizer (see _tolerance_of) ───────────────────────────────────────────────────────
+_TRUE_WORDS = frozenset({"true", "on", "yes", "enabled", "enable", "show", "1"})
+_FALSE_WORDS = frozenset({"false", "off", "no", "disabled", "disable", "hide", "0"})
+_NULL_WORDS = frozenset({"null", "none", "nil", "nothing", ""})
+#: W1.1 review NB-1: where the schema also allows a STRING (a name: a list, a screen, a layout called "None"), only the
+#: JSON-ish null spellings become null; an explicit word ("none", "nil", "nothing") is kept as the name it may be
+_NULL_WORDS_FOR_STRINGS = frozenset({"null", ""})
+_NUMBER_TEXT = re.compile(r"^[-+]?\$?\s*(\d{1,3}(,\d{3})+|\d+)(\.\d+)?\s*%?$")
+
+
+def _types_of(spec: dict) -> list[str]:
+    t = spec.get("type")
+    types = [t] if isinstance(t, str) else list(t or [])
+    for b in spec.get("anyOf") or []:
+        if isinstance(b, dict):
+            types += _types_of(b)
+    return types
+
+
+def _parse_number(s: str):
+    s = s.strip()
+    if not _NUMBER_TEXT.match(s):
+        return None
+    clean = s.replace("$", "").replace(",", "").replace("%", "").replace(" ", "")
+    try:
+        n = float(clean)
+    except ValueError:
+        return None
+    return int(n) if n.is_integer() and "." not in clean else n
+
+
+def _get_path(d: Any, path: str):
+    for seg in path.split("."):
+        if not isinstance(d, dict) or seg not in d:
+            return _DROPPED
+        d = d[seg]
+    return d
+
+
+def _set_path(d: dict, path: str, v: Any) -> None:
+    segs = path.split(".")
+    for seg in segs[:-1]:
+        if not isinstance(d.get(seg), dict):
+            d[seg] = {}
+        d = d[seg]
+    d[segs[-1]] = v
+
+
+def _del_path(d: dict, path: str) -> None:
+    segs = path.split(".")
+    parents = []
+    cur = d
+    for seg in segs[:-1]:
+        parents.append((cur, seg))
+        cur = cur.get(seg)
+        if not isinstance(cur, dict):
+            return
+    cur.pop(segs[-1], None)
+    # a container emptied by the move is dropped too ({"sort": {}} after sort.field → sort_field)
+    for parent, seg in reversed(parents):
+        if isinstance(parent.get(seg), dict) and not parent[seg]:
+            del parent[seg]
+        else:
+            break
+
+
+def _coerce_schema(spec: dict, v: Any, path: str, applied: list[str]) -> Any:
+    """The schema-driven rules for ONE value: strings the schema types as boolean / number / null, enum
+    case-folding, numbers the schema types as an enum string; lists element by element; nested objects
+    (an anyOf object branch whose properties the keys name) property by property."""
+    if not isinstance(spec, dict):
+        return v
+    types = _types_of(spec)
+    enum = spec.get("enum") or []
+    if isinstance(v, str):
+        low = v.strip().lower()
+        if "null" in types and low in (_NULL_WORDS_FOR_STRINGS if "string" in types else _NULL_WORDS):
+            applied.append(f"{path}:null-word")
+            return None
+        if "string" not in types:
+            if "boolean" in types and low in (_TRUE_WORDS | _FALSE_WORDS):
+                applied.append(f"{path}:string->boolean")
+                return low in _TRUE_WORDS
+            if "number" in types or "integer" in types:
+                n = _parse_number(v)
+                if n is not None:
+                    if "number" not in types and isinstance(n, float):
+                        if n.is_integer():
+                            n = int(n)
+                        else:
+                            return v
+                    applied.append(f"{path}:string->number")
+                    return n
+        if enum and v not in enum:
+            hit = next((e for e in enum if isinstance(e, str) and e.strip().lower() == low), None)
+            if hit is not None:
+                applied.append(f"{path}:enum-case")
+                return hit
+        return v
+    if isinstance(v, bool):
+        if "boolean" not in types and enum:
+            hit = next((e for e in enum if isinstance(e, str) and e.lower() == str(v).lower()), None)
+            if hit is not None:
+                applied.append(f"{path}:boolean->enum")
+                return hit
+        return v
+    if isinstance(v, (int, float)):
+        if "string" in types and enum and v not in enum:
+            s = str(int(v)) if float(v).is_integer() else str(v)
+            if s in enum:
+                applied.append(f"{path}:number->enum")
+                return s
+        return v
+    if isinstance(v, list):
+        items = spec.get("items")
+        if not isinstance(items, dict):
+            for b in spec.get("anyOf") or []:
+                if isinstance(b, dict) and b.get("type") == "array" and isinstance(b.get("items"), dict):
+                    items = b["items"]
+                    break
+        if isinstance(items, dict):
+            return [_coerce_schema(items, x, f"{path}[]", applied) for x in v]
+        return v
+    if isinstance(v, dict):
+        branches = [b for b in ([spec] + list(spec.get("anyOf") or [])) if isinstance(b, dict) and isinstance(b.get("properties"), dict)]
+        branch = next((b for b in branches if set(v) <= set(b["properties"])), None) or (branches[0] if branches else None)
+        if branch is None:
+            return v
+        out = dict(v)
+        for k, sub in branch["properties"].items():
+            if k in out:
+                out[k] = _coerce_schema(sub, out[k], f"{path}.{k}", applied)
+            elif "null" in _types_of(sub):
+                out[k] = None
+                applied.append(f"{path}.{k}:absent-null")
+        return out
+    return v
+
+
+def _holds(v: Any, vals: list) -> bool:
+    """defaultsWhen: the arg holds one of the values (a string case-insensitively, as enum case-folding will read it)."""
+    if isinstance(v, str):
+        return v.strip().lower() in {x.strip().lower() for x in vals if isinstance(x, str)}
+    return v is not _DROPPED and v in vals
+
+
+def normalize_args(cap: dict, args: Any) -> tuple[Any, list[str]]:
+    """The model's args for `cap`, with the capability's declared aliases / value synonyms / defaults and the
+    schema-driven coercions applied. Returns (args, [rules applied — names and keys only, never values]).
+    Pure and total: anything it cannot read is returned as it came, for args_match to refuse."""
+    schema = cap.get("args") or {}
+    props = schema.get("properties") or {}
+    if not isinstance(args, dict):
+        return args, []
+    applied: list[str] = []
+    out = json.loads(json.dumps(args))                       # a deep copy; the model's object is never mutated
+    for canon, aliases in (cap.get("argAliases") or {}).items():
+        if _get_path(out, canon) is not _DROPPED:
+            continue
+        for a in aliases:
+            v = _get_path(out, a)
+            if v is _DROPPED:
+                continue
+            _del_path(out, a)
+            _set_path(out, canon, v)
+            applied.append(f"alias:{a}->{canon}")
+            break
+    for arg, words in (cap.get("coerce") or {}).items():
+        v = _get_path(out, arg)
+        if isinstance(v, str) and v.strip().lower() in words:
+            _set_path(out, arg, words[v.strip().lower()])
+            applied.append(f"{arg}:word")
+    when = cap.get("defaultsWhen") or {}
+    for arg, v in (cap.get("defaults") or {}).items():
+        cur = out.get(arg, _DROPPED)
+        cond = when.get(arg)
+        if isinstance(cond, dict) and not all(_holds(out.get(k, _DROPPED), vals) for k, vals in cond.items()):
+            continue                                         # W1.1 review NB-2: not the case the default is declared for
+        if cur is _DROPPED or (cur is None and "null" not in _types_of(props.get(arg) or {})):
+            out[arg] = json.loads(json.dumps(v))
+            applied.append(f"{arg}:default")
+    for k, spec in props.items():
+        if k in out:
+            out[k] = _coerce_schema(spec, out[k], k, applied)
+    return out, applied
+
+
 def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
     """COMPACT ops → {action, target, args}. Args that are not JSON, or that do not
-    match the action's own schema, make the whole envelope unreadable (never guessed)."""
+    match the action's own schema (after normalize_args), make the whole envelope unreadable (never guessed)."""
     by_name = {c["name"]: c for c in capabilities}
     out = []
     for o in env.get("ops") or []:
@@ -365,13 +642,35 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
         except (TypeError, ValueError):
             _unreadable("args_json", action=o.get("action"), size=len(str(o.get("args_json") or "")))
         if cap is not None and isinstance(args, dict):
-            args = _fill_absent_nullables(cap["args"], _wrap_lone_argument(cap["args"], args))
+            args, applied = normalize_args(cap, _wrap_lone_argument(cap["args"], args))
+            args = _fill_absent_nullables(cap["args"], args)
+            if applied:
+                log.info("uct_agent args normalized: %s %s", o.get("action"), applied)
         if cap is None or not args_match(cap["args"], args):
             _unreadable("args_schema", action=o.get("action"),
                         keys=sorted(args) if isinstance(args, dict) else type(args).__name__,
                         want=sorted((cap or {}).get("args", {}).get("properties") or {}))
         out.append({"action": o.get("action"), "target": o.get("target"), "args": args})
     return {**env, "ops": out}
+
+
+def normalize_embedded_ops(env: Any, capabilities: list[dict]) -> Any:
+    """The STRICT (embedded-args) op shape: the grammar fixes every key and type, but a string typed as
+    "null" or "Desc" still reaches the browser — the same normalizer runs, never raising (the browser's
+    shapeError still decides). An op whose action is unknown is left as it came for sanitize_envelope."""
+    if not isinstance(env, dict) or not isinstance(env.get("ops"), list):
+        return env
+    by_name = {c["name"]: c for c in capabilities}
+    ops = []
+    for o in env["ops"]:
+        cap = by_name.get(o.get("action")) if isinstance(o, dict) else None
+        if cap is not None and isinstance(o.get("args"), dict):
+            args, applied = normalize_args(cap, o["args"])
+            if applied:
+                log.info("uct_agent args normalized: %s %s", o.get("action"), applied)
+                o = {**o, "args": args}
+        ops.append(o)
+    return {**env, "ops": ops}
 
 
 def model_safe_schema(node):
@@ -529,6 +828,8 @@ Concise, trader to trader, plain text (short paragraphs or "- " bullets, no head
 Answer in one or two sentences unless the member asks for detail; never show formulas, code, settings or how UCT works inside unless they ask, and never repeat what a receipt or card already says.
 Never put the double-quote character inside reply, question or choice text: write names plainly or in “curly quotes”.
 
+NEVER A FALSE LIMITATION. Never tell the member that something is unavailable, not possible, or "not yet" from here when an action under AVAILABLE ACTIONS (or MORE AVAILABLE ACTIONS, or an action group named below as not listed) does it: indicator alerts (an EMA / SMA cross, RSI, MACD…), price alerts, drawings, layouts, watchlists, screens, templates, replay. Plan it with that action, ask for its group, or clarify the one thing you need (which chart, which indicator, which level). If <validation_error> says an action IS available, plan with it or clarify — never repeat the claim.
+
 CONVERSATION TITLE (`title`)
 When <conversation_title> is present (it may say the chat has no name yet), set `title` to a short name for this whole conversation as it now stands: 2 to 6 words, Title Case, no quotes, no trailing period, naming the subject (tickers, indicators, the task), e.g. NVDA Earnings Reaction, 20 EMA Crossover Indicator, Weekly Swing Layout. If the current title already fits, return it unchanged; change it only when the conversation has clearly moved to a new subject. If the conversation is only a greeting so far, or <conversation_title> is absent, set `title` to null.
 
@@ -673,6 +974,10 @@ def _catalog_lines(capabilities: list[dict], lean: bool = False) -> list[str]:
         if a.get("hints") and not lean:          # lean (NL-1 eval variant): every action, its args and summary — no usage hints
             line += f" {a['hints']}"
         lines.append(line)
+        if a.get("shape") and not lean:
+            # W1.1 R-01 (LT-3): the capability's OWN exact-shape example (manifest `shape`), under its line — the
+            # production model filled these actions' args wrong when it had only the summary and hints to go on
+            lines.append(f"  SHAPE: {a['shape']}")
         for k, v in a["args"]["properties"].items():
             vals = [x for x in (v.get("enum") or []) if x is not None]
             if len(vals) > 12:
@@ -795,9 +1100,30 @@ SCREEN_RULE = ("SCREENS: a count or list of stocks meeting a price, volume, chan
                "promise a live intraday count.")
 
 
+
 def is_screen_question(message: str) -> bool:
     m = message or ""
     return bool(_SCREEN_UNIV.search(m) and _SCREEN_COND.search(m))
+
+
+#: W1.1 R-05: a message shaped like a screen or a refinement of one (mirror of screener.js HIDDEN_SCREEN_SHAPED /
+#: HIDDEN_NOT_A_SCREEN) — with a hidden-field phrase in it, the F-16 sentence is the answer even when the model
+#: planned nothing (a question or a guide request is not a screen and stays the model's)
+_HIDDEN_SCREEN_SHAPED = re.compile(
+    r"^(?:(?:now|and|ok|okay|then|also|but|next)[ ,]+)*(?:(?:please|pls|can you|could you|would you)\s+)?"
+    r"(?:(?:show|find|get|give|list|pull up|screen|scan|filter|run|rank|sort|order|narrow|limit|restrict|keep|refine|exclude|drop|remove)\b"
+    r"|only\b|just\b|(?:all |the )?(?:stocks|names|tickers|ones)\b|(?:which|what) (?:stocks|names|tickers)\b|those\b|top \d+\b|(?:any|every)thing\b)", re.I)
+_HIDDEN_SCREEN_UNIVERSE = re.compile(r"\b(?:stocks|names|tickers|equities|ones|those|them|these|screens?|scans?|filter|rank|sort|order|only|"
+                                     r"just|top \d+|anything|everything|leaders|which|what)\b", re.I)
+_HIDDEN_NOT_A_SCREEN = re.compile(r"\b(?:where|how|what(?:'s| is| does| do| are)|explain|meaning|means|definition|defined|charts?|levels?|toggle|"
+                                  r"settings?|overlay|widget|turn (?:on|off)|enable|disable|bars)\b", re.I)
+
+
+def hidden_screen_request(message: str) -> bool:
+    """A screen (or a refinement) over a universe, as far as words can tell — never one stock's figure ("show me the
+    composite rating for NVDA"), a question or a chart control."""
+    m = str(message or "").strip()
+    return bool(_HIDDEN_SCREEN_SHAPED.search(m) and _HIDDEN_SCREEN_UNIVERSE.search(m) and not _HIDDEN_NOT_A_SCREEN.search(m))
 
 
 #: Every notice UCT may give on a local plan — the ONLY agent text of such a plan ever shown or replayed.
@@ -1228,6 +1554,46 @@ def _unreadable(reason: str, **shape) -> None:
                     reason=f"unreadable:{reason}" + (":max_tokens" if stop == "max_tokens" else ""))
 
 
+# ── W1.1 R-03 (LT-10): a message that is not language ("asdf qwer", "qwerty", "aaaa", "???") ──────────────────
+# Decided by SHAPE only — every word is a run along a keyboard row (or one letter repeated), or the message has no
+# letters or digits at all. A ticker ("nvda"), a short word ("ok"), a number or any ordinary word never matches: a
+# real message whose model reply is unreadable keeps its own sentence (and an HTTP 5xx stays a failure).
+_KEY_ROWS = ("qwertyuiop", "asdfghjkl", "zxcvbnm")
+NONSENSE_QUESTION = "I didn't catch that — did you want to:"
+NONSENSE_CHOICES = ("Open a chart", "Run a screen", "Ask about a stock", "Change this chart", "See what UCT Agent can do")
+
+
+def _keyboard_run(tok: str) -> bool:
+    if len(tok) < 3 or not tok.isalpha():
+        return False
+    if len(set(tok)) == 1:
+        return True
+    return any(tok in row or tok[::-1] in row for row in _KEY_ROWS)
+
+
+def looks_like_nonsense(message: str) -> bool:
+    text = (message or "").strip()
+    if not text:
+        return False
+    toks = re.findall(r"[a-z0-9]+", text.lower())
+    if not toks:
+        return True                                   # punctuation only ("???", "...")
+    if len(toks) > 6 or any(t.isdigit() for t in toks):
+        return False
+    # W1.1 review NB-5: a ticker as the member wrote it — "$RTY" or an ALL-CAPS 1-5 letter word ("MMM", "RTY", "AAA") —
+    # is a real request, never the nonsense clarify
+    if re.search(r"\$[A-Za-z]{1,6}\b|(?<![A-Za-z0-9])[A-Z]{1,5}(?![A-Za-z0-9])", text):
+        return False
+    return all(_keyboard_run(t) for t in toks)
+
+
+def nonsense_clarify() -> dict:
+    """The deterministic clarify envelope (the browser renders its choices as buttons)."""
+    return {"disposition": "clarify", "reply": "",
+            "question": {"text": NONSENSE_QUESTION, "choices": [{"label": c} for c in NONSENSE_CHOICES]},
+            "ops": [], "unsupported_category": None}
+
+
 TITLE_MAX = 60
 _TITLE_TRIM = re.compile(r'^[\s"“”‘’\'`*#-]+|[\s"“”‘’\'`*#.:;!-]+$')
 
@@ -1283,8 +1649,100 @@ def name_conversation(turns: list[dict], caller: Callable | None = None, meter=N
         return None
 
 
+# ── W1.1 R-04 (live LT-4, 2026-11-03): NO FALSE CAPABILITY CLAIMS ──────────────────────────────────────────────────
+# "mark when the 9 ema crosses above the 20 on this chart" → "Indicator alerts … I can't create them yet from here",
+# while indicatorAlert.create was registered and deployed. The model may never tell the member that an action family
+# is unavailable when the family is in the manifest it was sent (→ ONE repair round, then a clarify) or in a group it
+# was not sent (→ need_groups: the browser's bounded reroute). Families are named by the WORDS of the claim sentence
+# (or the sentence before it) and matched to the manifest by action-name PREFIX — never a guess at what was meant.
+#: a sentence that says "can't / isn't available / not yet…" — both a negation and an availability word
+_CLAIM_NEG = re.compile(r"\b(?:can(?:'|’)?t|cannot|can not|unable to|not able to|no way to|isn(?:'|’)?t|is not|aren(?:'|’)?t|"
+                        r"are not|don(?:'|’)?t have|do not have|not something i can|not (?:yet |currently )?(?:available|"
+                        r"supported|possible|offered))\b", re.I)
+_CLAIM_AVAIL = re.compile(r"\b(?:yet|available|supported|possible|offered|from here|in uct agent|through uct agent|via uct agent|"
+                          r"through (?:the|this) agent|by hand|manually|directly|only (?:in|on|through|via|from)|"
+                          r"handled (?:in|by)|set up in|done (?:in|from|through))\b", re.I)
+_SENTENCES = re.compile(r"[.!?\n]+")
+#: W1.1 review BLOCKING-1: ONLY the families actually seen live (LT-4 indicator alerts, LT-9 rename). Honest PARTIAL
+#: limits about other families ("alerts by SMS", "export a layout to a file", "share a watchlist", "a live intraday
+#: count") are true answers and must never be replaced. (family id, words that name it, the action verbs it must be
+#: the object of, action-name prefixes / exact names in the manifest, routing group ids, the clarify UCT asks instead.)
+_IA_WORDS = (r"(?:indicator alerts?|alerts?\b[^.]{0,40}\b(?:indicators?|rsi|macd|ema|sma|wma|moving averages?|"
+             r"\d{1,3}[- ]?(?:ema|sma|ma|day))\b|(?:indicators?|rsi|macd|ema|sma|wma|moving averages?|"
+             r"\d{1,3}[- ]?(?:ema|sma|ma|day))\b[^.]{0,40}\balerts?)")
+_CREATE_VERB = r"(?:creat\w*|set(?:ting)?(?: up)?|add\w*|mak\w*|build\w*|configur\w*|schedul\w*)"
+CLAIM_FAMILIES: tuple = (
+    ("indicatorAlerts", re.compile(r"\b" + _IA_WORDS, re.I),
+     # the family (or a pronoun for it, named in the sentence before) as the OBJECT of a create/set/add verb, either
+     # order ("I can't create them", "setting indicator alerts is not supported", "an alert on the 9 EMA … isn't
+     # something I can set up"), or the WHOLE family as the subject of the denial ("Indicator alerts aren't available")
+     re.compile(r"\b" + _CREATE_VERB + r"\b[^.]{0,30}\b(?:" + _IA_WORDS + r"|them|it|one|those|that)\b|\b" + _IA_WORDS
+                + r"\b[^.]{0,60}\b" + _CREATE_VERB + r"\b|^(?:the |an? )?indicator alerts?\s+(?:aren(?:'|’)?t|are not|isn(?:'|’)?t|is not)"
+                r"\s+(?:yet |currently )?(?:available|supported|possible|offered)\b", re.I),
+     ("indicatorAlert.",), ("indicatorAlerts",),
+     "I can set up indicator alerts here. Which chart and indicator should it watch, and on what condition (for example the 9 EMA crossing above the 20)?"),
+    ("rename", re.compile(r"\brenam(?:e|es|ed|ing)\b", re.I),
+     re.compile(r"\brenam(?:e|es|ed|ing)\b", re.I),
+     (".rename",), ("layouts", "charts", "lists", "screener"),
+     "I can rename things here. Which did you mean — a saved layout, a chart tab, a watchlist or a saved screen?"),
+)
+#: an HONEST qualifier in the claim sentence: the limit is about a channel, a destination, other members, a data
+#: basis or another product — a part of the feature, not the feature. Such a sentence is never a false claim.
+_CLAIM_QUALIFIER = re.compile(r"\b(?:by|via|over|through) (?:sms|text|e-?mail|phone|push|webhooks?)\b|\bsms\b|\btext messages?\b|"
+                              r"\be-?mail\w*\b|\bwebhooks?\b|\bpush notifications?\b|\bto a file\b|\bexport\w*\b|\bshar(?:e|es|ed|ing)\b|"
+                              r"\b(?:other|another) members?\b|\bintraday\b|\breal[- ]?time\b|\bend[- ]of[- ]day\b|\btrades?\b|\btrading\b|"
+                              r"\borders?\b|\bbrokers?\b|\bprotected\b", re.I)
+
+
+def _family_in_manifest(prefixes: tuple, cap_names: set[str]) -> bool:
+    return any((n == p) or (n.startswith(p) if not p.startswith(".") else n.endswith(p)) for n in cap_names for p in prefixes)
+
+
+def false_capability_claim(env: Any, cap_names: set[str] | None, unselected_ids: set[str] | None = None) -> dict | None:
+    """A TALK reply (answer / unsupported, no ops) that says an action family is unavailable although the family is in
+    the manifest (`where: "caps"`) or in a group the request was not given (`where: "group"`). None otherwise.
+    Sentence-level: the family must be named in the claim sentence or the one before it, so an unsupported reply
+    that points to a REAL alternative elsewhere ("Trading isn't available. Set a price alert instead") is not one."""
+    if not isinstance(env, dict) or env.get("disposition") not in ("answer", "unsupported"):
+        return None
+    if any(isinstance(o, dict) for o in (env.get("ops") or [])):
+        return None
+    reply = str(env.get("reply") or "")
+    if not reply.strip() or not cap_names:
+        return None
+    sentences = [s.strip() for s in _SENTENCES.split(reply) if s.strip()]
+    claims = []                          # (the claim sentence, the sentence before it)
+    for i, s in enumerate(sentences):
+        if _CLAIM_NEG.search(s) and _CLAIM_AVAIL.search(s):
+            claims.append((s, sentences[i - 1] if i else ""))
+    if env.get("disposition") == "unsupported" and sentences and not any(c[0] == sentences[0] for c in claims):
+        claims.append((sentences[0], ""))
+    for fam, words, verb_object, prefixes, groups, question in CLAIM_FAMILIES:
+        hit_claim = False
+        for s, before in claims:
+            if _CLAIM_QUALIFIER.search(s):
+                continue                 # an honest PARTIAL limit (a channel, a file, other members…): never a claim
+            named = words.search(s) or (words.search(before) and not _CLAIM_QUALIFIER.search(before))
+            if named and verb_object.search(s):
+                hit_claim = True
+                break
+        if not hit_claim:
+            continue
+        if _family_in_manifest(prefixes, cap_names):
+            return {"family": fam, "where": "caps", "question": question,
+                    "error": (f"UCT CAN do this here: the {fam} actions ({', '.join(sorted(n for n in cap_names if _family_in_manifest(prefixes, {n}))[:4])}) "
+                              "are listed under AVAILABLE ACTIONS. Never say they are unavailable: plan the member's request with them, "
+                              "or clarify the one thing you need (which chart, indicator, level or name).")}
+        hit = [g for g in groups if g in (unselected_ids or set())]
+        if hit:
+            return {"family": fam, "where": "group", "groups": hit, "question": question, "error": None}
+        return None                      # the family is named, but this member has no such actions: an honest limit
+    return None
+
+
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
-                      unselected_ids: set[str] | None = None, local_notice: str | None = None) -> dict:
+                      unselected_ids: set[str] | None = None, local_notice: str | None = None,
+                      claim_repaired: bool = False) -> dict:
     """The server-side gate between the model and the browser."""
     need = env.get("need_groups") if unselected_ids else None
     need = [g for g in need if g in unselected_ids] if isinstance(need, list) else []
@@ -1296,6 +1754,24 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
     disp = env.get("disposition")
     if disp not in DISPOSITIONS:
         _unreadable("disposition", disposition=str(disp)[:20])
+    claim = false_capability_claim(env, cap_names, unselected_ids)
+    if claim and claim["where"] == "group":
+        # ⛔ R-04: the claimed-unavailable family lives in a group the request was not given → the browser's bounded
+        # reroute (exactly as if the model had asked for the group), never the claim
+        log.warning("uct_agent false capability claim (%s): rerouting to %s", claim["family"], claim["groups"])
+        return {"disposition": "clarify", "reply": "", "question": {"text": "Looking at more of UCT…", "choices": []},
+                "ops": [], "unsupported_category": None, "need_groups": sorted(set(claim["groups"])), "false_claim": claim["family"]}
+    if claim and claim_repaired:
+        # W1.1 review BLOCKING-1: the model repeated the claim AFTER its one repair round. The detector is a heuristic,
+        # so the model's own reply is served (never a clarify that may offer something UCT cannot do); codes only.
+        log.warning("uct_agent false capability claim repeated after repair (%s): served the %s", claim["family"], disp)
+        claim = None
+    if claim:
+        # ⛔ R-04: the family IS in the manifest the model was sent and no repair round was possible (no call left):
+        # the member is asked what is needed, never told a limitation that is not true
+        log.warning("uct_agent false capability claim (%s): replaced a %d-char %s with a clarify", claim["family"], len(str(env.get("reply") or "")), disp)
+        return {"disposition": "clarify", "reply": "", "question": {"text": claim["question"], "choices": []},
+                "ops": [], "unsupported_category": None, "false_claim": claim["family"]}
     ops = env.get("ops") if isinstance(env.get("ops"), list) else []
     if disp not in MUTATING:
         ops = []                      # TALK never mutates, whatever the model emitted
@@ -1723,6 +2199,13 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              "stages": {"build": _ms(t_build), "model": [], "research": 0},
              "cache_read_tokens": 0, "cache_write_tokens": 0, **({"interpreter": "nl1"} if nl1 else {})}
     cap_names = {c["name"] for c in caps}
+    if looks_like_nonsense(msg) and headline is None:
+        # ⭐ W1.1 R-03 (LT-10): a keyboard run ("asdf qwer") is not a request. It is answered with a clarify and
+        # choices here — no model call, no "couldn't complete that request" — and nothing else is caught: a real
+        # message whose plan comes back unreadable still fails as before (its own sentence; a 5xx stays a 5xx).
+        usage["latency_ms"] = int((time.monotonic() - started) * 1000)
+        usage["nonsense"] = True
+        return {"envelope": nonsense_clarify(), "usage": usage, "title": None}
     pre_research = None
     notice = None
     repaired = bool(repair_in)               # a repair request (or one already made here) is never repaired again
@@ -1784,6 +2267,29 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # takes this request's second call, so it is never repaired first
         asks_groups = bool(unselected_ids and isinstance(env, dict) and isinstance(env.get("need_groups"), list)
                            and any(g in unselected_ids for g in env["need_groups"]))
+        # ⛔ W1.1 R-05 (live LT-8): the member's own words name a HIDDEN screener field ("rs rank", "uct composite",
+        # "dark pool"…) and the model planned a screen anyway (re-mapped to a public look-alike), or the request is
+        # screen-shaped: the F-16 sentence + the public alternative is the whole answer. No research, no repair, no
+        # second call — nothing is substituted. (scan/refine.refusal_for_text; the browser's fast path mirrors it.)
+        if "screener.run" in cap_names and isinstance(env, dict) and not asks_groups:
+            hidden_why = scan_refine.refusal_for_text(msg)
+            plans_screen = any(isinstance(o, dict) and str(o.get("action") or "").startswith("screener.") for o in env.get("ops") or [])
+            if hidden_why and (plans_screen or hidden_screen_request(msg)):
+                usage["hidden_phrase"] = True
+                env = {**env, "disposition": "answer", "reply": f"I didn't run it: {hidden_why}", "ops": [], "question": None,
+                       "research": None, "need_groups": None}
+        # ⛔ W1.1 R-04 (live LT-4): a reply that says an action family is unavailable while the family is in the
+        # manifest gets ONE repair round (legacy and NL-1 alike), mirroring NL-1's plan repair; whatever comes back is
+        # checked like a first answer (sanitize_envelope converts a repeated claim into a clarify, never the claim).
+        if round_ == 0 and not repaired and not asks_groups and isinstance(env, dict):
+            claim = false_capability_claim(env, cap_names, unselected_ids)
+            if claim and claim["where"] == "caps" and (meter is None or meter.calls_left() >= 1):
+                repaired = True
+                usage["repaired"] = "server"
+                usage["false_claim"] = claim["family"]
+                messages = messages + [{"role": "assistant", "content": text},
+                                       {"role": "user", "content": _block("validation_error", {"errors": [claim["error"]]})}]
+                continue
         if nl1 and round_ == 0 and not repaired and not asks_groups:
             problems = nl1_plan_problems(env, caps, valid_refs)
             if problems and (meter is None or meter.calls_left() >= 1):
@@ -1870,9 +2376,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # THIS call, from the member's words alone, before any web text existed — it is
             # kept as planned. Nothing the post-research call returns can add or alter ops.
             if env.get("disposition") in MUTATING and env.get("ops"):
-                planned = env
-                if compact:
-                    planned = expand_compact_ops(env, caps)
+                planned = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
                 pre_research = {"disposition": env["disposition"], "ops": list(planned.get("ops") or [])}
             usage["research_calls"] += 1
             if researched is not None:
@@ -1899,7 +2403,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # The change planned before the research, with the researched answer as its reply.
             env = {**env, "disposition": pre_research["disposition"], "ops": pre_research["ops"],
                    "question": None, "research": None}
-            envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids), env), caps)
+            envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids,
+                                                                 claim_repaired=bool(usage.get("false_claim"))), env), caps)
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
@@ -1913,13 +2418,14 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    "reply": ("I looked that up, but I don't make changes based on what I find online in the same "
                              "step. Tell me exactly what you'd like changed and I'll do it.") if mutated or not env.get("reply")
                    else env.get("reply")}
-        if compact and isinstance(env, dict) and env.get("disposition") in MUTATING:
-            env = expand_compact_ops(env, caps)
+        if isinstance(env, dict) and env.get("disposition") in MUTATING:
+            env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
         if answer_only and isinstance(env, dict) and (env.get("ops") or env.get("disposition") in MUTATING):
             # ⛔ answer-only: the News Ask box never changes anything, whatever the model wrote
             env = {**env, "disposition": "answer", "ops": [], "question": None,
                    "reply": env.get("reply") or "I can only answer questions about this headline here."}
-        envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice), env), caps)
+        envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
+                                                             claim_repaired=bool(usage.get("false_claim"))), env), caps)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         title = clean_title(env) if conversation_title and not envelope.get("need_groups") else None

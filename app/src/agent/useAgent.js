@@ -15,7 +15,7 @@
 // execution path. Every real outcome (receipt, refusal, undo) is recorded to the
 // conversation, so the model's next turn remembers what UCT DID.
 
-import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected } from './protectedLayouts'
+import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { useCreateIndicatorAccess } from '../components/chart/builder/studio/createIndicatorFlag'
@@ -24,7 +24,7 @@ import { mutate } from 'swr'
 import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
-import { screenNewChart } from './capabilities/workspace'
+import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest } from './multiChart'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift } from './executor'
@@ -705,7 +705,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       for (const o of fan) {
         const one = planOps(collectTargets(host, kindsOf([o])), [o], await prepareOps([o]), capCtx)
         if (one.ok) binds.push(approvalBinding(one, host))
-        const guard = one.ok ? protectionRefusal(host, one, [o]) : null
+        const guard = one.ok ? protectionRefusal(host, one, one.normalizedOps || [o]) : null   // W1.1 review NB-3: normalized
         const why = !one.ok ? refusalText(one.refusals) : (guard ? `I didn't change anything: ${guard}` : null)
         if (why) {
           refusalPush(why)
@@ -759,7 +759,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     // PROTECTED LAYOUTS (Main Trading…): checked after planning — so it covers a new request, a
     // proposal's Apply (which re-plans here) and a composed plan alike — and before anything writes.
-    const guarded = protectionRefusal(host, plan, ops)
+    const guarded = protectionRefusal(host, plan, plan.normalizedOps || ops)   // W1.1 review NB-3: the NORMALIZED ops
     if (guarded) {
       const text = `I didn't change anything: ${guarded}`
       refusalPush(text)
@@ -1373,6 +1373,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // "do the same on the others", "make all my charts match this one" — the conversation's indicators and charts,
       // re-checked on the live board. Tried FIRST when the words point back at the conversation (a fast phrase
       // would read "the first one" without it); otherwise only when nothing else read the message.
+      // W1.1 R-03 (LT-9): "rename <a protected layout> to …" is refused by name here — listed or not, 0 model calls
+      const protectedRename = answering ? null : protectedRenameRefusal(text)
+      if (protectedRename) {
+        const t = `I didn't change anything: ${protectedRename}`
+        push({ role: 'refusal', text: t })
+        record({ member: text, outcome: t, outcomeData: { kind: 'refused-protected', actions: ['layout.rename'] }, telemetry: { path: 'fast', refused: true, voice } })
+        return
+      }
       const followable = !answering && !memRef && !pendingRef.current && !peekAuthoringIntent()
       const followFirst = followable && FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
@@ -1841,7 +1849,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // S6 F4: a new chart for a named ticker is born on it (not linked), even if the plan dropped the ticker
       // ⭐ live test 2026-10-28: "N charts for these tickers" planned as adds + tickers → ONE chart grid (reuses
       // the board's charts, re-tiles to make room) — never "there isn't enough open space"
-      const gridded = screenChartGrid(screenNewChart(canonicalIndicatorAdds(screened.ops), text).ops, text, host)
+      // W1.1 R-02 (LT-1): on an EMPTY board, chart ops the planner put on a target that is not a chart = one new chart on that symbol
+      const gridded = screenChartGrid(screenEmptyBoardChart(screenNewChart(canonicalIndicatorAdds(screened.ops), text).ops, host).ops, text, host)
       // ⭐ acceptance 2026-10-29: the plan also changes the charts the grid makes ("…, each with a 50sma") — the grid runs,
       // then those changes, on the charts that now show their tickers: two steps of one request (runCompound — each step
       // the same execute, policy, receipts and Undo; a step that does not land stops the rest, said plainly)

@@ -54,6 +54,66 @@ Ownership = the paths each package touches, listed in `BOARD.md` per task. Anyth
 
 - 2026-11-03 02:30Z (via agent-lead's session, owner's choice): PR #717 (separate "scans release") CLOSED; scans ship in the combined Wave 1 RC; #716 (scan routing, agent-sc GO, agent-qa GO, AUDIT review APPROVE) merges into agent/int last, with one SAT-1 capture re-bless (d26 moves to screener+agent). The owner explicitly chose to keep `UCT_AGENT_SCAN=1` in production (set 01:52Z, admin-only) until the RC ships F-16 enforcement — recorded as an accepted interim exposure, not an oversight. agent-lead's session has ended; the Agent project continues in this integrator session.
 
+
+## Overnight authorization 2026-11-03 (owner; verbatim intent recorded)
+- **Wave 1.1 = Agent-only repairs of the Phase 1 live findings** (LT-1, LT-3, LT-4, LT-8, LT-9, LT-10, LT-11, LT-12; F-16/F-23 isolation re-check; regression tests that reproduce the production failures; investigation of the pre-enabled production flags; read-only verification of `charts_active_template`). One consolidated RC. **Conditional overnight deploy** allowed ONLY if all eight conditions hold (fix-only scope; independent review approves the combined RC; all Agent/security/isolation/master gates pass; no unrelated change, no security weakening, no migration, nothing destructive; no new flag or member access; gate idle + synced with latest master; rollback verified; compatible with current production config). Otherwise HOLD, preserve the RC, continue safe work. After deploy: verify commit/health/auth/budgets/flags, rerun the failed live scenarios within the production Agent budget, never touch real user data. Wave 1.1 is NOT owner-accepted overnight.
+- **Wave 2 starts now in parallel** on its own integration branch `agent/int-w2` (from master e6740b5b08): Builder A intelligence (NL/multi-turn, planner v2 eval readiness, multi-step planning, schema-constrained args, deterministic evals; v2 stays OFF), Builder B market intelligence (research capability with citations, historical analysis/comparison, grounded TA workflows, follow-ups, freshness; licensing + F-16 boundaries), Builder C website operations (Agent beyond Charts via canonical APIs, Explain/Show/Do, cross-feature workflows + Undo). Integrator keeps PROGRAM/BOARD/EVAL, CI, independent review, merges green reviewed PRs into `agent/int-w2`, prepares bundled RCs. **Not authorized overnight:** deploying Wave 2; planner v2 ON; the $21 paid eval; spending increases; member access; flow-worker; isolation weakening; destructive tests; unrelated production changes.
+
+### Wave 1.1 / Wave 2 worktrees
+| Worktree | Branch | Owner | Scope |
+|---|---|---|---|
+| C:/w/w11-a | agent/w11/args | repair-a | LT-3 (args off-schema on live model), LT-1 (empty-board add), LT-9 (rename), LT-10 (nonsense → clarify) |
+| C:/w/w11-b | agent/w11/routing-f16 | repair-b | LT-4 (indicatorAlerts routing + false-claim wording), LT-8 (hidden-field phrase in refinement → F-16 sentence), LT-11 (public alternative), LT-12 (next report date), F-16/F-23 isolation re-check |
+| C:/w/w2-int | agent/int-w2 | integrator | Wave 2 integration |
+| C:/w/w2-a | agent/w2/intelligence | w2-a | Builder A |
+| C:/w/w2-b | agent/w2/market | w2-b | Builder B |
+| C:/w/w2-c | agent/w2/webops | w2-c | Builder C |
+
+
+## Overnight extension through Wave 3 (owner, 2026-11-03)
+Continue Wave 2 aggressively after Wave 1.1; begin Wave 3 (intelligent trading coach foundations) once the relevant Wave 2 foundations are verified — on its own integration branch `agent/int-w3` and worktrees, with independent review, regression tests and explicit dependency checks. Rules: canonical APIs; existing security/privacy/licensing/approval/Undo boundaries; no autonomous trading, order placement or claims of guaranteed profitable setups; Wave 2 and Wave 3 are NOT deployed without separate approval; all new features disabled in production; no unapproved paid evals/spend/model changes; incomplete Wave 2 continues on its highest-priority work; blocked components yield to independent ones. Report actual end-to-end working functionality, not completed code.
+
+### Wave 2 acceptance examples (the 10 the morning report scores; each must execute end to end through the panel harness with the scripted model, and — where a server kind is involved — through the real server with fake providers)
+| # | Example (user says) | Package | Expected end-to-end result |
+|---|---|---|---|
+| 1 | "why is NVDA down today" | W2-B1 | research envelope: facts (every figure from a gateway kind), interpretation, unknowns, dated sources; rendered in three sections |
+| 2 | "what catalysts next week for AMD" | W2-B1 | same shape; earnings/news kinds composed; web search ≤ 1 |
+| 3 | "how has NVDA behaved after 5%+ earnings gaps" | W2-B2 | event-study table to the member (counts/dates/descriptive stats), value-free summary to the model, "descriptive, not predictive" |
+| 4 | "compare this pullback to the last three" | W2-B2 | dated ranges from bars.daily (`from`/`to`), comparison table with freshness |
+| 5 | "describe the setup on this chart" / "and on the weekly?" | W2-B3 + W2-A1 | grounded description from served bars/indicators; follow-up keeps the symbol and switches the timeframe |
+| 6 | a new request typed while a clarify is open | W2-A1 | the old question closes; the new request runs; no merging |
+| 7 | "the other one" / "that alert" after an action | W2-A1 | resolved deterministically against the last result set/receipts; no guessing |
+| 8 | the flagship sentence through planner v2 in the scripted harness | W2-A2 | ≥ 30-case v2 acceptance set green; flagship completes with one approval pause and undo-all |
+| 9 | "turn the gradient off on this chart" with a wrong-but-recoverable model arg shape | W2-A3 | normalizer makes it valid or refuses explicitly; corpus ≥ 80 rows scored |
+| 10 | on /screener: "run my <saved screen> and open the top three on charts"; on /journal: "add this to my notes" from /charts | W2-C1..C3 | page host executes through the page's own writers; cross-page hand-off; Undo names the page |
+
+### Wave 3 (intelligent trading coach) — scope, dependencies, acceptance
+| Component | Depends on | Buildable now? |
+|---|---|---|
+| Educational explanations (price action, volume, risk, position sizing, market conditions) with "educational, not advice" rails | none (curated knowledge base in the repo, reviewed) | yes |
+| Coaching conversation + follow-up workflow (ask → explain → check understanding → next step), explicit uncertainty | W2-A1 multi-turn (merged) for threading; otherwise single-turn | partially now |
+| Trade review / journaling foundations: read the member's OWN trades/notes via `/api/j2/*` with explicit per-conversation consent; descriptive review only (win rate, R, holding time, rule adherence) — never a recommendation; no writes except a proposed note | none for reads; W2-C1 journal host for page context | yes (consent-gated) |
+| Trade setup analysis and explanation | W2-B3 `chart.describeSetup` (merged + reviewed) | after W2-B3 |
+| Historical setup comparison | W2-B2 `history.eventStudy` / dated ranges (merged + reviewed) | after W2-B2 |
+| Deterministic evaluation suite: factual accuracy (every figure traceable), uncertainty stated, unsupported conclusions refused (no "guaranteed", "will", "sure thing"), no order/trading language | none | yes |
+Acceptance (Wave 3): (a) "explain what a tight consolidation means and why volume matters" → grounded educational answer, no figure invented; (b) "review my last 10 trades" → consent prompt → descriptive review from the member's own journal rows, value-free in telemetry; (c) "what's the setup here" on a chart → uses `chart.describeSetup` output, adds the educational layer, never a target or guarantee; (d) "how did names with this setup do before" → uses the Wave 2 event-study kind; (e) coaching follow-ups keep context; (f) the eval suite's unsupported-claim detector blocks at least 20 adversarial phrasings. All Wave 3 capabilities default OFF behind `UCT_AGENT_COACH` (new server flag, default off) and admin-only.
+
+
+## Trading Brain integration (owner mission 2026-11-03, after the usage-limit pause)
+AUDIT is the integrator for PR #735 (agent/kn/knowledge-poc, Trading Brain knowledge kinds: knowledge.search, setup.playbook, setup.record; 5,270 admitted entries; default-deny source policy; flag `UCT_AGENT_KNOWLEDGE` default off). Phases: (1) independent code review against the owner's nine points; fix integration defects with review + regression tests; (2) combined trading-analysis workflows — Example A knowledge definition with sources; B "analyze NVDA against UCT's momentum breakout criteria" (criteria → served evidence vs interpretation; needs W2-B3 chart.describeSetup + a criteria mapping); C historical research with sample sizes/uncertainty, never a proven edge; D scan + knowledge + workspace; (3) repeatable deterministic with-Brain vs without-Brain evaluation (definitions, setup interpretation, grounding, attribution, statistics, ambiguity, freshness, refusals, multi-step, regression) — free first, no paid evals; (4) ONE coordinated integration candidate `agent/rc/brain-w2` (agent/int-w2 + #735 + the Wave 2 PRs it needs), independently reviewed, all tests passing; (5) report with GO/HOLD. Boundaries: preserve everything built; admin-only; knowledge flags stay OFF in production; no new admitted sources; no proprietary exposure; no paid evals; no merge to master or deploy without explicit approval; do not interrupt Wave 1.1/2/3. Wisdom vocabulary is the authoritative setup terminology (the Wave 3 coach KB must map to it). Merges into shared integration branches remain frozen; the candidate branch is where assembly happens.
+
+
+## Owner decisions 2026-11-03 (after the Fable-limit recovery)
+- **D1 Wisdom vocabulary: APPROVED WITH RESTRICTIONS.** Additive expansion of the authoritative Wisdom setup vocabulary to cover the missing Brain templates: map all 48; separate missing concepts from aliases/synonyms/overlaps; preserve canonical IDs and behaviour; resolve ambiguity explicitly; no change to the Wisdom scoring engine, setup evaluation logic, historical statistics or the partner's Brain; Wisdom maintainer review before merge; tests proving existing Wisdom behaviour unchanged; any substantive methodology change is HELD for the owner. Work: branch `wisdom/vocab-brain-expansion` (C:/w/wv-1), draft PR, DO NOT MERGE.
+- **D2 Planner v2 cost cap: KEEP $0.25 per turn.** Authorized: efficient planner architecture (relevant capability selection, smaller catalogs, deferred tool discovery, prompt/token optimization, cost-aware routing incl. evaluating Haiku 5.5). No production model switch; v2 stays OFF; free deterministic tests first; paid evals only within separately approved limits; measure tokens, cost, routing and tool-selection accuracy, multi-step success; if quality cannot fit the cap, report tradeoffs, never weaken the limit.
+- Freeze unchanged: no merge or deploy without explicit approval. Priorities: (1) Wave 1.1 reviews, (2) Wave 2 integration issues, (3) planner v2 readiness within the cap, (4) Wave 3 coach testing, (5) #735 review and cross-wave compatibility.
+
+
+## Owner decisions at resume (after the weekly-limit reset, 2026-11-03)
+- **A/D line:** approved as a PUBLIC Screener field only if it is the conventional accumulation/distribution line computed entirely from public OHLCV with the canonical calculation; the UCT `accdis` rating stays hidden (F-16). If only the proprietary field exists → HOLD and report.
+- **Wave 1.1:** GO to finish and prepare the combined candidate (#727 blocking fixes, #725 hardening, assembly on agent/rc/w11, full tests, independent review). NOT merged or deployed; the release decision comes back to the owner with the exact commit, tests, security assessment, rollback plan and GO/HOLD.
+- Resume priorities: 1 Wave 1.1 · 2 research B1/B2 · 3 planner within $0.25 · 4 coach C1/C2 · 5 #735 review · 6 chart setup, Explain/Show/Do, Wisdom mapping in parallel. Waves 2/3 and the Brain must not delay Wave 1.1.
+
 ## Activation checklist (admin-only; owner sets flags; order is mandatory)
 1. `UCT_AGENT_STREAM=1` — after production flags are verified.
 2. `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,quotes,instrument.resolve` — after RC1.
