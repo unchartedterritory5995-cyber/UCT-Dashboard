@@ -84,8 +84,8 @@ function matchClause(raw, host) {
     const cap = getCapability(name)
     if (typeof cap.fast !== 'function') continue
     // ⭐ W2-C1: a page host names its surface; a phrase of a capability not offered there is not claimed
-    // (the Charts host names none → every capability, exactly as before)
-    if (!onSurface(cap, host?.surface)) continue
+    // (the Charts host names none = 'charts' → every Charts capability, exactly as before; a page-only one never)
+    if (!onSurface(cap, host?.surface || 'charts')) continue
     // `host` lets a phrase resolve against REAL state (a layout name in the member's
     // catalog); a capability that can't resolve it with certainty returns null.
     const args = cap.fast({ raw: raw.trim(), lower, core, host })
@@ -109,7 +109,7 @@ function matchWhole(text, host) {
   for (const name of allCapabilityNames()) {
     const cap = getCapability(name)
     if (!cap.fastWhole || typeof cap.fast !== 'function') continue
-    if (!onSurface(cap, host?.surface)) continue
+    if (!onSurface(cap, host?.surface || 'charts')) continue
     const args = cap.fast({ raw: String(text).trim(), lower, core: lower, host })
     if (args) {
       // `__explicit`: the capability read the member's OWN words as an explicit request (policy.js explicitOk)
