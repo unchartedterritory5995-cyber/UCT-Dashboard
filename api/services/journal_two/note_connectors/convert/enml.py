@@ -86,6 +86,12 @@ _GUID_RE = re.compile(r"^[0-9A-Za-z-]+$")
 # ---------------------------------------------------------------------------
 
 
+def is_guid(value: Any) -> bool:
+    """An Evernote GUID as this module accepts one: letters, digits and `-`, never a `/`. The
+    provider checks a note's own id with it before it builds a media ref or an import key (n3)."""
+    return isinstance(value, str) and bool(_GUID_RE.match(value))
+
+
 def live_import_key(guid: str) -> str:
     """`evernote:guid:{guid}`. A `.enex` key is `evernote:{notebook}/{title}/{created}` (two `/`)
     and a GUID has none, so the two key spaces cannot collide."""

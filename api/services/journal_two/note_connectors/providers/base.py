@@ -489,7 +489,7 @@ _TRANSFER_HEADERS = frozenset({"content-encoding", "content-length", "transfer-e
 
 async def guarded_media_get(
     client: httpx.AsyncClient, url: str, *, what: str = "media reference", max_redirects: int = 5,
-    max_bytes: int | None = None, allow_http: bool = False,
+    max_bytes: int | None = None, allow_http: bool = False, allowed_host: str | None = None,
 ) -> httpx.Response:
     """Guarded stand-in for `client.get(url, follow_redirects=True)` on a
     content-controlled `ref`. `follow_redirects=True` alone re-validates
@@ -528,6 +528,7 @@ async def guarded_media_get(
     budget = MEDIA_MAX_BYTES if max_bytes is None else max_bytes
     content, streamed = await guarded_media_stream(
         client, url, what=what, max_redirects=max_redirects, max_bytes=budget, allow_http=allow_http,
+        allowed_host=allowed_host,
     )
     headers = [(k, v) for k, v in streamed.headers.multi_items() if k.lower() not in _TRANSFER_HEADERS]
     return httpx.Response(streamed.status_code, headers=headers, content=content, request=streamed.request)
@@ -536,6 +537,7 @@ async def guarded_media_get(
 async def guarded_media_stream(
     client: httpx.AsyncClient, url: str, *, what: str = "media reference",
     max_redirects: int = 5, max_bytes: int, allow_http: bool = False,
+    allowed_host: str | None = None,
 ) -> tuple[bytes, httpx.Response]:
     """STREAMED sibling of `guarded_media_get`, added for the msgraph
     fix-round-1 review (Important #2): `guarded_media_get` calls
@@ -584,6 +586,13 @@ async def guarded_media_stream(
     (see that function's and `assert_public_https`'s own docstrings)."""
     next_url = url
     for _ in range(max_redirects + 1):
+        # Plan E Task 5: `allowed_host` pins every hop (the first and every redirect) to one exact
+        # host, checked BEFORE the hop's request is sent, on top of the address guard below.
+        if allowed_host is not None and (urlsplit(next_url).hostname or "") != allowed_host.lower():
+            raise NoteConnUnsafeAddress(
+                f"Cannot fetch {what}: a hop left the allowed host {allowed_host}",
+                reason=f"{what} pointed outside {allowed_host}",
+            )
         # ⛔ EVERY hop, `allow_http` or not (Plan A Task 9): the address check is the guard.
         addrs = await _checked_addresses(next_url, what=what, allow_http=allow_http)
         request_url, headers = next_url, dict(MEDIA_REQUEST_HEADERS)
