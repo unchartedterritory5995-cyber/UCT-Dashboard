@@ -532,3 +532,27 @@ def test_an_image_already_on_disk_is_never_counted_twice(att_root, monkeypatch):
     # and the same bytes in ANOTHER note are a new file, so they count
     with pytest.raises(MediaRejected):
         media_policy.store_media("u1", "n2", result, budget=budget)
+
+
+# ── Plan E Task 9 fix round 1 (concern 5): raster signatures only ─────────────────────
+
+@pytest.mark.parametrize("fmt,mime", [("PNG", "image/png"), ("JPEG", "image/jpeg"), ("GIF", "image/gif"),
+                                      ("WEBP", "image/webp")])
+def test_raster_signature_names_the_four_inline_raster_types(fmt, mime):
+    assert media_policy.raster_signature(_img_bytes(fmt)) == mime
+
+
+@pytest.mark.parametrize("data", [
+    b'<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/>',      # SVG: never promoted
+    b'<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"/>',
+    b"<!doctype html><html><body>x</body></html>",                          # a web page
+    b"%PDF-1.4\n", b"PK\x03\x04zip", b"plain text", b"",
+])
+def test_raster_signature_refuses_everything_else(data):
+    assert media_policy.raster_signature(data) is None
+
+
+def test_raster_signature_refuses_converted_rasters():
+    """TIFF/BMP need conversion and HEIC keeps an original: not a plain inline promotion."""
+    assert media_policy.raster_signature(_img_bytes("TIFF")) is None
+    assert media_policy.raster_signature(_img_bytes("BMP")) is None

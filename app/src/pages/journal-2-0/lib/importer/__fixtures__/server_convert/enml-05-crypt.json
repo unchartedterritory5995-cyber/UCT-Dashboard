@@ -1,0 +1,36 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "Account notes & keys — private",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "[encrypted content — cannot be imported]",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "after the secret",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": []
+}

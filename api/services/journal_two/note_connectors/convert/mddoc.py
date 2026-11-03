@@ -12,6 +12,7 @@ node/mark vocabulary declared by `tiptap.js::buildExtensions`:
     tableCell / codeBlock(language) / blockquote / horizontalRule /
     hardBreak / image(src) / attachmentChip(href,name,size) /
     text with marks bold / italic / strike / code / link(href) /
+    underline (the HTML walker's `<u>` only) /
     highlight (from an inline `<mark>`…`</mark>` pair only -- wave 5's
     NotebookHighlight; how an Obsidian `==x==` arrives, review N5)
 
@@ -606,6 +607,13 @@ _DATA_URI_MIME_EXT = {
 
 def _is_image_mime(mime: str) -> bool:
     return bool(_IMAGE_MIME_RE.match(mime.strip()))
+
+
+def is_data_image_uri(src: str) -> bool:
+    """True for a `data:image/*` URI this walker uploads (`_data_uri_image_node`). Public so a
+    pre-pass (Plan E `enml.py`) asks the walker's own rule instead of keeping a copy."""
+    match = DATA_URI_RE.match(src)
+    return bool(match and _is_image_mime(match.group("mime")))
 
 
 def _data_uri_ext(mime: str) -> str:
@@ -1300,7 +1308,9 @@ _HTML_KNOWN_TAGS = frozenset({
     "table", "tr", "td", "th",
     "pre", "code",
     "blockquote", "hr", "br", "img", "a",
-    "b", "strong", "i", "em", "s", "del", "strike", "u", "mark",
+    "b", "strong", "i", "em", "s", "del", "strike",
+    "u",  # Plan E Task 3 fix round 1 (m3): underline, a level-0 mark in notebook_schema
+    "mark",
     # D3 follow-up (difference 2): the client's callout and toggle (`convert.js::
     # mapCalloutsAndToggles`); `_html_aside_callout` / `_html_details_toggle` below.
     "aside", "details", "summary",
@@ -2049,6 +2059,42 @@ def _html_details_toggle(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
     ]}
 
 
+#: Plan E Task 3 round 2 (R1): the mark tags that may wrap block content, and the block tags
+#: that make them do so. `code` is not one: a code mark over a block has no editor meaning.
+#: Merge of D3 (#721): `mark` (D3's highlight) joins the marks, and D3's block elements join
+#: the blocks: a block wrapper is now a bare `div` (`_unwrap_unknown_html`) instead of being
+#: unwrapped, so without `div` here `<b><div><p>a</p><p>b</p></div></b>` joined into one
+#: paragraph `ab` again (R1's defect); `aside`/`details`/`summary` are blocks the same way.
+_HTML_BLOCK_MARK_TAGS = frozenset({"b", "strong", "i", "em", "u", "s", "strike", "del", "mark"})
+_HTML_BLOCK_TAGS = frozenset({"p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "table",
+                              "pre", "blockquote", "hr", "div", "aside", "details", "summary"})
+
+
+def _html_holds_blocks(node: "_HtmlNode") -> bool:
+    """True when a mark tag holds a block, directly or through other mark tags."""
+    for c in node.children:
+        if isinstance(c, str):
+            continue
+        if c.tag in _HTML_BLOCK_TAGS:
+            return True
+        if c.tag in _HTML_BLOCK_MARK_TAGS and _html_holds_blocks(c):
+            return True
+    return False
+
+
+def _html_mark_text(node: Any, mark_type: str) -> None:
+    """Adds `mark_type` to every text node under `node` that lacks it; code blocks untouched."""
+    if not isinstance(node, dict) or node.get("type") == "codeBlock":
+        return
+    if node.get("type") == "text":
+        marks = node.setdefault("marks", [])
+        if not any(m.get("type") == mark_type for m in marks):
+            marks.append({"type": mark_type})
+        return
+    for child in node.get("content") or []:
+        _html_mark_text(child, mark_type)
+
+
 def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
     """Block-context walk, mirroring `_blocks` above. Stray inline content
     encountered directly (text, or an inline-vocabulary tag with no `<p>`
@@ -2121,6 +2167,15 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
         elif tag == "hr":
             flush()
             out.append({"type": "horizontalRule"})
+        elif tag in _HTML_BLOCK_MARK_TAGS and _html_holds_blocks(n):
+            # Plan E Task 3 round 2 (R1): a mark tag around BLOCKS (`<b><p>a</p><p>b</p></b>`)
+            # keeps the blocks and marks their text, as the editor does. Walking it inline (the
+            # branch below) joined the blocks into one paragraph with no separator.
+            flush()
+            inner = _html_blocks_walk(n.children, ctx)
+            for block in inner:
+                _html_mark_text(block, _HTML_INLINE_MARK_TAGS[tag])
+            out.extend(inner)
         elif tag == "div":
             # D3 item 7: a block wrapper (`_unwrap_unknown_html`) closes the paragraph before
             # it and its own content is blocks; nothing of its own (an empty div is no

@@ -101,6 +101,21 @@ class NoteProvider(ABC):
     # provider would be a breaking change to three others for no reason.
     opaque_cursor: str | None = None
 
+    #: Plan E Task 9 fix round 1 (C1): True only when `fetch(creds, ref)` builds the WHOLE note
+    #: (title, folder, tags, body) from the ref alone, with no state a listing call filled. Only
+    #: then may the engine fetch a note this pass did not list, to retry its pending media
+    #: (`engine._pending_media_refs`). OneNote's `fetch` reads `_page_meta`, OneDrive's and
+    #: Dropbox's read their listing's item metadata: a fetch outside the listing would rebuild the
+    #: note as its raw id at the folder root. Default False; Evernote declares True.
+    fetch_is_listing_independent: bool = False
+
+    #: Plan E Task 9 fix round 1 (concern 5): True when this provider types media from a declared
+    #: MIME that may be generic (Evernote's `application/octet-stream`), so content must win: a
+    #: file-kind item whose downloaded bytes carry a raster signature (PNG, JPEG, GIF, WebP; never
+    #: SVG) is stored as an inline image and its placeholder becomes an image. Default False: every
+    #: other provider keeps its file intent exactly as before.
+    promote_raster_files: bool = False
+
     def import_key(self, source_remote_id: str, remote_id: str) -> str:
         """Formats the durable `import_key` a synced note upserts under
         (`j2_note_remote_index.import_key`). The ENGINE never hand-builds
@@ -489,7 +504,7 @@ _TRANSFER_HEADERS = frozenset({"content-encoding", "content-length", "transfer-e
 
 async def guarded_media_get(
     client: httpx.AsyncClient, url: str, *, what: str = "media reference", max_redirects: int = 5,
-    max_bytes: int | None = None, allow_http: bool = False,
+    max_bytes: int | None = None, allow_http: bool = False, allowed_host: str | None = None,
 ) -> httpx.Response:
     """Guarded stand-in for `client.get(url, follow_redirects=True)` on a
     content-controlled `ref`. `follow_redirects=True` alone re-validates
@@ -528,6 +543,7 @@ async def guarded_media_get(
     budget = MEDIA_MAX_BYTES if max_bytes is None else max_bytes
     content, streamed = await guarded_media_stream(
         client, url, what=what, max_redirects=max_redirects, max_bytes=budget, allow_http=allow_http,
+        allowed_host=allowed_host,
     )
     headers = [(k, v) for k, v in streamed.headers.multi_items() if k.lower() not in _TRANSFER_HEADERS]
     return httpx.Response(streamed.status_code, headers=headers, content=content, request=streamed.request)
@@ -536,6 +552,7 @@ async def guarded_media_get(
 async def guarded_media_stream(
     client: httpx.AsyncClient, url: str, *, what: str = "media reference",
     max_redirects: int = 5, max_bytes: int, allow_http: bool = False,
+    allowed_host: str | None = None,
 ) -> tuple[bytes, httpx.Response]:
     """STREAMED sibling of `guarded_media_get`, added for the msgraph
     fix-round-1 review (Important #2): `guarded_media_get` calls
@@ -584,6 +601,13 @@ async def guarded_media_stream(
     (see that function's and `assert_public_https`'s own docstrings)."""
     next_url = url
     for _ in range(max_redirects + 1):
+        # Plan E Task 5: `allowed_host` pins every hop (the first and every redirect) to one exact
+        # host, checked BEFORE the hop's request is sent, on top of the address guard below.
+        if allowed_host is not None and (urlsplit(next_url).hostname or "") != allowed_host.lower():
+            raise NoteConnUnsafeAddress(
+                f"Cannot fetch {what}: a hop left the allowed host {allowed_host}",
+                reason=f"{what} pointed outside {allowed_host}",
+            )
         # ⛔ EVERY hop, `allow_http` or not (Plan A Task 9): the address check is the guard.
         addrs = await _checked_addresses(next_url, what=what, allow_http=allow_http)
         request_url, headers = next_url, dict(MEDIA_REQUEST_HEADERS)

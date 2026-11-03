@@ -281,9 +281,124 @@ async def test_raising_list_present_refs_falls_back_to_refs_with_named_failure(s
     assert result["status"] == "ok"  # never aborts
     assert any("list_present_refs sweep failed" in f for f in result["failures"])
 
+    # Plan E Task 5 review I1: the delta is NOT a complete listing, so it never strikes. The
+    # removal check is skipped for the pass (no strike, as on the member path). This used to
+    # assert p2.miss_streak == 1: two such nights severed a note that was still there.
     idx = {r["remote_id"]: r for r in _remote_index_rows(source["id"])}
     assert idx["p1"]["miss_streak"] == 0
-    assert idx["p2"]["miss_streak"] == 1  # fell out of the (now sole) signal
+    assert idx["p2"]["miss_streak"] == 0
+
+
+def _source_row(source_id):
+    conn = auth_db.get_connection()
+    try:
+        return dict(conn.execute("SELECT * FROM j2_note_sources WHERE id = ?", (source_id,)).fetchone())
+    finally:
+        conn.close()
+
+
+async def test_three_skipped_removal_checks_raise_a_visible_warning_until_one_succeeds(source, provider):
+    """Plan E Task 6 review R2: a complete listing that fails EVERY night means real deletions never
+    propagate. After 3 consecutive skipped checks the source shows a warning in member words, an
+    ordinary incremental tick does not wipe it, and the first successful check clears it."""
+    ids = ["p1", "p2"]
+    provider.list_changed_refs = [RemoteRef(remote_id=i, updated_at=T1) for i in ids]
+    provider.notes_by_id = {i: _rn(i, f"Note {i}") for i in ids}
+
+    async def _ok(credentials):
+        return [RemoteRef(remote_id=i, updated_at=T1) for i in ids]
+
+    async def _boom(credentials):
+        raise errors.NoteConnTransient("the listing did not add up twice")
+
+    provider.list_present_refs = _ok
+    await engine.sync_source(source["id"], full=True, manual=True)
+    assert _source_row(source["id"])["removal_skips"] == 0
+
+    provider.list_present_refs = _boom
+    expected = "Couldn't check which notes were deleted in fake for 3 nights — retrying"
+    for night in (1, 2, 3):
+        _a_night_later(source["id"])
+        result = await engine.sync_source(source["id"], full=True, manual=True)
+        assert _source_row(source["id"])["removal_skips"] == night
+        if night < 3:
+            assert result["status"] == "ok"
+    assert result["status"] == "warning"
+    row = _source_row(source["id"])
+    assert row["last_sync_status"] == "warning" and expected in row["last_sync_error"]
+
+    # An incremental tick (no removal check at all) keeps the warning visible.
+    result = await engine.sync_source(source["id"], manual=True)
+    assert result["status"] == "warning"
+    assert expected in _source_row(source["id"])["last_sync_error"]
+
+    # The first full pass whose complete listing succeeds clears it.
+    provider.list_present_refs = _ok
+    _a_night_later(source["id"])
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["status"] == "ok"
+    row = _source_row(source["id"])
+    assert row["removal_skips"] == 0 and row["last_sync_status"] == "ok" and not row["last_sync_error"]
+
+
+async def test_two_failed_nights_with_a_big_delta_strike_nothing(source, provider):
+    """Plan E Task 5 review I1: on a full pass whose complete listing FAILS, the changed-note delta
+    must never stand in for it. Here the delta is 60% of the tracked notes (above the <50% guard),
+    so the old fallback struck the other 40% on night one and severed them on night two."""
+    ids = [f"p{i}" for i in range(10)]
+    provider.list_changed_refs = [RemoteRef(remote_id=i, updated_at=T1) for i in ids]
+    provider.notes_by_id = {i: _rn(i, f"Note {i}") for i in ids}
+
+    async def _present_ok(credentials):
+        return [RemoteRef(remote_id=i, updated_at=T1) for i in ids]
+
+    provider.list_present_refs = _present_ok
+    await engine.sync_source(source["id"], full=True)
+    assert len(_remote_index_rows(source["id"])) == 10
+
+    async def _boom(credentials):
+        raise errors.NoteConnTransient("the listing did not add up twice")
+
+    provider.list_present_refs = _boom
+    provider.list_changed_refs = [RemoteRef(remote_id=i, updated_at=T2) for i in ids[:6]]
+    for _night in range(2):
+        _a_night_later(source["id"])
+        result = await engine.sync_source(source["id"], full=True, manual=True)
+        assert result["status"] == "ok"
+        assert result["sourceDeleted"] == 0
+    idx = {r["remote_id"]: r for r in _remote_index_rows(source["id"])}
+    assert set(idx) == set(ids)  # nothing severed
+    assert all(r["miss_streak"] == 0 for r in idx.values())  # nothing struck
+
+
+async def test_a_skipped_removal_check_stamps_nothing_and_severs_nothing_explicit(source, provider):
+    """Task 6 review m2: pin both choices I1 made. A skipped check does not stamp
+    `last_full_sync_at` (it was not a full check), and the trash sweep's explicit severs are
+    dropped for the pass too (no part of the removal check runs)."""
+    ids = ["p1", "p2", "p3"]
+    provider.list_changed_refs = [RemoteRef(remote_id=i, updated_at=T1) for i in ids]
+    provider.notes_by_id = {i: _rn(i, f"Note {i}") for i in ids}
+
+    async def _ok(credentials):
+        return [RemoteRef(remote_id=i, updated_at=T1) for i in ids]
+
+    provider.list_present_refs = _ok
+    await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
+    stamp_before = _source_row(source["id"])["last_full_sync_at"]
+
+    async def _boom(credentials):
+        raise errors.NoteConnTransient("did not add up")
+
+    async def _trash(credentials):
+        return [RemoteRef(remote_id="p3", updated_at=T2)]
+
+    provider.list_present_refs = _boom
+    provider.list_deleted = _trash
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["sourceDeleted"] == 0
+    assert {r["remote_id"] for r in _remote_index_rows(source["id"])} == set(ids)  # p3 not severed
+    assert _source_row(source["id"])["last_full_sync_at"] == stamp_before  # not stamped
 
 
 # ---------------------------------------------------------------------------
