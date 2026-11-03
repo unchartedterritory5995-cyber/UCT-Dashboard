@@ -281,7 +281,16 @@ async def stage_blob_stream(*, user_id: str, vault_id: str, sha256: str, declare
     """Streams one blob into staging. Returns True when newly stored, False when the
     blob was already staged for this (member, vault). Raises `BlobRejected`: 400 bad
     ids / hash mismatch / length mismatch, 413 over `MAX_BLOB_BYTES` or over the
-    member's remaining room, 503 volume full. Nothing is left on disk on any failure."""
+    member's remaining room, 503 volume full. Nothing is left on disk on any failure.
+
+    ACCEPTED COST (final review M3, recorded in docs/feature_flags.json): the blob staged
+    here is a SECOND copy of the attachment. The import stores its own copy as the note's
+    media, and this one stays as long as a staged note of the vault references it, so
+    about 2x disk on /data, inside the member's staged bound (`remaining_bytes`). It is
+    released by `gc_unreferenced` after a final push once nothing references it, by
+    `obsidian_link.revoke_devices` on disconnect, and by the account purge. It is not
+    dropped at import, because a later edit pushes the same refs and a pending media retry
+    reads it."""
     _check_ids(user_id, vault_id, sha256)
     if await asyncio.to_thread(_existing, user_id, vault_id, sha256):
         return False
