@@ -86,8 +86,8 @@ def register(registry) -> None:
     # (the class's own ids, asset_classes.py), never a ticker. While no (vendor, data_class) row is in force as A/LA
     # every read is the honest decline — "I don't have a licensed source for …" — never a ticker guess.
     registry.register(Kind(
-        name="index.quote", fn=index_quote.read_index_quote, validate=index_quote.validate, freshness="live",
-        owner="builder-c", max_symbols=NO_SYMBOL,
+        name="index.quote", fn=index_quote.read_index_quote, validate=index_quote.validate, freshness="delayed",
+        owner="builder-c", max_symbols=NO_SYMBOL,       # review (#706): its only fetch is Massive's 15-min-delayed snapshot
         description="The level of a market index (S&P 500, Nasdaq, Dow, Russell 2000, VIX) from a LICENSED index "
                     "source — today none is in force, so the read declines honestly rather than pricing an ETF as the "
                     f"index. Params: {{asset: {'|'.join(sorted(asset_classes.assets_of('index.quote')))}}}.",
