@@ -73,3 +73,10 @@ The same query is in `docs/runbooks/note-import-repair.md`, "Before the deploy".
 - `db.py` imports only `convert_playbook_to_tiptap` and `extract_plain_text` from `notes`, lazily, inside migration helpers. Neither function changed.
 - Flow-worker never calls `delete_folder` or `import_confirm`, and never raises or catches `DestinationFolderNotFound`.
 - `dest_folder.py` and `engine.py` are not in its import closure.
+
+## 2026-11-03: Evernote rate-limit fix (`fix/evernote-tool-rate-limit`)
+
+`tools/flow_worker_watch_coverage.py` flags `api/services/journal_two/db.py` and `api/services/journal_two/note_connectors/providers/base.py`. Classification: **flow-worker stranded, ADDITIVE and safe. Discharge with a marker bump at the next window. No forced flow-worker redeploy.**
+
+- `base.py`: flow-worker uses only `_is_disallowed_ip`, which is unchanged. It is reached through `alert_taxonomy.outbound_webhooks`.
+- `db.py`: the new nullable column `j2_note_sources.sync_state` and its ALTER run only inside `auth_db.init_db`, which flow-worker never runs.
