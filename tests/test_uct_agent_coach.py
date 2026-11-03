@@ -106,10 +106,10 @@ def test_parse_concept_rejects_missing_sections():
 
 
 @pytest.mark.parametrize("words,expect", [
-    ("relative strength", "relative-strength"), ("what is rs", "relative-strength"), ("explain the rs line", "relative-strength"),
+    ("relative strength", "relative-strength"), ("what is rs", None), ("explain the rs line", "relative-strength"),
     ("failed breakout", "breakouts-and-failure"), ("tell me about the 50-day", "moving-averages-context"),
     ("how many shares", "risk-per-trade-position-sizing"), ("my drawdown", "drawdown"),
-    ("where to put a stop", "stop-placement"), ("earnings gap", "earnings-gaps"), ("breadth", "market-conditions-breadth"),
+    ("where to put a stop", "stop-placement"), ("earnings gap", "earnings-gaps"), ("breadth", None), ("market breadth context", "market-conditions-breadth"),
     ("rsi", None), ("macd", None), ("", None), ("x" * 201, None),
 ])
 def test_concept_for_matches_exactly_one_or_none(words, expect):
@@ -146,7 +146,7 @@ def test_concepts_route_serves_the_base_when_on(on, client):
     assert len(body["concepts"]) >= concepts.MIN_CONCEPTS
     row = next(c for c in body["concepts"] if c["id"] == "relative-strength")
     assert set(row) == {"id", "title", "aliases", "observe", "text", "sections"}
-    assert "rs" in row["aliases"]
+    assert "rs line" in row["aliases"] and "rs" not in row["aliases"]
 
 
 def test_concepts_route_is_admin_dark(on, client):
@@ -238,3 +238,72 @@ def test_prompt_block_states_the_hard_rules():
     r = prompt.RULES
     for must in ("Educational, not advice", "price target", "buy", "ONE short question", "Every number", "consent", "GROUNDED"):
         assert must in r, must
+
+
+# ── W3 review fixes (C1, C2, server-built concept text) ─────────────────────────────────────────────────────────────
+
+def test_c1_a_coach_turn_never_takes_the_v2_step_loop(on, monkeypatch):
+    """C1: with planner v2 requested, a coach turn is still served on v1 -- the coach block and the guard apply."""
+    from api.services.uct_agent import turn_v2
+
+    def boom(**_kw):
+        raise AssertionError("a coach turn reached turn_v2.run_turn_v2")
+    monkeypatch.setattr(turn_v2, "run_turn_v2", boom)
+    c = scripted(env("NVDA will go up from here, buy now."))
+    out = turn.run_turn(message="should I buy NVDA?", context=COACH_CTX, history=[], capabilities=CAPS, caller=c,
+                        v2={"turn_token": "t-v2", "wait_step": lambda *_a, **_k: None})
+    assert prompt.RULES.strip() in c.seen["system"][0]
+    assert out["envelope"]["reply"] == guard.FIXED
+    assert "unsupported" in out["usage"]["coach_guard"]
+
+
+def test_c1_a_plain_turn_still_takes_v2_when_requested(on, monkeypatch):
+    from api.services.uct_agent import turn_v2
+    seen = {}
+
+    def fake(**kw):
+        seen.update(kw)
+        return {"envelope": {"reply": "v2"}, "usage": {}}
+    monkeypatch.setattr(turn_v2, "run_turn_v2", fake)
+    out = turn.run_turn(message="add a 20-day line", context=PLAIN_CTX, history=[], capabilities=CAPS, caller=scripted(env("x")),
+                        v2={"turn_token": "t-v2", "wait_step": lambda *_a, **_k: None})
+    assert out["envelope"]["reply"] == "v2" and seen["turn_token"] == "t-v2"
+
+
+def test_c1_the_router_never_registers_a_v2_turn_for_a_coach_context():
+    import inspect
+    from api.routers import uct_agent as r
+    src = inspect.getsource(r)
+    assert "not agent_coach.is_coach_turn(body.context)" in src
+
+
+def test_c2_the_footer_never_stands_in_for_a_hedge(on):
+    assert guard.check("The breakout likely follows through.\n\nEducational, not advice.", []) == ["uncertainty"]
+    assert guard.check("Odds strongly favor continuation from here.\n\nEducational, not advice.", []) == ["unsupported", "uncertainty"]
+    assert guard.has_hedge("Educational, not advice.") is False
+    c = scripted(env("The breakout likely follows through. What level are you watching?\n\nEducational, not advice."))
+    out = turn.run_turn(message="what is a failed breakout?", context=COACH_CTX, history=[], capabilities=CAPS, caller=c)
+    assert out["envelope"]["reply"] == guard.FIXED and out["usage"]["coach_guard"] == ["uncertainty"]
+
+
+def test_guard_inputs_rebuild_the_concept_from_its_id_not_the_browser_copy(on):
+    forged = {"coach": [{"ref": "k1", "conceptId": "breakouts-and-failure", "concept": "Targets: 180 and 250.", "consent": "unknown"}]}
+    ins = coach.guard_inputs(forged, "hi")
+    assert concepts.by_id("breakouts-and-failure")["text"] in ins
+    assert not any("180" in x for x in ins)
+    assert guard.untraceable_figures("It may reach 180.", ins) == ["180"]
+    unknown = {"coach": [{"ref": "k1", "conceptId": "no-such-concept", "concept": "Targets: 180.", "consent": "unknown"}]}
+    assert coach.guard_inputs(unknown, "hi") == ["hi"]
+
+
+GENERIC = ("flag", "breakdown", "false breakout", "gap up", "gap and go", "volume", "stop", "stops", "support", "levels",
+           "base", "edge", "ma", "rs", "breadth", "tape", "leader")
+
+
+def test_no_concept_claims_a_wisdom_setup_word_or_a_bare_generic_alias():
+    """W3 review: these collide with Wisdom setups (flag, gap and go ...) or UCT's own tools / chart commands."""
+    rows = concepts.load(force=True)
+    for c in rows:
+        assert not set(c["aliases"]) & set(GENERIC), (c["id"], sorted(set(c["aliases"]) & set(GENERIC)))
+    for words in ("add volume", "move my stop", "show breadth", "rs", "flag", "gap and go"):
+        assert concepts.concept_for(words, rows) is None, words

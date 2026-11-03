@@ -100,12 +100,19 @@ def sanitize_context(context: Any) -> Any:
 
 
 def guard_inputs(context: Any, message: str) -> list[str]:
-    """The texts a coach reply's figures may come from: the coach entry's concept text, observation and review
-    stats (as the browser published them), and the member's own message."""
+    """The texts a coach reply's figures may come from: the concept text REBUILT from the entry's `conceptId` (the
+    server's own knowledge base -- the browser's `concept` copy is never trusted; an unknown id adds nothing), the
+    observation and review stats (as the browser computed them), and the member's own message."""
     import json
     entry = coach_entry(context) or {}
     out: list[str] = []
-    for k in ("concept", "observation", "review"):
+    cid = entry.get("conceptId")
+    if isinstance(cid, str) and cid:
+        from api.services.uct_agent.coach import concepts
+        c = concepts.by_id(cid)
+        if c:
+            out.append(c["text"])
+    for k in ("observation", "review"):
         v = entry.get(k)
         if v:
             out.append(v if isinstance(v, str) else json.dumps(v, ensure_ascii=False))
