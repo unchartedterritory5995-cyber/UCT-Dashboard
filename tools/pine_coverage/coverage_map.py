@@ -498,16 +498,40 @@ def script_verdict(verdicts):
     return None if not v else ("MATCH" if "MATCH" in v else "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE")
 
 
-def runtime_walls_of(row):
-    """The runtime lane's walls over every peel step of a runtime-on census row:
-    its probe's guard where it declined with a position, else its decline code, else
-    the host's guards (a refusal the runtime lane was never offered)."""
-    walls = []
+# ⭐ W4 T0 — the wall's DETAIL, for the one decision a label cannot carry: which wave owns it.
+# `runtime:loop` is `for … in` (W6) wherever the lane says so, and a bare `security(…)` (the
+# v1-v4 spelling) reaches `runtime:call-undeclared-builtin-state` as a token (W7). `targets.py`
+# reads these tags; no wall LABEL is changed by them.
+TAG_FOR_IN = "for-in"
+TAG_BARE_SECURITY = "bare-security"
+
+
+def _wall_tags(guard, probe, declined):
+    tags = []
+    if guard == "runtime:loop" and "for … in" in ((probe.get("message") or "") + (declined.get("why") or "")):
+        tags.append(TAG_FOR_IN)
+    if guard == "runtime:call-undeclared-builtin-state" and probe.get("token") == "security":
+        tags.append(TAG_BARE_SECURITY)
+    return tags
+
+
+def runtime_wall_steps(row):
+    """[(wall, tags)] over every peel step of a runtime-on census row: the runtime lane's own
+    walls, its probe's guard where it declined with a position and the probe AGREES with the door,
+    else the decline's code, else the host's guards (a refusal the runtime lane was never offered).
+
+    ⭐ W4 T0 - THE DECLINE'S CODE WINS WHEN THE PROBE DISAGREES. The probe is a second build run
+    beside the door (`coverageMapDoorCensus.measure.test.js::runtimeProbeOf`); the door's
+    `runtimeDeclined.code` is what actually declined the script. Taking the probe's guard first
+    called 79 steps `runtime:object-op` in the 2026-11-02 map, of which 2 agreed with the door
+    (W4-BREAKDOWN section 0, finding 2). A row from before `agrees` existed carries none: the probe
+    is then trusted, as it always was."""
+    out = []
     for si, st in enumerate(row.get("steps") or []):
         if st.get("attached"):
             break
         if st.get("threw"):
-            walls.append("threw")
+            out.append(("threw", []))
             continue
         pr = st.get("rtProbe") or {}
         rd = st.get("runtimeDeclined") or {}
@@ -515,14 +539,20 @@ def runtime_walls_of(row):
         # blanked (most often a tuple binding)
         if si > 0 and re.match(r"^[A-Za-z_]\w*\s*=\s*0\.0$", (pr.get("text") or "").strip()):
             continue
-        g = pr.get("guard") or rd.get("code")
+        g = (pr.get("guard") if pr.get("agrees") is not False else None) or rd.get("code") or pr.get("guard")
         if not g:
             gs = sorted({r.get("guard") for r in st.get("refusals") or []} - {None}) or [st.get("guard") or "unnamed"]
             g = "host:" + ",".join(gs)
         if si > 0 and g == "pine:undefined":
             continue
-        walls.append(g)
-    return walls
+        out.append((g, _wall_tags(g, pr, rd)))
+    return out
+
+
+def runtime_walls_of(row):
+    """The runtime lane's walls over every peel step of a runtime-on census row (see
+    `runtime_wall_steps`)."""
+    return [g for g, _ in runtime_wall_steps(row)]
 
 
 def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, orders_of, norm_src, inputs, N):
@@ -541,7 +571,7 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
     by_key = {s["key"]: s for s in scripts}
     on = {s["key"] for s in scripts if transfers(s["key"])}
     prod = {s["key"] for s in scripts if s["clean"]}
-    walls = {}
+    walls, wall_tags = {}, {}
     touches, first, stuck = collections.Counter(), collections.Counter(), collections.Counter()
     enumerated = 0
     for s in scripts:
@@ -549,8 +579,15 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
         if k in on:
             continue
         r = rows[k]
-        ws = runtime_walls_of(r)
+        steps = runtime_wall_steps(r)
+        ws = [g for g, _ in steps]
         walls[k] = ws
+        found = {}
+        for g, tg in steps:
+            if tg:
+                found.setdefault(g, set()).update(tg)
+        if found:
+            wall_tags[k] = {g: sorted(v) for g, v in sorted(found.items())}
         for w in set(ws):
             touches[w] += 1
         first[ws[0] if ws else "attached-dirty"] += 1
@@ -581,6 +618,8 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
             "first": dict(sorted(first.items(), key=lambda kv: (-kv[1], kv[0]))),
             "stuck": dict(sorted(stuck.items(), key=lambda kv: (-kv[1], kv[0]))),
             "byScript": {k: walls[k] for k in sorted(walls)},
+            # W4 T0: the detail behind the walls whose WAVE depends on it (`for-in`, `bare-security`)
+            "tags": {k: wall_tags[k] for k in sorted(wall_tags)},
         },
         "parity": None,
     }
