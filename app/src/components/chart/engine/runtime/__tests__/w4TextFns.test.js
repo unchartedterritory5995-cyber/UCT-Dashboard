@@ -55,6 +55,9 @@ describe('str.substring: 0-based, end exclusive', () => {
     expect(() => run(cond('"abc"', 'str.substring(s, 2, 1) == ""'))).toThrow(/outside a text/)
     expect(() => run(cond('"abc"', 'str.substring(s, -1, 2) == ""'))).toThrow(/outside a text/)
   })
+  it('a fractional position stops the script', () => {
+    expect(() => run(cond('"abc"', 'str.substring(s, 0.5, 2) == "a"'))).toThrow(/whole-number positions/)
+  })
   it('CONTROL: a text slot holds the result', () => {
     expect(run(cond('"abcdef"', '(str.substring(s, 1, 3) + "!") == "bc!"'))).toEqual(fill(1))
   })
@@ -74,6 +77,10 @@ describe('str.replace: the Nth occurrence, literal, from 0', () => {
   })
   it('occurrences do not overlap', () => {
     expect(run(cond('"aaa"', 'str.replace(s, "aa", "X", 1) == "aaa"'))).toEqual(fill(1))
+  })
+  it('a fractional or negative occurrence stops the script', () => {
+    expect(() => run(cond('"a.b"', 'str.replace(s, ".", "-", 0.5) == "a-b"'))).toThrow(/occurrence/)
+    expect(() => run(cond('"a.b"', 'str.replace(s, ".", "-", -1) == "a-b"'))).toThrow(/occurrence/)
   })
   it('an empty target stops the script', () => {
     expect(() => run(cond('"abc"', 'str.replace(s, "", "-") == "abc"'))).toThrow(/empty target/)
