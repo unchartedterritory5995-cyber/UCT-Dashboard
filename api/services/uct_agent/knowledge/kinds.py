@@ -338,7 +338,9 @@ def record(params: dict, ctx: dict) -> dict:
         # and only with its own wins — never a figure built from a count alone
         perf = dict(meta) if meta else {"total_trades": 0}
     engine = stats.engine_block(perf, n_min, "the brain's own logged trades for this setup")
-    if _stale(meta or {}) and engine["label"] not in ("insufficient_sample",):
+    # staleness is judged on the pack row when one exists; a figure the live facade answered with no pack row is
+    # not "undated" (the facade read the installed pack itself)
+    if (meta or not w.get("ok")) and _stale(meta or {}) and engine["label"] != "insufficient_sample":
         engine = {"label": "stale_record", "label_text": "the record has not been refreshed recently; figure withheld",
                   "updated_at": meta.get("updated_at"), "method": engine["method"]}
     trig_rows = _stats_rows("trigger_performance", list(dict.fromkeys([name, *res["aliases"]])), regime)

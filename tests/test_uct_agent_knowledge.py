@@ -550,8 +550,36 @@ def test_config_never_advertises_knowledge_kinds_while_the_flag_is_off(kn, monke
 
 def test_failed_build_cools_down_instead_of_retrying_every_read(kn, monkeypatch):
     calls = []
-    monkeypatch.setattr(index, "build", lambda: (calls.append(1), index._FAILED.update(at=time.time()), {"ok": False, "reason": "x"})[2])
+    monkeypatch.setattr(index, "build", lambda: (calls.append(1), index._FAILED.update(at=time.time(), ts=pack.pack_ts()), {"ok": False, "reason": "x"})[2])
     index._FAILED["at"] = 0.0
     index.ensure(); index.ensure(); index.ensure()
     assert len(calls) == 1
     index._FAILED["at"] = 0.0
+
+
+# ── review round 2 regressions ─────────────────────────────────────────────────────────────────────────
+def test_live_facade_figure_is_not_withheld_when_the_pack_has_no_row(kn, monkeypatch):
+    monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {
+        "ok": True, "setup": "Episodic Pivot", "regime": "GREEN", "total_trades": 40, "wins": 24, "losses": 16,
+        "win_rate_pct": 60.0})
+    out = read("setup.record", {"setup": "EP", "regime": "GREEN"})        # no setup_performance row for GREEN
+    e = out["data"]["engine"]
+    assert e["label"] == "descriptive_uncontrolled" and e["n"] == 40 and e["win_rate_pct"] == 60.0
+
+
+def test_cooldown_applies_only_to_the_pack_that_failed(kn, monkeypatch):
+    calls = []
+    real_build = index.build
+
+    def failing():
+        calls.append(pack.pack_ts())
+        index._FAILED.update(at=time.time(), ts=pack.pack_ts())
+        return {"ok": False, "reason": "x"}
+    monkeypatch.setattr(index, "build", failing)
+    index._FAILED.update(at=0.0, ts=None)
+    index.ensure(); index.ensure()
+    assert len(calls) == 1                                                   # same pack: cooled down
+    _make_pack(kn["brain"], kn["data"], int(time.time()) + 50)
+    monkeypatch.setattr(index, "build", real_build)
+    assert index.ensure()["ok"] is True                                      # a new pack is tried at once
+    index._FAILED.update(at=0.0, ts=None)

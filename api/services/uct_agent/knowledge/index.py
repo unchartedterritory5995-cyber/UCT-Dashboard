@@ -27,7 +27,7 @@ ENV_PATH = "UCT_AGENT_KNOWLEDGE_INDEX"
 SCHEMA = 1
 _LOCK = threading.Lock()
 FAIL_COOLDOWN_S = 60
-_FAILED: dict = {"at": 0.0}
+_FAILED: dict = {"at": 0.0, "ts": None}
 
 _STOP = frozenset("""a an and are as at be by can do does for from has have how i in into is it its me my of on or
 our so that the their them then there these they this to uct was we what when where which who why will with you
@@ -123,7 +123,7 @@ def build() -> dict:
         return {"ok": True, **meta}
     except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         log.warning("[uct-agent knowledge] index build failed: %s", type(e).__name__)
-        _FAILED["at"] = time.time()
+        _FAILED.update(at=time.time(), ts=ts)
         return {"ok": False, "reason": "index build failed"}
     finally:
         if dst is not None:
@@ -151,7 +151,7 @@ def ensure() -> dict:
         info = built_info()
         if info.get("pack_ts") == str(ts) and info.get("schema") == str(SCHEMA):
             return {"ok": True, **info}
-        if time.time() - _FAILED["at"] < FAIL_COOLDOWN_S:
+        if _FAILED.get("ts") == ts and time.time() - _FAILED["at"] < FAIL_COOLDOWN_S:   # a NEW pack is tried at once
             return {"ok": False, "reason": "the knowledge index is being rebuilt; try again shortly"}
         return build()
 
