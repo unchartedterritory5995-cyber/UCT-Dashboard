@@ -208,6 +208,8 @@ def build(force: bool = False, tickers: list[str] | None = None, sleep=time.slee
                     res = pipeline.analyze(t, day)
                 except Exception:  # noqa: BLE001
                     res = {"error": "exception"}
+                if "error" not in res and _days_between(res.get("asof") or day, day) > pipeline.STALE_LATEST_DAYS:
+                    res = {"error": "stale"}   # a dead symbol is not packed: its latest ask answers "no daily bars since" at once
                 if "error" in res:
                     err += 1
                 else:

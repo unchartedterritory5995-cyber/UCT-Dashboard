@@ -22,7 +22,7 @@ import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 import { parsePriceSentence } from './marketDataPhrases'
 import { num, money, signedMoney, signedPct, sessionDate } from './marketDataFormat'
-import { RESOLVE_KIND, toCandidates, resolveInstruments } from './marketDataResolve'
+import { RESOLVE_KIND, toCandidates, resolveInstruments, isFundLabel, FUND_NOTE } from './marketDataResolve'
 
 export const CAPABILITY = 'stock.dailyBars'
 export const SESSIONS_52W = 252
@@ -132,6 +132,8 @@ export function answerFromBars(env, { symbol, measure, sessions = null, name = n
   } else {
     return { text: noBarsSentence({ status: 'unavailable' }, sym) }
   }
+  // owner ruling 3: an ETF's price is never presented as the underlying asset's price
+  if (isFundLabel(name)) lines.push(FUND_NOTE)
   lines.push(COMPLETED)
   return { text: lines.join('\n'), present: { kind: 'metrics', title: `${bare} daily`, short: bare, items: items.filter(i => i.value) } }
 }

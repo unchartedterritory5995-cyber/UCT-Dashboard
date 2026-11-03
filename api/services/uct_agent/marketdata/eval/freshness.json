@@ -1053,7 +1053,8 @@
               "symbol": "NVDA",
               "name": "NVIDIA Corporation",
               "type": "stock",
-              "candidate": null
+              "candidate": null,
+              "basis": null
             }
           ],
           "all_symbols": true
@@ -1121,7 +1122,10 @@
                 "symbol": "GOLD",
                 "name": "Barrick Gold Corporation",
                 "type": "stock"
-              }
+              },
+              "basis": [
+                "name_word"
+              ]
             }
           ],
           "all_symbols": false
@@ -1185,7 +1189,8 @@
               "symbol": null,
               "name": "S&P 500 Index",
               "type": "index",
-              "candidate": null
+              "candidate": null,
+              "basis": null
             }
           ],
           "all_symbols": false
