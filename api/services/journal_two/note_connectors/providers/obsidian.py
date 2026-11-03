@@ -362,11 +362,17 @@ _WIKI_RE = re.compile(rf"(!)?\[\[({_WIKI_TARGET})(?:\|({_WIKI_ALIAS}))?\]\]")
 # note as a plain `[[Plan]]` would read -- both kept. ⚰️ The alias pattern took `![[img.png`
 # as the alias: raw brackets around the image, and the link lost. The client lane writes
 # the same (`obsidian.js::transformWikiLinks`).
+# Plugin issue #3 (fix round 1, I1): ANY markdown image as the alias, `[[q.pdf|![](att/
+# img.png)]]` or `[[Plan|![](https://e.com/a.png)]]`, splits the same way, refs or none, as
+# the client splits it (`obsidian.js::ALIAS_MD_IMAGE_RE`). The image is `_MD_LINK_OR_IMAGE_RE`'s
+# own `!` form (`_MD_LINK_TAIL`, one source), which holds the pass's `![](<...>)` markdown.
+# ⚰️ Only that `<...>` form split: a note target or a web image kept raw `[[Plan|` brackets.
+_MD_LINK_TAIL = (r"\[((?:[^\[\]\n]|\[[^\[\]\n]*\])*)\]\(\s*(<[^<>\n]*>|[^\s()<>]+)"
+                 r"(?:\s+(?:\"[^\"\n]*\"|'[^'\n]*'))?\s*\)")
 _ALIAS_EMBED_RE = re.compile(
-    rf"\[\[({_WIKI_TARGET})\|({_WIKI_EMBED}|!\[\]\(<[^<>\n]*>\))\]\]")
+    rf"\[\[({_WIKI_TARGET})\|({_WIKI_EMBED}|!{_MD_LINK_TAIL})\]\]")
 #: The same link as an original cut off at the embed's own `]]` (D2 fix round 3, N-I3).
 _CUT_ALIAS_EMBED_RE = re.compile(rf"\[\[({_WIKI_TARGET})\|({_WIKI_EMBED})")
-_WIKI_TARGET_RE = re.compile(_WIKI_TARGET)
 # D2 item 3: an embed wrapped in a wikilink, `[[![[img.png]]]]` / `[[![[img.png|300]]|alias]]`,
 # or the attachment pass's markdown for that embed (`![](<obsidian-att:...>)`) inside one.
 # Without an alias it reads as the embed; with one, as the alias alone (item 4). Mirrors
@@ -914,9 +920,7 @@ _UNSENT_ATTACHMENT_EXTS = _ATT_IMAGE_EXTS | frozenset((
     "mp3 m4a wav ogg flac aac opus "
     "mp4 mov m4v webm mkv avi "
     "canvas epub").split())
-_MD_LINK_OR_IMAGE_RE = re.compile(
-    r"(!?)\[((?:[^\[\]\n]|\[[^\[\]\n]*\])*)\]\(\s*(<[^<>\n]*>|[^\s()<>]+)"
-    r"(?:\s+(?:\"[^\"\n]*\"|'[^'\n]*'))?\s*\)")
+_MD_LINK_OR_IMAGE_RE = re.compile(rf"(!?){_MD_LINK_TAIL}")
 
 
 def _is_attachment_path(path: str) -> bool:
@@ -1035,19 +1039,6 @@ def _sub_clear_of_code(rx: "re.Pattern[str]", fn: Any, text: str, *, wiki: bool 
 _SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 
 
-def _alias_md_image(original: str) -> str | None:
-    """The alias of `[[target|![alt](dest)]]` when it is exactly ONE markdown image (this
-    pass's own `_MD_LINK_OR_IMAGE_RE`), else None. The plugin sends the image's own embed ref
-    only for this shape (`embedAliasLink`'s markdown twin), so neither side splits more."""
-    if not (original.startswith("[[") and original.endswith("]]")):
-        return None
-    target, sep, alias = original[2:-2].partition("|")
-    if not sep or _WIKI_TARGET_RE.fullmatch(target) is None:
-        return None
-    md = _MD_LINK_OR_IMAGE_RE.fullmatch(alias)
-    return alias if md is not None and md.group(1) == "!" else None
-
-
 def _apply_attachment_refs(
     segment: str, refs: list[dict] | None, plugin_supports: bool, *,
     paths: list[str] = (), basename_map: Any = None, from_path: str | None = None,
@@ -1082,18 +1073,14 @@ def _apply_attachment_refs(
     # as ONE ref is the embed (its own ref's rewrite, or the embed as written for the passes
     # after) and then the file's chip, as the client writes it and as `_ALIAS_EMBED_RE` reads
     # a note link. ⚰️ The whole link claimed the text first, so the image vanished silently.
+    # Issue #3 (plugin repo): a markdown image as the alias, `[[q.pdf|![](att/img.png)]]`,
+    # which Obsidian caches as ONE link and no embed, reads the same way: the image (its own
+    # ref's rewrite, or the image as written, read as any unlisted markdown image is), then
+    # the chip. The plugin sends the image's own ref only for a subset of this shape.
     for original, written in list(table.items()):
         m = _ALIAS_EMBED_RE.fullmatch(original)
-        if m is not None and m.group(2).startswith("![["):
+        if m is not None:
             table[original] = table.get(m.group(2), m.group(2)) + written
-            continue
-        # Issue #3 (plugin repo): a markdown image as the alias, `[[q.pdf|![](att/img.png)]]`,
-        # which Obsidian caches as ONE link and no embed. The same reading: the image (its
-        # own ref's rewrite, or the image as written, read as any unlisted markdown image
-        # is), then the chip. ⚰️ The whole link claimed the text and the image was gone.
-        image = _alias_md_image(original)
-        if image is not None:
-            table[original] = table.get(image, image) + written
             continue
         # D2 fix round 3, N-I3: the link's original may END at the embed's own `]]`
         # (`[[q.pdf|![[img.png]]`, as a link cache that stops at the first `]]` would cut

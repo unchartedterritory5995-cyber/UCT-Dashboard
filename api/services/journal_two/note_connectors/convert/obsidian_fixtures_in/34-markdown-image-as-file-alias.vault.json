@@ -1,5 +1,5 @@
 {
-  "_comment": "Plugin issue #3: a markdown image as the alias of a FILE wikilink reads as the image, then the file chip, on both lanes, as fixture 26's wiki embed does. Real Obsidian (1.15.0) caches `[[q.pdf|![](att/img.png)]]` as ONE link and no embed. The q.pdf line pins what plugin 0.2.1 sends: that whole link beside an embed ref the plugin adds for the image. The r.pdf line pins what 0.2.0 sent, the whole link only: the image stays as written and reads as any unlisted markdown image does.",
+  "_comment": "Plugin issue #3: a markdown image as the alias of a FILE wikilink reads as the image, then the file chip, on both lanes, as fixture 26's wiki embed does. Real Obsidian (1.15.0) caches `[[q.pdf|![](att/img.png)]]` as ONE link and no embed. The q.pdf line pins what plugin 0.2.1 sends: that whole link beside an embed ref the plugin adds for the image. The r.pdf line pins what 0.2.0 sent, the whole link only: the image stays as written and reads as any unlisted markdown image does. Fix round 1 (I1): the split never depends on refs, so a NOTE target (Plan), a target not in the vault (Nope) and a web image read the same way, image then link (or text), on both lanes; the plugin sends no ref for a note link or a web image, only the vault images' own refs.",
   "vault_id": "vault-1",
   "self_path": "a.md",
   "vault_paths": [
@@ -7,7 +7,10 @@
     "att/q.pdf",
     "att/img.png",
     "att/r.pdf",
-    "att/img2.png"
+    "att/img2.png",
+    "att/img3.png",
+    "att/img4.png",
+    "Plan.md"
   ],
   "attachments": [
     {"original": "[[q.pdf|![](att/img.png)]]", "embed": false,
@@ -18,6 +21,12 @@
      "sha256": "6a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"},
     {"original": "[[r.pdf|![](att/img2.png)]]", "embed": false,
      "path": "att/r.pdf", "size": 4096,
-     "sha256": "7a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"}
+     "sha256": "7a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"},
+    {"original": "![](att/img3.png)", "embed": true,
+     "path": "att/img3.png", "size": 1024,
+     "sha256": "8a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"},
+    {"original": "![](att/img4.png)", "embed": true,
+     "path": "att/img4.png", "size": 1024,
+     "sha256": "9a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"}
   ]
 }

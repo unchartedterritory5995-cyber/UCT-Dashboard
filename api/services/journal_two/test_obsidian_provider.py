@@ -2091,6 +2091,29 @@ def test_a_markdown_image_as_the_alias_of_a_file_link_keeps_the_image_and_the_ch
     assert original in _plain(conv["doc"])
 
 
+def test_a_markdown_image_as_the_alias_splits_with_no_ref_for_the_link():
+    """Issue #3 fix round 1, I1: the split never depends on refs. A NOTE target, a target
+    not in the vault and a web image get no ref for the link (the plugin skips a note link
+    and a scheme), so the wikilink pass splits them: the image, then the link (or the
+    pending link), never raw `[[Plan|` brackets around the image. As on the client."""
+    paths = ["Notes/Plan.md"]
+    for body, image_src in (("x [[Plan|![](att/img.png)]] y", "import-ref://att/img.png"),
+                            ("x [[Plan|![](https://e.com/a.png)]] y", "import-ref://https://e.com/a.png")):
+        conv = _convert(body, paths, refs=[])
+        para = conv["doc"]["content"]
+        assert [n["type"] for n in para] == ["paragraph", "image", "paragraph"], body
+        assert para[1]["attrs"]["src"] == image_src
+        assert _link_marks(conv["doc"]) == [("Plan", _key("Notes/Plan.md"))]
+        assert "[[" not in _plain(conv["doc"]) and "]]" not in _plain(conv["doc"])
+    conv = _convert("x [[Nope|![](att/img.png)]] y", paths, refs=[])
+    assert [n["type"] for n in conv["doc"]["content"]] == ["paragraph", "image", "paragraph"]
+    assert [t for t, _ in _link_marks(conv["doc"])] == ["Nope"]
+    assert "[[" not in _plain(conv["doc"])
+    # The image comes BEFORE the link: the link's paragraph follows the image.
+    conv = _convert("[[Plan|![](att/img.png)]] y", paths, refs=[])
+    assert [n["type"] for n in conv["doc"]["content"]] == ["image", "paragraph"]
+
+
 def test_the_attachment_pass_is_near_linear_in_overlapping_originals():
     """Final review I1: originals `a`, `aa`, ... over a 200 KB body of `a` took 15.8 s: each
     original rescanned the body from `at + 1` inside the spans the longer ones claimed. A
