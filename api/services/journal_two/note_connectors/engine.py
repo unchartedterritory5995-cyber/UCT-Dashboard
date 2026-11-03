@@ -111,7 +111,7 @@ from api.services.journal_two import notes as notes_svc
 from api.services.journal_two.import_provenance import edited_since_import
 from api.services.journal_two.notes_quota import NoteQuotaExceeded
 from api.services.journal_two.note_connectors import connections, errors, oauth
-from api.services.journal_two.note_connectors import adoption
+from api.services.journal_two.note_connectors import adoption, dest_folder
 from api.services.journal_two.note_connectors.link_keys import heal_pending_links, resolve_link_keys
 from api.services.journal_two.note_connectors.convert import REF_PREFIX, mddoc, rewrite_body
 from api.services.journal_two.note_connectors.convert.rewrite import chips_to_images
@@ -570,6 +570,7 @@ async def _do_sync(
     # for the log row's `failures_json` (the `failures` strings above are unchanged).
     notice_failures: list[dict[str, Any]] = []
     delete_guard_warning: str | None = None
+    delete_guard_refused = False
     deleted_count = 0
     provider: NoteProvider | None = None
 
@@ -582,6 +583,15 @@ async def _do_sync(
             raise errors.NoteConnNotConfigured(
                 f"no connected credentials for provider {source['provider']!r}"
             )
+
+        # ⛔ Live audit 2026-11-03 (H1): a source whose destination folder was deleted refused
+        # every batch forever. ONE place for every provider (Obsidian's vault folder included:
+        # its subfolders are made under this one by `import_confirm`'s folderPath), before any
+        # listing: the source gets its default folder back and this pass imports into it. A
+        # paused, disabled or disconnected source is never given one (`heal_missing_dest_folder`).
+        heal = await asyncio.to_thread(dest_folder.heal_missing_dest_folder, user_id, source_id)
+        if heal.outcome == "healed":
+            source = {**source, "destFolderId": heal.dest_folder_id}
 
         # `list_present_refs` governs BOTH the cursor-reset decision right
         # below AND (further down, on a full pass) the complete-set input to
@@ -749,6 +759,7 @@ async def _do_sync(
                 deleted_count = dd["deleted"]
                 if dd["status"] == "warning":
                     delete_guard_warning = dd["reason"]
+                    delete_guard_refused = bool(dd["refused"])
 
         _touch_remote_index(user_id, source, provider, index_refs)
 
@@ -885,9 +896,19 @@ async def _do_sync(
         # is still right even for a warning: the pass authenticated and
         # fetched, so it is genuine evidence a previously-'broken' source has
         # recovered; only what the MEMBER is shown differs.
+        # M2 (live audit 2026-11-03): the source row is what the member reads (SourceRow renders
+        # `lastSyncError`), so it carries member sentences only. The developer text, batch counts
+        # and raw ids included, stays in the server log and the log row's `error` column (which
+        # no endpoint serves).
+        member_error = _member_sync_error(
+            source, removal_warning=removal_warning, delete_guard_warning=delete_guard_warning,
+            delete_guard_refused=delete_guard_refused, item_failures=item_failures,
+            notice_failures=notice_failures)
+        if error_parts:
+            log.warning("[note-sync] source %s pass finished %s: %s", source_id, status,
+                        "; ".join(error_parts))
         connections.record_sync_result(
-            user_id, source_id, ok=True, status=status,
-            error="; ".join(error_parts) if error_parts else None,
+            user_id, source_id, ok=True, status=status, error=member_error,
         )
 
         _finish_log(
@@ -1264,6 +1285,66 @@ def _member_reason(error: Any, *, key: Any) -> str:
         return error
     log.warning("[note-sync] note %r could not be stored: %s", key, error)
     return NOT_STORED_RETRY_REASON
+
+
+#: The developer string (`result["failures"]`, the server log) for a batch refused because the
+#: source's destination folder is missing; `_member_sync_error` keeps it out of the member's text.
+DEST_MISSING_FAILURE_PREFIX = "destination folder missing"
+#: The source row's sentence for per-note problems the log names (`failures_json`).
+ITEMS_DIDNT_COME_OVER = "{n} {items} didn't come over. Open Recent syncs to see which."
+#: The source row's sentence for a pass that left something unfinished and names nothing per note
+#: (a fetch that failed, a sweep that did not run): each is retried, the cursor having held.
+PASS_UNFINISHED_REASON = "Part of this sync didn't finish. It will be tried again on the next sync."
+#: The <50% enumeration guard refused the removal check (`_run_delete_detection`).
+REMOVALS_REFUSED_REASON = ("Couldn't confirm removals this time: {label} returned far fewer notes "
+                           "than expected, so nothing was changed.")
+#: The 20% cap refused `list_deleted`'s explicit signal; the 2-strike rule still applies.
+REMOVALS_DOUBLE_CHECKED_REASON = ("{label} reported many notes as deleted at once, so they will be "
+                                  "double-checked on later syncs before anything is marked removed.")
+
+
+def _dest_folder_missing_reason(user_id: str, source: dict[str, Any]) -> str:
+    """The member's sentence for a batch refused because the source's folder is missing, after
+    trying the repair: `heal_missing_dest_folder` re-points an active source (a new folder, or the
+    folder `delete_folder` already moved it to), and the notes are saved on the next pass. A
+    paused or disabled source is not repaired, so its sentence says what will fix it."""
+    heal = dest_folder.heal_missing_dest_folder(user_id, source["id"])
+    if heal.outcome in ("healed", "present", "root"):
+        source["destFolderId"] = heal.dest_folder_id
+        if heal.outcome == "healed" and heal.dest_folder_id:
+            return dest_folder.DEST_FOLDER_REMADE_SENTENCE
+        return dest_folder.DEST_FOLDER_MOVED_SENTENCE
+    return dest_folder.dest_folder_gone_sentence(dest_folder.provider_label(source.get("provider")))
+
+
+def _member_sync_error(
+    source: dict[str, Any], *, removal_warning: str | None, delete_guard_warning: str | None,
+    delete_guard_refused: bool, item_failures: list[str], notice_failures: list[dict[str, Any]],
+) -> str | None:
+    """What the source row tells the member about a pass (M2, live audit 2026-11-03): sentences,
+    never developer text. It used to be every failure string joined, so a member read
+    "confirm failed for a batch of 1 note(s): ..." and "media '<url>' on note 919630dd...: ...",
+    a raw note id included. Per-note detail lives in the log rows (`failures_json`, by title);
+    this is the summary: a whole-source problem in full, else a count pointing there."""
+    label = dest_folder.provider_label(source.get("provider"))
+    parts: list[str] = []
+    if removal_warning:
+        parts.append(removal_warning)
+    if delete_guard_warning:
+        parts.append((REMOVALS_REFUSED_REASON if delete_guard_refused
+                      else REMOVALS_DOUBLE_CHECKED_REASON).format(label=label))
+    whole_source = {dest_folder.DEST_FOLDER_REMADE_SENTENCE, dest_folder.DEST_FOLDER_MOVED_SENTENCE,
+                    dest_folder.dest_folder_gone_sentence(label)}
+    for reason in dict.fromkeys(f.get("reason") for f in notice_failures):
+        if reason in whole_source:
+            parts.append(reason)
+    per_note = [f for f in notice_failures if f.get("reason") not in whole_source]
+    if per_note:
+        n = len(per_note)
+        parts.append(ITEMS_DIDNT_COME_OVER.format(n=n, items="item" if n == 1 else "items"))
+    elif any(not f.startswith(DEST_MISSING_FAILURE_PREFIX) for f in item_failures):
+        parts.append(PASS_UNFINISHED_REASON)
+    return " ".join(parts) if parts else None
 
 
 def _not_stored_notice(title: Any, key: Any, reason: str) -> dict[str, Any]:
@@ -2316,12 +2397,21 @@ async def _confirm_and_resolve_batch(
         )
     except Exception as e:  # noqa: BLE001 — one bad batch must not strand others or abort the sync
         log.warning("[note-sync] confirm failed for a batch of %d note(s): %s", len(entries), e)
-        result["failures"].append(
-            f"confirm failed for a batch of {len(entries)} note(s): {NOT_STORED_RETRY_REASON}"
-        )
+        reason = NOT_STORED_RETRY_REASON
+        if isinstance(e, notes_svc.DestinationFolderNotFound):
+            # ⛔ M2: no retry fixes a deleted folder, so the member is never told "tried again"
+            # unless something now makes it true. The pass-start heal found the folder; it went
+            # while this pass ran. Heal again now (`import_confirm` rolled `conn` back, so no
+            # write lock is held here): the next pass then imports into the new folder, and so
+            # does every later batch of THIS pass (the source dict is the one they all read).
+            # Its own connection, off the loop (the write lock may be busy).
+            reason = await asyncio.to_thread(_dest_folder_missing_reason, user_id, source)
+        prefix = (DEST_MISSING_FAILURE_PREFIX if isinstance(e, notes_svc.DestinationFolderNotFound)
+                  else "confirm failed")
+        result["failures"].append(f"{prefix} for a batch of {len(entries)} note(s): {reason}")
         result["notStoredRefs"].extend(remote_id_by_key.values())
         result["noticeFailures"].extend(
-            _not_stored_notice(title_by_key.get(k), k, NOT_STORED_RETRY_REASON) for k in remote_id_by_key)
+            _not_stored_notice(title_by_key.get(k), k, reason) for k in remote_id_by_key)
         return result
 
     result["created"] = len(r["created"])

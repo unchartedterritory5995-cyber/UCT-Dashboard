@@ -176,6 +176,13 @@ class NoteValidationError(ValueError):
     """Raised when note payload is malformed."""
 
 
+class DestinationFolderNotFound(NoteValidationError):
+    """`import_confirm`'s `destFolderId` names no folder of this member's. A subclass, so every
+    caller that maps a `NoteValidationError` (the file importer's 400) is unchanged, while the
+    connector engine can tell THIS failure, which no retry fixes, from one that a retry might
+    (live audit 2026-11-03: it was reported as "will be tried again" forever)."""
+
+
 class NoteConflictError(Exception):
     """Raised when a compare-and-set update loses: the note's updated_at no
     longer matches the baseline the client edited from (A15 — a server-side
@@ -1571,7 +1578,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
             ok = conn.execute("SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
                               (dest, user_id)).fetchone()
             if not ok:
-                raise NoteValidationError("destination folder not found")
+                raise DestinationFolderNotFound("destination folder not found")
         # A deep folderPath used to be truncated to MAX_FOLDER_DEPTH segments
         # and then created UNDER destFolderId — so a dest at depth >=1 plus a
         # path already at the cap raised "folder nesting too deep" and 400'd
@@ -5957,6 +5964,16 @@ def delete_folder(
         conn.execute(
             "UPDATE j2_note_folders SET parent_id = ? WHERE parent_id = ? AND user_id = ?",
             (parent, folder_id, user_id))
+        # ⛔ A note-connector source importing into this folder follows its notes to the parent
+        # (the root is None, which `import_confirm` accepts). ⚰️ Live audit 2026-11-03: this
+        # cascade never touched `j2_note_sources`, so a deleted destination left its source
+        # refusing every batch forever ("destination folder not found"). Only THIS folder is
+        # removed here: its children are re-parented, never deleted, so a source on a child
+        # stays where it is. A source left pointing at a missing folder some other way is
+        # repaired by the sync engine (`note_connectors/dest_folder.heal_missing_dest_folder`).
+        conn.execute(
+            "UPDATE j2_note_sources SET dest_folder_id = ? WHERE dest_folder_id = ? AND user_id = ?",
+            (parent or None, folder_id, user_id))
         if owned:
             conn.commit()
         # ⭐ ONE revision for all of them: the cascade is a single UPDATE, so every
