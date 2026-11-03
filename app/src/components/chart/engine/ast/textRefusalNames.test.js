@@ -23,6 +23,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { translatePine } from './pine'
+import { assertObjectProgram } from './objectProgram'
 import {
   compileMessagePattern, formatMessageNumber, percentMessageNumber,
   MESSAGE_NUMBER_PRESETS, MESSAGE_NUMBER_PATTERNS,
@@ -103,6 +104,9 @@ describe('A — `{N,number,percent}` is read by the published rule', () => {
     expect(percentMessageNumber(-0.125)).toBeNull()
     expect(percentMessageNumber(10)).toBeNull() // 1000 %: the grouping comma is unmeasured
     expect(percentMessageNumber(-10)).toBeNull()
+    // the bound is on the ROUNDED whole: 999.6 % rounds to 1000 ("1,000%" under `#,###%`)
+    expect(percentMessageNumber(9.996)).toBeNull()
+    expect(percentMessageNumber(-9.996)).toBeNull()
     expect(percentMessageNumber(-0.004)).toBeNull() // rounds to a negative zero
     expect(percentMessageNumber(NaN)).toBeNull()
     expect(percentMessageNumber(Infinity)).toBeNull()
@@ -118,6 +122,14 @@ describe('A — `{N,number,percent}` is read by the published rule', () => {
       expect(got[0].props.text.v).toBe('text')
       expect(findNum(got[0].props.text.node)).toMatchObject({ t: 'num', form: 'message', fmt: 'percent' })
     }
+  })
+
+  it('⭐ the document validator asks the SAME authority: `percent` passes, `integer` is refused', () => {
+    const t = translatePine(P.percent, {})
+    expect(() => assertObjectProgram(t.objects)).not.toThrow()
+    const forged = JSON.parse(JSON.stringify(t.objects))
+    findNum(forged.ops.find((o) => o.k === 'cell').props.text.node).fmt = 'integer'
+    expect(() => assertObjectProgram(forged)).toThrow(/str\.format pattern "integer" is not one a capture or published rule pins/)
   })
 
   describe('the object runtime draws the rule\'s text, and holds back a withheld value', () => {
@@ -195,12 +207,21 @@ describe('B — every other S1 shape is refused BY NAME, never "no refusal recor
   })
 
   it('⛔ the naming changes NO decision: the drop counts are what they were', () => {
-    // one dropped cell per probe below, exactly as before the names landed
-    for (const src of [P.date, P.numberBare, P.integer]) expect(cells(src).dropped['cell:text']).toBe(1)
-    expect(cells(P.loopList).dropped['cell:text']).toBe(3)
-    expect(cells(P.loopHelper).dropped['cell:text']).toBe(2)
-    expect(cells(P.loopTernary).dropped['cell:text']).toBe(3)
-    expect(cells(P.loopLocal).dropped['cell:text']).toBe(4)
+    // one dropped cell OP per probe (a loop's cell is one op, however many passes), and
+    // the loop probes' `loop:empty` beside it — measured on the merge base before the
+    // names landed (W3-S1 probes, 2026-11-02)
+    for (const src of [P.date, P.numberBare, P.integer]) expect(cells(src).dropped).toEqual({ 'cell:text': 1 })
+    for (const src of [P.loopList, P.loopHelper, P.loopTernary, P.loopLocal]) {
+      expect(cells(src).dropped).toEqual({ 'cell:text': 1, 'loop:empty': 1 })
+    }
+  })
+
+  it("⛔ a create's content slot names the text reader's refusal too (`createDropWhy`)", () => {
+    const t = translatePine(script('if barstate.islast', '    label.new(bar_index, close, str.format("{0,date,yyyy-MM-dd}", time))'), {})
+    const why = (t.objectDiagnostics || {}).createDropWhy || []
+    expect(why.length, 'the label create is dropped and named').toBeGreaterThan(0)
+    for (const w of why) expect(w).not.toContain('no refusal recorded')
+    expect(why.join(' | ')).toMatch(/text: pine:text-value `str\.format` has a `\{N,date,…\}` element/)
   })
 })
 

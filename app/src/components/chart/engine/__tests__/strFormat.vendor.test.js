@@ -113,6 +113,9 @@ describe('D — what no capture pins is WITHHELD, never approximated', () => {
   it('⛔ the four unpinned cases each come back null', () => {
     expect(formatMessageNumber(1234.5)).toBeNull()          // grouping unmeasured
     expect(formatMessageNumber(999.9994)).toBe('999.999')   // CONTROL — just below the bound
+    // ⛔ W3-S1 — below the bound, but it ROUNDS to "1000": Java's `#,##0.###` prints "1,000"
+    expect(formatMessageNumber(999.9996)).toBeNull()
+    expect(formatMessageNumber(-999.9996)).toBeNull()
     expect(formatMessageNumber(0.0625)).toBeNull()          // exact tie at three decimals
     expect(exactTieAt(0.0625, 3)).toBe(true)
     expect(exactTieAt(0.06251, 3)).toBe(false)              // CONTROL — not a tie

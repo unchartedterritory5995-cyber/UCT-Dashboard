@@ -74,6 +74,14 @@ export const MESSAGE_NUMBER_PRESETS = Object.freeze({
   percent: 'Pine reference, str.format: 0.5 → "50%", 0.1 → "10%", 0.2 → "20%"; docs "Formatting strings": `#,###%`',
 })
 
+/** ⭐ W3-S1 — is `fmt` a `{N,number,…}` format this module renders? The ONE answer
+ *  `compileMessagePattern` hands out and `objectProgram.js::assertTextNode` checks a
+ *  document's `{t:'num', form:'message'}` node against, so the two cannot drift. */
+export function isMessageNumberFormat(fmt) {
+  return typeof fmt === 'string'
+    && (Object.hasOwn(MESSAGE_NUMBER_PATTERNS, fmt) || Object.hasOwn(MESSAGE_NUMBER_PRESETS, fmt))
+}
+
 /** The largest magnitude any captured `str.format` number reached, as a bound:
  *  below 1000 no grouping separator can appear in either reading. */
 export const MESSAGE_NUMBER_LIMIT = 1000
@@ -124,7 +132,7 @@ export function compileMessagePattern(pattern, argCount) {
       // the element with optional spaces (`{0, number, percent}` → "10%"), so the keyword
       // is trimmed. A `#`/`0` pattern is still matched exactly as a capture spelled it.
       const keyword = p.trim()
-      if (Object.hasOwn(MESSAGE_NUMBER_PRESETS, keyword) || keyword === 'integer') fmt = keyword
+      if (Object.hasOwn(MESSAGE_NUMBER_PRESETS, keyword)) fmt = keyword
       else if (Object.hasOwn(MESSAGE_NUMBER_PATTERNS, p)) fmt = p
       else return { ok: false, why: `format:number-pattern:${p}` }
     }
@@ -161,9 +169,10 @@ function trimmedFixed(n, max) {
  * ⭐⭐ W3-S1 — `{N,number,percent}`: the value × 100, rounded to a whole number, a `%`
  * after it — the published `#,###%` (`MESSAGE_NUMBER_PRESETS`). `null` (WITHHELD) where
  * the rule's words do not settle the characters:
- *   * a magnitude of 1000 % or more — the comma grouping the rule names is unmeasured
- *     here, exactly as it is for `{N}` (`MESSAGE_NUMBER_LIMIT`, the same bound, on the
- *     percentage);
+ *   * a ROUNDED percentage of 1000 or more — the comma grouping the rule names is
+ *     unmeasured here, exactly as it is for `{N}` (`MESSAGE_NUMBER_LIMIT`, the same bound).
+ *     ⛔ Asked of the ROUNDED whole, not the product: 9.996 is 999.6 %, which rounds to
+ *     1000 and would print "1,000%" under `#,###%` — a bound on the product drew "1000%";
  *   * an exact tie at the whole percent (0.125 → 12.5) — "rounds to the nearest whole"
  *     does not say which way a tie goes, and HALF_EVEN and HALF_UP part there;
  *   * a value that rounds to a negative zero ("-0%" or "0%": unmeasured);
@@ -177,9 +186,9 @@ function trimmedFixed(n, max) {
 export function percentMessageNumber(n) {
   if (typeof n !== 'number' || !Number.isFinite(n)) return null
   const p = n * 100
-  if (Math.abs(p) >= MESSAGE_NUMBER_LIMIT) return null
   if (exactTieAt(p, 0)) return null
   const k = Math.round(p)
+  if (Math.abs(k) >= MESSAGE_NUMBER_LIMIT) return null
   if (k === 0 && p < 0) return null
   return `${k}%`
 }
@@ -196,7 +205,13 @@ export function percentMessageNumber(n) {
 export function formatMessageNumber(n, fmt) {
   if (typeof n !== 'number' || !Number.isFinite(n)) return null
   if (Math.abs(n) >= MESSAGE_NUMBER_LIMIT) return null
-  if (fmt === undefined) return trimmedFixed(n, MESSAGE_DEFAULT_DECIMALS)
+  // ⛔ W3-S1 — the bound is asked of the ROUNDED text too: 999.9996 rounds to "1000" at
+  // three decimals, and Java's default `#,##0.###` prints that "1,000" — the grouping no
+  // capture pins. (`#.##` has no grouping in either reading, so it keeps its own answer.)
+  if (fmt === undefined) {
+    const s = trimmedFixed(n, MESSAGE_DEFAULT_DECIMALS)
+    return s !== null && Math.abs(Number(s)) >= MESSAGE_NUMBER_LIMIT ? null : s
+  }
   if (fmt === '#.##') return trimmedFixed(n, 2)
   // ⭐ W3-S1 — the one keyword preset the published rule pins.
   if (fmt === 'percent') return percentMessageNumber(n)
