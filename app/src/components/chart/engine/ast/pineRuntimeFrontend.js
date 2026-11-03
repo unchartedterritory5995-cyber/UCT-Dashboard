@@ -1736,6 +1736,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (foreign !== null) { r4CulpritSeen = foreign; return false }
       test = t2
     }
+    // ⭐ W4-T2 — a `simple` root name (`var enableMA = maTypeInput != "None"`) is
+    // its value at this test, fixed before bar 0 (`simpleValueOf`)
+    test = simpleValueOf(test, scope)
     if (readsSlot(test, scope)) return false
     let c
     try { c = makeResolver().resolve(test) } catch { return false }
@@ -4541,6 +4544,224 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return null
   }
 
+  // ─── ⭐⭐ W4-T2 — `simple` QUALIFIER FOLDING: A VALUE FIXED BEFORE BAR 0 ─────
+  //
+  // Pine's qualifiers are `const < input < simple < series`, and a variable's is
+  // the strongest of every value written to it AND of every test it is written
+  // under (Type system, Qualifiers). A root-level name whose every write is
+  // invariant is therefore `simple`: it holds ONE value at each point of the
+  // script on every bar, and a `simple int` may size a window or bound an offset.
+  // The frozen resolver cannot see it, because a name this lane mutates is a slot
+  // and never enters `env` — so such a name refused as "only known while the bar
+  // is running", which is false of it.
+  //
+  // ⭐ THE SHAPES, and nothing else (`simpleShapeOf`):
+  //   - its ONE declaration, at the root, never `series`/`varip`, initialised by
+  //     a value that folds (a literal, an input, a chart constant, pointwise
+  //     arithmetic over those, an earlier simple name);
+  //   - a plain name may also be reassigned (`:=`, `+=`, `-=`, `*=`) at the root
+  //     or inside `if` / `else if` / `else` bodies whose tests fold; the value at
+  //     a read is the straight-line run of those writes up to the read, the arms
+  //     taken as the folded tests choose (`simpleValueAt`);
+  //   - a `var` only when NOTHING reassigns it: a `var` keeps a write across bars,
+  //     so bar 0 and bar 1 would read different values.
+  // ⛔ FAILS CLOSED: a write anywhere else (a loop, a `switch`, an inline arm, a
+  // function body, a tuple, a block-valued right side, a second declaration that
+  // could shadow it), a test or a value that does not fold, `/` or `%` (Pine's
+  // integer division is version-dependent: T17) — the name is not simple and
+  // keeps the refusal it had.
+  // ⛔ NUMBERS FOLD AS THE FROZEN RESOLVER FOLDS THEM (the author's default, the
+  // owner's 2026-08-11 rule for every length and offset); TEXT at the value in
+  // force (`fixedTextOf`, C47's reader). The chart's timeframe flags come from
+  // the build's own binding (`bindConsts`), never guessed: no `tf`, no fold.
+  // ⛔ Never at the object door, which keeps master's answer (`objectDoorRefuses`).
+  // A function body reads a global at the CALL's moment, not at the body's text;
+  // its scope holds no global (`guardOuter`), so none folds there, and a request's
+  // value reads none either (its own scope; `runtime:request-with-state` first).
+  const SIMPLE_DECL_WORDS = new Set(['var', 'int', 'float', 'bool', 'simple', 'const'])
+  const SIMPLE_WRITE_OPS = new Set([':=', '+=', '-=', '*='])
+  const ANY_ASSIGN_OPS = new Set(['=', ':=', '+=', '-=', '*=', '/=', '%='])
+  const SIMPLE_MAX_DEPTH = 32
+  const simpleShapes = new Map()
+  /** A canonical tree with no `/` or `%` in it: Pine's integer division is
+   *  version-dependent (T17), and a length folded the wrong way is a wrong
+   *  window, not a refusal. The one rule both W4-T2 folds ask. */
+  const foldsExactly = (t, d = 0) => !!t && typeof t === 'object' && d < 64
+    && !(t.type === 'op' && (t.name === '/' || t.name === '%'))
+    && (t.args || []).every((a) => foldsExactly(a, d + 1))
+  /** Is this header a reassignment of `name` this fold reads? `:=` and the
+   *  pointwise compound forms, written as the whole statement. */
+  const simpleWriteOp = (h, name) => (h.length > 2 && h[0].kind === 'ident' && h[0].value === name
+    && h[1].kind === 'punct' && SIMPLE_WRITE_OPS.has(h[1].value) ? h[1].value : null)
+  /** `{decl, isVar}` when every write of the root name `name` is one this fold
+   *  reads, else `null`. Decided ONCE per name over the whole statement tree. */
+  const simpleShapeOf = (name) => {
+    if (simpleShapes.has(name)) return simpleShapes.get(name)
+    let decl = null
+    let isVar = false
+    let writes = 0
+    let bad = false
+    const visit = (list, ctx) => {
+      for (const st of list || []) {
+        if (bad) return
+        const h = st.header || []
+        let depth = 0
+        for (let k = 0; k < h.length; k += 1) {
+          const t = h[k]
+          if (t.kind === 'punct' && (t.value === '(' || t.value === '[')) depth += 1
+          else if (t.kind === 'punct' && (t.value === ')' || t.value === ']')) depth -= 1
+          if (!(t.kind === 'punct' && ANY_ASSIGN_OPS.has(t.value))) continue
+          // a named argument (`length = len`) assigns nothing (an assignment
+          // nested in an expression is not a line this lane reads at all)
+          if (depth > 0) continue
+          if (!h.slice(0, k).some((x) => x.kind === 'ident' && x.value === name)) continue
+          // (a block-valued right side, `len := if …`, does not parse as one
+          // expression, so its value never folds: `simpleFoldToks`)
+          const words = h.slice(0, k - 1)
+          if (t.value === '=' && ctx === 'root' && h[k - 1].kind === 'ident' && h[k - 1].value === name
+            && words.every((w) => w.kind === 'ident' && SIMPLE_DECL_WORDS.has(w.value))) {
+            decl = st
+            isVar = words.some((w) => w.value === 'var')
+          } else if (k === 1 && simpleWriteOp(h, name) && (ctx === 'root' || ctx === 'if')) {
+            writes += 1
+          } else {
+            bad = true
+          }
+          break
+        }
+        if (bad) return
+        const w0 = h[0] && h[0].kind === 'ident' ? h[0].value : null
+        const inner = (w0 === 'if' || w0 === 'else') && (ctx === 'root' || ctx === 'if') ? 'if' : 'other'
+        if (st.sub && st.sub.length) visit(st.sub, inner)
+      }
+    }
+    visit(stmts, 'root')
+    // ⛔ A `var` keeps a write across bars: only a never-reassigned one is fixed.
+    const shape = bad || decl === null || (isVar && writes > 0) ? null : { decl, isVar }
+    simpleShapes.set(name, shape)
+    return shape
+  }
+  /** The value of one expression's tokens if it folds before bar 0, else `null`. */
+  const simpleFoldToks = (toks, depth) => {
+    let e
+    try { e = parseWholeExpression(toks) } catch { return null }
+    let bad = false
+    const sub = (x, d) => {
+      if (bad || !x || typeof x !== 'object' || d > 64) return x
+      if (Array.isArray(x)) return x.map((y) => sub(y, d + 1))
+      if (x.type === 'name' && typeof x.name === 'string') {
+        if (root.lookup(x.name) !== null) {
+          const v = x.tok && Number.isInteger(x.tok.index) ? simpleValueAt(x.name, x.tok.index, depth + 1) : null
+          if (v === null) { bad = true; return x }
+          return { type: 'number', value: v, tok: x.tok }
+        }
+        const text = fixedTextOf(x, root)
+        return text !== null ? { type: 'string', value: text, tok: x.tok } : x
+      }
+      const out = {}
+      for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, d + 1)
+      return out
+    }
+    const n = sub(e, 0)
+    if (bad) return null
+    let canonical
+    try { canonical = makeFrozenResolver().resolve(n) } catch { return null }
+    if (!foldsExactly(canonical)) return null
+    try {
+      const v = foldScalar(canonical, bindConsts)
+      return Number.isFinite(v) ? v : null
+    } catch (err) {
+      if (err instanceof NotFoldable) return null
+      throw err
+    }
+  }
+  /** The value the simple root name `name` holds at token `at`, or `null`. */
+  const simpleValues = new Map()
+  const simpleValueAt = (name, at, depth = 0) => {
+    const key = `${name}|${at}`
+    if (simpleValues.has(key)) return simpleValues.get(key)
+    // ⛔ a resource ceiling: each level is a simple name read by another's value
+    if (depth > SIMPLE_MAX_DEPTH) return null
+    const shape = simpleShapeOf(name)
+    if (!shape) { simpleValues.set(key, null); return null }
+    let cur = null
+    let done = false
+    const writesIn = (list) => (list || []).some((st) => simpleWriteOp(st.header || [], name) || writesIn(st.sub))
+    const run = (list) => {
+      for (let i = 0; i < list.length && !done; i += 1) {
+        const st = list[i]
+        const h = st.header || []
+        if (!h.length) continue
+        // (a statement after the read is a write or an `if`, each stopped below)
+        if (st === shape.decl) {
+          const eq = findTop(h, (t) => isPunct(t, '='))
+          cur = simpleFoldToks(h.slice(eq + 1), depth)
+          if (cur === null) return false
+          continue
+        }
+        const op = simpleWriteOp(h, name)
+        if (op) {
+          // the read is in this write's own right side: the value before it
+          if (h[h.length - 1].index >= at) { done = true; return true }
+          const v = simpleFoldToks(h.slice(2), depth)
+          if (v === null) return false
+          cur = op === ':=' ? v : op === '+=' ? cur + v : op === '-=' ? cur - v : cur * v
+          continue
+        }
+        if (h[0].kind !== 'ident' || h[0].value !== 'if') continue
+        // ⭐ the whole `if` / `else if` / `else` chain, one arm taken by its test
+        let j = i + 1
+        while (j < list.length && list[j].header && list[j].header[0]
+          && list[j].header[0].kind === 'ident' && list[j].header[0].value === 'else') j += 1
+        const chain = list.slice(i, j)
+        i = j - 1
+        if (!chain.some((arm) => writesIn(arm.sub))) continue
+        let taken = null
+        for (const arm of chain) {
+          const ah = arm.header
+          // the read is in this arm's test, or in an earlier arm: the value is cur
+          if (ah[ah.length - 1].index >= at) { done = true; return true }
+          const isElse = ah[0].value === 'else'
+          const test = !isElse ? ah.slice(1) : (ah[1] && ah[1].kind === 'ident' && ah[1].value === 'if' ? ah.slice(2) : null)
+          if (test === null) { taken = arm; break }
+          // ⛔ a test that does not fold makes every write under it per-bar
+          const v = simpleFoldToks(test, depth)
+          if (v === null) return false
+          if (v !== 0) { taken = arm; break }
+        }
+        if (taken && !run(taken.sub || [])) return false
+      }
+      return true
+    }
+    const ok = run(stmts)
+    const out = ok ? cur : null
+    simpleValues.set(key, out)
+    return out
+  }
+  /** ⭐⭐ W4-T2 — `e` with every simple root name replaced by its value at that
+   *  read, as a parse `number` node; the SAME object when nothing folds. */
+  const simpleValueOf = (e, scope) => {
+    if (atObjectDoor || !scope || !e || typeof e !== 'object') return e
+    let changed = false
+    const sub = (x, d) => {
+      if (!x || typeof x !== 'object' || d > 64) return x
+      if (Array.isArray(x)) return x.map((y) => sub(y, d + 1))
+      if (x.type === 'name' && typeof x.name === 'string') {
+        const s = scope.lookup(x.name)
+        if (s === null || !x.tok || !Number.isInteger(x.tok.index)) return x
+        const v = simpleValueAt(x.name, x.tok.index)
+        if (v === null) return x
+        changed = true
+        return { type: 'number', value: v, tok: x.tok }
+      }
+      const out = {}
+      for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, d + 1)
+      return out
+    }
+    const n = sub(e, 0)
+    return changed ? n : e
+  }
+
   /** ⭐⭐ RT3 — a `for` counter's range, for `loopRanges`. Both bounds fold or the
    *  range is `{blocked}`; a body that assigns the counter (`:=` or a compound
    *  form, at any depth) has no range at all. */
@@ -4572,6 +4793,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       n = sub(e, 0)
       if (foreign !== null) return { frameName: foreign }
     }
+    n = simpleValueOf(n, scope)   // ⭐ W4-T2
     let canonical
     try { canonical = makeFrozenResolver().resolve(n) } catch { return null }
     if (!canonical) return null
@@ -4695,6 +4917,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       e = e2
     }
+    // ⭐⭐ W4-T2 — a `simple` root name is its value at this read (`simpleValueOf`).
+    e = simpleValueOf(e, scope)
     // ⭐⭐ THE CONSTANT IS READ OFF THE CANONICAL TREE, NOT OFF AN EVALUATION.
     //
     // ⚰️ The first draft interpreted the expression and asked whether the result
@@ -4748,6 +4972,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
           + 'engine can read before bar 0', at)
       }
       throw err
+    }
+    // ⭐⭐ W4-T2 — POINTWISE ARITHMETIC OVER CONSTANTS IS A CONSTANT (`k + 2`,
+    // `math.max(len, 3)`): the canonical tree has no bar in it, so its value is
+    // read off the tree, by `constValueOf`'s own fold (`foldScalar`, no binding).
+    // ⛔ Not `/` or `%` (T17), and never at the object door (master's answer).
+    if (canonical && canonical.type !== 'num' && !atObjectDoor) {
+      if (foldsExactly(canonical)) {
+        try {
+          const v = foldScalar(canonical, {})
+          if (Number.isFinite(v)) canonical = { type: 'num', value: v }
+        } catch (err) {
+          if (!(err instanceof NotFoldable)) throw err
+        }
+      }
     }
     if (!canonical || canonical.type !== 'num'
       || !Number.isInteger(canonical.value) || canonical.value < 0) {

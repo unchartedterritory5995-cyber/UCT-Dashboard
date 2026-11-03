@@ -54,6 +54,11 @@ const SHAPES = {
   // `inputConsts` the door drew "146.05" / "299.06" here (reviewer's probes, RDDT 1D).
   cv_int: ['', false, 'var int LEN = 5\nlen = input.int(LEN, "L")\n', 'v = ta.sma(close, len) + k * 0\n'],
   cv_float: ['', false, 'var float M = 2.0\nm = input.float(M, "M")\n', 'v = close * m + k * 0\n'],
+  // ⭐ W4-T2 `simple` folding (a widened fold, so the door keeps master's refusal): a
+  // reassignment under an invariant test, a never-reassigned `var`, arithmetic over an input.
+  t2_if: ['', false, 'len = 10\nif timeframe.isintraday\n    len := 5\n', 'v = ta.sma(close + k * 0, len)\n'],
+  t2_var: ['', false, 'var L = 7\n', 'v = ta.sma(close + k * 0, L)\n'],
+  t2_arith: ['', false, 'n = input.int(4, "N")\n', 'v = ta.sma(close + k * 0, n + 2)\n'],
 }
 // [body, named] or ['', named, prelude (before the state loop), body]
 const sourceOf = (shape, tail) => {
