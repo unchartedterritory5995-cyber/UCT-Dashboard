@@ -869,6 +869,8 @@ def _raw_html_block(html: str, ctx: _Ctx) -> list[dict[str, Any]] | None:
 
 #: Elements whose markdown body spans blocks (`_html_region`).
 _HTML_REGION_TAGS = frozenset({"details", "aside"})
+#: A region element's close tag inside a nested markdown block (M2).
+_REGION_CLOSE_RE = re.compile(r"</(details|aside)\s*>", re.IGNORECASE)
 
 
 def _html_region(
@@ -908,6 +910,13 @@ def _html_region(
         if tk.type == "paragraph_open":
             last = k + 2
         _place_region_blocks(builder, tokens, k, last + 1, ctx)
+        # D3 review M2: a `</details>` or `</aside>` written INSIDE that block (in a list item)
+        # still closes the region element, as the browser closes it (`details` is in scope
+        # through `li`/`ul`). The block was converted whole; only those closes reach the builder.
+        for nested in tokens[k + 1:last + 1]:
+            if nested.type == "html_block":
+                for close in _REGION_CLOSE_RE.findall(nested.content or ""):
+                    builder.handle_endtag(close)
         k = last + 1
     builder.close()
     seen: list[_HtmlNode] = []
@@ -1801,6 +1810,43 @@ def _html_aside_callout(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
     return {"type": "callout", "attrs": {"emoji": emoji, "variant": None}, "content": content}
 
 
+def _html_details_nodes(node: "_HtmlNode", ctx: _Ctx) -> list[dict[str, Any]]:
+    """A `<details>` as the client's parse writes it, content written BEFORE its `<summary>`
+    included (D3 review M7, measured on the client):
+      * inline content before it is the summary of an OUTER toggle holding the real one
+        (`<details>intro<summary>S</summary>b</details>`);
+      * a block before it closes an empty toggle, then stands on its own, then the real
+        toggle follows (`<details><p>pre</p><summary>S</summary>…`).
+    Anything else is the one toggle (`_html_details_toggle`)."""
+    summary = next((c for c in node.children if isinstance(c, _HtmlNode) and c.tag == "summary"), None)
+    if summary is None:
+        return [_html_details_toggle(node, ctx)]
+    at = node.children.index(summary)
+    pre = node.children[:at]
+    if all(isinstance(c, str) and c.strip() == "" for c in pre):
+        return [_html_details_toggle(node, ctx)]
+    real = _HtmlNode("details", node.attrs)
+    real.children = node.children[at:]
+    if any(isinstance(c, _BlocksNode) or (isinstance(c, _HtmlNode) and c.tag not in _HTML_INLINE_TAGS)
+           for c in pre):
+        empty = {"type": "toggle", "attrs": {"open": True}, "content": [
+            {"type": "toggleSummary", "content": []},
+            {"type": "toggleContent", "content": [{"type": "paragraph", "content": []}]},
+        ]}
+        return [empty, *_html_blocks_walk(pre, ctx), _html_details_toggle(real, ctx)]
+    outer = _html_details_toggle(_HtmlNode("details", node.attrs), ctx)
+    flat = _html_inline_walk(pre, ctx)
+    outer["content"][0]["content"] = [x for x in flat if x.get("type") not in _HOISTABLE_BLOCK_TYPES]
+    outer["content"][1]["content"] = [
+        *[x for x in flat if x.get("type") in _HOISTABLE_BLOCK_TYPES], _html_details_toggle(real, ctx)]
+    return [outer]
+
+
+#: Tags an inline walk reads (M7: content of these before a `<summary>` is inline).
+_HTML_INLINE_TAGS = frozenset({"a", "b", "strong", "i", "em", "s", "del", "strike", "u", "mark",
+                               "code", "br", "img"})
+
+
 def _html_details_toggle(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
     summary = next((c for c in node.children if isinstance(c, _HtmlNode) and c.tag == "summary"), None)
     rest = [c for c in node.children if c is not summary]
@@ -1903,7 +1949,7 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
             out.append(_html_aside_callout(n, ctx))
         elif tag == "details":
             flush()
-            out.append(_html_details_toggle(n, ctx))
+            out.extend(_html_details_nodes(n, ctx))
         elif tag == "summary":
             # A summary outside a details: a block wrapper, as a div.
             flush()

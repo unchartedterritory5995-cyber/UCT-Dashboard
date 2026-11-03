@@ -611,3 +611,14 @@ def test_inline_raw_tags_scale_linearly(make):
 
     small, big = timed(2000), timed(8000)
     assert big / max(small, 1e-3) < 8, (small, big)  # quadratic is 16x for 4x the input
+
+
+# ── fix round 1, M7: differences kept on purpose, pinned per lane ─────────────
+
+_KNOWN_DIFFERENCES = json.loads(_HTML_VECTORS_PATH.read_text(encoding="utf-8"))["known_differences"]
+
+
+@pytest.mark.parametrize("v", _KNOWN_DIFFERENCES, ids=[v["name"][:40] for v in _KNOWN_DIFFERENCES])
+def test_known_differences_server_side(v):
+    assert v["server"] != v["client"]
+    assert _shape(md_to_tiptap(v["md"])["doc"]) == v["server"]

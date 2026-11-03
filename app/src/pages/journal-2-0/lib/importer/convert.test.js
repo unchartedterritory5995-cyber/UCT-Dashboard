@@ -472,3 +472,13 @@ describe('mdToHtml + htmlToNote — D3 fix round 1: shared region vectors', () =
     expect(marked(htmlToNote(mdToHtml(v.md)).bodyJson)).toBe(v.shape)
   })
 })
+
+// D3 review M7: differences kept on purpose, pinned per lane (the server pins its own side).
+describe('mdToHtml + htmlToNote — D3 fix round 1: known differences, client side', () => {
+  const quoted = (n) => (n.type === 'text' ? `'${n.text}'`
+    : n.type + (n.content ? `(${n.content.map(quoted).join(', ')})` : ''))
+  it.each(HTML_BLOCK_VECTORS.known_differences.map((v) => [v.name.slice(0, 40), v]))('%s', (_name, v) => {
+    expect(v.client).not.toBe(v.server)
+    expect(quoted(htmlToNote(mdToHtml(v.md)).bodyJson)).toBe(v.client)
+  })
+})
