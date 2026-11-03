@@ -12,11 +12,14 @@ Sprint 1, PR 4a: `themes` (theme_performance overlay, read without building).
 Sprint 1, PR 4b: `breadth.current` (breadth_current.reading) and `ratings` (research/ratings) — both
 MODEL-ISOLATED: the gateway serves them for purpose "answer" only.
 Sprint 2: `instrument.resolve` (the canonical symbol index, ticker_search_index — see instruments.py, MD-1 §4.7).
+Wave 2 (W2-B1, agent-rs): `research.company` (RS-1 v1 — composed from the served kinds above plus the turn's one
+web search; api/services/uct_agent/research/rs1.py).
 """
 from __future__ import annotations
 
 from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadth, commodity_quote, crypto_quote, earnings,
                                               index_quote, instruments, news_company, quotes, ratings, statements, themes)
+from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
 # in entitlements.TOOLKITS (tests/test_entitlements.py, "the NUMBERS live in exactly ONE place").
@@ -118,4 +121,17 @@ def register(registry) -> None:
         owner="agent-md", max_symbols=ONE_SYMBOL, model_isolated=True,
         description="UCT Ratings: UCT's own composite 0-99 and component scores (not an analyst rating); "
                     "as_of is the price data's last session. Shown to the member only. Params: {symbol}.",
+    ))
+    # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
+    # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from
+    # those envelopes. Declared `live` only because the gateway lets a read be LESS fresh than its kind, never
+    # fresher: the envelope's class is the least fresh contributing input (rs1.py). Default OFF like every kind.
+    registry.register(Kind(
+        name=rs1.KIND, fn=rs1.read_research_company, validate=rs1.validate, freshness="live", owner="agent-rs",
+        max_symbols=ONE_SYMBOL,
+        description="A structured research answer for one company — facts (only figures UCT's gateway returned, each "
+                    "with its source and as_of), interpretation (web commentary with unconfirmed figures stripped), "
+                    "unknowns, and dated sources — composed from the served quote / news.company / earnings / "
+                    "fundamentals (/ themes) kinds plus the turn's single web search. "
+                    f"Params: {{symbol, topic: {'|'.join(rs1.TOPICS)}, question?}}.",
     ))

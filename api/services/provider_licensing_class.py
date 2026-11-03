@@ -117,6 +117,13 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     ("alphavantage", "commodities"): LicensingClassEntry(
         "R", "AlphaVantage Commodities APIs import the FRED API Terms (AV §20) — R pending the FRED flow-down check (ESC-15); not a display source for the Agent.", "T-59",
     ),
+    # ── UCT Agent research (W2-B1, RS-1): the ONE Perplexity web search a turn already pays for, composed into
+    # `research.company` as INTERPRETATION (never a fact; figures the gateway did not return are stripped). Cited
+    # with its URLs and shown to the member; the member-rollout disclosure that queries go to Perplexity is still a
+    # ROADMAP Stage 7 prerequisite, so the class stays R (display with attribution, no redistribution).
+    ("perplexity", "research"): LicensingClassEntry(
+        "R", "Synthesized web commentary with citations (sonar, finance domain pack) — display-only interpretation beside gateway facts; Perplexity disclosure pending (ROADMAP Stage 7).", "n/a",
+    ),
     # No ("fmp", "ipo") row: the licensing register's IPO-calendar row (T-52)
     # covers Finnhub's leg, not FMP's `stable/ipos-calendar` specifically — no
     # research exists for that pair, so it is left unregistered and correctly

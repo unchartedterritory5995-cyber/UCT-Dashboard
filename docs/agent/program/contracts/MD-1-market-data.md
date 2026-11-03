@@ -463,6 +463,18 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 - no read triggers an alert check;
 - the budgets refuse correctly.
 
+### 4.8 `research.company` (v1.6, agent-rs, contract RS-1)
+
+A COMPOSED kind (Wave 2, W2-B1): `api/services/uct_agent/research/rs1.py`, specified in `RS-1-research.md`. It reads the
+served `quote`, `news.company`, `earnings`, `fundamentals` (and `themes` for topic `strength`) through this gateway with
+purpose `"research"` (so a model-isolated kind refuses before admission, §4.4), plus the turn's ONE web search
+(`turn._research`, metered by `budget.Meter.research`), and returns `{facts, interpretation, unknown, sources}`. Every
+figure in a fact comes from one of those input envelopes; a web sentence with a figure the gateway did not return is
+stripped. Declared `live` only because a read may be LESS fresh than its kind (§3): the envelope's class is the least
+fresh contributing input and `as_of` the oldest contributing fact's time. `provider_calls` is the web call alone
+(nested reads report their own). Params: `{symbol, topic: move|strength|catalysts|general, question?}`. Default OFF
+(`UCT_AGENT_DATA_KINDS`), like every kind.
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -472,6 +484,7 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 
 ## 9. Changelog
 
+- **v1.6 addition (2026-11-03, agent-rs, W2-B1):** §4.8 `research.company`, a composed kind over the served kinds plus the turn's one web search (contract RS-1). No envelope change.
 - **v1.5 amendment (2026-11-02, agent-md, G2):** §4.7.5 L6. While the symbol index is older than 3 days (or undated), no lowercase word or lowercase cashtag is confirmed; it gets the #691 neutral ask with `basis` `index_stale`. Classes and reads unchanged.
 - **v1.5 amendment (2026-11-02, agent-md, owner ruling):** §4.7.5. A lowercase word or lowercase cashtag is priced when the index confirms it (L1–L5), each result carries `basis`, and a list must name a candidate in every item. Classes, precedence and reads are unchanged.
 - **v1.5 amendment (2026-11-02, agent-md, owner rulings):** §4.7.3 wording. Clarifications are neutral and name no security; an ETF is labelled `an ETF` and every answer pricing one says the price is the fund's share price, not the underlying's. Classes, precedence and reads are unchanged.
