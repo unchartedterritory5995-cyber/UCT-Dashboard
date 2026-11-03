@@ -162,17 +162,36 @@ class _Node:
         self.children: list[Any] = children or []
 
 
+#: Elements nested deeper than this are flattened: the tag is dropped and its content joins the
+#: deepest kept element (Task 3 review m2). Every walk here and in `mddoc` recurses once or twice
+#: per level, so an unbounded depth (500 blockquotes) raised RecursionError and failed the whole
+#: note. A note never fails for its nesting; only structure below the cap is lost.
+MAX_DEPTH = 100
+#: Past the cap a container still gets the one child it needs to hold content (a list's `li`, a
+#: table's row and cell): `mddoc` drops text that sits directly in a `ul`/`ol`/`table`/`tr`, so
+#: flattening exactly there would lose it. Adds at most three levels.
+_STRUCTURAL_CHILD = {"ul": ("li",), "ol": ("li",), "table": ("tr", "tbody", "thead", "tfoot"),
+                     "tbody": ("tr",), "thead": ("tr",), "tfoot": ("tr",), "tr": ("td", "th")}
+
+
 class _Builder(HTMLParser):
     """Every tag kept (ENML's own included). A self-closing `<x/>` is a leaf, as ENML means it;
-    a void HTML tag never takes children. Entities arrive decoded (`convert_charrefs`)."""
+    a void HTML tag never takes children. Entities arrive decoded (`convert_charrefs`). Nesting
+    deeper than `MAX_DEPTH` is flattened."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.root = _Node("#root")
         self._stack = [self.root]
+        self._flattened: list[str] = []  # open tags dropped below the cap, innermost last
 
     def handle_starttag(self, tag, attrs):
-        node = _Node(tag.lower(), {k.lower(): v for k, v in attrs})
+        tag = tag.lower()
+        if (tag not in _VOID_TAGS and len(self._stack) > MAX_DEPTH
+                and tag not in _STRUCTURAL_CHILD.get(self._stack[-1].tag, ())):
+            self._flattened.append(tag)
+            return
+        node = _Node(tag, {k.lower(): v for k, v in attrs})
         self._stack[-1].children.append(node)
         if node.tag not in _VOID_TAGS:
             self._stack.append(node)
@@ -184,6 +203,10 @@ class _Builder(HTMLParser):
         tag = tag.lower()
         if tag in _VOID_TAGS:
             return
+        if self._flattened:
+            if self._flattened[-1] == tag:
+                self._flattened.pop()
+            return  # inside flattened content: never close a kept element early
         for i in range(len(self._stack) - 1, 0, -1):
             if self._stack[i].tag == tag:
                 del self._stack[i:]

@@ -450,6 +450,31 @@ def test_every_media_ref_the_converter_emits_is_ours():
     assert [m["ref"] for m in out["media"]] == [_ref(IMG_HASH), _ref(PDF_HASH)]
 
 
+# ---- m2: deep nesting never fails the note ------------------------------------------------------
+
+
+@pytest.mark.parametrize("open_tag,close_tag,depth", [
+    ("<blockquote>", "</blockquote>", 500),
+    ("<div>", "</div>", 2000),
+    ("<span>", "</span>", 3000),
+    ("<ul><li>", "</li></ul>", 600),
+    ("<table><tr><td>", "</td></tr></table>", 400),
+])
+def test_deep_nesting_converts_and_keeps_the_text(open_tag, close_tag, depth):
+    body = open_tag * depth + "deep text" + close_tag * depth + "<div>after</div>"
+    out = _convert(body)
+    assert "deep text" in _text(out["doc"]) and "after" in _text(out["doc"])
+
+
+def test_nesting_below_the_cap_is_kept_as_structure():
+    out = _convert("<blockquote>" * 3 + "q" + "</blockquote>" * 3)
+    node = _blocks(out)[0]
+    for _ in range(3):
+        assert node["type"] == "blockquote"
+        node = node["content"][0]
+    assert node["type"] == "paragraph" and _text(node) == "q"
+
+
 # ---- I3: the lift is linear -------------------------------------------------------------------
 
 
