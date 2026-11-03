@@ -67,7 +67,7 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 | R-04 | LT-4: routing offers the indicatorAlerts group for cross/alert phrasings; the planner never claims "can't create them yet" when the capability is in the manifest | repair-b | todo | | |
 | R-05 | LT-8: hidden-field phrases ("rs rank", "uct rating", "composite"…) in refinements and new screens hit the F-16 sentence BEFORE any catalog look-alike mapping; LT-11: the refusal offers the public alternative on every path | repair-b | todo | | |
 | R-06 | LT-12: "when does X report" surfaces the next report date; F-16/F-23 isolation re-check on the merged tree | repair-b | todo | | |
-| R-07 | Investigation record: which production flags were on before Wave 1 and since when (from git/docs/PR bodies; no Railway writes); `charts_active_template` read-only verification | integrator | todo | | |
+| R-07 | Investigation record: which production flags were on before Wave 1 and since when; `charts_active_template` read-only verification | integrator | doing | — | FLAGS-INVESTIGATION-2026-11-03.md written; template read-back pending the live rerun |
 | R-08 | Wave 1.1 RC: independent review of the combined diff, agent-ci green, master sync, conditional deploy decision per the eight conditions; live rerun of the failed scenarios | integrator | todo | | |
 
 ## Wave 2 (overnight start 2026-11-03; integration branch agent/int-w2; NOT deployed)
