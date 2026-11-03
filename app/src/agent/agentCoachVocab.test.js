@@ -261,3 +261,58 @@ describe('N5 — the 13 coach concept docs stay generic education: none names a 
     expect(conceptsLoaded).toBeTypeOf('function')
   })
 })
+
+// ── retention (owner decision; #735 review B-1): a Brain-led answer is SHOWN, stored only as a citation marker ───────
+import { KNOWLEDGE_REF, knowledgeMarker } from './coach/brain'
+import { setupPanel, ONE } from './testing/panelHarness'
+
+describe('Brain-led coach answers store a citation-only marker, never passage or template text', () => {
+  const COVER = { policy_version: 'p7', pack_ts: '2026-11-01T00:00:00Z' }
+  it('a template-led answer: the marker names the template, source and versions — none of its fields', async () => {
+    await bootBoth({ play: playEnv({ ...TEMPLATE, source: 'UCT Setup Library', approved_by_policy: 'p7' }, { coverage: COVER }) })
+    const out = await explainConcept('VCP', host())
+    expect(out.text).toContain(TEMPLATE.description)                      // the member sees the full answer
+    expect(out.storedAs.startsWith(KNOWLEDGE_REF)).toBe(true)
+    expect(out.storedAs).toContain('setup template "VCP"')
+    expect(out.storedAs).toContain('UCT Setup Library')
+    expect(out.storedAs).toMatch(/policy p7/)
+    for (const t of [TEMPLATE.description, 'pivot of the last contraction', 'loose, wide base']) expect(out.storedAs).not.toContain(t)
+  })
+  it('a passage-led answer (setup or concept): the marker carries the kb id, title, source and versions — no excerpt', async () => {
+    await bootBoth({ kinds: ['bars.daily', BRAIN_KIND], search: searchEnv([{ ...PASSAGE, kb_id: 12 }], { coverage: COVER }) })
+    for (const topic of ['Stage 2 Breakout', 'failed breakout', 'the team on patience']) {
+      const out = await explainConcept(topic, host())
+      expect(out.text, topic).toContain(PASSAGE.excerpt)
+      expect(out.storedAs, topic).toBe(knowledgeMarker([{ kind: 'knowledge.search', kb_id: 12, title: PASSAGE.title, source: PASSAGE.source, policy: 'p7', pack: '2026-11-01T00:00:00Z' }]))
+      expect(out.storedAs, topic).not.toContain('close back inside the base')
+    }
+  })
+  it('a curated-only or no-definition answer stores as before (no marker)', async () => {
+    await bootBoth({ kinds: ['bars.daily'] })
+    expect((await explainConcept('failed breakout', host())).storedAs).toBeUndefined()
+    expect((await explainConcept('VCP', host())).storedAs).toBeUndefined()
+  })
+  it('🔴 PANEL: the member sees the passage; the recorded row and the next model request never carry it', async () => {
+    reset()
+    const p = setupPanel()
+    const base = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = String(url)
+      if (u === '/api/agent/config') return json({ stream: false, data: true, data_kinds: ['bars.daily', BRAIN_KIND], coach: true })
+      if (u === '/api/agent/coach/concepts') return json({ concepts: CONCEPTS, footer: FOOTER })
+      if (u === '/api/agent/data') return json(searchEnv([{ ...PASSAGE, kb_id: 12 }], { coverage: COVER }))
+      return base(url, init)
+    })
+    const { say } = p.mount(...ONE('NVDA'))
+    await loadConcepts()
+    const shown = await say('coach me on a failed breakout')
+    expect(shown).toContain('close back inside the base')
+    const rec = p.st.calls.filter(c => c[1] === '/api/agent/record').map(c => c[2]).pop()
+    expect(JSON.stringify(rec)).not.toContain('close back inside the base')
+    expect(rec.outcome.startsWith(KNOWLEDGE_REF)).toBe(true)
+    expect(rec.outcomeData).toMatchObject({ knowledge: true, actions: ['coach.explain'] })
+    expect(rec.outcomeData.views).toBeUndefined()
+    await say('what else should I look at?')
+    expect(JSON.stringify(p.lastTurnBody())).not.toContain('close back inside the base')
+  })
+})

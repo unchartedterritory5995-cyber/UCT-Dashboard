@@ -115,3 +115,48 @@ def test_a_model_written_setup_definition_is_replaced(monkeypatch):
     ok = turn.run_turn(message="teach me the vcp", context=CTX, history=[], capabilities=CAPS,
                        caller=_scripted("I can teach it from UCT's setup template when the playbook is available. What drew you to it?"))
     assert ok["usage"]["coach_guard"] == []
+
+
+# ── retention: a Brain-led coach answer is never replayed as text (owner decision; #735 review B-1) ──────────────────
+
+PASSAGE = "The team treats a close back inside the base as the first sign the idea is wrong."
+
+
+def _knowledge_rows(text):
+    return [{"role": "member", "text": "coach me on a failed breakout", "data": None},
+            {"role": "outcome", "text": text, "data": {"kind": "answered", "actions": ["coach.explain"], "knowledge": True}}]
+
+
+def test_the_marker_literal_is_735s_frame_ref():
+    assert turn.KNOWLEDGE_REF == "<uct_knowledge_ref/>"
+    assert turn.KNOWLEDGE_REF in BRAIN                      # the browser writes the same literal
+
+
+@pytest.mark.parametrize("text", [
+    "<uct_knowledge_ref/> UCT showed the member an answer from its approved knowledge here. Cited: knowledge base entry #12.",
+    f"From UCT's playbook — Failed breakouts: {PASSAGE} (UCT Playbook)",       # an older / buggy browser kept the text
+])
+def test_a_later_turn_never_replays_brain_text_v1_and_v2(text):
+    from api.services.uct_agent import turn_v2
+    import inspect
+    msgs = turn.history_messages(_knowledge_rows(text))      # v1, and v2 (turn_v2 builds history with this function)
+    assert "t1.history_messages(history)" in inspect.getsource(turn_v2)
+    blob = json.dumps(msgs)
+    assert PASSAGE not in blob and "Failed breakouts" not in blob
+    assert turn.KNOWLEDGE_REF in blob
+
+
+def test_a_later_model_request_never_contains_brain_text(monkeypatch):
+    monkeypatch.setenv(coach.FLAG_ENV, "1")
+    seen = {}
+
+    def caller(**kw):
+        seen["messages"] = kw["messages"]
+        e = {"disposition": "answer", "reply": "What would you like to look at next?", "question": None, "ops": [],
+             "unsupported_category": None, "research": None}
+        return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text=json.dumps(e))], stop_reason="end_turn",
+                                     usage=types.SimpleNamespace(input_tokens=1, output_tokens=1))
+    for ctx in (CTX, {"charts": CTX["charts"]}):            # a later coach turn and a later ordinary turn
+        turn.run_turn(message="and then?", context=ctx, history=_knowledge_rows(f"From UCT's playbook: {PASSAGE}"),
+                      capabilities=CAPS, caller=caller)
+        assert PASSAGE not in json.dumps(seen["messages"])

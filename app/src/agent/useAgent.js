@@ -50,6 +50,7 @@ import { agentTurn, agentTurnStream, serverStreams, serverPlanner, loadAgentConf
 import { createStepRunner } from './steps'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
+import { KNOWLEDGE_REF } from './coach/brain'
 // ⭐ INDICATORS ⇄ AGENT (2026-10-12): the chart's Create Indicator / Modify doors open the Agent; the
 // member's answer to its question runs the existing `indicator.draft` for that chart. See indicatorEntry.js.
 import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, INDICATOR_DOORS, openIndicatorDoor } from './indicatorEntry'
@@ -684,7 +685,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       answers.forEach((a, i) => push(views[i] ? { role: 'agent', present: views[i], text: a.text || '', ...nextOf(a) } : { role: 'agent', text: a.text, table: a.table || null, link: a.link || null, ...nextOf(a) }))
       // ⛔ W3 review B3: an answer whose capability says `storedAs` (journal.reviewTrades) is SHOWN now but never
       // stored as text or as a view — the transcript keeps only that capability's value-free marker
-      const markerOf = (i) => getCapability(queries[i]?.action)?.storedAs || null
+      // (also an ANSWER's own `storedAs`: a coach answer led by UCT's approved knowledge stores a citation-only marker)
+      const markerOf = (i) => (typeof answers[i]?.storedAs === 'string' && answers[i].storedAs) || getCapability(queries[i]?.action)?.storedAs || null
+      const knowledgeLed = answers.some(a => typeof a?.storedAs === 'string' && a.storedAs.startsWith(KNOWLEDGE_REF))
       const text = answers.map((a, i) => markerOf(i) || a.text).filter(Boolean).join('\n\n')
       // the member's transcript keeps the views (restored on reload); never read into a model request
       const saved = compactViews(views.filter((v, i) => v && !markerOf(i)))
@@ -693,7 +696,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // The server also decides by the action name (turn.LOCAL_ONLY_ACTIONS); this is the second signal.
       const local = queries.filter(o => getCapability(o.action)?.localOnly)
       const localData = local.length ? { local: true, requests: local.map(o => o.args || {}) } : {}
-      record({ member, outcome: text || 'Answered.', outcomeData: { kind: 'answered', actions: queries.map(o => o.action), ...localData, ...(saved.length ? { views: saved } : {}) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
+      record({ member, outcome: text || 'Answered.', outcomeData: { kind: 'answered', actions: queries.map(o => o.action), ...localData, ...(knowledgeLed ? { knowledge: true } : {}), ...(saved.length ? { views: saved } : {}) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
     }
     const ops = allOps.filter(o => !getCapability(o?.action)?.query)
     if (!ops.length) return

@@ -39,7 +39,7 @@ import { loadConcepts, conceptsLoaded, conceptFor, conceptTitles, coachFooter } 
 import { observe, lastObserved, observedChart, barsServed } from '../coach/observe'
 import { enforce as guardEnforce, check as guardCheck } from '../coach/guard'
 import { nextFor } from '../coach/next'
-import { brainPassage, setupTemplate, setupMatch } from '../coach/brain'
+import { brainPassage, setupTemplate, setupMatch, knowledgeMarker } from '../coach/brain'
 import { consentState, readConsent, writeConsent } from '../coach/consent'
 import { reviewStats, reviewText, reviewPresent, modelView, fetchTrades, clampN, DEFAULT_N, MAX_N, DESCRIPTIVE } from '../coach/review'
 
@@ -136,13 +136,13 @@ async function explainSetup(setup, topic, c, rows, host) {
   const t = await setupTemplate(setup)
   if (t) {
     const g = guardEnforce(`${t.text}\n\n${APPLY}`, [t.text, APPLY])
-    if (!g.violations.length) return { text: g.text, title: t.name, ...(t.link ? { link: t.link } : {}), ...(next ? { next } : {}) }
+    if (!g.violations.length) return { text: g.text, title: t.name, storedAs: knowledgeMarker([t.cite]), ...(t.link ? { link: t.link } : {}), ...(next ? { next } : {}) }
   }
   const p = await brainPassage(topic)
   if (p) {
     const g = guardEnforce(`${noDefinition(setup)} The closest approved passage:\n${p.text}${bg ? `\n\n${BACKGROUND_HEADING}\n${bg.text}` : ''}`,
       [p.text, bg?.text || '', setup])
-    if (!g.violations.length) return { text: g.text, title: p.title || setup, ...(next ? { next } : {}) }
+    if (!g.violations.length) return { text: g.text, title: p.title || setup, storedAs: knowledgeMarker([p.cite]), ...(next ? { next } : {}) }
   }
   if (bg) {
     const g = guardEnforce(`${noDefinition(setup)}\n\n${BACKGROUND_HEADING}\n${bg.text}`, [bg.text, setup])
@@ -164,7 +164,7 @@ export async function explainConcept(topic, host) {
   const brain = await brainPassage(topic)
   if (!c && brain) {
     const g = guardEnforce(brain.text, [brain.text])
-    if (!g.violations.length) return { text: g.text, title: brain.title || undefined }
+    if (!g.violations.length) return { text: g.text, title: brain.title || undefined, storedAs: knowledgeMarker([brain.cite]) }
   }
   if (!c) {
     const titles = conceptTitles(rows)
@@ -180,7 +180,7 @@ export async function explainConcept(topic, host) {
   const next = nextFor({ after: 'explain', conceptId: c.id, consent: consentState(), hasChart: !!observedChart(host), concepts: rows })
   if (brain) {
     const b = guardEnforce(`${brain.text}\n\n${body}`, [brain.text, c.text, obs || ''])
-    if (!b.violations.length) return { text: b.text, title: c.title, next }
+    if (!b.violations.length) return { text: b.text, title: c.title, next, storedAs: knowledgeMarker([brain.cite]) }
   }
   return { text: g.text, title: c.title, next }
 }

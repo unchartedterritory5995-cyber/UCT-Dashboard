@@ -830,6 +830,12 @@ def _plans_local_lookup(env) -> bool:
 #: A stored outcome row this server cannot read (no data, or data of the wrong shape): it may have
 #: held a local result, so it is replaced — FAIL CLOSED, never replayed on the chance it is safe.
 UNREADABLE_OUTCOME = "[UCT] (an earlier UCT message that is not repeated here)"
+#: W3 coach × Brain (owner retention decision; #735 review B-1): a row the browser flagged `knowledge: true` (a coach
+#: answer led by UCT's approved knowledge) replays ONLY this fixed stub -- whatever text the row holds. The marker is
+#: #735's knowledge/frame.REF literal, so at integration frame.seen() treats the turn as a knowledge turn.
+KNOWLEDGE_REF = "<uct_knowledge_ref/>"
+KNOWLEDGE_REPLAY = (f"[UCT] {KNOWLEDGE_REF} (UCT showed the member an answer from its approved knowledge base here. The "
+                    "text is not replayed: to use it again, retrieve it again so the current source policy applies.)")
 
 
 #: Outcome kinds the browser records WITHOUT `actions` (useAgent.js): UCT's own fixed wording — undo, clarify,
@@ -945,6 +951,8 @@ def outcome_for_model(t: dict) -> str:
     if is_local_row(t):
         asked = _local_requests(data)
         return f"{LOCAL_RESULT_NOTE} {asked}".strip()
+    if data.get("knowledge") is True or KNOWLEDGE_REF in str(t.get("text") or ""):
+        return KNOWLEDGE_REPLAY                            # Brain text is never replayed (W3 coach × Brain)
     # Label what UCT ACTUALLY did. A proposal was never executed, so it
     # must not read as "[UCT executed]" in the model's memory.
     label = _OUTCOME_LABEL.get(data.get("kind"), "[UCT]")

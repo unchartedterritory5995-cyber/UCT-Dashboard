@@ -100,7 +100,30 @@ export async function brainPassage(question) {
   const title = clean(p.title, 160), excerpt = clean(p.excerpt, 900), source = clean(p.source, 80)
   if (!excerpt) return null
   const text = `From UCT's playbook${title ? ` — ${title}` : ''}: ${excerpt}${source ? ` (${source})` : ''}`
-  return { title, excerpt, source, text }
+  const cite = { kind: 'knowledge.search', kb_id: Number.isInteger(p.kb_id) ? p.kb_id : null, title, source, ...versions(env),
+    ...(p.epoch ? { epoch: clean(p.epoch, 40) } : {}) }
+  return { title, excerpt, source, text, cite }
+}
+
+// ── retention (owner decision; #735 review B-1): Brain text is SHOWN, never stored or replayed ───────────────────────
+/** #735's frame marker (knowledge/frame.REF). Not on this base yet: the same literal is used so that, at integration,
+ *  frame.seen() recognises a stored coach row as a knowledge turn (and keeps web research blocked). */
+export const KNOWLEDGE_REF = '<uct_knowledge_ref/>'
+function versions(env) {
+  const c = env?.coverage && typeof env.coverage === 'object' ? env.coverage : {}
+  return { ...(c.policy_version != null ? { policy: clean(c.policy_version, 40) } : {}), ...(c.pack_ts != null ? { pack: clean(c.pack_ts, 40) } : {}) }
+}
+const safe = (s) => clean(s, 120).replace(/[<>]/g, '')
+/** The citation-only transcript text for a Brain-led answer: ids, titles, sources and versions — never passage text. */
+export function knowledgeMarker(cites) {
+  const parts = (cites || []).filter(Boolean).map((c) => {
+    const v = [c.policy ? `policy ${safe(c.policy)}` : null, c.pack ? `pack ${safe(c.pack)}` : null].filter(Boolean).join(', ')
+    const who = [c.source ? `source: ${safe(c.source)}` : null, v || null].filter(Boolean).join('; ')
+    return c.kind === 'setup.playbook'
+      ? `setup template "${safe(c.template)}"${who ? ` (${who})` : ''}`
+      : `knowledge base entry${c.kb_id != null ? ` #${c.kb_id}` : ''}${c.title ? ` "${safe(c.title)}"` : ''}${who ? ` (${who})` : ''}`
+  })
+  return `${KNOWLEDGE_REF} UCT showed the member an answer from its approved knowledge here (not stored or replayed; retrieve it again to use it).${parts.length ? ` Cited: ${parts.join('; ')}.` : ''}`
 }
 
 const TEMPLATE_LINES = [['description', 'What it is'], ['entry_triggers', 'Entry'], ['stop_methods', 'Stop'],
@@ -123,5 +146,7 @@ export async function setupTemplate(name) {
   const text = `${shown} — from UCT's setup template (the approved playbook):\n${lines.join('\n')}`
   const link = d.link && typeof d.link.href === 'string' && /^\/|^https:\/\//.test(d.link.href)
     ? { href: d.link.href, label: clean(d.link.label, 60) || 'Open the Setup Library' } : undefined
-  return { name: shown, text, link }
+  const cite = { kind: 'setup.playbook', template: shown, source: clean(d.source, 80), ...versions(env),
+    ...(d.approved_by_policy != null ? { policy: clean(d.approved_by_policy, 40) } : {}) }
+  return { name: shown, text, link, cite }
 }
