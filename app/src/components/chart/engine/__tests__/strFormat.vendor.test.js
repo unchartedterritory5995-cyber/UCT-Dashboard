@@ -53,8 +53,12 @@ describe('A — the pattern grammar: what a capture pins is admitted, the rest r
     expect(why('{1}')).toBe('format:index')
     expect(why('{x}')).toBe('format:element')
     expect(why('{0,number}')).toBe('format:element:number')
-    expect(why('{0,number,percent}')).toBe('format:number-pattern:percent')
+    // ⭐ W3-S1 (2026-11-02) — `percent` is READ now, by the published rule (the reference's
+    // own examples: 0.5 → "50%", 0.1 → "10%", 0.2 → "20%"); see `textRefusalNames.test.js`.
+    // `integer` and `currency` stay refused by name until a capture pins their corners.
+    expect(compileMessagePattern('{0,number,percent}', 1)).toEqual({ ok: true, parts: [{ arg: 0, fmt: 'percent' }] })
     expect(why('{0,number,integer}')).toBe('format:number-pattern:integer')
+    expect(why('{0,number,currency}')).toBe('format:number-pattern:currency')
     expect(why('{0,number,#.#}')).toBe('format:number-pattern:#.#')
     expect(why('{0,number,#,###.##}')).toBe('format:number-pattern:#,###.##')
     expect(why('{0,date,short}')).toBe('format:element:date')

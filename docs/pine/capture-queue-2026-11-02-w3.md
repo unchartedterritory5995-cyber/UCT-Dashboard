@@ -1,0 +1,186 @@
+# Capture queue — 2026-11-02 W3 drawing objects, slice S1 (cell text, the reader's own gaps)
+
+Branch `feat/pine-w3-drawings`. The W3 census (`docs/pine/census/w3-object-why-2026-11-02.json`,
+195 drawing-walled sample scripts) counted 22 table cells dropped as `cell:text` with **no refusal
+recorded** — the text reader gave up without saying on what. S1 read each cell's source line and
+sorted them into the SHAPES below. Every shape is now refused **by name** (`cellTextWhy` carries
+`pine:text-value` or `loop:per-pass` plus the spelled shape), and ONE shape is drawn: the
+`{N,number,percent}` element of `str.format`, by TradingView's published rule
+(`app/src/components/chart/engine/pineTextFormat.js::percentMessageNumber`, cited there). The rest
+stay refused until the capture named in its row pins the characters. Same capture procedure as
+`docs/pine/capture-queue-2026-09-28.md` (visibility gate, **Create new ▸ Indicator**, "Add to chart"
+binding gate, `__uctVH.capture({...})`, chunks, `verify_capture.mjs --assemble`). No probe file exists
+yet for any row; each row holds the exact probe script.
+
+The sample scripts are licence-held (read in the sample cache, never committed); the rows name
+them by key and line only, and the probe scripts below are this branch's own text.
+
+## The 22 cells, by shape
+
+| shape | cells (script key, line) | today |
+|---|---|---|
+| S1-A `str.format` with a `{N,date,…}` element | black-scholes-option-pricing-model-w-greeks-loxx 475, 476 | refused by name (`pine:text-value … {N,date,…}`), row Q-W3-1 |
+| S1-B `str.format` with a bare `{N,number}` element (no pattern) | ict-killzones-pivots-tfo 998, 1014 | refused by name (`… {N,number} element with no pattern`), row Q-W3-2 |
+| S1-C `str.format` with `{N,number,percent}` | ict-killzones-pivots-tfo 989 (its cell text; the same script's tooltips too) | **read** (`percentMessageNumber`): the published rule; the cell itself stays refused on its other walls (a user-defined type's fields, `pine:type`). Unpinned corners withheld — row Q-W3-3 |
+| S1-D a per-pass **element of a string list** picked by the counter: `array.get(list, i)` | mtf-dashboard-pro 487 (`array.from` of literals), 635 (`array.from` of helper results); cobra039s-crypto-market-visualizer 400 (`var` list of literals) | refused by name (`loop:per-pass … an element picked out of a list by the counter`), row Q-W3-4 |
+| S1-E a per-pass **helper call** returning text (`?:` over its parameters, `str.tostring(p, "#.##")`, `+`) | mtf-dashboard-pro 525, 542, 557, 572, 589, 607, 653, 668 | refused by name (`loop:per-pass … a helper called over a per-pass value`), row Q-W3-5. ⚠️ every one of these also reads a `request.security` tuple part (`pine:request`), so the row settles the SHAPE, not these cells |
+| S1-F a per-pass **`?:` text**: a test on a per-pass number or string, arms of literals / `str.tostring` | mtf-dashboard-pro 504 (`na(rv) ? "—" : str.tostring(rv, "#.#")`); volume-footprint 989 (`(isAxis ? "◀ " : "") + str.tostring(rowTick * tick, format.mintick)`), 1034, 1037 (nested `?:` over `!= ""` with `str.repeat` / `str.length`); cobra039s 458 (nested `?:` on the counter, `str.tostring(math.round(val * 100, j == 8 ? 0 : 2)) + '%'`) | refused by name (`loop:per-pass … a \`?:\` whose test or arm moves per pass`), rows Q-W3-6 / Q-W3-7 |
+| S1-G a `{N,time,…}` element over `timenow`, reaching `table.cell` through a helper's **string parameter** | dynamic-support-and-resistance-with-trend-lines 1959 (`f_cell_span(_tbl, _row, _text, …)`, 12 call sites; the silent one passes `str.format("{0,time,HH:mm}", timenow + …)`) | refused by name (`… {N,time,…} element`), row Q-W3-1. The parameter shape itself READS: a probe helper `f_cell(table _t, int _r, string _s) => table.cell(_t, 0, _r, _s)` called with a literal and with `"A " + str.tostring(close, "#.##")` carries both cells (measured 2026-11-02, before S1; a control rail in `textRefusalNames.test.js`) |
+
+What the loop rows share: on the host lane a value that moves per pass is read only as the
+counter's arithmetic, a literal, `+`, or `str.tostring` of such a number (`pine.js::loopTextOf`,
+C32). Each row below is a capture that would pin the characters TradingView draws for one more
+per-pass shape; the engine work (a per-pass `{t:'if'}` test, a per-pass helper frame, a string list
+read by the counter) is the `guard:loop` slice's, not S1's, and nothing is drawn before the
+capture lands.
+
+## Owed
+
+| id | probe (owed) | chart | what it settles | where the rule lives |
+|---|---|---|---|---|
+| Q-W3-1 | `vw-w3-format-date.pine` (below) | AMEX:SPY 1D | the `date` / `time` element: the pattern tokens TradingView renders (`MMMM`, `dd`, `yyyy`, `HH:mm:ss`, `Z`), UTC+0 per the docs, over a FIXED timestamp (never `timenow`, which no capture can match) | `pineTextFormat.js::compileMessagePattern` (`format:element:date`) |
+| Q-W3-2 | `vw-w3-format-number-bare.pine` (below) | AMEX:SPY 1D | whether `{0,number}` prints exactly as `{0}` (the published default `#,###.###`): equal LENGTHS on 300 bars, as F12 pinned `#.##`; plus the first value at or above 1000 (grouping comma or not — also unpinned for `{0}`) | `compileMessagePattern` (`format:element:number`), `MESSAGE_NUMBER_LIMIT` |
+| Q-W3-3 | `vw-w3-format-percent.pine` (below) | AMEX:SPY 1D | the corners `percentMessageNumber` withholds: an exact tie at the whole percent (0.125 → "12%" or "13%"), a magnitude of 1000 % and more ("1,234%" or "1234%"), a value rounding to −0 ("-0%" or "0%"), `na`; and the `integer` / `currency` presets over the same values | `pineTextFormat.js::percentMessageNumber`, `MESSAGE_NUMBER_PRESETS` |
+| Q-W3-4 | `vw-w3-loop-list-text.pine` (below) | AMEX:SPY 1D | a string list read by the loop counter into a cell: the cell texts, in table order, for a literal `array.from` list and for a `var` list | `pine.js::loopTextOf` (the `guard:loop` slice) |
+| Q-W3-5 | `vw-w3-loop-helper-text.pine` (below) | AMEX:SPY 1D | a text helper called over a per-pass number: `?:` arms and `str.tostring(p, "#.##") + unit` per pass | `loopTextOf` / `textNodeOf`'s inline frame |
+| Q-W3-6 | `vw-w3-loop-ternary-text.pine` (below) | AMEX:SPY 1D | a `?:` whose test is a per-pass comparison, with `str.tostring(x, format.mintick)` and `str.tostring(x, "#.#")` per pass; `na(x) ? "—" : …` over a list element | `loopTextOf`, `objectRuntime.js::textOf` (`val` under a tick) |
+| Q-W3-7 | `vw-w3-str-repeat-length.pine` (below) | AMEX:SPY 1D | `str.repeat(s, n)` and `str.length(s)` in a cell text, outside and inside a loop (volume-footprint's ghost run) | `pine.js` text reader (`pine:builtin` outside a loop today) |
+
+## The probe scripts
+
+Each keeps inputs at their defaults and draws one table on the last bar; the cell text IS the
+measurement. Capture `tableCells` with `__uctVH.capture({...})` as for every drawing probe.
+
+### Q-W3-1 `vw-w3-format-date.pine`
+
+```pine
+//@version=6
+indicator("vw-w3-format-date", overlay = true)
+// a FIXED instant: 2024-03-05 14:07:09 UTC
+int fixed = timestamp("UTC", 2024, 3, 5, 14, 7, 9)
+if barstate.islast
+    var table t = table.new(position.top_right, 1, 6)
+    table.cell(t, 0, 0, str.format("{0,date,MMMM dd, yyyy - HH:mm:ss}", fixed))
+    table.cell(t, 0, 1, str.format("{0,date,yyyy-MM-dd}", fixed))
+    table.cell(t, 0, 2, str.format("{0,time,HH:mm:ssZ}", fixed))
+    table.cell(t, 0, 3, str.format("{0,date,short}", fixed))
+    table.cell(t, 0, 4, str.format("{0,date,yyyy-MM-dd}T{0,time,HH:mm:ssZ}", fixed))
+    table.cell(t, 0, 5, str.format("{0,date,MMM d, yy}", time))
+```
+
+### Q-W3-2 `vw-w3-format-number-bare.pine`
+
+```pine
+//@version=6
+indicator("vw-w3-format-number-bare", overlay = false)
+plot(str.length(str.format("{0}", close)),        "N01_len_default")
+plot(str.length(str.format("{0,number}", close)), "N02_len_number_bare")
+plot(str.length(str.format("{0}", volume)),       "N03_len_default_volume")
+plot(str.length(str.format("{0,number}", volume)),"N04_len_number_bare_volume")
+if barstate.islast
+    var table t = table.new(position.top_right, 1, 4)
+    table.cell(t, 0, 0, str.format("{0}", 1234.5678))
+    table.cell(t, 0, 1, str.format("{0,number}", 1234.5678))
+    table.cell(t, 0, 2, str.format("{0}", 999.9995))
+    table.cell(t, 0, 3, str.format("{0,number}", -0.0004))
+```
+
+### Q-W3-3 `vw-w3-format-percent.pine`
+
+```pine
+//@version=6
+indicator("vw-w3-format-percent", overlay = true)
+if barstate.islast
+    var table t = table.new(position.top_right, 1, 12)
+    table.cell(t, 0, 0,  str.format("{0,number,percent}", 0.5))
+    table.cell(t, 0, 1,  str.format("{0,number,percent}", 0.125))
+    table.cell(t, 0, 2,  str.format("{0,number,percent}", 0.135))
+    table.cell(t, 0, 3,  str.format("{0,number,percent}", 12.345))
+    table.cell(t, 0, 4,  str.format("{0,number,percent}", -0.004))
+    table.cell(t, 0, 5,  str.format("{0,number,percent}", -0.126))
+    table.cell(t, 0, 6,  str.format("{0,number,percent}", close / open - 1))
+    table.cell(t, 0, 7,  str.format("{0,number,percent}", na))
+    table.cell(t, 0, 8,  str.format("{0,number,integer}", 1.5))
+    table.cell(t, 0, 9,  str.format("{0,number,integer}", 2.5))
+    table.cell(t, 0, 10, str.format("{0,number,currency}", -1234.567))
+    table.cell(t, 0, 11, str.format("{0,number,#.#}", 1.25))
+```
+
+### Q-W3-4 `vw-w3-loop-list-text.pine`
+
+```pine
+//@version=6
+indicator("vw-w3-loop-list-text", overlay = true)
+var string[] names = array.from("", "Asset", "Beta", "Alpha")
+if barstate.islast
+    var table t = table.new(position.top_right, 5, 2)
+    string[] headers = array.from("INDICATOR", "15 MIN", "1 HOUR", "4 HOUR", "DAILY")
+    for i = 0 to 4
+        table.cell(t, i, 0, array.get(headers, i))
+    for k = 1 to 3
+        table.cell(t, k, 1, array.get(names, k))
+```
+
+### Q-W3-5 `vw-w3-loop-helper-text.pine`
+
+```pine
+//@version=6
+indicator("vw-w3-loop-helper-text", overlay = true)
+f_price(float p) =>
+    string result = na(p) ? "—" : p >= 100 ? str.tostring(p, "#.##") : str.tostring(p, "#.####")
+    result
+f_sig(int s) =>
+    s == 1 ? "LONG  ▲" : s == -1 ? "SHORT  ▼" : "NEUTRAL  —"
+if barstate.islast
+    var table t = table.new(position.top_right, 4, 2)
+    float[] px = array.from(close, open, high, low)
+    int[] sg = array.from(1, -1, 0, 1)
+    for i = 0 to 3
+        table.cell(t, i, 0, f_price(array.get(px, i)))
+        table.cell(t, i, 1, f_sig(array.get(sg, i)))
+```
+
+### Q-W3-6 `vw-w3-loop-ternary-text.pine`
+
+```pine
+//@version=6
+indicator("vw-w3-loop-ternary-text", overlay = true)
+if barstate.islast
+    var table t = table.new(position.top_right, 2, 5)
+    float[] rs = array.from(close, open, na, low, high)
+    for k = 0 to 4
+        bool isAxis = k == 2
+        float rv = array.get(rs, k)
+        string rTxt = na(rv) ? "—" : str.tostring(rv, "#.#")
+        table.cell(t, 0, k, (isAxis ? "◀ " : "") + str.tostring(close + k * syminfo.mintick, format.mintick))
+        table.cell(t, 1, k, rTxt)
+```
+
+### Q-W3-7 `vw-w3-str-repeat-length.pine`
+
+```pine
+//@version=6
+indicator("vw-w3-str-repeat-length", overlay = true)
+if barstate.islast
+    var table t = table.new(position.top_right, 2, 4)
+    table.cell(t, 0, 0, str.repeat("x", str.length("abc")))
+    table.cell(t, 1, 0, str.repeat("ab", 3))
+    for k = 1 to 3
+        string s = "+" + str.tostring(k * 1000000.0, format.volume)
+        table.cell(t, 0, k, s)
+        table.cell(t, 1, k, str.repeat("x", str.length(s)))
+```
+
+## Not captures, recorded so nobody files them as owed
+
+- `str.format("{0,date,…}", timenow)` (black-scholes 475) and `str.format("{0,time,HH:mm}", timenow + …)`
+  (dynamic-support-and-resistance 2128, the text behind its 1959 cell) can never match a capture:
+  `timenow` moves every second. Only the FIXED-instant form (black-scholes 476, an input-derived
+  expiry) is capturable; the engine keeps all of them refused by name, and a `timenow` text would
+  stay withheld after Q-W3-1.
+- S1-C's cell (ict-killzones 989) and tooltips read fields of a user-defined type
+  (`TRACK._success / TRACK._total`): `pine:type` stands after `percent` is read. The capability is
+  general; that script needs the UDT work first.
+- Every S1-E cell also reads a `request.security` tuple part; `pine:request` stands on them.
+  Q-W3-5 pins the helper SHAPE on plain series so the shape can be built without that wall.
+- vold-market-breadth is data-limited (`USI:UVOL`) and stays refused; it is not an S1 shape.

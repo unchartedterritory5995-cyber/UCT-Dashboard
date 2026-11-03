@@ -41,9 +41,10 @@
 //     its own digits, so HALF_EVEN and HALF_UP agree on all of them;
 //   * `na` — no capture formats one through `str.format`;
 //   * a result that would read "-0" — the sign of a rounded-away negative;
-//   * every other format element (`{N,number}`, `integer`, `percent`,
-//     `currency`, `date`, `time`, `choice`, any other number pattern), a quote
-//     (`'`), an unbalanced brace — none of them is in any capture.
+//   * every other format element (`{N,number}`, `integer`, `currency`, `date`,
+//     `time`, `choice`, any other number pattern), a quote (`'`), an unbalanced
+//     brace — none of them is in any capture. ⭐ `percent` is the ONE keyword
+//     preset read, by the published rule (`MESSAGE_NUMBER_PRESETS`, W3-S1).
 // The captures that would settle each are named in docs/pine/vendor-harness/
 // objects-triage-2026-09-28.md, step 13.
 
@@ -53,6 +54,24 @@
  *  equivalence for `#.##` alone. */
 export const MESSAGE_NUMBER_PATTERNS = Object.freeze({
   '#.##': 'w3-format-spy-1d-2026-09-22.json F12 == F03 on 300 bars',
+})
+
+/** ⭐⭐ W3-S1 (2026-11-02) — THE KEYWORD PRESETS A `{N,number,KEYWORD}` ELEMENT MAY NAME,
+ *  each with the PUBLISHED RULE that pins it. TradingView's Pine docs, "Formatting strings"
+ *  (https://www.tradingview.com/pine-script-docs/concepts/strings/#formatting-strings):
+ *  "a placeholder can use one of the following keywords that specify predefined formatting
+ *  patterns: integer, currency, or percent" — and `percent` is the pattern `#,###%`: "This
+ *  format multiplies the value by 100, rounds the result to the nearest whole number, adds
+ *  comma separation for three-digit sets, and includes the % symbol at the end." The
+ *  `str.format` reference entry draws it: `str.format("{0,number,percent}", 0.5)` returns
+ *  "50%", and `"Expected return is {0, number, percent} - {1, number, percent}"` over 0.1
+ *  and 0.2 returns "Expected return is 10% - 20%" (`percentMessageNumber`).
+ *  ⛔ `integer` (`#,###`) and `currency` (`'$'#,###.00`) stay refused BY NAME: the reference
+ *  draws them (1.34 → "1", 1.52 → "2", 1.34 → "$1.34", 1340000 → "$1,340,000.00") but no
+ *  capture pins a tie, a negative, or the grouping this module withholds everywhere else
+ *  — queued in `docs/pine/capture-queue-2026-11-02-w3.md`. */
+export const MESSAGE_NUMBER_PRESETS = Object.freeze({
+  percent: 'Pine reference, str.format: 0.5 → "50%", 0.1 → "10%", 0.2 → "20%"; docs "Formatting strings": `#,###%`',
 })
 
 /** The largest magnitude any captured `str.format` number reached, as a bound:
@@ -101,8 +120,13 @@ export function compileMessagePattern(pattern, argCount) {
       const spec = /^\s*number\s*,(.*)$/.exec(m[2])
       if (!spec) return { ok: false, why: `format:element:${m[2].split(',')[0].trim() || 'empty'}` }
       const p = spec[1]
-      if (!Object.hasOwn(MESSAGE_NUMBER_PATTERNS, p)) return { ok: false, why: `format:number-pattern:${p}` }
-      fmt = p
+      // ⭐ W3-S1 — a keyword preset is read by the published rule; the reference spells
+      // the element with optional spaces (`{0, number, percent}` → "10%"), so the keyword
+      // is trimmed. A `#`/`0` pattern is still matched exactly as a capture spelled it.
+      const keyword = p.trim()
+      if (Object.hasOwn(MESSAGE_NUMBER_PRESETS, keyword) || keyword === 'integer') fmt = keyword
+      else if (Object.hasOwn(MESSAGE_NUMBER_PATTERNS, p)) fmt = p
+      else return { ok: false, why: `format:number-pattern:${p}` }
     }
     if (lit) { parts.push({ lit }); lit = '' }
     parts.push(fmt === undefined ? { arg: index } : { arg: index, fmt })
@@ -134,6 +158,33 @@ function trimmedFixed(n, max) {
 }
 
 /**
+ * ⭐⭐ W3-S1 — `{N,number,percent}`: the value × 100, rounded to a whole number, a `%`
+ * after it — the published `#,###%` (`MESSAGE_NUMBER_PRESETS`). `null` (WITHHELD) where
+ * the rule's words do not settle the characters:
+ *   * a magnitude of 1000 % or more — the comma grouping the rule names is unmeasured
+ *     here, exactly as it is for `{N}` (`MESSAGE_NUMBER_LIMIT`, the same bound, on the
+ *     percentage);
+ *   * an exact tie at the whole percent (0.125 → 12.5) — "rounds to the nearest whole"
+ *     does not say which way a tie goes, and HALF_EVEN and HALF_UP part there;
+ *   * a value that rounds to a negative zero ("-0%" or "0%": unmeasured);
+ *   * `na` — no capture formats one through `str.format`.
+ * The product is the double's own `n * 100` — the multiplication Java's DecimalFormat
+ * applies before it rounds — and off a tie the rounding mode cannot matter.
+ *
+ * @param {number} n
+ * @returns {string|null}
+ */
+export function percentMessageNumber(n) {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return null
+  const p = n * 100
+  if (Math.abs(p) >= MESSAGE_NUMBER_LIMIT) return null
+  if (exactTieAt(p, 0)) return null
+  const k = Math.round(p)
+  if (k === 0 && p < 0) return null
+  return `${k}%`
+}
+
+/**
  * ⭐⭐ ONE `str.format` NUMBER, as TradingView draws it — or `null` when no
  * capture pins what it would draw, which the object runtime turns into a
  * WITHHELD text (the object is not drawn), never a best guess.
@@ -147,6 +198,8 @@ export function formatMessageNumber(n, fmt) {
   if (Math.abs(n) >= MESSAGE_NUMBER_LIMIT) return null
   if (fmt === undefined) return trimmedFixed(n, MESSAGE_DEFAULT_DECIMALS)
   if (fmt === '#.##') return trimmedFixed(n, 2)
+  // ⭐ W3-S1 — the one keyword preset the published rule pins.
+  if (fmt === 'percent') return percentMessageNumber(n)
   return null
 }
 

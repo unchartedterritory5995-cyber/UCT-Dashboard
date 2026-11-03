@@ -19068,6 +19068,35 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  Every existing call site passes nothing and behaves exactly as before. */
   /** ⭐ C17 — the refusal the last unresolvable tree threw (`guardRefusals`). */
   let lastCanonRefusal = null
+  /** ⭐⭐ W3-S1 (2026-11-02) — THE TEXT READER'S OWN REFUSAL, BY NAME, AND NOT ON
+   *  `lastCanonRefusal`. That one is read to DECIDE (`rtAdmits`: which refusals the
+   *  runtime lane may answer where the drawing stands), so a text-only give-up must
+   *  not ride it — a `pine:block` written there would have opened the runtime lane
+   *  to a cell it never served before. This one is diagnostics-only: the cell and
+   *  create drop sites read it when the slot's read wrote no canonical refusal, so
+   *  `cellTextWhy` / `createDropWhy` name the SHAPE instead of "no refusal recorded"
+   *  (the W3 census of 2026-11-02 counted 22 such cells). Nothing reads it to decide. */
+  let lastTextRefusal = null
+  const textRefuse = (guard, message) => { lastTextRefusal = { guard, message } }
+  /** ⭐ W3-S1 — `compileMessagePattern`'s refusal NAME, said as the shape it names. */
+  const messageFormatWhyText = (why) => {
+    const m = /^format:(element|number-pattern):(.*)$/.exec(String(why))
+    if (m && m[1] === 'element') {
+      if (m[2] === 'number') return 'has a `{N,number}` element with no pattern — the published default is `{N}`\'s `#,###.###`, and whether the bare `number` form prints the same is unmeasured'
+      if (m[2] === 'date' || m[2] === 'time') return `has a \`{N,${m[2]},…}\` element: a UTC date or time the reference formats by a pattern no capture has measured`
+      return `has a \`{N,${m[2]}}\` element this reader does not hold`
+    }
+    if (m) return `has a number pattern \`${m[2]}\` no capture or published example pins (\`#.##\` and \`percent\` are read)`
+    const plain = {
+      'format:quote': 'has an apostrophe, MessageFormat\'s quote character',
+      'format:brace': 'has an unbalanced brace',
+      'format:index': 'names an argument it was not given',
+      'format:arguments': 'is called with a named argument or no pattern',
+      'format:pattern-not-literal': 'reads a pattern that is not a literal string',
+      'format:number-over-text': 'applies a number pattern to a text argument',
+    }
+    return plain[why] || `was refused as ${why}`
+  }
   const canonicalOf = (node, inline, envOverride) => {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
@@ -19341,6 +19370,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const refuseFmt = (why) => {
       diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
       diagnostics.textFormatRefusals[why] = (diagnostics.textFormatRefusals[why] || 0) + 1
+      // ⭐ W3-S1 — named for the drop site: WHICH element or pattern was refused.
+      textRefuse('pine:text-value', `\`str.format\` ${messageFormatWhyText(why)}`)
       return null
     }
     const args = node.args || []
@@ -19593,6 +19624,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     diagnostics.textTooDeep = diagnostics.textTooDeep || []
     const entry = `nest>${TEXT_NODE_MAX_NEST}@${at ? at.line : '?'}`
     if (!diagnostics.textTooDeep.includes(entry)) diagnostics.textTooDeep.push(entry)
+    textRefuse('pine:text-value', `this text's node nests deeper than the runtime reads (${entry})`)
     return null
   }
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
@@ -19619,6 +19651,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const at = node.tok ? locate(node.tok) : null
       const entry = `steps>${TEXT_WORK_BUDGET}@${at ? at.line : '?'}`
       if (!diagnostics.textTooLarge.includes(entry)) diagnostics.textTooLarge.push(entry)
+      textRefuse('pine:text-value', `this text is larger than the reader's work bound (${entry})`)
       return null
     }
     // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
@@ -19646,6 +19679,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const at = node.tok ? locate(node.tok) : null
       const entry = `depth>${TEXT_MAX_DEPTH}@${at ? at.line : '?'}`
       if (!diagnostics.textTooDeep.includes(entry)) diagnostics.textTooDeep.push(entry)
+      textRefuse('pine:text-value', `this text nests deeper than the reader follows (${entry})`)
       return null
     }
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
@@ -19931,6 +19965,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (!diagnostics.nestedTextHelpers.includes(entry)) {
           diagnostics.nestedTextHelpers.push(entry)
         }
+        textRefuse('pine:text-value', `a text helper called inside another text helper (\`${entry}\`) is read one level deep only`)
         return null
       }
       if (bound && bound.kind === 'fn' && bound.value && bound.value.node
@@ -20836,6 +20871,48 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     return null
   }
+  /** ⭐ W3-S1 — a short Pine-ish spelling of a parse node (depth-bounded), for a
+   *  refusal that names the SHAPE it could not read. Diagnostics only. */
+  const spellNode = (node, depth = 0) => {
+    if (!node || typeof node !== 'object') return '?'
+    if (depth > 3) return '…'
+    const list = (args) => (args || []).map((a) => spellNode(a && a.value !== undefined ? a.value : a, depth + 1)).join(', ')
+    switch (node.type) {
+      case 'name': return String(node.name)
+      case 'number': return String(node.value)
+      case 'string': return JSON.stringify(String(node.value)).slice(0, 14)
+      case 'call': return `${node.name}(${list(node.args)})`
+      case 'binary': return `${spellNode(node.left, depth + 1)} ${node.op} ${spellNode(node.right, depth + 1)}`
+      case 'ternary': return `${spellNode(node.test, depth + 1)} ? ${spellNode(node.yes, depth + 1)} : ${spellNode(node.no, depth + 1)}`
+      case 'unary': return `${node.op}${spellNode(node.arg, depth + 1)}`
+      case 'bound': return String(node.name || 'bound')
+      default: return String(node.type)
+    }
+  }
+  /** ⭐ W3-S1 — the KIND of per-pass shape the host lane did not read, with its
+   *  spelling: the first sub-node that mentions the counter and is none of the
+   *  lane's own shapes (`loopTextOf`: a literal, `+`, `str.tostring(x[, "fmt"])` of
+   *  the counter's arithmetic). Reads nothing and counts nothing: `openName` only. */
+  const perPassShapeOf = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 8) return 'a shape this reader cannot spell'
+    if (node.type === 'name' && !loopIds.includes(node.name)) {
+      const opened = openName(node, scopeEnv, 0)
+      if (!opened) return `a local the loop reassigns or this reader cannot open: \`${node.name}\``
+      return perPassShapeOf(opened.node, depth + 1)
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      return perPassShapeOf(mentionsLoop(node.left) ? node.left : node.right, depth + 1)
+    }
+    if (node.type === 'ternary') return `a \`?:\` whose test or arm moves per pass: \`${spellNode(node)}\``
+    if (node.type === 'call') {
+      const fn = scopeEnv && typeof scopeEnv.get === 'function' ? scopeEnv.get(node.name) : null
+      if (fn && fn.kind === 'fn') return `a helper called over a per-pass value: \`${spellNode(node)}\``
+      if (node.name === 'array.get' || /\.get$/.test(String(node.name))) return `an element picked out of a list by the counter: \`${spellNode(node)}\``
+      if (node.name === 'str.tostring' || node.name === 'tostring') return `\`str.tostring\` of a per-pass value under a format this lane does not read per pass: \`${spellNode(node)}\``
+      return `a built-in over a per-pass value: \`${spellNode(node)}\``
+    }
+    return `\`${spellNode(node)}\``
+  }
   const valueRef = (node, slot) => {
     if (!node) return null
     // ⭐⭐ ASKED BEFORE THE TEXT AND COLOUR SLOTS, DELIBERATELY. A cell whose
@@ -20876,6 +20953,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       }
       if (!iterTrees) {
         diagnostics.loopValuesUnresolved += 1
+        // ⭐ W3-S1 — named: WHICH per-pass shape this lane does not read
+        // (`perPassShapeOf`), so a cell dropped here says so instead of nothing.
+        textRefuse('loop:per-pass', `${slot ? `the \`${slot}\` slot` : 'a value'} moves per pass of the loop and is ${perPassShapeOf(node)} — this lane reads per pass only a literal, \`+\`, the counter's arithmetic and \`str.tostring\` of it`)
         return null
       }
     }
@@ -22917,10 +22997,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         // ⛔ O1 — READ, NEVER RESET: `rtTextOf` consults `lastCanonRefusal`, so
         // the sentence is taken only when THIS slot's read wrote a new one.
         const refusalBefore = lastCanonRefusal
+        const textRefusalBefore = lastTextRefusal
         const v = valueRef(node, k)
         if (!v) {
           if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) {
-            noteCreateDrop(op, k, lastCanonRefusal !== refusalBefore ? lastCanonRefusal : null)
+            // ⭐ W3-S1 — the text reader's own named refusal when no canonical one was written.
+            noteCreateDrop(op, k, lastCanonRefusal !== refusalBefore ? lastCanonRefusal
+              : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null)
             bad = true
             break
           }
@@ -23036,12 +23119,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       for (const [k, node] of Object.entries(raw)) {
         if (!OBJECT_CELL_PROPS.includes(k)) { unsupportedProp('cell', k, node); continue }
         const cellRefusalBefore = lastCanonRefusal
+        const textRefusalBefore = lastTextRefusal
         const v = valueRef(node, k)
         if (!v) {
           // ⭐ P2 — the sentence behind a `cell:text` count, as `createDropWhy`
           // gives a create's (diagnostics only; nothing reads it to decide).
+          // ⭐ W3-S1 — the text reader's own named refusal when no canonical one was written.
           if (k === 'text') {
-            const r = lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal : null
+            const r = lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal
+              : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null
             noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: `
               + (r ? `${r.guard || 'refused'} ${String(r.message || '').slice(0, 200)}` : 'no refusal recorded'))
           }
