@@ -574,7 +574,9 @@ async def _do_sync(
     provider: NoteProvider | None = None
 
     try:
-        provider = _provider_factory(source["provider"], source)
+        # Final review M2: building may read the DB (Evernote's admin mode reads the member's
+        # role), so it runs in a worker thread; constructors only build clients, never I/O on a loop.
+        provider = await asyncio.to_thread(_provider_factory, source["provider"], source)
         creds = await _resolve_credentials(user_id, source["provider"])
         if creds is None:
             raise errors.NoteConnNotConfigured(
@@ -725,9 +727,9 @@ async def _do_sync(
                 if removal_check:
                     removal_reason = "enumeration_failed"
                 # Review R2: a skipped check is counted; 3 in a row turn the source amber.
-                connections.note_removal_check(user_id, source_id, ran=False)
+                await asyncio.to_thread(connections.note_removal_check, user_id, source_id, ran=False)
             else:
-                connections.note_removal_check(user_id, source_id, ran=True)
+                await asyncio.to_thread(connections.note_removal_check, user_id, source_id, ran=True)
                 # Every full pass, scheduler or member, stamps
                 # `last_full_sync_at` in the detection transaction (refused
                 # included) — the member rate limit reads it.
@@ -868,7 +870,8 @@ async def _do_sync(
         # Plan E Task 6 review R2: deletions cannot propagate while every complete listing fails.
         # From the 3rd consecutive skipped check, EVERY pass (incremental ones too, so a quiet
         # tick never wipes it) is a warning carrying the member's sentence, until a check runs.
-        removal_warning = _removal_skip_warning(source, connections.removal_skips(user_id, source_id))
+        removal_warning = _removal_skip_warning(  # M2: its own connection, off the loop
+            source, await asyncio.to_thread(connections.removal_skips, user_id, source_id))
         status = "warning" if (delete_guard_warning or lost_everything or removal_warning) else "ok"
         error_parts = (([removal_warning] if removal_warning else [])
                        + ([delete_guard_warning] if delete_guard_warning else []) + item_failures)
