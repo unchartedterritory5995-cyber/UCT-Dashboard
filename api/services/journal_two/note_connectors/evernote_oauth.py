@@ -48,6 +48,10 @@ AUTH_BASE = "https://accounts.evernote.com"
 REGISTER_URL = f"{AUTH_BASE}/auth/register"
 AUTHORIZE_URL = f"{AUTH_BASE}/auth/authorize"
 TOKEN_URL = f"{AUTH_BASE}/auth/token"
+#: RFC 7009 token revocation. Published as `revocation_endpoint` in the authorization-server
+#: metadata (https://accounts.evernote.com/.well-known/oauth-authorization-server, read 2026-11-03;
+#: final review M5). Not yet exercised against a live grant: confirm at the live gate (T11).
+REVOKE_URL = f"{AUTH_BASE}/auth/revoke"
 RESOURCE = "https://mcp.evernote.com"
 SCOPE = "read"
 
@@ -165,6 +169,40 @@ async def exchange_code(code: str, state: str, secret: bytes, *,
     if not data.get("access_token"):
         raise errors.NoteConnAuthError("evernote token exchange returned no access_token")
     return _creds_from(data, cid)
+
+
+# ── revoke (final review M5; the Disconnect door, best-effort) ───────────────
+
+async def revoke_token(creds: dict[str, Any], *, client: httpx.AsyncClient | None = None) -> None:
+    """RFC 7009 revocation of the member's grant at Evernote: the refresh token first (revoking it
+    ends the grant), then the access token. A public client: `client_id` in the form, no
+    Authorization header, no secret. Raises a `NoteConnError` on a refusal or a transport error,
+    naming the status or the exception TYPE only, never a token. The router calls this
+    best-effort, before the local purge, and never lets it block a disconnect."""
+    cid = (creds or {}).get("clientId") or client_id()
+    tokens = [(creds.get(key), hint) for key, hint in (("refreshToken", "refresh_token"),
+                                                         ("accessToken", "access_token"))
+              if isinstance((creds or {}).get(key), str) and creds.get(key)]
+    if not tokens:
+        return
+    owns = client is None
+    http = client or httpx.AsyncClient(timeout=_HTTP_TIMEOUT)
+    try:
+        for token, hint in tokens:
+            body = {"token": token, "token_type_hint": hint}
+            if cid:
+                body["client_id"] = cid
+            try:
+                resp = await http.post(REVOKE_URL, data=body, headers=_HEADERS)
+            except httpx.RequestError as exc:
+                raise errors.NoteConnTransient(
+                    f"evernote token revoke failed ({type(exc).__name__})") from None
+            if resp.status_code != 200:
+                raise errors.NoteConnError(
+                    f"evernote token revoke refused ({resp.status_code})", status=resp.status_code)
+    finally:
+        if owns:
+            await http.aclose()
 
 
 # ── refresh (threading lock + compare-and-swap) ──────────────────────────────

@@ -662,3 +662,34 @@ def test_register_tool_refuses_a_non_production_redirect(monkeypatch, capsys):
     assert tool.main([]) == 2
     captured = capsys.readouterr()
     assert "REFUSED" in captured.err and "client_id:" not in captured.out
+
+
+# --------------------------------------------------------------------------- revoke (final review M5)
+# Evernote publishes `revocation_endpoint` in its authorization-server metadata
+# (https://accounts.evernote.com/.well-known/oauth-authorization-server, read 2026-11-03).
+
+
+def test_revoke_url_is_the_published_endpoint():
+    assert evernote_oauth.REVOKE_URL == "https://accounts.evernote.com/auth/revoke"
+
+
+async def test_revoke_posts_the_refresh_then_the_access_token_as_a_public_client():
+    server = TokenServer(lambda req: httpx.Response(200))
+    async with server.async_client() as http:
+        await evernote_oauth.revoke_token({"accessToken": "at-9", "refreshToken": "rt-9", "clientId": "cid-x"},
+                                          client=http)
+    assert [str(r.url) for r in server.requests] == [evernote_oauth.REVOKE_URL] * 2
+    assert [_form(r) for r in server.requests] == [
+        {"token": ["rt-9"], "token_type_hint": ["refresh_token"], "client_id": ["cid-x"]},
+        {"token": ["at-9"], "token_type_hint": ["access_token"], "client_id": ["cid-x"]},
+    ]
+    assert all("authorization" not in r.headers for r in server.requests)
+
+
+async def test_revoke_raises_on_a_refusal_without_leaking_the_token():
+    server = TokenServer(lambda req: httpx.Response(400, json={"error": "invalid_request"}))
+    async with server.async_client() as http:
+        with pytest.raises(errors.NoteConnError) as info:
+            await evernote_oauth.revoke_token({"accessToken": "at-SECRET", "refreshToken": "rt-SECRET",
+                                               "clientId": "cid-x"}, client=http)
+    assert "SECRET" not in str(info.value)

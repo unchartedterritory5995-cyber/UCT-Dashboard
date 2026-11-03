@@ -404,3 +404,45 @@ def test_a_first_evernote_source_is_still_created(client_admin):
     r = client_admin.post(f"{BASE}/evernote/sources", json={"remoteId": "account"})
     assert r.status_code == 200
     assert [s["provider"] for s in connections.list_sources("u1")] == ["evernote"]
+
+
+# ── final review M5: Disconnect revokes the grant at Evernote, best-effort ──────────
+
+def test_disconnect_evernote_revokes_the_stored_grant_before_the_purge(client_admin, monkeypatch):
+    _seed_evernote_source()
+    calls = []
+
+    async def fake_revoke(creds, **kw):
+        calls.append((creds, connections.get_connector("u1", "evernote") is not None))
+
+    monkeypatch.setattr(evernote_oauth, "revoke_token", fake_revoke)
+    r = client_admin.delete(f"{BASE}/evernote")
+    assert r.status_code == 200 and r.json()["disconnected"] is True
+    assert calls == [({"accessToken": "a", "refreshToken": "r"}, True)]   # read before the purge
+    assert connections.get_connector("u1", "evernote") is None
+
+
+def test_disconnect_evernote_succeeds_when_the_revoke_fails(client_admin, monkeypatch):
+    _seed_evernote_source()
+
+    async def failing(creds, **kw):
+        raise errors.NoteConnTransient("revoke endpoint unreachable")
+
+    monkeypatch.setattr(evernote_oauth, "revoke_token", failing)
+    r = client_admin.delete(f"{BASE}/evernote")
+    assert r.status_code == 200 and r.json()["disconnected"] is True
+    assert connections.get_connector("u1", "evernote") is None
+
+
+def test_disconnect_evernote_revokes_even_while_the_flag_is_off(client_admin, monkeypatch):
+    """Disconnect stays ungated (by design): a member can always cut the grant."""
+    _seed_evernote_source()
+    monkeypatch.setenv("NOTE_SYNC_EVERNOTE_ENABLED", "0")
+    calls = []
+
+    async def fake_revoke(creds, **kw):
+        calls.append(creds)
+
+    monkeypatch.setattr(evernote_oauth, "revoke_token", fake_revoke)
+    assert client_admin.delete(f"{BASE}/evernote").status_code == 200
+    assert len(calls) == 1

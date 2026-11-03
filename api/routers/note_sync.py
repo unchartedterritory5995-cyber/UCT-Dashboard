@@ -1032,6 +1032,25 @@ async def _best_effort_revoke_dropbox(user_id: str) -> None:
         log.warning("[note_sync] Dropbox token revoke failed (disconnect proceeds regardless): %s", e)
 
 
+async def _best_effort_revoke_evernote(user_id: str) -> None:
+    """Final review M5: Evernote publishes an RFC 7009 `revocation_endpoint`
+    (`evernote_oauth.revoke_token`), so Disconnect ends the grant there too, the same shape as
+    Dropbox's above: BEFORE the purge (the token must still be readable), and NEVER allowed to
+    block or fail the disconnect. Ungated by the flag, as Disconnect is: a member can always cut
+    the grant."""
+    try:
+        creds = connections.get_token(user_id, "evernote")
+    except Exception:  # noqa: BLE001 — an unreadable stored credential: nothing to revoke
+        return
+    if creds is None:
+        return
+    try:
+        from api.services.journal_two.note_connectors import evernote_oauth  # lazy, as the doors above
+        await evernote_oauth.revoke_token(creds)
+    except Exception as e:  # noqa: BLE001 — best-effort; must NEVER block or fail the disconnect
+        log.warning("[note_sync] Evernote token revoke failed (disconnect proceeds regardless): %s", e)
+
+
 @router.delete("/{provider}")
 async def disconnect(provider: str, user: dict = Depends(_paid)) -> dict[str, Any]:
     """Purges the connector's token + every source/log/remote-index row for
@@ -1059,6 +1078,8 @@ async def disconnect(provider: str, user: dict = Depends(_paid)) -> dict[str, An
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
     if provider == "dropbox":
         await _best_effort_revoke_dropbox(user["id"])
+    if provider == "evernote":
+        await _best_effort_revoke_evernote(user["id"])
     if provider == "obsidian":
         obsidian_link.revoke_devices(user["id"])
     ok = connections.delete_connector(user["id"], provider)
