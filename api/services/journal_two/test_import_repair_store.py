@@ -94,6 +94,14 @@ def test_progress_marks_and_resumes(conn):
     assert store.member_done(conn, RUN, "u2") is False
 
 
+def test_finish_member_refuses_a_member_never_started(conn):
+    """Fix round 1, M-2: finishing a member nobody started is a runner bug, never a silent
+    no-op that leaves it not-done and re-processed next run."""
+    with pytest.raises(ValueError):
+        store.finish_member(conn, RUN, "u1", checked=1, repaired=0)
+    assert store.member_done(conn, RUN, "u1") is False
+
+
 def test_record_notice_never_rearms_a_dismissed_notice(conn):
     """Fix round 1, I-1: while the notice is pending it shows the MOST loss notes any run found;
     once dismissed, no later run re-arms or changes it."""

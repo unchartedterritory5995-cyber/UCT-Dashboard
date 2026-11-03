@@ -48,11 +48,15 @@ def start_member(conn: sqlite3.Connection, run_id: str, user_id: str) -> None:
 
 def finish_member(conn: sqlite3.Connection, run_id: str, user_id: str, *, checked: int,
                   repaired: int) -> None:
-    """Mark the member done with its counts. COMMITS."""
-    conn.execute(
+    """Mark the member done with its counts. COMMITS. A member never started raises ValueError
+    (fix round 1, M-2): updating no row would leave it not-done, re-processed next run."""
+    cur = conn.execute(
         "UPDATE j2_import_repair_progress SET status = 'done', notes_checked = ?, notes_repaired = ?,"
         " finished_at = ? WHERE run_id = ? AND user_id = ?",
         (checked, repaired, _now(), run_id, user_id))
+    if cur.rowcount != 1:
+        conn.rollback()
+        raise ValueError(f"finish_member: member {user_id!r} was never started in run {run_id!r}")
     conn.commit()
 
 
