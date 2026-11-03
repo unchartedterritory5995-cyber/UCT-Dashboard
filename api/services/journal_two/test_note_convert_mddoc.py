@@ -1580,7 +1580,9 @@ def test_raw_inline_img_and_a_become_nodes_and_an_unsafe_a_stays_text():
     # A raw `<img>` alone on its line is an HTML BLOCK, and becomes an image too.
     block = md_to_tiptap('<img src="https://a.com/c.png">\n\nafter')
     assert [n["type"] for n in block["doc"]["content"]] == ["image", "paragraph"]
-    # A block holding any other tag keeps today's literal text.
+    # D3 follow-up (controller ruling 2): a block holding any other tag RENDERS, sanitised, as
+    # the client's parse renders it (it was kept as literal text: `<div>x</div>`). Inline raw
+    # HTML (the `<b>kept</b>` above) is unchanged.
     other = md_to_tiptap("<div>x</div>")
     assert other["doc"]["content"] == [
-        {"type": "paragraph", "content": [{"type": "text", "text": "<div>x</div>"}]}]
+        {"type": "paragraph", "content": [{"type": "text", "text": "x"}]}]

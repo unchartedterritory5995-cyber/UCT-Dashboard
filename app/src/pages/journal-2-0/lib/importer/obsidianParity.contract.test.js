@@ -224,27 +224,10 @@ const knownClientGap = {
   // `convert/marks.py::exclusive_marks`), so `the x plan` is one link run on both.
   // ⚰️ 27-tilde-fence: closed by D3 item 1. Both lanes drop exactly the fence's final line
   // end from the code block (`convert.js::dropCodeLineEnds`, `mddoc._code_without_line_end`).
-  // 28-blank-line-and-fence-alias (D2 fix round 5, M-r4-1): links, images and media agree --
-  // a link or embed across a blank line or a fence is left as written on both lanes, and a
-  // single-newline alias is the one link, in a quote too (follow-up: a `>`-only quote line
-  // is a paragraph break, and a one-line ``` run is inline code a link may hold). What is
-  // left is one difference of the shared parses, not an Obsidian pass:
-  //   - ⚰️ 27's code BLOCK difference (the fence's final newline) was closed by D3 item 1,
-  //     and 25's code RUN difference (the link on `x`) by D3 item 2.
-  //   - Round 5 (final), ruling A's `[[Plan|a\n<div>b]]` row: no link and no key on either
-  //     lane, but the raw HTML block `<div>b]]` reads differently in the SHARED parses: the
-  //     server's `mddoc` keeps the tag as text (`<div>b]]`), the client's parse renders it
-  //     (`b]]`). Not one of D3's eight items (raw HTML blocks in markdown); the entry stays
-  //     until a shared-converter change renders a markdown `<div>` block on the server.
-  '28-blank-line-and-fence-alias.json': {
-    clientReads: {
-      text: 'Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end '
-        + 'x ![[chart.png|a b]] y [[Plan|a code b]] see one line still links '
-        + 'quoted [[Plan|c d]] stays text quoted one line still links see a x b inline code links '
-        + 'see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end '
-        + 'see [[Plan|a b]] end see [[Plan|a b]] end [[Plan|a b]]',
-    },
-  },
+  // ⚰️ 28-blank-line-and-fence-alias: closed by D3. Its three shared-parse differences went
+  // with item 1 (the fence's final newline), item 2 (the link on the code run `x`) and the
+  // follow-up to ruling 2: a raw markdown HTML block renders on both lanes, sanitised
+  // (`mddoc._raw_html_block` through `html_to_tiptap`'s walker), so `<div>b]]` reads `b]]`.
   // ⚰️ 18-attachment-names and 19-nested-embeds: their text gaps (the EMPTY paragraph
   // beside a block image, and `Read ` losing its trailing space at a chip split, from the
   // shared parse `convert.js::htmlToNote`) are closed by D2 item 5.

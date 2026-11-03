@@ -800,14 +800,26 @@ def _raw_inline_tag(content: str) -> "_HtmlNode | None":
 
 
 def _raw_html_block(html: str, ctx: _Ctx) -> list[dict[str, Any]] | None:
-    """A markdown HTML block made only of `<img>` / `<a>` elements and text (an `<img>`
-    alone on its line is the common one) -> nodes through the HTML walker. Any other tag,
-    or a connector-private attachment href, -> None: the caller keeps today's literal
-    text, so nothing a member wrote ever vanishes."""
-    if "<" not in html:
+    """A markdown HTML block -> nodes through `html_to_tiptap`'s own walker, as the client
+    renders it (markdown-it with `html: true`, then `sanitizeHtml` and the editor's parse).
+
+    D3 follow-up (controller ruling): EVERY raw HTML block renders, sanitised by the walker's
+    own rules: `<script>`/`<style>`/`<head>` are dropped with their content, an unknown tag
+    unwraps (a block wrapper is a paragraph boundary), links pass the one allow-list, an
+    unsafe image src is refused (`_html_image_node`), and nothing outside the vocabulary is
+    ever written. ⚰️ Until then only a block of `<img>`/`<a>` rendered and any other tag stayed
+    literal text (`<div>b]]` read `<div>b]]` on the server and `b]]` on the client). A block
+    holding nothing visible (a comment, an empty `<div>`) is nothing, as on the client.
+
+    None (the caller keeps the literal text) only when the block holds no tag at all, or a
+    connector-private attachment href: a member's raw `<a href="import-attachment-ref://...">`
+    must never mint an attachment chip."""
+    if not _HTML_TAG_SYNTAX_RE.search(html):
         return None
     builder = _HtmlDomBuilder()
-    builder.feed(html)
+    # Stripped: the block's own last line end sits inside an unclosed tag (`<div>b]]\n`), and
+    # the client's parse never keeps whitespace at a block's edge.
+    builder.feed(html.strip())
     builder.close()
     seen: list[_HtmlNode] = []
 
@@ -818,12 +830,16 @@ def _raw_html_block(html: str, ctx: _Ctx) -> list[dict[str, Any]] | None:
                 walk(n.children)
 
     walk(builder.root.children)
-    if not seen or any(n.tag not in _RAW_HTML_BLOCK_TAGS for n in seen):
-        return None
     if any(n.tag == "a" and (n.attrs.get("href") or "").strip().startswith(ATTACHMENT_REF_PREFIX)
            for n in seen):
         return None
-    return _html_blocks_walk(builder.root.children, ctx) or None
+    # A list item opening with a block is repaired with the whole doc (`md_to_tiptap`).
+    return _html_blocks_walk(_unwrap_unknown_html(builder.root.children), ctx)
+
+
+#: Tag syntax: an element, a closing tag, a comment or declaration, or a processing
+#: instruction. A block with none is text and is kept as written.
+_HTML_TAG_SYNTAX_RE = re.compile(r"<[A-Za-z/!?]")
 
 
 def _inline_nodes(
@@ -1137,6 +1153,15 @@ def _html_image_node(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any] | None:
         return {"type": "image", "attrs": {"src": src}}
     if src.startswith("data:"):
         return _data_uri_image_node(src, ctx)
+    if _is_unsafe_image_src(src) or _is_unsafe_image_src(link_href_as_read(src)):
+        # D3 follow-up: a raw HTML block now renders whatever tags it holds, so the HTML
+        # walker refuses an unsafe src (`javascript:`, `vbscript:`, `file:`) as the markdown
+        # image does (`_image_node`): never a media entry; a notice on the connector path,
+        # else the caller's visible marker.
+        if not ctx.unsafe_image_notice:
+            return None
+        return import_notice.notice_node(
+            "unsafe", name=node.attrs.get("alt") or None, source_url=None, ref=None, attempts=0)
     _register_media(ctx, ref=src, kind="image", name=_basename(src))
     return {"type": "image", "attrs": {"src": f"{REF_PREFIX}{src}"}}
 

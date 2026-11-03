@@ -23,7 +23,7 @@
     ],
     "pending": [],
     "task_checked": [],
-    "text": "Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end x ![[chart.png|a b]] y [[Plan|a code b]] see one line still links quoted [[Plan|c d]] stays text quoted one line still links see a x b inline code links see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end [[Plan|a <div>b]]"
+    "text": "Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end x ![[chart.png|a b]] y [[Plan|a code b]] see one line still links quoted [[Plan|c d]] stays text quoted one line still links see a x b inline code links see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end [[Plan|a b]]"
   },
   "vault_id": "vault-1",
   "vault_paths": [

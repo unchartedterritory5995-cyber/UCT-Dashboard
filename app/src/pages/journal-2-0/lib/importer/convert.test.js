@@ -355,3 +355,13 @@ describe('htmlToNote — D3 item 3: linear on a big list note', () => {
     expect(t2000 / Math.max(t500, 1)).toBeLessThan(9)
   }, 60000)
 })
+
+// D3 follow-up (fixture 28's last gap): a raw HTML block in markdown renders on both lanes,
+// sanitised; the server's `md_to_tiptap` reads the same `markdown_vectors`.
+describe('mdToHtml + htmlToNote — D3 follow-up: shared raw HTML block vectors', () => {
+  const quoted = (n) => (n.type === 'text' ? `'${n.text}'`
+    : n.type + (n.content ? `(${n.content.map(quoted).join(', ')})` : ''))
+  it.each(HTML_BLOCK_VECTORS.markdown_vectors.map((v) => [v.name, v]))('%s', (_name, v) => {
+    expect(quoted(htmlToNote(mdToHtml(v.md)).bodyJson)).toBe(v.shape)
+  })
+})

@@ -327,3 +327,25 @@ def test_a_non_image_data_uri_still_becomes_its_marker():
     texts = "".join(r["text"] for r in _texts(out["doc"]))
     assert "[unsupported image: pic, text/plain]" in texts
     assert [m["ref"] for m in out["media"]] == ["md-img-1.png"]
+
+
+# ── follow-up (ruling 2): a raw markdown HTML block renders, sanitised ───────
+
+_MD_VECTORS = json.loads(_HTML_VECTORS_PATH.read_text(encoding="utf-8"))["markdown_vectors"]
+
+
+@pytest.mark.parametrize("v", _MD_VECTORS, ids=[v["name"] for v in _MD_VECTORS])
+def test_shared_markdown_raw_html_vectors(v):
+    """The SHARED vectors `convert.test.js` also reads (client: `mdToHtml` + `htmlToNote`)."""
+    assert _shape(md_to_tiptap(v["md"])["doc"]) == v["shape"]
+
+
+def test_a_raw_block_never_mints_an_attachment_or_an_unsafe_image():
+    out = md_to_tiptap('<a href="import-attachment-ref://x.pdf">y</a>\n\nz')
+    assert "attachmentChip" not in _shape(out["doc"]) and out["media"] == []
+    out = md_to_tiptap('<div><img src="javascript:alert(1)"></div>')
+    assert out["media"] == [] and _shape(out["doc"]) == "doc(paragraph('[unsupported image]'))"
+    out = md_to_tiptap('<div><img src="java&#9;script:alert(1)"></div>', unsafe_image_notice=True)
+    assert out["media"] == [] and out["doc"]["content"][0]["type"] == "importNotice"
+    out = md_to_tiptap('<div><a href="javascript:alert(1)">x</a></div>')
+    assert _links(out["doc"]) == []

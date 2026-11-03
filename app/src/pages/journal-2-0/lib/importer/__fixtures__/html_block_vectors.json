@@ -26,5 +26,17 @@
     {"name": "item 8: a leading table moves up", "html": "<ul><li><table><tr><td>t</td></tr></table></li></ul>", "shape": "doc(bulletList(listItem(paragraph)), table(tableRow(tableCell(paragraph('t')))))"},
     {"name": "item 8: a leading code block moves up", "html": "<ul><li><pre>c</pre></li></ul>", "shape": "doc(bulletList(listItem(paragraph)), codeBlock('c'))"},
     {"name": "item 8: a leading rule moves up", "html": "<ul><li><hr>x</li></ul>", "shape": "doc(bulletList(listItem(paragraph)), horizontalRule, paragraph('x'))"}
+  ],
+  "markdown_vectors_doc": "D3 follow-up (fixture 28's last gap): a raw HTML block in MARKDOWN renders on both lanes, sanitised. Server: md_to_tiptap. Client: mdToHtml then htmlToNote. `md` in, `shape` out, the same shape spelling as above.",
+  "markdown_vectors": [
+    {"name": "an unclosed div block", "md": "x\n\n<div>b]]", "shape": "doc(paragraph('x'), paragraph('b]]'))"},
+    {"name": "a div block interrupting a paragraph", "md": "see\n<div>b]] end\n\nafter", "shape": "doc(paragraph('see'), paragraph('b]] end'), paragraph('after'))"},
+    {"name": "two div lines in one block", "md": "<div>a</div>\n<div>b</div>\n\ntail", "shape": "doc(paragraph('a'), paragraph('b'), paragraph('tail'))"},
+    {"name": "a script block is dropped with its content", "md": "<script>alert(1)</script>\n\nok", "shape": "doc(paragraph('ok'))"},
+    {"name": "a comment block is nothing", "md": "<!-- c -->\n\nok", "shape": "doc(paragraph('ok'))"},
+    {"name": "inline tags inside a block", "md": "<div><b>bold</b> text</div>", "shape": "doc(paragraph('bold', ' text'))"},
+    {"name": "markdown between an opening and a closing div", "md": "<div>\n\n*md* inside\n\n</div>", "shape": "doc(paragraph('md', ' inside'))"},
+    {"name": "a table block", "md": "<table><tr><td>t</td></tr></table>", "shape": "doc(table(tableRow(tableCell(paragraph('t')))))"},
+    {"name": "a paragraph block", "md": "<p>para</p>", "shape": "doc(paragraph('para'))"}
   ]
 }
