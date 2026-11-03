@@ -26,7 +26,11 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `f9a03577da` | independent review round 1 fixes (findings 2–7, 9) |
 | `224f057b8e` | board, QA record, RESUME-KN |
 | `8a4993b520` | independent review round 2 fixes (live figure not withheld; pack-scoped cooldown) |
-| (next) | relevance: query expansion from the pack template aliases (K-14) |
+| `f4e89bf1d8` | relevance: query expansion from the pack template aliases (K-14) |
+| `a288af7607` | routing narrowing pinned as an expected failure |
+| `f0e2e24c6c` | retrieval quality round (K-15) |
+| `8f8bdd1605` | routing: playbook group add-only (review finding 8; AUDIT-approved shared-file change) |
+| `3852446f29` | setup-criteria pilot + KN-1 contract with the measurables table (K-16; AUDIT go) |
 
 ## Tasks
 | id | task | state | evidence |
@@ -47,6 +51,10 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | K-13 | Second review round | done: 0 blocking; findings 1, 2, 4 fixed in `8a4993b520`; 3 and 5 recorded | |
 | K-14 | Relevance: expand shorthand (EP, U&R, VCP, HTF…) with the template names/aliases from the pack, whole-word only | done | real snapshot, 6 shorthand questions: top passages naming the setup in full 7/14 → 9/13 |
 
+| K-15 | Retrieval quality: adjacent-word phrases, precise alias expansion (name match wins), focused excerpts, whole-passage injection check, guard precision | done | real snapshot, 40 questions: P@3 0.86 -> 0.89; success 37 -> 38/40; guard false positives 3 -> 0 of 5,270; p95 23.6 -> 18.8 ms |
+| K-16 | Derived setup criteria (pilot: Stage 2 Breakout, EP, VCP, HTF, U&R), validated, served only when reviewed; KN-1 contract measurables | done (all reviewed:false) | criteria tests; contract-table equality test |
+| K-17 | Routing finding 8 fixed (add-only group) | done | "explain this setup" keeps chart actions |
+
 ## Full-suite record
 | Head | Server (tests/test_uct_agent*.py + brain tests) | Browser (src/agent) |
 |---|---|---|
@@ -61,7 +69,9 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 - Partner: additive PACK_MANIFEST fields `schema_version`, `kb_sources`, `stats_updated_at` (compat behaviour in place; reported missing, never invented); fix the "high tight flag" alias attached to two templates.
 
 ## Known limitations (recorded for the integrator)
-- With the feature ON, a message that matches ONLY the playbook group narrows the routed request to it (review finding 8). Does not affect dark mode.
+- (fixed in 8f8bdd1605) knowledge-only messages no longer narrow the routed request.
+- 31 of 48 templates have no Wisdom vocabulary id (owner decision raised by AUDIT); resolution is by template name + alias, ambiguity refused.
+- The VCP RS-rank criterion is blocked by F-16 until an owner-approved public alternative exists.
 - Routing words are armed when the capabilities register and only disarmed by the test reset; nothing unregisters them at runtime today (review round 2, latent).
 - A facade row with a win rate but no win count is withheld (fails closed).
 - Retrieval is lexical (FTS5, porter stemming); no embeddings by design (no external calls).
