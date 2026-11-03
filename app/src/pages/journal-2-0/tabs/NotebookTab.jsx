@@ -486,6 +486,14 @@ export default function NotebookTab() {
     setImportRecover(true)
     setImportOpen(true)
   }, [dismissRepair])
+  // ONE element, rendered by whichever pane branch is on screen (Research Home or a list).
+  const repairNotice = repairLossNotes > 0 ? (
+    <ImportRepairNotice
+      lossNotes={repairLossNotes}
+      onRecover={recoverFromRepairNotice}
+      onDismiss={dismissRepair}
+    />
+  ) : null
   // Notebook P1: the Styles manager. `?styles=1` (the Settings card's link) asks to open it, once, and leaves the URL
   // clean. The request is kept even if the switch has not latched yet; ONLY the render gate below decides whether
   // anything shows (one guard, not two).
@@ -2452,6 +2460,10 @@ export default function NotebookTab() {
         ) : isHome ? (
           // Wave H: bare-root Research Home (checkpoint decision 33/57) --
           // "All notes" itself is unchanged, one click away via the sidebar.
+          // Plan F Task 10: the repair notice sits above Home too, where a member lands; the list
+          // branch renders the same element, and only one branch is ever on screen.
+          <>
+          {repairNotice}
           <ResearchHome
             onOpenNote={openNote}
             onCreateNote={() => createNote()}
@@ -2477,6 +2489,7 @@ export default function NotebookTab() {
             searchActive={sidebarSearching && sidebarOpen}
             skipLinkClassName={styles.skipLink}
           />
+          </>
         ) : (
           <>
         {/* Lane KEYS round 4: ONE Tab stop for the list's header row (the toolbar pattern:
@@ -2690,20 +2703,7 @@ export default function NotebookTab() {
 
         <NoteConnectorsTrustStrip />
 
-        {repairLossNotes > 0 && (
-          <ImportRepairNotice
-            lossNotes={repairLossNotes}
-            onRecover={recoverFromRepairNotice}
-            onDismiss={dismissRepair}
-          />
-        )}
-
-        <ImportWizard
-          open={importOpen}
-          initialRecover={importRecover}
-          onClose={() => { setImportOpen(false); setImportRecover(false) }}
-          onImported={handleImported}
-        />
+        {repairNotice}
 
         <ExportDialog
           open={exportOpen}
@@ -2964,6 +2964,15 @@ export default function NotebookTab() {
         {/* Notebook P1: the Styles manager is mounted OUTSIDE the pane's branches for the same reason as the
             New-note sheet below: the Settings card's `?styles=1` lands on Research Home, where a manager
             mounted inside the list branch opened nothing (found by the Task 15 walk). */}
+        {/* Plan F Task 10 (concern 2): the import wizard is mounted OUTSIDE the pane's branches for the
+            same reason. Research Home's "Import notes" and the repair notice there both open it; mounted
+            inside the list branch, both were dead buttons on Home. */}
+        <ImportWizard
+          open={importOpen}
+          initialRecover={importRecover}
+          onClose={() => { setImportOpen(false); setImportRecover(false) }}
+          onImported={handleImported}
+        />
         {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]} />}
         {/* P0.1: the New-note sheet and the voice-note dialog are mounted OUTSIDE the pane's
             branches. Research Home's "New note" menu opens them, and a sheet mounted inside the

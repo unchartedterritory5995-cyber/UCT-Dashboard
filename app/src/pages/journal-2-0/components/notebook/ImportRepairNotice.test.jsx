@@ -126,3 +126,49 @@ describe('ImportRepairNotice', () => {
     expect(screen.getByTestId('import-recover-mode')).toBeChecked()
   }, 20000)
 })
+
+// Task 10 concern 2: a member lands on Research Home (the bare root), not on a list.
+describe('ImportRepairNotice on Research Home', () => {
+  async function renderHome() {
+    render(<Providers route="/journal/notebook"><NotebookTab /></Providers>)
+    await screen.findAllByText('Theses') // the folder tree is real and fed by the fixtures
+    // Non-vacuity: this IS Research Home, not a list (the list's view switcher is absent).
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'List view' })).toBeNull())
+    await settle()
+  }
+
+  it('Import notes on Research Home opens the import wizard', async () => {
+    installFetch([
+      [/^\/api\/j2\/notes\/import\/repair-notice$/, { show: false, lossNotes: 0 }],
+      // Home offers "Import notes" to a member with no notes yet (its welcome).
+      [/^\/api\/j2\/notes$/, { notes: [], total: 0 }],
+    ])
+    await renderHome()
+    expect(screen.queryByTestId('import-file-input')).toBeNull()
+    fireEvent.click(screen.getAllByRole('button', { name: /Import notes/ })[0])
+    await screen.findByTestId('import-file-input', {}, { timeout: 10000 })
+  }, 20000)
+
+  it('shows once on Research Home, and its Re-import to recover opens the wizard ticked', async () => {
+    const spy = installFetch([
+      [/^\/api\/j2\/notes\/import\/repair-notice\/dismiss$/, { ok: true }],
+      [/^\/api\/j2\/notes\/import\/repair-notice$/, { show: true, lossNotes: 5 }],
+      [/^\/api\/j2\/notes\/import\/check$/, {
+        existing: { 'file:hello.md': { id: 'n1', updatedAt: '2026-10-01T00:00:00Z', importHash: null } },
+      }],
+    ])
+    await renderHome()
+    await screen.findByRole('heading', { name: HEADING })
+    expect(screen.getAllByTestId('import-repair-notice')).toHaveLength(1)
+    expect(calls(spy, NOTICE_GET)).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Re-import to recover' }))
+    const input = await screen.findByTestId('import-file-input', {}, { timeout: 10000 })
+    expect(screen.queryByText(HEADING)).toBeNull()
+    expect(calls(spy, NOTICE_DISMISS, 'POST')).toHaveLength(1)
+    const md = new File(['# Hello\n\nbody'], 'hello.md', { type: 'text/markdown' })
+    fireEvent.change(input, { target: { files: [md] } })
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
+    expect(screen.getByTestId('import-recover-mode')).toBeChecked()
+  }, 20000)
+})
