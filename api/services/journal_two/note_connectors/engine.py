@@ -104,6 +104,7 @@ import os
 import random
 import sqlite3
 import threading
+import time
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -231,6 +232,8 @@ FOLLOW_UP_MAX_PASSES_PER_HOUR = 12
 # pass it starts replaces or clears it; a pass that crashed (or a pod that died) fires again once
 # the lease runs out, still inside the hourly bound.
 FOLLOW_UP_LEASE_S = 1800
+# Fix round 1 (N-B): while its passes run, the follow-up job also re-claims on this timer.
+FOLLOW_UP_CLAIM_WAKE_S = 30.0
 # Fix round 1 (D2): the most note fetches one pass makes for a provider that opts in to follow-ups.
 # 300 at Evernote's observed ~60-80 calls a minute, paced to 80% of that, is ~4-6 minutes of
 # get_note (a note's attachments come on top), inside the client's 10-minute wall clock
@@ -292,30 +295,62 @@ PASS_SLOT_POLL_S = 1.0
 SLOT_MEMBER = 0
 SLOT_FIRST_SYNC = 1
 SLOT_BACKGROUND = 2
+# Fix round 1 (concern 1): one MORE slot, reserved for a member's press (SLOT_MEMBER). The three
+# background slots are unchanged; a press takes the reserved slot when it is free (else a free
+# pool slot), so a Sync now pressed during a storm runs at once instead of waiting for a pass to
+# end. Only a press uses it: a first sync and every background pass never do. So at most
+# FOLLOW_UP_CONCURRENCY + MEMBER_RESERVED_SLOTS Evernote passes run at once.
+MEMBER_RESERVED_SLOTS = 1
+# Fix round 1 (N-D): a background waiter that has waited this long is promoted to first-sync
+# priority, so a steady arrival of first syncs can never starve it.
+SLOT_AGING_S = 900.0
 _PASS_SLOTS_LOCK = threading.Lock()
-_pass_slots_used = 0
+_pass_slots_used = 0       # pool slots held (background, first syncs, a press when it spills)
+_member_slots_used = 0     # the reserved member slot(s) held
 #: Waiting tickets `(priority, arrival, source_id)`, kept sorted; the head may take a free slot.
 _slot_waiters: list[tuple[int, int, str]] = []
 _slot_arrivals = itertools.count()
+SLOT_POOL = "pool"
+SLOT_RESERVED = "member"
 
 
-async def _acquire_pass_slot(source_id: str, *, priority: int = SLOT_BACKGROUND) -> None:
-    """D4: wait, in priority-then-arrival order, for one of FOLLOW_UP_CONCURRENCY process-wide
-    pass slots. Polls (never blocks the event loop). A waiter cancelled while it waits leaves the
-    queue and holds nothing: the slot is only ever taken in the same locked step that returns."""
-    global _pass_slots_used
+def _slot_clock() -> float:
+    """The waiter queue's clock (aging). Tests replace it."""
+    return time.monotonic()
+
+
+async def _acquire_pass_slot(source_id: str, *, priority: int = SLOT_BACKGROUND) -> str:
+    """D4: wait, in priority-then-arrival order, for a pass slot; returns which kind it took
+    (SLOT_POOL or SLOT_RESERVED, for `_release_pass_slot`). Polls (never blocks the event loop).
+    A waiter cancelled while it waits leaves the queue and holds nothing: the slot is only ever
+    taken in the same locked step that returns. N-D: a SLOT_BACKGROUND ticket that waited
+    SLOT_AGING_S moves to SLOT_FIRST_SYNC, keeping its arrival order."""
+    global _pass_slots_used, _member_slots_used
     ticket = (priority, next(_slot_arrivals), source_id)
+    since = _slot_clock()
     with _PASS_SLOTS_LOCK:
         bisect.insort(_slot_waiters, ticket)
     granted = False
     try:
         while True:
             with _PASS_SLOTS_LOCK:
-                if _pass_slots_used < FOLLOW_UP_CONCURRENCY and _slot_waiters[0] == ticket:
-                    _slot_waiters.pop(0)
-                    _pass_slots_used += 1
-                    granted = True
-                    return
+                if (ticket[0] == SLOT_BACKGROUND
+                        and _slot_clock() - since >= SLOT_AGING_S and ticket in _slot_waiters):
+                    _slot_waiters.remove(ticket)
+                    ticket = (SLOT_FIRST_SYNC, ticket[1], ticket[2])
+                    bisect.insort(_slot_waiters, ticket)
+                if _slot_waiters[0] == ticket:
+                    kind = None
+                    if ticket[0] == SLOT_MEMBER and _member_slots_used < MEMBER_RESERVED_SLOTS:
+                        _member_slots_used += 1
+                        kind = SLOT_RESERVED
+                    elif _pass_slots_used < FOLLOW_UP_CONCURRENCY:
+                        _pass_slots_used += 1
+                        kind = SLOT_POOL
+                    if kind is not None:
+                        _slot_waiters.pop(0)
+                        granted = True
+                        return kind
             await asyncio.sleep(PASS_SLOT_POLL_S)
     finally:
         if not granted:
@@ -325,8 +360,8 @@ async def _acquire_pass_slot(source_id: str, *, priority: int = SLOT_BACKGROUND)
 
 
 def _try_acquire_pass_slot() -> bool:
-    """D4-3: take a slot only if one is free AND nobody is waiting (a serial loop never jumps the
-    queue, and never waits)."""
+    """D4-3: take a POOL slot only if one is free AND nobody is waiting (a serial loop never
+    jumps the queue, never waits, and never takes the member slot)."""
     global _pass_slots_used
     with _PASS_SLOTS_LOCK:
         if _pass_slots_used < FOLLOW_UP_CONCURRENCY and not _slot_waiters:
@@ -335,19 +370,23 @@ def _try_acquire_pass_slot() -> bool:
         return False
 
 
-def _release_pass_slot() -> None:
-    global _pass_slots_used
+def _release_pass_slot(kind: str = SLOT_POOL) -> None:
+    global _pass_slots_used, _member_slots_used
     with _PASS_SLOTS_LOCK:
-        _pass_slots_used = max(0, _pass_slots_used - 1)
+        if kind == SLOT_RESERVED:
+            _member_slots_used = max(0, _member_slots_used - 1)
+        else:
+            _pass_slots_used = max(0, _pass_slots_used - 1)
 
 
 def _pass_slots_in_use() -> int:
+    """Slots held, the member slot included."""
     with _PASS_SLOTS_LOCK:
-        return _pass_slots_used
+        return _pass_slots_used + _member_slots_used
 
 
 def _pass_slot_room() -> int:
-    """D4-1: slots no pass holds and no waiter is already lined up for."""
+    """D4-1: pool slots no pass holds and no waiter is already lined up for."""
     with _PASS_SLOTS_LOCK:
         return max(0, FOLLOW_UP_CONCURRENCY - _pass_slots_used - len(_slot_waiters))
 
@@ -361,17 +400,55 @@ def is_source_queued(source_id: str) -> bool:
 # NEW-4: three pool passes importing at once each opened a write transaction on auth.db (busy
 # timeout 3 s, `auth_db.get_connection`): a collision raised "database is locked", which re-runs
 # the WHOLE pass, and a member's own save queued behind several of them could miss its 3 s. The
-# `import_confirm` batches of opt-in (pooled) passes therefore run one at a time under this lock,
-# in a worker thread (never on an event loop: a thread waiting on it would freeze the uvicorn
-# loop), and the lock wraps the confirm call ONLY, never a network call: media downloads, link
-# heals and the listing all run outside it. ⚠️ SINGLE-PROCESS state, like the pass slots.
+# write transactions of opt-in (pooled) passes therefore run one at a time under this lock, in a
+# worker thread (never on an event loop: a thread waiting on it would freeze the uvicorn loop),
+# and the lock never spans a network call: media downloads, link heals and the listing all run
+# outside it. Two sections take it: a pass's pre-confirm writes (`_prepare_import_locked`, N-A)
+# and each confirm batch (`_import_confirm_serialized`). ⚠️ SINGLE-PROCESS state.
 _IMPORT_WRITE_LOCK = threading.Lock()
+# Fix round 1 (concern 3): measured, chained importers starved a member's save: SQLite's busy
+# handler sleeps and retries, and the next importer, waiting on this lock, took the write lock
+# the instant the previous one committed, so the save kept losing the race. A pooled pass
+# therefore confirms in batches of POOLED_CONFIRM_BATCH_SIZE (a shorter write each) and HOLDS
+# this lock for IMPORT_WRITE_GAP_S after each commit: no importer can start in the gap, so the
+# save lands in it. Tuned with a benchmark (3 importers x 5 x 200 notes on a temp auth.db plus a
+# save every 20 ms, 3 rounds; second sweep): member save p99 / import wall time
+#    gap   0 ms: 3356 ms / 16.9 s (a save timed out once)    gap  75 ms:  330 ms / 21.9 s
+#    gap  25 ms: 1849 ms / 19.3 s                              gap 100 ms:  329 ms / 23.8 s
+#    gap  50 ms: 1312 ms / 20.4 s                              gap 120 ms:  328 ms / 25.0 s
+# 75 ms is the knee: the first gap under ~500 ms, at the least wall time. (25-50 ms, the range
+# first proposed, still left a save waiting over a second.) The wall-time cost is invisible in
+# practice: a pooled pass fetches at Evernote's ~60-80 calls a minute, so its six 50-note
+# confirms are a few seconds of a ten-minute pass.
+POOLED_CONFIRM_BATCH_SIZE = 50
+IMPORT_WRITE_GAP_S = 0.075
+
+
+class ImportLockOrderError(RuntimeError):
+    """N-A: a connection asked for `_IMPORT_WRITE_LOCK` while it held an open write transaction.
+    Waiting there holds SQLite's write lock against the lock's holder (a lock-order inversion
+    that cost a whole batch); refused instead."""
+
+
+def _refuse_open_transaction(conn: sqlite3.Connection) -> None:
+    if conn.in_transaction:
+        raise ImportLockOrderError(
+            "an open write transaction may not wait on the import write lock")
+
+
+def _write_gap() -> None:
+    if IMPORT_WRITE_GAP_S > 0:
+        time.sleep(IMPORT_WRITE_GAP_S)
 
 
 def _import_confirm_serialized(user_id: str, payload: dict[str, Any],
                                conn: sqlite3.Connection) -> dict[str, Any]:
+    _refuse_open_transaction(conn)
     with _IMPORT_WRITE_LOCK:
-        return notes_svc.import_confirm(user_id, payload, conn=conn)
+        try:
+            return notes_svc.import_confirm(user_id, payload, conn=conn)
+        finally:
+            _write_gap()  # still holding the lock: the next importer waits, a member's save lands
 
 
 def _pooled_provider(provider_name: str) -> bool:
@@ -883,13 +960,15 @@ async def sync_follow_up_sources() -> dict[str, int]:
                 log.exception("[note-sync] follow-up bookkeeping failed for %s", source["id"])
         return was_busy
 
-    def claim() -> None:
-        """One claiming round: lease and start at most the free slots' worth of due sources."""
-        nonlocal ran, busy
+    def claim_sync() -> list[dict[str, Any]]:
+        """One claiming round (a worker thread, N-E: its DB reads and writes stay off the loop):
+        lease and return at most the free slots' worth of due sources."""
+        nonlocal busy
         room = _pass_slot_room()
         if room <= 0:
-            return
+            return []
         now = datetime.now(timezone.utc)
+        picked: list[dict[str, Any]] = []
         started = 0
         for source in connections.list_follow_up_due(now.isoformat()):
             if started >= room:
@@ -912,18 +991,27 @@ async def sync_follow_up_sources() -> dict[str, int]:
             # crashed fires again once the lease runs out.
             connections.set_follow_up(source["userId"], source["id"],
                                       (now + timedelta(seconds=FOLLOW_UP_LEASE_S)).isoformat())
-            ran += 1
             started += 1
+            picked.append(source)
+        return picked
+
+    async def claim() -> None:
+        nonlocal ran
+        for source in await asyncio.to_thread(claim_sync):
+            ran += 1
             running.add(asyncio.create_task(run(source)))
 
-    claim()
+    await claim()
     while running:
-        done, _pending = await asyncio.wait(running, return_when=asyncio.FIRST_COMPLETED)
+        # N-B: also wake every FOLLOW_UP_CLAIM_WAKE_S, so a source that becomes due while one
+        # long pass runs takes a free slot then, not when that pass ends.
+        done, _pending = await asyncio.wait(running, timeout=FOLLOW_UP_CLAIM_WAKE_S,
+                                            return_when=asyncio.FIRST_COMPLETED)
         for task in done:
             running.discard(task)
             if task.result():
                 busy += 1
-        claim()
+        await claim()
     waiting = len(connections.list_follow_up_due(datetime.now(timezone.utc).isoformat()))
     return {"ran": ran, "busy": busy, "waiting": waiting}
 
@@ -962,8 +1050,12 @@ async def _pass_beside_the_loop(source: dict[str, Any], *, full: bool) -> None:
     if full and status in ("no_slot", "busy"):
         await asyncio.to_thread(_book_full_follow_up, source["userId"], source["id"])
     elif status == "no_slot":
-        log.info("[note-sync] source %s: no free pass slot; the hourly pass is skipped (its "
-                 "follow-up or the next tick covers it)", source["id"])
+        # N-C: a follow-up due now, so the pool runs it as soon as a slot frees (an established
+        # source otherwise went without a sync for the whole storm).
+        await asyncio.to_thread(connections.book_follow_up_no_later_than, source["userId"],
+                                source["id"], datetime.now(timezone.utc).isoformat())
+        log.info("[note-sync] source %s: no free pass slot; the hourly pass is booked as a "
+                 "follow-up instead", source["id"])
 
 
 def _book_full_follow_up(user_id: str, source_id: str) -> None:
@@ -1112,6 +1204,8 @@ async def _do_sync(
     deleted_count = 0
     provider: NoteProvider | None = None
     slot_held = False
+    slot_kind = SLOT_POOL
+    removal_noted = False  # F-b: a full pass that raises before its check still counts a skip
 
     try:
         # Final review M2: building may read the DB (Evernote's admin mode reads the member's
@@ -1123,7 +1217,7 @@ async def _do_sync(
                 # D4-2: a member's pass, then a first sync, go to the front of the queue.
                 priority = (SLOT_MEMBER if member else
                             SLOT_FIRST_SYNC if not source.get("lastSyncAt") else SLOT_BACKGROUND)
-                await _acquire_pass_slot(source_id, priority=priority)
+                slot_kind = await _acquire_pass_slot(source_id, priority=priority)
             elif not _try_acquire_pass_slot():
                 # D4-3: a serial loop never waits; the caller decides what a skip means.
                 return {"status": "no_slot", "sourceId": source_id}
@@ -1168,6 +1262,12 @@ async def _do_sync(
                         source_id, heal.outcome)
             connections.record_sync_result(user_id, source_id, ok=True, status="warning",
                                            error=sentence)
+            if follow_up:
+                # F-a: a follow-up that cannot import gives up its stamp (a pending full pass
+                # waits an hour), instead of a lease that fires every 30 minutes uncounted.
+                connections.clear_follow_up(
+                    user_id, source_id,
+                    full_pending_at=(_utcnow() + timedelta(seconds=FOLLOW_UP_MAX_DELAY_S)).isoformat())
             _finish_log(log_id, status="warning", counts=counts,
                         error=f"{DEST_MISSING_FAILURE_PREFIX} ({heal.outcome}): pass skipped",
                         source_deleted=0, failures_json=[])
@@ -1333,8 +1433,10 @@ async def _do_sync(
                     removal_reason = "enumeration_failed"
                 # Review R2: a skipped check is counted; 3 in a row turn the source amber.
                 await asyncio.to_thread(connections.note_removal_check, user_id, source_id, ran=False)
+                removal_noted = True
             else:
                 await asyncio.to_thread(connections.note_removal_check, user_id, source_id, ran=True)
+                removal_noted = True
                 # Every full pass, scheduler or member, stamps
                 # `last_full_sync_at` in the detection transaction (refused
                 # included) — the member rate limit reads it.
@@ -1418,8 +1520,21 @@ async def _do_sync(
             _classify_listed, user_id, source, provider, fetch_refs, follow_up)
         listed_count = len(fetch_refs)
         skipped_now: set[str] = set()
+        # ⛔ Live bug 2026-11-03 (owner's account): D1's skip-before-fetch applies ONLY while a
+        # first import is catching up, i.e. while the cursor is still None. Once the cursor is
+        # set, the incremental listing IS the delta, and a listed note is fetched even when its
+        # listing revision equals the stored one: Evernote's search index lags, so an edited
+        # note was listed with its OLD updatedAt, D1 skipped it ("D1 skipped 2 of 2 listed"),
+        # and the edit never arrived (and could be lost once the cursor moved past it). The
+        # fetch is cheap at delta size, and `import_confirm`'s own hash check still makes an
+        # unchanged refetch a no-op write. N1's ordering below is unchanged.
+        catching_up = not source.get("cursor")
+        if not catching_up:
+            unchanged, trashed = set(), set()
         if trashed:
-            # NEW-7: the member's trash is respected on every kind of pass, the nightly one too.
+            # NEW-7: while a first import catches up, a trashed note at the listed revision is
+            # not fetched. Once the cursor is set (incremental and nightly passes alike) it is
+            # fetched, and concern 2's path keeps the content in the trashed row, still trashed.
             fetch_refs = [r for r in fetch_refs if r.remote_id not in trashed]
             fetched_ids.update(trashed)
             log.info("[note-sync] source %s: %d listed note(s) the member trashed, unchanged "
@@ -1647,6 +1762,14 @@ async def _do_sync(
             connections.record_sync_result, user_id, source_id, ok=False, error=member_error)
         if log_id is None:  # it failed before the pass opened its row (building the provider)
             log_id = await asyncio.to_thread(_start_log, user_id, source_id)
+        if full and not removal_noted:
+            # F-b: a full pass that raised before its removal check is a skipped check, so three
+            # such nights in a row turn the source amber like three failed listings do.
+            try:
+                await asyncio.to_thread(connections.note_removal_check, user_id, source_id,
+                                        ran=False)
+            except Exception:  # noqa: BLE001 — never let this bookkeeping mask the real error
+                pass
         if isinstance(e, errors.NoteConnAuthError):
             # Auth rejected (incl. NoteConnTokenExpired, a subclass) — retrying
             # on the next scheduled sync would just fail identically forever
@@ -1663,7 +1786,7 @@ async def _do_sync(
         raise
     finally:
         if slot_held:
-            _release_pass_slot()
+            _release_pass_slot(slot_kind)
         if provider is not None:
             aclose = getattr(provider, "aclose", None)
             if aclose is not None:
@@ -3434,6 +3557,212 @@ def _adopt_file_imports(
     return adopted, failures
 
 
+def _prepare_import(
+    conn: sqlite3.Connection, user_id: str, source: dict[str, Any], provider: NoteProvider,
+    remote_notes: list[RemoteNote], retry_only: set[str], adoption_state: dict | None,
+) -> dict[str, Any]:
+    """Everything `_import_remote_notes` does BEFORE its first confirm: the storage-wait flip,
+    the `.enex` adoption re-keys, the existing-row read, the revision backfill, and the routing
+    of each note (normal, conflict sibling, member-owned, media retry, kept in trash) with the
+    conflict gate's hash baselines. Synchronous and on `conn`; a pooled pass runs it in a worker
+    thread under `_IMPORT_WRITE_LOCK` (`_prepare_import_locked`)."""
+    budget = media_policy.MediaBudget.for_member(user_id)
+    if _storage_has_freed(budget):
+        try:
+            _flip_storage_waits(conn, user_id)
+        except sqlite3.Error as e:   # a busy DB defers the wait one pass; never fails the sync
+            log.warning("[note-sync] storage-wait flip deferred (%s)", type(e).__name__)
+    import_keys = [
+        provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
+    ]
+    adopted, adoption_failures = _adopt_file_imports(
+        conn, user_id, provider, remote_notes, import_keys, adoption_state)
+    existing = _bulk_existing_note_meta(conn, user_id, import_keys)
+    # Fix round 1 (concern 2): the member's trashed rows among the keys with no live row.
+    trashed_rows = _trashed_rows_by_key(
+        conn, user_id, [k for k in import_keys if k not in existing])
+    kept_in_trash = 0
+    # Task 8 review M1: a row adopted THIS pass is judged by the file importer's own
+    # predicate (it forgives the old importer's image-finalize write), never a second rule.
+    adopted_unedited = {a["toKey"] for a in adopted if not a["editedSinceImport"]}
+    if _backfill_remote_revs_preserving_updated_at(
+            conn, user_id, remote_notes, import_keys, existing):
+        conn.commit()
+
+    normal_items: list[tuple[dict[str, Any], RemoteNote, str]] = []
+    # (confirm_entry, remote_note, sibling_key, original_folder_id)
+    sibling_items: list[tuple[dict[str, Any], RemoteNote, str, str | None]] = []
+    conflict_tag_updates: dict[str, list[str]] = {}  # original note id -> new tags
+    pre_confirm_conflicts = 0
+    user_owned_unchanged = 0
+    retry_bodies: dict[str, str] = {}
+    retry_skipped: list[str] = []
+
+    for rn, key in zip(remote_notes, import_keys):
+        meta = existing.get(key)
+        if meta is None and key in trashed_rows and rn.remote_id not in retry_only:
+            # Concern 2: the member trashed this note in UCT and the remote changed since. The
+            # trash is theirs: nothing comes back into the Notebook (and `import_confirm`
+            # would refuse the key anyway: the trashed row still holds it), but nothing is lost
+            # either: the new content goes INTO the trashed row, `deleted_at` kept, and the
+            # stamped revision makes NEW-7 skip it from the next pass on. A restore shows it.
+            _write_into_trashed_row(conn, user_id, trashed_rows[key], _build_confirm_entry(rn, key))
+            kept_in_trash += 1
+            continue
+        edited = meta is not None and _is_conflict(meta) and key not in adopted_unedited
+        # `entry` is what WOULD be written under the ORIGINAL import_key —
+        # built unconditionally (not just in the else-branch) because
+        # Fix-round-3 needs its hash regardless of which path is taken.
+        entry = _build_confirm_entry(rn, key)
+        if rn.remote_id in retry_only:
+            # C1 belt guard: a retry-only ref may only retry media on the stored body.
+            if (meta is not None and not edited and meta.get("pendingBody")
+                    and meta.get("importHash") == notes_svc._import_payload_hash(entry)):
+                normal_items.append((entry, rn, key))
+                retry_bodies[key] = meta["pendingBody"]
+            else:
+                user_owned_unchanged += 1
+                retry_skipped.append(((meta or {}).get("title") or rn.title or key, key))
+            continue
+        # Fix-round-3 Important (live-gate 23rd check): a conflict is only
+        # a conflict when the REMOTE side actually changed. `_is_conflict`
+        # alone (`updated_at > imported_at`) is permanently true for any
+        # note the user ever legitimately edited — without the hash gate,
+        # EVERY subsequent full sync of UNCHANGED remote content re-tallied
+        # a phantom conflict: `counts.conflicts` never cleared on the trust
+        # strip, the `{key}#remote` sibling was re-confirmed every pass
+        # (harmless only because import_confirm's OWN hash check no-ops an
+        # unchanged sibling that still exists), and — the sharp edge — if
+        # the user deleted that "(synced copy)" sibling, the next sync's
+        # `import_confirm` found no row for `{key}#remote` and silently
+        # RECREATED it, forever, as long as the original stayed
+        # user-edited. Comparing `entry`'s hash (the SAME
+        # `notes_svc._import_payload_hash` basis `import_confirm` itself
+        # uses, over the SAME placeholder-body shape `_build_confirm_entry`
+        # produces — never re-derived here) against the original's stored
+        # `import_hash` answers "did the remote content change since the
+        # last time we looked," independent of the user's own edit.
+        # Plan A Task 1: the hash alone also moves when OUR converter
+        # changes, so `_remote_changed` keys the answer on the remote's
+        # own revision (see its docstring, incl. the minute-precision
+        # limitation accepted for Notion). Consequence: a remote move/
+        # rename that does NOT advance the remote revision (folderPath and
+        # title sit in the hash) is now SKIPPED on an edited note, not copied.
+        is_genuine_conflict = (
+            edited
+            and _remote_changed(meta, rn, notes_svc._import_payload_hash(entry))
+        )
+        if is_genuine_conflict:
+            # Local edit since the last sync AND the remote genuinely
+            # changed -> NEVER overwrite the original. Route the fresh
+            # remote content to a sibling note instead; both versions
+            # survive.
+            pre_confirm_conflicts += 1
+            sibling_key = f"{key}#remote"
+            sibling_entry = _build_confirm_entry(rn, sibling_key, sibling=True)
+            sibling_items.append((sibling_entry, rn, sibling_key, meta["folderId"]))
+            if "sync-conflict" not in (meta["tags"] or []):
+                conflict_tag_updates[meta["id"]] = list(meta["tags"] or []) + ["sync-conflict"]
+            # Record what we just saw as the new "last seen remote hash"
+            # baseline on the ORIGINAL row (never touching its content or
+            # updated_at/imported_at) — see
+            # `_write_import_hash_preserving_updated_at`'s docstring for
+            # why skipping this freezes the comparison at the FIRST
+            # conflict forever instead of tracking pass-to-pass change.
+            _write_import_hash_preserving_updated_at(
+                conn, user_id, meta["id"], notes_svc._import_payload_hash(entry),
+                remote_rev=rn.updated_at or None)
+        elif edited:
+            # Edited by the member, remote UNCHANGED -> the note is the
+            # member's; nothing to write. It must NOT go to import_confirm:
+            # that call re-writes a note whose `import_media_pending` is
+            # still set even when the hash matches (audit B5, the media
+            # retry), and a note with a link that can never resolve stays
+            # pending forever -- so the member's edit was overwritten on
+            # every later sync, with no conflict and no copy kept.
+            user_owned_unchanged += 1
+        else:
+            # Either no genuine conflict, or a conflict whose remote side
+            # is UNCHANGED -> plain pass-through. `import_confirm`'s own
+            # hash check on `entry` no-ops it (skipped) when nothing
+            # changed -- no tally, no sibling confirm, no resurrection of
+            # a sibling the user deleted.
+            normal_items.append((entry, rn, key))
+            # Fix round 1 (I4): remote unchanged and media still pending -> this pass
+            # is a media RETRY; it builds on the stored body (`_retry_source`).
+            if (meta is not None and meta.get("pendingBody")
+                    and meta.get("importHash") == notes_svc._import_payload_hash(entry)):
+                retry_bodies[key] = meta["pendingBody"]
+
+    return {
+        "budget": budget, "adopted": adopted, "adoption_failures": adoption_failures,
+        "existing": existing, "normal_items": normal_items, "sibling_items": sibling_items,
+        "conflict_tag_updates": conflict_tag_updates, "pre_confirm_conflicts": pre_confirm_conflicts,
+        "user_owned_unchanged": user_owned_unchanged, "retry_bodies": retry_bodies,
+        "retry_skipped": retry_skipped, "kept_in_trash": kept_in_trash,
+    }
+
+
+def _prepare_import_locked(*args: Any) -> dict[str, Any]:
+    """N-A: a pooled pass's pre-confirm writes take `_IMPORT_WRITE_LOCK` FIRST and commit before
+    it is released. Before, they opened a write transaction (adoption re-keys, conflict
+    baselines) and the pass then WAITED on the lock holding SQLite's write lock, while the lock's
+    holder sat out busy_timeout inside `import_confirm` and lost its whole batch as "database is
+    locked"."""
+    conn = args[0]
+    with _IMPORT_WRITE_LOCK:
+        _refuse_open_transaction(conn)
+        try:
+            out = _prepare_import(*args)
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        finally:
+            _write_gap()
+    return out
+
+
+def _trashed_rows_by_key(conn: sqlite3.Connection, user_id: str, keys: list[str]) -> dict[str, str]:
+    """{import_key: note id} of the member's TRASHED rows among `keys` (concern 2)."""
+    out: dict[str, str] = {}
+    for i in range(0, len(keys), 500):  # sqlite variable-limit safety
+        chunk = [k for k in keys[i:i + 500] if k]
+        if not chunk:
+            continue
+        for row in conn.execute(
+                f"SELECT id, import_key FROM j2_notes WHERE user_id = ? AND deleted_at IS NOT NULL "
+                f"AND import_key IN ({','.join('?' * len(chunk))})", (user_id, *chunk)):
+            out[row["import_key"]] = row["id"]
+    return out
+
+
+def _write_into_trashed_row(conn: sqlite3.Connection, user_id: str, note_id: str,
+                            entry: dict[str, Any]) -> None:
+    """Concern 2: the remote's new content written into a note the member trashed, the way
+    `import_confirm`'s update branch writes a note (same derivations, same columns, the folder
+    left where the member had it) but keeping `deleted_at`, so the note stays in the trash and a
+    restore brings back the latest version. `import_remote_rev` is stamped, so NEW-7 skips it
+    from the next pass on. Its media stays pending (`import_media_pending`): a restored note's
+    next pass copies the images. One INFO line per pass (the caller), never a member warning."""
+    now = notes_svc._now_iso()
+    body_json = notes_svc._imported_widgets_private(notes_svc._validate_body_json(entry["bodyJson"]))
+    body_plain = notes_svc.extract_plain_text(body_json)
+    conn.execute(
+        "UPDATE j2_notes SET title=?, body_json=?, body_plain=?, first_image_url=?, tags=?, "
+        "import_hash=?, import_media_pending=?, import_links_pending=?, imported_at=?, "
+        "updated_at=?, import_remote_rev=? "
+        "WHERE id=? AND user_id=? AND deleted_at IS NOT NULL",
+        (notes_svc.import_title(entry.get("title")), json.dumps(body_json), body_plain,
+         notes_svc._extract_first_image(body_json),
+         json.dumps(notes_svc._validate_tags(entry.get("tags"))),
+         notes_svc._import_payload_hash(entry), import_notice.media_pending_state(body_json),
+         1 if notes_svc._body_has_import_link(body_json) else 0, now,
+         notes_svc._import_date(entry.get("updatedAt"), now), entry.get("updatedAt") or None,
+         note_id, user_id))
+    notes_svc._sync_note_sidecars(conn, user_id, note_id, body_json, body_plain)
+
+
 async def _import_remote_notes(
     user_id: str, source: dict[str, Any], provider: NoteProvider, creds: dict[str, Any],
     remote_notes: list[RemoteNote], *, heal: bool = True, adoption_state: dict | None = None,
@@ -3444,126 +3773,30 @@ async def _import_remote_notes(
     (`retry_bodies`) when its payload hash equals the stored `import_hash`; otherwise it is not
     written at all, counted as skipped and named. A retry is never a content sync."""
     retry_only = retry_only or set()
+    # NEW-4 / N-A: a pooled (opt-in) pass's writes before and in its confirms take the import
+    # write lock; every other provider runs exactly as before.
+    pooled = getattr(provider, "follow_up_on_rate_limit", False) is True
     conn = get_connection()
     try:
         # Plan A Task 8: ONE media budget for this whole pass (one memoised usage read), and
         # the storage wait: once space has freed, this member's notes waiting at
         # `import_media_pending = 2` go back to 1 BEFORE the existing-meta read, so the
         # confirm below re-imports them like any other retry.
-        budget = media_policy.MediaBudget.for_member(user_id)
-        if _storage_has_freed(budget):
-            try:
-                _flip_storage_waits(conn, user_id)
-            except sqlite3.Error as e:   # a busy DB defers the wait one pass; never fails the sync
-                log.warning("[note-sync] storage-wait flip deferred (%s)", type(e).__name__)
-        import_keys = [
-            provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
-        ]
-        adopted, adoption_failures = _adopt_file_imports(
-            conn, user_id, provider, remote_notes, import_keys, adoption_state)
-        existing = _bulk_existing_note_meta(conn, user_id, import_keys)
-        # Task 8 review M1: a row adopted THIS pass is judged by the file importer's own
-        # predicate (it forgives the old importer's image-finalize write), never a second rule.
-        adopted_unedited = {a["toKey"] for a in adopted if not a["editedSinceImport"]}
-        if _backfill_remote_revs_preserving_updated_at(
-                conn, user_id, remote_notes, import_keys, existing):
-            conn.commit()
-
-        normal_items: list[tuple[dict[str, Any], RemoteNote, str]] = []
-        # (confirm_entry, remote_note, sibling_key, original_folder_id)
-        sibling_items: list[tuple[dict[str, Any], RemoteNote, str, str | None]] = []
-        conflict_tag_updates: dict[str, list[str]] = {}  # original note id -> new tags
-        pre_confirm_conflicts = 0
-        user_owned_unchanged = 0
-        retry_bodies: dict[str, str] = {}
-        retry_skipped: list[str] = []
-
-        for rn, key in zip(remote_notes, import_keys):
-            meta = existing.get(key)
-            edited = meta is not None and _is_conflict(meta) and key not in adopted_unedited
-            # `entry` is what WOULD be written under the ORIGINAL import_key —
-            # built unconditionally (not just in the else-branch) because
-            # Fix-round-3 needs its hash regardless of which path is taken.
-            entry = _build_confirm_entry(rn, key)
-            if rn.remote_id in retry_only:
-                # C1 belt guard: a retry-only ref may only retry media on the stored body.
-                if (meta is not None and not edited and meta.get("pendingBody")
-                        and meta.get("importHash") == notes_svc._import_payload_hash(entry)):
-                    normal_items.append((entry, rn, key))
-                    retry_bodies[key] = meta["pendingBody"]
-                else:
-                    user_owned_unchanged += 1
-                    retry_skipped.append(((meta or {}).get("title") or rn.title or key, key))
-                continue
-            # Fix-round-3 Important (live-gate 23rd check): a conflict is only
-            # a conflict when the REMOTE side actually changed. `_is_conflict`
-            # alone (`updated_at > imported_at`) is permanently true for any
-            # note the user ever legitimately edited — without the hash gate,
-            # EVERY subsequent full sync of UNCHANGED remote content re-tallied
-            # a phantom conflict: `counts.conflicts` never cleared on the trust
-            # strip, the `{key}#remote` sibling was re-confirmed every pass
-            # (harmless only because import_confirm's OWN hash check no-ops an
-            # unchanged sibling that still exists), and — the sharp edge — if
-            # the user deleted that "(synced copy)" sibling, the next sync's
-            # `import_confirm` found no row for `{key}#remote` and silently
-            # RECREATED it, forever, as long as the original stayed
-            # user-edited. Comparing `entry`'s hash (the SAME
-            # `notes_svc._import_payload_hash` basis `import_confirm` itself
-            # uses, over the SAME placeholder-body shape `_build_confirm_entry`
-            # produces — never re-derived here) against the original's stored
-            # `import_hash` answers "did the remote content change since the
-            # last time we looked," independent of the user's own edit.
-            # Plan A Task 1: the hash alone also moves when OUR converter
-            # changes, so `_remote_changed` keys the answer on the remote's
-            # own revision (see its docstring, incl. the minute-precision
-            # limitation accepted for Notion). Consequence: a remote move/
-            # rename that does NOT advance the remote revision (folderPath and
-            # title sit in the hash) is now SKIPPED on an edited note, not copied.
-            is_genuine_conflict = (
-                edited
-                and _remote_changed(meta, rn, notes_svc._import_payload_hash(entry))
-            )
-            if is_genuine_conflict:
-                # Local edit since the last sync AND the remote genuinely
-                # changed -> NEVER overwrite the original. Route the fresh
-                # remote content to a sibling note instead; both versions
-                # survive.
-                pre_confirm_conflicts += 1
-                sibling_key = f"{key}#remote"
-                sibling_entry = _build_confirm_entry(rn, sibling_key, sibling=True)
-                sibling_items.append((sibling_entry, rn, sibling_key, meta["folderId"]))
-                if "sync-conflict" not in (meta["tags"] or []):
-                    conflict_tag_updates[meta["id"]] = list(meta["tags"] or []) + ["sync-conflict"]
-                # Record what we just saw as the new "last seen remote hash"
-                # baseline on the ORIGINAL row (never touching its content or
-                # updated_at/imported_at) — see
-                # `_write_import_hash_preserving_updated_at`'s docstring for
-                # why skipping this freezes the comparison at the FIRST
-                # conflict forever instead of tracking pass-to-pass change.
-                _write_import_hash_preserving_updated_at(
-                    conn, user_id, meta["id"], notes_svc._import_payload_hash(entry),
-                    remote_rev=rn.updated_at or None)
-            elif edited:
-                # Edited by the member, remote UNCHANGED -> the note is the
-                # member's; nothing to write. It must NOT go to import_confirm:
-                # that call re-writes a note whose `import_media_pending` is
-                # still set even when the hash matches (audit B5, the media
-                # retry), and a note with a link that can never resolve stays
-                # pending forever -- so the member's edit was overwritten on
-                # every later sync, with no conflict and no copy kept.
-                user_owned_unchanged += 1
-            else:
-                # Either no genuine conflict, or a conflict whose remote side
-                # is UNCHANGED -> plain pass-through. `import_confirm`'s own
-                # hash check on `entry` no-ops it (skipped) when nothing
-                # changed -- no tally, no sibling confirm, no resurrection of
-                # a sibling the user deleted.
-                normal_items.append((entry, rn, key))
-                # Fix round 1 (I4): remote unchanged and media still pending -> this pass
-                # is a media RETRY; it builds on the stored body (`_retry_source`).
-                if (meta is not None and meta.get("pendingBody")
-                        and meta.get("importHash") == notes_svc._import_payload_hash(entry)):
-                    retry_bodies[key] = meta["pendingBody"]
+        prep_args = (conn, user_id, source, provider, remote_notes, retry_only, adoption_state)
+        prep = (await asyncio.to_thread(_prepare_import_locked, *prep_args) if pooled
+                else _prepare_import(*prep_args))
+        budget = prep["budget"]
+        adopted, adoption_failures = prep["adopted"], prep["adoption_failures"]
+        existing = prep["existing"]
+        normal_items, sibling_items = prep["normal_items"], prep["sibling_items"]
+        conflict_tag_updates = prep["conflict_tag_updates"]
+        pre_confirm_conflicts = prep["pre_confirm_conflicts"]
+        user_owned_unchanged = prep["user_owned_unchanged"] + prep["kept_in_trash"]
+        retry_bodies, retry_skipped = prep["retry_bodies"], prep["retry_skipped"]
+        if prep["kept_in_trash"]:
+            log.info("[note-sync] source %s: %d note(s) the member trashed changed remotely; the "
+                     "new content was kept in the trashed note", source.get("id"),
+                     prep["kept_in_trash"])
 
         totals: dict[str, Any] = {
             "created": 0, "updated": 0, "skipped": user_owned_unchanged, "mediaUploaded": 0,
@@ -3593,7 +3826,8 @@ async def _import_remote_notes(
         # docstring for why (a per-batch link resolution silently and
         # permanently erased any forward reference to a not-yet-confirmed
         # note; round-2 review fix, 2026-08-12).
-        for batch in _chunks(normal_items, _CONFIRM_BATCH_SIZE):
+        for batch in _chunks(normal_items,
+                             POOLED_CONFIRM_BATCH_SIZE if pooled else _CONFIRM_BATCH_SIZE):
             entries = [e for e, _rn, _k in batch]
             pairs = [(rn, k) for _e, rn, k in batch]
             res = await _confirm_and_resolve_batch(

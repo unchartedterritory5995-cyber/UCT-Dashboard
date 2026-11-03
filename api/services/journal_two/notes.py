@@ -1594,6 +1594,12 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
         # One import operation = one imported_at timestamp, deliberate
         now = _now_iso()
         path_cache: dict[tuple, str] = {}
+        # Slot scheduling fix round 1 (concern 3): every note's CPU work (validation, the
+        # plain-text extraction, the payload hash, the pending flags) is done FIRST, before
+        # this call writes anything, so the write transaction below spans only the writes and a
+        # member's own save waits on it for as short a time as possible. Pure functions of the
+        # payload; a note that fails here is reported in `failed` exactly as before, in order.
+        prepared: list[tuple[dict, str | None, Exception | None, tuple | None]] = []
         for n in notes:
             raw_key = n.get("importKey")
             key = raw_key if isinstance(raw_key, str) and raw_key else None
@@ -1604,12 +1610,22 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # ⛔ Wave 10 (10C): an imported note the editor cannot build lands in
                 # "Needs attention" with the sentence, never as a locked note.
                 _refuse_unbuildable(body_json)
-                body_plain = extract_plain_text(body_json)
-                first_image = _extract_first_image(body_json)
-                title = import_title(n.get("title"))
-                tags = _validate_tags(n.get("tags"))
-                ticker = _validate_ticker(n.get("ticker"))
-                h = _import_payload_hash(n)
+                prepared.append((n, key, None, (
+                    body_json, extract_plain_text(body_json), _extract_first_image(body_json),
+                    import_title(n.get("title")), _validate_tags(n.get("tags")),
+                    _validate_ticker(n.get("ticker")), _import_payload_hash(n),
+                    _import_date(n.get("createdAt"), now), _import_date(n.get("updatedAt"), now),
+                    media_pending_state(body_json),  # Plan A Task 6: 0 / 1 / 2
+                    1 if _body_has_import_link(body_json) else 0,  # Plan A Task 4
+                )))
+            except Exception as e:  # noqa: BLE001 -- isolated per note, as below
+                prepared.append((n, key, e, None))
+        for n, key, prep_error, derived in prepared:
+            try:
+                if prep_error is not None:
+                    raise prep_error
+                (body_json, body_plain, first_image, title, tags, ticker, h, created_at,
+                 updated_at, media_pending, links_pending) = derived
                 # Folder resolution is shared across notes (path_cache) and
                 # deliberately sits OUTSIDE the per-note SAVEPOINT below: a
                 # folder a healthy note needs must survive even when a LATER
@@ -1659,10 +1675,6 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         or _edited_since_file_import(conn, user_id, row)):
                     kept_edited.append(item)
                     continue
-                created_at = _import_date(n.get("createdAt"), now)
-                updated_at = _import_date(n.get("updatedAt"), now)
-                media_pending = media_pending_state(body_json)  # Plan A Task 6: 0 / 1 / 2
-                links_pending = 1 if _body_has_import_link(body_json) else 0  # Plan A Task 4
 
                 # This note's write is isolated in its own SAVEPOINT: a note
                 # that cannot be stored must not discard any sibling note

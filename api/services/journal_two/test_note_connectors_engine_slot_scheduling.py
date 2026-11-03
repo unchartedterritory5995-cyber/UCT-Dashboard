@@ -44,12 +44,17 @@ def _fresh_slots(monkeypatch):
     """The pass slots are module state: every test starts with all of them free and no waiter,
     and polls quickly."""
     monkeypatch.setattr(engine, "PASS_SLOT_POLL_S", 0.01)
+    # The queue's own rules are railed here without the reserved member slot (fix round 1,
+    # concern 1), which `test_note_connectors_engine_slot_scheduling_r1.py` rails on top.
+    monkeypatch.setattr(engine, "MEMBER_RESERVED_SLOTS", 0)
     with engine._PASS_SLOTS_LOCK:
         engine._pass_slots_used = 0
+        engine._member_slots_used = 0
         engine._slot_waiters.clear()
     yield
     with engine._PASS_SLOTS_LOCK:
         engine._pass_slots_used = 0
+        engine._member_slots_used = 0
         engine._slot_waiters.clear()
 
 
@@ -369,6 +374,7 @@ async def test_opt_in_import_confirms_are_serialized_off_the_loop(db, monkeypatc
                 seen["now"] -= 1
 
     monkeypatch.setattr(notes_svc, "import_confirm", spy)
+    monkeypatch.setattr(engine, "IMPORT_WRITE_GAP_S", 0.0)  # the gap alone must not serialize
     db.upsert_connector("u1", "fake", {"token": "abc"})
     providers = {}
     sids = []
@@ -495,12 +501,11 @@ async def test_a_note_trashed_during_an_import_is_not_brought_back(db, monkeypat
     assert sorted(_live_and_trashed()[0]) == ["Note 0", "Note 2"]
 
 
-async def test_a_trashed_note_edited_remotely_afterwards_takes_import_confirms_path(db, monkeypatch):
-    # The remote changed after the trash, so the skip does not apply and the note goes to
-    # import_confirm exactly as before. Its rule, pinned here as it stands: a trashed row never
-    # matches by key, so the confirm tries a fresh INSERT, which the partial UNIQUE index on
-    # (user_id, import_key) refuses (the trashed row still holds the key): the note is reported
-    # not stored and nothing comes back while the trashed row exists.
+async def test_a_trashed_note_edited_remotely_afterwards_stays_in_the_trash(db, monkeypatch):
+    # The remote changed after the trash, so NEW-7's skip does not apply. Fix round 1 (concern
+    # 2): the note is fetched and its new content kept IN the trashed row; nothing comes back
+    # and nothing is reported (before, import_confirm's partial UNIQUE index refused the fresh
+    # INSERT and the note was "not stored" every pass).
     p = PerRefProvider()
     _seed(p, 2)
     p.limited = {"p1"}
@@ -516,8 +521,8 @@ async def test_a_trashed_note_edited_remotely_afterwards_takes_import_confirms_p
     result = await engine.sync_source(sid, manual=True)
     assert "p0" in p.fetch_calls[before:]  # fetched: the trash skip did not fire
     live, trashed = _live_and_trashed()
-    assert live == ["Note 1"] and trashed == ["Note 0"]
-    assert result["created"] == 1 and any("p0" in f for f in result["failures"])
+    assert live == ["Note 1"] and trashed == ["Note 0 edited"]
+    assert result["created"] == 1 and not result["failures"]
 
 
 # ── Cancellation rail ─────────────────────────────────────────────────────────
@@ -651,3 +656,17 @@ async def test_a_sync_now_goes_ahead_of_first_syncs_still_waiting(db, monkeypatc
     await asyncio.gather(*firsts)  # one slot cycling: the queue's order is the run order
     _release(held - 1)
     assert live["order"] == ["member", "first1", "first2"]
+
+
+async def test_only_the_head_of_the_queue_may_take_a_free_slot():
+    # A free slot and a waiter ahead in the queue (here a ticket that never polls): a later
+    # waiter must not take it, whatever the polling order.
+    with engine._PASS_SLOTS_LOCK:
+        engine._slot_waiters.append((engine.SLOT_MEMBER, -1, "ahead"))
+    later = asyncio.create_task(engine._acquire_pass_slot("later", priority=engine.SLOT_BACKGROUND))
+    await asyncio.sleep(0.05)
+    assert not later.done() and engine._pass_slots_in_use() == 0
+    with engine._PASS_SLOTS_LOCK:
+        engine._slot_waiters.remove((engine.SLOT_MEMBER, -1, "ahead"))
+    await asyncio.wait_for(later, timeout=5)
+    _release(1)
