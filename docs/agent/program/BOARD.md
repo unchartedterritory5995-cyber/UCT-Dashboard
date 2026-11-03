@@ -36,21 +36,21 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 ## W1-SEC F-16/F-23 (sec-integrator, `agent/w1/f16-f23`)
 | id | task | paths | depends | state | PR | evidence |
 |---|---|---|---|---|---|---|
-| S-01 | Merge #654 (server), #657 (client), #661 (rails), #666 (F-23) onto current master by merge commits; resolve conflicts; keep the original authorship | as in those PRs | — | todo | | |
-| S-02 | Run: `tests/test_uct_agent_qa_isolation*.py`, `tests/test_uct_agent_qa_member_refused.py`, F-16 rails (server 40 + browser 13), `tests/test_uct_agent_scan*.py`, `qa/*.test.*`; record counts | — | S-01 | todo | | |
-| S-03 | One PR into `agent/int` superseding the four, with a diff summary and the isolation-audit cells 23/24 status | — | S-02 | todo | | |
-| S-04 | Independent verification by a review subagent with the diff only (integrator) | — | S-03 | todo | | |
+| S-01 | Merge #654 (server), #657 (client), #661 (rails), #666 (F-23) onto current master by merge commits; resolve conflicts; keep the original authorship | as in those PRs | — | pr | #704 | merges e6f2794dcb/591f78f467/ee7257460f/337b4335c4 + lead test patch 9ca67b7e89; 3 docs-only conflicts |
+| S-02 | Run: `tests/test_uct_agent_qa_isolation*.py`, `tests/test_uct_agent_qa_member_refused.py`, F-16 rails (server 40 + browser 13), `tests/test_uct_agent_scan*.py`, `qa/*.test.*`; record counts | — | S-01 | pr | #704 | full vitest 2572 passed; qa_f16+scan 345 passed; cells 23/24 PROVEN; mutation (un-hide rs_rank) → 10 red |
+| S-03 | One PR into `agent/int` superseding the four, with a diff summary and the isolation-audit cells 23/24 status | — | S-02 | pr | #704 | head 14750ed95e |
+| S-04 | Independent verification by a review subagent with the diff only (integrator) | — | S-03 | done | #704 | round 1: BLOCKING server bypass found (rank criteria validated by `column`, screener reads `key`; rails vacuous) → fixed in 14750ed95e, mutation 39 red on old validate; round 2: APPROVE. Residuals recorded: `rs_line_trend`/`candle_recent_bars_ago` visible (owner call); `scan/screen.py last_closed_session` 16:00 rule for staleness note |
 
 ## W1-I Integration (integrator)
 | id | task | state | evidence |
 |---|---|---|---|
 | I-01 | `agent/int` fast-forwarded to master `67a6dada10`; five worktrees provisioned | done | this file |
 | I-02 | PROGRAM.md / BOARD.md / EVAL.md seeded | done | |
-| I-03 | `agent-ci.yml` (server + 4-shard browser + union rail) on `agent/**` pushes and PRs | doing | |
-| I-04 | `agent-ci-benchmark.yml` on branch `ci/agent-shard-benchmark`: unsharded vs 4-shard wall time | doing | |
+| I-03 | `agent-ci.yml` (server + 4-shard browser + union rail) on `agent/**` pushes and PRs | doing | first run: 4 shards green, union rail green (143 passed/5 skipped); server job red on 2 deploy-gate rails → promotion-gate:no headers added; `test_no_OTHER_workflow_is_an_agent_gate` deselected in agent-ci only, PENDING OWNER decision to amend the rail (exempt promotion-gate:no workflows); these workflows must not reach master before that |
+| I-04 | `agent-ci-benchmark.yml` on branch `ci/agent-shard-benchmark`: unsharded vs 4-shard wall time | done | run 41552662282 (ubuntu-latest): unsharded job 18 min 36 s wall; shards 4:58 / 4:58 / 5:41 / 5:52 (parallel) → slowest 5:52; same 143 passed / 5 skipped; equivalence rail green |
 | I-05 | #684 (already marked merged by GitHub once agent/int contained it) and #665 closed with containment evidence | done | rev-list 0 |
 | I-06 | Spending-controls report (owner's mandate) | done | appendix H; owner decision recorded in EVAL.md §0 |
 | I-07 | Production flag verification (owner runs the read-only command) | blocked (owner) | |
 | I-08 | RC1 (B + C + SEC if green) | todo | |
 | I-09 | RC2 (A) | todo | |
-| I-10 | Notify Indicators/News/Charts sessions of Wave 1 branches and RC windows | doing | |
+| I-10 | Notify Indicators/News/Charts sessions of Wave 1 branches and RC windows | done | blake-4c (News #629) and blake-ee (News widget) acked: no master RC pending, no Agent files touched |
