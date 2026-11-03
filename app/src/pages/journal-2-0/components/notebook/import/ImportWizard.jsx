@@ -175,6 +175,10 @@ function phaseLabel(phase) {
 // there are, so a 3,000-picture failure never renders 3,000 rows and never hides the count.
 const REPORT_LIST_CAP = 50
 
+/** runImport outcomes of a note that is in the notebook after the run (the headline's count,
+ *  and the By folder table's Arrived/Needs attention split). Plan B Task 11 adds `recovered`. */
+const ARRIVED_OUTCOMES = new Set(['created', 'updated', 'recovered'])
+
 function ReportList({ items, keyOf, renderItem }) {
   const shown = items.slice(0, REPORT_LIST_CAP)
   const more = items.length - shown.length
@@ -577,6 +581,11 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
   const folderBreakdown = useMemo(() => {
     if (!summaryResult) return []
     const map = new Map()
+    // Live audit 2026-11-03 (F3): a note that arrived holding a notice (a file that did not
+    // come over) or whose final save failed needs attention, not "arrived"; `attentionKeys`
+    // is runImport's own list of those. ⚰️ The column read "—" beside a "Couldn't be copied"
+    // row for the same note. Each note still counts in exactly one column.
+    const attention = new Set(summaryResult.attentionKeys || [])
     for (const d of visibleDocs) {
       const label = d.folderPath?.length ? d.folderPath.join(' / ') : 'Unfiled'
       if (!map.has(label)) map.set(label, { label, arrived: 0, unchanged: 0, attention: 0 })
@@ -584,7 +593,10 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
       const outcome = summaryResult.outcomes?.[d.importKey]
       // A recovered note was rebuilt from this export (it arrived); a note kept as the member
       // edited it was left exactly as it was (unchanged). Plan B Task 11.
-      if (outcome === 'created' || outcome === 'updated' || outcome === 'recovered') bucket.arrived += 1
+      if (ARRIVED_OUTCOMES.has(outcome)) {
+        if (attention.has(d.importKey)) bucket.attention += 1
+        else bucket.arrived += 1
+      }
       else if (outcome === 'skipped' || outcome === 'kept_edited') bucket.unchanged += 1
       else if (outcome === 'failed' || outcome === 'batch_failed' || outcome === 'unfinished') bucket.attention += 1
     }
@@ -954,6 +966,12 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
   const summaryArrived = summaryResult
     ? summaryResult.created + summaryResult.updated + (summaryResult.recovered || 0)
     : 0
+  // Fix round 1, M-3: of those, the ones the By folder table counts under Needs attention (an
+  // arrived note runImport lists in `attentionKeys`), so the headline and the table agree.
+  const summaryArrivedAttention = summaryResult
+    ? [...new Set(summaryResult.attentionKeys || [])]
+      .filter((k) => ARRIVED_OUTCOMES.has(summaryResult.outcomes?.[k])).length
+    : 0
 
   const sheetTitle = {
     drop: 'Import notes',
@@ -1313,8 +1331,10 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
             <div className={styles.summaryWrap}>
               <UIcon name="check" size={26} gold={false} className={styles.successIcon} />
               <p className={styles.summaryHeadline}>
-                Imported {summaryArrived} note
-                {summaryArrived === 1 ? '' : 's'}.
+                {`Imported ${summaryArrived} note${summaryArrived === 1 ? '' : 's'}`}
+                {summaryArrivedAttention > 0 &&
+                  ` (${summaryArrivedAttention} need${summaryArrivedAttention === 1 ? 's' : ''} attention)`}
+                .
               </p>
               <ul className={styles.summaryStats}>
                 <li>Created: {summaryResult.created}</li>

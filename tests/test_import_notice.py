@@ -117,7 +117,8 @@ def test_the_reason_union_covers_server_client_and_plugin_codes_and_every_one_ha
         "upload_failed", "type_refused", "unresolvable_src", "decode_failed", "missing_resource",
         "storage_full")
     assert import_notice.PLUGIN_REASONS == (
-        "obsidian_plugin_outdated", "obsidian_attachments_unavailable", "not_found", "sync_off")
+        "obsidian_plugin_outdated", "obsidian_attachments_unavailable", "not_found", "sync_off",
+        "not_sent")
     # Plan F Task 2: the repair's own marker, appended LAST so the client list keeps its order.
     assert import_notice.REPAIR_REASONS == ("missing_from_import",)
     assert import_notice.NOTICE_REASONS == (
@@ -153,6 +154,7 @@ def test_marker_text_retry_vs_final():
     ("storage_full", "Not copied: storage limit. Free up space and import again to bring a.png over"),
     ("not_found", "a.png wasn't found in the vault."),
     ("sync_off", "a.png wasn't synced because image and file sync is turned off in the plugin settings."),
+    ("not_sent", "a.png wasn't sent from Obsidian, so it isn't shown here."),
     ("missing_from_import", "a.png didn't come over in the original import. Import the same export "
                             "again with Re-import to recover turned on to bring it back"),
 ])

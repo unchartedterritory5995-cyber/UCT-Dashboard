@@ -1973,13 +1973,18 @@ def _decode_data_uri(data_uri: str) -> tuple[bytes, str]:
 def media_failure_reason(exc: BaseException) -> str:
     """The `SERVER_REASONS` code for a media failure, decided by TYPE (see
     `_notice_for_exception`). The ONE mapping: the engine's notices and the member media-fetch
-    door (`POST /api/j2/notes/media/fetch`, Plan A Task 9) both read it."""
+    door (`POST /api/j2/notes/media/fetch`, Plan A Task 9) both read it. One provider type
+    carries its own plugin reason: `NoteConnAttachmentNotSent` (an Obsidian file the plugin did
+    not send, live audit 2026-11-03 F2) reads its own (`obsidian-plugin-outdated` or `not-sent`),
+    never `unsupported`."""
     if isinstance(exc, media_policy.MediaRejected):
         return exc.reason
     if isinstance(exc, errors.NoteConnUnsafeAddress):
         return "unsafe"
     if isinstance(exc, errors.NoteConnTooLarge):
         return "too_large"
+    if isinstance(exc, errors.NoteConnAttachmentNotSent):
+        return exc.notice_reason
     if isinstance(exc, errors.NoteConnUnsupported):
         return "unsupported"
     if isinstance(exc, NoteQuotaExceeded) or isinstance(exc.__cause__, NoteQuotaExceeded):
