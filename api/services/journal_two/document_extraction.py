@@ -1363,14 +1363,18 @@ def requeue_stale_pending(*, now: datetime | None = None, older_than_s: float = 
         queued = set(_QUEUED)
     owned = conn is None
     conn = conn or get_connection()
+    # Final review I-1: `pending` is ALSO OCR's derived status for a document whose extraction
+    # already finished and whose pages wait for OCR (document_ocr.derive_document_status, written by
+    # refresh_document_status WITH processed_at). Every process_document outcome sets processed_at
+    # too, so `processed_at IS NULL` is exactly "never extracted": the only rows this sweep heals.
     try:
         failed = conn.execute(
             "UPDATE j2_note_documents SET status = ?, processed_at = ?, failure_reason = ?"
-            " WHERE status = ? AND created_at < ? AND sweep_attempts >= ?",
+            " WHERE status = ? AND processed_at IS NULL AND created_at < ? AND sweep_attempts >= ?",
             (_STATUS_FAILED, current.isoformat(), SWEEP_FAILURE_REASON, _STATUS_PENDING, cutoff,
              MAX_SWEEP_ATTEMPTS)).rowcount
         rows = conn.execute(
-            "SELECT id FROM j2_note_documents WHERE status = ? AND created_at < ?"
+            "SELECT id FROM j2_note_documents WHERE status = ? AND processed_at IS NULL AND created_at < ?"
             " ORDER BY created_at LIMIT ?", (_STATUS_PENDING, cutoff, limit + len(queued))).fetchall()
         picked = [r[0] for r in rows if r[0] not in queued][:limit]
         for document_id in picked:

@@ -76,12 +76,14 @@ and never again.
 ## Before the deploy: count the stale pending documents (read-only)
 
 The same deploy adds the web pod's `j2_doc_pending_sweep`. It re-queues `pending` searchable-document
-rows older than 10 minutes, 20 per tick, first tick no sooner than 10 minutes after boot. Production
-may already hold rows a crash or redeploy left `pending` since Wave I. Record their number first:
+rows that were NEVER extracted (`processed_at IS NULL`) and are older than 10 minutes, 20 per tick,
+first tick no sooner than 10 minutes after boot. A `pending` row with `processed_at` set is a document
+already extracted and waiting for OCR; the sweep never touches it. Production may already hold rows a
+crash or redeploy left `pending` since Wave I. Record their number first:
 
 ```
 railway ssh --service web
-/opt/venv/bin/python -c "import sqlite3; c = sqlite3.connect('file:/data/auth.db?mode=ro', uri=True); print(c.execute(\"SELECT COUNT(*), MIN(created_at) FROM j2_note_documents WHERE status = 'pending' AND created_at < strftime('%Y-%m-%dT%H:%M:%S', 'now', '-10 minutes')\").fetchone())"
+/opt/venv/bin/python -c "import sqlite3; c = sqlite3.connect('file:/data/auth.db?mode=ro', uri=True); print(c.execute(\"SELECT COUNT(*), MIN(created_at) FROM j2_note_documents WHERE status = 'pending' AND processed_at IS NULL AND created_at < strftime('%Y-%m-%dT%H:%M:%S', 'now', '-10 minutes')\").fetchone())"
 ```
 
 (`created_at` is stored as ISO text with a `T`, so the cutoff is built in the same shape.) At 20 rows

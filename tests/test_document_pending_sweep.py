@@ -102,6 +102,32 @@ def test_a_poison_row_is_failed_after_its_retries_and_stops_taking_slots(conn, s
     assert "poison" not in submitted[-1:]
 
 
+def test_a_document_waiting_for_ocr_is_never_reextracted_or_failed(conn, submitted):
+    """Final review I-1: `pending` is ALSO OCR's derived status for a document whose extraction
+    already finished and whose pages wait for OCR (`document_ocr.derive_document_status`,
+    written by `refresh_document_status` together with `processed_at`). The sweep heals only rows
+    that were never extracted (`processed_at IS NULL`). An extracted twin, however old and however
+    many attempts it carries, is neither re-queued nor marked failed; the never-extracted one is."""
+    _doc(conn, "in_ocr", minutes_old=60)
+    _doc(conn, "in_ocr_max", minutes_old=60)
+    _doc(conn, "never_extracted", minutes_old=60)
+    conn.execute("UPDATE j2_note_documents SET processed_at = ? WHERE id IN ('in_ocr', 'in_ocr_max')",
+                 ((NOW - timedelta(minutes=55)).isoformat(),))
+    conn.execute("UPDATE j2_note_documents SET sweep_attempts = ? WHERE id = 'in_ocr_max'",
+                 (dx.MAX_SWEEP_ATTEMPTS,))
+    conn.commit()
+    for _ in range(dx.MAX_SWEEP_ATTEMPTS + 1):
+        dx.requeue_stale_pending(now=NOW, conn=conn)
+        dx._QUEUED.clear()  # as if each queued extraction finished without writing a status
+    assert "in_ocr" not in submitted and "in_ocr_max" not in submitted
+    assert submitted.count("never_extracted") == dx.MAX_SWEEP_ATTEMPTS
+    rows = dict(conn.execute("SELECT id, status FROM j2_note_documents").fetchall())
+    assert rows["in_ocr"] == "pending" and rows["in_ocr_max"] == "pending"
+    assert rows["never_extracted"] == "processing_failed"
+    attempts = dict(conn.execute("SELECT id, sweep_attempts FROM j2_note_documents").fetchall())
+    assert attempts["in_ocr"] == 0
+
+
 def test_queue_extraction_marks_and_the_worker_unmarks(conn, monkeypatch):
     ran = []
     monkeypatch.setattr(dx, "_QUEUED", set())

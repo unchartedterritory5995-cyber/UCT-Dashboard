@@ -41,7 +41,8 @@ the OPRA tape for zero behavioural difference.
 ## Before the deploy: the stale pending-document count (owner runs it, read-only)
 
 The deploy adds the web pod's `j2_doc_pending_sweep`. It re-queues `pending` searchable-document
-rows older than 10 minutes, at most 20 per tick, with the first tick no sooner than 10 minutes after
+rows that were never extracted (`processed_at IS NULL`; a `pending` row with `processed_at` set is
+waiting for OCR and is never touched) and are older than 10 minutes, at most 20 per tick, with the first tick no sooner than 10 minutes after
 boot. A row it cannot finish after 3 tries is marked `processing_failed`. Kill switch:
 `NOTEBOOK_DOC_PENDING_SWEEP_DISABLED=1` on `web`, read per tick.
 
@@ -50,7 +51,7 @@ first and record the answer here:
 
 ```
 railway ssh --service web
-/opt/venv/bin/python -c "import sqlite3; c = sqlite3.connect('file:/data/auth.db?mode=ro', uri=True); print(c.execute(\"SELECT COUNT(*), MIN(created_at) FROM j2_note_documents WHERE status = 'pending' AND created_at < strftime('%Y-%m-%dT%H:%M:%S', 'now', '-10 minutes')\").fetchone())"
+/opt/venv/bin/python -c "import sqlite3; c = sqlite3.connect('file:/data/auth.db?mode=ro', uri=True); print(c.execute(\"SELECT COUNT(*), MIN(created_at) FROM j2_note_documents WHERE status = 'pending' AND processed_at IS NULL AND created_at < strftime('%Y-%m-%dT%H:%M:%S', 'now', '-10 minutes')\").fetchone())"
 ```
 
 At 20 rows per 10 minutes, N rows drain in about N/2 minutes, OCR included for images.
