@@ -253,6 +253,48 @@ def test_a_failing_write_is_logged_and_the_run_goes_on(armed, monkeypatch):
     assert store.member_done(auth_db.get_connection(), RUN, "u1") is True
 
 
+def test_a_note_that_fails_to_plan_is_logged_and_the_run_goes_on(armed, monkeypatch):
+    """Fix round 1, I-3: a planning error is one note's failure, never the run's. It is logged
+    `failed`, the member is finished, and the same run never retries it (no poison pill)."""
+    bad = _note("u1", "Notion", "notion:Export/A.md", BARE)
+    good = _note("u1", "Notion", "notion:Export/B.md", BARE)
+    real = runner.plan_note
+    tried = []
+
+    def boom(conn, user_id, row, cls, index):
+        tried.append(row.id)
+        if row.id == bad:
+            raise TypeError("an unexpected body shape")
+        return real(conn, user_id, row, cls, index)
+
+    monkeypatch.setattr(runner, "plan_note", boom)
+    report = _apply()
+    assert (report["failed"], report["repaired"]) == (1, 1)
+    assert _outcomes(bad) == ["failed"] and _outcomes(good)[-1] == "repaired"
+    assert store.member_done(auth_db.get_connection(), RUN, "u1") is True
+    # a resume of the same run (member unfinished) skips the note that already failed in it
+    _sql("UPDATE j2_import_repair_progress SET status = 'in_progress' WHERE user_id = 'u1'")
+    tried.clear()
+    _apply()
+    assert bad not in tried
+
+
+def test_the_lease_is_released_on_any_exit(armed, monkeypatch):
+    """I-3 / M-3: an abort mid-member (RSS, an error, ^C) gives the member back at once, so a
+    resume is not refused as busy for the stale window."""
+    _note("u1", "Notion", "notion:Export/A.md", BARE)
+    monkeypatch.setattr(runner, "_apply_note", lambda *a, **k: (_ for _ in ()).throw(KeyboardInterrupt()))
+    with pytest.raises(KeyboardInterrupt):
+        _apply(holder="first")
+    lease = _q("SELECT lease_holder FROM j2_import_repair_progress WHERE user_id = 'u1'")
+    assert lease == [(None,)]
+    c = auth_db.get_connection()
+    try:
+        assert store.claim_member(c, RUN, "u1", "second") == []  # free at once, nothing taken over
+    finally:
+        c.close()
+
+
 def test_an_unchanged_note_writes_no_log_row(armed):
     """C12: counted, never logged."""
     note = _note("u1", "Notion", "notion:Export/Plain.md", _doc(_para(_t("plain"))))

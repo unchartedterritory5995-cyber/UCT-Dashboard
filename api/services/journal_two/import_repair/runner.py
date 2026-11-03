@@ -466,55 +466,74 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
             counts["busyMembers"] += 1
             continue
         taken += 1
-        active = active_providers(conn, user_id)
-        rows = list(iter_note_rows(conn, user_id))
-        classes = {r.id: classify(r, active) for r in rows}
-        if obsidian_relist and RELIST in classes.values():
-            counts["relistRequested"] += _relist(conn, run_id, user_id)
-        index: links.FileKeyIndex | None = None
-        tally.member(user_id)
-        checked = repaired = 0
-        complete = True
-        for row in rows:
-            note_class = classes[row.id]
-            if note_class is None:
-                continue
-            tally.row(note_class)
-            if row.body_bytes > MAX_SCAN_BODY_BYTES:  # Task 6 M-6 (1)
-                tally.too_large()
-                continue
-            planned += 1
-            checked += 1
-            if planned % RSS_CHECK_EVERY == 0 and _rss_mb() - rss_start > rss_ceiling_mb:
-                raise RepairAborted(f"memory grew more than {rss_ceiling_mb:.0f} MB during the run")
-            if index is None:
-                index = links.build_file_key_index(conn, user_id)
-            plan = plan_note(conn, user_id, row, note_class, index)
-            if writes(plan):
-                # I-2: a batch is a number of notes still needing work. A note an earlier batch
-                # repaired plans as unchanged and does not count, so each batch moves on.
-                if max_notes is not None and worked >= max_notes:
+        try:
+            active = active_providers(conn, user_id)
+            rows = list(iter_note_rows(conn, user_id))
+            classes = {r.id: classify(r, active) for r in rows}
+            if obsidian_relist and RELIST in classes.values():
+                counts["relistRequested"] += _relist(conn, run_id, user_id)
+            index: links.FileKeyIndex | None = None
+            tally.member(user_id)
+            checked = repaired = 0
+            complete = True
+            for row in rows:
+                note_class = classes[row.id]
+                if note_class is None:
+                    continue
+                tally.row(note_class)
+                if row.body_bytes > MAX_SCAN_BODY_BYTES:  # Task 6 M-6 (1)
+                    tally.too_large()
+                    continue
+                # I-3: a note that already failed in this run is not tried again in it (no poison
+                # pill on resume); a NEW run id tries it again.
+                if store.latest_outcome(conn, run_id, row.id) == "failed":
+                    continue
+                planned += 1
+                checked += 1
+                if planned % RSS_CHECK_EVERY == 0 and _rss_mb() - rss_start > rss_ceiling_mb:
+                    raise RepairAborted(f"memory grew more than {rss_ceiling_mb:.0f} MB during the run")
+                try:
+                    if index is None:
+                        index = links.build_file_key_index(conn, user_id)
+                    plan = plan_note(conn, user_id, row, note_class, index)
+                except Exception as exc:  # noqa: BLE001 -- I-3: one note's failure, never the run's
+                    conn.rollback()
+                    logger.warning("import repair: note %s could not be planned: %s", row.id, exc)
+                    store.log_note(conn, run_id, user_id, row.id, "failed", {}, ["plan_failed"], None)
+                    conn.commit()
+                    counts["failed"] += 1
+                    continue
+                if writes(plan):
+                    # I-2: a batch is a number of notes still needing work. A note an earlier
+                    # batch repaired plans as unchanged and does not count, so each batch moves on.
+                    if max_notes is not None and worked >= max_notes:
+                        complete = False
+                        break
+                    worked += 1
+                tally.plan(row, note_class, plan)
+                outcome = _apply_note(conn, run_id, user_id, row, plan, holder, counts, max_fetches)
+                del plan
+                if outcome == "lease_lost":
+                    counts["leaseLost"] += 1
                     complete = False
                     break
-                worked += 1
-            tally.plan(row, note_class, plan)
-            outcome = _apply_note(conn, run_id, user_id, row, plan, holder, counts, max_fetches)
-            del plan
-            if outcome == "lease_lost":
-                counts["leaseLost"] += 1
-                complete = False
-                break
-            if outcome in by_outcome:
-                counts[by_outcome[outcome]] += 1
-            repaired += outcome == "repaired"
-            if sleep_ms:
-                time.sleep(sleep_ms / 1000)
-        loss_notes = tally.member_end()
-        if not complete:
-            store.release_lease(conn, run_id, user_id, holder)
-            if max_notes is not None and worked >= max_notes:
-                break
-            continue
-        store.record_notice(conn, user_id, loss_notes)
-        store.finish_member(conn, run_id, user_id, checked=checked, repaired=repaired)  # commits
+                if outcome in by_outcome:
+                    counts[by_outcome[outcome]] += 1
+                repaired += outcome == "repaired"
+                if sleep_ms:
+                    time.sleep(sleep_ms / 1000)
+            loss_notes = tally.member_end()
+            if complete:
+                store.record_notice(conn, user_id, loss_notes)
+                store.finish_member(conn, run_id, user_id, checked=checked, repaired=repaired)  # commits
+        finally:
+            # I-3 / M-3: on ANY exit (a batch limit, a lost lease, an abort, an error, ^C) the
+            # member is given back at once; after `finish_member` this is a no-op.
+            try:
+                conn.rollback()
+                store.release_lease(conn, run_id, user_id, holder)
+            except Exception as exc:  # noqa: BLE001 -- never mask the exit's own exception
+                logger.warning("import repair: could not release member %s: %s", user_id, exc)
+        if not complete and max_notes is not None and worked >= max_notes:
+            break
     return tally.report(**counts)
