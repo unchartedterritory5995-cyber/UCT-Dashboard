@@ -256,6 +256,49 @@ def test_a_timestamp_neutral_write_since_planning_is_never_overwritten(armed, we
         assert web["calls"] == []  # nothing downloaded for a plan that is already stale
 
 
+def test_the_body_lock_is_in_the_same_update_as_the_stamp_lock(armed):
+    """Fix round 1 follow-up (concern 2): `_apply_resolved_body(..., expected_body_hash=)`
+    writes only when the stored body still hashes to it, checked IN the UPDATE's WHERE, beside
+    `updated_at`. None (every existing caller) keeps today's behaviour."""
+    note = _note("u1", "Notion", "notion:Export/A.md", BARE)
+    stored, stamp = _note_row(note)[0], _note_row(note)[1]
+    new = _doc(_para(_t("new")))
+    c = auth_db.get_connection()
+    try:
+        assert engine._apply_resolved_body(c, "u1", note, new, expected_updated_at=stamp,
+                                           expected_body_hash=engine.stored_body_sha("something else")) is False
+        assert _note_row(note)[0] == stored
+        assert engine._apply_resolved_body(c, "u1", note, new, expected_updated_at=stamp,
+                                           expected_body_hash=engine.stored_body_sha(stored)) is True
+        assert json.loads(_note_row(note)[0]) == new
+        assert engine._apply_resolved_body(c, "u1", note, BARE, expected_updated_at=stamp) is True  # None
+    finally:
+        c.close()
+    assert runner.body_sha is engine.stored_body_sha  # one definition of the hash
+
+
+def test_a_timestamp_neutral_write_at_the_last_moment_is_never_overwritten(armed, monkeypatch):
+    """Concern 2: a timestamp-neutral write (the heal pass) landing AFTER the repair's last
+    body check and before its UPDATE is caught by the UPDATE itself: `race_lost`."""
+    note = _work_note()
+    healed = _doc(_para(_t("healed at the last moment")))
+    real = store.log_started
+
+    def then_heal(conn, run_id, user_id, note_id, shapes, actions, before):
+        real(conn, run_id, user_id, note_id, shapes, actions, before)  # after the last check
+        other = auth_db.get_connection()
+        try:
+            stamp = other.execute("SELECT updated_at FROM j2_notes WHERE id = ?", (note_id,)).fetchone()[0]
+            assert engine._apply_resolved_body(other, user_id, note_id, healed, expected_updated_at=stamp)
+        finally:
+            other.close()
+
+    monkeypatch.setattr(store, "log_started", then_heal)
+    report = _apply()
+    assert json.loads(_note_row(note)[0]) == healed
+    assert _outcomes(note) == ["repair_started", "race_lost"] and report["raceLost"] == 1
+
+
 def test_an_edit_before_the_fetch_stops_the_fetch(armed, web, monkeypatch):
     """C7: `updated_at` is re-read right before fetching; a moved stamp means no download (no
     orphan file on the member's budget) and `race_lost`."""
@@ -300,9 +343,9 @@ def test_the_undo_copy_is_committed_before_the_write(armed, monkeypatch):
     seen = []
     real = engine._apply_resolved_body
 
-    def spy(conn, user_id, note_id, body, *, expected_updated_at):
+    def spy(conn, user_id, note_id, body, **kw):
         seen.append(_q("SELECT outcome, before_body_json FROM j2_import_repair_log WHERE note_id = ?", note_id))
-        return real(conn, user_id, note_id, body, expected_updated_at=expected_updated_at)
+        return real(conn, user_id, note_id, body, **kw)
 
     monkeypatch.setattr(engine, "_apply_resolved_body", spy)
     _apply()
@@ -315,10 +358,10 @@ def test_a_failing_write_is_logged_and_the_run_goes_on(armed, monkeypatch):
     second = _note("u1", "Notion", "notion:Export/B.md", BARE)
     real = engine._apply_resolved_body
 
-    def boom(conn, user_id, note_id, body, *, expected_updated_at):
+    def boom(conn, user_id, note_id, body, **kw):
         if note_id == first:
             raise RuntimeError("disk")
-        return real(conn, user_id, note_id, body, expected_updated_at=expected_updated_at)
+        return real(conn, user_id, note_id, body, **kw)
 
     monkeypatch.setattr(engine, "_apply_resolved_body", boom)
     report = _apply()

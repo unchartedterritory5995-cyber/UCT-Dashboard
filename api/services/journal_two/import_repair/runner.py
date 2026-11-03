@@ -22,7 +22,6 @@ rows), C11 (`byClassShape`: shapes per class), Task 3/4 (count-only actions neve
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import os
@@ -86,8 +85,9 @@ class NotePlan:
     body_sha: str | None = None
 
 
-def body_sha(text: str) -> str:
-    return hashlib.sha256((text or "").encode("utf-8")).hexdigest()
+#: THE body hash is the engine's: `_apply_resolved_body(expected_body_hash=)` compares it inside
+#: the UPDATE, so the plan's hash and the write's check can never differ.
+body_sha = engine.stored_body_sha
 
 
 def iter_members(conn) -> Iterator[str]:
@@ -442,7 +442,10 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
             conn.commit()
             return "race_lost"
         store.log_started(conn, run_id, user_id, row.id, plan.shapes, plan.actions, before)  # C7, commits
-        applied = engine._apply_resolved_body(conn, user_id, row.id, body, expected_updated_at=row.updated_at)
+        # Concern 2: the stamp lock AND the body lock in one UPDATE: a timestamp-neutral write
+        # landing after the check above still makes this `race_lost`.
+        applied = engine._apply_resolved_body(conn, user_id, row.id, body, expected_updated_at=row.updated_at,
+                                              expected_body_hash=plan.body_sha)
         outcome = "repaired" if applied else "race_lost"
         if applied:
             for stored in copies:  # review M-6: searchable like the door's copies
