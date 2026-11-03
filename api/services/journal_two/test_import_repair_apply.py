@@ -256,6 +256,25 @@ def test_a_timestamp_neutral_write_since_planning_is_never_overwritten(armed, we
         assert web["calls"] == []  # nothing downloaded for a plan that is already stale
 
 
+def test_a_tags_only_edit_after_the_undo_copy_is_never_overwritten(armed, monkeypatch):
+    """Fix round 2, I-4: a member edit that does NOT change the body (tags) right after the undo
+    copy is invisible to the body lock. Only the lock on the LISTING row's `updated_at` stops the
+    write: `race_lost`, and the member's tags and body stand."""
+    note = _work_note()
+    before_body = _note_row(note)[0]
+    real = store.log_started
+
+    def then_tag(conn, run_id, user_id, note_id, shapes, actions, before):
+        real(conn, run_id, user_id, note_id, shapes, actions, before)
+        notes_svc.update_note("u1", note_id, {"tags": ["mine"]})
+
+    monkeypatch.setattr(store, "log_started", then_tag)
+    report = _apply()
+    assert _note_row(note)[0] == before_body
+    assert _outcomes(note) == ["repair_started", "race_lost"] and report["raceLost"] == 1
+    assert _q("SELECT tags FROM j2_notes WHERE id = ?", note)[0][0] != "[]"
+
+
 def test_the_body_lock_is_in_the_same_update_as_the_stamp_lock(armed):
     """Fix round 1 follow-up (concern 2): `_apply_resolved_body(..., expected_body_hash=)`
     writes only when the stored body still hashes to it, checked IN the UPDATE's WHERE, beside
