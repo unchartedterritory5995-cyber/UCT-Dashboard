@@ -61,34 +61,34 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 ## Wave 1.1 repairs (overnight 2026-11-03; branches agent/w11/*, PRs into agent/int; one RC; conditional deploy)
 | id | task | owner | state | PR | evidence |
 |---|---|---|---|---|---|
-| R-01 | LT-3: live model's args for chart.setSetting promoted rows, chart.replay (exit), screener refinement sort, widget.addCharts+indicators are refused as off-schema; make the server's compact-args expansion accept what the production model actually sends (and tighten hints), with regression tests that replay the exact failing shapes | repair-a | todo | | |
-| R-02 | LT-1: empty-board "add a daily chart of nvda to this board" → plans widget.addCharts, not a chart target | repair-a | todo | | |
-| R-03 | LT-9: "rename <layout> to x" → layout.rename (protected-layout refusal reachable); LT-10: nonsense input → clarify with choices, never the FAILED sentence | repair-a | todo | | |
-| R-04 | LT-4: routing offers the indicatorAlerts group for cross/alert phrasings; the planner never claims "can't create them yet" when the capability is in the manifest | repair-b | todo | | |
-| R-05 | LT-8: hidden-field phrases ("rs rank", "uct rating", "composite"…) in refinements and new screens hit the F-16 sentence BEFORE any catalog look-alike mapping; LT-11: the refusal offers the public alternative on every path | repair-b | todo | | |
-| R-06 | LT-12: "when does X report" surfaces the next report date; F-16/F-23 isolation re-check on the merged tree | repair-b | todo | | |
+| R-01 | LT-3: live model's args for chart.setSetting promoted rows, chart.replay (exit), screener refinement sort, widget.addCharts+indicators are refused as off-schema; make the server's compact-args expansion accept what the production model actually sends (and tighten hints), with regression tests that replay the exact failing shapes | repair-a | pr (draft) | #725 | agent/w11/args 74a9b21cf4; pytest 2222; full vitest unconfirmed |
+| R-02 | LT-1: empty-board "add a daily chart of nvda to this board" → plans widget.addCharts, not a chart target | repair-a | pr (draft) | #725 | same |
+| R-03 | LT-9: "rename <layout> to x" → layout.rename (protected-layout refusal reachable); LT-10: nonsense input → clarify with choices, never the FAILED sentence | repair-a | pr (draft) | #725 | same |
+| R-04 | LT-4: routing offers the indicatorAlerts group for cross/alert phrasings; the planner never claims "can't create them yet" when the capability is in the manifest | repair-b | pr (draft) | #727 | agent/w11/routing-f16 b923e69f8c; vitest full 155 files green; pytest run 2 unconfirmed |
+| R-05 | LT-8: hidden-field phrases ("rs rank", "uct rating", "composite"…) in refinements and new screens hit the F-16 sentence BEFORE any catalog look-alike mapping; LT-11: the refusal offers the public alternative on every path | repair-b | pr (draft) | #727 | same |
+| R-06 | LT-12: "when does X report" surfaces the next report date; F-16/F-23 isolation re-check on the merged tree | repair-b | pr (draft) | #727 | same |
 | R-07 | Investigation record: which production flags were on before Wave 1 and since when; `charts_active_template` read-only verification | integrator | doing | — | FLAGS-INVESTIGATION-2026-11-03.md written; template read-back pending the live rerun |
-| R-08 | Wave 1.1 RC: independent review of the combined diff, agent-ci green, master sync, conditional deploy decision per the eight conditions; live rerun of the failed scenarios | integrator | todo | | |
+| R-08 | Wave 1.1 RC: independent review of the combined diff, agent-ci green, master sync, conditional deploy decision per the eight conditions; live rerun of the failed scenarios | integrator | HOLD | — | owner (07:00Z): no merges/deploys until they return; RELEASE-W11-CHECKLIST.md unfilled; RC not cut |
 
 ## Wave 2 (overnight start 2026-11-03; integration branch agent/int-w2; NOT deployed)
 | id | task | owner | state | PR | evidence |
 |---|---|---|---|---|---|
-| W2-A1 | Multi-turn context: clarify threading (a new request while a clarify is open starts fresh; answers to choices bind to the open question), follow-up referents | w2-a | todo | | |
-| W2-A2 | Planner v2 eval readiness: scripted-model acceptance set for v2 (≥ 30 multi-step cases), step protocol hardening, tool-search miss telemetry, cost/round accounting rails; v2 stays OFF | w2-a | todo | | |
-| W2-A3 | Schema-constrained args: server-side normalizers for the catalog's arg shapes + a golden "model output → args" corpus from production failures; deterministic coverage | w2-a | todo | | |
-| W2-B1 | Research capability (RS-1 v1): grounded answer with facts / interpretation / unknowns and timestamped sources, composing gateway kinds + the existing web search; research never emits a figure the gateway did not return | w2-b | todo | | |
-| W2-B2 | Historical analysis: dated ranges/comparisons ("compare this pullback to …"), post-event behaviour via the existing event_study service (value-free to the model), freshness notes | w2-b | todo | | |
-| W2-B3 | Grounded TA workflow: describe a chart's setup from served bars/indicators (no invented levels), conversational follow-ups | w2-b | todo | | |
-| W2-C1 | App-level AgentProvider + page host adapters (screener, breadth, calendar, journal notes read), capability `surfaces` beyond charts; queries available everywhere | w2-c | todo | | |
-| W2-C2 | Explain / Show / Do guide targets on the new pages | w2-c | todo | | |
-| W2-C3 | Cross-feature workflows + Undo across pages (where writers exist) | w2-c | todo | | |
+| W2-A1 | Multi-turn context: clarify threading (a new request while a clarify is open starts fresh; answers to choices bind to the open question), follow-up referents | w2-a | pr (draft) | #731 | 145eb337e3; 56+23 tests; full pytest 2182 |
+| W2-A2 | Planner v2 eval readiness: scripted-model acceptance set for v2 (≥ 30 multi-step cases), step protocol hardening, tool-search miss telemetry, cost/round accounting rails; v2 stays OFF | w2-a | pr (draft, WIP) | #733 | b092cf1fcd; 23/39 acceptance; v2 per-turn-cap finding for the owner |
+| W2-A3 | Schema-constrained args: server-side normalizers for the catalog's arg shapes + a golden "model output → args" corpus from production failures; deterministic coverage | w2-a | pr (draft) | #732 | 4043dc1cce; corpus 155/155; reconcile with #725 |
+| W2-B1 | Research capability (RS-1 v1): grounded answer with facts / interpretation / unknowns and timestamped sources, composing gateway kinds + the existing web search; research never emits a figure the gateway did not return | w2-b | pr (ready) | #726 | 73e97cce3c; full pytest 2115 / vitest 2696 |
+| W2-B2 | Historical analysis: dated ranges/comparisons ("compare this pullback to …"), post-event behaviour via the existing event_study service (value-free to the model), freshness notes | w2-b | pr (draft) | #734 | 7011ee283b; targeted green; full suites not run |
+| W2-B3 | Grounded TA workflow: describe a chart's setup from served bars/indicators (no invented levels), conversational follow-ups | w2-b | todo | — | design in #734 |
+| W2-C1 | App-level AgentProvider + page host adapters (screener, breadth, calendar, journal notes read), capability `surfaces` beyond charts; queries available everywhere | w2-c | pr (draft) | #728 | 4c89b53ba2; targeted 1359; full run queued, unconfirmed |
+| W2-C2 | Explain / Show / Do guide targets on the new pages | w2-c | todo | — | design in #728 |
+| W2-C3 | Cross-feature workflows + Undo across pages (where writers exist) | w2-c | todo | — | design in #728 |
 
 ## Wave 3 (coach foundations; integration branch agent/int-w3; NOT deployed; flag UCT_AGENT_COACH default off)
 | id | task | owner | depends | state | PR | evidence |
 |---|---|---|---|---|---|---|
-| W3-1 | Educational explanations: `coach.explain` (query) over a curated, reviewed knowledge base (docs/agent/coach/concepts/*.md): price action, volume, risk & position sizing, market conditions; rails: no figures unless from an envelope, "educational, not advice", no guarantees | w3-a | none | todo | | |
-| W3-2 | Deterministic coach evaluation suite: unsupported-conclusion detector (guarantee/certainty/order language), uncertainty-stated check, figure-traceability check; ≥ 20 adversarial phrasings; wired as rails on every coach answer | w3-a | none | todo | | |
-| W3-3 | Trade review foundations: `journal.reviewTrades` reading the member's own `/api/j2/trades` (and notes) with explicit per-conversation consent (`coach.consent` capability, stored on the conversation state), descriptive stats only, proposed note as the only write | w3-a | none (W2-C1 journal host for page context later) | todo | | |
-| W3-4 | Coaching conversation workflow: ask → explain → check → next step; explicit uncertainty; uses W2-A1 threading once merged (single-turn fallback) | w3-a | W2-A1 (soft) | todo | | |
+| W3-1 | Educational explanations: `coach.explain` (query) over a curated, reviewed knowledge base (docs/agent/coach/concepts/*.md): price action, volume, risk & position sizing, market conditions; rails: no figures unless from an envelope, "educational, not advice", no guarantees | w3-a | none | pr (ready) | #724 | 4a3250519f; full pytest 2180 / vitest 2640; agent-ci green |
+| W3-2 | Deterministic coach evaluation suite: unsupported-conclusion detector (guarantee/certainty/order language), uncertainty-stated check, figure-traceability check; ≥ 20 adversarial phrasings; wired as rails on every coach answer | w3-a | none | pr (ready) | #724 | same |
+| W3-3 | Trade review foundations: `journal.reviewTrades` reading the member's own `/api/j2/trades` (and notes) with explicit per-conversation consent (`coach.consent` capability, stored on the conversation state), descriptive stats only, proposed note as the only write | w3-a | none (W2-C1 journal host for page context later) | pr (draft) | #729 | aadadf7b3e; targeted green; full not run |
+| W3-4 | Coaching conversation workflow: ask → explain → check → next step; explicit uncertainty; uses W2-A1 threading once merged (single-turn fallback) | w3-a | W2-A1 (soft) | pr (draft, WIP) | #730 | a45050c296; 1 test expectation to fix |
 | W3-5 | Setup analysis + explanation on top of `chart.describeSetup` | w3-a | W2-B3 merged + reviewed | blocked (dependency) | | |
 | W3-6 | Historical setup comparison on top of `history.eventStudy` / dated ranges | w3-a | W2-B2 merged + reviewed | blocked (dependency) | | |
