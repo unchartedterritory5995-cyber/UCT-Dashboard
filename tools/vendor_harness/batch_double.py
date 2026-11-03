@@ -164,6 +164,7 @@ class RecordingTVPage:
         self.panes = [1.0]
         self.studies = list(studies or [])     # dicts: id, name, sha, source, reads
         self.signed_in, self.visible = signed_in, visible
+        self.account = "rig-test-user"           # what ACCOUNT_JS reads (provenance only)
         self.editor_open = False
         self.models = []
         self.buffers = {}
@@ -193,6 +194,7 @@ class RecordingTVPage:
             bc.REMOVE_JS: ("REMOVE", self._remove), bc.VH_STUDIES_JS: ("VH_STUDIES", self._vh_studies),
             bc.VH_CAPTURE_JS: ("VH_CAPTURE", self._vh_capture), bc.VH_CHUNK_JS: ("VH_CHUNK", self._vh_chunk),
             bc.VH_CLEANUP_JS: ("VH_CLEANUP", self._vh_cleanup), bc.GLOBALS_JS: ("GLOBALS", self._globals),
+            bc.ACCOUNT_JS: ("ACCOUNT", lambda a: self.account),
         }
 
     # ── recording ───────────────────────────────────────────────────────────
