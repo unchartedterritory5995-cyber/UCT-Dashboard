@@ -100,6 +100,25 @@ describe('ImportWizard — the report of what was kept, not copied, or not conne
     expect(screen.getByText(/Imported 1 note\./)).toBeInTheDocument()
   })
 
+  it('a note that arrived with a file that did not come over counts under Needs attention', async () => {
+    // Live audit 2026-11-03, F3: an Obsidian note whose `![[ov-gone.png]]` is not in the zip
+    // arrives with a not-found notice. The folder table said Needs attention "—" while the
+    // note held a notice; `attentionKeys` (a dropped media item, a failed final save) is the
+    // runImport field that names it. Each note counts once, so the row still sums.
+    runImport.mockResolvedValue(RESULT({
+      created: 2, outcomes: { 'file:a.md': 'created', 'file:b.md': 'created' },
+      attentionKeys: ['file:b.md'],
+      notices: [{ note: 'b', importKey: 'file:b.md', reason: 'not_found', name: 'ov-gone.png', sourceUrl: null }],
+    }))
+    await toPreview([mdFile('a.md'), mdFile('b.md')])
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(screen.getByText('Import complete')).toBeInTheDocument(), { timeout: 10000 })
+    const row = screen.getByRole('row', { name: /^Unfiled/i })
+    expect(within(row).getAllByRole('cell').map((c) => c.textContent)).toEqual(['Unfiled', '1', '0', '1'])
+    const notCopied = screen.getByRole('region', { name: "Couldn't be copied" })
+    expect(within(notCopied).getByText("ov-gone.png wasn't found in the vault.", { exact: false })).toBeInTheDocument()
+  })
+
   it('Stop really stops the import: runImport is told, and the screen says what was saved', async () => {
     let seenCancel = null
     runImport.mockImplementation(async ({ isCancelled }) => {
