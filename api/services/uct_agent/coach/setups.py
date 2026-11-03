@@ -19,7 +19,7 @@ TEMPLATES = ("20EMA Hold", "7-Week Short Rule", "Ascending Triangle", "BGU", "Ba
              "Wyckoff Accumulation", "Wyckoff Distribution", "Wyckoff LPSY", "Wyckoff SOS")
 
 ALIASES = {
-    "PEG": ("power earnings gap",), "EP": ("episodic pivot",), "HTF": ("high tight flag",), "VCP": ("volatility contraction pattern",),
+    "PEG": ("power earnings gap",), "EP": ("episodic pivot",), "VCP": ("volatility contraction pattern",),
     "U&R": ("undercut and rally", "undercut & rally"), "FTD": ("follow-through day", "follow through day"),
     "HVC": ("high volume close", "high-volume close"), "BGU": ("big gap up",), "Cup with Handle": ("cup and handle", "cup & handle"),
     "Head & Shoulders": ("head and shoulders",), "Wyckoff LPSY": ("last point of supply",), "Wyckoff SOS": ("sign of strength",),
@@ -37,23 +37,36 @@ def _rx(form: str) -> re.Pattern:
     return re.compile(r"(?:^|[^A-Za-z0-9])" + _body(form) + r"(?:s|es)?(?![A-Za-z0-9])", flags)
 
 
-_FORMS = sorted(((name, form, _rx(form)) for name in TEMPLATES for form in (name, *ALIASES.get(name, ()))),
+#: agent-kn (2026-11-03): a form that is an alias of MORE THAN ONE template; setup.playbook refuses it as ambiguous, so
+#: it never resolves to either one (setup_named -> None; setup_match -> the candidates)
+AMBIGUOUS = {"high tight flag": ("HTF", "Tight Flag")}
+
+# (name | None, form, regex), LONGEST form first; an ambiguous form carries name None
+_FORMS = sorted([*((name, form, _rx(form)) for name in TEMPLATES for form in (name, *ALIASES.get(name, ()))),
+                 *((None, form, _rx(form)) for form in AMBIGUOUS)],
                 key=lambda t: -len(t[1]))
 
 
-def setup_named(text: str) -> str | None:
-    """The canonical template the text names (the LONGEST form wins), else None."""
+def setup_match(text: str) -> dict | None:
+    """{name} | {ambiguous: [names], form} | None -- the LONGEST form wins."""
     t = str(text or "")
-    for name, _form, rx in _FORMS:
+    for name, form, rx in _FORMS:
         if rx.search(t):
-            return name
+            return {"name": name} if name else {"ambiguous": list(AMBIGUOUS[form]), "form": form}
     return None
+
+
+def setup_named(text: str) -> str | None:
+    """The ONE canonical template the text names, else None (an ambiguous form names none)."""
+    m = setup_match(text)
+    return m.get("name") if m else None
 
 
 # a sentence that DEFINES a named setup: "<setup> is a / are when / means the / refers to ...", "<setup>: ...", "<setup> = ..."
 _DEF_TAIL = (r"(?:s|es)?\s*(?:\([^)]{0,40}\)\s*)?(?:(?:is|are|means|refers to|is defined as|is called|describes|consists of)\s+"
              r"(?:a|an|the|when|where|basically|simply|essentially|just|defined|characteri\w+|made of|any)\b|[:=]\s)")
-_DEF_FORMS = [(name, re.compile(r"(?:^|[^A-Za-z0-9])" + _body(form) + _DEF_TAIL, 0 if form in ("EP", "PEG") else re.I))
+_DEF_FORMS = [(name or " / ".join(AMBIGUOUS[form]), re.compile(r"(?:^|[^A-Za-z0-9])" + _body(form) + _DEF_TAIL,
+                                                                 0 if form in ("EP", "PEG") else re.I))
               for name, form, _rx_ in _FORMS]
 # the reply cites UCT's playbook (what coach.explain itself writes when it teaches from a template or a passage)
 _CITES = re.compile(r"UCT's setup template|approved playbook|From UCT's playbook|Setup Library|UCT's playbook", re.I)
@@ -65,9 +78,13 @@ def uncited_setup_definitions(reply: str) -> list[str]:
     if _CITES.search(t):
         return []
     out: list[str] = []
-    for name, rx in _DEF_FORMS:
-        if rx.search(t) and name not in out:
-            out.append(name)
+    for name, rx in _DEF_FORMS:                      # longest form first; a matched span is blanked, so "high tight
+        m = rx.search(t)                             # flag is ..." is not ALSO read as "tight flag is ..."
+        while m:
+            if name not in out:
+                out.append(name)
+            t = t[:m.start()] + " " * (m.end() - m.start()) + t[m.end():]
+            m = rx.search(t)
     return out
 
 

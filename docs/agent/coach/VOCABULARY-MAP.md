@@ -52,8 +52,11 @@ question goes to the Brain):
 | `high_volume_close` | `volume-relative-volume` (volume spike) | Brain template HVC |
 | `follow_through_day` | `breakouts-and-failure` (the doc's "follow-through"), `market-conditions-breadth` | Brain template FTD |
 | `undercut_and_rally` | `stop-placement` (the doc's "undercut ... shakeout") | Brain template U&R |
-| `earnings_gap_up`, `open_bull_gap` | `earnings-gaps` | Brain templates EP, Gap-and-Go, Open Bull Gap Support |
-| `failed_breakdown`, `range_breakout`, `breakout_retest` | `breakouts-and-failure` | "breakdown" alias dropped |
+| `earnings_gap_up` | `earnings-gaps` | Brain template PEG (approximate) |
+| `open_bull_gap` | `earnings-gaps` | Brain template Open Bull Gap Support |
+| `range_breakout` | `breakouts-and-failure`, `consolidation-tightness` | Brain templates Flat Base, Rectangle (both approximate) |
+| `failed_breakdown`, `breakout_retest` | `breakouts-and-failure` | "breakdown" alias dropped |
+| (none) | `earnings-gaps` | Brain templates EP and Gap-and-Go have NO Wisdom vocab_id (agent-kn, 2026-11-03) |
 | Wyckoff accumulation / distribution | `volume-relative-volume` (aliases `accumulation`, `distribution`) | generic volume sense only; the Wyckoff templates are the Brain's |
 
 ## How the coach uses the Brain (W3-4b)
@@ -81,10 +84,17 @@ member apply those definitions — **no competing setup definitions**.
   "General background (not the UCT playbook definition):", and only when the
   source policy allows it (the note exists, is a generic concept note, and names no setup). Otherwise: the
   statement only.
+- **What `setup.playbook` actually serves (agent-kn, N3):** only 8 templates are served — 20EMA Hold, Go Signal,
+  HVC, Open Bull Gap Support, Red to Green, Remount, Tight Flag and U&R. The other 40 are refused, so "UCT can't
+  currently retrieve an approved playbook definition for <setup>" is the EXPECTED answer for them. For EP, VCP,
+  HTF and similar, the fallback `knowledge.search` passage will usually be a team post, not a playbook entry (it is
+  cited as a passage, never presented as the definition).
 - Setup names (review B4): the 48 canonical names AND their spelled-out forms (power earnings gap → PEG, episodic
-  pivot → EP, high tight flag → HTF, volatility contraction pattern → VCP, undercut and rally → U&R, follow-through
-  day → FTD, cup and handle → Cup with Handle …), matched LONGEST form first ("high tight flag" is HTF, not Tight
-  Flag). The lists live in `app/src/agent/coach/brain.js` and `api/services/uct_agent/coach/setups.py` (a pytest
+  pivot → EP, volatility contraction pattern → VCP, undercut and rally → U&R, follow-through day → FTD, cup and
+  handle → Cup with Handle …), matched LONGEST form first. **Ambiguous forms** (agent-kn, overrides the earlier B4
+  note): "high tight flag" is an alias of BOTH HTF and Tight Flag and `setup.playbook` refuses it as ambiguous, so
+  the coach resolves it to neither — no read, no background: the no-definition statement and "which one do you
+  mean?" (`SETUP_AMBIGUOUS`). The lists live in `app/src/agent/coach/brain.js` and `api/services/uct_agent/coach/setups.py` (a pytest
   keeps them identical). Every matched form takes the playbook path; none reaches a plain concept-note answer.
 - Model-written replies (server, deterministic): a coach reply that DEFINES a named setup ("A VCP is a …",
   "High tight flag: …") without citing UCT's playbook is replaced (`coach_guard` code `definition`).

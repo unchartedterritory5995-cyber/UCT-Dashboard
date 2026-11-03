@@ -141,7 +141,7 @@ describe('coach.explain prefers a Brain passage only when knowledge.search is se
 })
 
 // ── N5 (owner, 2026-11-03): a named setup is taught FROM UCT's playbook; the coach never defines a setup ─────────────
-import { setupNamed, SETUP_TEMPLATES, SETUP_ALIASES, PLAYBOOK_KIND } from './coach/brain'
+import { setupNamed, setupMatch, SETUP_TEMPLATES, SETUP_ALIASES, SETUP_AMBIGUOUS, PLAYBOOK_KIND } from './coach/brain'
 import { APPLY } from './capabilities/coach'
 import { conceptsLoaded } from './coach/concepts'
 
@@ -174,8 +174,8 @@ describe('N5 — a named setup is taught from UCT’s playbook, cited; never a c
     for (const s of ['step by step', 'a peg in the ground', 'position sizing', 'relative strength']) expect(setupNamed(s), s).toBe(null)
   })
   it('review B4: spelled-out forms name their template, and the LONGEST form wins', () => {
-    expect(setupNamed('teach me the high tight flag')).toBe('HTF')
     expect(setupNamed('a tight flag')).toBe('Tight Flag')
+    expect(setupNamed('an HTF')).toBe('HTF')
     expect(setupNamed('power earnings gaps')).toBe('PEG')
     expect(setupNamed('an episodic pivot')).toBe('EP')
     expect(setupNamed('volatility contraction pattern')).toBe('VCP')
@@ -186,12 +186,20 @@ describe('N5 — a named setup is taught from UCT’s playbook, cited; never a c
   })
   it('review B4: NO canonical name or spelled-out form ever reaches a plain concept-note answer (nothing served)', async () => {
     await bootBoth({ kinds: ['bars.daily'] })
-    const forms = [...CANONICAL, ...Object.values(SETUP_ALIASES).flat()]
+    const forms = [...CANONICAL, ...Object.values(SETUP_ALIASES).flat(), ...Object.keys(SETUP_AMBIGUOUS)]
     for (const f of forms) {
       const out = await explainConcept(f, host())
       expect(out.text.startsWith("UCT can't currently retrieve an approved playbook definition for "), f).toBe(true)
     }
     expect(dataCalls).toEqual([])
+  })
+  it('agent-kn: "high tight flag" (an alias of BOTH HTF and Tight Flag) resolves to neither — statement + which one?, no read', async () => {
+    expect(setupNamed('teach me the high tight flag')).toBe(null)
+    expect(setupMatch('teach me the high tight flag')).toEqual({ ambiguous: ['HTF', 'Tight Flag'], form: 'high tight flag' })
+    await bootBoth()                                          // even with both Brain kinds served: nothing is read for it
+    const out = await explainConcept('high tight flag', host())
+    expect(dataCalls).toEqual([])
+    expect(out.text).toBe(`UCT can't currently retrieve an approved playbook definition for “high tight flag”, so I won't give one here. UCT uses that name for more than one setup (HTF, Tight Flag) — which one do you mean? ${FOOTER}`)
   })
   it('setup.playbook served: ONE read of the template; the answer teaches FROM it (cited, its own fields, applying-it, footer)', async () => {
     await bootBoth()

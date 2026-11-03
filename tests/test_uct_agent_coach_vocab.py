@@ -35,10 +35,21 @@ def test_the_server_lists_equal_the_browser_lists():
     assert len(setups.TEMPLATES) == 48
     assert setups.ALIASES == _js_aliases()
     assert set(setups.ALIASES) <= set(setups.TEMPLATES)
+    amb = BRAIN.split("export const SETUP_AMBIGUOUS = {", 1)[1].split("}", 1)[0]
+    js_amb = {k: tuple(re.findall(r"'([^']+)'", v)) for k, v in re.findall(r"'([^']+)':\s*\[([^\]]*)\]", amb)}
+    assert setups.AMBIGUOUS == js_amb
+
+
+def test_an_ambiguous_form_resolves_to_neither_template():
+    """agent-kn: "high tight flag" is an alias of BOTH HTF and Tight Flag (setup.playbook refuses it as ambiguous)."""
+    assert setups.setup_match("teach me the high tight flag") == {"ambiguous": ["HTF", "Tight Flag"], "form": "high tight flag"}
+    assert setups.setup_named("high tight flags") is None
+    assert setups.setup_named("a tight flag") == "Tight Flag" and setups.setup_named("an HTF") == "HTF"
+    assert setups.uncited_setup_definitions("The high tight flag is when a stock doubles quickly.") == ["HTF / Tight Flag"]
 
 
 @pytest.mark.parametrize("text,name", [
-    ("teach me the high tight flag", "HTF"), ("a tight flag", "Tight Flag"), ("power earnings gaps", "PEG"),
+    ("teach me the high tight flag", None), ("a tight flag", "Tight Flag"), ("power earnings gaps", "PEG"),
     ("what is an episodic pivot", "EP"), ("volatility contraction pattern", "VCP"), ("undercut and rally", "U&R"),
     ("a follow-through day", "FTD"), ("cup and handle", "Cup with Handle"), ("head and shoulders", "Head & Shoulders"),
     ("a stage 2 breakout", "Stage 2 Breakout"), ("step by step", None), ("a peg in the ground", None), ("relative strength", None),
@@ -77,7 +88,7 @@ def test_the_replacement_is_itself_clean():
 def test_no_concept_doc_names_a_setup_in_any_form():
     for c in concepts.load(force=True):
         for part in re.split(r"[.\n]", f"{c['title']}. {c['text']}. {', '.join(c['aliases'])}"):
-            assert setups.setup_named(part) is None, (c["id"], part)
+            assert setups.setup_match(part) is None, (c["id"], part)
 
 
 CAPS = [{"name": "coach.explain", "domain": "coach", "target": "coach", "summary": "Explain a trading concept.", "hints": None,

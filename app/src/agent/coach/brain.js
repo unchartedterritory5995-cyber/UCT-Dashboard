@@ -33,30 +33,38 @@ export const SETUP_TEMPLATES = ['20EMA Hold', '7-Week Short Rule', 'Ascending Tr
 /** review B4: the spelled-out forms of the templates (a member rarely types the abbreviation). Mirrored server-side in
  *  api/services/uct_agent/coach/setups.py (a pytest keeps the two identical). */
 export const SETUP_ALIASES = {
-  PEG: ['power earnings gap'], EP: ['episodic pivot'], HTF: ['high tight flag'], VCP: ['volatility contraction pattern'],
+  PEG: ['power earnings gap'], EP: ['episodic pivot'], VCP: ['volatility contraction pattern'],
   'U&R': ['undercut and rally', 'undercut & rally'], FTD: ['follow-through day', 'follow through day'],
   HVC: ['high volume close', 'high-volume close'], BGU: ['big gap up'], 'Cup with Handle': ['cup and handle', 'cup & handle'],
   'Head & Shoulders': ['head and shoulders'], 'Wyckoff LPSY': ['last point of supply'], 'Wyckoff SOS': ['sign of strength'],
   '20EMA Hold': ['20 ema hold', '20-day ema hold'], 'Low-Cheat': ['low cheat entry'], 'Red to Green': ['red-to-green move'],
 }
+/** agent-kn (2026-11-03): a form that is an alias of MORE THAN ONE template — setup.playbook refuses it as ambiguous, so
+ *  the coach never resolves it to either one: it is a named setup with no approved definition, and the coach asks which. */
+export const SETUP_AMBIGUOUS = { 'high tight flag': ['HTF', 'Tight Flag'] }
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-/** a form's matcher: hyphens and spaces interchangeable; EP and PEG must be written in caps */
-const SETUP_RX = SETUP_TEMPLATES
-  .flatMap((name) => [name, ...(SETUP_ALIASES[name] || [])].map((form) => {
-    const body = esc(form).replace(/[- ]/g, '[- ]')
-    const caps = form === 'EP' || form === 'PEG'          // English-word clashes: only the capitalised form names the setup
-    return { name, form, rx: new RegExp(`(?:^|[^A-Za-z0-9])${body}(?:s|es)?(?![A-Za-z0-9])`, caps ? '' : 'i') }
-  }))
-  .sort((a, b) => b.form.length - a.form.length)            // the LONGEST form wins: "high tight flag" → HTF, not Tight Flag
+const formRx = (form) => {
+  const body = esc(form).replace(/[- ]/g, '[- ]')
+  const caps = form === 'EP' || form === 'PEG'              // English-word clashes: only the capitalised form names the setup
+  return new RegExp(`(?:^|[^A-Za-z0-9])${body}(?:s|es)?(?![A-Za-z0-9])`, caps ? '' : 'i')
+}
+/** every form (names, aliases, ambiguous forms), LONGEST first: "high tight flag" is the ambiguous form, never Tight Flag */
+const SETUP_RX = [
+  ...SETUP_TEMPLATES.flatMap((name) => [name, ...(SETUP_ALIASES[name] || [])].map((form) => ({ name, form, rx: formRx(form) }))),
+  ...Object.entries(SETUP_AMBIGUOUS).map(([form, candidates]) => ({ name: null, candidates, form, rx: formRx(form) })),
+].sort((a, b) => b.form.length - a.form.length)
 
-/** The canonical template a topic names, or null. */
-export function setupNamed(topic) {
+/** The setup a topic names: { name } | { ambiguous: [names], form } | null (the longest form wins). */
+export function setupMatch(topic) {
   const t = String(topic || '').slice(0, MAX_Q)
   if (!t) return null
   const hit = SETUP_RX.find(({ rx }) => rx.test(t))
-  return hit ? hit.name : null
+  if (!hit) return null
+  return hit.name ? { name: hit.name } : { ambiguous: [...hit.candidates], form: hit.form }
 }
+/** The ONE canonical template a topic names, or null (an ambiguous form names none). */
+export const setupNamed = (topic) => setupMatch(topic)?.name || null
 
 function served(kind) {
   if (!agentClient.serverServesData()) return false

@@ -39,7 +39,7 @@ import { loadConcepts, conceptsLoaded, conceptFor, conceptTitles, coachFooter } 
 import { observe, lastObserved, observedChart, barsServed } from '../coach/observe'
 import { enforce as guardEnforce, check as guardCheck } from '../coach/guard'
 import { nextFor } from '../coach/next'
-import { brainPassage, setupTemplate, setupNamed } from '../coach/brain'
+import { brainPassage, setupTemplate, setupMatch } from '../coach/brain'
 import { consentState, readConsent, writeConsent } from '../coach/consent'
 import { reviewStats, reviewText, reviewPresent, modelView, fetchTrades, clampN, DEFAULT_N, MAX_N, DESCRIPTIVE } from '../coach/review'
 
@@ -124,7 +124,7 @@ export const APPLY = 'Applying it: take each line above to your own chart and ch
 export const noDefinition = (setup) => `UCT can't currently retrieve an approved playbook definition for ${setup}, so I won't give one here.`
 export const BACKGROUND_HEADING = 'General background (not the UCT playbook definition):'
 /** Source policy for the optional background: the note exists, is a generic concept note and names no setup at all. */
-const namesASetup = (text) => String(text || '').split(/[.\n]/).some(part => setupNamed(part))
+const namesASetup = (text) => String(text || '').split(/[.\n]/).some(part => setupMatch(part))
 const backgroundAllowed = (c) => !!c && typeof c.text === 'string' && !namesASetup(`${c.title}. ${c.text}`)
 
 /** Teach a named setup FROM UCT's playbook, or say plainly that its approved definition can't be retrieved. A generic
@@ -155,7 +155,11 @@ async function explainSetup(setup, topic, c, rows, host) {
 export async function explainConcept(topic, host) {
   const rows = conceptsLoaded() || await loadConcepts()
   const c = conceptFor(topic, rows)
-  const setup = setupNamed(topic)
+  const m = setupMatch(topic)
+  // agent-kn: a form that names MORE THAN ONE template ("high tight flag": HTF and Tight Flag) is resolved to neither —
+  // no read, no background: the no-definition statement and a question back (which one?)
+  if (m?.ambiguous) return { text: `${noDefinition(`“${m.form}”`)} UCT uses that name for more than one setup (${m.ambiguous.join(', ')}) — which one do you mean? ${coachFooter()}`, title: m.form }
+  const setup = m?.name || null
   if (setup) return explainSetup(setup, topic, c, rows, host)
   const brain = await brainPassage(topic)
   if (!c && brain) {
@@ -249,7 +253,7 @@ export function registerCoachCapabilities() {
     fast: ({ raw }) => {
       const m = COACH_ASK.exec(String(raw || '').trim())
       const topic = m ? m[1].trim() : null
-      if (!topic || topic.length > 200 || !(conceptFor(topic) || setupNamed(topic))) return null
+      if (!topic || topic.length > 200 || !(conceptFor(topic) || setupMatch(topic))) return null
       const g = explainWords(raw)
       if (g && explainTopic(g)?.local) return null
       return { topic }
