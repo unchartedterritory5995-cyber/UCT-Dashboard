@@ -159,7 +159,7 @@ function CalendarSearch({ onJump, onDidJump, quickQ, setQuickQ }) {
   }
 
   return (
-    <span className={styles.searchWrap} ref={boxRef}>
+    <span className={styles.searchWrap} ref={boxRef} data-guide="calendar.search">
       <UIcon name="search" size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
       <Input
         ref={inputRef}

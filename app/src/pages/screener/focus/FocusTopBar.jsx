@@ -23,7 +23,7 @@ export default function FocusTopBar({ screenMenu, filterCount, onOpenFilters, da
     <header className={styles.topBar}>
       {optionsTab}
       {screenMenu}
-      <button type="button" className={styles.btn} onClick={onOpenFilters} aria-label={`Filters, ${filterCount} active`}>
+      <button type="button" className={styles.btn} onClick={onOpenFilters} data-guide="screener.filters" aria-label={`Filters, ${filterCount} active`}>
         Filters {filterCount > 0 && <span className={styles.badge}>{filterCount}</span>}
       </button>
       <span className={styles.spacer} />

@@ -12,7 +12,7 @@
 // whose capabilities this member cannot use is not shown (guide/registry.guideFeatures).
 
 import { registerCapability, registerTargetKind, registerContextProvider, getTargetKind } from '../capabilities'
-import { GUIDE_IDS, GUIDE_FEATURES, guideFeature, guideFeatures, matchFeature } from '../guide/registry'
+import { GUIDE_IDS, GUIDE_FEATURES, guideFeature, guideFeatures, matchFeature, surfaceOf, featuresOn } from '../guide/registry'
 import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
 import { findTarget } from '../guide/targets'
@@ -71,7 +71,7 @@ export function showFeature(f, host) {
   startGuide(f, { chartRef, chartLabel: chart?.label || null, steps })
   const where = chart && chartsOf(host).length > 1 ? ` on ${chart.label}` : ''
   const already = from > 0 ? ' You’re already part of the way there, so I started from where you are.' : ''
-  return `I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your board has changed.${already}`
+  return `I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your ${chart || surfaceOf(f) === 'charts' ? 'board' : 'page'} has changed.${already}`
 }
 
 /**
@@ -88,6 +88,7 @@ export function doItForMe(text, host) {
   if (guideState()) endGuide('done')
   forgetLastShown()
   if (d.say || !d.action) return { say: d.say || 'Tell me exactly what to change and I’ll do it.' }
+  if (surfaceOf(f) !== 'charts') return doOnPage(f, host)
   const charts = chartsOf(host)
   const chart = charts.find(c => c.ref === last.chartRef) || (charts.length === 1 ? charts[0] : null)
   if (!chart) return { say: `The chart I showed you isn’t on the board any more — tell me which chart, and what to change.` }
@@ -100,6 +101,31 @@ export function doItForMe(text, host) {
   const choices = d.choicesFrom === 'quickIndicators' ? quickIndicators() : d.choices
   if (!choices?.length) return { say: 'Tell me which one and I’ll do it.' }
   return { ask: { text: `${d.ask} (on ${chart.label})`, choices: choices.map(([ref, label]) => ({ ref, label })), ops, pickArg: { action: d.action, arg: d.arg } } }
+}
+
+/** The page's own choices for a page feature's "do it for me" (never a hand list): the member's saved screens and
+ *  UCT's starters, exactly as the page's Screen menu lists them. */
+function pageChoices(from, host) {
+  if (from === 'savedScreens') {
+    let lib = null
+    try { lib = host?.screenerPage?.saved?.() || null } catch { lib = null }
+    return [...(lib?.saved || []), ...(lib?.starters || [])].filter(x => x.id && x.name).slice(0, 8).map(x => [x.id, x.name])
+  }
+  return []
+}
+/** ⭐ W2-C2 — DO IT FOR ME on a page: the feature's capability on the page's OWN target kind (the page host the
+ *  member is on), asked first with the page's own choices; then the ordinary planner, policy, receipt and Undo. */
+function doOnPage(f, host) {
+  const d = f.doIt
+  const pageName = surfaceOf(f).replace(/^./, ch => ch.toUpperCase())
+  if ((host?.surface || 'charts') !== surfaceOf(f)) return { say: `That’s on the ${pageName} page — open it and ask me again there.` }
+  const kind = getTargetKind(d.kind)
+  const snap = kind ? (kind.list(host) || [])[0] || null : null
+  if (!snap) return { say: `I can’t do that on this ${pageName} page.` }
+  const choices = pageChoices(d.choicesFrom, host)
+  if (!choices.length) return { say: 'You have no saved screens yet — save one from the Screen menu first.' }
+  const ops = [{ action: d.action, target: snap.ref, args: { [d.arg]: null, ...(d.extra || {}) } }]
+  return { ask: { text: d.ask, choices: choices.map(([ref, label]) => ({ ref, label })), ops, pickArg: { action: d.action, arg: d.arg } } }
 }
 
 let registered = false
@@ -116,7 +142,7 @@ export function registerGuideCapabilities() {
   registerContextProvider({
     key: 'guide',
     build: (host, refFor, { message, nl1 = false } = {}) => (nl1 || GUIDE_WORDS.test(String(message || ''))
-      ? [{ ref: refFor('guide', 'guide'), label: self.label, features: GUIDE_IDS.join(', ') }] : undefined),
+      ? [{ ref: refFor('guide', 'guide'), label: self.label, features: featuresOn(host?.surface || 'charts').map(f => f.id).join(', ') }] : undefined),
   })
 
   // fastWhole: a question is read WHOLE ("the difference between an indicator AND a condition" is one question)
@@ -128,27 +154,30 @@ export function registerGuideCapabilities() {
     hints: 'target = the guide entry. topic = the member\'s words for what to explain (an indicator, a UCT term or feature). Prefer it for UCT\'s own indicators and features — its text is UCT\'s catalog. Use ONLY for "what is / what does / explain / difference" questions; a request to change something is a command — plan it.',
     args: { type: 'object', properties: { topic: { type: 'string' } }, required: ['topic'], additionalProperties: false },
     // instant only for UCT's own meanings (a concept, a feature); "what is an EMA?" stays the model's
-    fast: ({ raw }) => {
+    fast: ({ raw, host }) => {
       const words = explainWords(raw)
-      return words && explainTopic(words)?.local ? { topic: words } : null
+      return words && explainTopic(words, host?.surface || 'charts')?.local ? { topic: words } : null
     },
-    answer: (_snap, { topic }) => explainTopic(topic)?.text
+    answer: (_snap, { topic }, host) => explainTopic(topic, host?.surface || 'charts')?.text
       || 'I don’t have UCT’s own explanation of that — ask me in other words, or ask what I can do.',
   })
   registerCapability({
     ...common,
     name: 'guide.show',
-    summary: 'SHOW the member where a Charts control is: highlight the real control on their board with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for "where do I…", "show me how to…", "how do I…" questions, never to do the thing.',
-    hints: `target = the guide entry. feature = one of: ${GUIDE_FEATURES.map(f => `${f.id} (${f.title.toLowerCase()})`).join('; ')}. A request to DO it ("change my chart to weekly") is a command, not this.`,
+    summary: 'SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for "where do I…", "show me how to…", "how do I…" questions, never to do the thing.',
+    hints: `target = the guide entry. feature = one of: ${featuresOn('charts').map(f => `${f.id} (${f.title.toLowerCase()})`).join('; ')}. Other pages, only there: ${GUIDE_FEATURES.filter(f => f.surface).map(f => `${f.id} (${f.surface})`).join(', ')}. A request to DO it ("change my chart to weekly") is a command, not this.`,
     args: { type: 'object', properties: { feature: { type: 'string', enum: GUIDE_IDS } }, required: ['feature'], additionalProperties: false },
-    fast: ({ raw }) => {
+    fast: ({ raw, host }) => {
       const q = String(raw || '').trim()
       if (!SHOW.test(q)) return null
-      const f = matchFeature(q)
+      const f = matchFeature(q, null, host?.surface || 'charts')
       return f ? { feature: f.id } : null
     },
     answer: (_snap, { feature }, host, ctx) => {
       const f = guideFeature(feature)
+      // ⭐ W2-C2: a feature of another page is never highlighted here (its control is not on this screen)
+      const here = host?.surface || ctx?.surface || 'charts'
+      if (f && surfaceOf(f) !== here) return surfaceOf(f) === 'charts' ? `${f.title} is on the Charts page — open Charts and ask me again there.` : `${f.title} is on the ${surfaceOf(f).replace(/^./, ch => ch.toUpperCase())} page — open it and ask me again there.`
       if (f && ctx && !guideFeatures(ctx).includes(f)) return `${f.title} isn’t available on your account here.`
       return showFeature(f, host)
     },
