@@ -2375,6 +2375,9 @@ async def _import_remote_notes(
         adopted, adoption_failures = _adopt_file_imports(
             conn, user_id, provider, remote_notes, import_keys, adoption_state)
         existing = _bulk_existing_note_meta(conn, user_id, import_keys)
+        # Task 8 review M1: a row adopted THIS pass is judged by the file importer's own
+        # predicate (it forgives the old importer's image-finalize write), never a second rule.
+        adopted_unedited = {a["toKey"] for a in adopted if not a["editedSinceImport"]}
         if _backfill_remote_revs_preserving_updated_at(
                 conn, user_id, remote_notes, import_keys, existing):
             conn.commit()
@@ -2389,6 +2392,7 @@ async def _import_remote_notes(
 
         for rn, key in zip(remote_notes, import_keys):
             meta = existing.get(key)
+            edited = meta is not None and _is_conflict(meta) and key not in adopted_unedited
             # `entry` is what WOULD be written under the ORIGINAL import_key —
             # built unconditionally (not just in the else-branch) because
             # Fix-round-3 needs its hash regardless of which path is taken.
@@ -2418,7 +2422,7 @@ async def _import_remote_notes(
             # rename that does NOT advance the remote revision (folderPath and
             # title sit in the hash) is now SKIPPED on an edited note, not copied.
             is_genuine_conflict = (
-                meta is not None and _is_conflict(meta)
+                edited
                 and _remote_changed(meta, rn, notes_svc._import_payload_hash(entry))
             )
             if is_genuine_conflict:
@@ -2441,7 +2445,7 @@ async def _import_remote_notes(
                 _write_import_hash_preserving_updated_at(
                     conn, user_id, meta["id"], notes_svc._import_payload_hash(entry),
                     remote_rev=rn.updated_at or None)
-            elif meta is not None and _is_conflict(meta):
+            elif edited:
                 # Edited by the member, remote UNCHANGED -> the note is the
                 # member's; nothing to write. It must NOT go to import_confirm:
                 # that call re-writes a note whose `import_media_pending` is

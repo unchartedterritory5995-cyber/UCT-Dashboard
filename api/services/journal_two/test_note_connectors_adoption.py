@@ -302,6 +302,56 @@ async def test_two_rows_two_live_notes_pair_by_body_regardless_of_order(tmp_db, 
     assert not any("adoption ambiguous" in f for f in result["failures"])
 
 
+def _legacy_finalize(note_id: str, *, media: bool = True) -> None:
+    """The old file importer's image-finalize write, from before LEGACY_FINALIZE_CUTOFF: a media
+    file landed after the import and `updated_at` followed it 5 s later. Nothing else changed."""
+    import os
+    from datetime import datetime, timedelta
+    imported = "2026-10-01T12:00:00+00:00"
+    assert import_provenance.predates_finalize_stamp(imported)
+    updated = (datetime.fromisoformat(imported) + timedelta(seconds=600)).isoformat()
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("UPDATE j2_notes SET imported_at = ?, updated_at = ? WHERE id = ?",
+                     (imported, updated, note_id))
+        conn.commit()
+    finally:
+        conn.close()
+    if media:
+        f = notes_svc._ATTACHMENT_ROOT / USER / "notes" / note_id / "inline" / "x.png"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(b"png")
+        mtime = datetime.fromisoformat(updated).timestamp() - 5
+        os.utime(f, (mtime, mtime))
+
+
+async def test_a_pre_cutoff_image_note_whose_only_change_is_the_finalize_reads_unedited(tmp_db, monkeypatch):
+    """Task 8 review M1: the adopting pass judges the row with the file importer's own predicate,
+    which forgives the old importer's image-finalize write. The note updates in place: no
+    "(synced copy)" sibling, no `sync-conflict` tag."""
+    _enex(text="old body")
+    note_id = _rows()[0]["id"]
+    _legacy_finalize(note_id)
+    result, _src = await _sync(tmp_db, monkeypatch, LiveEvernote([_rn(text="new body", updated=LATER)]))
+    rows = _rows()
+    assert [r["import_key"] for r in rows] == [LIVE]
+    assert rows[0]["id"] == note_id and rows[0]["body_plain"].strip() == "new body"
+    assert result["adopted"] == 1 and result["conflicts"] == 0 and result["updated"] == 1
+
+
+async def test_the_same_shape_without_the_media_file_still_reads_edited(tmp_db, monkeypatch):
+    """Control for the test above: without the finalize's media file the write is a member's,
+    and the edited-note rule stands (a sibling, the original kept)."""
+    _enex(text="old body")
+    note_id = _rows()[0]["id"]
+    _legacy_finalize(note_id, media=False)
+    result, _src = await _sync(tmp_db, monkeypatch, LiveEvernote([_rn(text="new body", updated=LATER)]))
+    rows = {r["import_key"]: r for r in _rows()}
+    assert set(rows) == {LIVE, f"{LIVE}#remote"}
+    assert rows[LIVE]["id"] == note_id and rows[LIVE]["body_plain"].strip() == "old body"
+    assert result["adopted"] == 1 and result["conflicts"] == 1
+
+
 async def test_the_second_live_match_is_named_across_import_chunks_too(tmp_db, monkeypatch):
     """Concern 4 across the chunk boundary: the first adopter is in chunk 1, the second in chunk 2,
     where the file row already holds a live key. Still named, once."""
@@ -341,7 +391,8 @@ async def test_adoption_does_not_touch_updated_at_or_imported_at(tmp_db, monkeyp
     finally:
         conn.close()
     after = _rows()[0]
-    assert adopted == [{"fromKey": key, "toKey": LIVE, "noteId": before["id"]}] and failures == []
+    assert adopted == [{"fromKey": key, "toKey": LIVE, "noteId": before["id"],
+                        "editedSinceImport": False}] and failures == []
     assert after["updated_at"] == before["updated_at"]
     assert after["imported_at"] == before["imported_at"]
     assert after["import_key"] == LIVE

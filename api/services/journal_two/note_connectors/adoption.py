@@ -30,7 +30,9 @@ from datetime import datetime
 from typing import Any
 
 from api.services.journal_two import import_provenance
-from api.services.journal_two.notes import extract_plain_text, import_title
+from api.services.journal_two.notes import (
+    _edited_since_file_import, extract_plain_text, import_title,
+)
 from api.services.journal_two.note_connectors.convert import enml
 from api.services.journal_two.note_connectors.providers.base import RemoteNote
 
@@ -64,7 +66,8 @@ def _file_rows_by_title(conn: sqlite3.Connection, user_id: str, import_source: s
     for i in range(0, len(wanted), _TITLE_CHUNK):
         chunk = wanted[i:i + _TITLE_CHUNK]
         rows = conn.execute(
-            f"SELECT id, title, created_at, body_plain, import_key, import_remote_rev "
+            f"SELECT id, title, created_at, updated_at, imported_at, body_plain, import_key, "
+            f"import_remote_rev "
             f"FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL "
             f"AND lower(import_source) = ? AND import_key IS NOT NULL "
             f"AND substr(import_key, 1, ?) != ? "
@@ -83,7 +86,7 @@ def adopt_file_imports(
     candidates: list[tuple[str, RemoteNote]], *, pass_state: dict | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """`candidates` are `(live_key, rn)` pairs no non-trashed row holds yet. Returns
-    `(adopted, failures)`: `adopted` is `[{"fromKey", "toKey", "noteId"}]`,
+    `(adopted, failures)`: `adopted` is `[{"fromKey", "toKey", "noteId", "editedSinceImport"}]`,
     `failures` is Plan D's `failures_json` shape, one `{noteTitle, reason, name: None}` per
     ambiguous title. The caller commits.
 
@@ -92,6 +95,11 @@ def adopt_file_imports(
     body hash); with TWO OR MORE, a live note adopts a row only when the pair is a unique body-hash
     match both ways, and every live note or row left unpaired names the title. Listing order
     never decides which live note gets a row.
+
+    `editedSinceImport` is the file importer's own answer (`notes._edited_since_file_import`: the
+    one predicate minus the old importer's image-finalize write that moved `updated_at`), so a
+    pre-cutoff image note whose only write was that finalize reads as unedited (review M1). The
+    engine reads it for the adopting pass in place of its plain conflict rule.
 
     `pass_state` (one dict per sync pass, the engine's) carries what this pass already adopted and
     named across import chunks: in a later chunk the adopted row holds a live key and is no longer a
@@ -166,5 +174,6 @@ def adopt_file_imports(
             )
             if cur.rowcount == 1:
                 adopted_marks.add((stored_title, minute))
-                adopted.append({"fromKey": row["import_key"], "toKey": live_key, "noteId": row["id"]})
+                adopted.append({"fromKey": row["import_key"], "toKey": live_key, "noteId": row["id"],
+                                "editedSinceImport": _edited_since_file_import(conn, user_id, row)})
     return adopted, failures
