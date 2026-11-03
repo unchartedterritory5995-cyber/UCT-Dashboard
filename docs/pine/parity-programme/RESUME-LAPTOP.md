@@ -2,6 +2,11 @@
 
 Last updated: 2026-11-02 ~18:00 CT on the LAPTOP (coordinator session af33efb6). Update this file at every hand-off.
 
+> **Two machines (2026-11-03):** the desktop is now a second build machine. Roles, the GitHub channel
+> (`ops/pine-coord` written by the laptop, `ops/pine-desktop` by the desktop), setup and its lane list:
+> `DESKTOP-PROMPT.md`. Builder rules for both machines: `BUILDER-RULES.md`. The laptop stays the only
+> reviewer/merger/engine-bumper/deployer.
+
 ## 1. What is live (production `e055b21e7f` at 2026-11-03 ~04:40 CT; SCRIPT_ENGINE_VERSION = 5)
 
 #613 de3f480f98 · #673 B d525ed6c6c · #674 A a223e7b745 · #675 engine bump 9a1f99ef49 ·
