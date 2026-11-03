@@ -24,7 +24,8 @@ const CONFUSABLES = {
   '\u039f': 'O', '\u0391': 'A', '\u0395': 'E', '\u0399': 'I', '\u039a': 'K', '\u03a1': 'P', '\u03a4': 'T',
   '\u200b': '', '\u200c': '', '\u200d': '', '\u2060': '', '\ufeff': '', '\u00ad': '',
 }
-const CONFUSABLE_RX = new RegExp(`[${Object.keys(CONFUSABLES).join('')}]`, 'g')
+// an alternation, not a character class: the table holds joiner characters (eslint no-misleading-character-class)
+const CONFUSABLE_RX = new RegExp(Object.keys(CONFUSABLES).join('|'), 'g')
 // review: accents folded (NFKD, combining marks dropped, then NFKC — NBSP becomes a space), Arabic-Indic and extended
 // Arabic-Indic digits read as ASCII digits, a (non-breaking) hyphen INSIDE a word dropped — the server's normalize, same steps
 const ARABIC_DIGIT = /[٠-٩۰-۹]/g
