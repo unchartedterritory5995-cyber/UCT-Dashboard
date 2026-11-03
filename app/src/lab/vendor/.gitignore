@@ -1,4 +1,0 @@
-# three.js r160 (MIT), vendored for the Study workbench only; not tracked. Re-fetch: npm pack three@0.160.0, copy build/three.module.js here.
-*
-!.gitignore
-!README.md

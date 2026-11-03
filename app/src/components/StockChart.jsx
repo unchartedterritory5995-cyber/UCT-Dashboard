@@ -17823,7 +17823,9 @@ export default function StockChart({
   onChartTapRef.current = onChartTap
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !onChartTap) return undefined
+    // keyed on chartReady as well: the chart is created in a later effect than this one on first mount (and again
+    // after a recreate), so an effect keyed on the prop alone would subscribe to nothing and a tap would be silent
+    if (!chart || !chartReady || !onChartTap) return undefined
     const handler = (param) => {
       const fn = onChartTapRef.current
       if (typeof fn !== 'function' || !param) return
@@ -17833,7 +17835,7 @@ export default function StockChart({
     }
     chart.subscribeClick(handler)
     return () => { try { chart.unsubscribeClick(handler) } catch { /* gone */ } }
-  }, [onChartTap])
+  }, [onChartTap, chartReady])
   // subscribe to all clicks and match the clicked time against news markers
   // with a tolerance of half a bar. On match → open the article URL.
   useEffect(() => {

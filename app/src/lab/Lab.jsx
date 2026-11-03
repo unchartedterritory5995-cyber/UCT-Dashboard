@@ -59,8 +59,12 @@ import Piece55HardV3 from './pieces/Piece55HardV3'
 import Piece56DrawItV3 from './pieces/Piece56DrawItV3'
 import Piece57TrapV3 from './pieces/Piece57TrapV3'
 import Piece58LogoLadder from './pieces/Piece58LogoLadder'
+import Piece59LogoExport from './pieces/Piece59LogoExport'
+import Piece60LandingPreview from './pieces/Piece60LandingPreview'
 
 const PIECES = {
+  60: Piece60LandingPreview,
+  59: Piece59LogoExport,
   58: Piece58LogoLadder,
   52: Piece52LogoLab3D,
   53: Piece53BlitzV3,
