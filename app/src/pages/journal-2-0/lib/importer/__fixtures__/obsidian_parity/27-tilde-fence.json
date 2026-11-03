@@ -1,0 +1,23 @@
+{
+  "id": "27-tilde-fence",
+  "input_markdown": "# Tilde fence\n\nbefore\n\n~~~\n![[img.png]] [[Plan]]\n~~~\n\nafter ![[img.png]]\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [],
+    "highlights": [],
+    "images": [
+      "attachments/img.png"
+    ],
+    "links": [],
+    "pending": [],
+    "task_checked": [],
+    "text": "Tilde fence before ![[img.png]] [[Plan]] after "
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "Plan.md",
+    "attachments/img.png"
+  ]
+}
