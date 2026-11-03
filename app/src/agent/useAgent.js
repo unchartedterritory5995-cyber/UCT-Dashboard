@@ -1104,6 +1104,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       return
     }
     patchItem(p.id, { status: 'approved' })
+    // PLANNER v2: the card is a step of a paused turn — its outcome joins THAT turn's Undo group (a fresh message
+    // typed meanwhile started its own group; this re-opens the paused one only for the approval and what follows)
+    if (v2Ref.current?.paused()) memoryRef.current.resumeTurn(v2Ref.current.memoryTurn())
     const ops = count ? p.ops.slice(0, count) : p.ops
     // ⭐ PHASE 3 acceptance: the card was one step of a whole workspace the member chose ("Replace current board" / "New
     // layout") — once it has landed in full, the rest of that request runs, each step through the same execute
@@ -1250,8 +1253,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     push({ role: 'member', text, voice })
     setBusy(true)
     // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
-    // (PLANNER v2: "do it" on a paused turn's card continues THAT turn — one Undo group per v2 turn)
-    if (!v2Ref.current?.paused()) memoryRef.current.beginTurn()
+    memoryRef.current.beginTurn()
     try {
       if (gridMode) {
         const t = 'UCT Agent works on the Charts workspace. Switch out of Multi Chart (Layouts ▸ Multi Chart) and ask again.'

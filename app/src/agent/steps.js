@@ -75,7 +75,7 @@ export async function newRefs(host, capCtx, refMap) {
 }
 
 export function createStepRunner() {
-  let paused = null              // { turnId, id } while a card waits
+  let paused = null              // { turnId, id, memoryTurn } while a card waits
   let active = null              // the turn being served: { turnId, refMap, voice, chain }
 
   async function runStep(ev, deps) {
@@ -104,7 +104,7 @@ export function createStepRunner() {
     }
     if (res.status === 'proposed') {
       // the card waits: whatever the member does about it (approve / dismiss) is recorded for afterCard
-      paused = { turnId: ev.turnId, id: ev.id }
+      paused = { turnId: ev.turnId, id: ev.id, memoryTurn: deps.memoryRef?.current?.currentTurn?.() ?? null }
       tapRef.current = []
     }
     await agentStepResult({ turnId: ev.turnId, id: ev.id, ...res })
@@ -134,6 +134,8 @@ export function createStepRunner() {
 
   return {
     paused: () => !!paused,
+    /** The session-memory turn the paused card belongs to (useAgent re-opens it for the approval). */
+    memoryTurn: () => paused?.memoryTurn ?? null,
     /** One member message through the server's step loop. */
     async send({ text, voice, manageIndicators, pending }, deps) {
       const { host, capCtx, memoryRef, conversationRef, mark } = deps

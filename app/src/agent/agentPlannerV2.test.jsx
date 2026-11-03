@@ -115,6 +115,28 @@ describe('planner v2: steps through the real panel', () => {
     expect(board.state.server.lists.map(l => l.name)).toEqual(['Swing', 'Momentum Review'])   // no Undo for a created list (as its manifest says)
   }, 40000)
 
+  it('a FRESH message typed while a card waits starts its own Undo group; "do it" afterwards still joins the paused turn\'s', async () => {
+    srv = installStepServer(p, [
+      (c) => ({ action: 'chart.setTimeframe', target: chart(c, 0), args: { timeframe: 'W' } }),
+      (c) => ({ action: 'watchlist.create', target: refIn(c, 'watchlistLibrary'), args: { name: 'Momentum Review', as: null }, mode: 'propose' }),
+      // the fresh message's turn (the paused one is abandoned by it)
+      (c) => ({ action: 'chart.setType', target: chart(c, 1), args: { type: 'bars' } }),
+      { reply: 'Bars on the right.' },
+    ])
+    const { say, board } = p.mount(...TWO(), { watchlists: LISTS })
+    await say('retune the left panel and curate a momentum review collection')
+    await settled()
+    expect(p.proposals()).toHaveLength(1)
+    expect(tfOf(board, 'cl')).toBe('W')
+    await say('restyle the right panel instead')                                   // a new request while the card waits
+    await settled()
+    expect(board.host.charts.read('cr').cs.chartType).toBe('bars')
+    const out = await say('undo all of that')
+    expect(out).not.toMatch(/Took back all/)                                       // ONE change in the fresh message's group…
+    expect(board.host.charts.read('cr').cs.chartType).not.toBe('bars')             // …reverted
+    expect(tfOf(board, 'cl')).toBe('W')                                            // the paused turn's change is NOT in that group
+  }, 40000)
+
   it('a step the planner refuses reports `refused` and changes nothing; the model is told', async () => {
     srv = installStepServer(p, [
       (c) => ({ action: 'chart.setTimeframe', target: chart(c, 0), args: { timeframe: '7' } }),
