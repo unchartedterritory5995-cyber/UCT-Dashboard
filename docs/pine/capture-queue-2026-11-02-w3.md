@@ -13,7 +13,8 @@ binding gate, `__uctVH.capture({...})`, chunks, `verify_capture.mjs --assemble`)
 yet for any row; each row holds the exact probe script.
 
 The sample scripts are licence-held (read in the sample cache, never committed); the rows name
-them by key and line only, and the probe scripts below are this branch's own text.
+them by key and line and describe each cell's SHAPE in words, never quoting their code. The probe
+scripts below, and every code span in this doc, are this branch's own text.
 
 ## The 22 cells, by shape
 
@@ -24,8 +25,8 @@ them by key and line only, and the probe scripts below are this branch's own tex
 | S1-C `str.format` with `{N,number,percent}` | ict-killzones-pivots-tfo 989 (its cell text; the same script's tooltips too) | **read** (`percentMessageNumber`): the published rule; the cell itself stays refused on its other walls (a user-defined type's fields, `pine:type`). Unpinned corners withheld — row Q-W3-3 |
 | S1-D a per-pass **element of a string list** picked by the counter: `array.get(list, i)` | mtf-dashboard-pro 487 (`array.from` of literals), 635 (`array.from` of helper results); cobra039s-crypto-market-visualizer 400 (`var` list of literals) | refused by name (`loop:per-pass … an element picked out of a list by the counter`), row Q-W3-4 |
 | S1-E a per-pass **helper call** returning text (`?:` over its parameters, `str.tostring(p, "#.##")`, `+`) | mtf-dashboard-pro 525, 542, 557, 572, 589, 607, 653, 668 | refused by name (`loop:per-pass … a helper called over a per-pass value`), row Q-W3-5. ⚠️ every one of these also reads a `request.security` tuple part (`pine:request`), so the row settles the SHAPE, not these cells |
-| S1-F a per-pass **`?:` text**: a test on a per-pass number or string, arms of literals / `str.tostring` | mtf-dashboard-pro 504 (`na(rv) ? "—" : str.tostring(rv, "#.#")`); volume-footprint 989 (`(isAxis ? "◀ " : "") + str.tostring(rowTick * tick, format.mintick)`), 1034, 1037 (nested `?:` over `!= ""` with `str.repeat` / `str.length`); cobra039s 458 (nested `?:` on the counter, `str.tostring(math.round(val * 100, j == 8 ? 0 : 2)) + '%'`) | refused by name (`loop:per-pass … a \`?:\` whose test or arm moves per pass`), rows Q-W3-6 / Q-W3-7 |
-| S1-G a `{N,time,…}` element over `timenow`, reaching `table.cell` through a helper's **string parameter** | dynamic-support-and-resistance-with-trend-lines 1959 (`f_cell_span(_tbl, _row, _text, …)`, 12 call sites; the silent one passes `str.format("{0,time,HH:mm}", timenow + …)`) | refused by name (`… {N,time,…} element`), row Q-W3-1. The parameter shape itself READS: a probe helper `f_cell(table _t, int _r, string _s) => table.cell(_t, 0, _r, _s)` called with a literal and with `"A " + str.tostring(close, "#.##")` carries both cells (measured 2026-11-02, before S1; a control rail in `textRefusalNames.test.js`) |
+| S1-F a per-pass **`?:` text**: a test on a per-pass number or string, arms of literals / `str.tostring` | mtf-dashboard-pro 504 (an `na` test choosing between a dash literal and a `str.tostring` with a one-decimal pattern); volume-footprint 989 (a per-pass flag choosing a marker prefix, joined to a `format.mintick` `str.tostring` of a per-pass price), 1034, 1037 (nested `?:` over an empty-string test with `str.repeat` / `str.length`); cobra039s 458 (nested `?:` on the counter, a `str.tostring` of a `math.round` whose decimals depend on the counter, a percent sign appended) | refused by name (`loop:per-pass … a \`?:\` whose test or arm moves per pass`), rows Q-W3-6 / Q-W3-7 |
+| S1-G a `{N,time,…}` element over `timenow`, reaching `table.cell` through a helper's **string parameter** | dynamic-support-and-resistance-with-trend-lines 1959 (a helper whose parameters are a table, a row and a text, writing one cell; 12 call sites, and the silent one passes a `str.format` with an hours-and-minutes `time` element over an offset from `timenow`) | refused by name (`… {N,time,…} element`), row Q-W3-1. The parameter shape itself READS: a probe helper `f_cell(table _t, int _r, string _s) => table.cell(_t, 0, _r, _s)` called with a literal and with `"A " + str.tostring(close, "#.##")` carries both cells (measured 2026-11-02, before S1; a control rail in `textRefusalNames.test.js`) |
 
 What the loop rows share: on the host lane a value that moves per pass is read only as the
 counter's arithmetic, a literal, `+`, or `str.tostring` of such a number (`pine.js::loopTextOf`,
@@ -40,7 +41,7 @@ capture lands.
 |---|---|---|---|---|
 | Q-W3-1 | `vw-w3-format-date.pine` (below) | AMEX:SPY 1D | the `date` / `time` element: the pattern tokens TradingView renders (`MMMM`, `dd`, `yyyy`, `HH:mm:ss`, `Z`), UTC+0 per the docs, over a FIXED timestamp (never `timenow`, which no capture can match) | `pineTextFormat.js::compileMessagePattern` (`format:element:date`) |
 | Q-W3-2 | `vw-w3-format-number-bare.pine` (below) | AMEX:SPY 1D | whether `{0,number}` prints exactly as `{0}` (the published default `#,###.###`): equal LENGTHS on 300 bars, as F12 pinned `#.##`; plus the first value at or above 1000 (grouping comma or not — also unpinned for `{0}`; since S1 a value that only ROUNDS to 1000, 999.9996, is withheld under `{0}` as well) | `compileMessagePattern` (`format:element:number`), `MESSAGE_NUMBER_LIMIT` |
-| Q-W3-3 | `vw-w3-format-percent.pine` (below) | AMEX:SPY 1D | the corners `percentMessageNumber` withholds: an exact tie at the whole percent (0.125 → "12%" or "13%"), a ROUNDED percentage of 1000 and more ("1,234%" or "1234%"; 9.996 → 999.6 % rounds to 1000 and is withheld too), a value rounding to −0 ("-0%" or "0%"), `na`; and the `integer` / `currency` presets over the same values | `pineTextFormat.js::percentMessageNumber`, `MESSAGE_NUMBER_PRESETS` |
+| Q-W3-3 | `vw-w3-format-percent.pine` (below) | AMEX:SPY 1D | the corners `percentMessageNumber` withholds (each named by `percentWithheldWhy`): an exact tie at the whole percent (0.125 → "12%" or "13%", `percent:tie`), a DECIMAL half tie whose binary product is not x.5 (0.575 → 57.49999999999999: "57%" if TradingView rounds the double's product, "58%" if it rounds the decimal value; 0.145 → 14.499999999999998 likewise; `percent:decimal-tie`, added round 2), a ROUNDED percentage of 1000 and more ("1,234%" or "1234%"; 9.996 → 999.6 % rounds to 1000 and is withheld too), a value rounding to −0 ("-0%" or "0%", `percent:negative-zero`), `na`; and the `integer` / `currency` presets over the same values | `pineTextFormat.js::percentMessageNumber`, `MESSAGE_NUMBER_PRESETS` |
 | Q-W3-4 | `vw-w3-loop-list-text.pine` (below) | AMEX:SPY 1D | a string list read by the loop counter into a cell: the cell texts, in table order, for a literal `array.from` list and for a `var` list | `pine.js::loopTextOf` (the `guard:loop` slice) |
 | Q-W3-5 | `vw-w3-loop-helper-text.pine` (below) | AMEX:SPY 1D | a text helper called over a per-pass number: `?:` arms and `str.tostring(p, "#.##") + unit` per pass | `loopTextOf` / `textNodeOf`'s inline frame |
 | Q-W3-6 | `vw-w3-loop-ternary-text.pine` (below) | AMEX:SPY 1D | a `?:` whose test is a per-pass comparison, with `str.tostring(x, format.mintick)` and `str.tostring(x, "#.#")` per pass; `na(x) ? "—" : …` over a list element | `loopTextOf`, `objectRuntime.js::textOf` (`val` under a tick) |
@@ -91,7 +92,7 @@ if barstate.islast
 //@version=6
 indicator("vw-w3-format-percent", overlay = true)
 if barstate.islast
-    var table t = table.new(position.top_right, 1, 12)
+    var table t = table.new(position.top_right, 1, 15)
     table.cell(t, 0, 0,  str.format("{0,number,percent}", 0.5))
     table.cell(t, 0, 1,  str.format("{0,number,percent}", 0.125))
     table.cell(t, 0, 2,  str.format("{0,number,percent}", 0.135))
@@ -104,6 +105,10 @@ if barstate.islast
     table.cell(t, 0, 9,  str.format("{0,number,integer}", 2.5))
     table.cell(t, 0, 10, str.format("{0,number,currency}", -1234.567))
     table.cell(t, 0, 11, str.format("{0,number,#.#}", 1.25))
+    // round 2: decimal half ties whose binary product is not x.5
+    table.cell(t, 0, 12, str.format("{0,number,percent}", 0.575))
+    table.cell(t, 0, 13, str.format("{0,number,percent}", 0.145))
+    table.cell(t, 0, 14, str.format("{0,number,percent}", -0.575))
 ```
 
 ### Q-W3-4 `vw-w3-loop-list-text.pine`
@@ -149,11 +154,11 @@ if barstate.islast
     var table t = table.new(position.top_right, 2, 5)
     float[] rs = array.from(close, open, na, low, high)
     for k = 0 to 4
-        bool isAxis = k == 2
-        float rv = array.get(rs, k)
-        string rTxt = na(rv) ? "—" : str.tostring(rv, "#.#")
-        table.cell(t, 0, k, (isAxis ? "◀ " : "") + str.tostring(close + k * syminfo.mintick, format.mintick))
-        table.cell(t, 1, k, rTxt)
+        bool onMark = k == 2
+        float x = array.get(rs, k)
+        string xTxt = na(x) ? "—" : str.tostring(x, "#.#")
+        table.cell(t, 0, k, (onMark ? "> " : "") + str.tostring(close + k * syminfo.mintick, format.mintick))
+        table.cell(t, 1, k, xTxt)
 ```
 
 ### Q-W3-7 `vw-w3-str-repeat-length.pine`
@@ -173,14 +178,39 @@ if barstate.islast
 
 ## Not captures, recorded so nobody files them as owed
 
-- `str.format("{0,date,…}", timenow)` (black-scholes 475) and `str.format("{0,time,HH:mm}", timenow + …)`
-  (dynamic-support-and-resistance 2128, the text behind its 1959 cell) can never match a capture:
+- A `date` element over `timenow` (black-scholes 475) and a `time` element over an offset from
+  `timenow` (dynamic-support-and-resistance 2128, the text behind its 1959 cell) can never match a capture:
   `timenow` moves every second. Only the FIXED-instant form (black-scholes 476, an input-derived
   expiry) is capturable; the engine keeps all of them refused by name, and a `timenow` text would
   stay withheld after Q-W3-1.
-- S1-C's cell (ict-killzones 989) and tooltips read fields of a user-defined type
-  (`TRACK._success / TRACK._total`): `pine:type` stands after `percent` is read. The capability is
+- S1-C's cell (ict-killzones 989) and tooltips read fields of a user-defined type (a ratio of
+  two of its counters): `pine:type` stands after `percent` is read. The capability is
   general; that script needs the UDT work first.
 - Every S1-E cell also reads a `request.security` tuple part; `pine:request` stands on them.
   Q-W3-5 pins the helper SHAPE on plain series so the shape can be built without that wall.
 - vold-market-breadth is data-limited (`USI:UVOL`) and stays refused; it is not an S1 shape.
+
+## Open item, not S1 (recorded round 2; pre-existing on master, not fixed on this branch)
+
+| id | what | evidence | owed |
+|---|---|---|---|
+| Q-W3-8 | An `array.size`-derived cell text (a count of bars collected since the first bar) drew **"NaN bars"** for artemis-oscillator-pro RDDT 1D when the run skipped the capture's listing facts; TradingView drew "100 bars". The text is right only when the chart's history starts at the symbol's listing, and nothing withholds it otherwise. `objectRuntime.js::textOf` (`case 'num'`; the reviewer's anchor was line 827 at 5f7da680d0). | Seen by the W3 S1 builder (round 1) running `runOurSide` without the listing facts; with them, `w3CapturedCells.vendor.test.js` draws the vendor's text. Master behaves the same (reviewer, round 1: pre-existing, not a regression). | (1) a separate task: run artemis through `runOurSide` with the listing facts removed, and withhold an `array.size`-derived cell text when history does not start at listing instead of drawing `NaN`; (2) the capture below, on a chart whose loaded history does NOT start at listing, pins what TradingView draws there. |
+
+### Q-W3-8 `vw-w3-array-size-history.pine`
+
+Capture on AMEX:SPY 1D (history far older than the loaded bars) AND on a recent listing (RDDT 1D),
+so one capture starts at listing and one does not.
+
+```pine
+//@version=6
+indicator("vw-w3-array-size-history", overlay = true)
+var float[] seen = array.new_float()
+array.push(seen, close)
+if array.size(seen) > 100
+    array.shift(seen)
+if barstate.islast
+    var table t = table.new(position.top_right, 1, 3)
+    table.cell(t, 0, 0, str.tostring(array.size(seen)) + " bars")
+    table.cell(t, 0, 1, str.tostring(bar_index))
+    table.cell(t, 0, 2, str.tostring(array.size(seen) - 1 - bar_index))
+```

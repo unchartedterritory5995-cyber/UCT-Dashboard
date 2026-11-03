@@ -25,7 +25,7 @@ import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine'
 import { assertObjectProgram } from './objectProgram'
 import {
-  compileMessagePattern, formatMessageNumber, percentMessageNumber,
+  compileMessagePattern, formatMessageNumber, percentMessageNumber, percentWithheldWhy,
   MESSAGE_NUMBER_PRESETS, MESSAGE_NUMBER_PATTERNS,
 } from '../pineTextFormat.js'
 import { buildObjectLane, runObjectLane } from '../runtime/objectLane.js'
@@ -63,8 +63,8 @@ const P = {
   integer: script('if barstate.islast', `    ${TBL}`, '    table.cell(t, 0, 0, str.format("{0,number,integer}", close))'),
   loopList: script('if barstate.islast', `    ${TBL}`, '    string[] headers = array.from("A", "B", "C")', '    for i = 0 to 2', '        table.cell(t, i, 0, array.get(headers, i))'),
   loopHelper: script('f_txt(float v) =>', '    v > 0 ? "up" : "down"', 'if barstate.islast', `    ${TBL}`, '    float[] vals = array.from(close - open, open - close)', '    for i = 0 to 1', '        table.cell(t, i, 1, f_txt(array.get(vals, i)))'),
-  loopTernary: script('if barstate.islast', `    ${TBL}`, '    for k = 0 to 2', '        bool isAxis = k == 1', '        table.cell(t, 0, k, (isAxis ? "< " : "") + str.tostring(close + k * syminfo.mintick, format.mintick))'),
-  loopLocal: script('if barstate.islast', `    ${TBL}`, '    float[] rs = array.from(close, open, high, low)', '    for i = 0 to 3', '        float rv = array.get(rs, i)', '        string rTxt = na(rv) ? "-" : str.tostring(rv, "#.#")', '        table.cell(t, i + 1, 2, rTxt)'),
+  loopTernary: script('if barstate.islast', `    ${TBL}`, '    for k = 0 to 2', '        bool onMark = k == 1', '        table.cell(t, 0, k, (onMark ? "< " : "") + str.tostring(close + k * syminfo.mintick, format.mintick))'),
+  loopLocal: script('if barstate.islast', `    ${TBL}`, '    float[] rs = array.from(close, open, high, low)', '    for i = 0 to 3', '        float x = array.get(rs, i)', '        string xTxt = na(x) ? "-" : str.tostring(x, "#.#")', '        table.cell(t, i + 1, 2, xTxt)'),
   control: script('if barstate.islast', `    ${TBL}`, '    table.cell(t, 0, 0, str.format("{0,number,#.##}", close))', '    table.cell(t, 1, 0, "C " + str.tostring(close, "#.##"))'),
   helperParam: script('f_cell(table _t, int _r, string _s) =>', '    table.cell(_t, 0, _r, _s)', 'if barstate.islast', `    ${TBL}`, '    f_cell(t, 0, "hello")', '    f_cell(t, 1, "A " + str.tostring(close, "#.##"))'),
 }
@@ -80,6 +80,18 @@ describe('A — `{N,number,percent}` is read by the published rule', () => {
     expect(compileMessagePattern('{0,number,integer}', 1).why).toBe('format:number-pattern:integer')
     expect(compileMessagePattern('{0,number,currency}', 1).why).toBe('format:number-pattern:currency')
     expect(compileMessagePattern('{0,number, #.##}', 1).why).toBe('format:number-pattern: #.##')
+  })
+
+  it('⛔ r2 — the keywords are trimmed as Java\'s String.trim does: U+0000..U+0020 only, never NBSP', () => {
+    // ⭐ positive: ASCII space and tab around either keyword are trimmed
+    expect(compileMessagePattern('{0, number ,\tpercent }', 1)).toEqual({ ok: true, parts: [{ arg: 0, fmt: 'percent' }] })
+    // ⛔ negative: an NBSP (U+00A0) or an em space (U+2003) is part of the keyword to Java
+    const NBSP = String.fromCharCode(0xa0)
+    const EMSP = String.fromCharCode(0x2003)
+    expect(compileMessagePattern(`{0,number,${NBSP}percent}`, 1).why).toBe(`format:number-pattern:${NBSP}percent`)
+    expect(compileMessagePattern(`{0,number,percent${EMSP}}`, 1).why).toBe(`format:number-pattern:percent${EMSP}`)
+    expect(compileMessagePattern(`{0,${NBSP}number,percent}`, 1).why).toBe(`format:element:${NBSP}number`)
+    expect(compileMessagePattern(`{0,number${NBSP},percent}`, 1).why).toBe(`format:element:number${NBSP}`)
   })
 
   it('⭐ the reference\'s three examples, character for character', () => {
@@ -99,6 +111,19 @@ describe('A — `{N,number,percent}` is read by the published rule', () => {
     expect(percentMessageNumber(9.994)).toBe('999%')
   })
 
+  it('⭐ r2 — off a tie in EITHER reading the value is drawn: the neighbours of the decimal ties', () => {
+    // each sits 0.1 % from a decimal tie: binary and decimal readings, HALF_UP and HALF_EVEN agree
+    const drawn = [
+      [0.574, '57%'], [0.576, '58%'], [0.144, '14%'], [0.146, '15%'], [0.034, '3%'], [0.036, '4%'],
+      [-0.574, '-57%'], [-0.576, '-58%'], [-0.144, '-14%'], [-0.146, '-15%'],
+    ]
+    for (const [n, out] of drawn) {
+      expect(percentWithheldWhy(n), String(n)).toBeNull()
+      expect(percentMessageNumber(n), String(n)).toBe(out)
+    }
+    expect(percentMessageNumber(0.004)).toBe('0%') // a positive zero is the rule's own "0%"
+  })
+
   it('⛔ WITHHELD where the rule\'s words do not settle the characters', () => {
     expect(percentMessageNumber(0.125)).toBeNull() // an exact tie at the whole percent (12.5)
     expect(percentMessageNumber(-0.125)).toBeNull()
@@ -108,10 +133,30 @@ describe('A — `{N,number,percent}` is read by the published rule', () => {
     expect(percentMessageNumber(9.996)).toBeNull()
     expect(percentMessageNumber(-9.996)).toBeNull()
     expect(percentMessageNumber(-0.004)).toBeNull() // rounds to a negative zero
+    expect(percentWithheldWhy(-0.004)).toBe('percent:negative-zero')
+    // ⛔ r2 — `-0` itself: Java's DecimalFormat prints "-0%"; the docs do not say
+    expect(percentMessageNumber(-0)).toBeNull()
+    expect(percentWithheldWhy(-0)).toBe('percent:negative-zero')
+    expect(percentWithheldWhy(0)).toBeNull()
+    expect(percentWithheldWhy(0.125)).toBe('percent:tie')
+    expect(percentWithheldWhy(9.996)).toBe('percent:grouping')
+    expect(percentWithheldWhy(NaN)).toBe('percent:na')
     expect(percentMessageNumber(NaN)).toBeNull()
     expect(percentMessageNumber(Infinity)).toBeNull()
     expect(percentMessageNumber('0.5')).toBeNull()
     expect(formatMessageNumber(0.125, 'percent')).toBeNull()
+  })
+
+  it('⛔ r2 — a DECIMAL half tie is withheld by name although the binary product is not x.5', () => {
+    // 0.575 * 100 === 57.49999999999999: a binary product draws "57%", a decimal reading
+    // "58%" under HALF_UP and HALF_EVEN alike; no published source says which TradingView uses
+    const ties = [0.035, 0.145, 0.275, 0.285, 0.545, 0.555, 0.565, 0.575]
+    expect(0.575 * 100).toBe(57.49999999999999)
+    for (const n of [...ties, ...ties.map((v) => -v)]) {
+      expect(percentWithheldWhy(n), String(n)).toBe('percent:decimal-tie')
+      expect(percentMessageNumber(n), String(n)).toBeNull()
+      expect(formatMessageNumber(n, 'percent'), String(n)).toBeNull()
+    }
   })
 
   it('⭐ the translator carries the cell with a message number under the `percent` preset', () => {
@@ -153,6 +198,14 @@ describe('A — `{N,number,percent}` is read by the published rule', () => {
     })
     it('⛔ an exact tie (0.125) is HELD, NOT DRAWN, and counted', () => {
       const { r, held, state } = run(112.5, 'str.format("Return {0,number,percent}", close / open - 1)')
+      expect(held).toHaveLength(1)
+      expect(held[0].props.text).toBeNull()
+      expect(state.labels).toHaveLength(0)
+      expect(r.stats.textsWithheld).toBeGreaterThan(0)
+    })
+    it('⛔ r2 — a decimal half tie (0.575) is HELD, NOT DRAWN, and counted', () => {
+      const { r, held, state } = run(115, 'str.format("Return {0,number,percent}", close / 200)')
+      expect(115 / 200).toBe(0.575)
       expect(held).toHaveLength(1)
       expect(held[0].props.text).toBeNull()
       expect(state.labels).toHaveLength(0)
@@ -201,9 +254,9 @@ describe('B — every other S1 shape is refused BY NAME, never "no refusal recor
   it('⛔ a `?:` whose test moves per pass, reached through a `+` and through a local', () => {
     const viaPlus = whyOf(P.loopTernary)
     expect(viaPlus.why[0]).toMatch(/loop:per-pass/)
-    expect(viaPlus.why[0]).toMatch(/a `\?:` whose test or arm moves per pass: `isAxis \? "< " : ""`/)
+    expect(viaPlus.why[0]).toMatch(/a `\?:` whose test or arm moves per pass: `onMark \? "< " : ""`/)
     const viaLocal = whyOf(P.loopLocal)
-    expect(viaLocal.why[0]).toMatch(/a `\?:` whose test or arm moves per pass: `na\(rv\) \? "-" : str\.tostring\(rv, "#\.#"\)`/)
+    expect(viaLocal.why[0]).toMatch(/a `\?:` whose test or arm moves per pass: `na\(x\) \? "-" : str\.tostring\(x, "#\.#"\)`/)
   })
 
   it('⛔ the naming changes NO decision: the drop counts are what they were', () => {

@@ -1,5 +1,5 @@
 """Build the input list for the W3 object-drop "why" measurement
-(app/src/components/chart/engine/ast/zzW3Why.measure.test.js, env W3_INPUT).
+(app/src/components/chart/engine/ast/w3ObjectWhy.measure.test.js, env W3_INPUT).
 
 Selects every script of docs/pine/coverage-map.json whose walls name a drawing item and
 resolves its source: a committed script under the repo (corpus/...), or a licence-held one

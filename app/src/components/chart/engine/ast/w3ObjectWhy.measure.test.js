@@ -1,5 +1,15 @@
-// SCRATCH (W3 measurement, not committed): why each object op of the drawing-walled
-// census scripts is dropped. Env W3_INPUT (json [{key,path}]), W3_OUT (json).
+// app/src/components/chart/engine/ast/w3ObjectWhy.measure.test.js
+//
+// --- W3 MEASUREMENT HARNESS: WHY EACH OBJECT OP OF A DRAWING-WALLED SCRIPT IS DROPPED ---
+//
+// Env-gated like every *.measure.test.js: it is skipped unless BOTH are set, so the
+// ordinary chart vitest run never executes it.
+//   W3_INPUT  json [{key, path}] built by tools/pine_coverage/w3_why_input.py (licence-held
+//             sources are read in place from the sample cache, never committed)
+//   W3_OUT    json written here: per script the object diagnostics (dropped/attempted ops,
+//             drop reasons, cellTextWhy, createDropWhy, guardRefusalWhy); identifiers only.
+// It produced docs/pine/census/w3-object-why-2026-11-02.json. From app/, with both env set:
+//   node node_modules/vitest/vitest.mjs run src/components/chart/engine/ast/w3ObjectWhy.measure.test.js --maxWorkers=2
 import { it } from 'vitest'
 import fs from 'node:fs'
 import process from 'node:process'

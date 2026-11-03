@@ -125,13 +125,16 @@ export function compileMessagePattern(pattern, argCount) {
     if (!Number.isInteger(index) || index >= argCount) return { ok: false, why: 'format:index' }
     let fmt
     if (m[2] !== undefined) {
-      const spec = /^\s*number\s*,(.*)$/.exec(m[2])
-      if (!spec) return { ok: false, why: `format:element:${m[2].split(',')[0].trim() || 'empty'}` }
+      // ⛔ W3-S1 r2 — Java's MessageFormat trims a type / style keyword with String.trim,
+      // which strips only U+0000..U+0020; JS `\s` and `trim()` also strip NBSP and the other
+      // Unicode spaces, and would read a " number" / " percent" that Java does not.
+      const spec = /^[\x00-\x20]*number[\x00-\x20]*,(.*)$/.exec(m[2])
+      if (!spec) return { ok: false, why: `format:element:${javaTrim(m[2].split(',')[0]) || 'empty'}` }
       const p = spec[1]
       // ⭐ W3-S1 — a keyword preset is read by the published rule; the reference spells
       // the element with optional spaces (`{0, number, percent}` → "10%"), so the keyword
       // is trimmed. A `#`/`0` pattern is still matched exactly as a capture spelled it.
-      const keyword = p.trim()
+      const keyword = javaTrim(p)
       if (Object.hasOwn(MESSAGE_NUMBER_PRESETS, keyword)) fmt = keyword
       else if (Object.hasOwn(MESSAGE_NUMBER_PATTERNS, p)) fmt = p
       else return { ok: false, why: `format:number-pattern:${p}` }
@@ -142,6 +145,11 @@ export function compileMessagePattern(pattern, argCount) {
   }
   if (lit) parts.push({ lit })
   return { ok: true, parts }
+}
+
+/** Java's `String.trim`: strips U+0000..U+0020 from both ends, and nothing else. */
+function javaTrim(s) {
+  return s.replace(/^[\x00-\x20]+|[\x00-\x20]+$/g, '')
 }
 
 /** Is `n` EXACTLY halfway between two neighbours at `d` decimals?
@@ -169,28 +177,51 @@ function trimmedFixed(n, max) {
  * ⭐⭐ W3-S1 — `{N,number,percent}`: the value × 100, rounded to a whole number, a `%`
  * after it — the published `#,###%` (`MESSAGE_NUMBER_PRESETS`). `null` (WITHHELD) where
  * the rule's words do not settle the characters:
- *   * a ROUNDED percentage of 1000 or more — the comma grouping the rule names is
- *     unmeasured here, exactly as it is for `{N}` (`MESSAGE_NUMBER_LIMIT`, the same bound).
+ *   * a ROUNDED percentage of 1000 or more (`percent:grouping`) — the comma grouping the
+ *     rule names is unmeasured here, exactly as it is for `{N}` (`MESSAGE_NUMBER_LIMIT`, the
+ *     same bound).
  *     ⛔ Asked of the ROUNDED whole, not the product: 9.996 is 999.6 %, which rounds to
  *     1000 and would print "1,000%" under `#,###%` — a bound on the product drew "1000%";
- *   * an exact tie at the whole percent (0.125 → 12.5) — "rounds to the nearest whole"
- *     does not say which way a tie goes, and HALF_EVEN and HALF_UP part there;
- *   * a value that rounds to a negative zero ("-0%" or "0%": unmeasured);
- *   * `na` — no capture formats one through `str.format`.
- * The product is the double's own `n * 100` — the multiplication Java's DecimalFormat
- * applies before it rounds — and off a tie the rounding mode cannot matter.
+ *   * a tie at the whole percent, in EITHER reading — "rounds to the nearest whole" does
+ *     not say which way a tie goes, and HALF_EVEN and HALF_UP part there:
+ *       - `percent:tie` — the double's own product is exactly x.5 (0.125 → 12.5);
+ *       - `percent:decimal-tie` — the product is not x.5 in binary but its DECIMAL reading
+ *         is: 0.575 (23/40, a common win rate) multiplies to 57.49999999999999, so a binary
+ *         product rounds it to "57%" while an implementation that rounds the decimal value
+ *         prints "58%" (HALF_UP and HALF_EVEN alike). No published source says which
+ *         reading TradingView uses, so neither is drawn. The decimal reading is the product
+ *         at 15 significant digits: every value whose shortest decimal is x.5 / 100 lands
+ *         on x.5 there (a whole-percent tie below 1000 % has at most 6 significant digits);
+ *   * a value that rounds to a negative zero, `-0` itself included (`percent:negative-zero`;
+ *     Java's DecimalFormat prints "-0%", the docs do not say);
+ *   * `na` (`percent:na`) — no capture formats one through `str.format`.
+ * Off both ties every rounding mode and both readings agree, and only that is drawn.
+ * `percentWithheldWhy` is the ONE authority; this function asks it.
  *
  * @param {number} n
  * @returns {string|null}
  */
 export function percentMessageNumber(n) {
-  if (typeof n !== 'number' || !Number.isFinite(n)) return null
+  if (percentWithheldWhy(n) !== null) return null
+  return `${Math.round(n * 100)}%`
+}
+
+/**
+ * ⭐ W3-S1 r2 — WHY `percentMessageNumber` withholds `n`, BY NAME (`percent:*`), or `null`
+ * when the published rule settles every character (the cases are listed there).
+ *
+ * @param {number} n
+ * @returns {'percent:na'|'percent:tie'|'percent:decimal-tie'|'percent:grouping'|'percent:negative-zero'|null}
+ */
+export function percentWithheldWhy(n) {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return 'percent:na'
   const p = n * 100
-  if (exactTieAt(p, 0)) return null
+  if (exactTieAt(p, 0)) return 'percent:tie'
+  if (Math.abs(Number(p.toPrecision(15)) % 1) === 0.5) return 'percent:decimal-tie'
   const k = Math.round(p)
-  if (Math.abs(k) >= MESSAGE_NUMBER_LIMIT) return null
-  if (k === 0 && p < 0) return null
-  return `${k}%`
+  if (Math.abs(k) >= MESSAGE_NUMBER_LIMIT) return 'percent:grouping'
+  if (k === 0 && (p < 0 || Object.is(p, -0))) return 'percent:negative-zero'
+  return null
 }
 
 /**
