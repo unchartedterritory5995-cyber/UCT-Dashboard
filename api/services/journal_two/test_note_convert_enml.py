@@ -658,6 +658,19 @@ def test_deep_nesting_converts_and_keeps_the_text(open_tag, close_tag, depth):
     assert "deep text" in _text(out["doc"]) and "after" in _text(out["doc"])
 
 
+@pytest.mark.parametrize("unclosed", ["<span>", "<div><span>", "<b><i>"])
+def test_an_unclosed_tag_past_the_cap_does_not_swallow_the_structure_after_it(unclosed):
+    # Round 2 R5: a flattened tag that is never closed must not make every later end tag of a
+    # kept element a no-op (everything after would nest under the deepest kept blockquote).
+    body = ("<blockquote>" * 150 + unclosed + "deep text" + "</blockquote>" * 150
+            + "<p>after</p>")
+    out = _convert(body)
+    assert "deep text" in _text(out["doc"])
+    blocks = _blocks(out)
+    assert [b["type"] for b in blocks] == ["blockquote", "paragraph"]
+    assert _text(blocks[1]) == "after"
+
+
 def test_nesting_below_the_cap_is_kept_as_structure():
     out = _convert("<blockquote>" * 3 + "q" + "</blockquote>" * 3)
     node = _blocks(out)[0]

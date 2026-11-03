@@ -214,9 +214,16 @@ class _Builder(HTMLParser):
         if tag in _VOID_TAGS:
             return
         if self._flattened:
-            if self._flattened[-1] == tag:
-                self._flattened.pop()
-            return  # inside flattened content: never close a kept element early
+            if tag in self._flattened:
+                # Closes the innermost flattened `tag`, and any flattened tag left open inside it.
+                idx = len(self._flattened) - 1 - self._flattened[::-1].index(tag)
+                del self._flattened[idx:]
+                return
+            if not any(n.tag == tag for n in self._stack[1:]):
+                return  # a stray end tag: ignored, as below
+            # Round 2 R5: the end tag of a KEPT element. The flattened tags it encloses were never
+            # closed (malformed markup); they end here, so the structure after stays where it is.
+            self._flattened.clear()
         for i in range(len(self._stack) - 1, 0, -1):
             if self._stack[i].tag == tag:
                 del self._stack[i:]
