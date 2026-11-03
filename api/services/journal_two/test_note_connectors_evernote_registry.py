@@ -95,8 +95,33 @@ def test_build_raises_not_configured_when_flag_off(monkeypatch, configured):
         registry.build_provider("evernote", {"userId": "u1", "remoteId": "account"})
 
 
-def test_build_passes_the_source_user_id_to_the_provider(monkeypatch, configured):
+def test_the_flag_off_error_is_member_language_never_the_env_var(monkeypatch, configured):
+    # Task 6 review m7: the source row shows this text (a red dot) on every tick while off.
+    monkeypatch.setenv("NOTE_SYNC_EVERNOTE_ENABLED", "0")
+    with pytest.raises(errors.NoteConnNotConfigured) as ei:
+        registry.build_provider("evernote", {"userId": "u1", "remoteId": "account"})
+    assert str(ei.value) == "Evernote sync is paused"
+    assert "NOTE_SYNC" not in str(ei.value)
+
+
+@pytest.mark.parametrize("role,allowed", [("admin", True), ("member", False), (None, False)])
+def test_admin_mode_stops_a_non_admins_existing_source(monkeypatch, configured, role, allowed):
+    # Task 6 review m5: flipping 1 -> admin must stop members' sources too, not only new connects.
+    from api.services import auth_service
     monkeypatch.setenv("NOTE_SYNC_EVERNOTE_ENABLED", "admin")
+    monkeypatch.setattr(auth_service, "get_user_by_id",
+                        lambda uid: None if role is None else {"id": uid, "role": role})
+    source = {"userId": "u1", "remoteId": "account"}
+    if allowed:
+        assert registry.build_provider("evernote", source)._user_id == "u1"
+    else:
+        with pytest.raises(errors.NoteConnNotConfigured) as ei:
+            registry.build_provider("evernote", source)
+        assert str(ei.value) == "Evernote sync is paused"
+
+
+def test_build_passes_the_source_user_id_to_the_provider(monkeypatch, configured):
+    monkeypatch.setenv("NOTE_SYNC_EVERNOTE_ENABLED", "1")
     provider = registry.build_provider("evernote", {"userId": "u1", "remoteId": "account"})
     assert provider.name == "evernote" and provider._user_id == "u1"
     probe = registry.build_provider("evernote", None)

@@ -889,6 +889,7 @@ No code. The runbook carries the steps below verbatim. Gate results are appended
 **Owner click points, in order**
 1. Amended (pre-flight): Merge PR E1 once it is green. The agent then cuts `feat/connector-fidelity-e-evernote-tile` (Task 10), opens PR E2, and asks again once E2 is green. Steps 2-5 below need only E1; the tile is not needed for the gate.
 2. The agent runs `python tools/evernote_register_client.py` (no account needed) and hands over the printed id. The owner sets it on `web`: `railway variables --service web --set EVERNOTE_CLIENT_ID=<id> --set NOTE_SYNC_EVERNOTE_ENABLED=admin`. The agent then confirms a real boot (uptime reset) and checks that `GET /api/j2/notes/connectors/status`, read as the owner, shows `evernote.configured: true`. Owner only: the flag is `admin`.
+   - Amended (Task 6 review m6): **never set `NOTE_SYNC_EVERNOTE_ENABLED` (admin or 1) on a build that does not contain Task 7.** Before Task 7 the connect door has no per-member gate and `_start_oauth` falls into the Dropbox branch for `evernote`. Confirm Task 7's commit is an ancestor of the deployed SHA first.
 3. Optional but recommended for adoption: in Evernote desktop, export ONE notebook to `.enex`, then import it in UCT (Notebook → Import).
 4. In UCT Settings → Connections → Evernote → Connect → approve Evernote's read-access consent page (one sign-in).
 5. In Evernote: create a note `UCT gate probe` with one image and one link, then press Sync now in UCT. Edit that note in Evernote and press Sync now. Trash it and press Sync now.

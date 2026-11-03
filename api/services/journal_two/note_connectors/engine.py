@@ -683,22 +683,19 @@ async def _do_sync(
             # nights severed notes that were still there (the <50% guard only catches a SMALL
             # delta). So the removal check does not run at all (no strike, no stamp), exactly as
             # on the member path when its listing fails. OneNote takes this branch too.
+            # (`full` and `removal_check` are exclusive, `_do_sync` refuses both: on a full pass
+            # there is never a removal listing to stand in, so a failure always skips. Task 6
+            # review m1 removed the dead branch that said otherwise.)
             enumeration_failed = False
             if full and present_fn is not None:
                 try:
                     index_refs = await present_fn(creds)
                 except Exception as e:  # noqa: BLE001
-                    if removal_listing is None:
-                        enumeration_failed = True
-                        item_failures.append(
-                            f"list_present_refs sweep failed (removal check skipped "
-                            f"this pass, no strikes): {e}"
-                        )
-                    else:
-                        item_failures.append(
-                            f"list_present_refs sweep failed (the removal listing stands "
-                            f"in for it): {e}"
-                        )
+                    enumeration_failed = True
+                    item_failures.append(
+                        f"list_present_refs sweep failed (removal check skipped "
+                        f"this pass, no strikes): {e}"
+                    )
 
             if enumeration_failed:
                 if removal_check:

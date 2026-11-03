@@ -371,6 +371,36 @@ async def test_two_failed_nights_with_a_big_delta_strike_nothing(source, provide
     assert all(r["miss_streak"] == 0 for r in idx.values())  # nothing struck
 
 
+async def test_a_skipped_removal_check_stamps_nothing_and_severs_nothing_explicit(source, provider):
+    """Task 6 review m2: pin both choices I1 made. A skipped check does not stamp
+    `last_full_sync_at` (it was not a full check), and the trash sweep's explicit severs are
+    dropped for the pass too (no part of the removal check runs)."""
+    ids = ["p1", "p2", "p3"]
+    provider.list_changed_refs = [RemoteRef(remote_id=i, updated_at=T1) for i in ids]
+    provider.notes_by_id = {i: _rn(i, f"Note {i}") for i in ids}
+
+    async def _ok(credentials):
+        return [RemoteRef(remote_id=i, updated_at=T1) for i in ids]
+
+    provider.list_present_refs = _ok
+    await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
+    stamp_before = _source_row(source["id"])["last_full_sync_at"]
+
+    async def _boom(credentials):
+        raise errors.NoteConnTransient("did not add up")
+
+    async def _trash(credentials):
+        return [RemoteRef(remote_id="p3", updated_at=T2)]
+
+    provider.list_present_refs = _boom
+    provider.list_deleted = _trash
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["sourceDeleted"] == 0
+    assert {r["remote_id"] for r in _remote_index_rows(source["id"])} == set(ids)  # p3 not severed
+    assert _source_row(source["id"])["last_full_sync_at"] == stamp_before  # not stamped
+
+
 # ---------------------------------------------------------------------------
 # 3. MUTATION CHECK — hook absence trips the <50% refuse guard on a bounded
 #    drain that changed nothing remotely; hook presence does not.

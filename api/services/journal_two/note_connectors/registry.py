@@ -210,6 +210,10 @@ def _build_obsidian(source: dict[str, Any] | None) -> Any:
     return ObsidianProvider(user_id=source.get("userId"), vault_id=source.get("remoteId"))
 
 
+#: What a member's source row says while Evernote sync is switched off for them.
+EVERNOTE_PAUSED = "Evernote sync is paused"
+
+
 def evernote_flag_mode() -> Literal["off", "admin", "on"]:
     """`NOTE_SYNC_EVERNOTE_ENABLED`, read live: "1" -> on (every member), "admin" -> admins only,
     anything else (unset, "0", "true", ...) -> off. Exact strings, so a typo stays off."""
@@ -246,10 +250,19 @@ def _build_evernote(source: dict[str, Any] | None) -> Any:
     marks nothing broken -- only an auth error does that). Threads `source["userId"]` as
     `_build_obsidian` does, so the provider can refresh on a mid-sync 401; a probe (`None`
     source) gets `user_id=None`."""
-    if evernote_flag_mode() == "off":
-        raise errors.NoteConnNotConfigured("evernote sync is off (NOTE_SYNC_EVERNOTE_ENABLED)")
+    mode = evernote_flag_mode()
+    user_id = (source or {}).get("userId")
+    if mode == "off":
+        # Task 6 review m7: the source row shows this text; member words, never an env var.
+        raise errors.NoteConnNotConfigured(EVERNOTE_PAUSED)
+    if mode == "admin" and user_id is not None:
+        # Task 6 review m5: flipping 1 -> admin stops members' EXISTING sources too, exactly as
+        # off does, not only new connects. The owner's role is read live from the users table.
+        from api.services import auth_service
+        if (auth_service.get_user_by_id(user_id) or {}).get("role") != "admin":
+            raise errors.NoteConnNotConfigured(EVERNOTE_PAUSED)
     from .providers.evernote import EvernoteProvider
-    return EvernoteProvider(user_id=(source or {}).get("userId"))
+    return EvernoteProvider(user_id=user_id)
 
 
 async def _evernote_refresh(user_id: str) -> dict | None:
