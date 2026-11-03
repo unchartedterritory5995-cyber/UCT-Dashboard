@@ -9,8 +9,9 @@ the call and SETTLES it from the provider's usage after — the same protocol as
   python tools/agent_eval_ledger.py status            # cumulative reserved / settled / remaining + per-run rows
   python tools/agent_eval_ledger.py release <id> --confirm "<why>"   # the OWNER drops a crashed run's reservation
 
-THE LEDGER IS ONE FILE: C:/UCT/agent-eval-ledger.db (the directory is created; if it cannot be, every reservation
-is refused — there is NO fallback path, so no worktree or session can start a ledger of its own). The
+THE LEDGER IS ONE FILE per machine: C:/UCT/agent-eval-ledger.db on Windows, /var/lib/uct-agent-eval/agent-eval-ledger.db
+on POSIX (the directory is created; if it cannot be, or is not writable, every reservation is refused — there is NO
+fallback path, not HOME, not the repo, so no worktree or session can start a ledger of its own). The
 UCT_AGENT_EVAL_LEDGER override exists for the test suite only: it is honoured under pytest (PYTEST_CURRENT_TEST) and
 refused anywhere else, so it can never relocate the cap file to a fresh $21.
 THE CAP = min(CUMULATIVE_CAP_USD, the owner-edited sibling file `agent-eval-cap.json` {"cap_usd": 21.0}).
@@ -43,13 +44,26 @@ import os
 import sqlite3
 import sys
 import time
+from pathlib import PurePosixPath, PureWindowsPath
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 #: The mandate's number, in code. NOT an environment variable: an override is an increase waiting to happen.
 CUMULATIVE_CAP_USD = 21.0
 LEDGER_ENV = "UCT_AGENT_EVAL_LEDGER"                   # tests only (see under_pytest)
-DEFAULT_LEDGER = r"C:\UCT\agent-eval-ledger.db"      # THE ledger, for every worker and session on this machine
+WINDOWS_LEDGER = r"C:\UCT\agent-eval-ledger.db"                      # THE ledger, for every worker and session on this machine
+POSIX_LEDGER = "/var/lib/uct-agent-eval/agent-eval-ledger.db"        # the CI / Linux equivalent (writable or refused)
 CAP_FILE_NAME = "agent-eval-cap.json"
+
+
+def pinned_ledger() -> str:
+    """The ONE pinned location for this platform (the only place the resolver branches)."""
+    return WINDOWS_LEDGER if os.name == "nt" else POSIX_LEDGER
+
+
+def _pure(p: str):
+    """A pure path of THIS platform's flavour (never a concrete Path: the parent of a pinned path is computed the same
+    way on every runner, and a Windows pinned path never has an empty dirname on POSIX)."""
+    return PureWindowsPath(p) if os.name == "nt" else PurePosixPath(p)
 EVAL_KEY_ENV = "UCT_AGENT_EVAL_API_KEY"
 PROD_KEY_ENV = "ANTHROPIC_API_KEY"
 PRICES_FILE = os.path.join(HERE, "agent_eval_prices.json")
@@ -78,18 +92,21 @@ def ledger_path() -> str:
     p = os.environ.get(LEDGER_ENV, "").strip()
     if p:
         if not under_pytest():
-            raise LedgerRefused("unavailable", f"{LEDGER_ENV} is honoured only under pytest; the ledger is {DEFAULT_LEDGER} — no paid call")
+            raise LedgerRefused("unavailable", f"{LEDGER_ENV} is honoured only under pytest; the ledger is {pinned_ledger()} — no paid call")
         return p
-    d = os.path.dirname(DEFAULT_LEDGER)
+    pinned = _pure(pinned_ledger())
+    d = str(pinned.parent)
     try:
         os.makedirs(d, exist_ok=True)
     except OSError as e:
         raise LedgerRefused("unavailable", f"the ledger directory {d} cannot be created ({type(e).__name__}); no paid call")
-    return DEFAULT_LEDGER
+    if not os.access(d, os.W_OK):
+        raise LedgerRefused("unavailable", f"the ledger directory {d} is not writable; no paid call")
+    return str(pinned)
 
 
 def cap_file_path(path: str | None = None) -> str:
-    return os.path.join(os.path.dirname(os.path.abspath(path or ledger_path())), CAP_FILE_NAME)
+    return str(_pure(path or ledger_path()).parent / CAP_FILE_NAME)
 
 
 def read_cap(path: str | None = None) -> float:
@@ -272,7 +289,7 @@ class Ledger:
         """`path`: a test's scratch ledger (pytest only) or, with `readonly=True`, a file to REPORT on (never to reserve
         against: the report tool). Anything else is the pinned ledger."""
         if path and not readonly and not under_pytest():
-            raise LedgerRefused("unavailable", f"an explicit ledger path is honoured only under pytest; the ledger is {DEFAULT_LEDGER}")
+            raise LedgerRefused("unavailable", f"an explicit ledger path is honoured only under pytest; the ledger is {pinned_ledger()}")
         self.path = path or ledger_path()
         self.readonly = readonly
 
