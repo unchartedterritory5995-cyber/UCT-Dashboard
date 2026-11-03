@@ -206,7 +206,7 @@ Two existing guards had to be *repaired rather than re-baselined* when defects 1
 2. **Deletions reflect on the nightly full pass.** "Sync now" is incremental by design; delete detection needs a full enumeration and runs on the 01:47 ET sweep. A member who deletes remotely and syncs manually sees no change until then. Status update (2026-11-01, plan D): Sync now now runs a removal check, rate-limited to once per 10 minutes per source. Explicit trash lists (Notion, OneDrive) sever on that press; other removals record strike 1 and the card says "N notes look removed in <app>; confirming on the next check." A second press at least 10 minutes later, or the nightly pass, confirms.
 3. **Obsidian callouts normalise to blockquotes.** `mddoc.py` has no callout node. Meaning preserved.
 4. **A rename in Obsidian is a delete plus a create.** Note identity is the vault path; there is no stable per-note id on the wire. Content is never lost, but the old path is severed and tagged.
-5. **The plugin's Server URL field is member-editable and unvalidated.** An invalid value produces an opaque "Invalid URL" failure with no guidance. Found by accidentally writing into it during this certification.
+5. **The plugin's Server URL field is member-editable and unvalidated.** An invalid value produces an opaque "Invalid URL" failure with no guidance. Found by accidentally writing into it during this certification. CLOSED in plugin 0.2.0: the Server URL is validated with a clear message (release E2E check (h), 2026-11-03: `http://uctintelligence.com` is refused with "Use https:// for this address, for example https://uctintelligence.com" and the saved value is kept).
 6. **The Obsidian size ceiling is an ingest-path constraint, not a Notion one.** A 630 KB note imported through Notion stored in full, uncut.
 
 ---
@@ -396,3 +396,30 @@ Re-importing the media notebook: **"Will create 0, update 0, unchanged 9"**; ima
 | Evernote | 3 | 1 (choose ENEX) | 2 | **3** | Yes | **Yes (fixed)** | CLOSED — at target |
 
 **The frozen-looking migration is gone.** No technical decisions, no conversion configuration, no unnecessary Sync button, no unexplained waiting, no silent failure — and the information inside the migrations is now verified, not assumed.
+
+---
+
+# I-8 ADDENDUM: Obsidian images and files (plugin 0.2.0, 2026-11-03)
+
+Release E2E of plugin 0.2.0 against production (server PR #703), Obsidian 1.13.7, run in a scratch vault on the owner's admin account and cleaned up afterwards (Case A: no Obsidian source existed before; note count 12 before, 12 after; 11 test notes in trash). Full record: `.superpowers/sdd/2026-11-01-connector-fidelity-c-obsidian/task-11-e2e.md`.
+
+- **E2E_SHA** (`main.js` sha256) = `25fd7fe935385592135601ba0ce0bedee1536b22b017461de02cf7a9d72f6eda`, built from two clean clones of plugin commit `19b55d2` and by CI (run 41552194864), all equal.
+- **Release digest:** PENDING. The `0.2.0` tag and GitHub release had not been created when this addendum was written. Fill in `gh release view 0.2.0 --json assets` for `main.js` once published; it must equal E2E_SHA.
+- Compatibility leg, plugin 0.1.4 against the new server: PASS. Notes sync as text, every image and file is marked `obsidian-plugin-outdated`, `pluginVersion` is null and the card shows the update hint.
+
+| Check | Result |
+|---|---|
+| (a) no duplicates after upgrade, count unchanged | PASS |
+| (b) embedded images render at 37x23, served bytes = local sha | PASS |
+| (c) two file chips, downloads = local pdf sha | PASS |
+| (d) `not-found`, `too-large` (`big.bin (26.0 MB)`), same-folder resolution honoured | PASS |
+| (e) text-only note not re-pushed (pushed 8 = notes with refs) | PASS |
+| (f) `pluginVersion` "0.2.0", hint gone | PASS |
+| (g) next sync pushes 0, uploads 0 | PASS |
+| (h) Server URL refuses `http://`, keeps old value | PASS |
+| (i) Obsidian's resolver on `my chart #1 (v2).png` | PASS: both forms resolve to `attachments/my chart #1 (v2).png`; two images at 41x29 |
+| (i) link-cache shapes, lines 2-7 (`[[a [[b]]`, code-span links, blank-line alias) | PASS |
+| (i) link-cache shape, line 1 `[[q.pdf\|![[img.png]]]]` | **FAIL (known limitation, owner-approved for 0.2.0)** |
+
+**Line 1 outcome (known limitation, fixed in 0.2.1).** Obsidian 1.13.7 gives no link entry for a link whose label is an embedded image, only the embed (`{"links":[["[[b]]","b"]],"embeds":[["![[img.png]]","img.png"]]}`). So 0.2.0 sends no ref for that link. On the server the image is kept, and the link stays as a plain text link labelled with the file name (`q.pdf`, href `import-link://name:obsidian:<vault>/q.pdf`), not a file chip. There is no false "wasn't found" notice and no text is lost: the result is visible, not silent. Follow-up: plugin issue #2 (0.2.1). The plugin will parse `[[target|![[embed]]]]` itself and send the link ref, and parity fixture 26 will be re-pinned to what real Obsidian 1.13.7 sends.
+
