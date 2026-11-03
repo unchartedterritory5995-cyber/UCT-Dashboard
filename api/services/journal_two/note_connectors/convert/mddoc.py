@@ -1377,6 +1377,7 @@ class _HtmlDomBuilder(HTMLParser):
         self._flat: list[list[Any]] | None = None
         self._flat_box: _HtmlNode | None = None
         self._flat_para: _HtmlNode | None = None
+        self._flat_target: _HtmlNode | None = None  # N2: the inline element written in place
         self._flat_marks: dict[str, int] = {}  # open inline tags per name, flat or seeded
         self._flat_links: list[dict[str, str | None]] = []  # open anchors' attrs, innermost last
 
@@ -1405,13 +1406,24 @@ class _HtmlDomBuilder(HTMLParser):
         """Too deep: open a BOX in the nearest element the walkers render as blocks (never a
         table, row or list, whose walkers skip loose children), seeded with the inline elements
         open above that element, so the text that follows keeps their marks and links."""
+        self._flat, self._flat_para = [], None
+        self._flat_marks, self._flat_links = {}, []
+        top = self._stack[-1]
+        if top.tag not in _FLAT_STRUCTURAL and top.tag not in _FLAT_HOLDERS:
+            # D3 fix round 3 (N2): the cap landed INSIDE a paragraph, heading or inline element.
+            # The flat runs go into that element itself, in place, so a word written after the
+            # deep run (back in the element) still follows it. ⚰️ They went into a box in the
+            # holder below, after the whole element: `A <b>B <i>C</i> D</b> E` read `A E` + `B C D`.
+            # The element is a real ancestor of the runs, so nothing is seeded from it.
+            self._flat_box = None
+            self._flat_target = top
+            return
+        self._flat_target = None
         at = len(self._stack) - 1
         while at > 0 and self._stack[at].tag not in _FLAT_HOLDERS:
             at -= 1
         self._flat_box = _HtmlNode("div", {})
         self._stack[at].children.append(self._flat_box)
-        self._flat, self._flat_para = [], None
-        self._flat_marks, self._flat_links = {}, []
         for el in self._stack[at + 1:]:
             if el.tag not in _FLAT_BREAK_TAGS:
                 self._flat_push_inline(el.tag, el.attrs)
@@ -1422,6 +1434,8 @@ class _HtmlDomBuilder(HTMLParser):
             self._flat_links.append(attrs)
 
     def _flat_paragraph(self) -> _HtmlNode:
+        if self._flat_target is not None:
+            return self._flat_target  # in place (N2): a block boundary there splits nothing
         if self._flat_para is None:
             self._flat_para = _HtmlNode("p", {})
             self._flat_box.children.append(self._flat_para)
@@ -1521,6 +1535,8 @@ _HTML_ITEM_PARENTS = frozenset({"ul", "ol", "table", "tr"})
 #: children the walkers render as blocks (never a table, a row or a list).
 _FLAT_HOLDERS = frozenset({"root", "html", "body", "td", "th", "li", "blockquote", "details",
                            "aside", *_HTML_BLOCK_WRAPPERS})
+#: Elements whose walkers skip loose children (rows, items): the flat runs never go in one.
+_FLAT_STRUCTURAL = frozenset({"table", "thead", "tbody", "tfoot", "tr", "ul", "ol", "dl"})
 #: Tags that end a paragraph in the flat mode (block elements); any other tag is inline.
 _FLAT_BREAK_TAGS = frozenset({
     "p", "li", "td", "th", "tr", "table", "thead", "tbody", "tfoot", "ul", "ol", "dl", "dt",

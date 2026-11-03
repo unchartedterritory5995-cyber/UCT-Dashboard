@@ -70,6 +70,21 @@ def cases() -> list[dict[str, Any]]:
             {"name": f"div-list-{n}", "html": "<div>" * n + "<ul><li>" + leaf
              + "</li><li>second</li></ul>" + "</div>" * n},
         ]
+    # D3 fix round 3 (N2): the cap landing INSIDE a paragraph, a heading, a mark or a link; the
+    # words must come out in document order (the base read these in order).
+    marked_p = ('<p>w9001 <b>w9002 <i>w9003</i> w9004</b> w9005</p>')
+    linked_p = ('<p>w9011 <a href="https://e.com/p">w9012 <img src="https://e.com/p.png" alt="p"> '
+                'w9013</a> w9014</p>')
+    heading = '<h1>w9021 <span>w9022</span> w9023</h1>'
+    for depth in (98, 99, 100):
+        out += [
+            {"name": f"div-p-marks-{depth}", "html": "<div>" * depth + marked_p + "after w9006"},
+            {"name": f"div-p-link-{depth}", "html": "<div>" * depth + linked_p},
+            {"name": f"div-h1-{depth}", "html": "<div>" * depth + heading},
+        ]
+    tables = "<table><tr><td>" * 33
+    out.append({"name": "tables-33-p", "html": tables + "<p>w9031 <b>w9032</b> w9033</p>"
+                + "</td></tr></table>" * 33 + "<p>w9034</p>"})
     return out
 
 

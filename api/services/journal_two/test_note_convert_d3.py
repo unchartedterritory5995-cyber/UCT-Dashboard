@@ -680,3 +680,17 @@ def test_shared_media_link_vectors(v):
     out = md_to_tiptap(v["md"]) if "md" in v else html_to_tiptap(v["html"])
     assert _shape_marks(out["doc"]) == v["shape"]
     assert not _orphan_media(out)
+
+
+_WORD_RE = r"\b(?:[wsa]\d+|L\d+|second)\b"
+
+
+@pytest.mark.parametrize("case", _DEEP_CASES, ids=[c["name"] for c in _DEEP_CASES])
+def test_deep_nesting_keeps_words_in_document_order(case):
+    """D3 fix round 3 (N2): flat mode once put the deep run after the element the cap landed in
+    (`A E` then `B C D`). The words must come out in the input's document order (the base's
+    order wherever it converts: checked against 470eb705f9 in the report)."""
+    import re
+    expected = re.findall(_WORD_RE, re.sub(r"<[^>]*>", " ", case["html"]))
+    got = re.findall(_WORD_RE, " ".join(r["text"] for r in _texts(html_to_tiptap(case["html"])["doc"])))
+    assert got == expected

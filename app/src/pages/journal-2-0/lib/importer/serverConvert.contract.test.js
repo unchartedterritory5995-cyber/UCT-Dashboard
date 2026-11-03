@@ -105,7 +105,8 @@ const deepCases = fs.existsSync(DEEP_PATH) ? JSON.parse(fs.readFileSync(DEEP_PAT
 
 describe('every server-written body passes the schema check()', () => {
   it('found the deep-nesting cases (non-vacuity)', () => {
-    expect(deepCases.length).toBe(35)
+    // 35 container cases + 10 cap-inside-an-element order cases (D3 fix round 3, N2).
+    expect(deepCases.length).toBe(45)
   })
 
   for (const c of deepCases) {
