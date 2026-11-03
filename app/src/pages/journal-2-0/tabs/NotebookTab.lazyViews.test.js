@@ -37,6 +37,9 @@ const LAZY = [
   '../components/notebook/SavedViewEditor',
   // Wave 7 Task 7.6: the connected-apps sync line, after first paint through `lazyView` (null fallback).
   '../components/connectors/NoteConnectorsTrustStrip',
+  // Connector fidelity Plan F Task 10: the one-time import-repair notice, through `lazyView` (null
+  // fallback), rendered only when the server says there is one to show.
+  '../components/notebook/ImportRepairNotice',
   // Notebook widgets phase 2 Task 8.18: the My tools header door (wave 8), its own root through openMyTools.
   '../components/notebook/myTools/openMyTools.js',
   // W11-R77 (review n-1): the slot words, on a Use from Your templates (createFromMemberTemplate), so the note holds

@@ -1,0 +1,6 @@
+{
+  "_comment": "D3 item 6: a scheme-less href becomes the https:// URL linkify would make of it on both lanes (a www. host; it was text, its target lost). Controller ruling: linkify's own decision, so example.com/path, NVDA.US and BRK.B stay text, as in prose. A .md path is a note link, never a host: resolved to the note when it is in the vault, else text, as before.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": ["a.md", "Plan.md"]
+}

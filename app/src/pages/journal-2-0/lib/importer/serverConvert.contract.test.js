@@ -79,6 +79,62 @@ describe('server_convert fixtures validate against the real editor schema', () =
 })
 
 // ---------------------------------------------------------------------------
+// D3 item 2: the schema's own `check()` over every body the server writes.
+//
+// `nodeFromJSON` alone builds a node from ANY mark collection; only `check()` asks the
+// schema's mark rules (the code mark excludes every other mark; a mark type at most once).
+// Until D3 the shared converter wrote `link+code` and `bold+code`, which `check()` refuses
+// ("Invalid collection of marks"). This runs it over the server_convert fixtures and over
+// every note the connector corpora stored (`__fixtures__/connector_corpora`), so a converter
+// change that writes an invalid set anywhere they reach goes red here.
+// ---------------------------------------------------------------------------
+
+const CORPORA_DIR = path.join(__dirname, '__fixtures__', 'connector_corpora')
+const corpusBodies = fs.existsSync(CORPORA_DIR)
+  ? fs.readdirSync(CORPORA_DIR).filter((f) => f.endsWith('.json')).sort().flatMap((file) => {
+    const data = JSON.parse(fs.readFileSync(path.join(CORPORA_DIR, file), 'utf-8'))
+    return Object.entries(data.members).flatMap(([user, member]) => member.notes
+      .map((n) => [`${file} / ${user} / ${n.importKey}`, n.bodyJson]))
+  })
+  : []
+
+// D3 fix round 2 (N1): the deep-nesting cases (`convert/deep_nesting_cases.py`): every
+// container type at, under and past the server's depth cap, as `html_to_tiptap` wrote it.
+const DEEP_PATH = path.join(__dirname, '__fixtures__', 'deep_nesting', 'cases.json')
+const deepCases = fs.existsSync(DEEP_PATH) ? JSON.parse(fs.readFileSync(DEEP_PATH, 'utf-8')) : []
+
+describe('every server-written body passes the schema check()', () => {
+  it('found the deep-nesting cases (non-vacuity)', () => {
+    // 35 container cases + 10 cap-inside-an-element order cases (D3 fix round 3, N2).
+    expect(deepCases.length).toBe(45)
+  })
+
+  for (const c of deepCases) {
+    it(`deep nesting ${c.name}`, () => {
+      expect(() => schema.nodeFromJSON(c.doc).check()).not.toThrow()
+    })
+  }
+
+  it('found the corpora notes (non-vacuity)', () => {
+    expect(corpusBodies.length).toBeGreaterThan(10)
+  })
+
+  const bodies = [
+    ...fixtures.map(({ file, fixture }) => [`server_convert ${file}`, fixture.doc]),
+    ...corpusBodies.map(([name, doc]) => [`corpus ${name}`, doc]),
+  ]
+  for (const [name, doc] of bodies) {
+    it(name, () => {
+      // The server's EMPTY body is `{type: 'doc', content: []}` by convention
+      // (`notes.py::_validate_body_json`; a Notion database row with no page body), which
+      // `doc`'s `block+` refuses. It holds no mark, so it is named and passed, never checked.
+      if (JSON.stringify(doc) === '{"content":[],"type":"doc"}') return
+      expect(() => schema.nodeFromJSON(doc).check()).not.toThrow()
+    })
+  }
+})
+
+// ---------------------------------------------------------------------------
 // Semantic pins — these must not merely "not throw"; specific import-critical
 // behavior (checked task state, table structure, link hrefs) must survive
 // the JSON -> schema -> HTML round trip byte-for-byte.

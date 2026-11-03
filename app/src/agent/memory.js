@@ -98,6 +98,9 @@ export function createMemory({ now = () => Date.now() } = {}) {
 
     /** ⭐ PHASE 2: a new member message is being answered — its committed steps form one turn. */
     beginTurn() { turnId += 1; return turnId },
+    /** PLANNER v2: the turn now open, and re-opening a paused turn so the card's outcome joins ITS Undo group. */
+    currentTurn() { return turnId },
+    resumeTurn(id) { if (typeof id === 'number' && id > 0 && id <= turnId) turnId = id },
 
     /** The indicator a change added or edited (from the mutation module's own report). */
     noteIndicator({ chart, instanceId, defId = null, label = null, epoch = null }) {

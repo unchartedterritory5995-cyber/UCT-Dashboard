@@ -69,6 +69,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import LINK_PREFIX, REF_PREFIX
+from .marks import exclusive_marks  # D3 item 2: a code run carries no other mark; a link survives
 from .linkify import canonical_notion_page_id, notion_note_key, notion_page_id_from_href  # the ONE Notion page-link reader and key builder (Task 10/11)
 from ...web_embed import embed_for  # the client's embed allow-list, ported (Task 12)
 from ...media_policy import extension_mime  # the one extension -> type table (an image file cell shows inline)
@@ -280,7 +281,7 @@ def _property_inline(prop: Any, *, row_id: str, file_nodes: list[dict[str, Any]]
         for node in inline:
             marks = list(node.get("marks") or [])
             if not any(m.get("type") == "link" for m in marks):
-                node = {**node, "marks": [*marks, _link_mark(href)]}
+                node = {**node, "marks": exclusive_marks([*marks, _link_mark(href)])}
             out.append(node)
         return out
     if t == "files" and file_nodes:
@@ -312,7 +313,7 @@ def _add_mark(node: dict[str, Any], mark_type: str) -> dict[str, Any]:
     marks = list(out.get("marks") or [])
     if not any(m.get("type") == mark_type for m in marks):
         marks.append({"type": mark_type})
-    out["marks"] = marks
+    out["marks"] = exclusive_marks(marks)  # a code caption run stays code (D3 item 2)
     return out
 
 
@@ -358,7 +359,7 @@ def _rich_text_to_inline(rich_text: list[dict[str, Any]] | None) -> list[dict[st
             if href and text:
                 marks = _annotations_to_marks(rt.get("annotations") or {})
                 marks.append({"type": "link", "attrs": {"href": href}})
-                items.append({"type": "text", "text": text, "marks": marks})
+                items.append({"type": "text", "text": text, "marks": exclusive_marks(marks)})
                 continue
             # A user/date/template mention, or one with no URL to point at,
             # degrades to its plain text — never dropped.
@@ -371,6 +372,7 @@ def _rich_text_to_inline(rich_text: list[dict[str, Any]] | None) -> list[dict[st
         href = rt.get("href")
         if href:
             marks.append({"type": "link", "attrs": {"href": _text_href(href)}})
+        marks = exclusive_marks(marks)
         if text:
             items.append({"type": "text", "text": text, "marks": marks} if marks else {"type": "text", "text": text})
     return items

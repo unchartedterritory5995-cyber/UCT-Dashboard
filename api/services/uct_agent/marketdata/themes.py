@@ -128,12 +128,13 @@ def read_themes(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no per-use
         return env.unavailable(kind, params, SOURCE, f"no theme has a {period} return yet")
     rows.sort(key=lambda r: r["return_pct"], reverse=(order == "leaders"))
 
-    latest = bars_fetch._last_closed_session_yyyymmdd()
+    from api.services.uct_agent.marketdata.sessions import last_completed_session
+    latest = last_completed_session()          # half days count from their own close (agent-qa F-23)
     generated = _parse(payload.get("generated_at"))
     stale = False
     notes = [NOTE_EQUAL_WEIGHT]
     if generated is not None:
-        gen_session = bars_fetch._last_closed_session_yyyymmdd(now=generated.astimezone(_ET))
+        gen_session = last_completed_session(now=generated.astimezone(_ET))
         if gen_session < latest:
             stale = True
             s = str(latest)

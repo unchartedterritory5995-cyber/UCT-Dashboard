@@ -85,7 +85,7 @@
  *  v6 unmatched bool, moved for-bound, continued switch arms). */
 /** 4 = the plot lane withholds a var filled from a ta.* call in a block that skips (C48);
  *  a function reading a var written later is refused; hiding colours withhold the whole output. */
-export const SCRIPT_ENGINE_VERSION = 4
+export const SCRIPT_ENGINE_VERSION = 5
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */

@@ -20,6 +20,7 @@ Reasons:
   * CLIENT_REASONS -- what the file importer in the browser writes (Plan B).
   * PLUGIN_REASONS -- what only the Obsidian plugin path writes (Plan C). Plan C's shared
     meanings (`too_large`, `storage_limit`, `fetch_failed`) use the codes above.
+  * REPAIR_REASONS -- what the import repair writes (Plan F) for media an earlier import lost.
 An UNKNOWN reason reads as `unsupported`: never blank, never a crash. A hyphenated code
 (`too-large`, Plan C's spelling) reads as its snake_case twin.
 
@@ -52,7 +53,11 @@ CLIENT_REASONS: tuple[str, ...] = (
 #: Plan C (the Obsidian plugin), plugin-only meanings. Codes converted to snake_case.
 PLUGIN_REASONS: tuple[str, ...] = (
     "obsidian_plugin_outdated", "obsidian_attachments_unavailable", "not_found", "sync_off")
-NOTICE_REASONS: tuple[str, ...] = SERVER_REASONS + CLIENT_REASONS + PLUGIN_REASONS
+#: Plan F (the import repair). `missing_from_import` marks media an earlier import lost; it is
+#: final (only `fetch_failed` retries) and names the way back, Re-import to recover. Appended
+#: LAST: the client list must match this one in order.
+REPAIR_REASONS: tuple[str, ...] = ("missing_from_import",)
+NOTICE_REASONS: tuple[str, ...] = SERVER_REASONS + CLIENT_REASONS + PLUGIN_REASONS + REPAIR_REASONS
 
 MEDIA_RETRY_MAX_ATTEMPTS = 3
 
@@ -86,6 +91,10 @@ NOTICE_COPY: Mapping[str, str] = MappingProxyType({
     "obsidian_attachments_unavailable": "{name} wasn't synced yet. It will be retried on the next sync.",
     "not_found": "{name} wasn't found in the vault.",
     "sync_off": "{name} wasn't synced because image and file sync is turned off in the plugin settings.",
+    # Plan F (import repair): final, and it names the way back.
+    "missing_from_import": (
+        "{name} didn't come over in the original import. Import the same export again with "
+        "Re-import to recover turned on to bring it back"),
 })
 
 #: What the renderer appends, as a link, when `sourceUrl` is a safe http(s) address.

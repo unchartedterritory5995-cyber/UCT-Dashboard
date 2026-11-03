@@ -33,7 +33,9 @@ export const GROUPS = [
   // Charts operator P1 (2026-10-27): the rest of a chart's own controls, in their OWN group so the NL-1 core
   // (charts + indicators + screener + agent ≤ 45) keeps its size — templates (save / delete), one chart's
   // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
-  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only', domains: ['chartSetup'], fillLast: true,
+  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)', domains: ['chartSetup'], fillLast: true,
+    // W1-B B-06: Replay Mode is a chart control too — here by action name, so the NL-1 core (charts group) keeps its size
+    actions: ['chart.replay'],
     words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
@@ -44,7 +46,9 @@ export const GROUPS = [
       /\b(grid|2 ?x ?2|2 by 2|side[\s-]by[\s-]side|next to each other|stacked|split (the )?screen)\b/] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
-  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)', domains: ['board'], fillLast: true,
+  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)', domains: ['board'], fillLast: true,
+    // W1-B B-05: widget.setOption here by action name — the workspace group was exactly at the NL-1 reroute budget
+    actions: ['widget.setOption'],
     words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) chart\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
@@ -78,6 +82,13 @@ export const GROUPS = [
       /\b(make|turn|colou?r|paint)\b.*\bthe \d{1,3}\b.*\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y)\b/] },
   { id: 'definitions', title: 'Indicator definitions: search UCT\'s and your own indicators, describe one, save a copy, delete one of yours', domains: ['definition'], fillLast: true,
     words: [/\b(my|saved|custom|own) indicators?\b/, /\bindicators? (for|that|which|to)\b/, /\b(find|search|look for|what) .*\bindicators?\b/, /\b(describe|explain|what does)\b.*\b(indicator|rsi|macd|atr|study)\b/, /\b(delete|remove|copy|duplicate)\b.*\b(my|saved|custom)\b(?:\s+[a-z0-9-]+){0,3}\s+(indicator|formula|study)\b/] },
+  // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
+  // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
+  // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
+  { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP', domains: [], fillLast: true,
+    actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap'],
+    words: [/\b(draw|add|put|place|plot|anchor|drop|mark)\b.*\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|boxe?s?|notes?|text|anchored vwap|avwap)\b/,
+      /\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|anchored vwap|avwap)\b.*\b(from|between|starting|anchored|since)\b/, /\banchored vwap\b|\bavwap\b/] },
   { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
     words: [/\bdraw\w*\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
   { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)', domains: ['watchlist'],
@@ -105,7 +116,13 @@ export const GROUPS = [
       /\b(rsi|adx|cci|stochastics?|mfi)\s*(is |reading |readings? )?(over|above|under|below|greater than|less than|>|<)\s*-?\d+/,
       /\b(ema|sma|ma)\s*\d+\s+cross\w*\s+(above|below|over|under)\b/, /\b(macd|rsi|momentum) (just )?(turned|turning|crossed|went) (positive|negative|up|down|bullish|bearish)\b/,
       /\bshort (float|interest)\b/, /\b(earnings|reporting|reports?|report) (in|within) the next \d+ (days?|weeks?)\b|\b(reporting|earnings) (this|next) week\b/,
-      /\bsectors?'? leaders\b|\bleaders (in|of) (the )?(strongest|top|leading|best) (sectors?|groups?|industries)\b/],
+      /\bsectors?'? leaders\b|\bleaders (in|of) (the )?(strongest|top|leading|best) (sectors?|groups?|industries)\b/,
+      // COUNT / LIST OF STOCKS ON A MOVE (2026-11-03, production miss): "how many stocks are up more than 5% today",
+      // "which stocks gained over 5%", "stocks up more than 5%" named no screen word, so the model never saw the
+      // screener and answered from the web. A question over a UNIVERSE of stocks — never one named ticker ("is
+      // NVDA up more than 5%" stays a quote). turn.py `is_screen_question` (a stricter subset) drops web research.
+      /\b(how many|which|what) (stocks|names|tickers|equities)\b/,
+      /\b(stocks|names|tickers|equities) (are |were |that are |that were )?(up|down|gained|lost|gaining|losing|rose|fell|rising|falling|green|red)\b/],
     // ⭐ Gate B (0C): TRADING VOCABULARY that names a SCREEN without the word "screen" (soft, see
     // selectGroups). Routing only: it changes which actions the model SEES first, never what a word
     // means (meanings are Phase 1B) and never drops a group that would otherwise have been sent.
@@ -115,6 +132,12 @@ export const GROUPS = [
       /\b(sort (it|them|that|by)|only the ones|same thing but|just (the )?(large|small|mid)[- ]?caps)\b/] },
   { id: 'alerts', title: 'Price alerts (list, create, delete)', domains: ['alert'],
     words: [/\balerts?\b/, /\b(notify|ping|tell) me\b/, /\b(crosses|breaks|hits)\b/] },
+  // ⭐ W1-B B-03: INDICATOR alerts (RSI, MACD…) in their own small group, `fillLast` like every specialised group — so the
+  // fallback fill for a message nothing named still carries the screener (F-SB-1: every discovery question reaches the
+  // planner with it) exactly as before. Named by an alert word beside an indicator word, or pause / resume.
+  { id: 'indicatorAlerts', title: 'Indicator alerts on a chart\'s indicators — RSI, MACD, bands… (create, pause / resume, delete)', domains: ['indicatorAlert'], fillLast: true,
+    words: [/\b(alerts?|notify|ping me|tell me when|let me know when)\b.*\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?|overbought|oversold)\b/,
+      /\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?)\b.*\b(alerts?|notify|ping me)\b/, /\b(pause|resume|re-?arm)\b.*\balerts?\b/] },
   { id: 'data', title: 'Stock information and news (profile, earnings, comparisons, news, catalysts)', domains: ['stock', 'news'],
     words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do)\b/],
     // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"
@@ -148,6 +171,8 @@ const tickerWords = (raw) => (String(raw).match(/(?:^|[\s$])([A-Z]{1,5})(?=[\s,.
   .map(w => w.trim().replace('$', '')).filter(w => !NOT_TICKERS.has(w))
 
 const BY_DOMAIN = new Map(GROUPS.flatMap(g => g.domains.map(d => [d, g.id])))
+// a group may claim whole ACTION NAMES (W1-B drawingTools): checked before the name's domain
+const BY_ACTION = new Map(GROUPS.flatMap(g => (g.actions || []).map(a => [a, g.id])))
 // ⭐ Memoised per action name: BY_DOMAIN is a module constant, so a name's group never changes. Selection
 // asks this per action per group per reroute (the eval's reroute table is ~100 selections per request), and
 // the split allocated on every call (2026-10-28: 85% of agentNl1SelectionCoverage's time after PR #481).
@@ -158,7 +183,7 @@ export const groupOfAction = (name) => {
   const key = String(name || '')
   const hit = GROUP_MEMO.get(key)
   if (hit !== undefined) return hit
-  const id = BY_DOMAIN.get(key.split('.')[0]) || null
+  const id = BY_ACTION.get(key) || BY_DOMAIN.get(key.split('.')[0]) || null
   if (GROUP_MEMO.size < GROUP_MEMO_MAX) GROUP_MEMO.set(key, id)
   return id
 }
