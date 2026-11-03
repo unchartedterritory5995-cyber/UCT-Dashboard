@@ -89,6 +89,8 @@ NAME_UNKNOWN_GUARDS = {
     "runtime": set(cm.NAME_UNKNOWN) | {"runtime:unbound"},
 }
 
+TIMEOUT_GUARD = "pine:timeout"     # the door's wall-clock limit: a measurement of the machine, not of the script
+
 # A capture's SUBJECT is what it was written to measure. The two legacy formats are purpose-built (one plotted
 # value per named function, or a probe script per question); a community script captured as `harness-v1` uses
 # dozens of items incidentally, so one such capture cannot say which of them it exercised.
@@ -232,6 +234,10 @@ class Evidence:
     rails    ids of reference-formula rails (the reference publishes a formula for the item)
     defrails ids of rails that compare to a DEFINITION only (the reference publishes no formula): informative, not exact
     diffs    ids of declared differences between this engine and TradingView for the item
+    diverged {lane: {digest}}: the source digests of captures the harness graded DIVERGE in that lane. A script that
+             diverges on ANY symbol is not a witness for the items it uses, on any symbol
+    timedOut {lane: [(basis, key)]}: asks the door answered with a wall-clock timeout (`pine:timeout`). That is how
+             long THIS machine took, not a fact about the script, so such an ask is unanswered and blames nothing
     """
 
     def __init__(self):
@@ -239,6 +245,8 @@ class Evidence:
             return collections.defaultdict(lambda: collections.defaultdict(list))
         self.accept, self.refuse, self.vendor = tree(), tree(), tree()
         self.rails, self.defrails, self.diffs = tree(), tree(), tree()
+        self.diverged = collections.defaultdict(set)
+        self.timedOut = collections.defaultdict(list)
 
     def add_vendor(self, it, lane, cid, subject, digest):
         self.vendor[it][lane].append((cid, bool(subject), digest))
@@ -364,12 +372,21 @@ def ingest_script(ev, row, src, inv, name_kinds, basis, key, documented=None):
             for it in credit:
                 ev.accept[it]["host"].append((basis, key))
         else:
+            # ⛔ `pine:timeout` is how long THIS machine took, never a limit of the script: on the next pass the same
+            # script can come back clean or refused. A refusal with that guard blames nothing, and the walls behind
+            # it (the peel) are not read at all, because which of them show depends on the load of the run.
+            timed_out = False
             for r in h.get("refusals") or []:
+                if r.get("guard") == TIMEOUT_GUARD:
+                    timed_out = True
+                    continue
                 it = resolve_token(r.get("token"), version, r.get("guard"), inv, name_kinds, r.get("text"))
                 if it:
                     ev.refuse[it]["host"].append((basis, r.get("guard") or "unnamed", key))
                 for sit in syntax_blame(r.get("guard"), r.get("text"), name_kinds):
                     ev.refuse[sit]["host"].append((basis, r.get("guard"), key))
+            if timed_out:
+                ev.timedOut["host"].append((basis, key))
             named = [(n, "objects:unsupported") for n in h.get("unsupported") or []]
             named += [(n, "objects:loop-blocked") for n in h.get("loopBlockedCalls") or []]
             # the walls BEHIND the first: the production door asked again with each refused line neutralised
@@ -377,8 +394,8 @@ def ingest_script(ev, row, src, inv, name_kinds, basis, key, documented=None):
             # ⛔ the peel stops at the first wall-clock timeout: `pine:timeout` is how long THIS machine took, so the
             # walls behind it depend on the load of the run (one 21 s script took 45 s on the next pass). Reading on
             # would make the same engine score differently from one run to the next.
-            for step in row.get("hostPeel") or []:
-                if step.get("guard") == "pine:timeout":
+            for step in [] if timed_out else (row.get("hostPeel") or []):
+                if step.get("guard") == TIMEOUT_GUARD:
                     break
                 for r in step.get("refusals") or []:
                     it = resolve_token(r.get("token"), version, r.get("guard"), inv, name_kinds, r.get("text"))
@@ -507,10 +524,11 @@ def _plots_of(src):
     return out
 
 
-def compared_plot_items(src, uncompared_titles, inv):
+def compared_plot_items(src, uncompared_titles, inv, untitled_ok=False):
     """The items the COMPARED plots of a purpose-built script exercise: each compared plot's own expression, with a
     plain name expanded to the statement that binds it (`hma20 = ta.hma(close, 20)`; `[a, b] = ta.macd(...)`). A
-    plot with no readable title cannot be told apart from an uncompared one, so it credits nothing."""
+    plot with no readable title cannot be told apart from an uncompared one, so it credits nothing, unless the
+    caller knows NO plot went uncompared (`untitled_ok`: a native capture with an empty `notCompared`)."""
     binds = {}
     for line in src.splitlines():
         t = re.match(r"^\s*\[([\w\s,]+)\]\s*=\s*(.+)$", line)
@@ -523,7 +541,7 @@ def compared_plot_items(src, uncompared_titles, inv):
             binds[b.group(1)] = b.group(2)
     texts = []
     for title, expr in _plots_of(src):
-        if title is None or title in uncompared_titles:
+        if (title is None and not untitled_ok) or title in uncompared_titles:
             continue
         seen, frontier = set(), [expr]
         while frontier:
@@ -547,22 +565,65 @@ def _unmeasured_beyond_colour(value):
     return bool(value)
 
 
+# What the native harness (`harness-v1`) never measures, by the item's family. The harness compares every plot's
+# values bar by bar, plot colours, and the COUNT, TEXT and (paired) COLOUR of drawn objects; its own verdict says
+# "coordinates are NOT compared by v1", and sizes, styles, positions and placement are not measured at all. An item
+# of these families can therefore be exercised by a MATCH capture without anything about it having been compared.
+OBJECT_FAMILIES = frozenset({
+    "line", "linefill", "box", "label", "table", "polyline", "chart", "size", "position", "text", "shape",
+    "location", "display", "xloc", "yloc", "extend", "font"})
+STYLE_PREFIXES = ("plot.style_", "plot.linestyle_", "hline.style_")
+COLOUR_FAMILY = "color"
+
+
+def _family(name):
+    return name.split(".", 1)[0]
+
+
+def _v1_compares(item, result):
+    """Whether a `harness-v1` MATCH compared what this item would make the script do.
+
+    Object-family items (and plot styles) need an objects comparison that covers coordinates and styles: none
+    does today (`objects.reason` says "coordinates are NOT compared by v1"; a capture whose two sides draw no
+    object compared nothing of them). Colour items need colour to have been measured."""
+    _kind, name = item
+    if name.startswith(STYLE_PREFIXES) or _family(name) in OBJECT_FAMILIES:
+        reason = (result.get("objects") or {}).get("reason") or ""
+        return bool(reason) and "NOT compared" not in reason and "neither side draws" not in reason
+    if _family(name) == COLOUR_FAMILY:
+        nm = result.get("notMeasured")
+        return not (isinstance(nm, list) and "colour" in nm)
+    return True
+
+
+def _source_digest(src):
+    return hashlib.sha1(re.sub(r"\s+", "", src).encode("utf-8")).hexdigest()[:12]
+
+
 def ingest_vendor(ev, verdicts, lane, inv, capture_lanes=None):
     """Graded MATCH captures, per lane, credited by how the harness compared them.
 
     A native capture (`harness-v1`) is credited only when EVERY output was compared and agreed (nothing in
-    `notCompared`, nothing unmeasured), and then every item in its source. A purpose-built observation or probe
-    compares ONE plot against the vendor's reading and lists the rest as `notCompared`, so it credits only the
-    items of the plots that WERE compared. For the runtime lane a capture counts only when the runtime lane DREW it
-    (a capture the host lane drew says nothing about the runtime lane)."""
+    `notCompared`, nothing unmeasured), and then only the items that reach an output the harness actually
+    compared: the items of its plots' own expressions (see `compared_plot_items`), never an item that merely
+    appears in the source, and no object-family or colour item the harness did not measure (`_v1_compares`).
+    A purpose-built observation or probe compares ONE plot against the vendor's reading and lists the rest as
+    `notCompared`, so it credits only the items of the plots that WERE compared. For the runtime lane a capture
+    counts only when the runtime lane DREW it (a capture the host lane drew says nothing about the runtime lane).
+    A capture graded DIVERGE marks its script's digest diverged in that lane (`Evidence.diverged`)."""
     counted = 0
     for r in verdicts.get("results", []):
+        if lane == "runtime" and (capture_lanes or {}).get(r["file"]) != "runtime":
+            continue
+        if r.get("verdict") == "DIVERGE":
+            dsrc = capture_source(os.path.join(ROOT, r["file"]))
+            if dsrc:
+                ev.diverged[lane].add(_source_digest(dsrc))
+            continue
         if r.get("verdict") != "MATCH" or _unmeasured_beyond_colour(r.get("notMeasured")):
             continue
         subject = r.get("format") in SUBJECT_FORMATS
         if not subject and r.get("notCompared"):
-            continue
-        if lane == "runtime" and (capture_lanes or {}).get(r["file"]) != "runtime":
             continue
         src = capture_source(os.path.join(ROOT, r["file"]))
         if not src:
@@ -570,12 +631,13 @@ def ingest_vendor(ev, verdicts, lane, inv, capture_lanes=None):
         if subject:
             skipped = {x.get("title") for x in (r.get("notCompared") or []) if isinstance(x, dict)}
             uses = compared_plot_items(src, skipped, inv)
-            if not uses:
-                continue
         else:
-            uses, _features = item_uses(src, inv)
+            # nothing in `notCompared`, so every plot was compared, titled or not
+            uses = {it for it in compared_plot_items(src, set(), inv, untitled_ok=True) if _v1_compares(it, r)}
+        if not uses:
+            continue
         counted += 1
-        digest = hashlib.sha1(re.sub(r"\s+", "", src).encode("utf-8")).hexdigest()[:12]
+        digest = _source_digest(src)
         for it in uses:
             if it[1].startswith(cm.UNGRADED_PREFIXES):
                 continue            # the harness grades plots, paints and objects: never orders, alerts or logs
@@ -643,6 +705,9 @@ def ingest_probe(ev, row, p, inv, name_kinds):
                 ev.accept[it]["host"].append(("probe", p["key"]))
         else:
             for r in h.get("refusals") or []:
+                if r.get("guard") == TIMEOUT_GUARD:
+                    ev.timedOut["host"].append(("probe", p["key"]))
+                    continue
                 named = resolve_token(r.get("token"), 6, r.get("guard"), inv, name_kinds, r.get("text"))
                 # a token that is ANOTHER item (the `str.length` a probe wraps a string in) blames that wrapper's own
                 # question, never this item's
@@ -679,8 +744,9 @@ def _count(pairs):
 def lane_record(ev, it, lane, unknown=None):
     """One item's answer in one lane, with the evidence it rests on.
 
-    EXACT          the lane draws it AND a rail from the reference's published formula or a fully
-                   compared MATCH vendor capture says it equals TradingView, AND no declared difference
+    EXACT          a door accepted it in this run AND a rail from the reference's published formula or a
+                   fully compared MATCH vendor capture (of a script no capture graded DIVERGE) says it equals
+                   TradingView, AND no declared difference
     SUPPORTED      a door accepted it (or a capture proves it) and nothing proves it exact: unproven, or
                    known to differ
     REFUSED        known by name, refused with a guard
@@ -689,9 +755,13 @@ def lane_record(ev, it, lane, unknown=None):
     acc = ev.accept.get(it, {}).get(lane, [])
     ref = ev.refuse.get(it, {}).get(lane, [])
     vend_all = ev.vendor.get(it, {}).get(lane, [])
-    subject_ids = sorted({c for c, subj, _d in vend_all if subj})
-    script_digests = {d for _c, subj, d in vend_all if not subj}
-    vend = subject_ids if subject_ids else (sorted({c for c, subj, _d in vend_all if not subj})
+    # a script the harness graded DIVERGE on any symbol is no witness on any symbol
+    bad = ev.diverged.get(lane, set())
+    vend_ok = [v for v in vend_all if v[2] not in bad]
+    divergent = {d for _c, _s, d in vend_all if d in bad}
+    subject_ids = sorted({c for c, subj, _d in vend_ok if subj})
+    script_digests = {d for _c, subj, d in vend_ok if not subj}
+    vend = subject_ids if subject_ids else (sorted({c for c, subj, _d in vend_ok if not subj})
                                             if len(script_digests) >= CORROBORATION else [])
     rails = ev.rails.get(it, {}).get(lane, [])
     defr = ev.defrails.get(it, {}).get(lane, [])
@@ -700,7 +770,9 @@ def lane_record(ev, it, lane, unknown=None):
     supported = bool(acc or vend_all or rails)
     guard = None
     if supported:
-        status = EXACT if ((vend or rails) and not diffs) else SUPPORTED
+        # EXACT also needs a door to have accepted the item in THIS run: a lane that refused it every time it was
+        # asked does not draw it, whatever a capture's source happens to contain
+        status = EXACT if ((vend or rails) and acc and not diffs) else SUPPORTED
     elif ref:
         unknown = (unknown or NAME_UNKNOWN_GUARDS)[lane]
         status = MISSING if set(guards) <= unknown else REFUSED
@@ -722,12 +794,16 @@ def lane_record(ev, it, lane, unknown=None):
     if ref and not supported:
         ev_rec["refused"] = dict(sorted(guards.items()))
     if vend_all:
-        ev_rec["vendorMatches"] = len({c for c, _s, _d in vend_all})
+        ev_rec["vendorMatches"] = len({c for c, _s, _d in vend_ok})
         ev_rec["vendorSubjectCaptures"] = len(subject_ids)
         ev_rec["vendorScripts"] = len(script_digests)
-        ev_rec["vendor"] = sorted({c for c, _s, _d in vend_all})[:4]
+        ev_rec["vendor"] = sorted({c for c, _s, _d in vend_ok})[:4]
+        if divergent:
+            ev_rec["vendorDivergentScripts"] = len(divergent)
         if not vend:
             ev_rec["vendorNotCorroborated"] = True
+    if (vend or rails) and not acc and supported and not diffs:
+        ev_rec["noDoorAcceptance"] = True
     if rails:
         ev_rec["rails"] = sorted(set(rails))
     if defr:
@@ -763,18 +839,26 @@ METHOD = [
     "(`pine:function`, `pine:builtin` in the host lane; in the runtime lane whatever it answers to the two unknown-name "
     "controls every run asks, with `runtime:unbound` as the floor) is MISSING; any other guard is REFUSED and is named. "
     "The runtime lane names one wall per ask, so a refused script is asked again with each refused line neutralised "
-    "(up to eight times); the later walls name items by their token and never credit anything. An item with no "
-    "attributable answer is UNANSWERED, never counted as refused or missing.",
-    "EXACT needs proof, and only two kinds count. (1) A vendor capture the harness graded MATCH, every output compared "
-    "(nothing in `notCompared` or `notMeasured`), whose source uses the item, in THAT lane: the host lane's captures "
-    "are the production run's, and a capture counts for the runtime lane only when the runtime lane drew it. The link "
-    "from a capture to an item is presence in the source, so it is tiered: a purpose-built observation or probe "
-    "credits its items alone, while a community script captured whole uses dozens of items incidentally, so an item "
-    "it merely uses needs TWO distinct scripts (one script on two symbols is still one script). An item one such "
-    "capture touches stays SUPPORTED and is marked not corroborated. (2) A reference-formula rail from the registry, "
-    "counted only when it compares every bar AND TradingView's own reference publishes a formula or a reference "
-    "implementation for the item. A rail against a definition the reference does not publish is recorded and proves "
-    "nothing about TradingView.",
+    "(up to eight times); the later walls name items by their token and never credit anything. A wall-clock "
+    "timeout (`pine:timeout`) is how long the machine took, not a limit of the script: an ask that ends in one, "
+    "whether a script's main attempt or a probe, blames nothing and is unanswered (the walls behind a script's "
+    "timed-out main attempt are not read either). An item with no attributable answer is UNANSWERED, never counted "
+    "as refused or missing.",
+    "EXACT needs proof, and only two kinds count; a door must also have ACCEPTED the item in this run (an item every "
+    "ask refused is not drawn, whatever a capture's source contains). (1) A vendor capture the harness graded MATCH, "
+    "every output compared (nothing in `notCompared` or `notMeasured`), in THAT lane: the host lane's captures are "
+    "the production run's, and a capture counts for the runtime lane only when the runtime lane drew it. The link "
+    "from a capture to an item is the item's presence in what the harness COMPARED, not in the source: a native "
+    "capture credits only the items of its plots' own expressions (a plot's values are compared bar by bar), and "
+    "never an object-family item (line, label, box, table, size, position, text, shape, location, display, xloc, "
+    "yloc, extend, chart, plot styles: the harness says \"coordinates are NOT compared by v1\" and measures no sizes, "
+    "styles or positions) nor a colour item when colour was not measured. A purpose-built observation or probe "
+    "credits the items of its compared plots alone, while a community script captured whole needs TWO distinct "
+    "scripts (one script on two symbols is still one script; a script any capture graded DIVERGE, on any symbol, "
+    "counts for nothing). An item one such capture touches stays SUPPORTED and is marked not corroborated. (2) A "
+    "reference-formula rail from the registry, counted only when it compares every bar AND TradingView's own "
+    "reference publishes a formula or a reference implementation for the item. A rail against a definition the "
+    "reference does not publish is recorded and proves nothing about TradingView.",
     "A DECLARED DIFFERENCE (the engine's own vendor notes and its accepted or open divergence ledger) keeps an item "
     "at SUPPORTED however many captures matched: a capture that matches in steady state does not erase a documented "
     "difference at the edges.",
@@ -818,7 +902,8 @@ def build_scoreboard(ref, coverage, ev, items, formulas, usage, dl, unknown=None
         rs = [r for r in recs if r["namespace"] == ns]
         head["byNamespace"][ns] = {"items": len(rs), **{lane: tally(r[lane] for r in rs) for lane in LANES}}
     head["partial"] = {lane: sum(1 for r in recs if r[lane].get("partial")) for lane in LANES}
-    head["knownDifference"] = {lane: sum(1 for r in recs if r[lane].get("knownDifference")) for lane in LANES}
+    head["knownDifference"] = {lane: sum(1 for r in recs if r[lane].get("knownDifference")
+                                         and r[lane]["status"] in (EXACT, SUPPORTED)) for lane in LANES}
     ranked = {"refusedOrMissing": {}, "nextRails": {}, "runtimeAdds": [], "knownDifferences": [], "unanswered": {},
               "unansweredTop": {}}
     for lane in LANES:
@@ -828,11 +913,12 @@ def build_scoreboard(ref, coverage, ev, items, formulas, usage, dl, unknown=None
             {"kind": r["kind"], "name": r["name"], "usage": r["usage"], "status": r[lane]["status"],
              "guard": r[lane].get("guard"), **({"dataLimited": r["dataLimited"]} if r.get("dataLimited") else {})}
             for r in bad]
-        nxt = [r for r in recs if r[lane]["status"] == SUPPORTED and r.get("publishedFormula")]
+        # an item with a declared difference is not "one rail away": no rail lifts it, it is section 5's
+        nxt = [r for r in recs if r[lane]["status"] == SUPPORTED and r.get("publishedFormula")
+               and not r[lane].get("knownDifference")]
         nxt.sort(key=lambda r: (r["publishedFormula"] != "implementation", -r["usage"], _kind_rank(r["kind"]), r["name"]))
         ranked["nextRails"][lane] = [
             {"kind": r["kind"], "name": r["name"], "usage": r["usage"], "publishedFormula": r["publishedFormula"],
-             **({"knownDifference": r[lane]["knownDifference"]} if r[lane].get("knownDifference") else {}),
              **({"definitionRails": r[lane]["evidence"]["definitionRails"]}
                 if r[lane].get("evidence", {}).get("definitionRails") else {})}
             for r in nxt]
@@ -947,6 +1033,9 @@ def cmd_build(a):
         summary["probes"] = {"planned": len([p for p in plan.values() if not p.get("control")]), "answered": n}
         summary["controls"] = check_controls(plan, prows, unknown)
 
+    summary["timedOut"] = {"host": {"scripts": sum(1 for b, _k in ev.timedOut["host"] if b != "probe"),
+                                    "probes": sum(1 for b, _k in ev.timedOut["host"] if b == "probe")}}
+
     # 3. the engine's declared functions through the Pine door, both lanes
     for lane, path in (("host", a.engine_door), ("runtime", a.engine_door_runtime)):
         if path:
@@ -1056,9 +1145,10 @@ def render_md(out):
     L.append("> **Runtime lane (dark): %d of %d are EXACT (%s).** %d supported but unproven, %d refused, %d missing, %d unanswered."
              % (r[EXACT], M, _pct(r[EXACT], M), r[SUPPORTED], r[REFUSED], r[MISSING], r[UNANSWERED]))
     L.append("")
-    L.append("**EXACT is a high bar and deliberately so.** It needs a TradingView capture the harness graded MATCH with every "
-             "output compared, or a rail built from a formula TradingView itself publishes, and it is withheld from any item "
-             "with a declared difference. \"Supported, unproven\" is the honest word for an item a lane draws that nothing "
+    L.append("**EXACT is a high bar and deliberately so.** It needs a door to have accepted the item in this run AND either a "
+             "TradingView capture the harness graded MATCH with every output compared, crediting only the items that reach an "
+             "output the harness compared, or a rail built from a formula TradingView itself publishes; it is withheld from "
+             "any item with a declared difference. \"Supported, unproven\" is the honest word for an item a lane draws that nothing "
              "has yet been shown to match: it is not a defect, it is the evidence queue.")
     L.append("")
     rows = []
@@ -1069,7 +1159,7 @@ def render_md(out):
     L += _md_table(["lane", "exact", "supported, unproven", "refused", "missing", "unanswered", "of which partial", "of which known difference"], rows)
     L.append("")
     L.append("`partial` counts items accepted somewhere and refused elsewhere (they keep their best status). `known difference` "
-             "counts supported items held below EXACT by a declared difference. Both are inside the status columns, not extra.")
+             "counts supported items (exact or supported, unproven) that carry a declared difference. Both are inside the status columns, not extra.")
     L.append("")
     L.append("### 1.1 Per kind")
     L.append("")
@@ -1120,6 +1210,10 @@ def render_md(out):
                      ", ".join("`%s`" % g for g in fn.get("runtimeGuards", [])) or "nothing",
                      ", ".join("`%s`" % g for g in var.get("hostGuards", [])) or "nothing",
                      ", ".join("`%s`" % g for g in var.get("runtimeGuards", [])) or "nothing"))
+    to = (inp.get("timedOut") or {}).get("host") or {}
+    if to.get("scripts") or to.get("probes"):
+        L.append("- **Wall-clock timeouts**: %d host-lane script asks and %d probes ended in `pine:timeout` (how long this machine "
+                 "took, not a fact about the script); they blame nothing and count as unanswered." % (to.get("scripts", 0), to.get("probes", 0)))
     for lane in LANES:
         d = (inp.get("engineDoor") or {}).get(lane)
         if d:
@@ -1129,7 +1223,7 @@ def render_md(out):
         c = (inp.get("captures") or {}).get(lane)
         if c:
             extra = (", %d drawn by the runtime lane" % c["drawnByRuntimeLane"]) if "drawnByRuntimeLane" in c else ""
-            L.append("- **Vendor captures, %s**: %d graded %s%s; %d were fully compared MATCHes and credit their items."
+            L.append("- **Vendor captures, %s**: %d graded %s%s; %d fully compared MATCHes credited at least one item."
                      % (LANE_SHORT[lane], c["graded"], json.dumps(c["verdicts"]).replace('"', ""), extra, c["fullMatchesCredited"]))
     us = out["usageSource"]
     chk = inp.get("usageCheck") or {}
@@ -1167,7 +1261,7 @@ def render_md(out):
     L.append("")
     L.append("## 4. The next conformance rails: supported, unproven, and TradingView publishes the formula")
     L.append("")
-    L.append("Each of these is one rail away from EXACT: the reference carries a Pine reimplementation (`implementation`) or "
+    L.append("Each of these is one rail away from EXACT (items with a declared difference are in section 5 instead: no rail lifts them): the reference carries a Pine reimplementation (`implementation`) or "
              "states the calculation (`stated`), so a test can difference our column against it with no capture. "
              "Implementations first, then by use. A `definition rail` is a rail that already compares to a definition the "
              "reference does not publish (informative, not proof).")
@@ -1177,8 +1271,7 @@ def render_md(out):
         L.append("### 4.%d %s: %d items" % (LANES.index(lane) + 1, LANE_SHORT[lane], len(lst)))
         L.append("")
         rows = [[_cell(x["name"]), x["kind"], x["usage"], x["publishedFormula"],
-                 "declared difference: " + ", ".join(x["knownDifference"]) if x.get("knownDifference") else (
-                     "definition rail: " + ", ".join(x["definitionRails"]) if x.get("definitionRails") else "")]
+                 "definition rail: " + ", ".join(x["definitionRails"]) if x.get("definitionRails") else ""]
                 for x in lst[:40]]
         L += _md_table(["item", "kind", "scripts using it", "formula", "note"], rows)
         if len(lst) > 40:
@@ -1215,8 +1308,11 @@ def render_md(out):
     L.append("")
     L.append("- **Door acceptance is not numeric parity.** SUPPORTED means a lane drew it; only EXACT says it equals TradingView, "
              "and only on the evidence named in the JSON for that item and lane.")
-    L.append("- **A capture MATCH credits every item in the capture's source.** The link is the item's presence in code the lane "
-             "drew whole and graded whole; an item sitting in code that feeds no output would be over-credited (none is known).")
+    L.append("- **A capture MATCH credits only what the harness compared.** A native capture credits the items of its plots' own "
+             "expressions (`plot(...)`, with a plain name followed to the statement that binds it), and no object-family or colour "
+             "item the harness did not measure. An item reached only through a function body, a loop, or a plotshape / plotchar / "
+             "bgcolor argument is not followed, so it is under-credited rather than over-credited; the harness compares no "
+             "object coordinates, sizes or styles, so those items stay SUPPORTED until a capture or rail measures them.")
     L.append("- **The runtime lane is asked only through its compile check.** It declines later (a request for other bars, the "
              "starter allowlist, a repaint class it cannot state) are not visible here beyond `runtime:request`.")
     L.append("- **Real scripts under-use the language**: items nobody wrote into a sample script rest on their probe or TradingView's "

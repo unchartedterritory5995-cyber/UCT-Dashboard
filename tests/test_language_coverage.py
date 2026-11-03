@@ -113,14 +113,28 @@ def test_acceptance_alone_is_supported_never_exact():
 def test_a_vendor_match_makes_it_exact_in_that_lane_only():
     ev = lc.Evidence()
     it = ("function", "ta.sma")
+    ev.accept[it]["host"].append(("sample", "s1"))
     ev.add_vendor(it, "host", "cap1", True, "d1")
     assert lc.lane_record(ev, it, "host")["status"] == lc.EXACT
     assert lc.lane_record(ev, it, "runtime")["status"] == lc.UNANSWERED
 
 
+def test_exact_needs_a_door_acceptance_in_this_run_whatever_a_capture_or_rail_says():
+    it = ("function", "ta.sma")
+    ev = lc.Evidence()
+    ev.add_vendor(it, "host", "cap1", True, "d1")                          # a capture credits it, no door ever accepted it
+    ev.refuse[it]["host"].append(("sample", "pine:collection", "k"))        # and every ask refused it
+    rec = lc.lane_record(ev, it, "host")
+    assert rec["status"] == lc.SUPPORTED and rec["evidence"]["noDoorAcceptance"] is True
+    ev2 = lc.Evidence()
+    ev2.rails[it]["host"].append("some-rail")
+    assert lc.lane_record(ev2, it, "host")["status"] == lc.SUPPORTED          # a rail alone is no door acceptance either
+
+
 def test_a_declared_difference_keeps_a_matched_item_at_supported():
     ev = lc.Evidence()
     it = ("function", "ta.sma")
+    ev.accept[it]["host"].append(("sample", "s1"))
     ev.add_vendor(it, "host", "cap1", True, "d1")
     ev.diffs[it]["host"].append("some-difference")
     rec = lc.lane_record(ev, it, "host")
@@ -268,7 +282,7 @@ def test_the_runtime_lane_is_credited_only_by_a_capture_the_runtime_lane_drew(tm
 
 def test_a_capture_never_credits_an_order_alert_or_log_item(tmp_path):
     _items, inv, _nk = loaded()
-    src = "//@version=6\nstrategy('t')\nstrategy.entry('l', strategy.long)\nplot(close)\n"
+    src = "//@version=6\nstrategy('t')\nplot(strategy.entry('l', strategy.long))\n"      # an order inside a compared plot
     ev = lc.Evidence()
     lc.ingest_vendor(ev, {"results": [_result(_capture(tmp_path, "s", src), "s")]}, "host", inv)
     assert ("function", "strategy.entry") not in ev.vendor and ("function", "plot") in ev.vendor
@@ -285,6 +299,7 @@ def _reg(**over):
 def test_an_every_bar_rail_on_a_published_formula_counts():
     items, _inv, _nk = loaded()
     ev = lc.Evidence()
+    ev.accept[("function", "ta.sma")]["host"].append(("sample", "s1"))
     assert lc.ingest_registry(ev, _reg(), items, formulas_of(items)) == []
     assert ev.rails[("function", "ta.sma")]["host"] == ["r1"]
     assert lc.lane_record(ev, ("function", "ta.sma"), "host")["status"] == lc.EXACT
@@ -582,6 +597,7 @@ def _community(tmp_path, name, extra=""):
 
 def _status_after(tmp_path, results):
     ev = lc.Evidence()
+    ev.accept[IT]["host"].append(("sample", "s1"))          # a door accepted ta.sma in the run
     _items, inv, _nk = loaded()
     lc.ingest_vendor(ev, {"results": results}, "host", inv)
     return lc.lane_record(ev, IT, "host")
@@ -687,6 +703,134 @@ def test_a_native_capture_with_anything_uncompared_credits_nothing_however_it_gr
     src = "//@version=6\nindicator('t')\nplot(ta.sma(close, 3))\n"
     lc.ingest_vendor(ev, {"results": [_result(_capture(tmp_path, "n1", src), "n1", not_compared=1)]}, "host", inv)
     assert not ev.vendor
+
+
+# ── a native capture credits only what the harness COMPARED ──
+def loaded_plus(*function_names):
+    ref = dict(REF, functions=REF["functions"] + [{"name": n, "desc": "x"} for n in function_names])
+    items = lc.reference_items(ref)
+    return items, lc.cm.Inventory(ref), lc.name_kinds_of(items)
+
+
+def test_a_native_capture_credits_only_the_items_its_compared_plots_reach(tmp_path):
+    _items, inv, _nk = loaded_plus("label.new")
+    src = ("//@version=6\nindicator('t')\nema3 = ta.ema(close, 3)\nlabel.new(bar_index, close, 'a')\n"
+           "plot(ta.sma(close, 3))\n")
+    ev = lc.Evidence()
+    assert lc.ingest_vendor(ev, {"results": [_result(_capture(tmp_path, "n2", src), "n2")]}, "host", inv) == 1
+    assert ("function", "ta.sma") in ev.vendor and ("function", "plot") in ev.vendor
+    assert ("function", "ta.ema") not in ev.vendor            # computed, never plotted: nothing compared it
+    assert ("function", "label.new") not in ev.vendor          # drawn, but the harness compared only its count and text
+
+
+OBJ_SRC = "//@version=6\nindicator('t')\nln = line.new(0, 1, 2, 3)\nplot(line.get_price(ln, bar_index))\n"
+
+
+@pytest.mark.parametrize("reason,credited", [
+    ("object counts and texts agree; colours agree on 5 paired slots; coordinates are NOT compared by v1", False),
+    ("neither side draws an object", False),
+    (None, False),                                                      # no objects comparison at all
+    ("object counts, texts, coordinates and styles agree", True),      # a comparison that DID cover them
+])
+def test_an_object_item_is_credited_only_by_a_comparison_that_covered_coordinates(tmp_path, reason, credited):
+    _items, inv, _nk = loaded_plus("line.new", "line.get_price")
+    r = _result(_capture(tmp_path, "obj", OBJ_SRC), "obj")
+    if reason:
+        r["objects"] = {"reason": reason}
+    ev = lc.Evidence()
+    lc.ingest_vendor(ev, {"results": [r]}, "host", inv)
+    assert ("function", "plot") in ev.vendor
+    assert (("function", "line.get_price") in ev.vendor) is credited
+    assert (("function", "line.new") in ev.vendor) is credited
+
+
+def test_a_colour_item_is_credited_only_when_colour_was_measured(tmp_path):
+    _items, inv, _nk = loaded_plus("color.r")
+    src = "//@version=6\nindicator('t')\nplot(color.r(color.red))\n"
+    for not_measured, credited in (([], True), (["colour"], False)):
+        ev = lc.Evidence()
+        lc.ingest_vendor(ev, {"results": [_result(_capture(tmp_path, "c", src), "c", not_measured=not_measured)]}, "host", inv)
+        assert (("function", "color.r") in ev.vendor) is credited
+        assert ("function", "plot") in ev.vendor
+
+
+# ── a script that DIVERGES on any symbol is no witness for the items it uses ──
+def test_a_script_that_diverges_on_another_symbol_does_not_corroborate(tmp_path):
+    rddt = _capture(tmp_path, "rddt", "//@version=6\nindicator('swing')\nplot(ta.sma(close, 3))\n")
+    spy = _capture(tmp_path, "spy", "//@version=6\nindicator('swing')\nplot(ta.sma(close, 3))\n")      # the same script
+    other = _community(tmp_path, "other")
+    rec = _status_after(tmp_path, [_result(rddt, "rddt"), _result(spy, "spy", verdict="DIVERGE"), _result(other, "other")])
+    assert rec["status"] == lc.SUPPORTED and rec["evidence"]["vendorNotCorroborated"] is True
+    assert rec["evidence"]["vendorScripts"] == 1 and rec["evidence"]["vendorDivergentScripts"] == 1
+    clean = _status_after(tmp_path, [_result(rddt, "rddt"), _result(other, "other")])        # without the divergence
+    assert clean["status"] == lc.EXACT
+
+
+def test_a_purpose_built_capture_of_a_script_that_diverges_elsewhere_proves_nothing(tmp_path):
+    ok = _observation(tmp_path, "ok", src=TITLED)
+    bad = _observation(tmp_path, "bad", src=TITLED, verdict="DIVERGE")
+    rec = _status_after(tmp_path, [ok, bad])
+    assert rec["status"] == lc.SUPPORTED and rec["evidence"]["vendorDivergentScripts"] == 1
+
+
+def test_a_divergence_counts_in_the_lane_that_drew_the_capture_only(tmp_path):
+    _items, inv, _nk = loaded()
+    src = "//@version=6\nindicator('t')\nplot(ta.sma(close, 3))\n"
+    host_drawn = _capture(tmp_path, "hd", src)
+    ev = lc.Evidence()
+    lc.ingest_vendor(ev, {"results": [_result(host_drawn, "hd", verdict="DIVERGE")]}, "runtime", inv, {host_drawn: "host"})
+    assert not ev.diverged
+    lc.ingest_vendor(ev, {"results": [_result(host_drawn, "hd", verdict="DIVERGE")]}, "host", inv)
+    assert len(ev.diverged["host"]) == 1
+
+
+# ── a wall-clock timeout is the machine's pace, not the script's limit ──
+def test_a_timeout_on_the_main_host_attempt_blames_nothing_and_its_peel_is_not_read():
+    _items, inv, nk = loaded()
+    row = {"host": {"clean": False, "attached": False,
+                    "refusals": [{"guard": "pine:timeout", "token": "ta.zzz", "line": 4, "text": "x = ta.zzz(close)"},
+                                 {"guard": "pine:block", "token": "for", "line": 3, "text": "for i = 0 to 3"}]},
+           "hostPeel": [{"attached": False, "guard": "pine:builtin",
+                         "refusals": [{"guard": "pine:builtin", "token": "time", "line": 5, "text": "y = time"}]}],
+           "runtime": {"ok": False, "guard": "runtime:statement", "token": None, "line": None}}
+    ev = lc.Evidence()
+    lc.ingest_script(ev, row, "//@version=6\nindicator('t')\nplot(ta.zzz(close))\ny = time\n", inv, nk, "sample", "k")
+    assert ("function", "ta.zzz") not in ev.refuse                      # the timeout's token is not blamed
+    assert ev.refuse[("keyword", "for")]["host"]                       # a real wall in the same ask still is
+    assert ("variable", "time") not in ev.refuse                        # nor is the wall the peel found behind it
+    assert ev.timedOut["host"] == [("sample", "k")]                     # and the script is recorded as unanswered
+
+
+def test_a_timeout_on_a_probe_blames_nothing():
+    _items, inv, nk = loaded()
+    ev = lc.Evidence()
+    row = {"host": {"clean": False, "refusals": [{"guard": "pine:timeout", "token": "array.push", "line": 4}]},
+           "runtime": {"ok": False, "guard": "runtime:array", "token": "array.push", "line": 9}}
+    lc.ingest_probe(ev, row, PROBE, inv, nk)
+    it = ("function", "array.push")
+    assert not ev.refuse[it]["host"] and ev.timedOut["host"] == [("probe", PROBE["key"])]
+    assert ev.refuse[it]["runtime"]                                     # the runtime lane has its own wall: untouched
+    assert lc.lane_record(ev, it, "host")["status"] == lc.UNANSWERED
+
+
+# ── the headline's known-difference column and section 4 ──
+def test_the_known_difference_column_counts_supported_items_only_and_next_rails_exclude_them():
+    items, _inv, _nk = loaded()
+    sma, ema = ("function", "ta.sma"), ("function", "ta.ema")
+    ev = lc.Evidence()
+    ev.diffs[sma]["host"].append("d1")                      # missing in the host lane: not a supported item
+    ev.refuse[sma]["host"].append(("sample", "pine:function", "k"))
+    ev.diffs[ema]["host"].append("d2")
+    ev.accept[ema]["host"].append(("sample", "s"))          # supported, with a declared difference
+    sub = {sma: items[sma], ema: items[ema]}
+    formulas = {sma: "implementation", ema: "implementation"}
+    _recs, head, ranked = lc.build_scoreboard({}, {}, ev, sub, formulas, {}, {})
+    assert head["knownDifference"]["host"] == 1
+    assert ranked["nextRails"]["host"] == []                # a declared difference is not one rail away from EXACT
+    assert [x["name"] for x in ranked["knownDifferences"]] == ["ta.ema"]
+    ev.diffs[ema]["host"].clear()
+    _recs, _head, ranked = lc.build_scoreboard({}, {}, ev, sub, formulas, {}, {})
+    assert [x["name"] for x in ranked["nextRails"]["host"]] == ["ta.ema"]
 
 
 # ── a probe's output must be able to VARY, and its refusal must be the item's own ──

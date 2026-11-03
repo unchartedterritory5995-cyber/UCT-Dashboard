@@ -11,7 +11,7 @@
       "oracle": "reference-formula",
       "scope": "every-bar",
       "items": [["function", "ta.swma"]],
-      "reads": "translatePine then interpret over 1,500 bars with holes; TradingView's pine_swma written as plain JS"
+      "reads": "translatePine then interpret over 1,500 bars with holes; TradingView's pine_swma written as plain JS. The test's `same()` helper asserts na-ness and value on EVERY bar inside its loop; the `toBeGreaterThan(1400)` only guards that enough bars were finite (not a tolerance for mismatches)"
     },
     {
       "id": "phase1-tsi",
