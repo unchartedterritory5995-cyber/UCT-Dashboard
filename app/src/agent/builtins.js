@@ -38,6 +38,7 @@ import { registerScreenerPageCapabilities } from './capabilities/screenerPage'
 import { registerBreadthPageCapabilities } from './capabilities/breadthPage'
 import { registerCalendarCapabilities } from './capabilities/calendar'
 import { registerJournalCapabilities } from './capabilities/journal'
+import { registerCoachCapabilities } from './capabilities/coach'
 
 let done = false
 export function registerBuiltins() {
@@ -85,4 +86,5 @@ export function registerServerGatedBuiltins() {
   registerResearchCapability()           // W2-B1 RS-1: research.ask while the server serves `research.company`
   registerHistoryCapability()            // W2-B2: history.afterEvent while the server serves `history.eventStudy`
   registerChartDescribeCapability()      // W2-B3: chart.describeSetup while the server serves `bars.daily`
+  registerCoachCapabilities()            // Wave 3 (W3-1..4): coach.* / journal.* while the server serves `coach` (UCT_AGENT_COACH)
 }

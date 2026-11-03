@@ -7,6 +7,7 @@
   "local_only_actions": [
     "breadth.history",
     "breadth.show",
-    "history.afterEvent"
+    "history.afterEvent",
+    "journal.reviewTrades"
   ]
 }
