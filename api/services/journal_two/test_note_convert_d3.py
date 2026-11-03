@@ -7,6 +7,8 @@ d3-brief.md`. The client lane's half of each item is pinned in
 
 from __future__ import annotations
 
+import json
+import pathlib
 from typing import Any
 
 import pytest
@@ -221,3 +223,28 @@ def test_the_engine_policy_keeps_a_host_like_link_and_drops_a_note_path():
     from api.services.journal_two.note_connectors.convert.linkify import finalize_links
     doc = md_to_tiptap("[a](www.example.com) [b](notes.md)")["doc"]
     assert _links(finalize_links(doc)) == [("a", "https://www.example.com")]
+
+
+# ── item 7: a block-level div is a paragraph boundary in the HTML walker ─────
+
+
+_HTML_VECTORS_PATH = (pathlib.Path(__file__).resolve().parents[3] / "app" / "src" / "pages"
+                      / "journal-2-0" / "lib" / "importer" / "__fixtures__" / "html_block_vectors.json")
+_HTML_VECTORS = json.loads(_HTML_VECTORS_PATH.read_text(encoding="utf-8"))["vectors"]
+
+
+@pytest.mark.parametrize("v", _HTML_VECTORS, ids=[v["name"] for v in _HTML_VECTORS])
+def test_shared_html_block_vectors(v):
+    """Items 7 and 8: the SHARED vectors `convert.test.js` also reads, so the server's HTML
+    walker and the client's parse read one block structure."""
+    assert _shape(html_to_tiptap(v["html"])["doc"]) == v["shape"]
+
+
+def test_the_html_vectors_cover_item_7():
+    names = {v["name"] for v in _HTML_VECTORS}
+    assert {"two divs are two paragraphs", "spans join"} <= names
+
+
+def test_a_marked_run_in_a_div_keeps_its_mark():
+    runs = _texts(html_to_tiptap("<div><b>a</b> c</div><div>d</div>")["doc"])
+    assert [(r["text"], _mark_types(r)) for r in runs] == [("a", ["bold"]), (" c", []), ("d", [])]

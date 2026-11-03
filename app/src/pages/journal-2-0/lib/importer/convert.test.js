@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { sanitizeHtml, htmlToNote } from './convert'
 import { mdToHtml } from './adapters/generic'
+import HTML_BLOCK_VECTORS from './__fixtures__/html_block_vectors.json'
 
 describe('sanitizeHtml', () => {
   it('strips scripts, event handlers, and javascript: URLs', () => {
@@ -314,5 +315,17 @@ describe('htmlToNote — D3 item 1: a code block keeps no final line end', () =>
     expect(codeOf('<pre><code>x\n</code></pre>')).toEqual(['x'])
     expect(codeOf('<pre>x\n\n</pre>')).toEqual(['x\n'])
     expect(codeOf('<pre><code>a\nb</code></pre>')).toEqual(['a\nb'])
+  })
+})
+
+// D3 items 7 and 8: the SHARED HTML block vectors the server's `html_to_tiptap` also reads
+// (`test_note_convert_d3.py::test_shared_html_block_vectors`), so both HTML parses read one
+// block structure (a div is a paragraph boundary; a list item opening with a list).
+
+describe('htmlToNote — D3 items 7 and 8: shared HTML block vectors', () => {
+  const quoted = (n) => (n.type === 'text' ? `'${n.text}'`
+    : n.type + (n.content ? `(${n.content.map(quoted).join(', ')})` : ''))
+  it.each(HTML_BLOCK_VECTORS.vectors.map((v) => [v.name, v]))('%s', (_name, v) => {
+    expect(quoted(htmlToNote(v.html).bodyJson)).toBe(v.shape)
   })
 })

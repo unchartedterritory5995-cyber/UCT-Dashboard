@@ -1,0 +1,20 @@
+{
+  "_doc": [
+    "Shared HTML block-structure vectors (D3 items 7 and 8): ONE contract for the two HTML parses.",
+    "Server: mddoc.html_to_tiptap (Dropbox and OneNote HTML); test_note_convert_d3.py reads this file.",
+    "Client: convert.js htmlToNote (every file importer); convert.test.js reads this file too.",
+    "Each vector: `html` in, `shape` out. A shape names each node's type and its children in parentheses; a text",
+    "run is its text in single quotes. Vectors hold no quote, backslash or mark, so both sides spell the shape alike."
+  ],
+  "vectors": [
+    {"name": "two divs are two paragraphs", "html": "<div>a</div><div>b</div>", "shape": "doc(paragraph('a'), paragraph('b'))"},
+    {"name": "a div inside a div splits its text", "html": "<div>a<div>b</div>c</div>", "shape": "doc(paragraph('a'), paragraph('b'), paragraph('c'))"},
+    {"name": "section and article are block wrappers too", "html": "<section>a</section><article>b</article>", "shape": "doc(paragraph('a'), paragraph('b'))"},
+    {"name": "a div between spans", "html": "<span>a</span><div>b</div><span>c</span>", "shape": "doc(paragraph('a'), paragraph('b'), paragraph('c'))"},
+    {"name": "a div holding a paragraph adds none; an empty div is none", "html": "<div><p>x</p></div><div></div><div> </div>", "shape": "doc(paragraph('x'))"},
+    {"name": "a line break inside a div", "html": "<div>a<br>b</div>", "shape": "doc(paragraph('a', hardBreak, 'b'))"},
+    {"name": "divs in a list item", "html": "<ul><li><div>a</div><div>b</div></li></ul>", "shape": "doc(bulletList(listItem(paragraph('a'), paragraph('b'))))"},
+    {"name": "divs in a table cell", "html": "<table><tr><td><div>a</div><div>b</div></td></tr></table>", "shape": "doc(table(tableRow(tableCell(paragraph('a'), paragraph('b')))))"},
+    {"name": "spans join", "html": "<span>a</span><span>b</span>", "shape": "doc(paragraph('ab'))"}
+  ]
+}

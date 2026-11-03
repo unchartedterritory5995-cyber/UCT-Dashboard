@@ -1056,22 +1056,40 @@ class _HtmlDomBuilder(HTMLParser):
         self._stack[-1].children.append(data)
 
 
-def _unwrap_unknown_html(nodes: list[Any]) -> list[Any]:
-    """Splices any tag NOT in `_HTML_KNOWN_TAGS` (e.g. `div`/`span`/`html`/
-    `body`/`section`) out of the tree, recursively, replacing it in place
-    with its own (already-unwrapped) children — "unknown tags unwrap to
-    children" per the brief, applied bottom-up in one pass so a chain of
-    nested unknowns (`<div><span>x</span></div>`) fully flattens."""
+#: D3 item 7: the block-level tags outside the vocabulary, from the editor parser's own list
+#: (prosemirror-model `blockTags`, minus the tags this walker already knows and `tfoot`, a
+#: table part). Each is a BLOCK BOUNDARY, as in the client's parse: `<div>a</div><div>b</div>`
+#: is two paragraphs. ⚰️ They were unwrapped like a `<span>`, so Dropbox and OneNote HTML
+#: joined every div's line into one paragraph (`ab`).
+_HTML_BLOCK_WRAPPERS = frozenset({
+    "address", "article", "aside", "canvas", "dd", "div", "dl", "fieldset", "figcaption",
+    "figure", "footer", "form", "header", "hgroup", "noscript", "output", "section",
+})
+#: Parents whose children are items or rows, never blocks: a wrapper there still unwraps.
+_HTML_ITEM_PARENTS = frozenset({"ul", "ol", "table", "tr"})
+
+
+def _unwrap_unknown_html(nodes: list[Any], parent: str = "root") -> list[Any]:
+    """Splices any tag NOT in `_HTML_KNOWN_TAGS` (e.g. `span`/`html`/`body`) out of the tree,
+    recursively, replacing it in place with its own (already-unwrapped) children — "unknown
+    tags unwrap to children" per the brief, applied bottom-up in one pass so a chain of
+    nested unknowns (`<span><b>x</b></span>`) fully flattens. A block wrapper
+    (`_HTML_BLOCK_WRAPPERS`, D3 item 7) becomes a bare `div`, which `_html_blocks_walk`
+    reads as a block boundary; inside a list or a table row it still unwraps."""
     out: list[Any] = []
     for n in nodes:
         if isinstance(n, str):
             out.append(n)
             continue
         if n.tag in _HTML_KNOWN_TAGS:
-            n.children = _unwrap_unknown_html(n.children)
+            n.children = _unwrap_unknown_html(n.children, n.tag)
             out.append(n)
+        elif n.tag in _HTML_BLOCK_WRAPPERS and parent not in _HTML_ITEM_PARENTS:
+            block = _HtmlNode("div", {})
+            block.children = _unwrap_unknown_html(n.children, "div")
+            out.append(block)
         else:
-            out.extend(_unwrap_unknown_html(n.children))
+            out.extend(_unwrap_unknown_html(n.children, parent))
     return out
 
 
@@ -1398,7 +1416,9 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
     def flush() -> None:
         nonlocal buf
         if buf:
-            out.extend(_wrap_paragraph(buf))
+            # Runs buffered from sibling nodes (`<span>a</span><span>b</span>`) join as the
+            # editor's parser joins them (D3 item 7).
+            out.extend(_wrap_paragraph(_merge_text_runs(buf)))
             buf = []
 
     for n in nodes:
@@ -1441,6 +1461,12 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
         elif tag == "hr":
             flush()
             out.append({"type": "horizontalRule"})
+        elif tag == "div":
+            # D3 item 7: a block wrapper (`_unwrap_unknown_html`) closes the paragraph before
+            # it and its own content is blocks; nothing of its own (an empty div is no
+            # paragraph, as in the client's parse).
+            flush()
+            out.extend(_html_blocks_walk(n.children, ctx))
         else:
             # Any remaining known tag here (a/b/strong/i/em/s/del/strike/
             # code/img/br, or a stray li/tr/td/th outside its proper
