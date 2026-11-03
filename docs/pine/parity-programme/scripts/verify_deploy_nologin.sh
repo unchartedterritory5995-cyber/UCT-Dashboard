@@ -23,9 +23,14 @@ until [ -n "$dep" ]; do
   [ $(( $(date +%s)-t0 )) -gt $lim ] && { echo "VERIFY FAIL timeout waiting for deploy"; exit 4; }
   line=$(timeout 60 railway deployment list --service web --json 2>/dev/null | "$PY" -c "
 import sys,json
-for x in json.load(sys.stdin)[:5]:
-    if x.get('status')=='SUCCESS': print((x.get('meta') or {}).get('commitHash',''), x.get('createdAt')); break" 2>/dev/null)
-  h=${line%% *}; if [ -n "$h" ] && git cat-file -e "$h" 2>/dev/null && git merge-base --is-ancestor "$SHA" "$h"; then dep=$line; else sleep 30; fi
+d=json.load(sys.stdin)[:5]
+sk=[x for x in d if x.get('status')=='SKIPPED' and (x.get('meta') or {}).get('commitHash','').startswith(sys.argv[1])]
+if sk: print('SKIPPED', sk[0].get('createdAt')); raise SystemExit
+for x in d:
+    if x.get('status')=='SUCCESS': print((x.get('meta') or {}).get('commitHash',''), x.get('createdAt')); break" "$SHA" 2>/dev/null)
+  h=${line%% *}
+  if [ "$h" = "SKIPPED" ]; then dep="web deploy SKIPPED (no watched file changed; the running build is unchanged)"
+  elif [ -n "$h" ] && git cat-file -e "$h" 2>/dev/null && git merge-base --is-ancestor "$SHA" "$h"; then dep=$line; else sleep 30; fi
 done
 echo "deployed $(date +%T) $dep"
 up(){ curl -s -m 15 -A "$UA" https://uctintelligence.com/api/health | "$PY" -c "import sys,json;print(int(json.load(sys.stdin)['uptime_seconds']))" 2>/dev/null || echo -1; }
