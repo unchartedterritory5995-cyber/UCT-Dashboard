@@ -122,6 +122,14 @@ def test_validate_last_screen_normalises_and_bounds():
     out = refine.validate_last_screen({**LAST, "savedId": 7, "spec": {**LAST["spec"], "sort": {"key": "chg_pct_3m", "dir": "desc"}}})
     assert out["spec"]["sort"] == {"key": "chg_pct_3m", "dir": "desc"} and out["savedId"] == "7"
     assert out["symbols"] == ["AAA", "BBB", "CCC"] and out["total"] == 41
+    # review hardening (#708): browser decorations never reach the store — `pending` and a catalog filter's label are
+    # dropped; only a `list` scope's label (the watchlist's name) is kept, capped
+    deco = refine.validate_last_screen({"spec": {"filters": [
+        {"key": "price", "op": "gte", "min": 10, "label": "x" * 5000, "pending": True},
+        {"key": "list", "op": "in", "value": "wl:7", "label": "Momentum " + "y" * 200, "pending": True}]}, "symbols": []})
+    assert deco["spec"]["filters"][0] == {"key": "price", "op": "gte", "min": 10}
+    assert deco["spec"]["filters"][1]["label"] == ("Momentum " + "y" * 200)[:refine.LABEL_MAX]
+    assert "pending" not in deco["spec"]["filters"][1]
     with pytest.raises(refine.RefineError, match="at most 50 result ids"):
         refine.validate_last_screen({**LAST, "symbols": [f"S{i}" for i in range(51)]})
     with pytest.raises(refine.RefineError, match="list of tickers"):

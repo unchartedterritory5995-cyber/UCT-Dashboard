@@ -7,7 +7,7 @@ import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { turnStart, turnEnd, _resetTurns } from './trace'
 import {
-  answerFromFundamentals, answerFromEarnings, answerFromNews, answerFromThemes, kindServed, quoteLine,
+  fundamentalsFacts, answerFromEarnings, answerFromNews, answerFromThemes, kindServed, quoteLine,
   registerMarketFactsCapabilities, _resetFactsForTest, THEMES_CAPABILITY,
 } from './capabilities/marketDataFacts'
 
@@ -40,29 +40,24 @@ const THEMES = envelope('themes', { period: '1w', order: 'leaders', limit: 10 },
     themes: [{ name: 'Nuclear', ticker: 'NUKE', sector: 'Energy', return_pct: 8.25, holdings: 14 }, { name: 'Quantum', ticker: 'QBIT', sector: 'Technology', return_pct: 5.1, holdings: 9 }] } })
 
 describe('pure envelope → answer (freshness from the envelope, never its notes)', () => {
-  it('fundamentals: the newest period, the statements carried, periodic wording, the missing statement named', () => {
-    const a = answerFromFundamentals(FUND, 'NVDA')
-    expect(a.text).toMatch(/^NVDA — financial statements \(quarterly\), newest period ending Jul 31, 2026/)
-    expect(a.text).toMatch(/Income statement \(period ending Jul 31, 2026\): Revenue \$46\.74B · Gross profit \$33\.80B · Operating income \$28\.40B · Net income \$26\.40B · EPS \(diluted\) \$1\.08/)
-    expect(a.text).toMatch(/Balance sheet \(period ending Jul 31, 2026\): Cash \$15\.00B · Total assets \$140\.00B · Total debt \$8\.50B · Shareholder equity \$100\.00B/)
-    expect(a.text).toMatch(/No cash flow data is carried for NVDA\./)
-    expect(a.text).toMatch(/Periodic disclosures: the figures describe the reporting period ending Jul 31, 2026, not today\./)
-    expect(a.text).toMatch(/Market cap, P\/E, the 52-week range and the sector aren't carried by the Agent's data gateway yet/)
-    expect(a.text).not.toMatch(/never be echoed|\blive\b/)
-    expect(a.present.items.map(i => i.label)).toContain('Net income')
-    expect(a.link.href).toBe('/research/NVDA')
+  it('fundamentals: the facts block — the newest period, the statements carried, periodic wording, the missing statement named', () => {
+    const f = fundamentalsFacts(FUND, 'NVDA')
+    expect(f.lines[0]).toBe('Financial statements (quarterly, newest period ending Jul 31, 2026):')
+    expect(f.lines[1]).toBe('• Income statement (period ending Jul 31, 2026): Revenue $46.74B · Gross profit $33.80B · Operating income $28.40B · Net income $26.40B · EPS (diluted) $1.08')
+    expect(f.lines[2]).toBe('• Balance sheet (period ending Jul 31, 2026): Cash $15.00B · Total assets $140.00B · Total debt $8.50B · Shareholder equity $100.00B')
+    expect(f.lines[3]).toBe('No cash flow data is carried for NVDA.')
+    expect(f.lines[4]).toBe('Periodic disclosures: the statement figures describe the reporting period ending Jul 31, 2026, not today.')
+    expect(f.source).toBe('statements from Yahoo Finance through the UCT data gateway')
+    expect(f.lines.join(' ')).not.toMatch(/never be echoed|\blive\b/)
+    expect(f.items.map(i => i.label)).toContain('Net income')
+    expect(f.items[0].note).toBe('period ending Jul 31, 2026')
   })
-  it('fundamentals: a stale read says how old the period is; with a quote the price line comes first', () => {
+  it('fundamentals: a stale read says how old the period is; refused / unavailable are one fixed line with no figure', () => {
     const stale = { ...FUND, stale: true, as_of: '2026-01-31T00:00:00Z' }
-    expect(answerFromFundamentals(stale, 'NVDA').text).toMatch(/Note: that period ended 275 days ago, so a newer quarter may have been reported\./)
-    const withQuote = answerFromFundamentals(FUND, 'NVDA', { price: 142.1, changePct: 0.87, when: '10:31 AM ET', live: true })
-    expect(withQuote.text.split('\n')[1]).toBe('Price $142.10, +0.87% vs the previous close — live, as of 10:31 AM ET')
-    expect(withQuote.present.items[0]).toMatchObject({ label: 'Price', value: '$142.10', note: 'live, as of 10:31 AM ET' })
-  })
-  it('fundamentals: refused / unavailable are fixed words with no figure', () => {
-    const r = answerFromFundamentals({ ...FUND, status: 'refused', data: null, freshness: 'unavailable', as_of: null }, 'NVDA')
-    expect(r.text).toBe("I couldn't read NVDA's financial statements: that request wasn't allowed for this question, so its financial statements are not available. No figure is stated.")
-    expect(answerFromFundamentals(null, 'NVDA').text).toMatch(/not available from UCT's market data\. No figure is stated\./)
+    expect(fundamentalsFacts(stale, 'NVDA').lines.at(-1)).toMatch(/Note: that period ended 275 days ago, so a newer quarter may have been reported\.$/)
+    const r = fundamentalsFacts({ ...FUND, status: 'refused', data: null, freshness: 'unavailable', as_of: null }, 'NVDA')
+    expect(r).toEqual({ lines: ["Financial statements: that request wasn't allowed for this question, so its financial statements are not available; no statement figure is stated."], items: [], source: null })
+    expect(fundamentalsFacts(null, 'NVDA').lines[0]).toMatch(/not available from UCT's market data; no statement figure is stated\./)
   })
   it('earnings: the newest reported quarter, estimates kept apart, the next report as a scheduled event, no report date claimed', () => {
     const a = answerFromEarnings(EARN, 'NVDA')
@@ -140,7 +135,13 @@ describe('served vs dark: stock.profile / stock.earnings / news.latest / stock.t
     expect(registerServerGatedBuiltins()).toBeUndefined()
     expect(allCapabilityNames()).toContain(THEMES_CAPABILITY)
     const profile = await inTurn(() => getCapability('stock.profile').answer(null, { symbol: 'nvda' }))
-    expect(profile.text).toMatch(/^NVDA — financial statements \(quarterly\)/)
+    // never degraded: the member's snapshot fields stay, the gateway's statements are added with their own wording
+    expect(profile.text).toMatch(/^NVDA — NVIDIA Corporation · Technology/)
+    expect(profile.text).toMatch(/Market cap \$5\.64T/)
+    expect(profile.text).toContain('\nFinancial statements (quarterly, newest period ending Jul 31, 2026):\n• Income statement')
+    expect(profile.text).toMatch(/Periodic disclosures: the statement figures describe the reporting period ending Jul 31, 2026, not today\./)
+    expect(profile.text).toMatch(/Source: UCT fundamentals .*; statements from Yahoo Finance through the UCT data gateway\.$/)
+    expect(profile.present.items.map(i => i.label)).toEqual(expect.arrayContaining(['Market cap', 'Net income']))
     const earnings = await inTurn(() => getCapability('stock.earnings').answer(null, { symbol: 'NVDA' }))
     expect(earnings.text).toMatch(/Latest reported quarter: 2026 Q2/)
     const news = await inTurn(() => getCapability('news.latest').answer(null, { symbol: 'NVDA', limit: null }))
@@ -154,8 +155,9 @@ describe('served vs dark: stock.profile / stock.earnings / news.latest / stock.t
     expect(r[0].params).toEqual({ symbol: 'NVDA', period: 'quarterly', periods: 4 })
     expect(r[2].params).toEqual({ symbol: 'NVDA', limit: 8 })
     expect(r[3].params).toEqual({ period: '1w', order: 'leaders', limit: 10 })
-    // the legacy routes were not touched while the kinds are served
-    expect(calls.some(c => /fundamentals-full|earnings-intel|company-news/.test(c[0]))).toBe(false)
+    // the profile keeps its member route (never degraded); the earnings / news legacy routes were not touched
+    expect(calls.some(c => /earnings-intel|company-news/.test(c[0]))).toBe(false)
+    expect(calls.filter(c => c[0].startsWith('/api/fundamentals-full/'))).toHaveLength(1)
   })
   it.each([[null, 'data off'], [[], 'nothing activated'], [['quote', 'quotes'], 'only the price kinds']])('dark (%j, %s): legacy routes, no gateway read, stock.themes not registered', async (kinds) => {
     wire(kinds)
@@ -164,6 +166,7 @@ describe('served vs dark: stock.profile / stock.earnings / news.latest / stock.t
     expect(allCapabilityNames()).not.toContain(THEMES_CAPABILITY)
     const profile = await inTurn(() => getCapability('stock.profile').answer(null, { symbol: 'NVDA' }))
     expect(profile.text).toMatch(/^NVDA — NVIDIA Corporation · Technology/)
+    expect(profile.text).not.toMatch(/Financial statements/)
     const earnings = await inTurn(() => getCapability('stock.earnings').answer(null, { symbol: 'NVDA' }))
     expect(earnings.text).toMatch(/No reported quarter is available for NVDA\./)
     const news = await inTurn(() => getCapability('news.latest').answer(null, { symbol: 'NVDA', limit: null }))

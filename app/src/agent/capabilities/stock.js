@@ -22,7 +22,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { formatCompact, TERMINAL_COMPACT_TIERS } from '../../lib/presentation/presentationPrimitives'
-import { kindServed, readQuoteRow, quoteLine, answerProfileServed, answerEarningsServed } from './marketDataFacts'
+import { kindServed, readQuoteRow, quoteLine, readFundamentalsFacts, answerEarningsServed } from './marketDataFacts'
 const BIG_TIERS = TERMINAL_COMPACT_TIERS.filter((t) => t.at >= 1e6)
 
 const TICKER = /^[A-Z][A-Z0-9.-]{0,9}$/
@@ -72,10 +72,14 @@ async function liveQuote(sym) {
 export async function answerProfile({ symbol }) {
   const sym = upper(symbol)
   if (!TICKER.test(sym)) return badSymbol(symbol)
-  // C-02: the gateway serves `fundamentals` → periodic disclosures with MD-1 wording; the legacy route only while it is off
-  if (kindServed('fundamentals')) return answerProfileServed(sym)
+  // C-02 (integrator decision 2026-11-02): the profile is never degraded. The member's snapshot fields (market cap,
+  // P/E, 52-week range, sector — /api/fundamentals-full, a read-only member route, not /api/live-prices) stay; while
+  // the gateway serves `fundamentals`, its statements are ADDED below with MD-1 wording on the gateway part only.
   let f
-  const [fr, q] = await Promise.all([get(`/api/fundamentals-full/${encodeURIComponent(sym)}`).catch(e => ({ __err: e })), liveQuote(sym)])
+  const [fr, q, facts] = await Promise.all([
+    get(`/api/fundamentals-full/${encodeURIComponent(sym)}`).catch(e => ({ __err: e })), liveQuote(sym),
+    readFundamentalsFacts(sym).catch(() => null),
+  ])
   if (fr.__err) return notFound(sym, fr.__err)
   f = fr
   if (!f || (!f.name && f.market_cap == null && f.price == null)) return `UCT has no profile data for “${sym}”.`
@@ -90,7 +94,8 @@ export async function answerProfile({ symbol }) {
   lines.push(`52-week range ${money(f.fifty_two_week_low) || NA} – ${money(f.fifty_two_week_high) || NA}${num(f.beta) != null ? ` · beta ${fix(f.beta)}` : ''}`)
   lines.push(`Revenue (trailing 12 months) ${big(f.total_revenue) || NA}${num(f.revenue_growth_pct) != null ? ` · revenue growth ${pct(f.revenue_growth_pct)}` : ''}${num(f.profit_margin_pct) != null ? ` · profit margin ${f.profit_margin_pct.toFixed(1)}%` : ''}`)
   lines.push(`Next earnings: ${f.next_earnings ? `${day(f.next_earnings)} (scheduled date from the data vendor)` : NA}`)
-  lines.push(`Source: UCT fundamentals (data vendor snapshot, refreshed about every 30 minutes); ${q ? 'price from the Massive market snapshot through the UCT data gateway.' : "no current quote was available through the Agent's data gateway."}`)
+  if (facts) lines.push(...facts.lines)
+  lines.push(`Source: UCT fundamentals (data vendor snapshot, refreshed about every 30 minutes); ${q ? 'price from the Massive market snapshot through the UCT data gateway' : "no current quote was available through the Agent's data gateway"}${facts?.source ? `; ${facts.source}` : ''}.`)
   // the member's view: the labelled figures (present.js shows just the one(s) they named; the full
   // profile above stays one tap away). Same values as the text — nothing new is fetched or computed.
   const price = q ? money(q.price) : money(f.price)
@@ -107,6 +112,7 @@ export async function answerProfile({ symbol }) {
     { label: 'Profit margin', value: num(f.profit_margin_pct) != null ? `${f.profit_margin_pct.toFixed(1)}%` : null, aka: ['margin', 'margins', 'profitability'] },
     { label: 'Next earnings', value: f.next_earnings ? day(f.next_earnings) : null, aka: ['earnings', 'report', 'reports'] },
     { label: 'Sector', value: f.sector ? `${f.sector}${f.industry ? ` / ${f.industry}` : ''}` : null, aka: ['sector', 'industry'] },
+    ...(facts ? facts.items : []),           // the gateway's statement figures, each noting its reporting period
   ].filter(x => x.value)
   return {
     text: lines.join('\n'), link: researchLink(sym), chart: chartOf(sym),
