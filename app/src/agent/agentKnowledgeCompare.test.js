@@ -105,19 +105,25 @@ describe('review round 1: dark routing stays pre-routing for the phrasings that 
   })
 })
 
-// KNOWN LIMITATION (review finding 8), pinned so the fix is visible: with the feature ON, a message whose ONLY recognised
+// FORMER LIMITATION (review finding 8): with the feature ON, a message whose ONLY recognised
 // group is `playbook` narrows the request to it ("explain this setup" about the chart on screen loses the chart actions).
 // Proposed fix (routing.js, integrator-owned): `addOnly: true` on the playbook group, and in selectGroups
 // `matched = [...hits].some(id => !GROUPS.find(g => g.id === id)?.addOnly)`, with add-only hits placed first in the
-// unmatched fill. When that lands, this `it.fails` starts failing: change it to `it`.
-describe('known limitation: knowledge-only messages narrow the routed request (feature ON)', () => {
+// unmatched fill. That fix is now applied (integrator-approved): the cases below assert it.
+describe('fixed limitation: knowledge-only messages no longer narrow the routed request (feature ON)', () => {
   beforeAll(async () => { _resetAgentConfig(); _resetKnowledgeForTest(); wire(['quote', 'quotes', ...Object.values(KNOWLEDGE_CAPS)]); await loadAgentConfig(); registerKnowledgeCapabilities() })
   afterAll(() => { _resetKnowledgeForTest(); _resetAgentConfig() })
-  it('"explain this setup" is recognised only by the playbook group', () => {
+  it('"explain this setup" matches the playbook group, which alone does not count as recognising the message', () => {
     expect(wordsSelect('playbook', 'explain this setup')).toBe(true)
-    expect(selectGroups('explain this setup').matched).toBe(true)
+    expect(selectGroups('explain this setup').matched).toBe(false)
+    expect(selectGroups('explain this setup').priority.indexOf('playbook')).toBeLessThan(selectGroups('explain this setup').priority.indexOf('charts'))
   })
-  it.fails('"explain this setup" keeps the chart actions in the request (fails today: narrowed to playbook)', () => {
+  it('"explain this setup" keeps the chart actions in the request (fixed: add-only group)', () => {
     expect(routed('explain this setup')).toContain('chart.setTimeframe')
+    expect(routed('explain this setup')).toContain('playbook.explain')
+  })
+  it('a message that names another group as well is still routed to both', () => {
+    expect(selectGroups('explain the VCP setup and switch to weekly').matched).toBe(true)
+    expect(routed('explain the VCP setup and switch to weekly')).toEqual(expect.arrayContaining(['playbook.explain', 'chart.setTimeframe']))
   })
 })
