@@ -9,7 +9,7 @@ Citations:
   closure).
 - `RT/` means `app/src/components/chart/engine/runtime/`.
 
-**The goal is the language, not the sample** (AGENT-RULES, "fix the language, never the
+**The goal is the language, not the sample** (AGENT-RULES on branch docs/pine-parity-programme, "fix the language, never the
 script").
 - Every task below implements a Pine capability for every script that uses it.
 - The 679-script sample only ranks the capabilities.
@@ -58,7 +58,7 @@ Four findings change how W4 should be planned. Each one is reproducible from the
 
    | share | what it is | owner |
    |---|---|---|
-   | 19 scripts | the v1-v4 spelling `security(…)`. `builtinStateFamily` only recognises `request.` (`FE:4893`), so a bare `security` falls through to "the closed table does not declare it" (`FE:4931`). | W7 |
+   | 19 scripts | the v1-v4 spelling `security(…)`. `builtinStateFamily` only recognises `request.` (`FE:4893`), so a bare `security` falls through to "the closed table does not declare it" (`FE:4931`). 16 of the 19 show it as the step-0 wall (T1's list); the others reach it only after a peel step. | W7 |
    | ~15 | library aliases (`ml.*`, `pc.*`, `zen.*`, `tl.*`) | W8 |
    | (in the ~15) | UDT/drawing getters (`line_h.get_y1`, `deviations.size`) | W3/W6 |
    | ~13 | **user functions whose definition the lane did not compile** (`xhma`, `avg`, `gaussian`, `f_kalman`, `dot`). The held definition's real guard is hidden behind a builtin label. | W4 (T1) |
@@ -93,7 +93,7 @@ Column key:
 | 7 | `runtime:history-expression` | 28 | 27 | 16 | 6 | **An expression's own committed series inside a function body or block.** Examples in UDFs: `hma(x,len) => wma(2*wma(x,len/2) - wma(x,len), …)`, `sum(v*w, p)`, `ta.vwma(_src,_len)`, `ta.pivothigh(expr, …)`. The hoist refuses in frames and in nested statement lists (`FE:5158-5168`). | T7 |
 | 8 | `runtime:function` | 27 | 27 | 4 | 5 | The value of a body ending in a loop (3); parameter defaults (2); otherwise peel artefacts. | T15 |
 | 9 | `runtime:statement` | 24 | 28 | 6 | 9 | `time(tf, session)` with a non-literal session (4, `FE:6592-6660`). Otherwise peel artefacts, or other waves (`array.min(id, nth)` is W6). | T3 |
-| 10 | `runtime:expression-statement` | 23 | 23 | 4 | 6 | `log.info`/`log.warning`/`log.error` statements (`FE:9859`). Also UDF and method statements whose definition was held (peel artefact or W6). | T16 |
+| 10 | `runtime:expression-statement` | 23 | 23 | 4 | 6 | `log.info`/`log.warning`/`log.error` statements (`FE:9859`). Also UDF and method statements whose definition was held (peel artefact or W6). | T15 (item 4) |
 | 11 | `runtime:block-value` | 16 | 17 | 3 | 6 | **v6 `bool` typing**: in v6, a bool `if`/`switch` value with no matching arm yields `false` (`FE:8022-8036`). Plus function branches with no `else`. | T14 |
 | 12 | `runtime:presentation` | 15 | 15 | 3 | 5 | `plotcandle` / `plotbar` from the run (`FE:9710-9713`). | T13 |
 | 13 | `runtime:loop` | 15 | 15 | 8 | 5 | `for … in`: **W6.5, not W4**. | none |
@@ -139,8 +139,9 @@ remaining wall is that task's family:
    - Every new lowering calls `objectDoorRefuses(…)` (`FE:1101-1106`) first, so the door builds
      exactly what master builds.
    - Rail: `RT/__tests__/objectDoorGate.test.js` gets one case per new capability.
-   - measure-pair must show **0 C18 diffs** (`out-*.json`, `probe-*.json`). This is what makes a
-     dark merge safe.
+   - measure-pair must show **0 C18 verdict diffs** (`out-*.json`, `probe-*.json`). This is what makes a
+     dark merge safe. A task whose job is to rename a refusal (T1) changes the refusal text on its own
+     rows; the probes must still refuse.
 3. **The stage-1 script must not move.**
    - `adx-and-di-for-v4` (W2 stage 1) must stay byte-identical.
    - Once W2 merges, its `runtimeAllowlistParity.test.js` (on `feat/pine-w2-arming`) is a
@@ -163,9 +164,9 @@ remaining wall is that task's family:
      such a change.
    - Once W5 T4 lands, each bump also regenerates its host-parity `expected-digests.json`
      (SERVER-RUNTIME-DESIGN 2.3).
-7. **Ship loop**, per WAVE-TASKS section 1:
+7. **Ship loop**, per WAVE-TASKS section 1 (on branch docs/pine-parity-programme):
    - rails red before the fix, green after;
-   - every guard mutation-proved (`docs/pine/parity-programme/scripts/mutate.py`);
+   - every guard mutation-proved (`docs/pine/parity-programme/scripts/mutate.py`, on branch docs/pine-parity-programme);
    - independent Opus review GO;
    - measure-pair runtime-on (`measure-pair.sh <out> tip:… base:… 1 1`), with every intended
      census or harness diff classified in the PR body;
@@ -176,7 +177,7 @@ remaining wall is that task's family:
 
 Sizes: S ≤ 1 day, M 2-3 days.
 
-Model tiers follow AGENT-RULES' token budget:
+Model tiers follow AGENT-RULES' token budget (branch docs/pine-parity-programme):
 - **Sonnet** builds from a precise spec.
 - **Opus** builds engine-semantic fixes and does every merge-gating review.
 - **Fable** only after Opus fails the same task twice.
@@ -222,15 +223,17 @@ Terms used in the measure-pair lines:
 
 - **Files:**
   - FE `builtinStateFamily` (`:4886-4933`);
-  - the call-site path that reaches it for a name with a held definition (`FE:6930-6935`,
-    `deferredFnDefs`);
+  - the held-definition rethrow at the call (`FE:5958-5984`, keyed on `deferredFnRefusals`);
+    `FE:6930-6935` is the generic builtin fallback;
   - a new rail `RT/__tests__/w4ClassifierHonesty.test.js`.
 - **What:**
   - `security`, `security_lower_tf` and `financial` in v1-v4 spelling return
     `runtime:request-with-state`, as `request.*` does at `FE:4893`.
-  - A call to a user function whose definition was held (`deferredFnDefs` has it, `fnByName`
-    does not) rethrows the **definition's** refusal at the call, instead of
-    `call-undeclared-builtin-state`.
+  - A call to a user function whose definition was held rethrows the **definition's** refusal at
+    the call. **Pin, don't add:** this rethrow already exists in master (`FE:5958-5984`,
+    `deferredFnRefusals`; `fnByName` keeps held names on purpose). The rail pins it. The ~13
+    census calls that read `undeclared` through a held function are peel artefacts (the peel
+    removed the definition), which is T0's work.
   - A dotted name whose head is a library alias says so (`runtime:library`).
 - **Semantics:** no behaviour changes, only guards. Reference: the v4 to v5 migration guide
   (`security` became `request.security`),
@@ -242,9 +245,9 @@ Terms used in the measure-pair lines:
   - a real missing name, which stays `undeclared`.
 - **Mutations:**
   - drop the `security` arm: its case reads `undeclared` again;
-  - drop the rethrow: the held-UDF case reads `undeclared` again.
+  - drop the existing rethrow: the held-UDF case reads `undeclared` again.
 - **measure-pair:**
-  - 0 attach changes, 0 C18 diffs.
+  - 0 attach changes, 0 C18 verdict diffs (camarilla's probes change refusal text only).
   - The step-0 wall moves to `runtime:request-with-state` on 16 rows:
     `boom-hunter-entry-point-screener-alerts`, `camarilla`, `delta-volume-v21-by-kernel-phi`,
     `moving-averages-as-support-resistance-mtf`, `mtf-watchlist-charts-anan`,
@@ -381,7 +384,7 @@ This is the R4 correctness item on its witnessed half.
   - Attach expected: `mcginley-dynamic`, `trendlines-2x`.
   - Harness: the McGinley built-in capture, if any, must be MATCH or unchanged.
 - **Engine bump:** yes.
-- **Depends:** none (T2 for RSI's test).
+- **Depends:** none. RSI's attach needs T2 as well (batch 2).
 - **Risk:** this is the single most important correctness item. The reviewer runs the
   every-bar-versus-per-run differential (section 4).
 
@@ -423,7 +426,7 @@ This is the R4 correctness item on its witnessed half.
 
 ### T6 v6 lazy `and`/`or` | S | Sonnet | capture-gated
 
-- **Files:** FE `armHistoryGuard` short-circuit arm (`:2112`, `:2139`), the binary lowering of
+- **Files:** FE `armHistoryGuard` short-circuit arm (`:2117`, `:2139`), the binary lowering of
   `and`/`or` when `pineVersion >= 6`, and `RT/lowerIr.js` (a jump form for `and`/`or`).
 - **What:** in v6 the right operand runs only when needed. Its `ta.*` takes the T4 per-site state.
 - **Pine semantics:** the v6 migration guide, "lazy evaluation of `and` and `or`", and the
@@ -749,12 +752,12 @@ the earlier one's merge, and the integrator merges them one at a time.
 | task | files / regions it owns |
 |---|---|
 | T0 | `coverageMapDoorCensus.measure.test.js`, `tools/pine_coverage/coverage_map.py`, `tools/pine_coverage/w0/targets.py` (no `app/src` engine file) |
-| T1 | FE `builtinStateFamily` `:4886-4933`; the call-site hand-off `:6930-6935` |
+| T1 | FE `builtinStateFamily` `:4886-4933`; held-definition rethrow `:5958-5984` (pin only) |
 | T2 | FE `constValueOf` `:4553-4585`, `foldConstNode` `:4656-4760`, `invariantTest` `:1712-1756`; a new `simpleValueOf` |
 | T3 | FE session clock `:6582-6660`, `simpleSpecialisation` `:10295-10420`, `constantArgOf` `:10423-10475`, `fixedTextOf` `:10557+`; `RT/clockFns.js` |
-| T4 | FE `armHistoryGuard` and `servedCondCall` `:2112-2222`, `case 'ternary'` `:5663-5717`; `RT/lowerIr.js` `:458-497` |
+| T4 | FE `armHistoryGuard` and `servedCondCall` `:2117-2222`, `case 'ternary'` `:5663-5717`; `RT/lowerIr.js` `:458-497` |
 | T5 | FE `:1788-1796`, `:1850-1870`, `:2176-2222` (after T4) |
-| T6 | FE `:2112-2140` plus `and`/`or` lowering; `RT/lowerIr.js` (after T4) |
+| T6 | FE `:2117-2140` plus `and`/`or` lowering; `RT/lowerIr.js` (after T4) |
 | T7 | FE `hoistCommittedSeries` `:5158-5168`, `:5740-5760`, `:6370-6392`, `:6465-6490` |
 | T8 | FE window lowering `:6320-6350`; `RT/vm.js` `OP.WINDOW` `:1027-1079`; `RT/ir.js` validator |
 | T9 | FE `frameBoundRefusal` and `forCounterRange` `:4588-4640` (after T2) |
@@ -797,7 +800,7 @@ the earlier one's merge, and the integrator merges them one at a time.
      to the root versus left in the arm. The two must differ exactly on the bars the arm skips.
    - A rail with no skipped bars is not a rail ("a fixture that cannot distinguish").
 2. **The object door leaks.** A missed `objectDoorRefuses` changes a live member's drawing. That
-   is why measure-pair's C18 diff must be 0, and why `objectDoorGate.test.js` gets a case per task.
+   is why measure-pair's C18 verdict diff must be 0, and why `objectDoorGate.test.js` gets a case per task.
 3. **The census undercounts or overcounts.** Until T0 lands, wall counts in section 1 column A
    overstate statement-family walls by up to 13x (`pine:statement` 81 vs 6). Plan by columns
    C and D.
