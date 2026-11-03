@@ -392,7 +392,54 @@
   "registry": "api/data/pine_runtime_allowlist.json (capabilities{})"
  },
  "measurementInputs": {
+  "probe": "probe-x4.json",
+  "probeX4": "probe-x4.json",
   "readiness": "readiness.json"
+ },
+ "probeRuns": {
+  "desktop": {
+   "file": "probe-x4.json",
+   "instrumentControl": {
+    "frames": 14,
+    "longTasks": 0,
+    "longestTaskMs": 0,
+    "maxFrameGapMs": 399.90000000000003
+   },
+   "options": {
+    "checkpoint": 20,
+    "cpuThrottle": 4.0,
+    "lengths": [
+     "D 5000"
+    ],
+    "runs": 11,
+    "slugs": [],
+    "symbol": "AAPL:NASDAQ"
+   },
+   "verdict": "OFF-MAIN-THREAD",
+   "workerBytes": 1142621,
+   "worstMainFrameGapMs": 16.800000000017462
+  },
+  "x4": {
+   "file": "probe-x4.json",
+   "instrumentControl": {
+    "busyMs": 256.4,
+    "ratio": 6.88,
+    "throttledBusyMs": 1763
+   },
+   "options": {
+    "checkpoint": 20,
+    "cpuThrottle": 4.0,
+    "lengths": [
+     "D 5000"
+    ],
+    "runs": 11,
+    "slugs": [],
+    "symbol": "AAPL:NASDAQ"
+   },
+   "verdict": "MEASURED",
+   "workerBytes": 1142621,
+   "worstMainFrameGapMs": null
+  }
  },
  "registry": {
   "conditional-ta": "divergent",
@@ -531,6 +578,54 @@
    ],
    "divergentCapabilities": [],
    "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "runtime:time-budget"
+      ],
+      "coldMs": 1030.1,
+      "n": 10,
+      "p50Ms": 1018.9,
+      "p95Ms": 1038.4,
+      "withinBudget": false
+     },
+     "b5Tick": {
+      "answers": [
+       "runtime:time-budget"
+      ],
+      "fullAnswer": "runtime:time-budget",
+      "fullMs": 1024,
+      "tickMaxMs": 1034.2,
+      "tickP50Ms": 1020.5,
+      "tickP95Ms": 1034,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "runtime:time-budget"
+      ],
+      "coldMs": 1253,
+      "n": 10,
+      "p50Ms": 1169.7,
+      "p95Ms": 1262.6,
+      "withinBudget": false
+     },
+     "b5Tick": {
+      "answers": [
+       "runtime:time-budget"
+      ],
+      "fullAnswer": "runtime:time-budget",
+      "fullMs": 1079.8,
+      "tickMaxMs": 1161.5,
+      "tickP50Ms": 1087.4,
+      "tickP95Ms": 1156.5,
+      "ticks": 20
+     }
+    }
+   },
    "r1Clean": false,
    "r1Reasons": [
     "capability `fn-multi` is not in the conformance registry (R1)",
@@ -633,6 +728,54 @@
    ],
    "divergentCapabilities": [],
    "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 198.9,
+      "n": 10,
+      "p50Ms": 7.4,
+      "p95Ms": 12.5,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 182.9,
+      "tickMaxMs": 19.7,
+      "tickP50Ms": 13.4,
+      "tickP95Ms": 19.1,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 543.6,
+      "n": 10,
+      "p50Ms": 15,
+      "p95Ms": 28.6,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 746,
+      "tickMaxMs": 19.9,
+      "tickP50Ms": 13.7,
+      "tickP95Ms": 19.1,
+      "ticks": 20
+     }
+    }
+   },
    "r1Clean": false,
    "r1Reasons": [
     "capability `fn-multi` is not in the conformance registry (R1)",
@@ -708,6 +851,54 @@
     "conditional-ta"
    ],
    "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 47.7,
+      "n": 10,
+      "p50Ms": 6,
+      "p95Ms": 9.8,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 37.7,
+      "tickMaxMs": 10,
+      "tickP50Ms": 6.4,
+      "tickP95Ms": 9.4,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 622,
+      "n": 10,
+      "p50Ms": 19.5,
+      "p95Ms": 37,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 163.7,
+      "tickMaxMs": 23.7,
+      "tickP50Ms": 10,
+      "tickP95Ms": 18.5,
+      "ticks": 20
+     }
+    }
+   },
    "r1Clean": false,
    "r1Reasons": [
     "capability `compound-assign` is not in the conformance registry (R1)",
@@ -936,6 +1127,54 @@
    ],
    "divergentCapabilities": [],
    "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 92.9,
+      "n": 10,
+      "p50Ms": 5.2,
+      "p95Ms": 16.5,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 230.2,
+      "tickMaxMs": 11.2,
+      "tickP50Ms": 6.7,
+      "tickP95Ms": 10.9,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 617.2,
+      "n": 10,
+      "p50Ms": 13.3,
+      "p95Ms": 28.3,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 547.2,
+      "tickMaxMs": 11.4,
+      "tickP50Ms": 8.4,
+      "tickP95Ms": 9.9,
+      "ticks": 20
+     }
+    }
+   },
    "r1Clean": false,
    "r1Reasons": [
     "capability `fn-multi` is not in the conformance registry (R1)",
@@ -1057,6 +1296,54 @@
     "conditional-ta"
    ],
    "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 160.3,
+      "n": 10,
+      "p50Ms": 12.1,
+      "p95Ms": 20.3,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 410.4,
+      "tickMaxMs": 114.5,
+      "tickP50Ms": 38.8,
+      "tickP95Ms": 54.6,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 556.8,
+      "n": 10,
+      "p50Ms": 26.8,
+      "p95Ms": 32.3,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 654.7,
+      "tickMaxMs": 77.2,
+      "tickP50Ms": 39.7,
+      "tickP95Ms": 69.4,
+      "ticks": 20
+     }
+    }
+   },
    "r1Clean": false,
    "r1Reasons": [
     "capability `compound-assign` is not in the conformance registry (R1)",
@@ -1143,6 +1430,55 @@
     "conditional-ta"
    ],
    "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 274.7,
+      "n": 10,
+      "p50Ms": 12.2,
+      "p95Ms": 17.4,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 123.3,
+      "tickMaxMs": 19.5,
+      "tickP50Ms": 11.4,
+      "tickP95Ms": 15.5,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok",
+       "runtime:time-budget"
+      ],
+      "coldMs": 2199.7,
+      "n": 10,
+      "p50Ms": 81.8,
+      "p95Ms": 1856.3,
+      "withinBudget": false
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "runtime:time-budget",
+      "fullMs": 1617.5,
+      "tickMaxMs": 679.3,
+      "tickP50Ms": 42.2,
+      "tickP95Ms": 68.1,
+      "ticks": 20
+     }
+    }
+   },
    "r1Clean": false,
    "r1Reasons": [
     "capability `conditional-ta` is divergent, not conformant (R1)",
@@ -1230,6 +1566,54 @@
    ],
    "divergentCapabilities": [],
    "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 154.7,
+      "n": 10,
+      "p50Ms": 10.8,
+      "p95Ms": 33.1,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 43.5,
+      "tickMaxMs": 36.3,
+      "tickP50Ms": 11.7,
+      "tickP95Ms": 19.4,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 361.8,
+      "n": 10,
+      "p50Ms": 40.2,
+      "p95Ms": 48.5,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 166.4,
+      "tickMaxMs": 57.8,
+      "tickP50Ms": 24.3,
+      "tickP95Ms": 52.3,
+      "ticks": 20
+     }
+    }
+   },
    "r1Clean": true,
    "r1Reasons": [],
    "readiness": {
@@ -1287,6 +1671,54 @@
    ],
    "divergentCapabilities": [],
    "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 41.9,
+      "n": 10,
+      "p50Ms": 9.9,
+      "p95Ms": 19.3,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 77.8,
+      "tickMaxMs": 71,
+      "tickP50Ms": 25.7,
+      "tickP95Ms": 63.5,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 149.6,
+      "n": 10,
+      "p50Ms": 40.7,
+      "p95Ms": 67.5,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 140.8,
+      "tickMaxMs": 79,
+      "tickP50Ms": 40.9,
+      "tickP95Ms": 77.3,
+      "ticks": 20
+     }
+    }
+   },
    "r1Clean": false,
    "r1Reasons": [
     "capability `if-block` is not in the conformance registry (R1)"
@@ -1358,6 +1790,54 @@
    ],
    "divergentCapabilities": [],
    "kind": "corpus",
+   "probe": {
+    "desktop": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 38.8,
+      "n": 10,
+      "p50Ms": 7.5,
+      "p95Ms": 10.7,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 48,
+      "tickMaxMs": 15.9,
+      "tickP50Ms": 9.5,
+      "tickP95Ms": 13.7,
+      "ticks": 20
+     }
+    },
+    "x4": {
+     "D5000": {
+      "answers": [
+       "ok"
+      ],
+      "coldMs": 230.1,
+      "n": 10,
+      "p50Ms": 31.9,
+      "p95Ms": 78.1,
+      "withinBudget": true
+     },
+     "b5Tick": {
+      "answers": [
+       "ok"
+      ],
+      "fullAnswer": "ok",
+      "fullMs": 111.2,
+      "tickMaxMs": 49.3,
+      "tickP50Ms": 21.3,
+      "tickP95Ms": 34.4,
+      "ticks": 20
+     }
+    }
+   },
    "r1Clean": false,
    "r1Reasons": [
     "capability `fn-multi` is not in the conformance registry (R1)",

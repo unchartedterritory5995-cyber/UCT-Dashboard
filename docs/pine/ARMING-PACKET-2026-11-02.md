@@ -1,12 +1,12 @@
 # Arming packet: the per-bar Pine runtime lane, stage 1 (admins only), W2, 2026-11-02
 
-> **INTERIM, written 2026-11-02 20:28.** The cells marked PENDING wait on measurement jobs that were queued behind other sessions on the machine-wide heavy lock: the final-tree rails (the pytest rails among them), the desktop worker probe and the x4 probe. The commit that completes them replaces this banner. Everything not marked PENDING is measured or read as stated.
+> **INTERIM, written 2026-11-02 20:37.** The cells marked PENDING wait on measurement jobs that were queued behind other sessions on the machine-wide heavy lock: the final-tree rails (the seven pytest rails among them) and the harness re-run on the final tree. The commit that completes them replaces this banner. Everything not marked PENDING is measured or read as stated.
 
 Branch `feat/pine-w2-arming`. **Facts and measurements only. Nothing in this packet was applied**: no Railway variable was read or set, no flag changed, nothing deployed, no production endpoint called. The decision is the owner's. The rulings D1 to D6 and R1 to R4 (`docs/pine/PHASE3-RUNTIME-PLAN.md` 4.6) stand as ruled and are not re-opened here.
 
 ## 0. The tree, the machine, the words
 
-- **Tree.** `feat/pine-w2-arming`. `origin/master` was merged **twice**, because it moved while this ran: `67a6dada10` at `6363a05d80`, then `8fbf76c6ee` at `d2235ec4b0` (67 more commits: PR 701, the indicators batch, which is `origin/production`, and PR 703, connector fidelity). At 2026-11-02 20:28 `origin/production` is `8fbf76c6ee` and `origin/master` is `8fbf76c6ee`; production is 0 commits behind master and contains `67a6dada10`. The rails in sections 2 and 3 are being run again on the second merge's tree; that job was still queued behind other sessions on the heavy lock when this was written, so the cells that need it say PENDING; the census, the build and the probes ran on the first, and section 11 says which log ran on which tree. The harness lane diff was first taken on the branch base `6272ed7fa3`; sections 3.2, 3.3 and 10 say what carries.
+- **Tree.** `feat/pine-w2-arming`. `origin/master` was merged **twice**, because it moved while this ran: `67a6dada10` at `6363a05d80`, then `8fbf76c6ee` at `d2235ec4b0` (67 more commits: PR 701, the indicators batch, which is `origin/production`, and PR 703, connector fidelity). At 2026-11-02 20:37 `origin/production` is `8fbf76c6ee` and `origin/master` is `8fbf76c6ee`; production is 0 commits behind master and contains `67a6dada10`. The rails in sections 2 and 3 are being run again on the second merge's tree; that job was still queued behind other sessions on the heavy lock when this was written, so the cells that need it say PENDING; the census, the build and the probes ran on the first, and section 11 says which log ran on which tree. The harness lane diff was first taken on the branch base `6272ed7fa3`; sections 3.2, 3.3 and 10 say what carries.
 - **Machine.** The owner's laptop (Windows 11). Every heavy job ran alone under the machine-wide heavy lock (`hl`), after waiting its turn behind other sessions' jobs. Free RAM, read by `hl` before each job, ran from 989 to 4,736 MB.
 - **Evidence.** `docs/pine/evidence/w2-arming-2026-11-02/` (the table in section 12). Raw logs are in `C:\Users\pgosz\uct-worktrees\_resume-laptop\runs\w2\`.
 - **PASS** means the evidence named was read or run on this tree at write time and agrees. **FAIL** means a measurement missed its budget. **OPEN** means not measured here, or not mine to decide. Script text is never quoted; names, hashes (12 hex), ids and counts are.
@@ -16,7 +16,7 @@ Branch `feat/pine-w2-arming`. **Facts and measurements only. Nothing in this pac
 
 - **What stage 1 would serve: one script, `adx-and-di-for-v4`** (sha256 `d0853c47...0499`). It is the only script R1 admits today (the real `pine_runtime_admission` returns no reason), it has two committed MATCH captures through the runtime lane, and the new allowlist rail re-grades both on this tree with the committed list latched: MATCH, 4 of 4 tests passed, and the latch is mutation-proved (3 of 3 mutations killed, the control going red alone under the one the task named). Section 6.
 - **Section 4.1, safety S1 to S8, and the cohort stage:** S1, S2 and S3 **PASS** (S1 is a point-in-time grep); the client halves of S5, S6 and S8 **PASS** in the J2 run; S4, S7 and the server halves of S5, S6 and S8 are **PENDING** (the pytest rails had not run), and so is the cohort stage. Section 2.
-- **Budgets for that script** (section 5): B3 and B4 are measured and **PASS**; B1, B2 and B5 are **PENDING** (the worker probe had not run when this was written). Section 5.
+- **Budgets for that script** (section 5): B1 PASS (16.8 ms); B2 PASS (p95 48.5 ms at x4, on the stand-in); B3 PASS (62 ms at 32,000 five-minute bars); B4 PASS (358,185 B gzip); B5 PASS on the desktop (tick p95 19.4 ms) and FAIL at x4 (52.3 ms against 50). Section 5.
 - **Open under the plan's own words (4.5):** P11, a full-suite run on a whole install, which is part of the stage-0 exit, was **not run** here (section 10). Stage 1's own gate to leave is a 14-day watch with the checks in section 8.
 - **Found while measuring, not in the plan:**
   1. The J4 census failed on its own assertion and wrote nothing: it required a budget stop to be `runtime:time-budget` even when a VM limit fires first. Fixed in the instrument (`4a884aff97`), with the first failure kept as proof (section 4).
@@ -187,17 +187,61 @@ The slowest-of-3 rows over 800 ms:
 
 ## 5. The budgets (4.3), B1 to B5
 
-The instruments are the worker probe (`tools/runtime_pane_worker_probe.py`) and the census (section 4). The probe loads the real built `runtimeWorker-*.js` into a headless Chromium that the tool launches itself (Playwright, a fake origin `rf-probe.invalid`, no network, no profile; none of the owner's browsers), posts each census script's document and bars as `runtimeAsync.workerRunner` does, and records the worker's turnaround and the main thread's largest gap between animation frames while it works. Both runs used `--runs 11 --lengths "D 5000" --symbol AAPL:NASDAQ --checkpoint 20` over the 22 runtime-only documents the census minted; p50 and p95 are over the 10 warm attempts (attempt 1 also fetches and compiles the bundle). The bundle is the one built for B4 below, from the first-merge tree (section 11).
+The instruments are the worker probe (`tools/runtime_pane_worker_probe.py`) and the census (section 4). The probe loads the real built `runtimeWorker-*.js` into a headless Chromium that the tool launches itself (Playwright, a fake origin `rf-probe.invalid`, no network, no profile; none of the owner's browsers), posts each census script's document and bars as `runtimeAsync.workerRunner` does, and records the worker's turnaround and the main thread's largest gap between animation frames while it works. The probe ran with `--runs 11 --lengths "D 5000" --symbol AAPL:NASDAQ --checkpoint 20` and `--cpu-throttle 4` (one invocation: the desktop phase first, then the throttled page) over the 22 runtime-only documents the census minted; p50 and p95 are over the 10 warm attempts (attempt 1 also fetches and compiles the bundle). The bundle is the one built for B4 below, from the first-merge tree (section 11).
 
-**INTERIM: the probe numbers were not available when this file was written.** The desktop and x4 probe jobs were queued behind other sessions on the heavy lock; the commit that replaces this section carries them. B4 below is measured (the build ran); B3 is the census (section 4).
+### 5.1 The controls ran first and are read here
+
+- **Frame-gap control** (desktop run): a deliberate 400 ms main-thread block must be seen as a gap of at least 350 ms. It read **400 ms** (`probe-x4.json`, `control`); verdict of the run: `OFF-MAIN-THREAD`.
+- **Throttle control** (x4 run): a fixed busy loop timed in the stand-in page unthrottled and throttled: **256 ms to 1763 ms, a ratio of x6.88** for the x4 asked (the floor is half of it). Verdict: `MEASURED`.
+  - The busy-loop control is a noisy floor test on a loaded machine (its unthrottled loop took 256 ms), so its ratio is not used to correct any number. The better calibration is the work the scripts do: the x4 p50 over the desktop p50 for the 14 scripts that answer `ok` on both profiles has a median of **x3.46** (range x0.82 to x5.83), the stage-1 script x3.72. The profile ran at about the rate asked on real work.
+- **The x4 profile is a stand-in, not a device.** Chromium refuses a CPU throttle on a worker target ("only supported for pages"), so the low-end profile runs the same bundle's handler on a throttled **page**, on the page's thread. B1 therefore reads the desktop run only (a handler run on the page blocks the page by construction).
+- The desktop figures are the first phase of the x4 invocation (`probe-x4.json`: the real worker runs first, then the throttled page). The separate desktop-only run did not get the heavy lock in time, so there is no second desktop measurement to compare.
+
+### 5.2 The stage-1 script, budget by budget
 
 | budget | requires | `adx-and-di-for-v4` | verdict |
 |---|---|---|---|
-| B1 | main-thread frame gap of at most 1 frame during a worker run | not measured here | **OPEN** |
-| B2 | p95 at most 1,000 ms at 5,000 daily bars on a low-end profile, for every allowlisted script | not measured here; the census (node, desktop) reads 21.1 ms at 5,000 daily bars | **OPEN** |
-| B3 | a 32,768-bar run in at most 1,000 ms or a named stop | census: 62 ms at 32,000 five-minute bars; section 4 for the other 21 | **PASS** |
-| B4 | worker chunk at most 450 KB gzip | 358,185 B gzip -9 (1,142,621 B raw) | **PASS** |
-| B5 | realtime rerun from a checkpoint at most 50 ms per tick at 5,000 daily bars | not measured here | **OPEN** |
+| B1 | main-thread frame gap of at most 1 frame during a worker run (one 60 Hz frame is 16.7 ms; the plan read 17 ms as met; PASS here is at most 20 ms) | worst gap while this script ran, desktop: **16.8 ms** over runs of 2 to 11 frames. Worst over all 22 scripts: 16.8 ms | **PASS** |
+| B2 | p95 at most 1,000 ms at 5,000 daily bars on a low-end profile, for every allowlisted script | x4: p50 **40.2** ms, p95 **48.5** ms (ok); desktop p50 10.8, p95 33.1 ms | **PASS** (on the stand-in) |
+| B3 | a 32,768-bar run in at most 1,000 ms or a named stop | census, node: 62 ms at 32,000 five-minute bars, 49 ms at 20,208; every one of the 22 scripts ends in a completion or a named guard (section 4) | **PASS** |
+| B4 | worker chunk at most 450 KB gzip, fetched only when a runtime pane computes | **358,185 B gzip -9** (1,142,621 B raw), one self-contained file; the plan's 2026-10-31 reading was 330,012 B (+8.5%) | **PASS** |
+| B5 | realtime rerun from a checkpoint at most 50 ms per tick at 5,000 daily bars | tick p95: desktop **19.4 ms**, x4 **52.3 ms** (full run first: 43.5 ms desktop, 166 ms x4) | **PASS** desktop, **FAIL** x4 |
+
+Which budgets gate what (PHASE3-RUNTIME-PLAN 4.5): B1 is part of the stage-0 exit, so it gates stage 1. B2 gates stage 3 ("B2 met on the low-end profile"); B4 and B5 are arming prerequisites in the plan's WS-H and do not name a stage. B3 is a named-stop rule, not a gate.
+
+### 5.3 Every census script, for reference (D 5000)
+
+| script | desktop p50 / p95 (ms) | answer | x4 p50 / p95 (ms) | answer | desktop tick p95 (ms) | x4 tick p95 (ms) | tick answer |
+|---|---|---|---|---|---|---|---|
+| adx-and-di-for-v4 | 10.8 / 33.1 | ok | 40.2 / 48.5 | ok | 19.4 | 52.3 | ok |
+| atr-stepped-pdf-ma-loxx | 6.7 / 14.5 | ok | 1097 / 1190 | time-budget | 11.4 | 30.7 | ok |
+| cc-yata | 30.8 / 37.3 | ok | 122 / 1614 | ok/time-budget | 41.0 | 139 | ok |
+| deadband-hysteresis-filter-backquant | 6.0 / 9.8 | ok | 19.5 / 37.0 | ok | 9.4 | 18.5 | ok |
+| delta-rsi-oscillator-strategy | 1019 / 1038 | time-budget | 1170 / 1263 | time-budget | 1034 | 1156 | time-budget |
+| fair-value-gap | 9.0 / 20.4 | ok | 1256 / 1451 | time-budget | 13.3 | 1286 | ok |
+| fibonacci-dolphintradebot | 12.2 / 17.4 | ok | 81.8 / 1856 | ok/time-budget | 15.5 | 68.1 | ok |
+| fvg-trend | 6.1 / 11.9 | ok | 31.5 / 45.2 | ok | 14.0 | 28.3 | ok |
+| inside-bar-boxes | 9.0 / 18.9 | ok | 52.5 / 95.5 | ok | 17.1 | 47.7 | ok |
+| inside-bar-range-mother-candle-breakout... | 7.5 / 10.7 | ok | 31.9 / 78.1 | ok | 13.7 | 34.4 | ok |
+| kalman-price-filter-backquant | 5.2 / 16.5 | ok | 13.3 / 28.3 | ok | 10.9 | 9.9 | ok |
+| linear-regression-channel | 36.0 / 64.5 | failed | 190 / 424 | failed | 76.5 | 279 | failed |
+| macd-with-filter-visual-backtest-module... | 67.6 / 76.0 | ok | 277 / 439 | ok | 124 | 643 | ok |
+| machine-learning-knn-based-strategy | 1052 / 1090 | time-budget | 1249 / 1549 | time-budget | 1153 | 1526 | time-budget |
+| nadaraya-watson-rational-quadratic-kern... | 6.7 / 11.4 | ok | 5.5 / 10.0 | ok | 16.6 | 1059 | ok |
+| order-block-finder | 20.1 / 28.5 | ok | 41.8 / 67.6 | ok | 37.4 | 88.4 | ok |
+| order-blocks | 58.3 / 72.6 | failed | 272 / 622 | failed | 204 | 555 | failed |
+| parabolic-sar | 9.9 / 19.3 | ok | 40.7 / 67.5 | ok | 63.5 | 77.3 | ok |
+| renko-candles-overlay | 12.1 / 20.3 | ok | 26.8 / 32.3 | ok | 54.6 | 69.4 | ok |
+| trend-targets-algoalpha | 10.9 / 23.4 | ok | 39.9 / 66.6 | ok | 118 | 70.3 | ok |
+| williams-fractal-trailing-stops | 9.3 / 14.1 | ok | 19.7 / 27.3 | ok | 31.5 | 40.8 | ok |
+| wyckoff-accumulation-distribution | 7.4 / 12.5 | ok | 15.0 / 28.6 | ok | 19.1 | 19.1 | ok |
+
+### 5.4 Reading
+
+- **The stage-1 script against the budgets above**: inside B3, B4, B1, B2, B5 on the desktop; **misses** B5 at x4: tick p95 52.3 ms against 50 (2.3 ms over). The stand-in profile is not a device, and the figure is one draw on a loaded machine (5.1).
+- **B2 on the stand-in**: 8 of 22 scripts miss the 1,000 ms p95 or do not answer `ok` at x4 (`atr-stepped-pdf-ma-loxx`, `cc-yata`, `delta-rsi-oscillator-strategy`, `fair-value-gap`, `fibonacci-dolphintradebot`, `linear-regression-channel`, `machine-learning-knn-based-strategy`, `order-blocks`). Only the allowlisted script is bound by B2 today.
+- **B5**: 8 of 22 scripts miss 50 ms or do not answer `ok` on the desktop tick (`delta-rsi-oscillator-strategy`, `linear-regression-channel`, `macd-with-filter-visual-backtest-module-sample`, `machine-learning-knn-based-strategy`, `order-blocks`, `parabolic-sar`, `renko-candles-overlay`, `trend-targets-algoalpha`); 14 of 22 at x4 (`adx-and-di-for-v4`, `cc-yata`, `delta-rsi-oscillator-strategy`, `fair-value-gap`, `fibonacci-dolphintradebot`, `linear-regression-channel`, `macd-with-filter-visual-backtest-module-sample`, `machine-learning-knn-based-strategy`, `nadaraya-watson-rational-quadratic-kernel-non-repainting`, `order-block-finder`, `order-blocks`, `parabolic-sar`, `renko-candles-overlay`, `trend-targets-algoalpha`). The tick has the same checkpoint path for every script; only the allowlisted script is bound by it today.
+- **Earlier readings, for the record** (PHASE3-RUNTIME-PLAN 4.3, WS-H 2026-10-31): B1 17 ms; B2 for the allowlist p95 112 ms at x4; B4 330,012 B gzip; B5 desktop tick p95 for this script 19 ms. This section re-measures them on the merged tree.
 
 ## 6. The candidate stage-1 allowlist
 
@@ -223,7 +267,7 @@ A script is a candidate only when all of these hold:
 | a DIVERGE capture of this script | none |
 | with the server's list latched | the allowlist rail `runtimeAllowlistParity.test.js`: 4 of 4 passed (`parity-run.log`, first-merge tree); final-tree run PENDING; its latch is mutation-proved, 3 of 3 mutations killed (`parity-mutations.json`) |
 | cost, census (node) | door 22.5 ms (warm); run 21.1 ms at 5,000 daily bars, 35.1 at 11,534, 48.6 at 20,208 five-minute bars, 62.2 at 32,000 |
-| cost, worker probe | desktop: PENDING; x4 stand-in: PENDING |
+| cost, worker probe | desktop: p50 10.8 / p95 33.1 ms (ok), tick p95 19.4 ms; x4 stand-in: p50 40.2 / p95 48.5 ms (ok), tick p95 52.3 ms |
 
 
 ### 6.3 What an admin sees for any other script at stage 1
@@ -239,24 +283,24 @@ The lane draws nothing for it. The member door declines it with the host lane's 
 
 | script | captures (runtime lane) | R1 reasons | census cost, median ms (section 4) | worker probe (section 5) |
 |---|---|---|---|---|
-| `parabolic-sar` | RDDT 1d MATCH | no registry row for `if-block` | door 109; D 5000 59.9; 5m 32000 284 | PENDING |
-| `kalman-price-filter-backquant` | RDDT 1d MATCH | no registry row for `fn-multi`, `fn-single`, `for`, `if-block`, `typed-array`, `var` | door 14.4; D 5000 1.3; 5m 32000 15.1 | PENDING |
-| `wyckoff-accumulation-distribution` | RDDT 1d MATCH, SPY 1d MATCH | no registry row for `fn-multi`, `fn-single`, `for`, `history-expr`, `if-block`, `var` | door 206; D 5000 8.2; 5m 32000 7.3 | PENDING |
+| `parabolic-sar` | RDDT 1d MATCH | no registry row for `if-block` | door 109; D 5000 59.9; 5m 32000 284 | desktop: D 5000 p95 19.3 ms (ok), tick p95 63.5 ms; x4: D 5000 p95 67.5 ms (ok), tick p95 77.3 ms |
+| `kalman-price-filter-backquant` | RDDT 1d MATCH | no registry row for `fn-multi`, `fn-single`, `for`, `if-block`, `typed-array`, `var` | door 14.4; D 5000 1.3; 5m 32000 15.1 | desktop: D 5000 p95 16.5 ms (ok), tick p95 10.9 ms; x4: D 5000 p95 28.3 ms (ok), tick p95 9.9 ms |
+| `wyckoff-accumulation-distribution` | RDDT 1d MATCH, SPY 1d MATCH | no registry row for `fn-multi`, `fn-single`, `for`, `history-expr`, `if-block`, `var` | door 206; D 5000 8.2; 5m 32000 7.3 | desktop: D 5000 p95 12.5 ms (ok), tick p95 19.1 ms; x4: D 5000 p95 28.6 ms (ok), tick p95 19.1 ms |
 
 **B. Withheld by `conditional-ta` (and the rows they lack).** The census names these scripts `conditional-ta`; the registry row is `divergent`. 9a is the case for deadband and fibonacci; 9b is renko.
 
 | script | captures (runtime lane) | R1 reasons | census cost, median ms (section 4) | worker probe (section 5) |
 |---|---|---|---|---|
-| `deadband-hysteresis-filter-backquant` | RDDT 1d MATCH | `conditional-ta` is divergent; no registry row for `compound-assign`, `fn-multi`, `fn-single`, `if-block`, `var` | door 46.5; D 5000 11.6 (bind-time-text); 5m 32000 39.2 (bind-time-text) | PENDING |
-| `fibonacci-dolphintradebot` | RDDT 1d MATCH, SPY 1d MATCH | `conditional-ta` is divergent; no registry row for `fn-multi`, `fn-single`, `if-block`, `max_bars_back`, `switch`, `var` | door 840; D 5000 77.6; 5m 32000 302 | PENDING |
-| `renko-candles-overlay` | RDDT 1d MATCH, SPY 1d INCONCLUSIVE | `conditional-ta` is divergent; no registry row for `compound-assign`, `fn-multi`, `fn-single`, `for`, `if-block`, `max_bars_back`, `var`, `while` | door 272; D 5000 19.5 (bind-time-text); 5m 32000 39.1 (bind-time-text) | PENDING |
+| `deadband-hysteresis-filter-backquant` | RDDT 1d MATCH | `conditional-ta` is divergent; no registry row for `compound-assign`, `fn-multi`, `fn-single`, `if-block`, `var` | door 46.5; D 5000 11.6 (bind-time-text); 5m 32000 39.2 (bind-time-text) | desktop: D 5000 p95 9.8 ms (ok), tick p95 9.4 ms; x4: D 5000 p95 37.0 ms (ok), tick p95 18.5 ms |
+| `fibonacci-dolphintradebot` | RDDT 1d MATCH, SPY 1d MATCH | `conditional-ta` is divergent; no registry row for `fn-multi`, `fn-single`, `if-block`, `max_bars_back`, `switch`, `var` | door 840; D 5000 77.6; 5m 32000 302 | desktop: D 5000 p95 17.4 ms (ok), tick p95 15.5 ms; x4: D 5000 p95 1856 ms (ok/runtime:time-budget), tick p95 68.1 ms |
+| `renko-candles-overlay` | RDDT 1d MATCH, SPY 1d INCONCLUSIVE | `conditional-ta` is divergent; no registry row for `compound-assign`, `fn-multi`, `fn-single`, `for`, `if-block`, `max_bars_back`, `var`, `while` | door 272; D 5000 19.5 (bind-time-text); 5m 32000 39.1 (bind-time-text) | desktop: D 5000 p95 20.3 ms (ok), tick p95 54.6 ms; x4: D 5000 p95 32.3 ms (ok), tick p95 69.4 ms |
 
 **C. Withheld by their captures or their cost.**
 
 | script | captures (runtime lane) | R1 reasons | census cost, median ms (section 4) | worker probe (section 5) |
 |---|---|---|---|---|
-| `inside-bar-range-mother-candle-breakoutbr...` | RDDT 1d MATCH, SPY 1d DIVERGE | no registry row for `fn-multi`, `fn-single`, `if-block`, `var` | door 11.1; D 5000 5.4; 5m 32000 29.6 | PENDING |
-| `delta-rsi-oscillator-strategy` | RDDT 1d MATCH, SPY 1d INCONCLUSIVE | no registry row for `fn-multi`, `fn-single`, `for`, `history-expr`, `if-block`, `tuple-destructure`, `var` | door 64.9; D 5000 3485 (limit); 5m 32000 3017 (limit) | PENDING |
+| `inside-bar-range-mother-candle-breakoutbr...` | RDDT 1d MATCH, SPY 1d DIVERGE | no registry row for `fn-multi`, `fn-single`, `if-block`, `var` | door 11.1; D 5000 5.4; 5m 32000 29.6 | desktop: D 5000 p95 10.7 ms (ok), tick p95 13.7 ms; x4: D 5000 p95 78.1 ms (ok), tick p95 34.4 ms |
+| `delta-rsi-oscillator-strategy` | RDDT 1d MATCH, SPY 1d INCONCLUSIVE | no registry row for `fn-multi`, `fn-single`, `for`, `history-expr`, `if-block`, `tuple-destructure`, `var` | door 64.9; D 5000 3485 (limit); 5m 32000 3017 (limit) | desktop: D 5000 p95 1038 ms (runtime:time-budget), tick p95 1034 ms; x4: D 5000 p95 1263 ms (runtime:time-budget), tick p95 1156 ms |
 
 `trend-targets-algoalpha` has a runtime-lane DIVERGE on RDDT and no MATCH (INCONCLUSIVE on SPY); it also carries `conditional-ta`. The plan records the RDDT difference as "`Baseline` is `na` here on 82 scattered bars (140 to 221) where TradingView has a value", to diagnose before it is allowlisted (PHASE3-RUNTIME-PLAN 2.4, at `b09a6bcee6`; not re-derived here).
 
@@ -291,7 +335,7 @@ The read (changes nothing): `railway variables --service web --kv`, and look at 
 
 ### 7.2 No code deploy is needed to arm, and one thing to know about production
 
-`origin/production` is `8fbf76c6ee` and `origin/master` is `8fbf76c6ee` (checked 2026-11-02 20:28): production is 0 commits behind master, and contains `67a6dada10`, the commit this branch first merged (`git merge-base --is-ancestor`: yes). So everything the arming steps rely on is on production: `api/services/rollout_gate.py` (R1 admission and the cohort stage), `api/services/runtime_definitions.py` (the stage ladder), `api/routers/pine_runtime_telemetry.py` (mounted at `api/main.py:10408-10409`), `api/data/pine_runtime_allowlist.json`, `tools/runtime_pane_smoke.py`, `app/src/lib/runtimePanePermission.js`, and `Dockerfile.web:114` (`ARG VITE_PINE_RUNTIME_PANE_ENABLED`) with `:139` (the `ENV` that passes it into the build). This branch adds tests, docs and evidence only (and one edit to a measurement test, `runtimePaneReadiness.measure.test.js`); it is not a precondition of arming.
+`origin/production` is `8fbf76c6ee` and `origin/master` is `8fbf76c6ee` (checked 2026-11-02 20:37): production is 0 commits behind master, and contains `67a6dada10`, the commit this branch first merged (`git merge-base --is-ancestor`: yes). So everything the arming steps rely on is on production: `api/services/rollout_gate.py` (R1 admission and the cohort stage), `api/services/runtime_definitions.py` (the stage ladder), `api/routers/pine_runtime_telemetry.py` (mounted at `api/main.py:10408-10409`), `api/data/pine_runtime_allowlist.json`, `tools/runtime_pane_smoke.py`, `app/src/lib/runtimePanePermission.js`, and `Dockerfile.web:114` (`ARG VITE_PINE_RUNTIME_PANE_ENABLED`) with `:139` (the `ENV` that passes it into the build). This branch adds tests, docs and evidence only (and one edit to a measurement test, `runtimePaneReadiness.measure.test.js`); it is not a precondition of arming.
 
 **What changed on the lane's path since the first merge, and where it is.** Production's last merge (PR 701) changed these files on the lane's path against `67a6dada10`: `api/routers/user_definitions.py`, `api/services/user_definitions.py`, `app/src/components/chart/engine/ast/callExpansions.js`, `app/src/components/chart/engine/ast/closedTable.json`, `app/src/components/chart/engine/binder.js`, `docs/feature_flags.json`. Master's last merge (PR 703) changes, against production: none. The server files are the line-identity feature (`plot_identities` is served beside the stored definition and never inside it, which the rails that pin "served equals stored" depend on); the client files add three native-formula expansions and one source-reference check. The pytest rails (section 2) had not run when this was written, and the first-merge vitest runs predate PR 701's changes, so until the final-tree job is in, the rails do not yet describe the code production runs.
 
@@ -485,6 +529,8 @@ Two things differ from the plan of record: the census (J4) ran twice (the first 
 | `lane-rails.log` | 16 vitest files the owner items cite, 333 tests |
 | `parity-mutations.json` | J1b: the three mutations, all killed, with the failing rails by name |
 | `parity-run.log` | J1: the allowlist re-grade rail, Test Files 1 passed, Tests 4 passed |
+| `probe-x4-run.log` | the probe console output, both phases (desktop, then the throttled page) |
+| `probe-x4.json` | J6: the worker probe, one invocation with --cpu-throttle 4: the desktop phase first (B1, B2, B5 on the desktop), then the throttled page (the low-end stand-in) |
 | `pytest-condta.log` | the census-detector rail (`conditional-ta`) |
 | `readiness.json` | J4 output: 22 runtime-only scripts at four lengths (section 4) |
 | `s1-grep.sh` | the S1 point-in-time search (section 2, S1 detail); a grep, not a standing rail |
