@@ -3,13 +3,15 @@
 // Two ways to feed it: `cutoff` = the real data path cut off at a date (the chart's own replay cutoff, as the
 // journal's before/after cards do); `bars` = explicit bars (the Study bank's stored window, no fetch), which also
 // makes tap-to-pick and bar-by-bar replay possible because the bars are in hand.
-import { Suspense, useCallback, useMemo, useRef } from 'react'
+import { Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import ChartPane from '../components/chart/pane/ChartPane'
 
 export default function WidgetChart({
   sym, tf = 'D', cutoff = null, bars = null, density = 'full', height = 460, annotations = null, hideTicker = false,
   rightPadBars = 2, frozen = false, markers = null, onBarTap = null, defaultBars = null, extra = null,
 }) {
+  // the widget's own timeframe bar works (the pane is controlled: it needs a tf setter to switch)
+  const [tfState, setTfState] = useState(tf)
   const last = useRef(null)
   const onCrosshairMove = useCallback((c) => { if (c && c.time != null) last.current = { time: c.time, price: c.cursorPrice ?? c.price } }, [])
   const onClick = useCallback(() => {
@@ -38,7 +40,7 @@ export default function WidgetChart({
   return (
     <div onClick={onClick} style={{ height, display: 'flex', flexDirection: 'column', cursor: onBarTap ? 'crosshair' : undefined }}>
       <Suspense fallback={<div style={{ height, display: 'grid', placeItems: 'center', color: '#9a958a' }}>Loading the chart</div>}>
-        <ChartPane sym={sym} tf={tf} density={density} showTfBar={density !== 'mini'} stored={null} stockChartProps={scp} />
+        <ChartPane sym={sym} tf={tfState} onTfChange={setTfState} density={density} showTfBar={density !== 'mini'} stored={null} stockChartProps={scp} />
       </Suspense>
     </div>
   )

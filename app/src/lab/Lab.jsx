@@ -21,8 +21,18 @@ import Piece17AnswerV4 from './pieces/Piece17AnswerV4'
 import Piece18ReplayV4 from './pieces/Piece18ReplayV4'
 import Piece19FinishV4 from './pieces/Piece19FinishV4'
 import Piece20Path from './pieces/Piece20Path'
+import Piece21LoopDuo from './pieces/Piece21LoopDuo'
+import Piece22AnswerV5 from './pieces/Piece22AnswerV5'
+import Piece23Story from './pieces/Piece23Story'
+import Piece24FinishSeq from './pieces/Piece24FinishSeq'
+import Piece25Home from './pieces/Piece25Home'
 
 const PIECES = {
+  21: Piece21LoopDuo,
+  22: Piece22AnswerV5,
+  23: Piece23Story,
+  24: Piece24FinishSeq,
+  25: Piece25Home,
   16: Piece16LoopWidget,
   17: Piece17AnswerV4,
   18: Piece18ReplayV4,

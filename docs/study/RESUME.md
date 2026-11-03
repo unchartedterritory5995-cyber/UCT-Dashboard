@@ -841,6 +841,29 @@ far-right year label from the chart's future whitespace in barsOverride mode.
 
 NEXT: batch-4 scores -> ingest -> round 5. Open rulings to get from the owner: house STOP for ORB and for PDH;
 ticker shown or hidden on a question; Foundations-first or setups-first on the path.
+## 2026-11-02 (late): WORKBENCH ROUND 5 LIVE (pieces 21-25), Duolingo-style chrome everywhere
+
+Round-4 verdicts (verbatim in owner_verdicts.jsonl, commit 90987e3ede): loop on the widget 75 ("about perfect", wants
+more fun/exciting/interactive layout); answer 2 ("looks like shit. Just allow the user to switch timeframes"); replay 2
+("way more of a production and interactive and educational; clunky"); finish 2 ("still the same thing"); home 2
+("too confusing; check out a ton of apps LIKE DUOLINGO or other educational apps, for everything really").
+
+Research: Duolingo blog (path of pebble nodes, unit headers with Guidebook, gold = done, popup under a node, Quests
+chest tab, characters along the path) + end-of-lesson sequence (Lesson complete + XP, streak screen with flame and
+week, daily goal separate). Round 5 (batch 5, new app/src/lab/duo.module.css):
+- 21 Piece21LoopDuo: lesson chrome (close, segmented green progress, hearts), coach speech bubble (compass mark as
+  stand-in character), big choice cards with number keys, green Check, Nicely done sheet, heart lost, combo toast,
+  WebAudio tone on answers; chart = widget (bars override).
+- 22 Piece22AnswerV5: ONE widget on the real data path (cutoff), the member switches 1D/30m/1h on the widget's own bar
+  (WidgetChart now holds tf state + onTfChange; 30-min JBI bars loaded into the sandbox bars.db by load_30m_local.py);
+  entry/stop as priceLines (timeframe-independent); tactic tabs; one numbers strip.
+- 23 Piece23Story: replay as a story: chapter rail (Setup/Red day/Kicker/Follow-through), big captions, auto-play,
+  stops at each chapter with a coach question (real red day? where is the line? did it hold?), score x/3.
+- 24 Piece24FinishSeq: four full screens: Lesson complete + XP cards, streak flame + week, daily goal ring, fix + next.
+- 25 Piece25Home: Duolingo-faithful home: top bar (course/flame/gems/hearts), colored unit banners + Guidebook, big
+  pebble nodes, START bubble, chests/trophies, coach, popup under node, bottom tabs.
+
+NEXT: batch-5 scores -> ingest -> round 6. Still unruled: house STOP per entry; ticker shown on questions; unit order.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
