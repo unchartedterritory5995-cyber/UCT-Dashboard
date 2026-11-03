@@ -38,6 +38,7 @@ import { loadConcepts, conceptsLoaded, conceptFor, conceptTitles, coachFooter } 
 import { observe, lastObserved, observedChart, barsServed } from '../coach/observe'
 import { enforce as guardEnforce, check as guardCheck } from '../coach/guard'
 import { nextFor } from '../coach/next'
+import { brainPassage } from '../coach/brain'
 import { consentState, readConsent, writeConsent } from '../coach/consent'
 import { reviewStats, reviewText, reviewPresent, modelView, fetchTrades, clampN, DEFAULT_N, MAX_N, DESCRIPTIVE } from '../coach/review'
 
@@ -93,9 +94,18 @@ export async function reviewTrades(count) {
 }
 
 /** The concept explanation + one observation (when served) + the footer → { text, title } (mirror-guarded). */
+// W3-4b: when the server serves `knowledge.search`, an approved Brain passage LEADS the answer (the Brain is the source
+// of UCT's setup definitions — docs/agent/coach/VOCABULARY-MAP.md) and the curated note follows as generic background.
+// The composed text passes the same mirror guard with exactly its sources; if it would be replaced, or the kind is not
+// served, or the read is refused / empty / fails, the answer is exactly the curated one (no behaviour change).
 export async function explainConcept(topic, host) {
   const rows = conceptsLoaded() || await loadConcepts()
   const c = conceptFor(topic, rows)
+  const brain = await brainPassage(topic)
+  if (!c && brain) {
+    const g = guardEnforce(brain.text, [brain.text])
+    if (!g.violations.length) return { text: g.text, title: brain.title || undefined }
+  }
   if (!c) {
     const titles = conceptTitles(rows)
     return { text: titles.length
@@ -108,6 +118,10 @@ export async function explainConcept(topic, host) {
   // belt and braces: the browser's own answer passes the mirror guard (its inputs are exactly its sources)
   const g = guardEnforce(body, [c.text, obs || ''])
   const next = nextFor({ after: 'explain', conceptId: c.id, consent: consentState(), hasChart: !!observedChart(host), concepts: rows })
+  if (brain) {
+    const b = guardEnforce(`${brain.text}\n\n${body}`, [brain.text, c.text, obs || ''])
+    if (!b.violations.length) return { text: b.text, title: c.title, next }
+  }
   return { text: g.text, title: c.title, next }
 }
 
