@@ -61,16 +61,16 @@ export default function Piece56DrawItV3() {
   const shown = useMemo(() => {
     if (!all || !red) return null
     const a = [...spot(all, n - 1, { label: phone ? 'day 1' : 'day 1 · the Kicker', id: 'k', gap: 7, halo: state !== 'ask' })]
-    const t0 = vis[Math.max(0, n - 26)].t
+    const t0 = vis[Math.max(0, n - 22)].t
     a.push({ id: 'e', type: 'hray', points: [{ time: t0, price: entry }], color: '#2faf68', lineWidth: 2, lineStyle: 'solid', locked: true })
-    a.push({ id: 'e-chip', type: 'text', points: [{ time: t0, price: entry }], text: phone ? `  ENTRY ${money(entry)}  ` : `  ENTRY ${money(entry)} · one cent over yesterday's high  `, color: '#ffffff', fontSize: 12, bgEnabled: true, bgColor: '#2faf68', locked: true })
+    a.push({ id: 'e-chip', type: 'text', points: [{ time: t0, price: entry }], text: phone ? `  ENTRY ${money(entry)}  ` : `  ENTRY ${money(entry)} · over yesterday's high  `, color: '#ffffff', fontSize: 12, bgEnabled: true, bgColor: '#2faf68', locked: true })
     if (myPrice != null) {
-      const t1 = vis[Math.max(0, n - 20)].t
+      const t1 = vis[Math.max(0, n - 16)].t
       a.push({ id: 'mine', type: 'hray', points: [{ time: t1, price: myPrice }], color: '#ff6b6b', lineWidth: 2.5, lineStyle: 'dashed' })
       a.push({ id: 'mine-chip', type: 'text', points: [{ time: t1, price: myPrice }], text: phone ? `  STOP ${money(myPrice)}  ` : `  YOUR STOP ${money(myPrice)}  `, color: '#ffffff', fontSize: 12, bgEnabled: true, bgColor: '#df4646', locked: true })
     }
     if (state !== 'ask' && house != null) {
-      const t2 = vis[Math.max(0, n - 12)].t
+      const t2 = all[Math.min(all.length - 1, n + 1)].t   // to the right of the Kicker, over the days that follow
       a.push({ id: 'house', type: 'hray', points: [{ time: t2, price: house }], color: '#dcbb5e', lineWidth: 2, lineStyle: 'solid', locked: true })
       a.push({ id: 'house-chip', type: 'text', points: [{ time: t2, price: house }], text: phone ? `  HOUSE ${money(house)}  ` : `  HOUSE STOP ${money(house)} · the Kicker's low  `, color: '#111', fontSize: 12, bgEnabled: true, bgColor: '#dcbb5e', locked: true })
     }

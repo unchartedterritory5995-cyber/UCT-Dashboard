@@ -528,3 +528,35 @@
   .lesson .startLead { font-size: 14px; }
   .nudge button { min-width: 44px; }
 }
+
+/* ── round 12b: restraint. One radius scale, one hairline, fewer glows, a quiet stage behind every lesson ── */
+.lesson { --r: 14px; background: radial-gradient(120% 70% at 50% -10%, rgba(220,187,94,.06), transparent 60%); }
+.lesson .topbar { padding: 2px 0 4px; }
+.lesson .prog i { height: 6px; border-radius: 3px; box-shadow: none; }
+.lesson .prog i.on { background: var(--g); }
+.lesson .hearts { font-size: 16px; gap: 3px; }
+.lesson .close { color: #6b665c; font-size: 18px; }
+.lesson .bubble { border-radius: var(--r); border-color: #2a2414; background: linear-gradient(180deg, #171408, #121212); font-size: 17px; font-weight: 600; padding: 12px 16px; }
+.lesson .bubble::before { background: #151208; border-color: #2a2414; }
+.lesson .card { border-radius: var(--r); border-bottom-width: 1px; background: #121212; transition: border-color .12s, background .12s, color .12s; }
+.lesson .card:hover:not(:disabled) { transform: none; border-color: #4a4024; background: #161410; }
+.lesson .card:active:not(:disabled) { transform: none; border-bottom-width: 1px; }
+.lesson .card.sel { background: #1a1708; }
+.lesson .key { border-radius: 7px; font-weight: 700; }
+.lesson .footer { background: rgba(11,11,11,.94); backdrop-filter: blur(10px); border-top-color: #1f1f1f; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+.lesson .btn { padding: 14px; border-radius: var(--r); font-size: 14px; letter-spacing: .12em; }
+.lesson .startCard { border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.6); border-color: #2a2414; }
+.lesson .gem { padding: 1px; border-radius: var(--r); box-shadow: 0 8px 24px rgba(0,0,0,.45); animation: none; background: linear-gradient(160deg, #e9cd77, #8a6f22); }
+.lesson .gem::after { display: none; }
+.lesson .gemIn { border-radius: 13px; padding: 10px 14px 9px; background: #111; }
+.lesson .gemIn b { font-size: 22px; } .lesson .gemIn small { font-size: 9.5px; }
+.lesson .gem.green { background: linear-gradient(160deg, #8fe3b1, #1d7a45); } .lesson .gem.ember { background: linear-gradient(160deg, #ffc266, #8a4a00); } .lesson .gem.dim { background: #2a2a2a; }
+.lesson .qSetup { border-radius: 6px; padding: 3px 8px; letter-spacing: .14em; }
+.lesson .whyCard { border-radius: var(--r); }
+.lesson .liveStrip { border-radius: var(--r); }
+.lesson .cand { border-radius: var(--r); border-bottom-width: 1px; }
+.lesson .stamp { border-width: 3px; }
+.lesson .eyebrowG { color: #b9a56a; }
+.lesson .tutStep, .lesson .nextCard, .lesson .fixCard { border-radius: var(--r); }
+.lesson .nudge button { border-radius: 10px; }
+.lesson .tfPill { border-radius: 8px; }
