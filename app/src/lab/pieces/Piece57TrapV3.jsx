@@ -63,7 +63,7 @@ export default function Piece57TrapV3() {
       const real = c.kind === 'real'
       const color = state === 'ask' ? (sel ? '#fff1c2' : GOLD) : real ? '#2faf68' : '#df4646'
       // the chip sits beside the candle at its mid price (never above it, so it can never leave the range)
-      a.push({ id: `L${k}`, type: 'text', points: [{ time: at.t, price: (b.o + b.c) / 2 + (b.h - b.l) * 0.18 }], text: `  ${state === 'ask' ? letter : real ? 'KICKER' : c.kind === 'baby' ? 'BABY RED' : 'WEAK CLOSE'}  `, color: '#111', fontSize: sel ? 15 : 13, bgEnabled: true, bgColor: color, locked: true })
+      a.push({ id: `L${k}`, type: 'text', points: [{ time: at.t, price: (b.o + b.c) / 2 + (b.h - b.l) * 0.18 }], text: ` ${state === 'ask' ? letter : real ? 'KICKER' : c.kind === 'baby' ? 'BABY RED' : 'WEAK CLOSE'} `, color: sel || state !== 'ask' ? '#111' : color, fontSize: sel ? 14 : 12, bgEnabled: true, bgColor: sel || state !== 'ask' ? color : 'rgba(11,11,11,.88)', borderEnabled: true, borderColor: color, locked: true })
       if (sel || state !== 'ask') {
         if (c.i + 1 < all.length) a.push(...boxAt(all, c.i, { id: `x${k}`, color }))
         else a.push({ id: `v${k}`, type: 'vertical', points: [{ time: b.t, price: b.c }], color, lineWidth: 2, lineStyle: 'dashed', locked: true })
@@ -77,9 +77,9 @@ export default function Piece57TrapV3() {
   return (
     <div className={`${d5.lesson} ${state === 'bad' ? d5.shakeHard : ''}`}>
       <div className={d5.topbar}><button type="button" className={d5.close} aria-label="Close">✕</button><div className={d5.prog}>{Array.from({ length: 10 }, (_, k) => <i key={k} className={k < 7 ? d5.on : k === 7 ? d5.cur : ''} />)}</div><div className={d5.hearts}><span>♥</span><span>♥</span><span>♥</span></div></div>
-      <div className={d5.ask}><Logo mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : ok ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{state === 'ask' ? `${cands.length} gold candles, each a gap up after a red day. Only one is a Kicker. Tap it.` : ok ? 'That is the Kicker. The cards say why the others fail.' : 'That one fails a rule. The Kicker is the green one.'}</div></div>
+      <div className={d5.ask}><Logo mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : ok ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{state === 'ask' ? `Spot the Kicker. ${cands.length} gold candles each gapped up after a red day; only one is the real thing. Tap it.` : ok ? 'That is the Kicker. The cards say why the others fail.' : 'That one fails a rule. The Kicker is the green one.'}</div></div>
       <div className={s.chartBox}>
-        {state === 'ask' && pick == null ? <span className={s.tapHint}>tap a gold candle</span> : null}
+        {state === 'ask' && pick == null ? <span className={s.tapHint}>spot the Kicker</span> : null}
         {state !== 'ask' ? <Stamp ok={ok} /> : null}
         <WidgetChart sym={d.sym} bars={all} annotations={annotations} height={480} phoneHeight={360} density="mini" defaultBars={view} exactBars hideTicker extra={extra} onBarTap={state === 'ask' ? ({ index }) => { if (index < 0) return; const near = cands.map((c) => ({ c, dd: Math.abs(c.i - index) })).sort((p, q) => p.dd - q.dd)[0]; if (near && near.dd <= (phone ? 5 : 3)) { setPick(near.c.i); sfx('tick') } } : null} />
       </div>

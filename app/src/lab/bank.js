@@ -16,10 +16,17 @@ export const SETUP_SKILLS = {
 }
 export const setupName = (skillId) => SETUP_SKILLS[skillId] || (skillId || '').split('.').pop().replace(/_/g, ' ')
 
+export class SignedOut extends Error { constructor() { super('signed out'); this.name = 'SignedOut' } }
 async function post(url, body) {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) })
+  if (r.status === 401 || r.status === 403) throw new SignedOut()
   if (!r.ok) throw new Error(`${url} ${r.status}`)
   return r.json()
+}
+/** Sign the sandbox in from the lab page itself (the owner's browser session lapses; the lab has no login screen). */
+export async function signIn(email, password) {
+  const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ email, password }) })
+  return r.ok
 }
 
 function shuffle(a, seed = Date.now()) {
@@ -32,7 +39,8 @@ function shuffle(a, seed = Date.now()) {
 /** Pool the chart (spot) items of several setups into one shuffled list. Each item: id, skill, name, q, choices,
  *  bars (normalized), sessionId (so the attempt lands in a real session). */
 export async function fetchSpotPool(skillIds = Object.keys(SETUP_SKILLS), size = 12) {
-  const sets = await Promise.all(skillIds.map((skill_id) => post('/api/study/sessions', { kind: 'skill', skill_id, size }).catch(() => null)))
+  const sets = await Promise.all(skillIds.map((skill_id) => post('/api/study/sessions', { kind: 'skill', skill_id, size }).catch((e) => (e instanceof SignedOut ? e : null))))
+  if (sets.some((x) => x instanceof SignedOut)) throw new SignedOut()
   const pool = []
   sets.forEach((set) => {
     if (!set?.items) return
@@ -53,7 +61,8 @@ export async function scoreAttempt(item, answer, timeMs) {
 /** Quick-recognition items with a chart from the recall bank (candle names, chart words): the bank's own four-way
  *  question, scored on the server. */
 export async function fetchRecallPool(skillIds = ['vocab.candle', 'vocab.chart'], size = 12) {
-  const sets = await Promise.all(skillIds.map((skill_id) => post('/api/study/sessions', { kind: 'skill', skill_id, size }).catch(() => null)))
+  const sets = await Promise.all(skillIds.map((skill_id) => post('/api/study/sessions', { kind: 'skill', skill_id, size }).catch((e) => (e instanceof SignedOut ? e : null))))
+  if (sets.some((x) => x instanceof SignedOut)) throw new SignedOut()
   const pool = []
   sets.forEach((set) => {
     if (!set?.items) return

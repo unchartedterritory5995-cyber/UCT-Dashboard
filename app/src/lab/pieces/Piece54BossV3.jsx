@@ -3,6 +3,7 @@ import WidgetChart from '../WidgetChart'
 import Logo from '../Logo'
 import UIcon from '../../components/ui/UIcon'
 import StartCard, { StartButton } from '../StartCard'
+import SandboxSignIn from '../SandboxSignIn'
 import { BossBar, Chest, Confetti, Heart, Medal, Stamp } from '../bits'
 import { useCountUp, useRunOn } from '../fx'
 import { fetchSpotPool, scoreAttempt } from '../bank'
@@ -76,18 +77,21 @@ function Win({ onBack }) {
 export default function Piece54BossV3() {
   const [phase, setPhase] = useState('intro')
   const [pool, setPool] = useState(null)
+  const [signedOut, setSignedOut] = useState(false)
+  const [reload, setReload] = useState(0)
   const [i, setI] = useState(0)
   const [missed, setMissed] = useState(null)
   const [run, setRun] = useState(0)
-  useEffect(() => { let on = true; fetchSpotPool().then((p) => on && setPool(p)).catch(() => on && setPool([])); return () => { on = false } }, [])
+  useEffect(() => { let on = true; fetchSpotPool().then((p) => on && setPool(p)).catch((e) => { if (!on) return; if (e?.name === 'SignedOut') setSignedOut(true); setPool([]) }); return () => { on = false } }, [reload])
   const items = useMemo(() => (pool ? pool.slice(0, TOTAL) : []), [pool, run])   // eslint-disable-line react-hooks/exhaustive-deps
   const start = () => { setPhase('play'); setI(0); setMissed(null); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(TOTAL), ...p.slice(0, TOTAL)]) }
+  if (signedOut) return <div className={d5.lesson}><SandboxSignIn onDone={() => { setPool(null); setSignedOut(false); setReload((r) => r + 1) }} /></div>
   if (phase === 'intro') {
     return (
       <div className={d5.lesson}><div className={`${d5.vignetteRed} ${d5.soft}`} />
         <StartCard tone="red" eyebrow="Unit 2 · Candles that trap" title="Boss lesson" art={<div className={d5.winRow}><Medal size={110} label="2" /><div className={d5.heartBig}><Heart size={64} bpm={64} /></div></div>}
           lead={`Ten charts from the bank. One heart. Miss once and it ends. Pass and the unit trophy and a chest are yours.${pool ? '' : ' Loading the bank.'}`}
-          button={<StartButton tone="red" icon="medal" label="Face the boss" sub="ten charts · one heart · +150 XP" onClick={() => pool?.length && start()} />}>
+          button={<StartButton tone="red" icon="medal" label={pool == null ? 'Loading the bank' : pool.length ? 'Face the boss' : 'No charts came back'} sub={pool == null ? 'a second or two' : pool.length ? 'ten charts · one heart · +150 XP' : 'reload the page; if it stays empty, sign in to the sandbox'} onClick={() => pool?.length && start()} />}>
           <div className={d5.gems}><div className={`${d5.gem} ${d5.dim}`}><div className={d5.gemIn}><span className={d5.gemIcon} style={{ color: '#ff6b6b' }}>♥</span><small>Hearts</small><b>1</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>On a pass</small><b>+{XP.BOSS} XP</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="save" size={20} /></span><small>Plus</small><b>a chest</b></div></div></div>
         </StartCard>
       </div>

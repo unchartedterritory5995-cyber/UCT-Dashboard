@@ -1210,6 +1210,23 @@ Kicker (JBI opened 10.94 vs the red body top 10.98); the owner's rule (bank less
 a close ABOVE THE RED DAY'S HIGH; rules and the trap finder now use that; the Hard/Draw-it copy too.
 Known: on a phone the chart leaves ~30% blank right of the newest candle (the product chart's own LAST_CANDLE_POS /
 minimum right gap on a narrow plot), so the Trap's far-left candidate is small there.
+## 2026-11-03 (late): BATCH 12 VERDICTS -> ROUND 13
+
+Batch 12 words: logo "close but still needs a bit more enhancements and smoothness to the shape, edges, and movement";
+Blitz "Sandbox returned no chart items"; Boss "clicking FACE THE BOSS doesn't work"; Hard "I do not like that transition
+from labeled to just the chart, pick one or the other"; Draw-it "the labels get in the way ... further away and a
+different design"; Trap "IDK what the trap is, but you should say SPOT THE KICKER".
+MEASURED: the lab's proxy answers 401 without a session cookie; the owner's sandbox session had lapsed, so the bank
+came back empty and the Boss button had nothing to start. lab/SandboxSignIn.jsx: a card that names it and signs in
+from the page (POST /api/auth/login on the lab origin); bank.js throws SignedOut on 401/403; Blitz and Boss show the
+card and reload; the Boss button always says its state. Note: skill sessions hand back only UNSEEN items for the
+account, so a sandbox account that has played a lot sees a thinning pool (kicker: 3 of 12 today); the real answer is a
+larger bank. Hard: the strip transition is gone, candles-only from the first frame. Labels: a new quiet TAG
+(pointers.tag: small caps on a near-black plate with a hairline in the line's colour) anchored a few bars inside the
+left edge of the window and in its own column per level, so close prices never stack and the candles stay clear; the
+pointer arrow sits further from the candle with a smaller chip (a drawing anchored ON the window's edge is culled by the
+overlay, measured). Spot the trap -> SPOT THE KICKER. Logo: finer arcs, hairline seams in the face colour, 60 fps on
+screen, slower turn, eased throb and bounce.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.

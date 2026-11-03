@@ -7,7 +7,7 @@ import { Confetti, Stamp } from '../bits'
 import { useRunOn } from '../fx'
 import { useSample } from '../Lab'
 import { useIsPhone } from '../../hooks/useBreakpoint'
-import { spot, rayAt, pct } from '../pointers'
+import { spot, rayAt, pct, tag } from '../pointers'
 import { studySettingsOverride } from '../../pages/study/studyChartLook'
 import { sfx, voice } from '../sfx'
 import s from '../lab.module.css'
@@ -38,8 +38,6 @@ function Lesson({ onDone }) {
   const [verdict, setVerdict] = useState(null)      // per step: 'ok' | 'bad'
   const [entryPick, setEntryPick] = useState(null)  // price tapped for the entry
   const [stopPick, setStopPick] = useState(null)
-  const [stripped, setStripped] = useState(false)
-  const [veil, setVeil] = useState(false)
   const [right, setRight] = useState(0)
   const vis = d?.visible
   const n = vis?.length || 0
@@ -48,24 +46,24 @@ function Lesson({ onDone }) {
   const entry = red ? r2(red.h + 0.01) : null
   const house = useMemo(() => { if (!kick || !entry) return null; const lowDist = pct(entry, kick.l) * -1; return lowDist > MAX_STOP_PCT ? r2(entry * (1 - MAX_STOP_PCT / 100)) : kick.l }, [kick, entry])
   const all = useRunOn(vis, d?.forward, step === 'run', 330)
-  useEffect(() => {
-    if (!d) return undefined
-    const a = setTimeout(() => setVeil(true), 900), b = setTimeout(() => setStripped(true), 1350), c = setTimeout(() => setVeil(false), 2000)
-    return () => { clearTimeout(a); clearTimeout(b); clearTimeout(c) }
-  }, [d])
   const ann = useMemo(() => {
     if (!n || !all || !red) return null
     const a = []
     if (step === 'name') a.push(...spot(all, n - 1, { label: verdict ? 'the Kicker' : 'this candle', id: 'k', color: verdict === 'bad' ? '#df4646' : verdict === 'ok' ? '#2faf68' : '#dcbb5e' }))
     else a.push(...spot(all, n - 1, { label: phone ? 'day 1' : 'day 1 · the Kicker', id: 'k', color: '#2faf68', halo: step === 'run' }))
     if (step !== 'name') {
-      a.push({ id: 'e', type: 'hray', points: [{ time: vis[Math.max(0, n - 38)].t, price: entry }], color: '#2faf68', lineWidth: 2, lineStyle: step === 'enter' && !verdict ? 'dashed' : 'solid' })
-      a.push({ id: 'e-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 38)].t, price: entry }], text: step === 'enter' && !verdict ? '  THE LINE  ' : (phone ? `  ENTRY ${money(entry)}  ` : `  ENTRY ${money(entry)} · over yesterday's high  `), color: '#ffffff', fontSize: 12, bgEnabled: true, bgColor: '#2faf68', locked: true })
-      if (step === 'enter' && !verdict && !phone) { a.push({ id: 'dc', type: 'hray', points: [{ time: vis[Math.max(0, n - 44)].t, price: red.c }], color: '#9a958a', lineWidth: 1, lineStyle: 'dotted' }); a.push({ id: 'dc-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 44)].t, price: red.c }], text: "  yesterday's close  ", color: '#111', fontSize: 11, bgEnabled: true, bgColor: '#9a958a', locked: true }); a.push({ id: 'ko', type: 'hray', points: [{ time: vis[Math.max(0, n - 56)].t, price: kick.o }], color: '#9a958a', lineWidth: 1, lineStyle: 'dotted' }); a.push({ id: 'ko-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 56)].t, price: kick.o }], text: "  today's open  ", color: '#111', fontSize: 11, bgEnabled: true, bgColor: '#9a958a', locked: true }) }
+      const e0 = Math.max(0, all.length - (phone ? 38 : 53))
+      const edge = all[e0].t, col = (k) => all[Math.min(all.length - 1, e0 + k * (phone ? 12 : 10))].t   // tags in their own columns so close prices never stack
+      a.push({ id: 'e', type: 'hray', points: [{ time: edge, price: entry }], color: '#2faf68', lineWidth: 1.5, lineStyle: step === 'enter' && !verdict ? 'dashed' : 'solid' })
+      a.push(tag(edge, entry, step === 'enter' && !verdict ? 'the line' : (phone ? `entry ${entry.toFixed(2)}` : `entry ${money(entry)}`), '#2faf68', 'e-tag'))
+      if (step === 'enter' && !verdict && !phone) {
+        a.push({ id: 'dc', type: 'hray', points: [{ time: edge, price: red.c }], color: '#9a958a', lineWidth: 1, lineStyle: 'dotted' }); a.push(tag(col(2), red.c, "yesterday's close", '#9a958a', 'dc-tag'))
+        a.push({ id: 'ko', type: 'hray', points: [{ time: edge, price: kick.o }], color: '#9a958a', lineWidth: 1, lineStyle: 'dotted' }); a.push(tag(col(1), kick.o, "today's open", '#9a958a', 'ko-tag'))
+      }
+      if (step === 'enter' && entryPick != null) a.push({ id: 'ep', type: 'hray', points: [{ time: all[Math.max(0, n - 10)].t, price: entryPick }], color: verdict === 'ok' ? '#2faf68' : '#dcbb5e', lineWidth: 2, lineStyle: 'dashed' })
+      if ((step === 'stop' || step === 'run') && stopPick != null) { a.push({ id: 'sp', type: 'hray', points: [{ time: edge, price: stopPick }], color: '#ff6b6b', lineWidth: 1.5, lineStyle: 'dashed' }); a.push(tag(col(1), stopPick, phone ? `stop ${stopPick.toFixed(2)}` : `your stop ${money(stopPick)}`, '#ff6b6b', 'sp-tag')) }
+      if ((step === 'stop' && verdict) || step === 'run') { a.push({ id: 'hs', type: 'hray', points: [{ time: edge, price: house }], color: '#dcbb5e', lineWidth: 1.5 }); a.push(tag(col(2), house, phone ? `house ${house.toFixed(2)}` : `house stop ${money(house)}`, '#dcbb5e', 'hs-tag')) }
     }
-    if (step === 'enter' && entryPick != null) a.push({ id: 'ep', type: 'hray', points: [{ time: vis[Math.max(0, n - 14)].t, price: entryPick }], color: verdict === 'ok' ? '#2faf68' : '#dcbb5e', lineWidth: 2.5, lineStyle: 'dashed' })
-    if ((step === 'stop' || step === 'run') && stopPick != null) { a.push({ id: 'sp', type: 'hray', points: [{ time: vis[Math.max(0, n - 28)].t, price: stopPick }], color: '#ff6b6b', lineWidth: 2.5, lineStyle: 'dashed' }); a.push({ id: 'sp-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 28)].t, price: stopPick }], text: `  YOUR STOP ${money(stopPick)}  `, color: '#fff', fontSize: 12, bgEnabled: true, bgColor: '#df4646', locked: true }) }
-    if ((step === 'stop' && verdict) || step === 'run') { a.push({ id: 'hs', type: 'hray', points: [{ time: vis[Math.max(0, n - 18)].t, price: house }], color: '#2faf68', lineWidth: 2 }); a.push({ id: 'hs-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 18)].t, price: house }], text: phone ? `  HOUSE ${money(house)}  ` : `  HOUSE STOP ${money(house)} · the Kicker's low  `, color: '#fff', fontSize: 12, bgEnabled: true, bgColor: '#2faf68', locked: true }) }
     if (step === 'run') a.push(...rayAt(vis[n - 1], 'l', { id: 'l', label: '' }))
     return a
   }, [all, vis, n, red, kick, entry, house, step, verdict, entryPick, stopPick, phone])
@@ -89,7 +87,7 @@ function Lesson({ onDone }) {
   })
   if (!d) return <div className={s.col}><p className={s.hint}>Loading</p></div>
   const ready = step === 'name' ? pick != null : step === 'enter' ? entryPick != null : step === 'stop' ? stopPick != null : true
-  const bubble = step === 'name' ? (verdict == null ? (stripped ? 'Candles only. What setup, if any, just fired?' : 'Watch: the averages and the volume are about to go.') : verdict === 'ok' ? 'Kicker. Now the buy day.' : 'It was the Kicker. Now the buy day.')
+  const bubble = step === 'name' ? (verdict == null ? 'Candles only. What setup, if any, just fired?' : verdict === 'ok' ? 'Kicker. Now the buy day.' : 'It was the Kicker. Now the buy day.')
     : step === 'enter' ? (verdict == null ? `Day 1. Yesterday's high was ${money(red.h)}. Tap the line the house buys over.` : verdict === 'ok' ? `Over ${money(entry)}. A stop-buy, one cent above yesterday's high.` : `Not there. The house buys over ${money(entry)}, one cent above yesterday's high.`)
       : step === 'stop' ? (verdict == null ? `You are in over ${money(entry)}. Tap where your stop goes.` : verdict === 'ok' ? `Under the Kicker's low, ${money(house)}.` : `The house stop is ${money(house)}, the Kicker's low. Yours was ${Math.abs(pct(house, stopPick)).toFixed(1)}% off.`)
         : 'Now watch it run, one day at a time. Did your stop hold?'
@@ -102,10 +100,9 @@ function Lesson({ onDone }) {
       <div className={d5.topbar}><span className={`${d5.hardTag} ${d5.pulse}`}>HARD</span><div className={d5.stepsCompact}><span className={`${d5.stepPill} ${d5.now}`}>{STEPS.indexOf(step) + 1} of 4 · {['Name it', 'Enter it', 'Stop it', 'Watch it run'][STEPS.indexOf(step)]}</span></div><span className={d5.legend}>♛♛♛<b>♛</b></span></div>
       <div className={d5.ask}><Logo mood={verdict == null ? (ready ? 'think' : 'idle') : verdict === 'ok' ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{bubble}</div></div>
       <div className={s.chartBox}>
-        {veil ? <><div className={d5.veil} /><div className={d5.stripNote}>candles only</div></> : null}
         {verdict ? <Stamp ok={verdict === 'ok'} /> : null}
         {(step === 'enter' || step === 'stop') && !verdict ? <span className={s.tapHint}>{step === 'enter' ? 'tap the line you buy over' : 'tap where the stop goes'}</span> : null}
-        <WidgetChart sym={d.sym} bars={all} annotations={ann} height={460} phoneHeight={320} density="mini" defaultBars={60} hideTicker extra={stripped ? HARD : null} onBarTap={step === 'enter' || step === 'stop' ? onTap : null} />
+        <WidgetChart sym={d.sym} bars={all} annotations={ann} height={460} phoneHeight={320} density="mini" defaultBars={60} hideTicker extra={HARD} onBarTap={step === 'enter' || step === 'stop' ? onTap : null} />
       </div>
       {why ? <details className={d5.whyCard} open={!phone || !!verdict}><summary>Why</summary><p>{why}</p></details> : null}
       {step === 'name' ? <div className={`${d5.cards} ${d5.cascade}`}>{['Launchpad', 'Kicker', 'Slingshot', 'None of these'].map((c, k) => { let cls = d5.card; if (!verdict && pick === k) cls += ` ${d5.sel}`; if (verdict && k === 1) cls += ` ${d5.right}`; if (verdict === 'bad' && pick === k) cls += ` ${d5.wrong}`; return <button key={c} type="button" className={cls} style={{ '--i': k }} disabled={!!verdict} onClick={() => setPick(k)}><span className={d5.key}>{k + 1}</span>{c}</button> })}</div>

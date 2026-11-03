@@ -3,6 +3,7 @@ import WidgetChart from '../WidgetChart'
 import Logo from '../Logo'
 import UIcon from '../../components/ui/UIcon'
 import StartCard, { StartButton } from '../StartCard'
+import SandboxSignIn from '../SandboxSignIn'
 import { Stamp } from '../bits'
 import { useSample } from '../Lab'
 import { fetchSpotPool, fetchRecallPool, scoreAttempt, SETUP_SKILLS } from '../bank'
@@ -116,6 +117,8 @@ function Practice({ onDone }) {
 export default function Piece53BlitzV3() {
   const [phase, setPhase] = useState(seen() ? 'start' : 'tutorial')
   const [pool, setPool] = useState(null)
+  const [signedOut, setSignedOut] = useState(false)
+  const [reload, setReload] = useState(0)
   const [left, setLeft] = useState(SECS)
   const [i, setI] = useState(0)
   const [score, setScore] = useState(0)
@@ -128,9 +131,9 @@ export default function Piece53BlitzV3() {
   const shownAt = useRef(0)
   useEffect(() => {
     let on = true
-    Promise.all([fetchSpotPool(), fetchRecallPool()]).then(([sp, rc]) => on && setPool(buildQuestions(sp, rc))).catch(() => on && setPool([]))
+    Promise.all([fetchSpotPool(), fetchRecallPool()]).then(([sp, rc]) => on && setPool(buildQuestions(sp, rc))).catch((e) => { if (!on) return; if (e?.name === 'SignedOut') setSignedOut(true); setPool([]) })
     return () => { on = false }
-  }, [])
+  }, [reload])
   useEffect(() => {
     if (phase !== 'play') return undefined
     const t = setInterval(() => setLeft((v) => { if (v <= 1) { clearInterval(t); setPhase('done'); sfx('levelup'); return 0 } return v - 1 }), 1000)
@@ -152,6 +155,7 @@ export default function Piece53BlitzV3() {
   const start = () => { markSeen(); setPhase('play'); setLeft(SECS); setI(0); setScore(0); setCombo(0); setBest(0); setAnswered(0); setRight(0); setLog([]) }
   const kinds = useMemo(() => { if (!pool) return null; const c = {}; pool.forEach((q) => { c[q.kind] = (c[q.kind] || 0) + 1 }); return c }, [pool])
   const bankLine = pool == null ? 'loading the bank' : `${pool.length} questions in today's pool`
+  if (signedOut) return <div className={d5.lesson}><SandboxSignIn onDone={() => { setPool(null); setSignedOut(false); setReload((r) => r + 1) }} /></div>
   if (phase === 'tutorial') return <div className={d5.lesson}><Tutorial onDone={() => setPhase('practice')} onSkip={() => { markSeen(); setPhase('start') }} /></div>
   if (phase === 'practice') return <Practice onDone={start} />
   if (phase === 'start') {
@@ -179,7 +183,7 @@ export default function Piece53BlitzV3() {
       </div>
     )
   }
-  if (!qn) return <div className={d5.lesson}><div className={d5.topbar}><span className={d5.clock}>⏱ {left}</span></div><p className={s.hint}>{pool == null ? 'Loading the bank' : 'The bank returned no chart items. Is the sandbox signed in?'}</p></div>
+  if (!qn) return <div className={d5.lesson}><div className={d5.topbar}><span className={d5.clock}>⏱ {left}</span></div><p className={s.hint}>{pool == null ? 'Loading the bank' : 'The bank returned no chart items.'}</p></div>
   return (
     <div className={`${d5.lesson} ${flash === 'ok' ? d5.flashOk : flash === 'bad' ? d5.flashBad : ''}`}>
       <div className={d5.topbar}><span className={`${d5.clock} ${left <= 10 ? d5.hot : ''}`} style={{ textAlign: 'left', fontSize: 22 }}>⏱ {left}</span><div className={d5.blitzMid}><b>{score}</b><small>points</small></div><span className={`${d5.multi} ${mult(combo) >= 3 ? d5.hotM : ''}`}>x{mult(combo)}{combo ? ` · ${combo} in a row` : ''}</span></div>

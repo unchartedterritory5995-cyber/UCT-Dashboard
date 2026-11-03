@@ -32,16 +32,16 @@ export const pct = (a, b) => ((b - a) / a) * 100
  *  full candle height above the arrow, which pushed it out of the price range for the topmost candle (batch 9,
  *  Spot-the-trap: the Kicker's chip clipped); it now sits a third of a candle above the shaft, inside the range
  *  the candle itself already occupies. `locked` marks every piece so an editable chart cannot move them. */
-export function spot(bars, i, { label = 'this candle', color = '#dcbb5e', id = 'spot', gap = 7, halo = true, locked = true, chip = true } = {}) {
+export function spot(bars, i, { label = 'this candle', color = '#dcbb5e', id = 'spot', gap = 11, halo = true, locked = true, chip = true } = {}) {
   if (!bars || i < 0 || i >= bars.length) return []
   const b = bars[i]
   const price = (b.o + b.c) / 2
-  const from = bars[Math.max(0, i - gap)], to = bars[Math.max(0, i - 1)]
-  const out = [{ id: `${id}-arrow`, type: 'arrow', points: [{ time: from.t, price }, { time: to.t, price }], color, lineWidth: 3, arrowSize: 20, locked }]
+  const from = bars[Math.max(0, i - gap)]
+  const out = [{ id: `${id}-arrow`, type: 'arrow', points: [{ time: from.t, price }, { time: bars[Math.max(0, i - 2)].t, price }], color, lineWidth: 2, arrowSize: 14, locked }]
   if (chip && label) {
     const at = bars[Math.max(0, i - gap - Math.max(3, Math.ceil(label.length / 3)))]
-    const lift = Math.max(b.h - b.l, Math.abs(b.c) * 0.012) * 0.46
-    out.push({ id: `${id}-chip`, type: 'text', points: [{ time: at.t, price: price + lift }], text: `  ${label.toUpperCase()}  `, color: '#111111', fontSize: 13, bgEnabled: true, bgColor: color, locked })
+    const lift = Math.max(b.h - b.l, Math.abs(b.c) * 0.012) * 0.5
+    out.push({ id: `${id}-chip`, type: 'text', points: [{ time: at.t, price: price + lift }], text: ` ${label.toUpperCase()} `, color, fontSize: 11, bgEnabled: true, bgColor: 'rgba(11,11,11,.88)', borderEnabled: true, borderColor: color, locked })
   }
   if (halo && i > 0 && i + 1 < bars.length) out.push(...haloAt(bars, i, { id: `${id}-halo`, color, locked }))
   return out
@@ -62,4 +62,11 @@ export function boxAt(bars, i, { id = 'box', color = '#dcbb5e', locked = true } 
   const l = bars[Math.max(0, i - 1)], r = bars[Math.min(bars.length - 1, i + 1)]
   const pad = (b.h - b.l) * 0.18
   return [{ id, type: 'rect', points: [{ time: l.t, price: b.h + pad }, { time: r.t, price: b.l - pad }], color, lineWidth: 2, locked }]
+}
+
+/** A quiet tag for a level line (round 13, owner: "the labels get in the way ... further away ... a different design"):
+ *  small caps on a near-black plate with a hairline in the line's colour, sitting at the LEFT edge of the window so
+ *  the candles stay clear. `t` is the time to anchor at (the first visible bar). */
+export function tag(t, price, text, color, id, { size = 11 } = {}) {
+  return { id, type: 'text', points: [{ time: t, price }], text: ` ${text.toUpperCase()} `, color, fontSize: size, bgEnabled: true, bgColor: 'rgba(11,11,11,.88)', borderEnabled: true, borderColor: color, locked: true }
 }

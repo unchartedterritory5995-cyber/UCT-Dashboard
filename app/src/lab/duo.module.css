@@ -560,3 +560,13 @@
 .lesson .tutStep, .lesson .nextCard, .lesson .fixCard { border-radius: var(--r); }
 .lesson .nudge button { border-radius: 10px; }
 .lesson .tfPill { border-radius: 8px; }
+
+.signForm { display: grid; gap: 8px; width: 100%; max-width: 360px; }
+.signForm .priceIn { font-size: 15px; font-weight: 600; }
+/* round 13: chart tags that stay out of the way (owner: "labels get in the way ... further away ... a different design") */
+
+/* round 13: gentler rhythms for the logo (owner: smoother movement) */
+.lesson .coinWrap, .coinWrap { animation-duration: 4.2s; animation-timing-function: cubic-bezier(.45,0,.55,1); }
+.coinBob { animation-duration: 3.4s; animation-timing-function: cubic-bezier(.45,0,.55,1); }
+@keyframes throb { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.035) } }
+@keyframes bob2 { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-4%) } }

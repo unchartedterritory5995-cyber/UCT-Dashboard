@@ -9,9 +9,9 @@ import d5 from './duo.module.css'
 
 const GREEN = [52, 190, 112], RED = [232, 76, 70]
 const DEPTH = 9, BEVEL = 1.7, BEVEL_RISE = 1.3
-const SPEED = { idle: 9, think: 15, happy: 5, oops: 20, fire: 2.6 }   // seconds per turn
+const SPEED = { idle: 12, think: 18, happy: 6, oops: 22, fire: 3.2 }   // seconds per turn
 
-function arc(cx, cy, r, a0, a1, n = 34) { const pts = []; for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]) } return pts }
+function arc(cx, cy, r, a0, a1, n = 72) { const pts = []; for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]) } return pts }
 function ring(a0, a1) { const o = arc(0, 0, 37, a0, a1), i = arc(0, 0, 27, a1, a0); return [...o, ...i] }
 const D = Math.PI / 180
 const RAW = [
@@ -100,7 +100,7 @@ function draw(ctx, W, H, theta, tilt) {
         g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.42, 'rgba(255,255,255,.28)'); g.addColorStop(0.58, 'rgba(255,255,255,.06)'); g.addColorStop(1, 'rgba(0,0,0,.2)')
         ctx.fillStyle = g; ctx.fill()
       }
-      if (!bevel) { ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = Math.max(0.5, W / 520); ctx.stroke() }
+      if (!bevel && !cap) { ctx.strokeStyle = fill; ctx.lineWidth = 0.6; ctx.lineJoin = 'round'; ctx.stroke() }   // a hairline in the face's own colour closes the seams between faces
     })
     ctx.restore()
   }
@@ -124,7 +124,7 @@ export default function Logo({ mood = 'idle', size = 72, className = '' }) {
     let raf = 0, t0 = performance.now(), last = 0, visible = true
     const frame = (now) => {
       if (!reduced) raf = requestAnimationFrame(frame)
-      if (!visible || now - last < 32) return
+      if (!visible || now - last < 15) return
       last = now
       const theta = reduced ? 0.45 : ((now - t0) / per) * Math.PI * 2 + 0.45
       draw(ctx, cv.width, cv.height, theta, tilt)
