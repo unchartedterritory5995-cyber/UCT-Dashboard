@@ -117,6 +117,13 @@ class NoteProvider(ABC):
     #: pass reads exactly as it did.
     follow_up_on_rate_limit: bool = False
 
+    def listing_revision(self, ref: RemoteRef) -> str | None:
+        """Fix round 1 (D1): the note revision the LISTING reported for `ref`, when the
+        provider has a real one (the same field its `fetch` stores as the note's revision), else
+        None. The engine skips fetching a listed note only when this equals the stored
+        `import_remote_rev`. Default None: nothing is ever skipped."""
+        return None
+
     #: Plan E Task 9 fix round 1 (concern 5): True when this provider types media from a declared
     #: MIME that may be generic (Evernote's `application/octet-stream`), so content must win: a
     #: file-kind item whose downloaded bytes carry a raster signature (PNG, JPEG, GIF, WebP; never

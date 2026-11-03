@@ -69,6 +69,10 @@ class ProviderEntry:
     # When set, `engine._resolve_credentials` uses it instead of the `oauth.py` path. A
     # trailing defaulted field, so no existing entry changes.
     refresh: Callable[[str], Awaitable[dict | None]] | None = None
+    # Evernote rate-limit fix round 1 (I3): () -> the provider CLASS, imported lazily, so a door
+    # can read a class attribute (`follow_up_on_rate_limit`) without building an instance. The
+    # attribute stays the one authority; this only reaches it. A trailing defaulted field.
+    provider_class: Callable[[], type] | None = None
 
 
 def _always_configured() -> bool:
@@ -244,6 +248,11 @@ def _evernote_configured() -> bool:
     return bool(evernote_oauth.client_id()) and crypto_box.NoteBox.is_configured()
 
 
+def _evernote_class() -> type:
+    from .providers.evernote import EvernoteProvider
+    return EvernoteProvider
+
+
 def _build_evernote(source: dict[str, Any] | None) -> Any:
     """Refuses while the flag is off: the flag is a real kill switch, so scheduled syncs of
     EXISTING sources stop too, with nothing deleted (the engine logs an error row per tick; it
@@ -279,7 +288,7 @@ _REGISTRY: dict[str, ProviderEntry] = {
     "onedrive": ProviderEntry("onedrive", "OneDrive", "oauth", _onedrive_configured, _build_onedrive),
     "obsidian": ProviderEntry("obsidian", "Obsidian", "device", _obsidian_configured, _build_obsidian),
     "evernote": ProviderEntry("evernote", "Evernote", "oauth", _evernote_configured, _build_evernote,
-                              refresh=_evernote_refresh),
+                              refresh=_evernote_refresh, provider_class=_evernote_class),
 }
 
 
@@ -309,6 +318,21 @@ def configured(provider: str) -> bool:
     if entry is None:
         return False
     return entry.configured()
+
+
+def runs_sync_in_background(provider: str) -> bool:
+    """Fix round 1 (I3): does a member's "Sync now" for this provider always run in the
+    background? True exactly when the provider's class opts in to rate-limit follow-ups
+    (`follow_up_on_rate_limit`): such a pass can wait on the provider's limit for minutes, which
+    must never hold an HTTP request open. Never raises; unknown or class-less entries say False."""
+    entry = _REGISTRY.get(provider)
+    if entry is None or entry.provider_class is None:
+        return False
+    try:
+        cls = entry.provider_class()
+    except Exception:  # noqa: BLE001 -- a door must not fail on this question
+        return False
+    return getattr(cls, "follow_up_on_rate_limit", False) is True
 
 
 def build_provider(provider: str, source: dict[str, Any] | None = None) -> Any:

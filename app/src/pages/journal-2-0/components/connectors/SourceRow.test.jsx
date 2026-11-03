@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import SourceRow from './SourceRow'
+import SourceRow, { BACKGROUND_SYNC_NOTICE } from './SourceRow'
 
 const noop = () => {}
 
@@ -489,5 +489,22 @@ describe('SourceRow — a first import still catching up', () => {
     }))
     expect(screen.getByText(/synced with problems/i)).toBeInTheDocument()
     expect(container.querySelector('[aria-hidden="true"]').className).toMatch(/dot_amber/)
+  })
+})
+
+// ── Sync now in the background (Evernote rate-limit fix round 1, I3) ─────────
+describe('SourceRow — a background sync', () => {
+  it('reads "syncing now" while the server says a pass is running', () => {
+    const { container } = renderRow(makeSource({ syncing: true }))
+    expect(screen.getByText(/syncing now/i, { selector: 'span' })).toBeInTheDocument()
+    expect(container.querySelector('[aria-hidden="true"]').className).toMatch(/dot_progress/)
+  })
+
+  it('a started background press says so, never an error', async () => {
+    const onSync = vi.fn().mockResolvedValue({ status: 'started', removalCheck: null })
+    render(<SourceRow source={makeSource()} onSync={onSync} onTogglePause={noop} onDisconnect={noop} />)
+    fireEvent.click(screen.getByRole('button', { name: /sync now/i }))
+    await waitFor(() => expect(screen.getByText(BACKGROUND_SYNC_NOTICE)).toBeInTheDocument())
+    expect(screen.queryByText(/failed|try again/i)).not.toBeInTheDocument()
   })
 })

@@ -139,6 +139,9 @@ export function normalizeSource(raw) {
     lastSyncStatus: pick(raw, 'lastSyncStatus', 'last_sync_status', null),
     lastSyncError: pick(raw, 'lastSyncError', 'last_sync_error', null),
     warmingUntil: pick(raw, 'warmingUntil', 'warming_until', null),
+    // Evernote rate-limit fix round 1 (I3): a pass for this source is running now on the server
+    // (a background Sync now, a follow-up pass).
+    syncing: !!pick(raw, 'syncing', 'syncing', false),
     pendingRemoval: pick(raw, 'pendingRemoval', 'pending_removal', 0) || 0,
     lastFailureCount: pick(raw, 'lastFailureCount', 'last_failure_count', 0) || 0,
     // The newest sync's failure details could not be read (the server sends a
@@ -315,11 +318,31 @@ export function normalizeFolders(raw) {
 // instead of accepting an unverified sentinel.
 export const FOLDER_PICKER_ROOT_REMOTE_ID = { dropbox: '/' }
 
+// Evernote rate-limit fix round 1 (I3): while any source is syncing or still importing, the
+// page re-reads /status every 10 s, so a background Sync now and the follow-up passes show their
+// progress line without a reload. A settled page (or one still loading) never polls.
+export function connectorsRefreshInterval(raw) {
+  const providers = (raw && raw.providers) || {}
+  for (const key of Object.keys(providers)) {
+    const sources = (providers[key] && providers[key].sources) || []
+    for (const s of sources) {
+      if (!s) continue
+      if (s.syncing === true || pick(s, 'lastSyncStatus', 'last_sync_status', null) === 'importing') return 10000
+    }
+  }
+  return 0
+}
+
+// The /status SWR options, exported so the poll's wiring has a rail of its own.
+export const STATUS_SWR_OPTIONS = {
+  revalidateOnFocus: false, shouldRetryOnError: false, refreshInterval: connectorsRefreshInterval,
+}
+
 export default function useNoteConnectors() {
   const { data, error, isLoading, mutate } = useSWR(
     '/api/j2/notes/connectors/status',
     fetcher,
-    { revalidateOnFocus: false, shouldRetryOnError: false }
+    STATUS_SWR_OPTIONS
   )
 
   const { providers, enabled, obsidianAttachments } = normalizeStatus(data)

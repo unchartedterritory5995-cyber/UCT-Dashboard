@@ -128,6 +128,10 @@ class EvernoteProvider(NoteProvider):
         self._notebooks: dict[str, dict] | None = None
         self._tags: dict[str, str] | None = None
         self._hit_titles: dict[str, str] = {}
+        # Fix round 1 (D1): the `updatedAt` each listed note carried, only when it had one (a hit
+        # listed by `createdAt` or the floor has no real revision and is always fetched).
+        self._listing_revs: dict[str, str] = {}
+        self._pace_seed: float | None = None  # D3
         self._failures: list[dict] = []
         self._recorded: dict[str, dict] = {}
         self._tags_capped = False
@@ -150,7 +154,27 @@ class EvernoteProvider(NoteProvider):
             else:
                 self._mcp = EvernoteMcpClient(
                     token, on_unauthorized=self._on_unauthorized if self._user_id else None)
+            if self._pace_seed is not None and hasattr(self._mcp, "seed_interval"):
+                self._mcp.seed_interval(self._pace_seed)
         return self._mcp
+
+    def seed_pacing(self, interval_s: float) -> None:
+        """D3: the engine's learned interval for this session, applied when the client is made."""
+        self._pace_seed = interval_s
+        if self._mcp is not None and hasattr(self._mcp, "seed_interval"):
+            self._mcp.seed_interval(interval_s)
+
+    def learned_pacing(self) -> tuple[float | None, bool]:
+        """D3: (the session's adaptive interval or None, whether a rate limit tripped)."""
+        if self._mcp is None or not hasattr(self._mcp, "learned_interval"):
+            return None, False
+        return self._mcp.learned_interval()
+
+    def listing_revision(self, ref: RemoteRef) -> str | None:
+        """D1: the listing's `updatedAt` for this note (normalised by `_iso`), or None when the
+        hit had none. The SAME Evernote field as `get_note.updated`, which `fetch` stores as the
+        note's revision; the engine compares the two at whole seconds (`engine._same_revision`)."""
+        return self._listing_revs.get(ref.remote_id)
 
     async def _on_unauthorized(self) -> str:
         """The MCP client's 401 hook: a forced refresh that names the token it saw rejected, so a
@@ -226,7 +250,12 @@ class EvernoteProvider(NoteProvider):
         note_id = hit["noteId"]
         if isinstance(hit.get("title"), str):
             self._hit_titles[note_id] = hit["title"]
-        when = _iso(hit.get("updatedAt")) or _iso(hit.get("createdAt")) or floor
+        updated = _iso(hit.get("updatedAt"))
+        if updated is not None:
+            self._listing_revs[note_id] = updated
+        else:
+            self._listing_revs.pop(note_id, None)
+        when = updated or _iso(hit.get("createdAt")) or floor
         return RemoteRef(remote_id=note_id, updated_at=when)
 
     async def list_changed(self, credentials: dict[str, Any],

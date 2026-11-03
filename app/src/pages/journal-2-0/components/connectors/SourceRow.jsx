@@ -29,9 +29,14 @@ import { BUSY_DETAIL } from '../../hooks/useNoteConnectors'
 import { timeAgo } from '../../../../utils/timeAgo'
 import styles from './ConnectedAppsCard.module.css'
 
+// Evernote rate-limit fix round 1 (I3): what a Sync now press says when the server ran it in the
+// background (a provider whose pass can wait out a rate limit). Never an error.
+export const BACKGROUND_SYNC_NOTICE = 'Syncing in the background. Progress shows here as notes come in.'
+
 function freshnessTone(source) {
   if (source.status === 'broken' || source.lastSyncStatus === 'error') return 'red'
   if (!source.syncEnabled) return 'amber'
+  if (source.syncing) return 'progress'
   // A first import a provider's rate limit cut short (live gate 2026-11-03): the engine records
   // `importing` ONLY when nothing but those leftovers remains, and books a quick follow-up pass.
   // In progress, not a warning, even though `lastSyncError` carries the progress sentence.
@@ -50,6 +55,7 @@ function freshnessTone(source) {
 function freshnessLabel(source) {
   if (source.status === 'broken') return 'reconnect needed'
   if (!source.syncEnabled) return 'sync paused'
+  if (source.syncing) return 'syncing now'
   if (source.lastSyncStatus === 'importing') {
     return source.lastSyncAt ? `still importing, last batch ${timeAgo(source.lastSyncAt)}` : 'still importing'
   }
@@ -167,7 +173,9 @@ export default function SourceRow({
     setNotice(null)
     try {
       const result = await onSync(source)
-      setNotice(removalNotice(result && result.removalCheck, providerLabel))
+      setNotice(result && result.status === 'started'
+        ? BACKGROUND_SYNC_NOTICE
+        : removalNotice(result && result.removalCheck, providerLabel))
       refreshLog()
     } catch (err) {
       setNotice(errorNotice(err))

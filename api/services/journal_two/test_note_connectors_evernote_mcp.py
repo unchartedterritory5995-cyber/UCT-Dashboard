@@ -251,22 +251,18 @@ async def test_429_honours_retry_after_then_succeeds():
     sleeps: list[float] = []
     client = _client(server=Server(on_call), sleeps=sleeps)
     assert await client.call_tool("search_tags", {"query": ""}) == {"ok": 1}
-    assert sleeps == [5.0]
+    # I5: the same handler as the tool-level limit (wait + margin).
+    assert sleeps == [5.0 + evernote_mcp.RATE_LIMIT_MARGIN_S]
 
 
-async def test_retry_after_is_capped():
-    n = {"calls": 0}
-
-    def on_call(req, body):
-        n["calls"] += 1
-        if n["calls"] == 1:
-            return httpx.Response(429, headers={"retry-after": "3600"})
-        return _ok({})
-
-    sleeps: list[float] = []
-    client = _client(server=Server(on_call), sleeps=sleeps)
-    await client.call_tool("search_tags", {"query": ""})
-    assert sleeps == [evernote_mcp.MAX_RETRY_AFTER_S]
+async def test_a_429_asking_for_longer_than_the_cap_raises_at_once_with_the_real_wait():
+    # I7: a wait over MAX_RETRY_AFTER_S is never slept through; the engine books the follow-up.
+    client = _client(server=Server(
+        lambda req, body: httpx.Response(429, headers={"retry-after": "3600"})))
+    with pytest.raises(errors.NoteConnRateLimited) as ei:
+        await client.call_tool("search_tags", {"query": ""})
+    assert ei.value.retry_after == 3600.0
+    assert len(client._test_server.calls()) == 1
 
 
 async def test_5xx_backs_off_on_the_ladder_then_raises_transient():
@@ -291,12 +287,16 @@ async def test_transport_error_backs_off_then_raises_transient_without_the_token
 
 
 async def test_429_exhausted_raises_rate_limited_with_retry_after():
+    sleeps: list[float] = []
     client = _client(server=Server(
-        lambda req, body: httpx.Response(429, headers={"retry-after": "7"})))
+        lambda req, body: httpx.Response(429, headers={"retry-after": "7"})), sleeps=sleeps)
     with pytest.raises(errors.NoteConnRateLimited) as ei:
         await client.call_tool("search_notes", {"query": ""})
     assert ei.value.retry_after == 7.0
-    assert len(client._test_server.calls()) == 6
+    # I5: the tool-level retry cap, not the 5-step transport ladder.
+    assert len(client._test_server.calls()) == 1 + evernote_mcp.TOOL_RATE_LIMIT_RETRIES
+    waits = [s for s in sleeps if s >= 7.0]
+    assert waits == [7.0 + evernote_mcp.RATE_LIMIT_MARGIN_S] * evernote_mcp.TOOL_RATE_LIMIT_RETRIES
 
 
 async def test_401_calls_on_unauthorized_once_and_retries_with_the_new_token():
@@ -554,7 +554,7 @@ async def test_bad_retry_after_falls_back_to_the_ladder(value):
     sleeps: list[float] = []
     client = _client(server=Server(on_call), sleeps=sleeps)
     await client.call_tool("search_tags", {"query": ""})
-    assert sleeps == [evernote_mcp.RETRY_DELAYS_S[0]]
+    assert sleeps == [evernote_mcp.RETRY_DELAYS_S[0] + evernote_mcp.RATE_LIMIT_MARGIN_S]
 
 
 async def test_retry_after_is_honoured_on_503():
@@ -572,8 +572,8 @@ async def test_retry_after_is_honoured_on_503():
     assert sleeps == [5.0]
 
 
-@pytest.mark.parametrize("ahead_s, expected", [(30, 30.0), (3600, 60.0)])
-async def test_http_date_retry_after_is_parsed_and_capped(ahead_s, expected):
+@pytest.mark.parametrize("ahead_s, expected", [(30, 30.0 + 1.0)])
+async def test_http_date_retry_after_is_parsed(ahead_s, expected):
     import datetime as dt
     from email.utils import format_datetime
 
@@ -605,7 +605,7 @@ async def test_http_date_retry_after_in_the_past_falls_back_to_the_ladder():
     sleeps: list[float] = []
     client = _client(server=Server(on_call), sleeps=sleeps)
     await client.call_tool("search_tags", {"query": ""})
-    assert sleeps == [evernote_mcp.RETRY_DELAYS_S[0]]
+    assert sleeps == [evernote_mcp.RETRY_DELAYS_S[0] + evernote_mcp.RATE_LIMIT_MARGIN_S]
 
 
 def test_sse_data_strips_exactly_one_leading_space():
@@ -796,17 +796,33 @@ async def test_tool_level_rate_limit_matches_case_insensitively(text, waited):
 
 
 async def test_tool_level_rate_limit_wait_is_capped():
+    # The cap itself: a wait AT the cap is slept through, never more.
     ft = FakeTime()
     n = {"calls": 0}
 
     def on_call(req, body):
         n["calls"] += 1
-        return _limited(3600) if n["calls"] == 1 else _ok({})
+        return _limited(60) if n["calls"] == 1 else _ok({})
 
     client = _timed_client(Server(on_call), ft)
     await client.call_tool("get_note", {"noteId": "n1"})
     assert ft.sleeps == [pytest.approx(
         evernote_mcp.MAX_RETRY_AFTER_S + evernote_mcp.RATE_LIMIT_MARGIN_S)]
+
+
+async def test_a_wait_over_the_cap_raises_at_once_and_closes_the_session():
+    # I7: "Wait about 3600 second(s)" is never slept through: the real wait goes to the engine,
+    # which books the follow-up then, and no further call is sent this session.
+    ft = FakeTime()
+    client = _timed_client(Server(lambda req, body: _limited(3600)), ft)
+    with pytest.raises(errors.NoteConnRateLimited) as ei:
+        await client.call_tool("get_note", {"noteId": "n1"})
+    assert ei.value.retry_after == 3600.0
+    assert ft.sleeps == []
+    sent = len(client._test_server.calls())
+    with pytest.raises(errors.NoteConnRateLimited):
+        await client.call_tool("get_note", {"noteId": "n2"})
+    assert len(client._test_server.calls()) == sent
 
 
 async def test_tool_level_rate_limit_retries_are_bounded_then_rate_limited():
@@ -916,13 +932,15 @@ async def test_the_session_wait_budget_bounds_rate_limit_waiting():
             await client.call_tool("get_note", {"noteId": f"n{i}"})
     waited = sum(s for s in ft.sleeps if s >= _wait(60) - 0.01)
     assert 0 < waited <= evernote_mcp.RATE_LIMIT_WAIT_BUDGET_S
-    # Once the budget is spent a rate-limited call fails fast: one request, no rate-limit wait.
+    # D2: once the budget is spent, call_tool raises at once WITHOUT sending, for the rest of the
+    # session, and sleeps nothing more.
     before = len(client._test_server.calls())
     ft.sleeps.clear()
-    with pytest.raises(errors.NoteConnRateLimited):
-        await client.call_tool("get_note", {"noteId": "last"})
-    assert len(client._test_server.calls()) == before + 1
-    assert all(s < _wait(60) - 0.01 for s in ft.sleeps)
+    for i in range(5):
+        with pytest.raises(errors.NoteConnRateLimited):
+            await client.call_tool("get_note", {"noteId": f"last{i}"})
+    assert len(client._test_server.calls()) == before
+    assert ft.sleeps == []
 
 
 def test_rate_limit_constants():
@@ -953,3 +971,193 @@ async def test_only_calls_inside_the_window_set_the_adaptive_interval():
         await client.call_tool("get_note", {"noteId": f"new{i}"})
     # 30 calls in the window (not 130): 60 / 30 / 0.8 = 2.5 s.
     assert client.call_interval_s == pytest.approx(2.5)
+
+
+
+# --------------------------------------------------------------------------- fix round 1
+
+async def test_a_trip_after_the_first_doubles_and_never_re_estimates():
+    # I6: the estimate comes only from the window that ended at the FIRST trip. A trip on the
+    # retry right after a wait (when the window holds one call) must double, not re-estimate to
+    # 60 / 1 / 0.8 = 75 s.
+    ft = FakeTime()
+    plan = {"calls": 0}
+
+    def on_call(req, body):
+        plan["calls"] += 1
+        ft.t += 0.1
+        return _limited(59) if plan["calls"] in (40, 41) else _ok({})
+
+    client = _timed_client(Server(on_call), ft)
+    for i in range(40):
+        await client.call_tool("get_note", {"noteId": f"n{i}"})
+    first = evernote_mcp.RATE_WINDOW_S / 40 / evernote_mcp.ADAPTIVE_RATE_FRACTION  # 1.875 s
+    # Call 40 tripped (estimate), call 41 (the retry, after the wait) tripped again (double).
+    assert client.call_interval_s == pytest.approx(2 * first)
+
+
+async def test_the_interval_ramps_down_slowly_after_clean_calls_but_never_below_the_estimate(monkeypatch):
+    monkeypatch.setattr(evernote_mcp, "SESSION_BUDGET_S", 1e9)  # this one runs ~1000 calls
+    ft = FakeTime()
+    plan = {"calls": 0}
+
+    def on_call(req, body):
+        plan["calls"] += 1
+        ft.t += 0.1
+        return _limited(1) if plan["calls"] in (40, 41) else _ok({})
+
+    client = _timed_client(Server(on_call), ft)
+    for i in range(40):
+        await client.call_tool("get_note", {"noteId": f"n{i}"})
+    estimate = evernote_mcp.RATE_WINDOW_S / 40 / evernote_mcp.ADAPTIVE_RATE_FRACTION
+    doubled = client.call_interval_s
+    # The retry that succeeded after the second trip was the first clean call.
+    for i in range(evernote_mcp.RAMP_DOWN_AFTER_CALLS - 2):
+        await client.call_tool("get_note", {"noteId": f"c{i}"})
+    assert client.call_interval_s == pytest.approx(doubled)  # not yet
+    await client.call_tool("get_note", {"noteId": "c-last"})
+    assert client.call_interval_s == pytest.approx(doubled * evernote_mcp.RAMP_DOWN_FACTOR)
+    for i in range(evernote_mcp.RAMP_DOWN_AFTER_CALLS * 20):
+        await client.call_tool("get_note", {"noteId": f"d{i}"})
+    assert client.call_interval_s == pytest.approx(estimate)  # bounded below by the estimate
+
+
+async def test_the_session_wall_clock_bounds_a_pass_and_charges_pacing():
+    # D2: a server that refuses everything: the session ends within SESSION_BUDGET_S plus one
+    # call, then every call raises without sending.
+    ft = FakeTime()
+    client = _timed_client(Server(lambda req, body: _limited(60)), ft)
+    t0 = ft.t
+    sent_before_end = None
+    for i in range(5000):
+        with pytest.raises(errors.NoteConnRateLimited):
+            await client.call_tool("get_note", {"noteId": f"n{i}"})
+        if sent_before_end is None and ft.t - t0 > evernote_mcp.SESSION_BUDGET_S:
+            sent_before_end = len(client._test_server.calls())
+    assert ft.t - t0 <= evernote_mcp.SESSION_BUDGET_S
+    assert len(client._test_server.calls()) < 50
+
+
+async def test_pacing_sleeps_count_against_the_wall_clock():
+    # D2: a session paced at the ceiling stops once the next pace sleep would cross the deadline.
+    ft = FakeTime()
+    client = _timed_client(Server(lambda req, body: _ok({})), ft)
+    client.seed_interval(evernote_mcp.ADAPTIVE_MAX_INTERVAL_S)
+    t0 = ft.t
+    done = refused = 0
+    for i in range(200):
+        try:
+            await client.call_tool("get_note", {"noteId": f"n{i}"})
+            done += 1
+        except errors.NoteConnRateLimited:
+            refused += 1
+    assert ft.t - t0 <= evernote_mcp.SESSION_BUDGET_S
+    # About SESSION_BUDGET_S / 10 s calls (the ramp-down eases the interval after 50 clean ones),
+    # then every call is refused without being sent.
+    assert 55 <= done <= 70 and refused == 200 - done
+    assert len(client._test_server.calls()) == done
+
+
+async def test_a_seeded_interval_paces_from_the_first_call_and_reports_back():
+    # D3: the engine seeds the interval it learned on an earlier pass.
+    ft = FakeTime()
+    client = _timed_client(Server(lambda req, body: _ok({})), ft)
+    client.seed_interval(3.0)
+    assert client.call_interval_s == 3.0
+    await client.call_tool("get_note", {"noteId": "a"})
+    await client.call_tool("get_note", {"noteId": "b"})
+    assert ft.sleeps == [pytest.approx(3.0)]
+    assert client.learned_interval() == (3.0, False)  # seeded, not tripped this session
+    # A seed below the adaptive floor is clamped up; a seed above the ceiling is clamped down.
+    c2 = _timed_client(Server(lambda req, body: _ok({})), FakeTime())
+    c2.seed_interval(0.3)
+    assert c2.call_interval_s == evernote_mcp.ADAPTIVE_MIN_INTERVAL_S
+    c3 = _timed_client(Server(lambda req, body: _ok({})), FakeTime())
+    c3.seed_interval(99.0)
+    assert c3.call_interval_s == evernote_mcp.ADAPTIVE_MAX_INTERVAL_S
+
+
+async def test_learned_interval_reports_a_trip():
+    ft = FakeTime()
+    n = {"calls": 0}
+
+    def on_call(req, body):
+        n["calls"] += 1
+        return _limited(5) if n["calls"] == 1 else _ok({})
+
+    client = _timed_client(Server(on_call), ft)
+    assert client.learned_interval() == (None, False)
+    await client.call_tool("get_note", {"noteId": "a"})
+    assert client.learned_interval() == (evernote_mcp.ADAPTIVE_MAX_INTERVAL_S, True)
+
+
+async def test_an_unrecognised_tool_error_is_logged_once_per_session(caplog):
+    # M1: a tool error that is not the rate-limit wording is visible, once.
+    client = _timed_client(Server(
+        lambda req, body: _ok({}, is_error=True, text="Something new went wrong")), FakeTime())
+    with caplog.at_level("WARNING", logger=evernote_mcp.__name__):
+        for i in range(3):
+            with pytest.raises(errors.NoteConnUnsupported):
+                await client.call_tool("get_note", {"noteId": f"n{i}"})
+    hits = [r for r in caplog.records if "Something new went wrong" in r.getMessage()]
+    assert len(hits) == 1
+
+
+def test_fix_round_1_constants():
+    assert evernote_mcp.SESSION_BUDGET_S == 600.0
+    assert evernote_mcp.RAMP_DOWN_AFTER_CALLS == 50
+    assert evernote_mcp.RAMP_DOWN_FACTOR == 0.9
+
+
+async def test_a_wait_between_the_cap_and_the_budget_is_never_slept_through():
+    # I7, alone: a 120 s wait is over MAX_RETRY_AFTER_S but inside RATE_LIMIT_WAIT_BUDGET_S, so
+    # only the cap rule can refuse to sleep it.
+    ft = FakeTime()
+    client = _timed_client(Server(lambda req, body: _limited(120)), ft)
+    with pytest.raises(errors.NoteConnRateLimited) as ei:
+        await client.call_tool("get_note", {"noteId": "n1"})
+    assert ei.value.retry_after == 120.0
+    assert ft.sleeps == [] and len(client._test_server.calls()) == 1
+
+
+async def test_a_slow_healthy_session_stops_at_the_wall_clock():
+    # D2, the check before every send: calls that each take 7 s, with no pacing sleep and no
+    # rate limit at all, still stop once SESSION_BUDGET_S has passed.
+    ft = FakeTime()
+
+    def slow(req, body):
+        ft.t += 7.0
+        return _ok({})
+
+    client = _timed_client(Server(slow), ft)
+    t0 = ft.t
+    done = 0
+    for i in range(200):
+        try:
+            await client.call_tool("get_note", {"noteId": f"n{i}"})
+            done += 1
+        except errors.NoteConnRateLimited:
+            break
+    assert ft.t - t0 <= evernote_mcp.SESSION_BUDGET_S + 7.0
+    assert done == len(client._test_server.calls()) < 200
+
+
+async def test_a_rate_limit_wait_that_would_cross_the_wall_clock_is_not_taken():
+    # D2, the wait half: most of the clock went on slow calls, so a 61 s wait (inside the wait
+    # budget) would end past SESSION_BUDGET_S. It is not taken; the call raises.
+    ft = FakeTime()
+    n = {"calls": 0}
+
+    def on_call(req, body):
+        n["calls"] += 1
+        ft.t += 5.0
+        return _limited(60) if n["calls"] == 110 else _ok({})
+
+    client = _timed_client(Server(on_call), ft)
+    t0 = ft.t
+    with pytest.raises(errors.NoteConnRateLimited):
+        for i in range(200):
+            await client.call_tool("get_note", {"noteId": f"n{i}"})
+    assert n["calls"] == 110
+    assert not any(s >= 60 for s in ft.sleeps)
+    assert ft.t - t0 <= evernote_mcp.SESSION_BUDGET_S

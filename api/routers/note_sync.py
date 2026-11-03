@@ -435,6 +435,9 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
             s["pluginSupportsAttachments"] = (
                 obsidian_link.plugin_version_supports_attachments(version) if attachments_on else None)
         s["counts"] = counts_by_source.get(s["id"], dict(_ZERO_COUNTS))
+        # Fix round 1 (I3): a pass for this source is running right now (this process's in-flight
+        # guard), so the row can read "syncing" after a background Sync now.
+        s["syncing"] = engine.is_source_busy(s["id"])
         s["pendingRemoval"] = int(pending.get(s["id"], 0))
         # None = the newest row's failures could not be read: the count is
         # unknown (null), and `lastFailuresUnreadable` keeps the card's path to
@@ -943,6 +946,11 @@ async def sync_source_now(
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
     _require_provider_allowed(source["provider"], user)
+    # Evernote rate-limit fix round 1 (I3): a provider whose pass can wait out a rate limit
+    # (Evernote) always syncs in the background; the source row then reads "syncing", and the
+    # progress line when the pass records it.
+    if not background and registry.runs_sync_in_background(source["provider"]):
+        background = True
 
     if background:
         if engine.is_source_busy(source_id):

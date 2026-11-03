@@ -470,3 +470,55 @@ def test_a_hanging_revoke_never_holds_the_disconnect(client_admin, monkeypatch):
 
 def test_the_revoke_budget_is_ten_seconds():
     assert ns.EVERNOTE_REVOKE_BUDGET_S == 10.0
+
+
+# ── fix round 1 (I3): Sync now never holds the request through a rate-limit wait ─────────
+
+def test_sync_now_for_evernote_always_runs_in_the_background(client_admin, monkeypatch):
+    from api.services.journal_two.note_connectors import engine
+    src = _seed_evernote_source()
+    started: list[dict] = []
+
+    async def fake_sync_source(source_id, **kw):
+        started.append({"id": source_id, **kw})
+        return {"status": "ok"}
+
+    monkeypatch.setattr(engine, "sync_source", fake_sync_source)
+    monkeypatch.setattr(engine, "is_source_busy", lambda sid: False)
+    r = client_admin.post(f"{BASE}/sources/{src['id']}/sync", params={"full": "1"})
+    # No background=1 asked for: the router chose it, because Evernote opts in to follow-ups.
+    assert r.status_code == 200 and r.json() == {"status": "started", "background": True}
+
+
+def test_the_background_choice_comes_from_the_provider_class():
+    assert registry.runs_sync_in_background("evernote") is True
+    assert registry.runs_sync_in_background("notion") is False
+    assert registry.runs_sync_in_background("no-such-provider") is False
+
+
+def test_status_says_which_sources_are_syncing(client_admin, monkeypatch):
+    from api.services.journal_two.note_connectors import engine
+    src = _seed_evernote_source()
+    monkeypatch.setattr(engine, "is_source_busy", lambda sid: sid == src["id"])
+    body = client_admin.get(f"{BASE}/status").json()
+    [row] = body["providers"]["evernote"]["sources"]
+    assert row["syncing"] is True
+
+
+def test_the_background_choice_reads_follow_up_on_rate_limit_and_nothing_else(monkeypatch):
+    class Listed:
+        fetch_is_listing_independent = True
+        follow_up_on_rate_limit = False
+
+    class Limited:
+        fetch_is_listing_independent = False
+        follow_up_on_rate_limit = True
+
+    def entry(name, cls):
+        return registry.ProviderEntry(name, name, "oauth", lambda: True, lambda s: None,
+                                      provider_class=lambda: cls)
+
+    monkeypatch.setitem(registry._REGISTRY, "fake-listed", entry("fake-listed", Listed))
+    monkeypatch.setitem(registry._REGISTRY, "fake-limited", entry("fake-limited", Limited))
+    assert registry.runs_sync_in_background("fake-listed") is False
+    assert registry.runs_sync_in_background("fake-limited") is True

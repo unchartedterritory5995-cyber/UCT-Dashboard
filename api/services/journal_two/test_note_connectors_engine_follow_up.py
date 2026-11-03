@@ -122,7 +122,7 @@ async def test_the_follow_up_delay_follows_retry_after_inside_the_clamp(db, monk
     until = _until(_row(db, src["id"]))
     assert abs((until - t0).total_seconds() - 230) < 5
 
-    p.retry_after = 3600.0  # clamped to the 300 s ceiling
+    p.retry_after = 7200.0  # fix round 1 (I7): clamped to the one-hour ceiling
     t1 = datetime.now(timezone.utc)
     await engine.sync_source(src["id"], manual=True)
     until = _until(_row(db, src["id"]))
@@ -251,8 +251,9 @@ async def test_a_follow_up_that_raises_does_not_rerun_forever(db, monkeypatch):
     p.raise_on_list_changed = errors.NoteConnTransient("listing down")
     out = await engine.sync_follow_up_sources()
     assert out["ran"] == 1
-    # The stamp was claimed before the pass: a failing pass leaves no stamp to fire again.
-    assert _row(db, src["id"])["warmingUntil"] is None
+    # Fix round 1 (I9): the stamp was LEASED before the pass, so a failing pass leaves the lease,
+    # which fires again only once it runs out (`test_the_follow_up_job_leases_the_stamp...`).
+    assert _row(db, src["id"])["warmingUntil"] is not None
     out = await engine.sync_follow_up_sources()
     assert out["ran"] == 0
 
@@ -287,7 +288,7 @@ async def test_paused_or_broken_sources_get_no_follow_up_run(db, monkeypatch):
 
 def test_follow_up_constants():
     assert engine.FOLLOW_UP_MIN_DELAY_S == 120
-    assert engine.FOLLOW_UP_MAX_DELAY_S == 300
+    assert engine.FOLLOW_UP_MAX_DELAY_S == 3600  # fix round 1 (I7)
     assert engine.FOLLOW_UP_MARGIN_S == 30
     assert engine.FOLLOW_UP_MAX_PASSES_PER_HOUR == 12
 

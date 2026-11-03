@@ -64,7 +64,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
       sources: [{
         id: 's1', provider: 'roam', displayName: 'My Graph', remoteId: 'my-graph',
         syncEnabled: true, status: 'active', lastSyncAt: '2026-08-01T00:00:00Z',
-        lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null,
+        lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null, syncing: false,
         pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
         pluginVersion: null, pluginSupportsAttachments: null,
         counts: {
@@ -105,7 +105,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
       sources: [{
         id: 's2', provider: 'craft', displayName: 'My Space', remoteId: 'link-1',
         syncEnabled: false, status: 'broken', lastSyncAt: '2026-08-02T00:00:00Z',
-        lastSyncStatus: 'error', lastSyncError: 'token expired', warmingUntil: null,
+        lastSyncStatus: 'error', lastSyncError: 'token expired', warmingUntil: null, syncing: false,
         pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
         pluginVersion: null, pluginSupportsAttachments: null,
         counts: {
@@ -336,5 +336,36 @@ describe('Task 5: hook fetches', () => {
     const rows = await h.result.current.getSourceLog('s1', { limit: 2 })
     expect(rows[0].created).toBe(3)
     expect(calls.pop()[0]).toMatch(/\/sources\/s1\/log\?limit=2$/)
+  })
+})
+
+// ── Evernote rate-limit fix round 1 (I3) ────────────────────────────────────
+import { connectorsRefreshInterval, STATUS_SWR_OPTIONS } from './useNoteConnectors'
+
+describe('the /status poll is wired (fix round 1, I3)', () => {
+  it('passes connectorsRefreshInterval to SWR', () => {
+    expect(STATUS_SWR_OPTIONS.refreshInterval).toBe(connectorsRefreshInterval)
+  })
+})
+
+describe('normalizeSource — syncing (fix round 1, I3)', () => {
+  it('reads the server flag in either casing, defaulting to false', () => {
+    expect(normalizeSource({ id: 's', syncing: true }).syncing).toBe(true)
+    expect(normalizeSource({ id: 's', syncing: false }).syncing).toBe(false)
+    expect(normalizeSource({ id: 's' }).syncing).toBe(false)
+  })
+})
+
+describe('connectorsRefreshInterval — poll only while something is in progress (fix round 1, I3)', () => {
+  const status = (sources) => ({ providers: { evernote: { sources } } })
+  it('polls while a source is syncing or still importing', () => {
+    expect(connectorsRefreshInterval(status([{ id: 'a', syncing: true }]))).toBe(10000)
+    expect(connectorsRefreshInterval(status([{ id: 'a', lastSyncStatus: 'importing' }]))).toBe(10000)
+    expect(connectorsRefreshInterval(status([{ id: 'a', last_sync_status: 'importing' }]))).toBe(10000)
+  })
+  it('does not poll a settled page, or before data arrives', () => {
+    expect(connectorsRefreshInterval(status([{ id: 'a', lastSyncStatus: 'ok' }]))).toBe(0)
+    expect(connectorsRefreshInterval(undefined)).toBe(0)
+    expect(connectorsRefreshInterval({ providers: { evernote: null } })).toBe(0)
   })
 })

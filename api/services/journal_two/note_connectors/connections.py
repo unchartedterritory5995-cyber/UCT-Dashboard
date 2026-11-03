@@ -488,6 +488,14 @@ def set_follow_up(
     return _update_source_fields(user_id, source_id, {"warming_until": until_iso}, conn)
 
 
+def set_sync_state(
+    user_id: str, source_id: str, raw: str | None, conn: sqlite3.Connection | None = None,
+) -> bool:
+    """The source's small JSON engine state (`sync_state`, fix round 1): the learned pacing
+    interval (D3) and an import's progress record (I10). `None` clears it."""
+    return _update_source_fields(user_id, source_id, {"sync_state": raw}, conn)
+
+
 def list_follow_up_due(
     now_iso: str, conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
@@ -725,6 +733,7 @@ def _row_to_source(row: sqlite3.Row | None) -> dict[str, Any] | None:
         "lastSyncStatus": row["last_sync_status"],
         "lastSyncError": row["last_sync_error"],
         "warmingUntil": row["warming_until"],
+        "syncState": row["sync_state"] if "sync_state" in row.keys() else None,
         "lastFullSyncAt": row["last_full_sync_at"],
         "createdAt": row["created_at"],
     }

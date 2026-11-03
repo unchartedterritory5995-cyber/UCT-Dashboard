@@ -98,6 +98,17 @@ ADAPTIVE_MAX_INTERVAL_S = 10.0
 # (215 notes x 3 retries x 61 s would be ~11 h). The notes not read stay pending: the engine holds
 # the cursor for any listed note it did not store, and the next pass asks again.
 RATE_LIMIT_WAIT_BUDGET_S = 600.0
+# Fix round 1 (D2): the wall clock of one session (one sync pass), from its first call. Pacing
+# sleeps and rate-limit waits are both charged to it: a sleep that would end past it is not taken,
+# and from then on every call raises `NoteConnRateLimited` WITHOUT being sent. So a server that
+# refuses everything ends the pass within this, never hours later; the notes not read are
+# rate-limit leftovers the engine follows up on (and, with D1, never fetches twice).
+SESSION_BUDGET_S = 600.0
+# Fix round 1 (I6): after RAMP_DOWN_AFTER_CALLS clean calls in a row the interval eases by
+# RAMP_DOWN_FACTOR, never below the first trip's estimate (or the adaptive floor for a seeded
+# session), so a doubling a penalty forced is given back slowly.
+RAMP_DOWN_AFTER_CALLS = 50
+RAMP_DOWN_FACTOR = 0.9
 
 CLIENT_INFO = {"name": "uct-notebook-sync", "version": "1.0"}
 # The same User-Agent as our media fetches (`providers/base.py`).
@@ -112,12 +123,21 @@ class _SessionLost(Exception):
     """Internal: 404 on a request that carried a session id."""
 
 
+class _HttpRateLimited(Exception):
+    """Internal: an HTTP 429. `call_tool` handles it exactly as a tool-level limit (I5)."""
+
+    def __init__(self, retry_after: float | None) -> None:
+        super().__init__("429")
+        self.retry_after = retry_after
+
+
 def _default_jitter() -> float:
     return random.uniform(0.5, 1.5)
 
 
 def _retry_after_s(resp: httpx.Response) -> float | None:
-    """`Retry-After` as seconds, capped at `MAX_RETRY_AFTER_S`, or None (use the ladder).
+    """`Retry-After` as seconds (uncapped: the caller caps where it sleeps), or None (use the
+    ladder).
 
     Delta-seconds or an HTTP-date. NaN, infinity, a negative number, an unparseable value or a date
     that is already past all give None."""
@@ -141,7 +161,7 @@ def _retry_after_s(resp: httpx.Response) -> float | None:
             return None
     if not math.isfinite(value) or value < 0:
         return None
-    return min(value, MAX_RETRY_AFTER_S)
+    return value
 
 
 def _tool_error_text(result: dict) -> str:
@@ -153,9 +173,9 @@ def _tool_error_text(result: dict) -> str:
 
 
 def _tool_rate_limit_wait_s(result: Any) -> float | None:
-    """For a tool-level rate-limit result: the server's asked-for wait in seconds, capped at
-    `MAX_RETRY_AFTER_S` (`TOOL_RATE_LIMIT_DEFAULT_WAIT_S` when the text names none). None for
-    anything that is not a rate-limit error."""
+    """For a tool-level rate-limit result: the server's asked-for wait in seconds, UNCAPPED
+    (`TOOL_RATE_LIMIT_DEFAULT_WAIT_S` when the text names none): a wait over `MAX_RETRY_AFTER_S` is
+    not slept through at all (fix round 1, I7). None for anything that is not a rate-limit error."""
     if not isinstance(result, dict) or not result.get("isError"):
         return None
     text = _tool_error_text(result)
@@ -165,7 +185,7 @@ def _tool_rate_limit_wait_s(result: Any) -> float | None:
     m = _TOOL_RATE_LIMIT_WAIT_RE.search(text)
     if m:
         wait = float(m.group(1))  # digits only: always finite and >= 0
-    return min(wait, MAX_RETRY_AFTER_S)
+    return wait
 
 
 def _sse_event_data(event: str) -> str | None:
@@ -290,6 +310,16 @@ class EvernoteMcpClient:
         self._adapted = False
         self._sent_at: deque[float] = deque()
         self._rate_limit_waited_s = 0.0
+        # Fix round 1: the first trip's estimate (the ramp-down floor), whether a trip happened
+        # this session (what the engine stores, D3), clean calls since the last trip or ease (I6),
+        # when the session started and whether it is closed (D2), and M1's once-per-session log.
+        self._estimate = ADAPTIVE_MIN_INTERVAL_S
+        self._tripped = False
+        self._clean_calls = 0
+        self._started_at: float | None = None
+        self._closed_reason: str | None = None
+        self._closed_retry_after: float | None = None
+        self._unmatched_logged = False
         self._refresh_spent = False
         self._lock = asyncio.Lock()
         # The name of every `tools/call` actually sent (each attempt), kept for rails.
@@ -306,29 +336,115 @@ class EvernoteMcpClient:
         async with self._lock:
             # At most ONE `on_unauthorized` per call_tool: each refresh rotates the refresh token.
             self._refresh_spent = False
+            if self._started_at is None:
+                self._started_at = self._clock()
             limited = 0
             while True:
-                await self._pace()
-                result = await self._call_once(name, arguments)
-                wait = _tool_rate_limit_wait_s(result)
+                self._refuse_if_closed(name)
+                if limited == 0:
+                    # A retry goes straight after the server's own wait; pacing resumes with
+                    # the next new call.
+                    await self._pace(name)
+                try:
+                    result = await self._call_once(name, arguments)
+                    wait = _tool_rate_limit_wait_s(result)
+                    status = None
+                except _HttpRateLimited as hit:
+                    # I5: an HTTP 429 takes the same path as the tool-level limit. No Retry-After
+                    # means the transport ladder's step, never an unbounded guess.
+                    result, status = None, 429
+                    wait = hit.retry_after
+                    if wait is None:
+                        wait = RETRY_DELAYS_S[min(limited, len(RETRY_DELAYS_S) - 1)] * self._jitter()
                 if wait is None:
+                    self._note_clean()
+                    self._log_unmatched(name, result)
                     return self._structured(name, result)
-                # A tool-level rate limit: the same handling as an HTTP 429 (see the
-                # TOOL_RATE_LIMIT_* and RATE_WINDOW_S notes above).
-                self._slow_down()
-                delay = wait + RATE_LIMIT_MARGIN_S
-                if (limited >= TOOL_RATE_LIMIT_RETRIES
-                        or self._rate_limit_waited_s + delay > RATE_LIMIT_WAIT_BUDGET_S):
-                    raise errors.NoteConnRateLimited(
-                        f"evernote mcp: {name} rate limited by Evernote after {limited} "
-                        f"retr{'y' if limited == 1 else 'ies'}", retry_after=wait,
-                        code="evernote_tool_rate_limited")
-                limited += 1
-                self._rate_limit_waited_s += delay
-                log.info("evernote mcp: %s rate limited; waiting %.0f s (retry %d of %d), "
-                         "pacing %.2f s per call", name, delay, limited,
-                         TOOL_RATE_LIMIT_RETRIES, self.call_interval_s)
-                await self._sleep(delay)
+                limited = await self._rate_limited(name, wait, limited, status)
+
+    def seed_interval(self, interval_s: float) -> None:
+        """D3: start this session at the interval an earlier pass learned (the engine decays it
+        by age first), clamped to [ADAPTIVE_MIN_INTERVAL_S, ADAPTIVE_MAX_INTERVAL_S]. A seeded
+        session counts as adapted: its first trip doubles rather than re-estimates."""
+        if not isinstance(interval_s, (int, float)) or not math.isfinite(interval_s):
+            return
+        self.call_interval_s = min(max(float(interval_s), ADAPTIVE_MIN_INTERVAL_S),
+                                   ADAPTIVE_MAX_INTERVAL_S)
+        self._adapted = True
+        self._estimate = ADAPTIVE_MIN_INTERVAL_S
+
+    def learned_interval(self) -> tuple[float | None, bool]:
+        """(the session's adaptive interval or None, whether a rate limit tripped this session).
+        The engine stores the interval only when it was learned THIS session (D3)."""
+        return (self.call_interval_s if self._adapted else None), self._tripped
+
+    def _close(self, reason: str, retry_after: float | None = None) -> None:
+        if self._closed_reason is None:
+            self._closed_reason = reason
+            self._closed_retry_after = retry_after
+            log.info("evernote mcp: session closed (%s); the rest is left for the follow-up pass",
+                     reason)
+
+    def _refuse_if_closed(self, name: str) -> None:
+        if self._closed_reason is None and self._started_at is not None and (
+                self._clock() - self._started_at >= SESSION_BUDGET_S):
+            self._close("wall clock spent")
+        if self._closed_reason is not None:
+            raise errors.NoteConnRateLimited(
+                f"evernote mcp: {name} not sent: this sync's Evernote budget is spent "
+                f"({self._closed_reason})", retry_after=self._closed_retry_after,
+                code="evernote_session_closed")
+
+    def _within_wall_clock(self, seconds: float) -> bool:
+        return (self._started_at is None
+                or self._clock() + seconds - self._started_at <= SESSION_BUDGET_S)
+
+    async def _rate_limited(self, name: str, wait: float, limited: int, status: int | None) -> int:
+        """The ONE handler for a rate limit, tool-level or HTTP 429 (I5): slow the session, then
+        wait and retry the same call, or raise. Returns the new retry count."""
+        self._slow_down()
+        if wait > MAX_RETRY_AFTER_S:
+            # I7: never slept through. The session is closed (nothing more is sent this pass)
+            # and the real wait goes up, so the engine books the follow-up for then.
+            self._close("Evernote asked for a long wait", retry_after=wait)
+            raise errors.NoteConnRateLimited(
+                f"evernote mcp: {name} rate limited by Evernote for {wait:.0f} s",
+                retry_after=wait, status=status, code="evernote_tool_rate_limited")
+        delay = wait + RATE_LIMIT_MARGIN_S
+        over_budget = self._rate_limit_waited_s + delay > RATE_LIMIT_WAIT_BUDGET_S
+        over_clock = not self._within_wall_clock(delay)
+        if over_budget or over_clock:
+            self._close("rate-limit wait budget spent" if over_budget else "wall clock spent")
+        if limited >= TOOL_RATE_LIMIT_RETRIES or over_budget or over_clock:
+            raise errors.NoteConnRateLimited(
+                f"evernote mcp: {name} rate limited by Evernote after {limited} "
+                f"retr{'y' if limited == 1 else 'ies'}", retry_after=wait, status=status,
+                code="evernote_tool_rate_limited")
+        self._rate_limit_waited_s += delay
+        log.info("evernote mcp: %s rate limited; waiting %.0f s (retry %d of %d), "
+                 "pacing %.2f s per call", name, delay, limited + 1,
+                 TOOL_RATE_LIMIT_RETRIES, self.call_interval_s)
+        await self._sleep(delay)
+        return limited + 1
+
+    def _note_clean(self) -> None:
+        """I6: a slow, bounded ramp down after RAMP_DOWN_AFTER_CALLS clean calls in a row."""
+        if not self._adapted:
+            return
+        self._clean_calls += 1
+        if self._clean_calls >= RAMP_DOWN_AFTER_CALLS:
+            self._clean_calls = 0
+            self.call_interval_s = max(self._estimate, self.call_interval_s * RAMP_DOWN_FACTOR)
+
+    def _log_unmatched(self, name: str, result: Any) -> None:
+        """M1: a tool error that is NOT the rate-limit wording, logged once per session, so a
+        changed wording shows up in the log instead of reading as many unrelated failures."""
+        if (self._unmatched_logged or not isinstance(result, dict)
+                or not result.get("isError")):
+            return
+        self._unmatched_logged = True
+        log.warning("evernote mcp: %s returned a tool error that is not a rate limit: %s",
+                    name, _tool_error_text(result)[:300])
 
     async def _call_once(self, name: str, arguments: dict[str, Any]) -> Any:
         for attempt in range(2):
@@ -352,23 +468,34 @@ class EvernoteMcpClient:
 
     # ------------------------------------------------------------------ session
 
-    async def _pace(self) -> None:
+    async def _pace(self, name: str = "call") -> None:
         if self._last_call_at is None:
             return
         wait = self.call_interval_s - (self._clock() - self._last_call_at)
         if wait > 0:
+            if not self._within_wall_clock(wait):
+                # D2: pacing is charged to the wall clock too.
+                self._close("wall clock spent")
+                self._refuse_if_closed(name)
             await self._sleep(wait)
 
     def _slow_down(self) -> None:
-        """A rate limit tripped: slow this session's calls (see RATE_WINDOW_S). Only ever slower."""
-        now = self._clock()
-        while self._sent_at and self._sent_at[0] <= now - RATE_WINDOW_S:
-            self._sent_at.popleft()
-        observed = max(len(self._sent_at), 1)
-        interval = RATE_WINDOW_S / observed / ADAPTIVE_RATE_FRACTION
-        if self._adapted:
-            interval = max(interval, 2 * self.call_interval_s)
-        interval = min(max(interval, ADAPTIVE_MIN_INTERVAL_S), ADAPTIVE_MAX_INTERVAL_S)
+        """A rate limit tripped: slow this session's calls. I6: the FIRST trip estimates from the
+        window that ended at it (see RATE_WINDOW_S); every later trip (a retry right after a wait,
+        whose window holds almost nothing, included) doubles. Clamped, and only ever slower."""
+        self._tripped = True
+        self._clean_calls = 0
+        if not self._adapted:
+            now = self._clock()
+            while self._sent_at and self._sent_at[0] <= now - RATE_WINDOW_S:
+                self._sent_at.popleft()
+            observed = max(len(self._sent_at), 1)
+            interval = RATE_WINDOW_S / observed / ADAPTIVE_RATE_FRACTION
+            interval = min(max(interval, ADAPTIVE_MIN_INTERVAL_S), ADAPTIVE_MAX_INTERVAL_S)
+            self._estimate = interval
+        else:
+            interval = min(max(2 * self.call_interval_s, ADAPTIVE_MIN_INTERVAL_S),
+                           ADAPTIVE_MAX_INTERVAL_S)
         self.call_interval_s = max(self.call_interval_s, interval)
         self._adapted = True
 
@@ -449,21 +576,15 @@ class EvernoteMcpClient:
             if status == 404 and had_session and not handshake:
                 raise _SessionLost()
             if status == 429:
-                retry_after = _retry_after_s(resp)
-                if attempt >= len(RETRY_DELAYS_S):
-                    raise errors.NoteConnRateLimited(
-                        f"evernote mcp: rate limited on {method}", status=429,
-                        retry_after=retry_after)
-                delay = retry_after if retry_after is not None else (
-                    RETRY_DELAYS_S[attempt] * self._jitter())
-                await self._sleep(delay)
-                attempt += 1
-                continue
+                # I5: handled by `call_tool`'s one rate-limit handler (slow down, budget, cap).
+                raise _HttpRateLimited(_retry_after_s(resp))
             if status >= 500:
                 if attempt >= len(RETRY_DELAYS_S):
                     raise errors.NoteConnTransient(
                         f"evernote mcp: HTTP {status} on {method}", status=status)
                 retry_after = _retry_after_s(resp) if status == 503 else None
+                if retry_after is not None:
+                    retry_after = min(retry_after, MAX_RETRY_AFTER_S)
                 delay = retry_after if retry_after is not None else (
                     RETRY_DELAYS_S[attempt] * self._jitter())
                 await self._sleep(delay)
