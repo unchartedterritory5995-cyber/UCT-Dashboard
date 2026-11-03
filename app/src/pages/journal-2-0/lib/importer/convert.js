@@ -10,8 +10,12 @@ export function sanitizeHtml(html) {
 }
 
 function sanitizeDoc(doc) {
-  // Remove banned tags by checking tagName.toUpperCase() to handle SVG/MathML foreign content
-  ;[...doc.getElementsByTagName('*')].forEach((el) => {
+  // Remove banned tags by checking tagName.toUpperCase() to handle SVG/MathML foreign content.
+  // ⛔ A static `querySelectorAll` list, never `[...getElementsByTagName('*')]`: spreading
+  // jsdom's LIVE collection re-walks the document per index, quadratic in the note (D3 item 3:
+  // 2.6 s of a 4 s import of a 500-line list note; 58-107 s at 2,000 lines). Same elements,
+  // same document order.
+  doc.querySelectorAll('*').forEach((el) => {
     if (BANNED_TAGS.has(el.tagName.toUpperCase())) el.remove()
   })
   doc.querySelectorAll('*').forEach((el) => {

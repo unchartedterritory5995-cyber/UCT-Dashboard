@@ -329,3 +329,29 @@ describe('htmlToNote — D3 items 7 and 8: shared HTML block vectors', () => {
     expect(quoted(htmlToNote(v.html).bodyJson)).toBe(v.shape)
   })
 })
+
+// D3 item 3: a 2,000-line Obsidian note of busy list items took 58-107 s in jsdom. The
+// banned-tag pass spread a LIVE `getElementsByTagName('*')` collection (quadratic); it is a
+// static list now, with the same output.
+describe('htmlToNote — D3 item 3: linear on a big list note', () => {
+  const line = (i) => '<li><a href="import-ref://attachments/q.pdf" data-type="attachmentChip" '
+    + 'data-name="q.pdf" data-label="NVDA deck"><code>NVDA</code> deck</a> and <code>code [[x.png]]</code> '
+    + 'plus <a data-import-link="obsidian:Note.md">Note</a> <img src="import-ref://img.png"> '
+    + '<a href="https://e.com/b">a</a> <mark>hl</mark> <strong>bold</strong> ' + i + '</li>'
+  const note = (n) => `<ul>${Array.from({ length: n }, (_, i) => line(i)).join('\n')}</ul>`
+
+  it('converts a 2,000-line list note in a few seconds, and scales linearly', () => {
+    let started = performance.now()
+    const small = htmlToNote(note(500))
+    const t500 = performance.now() - started
+    started = performance.now()
+    const big = htmlToNote(note(2000))
+    const t2000 = performance.now() - started
+    // Every line arrived (each item opens with a chip, so the parser splits the list per item).
+    expect(big.bodyPlain.match(/\bbold \d+/g)).toHaveLength(2000)
+    expect(small.bodyPlain.match(/\bbold \d+/g)).toHaveLength(500)
+    expect(t2000).toBeLessThan(6000)
+    // Quadratic is 16x for 4x the lines; linear is ~4x. Allow noise, never 16x.
+    expect(t2000 / Math.max(t500, 1)).toBeLessThan(9)
+  }, 60000)
+})
