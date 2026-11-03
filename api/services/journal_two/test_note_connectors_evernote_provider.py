@@ -133,7 +133,7 @@ def test_import_key_is_the_live_key():
     p = _provider(FakeMcp())
     assert p.import_key("account", G1) == f"evernote:guid:{G1}"
     assert p.name == "evernote" and p.adopt_import_source == "evernote"
-    assert (p.PAGE_SIZE, p.CURSOR_OVERLAP_S, p.ATTACHMENT_HOST) == (100, 120, "storage.googleapis.com")
+    assert (p.PAGE_SIZE, p.CURSOR_OVERLAP_S, p.ATTACHMENT_HOST) == (100, 1800, "storage.googleapis.com")
 
 
 def test_instant_is_public_in_import_provenance():
@@ -285,9 +285,10 @@ async def test_under_the_tag_cap_an_unknown_guid_like_string_is_dropped_not_a_la
 
 
 async def test_a_hit_exactly_at_the_overlap_bound_is_returned():
-    # m3: the bound is inclusive (cursor 10:00, overlap 120 s -> 09:58:00 is kept).
-    fake = FakeMcp(active=[_hit(1, updated="2026-11-02T09:58:00Z"),
-                           _hit(2, updated="2026-11-02T09:57:59.999Z")])
+    # m3: the bound is inclusive (cursor 10:00, overlap 30 min since slot scheduling fix round 2
+    # -> 09:30:00 is kept).
+    fake = FakeMcp(active=[_hit(1, updated="2026-11-02T09:30:00Z"),
+                           _hit(2, updated="2026-11-02T09:29:59.999Z")])
     refs = await _provider(fake).list_changed(CREDS, "2026-11-02T10:00:00.000+00:00")
     assert [r.remote_id for r in refs] == [_guid(1)]
 
