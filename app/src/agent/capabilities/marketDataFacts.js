@@ -131,15 +131,18 @@ const NO_FUNDAMENTALS = {
   unavailable: "its financial statements are not available from UCT's market data",
 }
 
-/** A `fundamentals` envelope → the member's answer (pure; exported for tests). */
-export function answerFromFundamentals(env, symbol, quote = null) {
+/**
+ * A `fundamentals` envelope → the FACTS BLOCK stock.profile appends under the member's profile (integrator decision
+ * 2026-11-02: the profile is never degraded — the legacy snapshot fields stay, the gateway's statements are added with
+ * MD-1 wording on the gateway part only). Pure; exported for tests. → { lines, items, source }
+ */
+export function fundamentalsFacts(env, symbol) {
   const sym = String(symbol || '').toUpperCase()
-  if (!usable(env)) return { text: `I couldn't read ${sym}'s financial statements: ${NO_FUNDAMENTALS[env?.status] || NO_FUNDAMENTALS.unavailable}. No figure is stated.` }
+  if (!usable(env)) return { lines: [`Financial statements: ${NO_FUNDAMENTALS[env?.status] || NO_FUNDAMENTALS.unavailable}; no statement figure is stated.`], items: [], source: null }
   const d = env.data
   const period = d.period === 'annual' ? 'annual' : 'quarterly'
   const newest = dayOf(env.as_of)
-  const lines = [`${sym} — financial statements (${period}), newest period ending ${newest || 'an undated period'}`]
-  if (quote) lines.push(quoteLine(quote))
+  const lines = [`Financial statements (${period}, newest period ending ${newest || 'an undated period'}):`]
   const items = []
   const missing = []
   for (const [key, label] of STATEMENTS) {
@@ -153,27 +156,23 @@ export function answerFromFundamentals(env, symbol, quote = null) {
       parts.push(`${lbl} ${v}`)
       items.push({ label: lbl, value: v, note: `period ending ${dayOf(latest.period_end)}`, aka })
     }
-    lines.push(`${label} (period ending ${dayOf(latest.period_end)}): ${parts.length ? parts.join(' · ') : 'no figures carried'}`)
+    lines.push(`• ${label} (period ending ${dayOf(latest.period_end)}): ${parts.length ? parts.join(' · ') : 'no figures carried'}`)
   }
   if (missing.length) lines.push(`No ${missing.join(' or ')} data is carried for ${sym}.`)
   const age = env.as_of && env.fetched_at ? daysBetween(env.as_of, env.fetched_at) : null
-  lines.push(`Periodic disclosures${d.currency && d.currency !== 'USD' ? ` in ${d.currency}` : ''}: the figures describe the reporting period ending ${newest || 'the period named above'}, not today.${env.stale && age != null ? ` Note: that period ended ${age} days ago, so a newer quarter may have been reported.` : ''}`)
-  lines.push("Market cap, P/E, the 52-week range and the sector aren't carried by the Agent's data gateway yet — they are on the Research page.")
-  lines.push("Source: Yahoo Finance financial statements through the UCT data gateway" + (quote ? '; price from the Massive market snapshot through the same gateway.' : '.'))
-  const fig = [...(quote ? [{ label: 'Price', value: money(quote.price), note: quote.live ? (quote.when ? `live, as of ${quote.when}` : 'live') : (quote.when ? `as of ${quote.when}, not real-time` : 'not real-time'), aka: ['price', 'quote', 'trading at', 'share price'] }] : []), ...items]
-  return { text: lines.join('\n'), link: researchLink(sym), chart: { symbol: sym, label: sym }, present: { kind: 'metrics', title: `${sym} — financial statements`, short: sym, items: fig } }
+  lines.push(`Periodic disclosures${d.currency && d.currency !== 'USD' ? ` in ${d.currency}` : ''}: the statement figures describe the reporting period ending ${newest || 'the period named above'}, not today.${env.stale && age != null ? ` Note: that period ended ${age} days ago, so a newer quarter may have been reported.` : ''}`)
+  return { lines, items, source: 'statements from Yahoo Finance through the UCT data gateway' }
 }
 
-/** stock.profile's served path: the `fundamentals` read (+ the `quote` read when served) for the open turn. */
-export async function answerProfileServed(symbol) {
+/** stock.profile's gateway facts: ONE `fundamentals` read for the open turn → fundamentalsFacts, or null when the kind
+ *  is not served / no turn is open (the profile then carries its legacy fields alone, as before). */
+export async function readFundamentalsFacts(symbol) {
   const sym = String(symbol || '').toUpperCase()
+  if (!kindServed('fundamentals')) return null
   const turnId = currentTurnId()
-  if (!turnId) return `I couldn't read ${sym}'s financial statements: ${NO_TURN}.`
-  const [env, q] = await Promise.all([
-    readData('fundamentals', { symbol: sym, period: 'quarterly', periods: 4 }, { purpose: 'answer', turnId }),
-    readQuoteRow(sym),
-  ])
-  return answerFromFundamentals(env, sym, q)
+  if (!turnId) return null
+  const env = await readData('fundamentals', { symbol: sym, period: 'quarterly', periods: 4 }, { purpose: 'answer', turnId })
+  return fundamentalsFacts(env, sym)
 }
 
 // ── earnings → stock.earnings ────────────────────────────────────────────────────────────────────────────────────────
