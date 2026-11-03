@@ -54,6 +54,6 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 | I-08 | ONE combined Wave 1 RC (SEC + A + B + C + #716 + Agent CI) | done → DEPLOYED: master 463a4bcba5 (PR #718, owner GO), gate passed, promoted 04:21Z, live 04:30:42Z (bundle index-ePgCEn0Q.js); flags untouched; Phase 1 live testing next (I-12) | manifest RELEASE-W1-MANIFEST.md; QA-W1-COMBINED.md; Agent CI on 6342332731: 2095 / 2688 / 0 |
 | I-09 | (folded into I-08 by owner decision: no separate deploys) | done | |
 | I-11 | LIVE-TESTING.md (Phase 1 checklist) + OWNER-ACCEPTANCE.md (Phase 2 suite, 38 prompts, scorecard) ready before deployment | done | committed b8af07c506 |
-| I-12 | Phase 1 live production testing (owner's mandate) + flag activation in manifest order; results to EVAL.md / LIVE-TESTING results log | todo | needs: owner's flag changes; owner's decision on browser-driving |
+| I-12 | Phase 1 live production testing | done (first pass 2026-11-03 04:45–05:30Z): ~55 turns, 41 model calls ≈ $0.64; verdict TECHNICALLY DEPLOYED; findings LT-1..LT-12 (LT-3, LT-4, LT-8 to fix before Phase 2 scoring); flags were already all ON (no activation needed) | LIVE-TESTING-RESULTS-2026-11-03.md |
 | I-13 | Phase 2 owner hands-on acceptance session; scorecard | todo | after I-12 |
 | I-10 | Notify Indicators/News/Charts sessions of Wave 1 branches and RC windows | done | blake-4c (News #629) and blake-ee (News widget) acked: no master RC pending, no Agent files touched |
