@@ -400,7 +400,7 @@ Every server lane calls one new function before every evaluation:
 # runtime_definitions.py (T12) -- the ONLY admission question a server lane asks of a runtime doc
 def server_lane_refusal(row, *, lane) -> Optional[tuple[str, str]]:   # (guard, sentence) or None
     1. killed(def_id, source)                  -> ("runtime:killed", ...)          # same fn as stamp_served
-    2. not_graded(source)                      -> ("runtime:not-yet-graded", ...)  # same allowlist, R1 admission
+    2. not_graded(source, graded_only=True)    -> ("runtime:not-yet-graded", ...)  # the GRADED allowlist only (R1 admission); PINE_RUNTIME_ALLOWLIST is pane-only
     3. owner may draw it:  pane_permitted(owner_role, owner_id)                    # same stage + cohort
                                                -> ("runtime:stage", ...)
     4. server lanes on for that owner: server_permitted(owner_role, owner_id)
@@ -423,7 +423,8 @@ def server_lane_refusal(row, *, lane) -> Optional[tuple[str, str]]:   # (guard, 
   - `PINE_RUNTIME_SERVER_STAGE`;
   - `PINE_RUNTIME_SERVICE_URL`;
   - `PINE_RUNTIME_SERVICE_SECRET` (secret, value never recorded);
-  - the two PHASE3 S7 rows still owed: `PINE_RUNTIME_KILL_LIST` and `PINE_RUNTIME_ALLOWLIST`.
+  - (`PINE_RUNTIME_KILL_LIST` and `PINE_RUNTIME_ALLOWLIST` already have their PHASE3 S7 rows; T12
+    adds three rows, not four, and only edits the `PINE_RUNTIME_ALLOWLIST` row to say it is pane-only.)
 
 ### 3.6 Authentication between services
 
@@ -597,7 +598,7 @@ in both hosts:
 | `api/services/definition_record.py` | `record_runtime_pass` beside `record_pass` (`:485`). `def_hash` is **derived** from the stored runtime handle (never accepted), and the warm-up pad is read from the run's own warm-up (`runtimeWarmupOf`, returned by the service) instead of `ast_interpret.max_lookback`. The forward-only origin rule is unchanged. | T16 |
 | `api/services/user_definitions.py` | `engine_withheld_reason` (`:2317`) is unchanged for `ast`. For runtime documents, the stored `refused` verdict binds the same way, and `_awaits_retranslation` (`:2302`) answers False, because a runtime document is recompiled from source on every run. `consumer_refusal` (`:1734`) gets a runtime requirements read (a runtime document that names `request.*` is already refused at mint, `runtime:request`). | T17 |
 | `api/routers/user_definitions.py` | `_stamped` (`:309`) adds `server_lanes: {alerts, screener, scans}`, each `true` or `{guard, sentence}`, computed by `server_lane_refusal`, so the editor's "Runs on" line (programme plan 3.1) reads the server's answer | T17 |
-| `docs/feature_flags.json` | four rows (3.5) | T12 |
+| `docs/feature_flags.json` | three new rows (3.5: `PINE_RUNTIME_SERVER_STAGE`, `PINE_RUNTIME_SERVICE_URL`, `PINE_RUNTIME_SERVICE_SECRET`); the S7 rows `PINE_RUNTIME_KILL_LIST` and `PINE_RUNTIME_ALLOWLIST` already existed (the latter gains a pane-only note) | T12 |
 | `docs/pine/PHASE3-RUNTIME-PLAN.md` | S1 and 1.3 rewritten (top of this doc) | T13 |
 | `.github/workflows/master-deploy-gate.yml` | section 8 | T19 |
 
@@ -693,7 +694,7 @@ rail goes red, then restore it from the saved bytes.
 | task | size | owns | delivers | rails | depends |
 |---|---|---|---|---|---|
 | **T11 Client + lane adapter** | M | `api/services/pine_runtime_client.py`, `api/services/runtime_server_lane.py`, `tests/fakes/pine_runtime_fake.py` | the one door; the failure taxonomy of 3.7; the batch API | one rail per row of 3.7; "never stale" (a bars change → a cache miss); "never partial" (a short column → integrity) | T3 |
-| **T12 Admission + flags** | S | `api/services/runtime_definitions.py` (new functions only), `docs/feature_flags.json` | `server_stage`, `server_permitted`, `server_lane_refusal`; `min(pane, server)`; the four ledger rows | stage-ladder rail (typo → off); the server stage can never exceed the pane stage; a kill reaches the next call | — |
+| **T12 Admission + flags** | S | `api/services/runtime_definitions.py` (new functions only), `docs/feature_flags.json` | `server_stage`, `server_permitted`, `server_lane_refusal`; `min(pane, server)`; the three new ledger rows | stage-ladder rail (typo → off); the server stage can never exceed the pane stage; a kill reaches the next call | — |
 | **T13 Alerts** | M | `api/services/alert_user_series.py` (gates listed in 5.1), `indicator_alert_service.py` (cycle batching), `PHASE3-RUNTIME-PLAN.md` S1 | arm and cycle for runtime plots | arm, refuse, kill-mid-life, service-down → needs-attention; one request per group | T11, T12 |
 | **T14 Scans** | M | `scan_evaluator.py` (filter + runtime branch), `scan_run.py` `_load_definition` | sweep, live and on-demand | withheld counted as withheld, never a non-hit; chunking; coverage line on partial failure | T11, T12 |
 | **T15 Backtest** | S | `api/routers/screener_backtest.py` | replay through the client | 409/503 mapping; no 400 for runtime | T11, T12 |
@@ -860,7 +861,7 @@ Each ruling cites the evidence it rests on, the risk it accepts, and the conditi
   server lanes off while the pane is proven and no way to kill the server lanes alone. The `min`
   rule guarantees the server lanes never reach a member whose chart cannot draw the script.
 - Conditions: T12's rails (a typo reads as off; the server stage can never exceed the pane stage;
-  a kill reaches the next call) and the four ledger rows in `docs/feature_flags.json`.
+  a kill reaches the next call) and the three new ledger rows in `docs/feature_flags.json`.
 
 **Q5: the caller ships the bars. RULED (recommendation adopted for v1).**
 - Evidence: a service that reads no database, volume or feed has no network peer reachable from the
@@ -903,6 +904,10 @@ Each ruling cites the evidence it rests on, the risk it accepts, and the conditi
 - Consequence: a member's newly attached runtime script alerts and screens from the moment it is
   graded and allowlisted, the same moment its chart starts drawing it. This is consistent by
   construction with `server_lane_refusal` step 2 (3.5).
+- Coordinator ruling (2026-11-02, closing the T12 review): step 2 reads the **graded** committed
+  allowlist only (`graded_allow_list`, the served half of `allow_report`). The operator variable
+  `PINE_RUNTIME_ALLOWLIST` carries no evidence, so it keeps working for the browser pane only and
+  never admits on a server lane; otherwise Q8 would hold only while that variable is unset.
 
 ---
 

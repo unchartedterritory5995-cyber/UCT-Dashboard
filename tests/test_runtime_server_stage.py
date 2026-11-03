@@ -16,7 +16,8 @@ behaviour changes. What this file holds, each with the mutation that proves it c
      answer is the audience of that lower stage. `server_permitted` CALLS `pane_permitted`
      (a patched pane answer reaches it), so the guarantee holds by construction.
   C. THE ADMISSION CHAIN (design 3.5), one rail per step and the FIRST refusal wins:
-     kill list, allowlist graded MATCH (ruling Q8: the pane's own authority, never a copy),
+     kill list, GRADED allowlist (ruling Q8: the pane's own authority, never a copy; the
+     operator variable PINE_RUNTIME_ALLOWLIST admits on the pane only, never on a server lane),
      pane stage, server stage, service set up. A kill reaches the NEXT call and deletes
      nothing. The owner is read from the row and resolved at evaluation time, every call.
   D. THE LEDGER. One mode row in `flags`, two knob rows (address, secret) in `knobs`; the
@@ -410,7 +411,7 @@ def test_T12_C_steps_1_and_2_return_the_charts_own_sentence_VERBATIM(owners, mon
     assert rt.server_lane_refusal(_row(ADX), lane="alert") == (KILLED, rt.killed(ADX["id"], ADX_SOURCE))
     monkeypatch.delenv(rt.KILL_ENV)
     assert rt.server_lane_refusal(_row(DELTA), lane="alert") == (
-        UNGRADED, rt.not_graded(DELTA["compute"]["source"]))
+        UNGRADED, rt.not_graded(DELTA["compute"]["source"], graded_only=True))
 
 
 def test_T12_C_the_sentences_name_the_variable_and_the_lane_and_never_a_value(owners, monkeypatch):
@@ -545,7 +546,8 @@ def test_T12_C_an_EMPTY_or_missing_allowlist_serves_NOTHING(owners, monkeypatch,
 
 def test_T12_C_the_server_lane_and_the_pane_agree_on_every_document(owners, monkeypatch, tmp_path):
     """One authority: for each real document, under three allowlist states, the lane says
-    "not graded" exactly when the pane's own `not_graded` does."""
+    "not graded" exactly when the pane's own `not_graded` does, asked for the graded list (the
+    lane's question). The operator variable is the one place they differ: see the Q8 rails."""
     _arm(monkeypatch)
     states = [("committed", None, None),
               ("operator override admits DELTA", None, rt.source_hash(DELTA["compute"]["source"])),
@@ -559,8 +561,61 @@ def test_T12_C_the_server_lane_and_the_pane_agree_on_every_document(owners, monk
             for slug, doc in DOCS.items():
                 defn = doc["definition"]
                 got = rt.server_lane_refusal(_row(defn), lane="alert")
-                pane_says = rt.not_graded(defn["compute"]["source"])
-                assert (got is not None and got[0] == UNGRADED) is (pane_says is not None), (label, slug)
+                graded_says = rt.not_graded(defn["compute"]["source"], graded_only=True)
+                assert (got is not None and got[0] == UNGRADED) is (graded_says is not None), (label, slug)
+                if label.startswith("operator"):
+                    pane_says = rt.not_graded(defn["compute"]["source"])
+                    assert (pane_says is None) is (graded_says is None or slug == "delta-rsi-oscillator-strategy")
+
+
+# --- ruling Q8 (coordinator, 2026-11-02): the server lanes admit the GRADED list only ---------
+
+DELTA_HASH = rt.source_hash(DELTA["compute"]["source"])
+
+
+@pytest.mark.parametrize("entry", [DELTA_HASH, DELTA_HASH[:12], "  " + DELTA_HASH.upper() + "  "],
+                         ids=["full-hash", "12-hex-prefix", "padded-upper-case"])
+def test_T12_Q8_a_hash_only_in_the_operator_variable_is_REFUSED_on_every_server_lane(owners, monkeypatch, entry):
+    _arm(monkeypatch)
+    assert rt.server_lane_refusal(_row(DELTA), lane="alert")[0] == UNGRADED          # control
+    monkeypatch.setenv(rt.ALLOW_ENV, entry)
+    for lane in ("alert", "on-demand", "backtest", "sweep", "record"):
+        got = rt.server_lane_refusal(_row(DELTA), lane=lane)
+        assert got is not None and got[0] == UNGRADED, (lane, got)
+    assert rt.server_lane_refusal(_row(ADX), lane="alert") is None                  # graded one unaffected
+
+
+def test_T12_Q8_the_same_hash_is_still_ALLOWED_on_the_browser_pane(owners, monkeypatch):
+    """The variable keeps working for the pane: only the server question changed."""
+    monkeypatch.setenv(rt.ALLOW_ENV, DELTA_HASH)
+    assert rt.not_graded(DELTA["compute"]["source"]) is None
+    assert DELTA_HASH in rt.allow_list()
+    assert rt.not_graded(DELTA["compute"]["source"], graded_only=True) is not None
+    assert DELTA_HASH not in rt.graded_allow_list()
+    assert DELTA_HASH in rt.allow_report()["env_overrides"]
+
+
+def test_T12_Q8_the_graded_list_is_the_served_half_of_allow_report_and_allow_list_builds_on_it(monkeypatch, tmp_path):
+    served = [r["sha256"] for r in rt.allow_report()["served"]]
+    assert served and rt.graded_allow_list() == served
+    assert rt.allow_list() == served                                  # no variable: the same list
+    monkeypatch.setenv(rt.ALLOW_ENV, DELTA_HASH)
+    assert rt.graded_allow_list() == served                           # the variable never joins it
+    assert rt.allow_list() == served + [DELTA_HASH]                   # it joins the pane's list only
+    monkeypatch.setattr(rt, "ALLOWLIST_PATH", str(tmp_path / "missing.json"))
+    assert rt.graded_allow_list() == []                               # unreadable JSON: fail closed
+    assert rt.allow_list() == [DELTA_HASH]
+
+
+def test_T12_Q8_the_flag_is_keyword_only_and_defaults_to_the_panes_question():
+    p = inspect.signature(rt.not_graded).parameters["graded_only"]
+    assert p.kind is inspect.Parameter.KEYWORD_ONLY and p.default is False
+
+
+def test_T12_Q8_the_ledger_row_says_the_variable_is_pane_only():
+    row = _ledger()["knobs"]["PINE_RUNTIME_ALLOWLIST"]
+    assert "admits on the browser pane only" in row["note"] and "refused on a server lane" in row["note"]
+    assert "never admits on a server lane" in row["owner_decision"]
 
 
 def test_T12_C_each_step_CALLS_the_authority_it_names(owners, monkeypatch):
@@ -571,8 +626,11 @@ def test_T12_C_each_step_CALLS_the_authority_it_names(owners, monkeypatch):
         m.setattr(rt, "killed", lambda def_id, source: "patched kill")
         assert rt.server_lane_refusal(row, lane="alert") == (KILLED, "patched kill")
     with monkeypatch.context() as m:
-        m.setattr(rt, "not_graded", lambda source: "patched ungraded")
+        m.setattr(rt, "not_graded", lambda source, **kw: "patched ungraded")
         assert rt.server_lane_refusal(row, lane="alert") == (UNGRADED, "patched ungraded")
+    with monkeypatch.context() as m:       # and the graded list itself is read, not copied
+        m.setattr(rt, "graded_allow_list", lambda: [rt.source_hash(DELTA["compute"]["source"])])
+        assert rt.server_lane_refusal(_row(DELTA), lane="alert") is None
     with monkeypatch.context() as m:
         m.setattr(rt, "pane_permitted", lambda role, user_id=None: False)
         assert rt.server_lane_refusal(row, lane="alert")[0] == STAGE

@@ -326,9 +326,12 @@ def server_lane_refusal(row: Any, *, lane: Any) -> Optional[tuple[str, str]]:
     ONE AUTHORITY PER QUESTION: steps 1-3 ask the very functions the chart's serving path
     asks, so a script the chart refuses is refused here by the same reason and the same
     sentence (steps 1 and 2 return that sentence verbatim). Step 2 therefore admits only
-    a script on the allowlist AND graded MATCH (ruling Q8): `not_graded` is the allowlist
-    gate (`allow_list`: the committed JSON served through
-    `rollout_gate.pine_runtime_admission`, plus the operator override), never a second list.
+    a script on the GRADED allowlist (ruling Q8: only allowlisted, MATCH-graded documents may
+    use the service): `not_graded(source, graded_only=True)` asks `graded_allow_list` (the
+    committed JSON served through `rollout_gate.pine_runtime_admission`), never a second
+    list. ⛔ The operator variable `PINE_RUNTIME_ALLOWLIST` carries no evidence, so it keeps
+    admitting on the browser pane only and NEVER on a server lane (coordinator ruling,
+    2026-11-02).
 
     ALL FIVE ARE READ ON EVERY CALL and nothing is cached: a kill, a stage change or a
     demotion reaches the NEXT call, and nothing stored is touched (a kill switch is never
@@ -350,7 +353,7 @@ def server_lane_refusal(row: Any, *, lane: Any) -> Optional[tuple[str, str]]:
     reason = killed(def_id, source)
     if reason:
         return ("runtime:killed", reason)
-    reason = not_graded(source)
+    reason = not_graded(source, graded_only=True)
     if reason:
         return ("runtime:not-yet-graded", reason)
     owner_id = row.get("user_id")
@@ -417,6 +420,16 @@ def allow_report() -> dict:
     return {"served": served, "withheld": withheld, "env_overrides": overrides}
 
 
+def graded_allow_list() -> list[str]:
+    """The GRADED allowlist: only what the committed JSON SERVES (`allow_report`'s
+    ``served``: R1-graded, with a MATCH capture), never `PINE_RUNTIME_ALLOWLIST`.
+
+    ⭐ The single authority for "graded" (W5 T12, ruling Q8): `allow_list` builds on it and
+    the SERVER lanes ask it directly (`not_graded(..., graded_only=True)`), so the two can
+    never disagree about what is graded. Read per call; an unreadable JSON serves nothing."""
+    return [r["sha256"] for r in allow_report()["served"]]
+
+
 def allow_list() -> list[str]:
     """The starter allowlist: the committed JSON ∪ `PINE_RUNTIME_ALLOWLIST`.
 
@@ -435,20 +448,22 @@ def allow_list() -> list[str]:
 
     ⛔ AN UNREADABLE JSON CONTRIBUTES NOTHING (fail closed): the lane serves less,
     never more."""
-    entries: list[str] = [r["sha256"] for r in allow_report()["served"]]
+    entries: list[str] = graded_allow_list()
     for e in _allow_entries_from(re.split(r"[\s,]+", os.environ.get(ALLOW_ENV, ""))):
         if e not in entries:
             entries.append(e)
     return entries
 
 
-def not_graded(source: Optional[str]) -> Optional[str]:
+def not_graded(source: Optional[str], *, graded_only: bool = False) -> Optional[str]:
     """Why this script is NOT served by the runtime lane (D6), or ``None``.
 
     The sentence is the reason; the code the member door declines with is
-    ``runtime:not-yet-graded``."""
+    ``runtime:not-yet-graded``. `graded_only=True` (the SERVER lanes, ruling Q8) admits
+    only `graded_allow_list`, so an operator-variable entry is refused there; the default
+    (the browser pane) admits `allow_list`, the variable included."""
     h = source_hash(source) if isinstance(source, str) else ""
-    if h and any(h.startswith(e) for e in allow_list()):
+    if h and any(h.startswith(e) for e in (graded_allow_list() if graded_only else allow_list())):
         return None
     return (f"this script (sha256 {h[:12] or '?'}…) has not yet been graded against "
             "TradingView, so it is not drawn bar by bar")
