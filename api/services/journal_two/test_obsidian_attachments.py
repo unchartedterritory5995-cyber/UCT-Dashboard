@@ -338,6 +338,46 @@ async def test_revoke_devices_and_account_purge_remove_blobs(env):
 
 
 @pytest.mark.asyncio
+async def test_an_upload_racing_a_disconnect_or_purge_leaves_no_empty_directories(env, monkeypatch):
+    """Final review M5: the upload creates `<root>/<user>/<vault>/` before its commit refuses
+    (403, the device is gone). If the disconnect or purge removed the tree in between, the
+    refused upload recreated it EMPTY and nothing removed it. Now the refusal prunes the
+    directories it left empty, and only those."""
+    real_commit = oa._commit
+    real_headroom = oa._headroom
+
+    def raced_headroom(nbytes):
+        # the disconnect (rows, then the tree) lands after the room checks, before the
+        # upload creates its directory
+        obsidian_link.revoke_devices("u")
+        return real_headroom(nbytes)
+
+    monkeypatch.setattr(oa, "_headroom", raced_headroom)
+    with pytest.raises(oa.BlobRejected) as e:
+        await _stage(user="u", data=b"late")
+    assert e.value.status == 403
+    assert not (oa.blob_root() / "u").exists()
+    monkeypatch.setattr(oa, "_headroom", real_headroom)
+    # A member whose OTHER vault still holds blobs keeps them: only empty dirs go.
+    await _stage(user="u2", vault="v2", data=b"keep")
+
+    def raced_v(user_id, vault_id, *args):
+        conn = auth_db.get_connection()
+        try:
+            conn.execute("DELETE FROM j2_obsidian_devices WHERE user_id = ? AND vault_id = ?", (user_id, vault_id))
+            conn.commit()
+        finally:
+            conn.close()
+        return real_commit(user_id, vault_id, *args)
+
+    monkeypatch.setattr(oa, "_commit", raced_v)
+    with pytest.raises(oa.BlobRejected):
+        await _stage(user="u2", vault="v", data=b"late2")
+    assert not (oa.blob_root() / "u2" / "v").exists()
+    assert oa.read_blob("u2", "v2", _sha(b"keep")) == (b"keep", "image/png")
+
+
+@pytest.mark.asyncio
 async def test_purge_user_is_scoped(env):
     await _stage(user="u", data=b"one")
     await _stage(user="u2", data=b"two")

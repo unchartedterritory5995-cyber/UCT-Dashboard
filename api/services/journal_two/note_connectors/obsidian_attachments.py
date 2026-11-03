@@ -312,7 +312,13 @@ async def stage_blob_stream(*, user_id: str, vault_id: str, sha256: str, declare
     await asyncio.to_thread(final.parent.mkdir, parents=True, exist_ok=True)
     digest = hashlib.sha256()
     count = 0
-    fh = await asyncio.to_thread(open, tmp, "xb")
+    try:
+        fh = await asyncio.to_thread(open, tmp, "xb")
+    except FileNotFoundError:
+        # A concurrent refused upload pruned the empty directory between our mkdir and
+        # this open (M5): recreate it once. A disconnect still refuses at the commit.
+        await asyncio.to_thread(final.parent.mkdir, parents=True, exist_ok=True)
+        fh = await asyncio.to_thread(open, tmp, "xb")
     try:
         try:
             async for chunk in chunks:
@@ -332,9 +338,26 @@ async def stage_blob_stream(*, user_id: str, vault_id: str, sha256: str, declare
             raise BlobRejected(400, "content does not match its sha256")
         return await asyncio.to_thread(_commit, user_id, vault_id, sha256, tmp, final, count,
                                        declared_mime, name)
-    except BaseException:
+    except BaseException as e:
         await asyncio.to_thread(_unlink, tmp)
+        if isinstance(e, BlobRejected) and e.status == 403:
+            # Final review M5: the vault was disconnected (or the member purged) while this
+            # upload streamed. Its directories may have been recreated EMPTY by the mkdir
+            # above after the purge removed the tree: prune whatever it left empty.
+            await asyncio.to_thread(_prune_empty_dirs, user_id, vault_id)
         raise
+
+
+def _prune_empty_dirs(user_id: str, vault_id: str) -> None:
+    """Removes `<root>/<user>/<vault>/`, then `<root>/<user>/`, each only when EMPTY (an
+    `os.rmdir` refuses a directory that holds anything, so another vault's blobs, or a
+    concurrent upload's tmp file, are never touched). Never above `blob_root()`."""
+    vdir = blob_root() / user_id / vault_id
+    for d in (vdir, vdir.parent):
+        try:
+            d.rmdir()
+        except OSError:
+            return
 
 
 def _write(fh, digest, chunk: bytes) -> None:
