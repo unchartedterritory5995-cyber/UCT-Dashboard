@@ -1,40 +1,66 @@
 # Resume the Pine full-parity programme on another machine
 
-Last updated: 2026-11-02 ~18:00 CT on the LAPTOP (coordinator session af33efb6). Update this file at every hand-off.
+Last updated: 2026-11-03 ~16:45 CT by the LAPTOP coordinator (session af33efb6), at a hand-off forced by the account's weekly usage limit. The next coordinator starts from LAPTOP-PROMPT.md v5.
 
 > **Two machines (2026-11-03):** the desktop is now a second build machine. Roles, the GitHub channel
 > (`ops/pine-coord` written by the laptop, `ops/pine-desktop` by the desktop), setup and its lane list:
 > `DESKTOP-PROMPT.md`. Builder rules for both machines: `BUILDER-RULES.md`. The laptop stays the only
 > reviewer/merger/engine-bumper/deployer.
 
-## 1. What is live (production `e055b21e7f` at 2026-11-03 ~04:40 CT; SCRIPT_ENGINE_VERSION = 5)
+## 1. What is live (production `d8d4f0937d` at 2026-11-03 16:08 CT; SCRIPT_ENGINE_VERSION = 5)
 
 #613 de3f480f98 · #673 B d525ed6c6c · #674 A a223e7b745 · #675 engine bump 9a1f99ef49 ·
 #676 C 3568af3722 (engine 3) · #679 D 1cfb77fbc2 (engine 4) · #709 E ad571054dd ·
-#710 W0 e6740b5b08 · #736 W1 0afa7645dd (engine 5) · #737 W5 T12 + design doc e055b21e7f.
-Every merge since #709 was checked with scripts/verify_deploy_nologin.sh (VERIFY PASS each time).
+#710 W0 e6740b5b08 · #736 W1 0afa7645dd (engine 5) · #737 W5 T12 + design doc e055b21e7f ·
+#749 W4 breakdown f014e73506 (docs).
+Every merge since #709 was checked with scripts/verify_deploy_nologin.sh. #749 passed every check
+except the log count: 8 new error lines, all `wisdom_same_night_scoring ReconcileRefused` from
+another team's job, already seen in the morning baseline.
 
 ## 2. Where the programme stands
-- Plan + mockups: `PLAN.md` (this folder). Agent rules: `AGENT-RULES.md` (this folder; its absolute
-  paths are the desktop's: substitute your own).
-- Owner decisions so far: server-side interpreter = separate sandboxed service; strategies in scope.
-- Workstream branches (all pushed to GitHub; `git fetch origin` to see them):
 
-| stream | branch | state on the laptop (2026-11-03 ~04:45 CT) |
-|---|---|---|
-| E evidence engine | `feat/pine-evidence-engine` | MERGED #709 -> `ad571054dd` (web SKIPPED, no-login verify PASS). 5 low review findings queued as a follow-up. |
-| W0 measure | `docs/pine-coverage-2026-11-02` | MERGED #710 -> `e6740b5b08` (VERIFY PASS). Two lows queued for the next W0 re-run (section 7.1 lane credit; capture count overstated by up to 11) plus the engine-door probe. |
-| W1 names | `feat/pine-w1-names` | MERGED #736 -> `0afa7645dd`, SCRIPT_ENGINE_VERSION 5. measure-pair: production attached 394->402, runtime-on 477->486, 0 losses, 0 of 331 harness verdicts changed; mutations 6/6; final vitest 2 failed files (master's own). VERIFY PASS. |
-| Editor status panel | `feat/pine-editor-status` | PARKED after round 3 NO-GO: the chart row ignores the meta.otherSymbols / lowerTf stamps. Flag stays dark. |
-| W2 arming packet | `feat/pine-w2-arming` | Round-1 review NO-GO (P11 six-shard gate not run; S8 rails need linkify; packet INTERIM; re-pin to production after W1; B5 x4 miss). Round-2 fix in workflow wf_42d2affb-4e4. Coordinator accepts the B5 x4 miss for adx-only stage 1. Nothing is armed. |
-| W3 drawings | `feat/pine-w3-drawings` | S1 `5f7da680d0` round-1 NO-GO (percent half-tie guess; measured on an old base; engine bump). Round-2 fix (Opus) in wf_42d2affb-4e4; the coordinator bumps the engine to 6 at merge. |
-| W5 server runtime | `docs/pine-w5-server-runtime` | Design doc + T12 MERGED #737 -> `e055b21e7f` (server lanes admit only the graded allowlist; PINE_RUNTIME_SERVER_STAGE dark). T3 codec `43db4f59a8` review GO, closing its medium/lows in wf_42d2affb-4e4. Next: T1, T6. |
-| Language coverage | `docs/pine-language-coverage` | `13257ce426` round-1 NO-GO (EXACT credited from uncompared outputs; DIVERGE corroboration; pine:timeout blame). Round-2 fix in wf_42d2affb-4e4. |
-| W4, W6-W9 | not started (see WAVE-TASKS.md) | The W4 task breakdown (Fable) is queued after the first laptop wave. |
+- Plan + mockups: `PLAN.md`. Agent rules: `AGENT-RULES.md`. Builder rules: `BUILDER-RULES.md`.
+  Two-machine protocol: `DESKTOP-PROMPT.md`. The live channel is `ops/pine-coord`
+  (ASSIGNMENTS.md, written by the coordinator) and `ops/pine-desktop` (DESKTOP-STATUS.md).
+- Owner decisions: server-side interpreter = separate sandboxed service; strategies in scope; full
+  autonomy (2026-11-02), arming in stages; W5 rulings in SERVER-RUNTIME-DESIGN.md section 9.1.
 
-Detailed task list for every stream: `WAVE-TASKS.md` (this folder).
+### Merge queue (next coordinator: land these in order, one at a time, outside the deploy freeze)
 
-The coordinator updates this table at hand-off with each branch's tip SHA and what is left.
+Landing rule:
+- If master moved since the SHA below and that delta touches no engine path
+  (`app/src/components/chart/engine`, Pine `api/services`), merge origin/master into the branch,
+  re-run the short landing checks (deploy-gate pytest incl. the engine-version gate, hygiene, and
+  the lane's own vitest files), then merge.
+- If the delta does touch an engine path, re-run final-tip and measure-pair on a build machine.
+
+| # | lane | branch @ tip | state | engine |
+|---|---|---|---|---|
+| 1 | Language scoreboard | `docs/pine-language-coverage` @ 397ecee294 | review GO (2 lows folded); short landing PASS on 1ae3bb9540 (gate 46, hygiene, 3 vitest files) | no bump |
+| 2 | W4 T1 classifier honesty | `feat/pine-w4-t1-wall-report` @ f9b85fb442 | review GO; PR body at the end of this table; short landing PASS (gate 46, hygiene, 142 vitest files / 2021 tests) | no bump |
+| 3 | W4 T4 conditional arms | `feat/pine-w4-t4-conditional-arms` @ 311fb46c7a | review GO (mediums folded into docs/pine/evidence/2026-11-03-w4-t4/EVIDENCE.md); short landing PASS (gate 52 incl. version gate, hygiene, 144 files / 2062 tests) | **already bumped 5->6 on the branch** |
+| 4 | W4 T3 text constants | `feat/pine-w4-t3-session-text` @ f7fbf49425 | review GO with must-fix M1 (tuple shadow read the outer literal). The fix round is pushed; its delta re-review and final-tip are pending | bump to 7 at merge (needs a 6->7 commit after T4 merges) |
+
+W4 T1 PR text: "Refusal names only; nothing newly draws. No SCRIPT_ENGINE_VERSION bump. 22/22 rail
+(6 fail on master). Mutations 11 killed, 1 equivalent survivor (null version). measure-pair:
+runtime-on 0 attach/clean/stuck changes, 16 step-0 rows moved to request-with-state, harness
+byte-identical. Camarilla's C18 diff is label-only; the spec now reads '0 C18 verdict diffs'."
+
+### Stream table (2026-11-03 ~16:45 CT)
+
+| stream | branch @ tip | state | exact next step |
+|---|---|---|---|
+| W2 arming packet | `feat/pine-w2-arming` @ 1a8dddb408 (WIP) | Round 2: J3a 110/107/119, J3b 93/103/140, adx MATCH on both captures; pytest rails 202 pass, deploy gate 82. P11 (25 failed files over 6 shards) is unclassified. | `docs/pine/evidence/w2-arming-2026-11-02/round2/WIP-STATE.md` and `round3-job.sh`: re-run the 25 files on branch vs master, merge master, re-run rails + J3; classify P11; edit the packet; delta Opus review. Stage 1 = admins, adx-and-di-for-v4 only (sha256 d0853c47...), PINE_RUNTIME_ALLOWLIST unset; the B5 x4 miss is accepted. Nothing is armed. |
+| W3 drawings S1 | `feat/pine-w3-drawings` @ 7eaca7777f | Round 2 fix built; the commit records the merge bump as **8** (T4 6, T3 7) | Read its newest commit for the pending checks (measure-pair / final-tip), finish them on a build machine, then a delta Opus review. |
+| W4 T0 / W0 census peel | `fix/pine-w0-census-peel` @ 75c4c400c2 (WIP) | Code done: statement-level peel (tools/pine_coverage/census_peel.mjs), probe via the drawing build, wall attribution, 7.1 credit fix. 11 vitest + 10 pytest rails green; mutations 6/6 JS, 8/8 Python. | Census/map re-run never ran (8 h in the lock queue). Run `docs/pine/evidence/2026-11-03-w0-peel/job.sh` (fix its env-laptop.sh path), write coverage-map.json, the targets JSON, COVERAGE-MAP-2026-11-03.md and the 7.1 corrigendum; then Opus review. No engine bump. |
+| E evidence-engine lows | `fix/pine-evidence-engine-lows` @ (see newest push) | 5 review lows from #709 | If unpushed, rebuild from the #709 review lows (they are in the E review notes); gate + hygiene; review; ship (offline tooling). |
+| W5 T3 codec | `feat/pine-w5-t3-codec` @ cd61d6741d | Review round 2 fix pushed (byte layout matches design 2.3/3.2; JS and Python accept and refuse the same inputs) | Delta Opus review, final-tip on a build machine, merge. `columnDigest.js` is new and uncalled, so no engine bump. |
+| W5 T1, T6, T2 / W4 T2, T7, T11, T12, T17+T13 | desktop lanes (see ASSIGNMENTS.md / DESKTOP-STATUS.md) | BUILDING on the desktop since 2026-11-03 ~15:00 CT | Review each when it is READY. |
+| Editor status panel | `feat/pine-editor-status` @ a2f137dc67 | PARKED after round 3 NO-GO; flag dark | Unpark only after W2/W3. |
+| Follow-ups F1/F2 | none yet | found by the W4 T3 review (in ASSIGNMENTS.md notes) | Assign as small desktop lanes. |
+
+Detailed task list for every stream: `WAVE-TASKS.md`, W4: `docs/pine/W4-BREAKDOWN.md`, W5:
+`docs/pine/SERVER-RUNTIME-DESIGN.md` section 7.
 
 ## 3. Set up the laptop
 
