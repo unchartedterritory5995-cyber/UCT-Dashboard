@@ -246,7 +246,7 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
             if t.type == "fence":
                 info = (t.info or "").strip()
                 language = info.split()[0] if info else None
-            text = (t.content or "").rstrip("\n")
+            text = _code_without_line_end(t.content or "")
             content = [{"type": "text", "text": text}] if text else []
             out.append({"type": "codeBlock", "attrs": {"language": language}, "content": content})
             i += 1
@@ -293,6 +293,18 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
 #: `importNotice` (Task 15 fix round 1): a block leaf, written in an image's place on the
 #: connector path, hoisted exactly as the image would have been.
 _HOISTABLE_BLOCK_TYPES = frozenset({"image", "attachmentChip", import_notice.IMPORT_NOTICE_TYPE})
+
+
+def _code_without_line_end(text: str) -> str:
+    """A code block's text without its FINAL line end (D3 item 1), one `\\n` and no more.
+
+    markdown-it ends every fenced or indented block's content with the line end before the
+    closing fence, and an HTML `<pre>` often ends the same way; it is the block's line end, not
+    a line the member wrote. Exactly one goes: the export writes ```` ```lang\\n{code}\\n``` ````
+    (`notes_export._block`), so dropping one is what reads every code back unchanged, a
+    member's own trailing blank line included. ⚰️ This was `rstrip("\\n")`, which ate that
+    blank line too. The client lane drops the same one (`convert.js::dropCodeLineEnds`)."""
+    return text[:-1] if text.endswith("\n") else text
 
 
 def _wrap_paragraph(flat: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1181,7 +1193,7 @@ def _html_convert_pre(node: "_HtmlNode") -> dict[str, Any]:
             if token.startswith("language-"):
                 language = token[len("language-"):]
                 break
-    text = _html_literal_text(source.children)
+    text = _code_without_line_end(_html_literal_text(source.children))
     content = [{"type": "text", "text": text}] if text else []
     return {"type": "codeBlock", "attrs": {"language": language}, "content": content}
 

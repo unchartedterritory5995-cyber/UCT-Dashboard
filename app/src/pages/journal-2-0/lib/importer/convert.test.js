@@ -296,3 +296,23 @@ describe('htmlToNote — D3 item 2: a link survives a code run', () => {
     expect(shapeOf('<p><a href="weird:x"><code>x</code></a></p>')).toBe('doc(paragraph("x"[code]))')
   })
 })
+
+// D3 item 1: a code block's final line end is the block's, not the member's. Exactly one goes,
+// as on the server (`test_note_convert_d3.py`, item 1), so an exported fence reads back as it was.
+describe('htmlToNote — D3 item 1: a code block keeps no final line end', () => {
+  const codeOf = (html) => htmlToNote(html).bodyJson.content
+    .filter((n) => n.type === 'codeBlock').map((n) => (n.content || []).map((t) => t.text).join(''))
+
+  it('drops the fence line end and nothing more', () => {
+    expect(codeOf(mdToHtml('```\nx\n```'))).toEqual(['x'])
+    expect(codeOf(mdToHtml('~~~py\na\nb\n~~~'))).toEqual(['a\nb'])
+    expect(codeOf(mdToHtml('```\nx\n\n```'))).toEqual(['x\n'])
+    expect(codeOf(mdToHtml('    indented\n'))).toEqual(['indented'])
+  })
+
+  it('an HTML pre the same way', () => {
+    expect(codeOf('<pre><code>x\n</code></pre>')).toEqual(['x'])
+    expect(codeOf('<pre>x\n\n</pre>')).toEqual(['x\n'])
+    expect(codeOf('<pre><code>a\nb</code></pre>')).toEqual(['a\nb'])
+  })
+})

@@ -309,6 +309,21 @@ export function liftLinksOutOfCode(doc, isLink) {
   }
 }
 
+// ── D3 item 1: a code block's final line end is not content ────────────────
+//
+// markdown-it ends a fenced block's code with the line end before the closing fence
+// (`<pre><code>x\n</code></pre>`), and the parser kept it as a last empty line of the code
+// block. Exactly ONE final `\n` goes, on both lanes (`mddoc._code_without_line_end`): the
+// export writes ```` ```lang\n{code}\n``` ````, so this reads every code block back
+// unchanged, a member's own trailing blank line included.
+export function dropCodeLineEnds(doc) {
+  for (const pre of doc.body.querySelectorAll('pre')) {
+    // The code element's own last line end when there is one, as mddoc's `_html_convert_pre`.
+    const text = lastTextIn(pre.querySelector(':scope > code') || pre)
+    if (text && text.data.endsWith('\n')) text.data = text.data.slice(0, -1)
+  }
+}
+
 function linkRuleFor(schema) {
   const rules = (schema.marks.link?.spec.parseDOM || []).filter((r) => r.tag)
   return (a) => rules.some((r) => a.matches(r.tag) && (!r.getAttrs || r.getAttrs(a) !== false))
@@ -327,6 +342,7 @@ export function htmlToNote(html) {
   _schema = _schema || getSchema(_ext)
   _isLink = _isLink || linkRuleFor(_schema)
   liftLinksOutOfCode(doc, _isLink)
+  dropCodeLineEnds(doc)
   // ⛔ Picked against the DECODED document, never the raw string: a noncharacter written
   // as an entity (`&#xFDD0;`) is only a character once parsed (D2 fix round 1, M1). The
   // serializer writes every text and attribute character back as itself (it escapes only

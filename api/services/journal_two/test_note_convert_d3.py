@@ -104,3 +104,43 @@ def test_no_converter_output_holds_an_invalid_mark_set():
                 if not _valid_mark_set(_mark_types(run)):
                     bad.append((src, run))
     assert bad[:5] == []
+
+
+# ── item 1: a fenced code block's final newline is its line end, never content ──
+
+
+def _code_text(doc: dict[str, Any]) -> list[str]:
+    return ["".join(t["text"] for t in n.get("content") or []) for n in doc["content"]
+            if n["type"] == "codeBlock"]
+
+
+@pytest.mark.parametrize("src, expected", [
+    ("```\nx\n```", ["x"]),
+    ("~~~py\na\nb\n~~~", ["a\nb"]),
+    # The member's own blank line before the closing fence is content and stays.
+    ("```\nx\n\n```", ["x\n"]),
+    ("    indented\n", ["indented"]),
+    ("```\n```", [""]),
+])
+def test_markdown_code_block_drops_only_the_final_line_end(src, expected):
+    assert _code_text(md_to_tiptap(src)["doc"]) == expected
+
+
+@pytest.mark.parametrize("html, expected", [
+    ("<pre><code>x\n</code></pre>", ["x"]),
+    ("<pre>x\n\n</pre>", ["x\n"]),
+    ("<pre><code>a\nb</code></pre>", ["a\nb"]),
+])
+def test_html_pre_drops_only_the_final_line_end(html, expected):
+    assert _code_text(html_to_tiptap(html)["doc"]) == expected
+
+
+def test_a_code_block_round_trips_through_the_markdown_export_without_drift():
+    """The export writes ```` ```lang\n{code}\n``` ```` (`notes_export._block`); reading that
+    back must give the same code, however many trailing newlines it holds."""
+    from api.services.journal_two import notes_export
+    for code in ("x", "x\n", "x\n\n", "a\n\nb"):
+        node = {"type": "codeBlock", "attrs": {"language": "py"},
+                "content": [{"type": "text", "text": code}]}
+        md = notes_export._block(node, None)
+        assert _code_text(md_to_tiptap(md)["doc"]) == [code], (code, md)

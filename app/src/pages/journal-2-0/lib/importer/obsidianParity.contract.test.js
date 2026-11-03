@@ -222,35 +222,24 @@ const knownClientGap = {
   // ⚰️ 25-code-span-link-text: closed by D3 item 2. A code run inside a link keeps the LINK
   // and loses the code mark on both lanes (`convert.js::liftLinksOutOfCode`,
   // `convert/marks.py::exclusive_marks`), so `the x plan` is one link run on both.
-  // 27-tilde-fence (D2 fix round 3, M-new-1): images, links and media agree -- the `~~~`
-  // fence keeps its embed and wikilink as code on both lanes. What is left is a code BLOCK
-  // difference no Obsidian pass makes: the shared client parse keeps the fence's final
-  // newline in the codeBlock text (markdown-it), the server's `mddoc` drops it. Every
-  // importer's fenced code has it. Closed by D3 (shared-converter follow-up PR: fenced
-  // code final newline) -- delete this entry then.
-  '27-tilde-fence.json': {
-    clientReads: {
-      text: 'Tilde fence before ![[img.png]] [[Plan]]\n after ',
-    },
-  },
+  // ⚰️ 27-tilde-fence: closed by D3 item 1. Both lanes drop exactly the fence's final line
+  // end from the code block (`convert.js::dropCodeLineEnds`, `mddoc._code_without_line_end`).
   // 28-blank-line-and-fence-alias (D2 fix round 5, M-r4-1): links, images and media agree --
   // a link or embed across a blank line or a fence is left as written on both lanes, and a
   // single-newline alias is the one link, in a quote too (follow-up: a `>`-only quote line
   // is a paragraph break, and a one-line ``` run is inline code a link may hold). What is
-  // left is D3 differences, neither an Obsidian pass:
-  //   - 27's code BLOCK difference: the client keeps the fence's final newline in the
-  //     codeBlock text, the server's `mddoc` drops it (D3: fenced code final newline);
-  //   - ⚰️ 25's code RUN difference (the link on `x`) was closed by D3 item 2.
+  // left is one difference of the shared parses, not an Obsidian pass:
+  //   - ⚰️ 27's code BLOCK difference (the fence's final newline) was closed by D3 item 1,
+  //     and 25's code RUN difference (the link on `x`) by D3 item 2.
   //   - Round 5 (final), ruling A's `[[Plan|a\n<div>b]]` row: no link and no key on either
   //     lane, but the raw HTML block `<div>b]]` reads differently in the SHARED parses: the
   //     server's `mddoc` keeps the tag as text (`<div>b]]`), the client's parse renders it
-  //     (`b]]`). Not an Obsidian pass; named for D3 (shared-converter follow-up PR: raw
-  //     HTML blocks).
-  // Delete this entry when D3 lands.
+  //     (`b]]`). Not one of D3's eight items (raw HTML blocks in markdown); the entry stays
+  //     until a shared-converter change renders a markdown `<div>` block on the server.
   '28-blank-line-and-fence-alias.json': {
     clientReads: {
       text: 'Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end '
-        + 'x ![[chart.png|a b]] y [[Plan|a code\n b]] see one line still links '
+        + 'x ![[chart.png|a b]] y [[Plan|a code b]] see one line still links '
         + 'quoted [[Plan|c d]] stays text quoted one line still links see a x b inline code links '
         + 'see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end '
         + 'see [[Plan|a b]] end see [[Plan|a b]] end [[Plan|a b]]',
