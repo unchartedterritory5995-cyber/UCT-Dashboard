@@ -27,6 +27,17 @@ yardstick that ranks which language features block real code; it is not the targ
   Haiku for mechanical extraction, log parsing and file-list checks.
 - Heavy jobs stay serialized through the lock whatever the agent count.
 
+## Token budget (owner, 2026-11-02: same quality, fewer tokens)
+- Sonnet is the default builder; Opus only for engine fixes and every merge-gating review; Fable only
+  when Opus has failed the same task twice. Haiku for log/grep/status chores.
+- Fix specs name file:line, the exact rail and the exact mutation, so a round closes in one pass.
+- Re-reviews read only the commits since the last review plus the prior findings, not the whole branch.
+- Reports <= 250 words. No pasted logs; cite the log path and the totals line.
+- No polling loops while waiting for the lock: start the hl job in the background and wait for its
+  notification. Batch rails into one hl job instead of one job per file.
+- A dark, non-member-facing stream that is still NO-GO after round 3 is parked with its findings
+  recorded, not given round 4, until member-facing work is merged.
+
 ## Machine paths
 Paths below are the desktop's. On the laptop, `source docs/pine/parity-programme/scripts/env-laptop.sh`
 (it sets UCT_WORKTREES, UCT_RESUME, HEAVY_LOCK, UCT_PY and the `hl <label> -- <cmd>` helper).
