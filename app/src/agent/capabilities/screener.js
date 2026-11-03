@@ -715,6 +715,22 @@ export function registerScreenerCapabilities() {
     },
     // `within`: one of the member's own watchlists — the Screener's own "My Lists" universe (wl:<id>)
     argRefs: { within: 'watchlist' },
+    // W1.1 R-01 (LT-3, live "sort them by 3 month performance" refused as off-schema): a refinement that only re-orders
+    // comes without `filters`, with a nested {sort:{field,dir}}, or with "descending" — read as the schema's shape, never guessed
+    argAliases: {
+      sort_field: ['sort.field', 'sort.key', 'sort.by', 'sort_by', 'sortBy', 'sort_key', 'sortKey', 'order_by', 'orderBy', 'sort_on'],
+      sort_dir: ['sort.dir', 'sort.direction', 'sort.order', 'sort_direction', 'sortDir', 'sortDirection', 'direction', 'order', 'sort_order', 'sortOrder'],
+      show: ['limit', 'top', 'rows', 'count', 'page_size', 'pageSize'],
+      filters: ['conditions', 'criteria'],
+    },
+    coerce: {
+      sort_dir: { descending: 'desc', ascending: 'asc', descend: 'desc', ascend: 'asc', highest: 'desc', lowest: 'asc', 'high to low': 'desc', 'low to high': 'asc', 'highest first': 'desc', 'lowest first': 'asc', down: 'desc', up: 'asc' },
+      mode: { refinement: 'refine', refined: 'refine', update: 'refine', modify: 'refine', narrow: 'refine', fresh: 'new', create: 'new', run: 'new' },
+    },
+    defaults: { filters: [] },
+    shape: 'a refinement that only changes the ORDER ("sort them by 3-month performance") is {"filters":[],"sort_field":"chg_pct_3m",'
+      + '"sort_dir":"desc","mode":"refine","show":null,"as":null,"within":null} — filters is ALWAYS present ([] when nothing is added), '
+      + 'sort_field is a key from `fields`, sort_dir is exactly "asc" or "desc" (never "descending"), and there is no nested "sort" object.',
     // As a PRODUCER (compose.js): the screen's tickers, in the engine's own order.
     produces: SYMBOLS,
     // Checked before a proposal (catalog permitting; the engine re-checks at apply).

@@ -18,18 +18,21 @@
 // written. The runtime resolves aliases to real refs after creating them; an
 // alias never leaves the transaction.
 
-import { getCapability, getTargetKind, shapeError } from './capabilities'
+import { getCapability, getTargetKind, shapeError, normalizeArgs } from './capabilities'
 
 // The CLIENT planner's ceiling, for every plan (fast path, references, expansions included): 24 units,
 // an expansion counting once, 96 raw ops at most. A MODEL plan is held to 12 ops before it gets here
 // (server turn.py MAX_OPS = contract/manifest.contract.json limits.maxOps; agentContracts.test.js).
 export const MAX_OPS = 24
 
-export function planOps(targets, ops, env = {}, ctx = null) {
+export function planOps(targets, opsIn, env = {}, ctx = null) {
   const refusals = []
-  if (!Array.isArray(ops) || ops.length === 0) {
+  if (!Array.isArray(opsIn) || opsIn.length === 0) {
     return { ok: false, refusals: [{ index: -1, reason: 'There was nothing to change.' }] }
   }
+  // W1.1 R-01: the capability's declared args tolerance (capabilities.normalizeArgs — the browser half of the
+  // server's turn.normalize_args) applies on EVERY path before the shape gate; the op objects given are never mutated
+  const ops = opsIn.map(op => (op && op.args && typeof op.args === 'object' ? { ...op, args: normalizeArgs(op.action, op.args).args } : op))
   // An expanded request (compose.expandOps, e.g. "chart these 8") counts once.
   const units = new Set(ops.map((o, i) => (o?.fromExpand != null ? `x${o.fromExpand}` : `#${i}`))).size
   if (units > MAX_OPS || ops.length > MAX_OPS * 4) {

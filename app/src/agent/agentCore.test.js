@@ -66,7 +66,8 @@ describe('capability registry', () => {
     const m = manifestFor(CTX)
     expect(m.length).toBeGreaterThanOrEqual(8)
     for (const c of m) {
-      expect(Object.keys(c).sort()).toEqual(['args', 'domain', 'hints', 'name', 'query', 'reversible', 'risk', 'summary', 'target', 'undo'])
+      // (W1.1 R-01: argAliases / coerce / defaults / shape — null when a capability declares none)
+      expect(Object.keys(c).sort()).toEqual(['argAliases', 'args', 'coerce', 'defaults', 'domain', 'hints', 'name', 'query', 'reversible', 'risk', 'shape', 'summary', 'target', 'undo'])
       expect(c.args.additionalProperties).toBe(false)
       expect([...c.args.required].sort()).toEqual(Object.keys(c.args.properties).sort())
     }

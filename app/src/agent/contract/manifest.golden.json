@@ -30,7 +30,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.setTimeframe",
@@ -63,7 +67,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.setSymbol",
@@ -86,7 +94,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.setSession",
@@ -113,7 +125,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.setScale",
@@ -141,7 +157,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.applyTheme",
@@ -221,7 +241,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.setBackground",
@@ -244,7 +268,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.setCandleColors",
@@ -277,7 +305,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "volume.setState",
@@ -305,14 +337,18 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.setSetting",
    "domain": "chart",
    "target": "chart",
    "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
-   "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Only these settings: for any other (header info-row fields, volume plot style…) do NOT plan an op — say where it lives in Chart Settings.",
+   "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Any other setting (header info-row fields, volume plot style…): no op — say where it lives in Chart Settings.",
    "args": {
     "type": "object",
     "properties": {
@@ -375,6 +411,7 @@
        "prevDayLevels.high.enabled",
        "prevDayLevels.low.enabled",
        "prevDayLevels.close.enabled",
+       "bgMode",
        "bgGradient.top",
        "bgGradient.bottom",
        "volume.upColor",
@@ -420,7 +457,22 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": {
+    "setting": [
+     "key",
+     "id",
+     "name",
+     "option",
+     "settingId",
+     "setting_id",
+     "path",
+     "property"
+    ]
+   },
+   "coerce": null,
+   "defaults": null,
+   "shape": "args {\"setting\": <one id from the list>, \"value\": …} — \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported."
   },
   {
    "name": "chart.applyTemplate",
@@ -443,7 +495,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.resetDefaults",
@@ -460,7 +516,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.goToDate",
@@ -483,7 +543,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.replay",
@@ -509,7 +573,33 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": {
+    "date": [
+     "cutoff",
+     "to",
+     "until",
+     "day",
+     "at",
+     "as_of",
+     "asOf",
+     "replay_date",
+     "replayDate"
+    ]
+   },
+   "coerce": {
+    "date": {
+     "exit": null,
+     "off": null,
+     "stop": null,
+     "end": null,
+     "false": null,
+     "clear": null,
+     "exit replay": null
+    }
+   },
+   "defaults": null,
+   "shape": "{\"date\":\"YYYY-MM-DD\"} to replay from a date; {\"date\":null} to EXIT replay (\"exit replay\", \"leave replay\", \"replay off\", \"show every bar again\") — the JSON null, never the word \"null\" and never an \"exit\" or \"enabled\" key."
   },
   {
    "name": "chart.compare",
@@ -546,7 +636,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.addCustomTimeframe",
@@ -584,7 +678,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.add",
@@ -633,7 +731,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.addCharts",
@@ -723,7 +825,90 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": {
+    "symbols": [
+     "tickers",
+     "symbol",
+     "ticker",
+     "stocks",
+     "list"
+    ],
+    "symbols.from": [
+     "symbols.list",
+     "symbols.watchlist",
+     "symbols.source",
+     "symbols.ref",
+     "symbols.screen",
+     "symbols.of",
+     "from",
+     "source",
+     "watchlist"
+    ],
+    "symbols.top": [
+     "symbols.count",
+     "symbols.n",
+     "symbols.limit",
+     "symbols.first",
+     "symbols.take",
+     "top",
+     "count",
+     "limit"
+    ],
+    "timeframe": [
+     "tf",
+     "interval",
+     "period",
+     "time_frame",
+     "timeFrame"
+    ],
+    "chart_type": [
+     "type",
+     "chartType",
+     "style",
+     "chart_style"
+    ]
+   },
+   "coerce": {
+    "timeframe": {
+     "daily": "D",
+     "day": "D",
+     "1d": "D",
+     "d1": "D",
+     "1day": "D",
+     "weekly": "W",
+     "week": "W",
+     "1w": "W",
+     "monthly": "M",
+     "month": "M",
+     "1mo": "M",
+     "hourly": "60",
+     "hour": "60",
+     "1h": "60",
+     "60m": "60",
+     "60min": "60",
+     "1hr": "60",
+     "5min": "5",
+     "15min": "15",
+     "30min": "30",
+     "1min": "1",
+     "default": null,
+     "": null
+    },
+    "chart_type": {
+     "candle": "candles",
+     "candlestick": "candles",
+     "candlesticks": "candles",
+     "hollow candles": "hollow",
+     "bar": "bars",
+     "ohlc": "bars",
+     "line chart": "line",
+     "default": null,
+     "": null
+    }
+   },
+   "defaults": null,
+   "shape": "{\"symbols\":[\"NVDA\"],\"timeframe\":\"D\",\"chart_type\":null,\"exact\":null} or {\"symbols\":{\"from\":\"<watchlist ref or screen as>\",\"top\":2},\"timeframe\":null,\"chart_type\":null,\"exact\":null}; timeframe 1|5|15|30|60|D|W|M (D daily, W weekly, M monthly, 60 hourly). No other keys: indicators, a row or a position cannot be set here — plan the charts alone and say in `reply` that indicators can be added next. ⛔ With NO chart in <workspace_context>, \"add / open / show a <timeframe> chart of <symbol>\" is THIS op on the workspace entry — never chart.setSymbol / chart.setTimeframe on a chart that does not exist."
   },
   {
    "name": "layout.current",
@@ -740,7 +925,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "layout.list",
@@ -757,7 +946,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "layout.open",
@@ -780,7 +973,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "layout.saveAs",
@@ -803,7 +1000,11 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "layout.saveCurrent",
@@ -820,14 +1021,18 @@
    "risk": "local",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "layout.rename",
    "domain": "layout",
    "target": "layouts",
    "summary": "Rename one of the member's OWN layouts (not prebuilt or built-in ones).",
-   "hints": "target = the ref of the layouts entry; layout = the id of the layout to rename (the open one if they say \"this layout\"); name = the new name exactly as given.",
+   "hints": "target = the ref of the layouts entry; layout = the id of the layout to rename (the open one if they say \"this layout\"); name = the new name exactly as given. \"rename <X> to <Y>\" where X is a layout name = this op, never chart.renameTab (a chart widget's TAB, only when they say \"tab\"). A protected layout is refused by UCT itself: plan the op, never say you can't rename.",
    "args": {
     "type": "object",
     "properties": {
@@ -847,7 +1052,27 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": {
+    "layout": [
+     "id",
+     "layout_id",
+     "layoutId",
+     "from",
+     "old_name",
+     "oldName",
+     "current"
+    ],
+    "name": [
+     "to",
+     "new_name",
+     "newName",
+     "new"
+    ]
+   },
+   "coerce": null,
+   "defaults": null,
+   "shape": "{\"layout\":\"<id from layouts>\",\"name\":\"<new name>\"}"
   },
   {
    "name": "layout.create",
@@ -870,7 +1095,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "layout.delete",
@@ -893,7 +1122,11 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "layout.duplicate",
@@ -923,7 +1156,11 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.list",
@@ -940,7 +1177,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.show",
@@ -966,7 +1207,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.add",
@@ -1015,7 +1260,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.remove",
@@ -1041,7 +1290,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.clear",
@@ -1058,7 +1311,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.delete",
@@ -1075,7 +1332,11 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.create",
@@ -1105,7 +1366,11 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.rename",
@@ -1128,7 +1393,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.reorder",
@@ -1166,7 +1435,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.setNote",
@@ -1193,7 +1466,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "screener.run",
@@ -1314,7 +1591,75 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": {
+    "sort_field": [
+     "sort.field",
+     "sort.key",
+     "sort.by",
+     "sort_by",
+     "sortBy",
+     "sort_key",
+     "sortKey",
+     "order_by",
+     "orderBy",
+     "sort_on"
+    ],
+    "sort_dir": [
+     "sort.dir",
+     "sort.direction",
+     "sort.order",
+     "sort_direction",
+     "sortDir",
+     "sortDirection",
+     "direction",
+     "order",
+     "sort_order",
+     "sortOrder"
+    ],
+    "show": [
+     "limit",
+     "top",
+     "rows",
+     "count",
+     "page_size",
+     "pageSize"
+    ],
+    "filters": [
+     "conditions",
+     "criteria"
+    ]
+   },
+   "coerce": {
+    "sort_dir": {
+     "descending": "desc",
+     "ascending": "asc",
+     "descend": "desc",
+     "ascend": "asc",
+     "highest": "desc",
+     "lowest": "asc",
+     "high to low": "desc",
+     "low to high": "asc",
+     "highest first": "desc",
+     "lowest first": "asc",
+     "down": "desc",
+     "up": "asc"
+    },
+    "mode": {
+     "refinement": "refine",
+     "refined": "refine",
+     "update": "refine",
+     "modify": "refine",
+     "narrow": "refine",
+     "fresh": "new",
+     "create": "new",
+     "run": "new"
+    }
+   },
+   "defaults": {
+    "filters": []
+   },
+   "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
   },
   {
    "name": "screener.runSaved",
@@ -1351,7 +1696,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "screener.state",
@@ -1368,7 +1717,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "screener.listSaved",
@@ -1385,7 +1738,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "alert.list",
@@ -1431,7 +1788,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "alert.create",
@@ -1466,7 +1827,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "alert.delete",
@@ -1483,7 +1848,11 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicatorAlert.create",
@@ -1524,7 +1893,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicatorAlert.toggle",
@@ -1547,7 +1920,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicatorAlert.delete",
@@ -1564,7 +1941,11 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "stock.profile",
@@ -1587,7 +1968,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "stock.earnings",
@@ -1610,7 +1995,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "stock.compare",
@@ -1636,7 +2025,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "breadth.show",
@@ -1767,7 +2160,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "breadth.history",
@@ -1877,7 +2274,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "settings.show",
@@ -1894,7 +2295,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "settings.setAppTheme",
@@ -1940,7 +2345,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "settings.setDefaultTimeframe",
@@ -1970,7 +2379,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "settings.setAlertSound",
@@ -2016,7 +2429,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "app.open",
@@ -2086,7 +2503,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "news.latest",
@@ -2116,7 +2537,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "news.catalysts",
@@ -2139,7 +2564,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "settings.setWatchlistDigest",
@@ -2167,7 +2596,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "screener.saveAs",
@@ -2190,7 +2623,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "screener.duplicateSaved",
@@ -2220,7 +2657,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "screener.renameSaved",
@@ -2247,7 +2688,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "screener.deleteSaved",
@@ -2270,7 +2715,11 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.remove",
@@ -2293,7 +2742,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.move",
@@ -2338,7 +2791,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.arrange",
@@ -2377,7 +2834,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chartGrid.set",
@@ -2455,7 +2916,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "board.duplicateChart",
@@ -2478,7 +2943,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.setLink",
@@ -2516,7 +2985,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.showList",
@@ -2543,7 +3016,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.setOption",
@@ -2578,7 +3055,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "watchlist.open",
@@ -2601,7 +3082,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.showScan",
@@ -2636,7 +3121,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.applyThemeAll",
@@ -2716,7 +3205,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.resize",
@@ -2753,7 +3246,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "board.swap",
@@ -2780,7 +3277,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.selectTab",
@@ -2807,7 +3308,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.renameTab",
@@ -2841,7 +3346,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.closeTab",
@@ -2868,7 +3377,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "widget.addTab",
@@ -2914,7 +3427,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.addTab",
@@ -2962,7 +3479,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.selectTab",
@@ -2989,7 +3510,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.closeTab",
@@ -3016,7 +3541,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chart.renameTab",
@@ -3047,7 +3576,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": "only for a chart widget's TAB the member names as a tab (\"rename the tab\"). \"rename <a layout name> to …\" is layout.rename."
   },
   {
    "name": "chart.linkTab",
@@ -3088,7 +3621,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.addTrendline",
@@ -3161,7 +3698,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.addRay",
@@ -3234,7 +3775,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.addRectangle",
@@ -3307,7 +3852,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.addFib",
@@ -3380,7 +3929,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.addHorizontalRay",
@@ -3427,7 +3980,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.addText",
@@ -3465,7 +4022,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.addAvwap",
@@ -3499,7 +4060,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.list",
@@ -3516,7 +4081,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.addLevel",
@@ -3559,7 +4128,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.style",
@@ -3616,7 +4189,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.remove",
@@ -3639,7 +4216,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.setVisible",
@@ -3666,7 +4247,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.lock",
@@ -3693,7 +4278,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.setLevel",
@@ -3720,7 +4309,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.setAllVisible",
@@ -3743,7 +4336,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "drawing.clear",
@@ -3760,7 +4357,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.list",
@@ -3791,7 +4392,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.openCreate",
@@ -3824,7 +4429,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.add",
@@ -3874,7 +4483,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.remove",
@@ -3897,7 +4510,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.update",
@@ -3944,7 +4561,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.show",
@@ -3967,7 +4588,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.hide",
@@ -3990,7 +4615,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.draft",
@@ -4027,7 +4656,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.previewDraft",
@@ -4050,7 +4683,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.saveDraft",
@@ -4083,7 +4720,11 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.undoDraft",
@@ -4100,7 +4741,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicator.discardDraft",
@@ -4117,7 +4762,11 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chartSetup.copyLook",
@@ -4140,7 +4789,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chartSetup.removeTimeframe",
@@ -4163,7 +4816,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chartSetup.favoriteTimeframe",
@@ -4190,7 +4847,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chartSetup.compareDisplay",
@@ -4242,7 +4903,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chartSetup.saveTemplate",
@@ -4269,7 +4934,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "chartSetup.deleteTemplate",
@@ -4292,7 +4961,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicatorStyle.set",
@@ -4343,7 +5016,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicatorStyle.placeIn",
@@ -4370,7 +5047,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "pane.move",
@@ -4412,7 +5093,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "pane.resize",
@@ -4442,7 +5127,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicatorCopy.duplicate",
@@ -4465,7 +5154,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "indicatorCopy.copyTo",
@@ -4495,7 +5188,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "definition.search",
@@ -4530,7 +5227,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "definition.describe",
@@ -4553,7 +5254,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "definition.duplicate",
@@ -4576,7 +5281,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "definition.delete",
@@ -4599,7 +5308,11 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "agent.capabilities",
@@ -4646,7 +5359,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "guide.explain",
@@ -4669,7 +5386,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   },
   {
    "name": "guide.show",
@@ -4705,7 +5426,11 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "shape": null
   }
  ]
 }

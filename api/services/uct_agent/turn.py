@@ -126,6 +126,7 @@ MAX_CAPABILITIES_NL1 = MAX_CAPABILITIES
 NL1_ENV = "UCT_AGENT_NL1"
 MAX_CAP_BYTES = 6000
 MAX_HINTS = 1000
+MAX_SHAPE = 600          # W1.1: a capability's exact-shape example (manifest `shape`), printed under its catalog line
 _CAP_NAME = re.compile(r"^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$")
 _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum", "const",
                 "items", "anyOf", "description"}
@@ -240,7 +241,71 @@ def validate_manifest(caps: Any, limit: int = MAX_CAPABILITIES) -> list[dict]:
             "reversible": c.get("reversible") is not False,
             "undo": "none" if c.get("undo") == "none" else "exact",
             "args": args,
+            # W1.1 R-01 (LT-3): the capability's exact-shape example for the catalog (see _catalog_lines)
+            "shape": str(c.get("shape"))[:MAX_SHAPE] if c.get("shape") else None,
+            # W1.1 R-01 (LT-3): the capability's OWN tolerance declarations, honoured by normalize_args — never
+            # invented here. A malformed declaration is dropped (logged), never the capability.
+            **_tolerance_of(name, args, c),
         })
+    return out
+
+
+# ── W1.1 R-01 (LT-3, live planner 2026-11-03): what the production model actually SENDS for an action is often a
+# recoverable variant of its schema — a value typed as a string ("false", "90%"), a key named differently ("key" for
+# "setting", "tickers" for "symbols"), a nested {sort:{field,dir}} for two flat args, a required list left out of a
+# refinement. Each capability may DECLARE the variants it accepts (manifest fields, app/src/agent/README.md):
+#   argAliases  {canonical: [alias, …]}   other KEY names (dotted = nested) read as the canonical arg when it is absent
+#   coerce      {arg: {word: value}}      VALUE synonyms for one arg ("descending" → "desc", "exit" → null)
+#   defaults    {arg: value}              the value of a REQUIRED non-nullable arg the model left out or set null
+# Plus the schema-driven rules every action gets (string → boolean / number / null when the schema says so, enum
+# case-folding, numeric → enum string). Every rule applied is LOGGED by name and key — never a value — and nothing is
+# ever guessed: a shape no rule covers still fails args_match exactly as before.
+_ALIAS_PATH = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$")
+MAX_ALIASES = 16
+MAX_COERCE_WORDS = 48
+
+
+def _tolerance_of(name: str, args: dict, c: dict) -> dict:
+    props = args.get("properties") or {}
+    out: dict = {"argAliases": None, "coerce": None, "defaults": None}
+    aliases = c.get("argAliases")
+    if isinstance(aliases, dict) and aliases:
+        kept: dict[str, list[str]] = {}
+        for canon, alist in aliases.items():
+            canon = str(canon)
+            top = canon.split(".")[0]
+            if (not _ALIAS_PATH.match(canon) or top not in props or not isinstance(alist, list)
+                    or ("." in canon and "object" not in _types_of(props[top]))):
+                log.warning("[uct-agent] %s argAliases: %r dropped (not an argument path)", name, canon[:40])
+                continue
+            good = [a for a in alist if isinstance(a, str) and _ALIAS_PATH.match(a) and a != canon
+                    and not (a.split(".")[0] in props and "." not in a)][:MAX_ALIASES]
+            if good:
+                kept[canon] = good
+        out["argAliases"] = kept or None
+    coerce = c.get("coerce")
+    if isinstance(coerce, dict) and coerce:
+        kept_c: dict[str, dict] = {}
+        for arg, words in coerce.items():
+            arg = str(arg)
+            if not _ALIAS_PATH.match(arg) or arg.split(".")[0] not in props or not isinstance(words, dict):
+                log.warning("[uct-agent] %s coerce: %r dropped (not an argument path)", name, arg[:40])
+                continue
+            table = {str(k).strip().lower(): v for k, v in list(words.items())[:MAX_COERCE_WORDS]
+                     if isinstance(v, (str, int, float, bool, type(None)))}
+            if table:
+                kept_c[arg] = table
+        out["coerce"] = kept_c or None
+    defaults = c.get("defaults")
+    if isinstance(defaults, dict) and defaults:
+        kept_d: dict = {}
+        for arg, v in defaults.items():
+            arg = str(arg)
+            if arg in props and _value_ok(props[arg], v):
+                kept_d[arg] = v
+            else:
+                log.warning("[uct-agent] %s defaults: %r dropped (not a value its schema allows)", name, arg[:40])
+        out["defaults"] = kept_d or None
     return out
 
 
@@ -305,6 +370,15 @@ def _value_ok(spec: dict, v: Any) -> bool:
         return False
     if isinstance(v, list) and isinstance(spec.get("items"), dict):
         return all(_value_ok(spec["items"], x) for x in v)
+    # W1.1 R-01: the schema's NESTED shapes are checked as the grammar checks them on the embedded path — a value under
+    # anyOf must fit one branch whole, and an object branch is closed (exactly its properties, each checked). Before,
+    # {"symbols": {"from": "w1", "top": "two"}} passed here and failed in the browser with the wrong sentence.
+    if isinstance(spec.get("anyOf"), list) and spec["anyOf"]:
+        return any(isinstance(b, dict) and _value_ok(b, v) for b in spec["anyOf"])
+    if isinstance(spec.get("properties"), dict):
+        if not isinstance(v, dict) or set(v) != set(spec["properties"]):
+            return False
+        return all(_value_ok(spec["properties"][k], v[k]) for k in v)
     return True
 
 
@@ -351,9 +425,182 @@ def _wrap_lone_argument(schema: dict, args: dict) -> dict:
     return args
 
 
+# ── W1.1 R-01: the args normalizer (see _tolerance_of) ───────────────────────────────────────────────────────
+_TRUE_WORDS = frozenset({"true", "on", "yes", "enabled", "enable", "show", "1"})
+_FALSE_WORDS = frozenset({"false", "off", "no", "disabled", "disable", "hide", "0"})
+_NULL_WORDS = frozenset({"null", "none", "nil", "nothing", ""})
+_NUMBER_TEXT = re.compile(r"^[-+]?\$?\s*(\d{1,3}(,\d{3})+|\d+)(\.\d+)?\s*%?$")
+
+
+def _types_of(spec: dict) -> list[str]:
+    t = spec.get("type")
+    types = [t] if isinstance(t, str) else list(t or [])
+    for b in spec.get("anyOf") or []:
+        if isinstance(b, dict):
+            types += _types_of(b)
+    return types
+
+
+def _parse_number(s: str):
+    s = s.strip()
+    if not _NUMBER_TEXT.match(s):
+        return None
+    clean = s.replace("$", "").replace(",", "").replace("%", "").replace(" ", "")
+    try:
+        n = float(clean)
+    except ValueError:
+        return None
+    return int(n) if n.is_integer() and "." not in clean else n
+
+
+def _get_path(d: Any, path: str):
+    for seg in path.split("."):
+        if not isinstance(d, dict) or seg not in d:
+            return _DROPPED
+        d = d[seg]
+    return d
+
+
+def _set_path(d: dict, path: str, v: Any) -> None:
+    segs = path.split(".")
+    for seg in segs[:-1]:
+        if not isinstance(d.get(seg), dict):
+            d[seg] = {}
+        d = d[seg]
+    d[segs[-1]] = v
+
+
+def _del_path(d: dict, path: str) -> None:
+    segs = path.split(".")
+    parents = []
+    cur = d
+    for seg in segs[:-1]:
+        parents.append((cur, seg))
+        cur = cur.get(seg)
+        if not isinstance(cur, dict):
+            return
+    cur.pop(segs[-1], None)
+    # a container emptied by the move is dropped too ({"sort": {}} after sort.field → sort_field)
+    for parent, seg in reversed(parents):
+        if isinstance(parent.get(seg), dict) and not parent[seg]:
+            del parent[seg]
+        else:
+            break
+
+
+def _coerce_schema(spec: dict, v: Any, path: str, applied: list[str]) -> Any:
+    """The schema-driven rules for ONE value: strings the schema types as boolean / number / null, enum
+    case-folding, numbers the schema types as an enum string; lists element by element; nested objects
+    (an anyOf object branch whose properties the keys name) property by property."""
+    if not isinstance(spec, dict):
+        return v
+    types = _types_of(spec)
+    enum = spec.get("enum") or []
+    if isinstance(v, str):
+        low = v.strip().lower()
+        if "null" in types and low in _NULL_WORDS:
+            applied.append(f"{path}:null-word")
+            return None
+        if "string" not in types:
+            if "boolean" in types and low in (_TRUE_WORDS | _FALSE_WORDS):
+                applied.append(f"{path}:string->boolean")
+                return low in _TRUE_WORDS
+            if "number" in types or "integer" in types:
+                n = _parse_number(v)
+                if n is not None:
+                    if "number" not in types and isinstance(n, float):
+                        if n.is_integer():
+                            n = int(n)
+                        else:
+                            return v
+                    applied.append(f"{path}:string->number")
+                    return n
+        if enum and v not in enum:
+            hit = next((e for e in enum if isinstance(e, str) and e.strip().lower() == low), None)
+            if hit is not None:
+                applied.append(f"{path}:enum-case")
+                return hit
+        return v
+    if isinstance(v, bool):
+        if "boolean" not in types and enum:
+            hit = next((e for e in enum if isinstance(e, str) and e.lower() == str(v).lower()), None)
+            if hit is not None:
+                applied.append(f"{path}:boolean->enum")
+                return hit
+        return v
+    if isinstance(v, (int, float)):
+        if "string" in types and enum and v not in enum:
+            s = str(int(v)) if float(v).is_integer() else str(v)
+            if s in enum:
+                applied.append(f"{path}:number->enum")
+                return s
+        return v
+    if isinstance(v, list):
+        items = spec.get("items")
+        if not isinstance(items, dict):
+            for b in spec.get("anyOf") or []:
+                if isinstance(b, dict) and b.get("type") == "array" and isinstance(b.get("items"), dict):
+                    items = b["items"]
+                    break
+        if isinstance(items, dict):
+            return [_coerce_schema(items, x, f"{path}[]", applied) for x in v]
+        return v
+    if isinstance(v, dict):
+        branches = [b for b in ([spec] + list(spec.get("anyOf") or [])) if isinstance(b, dict) and isinstance(b.get("properties"), dict)]
+        branch = next((b for b in branches if set(v) <= set(b["properties"])), None) or (branches[0] if branches else None)
+        if branch is None:
+            return v
+        out = dict(v)
+        for k, sub in branch["properties"].items():
+            if k in out:
+                out[k] = _coerce_schema(sub, out[k], f"{path}.{k}", applied)
+            elif "null" in _types_of(sub):
+                out[k] = None
+                applied.append(f"{path}.{k}:absent-null")
+        return out
+    return v
+
+
+def normalize_args(cap: dict, args: Any) -> tuple[Any, list[str]]:
+    """The model's args for `cap`, with the capability's declared aliases / value synonyms / defaults and the
+    schema-driven coercions applied. Returns (args, [rules applied — names and keys only, never values]).
+    Pure and total: anything it cannot read is returned as it came, for args_match to refuse."""
+    schema = cap.get("args") or {}
+    props = schema.get("properties") or {}
+    if not isinstance(args, dict):
+        return args, []
+    applied: list[str] = []
+    out = json.loads(json.dumps(args))                       # a deep copy; the model's object is never mutated
+    for canon, aliases in (cap.get("argAliases") or {}).items():
+        if _get_path(out, canon) is not _DROPPED:
+            continue
+        for a in aliases:
+            v = _get_path(out, a)
+            if v is _DROPPED:
+                continue
+            _del_path(out, a)
+            _set_path(out, canon, v)
+            applied.append(f"alias:{a}->{canon}")
+            break
+    for arg, words in (cap.get("coerce") or {}).items():
+        v = _get_path(out, arg)
+        if isinstance(v, str) and v.strip().lower() in words:
+            _set_path(out, arg, words[v.strip().lower()])
+            applied.append(f"{arg}:word")
+    for arg, v in (cap.get("defaults") or {}).items():
+        cur = out.get(arg, _DROPPED)
+        if cur is _DROPPED or (cur is None and "null" not in _types_of(props.get(arg) or {})):
+            out[arg] = json.loads(json.dumps(v))
+            applied.append(f"{arg}:default")
+    for k, spec in props.items():
+        if k in out:
+            out[k] = _coerce_schema(spec, out[k], k, applied)
+    return out, applied
+
+
 def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
     """COMPACT ops → {action, target, args}. Args that are not JSON, or that do not
-    match the action's own schema, make the whole envelope unreadable (never guessed)."""
+    match the action's own schema (after normalize_args), make the whole envelope unreadable (never guessed)."""
     by_name = {c["name"]: c for c in capabilities}
     out = []
     for o in env.get("ops") or []:
@@ -365,13 +612,35 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
         except (TypeError, ValueError):
             _unreadable("args_json", action=o.get("action"), size=len(str(o.get("args_json") or "")))
         if cap is not None and isinstance(args, dict):
-            args = _fill_absent_nullables(cap["args"], _wrap_lone_argument(cap["args"], args))
+            args, applied = normalize_args(cap, _wrap_lone_argument(cap["args"], args))
+            args = _fill_absent_nullables(cap["args"], args)
+            if applied:
+                log.info("uct_agent args normalized: %s %s", o.get("action"), applied)
         if cap is None or not args_match(cap["args"], args):
             _unreadable("args_schema", action=o.get("action"),
                         keys=sorted(args) if isinstance(args, dict) else type(args).__name__,
                         want=sorted((cap or {}).get("args", {}).get("properties") or {}))
         out.append({"action": o.get("action"), "target": o.get("target"), "args": args})
     return {**env, "ops": out}
+
+
+def normalize_embedded_ops(env: Any, capabilities: list[dict]) -> Any:
+    """The STRICT (embedded-args) op shape: the grammar fixes every key and type, but a string typed as
+    "null" or "Desc" still reaches the browser — the same normalizer runs, never raising (the browser's
+    shapeError still decides). An op whose action is unknown is left as it came for sanitize_envelope."""
+    if not isinstance(env, dict) or not isinstance(env.get("ops"), list):
+        return env
+    by_name = {c["name"]: c for c in capabilities}
+    ops = []
+    for o in env["ops"]:
+        cap = by_name.get(o.get("action")) if isinstance(o, dict) else None
+        if cap is not None and isinstance(o.get("args"), dict):
+            args, applied = normalize_args(cap, o["args"])
+            if applied:
+                log.info("uct_agent args normalized: %s %s", o.get("action"), applied)
+                o = {**o, "args": args}
+        ops.append(o)
+    return {**env, "ops": ops}
 
 
 def model_safe_schema(node):
@@ -673,6 +942,10 @@ def _catalog_lines(capabilities: list[dict], lean: bool = False) -> list[str]:
         if a.get("hints") and not lean:          # lean (NL-1 eval variant): every action, its args and summary — no usage hints
             line += f" {a['hints']}"
         lines.append(line)
+        if a.get("shape") and not lean:
+            # W1.1 R-01 (LT-3): the capability's OWN exact-shape example (manifest `shape`), under its line — the
+            # production model filled these actions' args wrong when it had only the summary and hints to go on
+            lines.append(f"  SHAPE: {a['shape']}")
         for k, v in a["args"]["properties"].items():
             vals = [x for x in (v.get("enum") or []) if x is not None]
             if len(vals) > 12:
@@ -793,6 +1066,7 @@ SCREEN_RULE = ("SCREENS: a count or list of stocks meeting a price, volume, chan
                "stocks are up more than 5%\", \"which stocks gained over 5%\") is UCT's Screener — plan screener.run, never "
                "research it and never answer it from memory. Say the Screener snapshot date the result reports, never "
                "promise a live intraday count.")
+
 
 
 def is_screen_question(message: str) -> bool:
@@ -1226,6 +1500,42 @@ def _unreadable(reason: str, **shape) -> None:
     stop = shape.get("stop_reason")
     raise TurnError(unreadable_sentence(reason, stop if isinstance(stop, str) else None),
                     reason=f"unreadable:{reason}" + (":max_tokens" if stop == "max_tokens" else ""))
+
+
+# ── W1.1 R-03 (LT-10): a message that is not language ("asdf qwer", "qwerty", "aaaa", "???") ──────────────────
+# Decided by SHAPE only — every word is a run along a keyboard row (or one letter repeated), or the message has no
+# letters or digits at all. A ticker ("nvda"), a short word ("ok"), a number or any ordinary word never matches: a
+# real message whose model reply is unreadable keeps its own sentence (and an HTTP 5xx stays a failure).
+_KEY_ROWS = ("qwertyuiop", "asdfghjkl", "zxcvbnm")
+NONSENSE_QUESTION = "I didn't catch that — did you want to:"
+NONSENSE_CHOICES = ("Open a chart", "Run a screen", "Ask about a stock", "Change this chart", "See what UCT Agent can do")
+
+
+def _keyboard_run(tok: str) -> bool:
+    if len(tok) < 3 or not tok.isalpha():
+        return False
+    if len(set(tok)) == 1:
+        return True
+    return any(tok in row or tok[::-1] in row for row in _KEY_ROWS)
+
+
+def looks_like_nonsense(message: str) -> bool:
+    text = (message or "").strip()
+    if not text:
+        return False
+    toks = re.findall(r"[a-z0-9]+", text.lower())
+    if not toks:
+        return True                                   # punctuation only ("???", "...")
+    if len(toks) > 6 or any(t.isdigit() for t in toks):
+        return False
+    return all(_keyboard_run(t) for t in toks)
+
+
+def nonsense_clarify() -> dict:
+    """The deterministic clarify envelope (the browser renders its choices as buttons)."""
+    return {"disposition": "clarify", "reply": "",
+            "question": {"text": NONSENSE_QUESTION, "choices": [{"label": c} for c in NONSENSE_CHOICES]},
+            "ops": [], "unsupported_category": None}
 
 
 TITLE_MAX = 60
@@ -1723,6 +2033,13 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              "stages": {"build": _ms(t_build), "model": [], "research": 0},
              "cache_read_tokens": 0, "cache_write_tokens": 0, **({"interpreter": "nl1"} if nl1 else {})}
     cap_names = {c["name"] for c in caps}
+    if looks_like_nonsense(msg) and headline is None:
+        # ⭐ W1.1 R-03 (LT-10): a keyboard run ("asdf qwer") is not a request. It is answered with a clarify and
+        # choices here — no model call, no "couldn't complete that request" — and nothing else is caught: a real
+        # message whose plan comes back unreadable still fails as before (its own sentence; a 5xx stays a 5xx).
+        usage["latency_ms"] = int((time.monotonic() - started) * 1000)
+        usage["nonsense"] = True
+        return {"envelope": nonsense_clarify(), "usage": usage, "title": None}
     pre_research = None
     notice = None
     repaired = bool(repair_in)               # a repair request (or one already made here) is never repaired again
@@ -1870,9 +2187,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # THIS call, from the member's words alone, before any web text existed — it is
             # kept as planned. Nothing the post-research call returns can add or alter ops.
             if env.get("disposition") in MUTATING and env.get("ops"):
-                planned = env
-                if compact:
-                    planned = expand_compact_ops(env, caps)
+                planned = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
                 pre_research = {"disposition": env["disposition"], "ops": list(planned.get("ops") or [])}
             usage["research_calls"] += 1
             if researched is not None:
@@ -1913,8 +2228,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    "reply": ("I looked that up, but I don't make changes based on what I find online in the same "
                              "step. Tell me exactly what you'd like changed and I'll do it.") if mutated or not env.get("reply")
                    else env.get("reply")}
-        if compact and isinstance(env, dict) and env.get("disposition") in MUTATING:
-            env = expand_compact_ops(env, caps)
+        if isinstance(env, dict) and env.get("disposition") in MUTATING:
+            env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
         if answer_only and isinstance(env, dict) and (env.get("ops") or env.get("disposition") in MUTATING):
             # ⛔ answer-only: the News Ask box never changes anything, whatever the model wrote
             env = {**env, "disposition": "answer", "ops": [], "question": None,

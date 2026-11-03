@@ -2,13 +2,17 @@
   "manifestVersion": 1,
   "doc": "docs/agent/CAPABILITY-CONTRACT.md",
   "entryKeys": [
+    "argAliases",
     "args",
+    "coerce",
+    "defaults",
     "domain",
     "hints",
     "name",
     "query",
     "reversible",
     "risk",
+    "shape",
     "summary",
     "target",
     "undo"
@@ -19,7 +23,8 @@
     "maxSummary": 400,
     "maxHints": 1000,
     "maxContextBytes": 24000,
-    "maxOps": 12
+    "maxOps": 12,
+    "maxShape": 600
   },
   "routingThreshold": 55,
   "catalog": {
