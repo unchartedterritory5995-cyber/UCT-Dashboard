@@ -451,6 +451,42 @@ def test_a_lost_lease_stops_before_the_write(armed, monkeypatch):
     assert store.member_done(auth_db.get_connection(), RUN, "u1") is False
 
 
+def test_the_lease_is_renewed_while_working_not_only_before_a_write(armed, monkeypatch):
+    """Fix round 1 (review M-8): a member with many unchanged notes renews its lease every
+    `RSS_CHECK_EVERY` notes, so it never goes stale while it is being worked on; a renewal that
+    fails stops the member there."""
+    plain = _doc(_para(_t("plain")))
+    for i in range(4):
+        _note("u1", "Notion", f"notion:Export/{i}.md", plain)
+    monkeypatch.setattr(runner, "RSS_CHECK_EVERY", 2)
+    calls = []
+    real = store.renew_lease
+    monkeypatch.setattr(store, "renew_lease",
+                        lambda *a: calls.append(1) or real(*a))
+    _apply()
+    assert len(calls) == 2  # notes 2 and 4: periodic renewals, with nothing written
+    monkeypatch.setattr(store, "renew_lease", lambda *a: False)
+    report = _apply(run_id="run-2")
+    assert report["leaseLost"] == 1
+    assert store.member_done(auth_db.get_connection(), "run-2", "u1") is False
+
+
+def test_a_member_whose_lease_was_taken_is_not_finished_by_the_old_runner(armed, monkeypatch):
+    """M-8: `finish_member` is holder-scoped: a runner that lost the member never marks it done."""
+    _note("u1", "Notion", "notion:Export/A.md", _doc(_para(_t("plain"))))
+    real = store.finish_member
+
+    def taken_over_first(conn, run_id, user_id, **kw):
+        conn.execute("UPDATE j2_import_repair_progress SET lease_holder = 'someone-else'")
+        conn.commit()
+        return real(conn, run_id, user_id, **kw)
+
+    monkeypatch.setattr(store, "finish_member", taken_over_first)
+    report = _apply()
+    assert report["leaseLost"] == 1
+    assert store.member_done(auth_db.get_connection(), RUN, "u1") is False
+
+
 def test_a_huge_note_is_skipped_in_apply_too(armed, monkeypatch):
     """M-6 (1): the size skip holds in apply, not only in the scan."""
     note = _work_note()

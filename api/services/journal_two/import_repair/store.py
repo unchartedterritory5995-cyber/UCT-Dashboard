@@ -127,16 +127,22 @@ def _parse(stamp: str | None) -> datetime:
 
 
 def finish_member(conn: sqlite3.Connection, run_id: str, user_id: str, *, checked: int,
-                  repaired: int) -> None:
+                  repaired: int, holder: str | None = None) -> None:
     """Mark the member done with its counts and release its lease. COMMITS. A member never
     started raises ValueError (fix round 1, M-2): updating no row would leave it not-done,
-    re-processed next run."""
+    re-processed next run. Given `holder` (Task 7 review M-8), only a member this runner still
+    holds is finished; one whose lease was taken over raises `MemberBusy` and stays as it is."""
+    holder_clause, params = ("", ()) if holder is None else (" AND lease_holder = ?", (holder,))
     cur = conn.execute(
         "UPDATE j2_import_repair_progress SET status = 'done', notes_checked = ?, notes_repaired = ?,"
-        " finished_at = ?, lease_holder = NULL, lease_at = NULL WHERE run_id = ? AND user_id = ?",
-        (checked, repaired, _now(), run_id, user_id))
+        " finished_at = ?, lease_holder = NULL, lease_at = NULL WHERE run_id = ? AND user_id = ?"
+        + holder_clause, (checked, repaired, _now(), run_id, user_id, *params))
     if cur.rowcount != 1:
         conn.rollback()
+        if holder is not None and conn.execute(
+                "SELECT 1 FROM j2_import_repair_progress WHERE run_id = ? AND user_id = ?",
+                (run_id, user_id)).fetchone():
+            raise MemberBusy(f"member {user_id!r} is no longer held by runner {holder!r}")
         raise ValueError(f"finish_member: member {user_id!r} was never started in run {run_id!r}")
     conn.commit()
 

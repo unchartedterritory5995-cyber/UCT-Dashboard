@@ -337,6 +337,9 @@ class RepairAborted(Exception):
 #: `RSS_CHECK_EVERY` notes.
 RSS_CEILING_MB = 250.0
 RSS_CHECK_EVERY = 25
+#: Task 7 review M-8: the lease is also renewed every `RSS_CHECK_EVERY` notes and at least this
+#: often, far inside `store.LEASE_STALE_S`.
+LEASE_RENEW_S = 60.0
 _ET = "America/New_York"
 
 
@@ -503,6 +506,7 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
             index: links.FileKeyIndex | None = None
             tally.member(user_id)
             deferred_before = counts["fetchDeferred"]
+            last_renew = time.monotonic()
             checked = repaired = 0
             complete = True
             for row in rows:
@@ -519,8 +523,15 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
                     continue
                 planned += 1
                 checked += 1
-                if planned % RSS_CHECK_EVERY == 0 and _rss_mb() - rss_start > rss_ceiling_mb:
-                    raise RepairAborted(f"memory grew more than {rss_ceiling_mb:.0f} MB during the run")
+                if planned % RSS_CHECK_EVERY == 0 or time.monotonic() - last_renew > LEASE_RENEW_S:
+                    if planned % RSS_CHECK_EVERY == 0 and _rss_mb() - rss_start > rss_ceiling_mb:
+                        raise RepairAborted(f"memory grew more than {rss_ceiling_mb:.0f} MB during the run")
+                    # review M-8: renewed while working, not only before a write
+                    if not store.renew_lease(conn, run_id, user_id, holder):
+                        counts["leaseLost"] += 1
+                        complete = False
+                        break
+                    last_renew = time.monotonic()
                 try:
                     if index is None:
                         index = links.build_file_key_index(conn, user_id)
@@ -556,7 +567,11 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
                 complete = False  # review M-1: hotlinks wait for a resume of this run
             if complete:
                 store.record_notice(conn, user_id, loss_notes)
-                store.finish_member(conn, run_id, user_id, checked=checked, repaired=repaired)  # commits
+                try:  # review M-8: only a member this runner still holds is finished
+                    store.finish_member(conn, run_id, user_id, checked=checked, repaired=repaired,
+                                        holder=holder)  # commits
+                except store.MemberBusy:
+                    counts["leaseLost"] += 1
         finally:
             # I-3 / M-3: on ANY exit (a batch limit, a lost lease, an abort, an error, ^C) the
             # member is given back at once; after `finish_member` this is a no-op.

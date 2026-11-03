@@ -131,6 +131,19 @@ def test_one_runner_at_a_time_per_member(conn, caplog):
         other.close()
 
 
+def test_finish_member_is_holder_scoped(conn):
+    """Task 7 review M-8: given its holder, `finish_member` finishes only a member this runner
+    still holds; a runner whose lease was taken over gets `MemberBusy` and the member stays."""
+    store.claim_member(conn, RUN, "u1", "runner-a")
+    conn.execute("UPDATE j2_import_repair_progress SET lease_holder = 'runner-b'")
+    conn.commit()
+    with pytest.raises(store.MemberBusy):
+        store.finish_member(conn, RUN, "u1", checked=1, repaired=0, holder="runner-a")
+    assert store.member_done(conn, RUN, "u1") is False
+    store.finish_member(conn, RUN, "u1", checked=1, repaired=0, holder="runner-b")
+    assert store.member_done(conn, RUN, "u1") is True
+
+
 def test_finish_member_refuses_a_member_never_started(conn):
     """Fix round 1, M-2: finishing a member nobody started is a runner bug, never a silent
     no-op that leaves it not-done and re-processed next run."""
