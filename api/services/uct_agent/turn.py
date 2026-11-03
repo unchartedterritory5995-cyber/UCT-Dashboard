@@ -81,6 +81,37 @@ def model() -> str:
     return os.environ.get("UCT_AGENT_MODEL", "claude-haiku-4-5")
 
 
+# ── A-02 (Wave 1 eval prerequisite): the effort switch ──────────────────────────────────────────
+# UNSET = today's request, byte for byte (no `effort`, MAX_TOKENS 2048). Set to low|medium|high|xhigh|max,
+# the request carries `output_config.effort` and the output ceiling is MAX_TOKENS_WITH_EFFORT: on the 5.5
+# models thinking is adaptive and its tokens count against max_tokens, so the envelope needs the room.
+# Haiku 4.5 (today's production model) rejects `effort` and never thinks: the switch is ignored for it.
+EFFORT_ENV = "UCT_AGENT_EFFORT"
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
+MAX_TOKENS_WITH_EFFORT = 4096
+NO_EFFORT_MODELS = ("claude-haiku-4-5",)
+
+
+def effort() -> str | None:
+    v = os.environ.get(EFFORT_ENV, "").strip().lower()
+    return v if v in EFFORT_LEVELS else None
+
+
+def effort_for(model_id: str) -> str | None:
+    e = effort()
+    return e if e and not str(model_id or "").startswith(NO_EFFORT_MODELS) else None
+
+
+def output_ceiling(model_id: str) -> int:
+    return MAX_TOKENS_WITH_EFFORT if effort_for(model_id) else MAX_TOKENS
+
+
+def output_config_for(model_id: str, schema: dict) -> dict:
+    oc = {"format": {"type": "json_schema", "schema": schema}}
+    e = effort_for(model_id)
+    return {**oc, "effort": e} if e else oc
+
+
 # ── the capability manifest (from the browser registry) ──────────────────────
 # Manifest wire contract (app/src/agent/contract/manifest.contract.json holds the same numbers;
 # tests/test_uct_agent_contract.py fails if the two ever differ).
@@ -1678,9 +1709,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         try:
             resp = _paid(
                 meter, category, call,
-                model=model(), max_tokens=MAX_TOKENS,
+                model=model(), max_tokens=output_ceiling(model()),
                 system=system_blocks,
-                output_config={"format": {"type": "json_schema", "schema": schema}},
+                output_config=output_config_for(model(), schema),
                 messages=messages,
             )
         except Exception as e:  # noqa: BLE001 — anything but a schema refusal is re-raised unchanged
@@ -1694,9 +1725,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             system_blocks = [{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}]
             resp = _paid(
                 meter, "schema_retry", call,
-                model=model(), max_tokens=MAX_TOKENS,
+                model=model(), max_tokens=output_ceiling(model()),
                 system=system_blocks,
-                output_config={"format": {"type": "json_schema", "schema": schema}},
+                output_config=output_config_for(model(), schema),
                 messages=messages,
             )
         usage["model_calls"] += 1

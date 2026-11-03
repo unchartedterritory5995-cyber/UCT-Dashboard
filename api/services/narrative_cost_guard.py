@@ -68,6 +68,10 @@ _PRICES = {
     "claude-sonnet-5-5": (2.0, 10.0),
     "claude-sonnet-5": (2.0, 10.0),
     "claude-sonnet-4-6": (3.0, 15.0),
+    # Wave 1 A-02 (verified 2026-11-02 against tools/agent_eval_prices.json, published prices): Haiku 5.5
+    # $0.10 in / $0.50 out (cache write 1.25x = $0.125, cache read 0.1x = $0.01) for prompts up to 100K
+    # tokens; the >100K tier ($0.50 / $2.50) is priced by the eval ledger, never reached by an Agent turn.
+    "claude-haiku-5-5": (0.10, 0.50),
     "claude-haiku-4-5": (1.0, 5.0),
 }
 
