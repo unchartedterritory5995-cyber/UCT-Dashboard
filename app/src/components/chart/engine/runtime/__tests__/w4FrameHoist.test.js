@@ -57,7 +57,7 @@ const same = (got, want, label) => {
   for (let i = 0; i < want.length; i += 1) {
     if (Number.isNaN(want[i])) { if (!Number.isNaN(got[i])) throw new Error(`${label} bar ${i}: want na, got ${got[i]}`) } else {
       finite += 1
-      if (Math.abs(got[i] - want[i]) > 1e-9) throw new Error(`${label} bar ${i}: want ${want[i]}, got ${got[i]}`)
+      if (!(Math.abs(got[i] - want[i]) <= 1e-9)) throw new Error(`${label} bar ${i}: want ${want[i]}, got ${got[i]}`)
     }
   }
   // NON-VACUITY: an oracle that is na everywhere agrees with anything.
