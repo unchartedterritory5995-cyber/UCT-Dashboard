@@ -47,7 +47,7 @@ def KEY(n: int) -> str:
 
 
 (HUB, TARGET, CHECK, WALL, CLIP, BIG, HUGE, EDITED_CHANGED, EDITED_SAME, LATER, TRASHED_SYNCED,
- TRASHED_A, TRASHED_B, PURGED, NULL_RESOURCES, NULL_HIT, ADOPTED) = range(1, 18)
+ TRASHED_A, TRASHED_B, PURGED, NULL_RESOURCES, NULL_HIT, ADOPTED, EDITED_PENDING) = range(1, 19)
 #: Adoption failure reasons (Task 8): any reason check must match both.
 ADOPTION_REASONS = ("adoption ambiguous", "adoption refused, import date unreadable")
 
@@ -160,18 +160,22 @@ def test_nothing_is_left_as_an_import_placeholder(member):
 def test_every_pass_completed(passes):
     assert [{k: p[k] for k in ("status", "created", "updated", "skipped", "mediaUploaded", "conflicts",
                                "adopted", "sourceDeleted")} for p in passes] == [
-        {"status": "ok", "created": 12, "updated": 1, "skipped": 0, "mediaUploaded": 9, "conflicts": 0,
+        {"status": "ok", "created": 13, "updated": 1, "skipped": 0, "mediaUploaded": 9, "conflicts": 0,
          "adopted": 1, "sourceDeleted": 0},
-        {"status": "ok", "created": 2, "updated": 1, "skipped": 9, "mediaUploaded": 1, "conflicts": 1,
+        {"status": "ok", "created": 2, "updated": 1, "skipped": 10, "mediaUploaded": 1, "conflicts": 1,
          "adopted": 0, "sourceDeleted": 1},
-        {"status": "ok", "created": 0, "updated": 0, "skipped": 12, "mediaUploaded": 0, "conflicts": 0,
-         "adopted": 0, "sourceDeleted": 1}]
+        {"status": "ok", "created": 0, "updated": 0, "skipped": 13, "mediaUploaded": 0, "conflicts": 0,
+         "adopted": 0, "sourceDeleted": 1},
+        {"status": "ok", "created": 0, "updated": 0, "skipped": 13, "mediaUploaded": 0, "conflicts": 0,
+         "adopted": 0, "sourceDeleted": 0}]
+    assert passes[3]["removalCheckRan"] is True   # pass 4: a member's removal-check pass
 
 
 def test_resync_is_idempotent(passes, member):
     p = passes
-    assert p[2]["created"] == p[2]["updated"] == p[2]["mediaUploaded"] == 0   # pass 3 = no remote change
-    assert p[2]["conflicts"] == p[2]["adopted"] == 0
+    for later in (p[2], p[3]):   # pass 3 (scheduler) and pass 4 (member removal check): no remote change
+        assert later["created"] == later["updated"] == later["mediaUploaded"] == 0
+        assert later["conflicts"] == later["adopted"] == 0
     # ...and no stored note was rewritten by it (the purge's tag is timestamp-neutral).
     assert [n["title"] for n in member["notes"] if n["updatedInLastPass"]] == []
 
@@ -210,7 +214,7 @@ def test_trashed_synced_note_is_tagged_source_deleted_not_erased(notes, passes):
 def test_purged_note_needs_two_full_passes(notes, passes):
     """Expunged outright (in neither listing): no explicit signal, so the 2-strike rule. Pass 2's
     one deletion is the trashed note, so the purge struck once there and severed at pass 3."""
-    assert [p["sourceDeleted"] for p in passes] == [0, 1, 1]
+    assert [p["sourceDeleted"] for p in passes] == [0, 1, 1, 0]
     purged = notes[KEY(PURGED)]
     assert "source-deleted" in purged["tags"]
     assert _text(purged["bodyJson"]) == "Will be expunged outright."
@@ -394,7 +398,7 @@ def test_oversize_note_is_isolated_and_named(notes, passes):
         assert by_title == [{"noteTitle": "Over the limit", "name": None, "reason": (
             "This note is too long to save as one page. Split it into two or more notes and try again.")}]
         assert p["status"] == "ok"
-    assert passes[0]["created"] == 12
+    assert passes[0]["created"] == 13
 
 
 def test_notebooks_in_a_stack_and_one_unstacked(notes):
@@ -425,14 +429,19 @@ def test_no_evernote_note_shape_failures_on_measured_payloads(passes):
 def test_enex_note_adopted_once_no_duplicate(notes, passes):
     adopted = [n for n in notes.values() if n["title"] == "Imported plan"]
     assert [n["importKey"] for n in adopted] == [KEY(ADOPTED)]
-    assert [p["adopted"] for p in passes] == [1, 0, 0]
+    assert [p["adopted"] for p in passes] == [1, 0, 0, 0]
     assert not [f for f in _all_failures(passes) if any(r in f for r in ADOPTION_REASONS)]
 
 
 # ── the engine fix this corpus found: a pending media retry once the cursor moves ──────────
 
 @pytest.fixture(scope="module")
-def cursor_moves(tmp_path_factory) -> dict[str, Any]:
+def cursor_moves(cursor_moves_run) -> dict[str, Any]:
+    return cursor_moves_run["members"][USER]
+
+
+@pytest.fixture(scope="module")
+def cursor_moves_run(tmp_path_factory) -> dict[str, Any]:
     """The same dump WITHOUT the oversize note. That note is never stored, so in the full corpus
     it holds the cursor still (session-audit A1) and every pass re-lists everything, which hid
     the defect: with the cursor free to move, an unchanged note is never listed again."""
@@ -442,7 +451,7 @@ def cursor_moves(tmp_path_factory) -> dict[str, Any]:
         p["active"] = [g for g in p["active"] if g != G(HUGE)]
     result = gen.build_evernote_variant(tmp_path_factory.mktemp("evernote_cursor_moves"), variant)
     assert gen.LAST_RUN_REFUSED == []
-    return result["members"][USER]
+    return result
 
 
 def test_pending_media_retries_after_the_cursor_moves(cursor_moves):
@@ -453,4 +462,29 @@ def test_pending_media_retries_after_the_cursor_moves(cursor_moves):
     assert "expired.png" not in _notices(wall["bodyJson"])
     assert wall["importMediaPending"] == 0
     assert passes[1]["mediaUploaded"] == 1
+
+
+# ── fix round 1, M2: a member-edited note with pending media, and a removal-check pass ──────
+
+def test_member_edited_note_with_pending_media_is_left_to_the_member(notes):
+    note = notes[KEY(EDITED_PENDING)]
+    assert _text(note["bodyJson"]) == "I wrote this myself; the chart can wait."
+    assert note["importMediaPending"] == 1           # its copy never landed; the member owns the note
+    assert note["updatedInPasses"] == [1]
+
+
+def test_member_edited_note_is_never_refetched_once_the_cursor_moves(cursor_moves_run):
+    """With the cursor free to move, the edited note is outside every later delta, and the media
+    retry never picks it (I1): `get_note` is asked for it in pass 1 only."""
+    fetched = cursor_moves_run["getNoteByPass"]
+    assert [G(EDITED_PENDING) in ids for ids in fetched] == [True, False, False, False]
+
+
+def test_removal_check_pass_fetches_only_its_delta(cursor_moves_run):
+    """Pass 4 is a member's removal check with no remote change: it fetches exactly what the
+    scheduler pass before it fetched (the same delta), never a media retry (C2)."""
+    fetched = cursor_moves_run["getNoteByPass"]
+    assert cursor_moves_run["members"][USER]["passes"][3]["removalCheckRan"] is True
+    assert sorted(fetched[3]) == sorted(fetched[2])
+    assert len(fetched[3]) < 5
 

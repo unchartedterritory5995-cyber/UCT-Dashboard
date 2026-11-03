@@ -582,6 +582,8 @@ class EvernoteAccount:
         self.wire_tool_calls: list[str] = []
         #: The refresh token each refresh POST carried.
         self.refresh_posts: list[str] = []
+        #: Per pass, the note ids `get_note` was asked for (Task 9 fix round 1, M2).
+        self.get_note_calls: list[list[str]] = []
         self._attachment_calls: dict[str, int] = {}
         self._downloads: dict[str, int] = {}
         self._bodies: dict[str, bytes] = {}
@@ -657,6 +659,7 @@ class EvernoteAccount:
         if name == "search_notes":
             return self._search_notes(args)
         if name == "get_note":
+            self.get_note_calls[self.pass_no].append(args["noteId"])
             return self._get_note(args["noteId"])
         if name == "search_notebooks":
             hits = self.dump["notebooks"]
@@ -759,9 +762,9 @@ def _sync_log(source_id: str) -> list[dict[str, Any]]:
 async def _run_evernote(env: dict[str, Any], dump: dict[str, Any] | None = None) -> dict[str, Any]:
     """The real `EvernoteProvider` and the real `EvernoteMcpClient` (its read-only allow-list, its
     401 hook) over `EvernoteAccount`; the real refresh (`evernote_oauth`, CAS swap) whose one POST
-    goes to the same mock. Three full passes: pass 2 sees the member's edits, a remote edit, a
-    trashed note, a purged note, a new link target and an expired access token; pass 3 sees no
-    remote change. Per pass: the counts, `adopted`, `sourceDeleted`, the engine's failure strings
+    goes to the same mock. Three scheduler full passes, then a member's removal-check pass: pass 2
+    sees the member's edits, a remote edit, a trashed note, a purged note, a new link target and an
+    expired access token; passes 3 and 4 see no remote change. Per pass: the counts, `adopted`, `sourceDeleted`, the engine's failure strings
     and the sync log's `failures_json`. Per note: which passes created or moved its `updated_at`.
     `dump` (default: the committed one) lets a rail run a variant DERIVED from it
     (`build_evernote_variant`)."""
@@ -819,8 +822,9 @@ async def _run_evernote(env: dict[str, Any], dump: dict[str, Any] | None = None)
     passes = []
     moved: dict[str, list[int]] = {}
     before_last: dict[str, str] = {}
-    for pass_no in range(len(dump["passes"])):
+    for pass_no, spec in enumerate(dump["passes"]):
         account.pass_no = pass_no
+        account.get_note_calls.append([])
         if pass_no == oauth_spec["expireBeforePass"]:
             stored = connections.get_token(user_id, "evernote")
             assert connections.swap_token_if_unchanged(user_id, "evernote", stored["refreshToken"],
@@ -828,12 +832,16 @@ async def _run_evernote(env: dict[str, Any], dump: dict[str, Any] | None = None)
         before = _snapshot(user_id)
         if pass_no == len(dump["passes"]) - 1:
             before_last = before
-        result = await engine.sync_source(source["id"], full=True, manual=True)
+        # A `member` pass is a member's "Sync now" with the removal check (fix round 1, M2):
+        # an incremental pass with a complete listing, never a media-retry pass.
+        member = bool(spec.get("member"))
+        result = await engine.sync_source(source["id"], full=True, manual=True, member=member)
         for note_id, stamp in _snapshot(user_id).items():
             if before.get(note_id) != stamp:
                 moved.setdefault(note_id, []).append(pass_no + 1)
         passes.append({**_pass_summary(result), "adopted": result.get("adopted"),
-                       "sourceDeleted": result.get("sourceDeleted"), "failures": result.get("failures")})
+                       "sourceDeleted": result.get("sourceDeleted"), "failures": result.get("failures"),
+                       **({"removalCheckRan": (result.get("removalCheck") or {}).get("ran")} if member else {})})
         if pass_no == 0:
             for guid, text in (dump.get("member_edits") or {}).items():
                 _member_edit(user_id, f"evernote:guid:{guid}", text)
@@ -851,6 +859,7 @@ async def _run_evernote(env: dict[str, Any], dump: dict[str, Any] | None = None)
     return {"corpus": "evernote_live_messy", "members": {user_id: member},
             "toolCalls": [name for c in clients for name in c.tool_calls],
             "wireToolCalls": account.wire_tool_calls,
+            "getNoteByPass": account.get_note_calls,
             "oauth": {"refreshPosts": account.refresh_posts, "storedRefreshToken": stored.get("refreshToken"),
                       "storedAccessToken": stored.get("accessToken")}}
 
