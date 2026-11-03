@@ -57,7 +57,7 @@ describe('pure: a research envelope → the three sections, dated sources and an
     expect(lines[10]).toBe(`${SECTION.sources}:`)
     expect(lines[11]).toBe('• 8:05 AM ET · NVIDIA announces a thing — https://x/1')
     expect(lines[12]).toBe('• date not given · example.com — https://example.com/story')
-    expect(lines[13]).toBe("UCT's facts are as of Jul 31, 2026 to 10:29 AM ET (each fact names its own time); at least one source is behind its usual refresh. Not a real-time price.")
+    expect(lines[13]).toBe("UCT's facts are as of Jul 31, 2026 to 10:29 AM ET (each fact names its own time); at least one source is behind its usual refresh. Only a fact marked live is a real-time price; the rest are as of their own times.")
     expect(a.text).not.toMatch(/never be echoed/)
     expect(a.present).toMatchObject({ kind: 'research', title: "NVDA — why it's moving", short: 'NVDA' })
     expect(a.present.cited).toEqual([
@@ -93,7 +93,7 @@ describe('the research VIEW: present.js and the real renderer', () => {
     expect(v.interpretation).toEqual(ENV.data.interpretation)
     expect(v.unknown).toHaveLength(2)
     expect(v.cited.map(c => c.when)).toEqual(['8:05 AM ET', 'date not given'])
-    expect(v.note).toMatch(/Not a real-time price\.$/)
+    expect(v.note).toMatch(/Only a fact marked live is a real-time price; the rest are as of their own times\.$/)   // a live fact sits above it (review #726)
     expect(v.text).toBeUndefined()                               // the sections ARE the answer: never doubled
     expect(v.details?.text).toBeUndefined()
     expect(v.link.href).toBe('/research/NVDA')
@@ -115,7 +115,8 @@ describe('the research VIEW: present.js and the real renderer', () => {
     const a = sources.querySelector('a[href="https://x/1"]')
     expect(a).not.toBeNull()
     expect(a.getAttribute('rel')).toContain('noopener')
-    expect(screen.getAllByText(/Not a real-time price\.$/)).toHaveLength(1)
+    expect(screen.getAllByText(/the rest are as of their own times\.$/)).toHaveLength(1)
+    expect(screen.queryAllByText(/Not a real-time price\.$/)).toHaveLength(0)
   })
 })
 
