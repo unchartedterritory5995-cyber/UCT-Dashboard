@@ -219,52 +219,15 @@ const knownClientGap = {
   // Both lanes dropped the no-dot stem rule (`[[chart]]` names `chart.md` only), and
   // both check a `#`-holding target against the vault's full file names before
   // splitting an anchor (`![[my chart #1 (v2).png]]` keeps its image).
-  // 25-code-span-link-text (D2 fix round 4, N-I4): both lanes make the link to Plan from
-  // `[[Plan|the `x` plan]]` and from the callout title; what is left is the code RUN inside
-  // the link. The editor's code mark excludes every other mark, so the client's parse
-  // (`generateJSON`) drops the link from `x`, while the server's shared `mddoc` stores it as
-  // link+code (as it does for any `[`x`](url)`, every connector). Not an Obsidian pass:
-  // closed by D3 (shared-converter follow-up PR: a code run carries no other mark) --
-  // delete this entry then.
-  '25-code-span-link-text.json': {
-    missingLinks: [{ target: 'Plan.md', text: 'x' }, { target: 'Plan.md', text: 'x' }],
-  },
-  // 27-tilde-fence (D2 fix round 3, M-new-1): images, links and media agree -- the `~~~`
-  // fence keeps its embed and wikilink as code on both lanes. What is left is a code BLOCK
-  // difference no Obsidian pass makes: the shared client parse keeps the fence's final
-  // newline in the codeBlock text (markdown-it), the server's `mddoc` drops it. Every
-  // importer's fenced code has it. Closed by D3 (shared-converter follow-up PR: fenced
-  // code final newline) -- delete this entry then.
-  '27-tilde-fence.json': {
-    clientReads: {
-      text: 'Tilde fence before ![[img.png]] [[Plan]]\n after ',
-    },
-  },
-  // 28-blank-line-and-fence-alias (D2 fix round 5, M-r4-1): links, images and media agree --
-  // a link or embed across a blank line or a fence is left as written on both lanes, and a
-  // single-newline alias is the one link, in a quote too (follow-up: a `>`-only quote line
-  // is a paragraph break, and a one-line ``` run is inline code a link may hold). What is
-  // left is two D3 differences, neither an Obsidian pass:
-  //   - 27's code BLOCK difference: the client keeps the fence's final newline in the
-  //     codeBlock text, the server's `mddoc` drops it (D3: fenced code final newline);
-  //   - 25's code RUN difference: the client's code mark drops the link from `x`, the
-  //     server stores link+code (D3: a code run carries no other mark).
-  //   - Round 5 (final), ruling A's `[[Plan|a\n<div>b]]` row: no link and no key on either
-  //     lane, but the raw HTML block `<div>b]]` reads differently in the SHARED parses: the
-  //     server's `mddoc` keeps the tag as text (`<div>b]]`), the client's parse renders it
-  //     (`b]]`). Not an Obsidian pass; named for D3 (shared-converter follow-up PR: raw
-  //     HTML blocks).
-  // Delete this entry when D3 lands.
-  '28-blank-line-and-fence-alias.json': {
-    missingLinks: [{ target: 'Plan.md', text: 'x' }],
-    clientReads: {
-      text: 'Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end '
-        + 'x ![[chart.png|a b]] y [[Plan|a code\n b]] see one line still links '
-        + 'quoted [[Plan|c d]] stays text quoted one line still links see a x b inline code links '
-        + 'see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end '
-        + 'see [[Plan|a b]] end see [[Plan|a b]] end [[Plan|a b]]',
-    },
-  },
+  // ⚰️ 25-code-span-link-text: closed by D3 item 2. A code run inside a link keeps the LINK
+  // and loses the code mark on both lanes (`convert.js::liftLinksOutOfCode`,
+  // `convert/marks.py::exclusive_marks`), so `the x plan` is one link run on both.
+  // ⚰️ 27-tilde-fence: closed by D3 item 1. Both lanes drop exactly the fence's final line
+  // end from the code block (`convert.js::dropCodeLineEnds`, `mddoc._code_without_line_end`).
+  // ⚰️ 28-blank-line-and-fence-alias: closed by D3. Its three shared-parse differences went
+  // with item 1 (the fence's final newline), item 2 (the link on the code run `x`) and the
+  // follow-up to ruling 2: a raw markdown HTML block renders on both lanes, sanitised
+  // (`mddoc._raw_html_block` through `html_to_tiptap`'s walker), so `<div>b]]` reads `b]]`.
   // ⚰️ 18-attachment-names and 19-nested-embeds: their text gaps (the EMPTY paragraph
   // beside a block image, and `Read ` losing its trailing space at a chip split, from the
   // shared parse `convert.js::htmlToNote`) are closed by D2 item 5.
@@ -381,23 +344,21 @@ describe('Obsidian adversarial alias corpus (ruling B)', () => {
     expect(ADVERSARIAL.cases.length).toBeGreaterThanOrEqual(190)
   })
 
-  it('the client links the same notes as the server and never shows an internal key', async () => {
-    const disagree = []
-    const leaks = []
-    for (const { input, targets } of ADVERSARIAL.cases) {
+  // D3 review M6: one test per case. The single loop over ~200 full pipelines took 2 s alone
+  // and passed its 15 s timeout under a busy batch; each case is now its own test (~10 ms), far
+  // from any timeout, and a red one names its input.
+  it.each(ADVERSARIAL.cases.map((c, i) => [i, c]))(
+    'case %i: the client links the same notes as the server and never shows an internal key',
+    async (_i, { input, targets }) => {
       const vfiles = ADVERSARIAL.vault_paths.map((p) => vf(p, p === 'a.md' ? input : ''))
       // Through `parseImport`, the wizard's own call (as `clientSummaryFor` above).
       const { docs } = await parseImport(obsidianAdapter, vfiles, {})
       const doc = docs.find((d) => d.importKey === 'obsidian:a.md')
       const { bodyJson } = htmlToNote(doc.html)
       const got = [...new Set(semanticSummary(bodyJson).links.map((l) => l.target))].sort()
-      if (JSON.stringify(got) !== JSON.stringify(targets)) disagree.push({ input, got, targets })
+      expect({ input, got }).toEqual({ input, got: targets })
       const seen = visibleStrings(bodyJson).join(' ')
-      if (INTERNAL_MARKERS.some((m) => seen.includes(m)) || CLIENT_PLACEHOLDER_RE.test(seen)) {
-        leaks.push({ input, seen })
-      }
-    }
-    expect(leaks).toEqual([])
-    expect(disagree).toEqual([])
-  })
+      expect(INTERNAL_MARKERS.filter((m) => seen.includes(m)), seen).toEqual([])
+      expect(CLIENT_PLACEHOLDER_RE.test(seen), seen).toBe(false)
+    })
 })

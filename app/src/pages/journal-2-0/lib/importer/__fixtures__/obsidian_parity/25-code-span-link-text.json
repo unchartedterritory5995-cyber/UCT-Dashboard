@@ -21,23 +21,11 @@
     "links": [
       {
         "target": "Plan.md",
-        "text": "the "
+        "text": "the x plan"
       },
       {
         "target": "Plan.md",
-        "text": "x"
-      },
-      {
-        "target": "Plan.md",
-        "text": " plan"
-      },
-      {
-        "target": "Plan.md",
-        "text": "the "
-      },
-      {
-        "target": "Plan.md",
-        "text": "x"
+        "text": "the x"
       }
     ],
     "pending": [],

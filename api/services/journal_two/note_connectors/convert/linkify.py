@@ -249,6 +249,33 @@ def _resolve_relative(href: str, source_url: str | None) -> str | None:
         return None
 
 
+#: A note link's path ends `.md` (Obsidian, Notion and generic markdown exports), and `.md` is
+#: also a TLD linkify-it accepts: such a path is a NOTE, never a host (D3 item 6).
+_NOTE_PATH_RE = re.compile(r"\.md$", re.IGNORECASE)
+
+
+def host_like_href(h: str) -> str | None:
+    """D3 item 6: the `https://` URL linkify WOULD MAKE of the scheme-less href `h`, else None.
+
+    ⛔ Linkify's own decision, never a second one (controller ruling): `_matches(h)` -- the same
+    instance, allow-list, trim and `kept_scheme_href` the prose pass uses -- must make exactly
+    one link spanning all of `h`, and it must be a web address (`https://`, so an email is
+    not). So `www.example.com/x` links, while `example.com/path`, `NVDA.US`, `AAPL.O` and
+    `BRK.B` stay text exactly as linkify leaves them in prose. A path ending `.md` is a note
+    link and never a host; a connector that resolves a link to a note (`mddoc._link_href`'s
+    `resolve_href`) answers before this is asked. ⚰️ Until D3 a `www.` href was "relative" with
+    no source, so the link became text and its target was lost. The client's
+    `linkPolicy.js::hostLikeHref` is the same rule; the shared `href_vectors` pin the two."""
+    if not h or h.startswith(("/", ".", "#", "?")) or not _clean(h):
+        return None
+    if _NOTE_PATH_RE.search(re.split(r"[?#]", h, maxsplit=1)[0]):
+        return None
+    found = _matches(h)
+    if len(found) != 1 or found[0][:2] != (0, len(h)) or not found[0][2].startswith("https://"):
+        return None
+    return found[0][2]
+
+
 def resolve_href(href: Any, source_url: str | None = None) -> str | None:
     """The href to keep, or None meaning "render as text". Plan B's `resolveHref`."""
     if not isinstance(href, str):
@@ -275,7 +302,8 @@ def resolve_href(href: Any, source_url: str | None = None) -> str | None:
         # B-14 fix round 1: built from `h`, never `read`: `//ex.com/a<TAB>b` must not become
         # `https://ex.com/ab`, a target the source never named. Whitespace in `h` -> text.
         return kept_scheme_href("https:" + h)
-    return _resolve_relative(h, source_url)
+    # D3 item 6: a host is a host, never a path relative to the note's source.
+    return host_like_href(h) or _resolve_relative(h, source_url)
 
 
 # B-14 fix round 1: the text a REFUSED link leaves behind carries this mark between the two

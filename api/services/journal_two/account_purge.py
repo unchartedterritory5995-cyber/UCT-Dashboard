@@ -104,6 +104,11 @@ _DIRECT_USER_TABLES = (
     # Plan C: staged vault attachments (rows here; the blob tree is removed in
     # purge_user_data beside the attachment tree).
     "j2_obsidian_attachments",
+    # Plan F import repair: per-member progress, the per-note log (it holds note bodies,
+    # the undo copy) and the member's loss notice.
+    "j2_import_repair_progress",
+    "j2_import_repair_log",
+    "j2_import_repair_notices",
     # Trade-ref-keyed extras (attachments/excursions/rule-adherence)
     "j2_trade_attachments",
     "j2_trade_excursions",

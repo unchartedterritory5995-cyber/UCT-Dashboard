@@ -505,7 +505,10 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   routes), in-process only, so a second process doubles both, and since connector fidelity Plan A
   Task 9 `notebook-media-fetch` (120/minute, keyed on the member, `NOTE_MEDIA_FETCH_RATE` in
   `api/routers/journal_two.py`, the `POST /api/j2/notes/media/fetch` hotlink-copy door), in-process
-  only, so a second process doubles it · that door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
+  only, so a second process doubles it, and since connector fidelity Plan F Task 9
+  `notebook-import-repair-notice` (60/minute, keyed on the member, `NOTE_IMPORT_REPAIR_NOTICE_RATE`
+  in `api/routers/journal_two.py`, shared by `GET /api/j2/notes/import/repair-notice` and its
+  `POST .../dismiss`), in-process only, so a second process doubles it · that door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
   (`MEDIA_FETCH_GLOBAL_INFLIGHT` = 8 downloads at once) and `journal_two._media_fetch_inflight`
   (`MEDIA_FETCH_PER_MEMBER_INFLIGHT` = 2 per member, one more answers 429): a second process
   doubles both · since the connector fidelity Plan A final review (I3), the editor upload doors'
@@ -535,6 +538,12 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   its own 60 s, and a restart clears the pause) · the two document permit pools
   `document_extraction._EXTRACTION_POOL` and `document_ocr._OCR_POOL` (wave 7 lane G: a
   second process doubles how many extractions and OCR runs the box does at once) · since
+  connector fidelity Plan F, `document_extraction._QUEUED` (the ids this process has queued and
+  not finished, kept by `queue_extraction`) and the `j2_doc_pending_sweep` job that reads it
+  (`requeue_stale_pending`, every 10 min, at most `PENDING_SWEEP_LIMIT` = 20 per tick): a second
+  process keeps its own set, so each sweep can re-queue a stale `pending` row the other process
+  already has queued (the extraction runs twice; it is idempotent, `INSERT OR IGNORE` pages), and
+  two sweeps double the per-tick re-queue · since
   the wave 12-15 landing `entry_context._capture_executor` + `_capture_pending` (the
   manual-add capture queue: 2 threads, 40 queued in total, 3 per member),
   `entry_context._VENDOR_SLOTS` (2 report-date vendor reads in flight) and
