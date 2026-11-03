@@ -799,12 +799,16 @@ ATT_SCHEME = "obsidian-att:"
 FILE_SCHEME = "obsidian-file:"
 NOTICE_SCHEME = "obsidian-notice:"
 OUTDATED_REASON = "obsidian-plugin-outdated"
+#: Fix round 1 (I-1, I-2, M-5): a vault file whose bytes never reached the server and that no
+#: plugin update would bring (attachment sync off for the account, or a 0.2.0+ plugin that
+#: did not list it): "<name> wasn't sent from Obsidian, so it isn't shown here."
+NOT_SENT_REASON = "not-sent"
 UNAVAILABLE_REASON = "obsidian-attachments-unavailable"
 #: `fetch_media`'s failure text, one per case (live audit 2026-11-03, F2). It is the engine's
 #: per-note failure string (the server log, the sync log row's `error`); the member's notice
 #: reads the reason's sentence from the copy table, never this.
-ATTACHMENTS_OFF = ("{ref!r} was not sent: image and file sync from Obsidian is not turned on "
-                   "for this account")
+ATTACHMENTS_OFF = ("{ref!r} was not sent: this server takes no Obsidian images or files from "
+                   "this account, so the plugin sent the note's text only")
 PLUGIN_TOO_OLD = ("{ref!r} was not sent: this vault's UCT Notebook Sync plugin is older than "
                   "0.2.0, which sends no images or files")
 NOT_IN_LIST = ("{ref!r} was not in the list of files UCT Notebook Sync {version} sent with this "
@@ -957,31 +961,36 @@ def _unresolved_bare_target(target: str) -> str:
 
 def _markdown_local_path(dest: str) -> str | None:
     """The vault path a markdown link's or image's destination names, as written: the `<...>`
-    taken off, cut at the first `?` or `#`, percent-decoded ONCE (the plugin's
-    `markdownTarget`). None for an empty destination, an anchor, a `//host` or any URL
-    scheme: those are never a vault file."""
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+    (the plugin's `markdownTarget`; fix round 1, I-1(e)). None for an empty destination, an
+    anchor, a `//host` or any URL scheme: those are never a vault file."""
     if dest.startswith("<"):
         dest = dest[1:-1]
     dest = dest.strip()
     if not dest or dest.startswith(("#", "//")) or _SCHEME_RE.match(dest):
         return None
-    return unquote(re.split(r"[#?]", dest, maxsplit=1)[0]) or None
+    return unquote(re.split(r"[#?]", dest, maxsplit=1)[0]).replace("\\", "/") or None
 
 
 def _same_note_blob(path: str, ok_by_path: dict[str, dict], from_path: str | None) -> dict | None:
     """The ref, of the SAME note's list, that resolved the vault path a markdown image with no
     ref of its own names, with a file that came over (`status` ok, a sha), else None (live
     audit 2026-11-03, F1). A ref's `path` is the vault path Obsidian's resolver gave, from the
-    vault root. The image's path is read as Obsidian reads a markdown destination: beside the
-    note's folder first, then from the vault root. EXACT paths only: no case folding, no
-    name lookup."""
+    vault root. EXACT paths only, and only where the path can mean ONE file (fix round 1,
+    M-1): a note at the vault root (beside the note IS the root), or a destination written
+    explicitly relative (`./`, `../`), read beside the note. ⚰️ Any other destination of a
+    note in a folder was tried beside the note, then from the root; Obsidian's own resolver
+    can pick a third file the server cannot see (its vault listing holds no binaries), so the
+    fallback served the wrong image. Such an image stays as written and reads `not_sent`;
+    plugin 0.2.1 sends its real ref."""
     from_dir = _dir_of(from_path) if from_path else ""
-    beside = posixpath.normpath(posixpath.join(from_dir, path)) if from_dir else None
-    rooted = posixpath.normpath(path.lstrip("/"))
-    for candidate in (beside, rooted):
-        if candidate in ok_by_path:  # a ref path never climbs above the root
-            return ok_by_path[candidate]
-    return None
+    if path.startswith(("./", "../")):
+        candidate = posixpath.normpath(posixpath.join(from_dir, path))
+    elif not from_dir:
+        candidate = posixpath.normpath(path.lstrip("/"))
+    else:
+        return None
+    return ok_by_path.get(candidate)  # a ref path never climbs above the root
 
 
 #: A markdown IMAGE, `![alt](dest "title")`: `_MD_LINK_OR_IMAGE_RE`'s own `!` form.
@@ -2066,22 +2075,25 @@ class ObsidianProvider(NoteProvider):
             return await fetch_content_url(client, ref, what="Obsidian media")
         raise await asyncio.to_thread(self._not_sent_error, ref)
 
-    def _not_sent_error(self, ref: str) -> errors.NoteConnUnsupported:
+    def _not_sent_error(self, ref: str) -> errors.NoteConnAttachmentNotSent:
         """Why a vault path the plugin sent no file for reached `fetch_media` (live audit
         2026-11-03, F2), one true sentence per case. ⚰️ It said "Obsidian push sync does not
         transfer vault attachments -- only note text is pushed by the plugin", true before
         plugin 0.2.0 and false since; the sentence reached the member's source row.
-          * the attachment layer off for this member: the plugin was told to send no files
-            (`unsupported`, as before Plan C: final review I3 keeps "update the plugin" off
-            members whose server cannot take files);
+          * the attachment layer off for this member: the server told the plugin to send
+            no files;
           * a plugin older than 0.2.0 (or no version reported): it sends no files;
           * 0.2.0 and later: the file was not in the list sent with the note.
-        The last two are `NoteConnAttachmentNotSent`, whose notice says to update the plugin."""
+        Only the second is "update the plugin" (`obsidian-plugin-outdated`): 0.2.0 does fix
+        it. The other two read `not-sent`, which names no remedy (fix round 1, I-1/I-2/M-5):
+        no update brings a file the server refuses or a 0.2.0 plugin left out. All three are
+        `NoteConnAttachmentNotSent`, final, never "can't be shown here"."""
         if not obsidian_attachments.attachments_enabled_for(self.user_id):
-            return errors.NoteConnUnsupported(ATTACHMENTS_OFF.format(ref=ref))
+            return errors.NoteConnAttachmentNotSent(ATTACHMENTS_OFF.format(ref=ref),
+                                                    notice_reason=NOT_SENT_REASON)
         version = obsidian_link.plugin_versions_for_user(self.user_id).get(self.vault_id)
         if not obsidian_link.plugin_version_supports_attachments(version):
             return errors.NoteConnAttachmentNotSent(PLUGIN_TOO_OLD.format(ref=ref),
                                                     notice_reason=OUTDATED_REASON)
         return errors.NoteConnAttachmentNotSent(NOT_IN_LIST.format(ref=ref, version=version),
-                                                notice_reason=OUTDATED_REASON)
+                                                notice_reason=NOT_SENT_REASON)

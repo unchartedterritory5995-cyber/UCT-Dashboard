@@ -87,10 +87,11 @@ class NoteConnUnsafeAddress(NoteConnUnsupported):
 
 
 class NoteConnAttachmentNotSent(NoteConnUnsupported):
-    """An Obsidian vault file the plugin did not send (live audit 2026-11-03, F2): a plugin
-    older than 0.2.0, or a file missing from the list a newer one sent with the note. Final.
-    `notice_reason` is the importNotice reason the engine writes (`media_failure_reason`),
-    so the member reads what to do ("update the plugin"), never "can't be shown here"."""
+    """An Obsidian vault file whose bytes never reached the server (live audit 2026-11-03, F2):
+    attachment sync off for the account, a plugin older than 0.2.0, or a file missing from the
+    list a newer one sent with the note. Final. `notice_reason` is the importNotice reason the
+    engine writes (`media_failure_reason`): "update the plugin" only where an update fixes it,
+    else `not-sent`; never "can't be shown here"."""
 
     def __init__(self, message: str, *, notice_reason: str, **kw):
         super().__init__(message, **kw)

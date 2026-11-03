@@ -344,26 +344,36 @@ async def test_audit_f1_a_markdown_image_alias_shows_the_blob_its_embed_uploaded
     assert not any(s in t for t in _member_texts(result, source_id) for s in _STALE)
 
 
-@pytest.mark.parametrize("version,listed", [("0.2.0", True), (None, False)])
-async def test_audit_f2_an_image_the_plugin_did_not_send_says_update_the_plugin(client, version, listed):
-    """F1/F2: a markdown image no ref names and no other ref resolves. With 0.2.0 (a list,
-    without it) and with a plugin that reports no version (no list, an extension the no-list
-    pass does not read as a file): the note says the plugin did not send it and to update,
-    Recent syncs says the same sentence, and nothing the member reads says the plugin sends
-    no files or that the image "can't be shown here"."""
+@pytest.mark.parametrize("body,name,version,refs,reason,sentence", [
+    # Fix round 1, M-4: what a real 0.2.0 list leaves out. Obsidian's cache holds no HTML
+    # `<img>`, and the plugin skips an unresolved target with no extension (a note link to
+    # it), so neither has a ref. No update brings either: `not-sent`, no remedy named.
+    ('x <img src="att/img.png"> y', "img.png", "0.2.0", [], "not-sent",
+     "img.png wasn't sent from Obsidian, so it isn't shown here."),
+    ("x ![](att/gone) y", "gone", "0.2.0", [], "not-sent",
+     "gone wasn't sent from Obsidian, so it isn't shown here."),
+    # A plugin that reports no version sends no list and no files: updating does fix that.
+    ("x ![](att/gone) y", "gone", None, None, "obsidian-plugin-outdated",
+     "gone wasn't synced. Update the UCT Notebook Sync plugin in Obsidian to bring images and "
+     "files over."),
+])
+async def test_audit_f2_an_image_the_plugin_did_not_send_says_so_honestly(
+        client, body, name, version, refs, reason, sentence):
+    """F1/F2 + fix round 1 (I-1, I-2, M-4, M-5): an image no ref names and no other ref
+    resolves. The note and Recent syncs read one sentence; "update the plugin" only where an
+    update fixes it; nothing the member reads says the plugin sends no files or that the
+    image "can't be shown here"."""
     token, source_id = _connect(client)
-    _ingest(client, token, "x ![](att/gone.webp?v=1) y" if listed else "x ![](att/gone) y",
-            [] if listed else None, version=version)
+    _ingest(client, token, body, refs, version=version)
     result = await sync_engine.sync_source(source_id, full=True, manual=True)
 
     note = _stored_note()
     [notice] = _of_type(note["doc"], "importNotice")
-    name = "gone.webp" if listed else "gone"
-    assert notice["attrs"]["reason"] == "obsidian-plugin-outdated"
-    assert note["pending"] == 0  # final: nothing to retry until the plugin sends it
-    sentence = (f"{name} wasn't synced. Update the UCT Notebook Sync plugin "
-                "in Obsidian to bring images and files over.")
+    assert notice["attrs"]["reason"] == reason
     assert notice["attrs"]["name"] == name
+    assert note["pending"] == 0  # final: nothing to retry
     assert [f["reason"] for f in _latest_log_failures(source_id)] == [sentence]
     texts = _member_texts(result, source_id)
     assert not any(s in t for t in texts for s in _STALE), texts
+    if reason == "not-sent":
+        assert not any("update" in t.lower() for t in texts), texts

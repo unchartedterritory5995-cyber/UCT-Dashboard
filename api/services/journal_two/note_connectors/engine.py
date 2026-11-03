@@ -1827,7 +1827,8 @@ def media_failure_reason(exc: BaseException) -> str:
     `_notice_for_exception`). The ONE mapping: the engine's notices and the member media-fetch
     door (`POST /api/j2/notes/media/fetch`, Plan A Task 9) both read it. One provider type
     carries its own plugin reason: `NoteConnAttachmentNotSent` (an Obsidian file the plugin did
-    not send, live audit 2026-11-03 F2) reads "update the plugin", never `unsupported`."""
+    not send, live audit 2026-11-03 F2) reads its own (`obsidian-plugin-outdated` or `not-sent`),
+    never `unsupported`."""
     if isinstance(exc, media_policy.MediaRejected):
         return exc.reason
     if isinstance(exc, errors.NoteConnUnsafeAddress):

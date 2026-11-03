@@ -84,11 +84,10 @@ import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 import { reportIgnoredFiles } from './reportIgnored'
 import { IMAGE_EXT } from '../mediaRefs'
 import { NOTICE_REASONS } from '../importNotice'
+import { makeObsidianResolver } from '../obsidianResolve'
 
 /** The media ref of an embed of a file the vault does not hold (live audit F3): no vault path. */
 const MISSING_REF_PREFIX = 'obsidian-missing:'
-import { makeObsidianResolver } from '../obsidianResolve'
-
 const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
 // Fence alternative MUST come first — at a run of 3+ backticks it has to win
 // over the inline-span alternative, or the inline pattern would consume just
