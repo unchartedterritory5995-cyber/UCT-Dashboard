@@ -1,0 +1,194 @@
+"""Plan F Task 4: media repair over a stored, already-imported note body.
+
+Pure over its input (every function deep-copies; nothing is written here, the runner writes):
+  * `missing_notices`: a picture or file an earlier import lost (a still-stranded `import-ref://`
+    placeholder, or an image with no source) becomes the visible, final `missing_from_import`
+    marker (Task 2), which tells the member the way back (Re-import to recover);
+  * `hotlinks` / `replace_src`: the images still pointing at someone else's server, by the ONE
+    predicate `shapes.is_hotlink_src` (C11), and the swap to our stored copy once
+    `hotlink_fetch.fetch_and_store` has it. A hotlink that fails to copy is LEFT AS IT IS (it
+    still renders and is the member's best copy; a marker beside a working picture would be
+    false); the runner logs it and the next run retries it;
+  * `lost_file_link_notices`: a relative link to a FILE that never came over (Task 3's
+    `relative_file_unresolved`) keeps its href exactly as written (a repair never makes a note
+    worse) and gets the same marker after its block; the count is the report's `lostLinks`.
+"""
+from __future__ import annotations
+
+import copy
+import posixpath
+from typing import Any
+from urllib.parse import unquote
+
+from api.services.journal_two import import_notice
+from api.services.journal_two.import_repair import links, shapes
+from api.services.journal_two.note_connectors.convert import REF_PREFIX, rewrite_body
+
+REASON = "missing_from_import"
+
+
+def _marker(name: str | None) -> dict:
+    return import_notice.notice_node(REASON, name=name, source_url=None, ref=None, attempts=0)
+
+
+def _text(value: Any) -> str | None:
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _basename(path: str) -> str | None:
+    return _text(posixpath.basename(unquote(path).split("#", 1)[0].split("?", 1)[0]))
+
+
+def _attrs(node: dict) -> dict:
+    attrs = node.get("attrs")
+    return attrs if isinstance(attrs, dict) else {}
+
+
+def _stranded_ref(node: dict) -> str | None:
+    """The ref of a still-pending media placeholder (`shapes`' `stranded_media_ref`)."""
+    attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+    value = _attrs(node).get(attr) if attr else None
+    return value[len(REF_PREFIX):] if isinstance(value, str) and value.startswith(REF_PREFIX) else None
+
+
+def _is_empty_image(node: dict) -> bool:
+    src = _attrs(node).get("src")
+    return node.get("type") == "image" and (not isinstance(src, str) or not src.strip())
+
+
+def missing_notices(doc: dict) -> tuple[dict, list[str]]:
+    """`(new_doc, names)`: every `stranded_media_ref` and `empty_image` node replaced by a
+    `missing_from_import` marker, named by its alt, title, chip name or the ref's file name.
+    `names` lists what each marker reads, in document order (`NAME_FALLBACK` when unnamed)."""
+    notices: dict[str, dict] = {}
+    names: list[str] = []
+
+    def walk(node: Any) -> Any:
+        if isinstance(node, list):
+            return [walk(child) for child in node]
+        if not isinstance(node, dict):
+            return node
+        attrs = _attrs(node)
+        ref = _stranded_ref(node)
+        if ref is not None:
+            if ref not in notices:
+                notices[ref] = _marker(_text(attrs.get("alt")) or _text(attrs.get("title"))
+                                       or _text(attrs.get("name")) or _basename(ref))
+            names.append(notices[ref]["attrs"]["name"] or import_notice.NAME_FALLBACK)
+            return node  # replaced below, by the one placeholder rewrite
+        if _is_empty_image(node):
+            marker = _marker(_text(attrs.get("alt")) or _text(attrs.get("title")))
+            names.append(marker["attrs"]["name"] or import_notice.NAME_FALLBACK)
+            return marker
+        if isinstance(node.get("content"), list):
+            node = {**node, "content": walk(node["content"])}
+        return node
+
+    out = walk(copy.deepcopy(doc))
+    if notices:
+        out, _dropped = rewrite_body(out, {}, {}, strip_unresolved_links=False, notices=notices)
+    return out, names
+
+
+def hotlinks(doc: dict) -> list[str]:
+    """Every distinct still-hotlinked image `src`, in document order (`shapes.is_hotlink_src`)."""
+    out: dict[str, None] = {}
+
+    def walk(node: Any) -> None:
+        if isinstance(node, list):
+            for child in node:
+                walk(child)
+        elif isinstance(node, dict):
+            src = _attrs(node).get("src")
+            if node.get("type") == "image" and shapes.is_hotlink_src(src):
+                out.setdefault(src, None)
+            walk(node.get("content"))
+
+    walk(doc)
+    return list(out)
+
+
+def replace_src(doc: dict, old: str, new: str) -> dict:
+    """A deep copy of `doc` with every `image` whose `src == old` pointing at `new`; every other
+    attr (alt, title, width...) kept."""
+    out = copy.deepcopy(doc)
+
+    def walk(node: Any) -> None:
+        if isinstance(node, list):
+            for child in node:
+                walk(child)
+        elif isinstance(node, dict):
+            attrs = node.get("attrs")
+            if node.get("type") == "image" and isinstance(attrs, dict) and attrs.get("src") == old:
+                attrs["src"] = new
+            walk(node.get("content"))
+
+    walk(out)
+    return out
+
+
+def _link_hrefs(block: dict) -> list[tuple[str, str]]:
+    """`(href, text)` of every link mark on `block`'s own text children, in order."""
+    found: list[tuple[str, str]] = []
+    for child in block.get("content") or []:
+        if not isinstance(child, dict) or child.get("type") != "text":
+            continue
+        for mark in child.get("marks") or []:
+            if isinstance(mark, dict) and mark.get("type") == "link":
+                href = _attrs(mark).get("href")
+                if isinstance(href, str):
+                    found.append((href, child.get("text") or ""))
+    return found
+
+
+def lost_file_link_notices(doc: dict, *, import_key: str, import_source: str,
+                           index: links.FileKeyIndex) -> tuple[dict, int]:
+    """`(new_doc, lost)`: after each block holding a relative link Task 3's rule calls a lost
+    FILE (`relative_file_unresolved`), one `missing_from_import` marker per distinct file name,
+    unless the markers right after the block already carry it (so a second run adds nothing).
+    The link itself is never touched. `lost` counts every such link, every run."""
+    out = copy.deepcopy(doc)
+    lost = 0
+
+    def names_lost(block: dict) -> list[str]:
+        nonlocal lost
+        names: list[str] = []
+        for href, text in _link_hrefs(block):
+            if not shapes.is_relative_href(href):
+                continue
+            _key, action = links.relative_target(href, import_key=import_key,
+                                                 import_source=import_source, index=index)
+            if action != links.FILE_UNRESOLVED:
+                continue
+            lost += 1
+            name = _basename(href) or _text(text) or import_notice.NAME_FALLBACK
+            if name not in names:
+                names.append(name)
+        return names
+
+    def walk(container: dict) -> None:
+        content = container.get("content")
+        if not isinstance(content, list):
+            return
+        i = 0
+        while i < len(content):
+            child = content[i]
+            if not isinstance(child, dict):
+                i += 1
+                continue
+            names = names_lost(child)
+            walk(child)
+            j = i + 1
+            present: set[str] = set()
+            while j < len(content) and isinstance(content[j], dict) \
+                    and content[j].get("type") == import_notice.IMPORT_NOTICE_TYPE:
+                attrs = _attrs(content[j])
+                if attrs.get("reason") == REASON:
+                    present.add(attrs.get("name") or import_notice.NAME_FALLBACK)
+                j += 1
+            new = [_marker(None if n == import_notice.NAME_FALLBACK else n) for n in names if n not in present]
+            content[j:j] = new
+            i = j + len(new)
+
+    walk(out)
+    return out, lost

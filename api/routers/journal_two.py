@@ -2681,11 +2681,15 @@ def sector_theme_facets_endpoint(
 NOTE_MEDIA_FETCH_RATE = "120/minute"
 SCOPE_NOTE_MEDIA_FETCH = "notebook-media-fetch"
 NOTE_MEDIA_FETCH_RATE_SENTENCE = "That's a lot of images to copy in at once. Try again in a minute."
-_MEDIA_FETCH_TIMEOUT_S = 30.0
+from api.services.journal_two import hotlink_fetch  # noqa: E402
+
+#: Plan F Task 4: the values live in `hotlink_fetch` (one each, shared with the import repair);
+#: these names stay because the door's tests patch them, and are read at call time.
+_MEDIA_FETCH_TIMEOUT_S = hotlink_fetch.FETCH_TIMEOUT_S
 #: Task 9 fix round 1 (I2): the whole fetch (every hop, every slow-drip read) has ONE deadline.
 #: `_MEDIA_FETCH_TIMEOUT_S` is per read, so without it a server trickling a byte at a time
 #: holds the socket indefinitely. Waiting for a global slot counts against it too.
-MEDIA_FETCH_DEADLINE_S = 60.0
+MEDIA_FETCH_DEADLINE_S = hotlink_fetch.FETCH_DEADLINE_S
 #: ...and at most this many downloads at once: per member (over it => 429 at once, never a
 #: queue) and for the whole pod (`notebook_link_preview._SEM`'s pattern). Per-process state,
 #: like that one (CLAUDE.md's single-process roster): a second process doubles both.
@@ -2704,10 +2708,7 @@ def _media_fetch_client():
     return media_http_client(timeout=_MEDIA_FETCH_TIMEOUT_S)
 
 
-def _hotlink_filename(url: str) -> str:
-    from urllib.parse import unquote, urlsplit
-    name = unquote(urlsplit(url).path.rsplit("/", 1)[-1]).strip()
-    return name or "image"
+_hotlink_filename = hotlink_fetch.filename_of
 
 
 # ⛔ Declared ABOVE every `POST /notes/{note_id}/...` route, so no path parameter can ever
@@ -2726,10 +2727,8 @@ async def notes_media_fetch_endpoint(payload: dict[str, Any] = Depends(_json(dic
     our own URL; the stored file is handed to documents like an upload; any refusal => 422 `{"reason", "markerText"}` at the
     top level, the reason decided by TYPE (`engine.media_failure_reason`), never a 500."""
     from fastapi.responses import JSONResponse
-    from starlette.concurrency import run_in_threadpool
     from api.services.journal_two import public_note_payload as public
     from api.services.journal_two.note_connectors import engine as note_engine
-    from api.services.journal_two.note_connectors.providers.base import fetch_content_url
     url = payload.get("url")
     key = payload.get("noteImportKey")
     if not isinstance(url, str) or not url.strip():
@@ -2750,27 +2749,19 @@ async def notes_media_fetch_endpoint(payload: dict[str, Any] = Depends(_json(dic
         raise HTTPException(status_code=429, detail=NOTE_MEDIA_FETCH_BUSY_SENTENCE)
     _media_fetch_inflight[user_id] = _media_fetch_inflight.get(user_id, 0) + 1
 
-    async def download():
-        async with _MEDIA_FETCH_SEM:
-            async with _media_fetch_client() as client:
-                return await fetch_content_url(client, url, what="Linked image")
+    def release_slot():
+        left = _media_fetch_inflight.get(user_id, 1) - 1
+        if left > 0:
+            _media_fetch_inflight[user_id] = left
+        else:
+            _media_fetch_inflight.pop(user_id, None)
 
     try:
-        try:
-            data, content_type = await asyncio.wait_for(download(), MEDIA_FETCH_DEADLINE_S)
-        finally:
-            left = _media_fetch_inflight.get(user_id, 1) - 1
-            if left > 0:
-                _media_fetch_inflight[user_id] = left
-            else:
-                _media_fetch_inflight.pop(user_id, None)
-
-        def decide_and_store():
-            result = media_policy.normalize_media(data, content_type, filename)
-            budget = media_policy.MediaBudget.for_member(user_id)
-            return media_policy.store_media(user_id, note_id, result, budget=budget)
-
-        stored = await run_in_threadpool(decide_and_store)
+        # Plan F Task 4: the one fetch core, shared with the import repair. The door's seams are
+        # read here, at call time (C1), and the slot is given back when the download ends.
+        stored = await hotlink_fetch.fetch_and_store(
+            user_id, note_id, url, client_factory=_media_fetch_client, deadline_s=MEDIA_FETCH_DEADLINE_S,
+            semaphore=_MEDIA_FETCH_SEM, after_download=release_slot)
     except Exception as e:  # noqa: BLE001 -- every refusal is a named 422, never a 500
         reason = note_engine.media_failure_reason(e)
         if reason == "storage_limit":
