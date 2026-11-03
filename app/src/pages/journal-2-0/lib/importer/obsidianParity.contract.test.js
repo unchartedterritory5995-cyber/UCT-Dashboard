@@ -344,23 +344,21 @@ describe('Obsidian adversarial alias corpus (ruling B)', () => {
     expect(ADVERSARIAL.cases.length).toBeGreaterThanOrEqual(190)
   })
 
-  it('the client links the same notes as the server and never shows an internal key', async () => {
-    const disagree = []
-    const leaks = []
-    for (const { input, targets } of ADVERSARIAL.cases) {
+  // D3 review M6: one test per case. The single loop over ~200 full pipelines took 2 s alone
+  // and passed its 15 s timeout under a busy batch; each case is now its own test (~10 ms), far
+  // from any timeout, and a red one names its input.
+  it.each(ADVERSARIAL.cases.map((c, i) => [i, c]))(
+    'case %i: the client links the same notes as the server and never shows an internal key',
+    async (_i, { input, targets }) => {
       const vfiles = ADVERSARIAL.vault_paths.map((p) => vf(p, p === 'a.md' ? input : ''))
       // Through `parseImport`, the wizard's own call (as `clientSummaryFor` above).
       const { docs } = await parseImport(obsidianAdapter, vfiles, {})
       const doc = docs.find((d) => d.importKey === 'obsidian:a.md')
       const { bodyJson } = htmlToNote(doc.html)
       const got = [...new Set(semanticSummary(bodyJson).links.map((l) => l.target))].sort()
-      if (JSON.stringify(got) !== JSON.stringify(targets)) disagree.push({ input, got, targets })
+      expect({ input, got }).toEqual({ input, got: targets })
       const seen = visibleStrings(bodyJson).join(' ')
-      if (INTERNAL_MARKERS.some((m) => seen.includes(m)) || CLIENT_PLACEHOLDER_RE.test(seen)) {
-        leaks.push({ input, seen })
-      }
-    }
-    expect(leaks).toEqual([])
-    expect(disagree).toEqual([])
-  })
+      expect(INTERNAL_MARKERS.filter((m) => seen.includes(m)), seen).toEqual([])
+      expect(CLIENT_PLACEHOLDER_RE.test(seen), seen).toBe(false)
+    })
 })
