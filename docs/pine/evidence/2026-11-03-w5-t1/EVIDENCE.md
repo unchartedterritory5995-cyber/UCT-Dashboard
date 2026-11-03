@@ -1,0 +1,60 @@
+# W5-T1 server bundle: evidence
+
+Lane: W5-T1 (docs/pine/SERVER-RUNTIME-DESIGN.md section 7, P0 T1), desktop machine.
+Branch `feat/pine-w5-t1-server-bundle`. Tested on master `5d95103c8a` (merge-base = origin/master at start).
+No engine source changed (runtime files untouched except the new `serverEntry.js`), so no
+measure-pair is required and **no SCRIPT_ENGINE_VERSION bump is needed**.
+
+## What is new
+- `app/src/components/chart/engine/runtime/serverEntry.js`: re-exports only (computeRuntimeColumns,
+  runtimeVersionRefusal, resetRuntimeSessions, resetRuntimeLedgers, SCRIPT_ENGINE_VERSION,
+  RUNTIME_FRONTEND_LANGUAGE/VERSION, RUNTIME_IR_VERSION).
+- `app/scripts/build-pine-runtime.mjs`: esbuild, ESM, node20 target, `dist-server/pine-runtime.mjs` plus
+  `pine-runtime.manifest.json` (bytes, sha256, modules, baked VITE_* names). `import.meta.env` is baked
+  once from the process's `VITE_*` variables (H3). jsep and the four JSON tables are inlined (H2).
+  Not wired into `npm run build`, no Docker (T10).
+- `app/scripts/measure-pine-runtime.mjs`: the bare-Node run (first-party indicator: MACD(12,26,9), RSI 14, ATR 14).
+- Rail: `runtime/__tests__/serverBundle.rail.test.js` (6 tests).
+
+## First measured bare-Node run (5,000 daily bars)
+Commands (from `app/`; the run directory holds only the bundle, its manifest and the script, no node_modules):
+```
+node scripts/build-pine-runtime.mjs --out <dir>/pine-runtime.mjs
+cd <dir> && node measure-pine-runtime.mjs --bundle pine-runtime.mjs \
+  --bars <repo>/tests/fixtures/vendor/harness/vw-deadband-ticks-aapl-1d-2026-09-28.json --n 5000 --runs 5
+```
+Bundle: 2,140,179 bytes, 90 modules, sha256 a27a389e3b78dc3e0f72a6e6352c37bc6e09eaf4e47e918521ec745df9f3ee2e
+(built with no VITE_* set). Node v24.13.1 on the desktop (Windows 11).
+
+| measure | value |
+|---|---|
+| bars | 5,000 (4 columns, 19,915 finite values) |
+| import of the bundle | 61.5 ms (253 ms on the first, cold-disk run) |
+| cold run (`incremental:false`) | 48.1 ms |
+| runs 1-5 (ms) | 48.1, 15.1, 8.9, 8.0, 6.4; median 8.9 |
+| RSS after 5 runs | 88.5 MB |
+| heap used | 17.6 MB |
+| columns sha256 (Float64 LE, NaN canonical) | fe780ebfc0e575852d759ad7a72b93ef32b948bc0dcc86edec7a63e7904e053d |
+
+The rail runs the same child process on 400 bars. Note: one light indicator; heavy corpus scripts
+(94-144 ms per PHASE3 RT1) are a T9 measurement. The bundle still contains the fetch-bearing modules
+(`serverCompute`, `runtimeKill`) and the two build gates: cutting those edges is T2.
+Build warning (pre-existing, not ours): esbuild `duplicate-case` at `runtime/ir.js:518` (`EXPR.TUPLE`).
+
+## Rail tests (red on master, green on tip)
+All six tests in `serverBundle.rail.test.js` are red on master (the suite cannot load: the build script and
+entry do not exist). Proved in the final job by moving `build-pine-runtime.mjs` aside (byte-exact restore).
+Green on tip: see FINAL below.
+
+## Mutation table (mutate.py, rail file only)
+| mutation | killed by |
+|---|---|
+| `external: ['jsep']` | "leaves no bare or JSON import" and the bare-node run |
+| `define` dropped | "bakes import.meta.env once" |
+| VITE_* not spread into the define | "bakes import.meta.env once" (sha equal) |
+| `viteEnvOf` unsorted | "bakes import.meta.env once" (order assertion; first attempt SURVIVED because `toEqual` ignores key order, rail fixed) |
+| `viteEnvOf` bakes every var | "bakes import.meta.env once" (viteEnvNames) |
+| entry drops `resetRuntimeLedgers` | "exports the entry surface" |
+| entry drops `RUNTIME_IR_VERSION` | "exports the entry surface" |
+| format `cjs` | "exports the entry surface" |
+No equivalent survivors.

@@ -64,7 +64,7 @@ describe('server bundle (W5-T1)', () => {
     expect(on.manifest.viteEnvNames).toEqual(['VITE_PINE_LOWER_TF_ENABLED'])
     expect(on.manifest.sha256).not.toBe(built.manifest.sha256)
     expect(built.manifest.viteEnvNames).toEqual([])
-    expect(viteEnvOf({ VITE_B: '2', X: '1', VITE_A: '1' })).toEqual({ VITE_A: '1', VITE_B: '2' })
+    expect(Object.entries(viteEnvOf({ VITE_B: '2', X: '1', VITE_A: '1' }))).toEqual([['VITE_A', '1'], ['VITE_B', '2']])
   })
 
   it('is deterministic: a second build of the same tree has the same sha256', async () => {
