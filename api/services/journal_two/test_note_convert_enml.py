@@ -406,6 +406,39 @@ def test_converter_uses_no_private_mddoc_link_policy():
     assert "resolve_href" in source
 
 
+# ---- I3: the lift is linear -------------------------------------------------------------------
+
+
+def _linked_images(n: int) -> str:
+    return "".join(f'<div><a href="https://e.com/{i}"><en-media hash="{IMG_HASH}" type="image/png"/>'
+                   f"</a></div>" for i in range(n))
+
+
+def _best_of(fn, runs: int = 2) -> float:
+    import time
+    best = float("inf")
+    for _ in range(runs):
+        t0 = time.perf_counter()
+        fn()
+        best = min(best, time.perf_counter() - t0)
+    return best
+
+
+def test_4000_linked_images_convert_in_about_a_second():
+    body = _linked_images(4000)
+    elapsed = _best_of(lambda: _convert(body, [IMG]))
+    assert elapsed < 1.0, f"4000 linked images took {elapsed:.2f}s"
+    out = _convert(body, [IMG])
+    assert len(_of_type(out, "image")) == 4000
+
+
+def test_linked_image_conversion_scales_linearly_not_quadratically():
+    small = _best_of(lambda: _convert(_linked_images(1000), [IMG]))
+    large = _best_of(lambda: _convert(_linked_images(4000), [IMG]))
+    # Linear is ~4x for 4x the input; the quadratic lift measured ~17x (0.33 s -> 5.8 s).
+    assert large < small * 8, f"1000: {small:.3f}s, 4000: {large:.3f}s"
+
+
 # --------------------------------------------------------------------------- source line
 
 

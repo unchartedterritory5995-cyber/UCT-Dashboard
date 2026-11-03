@@ -239,10 +239,6 @@ def _replace(parent: _Node, node: _Node, replacement: list[Any]) -> None:
             return
 
 
-def _detach(parent: _Node, node: _Node) -> None:
-    _replace(parent, node, [])
-
-
 def _map_elements(node: _Node, fn: Callable[[_Node], list[Any] | None]) -> None:
     """Bottom-up: children first, then `fn(child)`; a list return replaces the child."""
     new_children: list[Any] = []
@@ -487,46 +483,44 @@ def _is_media(n: Any) -> bool:
     return isinstance(n, _Node) and (n.tag == "img" or (n.tag == "a" and "data-uct-chip" in n.attrs))
 
 
-def _outer_media(a: _Node) -> list[_Node]:
+def _extract_media(node: _Node) -> list[_Node]:
+    """Removes the OUTERMOST media under `node` (a chip moves whole) and returns it, in order.
+    One walk of `node`'s subtree."""
     found: list[_Node] = []
-
-    def walk(n: _Node) -> None:
-        for c in n.children:
-            if isinstance(c, _Node):
-                if _is_media(c):
-                    found.append(c)  # outermost: a chip moves whole
-                else:
-                    walk(c)
-
-    walk(a)
+    kept: list[Any] = []
+    for c in node.children:
+        if _is_media(c):
+            found.append(c)
+            continue
+        if isinstance(c, _Node):
+            found.extend(_extract_media(c))
+        kept.append(c)
+    node.children = kept
     return found
 
 
 def _rule_lift_media(root: _Node) -> None:
-    for a in _iter(root, "a"):
-        if _is_media(a):
-            continue  # a chip is never a link to lift from
+    """ONE bottom-up pass (Task 3 review I3: the first version rebuilt a parent map per anchor and
+    was quadratic; a 5 MB note of linked thumbnails never finished). Each anchor's subtree is walked
+    once; a link inside a link is walked once per enclosing link."""
+    def fn(a: _Node) -> list[Any] | None:
+        if a.tag != "a" or _is_media(a):
+            return None  # a chip is never a link to lift from
         href = (a.attrs.get("href") or "").strip()
         marked = "data-evernote-link" in a.attrs
         if not href and not marked:
-            continue
-        media = _outer_media(a)
+            return None
+        media = _extract_media(a)
         if not media:
-            continue
-        parents = _parents(root)
-        container = parents.get(id(a))
-        if container is None:
-            continue
-        for m in media:
-            _detach(parents[id(m)], m)
-        idx = next(i for i, c in enumerate(container.children) if c is a)
-        container.children[idx:idx] = media
+            return None
         if _text_of(a).strip():
-            continue
+            return [*media, a]
         if marked or not href:
-            _replace(container, a, list(a.children))  # its content
-        else:
-            a.children = [href]  # already resolved by `_rule_resolve_web_links`
+            return [*media, *a.children]  # its content
+        a.children = [href]  # already resolved by `_rule_resolve_web_links`
+        return [*media, a]
+
+    _map_elements(root, fn)
 
 
 def _code_text(node: _Node) -> str:
