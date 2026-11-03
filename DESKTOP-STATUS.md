@@ -1,12 +1,12 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-03 22:02 CT
+updated: 2026-11-03 22:10 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
-free RAM: 11867 MB · builder cap: owner raised it 2026-11-03 ("use more agents"); currently 6 running (1 Opus, 5 Sonnet). Heavy jobs still one at a time through the lock, so expect queue waits.
+free RAM: 14838 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (1 Opus, 5 Sonnet). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
 baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
-poll on ops/pine-coord: ARMED (15 min); ASSIGNMENTS.md last read at a coordinator commit with all 8 desktop lanes QUEUED
+poll on ops/pine-coord: ARMED (15 min). Read a48cbe455f: cap ruling, engine order T4=6 T3=7 W3=8, deploy-freeze windows, F1/F2 follow-ups noted (not assigned). No desktop action required.
 
 ### Setup verification (DESKTOP-PROMPT section 3)
 - env-desktop.sh: OK. UCT_WORKTREES=/c/Users/Patrick/uct-worktrees, UCT_RESUME=.../_resume-2026-11-01, HEAVY_LOCK=C:/Users/Patrick/uct-clips/tools/heavy_lock.py, UCT_PY=python
