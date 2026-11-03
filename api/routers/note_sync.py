@@ -911,6 +911,11 @@ async def list_provider_folders(
 
 # ── POST /{provider}/sources (add an additional source) ──────────────────────
 
+#: The answer to a second Evernote source (final review M1): Evernote syncs the whole account.
+EVERNOTE_ONE_SOURCE = ("Evernote syncs your whole account, and it is already connected. "
+                       "There is nothing more to add.")
+
+
 @router.post("/{provider}/sources")
 async def add_source(provider: str, user: dict = Depends(_paid), body: AddSourceBody = Depends(_json(AddSourceBody))) -> dict[str, Any]:
     if not registry.is_known(provider):
@@ -921,6 +926,11 @@ async def add_source(provider: str, user: dict = Depends(_paid), body: AddSource
     remote_id = (body.remoteId or "").strip()
     if not remote_id:
         raise HTTPException(status_code=400, detail="remoteId is required")
+    if provider == "evernote" and any(
+            src["provider"] == "evernote" for src in connections.list_sources(user["id"])):
+        # Final review M1: Evernote's import keys do not depend on the source, so a second source
+        # would sync the same notes under the same keys into a second folder.
+        raise HTTPException(status_code=409, detail=EVERNOTE_ONE_SOURCE)
 
     entry = registry.get_entry(provider)
     label = body.displayName or remote_id

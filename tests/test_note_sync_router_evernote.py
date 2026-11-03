@@ -383,3 +383,24 @@ def test_disconnect_evernote_deletes_connector_and_keeps_notes(client_admin):
     st = client_admin.get(f"{BASE}/status").json()["providers"]["evernote"]
     assert st["connected"] is False and st["sources"] == []
     assert any(n["title"] == "Kept Evernote Note" for n in notes_svc.list_notes("u1"))
+
+
+# ── final review M1: one whole-account source ────────────────────────────────
+
+@pytest.mark.parametrize("remote_id", ["account", "another"])
+def test_a_second_evernote_source_is_refused_with_a_clear_message(client_admin, remote_id):
+    """Evernote's import keys do not depend on the source, so a second source would sync the same
+    notes under the same keys into a second folder with a second delete index."""
+    _seed_evernote_source()
+    r = client_admin.post(f"{BASE}/evernote/sources", json={"remoteId": remote_id})
+    assert r.status_code == 409
+    assert r.json()["detail"] == ns.EVERNOTE_ONE_SOURCE
+    assert len([s for s in connections.list_sources("u1") if s["provider"] == "evernote"]) == 1
+
+
+def test_a_first_evernote_source_is_still_created(client_admin):
+    connections.upsert_connector("u1", "evernote", {"accessToken": "a", "refreshToken": "r"},
+                                 account_label="Evernote")
+    r = client_admin.post(f"{BASE}/evernote/sources", json={"remoteId": "account"})
+    assert r.status_code == 200
+    assert [s["provider"] for s in connections.list_sources("u1")] == ["evernote"]
