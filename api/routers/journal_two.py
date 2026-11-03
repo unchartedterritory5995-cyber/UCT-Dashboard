@@ -3427,6 +3427,55 @@ def notes_import_heal_links_endpoint(payload: dict[str, Any] = Depends(_json(dic
     return {"healed": out["healed"], "unresolved": out["unresolved"]}
 
 
+#: Plan F Task 9: the member's import-repair notice doors. Cheap reads of one row, but a
+#: polled GET still gets a budget. In-process Limiter state (CLAUDE.md's single-process
+#: roster): a second process doubles it.
+NOTE_IMPORT_REPAIR_NOTICE_RATE = "60/minute"
+SCOPE_NOTE_IMPORT_REPAIR_NOTICE = "notebook-import-repair-notice"
+NOTE_IMPORT_REPAIR_NOTICE_RATE_SENTENCE = "Too many requests. Try again in a minute."
+
+
+def _repair_notice_rate(user_id: str) -> None:
+    from api.services.journal_two import public_note_payload as public
+    public.enforce_rate(NOTE_IMPORT_REPAIR_NOTICE_RATE, SCOPE_NOTE_IMPORT_REPAIR_NOTICE, f"member:{user_id}",
+                        NOTE_IMPORT_REPAIR_NOTICE_RATE_SENTENCE, public=False)
+
+
+# ⛔ Declared ABOVE every `/notes/{note_id}` route, so no path parameter reads "import" as a
+# note id. Plain `def` routes: FastAPI runs them on the threadpool, never SQLite on the loop.
+@router.get("/notes/import/repair-notice")
+def notes_import_repair_notice_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Plan F Task 9: the CALLER's own import-repair notice: some of their imported notes lost
+    a picture, a file, or a link to a file (`store.pending_notice`; a lost-file-link-only note
+    counts, as ruled). `{show, lossNotes}`; no undismissed notice reads `{show: false, lossNotes: 0}`.
+    The member id comes only from the session, never from the request."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two.import_repair import store
+    _repair_notice_rate(user["id"])
+    conn = get_connection()
+    try:
+        loss = store.pending_notice(conn, user["id"])
+    finally:
+        conn.close()
+    return {"show": bool(loss), "lossNotes": int(loss or 0)}
+
+
+@router.post("/notes/import/repair-notice/dismiss")
+def notes_import_repair_notice_dismiss_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Plan F Task 9: dismiss the CALLER's own notice. An UPDATE (`store.dismiss_notice`; the
+    row stays), idempotent: dismissing an already-dismissed or missing notice is still ok, and
+    a later repair run never re-arms it."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two.import_repair import store
+    _repair_notice_rate(user["id"])
+    conn = get_connection()
+    try:
+        store.dismiss_notice(conn, user["id"])
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
 @router.post("/notes/enrichment/scan")
 def notes_enrichment_scan_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
     """The arrival-screen enrichment offer (spec §8.1): scan a set of a
