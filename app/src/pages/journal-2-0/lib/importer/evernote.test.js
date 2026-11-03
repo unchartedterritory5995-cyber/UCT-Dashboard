@@ -118,6 +118,49 @@ describe('evernote adapter: en-media unwrap (same trap as en-todo)', () => {
   })
 })
 
+// D2 item 5 (shared parse, `convert.js::htmlToNote`): through an .enex note.
+describe('evernote adapter — D2 item 5: no empty paragraph, no lost space', () => {
+  const shape = (n) => (n.type === 'text' ? JSON.stringify(n.text)
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  it('an image alone in its paragraph, and text before a file chip', async () => {
+    const { htmlToNote } = await import('./convert')
+    const pdfB64 = btoa('%PDF-1.4 d2')
+    const pdfMd5 = SparkMD5.ArrayBuffer.hash(Uint8Array.from(atob(pdfB64), (c) => c.charCodeAt(0)).buffer)
+    const note = `<?xml version="1.0" encoding="UTF-8"?>
+<en-export><note><title>Shapes</title>
+  <content><![CDATA[<?xml version="1.0"?><!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><p>Top</p><p><en-media type="image/png" hash="${pngMd5}"></en-media></p><div>Read <en-media type="application/pdf" hash="${pdfMd5}"></en-media> more</div></en-note>]]></content>
+  <created>20240105T093000Z</created>
+  <resource><data encoding="base64">${PNG_B64}</data><mime>image/png</mime>
+   <resource-attributes><file-name>chart.png</file-name></resource-attributes></resource>
+  <resource><data encoding="base64">${pdfB64}</data><mime>application/pdf</mime>
+   <resource-attributes><file-name>plan.pdf</file-name></resource-attributes></resource>
+</note></en-export>`
+    const file = { path: 'N.enex', size: note.length, lastModified: null, bytes: async () => new TextEncoder().encode(note) }
+    const { docs } = await evernoteAdapter.parse([file])
+    expect(shape(htmlToNote(docs[0].html).bodyJson)).toBe(
+      'doc(paragraph("Top"), image, paragraph("Read "), attachmentChip, paragraph(" more"))')
+  })
+})
+
+describe('evernote adapter — D2 fix round 1: an entity-encoded noncharacter survives', () => {
+  it('keeps it beside an image split', async () => {
+    const { htmlToNote } = await import('./convert')
+    const note = `<?xml version="1.0" encoding="UTF-8"?>
+<en-export><note><title>N</title>
+  <content><![CDATA[<?xml version="1.0"?><!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><p>keep &#xFDD0;</p><p>&#xFDD0;</p><p>Read <en-media type="image/png" hash="${pngMd5}"></en-media></p></en-note>]]></content>
+  <created>20240105T093000Z</created>
+  <resource><data encoding="base64">${PNG_B64}</data><mime>image/png</mime>
+   <resource-attributes><file-name>chart.png</file-name></resource-attributes></resource>
+</note></en-export>`
+    const file = { path: 'N.enex', size: note.length, lastModified: null, bytes: async () => new TextEncoder().encode(note) }
+    const { docs } = await evernoteAdapter.parse([file])
+    const nc = String.fromCharCode(0xfdd0) // a noncharacter, spelled by code point
+    expect(htmlToNote(docs[0].html).bodyPlain).toBe(`keep ${nc} ${nc} Read `)
+  })
+})
+
 // ---------------------------------------------------------------------------
 // Plan B Task 6 (spec E-4, E-6, E-11, E-12, E-14): links keep their children,
 // an image inside a link survives, the clip source is kept, declared MIME,
@@ -207,10 +250,13 @@ describe('evernote adapter: Plan B Task 6', () => {
     expect(d.html.indexOf(`import-ref://${pngMd5}`)).toBeLessThan(d.html.indexOf('Tail'))
     expect((d.html.match(/<img/g) || []).length).toBe(1)
     expect(d.media.map((m) => m.ref)).toContain(pngMd5)
-    // Through the post-parse pass too: the image is still there, no evernote: href is left.
+    // Through the post-parse pass too: the image is still there, no evernote: HREF is left.
+    // Task 9 fix round 1 (concern 2, ruling): the link survives right after the image, heal-able by
+    // its GUID; with no alt its visible text is the href as written.
     const f = await finishOne(body)
     expect(f.html).toContain(`<img src="import-ref://${pngMd5}">`)
-    expect(f.html).not.toContain('evernote:')
+    expect(f.html).not.toMatch(/href="evernote:/i)
+    expect(f.html).toContain('data-import-link="evernote:guid:abc"')
     expect(f.media.map((m) => m.ref)).toContain(pngMd5)
   })
 

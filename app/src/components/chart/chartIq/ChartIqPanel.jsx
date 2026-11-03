@@ -87,6 +87,16 @@ export function errorText(error) {
   return 'Chart IQ could not read this chart'
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "2026-10-30" -> "Oct 30 close": every read is built from a completed session, so during market hours it says plainly
+ * that it is not today's price action. Pure string work: no Date, no time zone. */
+export function closeLabel(asof) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(asof || '')
+  if (!m) return ''
+  return `${MONTHS[Number(m[2]) - 1] || m[2]} ${Number(m[3])} close`
+}
+
 export default function ChartIqPanel({ data, loading, error, layers, onLayer, onClose, notDaily = false, onShowDaily = null }) {
   const [open, setOpen] = useState(false)
   if (notDaily) {
@@ -114,6 +124,8 @@ export default function ChartIqPanel({ data, loading, error, layers, onLayer, on
       <div style={head} onClick={() => setOpen((v) => !v)} role="button" aria-expanded={open} tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v) } }}>
         <span style={tag}>Chart IQ</span>
+        {data?.asof ? <span style={{ ...sub, whiteSpace: 'nowrap' }} data-testid="chart-iq-asof"
+          title={`This read uses prices through the ${data.asof} close`}>{closeLabel(data.asof)}</span> : null}
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: open ? 'normal' : 'nowrap' }}>
           {status || (open ? '' : firstSentence(data?.thesis))}
         </span>

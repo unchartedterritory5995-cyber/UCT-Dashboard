@@ -3,6 +3,8 @@
 // Custom-Period Sort panel (grab dots, colour dot, gold corner resize, close);
 // reuses PeriodSortPanel.module.css so the two windows look identical.
 import { useState, useCallback } from 'react'
+import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import { WATCHLIST_SETTINGS_KEY } from '../../watchlist/watchlistSettings'
 import EtfHoldingsResults from './EtfHoldingsResults'
 import UIcon from '../../../components/ui/UIcon'
 import styles from '../PeriodSortPanel.module.css'
@@ -26,6 +28,16 @@ export default function EtfHoldingsPanel({ sym, onClose, centerOn = null, themeV
   const [size, setSize] = useState({ w: DEF_W, h: DEF_H })
   const [panelColor, setPanelColor] = useState('A')
   const extraGroupsOn = useExtraGroupsEnabled()
+  // ⭐ POLICY A (owner ruling 2026-11-02): an edit is saved where the list lives.
+  // This floating window owns no persisted store (its position, size and colour
+  // are session state too), so its watchlist settings are scoped to THIS window
+  // for the session. Without a sink, Watchlists wrote every ⚙ edit made here to
+  // the member's GLOBAL watchlist_settings, restyling every list they own.
+  // The seed is unchanged: the host's look, else the member's own template.
+  const { prefs } = usePreferences()
+  const [ownWlSettings, setOwnWlSettings] = useState(null)
+  const persistWlSettings = useCallback((next) => setOwnWlSettings(next && typeof next === 'object' ? next : null), [])
+  const wlSettingsOverride = ownWlSettings || wlOverride || parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null) || null
 
   const onHeaderPointerDown = useCallback((e) => {
     if (e.target.closest('[data-no-drag]')) return
@@ -77,7 +89,7 @@ export default function EtfHoldingsPanel({ sym, onClose, centerOn = null, themeV
         </div>
       </div>
       <div className={styles.panelBody}>
-        <EtfHoldingsResults sym={sym} color={panelColor === 'N' ? null : panelColor} settingsOverride={wlOverride} />
+        <EtfHoldingsResults sym={sym} color={panelColor === 'N' ? null : panelColor} settingsOverride={wlSettingsOverride} onSettingsPersist={persistWlSettings} />
       </div>
       <span className={`${styles.corner} ${styles.cornerNW}`} onPointerDown={startResize('nw')} />
       <span className={`${styles.corner} ${styles.cornerNE}`} onPointerDown={startResize('ne')} />

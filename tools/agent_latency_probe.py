@@ -9,10 +9,13 @@ executed: no browser, no backend, no database, no workspace, no market data, no 
   python tools/agent_latency_probe.py BODIES.json                        # DRY RUN: sizes + worst cost
   python tools/agent_latency_probe.py BODIES.json --run --max-usd 0.50   # paid
 
-⛔ --run needs ANTHROPIC_API_KEY ALREADY in this process's environment (never fetched, never printed) and
---max-usd ≤ 1.00. Before EVERY call, spend so far + that call's worst case must stay under the ceiling,
-or the probe STOPS. Research is disabled (a request that asks for it gets "research unavailable" — the
-second call still runs and is counted). Replies are never printed — only timings, counts and costs.
+⛔ --run needs UCT_AGENT_EVAL_API_KEY ALREADY in this process's environment (the SEPARATE eval key — the
+production ANTHROPIC_API_KEY is refused, never fetched, never printed) and --max-usd ≤ 1.00. Before EVERY
+call (the second call of a turn included), spend so far + that call's worst case (the whole request as a
+CACHE WRITE + max_tokens output) must stay under the ceiling AND be reserved in the cumulative ledger
+(tools/agent_eval_ledger.py), or the probe STOPS; each call is settled from its usage. Research is stubbed
+(a request that asks for it gets "research unavailable" — the second call still runs and is counted).
+Replies are never printed — only timings, counts and costs.
 """
 from __future__ import annotations
 
@@ -26,15 +29,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import conftest  # noqa: E402,F401 -- every *_DB_PATH → a sandbox, before any api.* import
 from api.services.uct_agent import turn  # noqa: E402
+from tools import agent_eval_ledger as ledger  # noqa: E402
 
 HARD_CEILING_USD = 1.00
-CHARS_PER_TOKEN = 3.0
-IN_USD, OUT_USD = 1.00 / 1e6, 5.00 / 1e6          # claude-haiku-4-5 list prices (cache reads cheaper)
+SYSTEM_HEADROOM_TOKENS = 9000
 
 
-def worst_cost(body: dict) -> float:
-    est_in = len(json.dumps(body)) / CHARS_PER_TOKEN + 9000 / CHARS_PER_TOKEN * 3   # + system prompt headroom
-    return est_in * IN_USD + turn.MAX_TOKENS * OUT_USD
+def worst_cost(body: dict, model: str | None = None) -> float:
+    """One call's worst case (dry-run estimate): every body byte as a token + system-prompt headroom + framing, ALL
+    billed as a CACHE WRITE at the verified price, + the full output ceiling. The run itself reserves the exact
+    request's worst case per call (ledger.worst_case_usd), never this estimate."""
+    m = model or turn.model()
+    est_in = len(json.dumps(body)) + SYSTEM_HEADROOM_TOKENS + ledger.FRAMING_TOKENS
+    return ledger.cost_usd(m, cache_write=int(est_in), output=turn.output_ceiling(m))
 
 
 def main() -> int:
@@ -59,37 +66,61 @@ def main() -> int:
     if not a.run:
         print("DRY RUN — nothing sent.")
         return 0
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("STOP: ANTHROPIC_API_KEY is not set in this process.")
-        return 2
     if not 0 < a.max_usd <= HARD_CEILING_USD:
         print(f"STOP: --max-usd must be in (0, {HARD_CEILING_USD}].")
         return 2
-    turn._research = lambda q, r: {"answer": "research unavailable right now", "citations": []}
+    ledger.stub_research(turn)
+    model = turn.model()
+    try:
+        led, key, key_fp = ledger.preflight(turn, max_usd=a.max_usd)
+        import anthropic
+        client = anthropic.Anthropic(api_key=key, max_retries=0, timeout=60.0)
+        ledger.check_model(client, model)
+    except ledger.LedgerRefused as e:
+        print(f"STOP: {e}")
+        return 2
+    run_id = f"latency_probe-{int(time.time())}"
     spent = 0.0
-    real_caller, real_stream = turn._default_caller, turn._default_stream_caller
+    print(f"cumulative ledger: ${led.remaining():.4f} left of ${led.cap():.2f} (run {run_id})")
 
-    def guard(est):
-        if spent + est > a.max_usd:
-            raise SystemExit(f"STOP: the next call could pass the ${a.max_usd} ceiling (spent ${spent:.4f}).")
+    def run_cap(worst: float) -> str | None:
+        # re-read before EVERY call — the second call of a turn sees the first one's cost
+        return f"the next call (worst ${worst:.4f}) could pass the ${a.max_usd} ceiling (spent ${spent:.4f})" if spent + worst > a.max_usd else None
+
+    def metered(fn, kw):
+        """reserve the worst case → call → settle from usage; this run's spend advances per CALL"""
+        nonlocal spent
+        try:
+            resp, worst = led.guarded_call(run_id, fn, kw, tool="agent_latency_probe", key_fp=key_fp, per_run_cap=run_cap)
+        except ledger.LedgerRefused as e:
+            raise SystemExit(f"STOP: {e}") from e
+        u = ledger.usage_tokens(resp)
+        spent += ledger.cost_usd(model, **u) if u else worst
+        return resp
+
+    def real_caller(**kw):
+        return client.messages.create(**kw)
+
+    def real_stream(on_text, **kw):
+        with client.messages.stream(**kw) as stream:
+            for event in stream:
+                if getattr(event, "type", None) == "text":
+                    on_text(event.text)
+            return stream.get_final_message()
 
     print("cat|mode|first_text_ms|model_ms|calls|in_tok|out_tok|cache_read|cost_usd|disposition")
     for b in reqs:
         body = b["body"]
         for mode in modes:
-            est = worst_cost(body)
             calls = {"n": 0}
 
             def caller(**kw):
-                nonlocal spent
-                guard(est)
                 calls["n"] += 1
-                return real_caller(**kw)
+                return metered(real_caller, kw)
 
             def stream_caller(on_text, **kw):
-                guard(est)
                 calls["n"] += 1
-                return real_stream(on_text, **kw)
+                return metered(lambda **k: real_stream(on_text, **k), kw)
 
             first = {"t": None}
             t0 = time.perf_counter()
@@ -109,11 +140,10 @@ def main() -> int:
                 print(f"{b['cat']}|{mode}|-|-|{calls['n']}|-|-|-|-|refused ({type(e).__name__})")
                 continue
             u = out["usage"]
-            spent += float(u.get("cost_usd") or 0.0) or (u["input_tokens"] * IN_USD + u["output_tokens"] * OUT_USD)
             ft = round((first["t"] - t0) * 1000) if first["t"] else "-"
             print(f"{b['cat']}|{mode}|{ft}|{sum(u['stages']['model'])}|{u['model_calls']}|{u['input_tokens']}|"
                   f"{u['output_tokens']}|{u.get('cache_read_tokens')}|{u.get('cost_usd'):.5f}|{out['envelope']['disposition']}")
-    print(f"spent_usd~{spent:.4f}")
+    print(f"spent_usd~{spent:.4f}   cumulative ledger: ${led.remaining():.4f} left of ${led.cap():.2f}")
     return 0
 
 

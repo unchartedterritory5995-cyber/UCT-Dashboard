@@ -29,7 +29,7 @@
 import { evaluability, STATUS, GATE_GUARDS } from './evaluability'
 import { isTruthType } from './outputType'
 import { engineChips, chipValueText } from './readout'
-import { infoValuesOf, liveInstanceOf } from './infoValues'
+import { infoValuesOf, liveInstanceOf, infoValueLineIntact } from './infoValues'
 
 export const INFO_VALUE_STATES = Object.freeze({
   VALUE: 'value',             // a finite latest value, formatted
@@ -114,6 +114,13 @@ export function resolveInfoValue(cs, ref, env = {}) {
   if (!infoValueOutputExists(def, ref.plotKey)) {
     return broken(INFO_VALUE_GUARDS.OUTPUT_MISSING,
       'The output this value read is no longer part of the indicator.', `${label} · unavailable`)
+  }
+  // ⭐ LINE IDENTITY (`lineIdentity.js`): the key is declared, but by a DIFFERENT line
+  // than the one this value was made to read (removed, then a new line took the name).
+  // Exactly the missing-output answer — never the new line's number.
+  if (!infoValueLineIntact(ref, def)) {
+    return broken(INFO_VALUE_GUARDS.OUTPUT_MISSING,
+      'The output this value read was removed; a different output now uses its name.', `${label} · unavailable`)
   }
 
   // ── THE SHARED GATE ───────────────────────────────────────────────────────

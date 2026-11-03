@@ -3,9 +3,11 @@
   POST /api/agent/turn                     one model turn -> structured envelope
   POST /api/agent/turn/stream              the same turn as text/event-stream (an answer streams when
                                            UCT_AGENT_STREAM is on; the final event is /turn's JSON)
-  GET  /api/agent/config                   {stream, nl1, news, data, scan}: does this server stream turns (UCT_AGENT_STREAM),
+  GET  /api/agent/config                   {stream, nl1, news, data, scan, planner}: does this server stream turns (UCT_AGENT_STREAM),
                                            does it serve NL-1 (UCT_AGENT_NL1), the MD-1 data gateway
-                                           (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN)
+                                           (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN); planner v1 | v2
+  POST /api/agent/turn/step                planner v2 (UCT_AGENT_PLANNER=v2) only: the browser's outcome of ONE step
+  POST /api/agent/turn/resume              planner v2 only: continue a turn paused on an approval card (event stream)
   POST /api/agent/data                     one MD-1 market-data read -> DataEnvelope (read-only, no model;
                                            refused unless UCT_AGENT_DATA=1)
   POST /api/agent/record                   record what the BROWSER did (fast-path
@@ -190,11 +192,199 @@ def streaming_enabled() -> bool:
 def agent_config(user: dict = Depends(require_admin_dark)):
     """What the browser needs to know about this server's Agent: whether turns stream, and whether it serves
     NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on."""
-    from api.services.uct_agent import news, turn
+    from api.services.uct_agent import news, turn, turn_v2
     from api.services.uct_agent.marketdata import gateway
     return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled(), "news": news.enabled(),
             "data": gateway.data_enabled(), "scan": gateway.scan_enabled(),
-            "data_kinds": sorted(gateway.enabled_kinds())}
+            "data_kinds": sorted(gateway.enabled_kinds()), "planner": turn_v2.planner()}
+
+
+# ── PLANNER v2 (Wave 1 A-04, docs/agent/program/contracts/STEP-1.md): the step registry ───────────────────
+# In-process (one uvicorn process, as production runs): a streaming v2 turn parks a queue under its token; the
+# browser's POST /turn/step feeds it; a turn paused on an approval card parks its loop state until /turn/resume.
+_V2_STEPS: dict[str, tuple[queue.Queue, str]] = {}
+_V2_PAUSED: dict[str, dict] = {}
+_V2_LOCK = threading.Lock()
+
+
+def planner_v2() -> bool:
+    from api.services.uct_agent import turn_v2
+    return turn_v2.planner() == "v2"
+
+
+class StepIn(BaseModel):
+    turnId: str
+    id: str
+    status: str                                       # done | proposed | refused | failed | query
+    receipt: Optional[str] = None
+    refusal: Optional[str] = None
+    result: Optional[Any] = None
+    isolated: Optional[bool] = None
+    added: Optional[list] = None                       # refs a DONE step created (a new chart): [{ref, kind, label}]
+
+
+class ResumeIn(BaseModel):
+    turnId: str
+    id: str
+    status: str                                       # done | refused | failed
+    receipt: Optional[str] = None
+    refusal: Optional[str] = None
+    added: Optional[list] = None
+    voice: bool = False
+
+
+def _v2_waiter(q: "queue.Queue"):
+    from api.services.uct_agent import turn_v2
+
+    def wait_step(step_id: str):
+        deadline = time.monotonic() + turn_v2.STEP_TIMEOUT_S
+        while True:
+            left = deadline - time.monotonic()
+            if left <= 0:
+                return None
+            try:
+                res = q.get(timeout=left)
+            except queue.Empty:
+                return None
+            if res.get("id") == step_id:
+                return res
+    return wait_step
+
+
+def _v2_register(uid) -> tuple[str, dict]:
+    from api.services.uct_agent import turn_v2
+    token, q = turn_v2.new_turn_token(), queue.Queue()
+    with _V2_LOCK:
+        _V2_STEPS[token] = (q, str(uid))
+    return token, {"wait_step": _v2_waiter(q), "turn_token": token}
+
+
+def _v2_unregister(token: str) -> None:
+    with _V2_LOCK:
+        _V2_STEPS.pop(token, None)
+
+
+def _v2_park(token: str, uid, cid: str, out: dict, voice: bool) -> dict:
+    """A turn paused on an approval card: its state waits for /turn/resume (PAUSE_TTL_S); nothing is stored yet."""
+    from api.services.uct_agent import turn_v2
+    with _V2_LOCK:
+        _V2_PAUSED[token] = {"state": out["state"], "uid": str(uid), "cid": cid, "voice": voice,
+                             "expires": time.time() + turn_v2.PAUSE_TTL_S}
+        for k in [k for k, v in _V2_PAUSED.items() if v["expires"] < time.time()]:
+            _V2_PAUSED.pop(k, None)
+    return {"conversationId": cid, "turnId": None, "envelope": out["envelope"],
+            "usage": {k: out["usage"].get(k) for k in ("model", "input_tokens", "output_tokens", "cost_usd", "model_calls",
+                                                       "cache_read_tokens", "cache_write_tokens", "rounds", "steps")}}
+
+
+def _v2_finish(uid, cid: str, out: dict, voice: bool, background: BackgroundTasks) -> dict:
+    from api.services.uct_agent import store
+    env, usage = out["envelope"], out["usage"]
+    try:
+        turn_id = store.add_turn(uid, cid, "agent", env.get("reply") or "", {"envelope": env, "citations": usage.get("citations"), "planner": "v2"})
+    except Exception:  # noqa: BLE001
+        log.exception("[uct-agent] could not store the v2 agent turn")
+        turn_id = None
+    background.add_task(store.record_telemetry, uid, cid, {
+        "path": "model", "disposition": "answer", "actions": [s.get("action") for s in env.get("steps") or []],
+        "clarified": False, "latency_ms": usage.get("latency_ms"), "model": usage.get("model"), "cost_usd": usage.get("cost_usd"),
+        "research_calls": usage.get("research_calls"), "unsupported": None, "voice": voice,
+    })
+    log.info("[uct-agent] v2 turn rounds=%s steps=%s calls=%s in=%s out=%s cache_read=%s stopped=%s", usage.get("rounds"),
+             usage.get("steps"), usage.get("model_calls"), usage.get("input_tokens"), usage.get("output_tokens"),
+             usage.get("cache_read_tokens"), usage.get("stopped"))
+    return {"conversationId": cid, "turnId": turn_id, "envelope": env,
+            "usage": {**{k: usage.get(k) for k in ("model", "input_tokens", "output_tokens", "cost_usd", "latency_ms", "research_calls",
+                                                   "citations", "model_calls", "cache_read_tokens", "cache_write_tokens", "rounds", "steps")},
+                      "stages": usage.get("stages")}}
+
+
+@router.post("/api/agent/turn/step")
+def agent_turn_step(body: StepIn, user: dict = Depends(require_admin_dark)):
+    """The browser's outcome of ONE step of a running v2 turn (its own turn only). Isolated values never pass (L6)."""
+    from api.services.uct_agent import turn as agent
+    with _V2_LOCK:
+        entry = _V2_STEPS.get(body.turnId)
+    if not entry or entry[1] != str(user["id"]):
+        raise HTTPException(status_code=404, detail="No step is waiting for that turn.")
+    res = body.model_dump()
+    res["result"], dropped = agent._strip_isolated(res.get("result"))
+    if res["result"] is agent._DROPPED:
+        res["result"] = None
+    if dropped or body.isolated:
+        res["isolated"] = True
+    entry[0].put(res)
+    return {"ok": True}
+
+
+@router.post("/api/agent/turn/resume")
+def agent_turn_resume(body: ResumeIn, background: BackgroundTasks, user: dict = Depends(require_admin_dark)):
+    """Continue a v2 turn paused on an approval card, as the same event stream as /turn/stream."""
+    events: queue.Queue = queue.Queue()
+
+    def work() -> None:
+        try:
+            events.put(("final", _resume(body, background, user, on_event=lambda e: events.put(("event", e)))))
+        except HTTPException as e:
+            events.put(("error", {"status": e.status_code, "detail": e.detail if isinstance(e.detail, str) else FAILED}))
+        except Exception:  # noqa: BLE001
+            log.exception("[uct-agent] v2 resume failed")
+            events.put(("error", {"status": 500, "detail": FAILED}))
+        finally:
+            events.put(None)
+
+    threading.Thread(target=work, name="uct-agent-resume", daemon=True).start()
+    return StreamingResponse(_relay(events), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"}, background=background)
+
+
+def _relay(events: "queue.Queue"):
+    yield ": open\n\n"
+    while True:
+        item = events.get()
+        if item is None:
+            return
+        kind, payload = item
+        ev = payload if kind == "event" else {"t": kind, **payload}
+        yield f"data: {json.dumps(ev, separators=(',', ':'))}\n\n"
+
+
+def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event) -> dict:
+    from api.services.uct_agent import budget, limits, turn as agent
+    uid = user["id"]
+    if not planner_v2():
+        raise HTTPException(status_code=404, detail="No step is waiting for that turn.")
+    with _V2_LOCK:
+        p = _V2_PAUSED.pop(body.turnId, None)
+    if not p or p["uid"] != str(uid) or p["expires"] < time.time():
+        raise HTTPException(status_code=410, detail="That proposal's turn has expired (a proposal is good for 10 minutes). Ask again.")
+    try:
+        slot = limits.admit(uid, new_request=False)
+    except limits.Refused as e:
+        raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
+    token, q = body.turnId, queue.Queue()
+    with _V2_LOCK:
+        _V2_STEPS[token] = (q, str(uid))
+    try:
+        out = agent.run_turn(message="(resume)", context={}, history=[], on_event=on_event,
+                             meter=budget.Meter(user_id=uid, request_id=None),
+                             v2={"wait_step": _v2_waiter(q), "turn_token": token, "resume": p["state"],
+                                 "resume_result": {"id": body.id, "status": body.status, "receipt": body.receipt, "refusal": body.refusal,
+                                                   "added": body.added}})
+    except budget.BudgetRefused as e:
+        raise HTTPException(status_code=503 if e.reason == "unavailable" else 429, detail=e.sentence)
+    except agent.TurnError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:  # noqa: BLE001
+        kind, said = provider_failure(e)
+        log.exception("[uct-agent] v2 resume failed kind=%s class=%s", kind, type(e).__name__)
+        raise HTTPException(status_code=503, detail=said)
+    finally:
+        _v2_unregister(token)
+        limits.done(slot)
+    if out.get("paused"):
+        return _v2_park(token, uid, p["cid"], out, p["voice"])
+    return _v2_finish(uid, p["cid"], out, p["voice"], background)
 
 
 @router.post("/api/agent/turn/stream")
@@ -208,7 +398,8 @@ def agent_turn_stream(body: TurnIn, background: BackgroundTasks, user: dict = De
     The turn runs in a worker thread; this generator only relays its events. Nothing in an event is
     logged; a plan's words, research results and local-only values never ride one."""
     events: queue.Queue = queue.Queue()
-    on_event = (lambda e: events.put(("event", e))) if streaming_enabled() else None
+    # planner v2 streams its step events whatever UCT_AGENT_STREAM says (its reply never streams early)
+    on_event = (lambda e: events.put(("event", e))) if (streaming_enabled() or planner_v2()) else None
 
     def work() -> None:
         try:
@@ -361,15 +552,20 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     if headline is not None or (history and news.conversation_headline(history)):
         nameable = None                   # a headline's chat keeps its "News: …" name (the member may rename it)
     pre_ms = _ms(t0)
+    # PLANNER v2 (UCT_AGENT_PLANNER=v2): only a STREAMED, ordinary turn (no headline, no reroute) takes the step loop;
+    # its rounds are metered by the daily cap per call (request_id None: the 2-call ceiling is v1's), never by routing
+    v2 = None
+    if on_event is not None and planner_v2() and headline is None and not body.reroute:
+        token, v2 = _v2_register(uid)
     try:
         out = agent.run_turn(message=body.message, context=body.context, history=history,
                              capabilities=body.capabilities,
                              pending=body.pending, recent_outcome=body.recentOutcome,
                              manifest_version=body.manifestVersion, routing=body.routing,
                              conversation_title=nameable, on_event=on_event,
-                             meter=budget.Meter(user_id=uid, request_id=request_id), reroute=body.reroute,
+                             meter=budget.Meter(user_id=uid, request_id=None if v2 else request_id), reroute=body.reroute,
                              interpreter=body.interpreter, repair=body.repair, reference=body.reference,
-                             headline=headline, answer_only=answer_only)
+                             headline=headline, answer_only=answer_only, v2=v2)
     except budget.BudgetRefused as e:
         # refused BEFORE a paid call: nothing was sent, nothing changed; the day's count is given back
         _give_back(uid)
@@ -387,6 +583,13 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         kind, said = provider_failure(e)
         log.exception("[uct-agent] turn failed kind=%s class=%s", kind, type(e).__name__)
         raise HTTPException(status_code=503, detail=said)
+    finally:
+        if v2:
+            _v2_unregister(token)
+    if v2:
+        if out.get("paused"):
+            return _v2_park(token, uid, cid, out, bool(body.voice))
+        return _v2_finish(uid, cid, out, bool(body.voice), background)
     env, usage = out["envelope"], out["usage"]
     t_post = time.perf_counter()
     try:
@@ -529,6 +732,37 @@ def agent_conversation_delete(conversation_id: str, user: dict = Depends(require
     if not store.delete_conversation(user["id"], conversation_id):
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"deleted": conversation_id}
+
+
+# ── per-conversation state (W1-C C-01, builder-c): the last screen, so a follow-up composes after a reload ──
+# GET/PUT /api/agent/conversations/{id}/state/{key}. Keys are store.STATE_KEYS (`lastScreen`); the value is
+# validated by services/uct_agent/scan/refine.py before it is stored (the screener's catalog, F-16 hidden keys,
+# ≤ 50 result ids). Owner-scoped: a conversation that is not the member's is 404, like every route above.
+class StateIn(BaseModel):
+    value: Any
+
+
+@router.get("/api/agent/conversations/{conversation_id}/state/{key}")
+def agent_conversation_state(conversation_id: str, key: str, user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import store
+    if key not in store.STATE_KEYS or not store.owns(user["id"], conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    got = store.get_state(user["id"], conversation_id, key)
+    return {"key": key, "value": got["value"] if got else None, "updated_at": got["updated_at"] if got else None}
+
+
+@router.put("/api/agent/conversations/{conversation_id}/state/{key}")
+def agent_conversation_state_put(conversation_id: str, key: str, body: StateIn, user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import store
+    from api.services.uct_agent.scan import refine
+    if key not in store.STATE_KEYS or not store.owns(user["id"], conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    try:
+        value = refine.validate_last_screen(body.value)
+        store.set_state(user["id"], conversation_id, key, value)
+    except ValueError as e:                      # RefineError is a ValueError, with the member-facing sentence
+        raise HTTPException(status_code=400, detail=str(e)[:400])
+    return {"key": key, "value": value}
 
 
 @router.get("/api/agent/search")

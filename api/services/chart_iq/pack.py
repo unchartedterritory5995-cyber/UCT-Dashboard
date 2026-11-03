@@ -157,6 +157,53 @@ def status() -> dict:
         return {"error": type(e).__name__}
 
 
+def behind_report() -> dict:
+    """The installed pack's session vs the latest session this pod has prices for (SPY's last daily bar)."""
+    from api.services.chart_iq import pipeline
+    st = status()
+    return {"pack_day": st.get("day"), "market_day": pipeline.latest_day(), "rows": st.get("rows"), "source": st.get("source")}
+
+
+def alert_text(rep: dict) -> str | None:
+    """None when the pack is current. Otherwise the one-line ops page: the lab PC builds the pack, so a pack behind the
+    market means its nightly did not upload (PC off/asleep, Massive late, a failed step) and members see an old read."""
+    pack_day, market_day = rep.get("pack_day"), rep.get("market_day")
+    if not market_day or (pack_day and pack_day >= market_day):
+        return None
+    return ("Chart IQ pack is behind: members are reading %s, the market's last session is %s. The lab PC nightly did not "
+            "upload (check the PC is on, lab/chart_iq/nightly.log and the UCT Ledger Bars Retry log). Rows %s, source %s."
+            % (pack_day or "none", market_day, rep.get("rows"), rep.get("source")))
+
+
+def alert_if_behind(post=None) -> str | None:
+    """Scheduled after the PC's build window. Posts to the OPS destination when behind; returns the text sent (or None)."""
+    if not enabled():
+        return None
+    try:
+        text = alert_text(behind_report())
+    except Exception as e:  # noqa: BLE001
+        text = "Chart IQ pack check failed: %s" % type(e).__name__
+    if not text:
+        return None
+    log.warning("[chart_iq_pack] %s", text)
+    if post is None:
+        from api.services.alert_destination import ops_webhook
+        url = (ops_webhook(producer="chart_iq_pack") or "").strip()
+        if not url:
+            return text
+        def post(msg):
+            import urllib.request
+            req = urllib.request.Request(url, data=json.dumps({"content": msg}).encode(),
+                                         headers={"Content-Type": "application/json", "User-Agent": "uct-chart-iq/1"})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                r.read(64)
+    try:
+        post(text)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[chart_iq_pack] alert post failed: %s", e)
+    return text
+
+
 def universe() -> list[str]:
     here = os.path.dirname(os.path.abspath(__file__))
     p = os.path.join(here, "..", "..", "data", "cap_universe.json")
@@ -180,10 +227,18 @@ def universe() -> list[str]:
     return uniq
 
 
+def server_build_allowed() -> bool:
+    """The in-process build reads every stock inside the web pod: on 11/02 (20:20 CT) it took the pod down (restart, ~1 min of
+    502s). Off unless CHART_IQ_PACK_FALLBACK_ENABLED=1; the lab PC builds the pack and the pod only installs it from R2."""
+    return os.environ.get("CHART_IQ_PACK_FALLBACK_ENABLED", "0") == "1"
+
+
 def build(force: bool = False, tickers: list[str] | None = None, sleep=time.sleep, clock=time.time) -> dict:
     """Read every ticker for the latest session into the pack. Returns a report; never raises."""
     if not enabled() and not force:
         return {"skipped": "disabled"}
+    if not server_build_allowed():
+        return {"skipped": "server build disabled"}
     if in_session() and not force:
         return {"skipped": "regular session"}
     if _BUILDING.is_set():
@@ -208,6 +263,8 @@ def build(force: bool = False, tickers: list[str] | None = None, sleep=time.slee
                     res = pipeline.analyze(t, day)
                 except Exception:  # noqa: BLE001
                     res = {"error": "exception"}
+                if "error" not in res and _days_between(res.get("asof") or day, day) > pipeline.STALE_LATEST_DAYS:
+                    res = {"error": "stale"}   # a dead symbol is not packed: its latest ask answers "no daily bars since" at once
                 if "error" in res:
                     err += 1
                 else:

@@ -27,7 +27,9 @@ from typing import Any
 SQL_FUNCTION = "j2_edited_since_import"
 
 
-def _instant(value: Any) -> datetime | None:
+def instant(value: Any) -> datetime | None:
+    """An ISO-8601 string (any offset; a naive one is UTC) -> an aware datetime, else None.
+    Public since Plan E Task 5: the Evernote provider's timestamps go through this one parser."""
     if not value or not isinstance(value, str):
         return None
     try:
@@ -39,14 +41,14 @@ def _instant(value: Any) -> datetime | None:
 
 def stamp_readable(value: Any) -> bool:
     """True when `value` is a stamp this module can read as an instant."""
-    return _instant(value) is not None
+    return instant(value) is not None
 
 
 def is_later(value: Any, reference: Any) -> bool:
     """True when both stamps read and `value` is strictly later than `reference`. The one
     comparison every rule here uses; unreadable either side answers False."""
-    a = _instant(value)
-    b = _instant(reference)
+    a = instant(value)
+    b = instant(reference)
     if a is None or b is None:
         return False
     return a > b
@@ -90,8 +92,8 @@ def legacy_finalize_shape(updated_at: Any, imported_at: Any, newest_media_mtime:
     legacy_finalize_shape(...))` -- the shape alone is ambiguous after the cutoff. Only the file importer's
     recover/guard reads it -- the heal pass's SQL prefilter cannot read file mtimes, so a legacy
     file-imported note is healed by a recover, never by the heal pass."""
-    updated = _instant(updated_at)
-    imported = _instant(imported_at)
+    updated = instant(updated_at)
+    imported = instant(imported_at)
     if updated is None or imported is None or has_later_version:
         return False
     if isinstance(newest_media_mtime, bool) or not isinstance(newest_media_mtime, (int, float)):

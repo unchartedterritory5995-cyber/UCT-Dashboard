@@ -86,7 +86,9 @@ describe('generic corpus: Markdown + HTML', () => {
     const b = body(ALPHA)
     const at = b.content.findIndex((n) => n.type === 'image' && n.attrs.alt === 'chart')
     expect(b.content[at].attrs.src).toBe(`${ATTACH}${run.idOf(ALPHA)}/inline/fetched-linked.png`)
-    expect(b.content[at + 1]).toMatchObject({ type: 'paragraph', content: [{ text: 'https://example.com/big',
+    // D3 fix round 2 ruling: the link line reads the image's alt (`chart`), else the href (it
+    // read the href always); the link and its href are unchanged.
+    expect(b.content[at + 1]).toMatchObject({ type: 'paragraph', content: [{ text: 'chart',
       marks: [{ type: 'link', attrs: { href: 'https://example.com/big' } }] }] })
   })
 

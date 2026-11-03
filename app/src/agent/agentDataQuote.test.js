@@ -204,7 +204,11 @@ describe('stock.quote: flags off is exactly stock.profile; on is one gateway rea
     await loadAgentConfig()
     const mine = await answerQuote({ symbols: ['NVDA'] })
     expect(JSON.stringify(mine)).toBe(JSON.stringify(await answerProfile({ symbol: 'NVDA' })))
-    expect(globalThis.fetch.mock.calls.map(c => c[0])).not.toContain('/api/agent/data')
+    // W1-C C-04: stock.profile's own price line reads the `quote` kind when THAT kind is served (never resolve, never
+    // `quotes`, never /api/live-prices); with `quote` not activated there is no gateway read at all.
+    const posts = globalThis.fetch.mock.calls.filter(c => c[0] === '/api/agent/data').map(c => JSON.parse(c[1].body).kind)
+    expect(posts).toEqual((kinds || []).includes('quote') ? ['quote', 'quote'] : [])
+    expect(globalThis.fetch.mock.calls.some(c => String(c[0]).startsWith('/api/live-prices'))).toBe(false)
     expect(match('nvda price')).toBeNull()
     registerMarketDataCapabilities()                              // may register stock.dailyBars (bars.daily on)…
     expect(allCapabilityNames()).not.toContain(CAPABILITY)        // …but never stock.quote

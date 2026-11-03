@@ -101,7 +101,11 @@ def test_D1_the_default_is_pinned_in_SOURCE_not_only_in_behaviour():
     """The literal, not just the effect: changing the default and "fixing" the
     behaviour test would leave every member on a variable nobody set."""
     assert rt.STAGE_OFF == "off"
-    assert rt.PINE_RUNTIME_MODE_FLAGS == {"PINE_RUNTIME_STAGE": ("off", ("off", "admins", "cohort", "all"))}
+    assert rt.PINE_RUNTIME_MODE_FLAGS == {
+        "PINE_RUNTIME_STAGE": ("off", ("off", "admins", "cohort", "all")),
+        # W5 T12 (ruling Q4): the server lanes' stage; its own rails are tests/test_runtime_server_stage.py
+        "PINE_RUNTIME_SERVER_STAGE": ("off", ("off", "admins", "cohort", "all")),
+    }
     src = (ROOT / "api" / "services" / "runtime_definitions.py").read_text(encoding="utf-8")
     assert "os.environ.get(STAGE_ENV, STAGE_OFF)" in src
     # and the mode-flag index derives it, so the ledger can hold it to a decision

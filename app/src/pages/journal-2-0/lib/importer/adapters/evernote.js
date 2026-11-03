@@ -83,9 +83,9 @@
 
 import SparkMD5 from 'spark-md5'
 import { reportIgnoredFiles } from './reportIgnored'
-import { liftMediaOutOfLinks } from '../mediaRefs'
+import { liftMediaOutOfLinks, rasterSignature } from '../mediaRefs'
 import { resolveHref, neutraliseRefusedAnchor } from '../linkPolicy'
-import { isEvernoteNoteHref, resolveEvernoteLinks, settleEvernoteLinks, pyStrip } from '../evernoteLinks'
+import { isEvernoteNoteHref, resolveEvernoteLinks, settleEvernoteLinks, pyStrip, LINKED_NOTE_LABEL } from '../evernoteLinks'
 
 const ENEX_EXT = /\.enex$/i
 const ENML_PROLOG_RE = /^\s*<\?xml[^>]*\?>\s*<!DOCTYPE[^>]*>\s*/i
@@ -152,7 +152,7 @@ async function parse(vfiles, opts = {}) {
     resolveWebLinks(root, doc.sourceUrl)
     // ⛔ On the LIVE DOM, before anything serialises (Review Focus 1): a chip is itself an <a>, and
     // a chip inside a link, written out and parsed again, closes the outer link early.
-    liftMediaOutOfLinks(root)
+    liftMediaOutOfLinks(root, { noteLinkLabel: LINKED_NOTE_LABEL })
     settleEvernoteLinks(root)
     doc.html = root.innerHTML
   }
@@ -196,6 +196,7 @@ async function makeNoteDoc(noteEl, notebookName) {
   const enNote = innerDoc.querySelector('en-note') || innerDoc.body
 
   replaceEnCrypt(enNote)
+  const unsafe = refuseUnsafeImages(innerDoc, enNote) // Plan E Task 4: before any <img> of ours exists
   // Before the lift: an emptied note link is unwrapped (data-evernote-link), never shown as its
   // raw `evernote:///…` href.
   markEvernoteLinks(enNote)
@@ -207,10 +208,12 @@ async function makeNoteDoc(noteEl, notebookName) {
 
   const sourceUrl = noteSourceUrl(noteEl)
   if (sourceUrl) prependSourceLine(innerDoc, enNote, sourceUrl)
+  convertCodeBlocks(innerDoc, enNote) // Plan E Task 4: the server's rule 9, pinned by enml_parity
 
   const media = dedupeMedia([
     ...resources.map((r) => ({ ref: r.hash, vfile: r.vfile, kind: r.kind, name: r.name, mime: r.mime })),
     ...missing,
+    ...unsafe,
   ])
 
   return {
@@ -293,9 +296,16 @@ async function parseResource(resourceEl) {
   const b64 = (dataEl?.textContent || '').replace(/\s+/g, '')
   const bytes = base64ToBytes(b64)
   const hash = SparkMD5.ArrayBuffer.hash(bytes.buffer).toLowerCase()
-  const mime = mimeEl?.textContent?.trim() || 'application/octet-stream'
+  const declared = mimeEl?.textContent?.trim() || 'application/octet-stream'
+  // Plan E Task 9 fix round 1 (concern 5): content wins. A resource typed as anything but an
+  // image (Evernote writes `application/octet-stream` for some) whose bytes are a raster is an
+  // inline image; raster signatures only, so an SVG stays a file. The server lane decides the
+  // same in its media stage (`media_policy.raster_signature`); ENML parity fixture 12 pins both.
+  const sniffed = declared.startsWith('image/') ? null : rasterSignature(bytes)
+  const mime = sniffed || declared
   const kind = mime.startsWith('image/') ? 'image' : 'file'
-  const name = fileNameEl?.textContent?.trim() || `attachment.${extFromMime(mime)}`
+  // the fallback name follows the DECLARED type, as the server's `_Resources` does
+  const name = fileNameEl?.textContent?.trim() || `attachment.${extFromMime(declared)}`
 
   const vfile = {
     path: hash,
@@ -364,6 +374,10 @@ function replaceEnMedia(doc, root, resources, resourcesByHash, referencedHashes)
     let node
     if (resource) {
       node = mediaNode(doc, resource)
+      // Task 9 fix round 1 (concern 2): an en-media's alt names the link the lift adds after it;
+      // carried privately (the editor reads no such attribute), as the server does.
+      const alt = (el.getAttribute('alt') || '').trim()
+      if (alt && node.tagName === 'IMG') node.setAttribute('data-uct-alt', alt)
     } else {
       // No unambiguous resource: a placeholder the commit turns into a visible missing_resource
       // notice IN PLACE. Never a silent drop; any uncited resource is still appended at the end.
@@ -516,6 +530,78 @@ function extractTodoChecked(div) {
   const checked = todo.getAttribute('checked') === 'true'
   unwrapInPlace(todo)
   return checked
+}
+
+// ---------------------------------------------------------------------------
+// Plan E Task 4 (ENML parity rail, `enml_parity_fixtures_gen.py`): two rules the live-sync
+// converter (`convert/enml.py`) has, ported so a note means the same by file and by sync.
+// ---------------------------------------------------------------------------
+
+const CODEBLOCK_STYLE_RE = /-en-codeblock\s*:\s*true/i
+const OUR_REF_PREFIXES = ['import-ref://', 'import-attachment-ref://']
+// Read as a browser reads a scheme: whitespace and control characters inside it are ignored.
+const UNSAFE_IMG_SCHEME_RE = /^(?:javascript|vbscript|file):/i
+
+/** An `<img>` written in the note whose src is a script or local-file address (`javascript:`,
+ *  `vbscript:`, `file:`), or a forged `import-ref://` placeholder, becomes an `unsafe` notice IN
+ *  PLACE (a failed media item the commit turns into the notice), as `enml.py`'s refusal does.
+ *  Never an empty paragraph. Every other `<img>` (http(s), relative, `data:`) is left to the
+ *  post-parse pass exactly as before: copied in, resolved against the clip, or uploaded. */
+function refuseUnsafeImages(doc, root) {
+  const unsafe = []
+  for (const img of [...root.querySelectorAll('img')]) {
+    const src = (img.getAttribute('src') || '').trim()
+    const read = src.replace(/[\u0000- ]/g, '').toLowerCase()
+    const refused = UNSAFE_IMG_SCHEME_RE.test(read) || OUR_REF_PREFIXES.some((p) => read.startsWith(p))
+    if (!refused) continue
+    const ref = `unsafe-${unsafe.length + 1}`
+    unsafe.push({ ref, kind: 'image', name: null, failed: { reason: 'unsafe', sourceUrl: null } })
+    const placeholder = doc.createElement('img')
+    placeholder.setAttribute('src', `import-ref://${ref}`)
+    img.replaceWith(placeholder)
+  }
+  return unsafe
+}
+
+/** Text of a code block, verbatim: each child line (`<div>`/`<p>`) and each `<br>` is one `\n`,
+ *  nothing trimmed. The port of `enml.py::_code_text`. */
+function codeText(node) {
+  const parts = []
+  for (const c of node.childNodes) {
+    if (c.nodeType === 3) {
+      parts.push(c.nodeValue)
+    } else if (c.nodeType === 1) {
+      const tag = c.tagName.toLowerCase()
+      if (tag === 'br') {
+        parts.push('\n')
+      } else if (tag === 'div' || tag === 'p') {
+        let line = codeText(c)
+        if (line.endsWith('\n')) line = line.slice(0, -1)
+        if (parts.length && !parts[parts.length - 1].endsWith('\n')) parts.push('\n')
+        parts.push(line + '\n')
+      } else {
+        parts.push(codeText(c))
+      }
+    }
+  }
+  return parts.join('')
+}
+
+/** `<div style="…-en-codeblock:true…">` -> `<pre><code>` with its text verbatim; media found
+ *  inside it (an image, a chip) follows the block rather than vanish. The server's rule 9. */
+function convertCodeBlocks(doc, root) {
+  for (const div of [...root.querySelectorAll('div[style]')]) {
+    if (!div.isConnected || !CODEBLOCK_STYLE_RE.test(div.getAttribute('style') || '')) continue
+    let text = codeText(div)
+    if (text.endsWith('\n')) text = text.slice(0, -1)
+    const pre = doc.createElement('pre')
+    const code = doc.createElement('code')
+    code.textContent = text
+    pre.appendChild(code)
+    const media = [...div.querySelectorAll('img, [data-type="attachmentChip"]')]
+      .filter((el) => !el.parentElement.closest('[data-type="attachmentChip"]'))
+    div.replaceWith(pre, ...media)
+  }
 }
 
 // ---------------------------------------------------------------------------

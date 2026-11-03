@@ -17,6 +17,7 @@
 import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
+import useSessionChartSettings from '../../components/chart/pane/useSessionChartSettings'
 import { appendForwardBars, normalizeBars } from '../study/useStudySession'
 import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { chartFrameOf, REVIEW_URL } from './StudyReview'
@@ -63,7 +64,11 @@ function GalleryCard({ item, houseSettings, onChanged }) {
     return appendForwardBars(normalizeBars(stored), stored.forward)
   }, [stored])
   const frame = useMemo(() => chartFrameOf(item), [item])
-  const settingsOverride = useMemo(() => studySettingsOverride(item.prompt_json?.chart, houseSettings), [item, houseSettings])
+  const studyOverride = useMemo(() => studySettingsOverride(item.prompt_json?.chart, houseSettings), [item, houseSettings])
+  // ⭐ Policy A (2026-11-02): an exhibit has no stored settings of its own, so an
+  // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
+  // session instead of falling through to the member's global chart_settings.
+  const sessionChart = useSessionChartSettings(studyOverride, item.id)
   const markers = useMemo(
     () => [{ time: item.asof, position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'here', id: 'study-asof' }],
     [item.asof],
@@ -116,7 +121,8 @@ function GalleryCard({ item, houseSettings, onChanged }) {
             entryDate={frame?.entryDate || null}
             exitDate={frame?.exitDate || null}
             exactDateRange
-            settingsOverride={settingsOverride}
+            settingsOverride={sessionChart.settingsOverride}
+            onSettingsPersist={sessionChart.onSettingsPersist}
             markers={markers}
           />
         ) : noStoredBars ? (

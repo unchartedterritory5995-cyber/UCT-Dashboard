@@ -207,12 +207,16 @@ describe('collectRemoteImages', () => {
     expect(srcs).toEqual(['import-ref://unresolvable-1', 'import-ref://unresolvable-2'])
   })
 
-  it('an unsafe, app or non-web src is unresolvable, never kept', () => {
+  it('an unsafe src is the server\'s `unsafe` notice; an app or non-web src is unresolvable; never kept', () => {
+    // D3 follow-up (difference 1): `javascript:` and `file:` were `unresolvable_src` named by the
+    // raw src; they are the server's `unsafe` now, with no name of their own (the alt is used).
     const b = dom('<p><img src="javascript:alert(1)"><img src="file:///c/x.png"><img src="/journal/x.png"><img src="ftp://h/x.png"></p>')
     const media = []
     collectRemoteImages(b, media, 'https://news.example.com/')
-    expect(media.map((m) => m.failed && m.failed.reason)).toEqual(['unresolvable_src', 'unresolvable_src', 'unresolvable_src', 'unresolvable_src'])
-    expect([...b.querySelectorAll('img')].every((i) => i.getAttribute('src').startsWith('import-ref://unresolvable-'))).toBe(true)
+    expect(media.map((m) => m.failed && m.failed.reason)).toEqual(['unsafe', 'unsafe', 'unresolvable_src', 'unresolvable_src'])
+    expect(media.map((m) => m.name)).toEqual([null, null, '/journal/x.png', 'ftp://h/x.png'])
+    expect([...b.querySelectorAll('img')].map((i) => i.getAttribute('src').replace(/-\d+$/, '')))
+      .toEqual(['import-ref://unsafe', 'import-ref://unsafe', 'import-ref://unresolvable', 'import-ref://unresolvable'])
   })
 
   it('skips refs already ours and stored attachments', () => {
@@ -372,5 +376,27 @@ describe('every adapter reads the one IMAGE_EXT (R8: Google Keep too)', () => {
     expect(docs).toHaveLength(1)
     expect(docs[0].media.map((m) => m.kind)).toEqual(['image', 'image', 'image', 'image'])
     expect(docs[0].html).not.toContain('attachmentChip')
+  })
+})
+
+// Plan E Task 9 fix round 1 (concern 5): content wins for a raster typed as a generic file.
+describe('rasterSignature', () => {
+  const bytes = (...xs) => new Uint8Array(xs)
+  const ascii = (s) => new TextEncoder().encode(s)
+  it('names PNG, JPEG, GIF and WebP from their own signature', async () => {
+    const { rasterSignature } = await import('./mediaRefs')
+    expect(rasterSignature(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0))).toBe('image/png')
+    expect(rasterSignature(bytes(0xff, 0xd8, 0xff, 0xe0))).toBe('image/jpeg')
+    expect(rasterSignature(ascii('GIF89a....'))).toBe('image/gif')
+    expect(rasterSignature(ascii('GIF87a....'))).toBe('image/gif')
+    expect(rasterSignature(ascii('RIFF\0\0\0\0WEBPVP8 '))).toBe('image/webp')
+  })
+  it('never names SVG, a web page, a non-image or a raster that needs converting', async () => {
+    const { rasterSignature } = await import('./mediaRefs')
+    for (const s of ['<svg xmlns="http://www.w3.org/2000/svg"/>', '<?xml version="1.0"?><svg/>',
+      '<!doctype html><html>', '%PDF-1.4', 'RIFF\0\0\0\0WAVEfmt ', 'II*\0', 'BM', '']) {
+      expect(rasterSignature(ascii(s)), s).toBe(null)
+    }
+    expect(rasterSignature(null)).toBe(null)
   })
 })

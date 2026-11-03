@@ -47,11 +47,11 @@ understands, then delegates:
 
 **`position:absolute` wrapper `<div>`s need no code at all.** OneNote wraps
 page content (each "outline"/text-box) in an absolutely-positioned `<div>`,
-but `html_to_tiptap`'s tree builder already unwraps EVERY `<div>` to its
-children unconditionally (`div` is not in `mddoc._HTML_KNOWN_TAGS` — see that
-module's own comment on `_unwrap_unknown_html`), regardless of its `style`.
-This module relies on that existing, generic behavior rather than
-duplicating it.
+but `html_to_tiptap`'s tree builder reads EVERY `<div>` as a plain block
+boundary (D3 item 7: `mddoc._HTML_BLOCK_WRAPPERS`; it was unwrapped to its
+children, which joined two divs' lines into one paragraph), regardless of its
+`style`. This module relies on that generic behavior rather than duplicating
+it.
 
 **Regex, not a second DOM walker.** Every pre-pass rule targets one
 OneNote-specific idiom on its OWN element — never multi-element structural

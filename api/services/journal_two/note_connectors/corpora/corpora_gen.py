@@ -20,6 +20,10 @@ It runs the REAL engine end to end -- never a second, hand-rolled converter:
   * Obsidian: the vault's markdown is pushed through the real staging door
     (`obsidian_staging.ingest_batch`), then `engine.sync_source` runs the real
     `ObsidianProvider`, its hotlinks served by the same kind of mock transport.
+  * Evernote (Plan E Task 9): `engine.sync_source` with the real `EvernoteProvider` and the
+    real `EvernoteMcpClient` over `EvernoteAccount`, a mock of the hosted MCP server, its token
+    endpoint and `storage.googleapis.com`, serving the synthetic `evernote_live_messy.json`
+    (measured key names only). Three full passes; see `_run_evernote`.
 
 Between pass 1 and pass 2 the member edits one note in UCT (`member_edits`), the remote
 changes it too, and a target that pass 1 could not find appears. The stored notes (body,
@@ -72,6 +76,7 @@ import httpx
 _HERE = pathlib.Path(__file__).resolve().parent
 NOTION_DUMP = _HERE / "notion_messy.json"
 OBSIDIAN_DIR = _HERE / "obsidian_messy"
+EVERNOTE_DUMP = _HERE / "evernote_live_messy.json"
 
 # corpora -> note_connectors -> journal_two -> services -> api -> <repo root>
 _REPO_ROOT = _HERE.parents[4]
@@ -89,7 +94,7 @@ DATA_SOURCE_PAGES_FOR_RUN = 2
 #: refuses only what the corpus aims at a private address on purpose.
 PUBLIC_TEST_ADDRESS = "142.250.0.1"
 
-CORPORA = ("notion_messy", "obsidian_messy")
+CORPORA = ("notion_messy", "obsidian_messy", "evernote_live_messy")
 
 
 # ── media bodies, built in memory from seeded specs ─────────────────────────────
@@ -390,7 +395,11 @@ def _run_environment(work_dir: pathlib.Path) -> Iterator[dict[str, Any]]:
         setenv("NOTION_CLIENT_ID", "corpus-client")
         setenv("NOTION_CLIENT_SECRET", "corpus-secret")
         setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
+        # The messy vault's corpus pins the attachment layer ON (final review I3 made the
+        # master switch default OFF; the OFF conversion is pinned by the provider's tests).
+        setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1")
         setenv("PUSH_SECRET", "corpus-push-secret")
+        setenv("EVERNOTE_CLIENT_ID", "corpus-evernote-client")
         patch(auth_db, "_DB_PATH", str(work_dir / "auth.db"))
         patch(notes_svc, "_ATTACHMENT_ROOT", work_dir / "att")
         patch(notes_svc, "uuid", _SeqUuid())
@@ -552,9 +561,316 @@ async def _run_obsidian(env: dict[str, Any]) -> dict[str, Any]:
     return {"corpus": "obsidian_messy", "members": {user_id: _member_result(user_id, passes, before_last)}}
 
 
+# ── the Evernote account, served (Plan E Task 9) ──────────────────────────────────────
+
+EVERNOTE_SESSION_ID = "corpus-mcp-session"
+_GCS_HOST = "storage.googleapis.com"
+_GCS_PREFIX = "/en-corpus/"
+
+
+class EvernoteAccount:
+    """Evernote's hosted MCP server, its token endpoint and its attachment storage for the dump in
+    `evernote_live_messy.json`, per pass (`self.pass_no`). Every MCP payload uses the MEASURED key
+    names (`docs/notebook-connectors/evernote-mcp-probe.md`). The token check is real: after the
+    refresh rotates `at-1` to `at-2`, `at-1` gets a 401, so a pass that used stale credentials
+    would cost a second refresh, which the rail counts."""
+
+    def __init__(self, dump: dict[str, Any], media: MediaServer):
+        self.dump = dump
+        self.media = media
+        self.pass_no = 0
+        self.valid_access = dump["oauth"]["accessToken"]
+        self.valid_refresh = dump["oauth"]["refreshToken"]
+        #: Every `tools/call` name that reached the wire, in order (the server's own record).
+        self.wire_tool_calls: list[str] = []
+        #: The refresh token each refresh POST carried.
+        self.refresh_posts: list[str] = []
+        #: Per pass, the note ids `get_note` was asked for (Task 9 fix round 1, M2).
+        self.get_note_calls: list[list[str]] = []
+        self._attachment_calls: dict[str, int] = {}
+        self._downloads: dict[str, int] = {}
+        self._bodies: dict[str, bytes] = {}
+
+    # -- the dump, as the server sees it this pass
+    def _note_spec(self, guid: str) -> dict[str, Any]:
+        if self.pass_no >= 1 and guid in self.dump.get("notes_pass2", {}):
+            return self.dump["notes_pass2"][guid]
+        return self.dump["notes"][guid]
+
+    def _resource_body(self, md5: str) -> bytes:
+        if md5 not in self._bodies:
+            self._bodies[md5] = _media_body(self.dump["resources"][md5]["body"])
+        return self._bodies[md5]
+
+    def _resource_size(self, md5: str) -> int:
+        spec = self.dump["resources"][md5]
+        return spec.get("declaredSizeBytes") or len(self._resource_body(md5))
+
+    def _get_note(self, guid: str) -> dict[str, Any]:
+        spec = self._note_spec(guid)
+        content = spec.get("content")
+        if content is None:
+            rep = spec["content_repeat"]
+            content = ("<?xml version=\"1.0\" encoding=\"UTF-8\"?><en-note>"
+                       + "".join(rep["line"].format(n=n) for n in range(1, rep["count"] + 1)) + "</en-note>")
+        resources = None
+        if spec.get("resources") is not None:
+            resources = [{"id": f"res-{md5[:8]}", "hash": md5, "mime": self.dump["resources"][md5]["mime"],
+                          "name": self.dump["resources"][md5]["name"], "sizeBytes": self._resource_size(md5)}
+                         for md5 in spec["resources"]]
+        return {"id": guid, "title": spec["title"], "version": 1 + self.pass_no, "updateSequenceNumber": 100,
+                "notebookId": spec["notebookId"], "content": content, "created": spec["created"],
+                "updated": spec["updated"], "active": True, "deleted": None, "tasks": [],
+                "tags": spec.get("tags"), "resources": resources, "attributes": spec.get("attributes")}
+
+    @staticmethod
+    def _iso_of(value: Any) -> str:
+        if isinstance(value, (int, float)):
+            from datetime import datetime, timezone
+            return datetime.fromtimestamp(value / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return value
+
+    def _hit(self, guid: str) -> dict[str, Any]:
+        spec = self._note_spec(guid)
+        hit = {"noteId": guid, "title": spec["title"], "snippet": None,
+               "createdAt": self._iso_of(spec["created"]), "updatedAt": self._iso_of(spec["updated"]),
+               "score": None}
+        hit.update(spec.get("hit") or {})
+        return hit
+
+    def _search_notes(self, args: dict[str, Any]) -> dict[str, Any]:
+        listing = self.dump["passes"][self.pass_no]
+        ids = listing["trash"] if args.get("query") == "intrash:true" else listing["active"]
+        hits = sorted((self._hit(g) for g in ids),
+                      key=lambda h: (self._iso_of(self._note_spec(h["noteId"])["updated"]), h["noteId"]),
+                      reverse=True)
+        start, size = int(args.get("startIndex") or 0), int(args.get("maxResults") or 100)
+        return {"hits": hits[start:start + size], "totalResultCount": len(hits), "startIndex": start,
+                "isLastPage": start + size >= len(hits)}
+
+    def _get_attachment(self, args: dict[str, Any]) -> dict[str, Any]:
+        md5 = args["hash"]
+        spec = self.dump["resources"][md5]
+        n = self._attachment_calls[md5] = self._attachment_calls.get(md5, 0) + 1
+        # A fresh pre-signed URL on every call, as the real server mints one.
+        return {"downloadUrl": f"https://{_GCS_HOST}{_GCS_PREFIX}{md5}?X-Goog-Signature=sig{n}",
+                "expiresAt": 1790000000000, "noteId": args["noteId"], "resourceGuid": f"res-{md5[:8]}",
+                "hash": md5, "mimeType": spec["mime"], "filename": spec["name"],
+                "sizeBytes": self._resource_size(md5)}
+
+    def _tool(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
+        if name == "search_notes":
+            return self._search_notes(args)
+        if name == "get_note":
+            self.get_note_calls[self.pass_no].append(args["noteId"])
+            return self._get_note(args["noteId"])
+        if name == "search_notebooks":
+            hits = self.dump["notebooks"]
+            return {"hits": hits, "totalResultCount": len(hits), "startIndex": 0, "isLastPage": True}
+        if name == "search_tags":
+            hits = self.dump["tags"]
+            return {"hits": hits, "totalResultCount": len(hits), "startIndex": 0, "isLastPage": True}
+        if name == "get_attachment":
+            return self._get_attachment(args)
+        raise AssertionError(f"the corpus server has no tool {name!r}")
+
+    # -- the three hosts
+    def _mcp(self, request: httpx.Request) -> httpx.Response:
+        if request.headers.get("authorization") != f"Bearer {self.valid_access}":
+            return httpx.Response(401, json={"error": "invalid_token"})
+        msg = json.loads(request.content)
+        if "id" not in msg:
+            return httpx.Response(202)
+        if msg["method"] == "initialize":
+            return httpx.Response(200, headers={"mcp-session-id": EVERNOTE_SESSION_ID}, json={
+                "jsonrpc": "2.0", "id": msg["id"], "result": {
+                    "protocolVersion": "2025-06-18", "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "corpus-evernote", "version": "1"}}})
+        assert msg["method"] == "tools/call", msg["method"]
+        name = msg["params"]["name"]
+        self.wire_tool_calls.append(name)
+        sc = self._tool(name, msg["params"].get("arguments") or {})
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": msg["id"], "result": {
+            "content": [{"type": "text", "text": "ok"}], "structuredContent": sc}})
+
+    def _token(self, request: httpx.Request) -> httpx.Response:
+        from urllib.parse import parse_qs
+        form = {k: v[0] for k, v in parse_qs(request.content.decode()).items()}
+        self.refresh_posts.append(form.get("refresh_token", ""))
+        if form.get("grant_type") != "refresh_token" or form.get("refresh_token") != self.valid_refresh:
+            return httpx.Response(400, json={"error": "invalid_grant"})
+        rotated = self.dump["oauth"]["rotateTo"]
+        self.valid_access, self.valid_refresh = rotated["access_token"], rotated["refresh_token"]
+        return httpx.Response(200, json=rotated)
+
+    def _storage(self, request: httpx.Request) -> httpx.Response:
+        assert "authorization" not in {k.lower() for k in request.headers.keys()}, \
+            "a credential must never ride on an attachment download"
+        md5 = request.url.path[len(_GCS_PREFIX):]
+        spec = self.dump["resources"].get(md5)
+        if spec is None or not request.url.path.startswith(_GCS_PREFIX):
+            return httpx.Response(404)
+        n = self._downloads[md5] = self._downloads.get(md5, 0) + 1
+        if spec.get("redirect"):
+            return httpx.Response(302, headers={"location": spec["redirect"]})
+        statuses = spec.get("downloads") or [200]
+        status = statuses[min(n, len(statuses)) - 1]
+        if status != 200:
+            return httpx.Response(status, content=b"<Error><Code>ExpiredToken</Code></Error>")
+        return httpx.Response(200, content=self._resource_body(md5), headers={"content-type": spec["mime"]})
+
+    def respond(self, request: httpx.Request) -> httpx.Response:
+        host = request.headers.get("host") or request.url.host
+        if host == "mcp.evernote.com":
+            return self._mcp(request)
+        if host == "accounts.evernote.com" and request.url.path == "/auth/token":
+            return self._token(request)
+        if host == _GCS_HOST:
+            return self._storage(request)
+        return self.media.respond(request)
+
+
+def _folder_paths(user_id: str) -> dict[str, list[str]]:
+    """`{note id: [folder names, root first]}` for the member's stored notes."""
+    from api.services import auth_db
+    conn = auth_db.get_connection()
+    try:
+        folders = {r["id"]: (r["name"], r["parent_id"]) for r in conn.execute(
+            "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?", (user_id,))}
+        notes = conn.execute("SELECT id, folder_id FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL",
+                             (user_id,)).fetchall()
+    finally:
+        conn.close()
+    out: dict[str, list[str]] = {}
+    for note in notes:
+        path, at = [], note["folder_id"]
+        while at and at in folders and len(path) < 50:
+            path.insert(0, folders[at][0])
+            at = folders[at][1]
+        out[note["id"]] = path
+    return out
+
+
+def _sync_log(source_id: str) -> list[dict[str, Any]]:
+    from api.services import auth_db
+    conn = auth_db.get_connection()
+    try:
+        rows = conn.execute("SELECT failures_json FROM j2_note_sync_log WHERE source_id = ? ORDER BY rowid",
+                            (source_id,)).fetchall()
+    finally:
+        conn.close()
+    return [json.loads(r["failures_json"]) if r["failures_json"] else [] for r in rows]
+
+
+async def _run_evernote(env: dict[str, Any], dump: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The real `EvernoteProvider` and the real `EvernoteMcpClient` (its read-only allow-list, its
+    401 hook) over `EvernoteAccount`; the real refresh (`evernote_oauth`, CAS swap) whose one POST
+    goes to the same mock. Three scheduler full passes, then a member's removal-check pass: pass 2
+    sees the member's edits, a remote edit, a trashed note, a purged note, a new link target and an
+    expired access token; passes 3 and 4 see no remote change. Per pass: the counts, `adopted`, `sourceDeleted`, the engine's failure strings
+    and the sync log's `failures_json`. Per note: which passes created or moved its `updated_at`.
+    `dump` (default: the committed one) lets a rail run a variant DERIVED from it
+    (`build_evernote_variant`)."""
+    from api.services.journal_two import notes as notes_svc
+    from api.services.journal_two.note_connectors import connections, engine, evernote_oauth
+    from api.services.journal_two.note_connectors.evernote_mcp import EvernoteMcpClient
+    from api.services.journal_two.note_connectors.providers.evernote import EvernoteProvider
+
+    if dump is None:
+        dump = json.loads(EVERNOTE_DUMP.read_text(encoding="utf-8"))
+    user_id = dump["user"]
+    account = EvernoteAccount(dump, MediaServer(dump["media"]))
+    transport = httpx.MockTransport(account.respond)
+    clients: list[Any] = []
+
+    real_post_refresh = evernote_oauth._post_refresh
+
+    def post_refresh(refresh_token: str, cid: str, client: Any) -> dict[str, Any]:
+        # The real POST, through a client on the corpus transport (the default one is refused).
+        with httpx.Client(transport=transport) as http:
+            return real_post_refresh(refresh_token, cid, client or http)
+
+    env["patch"](evernote_oauth, "_post_refresh", post_refresh)
+    # Passes run seconds apart; the strike gap (which needs MEMBER_FULL_PASS_MIN_INTERVAL_S
+    # between full passes before a miss counts) would otherwise stop every strike.
+    env["patch"](engine, "MEMBER_FULL_PASS_MIN_INTERVAL_S", 0)
+
+    def build_provider(_name: str, source: dict[str, Any] | None = None) -> Any:
+        provider = EvernoteProvider(user_id=(source or {}).get("userId"),
+                                    http=httpx.AsyncClient(transport=transport),
+                                    mcp_factory=lambda creds: mcp(creds, provider))
+        return provider
+
+    def mcp(creds: dict[str, Any], provider: Any) -> Any:
+        client = EvernoteMcpClient(creds["accessToken"], http=httpx.AsyncClient(transport=transport),
+                                   on_unauthorized=provider._on_unauthorized, sleep=_no_sleep)
+        clients.append(client)
+        return client
+
+    env["patch"](engine, "_provider_factory", build_provider)
+
+    for seed in dump["enex_seed"]:  # notes a member imported earlier from an .enex export
+        notes_svc.import_confirm(user_id, {"source": "evernote", "destFolderId": None, "notes": [{
+            "importKey": seed["importKey"], "title": seed["title"], "tags": [], "folderPath": seed["folderPath"],
+            "bodyJson": {"type": "doc", "content": [{"type": "paragraph", "content": [
+                {"type": "text", "text": seed["text"]}]}]},
+            "createdAt": seed["createdAt"], "updatedAt": seed["updatedAt"]}]})
+
+    oauth_spec = dump["oauth"]
+    connections.upsert_connector(user_id, "evernote", {
+        "accessToken": oauth_spec["accessToken"], "refreshToken": oauth_spec["refreshToken"],
+        "expiresAt": "2099-01-01T00:00:00+00:00", "clientId": oauth_spec["clientId"]}, account_label="Evernote")
+    source = connections.create_source(user_id, "evernote", "account", display_name="Evernote")
+
+    passes = []
+    moved: dict[str, list[int]] = {}
+    before_last: dict[str, str] = {}
+    for pass_no, spec in enumerate(dump["passes"]):
+        account.pass_no = pass_no
+        account.get_note_calls.append([])
+        if pass_no == oauth_spec["expireBeforePass"]:
+            stored = connections.get_token(user_id, "evernote")
+            assert connections.swap_token_if_unchanged(user_id, "evernote", stored["refreshToken"],
+                                                       {**stored, "expiresAt": "2000-01-01T00:00:00+00:00"})
+        before = _snapshot(user_id)
+        if pass_no == len(dump["passes"]) - 1:
+            before_last = before
+        # A `member` pass is a member's "Sync now" with the removal check (fix round 1, M2):
+        # an incremental pass with a complete listing, never a media-retry pass.
+        member = bool(spec.get("member"))
+        result = await engine.sync_source(source["id"], full=True, manual=True, member=member)
+        for note_id, stamp in _snapshot(user_id).items():
+            if before.get(note_id) != stamp:
+                moved.setdefault(note_id, []).append(pass_no + 1)
+        passes.append({**_pass_summary(result), "adopted": result.get("adopted"),
+                       "sourceDeleted": result.get("sourceDeleted"), "failures": result.get("failures"),
+                       **({"removalCheckRan": (result.get("removalCheck") or {}).get("ran")} if member else {})})
+        if pass_no == 0:
+            for guid, text in (dump.get("member_edits") or {}).items():
+                _member_edit(user_id, f"evernote:guid:{guid}", text)
+    for summary, failures_json in zip(passes, _sync_log(source["id"])):
+        summary["failuresJson"] = failures_json
+    for client in clients:
+        await client._http.aclose()
+
+    member = _member_result(user_id, passes, before_last)
+    folder_paths = _folder_paths(user_id)
+    for n in member["notes"]:
+        n["updatedInPasses"] = moved.get(n["id"], [])
+        n["folderPath"] = folder_paths.get(n["id"], [])
+    stored = connections.get_token(user_id, "evernote") or {}
+    return {"corpus": "evernote_live_messy", "members": {user_id: member},
+            "toolCalls": [name for c in clients for name in c.tool_calls],
+            "wireToolCalls": account.wire_tool_calls,
+            "getNoteByPass": account.get_note_calls,
+            "oauth": {"refreshPosts": account.refresh_posts, "storedRefreshToken": stored.get("refreshToken"),
+                      "storedAccessToken": stored.get("accessToken")}}
+
+
 async def _run_all(work_dir: pathlib.Path) -> dict[str, dict[str, Any]]:
     out = {}
-    for name, runner in (("notion_messy", _run_notion), ("obsidian_messy", _run_obsidian)):
+    for name, runner in (("notion_messy", _run_notion), ("obsidian_messy", _run_obsidian),
+                         ("evernote_live_messy", _run_evernote)):
         corpus_dir = work_dir / name
         corpus_dir.mkdir(parents=True, exist_ok=True)
         with _run_environment(corpus_dir) as env:
@@ -571,6 +887,20 @@ def build(work_dir: pathlib.Path) -> dict[str, dict[str, Any]]:
     LAST_RUN_REFUSED.clear()
     with no_network(LAST_RUN_REFUSED):
         return asyncio.run(_run_all(pathlib.Path(work_dir)))
+
+
+def build_evernote_variant(work_dir: pathlib.Path, dump: dict[str, Any]) -> dict[str, Any]:
+    """The Evernote corpus alone over `dump` (a variant derived from the committed dump), under
+    `no_network()` like `build()`. Its refusals are left in `LAST_RUN_REFUSED`."""
+    async def run() -> dict[str, Any]:
+        corpus_dir = pathlib.Path(work_dir) / "evernote_variant"
+        corpus_dir.mkdir(parents=True, exist_ok=True)
+        with _run_environment(corpus_dir) as env:
+            return await _run_evernote(env, dump)
+
+    LAST_RUN_REFUSED.clear()
+    with no_network(LAST_RUN_REFUSED):
+        return asyncio.run(run())
 
 
 def render(result: dict[str, Any]) -> str:

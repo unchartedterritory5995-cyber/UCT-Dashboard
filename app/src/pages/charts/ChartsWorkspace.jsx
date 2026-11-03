@@ -3112,6 +3112,10 @@ function ChartsWorkspaceBoard() {
   const agentPrefsRef = useRef(null)
   agentPrefsRef.current = { prefs, setPref }
   const agentNavRef = useRef(null)
+  // ⭐ W1-B B-06: Replay Mode for UCT Agent — the SAME handlers the Replay dialog uses (startReplay with no timeframe
+  // change / exitReplayMode) and the shared cutoff, read through a ref so the host memo stays dependency-free.
+  const agentReplayRef = useRef(null)
+  agentReplayRef.current = { cutoff: replayCutoff, start: startReplay, exit: exitReplayMode }
   const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
@@ -3163,6 +3167,10 @@ function ChartsWorkspaceBoard() {
       },
     },
     navigate: (to) => agentNavRef.current?.(to),
+    replay: {
+      read: () => agentReplayRef.current?.cutoff ?? null,
+      set: (iso) => { const r = agentReplayRef.current; if (!r) return; if (iso) r.start(iso, null); else r.exit() },
+    },
   }), [])
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
   // Modify door opens the Agent on THAT chart (it asks what to build) instead of the chart-side dock.

@@ -106,7 +106,7 @@ import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
 // `parse.js`, neither of which imports this file.
-import { checkBudget } from './budget.js'
+import { checkBudget, DEFAULT_BUDGET, REFUSALS as BUDGET_REFUSALS } from './budget.js'
 // ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
@@ -1336,6 +1336,27 @@ export function derivedSeriesTree(name, table) {
   return cOp('/', [sum, cNum(parts.length)])
 }
 
+/** ⛔ IS THIS (RESOLVED) SOURCE A PRICE THE BAR ITSELF HOLDS? `open`, `high`,
+ *  `low`, `close`, or one of Pine's means of them (`hl2`, `hlc3`, `ohlc4`,
+ *  `hlcc4`, exactly as `derivedSeriesTree` builds them), compared on the resolved
+ *  canonical tree, so `input.source(close)` and a hand-written `(high + low) / 2`
+ *  answer as the names do.
+ *  ⭐ THE ENGINE'S ONE ANSWER TO "CAN THIS SOURCE BE `na` ON A BAR?", written for
+ *  the H3 `ta.vwap(source)` refusal and asked by `ta.cmo` too since W1 — never a
+ *  list of either's own. Every bar holds its four prices, so these are known on
+ *  every bar; anything COMPUTED can be `na` on a bar after its first value (an `na`
+ *  arm, a division by zero, a `ta.*` call's own gap), and `volume` is not a price:
+ *  a bar may carry none, and `interpret.js` seeds a missing field `na`, never 0.
+ *  ⛔ A whitelist, never "might be `na` at runtime" (see `isNaNLiteral`): whoever
+ *  asks refuses by name what is not on it. */
+function isBarPriceSource(tree, table) {
+  const got = JSON.stringify(tree)
+  return ['open', 'high', 'low', 'close'].filter((n) => own((table && table.series) || {}, n))
+    .map((n) => cSeries(n))
+    .concat(['hl2', 'hlc3', 'ohlc4', 'hlcc4'].map((n) => derivedSeriesTree(n, table)).filter(Boolean))
+    .some((t) => JSON.stringify(t) === got)
+}
+
 /** Pine built-ins that are not a MEAN of price series but are still an exact
  *  expansion in this table's own vocabulary.
  *
@@ -1435,6 +1456,66 @@ const BUILTIN_SERIES_TREE = Object.freeze({
   // measured against the full-history capture in `pinePhase1Builtins.test.js`).
   nvi: () => volumeIndexTree('<'),
   pvi: () => volumeIndexTree('>'),
+  // ⭐⭐ W1 (2026-11-02) — `ta.obv` and `ta.pvt` JOIN THE SAME `cum` BARGAIN, the
+  // one `_functions_excluded.obv`/`.pvt` refuse for a SCREEN and
+  // `_functions_cumulative` (amended 2026-09-08) permits on a PANE. Each is
+  // TradingView's published reference body, verbatim:
+  //     ta.obv = ta.cum(math.sign(ta.change(close)) * volume)
+  //     ta.pvt = ta.cum((ta.change(close) / close[1]) * volume)
+  // so bar 0 (`ta.change` is `na` there) is `na`, and `cum`'s vendor-measured
+  // `na` rule (blank on an `na` bar, total held across it) is what the reference
+  // body inherits. ⛔ THE BOUNDED REWRITES ARE UNTOUCHED AND STILL WIN:
+  // `obv > obv[k]`, `obv - obv[k]` and `obv <cmp> sma(obv, n)` are decided in the
+  // binary case before either operand resolves, so a SCREEN keeps `obvN`/`pvtN`,
+  // and a bare LEVEL reaches here only on a pane (`seriesTreeOf`).
+  // ⚠️ No capture holds either level yet: `docs/pine/capture-queue-2026-11-02-w1.md`.
+  obv: () => cCall('cum', [cOp('*', [cCall('sign', [cCall('change', [cSeries('close')])]), cSeries('volume')])]),
+  pvt: () => cCall('cum', [cOp('*', [
+    cOp('/', [cCall('change', [cSeries('close')]), { type: 'offset', value: 1, args: [cSeries('close')] }]),
+    cSeries('volume'),
+  ])]),
+  // ⭐ W1 (2026-11-02) — the three remaining volume built-ins, each TradingView's
+  // published reference body (the "the same on pine" half of each variable's own
+  // reference example; every source and second witness, name by name, is in
+  // `docs/pine/evidence/2026-11-02-w1/formula-sources.md`):
+  //     ta.iii  = (2 * close - high - low) / ((high - low) * volume)
+  //     ta.wvad = (close - open) / (high - low) * volume
+  //     ta.wad  = ta.cum(mom > 0 ? close - math.min(low, close[1])
+  //                      : mom < 0 ? close - math.max(high, close[1]) : 0),  mom = ta.change(close)
+  // ⛔ W1 RE-REVIEW (2026-11-02): IN `ta.iii` THE VOLUME DIVIDES. That is the v4
+  // reference's body, PyneCore's, and the answer TradingView's own exported values
+  // give on every row of PyneCore's export fixture (100 of 100). The v5/v6 pages
+  // print `((2 * close - high - low) / (high - low)) * volume`, which W1 first built
+  // from and which those same values contradict on every row (0 of 100). A zero
+  // range or a zero volume is a division by zero, and it meets the engine's one rule
+  // for that: IEEE division (`interpret.js::BINARY['/']`, mirrored by
+  // `ast_interpret._binary_div`), and a non-finite answer is `na` at the column
+  // (`interpret.js::toColumn`), a gap.
+  // `iii` and `wvad` are per-bar (no state), so a screen may read them. `wad` is a
+  // running total and joins the `cum` bargain (pane only). Its bar 0 is 0, not
+  // `na`: `mom` is `na` there and both comparisons answer false, exactly as the
+  // reference body reads in Pine. ⚠️ No capture of ours yet (capture queue W1-C).
+  iii: () => cOp('/', [
+    cOp('-', [cOp('-', [cOp('*', [cNum(2), cSeries('close')]), cSeries('high')]), cSeries('low')]),
+    cOp('*', [cOp('-', [cSeries('high'), cSeries('low')]), cSeries('volume')]),
+  ]),
+  wvad: () => cOp('*', [
+    cOp('/', [cOp('-', [cSeries('close'), cSeries('open')]), cOp('-', [cSeries('high'), cSeries('low')])]),
+    cSeries('volume'),
+  ]),
+  wad: () => {
+    const prevClose = () => ({ type: 'offset', value: 1, args: [cSeries('close')] })
+    const mom = () => cCall('change', [cSeries('close')])
+    return cCall('cum', [cOp('?:', [
+      cOp('>', [mom(), cNum(0)]),
+      cOp('-', [cSeries('close'), cCall('min', [cSeries('low'), prevClose()])]),
+      cOp('?:', [
+        cOp('<', [mom(), cNum(0)]),
+        cOp('-', [cSeries('close'), cCall('max', [cSeries('high'), prevClose()])]),
+        cNum(0),
+      ]),
+    ])])
+  },
 })
 
 /** Does a canonical tree call any of `names`? Iterative, like every walk here. */
@@ -1466,11 +1547,105 @@ const PHASE1_MODERN_SPELLING = Object.freeze({
   nvi: 'ta.nvi',
   pvi: 'ta.pvi',
   accdist: 'ta.accdist',
+  obv: 'ta.obv',
+  pvt: 'ta.pvt',
+  iii: 'ta.iii',
+  wvad: 'ta.wvad',
+  wad: 'ta.wad',
+  cmo: 'ta.cmo',
+  cog: 'ta.cog',
 })
 
+/** ⛔ W1 (review, 2026-11-02) — THE RUNNING TOTALS W1 SERVED ARE HELD FROM
+ *  DRAWINGS. `ta.obv`, `ta.pvt` and `ta.wad` are `cum(…)` from the first bar the
+ *  chart loaded, so their LEVEL is a fact about where the history starts. A pane
+ *  PLOT carries that fact to the member: its tree raises the `window_dependent`
+ *  requirement tag, and the pane says how much history it drew. A table cell or a
+ *  label does not — the tags are read off the pane's plots and colours, never its
+ *  drawings (`memberPaneDefinition.js::requirementTagsRaised`) — so it would print
+ *  a number that moves with the fetch, unmarked: on SPY, whose chart does not start
+ *  at the listing, an OBV TradingView never printed (`vendorHarness.h5MulticatorValues`).
+ *  So every drawing door refuses them BY NAME (`Resolver.seriesTreeOf`) until a
+ *  capture grades a drawing of the level: the host object pass (`objectPass`), the
+ *  runtime lane's object door and, since the W1 re-review, a runtime build that
+ *  draws its own objects (both `objectDoor`). The bounded rewrites (`obvN`,
+ *  `pvtN`) are not these names and keep drawing.
+ *  ⚠️ Phase 1's three (`accdist`, `nvi`, `pvi`) are running totals as well and are
+ *  NOT held here: they reach drawings on master already, and withdrawing a drawing
+ *  is an owner decision, not this wave's. */
+const PINE_DRAWING_HELD_SERIES = Object.freeze(new Set(['obv', 'pvt', 'wad']))
+
 /** The `BUILTIN_SERIES_TREE` names that are running totals (`cum`), so only a
- *  pane is handed them — see `Resolver.seriesTreeOf`. */
-const PINE_WINDOW_DEPENDENT_SERIES = Object.freeze(new Set(['accdist', 'nvi', 'pvi']))
+ *  pane is handed them — see `Resolver.seriesTreeOf`. Phase 1's three and W1's
+ *  (`PINE_DRAWING_HELD_SERIES`), each name written once. */
+const PINE_WINDOW_DEPENDENT_SERIES = Object.freeze(new Set(['accdist', 'nvi', 'pvi', ...PINE_DRAWING_HELD_SERIES]))
+
+/** W1 — `ta.cog`'s window as its expansion reads it (`BUILTIN_CALL_TREE.cog`): a
+ *  whole number of at least 1 this engine can read when it builds the formula, as
+ *  the folded `num` node, else `null`. */
+function cogWindowOf(args) {
+  if (args.length !== 2) return null
+  const n = foldWindow(args[1])
+  return n && n.type === 'num' && Number.isInteger(Number(n.value)) && Number(n.value) >= 1 ? n : null
+}
+
+/** ⛔ W1 (review, 2026-11-02) — HOW LONG A `ta.cog` WINDOW MAY BE IS THE
+ *  BUDGET'S QUESTION, never a cap of the expansion's own. `ta.cog` unrolls its
+ *  window into one term per bar, and `budget.js` refuses a tree over
+ *  `DEFAULT_BUDGET.maxNodes` evaluation units at registration and at compute
+ *  (`budget:nodes`). The cap this replaced (200) let through windows the budget
+ *  then refused downstream (past 32 bars of `close`), after the member had been
+ *  told the script translated. So the built tree is measured by the budget's own
+ *  check (`checkBudget`, every cap) and refused at the translator, by name, in
+ *  the budget's own words (`resolveTableCall`'s `cmo`/`cog` arm). That is exactly
+ *  where the budget would refuse: a whole tree holds every unit, every bar of
+ *  lookback and every series its `ta.cog` part holds, so a part over a cap puts
+ *  the whole over it. A window longer than the node cap is never built
+ *  (`BUILTIN_CALL_TREE.cog`): each of its bars reads the source at its own
+ *  offset, one distinct unit apiece, so it cannot fit whatever else the tree
+ *  holds. A tree the budget cannot MEASURE is not a budget refusal: it goes on to
+ *  meet the engine's own refusal, as the screener lane's lookback check treats
+ *  one. Returns the budget's sentence, or `null` when the window fits. */
+function cogOverBudget(args, tree) {
+  const n = cogWindowOf(args)
+  if (!n) return null
+  const len = Number(n.value)
+  const cap = DEFAULT_BUDGET.maxNodes
+  if (len > cap) {
+    return `${BUDGET_REFUSALS['budget:nodes']} — a window of ${len} bars is ${len} terms before anything `
+      + `else is counted, and the cap is ${cap}`
+  }
+  if (!tree) return null
+  let fit
+  try { fit = checkBudget(tree) } catch (e) { if (isStackOverflow(e)) throw e; return null }
+  return fit.ok ? null : fit.error
+}
+
+/** ⛔ W1 FIX (coordinator ruling, 2026-11-02) — CAN `ta.cmo`'S SOURCE BE `na` ON A
+ *  BAR AFTER ITS FIRST VALUE? `ta.cmo` is served only where the answer is no, by the
+ *  engine's two existing authorities and never a list of its own: a tree that is
+ *  never `na` at all (`neverNaTree`: a number, a comparison, `na(…)`, and the logic
+ *  over them), or a price the bar itself holds (`isBarPriceSource`, H3's rule). Every
+ *  other source is refused by name (`resolveTableCall`'s `cmo`/`cog` arm).
+ *  WHY: on an `na` momentum AFTER the source's first value, TradingView's published
+ *  `f_cmo` and its own v5/v6 remark ("`na` values in the `source` series are
+ *  ignored") give different numbers. Read literally, the body adds 0.0 to `sm1` and
+ *  `math.sum` (`NA.SKIP`) skips the bar in `sm2`, so it draws a value on that bar and
+ *  on the `length` bars after it; PyneCore answers `na` there and advances neither
+ *  sum. A remark does not settle it: the captures behind `interpret.js::NA` found the
+ *  windowed family treating a gap three ways (`sum` skips, `dev` propagates,
+ *  `highest`/`lowest` restart). No capture says which `ta.cmo` computes (capture queue
+ *  W1-E, rows E04/E05), and this engine never draws where TradingView may hide.
+ *  ⭐ A WARM-UP IS NOT A GAP: the momentum's own `na` on bar 0 (or a source's leading
+ *  `na`) gives the same values either way, because both windows begin after it, so
+ *  `ta.cmo(close, n)` is unchanged (`docs/pine/evidence/2026-11-02-w1/formula-sources.md`:
+ *  130 of 130 of TradingView's exported rows).
+ *  ⚠️ CONSERVATIVE BY CONSTRUCTION: a computed source with no gap in fact
+ *  (`ta.sma(close, 5)`, `close - open`, `close[1]`) is refused too, and `volume` (a bar
+ *  may carry none). Widening the rule is a capture's decision, not this function's. */
+function cmoSourceCannotGap(source, table) {
+  return neverNaTree(source) || isBarPriceSource(source, table)
+}
 
 /** `exp(cum(cond ? ln(1 + (close - close[1]) / close[1]) : 0))` — see `nvi`/`pvi`
  *  above. `cmp` is how this bar's volume must compare with `nz(volume[1], 0)`. */
@@ -2403,6 +2578,51 @@ export const BUILTIN_CALL_TREE = Object.freeze({
     const pc = cCall('change', [a[0]])
     const doubleSmooth = (s) => cCall('ema', [cCall('ema', [s, longLen]), shortLen])
     return cOp('/', [doubleSmooth(pc), doubleSmooth(cCall('abs', [pc]))])
+  },
+  // ⭐ W1 (2026-11-02) — `ta.cmo(source, length)`, TradingView's published
+  // `f_cmo`, verbatim in its arithmetic and its order:
+  //     mom = ta.change(src)
+  //     sm1 = math.sum(mom >= 0 ? mom : 0.0, length)
+  //     sm2 = math.sum(mom >= 0 ? 0.0 : -mom, length)
+  //     100 * (sm1 - sm2) / (sm1 + sm2)
+  // ⚠️ An `na` momentum is NOT symmetric in that body and is kept so: `na >= 0`
+  // is false, so it adds 0.0 to `sm1` and `-na` (= `na`) to `sm2`, which
+  // `math.sum` SKIPS (the table's `sum`, vendor-pinned `NA.SKIP`). So `sm2` holds
+  // `length` known values only from bar `length`, the first bar this answers.
+  // ⛔ W1 FIX (coordinator ruling, 2026-11-02): a hole LATER in the source would
+  // skew `sm2`'s window the same way, and there TradingView's answer is unknown,
+  // so the Resolver hands this expansion only a source that cannot be `na` after
+  // its first value and refuses every other by name (`cmoSourceCannotGap`).
+  // `length` must be a whole number this engine can read when it builds the
+  // formula (the caller records an input that reaches it). ⚠️ No capture yet
+  // (capture queue W1-C; the gap rows are W1-E's E04/E05).
+  cmo: (a) => {
+    if (a.length !== 2) return null
+    const n = foldWindow(a[1])
+    if (!(n && n.type === 'num' && Number.isInteger(Number(n.value)) && Number(n.value) >= 1)) return null
+    const mom = () => cCall('change', [a[0]])
+    const up = () => cOp('>=', [mom(), cNum(0)])
+    const sm1 = cCall('sum', [cOp('?:', [up(), mom(), cNum(0)]), n])
+    const sm2 = cCall('sum', [cOp('?:', [up(), cNum(0), cOp('u-', [mom()])]), n])
+    return cOp('/', [cOp('*', [cNum(100), cOp('-', [sm1, sm2])]), cOp('+', [sm1, sm2])])
+  },
+  // ⭐ W1 (2026-11-02) — `ta.cog(source, length)`, TradingView's published
+  // `pine_cog`: `-num / math.sum(source, length)`, where `num` starts at 0.0 and
+  // adds `source[i] * (i + 1)` for i = 0 … length − 1 IN THAT ORDER. The loop has
+  // a whole-number bound, so it is unrolled into the same left-to-right sum
+  // (`0.0 + x` is `x` exactly, so the seed term is dropped). An `na` anywhere in
+  // the window is `na`, by plain arithmetic, as there. ⛔ A window longer than the
+  // node budget's cap is not built: `cogOverBudget` says why, and the Resolver
+  // refuses it, and any window whose tree the budget would refuse, by name.
+  // ⚠️ No capture yet (capture queue W1-C).
+  cog: (a) => {
+    const n = cogWindowOf(a)
+    if (!n || Number(n.value) > DEFAULT_BUDGET.maxNodes) return null
+    const len = Number(n.value)
+    const at = (k) => (k === 0 ? a[0] : { type: 'offset', value: k, args: [a[0]] })
+    let num = at(0)
+    for (let i = 1; i < len; i++) num = cOp('+', [num, cOp('*', [at(i), cNum(i + 1)])])
+    return cOp('/', [cOp('u-', [num]), cCall('sum', [a[0], n])])
   },
   // ⭐⭐ THE `timenow` CLOCK-FIELD IDENTITY FORMS (2026-09-20). Pine spells
   // five calendar values two ways: a bare global (`year`) reads THIS bar's
@@ -7013,6 +7233,14 @@ export class Resolver {
      *  `floor_pivot_resolution` chain is six hops deep), and re-pinning that map
      *  is an owner-ruled act. The object pass mints no parameters. */
     this.objectPass = opts.objectPass === true
+    /** ⛔ W1 (review, 2026-11-02) — THE RUNTIME LANE'S OBJECT DOOR. Set by
+     *  `pineRuntimeFrontend.js` when it builds a drawing script's values
+     *  (`atObjectDoor`: `runtimeColumns.js::probeObjectRuntime` /
+     *  `runtimeObjectValues`) and, since the W1 re-review, when a build draws its
+     *  own objects (`objectsInRun`, the runtime pane's drawings) — by nothing else.
+     *  Read in ONE place, `seriesTreeOf`: a running total `PINE_DRAWING_HELD_SERIES`
+     *  holds is refused there by name, exactly as the host object pass refuses it. */
+    this.objectDoor = opts.objectDoor === true
     /** ⭐ C22 — the op the object pass is converting (`{topTok, siteIndex}`),
      *  so a window read inside a helper is placed at its call (`windowReadPos`). */
     this.windowReadSite = null
@@ -13138,9 +13366,21 @@ export class Resolver {
    *  ⛔ PHASE 1 (2026-10-30): `accdist`, `nvi` and `pvi` are running totals from
    *  the first loaded bar, so only a PANE (`strict`) is handed them. A SCREEN gets
    *  `null` and so meets the ruling it always met (`_functions_excluded`), the
-   *  same containment `ta.cum` has at the screen door. */
+   *  same containment `ta.cum` has at the screen door.
+   *  ⛔ W1 (review, 2026-11-02): and a running total W1 served to the pane is
+   *  REFUSED BY NAME to a drawing, at either drawing door (`objectPass`, the host
+   *  object pass; `objectDoor`, the runtime lane's object door) — see
+   *  `PINE_DRAWING_HELD_SERIES` for why. A refusal, not `null`: no older refusal
+   *  of these names says what is wrong with a drawing of them (`obv`'s ruling even
+   *  says a chart may draw it). */
   seriesTreeOf(short, pineName, tok) {
     if (!this.strict && PINE_WINDOW_DEPENDENT_SERIES.has(short)) return null
+    if ((this.objectPass || this.objectDoor) && PINE_DRAWING_HELD_SERIES.has(short)) {
+      throw new PineRefusal('pine:window-dependent',
+        `${REFUSALS['pine:window-dependent']} — \`${pineName}\` is a running total from the first bar `
+        + 'the chart loaded, and a drawing prints it with nothing to say how much history that was '
+        + '(a pane plot of it is served, with that disclosure)', locate(tok))
+    }
     return BUILTIN_SERIES_TREE[short]()
   }
 
@@ -13190,6 +13430,20 @@ export class Resolver {
     }
     const bare = normaliseName(base)
     this.refuseBareModernSpelling(pineName, base, tok)
+    // ⭐ W1 (2026-11-02) — A v1–v4 SCRIPT'S BARE ONE-ARGUMENT `barssince(cond)` IS
+    // PINE'S OWN, UNBOUNDED `barssince` — the function v5 renamed `ta.barssince`
+    // (v4 reference: `barssince(condition) → series[integer]`, one parameter). The
+    // table's `barssince(condition, n)` takes TWO, so a one-argument call cannot be
+    // the table's and was refused `pine:arity` ("add a number") — the capped
+    // near-miss `PINE_INEXPRESSIBLE.barssince` exists to stop. It is re-routed to
+    // the namespaced spelling, so it meets EXACTLY what `ta.barssince(cond)` meets:
+    // the exact unbounded count on a pane, that entry's refusal on a screen.
+    // ⛔ Bounded by the version (as `LEGACY_BARE_NAMESPACE` routing is): from v5 the
+    // bare spelling is not Pine, and a versionless source is the formula box.
+    if (bare === 'barssince' && pineName === base && this.pineVersion !== null && this.pineVersion <= 4
+        && Array.isArray(args) && args.length === 1 && args[0] && !args[0].name) {
+      return this.resolveTableCall('ta.barssince', base, args, tok)
+    }
     // ⭐ PHASE 1 (2026-10-30) — `ta.alma`'s optional fifth argument, `floor`.
     // A written `false` is the four-argument call exactly (TradingView's
     // reference applies `math.floor` to `m` only when it is true), so it is
@@ -13346,6 +13600,42 @@ export class Resolver {
             ? `\`${pineName}\` takes one series, by position`
             : `\`${pineName}\` needs its source and its two lengths, each length a whole `
               + 'number this engine can read when it builds the formula', locate(tok))
+      }
+      // ⭐ W1 — `ta.cmo` / `ta.cog`: a length that reaches a window is not a member
+      // knob (`windowBoundInputs`, as the table path's `int` slot records it), and
+      // a shape the expansion declines is named rather than handed on as `null`.
+      // ⛔ A `ta.cog` the budget refuses is refused HERE, by name and in the
+      // budget's own words (`cogOverBudget`), never translated for the budget to
+      // refuse downstream after the member was told it worked.
+      if (bare === 'cmo' || bare === 'cog') {
+        if (built.length === 2) for (const n of declaredInputNames(built[1])) this.windowBoundInputs.add(n)
+        // ⛔ W1 FIX (coordinator ruling, 2026-11-02) — `ta.cmo` over a source that can
+        // be `na` after its first value is REFUSED BY NAME (`cmoSourceCannotGap` says
+        // why), on every lane this Resolver serves: TradingView's answer there is
+        // unknown, and a value drawn where it may hide is the one thing never shipped.
+        if (bare === 'cmo' && built.length === 2 && !cmoSourceCannotGap(built[0], this.table)) {
+          throw new PineRefusal('pine:arity',
+            `${REFUSALS['pine:arity']} — \`${pineName}\` was given a source that can be \`na\` on a bar `
+            + 'after its first value, and what TradingView draws there is not known: its published body '
+            + 'and its own remark ("na values in the source series are ignored") give different numbers '
+            + 'on that bar and the bars after it, and no capture says which it computes, so this engine '
+            + 'draws neither. It is served over a price the bar itself holds (`close`, `open`, `high`, '
+            + '`low`, `hl2`, `hlc3`, `ohlc4`, `hlcc4`). TO UNBLOCK: give it one of those, e.g. '
+            + `\`${pineName}(close, 14)\``, locate(tok))
+        }
+        const tree = BUILTIN_CALL_TREE[bare](built)
+        const over = bare === 'cog' ? cogOverBudget(built, tree) : null
+        if (over) {
+          throw new PineRefusal('pine:budget',
+            `${REFUSALS['pine:budget']} — \`${pineName}\`, unrolled into one term per bar of its `
+            + `window: ${over}`, locate(tok))
+        }
+        if (tree) return tree
+        throw new PineRefusal(built.length === 2 ? 'pine:window' : 'pine:arity',
+          built.length === 2
+            ? `\`${pineName}\` needs its length as a whole number this engine can read when it `
+              + 'builds the formula'
+            : `\`${pineName}\` takes a source and a length, by position`, locate(tok))
       }
       if (bare === 'kcw' && (built.length < 3 || built.length > 4)) {
         throw new PineRefusal('pine:arity',
@@ -13884,10 +14174,9 @@ export class Resolver {
           // or one of their means. A computed source can be `na`, and what Pine's
           // session sum does with an `na` term is unwitnessed, so it keeps the
           // refusal below rather than a guess.
-          const barPrice = ['open', 'high', 'low', 'close'].filter((n) => own(this.table.series || {}, n))
-            .map((n) => cSeries(n))
-            .concat(['hl2', 'ohlc4', 'hlcc4'].map((n) => derivedSeriesTree(n, this.table)).filter(Boolean))
-            .some((t) => JSON.stringify(t) === JSON.stringify(got))
+          // ⭐ W1 — asked of `isBarPriceSource`, the one place the question is answered
+          // (`ta.cmo` asks it too); `hlc3` itself never reaches here (it is `want`).
+          const barPrice = isBarPriceSource(got, this.table)
           if (barPrice && own(this.table.functions, 'vwapOf')) return cCall('vwapOf', [got])
           throw new PineRefusal('pine:arity',
             REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given a '
