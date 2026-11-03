@@ -78,9 +78,16 @@ member apply those definitions — **no competing setup definitions**.
   "Applying it" paragraph. No approved definition (not served / refused / guard-replaced) → the answer first says
   plainly "UCT can't currently retrieve an approved playbook definition for <setup>" and never invents one; then the
   closest approved `knowledge.search` passage (cited) when served. A concept note may follow ONLY under the heading
-  "General background (not the UCT playbook definition):", only for a teach / explain request, and only when the
+  "General background (not the UCT playbook definition):", and only when the
   source policy allows it (the note exists, is a generic concept note, and names no setup). Otherwise: the
   statement only.
+- Setup names (review B4): the 48 canonical names AND their spelled-out forms (power earnings gap → PEG, episodic
+  pivot → EP, high tight flag → HTF, volatility contraction pattern → VCP, undercut and rally → U&R, follow-through
+  day → FTD, cup and handle → Cup with Handle …), matched LONGEST form first ("high tight flag" is HTF, not Tight
+  Flag). The lists live in `app/src/agent/coach/brain.js` and `api/services/uct_agent/coach/setups.py` (a pytest
+  keeps them identical). Every matched form takes the playbook path; none reaches a plain concept-note answer.
+- Model-written replies (server, deterministic): a coach reply that DEFINES a named setup ("A VCP is a …",
+  "High tight flag: …") without citing UCT's playbook is replaced (`coach_guard` code `definition`).
 - The 13 concept docs stay generic education (price action, volume, risk, sizing, market conditions …): a test
   fails if any concept file names a canonical template.
 - Routing: the coach group's words and the `coach.explain` fast path cover COACHING phrasings ("coach me on",

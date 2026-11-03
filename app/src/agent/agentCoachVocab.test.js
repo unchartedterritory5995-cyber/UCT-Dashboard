@@ -141,7 +141,7 @@ describe('coach.explain prefers a Brain passage only when knowledge.search is se
 })
 
 // ── N5 (owner, 2026-11-03): a named setup is taught FROM UCT's playbook; the coach never defines a setup ─────────────
-import { setupNamed, SETUP_TEMPLATES, PLAYBOOK_KIND } from './coach/brain'
+import { setupNamed, SETUP_TEMPLATES, SETUP_ALIASES, PLAYBOOK_KIND } from './coach/brain'
 import { APPLY } from './capabilities/coach'
 import { conceptsLoaded } from './coach/concepts'
 
@@ -173,6 +173,26 @@ describe('N5 — a named setup is taught from UCT’s playbook, cited; never a c
     expect(setupNamed('gap and go')).toBe('Gap-and-Go')
     for (const s of ['step by step', 'a peg in the ground', 'position sizing', 'relative strength']) expect(setupNamed(s), s).toBe(null)
   })
+  it('review B4: spelled-out forms name their template, and the LONGEST form wins', () => {
+    expect(setupNamed('teach me the high tight flag')).toBe('HTF')
+    expect(setupNamed('a tight flag')).toBe('Tight Flag')
+    expect(setupNamed('power earnings gaps')).toBe('PEG')
+    expect(setupNamed('an episodic pivot')).toBe('EP')
+    expect(setupNamed('volatility contraction pattern')).toBe('VCP')
+    expect(setupNamed('undercut and rally')).toBe('U&R')
+    expect(setupNamed('a follow-through day')).toBe('FTD')
+    expect(setupNamed('cup and handle')).toBe('Cup with Handle')
+    for (const [name, forms] of Object.entries(SETUP_ALIASES)) for (const f of forms) expect(setupNamed(`coach me on the ${f}`), f).toBe(name)
+  })
+  it('review B4: NO canonical name or spelled-out form ever reaches a plain concept-note answer (nothing served)', async () => {
+    await bootBoth({ kinds: ['bars.daily'] })
+    const forms = [...CANONICAL, ...Object.values(SETUP_ALIASES).flat()]
+    for (const f of forms) {
+      const out = await explainConcept(f, host())
+      expect(out.text.startsWith("UCT can't currently retrieve an approved playbook definition for "), f).toBe(true)
+    }
+    expect(dataCalls).toEqual([])
+  })
   it('setup.playbook served: ONE read of the template; the answer teaches FROM it (cited, its own fields, applying-it, footer)', async () => {
     await bootBoth()
     const out = await explainConcept('VCP', host())
@@ -185,7 +205,7 @@ describe('N5 — a named setup is taught from UCT’s playbook, cited; never a c
     expect(out.link).toEqual({ href: '/setups/vcp', label: 'Open the Setup Library' })
   })
   // owner refinement (2026-11-03): no approved definition → say so plainly, never invent one; a generic note only under
-  // its own heading, only for a teach / explain request, only when the note is generic and names no setup
+  // its own heading, only when the note is generic and names no setup
   const NODEF = (s) => `UCT can't currently retrieve an approved playbook definition for ${s}, so I won't give one here.`
   const BG = 'General background (not the UCT playbook definition):'
   it('a template the guard would replace is never shown: the statement + the approved passage (cited) instead', async () => {
@@ -210,7 +230,7 @@ describe('N5 — a named setup is taught from UCT’s playbook, cited; never a c
     await bootBoth({ kinds: ['bars.daily'] })
     expect((await explainConcept('VCP', host())).text).toBe(`${NODEF('VCP')} ${FOOTER}`)
   })
-  it('nothing served + a note the policy refuses (it names a setup) or a request that is not a teach / explain: the statement only', async () => {
+  it('nothing served + a note the policy refuses (it names a setup): the statement only', async () => {
     reset()
     stubBoth({ kinds: ['bars.daily'] })
     const named = [{ ...CONCEPTS[0], text: 'Breakouts and failed breakouts. Like a VCP, a move through a level. Uncertainty: it may fail.' }]
@@ -218,8 +238,6 @@ describe('N5 — a named setup is taught from UCT’s playbook, cited; never a c
       ? json({ concepts: named, footer: FOOTER }) : json({ stream: false, data: true, data_kinds: ['bars.daily'], coach: true })))
     await loadAgentConfig(); await loadConcepts()
     expect((await explainConcept('Stage 2 Breakout', host())).text).toBe(`${NODEF('Stage 2 Breakout')} ${FOOTER}`)
-    await bootBoth({ kinds: ['bars.daily'] })
-    expect((await explainConcept('Stage 2 Breakout', host(), { teach: false })).text).toBe(`${NODEF('Stage 2 Breakout')} ${FOOTER}`)
   })
   it('a non-setup coaching topic is unchanged by the playbook kind (no setup.playbook read)', async () => {
     await bootBoth({ kinds: ['bars.daily', PLAYBOOK_KIND] })

@@ -160,6 +160,12 @@ def guard_envelope(envelope: dict, context: Any, message: str, usage: dict | Non
         res = guard.enforce(reply, inputs)
         codes += res["violations"]
         out["reply"] = res["text"] if (res["violations"] or out.get("disposition") == "answer") else reply
+        # review B4 / N5: the model never writes its own definition of a UCT setup -- an uncited definition-like
+        # sentence about a named setup replaces the reply (code `definition`)
+        from api.services.uct_agent.coach import setups
+        if not res["violations"] and setups.uncited_setup_definitions(reply):
+            codes.append("definition")
+            out["reply"] = setups.DEFINITION_FIXED
     q = out.get("question")
     if isinstance(q, dict) and isinstance(q.get("text"), str) and q["text"].strip():
         qcodes = guard.check(q["text"], inputs)

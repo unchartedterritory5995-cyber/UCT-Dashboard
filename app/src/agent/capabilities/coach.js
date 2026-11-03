@@ -128,9 +128,10 @@ const namesASetup = (text) => String(text || '').split(/[.\n]/).some(part => set
 const backgroundAllowed = (c) => !!c && typeof c.text === 'string' && !namesASetup(`${c.title}. ${c.text}`)
 
 /** Teach a named setup FROM UCT's playbook, or say plainly that its approved definition can't be retrieved. A generic
- *  concept note is offered ONLY under BACKGROUND_HEADING, only for a teach / explain request, only when policy allows. */
-async function explainSetup(setup, topic, c, rows, host, { teach = true } = {}) {
-  const bg = teach && backgroundAllowed(c) ? c : null
+ *  concept note is offered ONLY under BACKGROUND_HEADING and only when the source policy allows it. (coach.explain is
+ *  itself the teach / explain request: there is no separate gate.) */
+async function explainSetup(setup, topic, c, rows, host) {
+  const bg = backgroundAllowed(c) ? c : null
   const next = bg ? nextFor({ after: 'explain', conceptId: bg.id, consent: consentState(), hasChart: !!observedChart(host), concepts: rows }) : undefined
   const t = await setupTemplate(setup)
   if (t) {
@@ -151,11 +152,11 @@ async function explainSetup(setup, topic, c, rows, host, { teach = true } = {}) 
 }
 
 /** The concept explanation + one observation (when served) + the footer → { text, title } (mirror-guarded). */
-export async function explainConcept(topic, host, { teach = true } = {}) {
+export async function explainConcept(topic, host) {
   const rows = conceptsLoaded() || await loadConcepts()
   const c = conceptFor(topic, rows)
   const setup = setupNamed(topic)
-  if (setup) return explainSetup(setup, topic, c, rows, host, { teach })
+  if (setup) return explainSetup(setup, topic, c, rows, host)
   const brain = await brainPassage(topic)
   if (!c && brain) {
     const g = guardEnforce(brain.text, [brain.text])

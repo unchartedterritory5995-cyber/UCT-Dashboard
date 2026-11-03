@@ -30,15 +30,25 @@ export const SETUP_TEMPLATES = ['20EMA Hold', '7-Week Short Rule', 'Ascending Tr
   'Symmetrical Triangle', 'Tight Flag', 'U&R', 'VCP', 'Wedge Pop', 'Wyckoff Accumulation', 'Wyckoff Distribution', 'Wyckoff LPSY',
   'Wyckoff SOS']
 
+/** review B4: the spelled-out forms of the templates (a member rarely types the abbreviation). Mirrored server-side in
+ *  api/services/uct_agent/coach/setups.py (a pytest keeps the two identical). */
+export const SETUP_ALIASES = {
+  PEG: ['power earnings gap'], EP: ['episodic pivot'], HTF: ['high tight flag'], VCP: ['volatility contraction pattern'],
+  'U&R': ['undercut and rally', 'undercut & rally'], FTD: ['follow-through day', 'follow through day'],
+  HVC: ['high volume close', 'high-volume close'], BGU: ['big gap up'], 'Cup with Handle': ['cup and handle', 'cup & handle'],
+  'Head & Shoulders': ['head and shoulders'], 'Wyckoff LPSY': ['last point of supply'], 'Wyckoff SOS': ['sign of strength'],
+  '20EMA Hold': ['20 ema hold', '20-day ema hold'], 'Low-Cheat': ['low cheat entry'], 'Red to Green': ['red-to-green move'],
+}
+
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-/** a name's matcher: hyphens and spaces interchangeable; EP and PEG must be written in caps */
+/** a form's matcher: hyphens and spaces interchangeable; EP and PEG must be written in caps */
 const SETUP_RX = SETUP_TEMPLATES
-  .map((name) => {
-    const body = esc(name).replace(/[- ]/g, '[- ]')
-    const caps = name === 'EP' || name === 'PEG'          // English-word clashes: only the capitalised form names the setup
-    return { name, rx: new RegExp(`(?:^|[^A-Za-z0-9])${body}(?:s|es)?(?![A-Za-z0-9])`, caps ? '' : 'i') }
-  })
-  .sort((a, b) => b.name.length - a.name.length)            // the longest name wins ("Stage 2 Breakout" over "EP"-like overlaps)
+  .flatMap((name) => [name, ...(SETUP_ALIASES[name] || [])].map((form) => {
+    const body = esc(form).replace(/[- ]/g, '[- ]')
+    const caps = form === 'EP' || form === 'PEG'          // English-word clashes: only the capitalised form names the setup
+    return { name, form, rx: new RegExp(`(?:^|[^A-Za-z0-9])${body}(?:s|es)?(?![A-Za-z0-9])`, caps ? '' : 'i') }
+  }))
+  .sort((a, b) => b.form.length - a.form.length)            // the LONGEST form wins: "high tight flag" → HTF, not Tight Flag
 
 /** The canonical template a topic names, or null. */
 export function setupNamed(topic) {
