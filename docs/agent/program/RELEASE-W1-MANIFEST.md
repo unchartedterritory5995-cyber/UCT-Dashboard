@@ -28,7 +28,7 @@ Diffstat vs master (before the last master fold): 147 files, +11,874 / −755. G
 |---|---|---|
 | Agent pytest (`tests/test_uct_agent*.py`, production dependency set, local venv) | ce68db88a0 | **2095 passed, 0 failed** |
 | Agent vitest, 4 shards + union rail (CI run 41569637080) | ce68db88a0 | **162 files, 2688 passed, 0 failed**; union rail: every expected file ran (the union job itself was cancelled by the next push after printing its verdict) |
-| Agent CI on the final head | fded87e447 | _pending — filled when the run completes_ |
+| Agent CI on the RC head (run 41570819301) | 2502eef7dd (= fded87e447 + docs) | **green**: server 2095 passed; browser 162 files, 2688 passed, 0 failed; union rail green |
 | Independent QA (combined head) | ce68db88a0 | **GO** — 10/10 checks pass (`QA-W1-COMBINED.md`): dark-by-default 13/13 flags; 19/19 routes admin-gated; isolation/F-16 145 pytest + 207 vitest; no live-prices path; budgets unchanged; gate file unchanged; manifest +12/−0; flagship scripted proofs; 9 outside-Agent files all judged safe. Notes: N1 add PUT to the member-refused route enumeration (follow-up); N2 `narrative_cost_guard` Sonnet 5.5 cache-read estimate halves (caps unchanged; owner awareness); N3 `widgets/registry.js` +4/−4 min/max rows (safe) |
 
 Scripted-model proofs (NOT live-model results): `agentFlagshipOperator`, `agentFlagshipScan`, `agentFlagshipV2`, `test_uct_agent_scan_flagship.py`.
@@ -72,6 +72,6 @@ Member access unchanged (`require_admin_dark`). No new data kind beyond those li
 
 ## 7. Recommendation
 
-**GO**, conditional on one thing that is mechanical: the Agent CI run on the final head `fded87e447` (master's last commit folded in; zero Agent files touched by it) completing green, which the integrator records in §2 before the merge. Rationale: every package was independently reviewed (two real findings caught and fixed: the F-16 rank-key bypass and the eval-ledger path override), the combined pytest and the four-shard vitest are green with zero failures on the same content, QA's ten checks pass, the master deploy gate is unchanged and will run both Agent suites itself on the push, nothing is activated by the deploy (every flag default-off, planner v2 off), and the rollback is one revert plus flag resets. Known non-blocking residuals are listed in BOARD.md (AVWAP holiday anchor; SC-2 `remove`; PUT 403 enumeration; screener-staleness 16:00 rule).
+**GO** (unconditional: the Agent CI run on the RC head is green, §2). Rationale: every package was independently reviewed (two real findings caught and fixed: the F-16 rank-key bypass and the eval-ledger path override), the combined pytest and the four-shard vitest are green with zero failures on the same content, QA's ten checks pass, the master deploy gate is unchanged and will run both Agent suites itself on the push, nothing is activated by the deploy (every flag default-off, planner v2 off), and the rollback is one revert plus flag resets. Known non-blocking residuals are listed in BOARD.md (AVWAP holiday anchor; SC-2 `remove`; PUT 403 enumeration; screener-staleness 16:00 rule).
 
 **Merge and promote only on the owner's explicit GO.** After promotion: Phase 1 live testing, then flags per §4, then Phase 2 owner acceptance.
