@@ -568,11 +568,42 @@ def _group_todo_divs(container: _Node) -> None:
 
 def _todo_item(div: _Node) -> _Node:
     todo = _first_en_todo(div)
-    checked = todo is not None and (todo.attrs.get("checked") or "").strip().lower() == "true"
+    # Exactly "true", as the client's `getAttribute('checked') === 'true'` (review n1).
+    checked = todo is not None and todo.attrs.get("checked") == "true"
     if todo is not None:
         parent = _parents(div).get(id(todo), div)
         _replace(parent, todo, list(todo.children))  # siblings nested inside it come out
     return _Node("li", {"data-uct-task": "1" if checked else "0"}, list(div.children))
+
+
+def _is_task_list(n: Any) -> bool:
+    return isinstance(n, _Node) and n.tag == "ul" and any(
+        isinstance(li, _Node) and li.tag == "li" and "data-uct-task" in li.attrs for li in n.children)
+
+
+def _rule_todos_leave_lists(root: _Node) -> None:
+    """Task 3 review m4: a to-do run inside an ordinary list item takes the client's shape. In the
+    editor a task list cannot sit in a plain list item, so it comes out to just after the
+    OUTERMOST plain list, in order, and the item keeps an (empty) paragraph. Probed on the client
+    for one level; nested levels follow the same rule. One bottom-up pass."""
+    def fn(n: _Node) -> list[Any] | None:
+        if n.tag not in ("ul", "ol") or _is_task_list(n):
+            return None
+        hoisted: list[_Node] = []
+        for li in n.children:
+            if isinstance(li, _Node) and li.tag == "li":
+                kept = []
+                for c in li.children:
+                    (hoisted if _is_task_list(c) else kept).append(c)
+                li.children = kept
+            elif _is_task_list(li):  # hoisted out of a nested list into this one's items
+                hoisted.append(li)
+        if not hoisted:
+            return None
+        n.children = [c for c in n.children if not _is_task_list(c)]
+        return [n, *hoisted]
+
+    _map_elements(root, fn)
 
 
 def _rule_append_uncited(root: _Node, res: _Resources) -> None:
@@ -774,6 +805,7 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     _rule_note_links(root)             # 3
     _rule_en_media(root, res, notices)  # 4
     _rule_todos(root)                  # 5
+    _rule_todos_leave_lists(root)      # 5, the client's shape for a to-do in a list item (m4)
     _rule_append_uncited(root, res)    # 6
     _rule_source_line(root, source_url)  # 7
     _rule_resolve_web_links(root, _source_line_url(source_url))  # 8, the client's resolveWebLinks

@@ -248,6 +248,32 @@ def test_text_nested_inside_a_non_self_closed_en_todo_is_kept():
     assert item["attrs"]["checked"] is True and _text(item) == "nested text"
 
 
+def test_todo_inside_a_list_item_takes_the_client_shape():
+    # Review m4, probed on the client: the task list leaves the list, the item keeps a paragraph.
+    out = _convert('<ul><li><div><en-todo checked="true"/>a</div></li></ul>')
+    blocks = _blocks(out)
+    assert [b["type"] for b in blocks] == ["bulletList", "taskList"]
+    assert blocks[0]["content"] == [{"type": "listItem", "content": [{"type": "paragraph", "content": []}]}]
+    (item,) = blocks[1]["content"]
+    assert item["attrs"]["checked"] is True and _text(item) == "a"
+
+
+def test_todos_inside_nested_list_items_move_after_the_outermost_list():
+    out = _convert('<ul><li>x<ul><li><div><en-todo/>a</div></li></ul></li><li>y</li></ul>')
+    blocks = _blocks(out)
+    assert [b["type"] for b in blocks] == ["bulletList", "taskList"]
+    assert "x" in _text(blocks[0]) and "y" in _text(blocks[0]) and "a" not in _text(blocks[0])
+    assert _text(blocks[1]) == "a"
+
+
+@pytest.mark.parametrize("value,checked", [("true", True), ("TRUE", False), ("True", False),
+                                           ("false", False), ("", False)])
+def test_en_todo_checked_is_exactly_true_as_on_the_client(value, checked):
+    out = _convert(f'<div><en-todo checked="{value}"/>t</div>')
+    (item,) = _of_type(out, "taskItem")
+    assert item["attrs"]["checked"] is checked
+
+
 def test_en_crypt_becomes_visible_placeholder():
     out = _convert("<div>a</div><en-crypt hint=\"h\" cipher=\"AES\">U2FsdGVk</en-crypt>")
     assert [_text(b) for b in _blocks(out)] == ["a", "[encrypted content — cannot be imported]"]
