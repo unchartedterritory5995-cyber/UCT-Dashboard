@@ -39,6 +39,16 @@
 .engine, .still, .policy { margin: 0; font-size: 12px; color: var(--text-muted); }
 .policy { font-style: italic; }
 
+.saved {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px;
+  border-left: 2px solid var(--border-accent, #6e7681);
+}
+.savedLine { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.savedLine b { color: var(--text-bright); font-weight: 600; }
+
 .subhead {
   margin: 4px 0 2px;
   font-size: 11px;

@@ -2679,14 +2679,15 @@ export default function BuilderSheet({
               // ⭐ SUPPORT LOOP A3 — what the member is viewing rides an opt-in report.
               sym={sym}
               tf={tf}
-              // ⭐ EDITOR STATUS PANEL: the served row being edited. A version the
-              // script engine holds is named on the panel (`editorStatus.js::isHeld`,
-              // the twin of `engine_withheld_reason`: `upgradeKindOf` says `refused`, or
-              // an older engine's refusal waits for today's re-translation, `retranslate`
-              // with `engine_status.status === 'refused'`), and its served `scan_refusal`
-              // answers for screens only while the editor holds that version's own
-              // script. ⛔ NOT `scan_refusal.gate === 'withheld'`: the sweep's C45 check
-              // refuses under that same gate. Read only while VITE_PINE_EDITOR_STATUS is on.
+              // ⭐ EDITOR STATUS PANEL: the served row being edited. Its own facts, held by
+              // the script engine (`editorStatus.js::isHeld`, the twin of
+              // `engine_withheld_reason`: `upgradeKindOf` says `refused`, or an older
+              // engine's refusal waits for today's re-translation, `retranslate` with
+              // `engine_status.status === 'refused'`) or its served `scan_refusal`, are the
+              // saved version's own line beside the live rows (`savedVersion`), shown only
+              // while the editor holds that version's own script; they never change a row.
+              // ⛔ NOT `scan_refusal.gate === 'withheld'`: the sweep's C45 check refuses under
+              // that same gate. Read only while VITE_PINE_EDITOR_STATUS is on.
               savedRow={editing ? ((Array.isArray(rows) ? rows : []).find((r) => r && r.def_id === editing.defId) || null) : null}
               onPick={(picked) => {
                 // ⛔ THE SOURCE AND NOTHING ELSE — verbatim the StarterLibrary

@@ -4,13 +4,19 @@
 // rather than in a hand-made fixture. Every consumer row answers from the lane that
 // consumer actually uses.
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { inspectSource } from './PineBox'
 import { paneFor } from './PineEditorStatus'
 import {
   editorStatus, PANEL_STATE, SEVERITY, runsOn, stillWorksText, lineMarks, FAMILIES, UNKNOWN_FAMILY,
+  savedVersion, DOOR_NOTHING_TO_DRAW, RUNTIME_UNDRAWN_NOTE,
 } from './editorStatus'
 import { SCRIPT_ENGINE_VERSION } from '../engine/scriptEngineVersion'
 import { parseFormula } from '../engine/ast/parse'
+import { evaluability, LANES } from '../engine/evaluability'
+import { assessObjectLoss, objectLossNote } from '../engine/ast/objectLoss'
 
 afterEach(() => { vi.unstubAllEnvs() })
 
@@ -87,7 +93,7 @@ describe('editorStatus through the real doors', () => {
       .toBe('What still works: 2 plots on the chart; RSI and OB in alerts; OB in screens and scans.')
   })
 
-  it('"Runs fully" only when EVERY consumer runs: a number line says what does not', () => {
+  it('"Runs fully" only when EVERY consumer runs: a number line says what it needs', () => {
     const { status } = statusOf(SCRIPTS.rsi)
     const by = byId(status)
     expect(by.chart.ok).toBe(true)
@@ -96,7 +102,8 @@ describe('editorStatus through the real doors', () => {
     expect(by.screener.why).toBe('A screen keeps the symbols where a yes/no is true; this output is not a yes/no.')
     expect(by.screener.subject).toBe('RSI')
     expect(status.state).toBe(PANEL_STATE.RUNS)
-    expect(status.headline).toBe('Runs on the chart and in alerts; not in screens or scans')
+    // the box's threshold control makes a screen of a number: worded so, never "not in"
+    expect(status.headline).toBe('Runs on the chart and in alerts; screens and scans need a threshold')
   })
 
   it('a strategy the report refuses is still drawn by the chart door: chart runs, screens say why', () => {
@@ -225,8 +232,20 @@ describe('every consumer row answers from its own lane', () => {
       expect(by[id].works, id).toEqual(['Cross up'])
     }
     expect(status.state).toBe(PANEL_STATE.RUNS_ELSEWHERE)
-    expect(status.headline).toMatch(/^Runs in alerts, screens and scans; the chart cannot draw it yet: ./)
+    // control: the chart door's own guard-less refusal, the literal the panel holds equal to it
+    expect(pane.guard).toBeNull()
+    expect(pane.reason).toBe(DOOR_NOTHING_TO_DRAW)
+    // nothing is missing, so no "yet"
+    expect(status.headline).toBe('Runs in alerts, screens and scans; nothing to draw on a chart')
     expect(stillWorksText(status.stillWorks)).toBe('What still works: Cross up in alerts, screens and scans.')
+  })
+
+  it('a chart door refusal with a guard, or a guard-less fault, keeps "the chart cannot draw it yet"', () => {
+    const report = inspectSource(SCRIPTS.alertOnly, 'auto')
+    const guarded = editorStatus({ report, pane: { ok: false, guard: 'pine:request', reason: 'another symbol at 60' } })
+    expect(guarded.headline).toBe('Runs in alerts, screens and scans; the chart cannot draw it yet: Data from another symbol or timeframe')
+    const fault = editorStatus({ report, pane: { ok: false, guard: null, reason: 'the document could not be built: boom' } })
+    expect(fault.headline).toBe('Runs in alerts, screens and scans; the chart cannot draw it yet: the document could not be built: boom')
   })
 
   it('the request mockup (the flip precondition): "Above" is listed as working on the Screener', () => {
@@ -321,7 +340,7 @@ describe('runsOn', () => {
   })
 
   it('screens answer from the report lane, whatever lane draws the chart', () => {
-    const rows = runsOn({ ...pane, lane: 'runtime', definition: { plots: [{ key: 'value' }], compute: { kind: 'runtime' } } }, null, { report })
+    const rows = runsOn({ ...pane, lane: 'runtime', definition: { plots: [{ key: 'value' }], compute: { kind: 'runtime' } } }, { report })
     const by = Object.fromEntries(rows.map((r) => [r.id, r]))
     expect(by.screener.ok).toBe(true)
     expect(by.screener.works).toEqual(['Up'])
@@ -329,27 +348,37 @@ describe('runsOn', () => {
   })
 
   it('a requirement tag the manifest refuses for alerts refuses the chart door\'s document there (roster from closedTable)', () => {
-    const rows = runsOn({ ...pane, requirementTags: ['window_dependent'] }, null, { evaluate: yes })
+    const rows = runsOn({ ...pane, requirementTags: ['window_dependent'] }, { evaluate: yes })
     expect(rows.find((r) => r.id === 'chart').ok).toBe(true)
     const alerts = rows.find((r) => r.id === 'alerts')
     expect(alerts.ok).toBe(false)
     expect(alerts.why).toMatch(/`cum`/)
   })
 
-  it('a saved version the script engine refused is held on every server lane, with the engine\'s reason', () => {
-    const savedRow = {
-      definition: { compute: { kind: 'ast' } },
-      engine_status: { engine: SCRIPT_ENGINE_VERSION, status: 'refused', reason: 'the strategy call cannot be translated' },
-      scan_refusal: { gate: 'withheld', detail: 'engine-refused: today\'s script engine refuses this script' },
-    }
-    const rows = runsOn(pane, savedRow, { evaluate: yes, report })
-    expect(rows.find((r) => r.id === 'chart').ok).toBe(true)
+  // ⭐ THE SAVED VERSION IS ITS OWN LINE, NEVER A ROW (spec s2, s5): the rows always
+  // answer for the text in the editor, through the real doors.
+  const heldRow = {
+    definition: { compute: { kind: 'ast' } }, pine_source: SRC,
+    engine_status: { engine: SCRIPT_ENGINE_VERSION, status: 'refused', reason: 'the strategy call cannot be translated' },
+    scan_refusal: { gate: 'withheld', detail: 'engine-refused: today\'s script engine refuses this script' },
+  }
+
+  it('a saved version the script engine refused: the rows stay live, the hold is the saved version\'s own line', () => {
+    const { status } = statusOf(SRC, { savedRow: heldRow })
+    const by = byId(status)
     for (const id of ['alerts', 'screener', 'scans']) {
-      const r = rows.find((x) => x.id === id)
-      expect(r.ok).toBe(false)
-      expect(r.family).toBe('held')
-      expect(r.detail).toBe(savedRow.engine_status.reason)
+      expect(by[id].family, id).not.toBe('held')
+      expect(by[id].ok, id).toBe(true)
     }
+    expect(by.screener.works).toEqual(['Up'])
+    expect(status.saved).toMatchObject({ held: true, family: 'held', guard: 'engine:withheld', detail: heldRow.engine_status.reason })
+  })
+
+  it('the hold describes the saved version\'s script: for any other text in the editor it is not shown', () => {
+    const edited = `${SRC}\n// edited`
+    const { status } = statusOf(edited, { savedRow: heldRow })
+    expect(status.saved).toBeNull()
+    expect(byId(status).screener.ok).toBe(true)
   })
 
   it('a version an OLDER engine refused, waiting for today\'s engine to translate its script again, is held too', () => {
@@ -358,50 +387,49 @@ describe('runsOn', () => {
       definition: { compute: { kind: 'ast' }, meta: { recurrenceOrigin: 'pine', engineVersion: SCRIPT_ENGINE_VERSION - 1 } },
     }
     const refused = { ...stale, engine_status: { engine: SCRIPT_ENGINE_VERSION - 1, status: 'refused', reason: 'an older engine refused it' } }
-    const held = Object.fromEntries(runsOn(pane, refused, { evaluate: yes, report }).map((r) => [r.id, r]))
-    for (const id of ['alerts', 'screener', 'scans']) {
-      expect(held[id].family, id).toBe('held')
-      expect(held[id].detail).toBe('an older engine refused it')
-    }
-    // control: the same stale version with no refusal recorded is not held
-    const free = Object.fromEntries(runsOn(pane, stale, { evaluate: yes, report }).map((r) => [r.id, r]))
-    expect(free.screener.family).not.toBe('held')
-    expect(free.screener.ok).toBe(true)
+    expect(savedVersion(refused, SRC)).toMatchObject({ held: true, detail: 'an older engine refused it' })
+    // control: the same stale version with no refusal recorded is not held, and says nothing
+    expect(savedVersion(stale, SRC)).toBeNull()
   })
 
-  it('the sweep\'s C45 `withheld` gate is not an engine hold: its sentence shows on screens only, verbatim', () => {
+  it('the sweep\'s C45 `withheld` gate is not an engine hold: the server\'s sentence is the saved version\'s line, verbatim', () => {
     const savedRow = {
       definition: { compute: { kind: 'ast' } }, pine_source: SRC,
       scan_refusal: { gate: 'withheld', detail: 'the sweep cannot answer this on any bar (time-clock:unreadable): it reads a period\'s time' },
     }
-    const rows = runsOn(pane, savedRow, { evaluate: yes, report, inspectedSource: SRC })
-    const by = Object.fromEntries(rows.map((r) => [r.id, r]))
-    expect(by.chart.ok).toBe(true)
-    expect(by.alerts.ok).toBe(true)
-    expect(by.alerts.family).not.toBe('held')
-    for (const id of ['screener', 'scans']) {
-      expect(by[id].ok).toBe(false)
-      expect(by[id].family).not.toBe('held')
-      expect(by[id].why).toBe(savedRow.scan_refusal.detail)
+    const { status } = statusOf(SRC, { savedRow })
+    expect(status.saved).toEqual({ held: false, scan: { gate: 'withheld', detail: savedRow.scan_refusal.detail } })
+    const by = byId(status)
+    for (const id of ['alerts', 'screener', 'scans']) {
+      expect(by[id].family, id).not.toBe('held')
+      expect(by[id].why, id).not.toBe(savedRow.scan_refusal.detail)
     }
   })
 
-  it('a served refusal answers ONLY while the editor holds that version\'s own script; edited text answers live', () => {
+  it('a served refusal NEVER replaces the live report-lane answer; it is shown only while the editor holds that version\'s script', () => {
     const savedRow = { definition: { compute: { kind: 'ast' } }, pine_source: SRC, scan_refusal: { gate: 'yields', detail: 'the saved screen returns a number' } }
+    const same = statusOf(SRC, { savedRow }).status
+    expect(byId(same).screener.ok).toBe(true)
+    expect(byId(same).screener.works).toEqual(['Up'])
+    expect(same.saved.scan.detail).toBe(savedRow.scan_refusal.detail)
+    // edited text: the served sentence describes a script that is not on screen
     const edited = `${SRC}\n// edited`
-    const live = Object.fromEntries(runsOn(pane, savedRow, { evaluate: yes, report: inspectSource(edited, 'auto'), inspectedSource: edited }).map((r) => [r.id, r]))
-    expect(live.screener.ok).toBe(true)
-    expect(live.screener.why).not.toBe(savedRow.scan_refusal.detail)
-    const same = Object.fromEntries(runsOn(pane, savedRow, { evaluate: yes, report, inspectedSource: SRC }).map((r) => [r.id, r]))
-    expect(same.screener.why).toBe(savedRow.scan_refusal.detail)
-    // a runtime document's own script is its `compute.source`
-    const runtimeRow = { definition: { compute: { kind: 'runtime', source: SRC } }, scan_refusal: savedRow.scan_refusal }
-    const rt = Object.fromEntries(runsOn(pane, runtimeRow, { evaluate: yes, report, inspectedSource: SRC }).map((r) => [r.id, r]))
-    expect(rt.scans.why).toBe(savedRow.scan_refusal.detail)
+    expect(statusOf(edited, { savedRow }).status.saved).toBeNull()
     // a row that carries no script of its own (a formula document) describes no text in the editor
-    const formulaRow = { definition: { compute: { kind: 'ast' } }, scan_refusal: savedRow.scan_refusal }
-    const noScript = Object.fromEntries(runsOn(pane, formulaRow, { evaluate: yes, report }).map((r) => [r.id, r]))
-    expect(noScript.screener.ok).toBe(true)
+    expect(savedVersion({ definition: { compute: { kind: 'ast' } }, scan_refusal: savedRow.scan_refusal }, SRC)).toBeNull()
+  })
+
+  it('a runtime document\'s served refusal is always the `kind` gate: screens still answer from the report lane', () => {
+    const kind = { gate: 'kind', detail: "compute.kind is 'runtime'; a scan is a tree this lane can walk, so only 'ast' is scannable." }
+    const runtimeRow = { definition: { compute: { kind: 'runtime', source: SRC } }, scan_refusal: kind }
+    const { status } = statusOf(SRC, { savedRow: runtimeRow })
+    const by = byId(status)
+    for (const id of ['screener', 'scans']) {
+      expect(by[id].ok, id).toBe(true)
+      expect(by[id].works, id).toEqual(['Up'])
+    }
+    // its own script is its `compute.source`, so the line is shown, labelled as the saved version
+    expect(status.saved).toEqual({ held: false, scan: kind })
   })
 
   it('no pane: the chart and alerts carry the pane\'s own reason; screens answer from the report alone', () => {
@@ -471,7 +499,7 @@ describe('the report lane names what it cannot use', () => {
       outputs: [{ kind: 'plot', title: 'Gap', line: 3, formula: 'gap(close)', ast: { type: 'call', name: 'gap', args: [] },
         downstream: { ok: false, guard: 'resolve:function', error: 'unknown function "gap"' } }],
     }
-    const by = Object.fromEntries(runsOn(null, null, { report: rep }).map((r) => [r.id, r]))
+    const by = Object.fromEntries(runsOn(null, { report: rep }).map((r) => [r.id, r]))
     expect(by.screener.ok).toBe(false)
     expect(by.screener.refused).toEqual([{ name: 'Gap', guard: 'resolve:function', family: 'unknown', why: 'unknown function "gap"' }])
     expect(by.alerts.ok).toBe(false)
@@ -523,6 +551,25 @@ describe('the chart door\'s own refusals and drawings', () => {
     expect(editorStatus({ report, pane: runtime }).items.some((x) => x.guard === 'pine:object-removal-lost')).toBe(false)
   })
 
+  it('a runtime document that SAYS it holds the host drawing program back for a lost removal: ONE withheld part', () => {
+    const src = ['//@version=6', 'indicator("withheld", overlay = true)', 'var label lb = label.new(bar_index, high, "x")',
+      'if weird_unreadable_fn(close)', '    label.delete(lb)', 'plot(close)'].join('\n')
+    const { report, pane: host, status } = statusOf(src)
+    expect(status.items.some((x) => x.guard === 'pine:object-removal-lost'), 'control: the host lane withholds the program').toBe(true)
+    // the disclosure `runtimeLaneDefinition` writes when it keeps the host program back
+    // (`objectLossNote(objectsGate.loss, {withheld: !objectsGate.draw})`), over the same translation
+    const note = objectLossNote(assessObjectLoss(host.translation), { withheld: true })
+    expect(note && note.note, 'control: the translation lost a removal').toBeTruthy()
+    const runtime = { ...host, lane: 'runtime', withheld: [], definition: { ...host.definition, compute: { kind: 'runtime' } },
+      notes: [note, { name: 'Drawn bar by bar', note: 'This script is drawn by running it bar by bar.' }] }
+    const items = editorStatus({ report, pane: runtime }).items
+    const parts = items.filter((x) => x.guard === 'pine:object-removal-lost')
+    expect(parts).toHaveLength(1)
+    expect(parts[0]).toMatchObject({ severity: SEVERITY.WITHHELD, kind: 'part', family: 'drawing', reason: note.note })
+    // one fact, one item: the disclosure is not listed again as a note
+    expect(items.filter((x) => x.reason === note.note)).toHaveLength(1)
+  })
+
   it('a dirty objects-only program is refused for its lost removal: that is the item, not the screening fact', () => {
     const pane = {
       ok: false, reason: 'its drawings delete things this chart cannot read', guard: 'pine:object-removal-lost',
@@ -542,11 +589,11 @@ describe('the report lane offers what "Use this formula" offers', () => {
     expect(yesNo && yesNo.type, 'control: a real tree').toBeTruthy()
     const rep = { ok: false, dialect: 'pine', refusal: null, outcome: { semantic: [] },
       outputs: [{ kind: 'plot', title: 'Up', line: 3, formula: 'close > open', ast: yesNo }] }
-    const by = Object.fromEntries(runsOn(null, null, { report: rep }).map((r) => [r.id, r]))
+    const by = Object.fromEntries(runsOn(null, { report: rep }).map((r) => [r.id, r]))
     expect(by.screener.ok).toBe(false)
     expect(by.alerts.ok).toBe(false)
     // control: the same report, ok, offers it
-    const okBy = Object.fromEntries(runsOn(null, null, { report: { ...rep, ok: true } }).map((r) => [r.id, r]))
+    const okBy = Object.fromEntries(runsOn(null, { report: { ...rep, ok: true } }).map((r) => [r.id, r]))
     expect(okBy.screener.works).toEqual(['Up'])
   })
 
@@ -555,7 +602,7 @@ describe('the report lane offers what "Use this formula" offers', () => {
       { kind: 'plot', title: 'Anchor', line: 3, formula: 'close > open', ast: yesNo, hidden: true },
       { kind: 'plot', title: 'Bare', line: 4, formula: 'close > open' },
     ] }
-    const by = Object.fromEntries(runsOn(null, null, { report: rep }).map((r) => [r.id, r]))
+    const by = Object.fromEntries(runsOn(null, { report: rep }).map((r) => [r.id, r]))
     expect(by.screener.ok).toBe(false)
     expect(by.alerts.ok).toBe(false)
   })
@@ -565,10 +612,255 @@ describe('the report lane offers what "Use this formula" offers', () => {
     expect(tagged && tagged.type, 'control: a real tree').toBeTruthy()
     const rep = { ok: true, dialect: 'pine', outcome: { semantic: [] },
       outputs: [{ kind: 'plot', title: 'Acc', line: 3, formula: 'cum(volume) > 0', ast: tagged }] }
-    const by = Object.fromEntries(runsOn(null, null, { report: rep }).map((r) => [r.id, r]))
+    const by = Object.fromEntries(runsOn(null, { report: rep }).map((r) => [r.id, r]))
     for (const id of ['alerts', 'screener', 'scans']) {
       expect(by[id].ok, id).toBe(false)
       expect(by[id].why, id).toMatch(/`cum`/)
     }
+  })
+})
+
+describe('the chart row is the chart door\'s OWN verdict, never re-asked with a context the door did not use', () => {
+  const OTHER = [
+    ['`AMEX:SPY`', '//@version=5\nindicator("c26", overlay=true)\nplot(request.security("AMEX:SPY", timeframe.period, close), "spy")'],
+    // C29: the bare spelling is served too (vendorHarness.c26OtherSymbol.test.js)
+    ['bare `SPY`', '//@version=5\nindicator("c26", overlay=true)\nplot(request.security("SPY", timeframe.period, close), "spy")'],
+  ]
+  for (const [what, src] of OTHER) {
+    it(`${what}: the chart door draws the other-symbol plot, so the chart reads OK`, () => {
+      const { pane, status } = statusOf(src)
+      expect(pane.ok, 'control: the chart door draws it').toBe(true)
+      // control: asked again with an EMPTY binding context, the chart lane refuses it, so
+      // this rail can see a re-asked chart row
+      const key = pane.definition.plots.find((p) => !p.hidden).key
+      expect(evaluability(pane.definition, key, LANES.CHART, {}).status).toBe('refused')
+      const by = byId(status)
+      expect(by.chart.ok).toBe(true)
+      expect(by.chart.count).toBe(1)
+      expect(status.state).not.toBe(PANEL_STATE.RUNS_ELSEWHERE)
+      expect(status.headline).not.toMatch(/chart cannot draw/)
+      expect(JSON.stringify(status)).not.toMatch(/not a listing our bar store holds|names no exchange/)
+    })
+  }
+
+  it('a mixed script: the other-symbol plot and the chart\'s own plots are all drawn', () => {
+    const src = '//@version=5\nindicator("mix", overlay=true)\nplot(request.security("AMEX:SPY", timeframe.period, close), "spy")\n'
+      + 'plot(close, "c")\nplot(close > open ? 1 : 0, "Up")'
+    const { pane, status } = statusOf(src)
+    expect(pane.ok, 'control').toBe(true)
+    const by = byId(status)
+    expect(by.chart.ok).toBe(true)
+    expect(by.chart.count).toBe(3)
+    expect(stillWorksText(status.stillWorks)).toMatch(/^What still works: 3 plots on the chart;/)
+    expect(by.screener.works).toContain('Up')
+  })
+
+  it('a script the chart door refuses: the chart row is the door\'s own refusal, verbatim', () => {
+    const { pane, status } = statusOf(SCRIPTS.request)
+    expect(pane.ok, 'control: the chart door refuses it').toBe(false)
+    const by = byId(status)
+    expect(by.chart.ok).toBe(false)
+    expect(by.chart.why).toBe(pane.reason)
+  })
+
+  it('an ok pane is a drawn chart even with no visible plot: never [--], never "Not supported yet"', () => {
+    const report = inspectSource(SCRIPTS.alertOnly, 'auto')
+    // the door said yes; what it draws beyond plots is the door's business
+    const pane = { ok: true, requirementTags: [], notes: [], definition: { plots: [{ key: 'value', hidden: true }] } }
+    const status = editorStatus({ report, pane })
+    expect(byId(status).chart.ok).toBe(true)
+    expect(status.state).not.toBe(PANEL_STATE.RUNS_ELSEWHERE)
+    expect(status.headline).not.toMatch(new RegExp(UNKNOWN_FAMILY.label))
+  })
+})
+
+describe('the Pine tab\'s attach is a screen route too (the chart door\'s host document)', () => {
+  const ATTACH = '//@version=5\nstrategy("X")\nplotshape(ta.crossover(close, ta.sma(close, 20)), "Long")'
+
+  it('strategy + plotshape: the report offers nothing, the attach route stores a screen', () => {
+    const { report, pane, status } = statusOf(ATTACH)
+    expect(report.ok, 'control: the report lane refuses a strategy').toBe(false)
+    expect(pane.ok && pane.definition.compute.kind, 'control: a host document').toBe('ast')
+    const by = byId(status)
+    for (const id of ['screener', 'scans']) {
+      expect(by[id].ok, id).toBe(true)
+      expect(by[id].works, id).toEqual(['Long'])
+    }
+    expect(stillWorksText(status.stillWorks)).toMatch(/Long in alerts, screens and scans\.$/)
+  })
+
+  it('the server screens the document\'s SCAN plot alone: a number first and a condition second is no screen', () => {
+    const src = '//@version=5\nstrategy("X")\nplot(ta.sma(close, 20), "SMA")\nplotshape(ta.crossover(close, ta.sma(close, 20)), "Long")'
+    const { pane, status } = statusOf(src)
+    const keys = pane.definition.plots.filter((p) => !p.hidden).map((p) => p.key)
+    // control: the scan plot is the number, and the second row IS a condition the scan lane takes
+    expect(pane.definition.compute.scanPlot).toBe(keys[0])
+    expect(evaluability(pane.definition, keys[1], LANES.SCAN, {}).status).toBe('supported')
+    expect(byId(status).screener.ok).toBe(false)
+  })
+
+  const condTree = parseFormula('close > open').ast
+  const numTree = parseFormula('close').ast
+  const hostPane = (over = {}) => ({
+    ok: true, lane: undefined, requirementTags: [], notes: [], translation: { outputs: [] },
+    definition: {
+      compute: { kind: 'ast', ast: condTree, trees: { value: condTree, out2: numTree }, scanPlot: 'value' },
+      plots: [{ key: 'value', label: 'Up' }, { key: 'out2', label: 'C' }],
+    },
+    ...over,
+  })
+  const none = { ok: true, dialect: 'pine', outputs: [], outcome: { semantic: [] } }
+
+  it('control: a shown condition scan plot is a screen through the attach route alone', () => {
+    expect(condTree && condTree.type, 'control: a real tree').toBeTruthy()
+    const by = Object.fromEntries(runsOn(hostPane(), { report: none }).map((r) => [r.id, r]))
+    expect(by.screener.ok).toBe(true)
+    expect(by.screener.works).toEqual(['Up'])
+  })
+
+  it('a HIDDEN scan plot answers for no consumer', () => {
+    const p = hostPane()
+    p.definition.plots[0].hidden = true
+    const by = Object.fromEntries(runsOn(p, { report: none }).map((r) => [r.id, r]))
+    expect(by.screener.ok).toBe(false)
+  })
+
+  it('a requirement tag the manifest refuses for screens refuses the attach route there', () => {
+    const by = Object.fromEntries(runsOn(hostPane({ requirementTags: ['window_dependent'] }), { report: none }).map((r) => [r.id, r]))
+    for (const id of ['screener', 'scans']) {
+      expect(by[id].ok, id).toBe(false)
+      expect(by[id].why, id).toMatch(/history is loaded/)
+    }
+  })
+
+  it('a runtime document is no screen through the attach route (the server\'s `kind` gate), and lends no reason', () => {
+    const rt = { ok: true, lane: 'runtime', requirementTags: [], notes: [], definition: { plots: [{ key: 'value', label: 'V' }], compute: { kind: 'runtime' } } }
+    const by = Object.fromEntries(runsOn(rt, { report: none, evaluate: () => ({ status: 'supported' }) }).map((r) => [r.id, r]))
+    expect(by.screener.ok).toBe(false)
+    expect(by.screener.why).toBeNull()
+  })
+})
+
+describe('a number the box\'s threshold control can make a screen of reads "needs a threshold"', () => {
+  it('RSI: [--] on screens (the evaluability sentence stands), worded as needing a threshold', () => {
+    const { status } = statusOf(SCRIPTS.rsi)
+    const by = byId(status)
+    for (const id of ['screener', 'scans']) {
+      expect(by[id].ok, id).toBe(false)
+      expect(by[id].threshold, id).toEqual(['RSI'])
+      expect(by[id].thresholdWhy, id).toBe('Needs a threshold: give RSI a comparison (the control above Use this formula) to make it a screen.')
+      expect(by[id].why, id).toBe('A screen keeps the symbols where a yes/no is true; this output is not a yes/no.')
+    }
+  })
+
+  it('control: no threshold where the box offers no column (a refused report), or a tag refuses the screen', () => {
+    expect(byId(statusOf(SCRIPTS.strategy).status).screener.threshold).toBeUndefined()
+    const tagged = parseFormula('cum(volume)').ast
+    expect(tagged && tagged.type, 'control: a real tree').toBeTruthy()
+    const rep = { ok: true, dialect: 'pine', outcome: { semantic: [] },
+      outputs: [{ kind: 'plot', title: 'Acc', line: 3, formula: 'cum(volume)', ast: tagged }] }
+    const by = Object.fromEntries(runsOn(null, { report: rep }).map((r) => [r.id, r]))
+    expect(by.screener.ok).toBe(false)
+    expect(by.screener.threshold).toBeUndefined()
+    expect(by.screener.why).toMatch(/`cum`/)
+  })
+})
+
+describe('a runtime document that draws only its own objects (RT5)', () => {
+  const RT5 = '//@version=6\nindicator("t", overlay = true)\nvar float acc = 0\nacc += close\nif bar_index % 50 == 0\n'
+    + '    label.new(bar_index, close, str.tostring(acc, "#"))\n'
+
+  it('the chart reads OK and "What still works" names its drawings', () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    const { pane, status } = statusOf(RT5)
+    expect(pane.lane, 'control: the runtime lane draws it').toBe('runtime')
+    expect(pane.definition.compute.objects, 'control: its own run makes the drawings').toBe(true)
+    expect(byId(status).chart.ok).toBeTruthy()
+    expect(status.stillWorks.drawings).toBe(true)
+    expect(stillWorksText(status.stillWorks)).toMatch(/^What still works: its drawings on the chart/)
+  })
+})
+
+describe('the runtime lane\'s own disclosure of the calls it never draws is a withheld value per call', () => {
+  // a real chart-door translation with a fill between two plots (the host lane carries the band)
+  const FILL = '//@version=6\nindicator("f")\np1 = plot(ta.sma(close, 10), "A")\np2 = plot(ta.sma(close, 20), "B")\n'
+    + 'fill(p1, p2, color = color.new(color.blue, 80))'
+  const said = (what) => ({ name: RUNTIME_UNDRAWN_NOTE,
+    note: `This script also writes ${what}, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.` })
+  const runtimeOf = (host, notes) => ({ ...host, lane: 'runtime', withheld: [],
+    definition: { ...host.definition, compute: { kind: 'runtime' } }, notes })
+
+  it('the name and the phrases are the door\'s own (memberPaneDefinition.js)', () => {
+    const door = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'memberPane', 'memberPaneDefinition.js'), 'utf8')
+    expect(door).toContain(`name: '${RUNTIME_UNDRAWN_NOTE}'`)
+    for (const phrase of ["fill: 'a fill between two plots'", "hline: 'a horizontal line'", "plotcandle: 'candles'", "plotbar: 'bars'"]) {
+      expect(door, phrase).toContain(phrase)
+    }
+  })
+
+  it('a fill the runtime document says it does not draw: ONE withheld value on the fill\'s line, its words', () => {
+    const { report, pane: host } = statusOf(FILL)
+    expect(host.ok, 'control: the chart door reads the script').toBe(true)
+    const fillLine = (host.translation.notes || []).find((n) => n && n.code === 'pine:chart-only' && n.message.startsWith('`fill`'))
+    expect(fillLine && fillLine.line, 'control: the translation locates the fill').toBe(5)
+    const note = said('a fill between two plots')
+    const status = editorStatus({ report, pane: runtimeOf(host, [{ name: 'Drawn bar by bar', note: 'drawn bar by bar.' }, note]) })
+    const undrawn = status.items.filter((x) => x.kind === 'undrawn')
+    expect(undrawn).toHaveLength(1)
+    expect(undrawn[0]).toMatchObject({ severity: SEVERITY.WITHHELD, name: '`fill`', line: 5, reason: note.note, family: 'presentation' })
+    // one fact, one item: the disclosure is not also a note
+    expect(status.items.filter((x) => x.reason === note.note)).toHaveLength(1)
+    expect(lineMarks(status, FILL).marks.find((m) => m.line === 5)).toMatchObject({ severity: SEVERITY.WITHHELD })
+    expect(byId(status).chart.ok).toBe('partial')
+  })
+
+  const runtimeOn = () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+  }
+
+  it('real door: a runtime document that does not draw its fill: ONE withheld value on the fill\'s line, in its words', () => {
+    runtimeOn()
+    const src = '//@version=6\nindicator("r")\nvar float acc = 0\nacc += close\np1 = plot(acc, "Acc")\np2 = plot(acc * 0.9, "Lo")\n'
+      + 'fill(p1, p2, color = color.new(color.blue, 80))'
+    const { pane, status } = statusOf(src)
+    expect(pane.lane, 'control: the runtime lane draws it').toBe('runtime')
+    const own = pane.notes.find((n) => n.name === RUNTIME_UNDRAWN_NOTE)
+    expect(own && own.note, 'control: the document says it does not draw the fill').toMatch(/a fill between two plots/)
+    const fills = status.items.filter((x) => x.name === '`fill`')
+    expect(fills).toHaveLength(1)
+    expect(fills[0]).toMatchObject({ severity: SEVERITY.WITHHELD, line: 7, reason: own.note, family: 'presentation' })
+    expect(status.items.some((x) => x.kind === 'pane-note' && x.reason === own.note)).toBe(false)
+  })
+
+  it('real door: a level the chart door never draws, on either lane, is a withheld value on its line, the door\'s own note', () => {
+    const host = statusOf('//@version=6\nindicator("h")\nplot(ta.rsi(close, 14), "RSI")\nhline(70, "OB")').status
+    const levels = host.items.filter((x) => x.name === '`hline`')
+    expect(levels).toHaveLength(1)
+    expect(levels[0]).toMatchObject({ severity: SEVERITY.WITHHELD, line: 4, guard: 'pine:chart-only' })
+    expect(levels[0].reason).toMatch(/^`hline` is not drawn on this chart/)
+    expect(host.headline).toBe('Runs on the chart and in alerts, 1 value withheld (not guessed)')
+    // the runtime lane: its document carries no level either, and says nothing of one
+    runtimeOn()
+    const { pane, status } = statusOf('//@version=6\nindicator("r")\nvar float acc = 0\nacc += close\nplot(acc, "Acc")\nhline(50, "Mid")')
+    expect(pane.lane, 'control: the runtime lane draws it').toBe('runtime')
+    expect(status.items.filter((x) => x.name === '`hline`').map((x) => x.line)).toEqual([6])
+  })
+
+  it('real door: a band between two levels is not carried; a band between two plots is (control)', () => {
+    const src = '//@version=6\nindicator("b")\nplot(ta.rsi(close, 14), "RSI")\nh1 = hline(70)\nh2 = hline(30)\nfill(h1, h2)'
+    const undrawn = statusOf(src).status.items.filter((x) => x.kind === 'undrawn')
+      .map((x) => [x.name, x.line]).sort((a, b) => a[1] - b[1])
+    expect(undrawn).toEqual([['`hline`', 4], ['`hline`', 5], ['`fill`', 6]])
+    // control: the band between two plots IS carried, so nothing is withheld for it
+    expect(statusOf(FILL).status.items.some((x) => x.kind === 'undrawn')).toBe(false)
+  })
+
+  it('control: no disclosure, nothing withheld; a kind it names that the translation cannot locate is one item for the script', () => {
+    const { report, pane: host } = statusOf(FILL)
+    expect(editorStatus({ report, pane: runtimeOf(host, []) }).items.some((x) => x.kind === 'undrawn')).toBe(false)
+    const candles = editorStatus({ report, pane: runtimeOf(host, [said('candles')]) }).items.filter((x) => x.kind === 'undrawn')
+    expect(candles.map((x) => [x.name, x.line])).toEqual([['`plotcandle`', null]])
   })
 })

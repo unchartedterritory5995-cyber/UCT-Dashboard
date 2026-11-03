@@ -84,16 +84,15 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
             <span className={styles.consumerLabel}>{r.label}</span>
             {r.ok === true && r.note && <span className={styles.consumerWhy}>{`(${r.note})`}</span>}
             {r.ok === 'partial' && <span className={styles.consumerWhy}>(draws, with values withheld below)</span>}
+            {/* ⭐ a number the box's threshold control can make a screen of: still [--],
+                worded "needs a threshold" (the evaluability sentence stays beside it) */}
+            {!r.ok && r.thresholdWhy && (
+              <span className={styles.consumerWhy} data-testid="pine-status-threshold">{r.thresholdWhy}</span>
+            )}
             {!r.ok && r.why && (
               <span className={styles.consumerWhy} data-testid="pine-status-consumer-why">
                 {r.subject ? `${r.subject}: ${r.why}` : r.why}
               </span>
-            )}
-            {!r.ok && r.detail && (
-              <details className={styles.details}>
-                <summary>Details</summary>
-                <span>{r.detail}</span>
-              </details>
             )}
             {/* ⭐ The screener lane's refusals of single plots: facts about SCREENS,
                 named, verbatim. Never a line mark, never "Tell us". */}
@@ -112,6 +111,29 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
           </li>
         ))}
       </ul>
+      {/* ⭐ THE SAVED VERSION, beside the live rows and never instead of them: its own
+          facts, labelled, shown only while the editor holds that version's script. */}
+      {status.saved && (
+        <div className={styles.saved} data-testid="pine-status-saved">
+          {status.saved.held && (
+            <p className={styles.savedLine} data-testid="pine-status-saved-held">
+              <b>{`Saved version: ${status.saved.label}.`}</b>{' '}{status.saved.why}
+            </p>
+          )}
+          {status.saved.held && status.saved.detail && (
+            <details className={styles.details}>
+              <summary>Details</summary>
+              {/* ⛔ VERBATIM: the script engine's own reason for the hold. */}
+              <span>{status.saved.detail}</span>
+            </details>
+          )}
+          {status.saved.scan && (
+            <p className={styles.savedLine} data-testid="pine-status-saved-scan">
+              <b>Saved version, in screens and scans:</b>{' '}{status.saved.scan.detail}
+            </p>
+          )}
+        </div>
+      )}
       {status.lane && (
         <p className={styles.engine} data-testid="pine-status-engine" data-lane={status.lane}>
           {status.lane === 'runtime'

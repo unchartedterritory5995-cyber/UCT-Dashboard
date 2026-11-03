@@ -10,19 +10,25 @@
 //   chart     the CHART DOOR, `memberPaneDefinition({source})`: the strict host lane,
 //             or the runtime lane when it routes. The chart row and the per-line
 //             withheld list are its answers and nothing else's.
-//   screener  the REPORT, `PineBox.inspectSource`: the screener lane's translation,
-//   scans     the one "Use this formula" (`PineBox.jsx::PasteBox.use`) hands the
-//             Builder to save as a screen. Each output is asked
-//             `evaluability(..., LANES.SCAN)`; its refusals are shown on these two
-//             rows, named, verbatim, and never as a withheld chart value.
+//   screener  every stored definition the screener and the sweep read (My Scans
+//   scans     lists each one the server stamps scannable): the REPORT's, saved by
+//             "Use this formula" (`PineBox.jsx::PasteBox.use`), each output asked
+//             `evaluability(..., LANES.SCAN)`; or the chart door's host document,
+//             saved by the Pine tab's attach, asked the same of its scan plot (the
+//             tree `assert_scannable` walks). Any yes is a yes. The report's
+//             refusals are shown on these two rows, named, verbatim, and never as a
+//             withheld chart value.
 //   alerts    every stored definition the alert lane reads (`alert_user_series.py::
 //             user_catalog`): one saved from the report through "Use this formula"
 //             (the only door an `alertcondition` reaches: the chart door never
 //             carries one), or the chart door's host document saved from the Pine
 //             tab. Each asked `evaluability(..., LANES.ALERT)`; any yes is a yes.
-//   saved     a served row: held when `isHeld` (the browser's twin of
-//             `engine_withheld_reason`); its `scan_refusal` answers for screens only
-//             while the editor holds that version's own script.
+//   saved     a served row's OWN facts (held by the script engine, `isHeld`, the
+//             browser's twin of `engine_withheld_reason`; the server's answer for
+//             screening it, `scan_refusal`) describe THAT stored version, so they are
+//             shown on their own line beside the live rows (`savedVersion`), only
+//             while the editor holds that version's own script, and ⛔ never change
+//             a row: every row answers for the text in the editor.
 //
 // It adds two things of its own and only two: a plain-English FAMILY per guard
 // (`familyOf`, section 4 of the spec) and the LINE MAPPING (`lineMarks`). The
@@ -31,13 +37,15 @@
 // ⛔ PURE, NEVER THROWS, WRITES NOTHING. A throw becomes the engine-fault state.
 // ⛔ No copy in this file contains an em dash (rail: editorStatus.families.test.js).
 
-import { evaluability, LANES, STATUS } from '../engine/evaluability'
+import { evaluability, LANES, STATUS, GATE_GUARDS } from '../engine/evaluability'
 import { TABLE } from '../engine/ast/parse'
 import { OUTCOME, importOutcome } from '../engine/ast/importOutcome'
 import { BLOCK_RUNS_GUARD } from '../engine/blockRuns'
+import { OBJECT_REMOVAL_GUARD } from '../engine/ast/objectLoss'
 import { periodReadsRefusalFor, PERIOD_READS_GUARD } from '../engine/periodReads'
 import { upgradeKindOf } from './memberPane/savedScriptUpgrade'
 import { requirementTagsRaised } from './memberPane/memberPaneDefinition'
+import { COMPARISONS, conditionFrom, yieldsCondition } from './toCondition'
 
 export const EDITOR_STATUS_CONTRACT = 'editor-status/1'
 
@@ -386,18 +394,25 @@ function chartDoorRefusals(pane) {
  *  report uses, over the chart door's own translation.
  *  ⭐ The report's lane refuses a strategy outright, so its outcome names no parts;
  *  the chart door reads the strategy and notes what it leaves out.
- *  ⛔ The host program's drawings are the HOST lane's: a runtime document draws its
- *  own (or names them in its own disclosures). */
+ *  ⛔ On the RUNTIME lane the runtime document is the authority for its drawings: it
+ *  draws its own (RT5) and says nothing about the host program, or it holds the host
+ *  program back for a lost removal and says so in its own disclosure, the very sentence
+ *  (`objectLoss.js::objectLossNote(loss, {withheld: true})`) the host lane's withheld
+ *  part carries. So the lost removal is a withheld part there exactly when the runtime
+ *  document's own notes carry that sentence. */
 function chartDoorParts(pane) {
   const t = pane && pane.ok && isObj(pane.translation) ? pane.translation : null
   if (!t) return []
   const notes = Array.isArray(t.notes) ? t.notes : []
-  const host = pane.lane !== 'runtime'
+  const runtimeSays = pane.lane === 'runtime'
+    ? new Set((Array.isArray(pane.notes) ? pane.notes : []).filter((n) => n && typeof n.note === 'string').map((n) => n.note))
+    : null
   const o = importOutcome({
     ok: true, dialect: 'pine', outputs: [], ignored: notes,
-    ...(host ? { objects: t.objects || null, objectDiagnostics: t.objectDiagnostics || null } : {}),
+    objects: t.objects || null, objectDiagnostics: t.objectDiagnostics || null,
   })
   return (o.missing || []).filter((m) => m && typeof m.guard === 'string' && PART_RE.test(m.guard))
+    .filter((m) => !runtimeSays || m.guard !== OBJECT_REMOVAL_GUARD || runtimeSays.has(m.message))
     .map((m) => {
       const n = notes.find((x) => x && x.code === m.guard)
       return { ...m, line: n ? n.line : null }
@@ -457,6 +472,83 @@ function runtimeRows(pane) {
   })
 }
 
+/** The runtime document's own disclosure of the host translation's calls it never
+ *  draws (`memberPaneDefinition.js::runtimeLaneDefinition`): its name, and the phrase
+ *  it writes for each kind (`RUNTIME_UNDRAWN_KINDS`). The real-door rail holds the name
+ *  and the `fill` phrase equal to the door's. */
+export const RUNTIME_UNDRAWN_NOTE = 'Not drawn by this pane'
+const RUNTIME_UNDRAWN_PHRASES = Object.freeze({
+  fill: 'a fill between two plots', hline: 'a horizontal line', plotcandle: 'candles', plotbar: 'bars',
+})
+/** The runtime lane's own guard for a presentation call it does not carry yet
+ *  (`pineRuntimeFrontend.js`, family `presentation`). */
+const RUNTIME_PRESENTATION_GUARD = 'runtime:presentation'
+
+/** ⭐ RUNTIME lane: the calls its document SAYS it never draws (its "Not drawn by this
+ *  pane" disclosure: a fill between two plots, a horizontal line, candles, bars), each a
+ *  withheld value on the line the chart door's translation records for that call (a
+ *  `fill` / `hline` by its own `pine:chart-only` note, candles and bars by their
+ *  outputs), the disclosure the reason, verbatim. A kind it names that the translation
+ *  does not locate is one item for the script. ⛔ Read from the document's disclosure,
+ *  never re-derived: a kind it does not name is not listed. */
+function runtimeUndrawn(pane) {
+  if (!pane || !pane.ok || pane.lane !== 'runtime' || !Array.isArray(pane.notes)) return []
+  const said = pane.notes.find((n) => n && n.name === RUNTIME_UNDRAWN_NOTE && typeof n.note === 'string' && n.note)
+  if (!said) return []
+  const t = isObj(pane.translation) ? pane.translation : {}
+  const tNotes = Array.isArray(t.notes) ? t.notes : []
+  const outs = Array.isArray(t.outputs) ? t.outputs : []
+  const out = []
+  for (const [kind, phrase] of Object.entries(RUNTIME_UNDRAWN_PHRASES)) {
+    if (!said.note.includes(phrase)) continue
+    const lines = new Set()
+    if (kind === 'fill' || kind === 'hline') {
+      for (const n of tNotes) {
+        if (n && n.code === 'pine:chart-only' && typeof n.message === 'string' && n.message.startsWith('`' + kind + '`') && isInt(n.line)) lines.add(n.line)
+      }
+    } else {
+      for (const o of outs) if (o && o.kind === kind && isInt(o.line)) lines.add(o.line)
+    }
+    for (const line of (lines.size ? [...lines] : [null])) {
+      out.push(item({
+        severity: SEVERITY.WITHHELD, kind: 'undrawn', name: '`' + kind + '`', guard: RUNTIME_PRESENTATION_GUARD,
+        reason: said.note, line,
+      }))
+    }
+  }
+  return out
+}
+
+/** The chart door's calls whose own translation note can say they are not drawn: a
+ *  horizontal level (its document carries no `levels`, on either lane) and a band. */
+const DOOR_UNDRAWN_CALLS = Object.freeze(['hline', 'fill'])
+
+/** ⭐ THE CHART DOOR'S OWN "NOT DRAWN" NOTES for a level or a band: its translation's
+ *  `pine:chart-only` notes ("`hline` is not drawn on this chart: this door does not carry
+ *  a horizontal level yet, ...", "`fill` is not drawn: its two edges are not both plots
+ *  this door carries"), each a withheld value on its line, the note verbatim, on either
+ *  lane (the runtime document carries no level either, and says nothing of one). A band
+ *  the door carries says so ("`fill` is carried as the band ...") and is not listed.
+ *  ⛔ One fact, one item: a call the runtime document's own disclosure already names on
+ *  that line (`runtimeUndrawn`) is that disclosure's. */
+function chartDoorUndrawn(pane, taken = []) {
+  const t = pane && pane.ok && isObj(pane.translation) ? pane.translation : null
+  if (!t) return []
+  const out = []
+  for (const n of (Array.isArray(t.notes) ? t.notes : [])) {
+    if (!n || n.code !== 'pine:chart-only' || typeof n.message !== 'string') continue
+    const kind = DOOR_UNDRAWN_CALLS.find((k) => n.message.startsWith('`' + k + '` is not drawn'))
+    if (!kind) continue
+    const line = isInt(n.line) ? n.line : null
+    if (taken.some((x) => x.name === '`' + kind + '`' && x.line === line)) continue
+    out.push(item({
+      severity: SEVERITY.WITHHELD, kind: 'undrawn', name: '`' + kind + '`', guard: n.code,
+      reason: n.message, line, column: n.column,
+    }))
+  }
+  return out
+}
+
 /** Every withheld / may-withhold / note item, from the CHART door (its per-line
  *  withheld list) and the report's disclosed differences (notes).
  *  ⛔ A plot is withheld here ONLY if the chart door withholds it. A screener-lane
@@ -480,6 +572,8 @@ export function statusItems(report, pane = null) {
   }
   for (const it of chartDoorPaints(pane)) items.push(it)
   for (const it of runtimeRows(pane)) items.push(it)
+  for (const it of runtimeUndrawn(pane)) items.push(it)
+  for (const it of chartDoorUndrawn(pane, items.filter((x) => x.kind === 'undrawn'))) items.push(it)
   // Disclosed differences (values that can differ in a NAMED way): notes.
   const outcome = (report && report.outcome) || {}
   for (const s of (outcome.semantic || [])) {
@@ -508,9 +602,13 @@ export function statusItems(report, pane = null) {
 const shownPlotKeys = (def) => (Array.isArray(def && def.plots) ? def.plots : [])
   .filter((p) => p && p.style !== 'hlines' && typeof p.key === 'string' && !p.hidden).map((p) => p.key)
 
-/** Does the document draw anything besides plots (an object program, or paints)? */
+/** Does the document draw anything besides plots: an object program, paints, or the
+ *  drawings a runtime document's OWN run makes (RT5, `compute.objects === true`,
+ *  `memberPaneDefinition.js::runtimeLaneDefinition`; its only row is then a hidden
+ *  anchor, and it carries no `objects` program of its own)? */
 const drawsBeyondPlots = (def) => !!(def && ((def.objects && (def.objects.ops || []).length)
-  || (Array.isArray(def.paints) && def.paints.length)))
+  || (Array.isArray(def.paints) && def.paints.length)
+  || (isObj(def.compute) && def.compute.kind === 'runtime' && def.compute.objects === true)))
 
 /** Requirement tags whose manifest roster refuses `consumerTag`. */
 function tagsRefusing(tags, consumerTag, table = TABLE) {
@@ -561,18 +659,38 @@ const heldReason = (row) => {
   return isObj(st) && typeof st.reason === 'string' && st.reason ? st.reason : null
 }
 
-/** ⭐ The server's answer for screening the SAVED version (its `scan_refusal`, any
- *  gate), or null. ⛔ It describes that version's script, so it answers only while the
- *  editor holds exactly that script (`pine_source`, or a runtime document's
- *  `compute.source`); for any other text the rows answer live. */
-function servedRefusal(row, inspected) {
-  if (!isObj(row) || !isObj(row.scan_refusal)) return null
-  const sr = row.scan_refusal
-  if (typeof sr.detail !== 'string' || !sr.detail || typeof inspected !== 'string' || !inspected) return null
+/** Does the editor hold exactly the saved version's own script (`pine_source`, or a
+ *  runtime document's `compute.source`)? A row that carries no script of its own (a
+ *  formula document) describes no text in the editor. */
+function holdsOwnScript(row, inspected) {
+  if (!isObj(row) || typeof inspected !== 'string' || !inspected) return false
   const compute = isObj(row.definition) && isObj(row.definition.compute) ? row.definition.compute : null
-  const own = row.pine_source === inspected
+  return row.pine_source === inspected
     || !!(compute && compute.kind === 'runtime' && compute.source === inspected)
-  return own ? sr : null
+}
+
+/**
+ * ⭐ THE SAVED VERSION, beside the live rows and never instead of them (spec s2, s5).
+ * The four rows always answer for the text in the editor, from the lanes its doors
+ * save through. A served row's own facts describe THAT stored version: held by the
+ * script engine (`isHeld`: alerts, screens and scans hold it whatever the editor
+ * shows), else the server's answer for screening it (`scan_refusal`, any gate; for a
+ * runtime document always the `kind` gate, which says nothing about what "Use this
+ * formula" would save). So they are their own line, labelled as the saved version,
+ * and ⛔ only while the editor holds that version's own script: for any other text
+ * they describe a script that is not on screen.
+ * @returns {null | {held: boolean, label?: string, why?: string, detail?: string|null,
+ *   scan: null | {gate: string|null, detail: string}}}
+ */
+export function savedVersion(row, inspected) {
+  if (!holdsOwnScript(row, inspected)) return null
+  if (isHeld(row)) {
+    const fam = familyOf(HELD_GUARD)
+    return { held: true, guard: HELD_GUARD, family: fam.id, label: fam.label, why: fam.why, detail: heldReason(row), scan: null }
+  }
+  const sr = isObj(row.scan_refusal) ? row.scan_refusal : null
+  if (!sr || typeof sr.detail !== 'string' || !sr.detail) return null
+  return { held: false, scan: { gate: typeof sr.gate === 'string' ? sr.gate : null, detail: sr.detail } }
 }
 
 /** ⭐⭐ THE REPORT LANE: what "Use this formula" (`PineBox.jsx::PasteBox.use`) can hand
@@ -608,7 +726,7 @@ function reportLane(report, pane = null) {
       lane.refused.push({ name: outName(out, i), guard: g, family: familyOf(g).id, why: out.downstream.error || null, key: 'downstream::' + i })
       return
     }
-    if (report.ok && isObj(out.ast)) lane.entries.push({ key: 'o' + i, name: outName(out, i), ast: out.ast })
+    if (report.ok && isObj(out.ast)) lane.entries.push({ key: 'o' + i, name: outName(out, i), ast: out.ast, formula: out.formula })
   })
   const top = isObj(report.refusal) ? report.refusal : null
   if (!report.ok && top && top.message) {
@@ -627,15 +745,26 @@ function reportLane(report, pane = null) {
 
 const yesOf = (a) => !!a && a.status !== STATUS.REFUSED
 
+/** ⭐ Can the box's own threshold control turn this report-lane output into a screen?
+ *  A number (`evaluability` refuses it `scan:not-a-condition`) that the box shows its
+ *  threshold control for (`PineBox.jsx::PasteBox`: `numericColumn`, a formula that does
+ *  not already yield a condition) and that the box's own builder wraps into a condition
+ *  (`toCondition.js::conditionFrom`, asked with the box's first operator). */
+const thresholdable = (e, a) => !!a && a.status === STATUS.REFUSED && a.guard === GATE_GUARDS.SCAN_NOT_CONDITION
+  && typeof e.formula === 'string' && !yieldsCondition(e.formula)
+  && conditionFrom(e.formula, COMPARISONS[0] || '>', 0).ok
+
 /** The report lane's answer for one consumer: the names it can run, or why not
- *  (`own`: the refused output the reason already names, so it is not listed twice). */
+ *  (`own`: the refused output the reason already names, so it is not listed twice;
+ *  `threshold`: on the scan lane, the numbers the box's threshold control can make a
+ *  screen of). */
 function laneAnswer(lane, laneId, consumer, evaluate) {
   if (lane.top) {
-    return { works: [], why: { guard: lane.top.guard, family: lane.top.family, why: lane.top.why, subject: lane.top.subject }, own: lane.top.key }
+    return { works: [], why: { guard: lane.top.guard, family: lane.top.family, why: lane.top.why, subject: lane.top.subject }, own: lane.top.key, threshold: [] }
   }
-  if (!lane.doc) return { works: [], why: null, own: null }
+  if (!lane.doc) return { works: [], why: null, own: null, threshold: [] }
   const refusing = tagsRefusing(lane.tags, consumer.tag)
-  if (refusing.length) return { works: [], why: { why: tagSentence(refusing, consumer.id) }, own: null }
+  if (refusing.length) return { works: [], why: { why: tagSentence(refusing, consumer.id) }, own: null, threshold: [] }
   const answers = lane.entries.map((e) => ({ e, a: evaluate(lane.doc, e.key, laneId, {}) }))
   const works = answers.filter((x) => yesOf(x.a)).map((x) => x.e.name)
   const first = answers.find((x) => !yesOf(x.a))
@@ -648,96 +777,118 @@ function laneAnswer(lane, laneId, consumer, evaluate) {
       subject: answers.length === 1 ? first.e.name : null,
     } : null,
     own: null,
+    threshold: laneId === LANES.SCAN ? answers.filter((x) => thresholdable(x.e, x.a)).map((x) => x.e.name) : [],
   }
+}
+
+/** The document's SCAN plot: the tree the server's `assert_scannable` walks is
+ *  `compute.ast`, the plot `compute.scanPlot` names (`BuilderSheet.jsx::buildDefinition`;
+ *  a one-plot document writes no `scanPlot`, and its one plot is that tree). */
+const scanPlotOf = (def) => (isObj(def && def.compute) && typeof def.compute.scanPlot === 'string' && def.compute.scanPlot)
+  || ((Array.isArray(def && def.plots) && def.plots[0] && typeof def.plots[0].key === 'string') ? def.plots[0].key : null)
+
+/** ⭐⭐ THE PINE TAB'S ATTACH, for screens: "Add to chart" stores the chart door's own
+ *  document (`BuilderSheet.jsx::attachPineAs` -> `saveUserDefinition`), the server
+ *  stamps every stored definition with `scan_definition.assert_scannable`
+ *  (`routers/user_definitions.py::_stamped`) and My Scans lists each one it passes
+ *  (`scanSession.js::scannableScreens`). `assert_scannable` walks `compute.ast` alone,
+ *  so the document is a screen exactly when its SCAN plot is, asked
+ *  `evaluability(def, <scan plot>, LANES.SCAN)` (the scan lane reads no binding context).
+ *  ⛔ Only a HOST (`ast`) document: the server refuses a runtime one by its `kind` gate,
+ *  and `evaluability` has no truer sentence for it, so it lends no reason. ⛔ Only a
+ *  SHOWN scan plot answers (a hidden anchor answers for no consumer). ⛔ A requirement
+ *  tag the manifest refuses for this consumer refuses it, as `_stamped` asks first. */
+function attachScan(pane, def, consumer, evaluate) {
+  const none = { works: [], why: null }
+  if (!def || !isObj(def.compute) || def.compute.kind !== 'ast') return none
+  const key = scanPlotOf(def)
+  if (!key || !shownPlotKeys(def).includes(key)) return none
+  const refusing = tagsRefusing(pane.requirementTags || [], consumer.tag)
+  if (refusing.length) return { works: [], why: { why: tagSentence(refusing, consumer.id) } }
+  const a = evaluate(def, key, LANES.SCAN, {})
+  const name = plotWhere(pane, key).name
+  if (yesOf(a)) return { works: [name], why: null }
+  return { works: [], why: { guard: (a && a.guard) || null, family: a && a.guard ? familyOf(a.guard).id : null, why: (a && a.reason) || null, subject: name } }
 }
 
 const unique = (xs) => [...new Set(xs.filter((x) => typeof x === 'string' && x))]
 
 /**
  * The four "Runs on" rows. `ok`: true / false / 'partial'. Each row answers from the
- * lane that consumer uses (see the file header).
+ * lane that consumer uses (see the file header), for the text in the editor: a saved
+ * row changes none of them (its own facts are `savedVersion`'s line).
  * @param {object|null} pane  memberPaneDefinition's result (the chart door)
- * @param {object|null} savedRow  the served row being edited, if any
- * @param {{report?: object, inspectedSource?: string, withheldCount?: number, evaluate?: Function}} [opts]
+ * @param {{report?: object, withheldCount?: number, evaluate?: Function}} [opts]
  */
-export function runsOn(pane, savedRow = null, opts = {}) {
+export function runsOn(pane, opts = {}) {
   const evaluate = opts.evaluate || evaluability
   const rows = []
   const def = pane && pane.ok ? pane.definition : null
   const shown = def ? shownPlotKeys(def) : []
-  const drawsMore = drawsBeyondPlots(def)
   // The chart door's own refusal, verbatim: no document, so nothing can run it.
   const paneWhy = {
     guard: (pane && pane.guard) || null, family: familyOf(pane && pane.guard).id, why: (pane && pane.reason) || null,
   }
 
-  // chart: the chart door
-  if (!def) {
+  // chart: ⭐⭐ THE CHART DOOR'S OWN VERDICT. `pane.ok` is the door's answer for the
+  // script, its document's rows are the plots it draws, and what it withholds is the
+  // per-line list (`statusItems`). ⛔ THE CHART IS NEVER ASKED AGAIN HERE: the door
+  // decided with the context it had, and an `evaluability(.., LANES.CHART, {})` with a
+  // binding context the door did not use refuses every other-symbol read (no chart
+  // symbol, no store, no secondary bars: "`AMEX:SPY` is not a listing our bar store
+  // holds") that the chart's own bind serves. What a binding refuses on some chart is
+  // the bind's, named on that chart (and here as "may be withheld" where the door
+  // stamps it: block runs, period reads).
+  if (!(pane && pane.ok)) {
     rows.push({ id: 'chart', label: 'Chart', ok: false, count: 0, ...paneWhy })
   } else {
-    const answers = shown.map((k) => evaluate(def, k, LANES.CHART, {}))
-    const refused = answers.filter((a) => a && a.status === STATUS.REFUSED)
-    const drawn = answers.length - refused.length
-    const ok = drawn > 0 || drawsMore
-    const partial = ok && ((opts.withheldCount || 0) > 0 || refused.length > 0)
-    const first = refused[0] || null
-    rows.push({
-      id: 'chart', label: 'Chart', ok: ok ? (partial ? 'partial' : true) : false, count: drawn,
-      guard: ok ? null : (first && first.guard) || null,
-      family: ok ? null : familyOf(first && first.guard).id,
-      why: ok ? null : (first && first.reason) || null,
-    })
+    const partial = (opts.withheldCount || 0) > 0
+    rows.push({ id: 'chart', label: 'Chart', ok: partial ? 'partial' : true, count: shown.length, guard: null, family: null, why: null })
   }
 
   const lane = reportLane(opts.report || null, pane)
-  const held = isHeld(savedRow)
-  const heldRow = () => ({ ok: false, guard: HELD_GUARD, family: 'held', why: familyOf(HELD_GUARD).why, detail: heldReason(savedRow) })
 
   // alerts: every stored definition the alert lane reads, the report's ("Use this
   // formula") and the chart door's host document; any yes is a yes.
   let alerts
-  if (held) {
-    // the server lanes hold that stored version whatever the editor shows
-    alerts = heldRow()
+  const viaReport = laneAnswer(lane, LANES.ALERT, CONSUMERS[1], evaluate)
+  const chartTags = def ? tagsRefusing(pane.requirementTags || [], CONSUMERS[1].tag) : []
+  const chartAnswers = def && !chartTags.length ? shown.map((k) => ({ k, a: evaluate(def, k, LANES.ALERT, {}) })) : []
+  const viaChart = chartAnswers.filter((x) => yesOf(x.a)).map((x) => plotWhere(pane, x.k).name)
+  const alertWorks = unique([...viaReport.works, ...viaChart])
+  if (alertWorks.length) {
+    alerts = { ok: true, why: null, note: SERVER_RECHECKS, count: alertWorks.length, works: alertWorks }
   } else {
-    const viaReport = laneAnswer(lane, LANES.ALERT, CONSUMERS[1], evaluate)
-    const chartTags = def ? tagsRefusing(pane.requirementTags || [], CONSUMERS[1].tag) : []
-    const chartAnswers = def && !chartTags.length ? shown.map((k) => ({ k, a: evaluate(def, k, LANES.ALERT, {}) })) : []
-    const viaChart = chartAnswers.filter((x) => yesOf(x.a)).map((x) => plotWhere(pane, x.k).name)
-    const works = unique([...viaReport.works, ...viaChart])
-    if (works.length) {
-      alerts = { ok: true, why: null, note: SERVER_RECHECKS, count: works.length, works }
-    } else {
-      const chartFirst = chartAnswers.find((x) => !yesOf(x.a))
-      const why = viaReport.why
-        || (chartTags.length ? { why: tagSentence(chartTags, 'alerts') } : null)
-        || (chartFirst ? { guard: (chartFirst.a && chartFirst.a.guard) || null, why: (chartFirst.a && chartFirst.a.reason) || null } : null)
-        || (!def && pane ? paneWhy : null)
-        || { why: null }
-      alerts = { ok: false, works: [], ...why }
-    }
+    const chartFirst = chartAnswers.find((x) => !yesOf(x.a))
+    const why = viaReport.why
+      || (chartTags.length ? { why: tagSentence(chartTags, 'alerts') } : null)
+      || (chartFirst ? { guard: (chartFirst.a && chartFirst.a.guard) || null, why: (chartFirst.a && chartFirst.a.reason) || null } : null)
+      || (!def && pane ? paneWhy : null)
+      || { why: null }
+    alerts = { ok: false, works: [], ...why }
   }
   rows.push({ id: 'alerts', label: 'Alerts', guard: null, family: null, ...alerts })
 
-  // screener and scans: the report lane, the one the screener and the sweep save from
-  const served = held ? null : servedRefusal(savedRow, opts.inspectedSource)
+  // screener and scans: every stored definition they read, the report's ("Use this
+  // formula") and the chart door's host document (the Pine tab's attach); any yes is a yes.
+  // ⛔ The report lane's answer is never replaced by a served row's (`savedVersion`).
   for (const c of CONSUMERS.slice(2)) {
-    let row
-    if (held) {
-      row = heldRow()
-    } else if (served) {
-      // the server's own answer for screening this saved version, verbatim
-      row = { ok: false, guard: 'scan:' + served.gate, family: null, why: served.detail, server: true }
-    } else {
-      const ans = laneAnswer(lane, LANES.SCAN, c, evaluate)
-      row = ans.works.length
-        ? { ok: true, why: null, note: SERVER_RECHECKS, count: ans.works.length, works: ans.works }
-        : { ok: false, works: [], ...(ans.why || { why: null }) }
-      // ⭐ the screener lane's refusals of single plots, named, verbatim (the one the
-      // row's own reason already names is not repeated)
-      row.refused = lane.refused.filter((r) => r.key !== ans.own)
-        .map((r) => ({ name: r.name, guard: r.guard, family: r.family, why: r.why }))
+    const ans = laneAnswer(lane, LANES.SCAN, c, evaluate)
+    const viaAttach = attachScan(pane, def, c, evaluate)
+    const works = unique([...ans.works, ...viaAttach.works])
+    const row = works.length
+      ? { ok: true, why: null, note: SERVER_RECHECKS, count: works.length, works }
+      : { ok: false, works: [], ...(ans.why || viaAttach.why || { why: null }) }
+    // ⭐ a number the box's threshold control can make a screen of: still [--] (the
+    // evaluability answer stands), worded "needs a threshold"
+    if (!works.length && ans.threshold.length) {
+      row.threshold = ans.threshold
+      row.thresholdWhy = thresholdSentence(ans.threshold)
     }
+    // ⭐ the screener lane's refusals of single plots, named, verbatim (the one the
+    // row's own reason already names is not repeated)
+    row.refused = lane.refused.filter((r) => r.key !== ans.own)
+      .map((r) => ({ name: r.name, guard: r.guard, family: r.family, why: r.why }))
     rows.push({ id: c.id, label: c.label, guard: null, family: null, ...row })
   }
   return rows
@@ -754,6 +905,40 @@ const nameList = (names) => {
 }
 /** How the headline and "What still works" name each server consumer. */
 const WHERE = Object.freeze({ alerts: 'alerts', screener: 'screens', scans: 'scans' })
+
+/** ⛔ PANEL-WRITTEN (spec section 4): the box's threshold control has no sentence of
+ *  its own that says where it is, so the panel states the one fact a member needs. */
+function thresholdSentence(names) {
+  return 'Needs a threshold: give ' + nameList(names) + ' a comparison (the control above Use this formula) '
+    + 'to make it a screen.'
+}
+
+/** The chart door's own sentence for a script that has nothing a chart can draw
+ *  (`memberPaneDefinition.js`; its one refusal that carries no guard and is not a
+ *  fault). The real-door rail holds this literal equal to the door's. */
+export const DOOR_NOTHING_TO_DRAW = 'this script declares nothing a chart can draw'
+
+/** Why the chart draws nothing, in the headline's words: the family label of the chart
+ *  door's guard, else its own sentence. ⛔ Never "yet" for a script that has nothing a
+ *  chart can draw (an `alertcondition` alone, ruling D1): nothing is missing. */
+function chartClause(pane) {
+  if (pane && pane.ok === false && !pane.guard && pane.reason === DOOR_NOTHING_TO_DRAW) return 'nothing to draw on a chart'
+  return 'the chart cannot draw it yet: '
+    + (pane && pane.guard ? familyOf(pane.guard).label : ((pane && pane.reason) || UNKNOWN_FAMILY.label))
+}
+
+/** "not in screens or scans" for a consumer that cannot run it; "screens and scans
+ *  need a threshold" for one the box's threshold control can make a screen of. */
+function missingText(consumers) {
+  const missing = consumers.slice(1).filter((r) => !r.ok)
+  const needs = (r) => Array.isArray(r.threshold) && r.threshold.length > 0
+  const notIn = missing.filter((r) => !needs(r)).map((r) => WHERE[r.id])
+  const need = missing.filter(needs).map((r) => WHERE[r.id])
+  return [
+    ...(notIn.length ? ['not in ' + listJoin(notIn, 'or')] : []),
+    ...(need.length ? [listJoin(need, 'and') + (need.length === 1 ? ' needs' : ' need') + ' a threshold'] : []),
+  ].join('; ')
+}
 
 /** "Runs" / "Runs on the chart and in alerts" / "Runs in alerts and screens". */
 function runsWhere(consumers) {
@@ -785,18 +970,19 @@ export function editorStatus({ report, pane = null, savedRow = null, inspectedSo
   try {
     const outcome = (report && report.outcome) || {}
     if (!report) return null
+    const saved = savedVersion(savedRow, inspectedSource)
     if (outcome.verdict === OUTCOME.ERROR) {
       const items = statusItems(report, null)
       return {
         contract: EDITOR_STATUS_CONTRACT, state: PANEL_STATE.ENGINE_ERROR,
-        headline: familyOf('import:internal-error').why, lane: null, runsOn: runsOn(null, savedRow, { evaluate }),
-        items, stillWorks: null,
+        headline: familyOf('import:internal-error').why, lane: null, runsOn: runsOn(null, { evaluate }),
+        items, stillWorks: null, saved,
       }
     }
     const items = statusItems(report, pane)
     const withheld = items.filter((x) => x.severity === SEVERITY.WITHHELD)
     const others = items.filter((x) => x.severity !== SEVERITY.WITHHELD)
-    const consumers = runsOn(pane, savedRow, { report, inspectedSource, withheldCount: withheld.length, evaluate })
+    const consumers = runsOn(pane, { report, withheldCount: withheld.length, evaluate })
     const anyRuns = consumers.some((r) => r.ok)
     const def = pane && pane.ok ? pane.definition : null
     let state
@@ -810,8 +996,7 @@ export function editorStatus({ report, pane = null, savedRow = null, inspectedSo
     } else if (!consumers[0].ok) {
       // ⛔ NEVER "Not yet" WHILE A CONSUMER RUNS: where it runs, and why the chart does not.
       state = PANEL_STATE.RUNS_ELSEWHERE
-      const why = pane && pane.guard ? familyOf(pane.guard).label : ((pane && pane.reason) || UNKNOWN_FAMILY.label)
-      headline = runsWhere(consumers) + '; the chart cannot draw it yet: ' + why
+      headline = runsWhere(consumers) + '; ' + chartClause(pane)
     } else if (withheld.length) {
       state = PANEL_STATE.RUNS_WITHHELD
       headline = runsWhere(consumers) + ', ' + plural(withheld.length, 'value', 'values') + ' withheld (not guessed)'
@@ -821,8 +1006,8 @@ export function editorStatus({ report, pane = null, savedRow = null, inspectedSo
     } else {
       state = PANEL_STATE.RUNS
       // ⛔ "Runs fully" only when EVERY consumer row runs; otherwise say what does not.
-      const missing = consumers.slice(1).filter((r) => !r.ok).map((r) => WHERE[r.id])
-      headline = missing.length ? runsWhere(consumers) + '; not in ' + listJoin(missing, 'or') : 'Runs fully'
+      const missing = missingText(consumers)
+      headline = missing ? runsWhere(consumers) + '; ' + missing : 'Runs fully'
     }
     return {
       contract: EDITOR_STATUS_CONTRACT,
@@ -832,12 +1017,13 @@ export function editorStatus({ report, pane = null, savedRow = null, inspectedSo
       runsOn: consumers,
       items,
       stillWorks: anyRuns ? stillWorksOf(consumers, def) : null,
+      saved,
     }
   } catch (e) {
     return {
       contract: EDITOR_STATUS_CONTRACT, state: PANEL_STATE.ENGINE_ERROR,
       headline: familyOf('import:internal-error').why, lane: null, runsOn: [], items: [],
-      stillWorks: null, error: String((e && e.message) || e),
+      stillWorks: null, saved: null, error: String((e && e.message) || e),
     }
   }
 }

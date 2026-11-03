@@ -35,6 +35,7 @@ vi.mock('../supportLoop/supportApi', async (importOriginal) => {
 import PineEditorStatus, { paneFor, CHECKING_TEXT, POLICY_TEXT } from './PineEditorStatus'
 import { editorStatus } from './editorStatus'
 import { inspectSource, ImportBox, PINE_DEBOUNCE_MS } from './PineBox'
+import { SCRIPT_ENGINE_VERSION } from '../engine/scriptEngineVersion'
 
 const REQUEST = `//@version=6
 indicator("Mixed")
@@ -75,10 +76,14 @@ describe('PineEditorStatus', () => {
     await flush()
     const head = screen.getByTestId('pine-status-headline')
     expect(head.getAttribute('role')).toBe('status')
-    // ⛔ not "Runs fully": a number line is no screen, and the headline says so
-    expect(head.textContent).toBe('Runs on the chart and in alerts; not in screens or scans')
+    // ⛔ not "Runs fully": a number line is no screen yet; the box's threshold control can
+    // make it one, and the headline and the two screen rows say so
+    expect(head.textContent).toBe('Runs on the chart and in alerts; screens and scans need a threshold')
     const rows = within(screen.getByTestId('pine-status-runs-on')).getAllByRole('listitem')
     expect(rows.map((r) => r.getAttribute('data-consumer'))).toEqual(['chart', 'alerts', 'screener', 'scans'])
+    const need = screen.getAllByTestId('pine-status-threshold')
+    expect(need).toHaveLength(2)
+    for (const n of need) expect(n.textContent).toMatch(/^Needs a threshold: give RSI a comparison/)
     expect(screen.getByTestId('pine-status-engine').textContent).toBe('Engine: host (fast path)')
     expect(screen.getByText(POLICY_TEXT)).toBeTruthy()
   })
@@ -112,8 +117,38 @@ describe('PineEditorStatus', () => {
     await flush()
     const head = screen.getByTestId('pine-status-headline')
     expect(head.getAttribute('data-state')).toBe('runs-elsewhere')
-    expect(head.textContent).toMatch(/^Runs in alerts, screens and scans; the chart cannot draw it yet: /)
+    // the chart door's own "nothing a chart can draw": nothing is missing, so no "yet"
+    expect(head.textContent).toBe('Runs in alerts, screens and scans; nothing to draw on a chart')
     expect(screen.getByTestId('pine-status-still').textContent).toBe('What still works: Cross up in alerts, screens and scans.')
+  })
+
+  it('a saved version\'s own facts are their own line, beside rows that answer for the editor\'s text', async () => {
+    const src = '//@version=5\nindicator("saved")\nplot(close > open ? 1 : 0, "Up")'
+    const report = inspectSource(src, 'auto')
+    const kind = "compute.kind is 'runtime'; a scan is a tree this lane can walk, so only 'ast' is scannable."
+    const savedRow = { definition: { compute: { kind: 'runtime', source: src } }, scan_refusal: { gate: 'kind', detail: kind } }
+    const status = editorStatus({ report, pane: paneFor(report, src), savedRow, inspectedSource: src })
+    render(<PineEditorStatus status={status} report={report} inspectedSource={src} currentText={src} />)
+    await flush()
+    expect(screen.getByTestId('pine-status-saved-scan').textContent).toBe(`Saved version, in screens and scans: ${kind}`)
+    const rows = within(screen.getByTestId('pine-status-runs-on')).getAllByRole('listitem')
+    const screener = rows.find((r) => r.getAttribute('data-consumer') === 'screener')
+    expect(screener.getAttribute('data-ok')).toBe('true')
+    expect(screener.textContent).not.toContain(kind)
+  })
+
+  it('a held saved version: the hold is the saved version\'s line, with the engine\'s reason under Details', async () => {
+    const src = '//@version=5\nindicator("saved")\nplot(close > open ? 1 : 0, "Up")'
+    const report = inspectSource(src, 'auto')
+    const savedRow = {
+      definition: { compute: { kind: 'ast' } }, pine_source: src,
+      engine_status: { engine: SCRIPT_ENGINE_VERSION, status: 'refused', reason: 'the strategy call cannot be translated' },
+    }
+    const status = editorStatus({ report, pane: paneFor(report, src), savedRow, inspectedSource: src })
+    render(<PineEditorStatus status={status} report={report} inspectedSource={src} currentText={src} />)
+    await flush()
+    expect(screen.getByTestId('pine-status-saved-held').textContent).toMatch(/^Saved version: Held by the script engine\. /)
+    expect(screen.getByTestId('pine-status-saved').textContent).toContain('the strategy call cannot be translated')
   })
 
   it('a withheld line is a real button named for its line, and it moves the editor there', async () => {
