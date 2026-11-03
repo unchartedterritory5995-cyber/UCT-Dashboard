@@ -374,7 +374,12 @@ def ingest_script(ev, row, src, inv, name_kinds, basis, key, documented=None):
             named += [(n, "objects:loop-blocked") for n in h.get("loopBlockedCalls") or []]
             # the walls BEHIND the first: the production door asked again with each refused line neutralised
             # (`hostPeel`), to name an item by its token. It never credits anything.
+            # ⛔ the peel stops at the first wall-clock timeout: `pine:timeout` is how long THIS machine took, so the
+            # walls behind it depend on the load of the run (one 21 s script took 45 s on the next pass). Reading on
+            # would make the same engine score differently from one run to the next.
             for step in row.get("hostPeel") or []:
+                if step.get("guard") == "pine:timeout":
+                    break
                 for r in step.get("refusals") or []:
                     it = resolve_token(r.get("token"), version, r.get("guard"), inv, name_kinds, r.get("text"))
                     if it:

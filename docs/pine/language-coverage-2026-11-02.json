@@ -1160,7 +1160,7 @@
    }
   },
   "partial": {
-   "host": 105,
+   "host": 102,
    "runtime": 142
   },
   "knownDifference": {
@@ -13760,7 +13760,7 @@
     "status": "supported-unproven",
     "partial": true,
     "refusedAs": {
-     "pine:request": 521,
+     "pine:request": 517,
      "pine:statement": 4
     },
     "knownDifference": [
@@ -21848,7 +21848,7 @@
     "status": "exact",
     "partial": true,
     "refusedAs": {
-     "pine:timeout": 2
+     "pine:timeout": 1
     },
     "evidence": {
      "accepted": {
@@ -22133,10 +22133,6 @@
    "usage": 404,
    "host": {
     "status": "exact",
-    "partial": true,
-    "refusedAs": {
-     "pine:timeout": 1
-    },
     "evidence": {
      "accepted": {
       "example": 14,
@@ -31900,10 +31896,6 @@
    "usage": 495,
    "host": {
     "status": "exact",
-    "partial": true,
-    "refusedAs": {
-     "pine:timeout": 1
-    },
     "evidence": {
      "accepted": {
       "example": 11,
@@ -32059,10 +32051,6 @@
    "usage": 580,
    "host": {
     "status": "exact",
-    "partial": true,
-    "refusedAs": {
-     "pine:timeout": 1
-    },
     "evidence": {
      "accepted": {
       "example": 15,
@@ -32197,9 +32185,8 @@
     "status": "exact",
     "partial": true,
     "refusedAs": {
-     "pine:reassign": 936,
-     "pine:state": 151,
-     "pine:statement": 1
+     "pine:reassign": 862,
+     "pine:state": 151
     },
     "evidence": {
      "accepted": {
@@ -32332,7 +32319,7 @@
     "status": "exact",
     "partial": true,
     "refusedAs": {
-     "pine:statement": 11
+     "pine:statement": 10
     },
     "evidence": {
      "accepted": {

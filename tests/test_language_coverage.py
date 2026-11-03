@@ -741,6 +741,22 @@ def test_the_host_walls_behind_the_first_are_named_from_the_peel_and_never_credi
     assert ev.refuse[("keyword", "for")]["host"] and not ev.accept     # a script that attaches only AFTER an edit is not drawn
 
 
+def test_the_host_peel_stops_at_a_wall_clock_timeout_so_a_slow_run_scores_like_a_fast_one():
+    _items, inv, nk = loaded()
+    row = {"host": {"clean": False, "attached": False, "refusals": [{"guard": "pine:block", "token": "for", "line": 3, "text": "for i = 0 to 3"}]},
+           "hostPeel": [{"attached": False, "guard": "pine:function",
+                         "refusals": [{"guard": "pine:function", "token": "ta.zzz", "line": 4, "text": "x = ta.zzz(close)"}]},
+                        {"attached": False, "guard": "pine:timeout",
+                         "refusals": [{"guard": "pine:timeout", "token": None, "line": 4, "text": "x = ta.zzz(close)"}]},
+                        {"attached": False, "guard": "pine:builtin",
+                         "refusals": [{"guard": "pine:builtin", "token": "time", "line": 5, "text": "y = time"}]}],
+           "runtime": {"ok": False, "guard": "runtime:statement", "token": None, "line": None}}
+    ev = lc.Evidence()
+    lc.ingest_script(ev, row, "//@version=6\nindicator('t')\nplot(ta.zzz(close))\ny = time\n", inv, nk, "sample", "k")
+    assert ev.refuse[("function", "ta.zzz")]["host"]                    # the wall before the timeout is read
+    assert ("variable", "time") not in ev.refuse                        # the wall behind it is not: the machine's pace chose it
+
+
 # ── a name that is two kinds of item is told apart by the refused line ──
 def test_a_name_that_is_two_kinds_of_item_is_told_apart_by_how_the_refused_line_writes_it():
     _items, inv, nk = loaded()

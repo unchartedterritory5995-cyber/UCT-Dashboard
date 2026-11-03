@@ -14,7 +14,7 @@ Owner goal: paste ANY open-source Pine indicator and get what TradingView draws.
 
 | lane | exact | supported, unproven | refused | missing | unanswered | of which partial | of which known difference |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| host lane (the translator members get today) | 205 | 271 | 56 | 67 | 566 | 105 | 9 |
+| host lane (the translator members get today) | 205 | 271 | 56 | 67 | 566 | 102 | 9 |
 | runtime lane (dark per-bar interpreter) | 47 | 445 | 111 | 85 | 477 | 142 | 2 |
 
 `partial` counts items accepted somewhere and refused elsewhere (they keep their best status). `known difference` counts supported items held below EXACT by a declared difference. Both are inside the status columns, not extra.
