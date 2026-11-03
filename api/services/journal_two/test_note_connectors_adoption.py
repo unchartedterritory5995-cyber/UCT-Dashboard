@@ -232,6 +232,35 @@ async def test_a_long_title_adopts_through_the_file_importers_own_truncation(tmp
     assert [r["import_key"] for r in _rows()] == [LIVE]
 
 
+async def test_two_live_notes_matching_one_file_row_name_the_second(tmp_db, monkeypatch):
+    """Task 8 concern 4: one file row, two live notes of its title and minute. The first adopts it;
+    the second imports as new and is NAMED as ambiguous, never silently."""
+    key = _enex()
+    file_id = _rows()[0]["id"]
+    result, src = await _sync(tmp_db, monkeypatch, LiveEvernote([_rn(guid="G"), _rn(guid="H")]))
+    rows = _rows()
+    assert {r["import_key"] for r in rows} == {LIVE, enml.live_import_key("H")}
+    assert next(r for r in rows if r["import_key"] == LIVE)["id"] == file_id and key not in {
+        r["import_key"] for r in rows}
+    assert result["adopted"] == 1 and result["created"] == 1
+    assert 'adoption ambiguous: "Plan"' in result["failures"]
+    assert json.loads(_log_rows(src["id"])[-1]["failures_json"]) == [
+        {"noteTitle": "Plan", "reason": 'adoption ambiguous: "Plan"', "name": None}]
+
+
+async def test_the_second_live_match_is_named_across_import_chunks_too(tmp_db, monkeypatch):
+    """Concern 4 across the chunk boundary: the first adopter is in chunk 1, the second in chunk 2,
+    where the file row already holds a live key. Still named, once."""
+    _enex()
+    fillers = [_rn(guid=f"F{i}", title=f"Filler {i}") for i in range(engine.IMPORT_CHUNK_NOTES - 1)]
+    notes = [_rn(guid="G"), *fillers, _rn(guid="H")]
+    assert len(notes) == engine.IMPORT_CHUNK_NOTES + 1  # H is alone in the second chunk
+    result, src = await _sync(tmp_db, monkeypatch, LiveEvernote(notes))
+    assert result["adopted"] == 1
+    assert result["failures"].count('adoption ambiguous: "Plan"') == 1
+    assert enml.live_import_key("H") in {r["import_key"] for r in _rows()}
+
+
 async def test_a_different_minute_is_not_adopted(tmp_db, monkeypatch):
     _enex(created="2026-03-04T10:15:59Z")
     result, _src = await _sync(tmp_db, monkeypatch, LiveEvernote([_rn(created="2026-03-04T10:16:00Z")]))

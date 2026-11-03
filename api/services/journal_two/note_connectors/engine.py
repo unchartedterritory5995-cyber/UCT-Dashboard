@@ -762,6 +762,7 @@ async def _do_sync(
         fetched_ids: set[str] = set()
         not_stored_refs: set[str] = set()
         linked_note_ids: list[str] = []
+        adoption_state: dict = {}  # Task 8 concern 4: what this pass adopted, across chunks
         imported_any = False
         for chunk_refs in _chunks(refs, IMPORT_CHUNK_NOTES):
             chunk_notes, fetch_failures = await _fetch_remote_notes(provider, creds, chunk_refs)
@@ -773,7 +774,8 @@ async def _do_sync(
             if chunk_notes:
                 imported_any = True
                 result = await _import_remote_notes(
-                    user_id, source, provider, creds, chunk_notes, heal=False)
+                    user_id, source, provider, creds, chunk_notes, heal=False,
+                    adoption_state=adoption_state)
                 linked_note_ids.extend(result.get("linkedNoteIds", []))
                 counts["created"] += result["created"]
                 counts["updated"] += result["updated"]
@@ -2327,7 +2329,7 @@ async def _confirm_and_resolve_batch(
 
 def _adopt_file_imports(
     conn: sqlite3.Connection, user_id: str, provider: NoteProvider,
-    remote_notes: list[RemoteNote], import_keys: list[str],
+    remote_notes: list[RemoteNote], import_keys: list[str], pass_state: dict | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """Plan E Task 8: before the existing-row read, re-key the member's file-imported notes
     (`.enex`) that these live notes ARE, so they update in place instead of duplicating. Runs on
@@ -2344,7 +2346,8 @@ def _adopt_file_imports(
             f"SELECT import_key FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL "
             f"AND import_key IN ({','.join('?' * len(chunk))})", (user_id, *chunk)))
     candidates = [(k, rn) for rn, k in zip(remote_notes, import_keys) if k and k not in held]
-    adopted, failures = adoption.adopt_file_imports(conn, user_id, import_source, candidates)
+    adopted, failures = adoption.adopt_file_imports(
+        conn, user_id, import_source, candidates, pass_state=pass_state)
     if adopted:
         conn.commit()
     return adopted, failures
@@ -2352,7 +2355,7 @@ def _adopt_file_imports(
 
 async def _import_remote_notes(
     user_id: str, source: dict[str, Any], provider: NoteProvider, creds: dict[str, Any],
-    remote_notes: list[RemoteNote], *, heal: bool = True,
+    remote_notes: list[RemoteNote], *, heal: bool = True, adoption_state: dict | None = None,
 ) -> dict[str, Any]:
     conn = get_connection()
     try:
@@ -2369,7 +2372,8 @@ async def _import_remote_notes(
         import_keys = [
             provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
         ]
-        adopted, adoption_failures = _adopt_file_imports(conn, user_id, provider, remote_notes, import_keys)
+        adopted, adoption_failures = _adopt_file_imports(
+            conn, user_id, provider, remote_notes, import_keys, adoption_state)
         existing = _bulk_existing_note_meta(conn, user_id, import_keys)
         if _backfill_remote_revs_preserving_updated_at(
                 conn, user_id, remote_notes, import_keys, existing):

@@ -77,30 +77,42 @@ def _file_rows_by_title(conn: sqlite3.Connection, user_id: str, import_source: s
 
 def adopt_file_imports(
     conn: sqlite3.Connection, user_id: str, import_source: str,
-    candidates: list[tuple[str, RemoteNote]],
+    candidates: list[tuple[str, RemoteNote]], *, pass_state: dict | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """`candidates` are `(live_key, rn)` pairs no non-trashed row holds yet. Returns
     `(adopted, failures)`: `adopted` is `[{"fromKey", "toKey", "noteId"}]`, `failures` is Plan D's
     `failures_json` shape, one `{noteTitle, reason, name: None}` per ambiguous title. The caller
-    commits."""
+    commits.
+
+    `pass_state` (one dict per sync pass, the engine's) carries what this pass already adopted and
+    named across import chunks: in a later chunk the adopted row holds a live key and is no longer a
+    candidate, so a second live note matching it would otherwise import silently."""
     adopted: list[dict] = []
     failures: list[dict] = []
     if not candidates:
         return adopted, failures
+    state = pass_state if pass_state is not None else {}
+    adopted_marks: set = state.setdefault("adopted", set())  # (stored title, minute) adopted
+    named: set[str] = state.setdefault("named", set())
     # Task 8 review (concern 1): the live title goes through the file importer's OWN rule (strip,
     # cut to MAX_TITLE_CHARS) before comparing, so a long-titled `.enex` note adopts.
     by_title = _file_rows_by_title(
         conn, user_id, import_source, [import_title(rn.title) for _k, rn in candidates])
     used: set[str] = set()
-    named: set[str] = set()
     for live_key, rn in candidates:
         title = (rn.title or "").strip()
         minute = _minute(rn.created_at)
         if not title or minute is None:
             continue
-        matches = [row for row in by_title.get(import_title(rn.title), [])
-                   if row["id"] not in used and _minute(row["created_at"]) == minute]
+        same = [row for row in by_title.get(import_title(rn.title), [])
+                if _minute(row["created_at"]) == minute]
+        matches = [row for row in same if row["id"] not in used]
         if not matches:
+            if (same or (import_title(rn.title), minute) in adopted_marks) and title not in named:
+                # Task 8 review (concern 4): every matching file row was already adopted this pass
+                # by another live note. This one imports as new, and is named, never silently.
+                named.add(title)
+                failures.append({"noteTitle": title, "reason": ambiguous_reason(title), "name": None})
             continue
         if len(matches) > 1:
             remote_hash = _text_hash(extract_plain_text(rn.doc))
@@ -122,5 +134,6 @@ def adopt_file_imports(
         )
         if cur.rowcount == 1:
             used.add(row["id"])
+            adopted_marks.add((import_title(rn.title), minute))
             adopted.append({"fromKey": row["import_key"], "toKey": live_key, "noteId": row["id"]})
     return adopted, failures
