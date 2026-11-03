@@ -87,6 +87,27 @@ def _is_bare_name_paragraph(node: dict) -> bool:
             and _BARE_NAME_RE.fullmatch(only["text"].strip()) is not None)
 
 
+def is_empty_image(node: Any) -> bool:
+    """`empty_image`: an `image` node with no usable `src`. THE predicate (Task 4 review M-2):
+    the repair (`media.missing_notices`) marks exactly what this counts."""
+    if not isinstance(node, dict) or node.get("type") != "image":
+        return False
+    attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+    src = attrs.get("src")
+    return not isinstance(src, str) or not src.strip()
+
+
+def stranded_ref(node: Any) -> str | None:
+    """`stranded_media_ref`: the ref of an `image` (`src`) or `attachmentChip` (`href`) still
+    holding an `import-ref://` placeholder, else None. THE predicate (Task 4 review M-2)."""
+    if not isinstance(node, dict):
+        return None
+    attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+    attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+    value = attrs.get(attr) if attr else None
+    return value[len(REF_PREFIX):] if isinstance(value, str) and value.startswith(REF_PREFIX) else None
+
+
 def _walk(node: Any, counts: dict[str, int]) -> None:
     if isinstance(node, list):
         for child in node:
@@ -97,18 +118,12 @@ def _walk(node: Any, counts: dict[str, int]) -> None:
     kind = node.get("type")
     attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
     _count_mark(node.get("marks"), counts)
-    if kind == "image":
-        src = attrs.get("src")
-        if not isinstance(src, str) or not src.strip():
-            counts["empty_image"] += 1
-        elif src.startswith(REF_PREFIX):
-            counts["stranded_media_ref"] += 1
-        elif is_hotlink_src(src):
-            counts["hotlinked_image"] += 1
-    elif kind == "attachmentChip":
-        href = attrs.get("href")
-        if isinstance(href, str) and href.startswith(REF_PREFIX):
-            counts["stranded_media_ref"] += 1
+    if is_empty_image(node):
+        counts["empty_image"] += 1
+    elif stranded_ref(node) is not None:
+        counts["stranded_media_ref"] += 1
+    elif kind == "image" and is_hotlink_src(attrs.get("src")):
+        counts["hotlinked_image"] += 1
     elif kind == "text":
         text = node.get("text")
         if isinstance(text, str) and _EMBED_RE.fullmatch(text.strip()):

@@ -147,6 +147,24 @@ def test_a_lost_image_inside_a_figure_dissolves_the_figure_as_the_importer_does(
     assert again == out and more == []
 
 
+def test_missing_notices_use_the_shapes_predicates(monkeypatch):
+    """Fix round 1, M-2: what is a stranded ref and what is an empty image are decided ONCE, in
+    `shapes`; the detector counts and the repair marks the same nodes."""
+    from api.services.journal_two.import_repair import shapes
+    node = _img(src="/x.png", alt="picked")
+    assert shapes.stranded_ref(_img(src=REF_PREFIX + "a/b.png")) == "a/b.png"
+    assert shapes.stranded_ref({"type": "attachmentChip", "attrs": {"href": REF_PREFIX + "f.pdf"}}) == "f.pdf"
+    assert shapes.is_empty_image(_img(src="  ")) and shapes.is_empty_image(_img())
+    assert not shapes.is_empty_image(node) and shapes.stranded_ref(node) is None
+    monkeypatch.setattr(shapes, "is_empty_image", lambda n: n.get("attrs", {}).get("alt") == "picked")
+    out, names = media.missing_notices(_doc(node))
+    assert out == _doc(_notice("picked")) and names == ["picked"]
+    monkeypatch.undo()
+    monkeypatch.setattr(shapes, "stranded_ref", lambda n: "r" if n.get("attrs", {}).get("alt") == "picked" else None)
+    out, names = media.missing_notices(_doc(node))
+    assert names == ["picked"]
+
+
 # ── hotlinks / replace_src ────────────────────────────────────────────────────
 
 def test_hotlinks_are_distinct_in_document_order_by_the_one_predicate():

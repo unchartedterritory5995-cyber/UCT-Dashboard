@@ -22,7 +22,7 @@ from urllib.parse import unquote
 
 from api.services.journal_two import import_notice
 from api.services.journal_two.import_repair import links, shapes
-from api.services.journal_two.note_connectors.convert import REF_PREFIX, rewrite_body
+from api.services.journal_two.note_connectors.convert import rewrite_body
 
 REASON = "missing_from_import"
 
@@ -44,18 +44,6 @@ def _attrs(node: dict) -> dict:
     return attrs if isinstance(attrs, dict) else {}
 
 
-def _stranded_ref(node: dict) -> str | None:
-    """The ref of a still-pending media placeholder (`shapes`' `stranded_media_ref`)."""
-    attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
-    value = _attrs(node).get(attr) if attr else None
-    return value[len(REF_PREFIX):] if isinstance(value, str) and value.startswith(REF_PREFIX) else None
-
-
-def _is_empty_image(node: dict) -> bool:
-    src = _attrs(node).get("src")
-    return node.get("type") == "image" and (not isinstance(src, str) or not src.strip())
-
-
 def missing_notices(doc: dict) -> tuple[dict, list[str]]:
     """`(new_doc, names)`: every `stranded_media_ref` and `empty_image` node replaced by a
     `missing_from_import` marker, named by its alt, title, chip name or the ref's file name.
@@ -67,14 +55,14 @@ def missing_notices(doc: dict) -> tuple[dict, list[str]]:
         """The marker for a lost media node, or None when it is not lost. A stranded ref's
         marker is also registered for the one placeholder rewrite below."""
         attrs = _attrs(node)
-        ref = _stranded_ref(node)
+        ref = shapes.stranded_ref(node)
         if ref is not None:
             if ref not in notices:
                 notices[ref] = _marker(_text(attrs.get("alt")) or _text(attrs.get("title"))
                                        or _text(attrs.get("name")) or _basename(ref))
             names.append(notices[ref]["attrs"]["name"] or import_notice.NAME_FALLBACK)
             return notices[ref]
-        if _is_empty_image(node):
+        if shapes.is_empty_image(node):
             marker = _marker(_text(attrs.get("alt")) or _text(attrs.get("title")))
             names.append(marker["attrs"]["name"] or import_notice.NAME_FALLBACK)
             return marker
@@ -103,7 +91,7 @@ def missing_notices(doc: dict) -> tuple[dict, list[str]]:
                     if isinstance(c, dict) and c.get("type") == "imageCaption" and c.get("content"):
                         out.append({"type": "paragraph", "content": c["content"]})
                 return out
-        if _stranded_ref(node) is not None:
+        if shapes.stranded_ref(node) is not None:
             lost(node)
             return node  # replaced below, by the one placeholder rewrite
         marker = lost(node)
