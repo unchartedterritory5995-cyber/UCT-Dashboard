@@ -724,6 +724,28 @@ def test_a_fetch_cap_leaves_the_member_for_a_same_run_resume(armed, web):
         assert json.loads(_note_row(note)[0])["content"][0]["attrs"]["src"].startswith("/api/j2/notes/attachments/")
 
 
+def test_dead_hotlinks_never_stall_batches_and_are_retried_once_by_a_new_run(armed, web):
+    """Fix round 2, I-6: a hotlink that failed to copy keeps its image and is DONE for this run:
+    later batches of the same run skip it (no re-fetch, no budget). A NEW run retries it at most
+    once more. 3 dead hotlink notes + 1 bare-URL note at `--max-notes 2`: the member finishes."""
+    dead = [_note("u1", "Notion", f"notion:Export/D{i}.md",
+                  _doc({"type": "image", "attrs": {"src": f"http://dead.example.com/{i}.png"}})) for i in range(3)]
+    bare = _note("u1", "Notion", "notion:Export/B.md", BARE)
+    runs = 0
+    while not store.member_done(auth_db.get_connection(), RUN, "u1"):
+        _apply(max_notes=2)
+        runs += 1
+        assert runs <= 4, "batches stalled"
+    assert len(web["calls"]) == 3  # each dead link tried once in this run
+    assert "https://example.com/post" in _note_row(bare)[0]
+    for note in dead:
+        assert json.loads(_note_row(note)[0])["content"][0]["attrs"]["src"].startswith("http://dead.")
+    _apply(run_id="run-2")
+    assert len(web["calls"]) == 6  # a new run retries each once more
+    _apply(run_id="run-3")
+    assert len(web["calls"]) == 6  # and then never again
+
+
 def test_max_fetches_bounds_the_downloads(armed, web):
     note = _note("u1", "Notion", "notion:Export/H.md", _doc(
         {"type": "image", "attrs": {"src": HOT}}, {"type": "image", "attrs": {"src": HOT2}}))

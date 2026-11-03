@@ -340,6 +340,8 @@ RSS_CHECK_EVERY = 25
 #: Task 7 review M-8: the lease is also renewed every `RSS_CHECK_EVERY` notes and at least this
 #: often, far inside `store.LEASE_STALE_S`.
 LEASE_RENEW_S = 60.0
+#: Re-review I-6: a note's hotlinks are fetched by at most this many runs that failed them.
+DEAD_HOTLINK_RUNS = 2
 _ET = "America/New_York"
 
 
@@ -551,6 +553,13 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
                     conn.commit()
                     counts["failed"] += 1
                     continue
+                if plan.hotlinks:
+                    # Re-review I-6: a hotlink that failed to copy is DONE for this run (its image
+                    # stays as it is), and a new run retries it at most once more. Without its
+                    # dead hotlinks a note may need no write at all, so it never stalls a batch.
+                    failed_here, failed_runs = store.fetch_failures(conn, run_id, row.id)
+                    if failed_here or failed_runs >= DEAD_HOTLINK_RUNS:
+                        plan.hotlinks = []
                 if writes(plan):
                     # I-2: a batch is a number of notes still needing work. A note an earlier
                     # batch repaired plans as unchanged and does not count, so each batch moves on.

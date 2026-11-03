@@ -187,6 +187,16 @@ def latest_outcome(conn: sqlite3.Connection, run_id: str, note_id: str) -> str |
     return row[0] if row is not None else None
 
 
+def fetch_failures(conn: sqlite3.Connection, run_id: str, note_id: str) -> tuple[bool, int]:
+    """(did a hotlink fail to copy for this note in THIS run, in how many runs it failed in all).
+    Task 7 re-review I-6: a dead hotlink is done for its run and retried by at most one more."""
+    rows = conn.execute(
+        "SELECT run_id FROM j2_import_repair_log WHERE note_id = ? AND outcome = 'fetch_failed'",
+        (note_id,)).fetchall()
+    runs = {r[0] for r in rows}
+    return run_id in runs, len(runs)
+
+
 def record_notice(conn: sqlite3.Connection, user_id: str, loss_notes: int) -> None:
     """The member's loss notice. While it is pending it shows the MOST loss notes any run found
     (fix round 1, I-1); a dismissed notice is never re-armed or changed; `created_at` keeps the
