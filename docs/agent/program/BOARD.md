@@ -82,3 +82,13 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 | W2-C1 | App-level AgentProvider + page host adapters (screener, breadth, calendar, journal notes read), capability `surfaces` beyond charts; queries available everywhere | w2-c | todo | | |
 | W2-C2 | Explain / Show / Do guide targets on the new pages | w2-c | todo | | |
 | W2-C3 | Cross-feature workflows + Undo across pages (where writers exist) | w2-c | todo | | |
+
+## Wave 3 (coach foundations; integration branch agent/int-w3; NOT deployed; flag UCT_AGENT_COACH default off)
+| id | task | owner | depends | state | PR | evidence |
+|---|---|---|---|---|---|---|
+| W3-1 | Educational explanations: `coach.explain` (query) over a curated, reviewed knowledge base (docs/agent/coach/concepts/*.md): price action, volume, risk & position sizing, market conditions; rails: no figures unless from an envelope, "educational, not advice", no guarantees | w3-a | none | todo | | |
+| W3-2 | Deterministic coach evaluation suite: unsupported-conclusion detector (guarantee/certainty/order language), uncertainty-stated check, figure-traceability check; ≥ 20 adversarial phrasings; wired as rails on every coach answer | w3-a | none | todo | | |
+| W3-3 | Trade review foundations: `journal.reviewTrades` reading the member's own `/api/j2/trades` (and notes) with explicit per-conversation consent (`coach.consent` capability, stored on the conversation state), descriptive stats only, proposed note as the only write | w3-a | none (W2-C1 journal host for page context later) | todo | | |
+| W3-4 | Coaching conversation workflow: ask → explain → check → next step; explicit uncertainty; uses W2-A1 threading once merged (single-turn fallback) | w3-a | W2-A1 (soft) | todo | | |
+| W3-5 | Setup analysis + explanation on top of `chart.describeSetup` | w3-a | W2-B3 merged + reviewed | blocked (dependency) | | |
+| W3-6 | Historical setup comparison on top of `history.eventStudy` / dated ranges | w3-a | W2-B2 merged + reviewed | blocked (dependency) | | |

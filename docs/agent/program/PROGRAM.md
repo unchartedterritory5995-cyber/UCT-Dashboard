@@ -69,6 +69,35 @@ Ownership = the paths each package touches, listed in `BOARD.md` per task. Anyth
 | C:/w/w2-b | agent/w2/market | w2-b | Builder B |
 | C:/w/w2-c | agent/w2/webops | w2-c | Builder C |
 
+
+## Overnight extension through Wave 3 (owner, 2026-11-03)
+Continue Wave 2 aggressively after Wave 1.1; begin Wave 3 (intelligent trading coach foundations) once the relevant Wave 2 foundations are verified — on its own integration branch `agent/int-w3` and worktrees, with independent review, regression tests and explicit dependency checks. Rules: canonical APIs; existing security/privacy/licensing/approval/Undo boundaries; no autonomous trading, order placement or claims of guaranteed profitable setups; Wave 2 and Wave 3 are NOT deployed without separate approval; all new features disabled in production; no unapproved paid evals/spend/model changes; incomplete Wave 2 continues on its highest-priority work; blocked components yield to independent ones. Report actual end-to-end working functionality, not completed code.
+
+### Wave 2 acceptance examples (the 10 the morning report scores; each must execute end to end through the panel harness with the scripted model, and — where a server kind is involved — through the real server with fake providers)
+| # | Example (user says) | Package | Expected end-to-end result |
+|---|---|---|---|
+| 1 | "why is NVDA down today" | W2-B1 | research envelope: facts (every figure from a gateway kind), interpretation, unknowns, dated sources; rendered in three sections |
+| 2 | "what catalysts next week for AMD" | W2-B1 | same shape; earnings/news kinds composed; web search ≤ 1 |
+| 3 | "how has NVDA behaved after 5%+ earnings gaps" | W2-B2 | event-study table to the member (counts/dates/descriptive stats), value-free summary to the model, "descriptive, not predictive" |
+| 4 | "compare this pullback to the last three" | W2-B2 | dated ranges from bars.daily (`from`/`to`), comparison table with freshness |
+| 5 | "describe the setup on this chart" / "and on the weekly?" | W2-B3 + W2-A1 | grounded description from served bars/indicators; follow-up keeps the symbol and switches the timeframe |
+| 6 | a new request typed while a clarify is open | W2-A1 | the old question closes; the new request runs; no merging |
+| 7 | "the other one" / "that alert" after an action | W2-A1 | resolved deterministically against the last result set/receipts; no guessing |
+| 8 | the flagship sentence through planner v2 in the scripted harness | W2-A2 | ≥ 30-case v2 acceptance set green; flagship completes with one approval pause and undo-all |
+| 9 | "turn the gradient off on this chart" with a wrong-but-recoverable model arg shape | W2-A3 | normalizer makes it valid or refuses explicitly; corpus ≥ 80 rows scored |
+| 10 | on /screener: "run my <saved screen> and open the top three on charts"; on /journal: "add this to my notes" from /charts | W2-C1..C3 | page host executes through the page's own writers; cross-page hand-off; Undo names the page |
+
+### Wave 3 (intelligent trading coach) — scope, dependencies, acceptance
+| Component | Depends on | Buildable now? |
+|---|---|---|
+| Educational explanations (price action, volume, risk, position sizing, market conditions) with "educational, not advice" rails | none (curated knowledge base in the repo, reviewed) | yes |
+| Coaching conversation + follow-up workflow (ask → explain → check understanding → next step), explicit uncertainty | W2-A1 multi-turn (merged) for threading; otherwise single-turn | partially now |
+| Trade review / journaling foundations: read the member's OWN trades/notes via `/api/j2/*` with explicit per-conversation consent; descriptive review only (win rate, R, holding time, rule adherence) — never a recommendation; no writes except a proposed note | none for reads; W2-C1 journal host for page context | yes (consent-gated) |
+| Trade setup analysis and explanation | W2-B3 `chart.describeSetup` (merged + reviewed) | after W2-B3 |
+| Historical setup comparison | W2-B2 `history.eventStudy` / dated ranges (merged + reviewed) | after W2-B2 |
+| Deterministic evaluation suite: factual accuracy (every figure traceable), uncertainty stated, unsupported conclusions refused (no "guaranteed", "will", "sure thing"), no order/trading language | none | yes |
+Acceptance (Wave 3): (a) "explain what a tight consolidation means and why volume matters" → grounded educational answer, no figure invented; (b) "review my last 10 trades" → consent prompt → descriptive review from the member's own journal rows, value-free in telemetry; (c) "what's the setup here" on a chart → uses `chart.describeSetup` output, adds the educational layer, never a target or guarantee; (d) "how did names with this setup do before" → uses the Wave 2 event-study kind; (e) coaching follow-ups keep context; (f) the eval suite's unsupported-claim detector blocks at least 20 adversarial phrasings. All Wave 3 capabilities default OFF behind `UCT_AGENT_COACH` (new server flag, default off) and admin-only.
+
 ## Activation checklist (admin-only; owner sets flags; order is mandatory)
 1. `UCT_AGENT_STREAM=1` — after production flags are verified.
 2. `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,quotes,instrument.resolve` — after RC1.
