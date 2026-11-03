@@ -145,3 +145,12 @@ def test_the_doors_are_rate_limited(app, client, monkeypatch):
     _login_as(app, "u1")
     codes = [client.get(GET).status_code for _ in range(3)]
     assert codes == [200, 200, 429]
+
+
+def test_the_dismiss_door_is_rate_limited_too(app, client, monkeypatch):
+    """Task 9 review M-2: the POST spends the same budget on its own (no GET first)."""
+    from api.routers import journal_two as journal_two_router
+    monkeypatch.setattr(journal_two_router, "NOTE_IMPORT_REPAIR_NOTICE_RATE", "2/minute")
+    _login_as(app, "u1")
+    codes = [client.post(DISMISS).status_code for _ in range(3)]
+    assert codes == [200, 200, 429]
