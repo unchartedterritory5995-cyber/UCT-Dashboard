@@ -32,6 +32,9 @@ def _env(monkeypatch):
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
     gw._reset_for_test(None)
     monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", lambda now=None: LATEST)
+    # the adapters ask sessions.last_completed_session (F-23); pin it to the same fixture calendar, never the wall clock
+    from api.services.uct_agent.marketdata import sessions
+    monkeypatch.setattr(sessions, "last_completed_session", lambda now=None: LATEST)
     yield
     gw._reset_for_test(None)
 
