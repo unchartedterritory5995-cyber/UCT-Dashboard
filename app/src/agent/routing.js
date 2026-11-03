@@ -138,8 +138,11 @@ export const GROUPS = [
   { id: 'indicatorAlerts', title: 'Indicator alerts on a chart\'s indicators — RSI, MACD, bands… (create, pause / resume, delete)', domains: ['indicatorAlert'], fillLast: true,
     words: [/\b(alerts?|notify|ping me|tell me when|let me know when)\b.*\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?|overbought|oversold)\b/,
       /\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?)\b.*\b(alerts?|notify|ping me)\b/, /\b(pause|resume|re-?arm)\b.*\balerts?\b/] },
-  { id: 'data', title: 'Stock information and news (profile, earnings, comparisons, news, catalysts)', domains: ['stock', 'news'],
-    words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do)\b/],
+  // W2-B1 (RS-1): `research.ask` rides in this group by domain ("why is X down", "what's driving …", catalysts);
+  // W2-B2: `history.afterEvent` too ("how has X behaved after …", "what happens after …")
+  { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
+    words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
+      /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/],
     // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"
     vocab: [/\b(reports?|reporting|valuation|stacks? up|anything new (on|with)|what'?s (going on|happening) with|why did .+ (gap|move|drop|fall|jump|rally|sell off))\b/] },
   // MARKET INTELLIGENCE breadth slice 1 (2026-10-11): historical breadth QUESTIONS. "breadth" alone is
