@@ -580,6 +580,9 @@ _MSGRAPH_WHOLE_ACCOUNT_PROVIDERS = frozenset({"onenote"})
 # 403 at validate, or a consent refusal whose description names the plan). The card offers the
 # `.enex` import path for it.
 EVERNOTE_PLAN_REASON = "evernote_plan"
+# The `reason=` when Evernote stopped being configured between connect and callback: member words,
+# the same as connect's 503, never the env var name an unconfigured `exchange_code` would carry.
+EVERNOTE_UNAVAILABLE_REASON = "Evernote is not configured on this server."
 _PLAN_WORDS = ("plan", "subscription", "upgrade", "premium", "personal", "professional", "tier")
 
 
@@ -745,6 +748,13 @@ async def oauth_callback(
                     await _aclose(provider_obj)
                 account_label = info.label or account_label
                 remote_id = (info.raw or {}).get("id") or "me"
+        elif provider == "evernote" and not entry.configured():
+            # Task 7 review nit: re-checked here; nothing is exchanged or stored.
+            return RedirectResponse(
+                f"{dashboard}/settings?section=connections&connector={provider}&connected=0"
+                f"&reason={quote(EVERNOTE_UNAVAILABLE_REASON)}",
+                status_code=302,
+            )
         elif provider == "evernote":
             # Plan E Task 7: explicit, BEFORE the Dropbox `else`. The PKCE verifier is re-derived
             # from the signed state; one whole-account source (a member has one connector).

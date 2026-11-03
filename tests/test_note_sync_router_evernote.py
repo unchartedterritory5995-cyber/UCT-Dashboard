@@ -318,6 +318,21 @@ def test_callback_validates_the_new_token_without_a_refresh_hook(client_admin, m
     assert refreshed == []
 
 
+def test_callback_rechecks_configured_and_redirects_in_member_words(client_admin, monkeypatch):
+    """Nit: the client id vanished between connect and callback. The member sees member words,
+    never the env var name or the tool, and nothing is stored. No network: refused before."""
+    from urllib.parse import quote
+    monkeypatch.delenv("EVERNOTE_CLIENT_ID")
+    r = _callback(client_admin, ns._sign_state("u1", "evernote"))
+    assert r.status_code == 302
+    loc = r.headers["location"]
+    assert "connected=0" in loc
+    assert "EVERNOTE_CLIENT_ID" not in loc and "evernote_register_client" not in loc
+    assert ns.EVERNOTE_UNAVAILABLE_REASON == NOT_CONFIGURED
+    assert f"reason={quote(NOT_CONFIGURED)}" in loc
+    assert connections.get_connector("u1", "evernote") is None
+
+
 # ── the other member doors ───────────────────────────────────────────────────
 
 def _seed_evernote_source(user_id="u1"):
