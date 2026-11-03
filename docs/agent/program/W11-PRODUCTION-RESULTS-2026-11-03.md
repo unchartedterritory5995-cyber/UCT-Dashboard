@@ -34,3 +34,9 @@ Side effect: my first message ("turn the gradient off on this chart") went into 
 LT-14 is a financial-accuracy failure in the model's reply text. The deterministic card is correct, the Agent is admin-only, and production health is not degraded. So there was **no rollback**: a rollback would restore LT-1/3/4/8/9/10/11. Instead:
 - A deterministic hotfix ("data answers never carry model-invented facts in the reply line") is being built with an independent review.
 - Release train 2 (#754) is HELD until the hotfix is live, because it adds live describeSetup / dailyBars answers with the same model-prose exposure.
+
+## LT-14 hotfix: live
+PR #755 (independently reviewed: APPROVE) was merged to master as fa5b9751d9, the gate passed, and production = fa5b9751d9; the pod restarted at 23:52Z. The live re-check in a new chat: "when does nvda report" and "when does amd report" now show only the earnings card, with no model-written date or beat/miss line. **LT-14 is resolved.** The rule: a plan made only of data reads (turn.DATA_READ_ACTIONS) is served with an empty model reply, so the card leads. Write plans, clarifies, refusals and grounded research answers keep their text.
+
+## Release train 2
+PR #754 (integration review APPROVE; sync delta review APPROVE; agent ci green on 4107befe3f) was merged to master as 3d3d444d4f after the hotfix was verified live.
