@@ -243,8 +243,10 @@ class EvernoteProvider(NoteProvider):
             if start == 0:
                 first_total = page.get("totalResultCount")
                 size = getattr(client, "size_listing", None)
-                if size is not None and isinstance(first_total, (int, float))                         and not isinstance(first_total, bool):
-                    size(max(1, -(-int(first_total) // self.PAGE_SIZE)))
+                if (size is not None and isinstance(first_total, (int, float))
+                        and not isinstance(first_total, bool)):
+                    # NEW-3: the server's count is clamped to what this pager will ever read.
+                    size(min(_MAX_PAGES, max(1, -(-int(first_total) // self.PAGE_SIZE))))
             elif page.get("totalResultCount") != first_total:
                 raise _ListingMoved()
             hits = []

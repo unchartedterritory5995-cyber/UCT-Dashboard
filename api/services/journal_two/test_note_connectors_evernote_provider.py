@@ -869,3 +869,23 @@ async def test_a_listing_that_raises_still_closes_its_allowance():
     with pytest.raises(errors.NoteConnRateLimited):
         await p.list_changed(CREDS, None)
     assert fake.events[0] == "begin" and fake.events[-1] == "end"
+
+
+async def test_a_listings_page_count_is_clamped_to_the_page_cap():
+    # NEW-3: `totalResultCount` comes from the server; a huge one must not size an allowance
+    # past what the pager will ever read (`_MAX_PAGES`).
+    fake = _ListingFake(active=[_hit(i) for i in range(3)])
+    real = fake.call_tool
+
+    async def inflated(name, arguments):
+        sc = await real(name, arguments)
+        if name == "search_notes":
+            sc = {**sc, "totalResultCount": 10 ** 9}
+        return sc
+
+    fake.call_tool = inflated
+    p = _provider(fake)
+    with pytest.raises(errors.NoteConnTransient):  # the count never adds up; that is fine here
+        await p.list_present_refs(CREDS)
+    sizes = [e[1] for e in fake.events if isinstance(e, tuple)]
+    assert sizes and set(sizes) == {ev._MAX_PAGES}
