@@ -841,7 +841,8 @@ CREATE TABLE IF NOT EXISTS j2_import_repair_progress (
     PRIMARY KEY (run_id, user_id)
 );
 -- One row per note outcome. `before_body_json` is the pre-repair body of a note the run
--- wrote: the undo source (an UPDATE by the owner), never a j2_note_versions row, which would
+-- wrote: the undo source (applied only through engine._apply_resolved_body, runbook step 9;
+-- never a raw UPDATE of j2_notes), never a j2_note_versions row, which would
 -- surface in the member's History and change what legacy_finalize_shape reads. A
 -- `repair_started` row holding it is committed BEFORE the write; the outcome row supersedes it.
 CREATE TABLE IF NOT EXISTS j2_import_repair_log (

@@ -7,7 +7,9 @@ durable on its own (a member finished; the undo copy before a write; a dismissal
 Tables (`db._J2_SCHEMA`, purged with the account):
   * `j2_import_repair_progress`: one row per (run, member), so a stopped run resumes;
   * `j2_import_repair_log`: one row per note outcome. `before_body_json` keeps the pre-repair
-    body of a note the run wrote: the undo source (an owner UPDATE). It is never a
+    body of a note the run wrote: the undo source, applied ONLY through
+    `engine._apply_resolved_body` and only while the note is unedited since (the plan's Task 8
+    runbook, step 9; never a raw UPDATE of `j2_notes`). It is never a
     `j2_note_versions` row, which would surface in the member's History and change what
     `legacy_finalize_shape` reads;
   * `j2_import_repair_notices`: the member's one loss notice; dismissing it is an UPDATE, and
