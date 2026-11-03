@@ -1,12 +1,12 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-03 22:10 CT
+updated: 2026-11-03 22:25 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
-free RAM: 14838 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (1 Opus, 5 Sonnet). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
+free RAM: 17801 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (1 Opus, 5 Sonnet). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
 baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
-poll on ops/pine-coord: ARMED (15 min). Read a48cbe455f: cap ruling, engine order T4=6 T3=7 W3=8, deploy-freeze windows, F1/F2 follow-ups noted (not assigned). No desktop action required.
+poll on ops/pine-coord: ARMED (15 min). Read a915fc4858: coordinator re-homing (LAPTOP-PROMPT v5); 6 laptop lanes re-homed here. All 6 tips verified equal to the SHAs in ASSIGNMENTS.md.
 
 ### Setup verification (DESKTOP-PROMPT section 3)
 - env-desktop.sh: OK. UCT_WORKTREES=/c/Users/Patrick/uct-worktrees, UCT_RESUME=.../_resume-2026-11-01, HEAVY_LOCK=C:/Users/Patrick/uct-clips/tools/heavy_lock.py, UCT_PY=python
@@ -26,8 +26,17 @@ poll on ops/pine-coord: ARMED (15 min). Read a48cbe455f: cap ruling, engine orde
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
 - lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12 (created by builders)
 
-### Queue (in order, as slots and dependencies allow)
-W5-T6 (after W5-T1 READY) · W5-T2 (after W5-T1 MERGED). W4-T17/T13 and W4-T12 started early, since slots opened.
+### Queue (in order, as builder slots free; cap 6 at >=8 GB)
+Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to unblock merges and engine numbering first, short lanes first:
+1. W5-T6 (desktop's own; starts the moment W5-T1 is READY, branched from T1's tip)
+2. W4-T3 fix round @ 572376edf6 (final-tip only; engine 7)
+3. E evidence-engine lows @ e58edcbeaf (gate pytest + hygiene + rails + EVIDENCE.md)
+4. W5-T3 codec @ cd61d6741d (final-tip + EVIDENCE.md; no engine bump)
+5. W3 S1 round 2 @ 7eaca7777f (measure-pair both lanes + final-tip; engine 8)
+6. W4-T0 census peel @ 75c4c400c2 (job.sh + coverage map docs)
+7. W2 round 3 @ 1a8dddb408 (classify P11, edit packet; NEVER arm or touch flags)
+8. W5-T2 (after W5-T1 MERGED)
+READY lanes wait for the new coordinator's review. The desktop does not review, merge or bump.
 
 ## W4-T2
 state: BUILDING   round: r0   updated: 2026-11-03 21:11 CT
