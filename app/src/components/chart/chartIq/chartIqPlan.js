@@ -56,7 +56,7 @@ export function levelsOnly(plan) {
   return { ...plan, segments: (plan.segments || []).filter((g) => g.p1 === g.p2), markers: [] }
 }
 
-export function buildPlan(payload, barTimes, layers = defaultLayers()) {
+export function buildPlan(payload, barTimes, layers = defaultLayers(), { weekly = false } = {}) {
   const out = { segments: [], markers: [], hlines: [] }
   if (!payload || !Array.isArray(barTimes) || !barTimes.length) return out
   const first = barTimes[0]
@@ -67,6 +67,11 @@ export function buildPlan(payload, barTimes, layers = defaultLayers()) {
     if (d < first) return first
     if (d > last) return last
     if (idx.has(d)) return d
+    if (weekly) {                                         // a weekly bar carries its week's LAST day: the bar on or after d
+      let lo = 0, hi = barTimes.length - 1
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (barTimes[mid] >= d) hi = mid; else lo = mid + 1 }
+      return barTimes[lo]
+    }
     let lo = 0, hi = barTimes.length - 1                  // the last bar on or before d (a holiday / missing bar)
     while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (barTimes[mid] <= d) lo = mid; else hi = mid - 1 }
     return barTimes[lo]

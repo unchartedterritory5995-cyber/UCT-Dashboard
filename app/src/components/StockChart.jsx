@@ -9784,7 +9784,7 @@ export default function StockChart({
   const chartIqPlan = useMemo(
     () => {
       if (!(chartIqActive && chartIqData && ohlcData.length)) return null
-      const plan = buildChartIqPlan(chartIqData, ohlcData.map((d) => d.time), chartIqLayers)
+      const plan = buildChartIqPlan(chartIqData, ohlcData.map((d) => d.time), chartIqLayers, { weekly: resolvedTf === 'W' })
       return resolvedTf === 'W' ? chartIqLevelsOnly(plan) : plan
     },
     [chartIqActive, chartIqData, ohlcData, chartIqLayers, resolvedTf],

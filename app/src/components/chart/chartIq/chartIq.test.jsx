@@ -277,3 +277,15 @@ describe('weekly charts: the daily read, price levels only', () => {
     expect(screen.queryByTestId('chart-iq-weekly')).toBeNull()
   })
 })
+
+
+describe('weekly bar dates', () => {
+  it('a level that starts mid-week starts on THAT week, not the week before', () => {
+    const weeks = ['2026-10-23', '2026-10-30', '2026-11-06']   // weekly bars carry the Friday
+    const payload = { clean: [{ kind: 'hline', price: 10, start: '2026-10-28' }] }
+    const w = buildPlan(payload, weeks, defaultLayers(), { weekly: true })
+    expect(w.segments[0].t1).toBe('2026-10-30')
+    const d = buildPlan(payload, weeks, defaultLayers())             // the daily rule (last bar on or before) is unchanged
+    expect(d.segments[0].t1).toBe('2026-10-23')
+  })
+})
