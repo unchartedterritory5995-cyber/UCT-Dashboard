@@ -21,7 +21,9 @@ that matched a sample script).
 ⛔ **ENGINE VERSION — the merge needs a bump.** This branch changes translator output (a
 `{N,number,percent}` message cell now draws, and every S1 refusal carries a name) and does NOT bump
 `SCRIPT_ENGINE_VERSION` (still 5, as on master at 52f76f9b4f). The coordinator must bump
-`SCRIPT_ENGINE_VERSION` to **6** when this branch merges.
+`SCRIPT_ENGINE_VERSION` when this branch merges: by the coordinator's merge order (T4 takes 6,
+T3 takes 7) W3 takes **8**. (The round-2 commit message 89ea8f6a16 said 6; the order changed
+after it.)
 
 ## The 22 cells, by shape
 
