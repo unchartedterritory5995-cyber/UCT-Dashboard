@@ -95,15 +95,22 @@ def test_progress_marks_and_resumes(conn):
 
 
 def test_record_notice_never_rearms_a_dismissed_notice(conn):
+    """Fix round 1, I-1: while the notice is pending it shows the MOST loss notes any run found;
+    once dismissed, no later run re-arms or changes it."""
     assert store.pending_notice(conn, "u1") is None
     store.record_notice(conn, "u1", 3)
     assert store.pending_notice(conn, "u1") == 3
-    store.record_notice(conn, "u1", 9)  # INSERT OR IGNORE: the first count stands
-    assert store.pending_notice(conn, "u1") == 3
+    store.record_notice(conn, "u1", 9)  # a later run found more: the notice says so
+    assert store.pending_notice(conn, "u1") == 9
+    store.record_notice(conn, "u1", 5)  # fewer never lowers it
+    assert store.pending_notice(conn, "u1") == 9
+    created = conn.execute("SELECT created_at FROM j2_import_repair_notices").fetchone()[0]
     assert store.dismiss_notice(conn, "u1") is True
     assert store.pending_notice(conn, "u1") is None
-    store.record_notice(conn, "u1", 5)  # a later run never re-arms it
+    store.record_notice(conn, "u1", 12)  # a later run never re-arms it
     assert store.pending_notice(conn, "u1") is None
+    row = conn.execute("SELECT loss_notes, created_at FROM j2_import_repair_notices").fetchone()
+    assert (row[0], row[1]) == (9, created)  # a dismissed row is untouched
     assert store.dismiss_notice(conn, "u1") is False  # already dismissed
     assert store.dismiss_notice(conn, "nobody") is False
 

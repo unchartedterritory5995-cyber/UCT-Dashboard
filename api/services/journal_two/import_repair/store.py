@@ -94,10 +94,13 @@ def latest_outcome(conn: sqlite3.Connection, run_id: str, note_id: str) -> str |
 
 
 def record_notice(conn: sqlite3.Connection, user_id: str, loss_notes: int) -> None:
-    """The member's loss notice. INSERT OR IGNORE: never re-arms a dismissed notice, and the first
-    count stands."""
+    """The member's loss notice. While it is pending it shows the MOST loss notes any run found
+    (fix round 1, I-1); a dismissed notice is never re-armed or changed; `created_at` keeps the
+    first time."""
     conn.execute(
-        "INSERT OR IGNORE INTO j2_import_repair_notices (user_id, loss_notes, created_at) VALUES (?, ?, ?)",
+        "INSERT INTO j2_import_repair_notices (user_id, loss_notes, created_at) VALUES (?, ?, ?)"
+        " ON CONFLICT(user_id) DO UPDATE SET loss_notes = MAX(loss_notes, excluded.loss_notes)"
+        " WHERE dismissed_at IS NULL",
         (user_id, loss_notes, _now()))
 
 
