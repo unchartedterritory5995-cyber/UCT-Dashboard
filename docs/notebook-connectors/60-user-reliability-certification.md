@@ -404,7 +404,7 @@ Re-importing the media notebook: **"Will create 0, update 0, unchanged 9"**; ima
 Release E2E of plugin 0.2.0 against production (server PR #703), Obsidian 1.13.7, run in a scratch vault on the owner's admin account and cleaned up afterwards (Case A: no Obsidian source existed before; note count 12 before, 12 after; 11 test notes in trash). Full record: `.superpowers/sdd/2026-11-01-connector-fidelity-c-obsidian/task-11-e2e.md`.
 
 - **E2E_SHA** (`main.js` sha256) = `25fd7fe935385592135601ba0ce0bedee1536b22b017461de02cf7a9d72f6eda`, built from two clean clones of plugin commit `19b55d2` and by CI (run 41552194864), all equal.
-- **Release digest:** PENDING. The `0.2.0` tag and GitHub release had not been created when this addendum was written. Fill in `gh release view 0.2.0 --json assets` for `main.js` once published; it must equal E2E_SHA.
+- **Release:** https://github.com/unchartedterritory5995-cyber/obsidian-uct-notebook-sync/releases/tag/0.2.0 (tag `0.2.0` at `19b55d2`). Release asset digests (GitHub release API): `main.js` sha256:`25fd7fe935385592135601ba0ce0bedee1536b22b017461de02cf7a9d72f6eda` (== E2E_SHA), `manifest.json` sha256:`194b5cf8aae7d0306d4590a73ad57bad7bc4eca8a0661198e9496833674e40eb`, `styles.css` sha256:`0927705b64c4e7c8184ff89e1c95cac3e5abe7d348734c99580dd37293d4a7b3`, each equal to the clean-clone build.
 - Compatibility leg, plugin 0.1.4 against the new server: PASS. Notes sync as text, every image and file is marked `obsidian-plugin-outdated`, `pluginVersion` is null and the card shows the update hint.
 
 | Check | Result |
