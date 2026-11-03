@@ -1,10 +1,10 @@
-// SCREENER RESULT REPORTING (2026-10-11 acceptance, owner option B): a screen sorted by RS Rank is
-// described as RS-Rank-ordered only as far as the RETURNED rows carry an RS Rank. The screen itself is
-// unchanged (whole market, rs_rank desc) — only the sentence about it.
-//   all null   → NO rows shown as a ranking: "RS Rank data is unavailable for these results, so the
-//                highest RS Rank stocks can't be established from the available data" (integration)
-//   partial    → "by RS Rank (highest first); only K of these N have an RS Rank value — …"
-//   all present → "by RS Rank (highest first)" (as before)
+// SCREENER RESULT REPORTING (2026-10-11 acceptance, owner option B): a screen sorted by 3M % is
+// described as RS-Rank-ordered only as far as the RETURNED rows carry an 3M %. The screen itself is
+// unchanged (whole market, chg_pct_3m desc) — only the sentence about it.
+//   all null   → NO rows shown as a ranking: "3M % data is unavailable for these results, so the
+//                highest 3M % stocks can't be established from the available data" (integration)
+//   partial    → "by 3M % (highest first); only K of these N have an 3M % value — …"
+//   all present → "by 3M % (highest first)" (as before)
 // The opt-in test at the bottom runs the same request against the REAL Screener route over the
 // local 3,665-row snapshot copy (UCT_SCREENER_ROUTE=http://127.0.0.1:<port>).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -15,12 +15,12 @@ import * as screenerMod from './capabilities/screener'
 registerBuiltins()
 const NODE_FETCH = globalThis.fetch   // the real one, before any test mocks it
 const FIELDS = [
-  { key: 'rs_rank', label: 'RS Rank', type: 'range', unit: '', category: 'technical' },
+  { key: 'chg_pct_3m', label: '3M %', type: 'range', unit: '', category: 'technical' },
   { key: 'price', label: 'Price', type: 'range', unit: '$', category: 'descriptive' },
   { key: 'chg_pct_1d', label: 'Chg 1D', type: 'range', unit: '%', category: 'descriptive' },
 ]
-const STRONGEST = { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }
-const row = (ticker, rs, price = 100) => ({ ticker, company: ticker, price, chg_pct_1d: 0.5, rs_rank: rs })
+const STRONGEST = { filters: [], sort_field: 'chg_pct_3m', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }
+const row = (ticker, rs, price = 100) => ({ ticker, company: ticker, price, chg_pct_1d: 0.5, chg_pct_3m: rs })
 
 let scans
 function serve(rows, total = rows.length) {
@@ -38,14 +38,14 @@ beforeEach(() => { screenerMod._resetScreenerCache() })
 afterEach(() => { vi.restoreAllMocks() })
 const run = async (args = STRONGEST) => getCapability('screener.run').answer(null, args, null)
 
-describe('RS Rank coverage of the RETURNED rows decides how the order is described', () => {
+describe('3M % coverage of the RETURNED rows decides how the order is described', () => {
   it('ALL NULL: the ranking cannot be established — no rows are presented as the strongest', async () => {
     serve(['XRAY', 'XPRO', 'XLK', 'USNA'].map(t => row(t, null)), 3665)
     const a = await run()
-    expect(scans[0].sort).toEqual({ key: 'rs_rank', dir: 'desc' })            // the screen is unchanged
+    expect(scans[0].sort).toEqual({ key: 'chg_pct_3m', dir: 'desc' })            // the screen is unchanged
     expect(a.text).toMatch(/3,665 stocks match\./)
-    expect(a.text).toMatch(/RS Rank data is unavailable for these results, so the highest RS Rank stocks can't be established from the available data — no list is shown as a RS Rank ranking\./)
-    expect(a.text).not.toMatch(/by RS Rank|highest first|Showing the first/)
+    expect(a.text).toMatch(/3M % data is unavailable for these results, so the highest 3M % stocks can't be established from the available data — no list is shown as a 3M % ranking\./)
+    expect(a.text).not.toMatch(/by 3M %|highest first|Showing the first/)
     expect(a.table).toBeNull()                                                 // no arbitrary list
     expect(a.text).not.toMatch(/XRAY|XPRO|XLK|USNA/)                           // not even in the words
   })
@@ -53,54 +53,55 @@ describe('RS Rank coverage of the RETURNED rows decides how the order is describ
   it('ALL NULL, "weakest" (ascending): the same refusal, in its own direction', async () => {
     serve(['XRAY', 'XPRO'].map(t => row(t, null)), 2)
     const a = await run({ ...STRONGEST, sort_dir: 'asc' })
-    expect(a.text).toMatch(/so the lowest RS Rank stocks can't be established/)
+    expect(a.text).toMatch(/so the lowest 3M % stocks can't be established/)
     expect(a.table).toBeNull()
   })
 
-  it('PARTIAL: keeps the ranking words and says exactly how many of the shown rows have an RS Rank', async () => {
+  it('PARTIAL: keeps the ranking words and says exactly how many of the shown rows have an 3M %', async () => {
     serve([row('PLTR', 99), row('HOOD', 98), row('NVDA', 97), row('XLK', null), row('SPY', null)], 120)
     const a = await run()
-    expect(a.text).toMatch(/Showing the first 5 by RS Rank \(highest first\); only 3 of these 5 have RS Rank values — the other 2 have none and are not ranked by it\./)
-    expect(a.table.rows.map(r => r.rs_rank)).toEqual(['99.00', '98.00', '97.00', '—', '—'])
+    expect(a.text).toMatch(/Showing the first 5 by 3M % \(highest first\); only 3 of these 5 have 3M % values — the other 2 have none and are not ranked by it\./)
+    expect(a.table.rows.map(r => r.chg_pct_3m)).toEqual(['99.00', '98.00', '97.00', '—', '—'])
   })
 
   it('FULL: the normal ranking description, unchanged', async () => {
     serve([row('PLTR', 99), row('HOOD', 98), row('NVDA', 97)])
     const a = await run()
-    expect(a.text).toMatch(/Showing the first 3 by RS Rank \(highest first\)\./)
+    expect(a.text).toMatch(/Showing the first 3 by 3M % \(highest first\)\./)
     expect(a.text).not.toMatch(/unavailable|only \d+ of these/)
   })
 
-  it('a value of 0 is a real RS Rank (not "missing"); non-numbers are not', async () => {
+  it('a value of 0 is a real 3M % (not "missing"); non-numbers are not', async () => {
     serve([row('A', 0), row('B', 'n/a'), row('C', null)])
-    expect((await run()).text).toMatch(/only 1 of these 3 have RS Rank values/)
+    expect((await run()).text).toMatch(/only 1 of these 3 have 3M % values/)
   })
 
-  it('the refined follow-up is described by the same rule (price > $50, still sorted by RS Rank)', async () => {
+  it('the refined follow-up is described by the same rule (price > $50, still sorted by 3M %)', async () => {
     serve([row('PLTR', 99, 209), row('XLK', null, 198)])
     await run()
     const a = await run({ filters: [{ field: 'price', op: 'gt', value: 50, max: null, values: null }], sort_field: null, sort_dir: null, mode: 'refine', show: null, as: null, within: null })
-    expect(scans[1].sort).toEqual({ key: 'rs_rank', dir: 'desc' })
+    expect(scans[1].sort).toEqual({ key: 'chg_pct_3m', dir: 'desc' })
     expect(scans[1].filters).toEqual([{ key: 'price', op: 'gt', min: 50 }])
-    expect(a.text).toMatch(/only 1 of these 2 have RS Rank values/)
+    expect(a.text).toMatch(/only 1 of these 2 have 3M % values/)
   })
 
-  it('an unsorted screen says nothing about order', async () => {
+  it('an unsorted screen says only the Agent\'s default order (SC-1 §2d), never a ranking', async () => {
     serve([row('A', null)])
     const a = await run({ filters: [{ field: 'price', op: 'gt', value: 50, max: null, values: null }], sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, within: null })
-    expect(a.text).toMatch(/Showing the first 1\./)
+    expect(a.text).toMatch(/Showing the first 1, ordered by market cap, largest first \(no other order was asked for\)\./)
+    expect(a.text).not.toMatch(/highest first|lowest first/)
   })
 })
 
 const ROUTE = globalThis.process?.env?.UCT_SCREENER_ROUTE
 describe('opt-in: the REAL Screener route over the local 3,665-row snapshot', () => {
-  it.skipIf(!ROUTE)('"strongest" on real rows with no RS Rank says so; the refine keeps the screen', async () => {
+  it.skipIf(!ROUTE)('"strongest" on real rows with no 3M % says so; the refine keeps the screen', async () => {
     const realFetch = NODE_FETCH
     globalThis.fetch = vi.fn((url, init = {}) => realFetch(`${ROUTE}${url}`, { method: init.method || 'GET', headers: { 'content-type': 'application/json' }, body: init.body }))
     const a = await run()
-    expect(a.text).toMatch(/^3,665 stocks match\. RS Rank data is unavailable for these results, so the highest RS Rank stocks can't be established/)
+    expect(a.text).toMatch(/^3,665 stocks match\. 3M % data is unavailable for these results, so the highest 3M % stocks can't be established/)
     expect(a.table).toBeNull()
     const b = await run({ filters: [{ field: 'price', op: 'gt', value: 50, max: null, values: null }], sort_field: null, sort_dir: null, mode: 'refine', show: null, as: null, within: null })
-    expect(b.text).toMatch(/^1,343 stocks match \(Price > \$50\)\. RS Rank data is unavailable/)
+    expect(b.text).toMatch(/^1,343 stocks match \(Price > \$50\)\. 3M % data is unavailable/)
   })
 })
