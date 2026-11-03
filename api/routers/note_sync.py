@@ -1068,6 +1068,7 @@ def source_log(source_id: str, limit: int = 20, user: dict = Depends(get_current
                 "skipped": r["notes_skipped"] or 0,
                 "conflicts": r["conflicts"] or 0,
                 "sourceDeleted": r["source_deleted"] or 0,
+                "adopted": r["adopted"] or 0,  # Plan E Task 8; NULL in older rows reads 0
                 "failures": failures,
                 "failuresUnreadable": unreadable,
             })

@@ -1276,7 +1276,7 @@ def test_source_log_rows_are_camelcase_with_failures_parsed(client, monkeypatch)
     rows = client.get(f"/api/j2/notes/connectors/sources/{source_id}/log?limit=5").json()["rows"]
     assert isinstance(rows[0].pop("id"), int)
     assert rows[0] == {"at": "t2", "status": "ok", "created": 1, "updated": 2, "skipped": 3,
-                       "conflicts": 0, "sourceDeleted": 0, "failuresUnreadable": False,
+                       "conflicts": 0, "sourceDeleted": 0, "adopted": 0, "failuresUnreadable": False,
                        "failures": [{"noteTitle": "Trip", "reason": "Image couldn't be copied",
                                      "name": "a.heic"}]}
     assert rows[1]["failures"] == [] and rows[1]["failuresUnreadable"] is False

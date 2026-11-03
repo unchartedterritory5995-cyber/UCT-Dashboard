@@ -110,6 +110,7 @@ from api.services.journal_two import notes as notes_svc
 from api.services.journal_two.import_provenance import edited_since_import
 from api.services.journal_two.notes_quota import NoteQuotaExceeded
 from api.services.journal_two.note_connectors import connections, errors, oauth
+from api.services.journal_two.note_connectors import adoption
 from api.services.journal_two.note_connectors.link_keys import heal_pending_links, resolve_link_keys
 from api.services.journal_two.note_connectors.convert import REF_PREFIX, mddoc, rewrite_body
 from api.services.journal_two.note_connectors.convert.linkify import (
@@ -329,6 +330,21 @@ def _within_cooldown(source: dict[str, Any]) -> bool:
 
 # ── Sync log bracket (mirrors broker/sync.py's _start_log/_finish_log) ──────
 
+def _drain_provider_item_failures(
+    provider: Any, item_failures: list[str], notice_failures: list[dict[str, Any]],
+) -> None:
+    """Plan E Task 8 (Plan D's design): a provider that records per-note problems itself
+    (`drain_item_failures`, `{noteTitle, reason, name}` entries) hands them over here; each reaches
+    `failures_json` and its reason the result's `failures` and the log row's `error`. Providers
+    without the method are untouched."""
+    drain = getattr(provider, "drain_item_failures", None)
+    if drain is None:
+        return
+    for entry in drain() or []:
+        notice_failures.append(entry)
+        item_failures.append(entry.get("reason") or "")
+
+
 def _start_log(user_id: str, source_id: str) -> int:
     conn = get_connection()
     try:
@@ -375,7 +391,7 @@ def _finish_log(
                SET finished_at = ?, status = ?, error = ?,
                    notes_created = ?, notes_updated = ?, notes_skipped = ?,
                    media_uploaded = ?, conflicts = ?, source_deleted = ?,
-                   failures_json = ?
+                   failures_json = ?, adopted = ?
              WHERE id = ?
             """,
             (
@@ -383,7 +399,7 @@ def _finish_log(
                 int(counts.get("created", 0)), int(counts.get("updated", 0)),
                 int(counts.get("skipped", 0)), int(counts.get("mediaUploaded", 0)),
                 int(counts.get("conflicts", 0)), int(source_deleted or 0),
-                blob, log_id,
+                blob, int(counts.get("adopted", 0)), log_id,
             ),
         )
         conn.commit()
@@ -541,7 +557,8 @@ async def _do_sync(
         raise ValueError(f"unknown note-connector source {source_id!r}")
 
     log_id = _start_log(user_id, source_id)
-    counts = {"created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0, "conflicts": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0, "conflicts": 0,
+              "adopted": 0}  # Plan E Task 8: file-imported notes re-keyed onto live sync
     item_failures: list[str] = []
     # Plan A Task 6: {noteTitle, reason, name} per importNotice written this pass,
     # for the log row's `failures_json` (the `failures` strings above are unchanged).
@@ -749,6 +766,7 @@ async def _do_sync(
         for chunk_refs in _chunks(refs, IMPORT_CHUNK_NOTES):
             chunk_notes, fetch_failures = await _fetch_remote_notes(provider, creds, chunk_refs)
             item_failures.extend(fetch_failures)
+            _drain_provider_item_failures(provider, item_failures, notice_failures)
             # Plan A Task 10: links finalized here, before anything hashes or stores a doc.
             chunk_notes = await asyncio.to_thread(_finalize_remote_notes, chunk_notes)
             fetched_ids.update(rn.remote_id for rn in chunk_notes)
@@ -762,9 +780,11 @@ async def _do_sync(
                 counts["skipped"] += result["skipped"]
                 counts["mediaUploaded"] += result["mediaUploaded"]
                 counts["conflicts"] += result["conflicts"]
+                counts["adopted"] += result.get("adopted", 0)
                 item_failures.extend(result["failures"])
                 notice_failures.extend(result.get("noticeFailures", []))
                 not_stored_refs.update(result.get("notStoredRefs", []))
+                _drain_provider_item_failures(provider, item_failures, notice_failures)
             del chunk_notes  # this chunk's docs are not held while the next is fetched
         not_stored_refs.update({r.remote_id for r in refs} - fetched_ids)
         if imported_any:
@@ -2305,6 +2325,31 @@ async def _confirm_and_resolve_batch(
     return result
 
 
+def _adopt_file_imports(
+    conn: sqlite3.Connection, user_id: str, provider: NoteProvider,
+    remote_notes: list[RemoteNote], import_keys: list[str],
+) -> tuple[list[dict], list[dict]]:
+    """Plan E Task 8: before the existing-row read, re-key the member's file-imported notes
+    (`.enex`) that these live notes ARE, so they update in place instead of duplicating. Runs on
+    every pass (a later file import adds candidates), and only for a provider that sets
+    `adopt_import_source`: every other provider makes no adoption query at all."""
+    import_source = getattr(provider, "adopt_import_source", None)
+    if not import_source:
+        return [], []
+    keys = [k for k in import_keys if k]
+    held: set[str] = set()
+    for i in range(0, len(keys), 500):  # sqlite variable-limit safety
+        chunk = keys[i:i + 500]
+        held.update(r[0] for r in conn.execute(
+            f"SELECT import_key FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL "
+            f"AND import_key IN ({','.join('?' * len(chunk))})", (user_id, *chunk)))
+    candidates = [(k, rn) for rn, k in zip(remote_notes, import_keys) if k and k not in held]
+    adopted, failures = adoption.adopt_file_imports(conn, user_id, import_source, candidates)
+    if adopted:
+        conn.commit()
+    return adopted, failures
+
+
 async def _import_remote_notes(
     user_id: str, source: dict[str, Any], provider: NoteProvider, creds: dict[str, Any],
     remote_notes: list[RemoteNote], *, heal: bool = True,
@@ -2324,6 +2369,7 @@ async def _import_remote_notes(
         import_keys = [
             provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
         ]
+        adopted, adoption_failures = _adopt_file_imports(conn, user_id, provider, remote_notes, import_keys)
         existing = _bulk_existing_note_meta(conn, user_id, import_keys)
         if _backfill_remote_revs_preserving_updated_at(
                 conn, user_id, remote_notes, import_keys, existing):
@@ -2418,6 +2464,10 @@ async def _import_remote_notes(
             "conflicts": pre_confirm_conflicts, "failures": [], "notStoredRefs": [],
             "noticeFailures": [],
         }
+        # Plan E Task 8: the adoption seam's count and its Plan D-shaped failures.
+        totals["adopted"] = len(adopted)
+        totals["noticeFailures"].extend(adoption_failures)
+        totals["failures"].extend(f["reason"] for f in adoption_failures)
         # Plan A Task 6: prior notice attempts per key, read before any confirm below.
         notice_attempts = {k: m["noticeAttempts"] for k, m in existing.items() if m["noticeAttempts"]}
         all_touched: list[tuple[RemoteNote, str, str]] = []
