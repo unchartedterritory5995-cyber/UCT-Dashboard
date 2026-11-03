@@ -1,0 +1,13 @@
+<!--
+D3 items 7 and 8, through the HTML walker: block-level divs are paragraph
+boundaries, and a list item that opens with a block is repaired the way the
+editor's parser repairs it (the item closes, its content moves up, the rest of
+the list continues in a new bullet list). Every node passes the schema check().
+-->
+<div>First line</div><div>Second line</div>
+<section><div>Nested <b>bold</b> line</div></section>
+<ol start="2">
+<li>Two</li>
+<li><ul><li>Inner first</li></ul>after inner</li>
+<li>Four</li>
+</ol>

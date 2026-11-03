@@ -248,3 +248,24 @@ def test_the_html_vectors_cover_item_7():
 def test_a_marked_run_in_a_div_keeps_its_mark():
     runs = _texts(html_to_tiptap("<div><b>a</b> c</div><div>d</div>")["doc"])
     assert [(r["text"], _mark_types(r)) for r in runs] == [("a", ["bold"]), (" c", []), ("d", [])]
+
+
+# ── item 8: a list item opening with a block is repaired as the editor's parser does ──
+
+
+@pytest.mark.parametrize("src, expected", [
+    ("- - a\n- b",
+     "doc(bulletList(listItem(paragraph)), bulletList(listItem(paragraph('a'))), "
+     "bulletList(listItem(paragraph('b'))))"),
+    ("- ![x](a.png)\n- b",
+     "doc(bulletList(listItem(paragraph)), image, bulletList(listItem(paragraph('b'))))"),
+    ("1. - a\n2. b",
+     "doc(orderedList(listItem(paragraph)), bulletList(listItem(paragraph('a'))), "
+     "bulletList(listItem(paragraph('b'))))"),
+    ("- a\n  - b", "doc(bulletList(listItem(paragraph('a'), bulletList(listItem(paragraph('b'))))))"),
+])
+def test_markdown_list_item_repair(src, expected):
+    """The markdown lane wrote `listItem(image)` and `listItem(bulletList)`, list items the
+    schema refuses; the client's parse (same markdown, `mdToHtml` + `htmlToNote`) repairs them
+    into these shapes (measured), so the server writes the same."""
+    assert _shape(md_to_tiptap(src)["doc"]) == expected

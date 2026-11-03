@@ -173,8 +173,11 @@ def md_to_tiptap(
     cleaned = _extract_data_uri_images(md or "")
     tokens = _get_md().parse(cleaned)
     ctx = _Ctx(resolve_href, unsafe_image_notice)
-    content = _blocks(tokens, 0, len(tokens), ctx)
-    return {"doc": {"type": "doc", "content": content}, "media": ctx.media, "links": ctx.links}
+    doc = {"type": "doc", "content": _blocks(tokens, 0, len(tokens), ctx)}
+    # D3 item 8: `- - a` and `- ![x](a.png)` open a list item with a block, as raw HTML does;
+    # the same repair as `html_to_tiptap`, so a markdown list reads as the client's parse.
+    repair_list_items(doc)
+    return {"doc": doc, "media": ctx.media, "links": ctx.links}
 
 
 # ---------------------------------------------------------------------------
@@ -1534,5 +1537,55 @@ def html_to_tiptap(html: str | None) -> dict[str, Any]:
     builder.close()
     nodes = _unwrap_unknown_html(builder.root.children)
     ctx = _Ctx()
-    content = _html_blocks_walk(nodes, ctx)
-    return {"doc": {"type": "doc", "content": content}, "media": ctx.media, "links": ctx.links}
+    doc = {"type": "doc", "content": _html_blocks_walk(nodes, ctx)}
+    repair_list_items(doc)  # D3 item 8
+    return {"doc": doc, "media": ctx.media, "links": ctx.links}
+
+
+# ── D3 item 8: the editor parser's list-item repair ──────────────────────────────────────
+
+_REPAIRED_LIST_TYPES = ("bulletList", "orderedList")
+
+
+def _split_list(lst: dict[str, Any]) -> list[dict[str, Any]]:
+    """One list, repaired the way the client's editor parser repairs it. A list item's content
+    must start with a paragraph. When an item's first child is another block (a nested list, a
+    quote, a table, a code block, an image), the parser closes that item with an EMPTY
+    paragraph and the item's content moves up a level, after the list; the list's later items
+    continue there in a NEW `bulletList` (the parser's default wrapper, even under an `<ol>`),
+    itself repaired the same way. The same rule as the Evernote branch's ENML converter
+    (`enml._split_list`), measured there by its parity rail and here by the shared
+    `html_block_vectors.json`. ⚰️ The server kept `listItem(bulletList(...))`, a list item the
+    schema refuses (`paragraph block*`), where every client import showed the repaired shape."""
+    items = lst.get("content") or []
+    for idx, item in enumerate(items):
+        content = item.get("content") or []
+        if content and content[0].get("type") != "paragraph":
+            closed = {**item, "content": [{"type": "paragraph", "content": []}]}
+            out = [{**lst, "content": [*items[:idx], closed]}, *content]
+            rest = items[idx + 1:]
+            if rest:
+                out.extend(_split_list({"type": "bulletList", "content": rest}))
+            return out
+    return [lst]
+
+
+def repair_list_items(node: Any) -> None:
+    """In place, bottom-up (inner lists first, so a block that moves up to the START of an
+    outer item makes that item break in turn): every bullet or ordered list through
+    `_split_list`. Lists only, as the ENML converter: a task item is written by
+    `_html_list_or_tasklist` from a `data-uct-task` marker and keeps its shape."""
+    if not isinstance(node, dict):
+        return
+    content = node.get("content")
+    if not isinstance(content, list):
+        return
+    for child in content:
+        repair_list_items(child)
+    repaired: list[Any] = []
+    for child in content:
+        if isinstance(child, dict) and child.get("type") in _REPAIRED_LIST_TYPES:
+            repaired.extend(_split_list(child))
+        else:
+            repaired.append(child)
+    node["content"] = repaired

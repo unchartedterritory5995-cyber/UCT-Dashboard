@@ -15,6 +15,16 @@
     {"name": "a line break inside a div", "html": "<div>a<br>b</div>", "shape": "doc(paragraph('a', hardBreak, 'b'))"},
     {"name": "divs in a list item", "html": "<ul><li><div>a</div><div>b</div></li></ul>", "shape": "doc(bulletList(listItem(paragraph('a'), paragraph('b'))))"},
     {"name": "divs in a table cell", "html": "<table><tr><td><div>a</div><div>b</div></td></tr></table>", "shape": "doc(table(tableRow(tableCell(paragraph('a'), paragraph('b')))))"},
-    {"name": "spans join", "html": "<span>a</span><span>b</span>", "shape": "doc(paragraph('ab'))"}
+    {"name": "spans join", "html": "<span>a</span><span>b</span>", "shape": "doc(paragraph('ab'))"},
+    {"name": "item 8: a list item opening with a list closes, its list moves up, the rest continue", "html": "<ul><li><ul><li>a</li></ul></li><li>b</li></ul>", "shape": "doc(bulletList(listItem(paragraph)), bulletList(listItem(paragraph('a'))), bulletList(listItem(paragraph('b'))))"},
+    {"name": "item 8: the moved-up content keeps its trailing text", "html": "<ul><li><ul><li>a</li></ul>x</li><li>b</li></ul>", "shape": "doc(bulletList(listItem(paragraph)), bulletList(listItem(paragraph('a'))), paragraph('x'), bulletList(listItem(paragraph('b'))))"},
+    {"name": "item 8: an ordered list continues as a bullet list after the break", "html": "<ol start=\"3\"><li>z</li><li><ol><li>a</li></ol></li><li>b</li></ol>", "shape": "doc(orderedList(listItem(paragraph('z')), listItem(paragraph)), orderedList(listItem(paragraph('a'))), bulletList(listItem(paragraph('b'))))"},
+    {"name": "item 8: repaired bottom-up through every level", "html": "<ul><li><ul><li><ul><li>a</li></ul></li></ul></li></ul>", "shape": "doc(bulletList(listItem(paragraph)), bulletList(listItem(paragraph)), bulletList(listItem(paragraph('a'))))"},
+    {"name": "item 8: a later item breaking again", "html": "<ol><li><ul><li>a</li></ul></li><li>b</li><li><ul><li>c</li></ul></li></ol>", "shape": "doc(orderedList(listItem(paragraph)), bulletList(listItem(paragraph('a'))), bulletList(listItem(paragraph('b')), listItem(paragraph)), bulletList(listItem(paragraph('c'))))"},
+    {"name": "item 8: text then a nested list is no break", "html": "<ul><li>a<ul><li>b</li></ul></li></ul>", "shape": "doc(bulletList(listItem(paragraph('a'), bulletList(listItem(paragraph('b'))))))"},
+    {"name": "item 8: a leading quote moves up", "html": "<ul><li><blockquote>q</blockquote></li></ul>", "shape": "doc(bulletList(listItem(paragraph)), blockquote(paragraph('q')))"},
+    {"name": "item 8: a leading table moves up", "html": "<ul><li><table><tr><td>t</td></tr></table></li></ul>", "shape": "doc(bulletList(listItem(paragraph)), table(tableRow(tableCell(paragraph('t')))))"},
+    {"name": "item 8: a leading code block moves up", "html": "<ul><li><pre>c</pre></li></ul>", "shape": "doc(bulletList(listItem(paragraph)), codeBlock('c'))"},
+    {"name": "item 8: a leading rule moves up", "html": "<ul><li><hr>x</li></ul>", "shape": "doc(bulletList(listItem(paragraph)), horizontalRule, paragraph('x'))"}
   ]
 }
