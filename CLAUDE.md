@@ -505,7 +505,10 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   routes), in-process only, so a second process doubles both, and since connector fidelity Plan A
   Task 9 `notebook-media-fetch` (120/minute, keyed on the member, `NOTE_MEDIA_FETCH_RATE` in
   `api/routers/journal_two.py`, the `POST /api/j2/notes/media/fetch` hotlink-copy door), in-process
-  only, so a second process doubles it · that door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
+  only, so a second process doubles it, and since connector fidelity Plan F Task 9
+  `notebook-import-repair-notice` (60/minute, keyed on the member, `NOTE_IMPORT_REPAIR_NOTICE_RATE`
+  in `api/routers/journal_two.py`, shared by `GET /api/j2/notes/import/repair-notice` and its
+  `POST .../dismiss`), in-process only, so a second process doubles it · that door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
   (`MEDIA_FETCH_GLOBAL_INFLIGHT` = 8 downloads at once) and `journal_two._media_fetch_inflight`
   (`MEDIA_FETCH_PER_MEMBER_INFLIGHT` = 2 per member, one more answers 429): a second process
   doubles both · since the connector fidelity Plan A final review (I3), the editor upload doors'
