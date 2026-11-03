@@ -16,6 +16,22 @@ Resume from this file. It is the record; chat messages are notices only. Last up
 - The five structured setup criteria stay unserved (reviewed:false) until reviewed.
 - This package is on STANDBY: implementation resumes only for a concrete defect or integration requirement in the knowledge package reported by AUDIT. No merge, deploy, flag change or scope expansion.
 
+## Owner source-policy decision (final, 2026-11-03, after review r5)
+1. Original team commentary is NOT excluded merely because it mentions EP, VCP, HTF or another excluded setup.
+2. The 380 approved team posts that mention excluded setups are NOT admitted wholesale either: eligibility requires
+   verified team ownership or authorization, original commentary, and no reproduced or closely paraphrased restricted
+   third-party material.
+3. The 71 definition-like posts (r4 bypass hunt) stay WITHHELD pending provenance and rights review.
+4. Third-party setup templates and their restricted definitions stay excluded.
+5. A narrowly scoped, testable source-policy refinement only if the integrator determines one is necessary;
+   default-deny and all existing boundaries preserved.
+6. No export timestamp substitutes for the original statistics calculation date; the partner must confirm the Brain
+   Pack's date semantics (R4-3); until then questionable statistics stay withheld.
+Status vs code at be4c127a41: (1) and (4) already hold. (3) does NOT hold yet — the 71 definitional posts are served
+(trader_archive is an admitted source). (6) holds by construction (no export/import date is ever read; undated or
+inconsistent dates withhold). Refinement proposal for (2)/(3) sent to AUDIT; no code change until AUDIT confirms it is
+necessary (owner point 5).
+
 ## Branches, commits, PRs
 | Branch | Worktree | Base | Head | PR |
 |---|---|---|---|---|
