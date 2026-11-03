@@ -53,8 +53,14 @@ import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
 // ⭐ INDICATORS ⇄ AGENT (2026-10-12): the chart's Create Indicator / Modify doors open the Agent; the
 // member's answer to its question runs the existing `indicator.draft` for that chart. See indicatorEntry.js.
 import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, INDICATOR_DOORS, openIndicatorDoor } from './indicatorEntry'
+// ⭐ W2-A1 (2026-11-03, live LT-5 / LT-6): the OPEN QUESTION — a reply binds to UCT's question only when it reads as an
+// answer; a new request closes it. Follow-up referents ("that alert", "the other one") are read before the model.
+import { readReply, openQuestionForServer, resolveReferents, questionChoices } from './openQuestion'
 
 registerBuiltins()
+
+/** W2-A1: what the member is told when a question is set aside with "never mind" (no model call). */
+export const QUESTION_SET_ASIDE = 'Okay — I set that question aside. Nothing changed.'
 
 // ⛔ Charts operator P1 hardening: a model QUESTION's choices become buttons. Only a non-empty string, or an
 // object with a non-empty string `label` (NL-1: plus a context `ref`, translated back to a real target), ever
@@ -381,6 +387,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // P2-B: the member's words the model's open question is ABOUT ("make the right chart cleaner" → "Hide volume"):
   // an answer is read with them when deciding which charts the member named. Kept for the very next message only.
   const askedForRef = useRef(null)
+  // ⭐ W2-A1 OPEN QUESTION (both paths): the newest question UCT asked (local or the model's) that nothing has
+  // answered, closed or superseded yet — { text, choices, asked (the member's words it is about), at, local }.
+  // Set when a question is shown; closed by an answer's outcome, a new request, "never mind", or its TTL.
+  const openQuestionRef = useRef(null)
+  // the question this message was read against and how (sent to the server with the turn, then dropped)
+  const questionNoteRef = useRef(null)
+  // the last answered two-way question ("the other one" = the choice not picked)
+  const lastChoiceRef = useRef(null)
   if (!memoryRef.current) memoryRef.current = createMemory()
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
@@ -400,6 +414,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         && !item.present && !item.table && !item.link) return
     if (item?.role && item.role !== 'member') turnOutput(item.role)
     if (item?.role === 'question') lastQuestionRef.current = item
+    // W2-A1: a question opens (the Create Indicator door's own question keeps its own binding — not tracked here);
+    // any other reply of UCT's — an answer, a receipt, a refusal, a card — resolves whatever question was open
+    if (item?.role === 'question') openQuestionRef.current = item.authoring ? null : { text: item.text, choices: questionChoices(item), asked: saidRef.current, at: Date.now(), local: !!item.local }
+    else if (item?.role && item.role !== 'member') openQuestionRef.current = null
     setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
@@ -498,6 +516,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // a local turn's time to its first useful output (content-free: one number) rides the telemetry row
     const ms = turnOutputMs()
     if (body?.telemetry && body.telemetry.latency_ms == null && ms != null) body = { ...body, telemetry: { ...body.telemetry, latency_ms: ms } }
+    // W2-A1: a local turn that met an open question records how it was read (once, on the member's row)
+    if (body?.member && questionNoteRef.current) { body = { ...body, openQuestion: questionNoteRef.current }; questionNoteRef.current = null }
     const res = await agentRecord({ conversationId: conversationRef.current, ...body })
     if (res.ok && res.data?.conversationId && res.data.conversationId !== conversationRef.current) {
       setConversationId(res.data.conversationId)
@@ -1256,11 +1276,28 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // PLANNER v2: the runner reads the CURRENT closures on every call (never captured when the panel opened)
   v2DepsRef.current = () => ({ host, push, record, execute, memoryRef, conversationRef, setConversationId, capCtx, tapRef: v2TapRef, mark, patchItem, pendingRef })
 
-  const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
+  const send = useCallback(async (raw, { voice = false, answering: answeringIn = false } = {}) => {
     const text = String(raw || '').trim()
     if (!text || lockRef.current) return
     lockRef.current = true
     turnStart('send')
+    // ⭐ W2-A1 OPEN QUESTION: read this message against the question UCT is waiting on BEFORE anything else reads
+    // it. An answer (a choice, a short reply) binds to the question — it goes to the model as such, never through
+    // the instant layers (a bare "weekly" would otherwise change a chart instead of answering). A new request
+    // closes the question and starts fresh; "never mind" closes it with nothing run.
+    const openQ = openQuestionRef.current
+    const reading = openQ && !answeringIn ? readReply(text, openQ, { pendingProposal: pendingRef.current?.kind === 'proposal' }) : null
+    let answering = answeringIn
+    if (reading?.kind === 'answer') answering = true
+    if (reading && reading.kind !== 'answer') openQuestionRef.current = null
+    if (reading?.kind === 'new' && pendingRef.current?.kind === 'target') pendingRef.current = null   // the local question's held plan goes with it
+    if (reading?.kind === 'answer' && reading.choice) lastChoiceRef.current = { choices: questionChoices(openQ), picked: reading.choice.index, at: Date.now() }
+    if (answeringIn && openQ) {
+      // a clicked choice: the same binding, by its label
+      const i = questionChoices(openQ).findIndex(c => c.label === text)
+      if (i >= 0) lastChoiceRef.current = { choices: questionChoices(openQ), picked: i, at: Date.now() }
+    }
+    questionNoteRef.current = reading ? openQuestionForServer(openQ, reading) : (answeringIn && openQ ? openQuestionForServer(openQ, { kind: 'answer', choice: { label: text, ref: null } }) : null)
     saidRef.current = text
     const askedFor = askedForRef.current
     askedForRef.current = null
@@ -1269,6 +1306,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
     memoryRef.current.beginTurn()
     try {
+      if (reading?.kind === 'cancel' && pendingRef.current?.kind !== 'proposal' && !peekAuthoringIntent()) {
+        // a local question holding a plan is dismissed exactly as before (its own wording); a bare question is set aside
+        if (pendingRef.current?.kind === 'target') return await dismiss({ member: text })
+        push({ role: 'agent', text: QUESTION_SET_ASIDE })
+        record({ member: text, outcome: QUESTION_SET_ASIDE, outcomeData: { kind: 'question-closed' }, telemetry: { path: 'local', voice } })
+        return
+      }
       if (gridMode) {
         const t = 'UCT Agent works on the Charts workspace. Switch out of Multi Chart (Layouts ▸ Multi Chart) and ask again.'
         push({ role: 'agent', text: t })
@@ -1671,16 +1715,38 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       live = streamLine()
       // ⭐ GATE C: what this chat showed and did (tickers in the order shown, the last change's actions), so a
       // follow-up the instant path could not read still reaches the model with its referent. Never values.
+      // ⭐ W2-A1 REFERENTS: "that alert", "the other one", "those" read against what this chat did and showed — a
+      // reading rides to the model as `conversation_memory.referents`; several fits → asked here; none → said here.
+      const referents = answering ? null : resolveReferents(text, { host, memory: memoryRef.current, epoch: epochOf(host), lastChoice: lastChoiceRef.current })
+      if (referents?.say) {
+        live.settle(null)
+        push({ role: 'agent', text: referents.say })
+        record({ member: text, outcome: referents.say, outcomeData: { kind: 'reference-refused' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
+      if (referents?.ask) {
+        live.settle(null)
+        push({ role: 'question', text: referents.ask.text, choices: referents.ask.choices, local: true })
+        record({ member: text, outcome: referents.ask.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', clarified: true, voice } })
+        return
+      }
       const memoryFor = () => {
         const m = memoryRef.current.forModel()
-        if (!m) return null
-        return withModelRefs(m, back)
+        const hints = (referents?.hints || []).map(h => (h.ref ? { ...h, ref: back[h.ref] || null } : h)).filter(h => !('ref' in h) || h.ref)
+        if (!m && !hints.length) return null
+        const out = m ? withModelRefs(m, back) : {}
+        if (hints.length) out.referents = hints
+        return out
       }
+      // W2-A1: the question this message was read against, with the choice's context ref when it has one
+      const openQuestion = questionNoteRef.current ? openQuestionForServer(openQ, reading || { kind: 'answer', choice: { label: text, ref: questionChoices(openQ).find(c => c.label === text)?.ref || null } }, { back }) : null
+      questionNoteRef.current = null
       const ask = (r, extra = {}) => {
         const mem = memoryFor()
         const b = {
           conversationId: conversationRef.current, message: text, voice, pending,
-          context: mem ? { ...context, conversation_memory: mem } : context, capabilities: r.manifest, manifestVersion: MANIFEST_VERSION, routing: r.routing, ...extra,
+          context: mem ? { ...context, conversation_memory: mem } : context, capabilities: r.manifest, manifestVersion: MANIFEST_VERSION, routing: r.routing,
+          ...(openQuestion ? { openQuestion } : {}), ...extra,
         }
         return serverStreams() ? agentTurnStream(b, live.onEvent) : agentTurn(b)
       }
@@ -1876,6 +1942,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       await execute(ops, { path: 'model', mode: disposition, member: null, voice })
     } finally {
+      questionNoteRef.current = null          // W2-A1: the reading belongs to this message only
       lockRef.current = false
       setBusy(false)
       setActivity(null)
