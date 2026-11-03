@@ -266,14 +266,15 @@ const MEDIA_SELECTOR = `img, ${CHIP_SELECTOR}`
 
 /**
  * The text a media-only link keeps (D3 fix round 2 ruling): the first moved image's alt, else ''.
- * An `<img alt>`, or the `data-uct-alt` the Evernote adapter carries an `<en-media alt>` in
- * (Plan E Task 9 fix round 1, concern 2; no other importer writes it). ONE reader for every
- * importer: the server's `mddoc` label rule, pinned by the shared `media_link_vectors`.
+ * An `<img alt>`, the server's `mddoc` label rule for every importer, pinned by the shared
+ * `media_link_vectors`. `privateAlt` (Evernote only, final review M3) also reads the
+ * `data-uct-alt` the Evernote adapter carries an `<en-media alt>` in; for any other importer an
+ * attribute of that name is ignored, as the server ignores it.
  */
-function mediaLinkAlt(found) {
+function mediaLinkAlt(found, privateAlt) {
   for (const el of found) {
     if (el.tagName !== 'IMG') continue
-    const alt = (el.getAttribute('alt') || el.getAttribute('data-uct-alt') || '').trim()
+    const alt = (el.getAttribute('alt') || (privateAlt && el.getAttribute('data-uct-alt')) || '').trim()
     if (alt) return alt
   }
   return ''
@@ -299,14 +300,15 @@ export function liftMediaOutOfLinks(root, { noteLinkLabel = null } = {}) {
     for (const el of found) a.parentNode.insertBefore(el, a)
     if (a.textContent.trim()) continue
     const href = (a.getAttribute('href') || '').trim()
+    const privateAlt = noteLinkLabel !== null  // only the Evernote adapter passes it (M3)
     if (a.hasAttribute('data-evernote-link')) {
       // A resolved note link keeps its heal-able `data-import-link`.
-      if (a.hasAttribute('data-import-link') && href) a.textContent = mediaLinkAlt(found) || noteLinkLabel || href
+      if (a.hasAttribute('data-import-link') && href) a.textContent = mediaLinkAlt(found, privateAlt) || noteLinkLabel || href
       else neutraliseAnchor(a)
     } else if (!href) {
       neutraliseAnchor(a)
     } else {
-      a.textContent = mediaLinkAlt(found) || href
+      a.textContent = mediaLinkAlt(found, privateAlt) || href
     }
   }
 }
