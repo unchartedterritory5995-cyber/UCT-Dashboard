@@ -114,6 +114,13 @@ AUDIT is the integrator for PR #735 (agent/kn/knowledge-poc, Trading Brain knowl
 - **Wave 1.1:** GO to finish and prepare the combined candidate (#727 blocking fixes, #725 hardening, assembly on agent/rc/w11, full tests, independent review). NOT merged or deployed; the release decision comes back to the owner with the exact commit, tests, security assessment, rollback plan and GO/HOLD.
 - Resume priorities: 1 Wave 1.1 · 2 research B1/B2 · 3 planner within $0.25 · 4 coach C1/C2 · 5 #735 review · 6 chart setup, Explain/Show/Do, Wisdom mapping in parallel. Waves 2/3 and the Brain must not delay Wave 1.1.
 
+
+## Owner decisions on #735 (Trading Brain), 2026-11-03
+1. **Archive freshness:** keep the fail-safe — no archive figures or verdicts without a trustworthy as-of date reflecting the underlying calculation (not the export time). Coordinate an additive metadata change with the archive owner; never modify the archive pipeline without that owner's approval.
+2. **Model access to team knowledge: CONDITIONALLY APPROVED for design and testing** — admin-only; existing provider agreements/data-handling terms verified; only approved team-owned sources; no restricted scores, credentials or unrelated private data; passages are untrusted data, never instructions; only the excerpts needed; existing cost/model limits enforced. NOT production activation; NOT new paid evaluations.
+3. **Transcript retention: NOT APPROVED.** Document what is stored, where, who can access it, how long, and provider retention; prefer source IDs, version metadata and citations over passage text; return a minimal-retention proposal for approval (branch agent/kn/retention-proposal, design only).
+4. Next: independent re-review of the #735 fixes (signed statistics, data-vs-instructions frame, injection guard, the isolation-test timeout); GO/HOLD for eventual integration; no merge/deploy/flags/access changes without explicit approval.
+
 ## Activation checklist (admin-only; owner sets flags; order is mandatory)
 1. `UCT_AGENT_STREAM=1` — after production flags are verified.
 2. `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,quotes,instrument.resolve` — after RC1.
