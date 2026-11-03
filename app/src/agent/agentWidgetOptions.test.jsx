@@ -20,6 +20,7 @@ const w = (id, type, x, y, opts = {}) => ({ id, type, x, y, w: 6, h: 10, color: 
 const BOARD = () => [
   w('ch', 'chart', 0, 0, { tf: 'D' }), w('th', 'themes', 6, 0, { period: '1d', sortDir: 'desc', openTheme: 'Semis' }), w('fu', 'fundamentals', 12, 0, { view: 'quarterly' }),
   w('nw', 'news', 18, 0, {}), w('br', 'breadth', 0, 10, { tileStyle: 'values', hiddenMetrics: ['x'] }), w('of', 'optionsflow', 6, 10, { lead: 'tape' }), w('ca', 'calendar', 12, 10, { date: '2026-10-30', econStars: 3 }),
+  w('vs', 'volumescan', 18, 10, { minRvol: 2 }), w('nh', 'nhnl', 0, 0, {}),
 ]
 const op = (args) => ({ action: 'widget.setOption', target: 'board', args })
 async function plan(h, ops) {
@@ -67,7 +68,14 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     expect(await refuse(host, { widget: 'nw', key: 'symbol', value: 'AMD' })).toMatch(/no option “symbol”/)          // identity: chart.setSymbol's business
     expect(await refuse(host, { widget: 'ca', key: 'date', value: '2026-01-01' })).toMatch(/no option “date”/)
     expect(await refuse(host, { widget: 'th', key: 'period', value: '2w' })).toMatch(/“period” can be 1d, 1w, 1m, 3m, 1y, ytd — not “2w”/)
-    expect(await refuse(host, { widget: 'ca', key: 'econStars', value: 'many' })).toMatch(/“econStars” is a number/)
+    expect(await refuse(host, { widget: 'ca', key: 'econStars', value: 'many' })).toMatch(/“econStars” is a number from 1 to 3/)
+    // a NUMBER is accepted only within the product's own declared range, and a whole-number control takes whole numbers
+    expect(await refuse(host, { widget: 'ca', key: 'econStars', value: 4 })).toMatch(/“econStars” is from 1 to 3/)
+    expect(await refuse(host, { widget: 'ca', key: 'econStars', value: 2.5 })).toMatch(/whole number from 1 to 3/)
+    expect(await refuse(host, { widget: 'nh', key: 'minCount', value: 0 })).toMatch(/“minCount” is from 1 to 260/)
+    // an UNBOUNDED numeric key (no min/max in the registry: nhnl.minPrice, volumescan.minRvol/minMove/minDollarK) is not an option at all
+    expect(await refuse(host, { widget: 'nh', key: 'minPrice', value: 5 })).toMatch(/has no option “minPrice” — its options are minCount/)
+    expect(await refuse(host, { widget: 'vs', key: 'minRvol', value: 3 })).toMatch(/has no option “minRvol” — its options are showLogos$/)
     expect(await refuse(host, { widget: 'ch', key: 'tf', value: 'W' })).toMatch(/has no options I can change here/)
     expect(shapeError('widget.setOption', { widget: 'th', key: 'period' }, CTX)).toBeTruthy()                        // a closed schema
     expect(JSON.stringify(state.widgets)).toBe(before)
@@ -76,12 +84,15 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     const c = getCapability('widget.setOption')
     expect([c.target, c.risk, c.undo]).toEqual(['board', 'local', 'exact'])
     for (const type of WORKSPACE_MENU_TYPES) {
-      const offered = (WIDGET_REGISTRY[type].paramsSchema || []).filter(f => ['enum', 'boolean', 'number'].includes(f.type) && !f.required && !['fields', 'uncaptured', 'reason', 'statYear'].includes(f.key))
+      const offered = (WIDGET_REGISTRY[type].paramsSchema || []).filter(f => ['enum', 'boolean', 'number'].includes(f.type) && !f.required && !['fields', 'uncaptured', 'reason', 'statYear'].includes(f.key)
+        && (f.type !== 'number' || (Number.isFinite(f.min) && Number.isFinite(f.max))))
       if (offered.length) expect(c.hints, type).toContain(`${type}: `)
       else expect(c.hints, type).not.toContain(`${type}: `)
     }
     expect(c.hints).not.toContain('statYear')                                   // a capture's frozen clock, not a control
     expect(c.hints).toContain('themes: period (1d|1w|1m|3m|1y|ytd), sortDir (asc|desc)')
+    expect(c.hints).toContain('calendar: econStars (1–3), tbdOpen (on/off)')
+    expect(c.hints).not.toContain('minRvol')                                    // unbounded numbers are never offered
     expect(c.hints.length).toBeLessThanOrEqual(1000)
   })
 })

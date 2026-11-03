@@ -867,11 +867,14 @@ export function registerBoardCapabilities() {
   // ── widget.setOption (W1-B B-05): ONE option of ONE widget, validated against the registry's param schema ──
   // The registry (widgets/registry.js paramsSchema) is the product's own description of each widget's options.
   // Offered: the SCALAR ones (enum | boolean | number) that are not identity (`required`) keys and not capture-only
-  // bookkeeping (a notebook stamp's fields). Everything else — lists, blobs, symbols, keys — has its own capability or none.
+  // bookkeeping (a notebook stamp's fields). A NUMBER only with a declared range (`min`/`max` on the schema entry — the
+  // product's own bound); an unbounded number is refused, never written. Everything else — lists, blobs, symbols, keys —
+  // has its own capability or none.
   const OPTION_TYPES = new Set(['enum', 'boolean', 'number'])
+  const bounded = (f) => f.type !== 'number' || (Number.isFinite(f.min) && Number.isFinite(f.max) && f.min < f.max)
   // marketcontext: a notebook stamp's own keys; profile.statYear: a capture's frozen clock — neither is a widget control
   const NOT_OPTIONS = new Set(['fields', 'uncaptured', 'reason', 'statYear'])
-  const optionsOf = (type) => (WIDGET_REGISTRY[type]?.paramsSchema || []).filter(f => OPTION_TYPES.has(f.type) && !f.required && !NOT_OPTIONS.has(f.key))
+  const optionsOf = (type) => (WIDGET_REGISTRY[type]?.paramsSchema || []).filter(f => OPTION_TYPES.has(f.type) && !f.required && !NOT_OPTIONS.has(f.key) && bounded(f))
   const TRUE_WORDS = ['true', 'on', 'yes', 'show', 'enabled'], FALSE_WORDS = ['false', 'off', 'no', 'hide', 'disabled']
   /** The value in the option's own type, or a refusal. */
   const coerceOption = (f, raw) => {
@@ -885,9 +888,12 @@ export function registerBoardCapabilities() {
       return TRUE_WORDS.includes(s) ? { value: true } : FALSE_WORDS.includes(s) ? { value: false } : { why: `“${f.key}” is on or off.` }
     }
     const n = typeof raw === 'number' ? raw : Number(String(raw).trim())
-    return Number.isFinite(n) ? { value: n } : { why: `“${f.key}” is a number.` }
+    if (!Number.isFinite(n)) return { why: `“${f.key}” is a number from ${f.min} to ${f.max}.` }
+    if (n < f.min || n > f.max) return { why: `“${f.key}” is from ${f.min} to ${f.max}.` }
+    if (f.integer && !Number.isInteger(n)) return { why: `“${f.key}” is a whole number from ${f.min} to ${f.max}.` }
+    return { value: n }
   }
-  const optionWord = (f) => `${f.key}${f.type === 'enum' ? ` (${(f.options || []).join('|')})` : f.type === 'boolean' ? ' (on/off)' : ' (number)'}`
+  const optionWord = (f) => `${f.key}${f.type === 'enum' ? ` (${(f.options || []).join('|')})` : f.type === 'boolean' ? ' (on/off)' : ` (${f.min}–${f.max})`}`
   const OPTION_HINT = WORKSPACE_MENU_TYPES.map(t => [t, optionsOf(t)]).filter(([, os]) => os.length).map(([t, os]) => `${t}: ${os.map(optionWord).join(', ')}`).join('; ')
   reg({
     ...common,
