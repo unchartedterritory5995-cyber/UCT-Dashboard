@@ -995,6 +995,53 @@ describe('obsidian adapter — D2 fix round 1 (e): an embed as a wikilink alias'
   })
 })
 
+// Plugin issue #3: a markdown image as the WHOLE alias, `[[q.pdf|![](img.png)]]`, is the
+// image and then the link as `[[q.pdf]]` reads (a chip for a file, a link for a note), as
+// the server's `_ALIAS_EMBED_RE` reads it. The parity rail cannot see image-before-chip
+// order (its images and files are separate lists), so these pin it in the HTML and the doc.
+// ⚰️ WIKILINK_RE's alias stopped at the image's `]`: the link was raw `[[q.pdf| ]]` text.
+describe('obsidian adapter — issue #3: a markdown image as a wikilink alias', () => {
+  const shape = (n) => (n.type === 'text'
+    ? JSON.stringify(n.text) + ((n.marks || []).some((m) => m.type === 'link') ? '[link]' : '')
+      + ((n.marks || []).some((m) => m.type === 'code') ? '[code]' : '')
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/img.png', 'i'), vf('V/q.pdf', 'q')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    return { d, doc: htmlToNote(d.html).bodyJson }
+  }
+  const before = (html, first, second) => {
+    const a = html.indexOf(first)
+    const b = html.indexOf(second)
+    expect(a, first).toBeGreaterThanOrEqual(0)
+    expect(b, second).toBeGreaterThanOrEqual(0)
+    expect(a).toBeLessThan(b)
+  }
+
+  it('a file target: the image, then the chip', async () => {
+    const { d, doc } = await parseOne('x [[q.pdf|![](img.png)]] y')
+    before(d.html, '<img', 'data-type="attachmentChip"')
+    expect(shape(doc)).toBe('doc(paragraph("x "), image, attachmentChip, paragraph(" y"))')
+    // listed in the order the passes made them (the chip's held piece first), not shown
+    expect(d.media.map((m) => [m.ref, m.kind]).sort()).toEqual([['V/img.png', 'image'], ['V/q.pdf', 'file']])
+  })
+
+  it('a note target: the image, then the link', async () => {
+    const { d, doc } = await parseOne('x [[Plan|![](img.png)]] y')
+    before(d.html, '<img', 'data-import-link="obsidian:V/Plan.md"')
+    expect(shape(doc)).toBe('doc(paragraph("x "), image, paragraph("Plan"[link], " y"))')
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+  })
+
+  it('inside a code span it stays code: no image, no link', async () => {
+    const { d, doc } = await parseOne('x `[[Plan|![](img.png)]]` y')
+    expect(shape(doc)).toBe('doc(paragraph("x ", "[[Plan|![](img.png)]]"[code], " y"))')
+    expect(d.media).toEqual([])
+    expect(d.links).toEqual([])
+  })
+})
+
 // D2 fix round 1 (M1): a member's noncharacter is never the shared parse's marker. Raw, it
 // is kept; written as an entity, markdown-it itself reads it as U+FFFD.
 describe('obsidian adapter — D2 fix round 1: a member noncharacter survives', () => {
