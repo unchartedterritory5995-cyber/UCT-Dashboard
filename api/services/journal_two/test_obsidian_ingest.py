@@ -1935,3 +1935,16 @@ def test_the_obsidian_upload_gate_is_not_the_editor_gate():
     answer a member's editor upload 429 while other members' vaults sync."""
     from api.routers import journal_two as jt
     assert note_sync_router._OBSIDIAN_UPLOAD_GATE is not jt._UPLOAD_GATE
+
+
+def test_both_upload_gates_come_from_the_shared_module_not_another_router():
+    """Final review M4: the gate class and its busy sentence live in a small shared module
+    both upload doors import; no router imports another router's private names."""
+    import inspect
+
+    from api.routers import journal_two as jt
+    from api.services import upload_gate
+    assert isinstance(jt._UPLOAD_GATE, upload_gate.UploadGate)
+    assert isinstance(note_sync_router._OBSIDIAN_UPLOAD_GATE, upload_gate.UploadGate)
+    assert jt.UPLOAD_BUSY_SENTENCE is upload_gate.UPLOAD_BUSY_SENTENCE
+    assert "from api.routers.journal_two import" not in inspect.getsource(note_sync_router)

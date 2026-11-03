@@ -53,7 +53,7 @@ from api.services.journal_two.note_connectors import (
     registry,
 )
 from api.services.journal_two.note_connectors.providers.craft import parse_capability_url
-from api.routers.journal_two import UPLOAD_BUSY_SENTENCE, _UploadGate
+from api.services.upload_gate import UPLOAD_BUSY_SENTENCE, UploadGate
 
 log = logging.getLogger("note_connectors.router")
 
@@ -1473,8 +1473,8 @@ ATTACHMENT_PROTOCOL_VERSION = 1
 # upload 429 while other vaults sync. Per-process state (CLAUDE.md's single-process roster).
 OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT = 2
 OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT = 8
-_OBSIDIAN_UPLOAD_GATE = _UploadGate(per_member=OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT,
-                                    total=OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT)
+_OBSIDIAN_UPLOAD_GATE = UploadGate(per_member=OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT,
+                                   total=OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT)
 
 
 def _obsidian_attachments_off_for_everyone() -> bool:
