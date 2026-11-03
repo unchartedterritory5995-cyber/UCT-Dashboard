@@ -296,7 +296,10 @@ describe('the cross-import key matches the title the SERVER stores: strip()[:300
     }
     const src = readFileSync(path.join(dir, 'api', 'services', 'journal_two', 'notes.py'), 'utf8')
     expect(Number(src.match(/^MAX_TITLE_CHARS = (\d+)/m)[1])).toBe(SERVER_TITLE_MAX)
-    expect(src).toContain('title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]')
+    // The rule lives in `import_title` (strip, then the `[:MAX_TITLE_CHARS]` cut), and the import
+    // path stores through it. Match the shape, not one spelling of the argument.
+    expect(src).toMatch(/\(\s*[\w.()"]+ or "Untitled"\s*\)\.strip\(\)\[:MAX_TITLE_CHARS\]/)
+    expect(src).toMatch(/title = import_title\(n\.get\("title"\)\)/)
   })
 
   it('cuts a 301-character title at 300', () => {
