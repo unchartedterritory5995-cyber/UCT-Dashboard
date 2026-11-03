@@ -475,3 +475,4 @@
 .ruleList > span small { grid-column: 2; color: var(--mut); font-size: 11px; }
 .ruleOk b { color: #8fe3b1; } .ruleBad b { color: #ff9d9d; }
 @media (max-width: 640px) { .lesson .heroWord { font-size: 36px; } .lesson .bubble { font-size: 16px; } .runLog { max-height: 160px; } }
+.cards.two { grid-template-columns: 1fr 1fr; }

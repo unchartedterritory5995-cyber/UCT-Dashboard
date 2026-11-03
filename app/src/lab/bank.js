@@ -49,3 +49,18 @@ export async function scoreAttempt(item, answer, timeMs) {
   const a = await post('/api/study/attempts', { item_id: item.id, answer, time_ms: Math.max(0, Math.round(timeMs || 0)), session_id: item.sessionId })
   return { ...a, forward: normalizeBars(a?.reveal?.forward_bars || []) }
 }
+
+/** Quick-recognition items with a chart from the recall bank (candle names, chart words): the bank's own four-way
+ *  question, scored on the server. */
+export async function fetchRecallPool(skillIds = ['vocab.candle', 'vocab.chart'], size = 30) {
+  const sets = await Promise.all(skillIds.map((skill_id) => post('/api/study/sessions', { kind: 'skill', skill_id, size }).catch(() => null)))
+  const pool = []
+  sets.forEach((set) => {
+    if (!set?.items) return
+    set.items.forEach((it) => {
+      if (it.type !== 'recall' || !it.bars?.bars?.length || !Array.isArray(it.prompt_json?.choices)) return
+      pool.push({ id: it.id, skill: it.skill_id, name: it.skill_id === 'vocab.candle' ? 'Candle name' : 'Chart word', q: it.prompt_json?.q || '', choices: it.prompt_json.choices, bars: normalizeBars(it.bars), sessionId: set.session_id, highlight: it.prompt_json?.chart?.highlight_last_bars || 0 })
+    })
+  })
+  return shuffle(pool)
+}

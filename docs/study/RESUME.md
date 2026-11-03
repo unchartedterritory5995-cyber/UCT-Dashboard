@@ -1174,6 +1174,17 @@ Open: Blitz asks the bank's Yes/No on a named setup (a 'name the setup' question
 design; ask the owner which he wants); drag of the stop line is the ray tool's job (tap/hold/type cover the rest);
 the setups beyond the Kicker have no full ride (entry/stop lessons) yet; the sandbox's live-price and stream routes
 answer 503 (no vendor keys), harmless in the lab.
+## 2026-11-03 (later): BLITZ RULING + a LIVE ANSWER LEAK fixed
+
+Owner ruling (question form): "Both, and possibly a variety of other questions that are quick recognition style
+ones" -> Blitz V4 (piece 53 rewritten): NAME IT (four setup names, keyed on the item's skill; every bank chart item is a
+positive example: spot.setups 246 yes, bear_gaps 39 yes, go_signal_hourly 41 yes, fixtures 48 yes / 84 no), FIRES?
+(the bank's Yes/No, server-scored), CANDLE NAME + CHART WORD (bank recall items, server-scored, the asked bars boxed),
+and one-tap facts measured from the bars (green or red; over yesterday's high). lab/bank.js fetchRecallPool.
+FOUND: every live candle item carried its answer in the member payload (prompt_json.subject == answer_json.answer,
+603 of 603), readable in the browser's network tab. FIXED in study_store.get_item_prompt (subject stripped) with the
+leak test extended (tests/test_study_no_sym_leak.py seeds subject=KEY_SENTINEL, FORBIDDEN_KEYS += subject); 17 + 32
+router tests pass. Ships with the next merge of this branch; until then production still carries it.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
