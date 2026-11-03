@@ -182,6 +182,8 @@ const NO_EARNINGS = {
   unavailable: "its reported earnings are not available from UCT's market data",
 }
 const eps = (v) => (num(v) == null ? null : `$${v.toFixed(2)}`)
+/** the next report's own status word from the kind (`kind`: scheduled today; confirmed / estimated only if the gateway says so) */
+const nextStatus = (n) => (['confirmed', 'estimated'].includes(String(n?.kind || '').toLowerCase()) ? String(n.kind).toLowerCase() : 'scheduled')
 
 /** An `earnings` envelope → the member's answer (pure; exported for tests). */
 export function answerFromEarnings(env, symbol) {
@@ -190,7 +192,13 @@ export function answerFromEarnings(env, symbol) {
   const d = env.data
   const reported = Array.isArray(d.reported) ? d.reported.filter(r => r && r.quarter) : []
   const q = reported[reported.length - 1]
-  const lines = [`${sym} earnings (reported figures)`]
+  const n = d.next_report
+  // W1.1 R-06 (live LT-12): "when does nvda report" showed the reported-figures card with the next date buried under
+  // Details. The LEAD line (present.js shows lines[0] as the card's summary) carries the next report date whenever the
+  // kind serves one: "<date> (<quarter>, scheduled)" — the kind's own `kind` word (scheduled; confirmed / estimated if
+  // the gateway ever says so), never a status it does not carry.
+  const nextLead = n && n.report_date ? `next report: ${dayOf(n.report_date)} (${[n.quarter, nextStatus(n)].filter(Boolean).join(', ')})` : null
+  const lines = [nextLead ? `${sym} earnings — ${nextLead}` : `${sym} earnings (reported figures)`]
   if (!q) lines.push(`No reported quarter is available for ${sym}.`)
   else {
     lines.push(`Latest reported quarter: ${q.quarter}`)
@@ -199,7 +207,6 @@ export function answerFromEarnings(env, symbol) {
     const e = eps(q.eps_actual); const eEst = eps(q.eps_estimate)
     lines.push(`• EPS ${e || 'not available'}${eEst ? ` vs ${eEst} estimated${num(q.eps_surprise_pct) != null ? ` (${signedPct(q.eps_surprise_pct)} surprise)` : ''}` : ' (no comparable estimate)'}`)
   }
-  const n = d.next_report
   if (n && n.report_date) {
     const est = [eps(n.eps_estimate) ? `EPS est. ${eps(n.eps_estimate)}` : null, big(n.rev_estimate) ? `revenue est. ${big(n.rev_estimate)}` : null].filter(Boolean)
     lines.push(`Next report: scheduled for ${dayOf(n.report_date)}${n.quarter ? ` (${n.quarter})` : ''}${est.length ? ` · ${est.join(', ')}` : ''} — a scheduled event, not a result.`)

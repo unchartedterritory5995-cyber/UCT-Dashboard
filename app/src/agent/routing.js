@@ -136,9 +136,17 @@ export const GROUPS = [
   // ⭐ W1-B B-03: INDICATOR alerts (RSI, MACD…) in their own small group, `fillLast` like every specialised group — so the
   // fallback fill for a message nothing named still carries the screener (F-SB-1: every discovery question reaches the
   // planner with it) exactly as before. Named by an alert word beside an indicator word, or pause / resume.
-  { id: 'indicatorAlerts', title: 'Indicator alerts on a chart\'s indicators — RSI, MACD, bands… (create, pause / resume, delete)', domains: ['indicatorAlert'], fillLast: true,
+  { id: 'indicatorAlerts', title: 'Indicator alerts on a chart\'s indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)', domains: ['indicatorAlert'], fillLast: true,
     words: [/\b(alerts?|notify|ping me|tell me when|let me know when)\b.*\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?|overbought|oversold)\b/,
-      /\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?)\b.*\b(alerts?|notify|ping me)\b/, /\b(pause|resume|re-?arm)\b.*\balerts?\b/] },
+      /\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?)\b.*\b(alerts?|notify|ping me)\b/, /\b(pause|resume|re-?arm)\b.*\balerts?\b/,
+      // ⭐ W1.1 R-04 (live LT-4, 2026-11-03): "mark when the 9 ema crosses above the 20 on this chart" named no alert word
+      // and no RSI/MACD, so the group was never offered and the planner invented a limitation ("can't create them yet").
+      // An ALERT-LIKE verb (mark / flag / alert / notify / warn / watch for / let me know / tell me / ping / heads up)
+      // beside WHEN / IF / ONCE and any indicator token (ema, sma, ma, vwap, atr, a length such as 9ema / 20-day…)
+      /\b(?:mark|flag|alert|alerts|notify|warn|watch for|let me know|tell me|ping|ping me|heads up|set (?:up )?(?:an? )?alert|message me|wake me)\b.*\b(?:when|if|once|whenever|as soon as|the moment)\b.*\b(?:rsi|macd|ema|sma|wma|hma|dema|tema|vwap|atr|adx|cci|mfi|stochastics?|bollinger|bands?|keltner|supertrend|ichimoku|donchian|williams|indicators?|moving averages?|overbought|oversold|signal line|histogram|\d{1,3}[- ]?(?:day|d|ema|sma|ma|dma|period))\b/,
+      // an indicator or a plain length CROSSING ("the 9 ema crosses above the 20", "9/20 cross", "ema 9 crossover", "golden cross")
+      /\b(?:rsi|macd|ema|sma|wma|hma|vwap|atr|adx|cci|mfi|stochastics?|bollinger|bands?|keltner|supertrend|moving averages?|signal line|\d{1,3}[- ]?(?:ema|sma|ma|dma|day|d))\b[^.]{0,40}\b(?:cross(?:es|ed|ing)?(?: (?:above|below|over|under|up|down))?|crossover)\b/,
+      /\b(?:the )?\d{1,3} (?:cross(?:es|ed|ing)?) (?:above|below|over|under|the)\b/, /\b\d{1,3}\s*\/\s*\d{1,3} (?:cross(?:es|ed|ing)?|crossover)\b/, /\b(?:golden|death) cross\b/] },
   { id: 'data', title: 'Stock information and news (profile, earnings, comparisons, news, catalysts)', domains: ['stock', 'news'],
     words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do)\b/],
     // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"
