@@ -260,6 +260,10 @@ describe('3 — ⛔ refused by name: every arm shape no capture settles', () => 
       v6('up = close > open', 'plot(ta.sma(up ? ta.sma(close, 3) : close, 5))'),
       v6('up = close > open', 'plot((up ? ta.sma(close, 3) : close)[1])'),
       v6('up = close > open', 'plot(math.abs(up ? ta.sma(close, 3) : close))'),
+      // a `?:` whose test reads a slot is lowered off the column route (no block check
+      // there): inside a varying block and inside a loop it is still not the root
+      v6('var float s = 0.0', 's := s + 1', 'float y = na', 'if close > close[1]', '    y := s > 3 ? ta.sma(close, 3) : close', 'plot(y)'),
+      v6('var float s = 0.0', 's := s + 1', 'float acc = 0.0', 'for i = 0 to 1', '    acc += s > 3 ? ta.sma(close, 3) : close', 'plot(acc)'),
     ]
     for (const s of shapes) expect(refusalOf(s) && refusalOf(s).guard, s).toBe(R4)
   })
