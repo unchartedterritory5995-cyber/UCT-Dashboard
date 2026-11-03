@@ -806,10 +806,29 @@ def _stamp_listed_revisions(user_id: str, source: dict[str, Any], provider: Note
     try:
         for r in refs:
             rev = listing_revision(r)
-            if rev:
-                conn.execute("UPDATE j2_notes SET import_remote_rev = ? WHERE user_id = ? "
-                             "AND import_key = ? AND deleted_at IS NULL",
-                             (rev, user_id, provider.import_key(source["remoteId"], r.remote_id)))
+            listed_at = import_provenance.instant(rev) if isinstance(rev, str) else None
+            if listed_at is None:
+                continue
+            key = provider.import_key(source["remoteId"], r.remote_id)
+            row = conn.execute("SELECT import_remote_rev FROM j2_notes WHERE user_id = ? "
+                               "AND import_key = ? AND deleted_at IS NULL", (user_id, key)).fetchone()
+            if row is None:
+                continue
+            # NEW-B (final review): never backwards. `import_confirm` may just have stored a NEWER
+            # revision from `get_note` than a lagging index lists; stamping the listing's over it
+            # would later read as a remote change and make a phantom "(synced copy)" sibling. Only
+            # a NULL stored revision or one OLDER than the listing's (as instants, D1's
+            # normalisation at whole seconds) is stamped. An UNREADABLE stored revision cannot be
+            # ordered, so it cannot be shown to move backwards, and it never `_same_revision`s the
+            # listing: left as it is, the sweep would refetch that note every night forever (the
+            # NEW-2b convergence rail). It is stamped, as before.
+            stored = row["import_remote_rev"]
+            stored_at = import_provenance.instant(stored) if isinstance(stored, str) else None
+            if stored_at is not None and (stored_at.replace(microsecond=0)
+                                          >= listed_at.replace(microsecond=0)):
+                continue
+            conn.execute("UPDATE j2_notes SET import_remote_rev = ? WHERE user_id = ? "
+                         "AND import_key = ? AND deleted_at IS NULL", (rev, user_id, key))
         conn.commit()
     finally:
         conn.close()
@@ -1614,8 +1633,22 @@ async def _do_sync(
         # and the edit never arrived (and could be lost once the cursor moved past it). The
         # fetch is cheap at delta size, and `import_confirm`'s own hash check still makes an
         # unchanged refetch a no-op write. N1's ordering below is unchanged.
+        #
+        # ⛔ NEW-A (final review, reproduced): once the cursor is set the revision match is still
+        # computed, for ORDERING and for the cursor only, never to skip a fetch. Fetching every
+        # listed note in listing order under FETCH_CAP_PER_PASS livelocked a pass that listed
+        # more than the cap (a bulk tag or move inside CURSOR_OVERLAP_S): the notes past the cap
+        # held the cursor, the next pass listed the same set and fetched the same first 300, and
+        # it read "importing", then "stalled", with the edits ranked past 300 never imported.
+        # Now revision matches (`rev_match`: a live row at the listing's revision and no media
+        # pending, or a trashed row at it) are fetched LAST, so the cap reaches new, changed and
+        # media-pending notes first, and one the cap or the clock left unfetched counts as stored
+        # for the cursor (below). The stale-index safety net for those few is CURSOR_OVERLAP_S
+        # plus the nightly revision sweep. Any other ref left unfetched holds the cursor as before.
         catching_up = not source.get("cursor")
+        rev_match: set[str] = set()
         if not catching_up:
+            rev_match = unchanged | trashed
             unchanged, trashed = set(), set()
         if trashed:
             # NEW-7: while a first import catches up, a trashed note at the listed revision is
@@ -1635,16 +1668,23 @@ async def _do_sync(
             # with no stored row first, then changed or media-pending ones, then the rest (only a
             # full pass still has those), each group in listing order. So every pass makes
             # new-note progress until every note has a row.
+            # NEW-A: with the cursor set, `rev_match` ranks last the same way (`unchanged` is empty
+            # then), and on the nightly full pass that puts the revision sweep and the media retries
+            # ahead of a large unchanged delta. A trashed revision match has no live row; it ranks
+            # last too, never among the new notes.
             fetch_refs = sorted(fetch_refs, key=lambda r: (
-                0 if r.remote_id not in has_row else 2 if r.remote_id in unchanged else 1))
+                2 if r.remote_id in unchanged or r.remote_id in rev_match
+                else 0 if r.remote_id not in has_row else 1))
             log.info("[note-sync] %s D1 skipped %d of %d listed (stored revision match)",
                      source.get("provider"), len(skipped_now), listed_count)
         # Fix round 1 (D2): a bounded pass for a provider that opts in (a one-item list, so the
         # count is shared across chunks).
         fetch_cap = None
         if follow_up:
+            # NEW-C (final review): keyed on the member's press during their own first import
+            # (cursor None), whichever slot it runs in (the reserved one or a free pool slot).
             fetch_cap = [MEMBER_SLOT_FIRST_IMPORT_CAP
-                         if slot_kind == SLOT_RESERVED and not source.get("cursor")
+                         if member and not source.get("cursor")
                          else FETCH_CAP_PER_PASS]
         for chunk_index, chunk_refs in enumerate(_chunks(fetch_refs, IMPORT_CHUNK_NOTES)):
             if chunk_index:
@@ -1687,6 +1727,20 @@ async def _do_sync(
                 _drain_provider_item_failures(provider, item_failures, notice_failures)
             del chunk_notes  # this chunk's docs are not held while the next is fetched
         listed_ids = {r.remote_id for r in refs}
+        # NEW-A: a listed revision match the cap (no failure string) or the clock (a rate limit)
+        # left unfetched counts as stored for the cursor, and is no leftover and no failure.
+        credited = {rid for rid in rev_match & listed_ids
+                    if rid not in fetched_ids and rid in rate_limited}
+        if credited:
+            credited_strings = {rate_limited[rid][0] for rid in credited} - {None}
+            fetch_failed -= sum(1 for f in item_failures if f in credited_strings)
+            item_failures = [f for f in item_failures if f not in credited_strings]
+            for rid in credited:
+                rate_limited.pop(rid, None)
+            fetched_ids.update(credited)
+            log.info("[note-sync] source %s: %d listed note(s) at their stored revision left for "
+                     "a later pass (fetch cap or rate limit); they do not hold the cursor",
+                     source_id, len(credited))
         if sweep:
             # NEW-2b: a swept note now stored carries the listing's revision, so the sweep
             # converges even when the content was unchanged (`import_confirm` skipped it and
@@ -3724,10 +3778,12 @@ def _prepare_import(
                 # NEW-4: the trashed row already holds exactly this: nothing to write.
                 kept_in_trash += 1
                 continue
-            if _is_conflict(trow):
+            if _is_conflict(trow) or not import_provenance.stamp_readable(trow["importedAt"]):
                 # NEW-1: the member edited this note before trashing it. Their words are never
                 # overwritten by a remote change: only the revision is stamped (so NEW-7 and
-                # the incremental listing stop asking), and the note stays trashed.
+                # the incremental listing stop asking), and the note stays trashed. Final
+                # review: a missing or unreadable `imported_at` cannot be dated, so it is hands
+                # off the same way (recover's rule, R4), never read as unedited.
                 _stamp_trashed_row_revision(conn, user_id, trow["id"], rn.updated_at or None)
             else:
                 _write_into_trashed_row(conn, user_id, trow["id"], entry)

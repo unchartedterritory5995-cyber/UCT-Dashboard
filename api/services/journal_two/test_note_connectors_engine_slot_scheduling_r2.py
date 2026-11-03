@@ -267,7 +267,11 @@ async def test_a_member_slot_pass_during_a_first_import_fetches_at_most_its_cap(
     finally:
         _release(held)
     assert len(p.fetch_calls) == 4 and result["created"] == 4
-    # In a pool slot the same press is the normal pass (FETCH_CAP_PER_PASS).
+    # NEW-C (final review): in a pool slot the same press is capped the same way; a background
+    # pass is the normal pass (FETCH_CAP_PER_PASS).
     before = len(p.fetch_calls)
     await engine.sync_source(sid, member=True)
-    assert len(p.fetch_calls) - before == 6
+    assert len(p.fetch_calls) - before == 4
+    before = len(p.fetch_calls)
+    await engine.sync_source(sid, manual=True)
+    assert len(p.fetch_calls) - before == 2
