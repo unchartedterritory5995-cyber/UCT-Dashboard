@@ -47,6 +47,8 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `e25ebc813e` | re-review r2: N-7a/b, N-8 citation-only replay, N-1..N-6; guard false positive from 4b144368ce fixed (K-21) |
 | `6d9ee0f727` | separation tests stub the research door; robust to the eval-ledger stub leak |
 | `de59823327` | r3: B-1 v2 knowledge replies replay citation-only (research blocked in the window); N-9..N-14 (K-22) |
+| `3cc2a232f9` | N-15 fail closed: setup_knowledge SETUP rows with no template withheld (K-23) |
+| `be4c127a41` | r4: structural used_knowledge (R4-1), naming skip (R4-2), fail-closed exclusion (R4-6), figure drop on every path (R4-4) (K-24) |
 
 ## Tasks
 | id | task | state | evidence |
@@ -84,6 +86,8 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `e25ebc813e` | 2,248 passed, 2 failed (suite-order leak, fixed in 6d9ee0f727) | 2,673 passed, 6 skipped, 0 failed (isolation timeout fixed) |
 | `6d9ee0f727` | 2,250 passed, 0 failed | (server-test-only change; browser as e25ebc813e) |
 | `de59823327` | 2,259 passed, 0 failed | 2,673 passed, 6 skipped, 0 failed |
+| `3cc2a232f9` | 2,260 passed, 0 failed | 2,673 passed, 6 skipped, 0 failed |
+| `be4c127a41` | 2,266 passed, 0 failed | 2,673 passed, 6 skipped, 0 failed |
 
 Browser suite notes (head 3852446f29):
 - 1 timeout: qa/modelIsolation.test.jsx "no module reads an isolated kind outside a local-only capability…" exceeded its 15 s limit while the full suite loaded the machine; rerun alone it passes 12/12 in 7.6 s (9.5 s on the earlier full run). Not a regression; the test scans every Agent source file and sits close to its budget. File owned by agent-qa; reported to AUDIT.
@@ -117,7 +121,8 @@ the archive exposes one — a requirement for the Wisdom archive owner.
 - Archive date: interface contract ARCHIVE-ASOF-1 to the proposed owner (partner/ledger maintainer); undated withheld.
 - N-7b real snapshot: 14 of 98 setup_knowledge SETUP rows withheld (linked only to excluded templates).
 - r3 B-1: a v2 knowledge reply is replayed citation-only; the reviewer's probe shows no replay and 0 research calls.
-- N-15 (count): 20 of 42 setup_knowledge SETUP rows resolve to no template and stay served (fail open) — sync-format owner to check.
+- N-15: SETUP rows with no template now FAIL CLOSED (3cc2a232f9). Real snapshot: SETUP 8 served, 34 withheld (14 excluded-template, 20 no template); non-SETUP 56 served. Ids: docs/agent/knowledge/N15-UNRESOLVED-SETUP-IDS.md.
+- r4 review (AUDIT): APPROVE merge-dark; B-1 verified fixed. Open: R4-5 (owner scope: 380 admitted rows name an excluded setup, 71 definitional), R4-3 / N-9 (brain owner: does the pack export preserve updated_at).
 - Real snapshot after all changes: P@3 0.89, 38/40, p50 17.6 ms, guard false positives 0 of 5,270.
 
 ## Quality work stopped (owner rule: stop when the measurable benefit is small)
