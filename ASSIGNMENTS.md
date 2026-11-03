@@ -5,6 +5,15 @@ Production / master at writing: f014e73506 · SCRIPT_ENGINE_VERSION 5. Engine nu
 later engine merges take the next number, assigned here.
 Plan: DESKTOP-PROMPT.md v2.1 at 7809e3399b (states name the tip they judge: @sha10).
 
+## >>> PROGRAMME PAUSED BY THE OWNER (2026-11-03 ~17:00 CT) <<<
+Desktop, on reading this, for EVERY lane you hold (WITHDRAWN semantics, applied to all lanes):
+1. Let the builder commit its work as `WIP(<lane>): <done / pending / exact next command>`, push it, then stop the builder.
+2. Stop your queued or running heavy jobs. They are your own processes.
+3. Set each block to `state: PAUSED` with `tip:` and a `next:` line, and push DESKTOP-STATUS.md.
+4. Disarm the poll and end the session. Do not start new lanes.
+On resume, the new coordinator replaces this banner with "RESUMED" and re-queues the lanes. The owner
+re-pastes the DESKTOP PROMPT line on the desktop, and each lane continues from its `next:` line.
+
 ## Desktop lanes
 | lane | state | notes |
 |---|---|---|
