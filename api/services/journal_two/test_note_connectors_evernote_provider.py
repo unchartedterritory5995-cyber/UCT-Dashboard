@@ -257,6 +257,82 @@ async def test_present_refs_rejects_a_total_that_changes_between_pages():
     assert len(refs) == 149 and _guid(100) in {r.remote_id for r in refs}
 
 
+# ---- review minors -------------------------------------------------------------------------
+
+
+async def test_a_hit_whose_id_is_not_a_guid_is_dropped_at_listing():
+    # m1: it would otherwise become an import key the fetch refuses every pass, pinning the cursor.
+    bad = {"noteId": "a/b", "title": "Odd", "snippet": None, "createdAt": None,
+           "updatedAt": "2026-11-02T10:00:00Z", "score": None}
+    fake = FakeMcp(active=[_hit(1), bad, _hit(2)])
+    p = _provider(fake)
+    refs = await p.list_changed(CREDS, None)
+    assert [r.remote_id for r in refs] == [_guid(1), _guid(2)]
+    assert p.drain_item_failures() == [
+        {"noteTitle": "Odd", "reason": "evernote note shape: note id", "name": None}]
+
+
+async def test_under_the_tag_cap_an_unknown_guid_like_string_is_dropped_not_a_label():
+    # m2: with a partial (capped) map, a GUID-shaped string is an id we could not resolve.
+    tags = [_tag(f"t-{i}", f"tag {i}") for i in range(100)]
+    unknown = "99999999-0000-4000-8000-000000000999"
+    fake = FakeMcp(notes={G1: _note(tags=["t-1", unknown, "Plain"])},
+                   notebooks=[_nb("nb-1", "S")], tags=tags)
+    p, note = await _fetch(fake)
+    assert note.tags == ["tag 1", "Plain"]
+    assert {"noteTitle": "Plan", "reason": f"evernote tag not listed: {unknown}", "name": None} in (
+        p.drain_item_failures())
+
+
+async def test_a_hit_exactly_at_the_overlap_bound_is_returned():
+    # m3: the bound is inclusive (cursor 10:00, overlap 120 s -> 09:58:00 is kept).
+    fake = FakeMcp(active=[_hit(1, updated="2026-11-02T09:58:00Z"),
+                           _hit(2, updated="2026-11-02T09:57:59.999Z")])
+    refs = await _provider(fake).list_changed(CREDS, "2026-11-02T10:00:00.000+00:00")
+    assert [r.remote_id for r in refs] == [_guid(1)]
+
+
+async def test_present_refs_needs_the_last_page_flag_even_when_the_count_matches():
+    # m3: a pager that ends on an empty page with isLastPage false is not a complete listing.
+    fake = FakeMcp(active=[_hit(i) for i in range(5)], last_page_flag=False)
+    with pytest.raises(errors.NoteConnTransient):
+        await _provider(fake).list_present_refs(CREDS)
+
+
+async def test_a_note_listed_twice_across_pages_keeps_its_newest_place():
+    # m3: an edit during paging moves a note up; the total is unchanged, the note repeats.
+    hits = [_hit(i, updated="2026-11-02T12:00:00Z") for i in range(100)]
+    hits += [_hit(5, updated="2026-11-01T00:00:00Z")] + [_hit(i) for i in range(100, 110)]
+    fake = FakeMcp(active=hits)
+    refs = await _provider(fake).list_changed(CREDS, None)
+    by_id = {}
+    for r in refs:
+        assert r.remote_id not in by_id
+        by_id[r.remote_id] = r.updated_at
+    assert by_id[_guid(5)] == "2026-11-02T12:00:00.000+00:00"
+
+
+async def test_an_unparseable_cursor_enumerates_everything_at_the_epoch_floor():
+    # m3: never a garbage floor, which a string max would keep as the cursor forever.
+    fake = FakeMcp(active=[_hit(1, updated="2020-01-01T00:00:00Z"), _hit(2, updated=None, created=None)])
+    refs = await _provider(fake).list_changed(CREDS, "not-a-time")
+    assert {r.remote_id: r.updated_at for r in refs} == {
+        _guid(1): "2020-01-01T00:00:00.000+00:00", _guid(2): EPOCH_FLOOR}
+
+
+async def test_a_repeated_failure_names_its_first_note_and_counts_the_others():
+    # m5: one row per reason, but it says how many notes it covers.
+    notes = {_guid(i): _note(_guid(i), title=f"N{i}") for i in range(3)}
+    for sc in notes.values():
+        del sc["updated"]
+    fake = FakeMcp(notes=notes, notebooks=[_nb("nb-1", "S")])
+    p = _provider(fake)
+    for i in range(3):
+        await p.fetch(CREDS, RemoteRef(remote_id=_guid(i), updated_at="x"))
+    assert p.drain_item_failures() == [
+        {"noteTitle": "N0 (and 2 more)", "reason": "evernote note shape: missing updated", "name": None}]
+
+
 async def test_present_refs_reenumerates_once_when_ids_do_not_match_total():
     fake = FakeMcp(active=[_hit(i) for i in range(150)], totals=[151, 150])
     refs = await _provider(fake).list_present_refs(CREDS)

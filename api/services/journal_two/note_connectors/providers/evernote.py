@@ -58,6 +58,8 @@ class _ListingMoved(Exception):
     """A page reported a different `totalResultCount` from page 0: a note entered or left the
     listing while it was read, so the offset pages shifted and one note may have been skipped."""
 _HASH_RE = re.compile(r"^[0-9a-f]{32}$")
+#: An Evernote GUID's own shape (8-4-4-4-12 hex): "looks like an id" for a tag string (m2).
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
 _MAX_PAGES = 1000  # 100 000 notes: a runaway pager stops here
 
 #: The measured `get_note.structuredContent` keys this provider reads, and ONLY these.
@@ -118,7 +120,8 @@ class EvernoteProvider(NoteProvider):
         self._tags: dict[str, str] | None = None
         self._hit_titles: dict[str, str] = {}
         self._failures: list[dict] = []
-        self._recorded: set[str] = set()
+        self._recorded: dict[str, dict] = {}
+        self._tags_capped = False
         self._shape_logged = False
         self._host_logged = False
 
@@ -152,10 +155,15 @@ class EvernoteProvider(NoteProvider):
         return token
 
     def _record(self, title: str, reason: str) -> None:
-        if reason in self._recorded:
+        """One row per reason per instance; a repeat names how many more notes it covers (m5)."""
+        entry = self._recorded.get(reason)
+        if entry is not None:
+            entry["more"] += 1
+            entry["row"]["noteTitle"] = f"{entry['first']} (and {entry['more']} more)"
             return
-        self._recorded.add(reason)
-        self._failures.append({"noteTitle": title, "reason": reason, "name": None})
+        row = {"noteTitle": title, "reason": reason, "name": None}
+        self._recorded[reason] = {"first": title, "more": 0, "row": row}
+        self._failures.append(row)
 
     def drain_item_failures(self) -> list[dict]:
         out, self._failures = self._failures, []
@@ -189,7 +197,16 @@ class EvernoteProvider(NoteProvider):
                 first_total = page.get("totalResultCount")
             elif page.get("totalResultCount") != first_total:
                 raise _ListingMoved()
-            hits = [h for h in page.get("hits") or [] if isinstance(h, dict) and h.get("noteId")]
+            hits = []
+            for h in page.get("hits") or []:
+                if not isinstance(h, dict) or not h.get("noteId"):
+                    continue
+                if not enml.is_guid(h["noteId"]):
+                    # m1: a non-GUID id would become an import key `fetch` refuses every pass.
+                    title = h.get("title") if isinstance(h.get("title"), str) else "Untitled"
+                    self._record(title, "evernote note shape: note id")
+                    continue
+                hits.append(h)
             yield hits, page
             if page.get("isLastPage") or not hits:
                 return
@@ -218,8 +235,10 @@ class EvernoteProvider(NoteProvider):
             "evernote: the note listing kept changing while it was read (cursor kept)")
 
     async def _changed_once(self, credentials: dict[str, Any], cursor: str | None) -> list[RemoteRef]:
-        floor = cursor or EPOCH_FLOOR
         cursor_at = import_provenance.instant(cursor) if cursor else None
+        # m3: an unparseable cursor is no cursor: enumerate everything, at the epoch floor (a
+        # garbage floor would survive the engine's string max as the cursor forever).
+        floor = cursor if cursor_at is not None else EPOCH_FLOOR
         bound = cursor_at - timedelta(seconds=self.CURSOR_OVERLAP_S) if cursor_at else None
         refs: dict[str, RemoteRef] = {}
         async with contextlib.aclosing(self._pages(credentials, "")) as pages:  # closed on break
@@ -289,6 +308,7 @@ class EvernoteProvider(NoteProvider):
             hits = [h for h in sc.get("hits") or [] if isinstance(h, dict) and h.get("tagId")]
             if len(hits) >= 100:
                 log.warning("evernote tags listing hit the 100 cap")
+                self._tags_capped = True
             self._tags = {h["tagId"]: str(h.get("label") or "") for h in hits}
         return self._tags
 
@@ -312,7 +332,15 @@ class EvernoteProvider(NoteProvider):
         for el in tags:
             label: str | None = None
             if isinstance(el, str):
-                label = (await self._tag_map(creds)).get(el, el)
+                tag_map = await self._tag_map(creds)
+                if el in tag_map:
+                    label = tag_map[el]
+                elif self._tags_capped and _UUID_RE.match(el):
+                    # m2: the map is partial; a GUID-shaped string is an id we could not resolve,
+                    # never a label to show.
+                    self._record(title, f"evernote tag not listed: {el}")
+                else:
+                    label = el
             elif isinstance(el, dict):
                 named = el.get("name") if isinstance(el.get("name"), str) else el.get("label")
                 if isinstance(named, str) and named.strip():
