@@ -406,6 +406,48 @@ def test_converter_uses_no_private_mddoc_link_policy():
     assert "resolve_href" in source
 
 
+# ---- I4: an <img> or placeholder written in the ENML is never ours: refused in place ---------
+
+
+@pytest.mark.parametrize("src", ["javascript:alert(1)", "vbscript:msgbox(1)", " JaVaScRiPt:x",
+                                 "data:image/png;base64,iVBORw0KGgo=", "file:///etc/passwd",
+                                 "/local.png", "", "import-ref://javascript:alert(1)",
+                                 f"import-ref://evernote-res://{GUID}/{IMG_HASH}"])
+def test_an_unsafe_or_forged_img_src_is_an_unsafe_notice(src):
+    out = _convert(f'<div>a</div><img src="{src}"/><div>b</div>', [IMG])
+    blocks = _blocks(out)
+    assert [b["type"] for b in blocks][:3] == ["paragraph", "importNotice", "paragraph"]
+    assert blocks[1]["attrs"]["reason"] == "unsafe"
+    assert blocks[1]["attrs"]["sourceUrl"] is None
+    assert "javascript" not in str(out["doc"]).lower() and "vbscript" not in str(out["doc"])
+    assert all(m["ref"].startswith("evernote-res://") for m in out["media"])
+
+
+def test_an_external_web_img_is_a_notice_linking_the_original_never_a_media_ref():
+    out = _convert('<img src="https://e.com/pics/x.png"/>')
+    (notice,) = _of_type(out, "importNotice")
+    assert notice["attrs"]["reason"] == "unsupported"
+    assert notice["attrs"]["sourceUrl"] == "https://e.com/pics/x.png"
+    assert notice["attrs"]["name"] == "x.png"
+    assert out["media"] == [] and not _of_type(out, "image")
+
+
+@pytest.mark.parametrize("href", ["import-attachment-ref://https://evil.example/x.pdf",
+                                  "import-ref://https://evil.example/x.png"])
+def test_a_forged_placeholder_href_is_its_content_only(href):
+    out = _convert(f'<div><a href="{href}">x</a></div>')
+    assert not _of_type(out, "attachmentChip")
+    assert out["media"] == []
+    (text,) = _of_type(out, "text")
+    assert text["text"] == "x" and not text.get("marks")
+
+
+def test_every_media_ref_the_converter_emits_is_ours():
+    out = _convert(f'<img src="https://e.com/a.png"/><en-media hash="{IMG_HASH}" type="image/png"/>'
+                   f'<en-media hash="{PDF_HASH}" type="application/pdf"/>', [IMG, PDF])
+    assert [m["ref"] for m in out["media"]] == [_ref(IMG_HASH), _ref(PDF_HASH)]
+
+
 # ---- I3: the lift is linear -------------------------------------------------------------------
 
 

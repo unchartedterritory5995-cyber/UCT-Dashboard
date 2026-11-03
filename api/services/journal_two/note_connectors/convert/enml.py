@@ -56,7 +56,10 @@ LIVE_KEY_PREFIX = "evernote:guid:"
 EVERNOTE_TITLE_KIND = "evernote-title:"
 ENCRYPTED_TEXT = "[encrypted content — cannot be imported]"
 
-_MISSING_SCHEME = "evernote-missing://"  # internal placeholder, replaced before return
+# Internal placeholder `<img src=REF_PREFIX + "evernote-notice://{i}">`: HTML cannot carry an
+# importNotice, so the pre-pass leaves this image where the notice belongs and the post-pass swaps
+# in `_Notices.nodes[i]`. Never leaves this module.
+_NOTICE_SCHEME = "evernote-notice://"
 _TITLE_MAX = 300  # `notes.MAX_TITLE_CHARS`, as the client's `titleKeyText` cuts
 _APP_HOST = "uctintelligence.com"
 
@@ -321,6 +324,55 @@ class _Resources:
         self.cited: set[str] = set()
 
 
+class _Notices:
+    """importNotice nodes the post-pass puts where their placeholder images stand."""
+
+    def __init__(self) -> None:
+        self.nodes: list[dict] = []
+
+    def placeholder(self, reason: str, *, name: str | None = None,
+                    source_url: str | None = None) -> _Node:
+        self.nodes.append(import_notice.notice_node(
+            reason, name=name, source_url=source_url, ref=None, attempts=0))
+        return _Node("img", {"src": f"{REF_PREFIX}{_NOTICE_SCHEME}{len(self.nodes) - 1}"})
+
+
+def _web_image_url(src: str) -> str | None:
+    try:
+        parts = urlsplit(src)
+    except ValueError:
+        return None
+    if parts.scheme.lower() in ("http", "https") and parts.hostname:
+        return src
+    return None
+
+
+def _rule_refuse_foreign_media(root: _Node, notices: _Notices) -> None:
+    """Task 3 review I4. Runs FIRST, before the converter creates any media of its own, so every
+    `<img>` and placeholder href found here was written in the note (ENML has no `<img>`;
+    Evernote's images are `<en-media>`). None of them becomes a media ref: the only refs this
+    converter emits are `evernote-res://`, and Task 5's `fetch_media` refuses any other.
+      - an `<img>` with a web src -> an `unsupported` notice whose `sourceUrl` opens the original;
+      - any other `<img>` (`javascript:`, `vbscript:`, `data:`, `file:`, relative, empty, or a
+        forged `import-ref://`) -> an `unsafe` notice;
+      - an `<a>` whose href is one of our placeholder prefixes -> its content."""
+    placeholders = (REF_PREFIX, ATTACHMENT_REF_PREFIX)
+
+    def fn(n: _Node) -> list[Any] | None:
+        if n.tag == "img":
+            src = (n.attrs.get("src") or "").strip()
+            url = None if src.lower().startswith(placeholders) else _web_image_url(src)
+            if url:
+                name = urlsplit(url).path.rstrip("/").rsplit("/", 1)[-1] or None
+                return [notices.placeholder("unsupported", name=name, source_url=url)]
+            return [notices.placeholder("unsafe")]
+        if n.tag == "a" and (n.attrs.get("href") or "").strip().lower().startswith(placeholders):
+            return list(n.children)
+        return None
+
+    _map_elements(root, fn)
+
+
 def _media_node(entry: dict) -> _Node:
     if entry["kind"] == "image":
         return _Node("img", {"src": REF_PREFIX + entry["ref"]})
@@ -361,8 +413,7 @@ def _unambiguous_pairs(unmatched: list[_Node], res: _Resources) -> dict[int, dic
     return pairs
 
 
-def _rule_en_media(root: _Node, res: _Resources) -> None:
-    missing = 0
+def _rule_en_media(root: _Node, res: _Resources, notices: _Notices) -> None:
     hash_of = lambda el: str(el.attrs.get("hash") or "").strip().lower()  # noqa: E731
     # Exact citations first, across the whole note, so an earlier mismatched en-media can never
     # take a resource a later one cites exactly.
@@ -373,7 +424,6 @@ def _rule_en_media(root: _Node, res: _Resources) -> None:
     pairs = _unambiguous_pairs([el for el in els if hash_of(el) not in res.by_hash], res)
 
     def fn(n: _Node) -> list[Any] | None:
-        nonlocal missing
         if n.tag != "en-media":
             return None
         entry = res.by_hash.get(hash_of(n)) or pairs.get(id(n))
@@ -381,8 +431,7 @@ def _rule_en_media(root: _Node, res: _Resources) -> None:
             res.cited.add(entry["hash"])
             node = _media_node(entry)
         else:
-            missing += 1
-            node = _Node("img", {"src": f"{REF_PREFIX}{_MISSING_SCHEME}{missing}"})
+            node = notices.placeholder("missing_resource")
         # Content the parser nested inside the en-media (the client's `unwrapInPlace`) follows it.
         return [node, *n.children]
 
@@ -607,19 +656,18 @@ def _rule_div_lines(root: _Node) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _post_pass(node: Any, names: dict[str, str]) -> None:
+def _post_pass(node: Any, names: dict[str, str], notices: _Notices) -> None:
     if not isinstance(node, dict):
         return
     content = node.get("content")
     if isinstance(content, list):
+        marker = REF_PREFIX + _NOTICE_SCHEME
         for i, child in enumerate(content):
-            if (isinstance(child, dict) and child.get("type") == "image"
-                    and str((child.get("attrs") or {}).get("src", "")).startswith(
-                        REF_PREFIX + _MISSING_SCHEME)):
-                content[i] = import_notice.notice_node(
-                    "missing_resource", name=None, source_url=None, ref=None, attempts=0)
+            src = str(((child.get("attrs") or {}) if isinstance(child, dict) else {}).get("src", ""))
+            if isinstance(child, dict) and child.get("type") == "image" and src.startswith(marker):
+                content[i] = dict(notices.nodes[int(src[len(marker):])])
                 continue
-            _post_pass(child, names)
+            _post_pass(child, names, notices)
     if node.get("type") == "attachmentChip":
         href = (node.get("attrs") or {}).get("href", "")
         ref = href[len(REF_PREFIX):] if href.startswith(REF_PREFIX) else href
@@ -646,9 +694,11 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     root = _find(builder.root, "en-note") or builder.root
 
     res = _Resources(resources, note_guid)
+    notices = _Notices()
+    _rule_refuse_foreign_media(root, notices)  # before any media of our own exists (I4)
     _rule_en_crypt(root)               # 2
     _rule_note_links(root)             # 3
-    _rule_en_media(root, res)          # 4
+    _rule_en_media(root, res, notices)  # 4
     _rule_todos(root)                  # 5
     _rule_append_uncited(root, res)    # 6
     _rule_source_line(root, source_url)  # 7
@@ -660,13 +710,10 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     result = html_to_tiptap("".join(_serialize(c) for c in root.children))
 
     names = {e["ref"]: e["name"] for e in res.unique if e["kind"] == "file"}
-    _post_pass(result["doc"], names)
+    _post_pass(result["doc"], names, notices)
 
+    # Only `evernote-res://` refs, by construction (I4): every foreign <img> and placeholder href
+    # was refused before this, so the walker registered nothing of its own worth fetching.
     media = [{"ref": e["ref"], "kind": e["kind"], "name": e["name"], "mime": e["mime"]}
              for e in res.unique]
-    refs = {m["ref"] for m in media}
-    for entry in result["media"]:
-        if entry.get("ref") not in refs and not str(entry.get("ref", "")).startswith(_MISSING_SCHEME):
-            refs.add(entry.get("ref"))
-            media.append(entry)
     return {"doc": result["doc"], "media": media, "links": result["links"]}
