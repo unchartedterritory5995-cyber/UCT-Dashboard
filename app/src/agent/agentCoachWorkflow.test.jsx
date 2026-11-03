@@ -76,12 +76,12 @@ describe('the coach’s own answers carry `next`', () => {
 })
 
 describe('🔴 PANEL: the chips are shown under the answer and a tap is the member’s own next message', () => {
-  it('what is a failed breakout? → chips → tap "Coach me on consolidation and tightness" → that concept, instantly', async () => {
+  it('coach me on a failed breakout → chips → tap "Coach me on consolidation and tightness" → that concept, instantly', async () => {
     const p = setupPanel()
     stub(globalThis.fetch)
     const { say } = p.mount(...ONE('NVDA'))
     await loadConcepts()
-    const first = await say('what is a failed breakout?')
+    const first = await say('coach me on a failed breakout')
     expect(first).toContain('A move through a level.')
     expect(first).toContain(FOOTER)
     const chips = screen.getByTestId('agent-next').querySelectorAll('button')

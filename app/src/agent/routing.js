@@ -166,7 +166,8 @@ export const GROUPS = [
   // ⭐ Wave 3 (W3-1..W3-4, UCT_AGENT_COACH, default off): the trading coach — registered only while the server serves
   // `coach`, so the group is empty (and never sent) on a dark server. Its own fillLast group: the NL-1 core keeps its size.
   { id: 'coach', title: 'Trading coach (educational, not advice): explain a trading concept — price action, support/resistance, consolidation, breakouts, relative strength, volume, moving averages, risk per trade and sizing, stops, market conditions and breadth, earnings gaps, drawdown, expectancy — with one grounded observation from the open chart; consent to use the member’s own journal in this chat; a descriptive review of their recent trades; propose a review note', domains: ['coach', 'journal'], fillLast: true,
-    words: [/\b(coach|coaching|teach me about|help me understand|how (?:should|do) i think about|my (?:trades|trading|journal|last \d+ trades|recent trades|win rate|results)|review my|use my journal|stop using my journal|position siz\w+|risk per trade|r[- ]multiple|expectancy|drawdown|relative strength|support and resistance|consolidation|tightness|failed breakouts?|earnings gaps?|stop placement|where to put (?:a|my) stop)\b/] },
+    // N5 (2026-11-03): COACHING phrasings only — a bare setup / concept question routes to the playbook group
+    words: [/\b(coach|coaching|teach me|help me understand|quiz me|walk me through|how (?:should|do) i (?:think about|apply|use)|how to apply|my (?:trades|trading|journal|last \d+ trades|recent trades|win rate|results)|review my|use my journal|stop using my journal)\b/] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/

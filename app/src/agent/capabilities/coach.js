@@ -38,16 +38,18 @@ import { loadConcepts, conceptsLoaded, conceptFor, conceptTitles, coachFooter } 
 import { observe, lastObserved, observedChart, barsServed } from '../coach/observe'
 import { enforce as guardEnforce, check as guardCheck } from '../coach/guard'
 import { nextFor } from '../coach/next'
-import { brainPassage } from '../coach/brain'
+import { brainPassage, setupTemplate, setupNamed } from '../coach/brain'
 import { consentState, readConsent, writeConsent } from '../coach/consent'
 import { reviewStats, reviewText, reviewPresent, modelView, fetchTrades, clampN, DEFAULT_N, MAX_N, DESCRIPTIVE } from '../coach/review'
 
 export const LABEL = 'Trading coach (educational, not advice — explains concepts; never buy/sell advice, never an order)'
 
-// "coach me on breakouts", "teach me about relative strength", "help me understand expectancy"
-const COACH_ASK = /^(?:(?:can|could|would) you |please |ok |okay |hey |so )*(?:coach me (?:on|about|through)|teach me about|help me understand|how (?:should|do) i think about|explain the idea of|walk me through the idea of)\s+(.+?)[?.!]*$/i
+// N5: COACHING phrasings — "coach me on breakouts", "teach me about relative strength", "help me understand how to apply
+// the VCP", "quiz me on stops", "walk me through position sizing". A bare "what is X?" is not the coach's fast path (a setup
+// question belongs to the playbook group; the model may still choose coach.explain).
+const COACH_ASK = /^(?:(?:can|could|would) you |please |ok |okay |hey |so )*(?:coach me (?:on|about|through)|teach me(?: about| how to (?:apply|use|spot|read|trade)| how)?|help me understand(?: how to (?:apply|use|spot|read|trade))?|quiz me (?:on|about)|walk me through(?: the idea of| how to (?:apply|use|spot|read|trade))?|how (?:should|do) i (?:think about|apply|use)|explain the idea of)\s+(.+?)[?.!]*$/i
 /** A message for the coach: a concept's words, or coaching / journal words (the context entry is sent). */
-export const COACH_WORDS = /\b(coach|coaching|teach me about|help me understand|how (?:should|do) i think about|my (?:trades|trading|journal|recent trades|win rate|results)|review my|use my journal|stop using my journal|position siz\w+|risk per trade|r[- ]multiple|expectancy|drawdown)\b/i
+export const COACH_WORDS = /\b(coach|coaching|teach me|help me understand|quiz me|walk me through|how to apply|how (?:should|do) i think about|my (?:trades|trading|journal|recent trades|win rate|results)|review my|use my journal|stop using my journal|position siz\w+|risk per trade|r[- ]multiple|expectancy|drawdown)\b/i
 
 /** The words that name a concept in the message, or null. */
 export function coachTopic(raw) {
@@ -93,14 +95,47 @@ export async function reviewTrades(count) {
   return present ? { text, present: { ...present, details: { text } }, title: present.title, next } : { text, next }
 }
 
+// ── coach.explain (W3-1) × the Trading Brain (W3-4b, owner rule + decision N5, 2026-11-03) ──────────────────────────
+// N5: the approved UCT playbook and the Wisdom vocabulary are authoritative for setup definitions; the coach TEACHES
+// FROM them and never writes a competing definition. So:
+//   * a named setup (one of the Brain's 48 template names) → its `setup.playbook` template when served, cited, with the
+//     coach's "applying it" teaching around it; else an approved `knowledge.search` passage, cited; else the coach says
+//     the definition lives in the playbook and (when a concept note is related) offers it as GENERIC background only;
+//   * any other topic → an approved passage leads when served, and the curated generic note follows.
+// Every composed text passes the mirror guard over exactly its sources; when it would be replaced, or a kind is not
+// served, or a read is refused / empty / fails, the answer falls back as above. Nothing here imports the knowledge
+// package (coach/brain.js reads through the MD-1 gateway only).
+export const APPLY = 'Applying it: take each line above to your own chart and check whether every condition is actually there — a chart that meets only some of them is a different situation. A template says what to look for; it may not fit every chart, and the decision stays yours.'
+const playbookOff = (setup) => `UCT's own definition of ${setup} lives in the approved setup playbook, which isn't available here right now`
+
+/** Teach a named setup FROM UCT's playbook (or say where its definition lives). Never a coach-written definition. */
+async function explainSetup(setup, topic, c, rows, host) {
+  const next = c ? nextFor({ after: 'explain', conceptId: c.id, consent: consentState(), hasChart: !!observedChart(host), concepts: rows }) : undefined
+  const t = await setupTemplate(setup)
+  if (t) {
+    const g = guardEnforce(`${t.text}\n\n${APPLY}`, [t.text, APPLY])
+    if (!g.violations.length) return { text: g.text, title: t.name, ...(t.link ? { link: t.link } : {}), ...(next ? { next } : {}) }
+  }
+  const p = await brainPassage(topic)
+  if (p) {
+    const bg = c ? `\n\nGeneric background (not UCT's definition of ${setup}): ${c.text}` : ''
+    const g = guardEnforce(`${p.text}${bg}`, [p.text, c?.text || '', setup])
+    if (!g.violations.length) return { text: g.text, title: p.title || setup, ...(next ? { next } : {}) }
+  }
+  if (c) {
+    lastConceptId = c.id
+    const g = guardEnforce(`${playbookOff(setup)} — what follows is generic background, not that definition.\n\n${c.text}`, [c.text, setup])
+    if (!g.violations.length) return { text: g.text, title: c.title, next }
+  }
+  return { text: `${playbookOff(setup)}. ${coachFooter()}`, title: setup }
+}
+
 /** The concept explanation + one observation (when served) + the footer → { text, title } (mirror-guarded). */
-// W3-4b: when the server serves `knowledge.search`, an approved Brain passage LEADS the answer (the Brain is the source
-// of UCT's setup definitions — docs/agent/coach/VOCABULARY-MAP.md) and the curated note follows as generic background.
-// The composed text passes the same mirror guard with exactly its sources; if it would be replaced, or the kind is not
-// served, or the read is refused / empty / fails, the answer is exactly the curated one (no behaviour change).
 export async function explainConcept(topic, host) {
   const rows = conceptsLoaded() || await loadConcepts()
   const c = conceptFor(topic, rows)
+  const setup = setupNamed(topic)
+  if (setup) return explainSetup(setup, topic, c, rows, host)
   const brain = await brainPassage(topic)
   if (!c && brain) {
     const g = guardEnforce(brain.text, [brain.text])
@@ -183,12 +218,14 @@ export function registerCoachCapabilities() {
     name: 'coach.explain', target: 'coach', query: true, fastWhole: true, surfaces: ['charts'],
     available: (ctx) => ctx.surface === 'charts' && agentClient.serverServesCoach(),
     summary: 'COACH: explain one trading concept from UCT’s curated coach notes (price action, support/resistance, consolidation, breakouts, relative strength, volume, moving averages, risk per trade and sizing, stops, market conditions and breadth, earnings gaps, drawdown, expectancy), with one grounded observation from the open chart when served data exists. Educational, not advice; changes nothing.',
-    hints: 'target = the coach entry. topic = the member’s words for the concept (“failed breakouts”, “position sizing”). Use it for coaching questions about trading concepts; use guide.explain for UCT’s own indicators and features. Never for a request to change something.',
+    hints: 'target = the coach entry. topic = the member’s words for the concept (“failed breakouts”, “position sizing”). Use it for coaching questions about trading concepts; use guide.explain for UCT’s own indicators and features. A named UCT setup (VCP, EP, U&R…) is taught FROM UCT’s approved playbook template, never from the coach’s own definition. Never for a request to change something.',
     args: { type: 'object', properties: { topic: { type: 'string' } }, required: ['topic'], additionalProperties: false },
     // instant only when the words name exactly one concept AND the product guide does not claim them (UCT's own terms win)
+    // instant only for a COACHING phrasing (N5) whose topic is one concept or one named setup
     fast: ({ raw }) => {
-      const topic = coachTopic(raw)
-      if (!topic || !conceptFor(topic)) return null
+      const m = COACH_ASK.exec(String(raw || '').trim())
+      const topic = m ? m[1].trim() : null
+      if (!topic || topic.length > 200 || !(conceptFor(topic) || setupNamed(topic))) return null
       const g = explainWords(raw)
       if (g && explainTopic(g)?.local) return null
       return { topic }

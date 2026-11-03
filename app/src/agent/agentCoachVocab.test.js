@@ -139,3 +139,81 @@ describe('coach.explain prefers a Brain passage only when knowledge.search is se
     expect((await explainConcept('the team on patience', host())).text).toMatch(/^I don't have a coach note on that yet\./)
   })
 })
+
+// ── N5 (owner, 2026-11-03): a named setup is taught FROM UCT's playbook; the coach never defines a setup ─────────────
+import { setupNamed, SETUP_TEMPLATES, PLAYBOOK_KIND } from './coach/brain'
+import { APPLY } from './capabilities/coach'
+import { conceptsLoaded } from './coach/concepts'
+
+const TEMPLATE = { name: 'VCP', family: 'base', description: 'A base whose pullbacks contract from left to right.',
+  entry_triggers: ['a break above the pivot of the last contraction'], stop_methods: ['under the low of the last contraction'],
+  invalidation: 'a close back under the pivot', common_mistakes: ['buying a loose, wide base'], link: { href: '/setups/vcp', label: 'Open the Setup Library' } }
+const playEnv = (data, o = {}) => ({ ...searchEnv(null), kind: PLAYBOOK_KIND, data, ...o })
+function stubBoth({ kinds = ['bars.daily', BRAIN_KIND, PLAYBOOK_KIND], play = playEnv(TEMPLATE), search = searchEnv([PASSAGE]) } = {}) {
+  dataCalls = []
+  globalThis.fetch = vi.fn(async (url, init = {}) => {
+    const u = String(url)
+    if (u === '/api/agent/config') return json({ stream: false, data: true, data_kinds: kinds, coach: true })
+    if (u === '/api/agent/coach/concepts') return json({ concepts: CONCEPTS, footer: FOOTER })
+    if (u === '/api/agent/data') {
+      const b = JSON.parse(init.body); dataCalls.push(b)
+      return json(b.kind === PLAYBOOK_KIND ? play : search)
+    }
+    return json({})
+  })
+}
+async function bootBoth(opts) { reset(); stubBoth(opts); await loadAgentConfig(); await loadConcepts() }
+
+describe('N5 — a named setup is taught from UCT’s playbook, cited; never a coach-written definition', () => {
+  it('setupNamed finds the 48 canonical names (EP / PEG only in caps), longest first', () => {
+    expect(SETUP_TEMPLATES).toEqual(CANONICAL)
+    for (const n of CANONICAL) expect(setupNamed(`help me understand how to apply the ${n}`), n).toBe(n)
+    expect(setupNamed('teach me the vcp')).toBe('VCP')
+    expect(setupNamed('a stage 2 breakout')).toBe('Stage 2 Breakout')
+    expect(setupNamed('gap and go')).toBe('Gap-and-Go')
+    for (const s of ['step by step', 'a peg in the ground', 'position sizing', 'relative strength']) expect(setupNamed(s), s).toBe(null)
+  })
+  it('setup.playbook served: ONE read of the template; the answer teaches FROM it (cited, its own fields, applying-it, footer)', async () => {
+    await bootBoth()
+    const out = await explainConcept('VCP', host())
+    expect(dataCalls).toEqual([expect.objectContaining({ kind: PLAYBOOK_KIND, purpose: 'answer', turn_id: 't-vocab', params: { setup: 'VCP' } })])
+    expect(out.text.startsWith("VCP — from UCT's setup template (the approved playbook):\nWhat it is: A base whose pullbacks contract from left to right.")).toBe(true)
+    expect(out.text).toContain('Entry: a break above the pivot of the last contraction')
+    expect(out.text).toContain('Stop: under the low of the last contraction')
+    expect(out.text).toContain(APPLY)
+    expect(out.text.endsWith(FOOTER)).toBe(true)
+    expect(out.link).toEqual({ href: '/setups/vcp', label: 'Open the Setup Library' })
+  })
+  it('a template the guard would replace is never shown: the approved passage (cited) answers instead', async () => {
+    await bootBoth({ play: playEnv({ ...TEMPLATE, entry_triggers: ['buy it now, guaranteed'] }) })
+    const out = await explainConcept('VCP', host())
+    expect(out.text).toBe(`${LEAD}\n\n${FOOTER}`)
+  })
+  it('only knowledge.search served: the passage leads; a related concept note follows ONLY as labelled generic background', async () => {
+    await bootBoth({ kinds: ['bars.daily', BRAIN_KIND] })
+    const out = await explainConcept('Stage 2 Breakout', host())
+    expect(dataCalls.map(c => c.kind)).toEqual([BRAIN_KIND])
+    expect(out.text).toBe(`${LEAD}\n\nGeneric background (not UCT's definition of Stage 2 Breakout): ${CONCEPTS[0].text}\n\n${FOOTER}`)
+  })
+  it('neither kind served: no read; the coach says where the definition lives and never presents a note as the setup', async () => {
+    await bootBoth({ kinds: ['bars.daily'] })
+    const related = await explainConcept('Stage 2 Breakout', host())
+    expect(dataCalls).toEqual([])
+    expect(related.text).toBe(`UCT's own definition of Stage 2 Breakout lives in the approved setup playbook, which isn't available here right now — what follows is generic background, not that definition.\n\n${CURATED}`)
+    const none = await explainConcept('VCP', host())
+    expect(none.text).toBe(`UCT's own definition of VCP lives in the approved setup playbook, which isn't available here right now. ${FOOTER}`)
+  })
+  it('a non-setup coaching topic is unchanged by the playbook kind (no setup.playbook read)', async () => {
+    await bootBoth({ kinds: ['bars.daily', PLAYBOOK_KIND] })
+    expect((await explainConcept('failed breakout', host())).text).toBe(CURATED)
+    expect(dataCalls).toEqual([])
+  })
+})
+
+describe('N5 — the 13 coach concept docs stay generic education: none names a UCT setup template', () => {
+  it('no concept title, alias or text uses a canonical template name', async () => {
+    const real = SLUGS.map(s => fs.readFileSync(path.join(COACH_DOCS, 'concepts', `${s}.md`), 'utf8'))
+    for (const [i, raw] of real.entries()) for (const part of raw.split(/[.\n]/)) expect(setupNamed(part), `${SLUGS[i]}: ${part}`).toBe(null)
+    expect(conceptsLoaded).toBeTypeOf('function')
+  })
+})

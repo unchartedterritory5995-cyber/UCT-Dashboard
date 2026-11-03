@@ -307,3 +307,8 @@ def test_no_concept_claims_a_wisdom_setup_word_or_a_bare_generic_alias():
         assert not set(c["aliases"]) & set(GENERIC), (c["id"], sorted(set(c["aliases"]) & set(GENERIC)))
     for words in ("add volume", "move my stop", "show breadth", "rs", "flag", "gap and go"):
         assert concepts.concept_for(words, rows) is None, words
+
+
+def test_n5_the_coach_block_sends_setups_to_the_playbook():
+    r = prompt.RULES
+    assert "UCT SETUPS COME FROM THE PLAYBOOK" in r and "never write your own definition of a setup" in r

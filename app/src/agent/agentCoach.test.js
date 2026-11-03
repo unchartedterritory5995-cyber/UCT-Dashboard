@@ -126,10 +126,15 @@ describe('with the server serving coach', () => {
     for (const said of ['what is RSI?', 'explain MACD', 'change the chart to weekly', 'hello']) expect(conceptFor(coachTopic(said) || said)).toBe(null)
   })
 
-  it('🔴 the fast path answers a concept question instantly, and leaves UCT’s own terms to the guide', () => {
-    const hit = fastParse('what is a failed breakout?', { host: host() })
-    expect(hit?.kind).toBe('ops')
-    expect(hit.ops[0].action).toBe('coach.explain')
+  it('🔴 the fast path answers a COACHING phrasing instantly (N5), not a bare question, and leaves UCT’s own terms to the guide', () => {
+    for (const said of ['coach me on failed breakouts', 'teach me about failed breakouts', 'quiz me on stop placement', 'walk me through position sizing',
+      'help me understand how to apply relative strength']) {
+      const hit = fastParse(said, { host: host() })
+      expect(hit?.kind, said).toBe('ops')
+      expect(hit.ops[0].action, said).toBe('coach.explain')
+    }
+    // N5: a bare concept / setup question is not the coach's instant answer (the playbook group / the model decide)
+    for (const said of ['what is a failed breakout?', 'what is a VCP?']) expect(fastParse(said, { host: host() })?.ops?.[0]?.action ?? null, said).not.toBe('coach.explain')
     // "what is RSI" names a catalog indicator: guide.explain's (instant) — never the coach's
     const rsi = fastParse('what is RSI?', { host: host() })
     expect(rsi?.ops?.[0]?.action ?? null).not.toBe('coach.explain')

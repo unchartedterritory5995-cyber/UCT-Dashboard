@@ -66,6 +66,24 @@ curated coach note follows as the generic background. The combined text passes t
 inputs are exactly the passage and the note); if the guard would replace it, if the read is refused, empty or
 fails, or if the kind is not served, the answer is exactly the curated note as before.
 
+### Owner decision N5 (2026-11-03): named setups are taught FROM the playbook
+
+The approved UCT playbook (`setup.playbook`, `knowledge.search`) and the Wisdom vocabulary are authoritative for
+setup definitions and methodology. The coach does educational interpretation, interactive teaching and helping the
+member apply those definitions — **no competing setup definitions**.
+
+- When the topic names one of the 48 templates (`coach/brain.js` `setupNamed`; EP and PEG only in capitals),
+  `coach.explain` reads `setup.playbook` (when served) and teaches FROM the template: its own fields (what it is,
+  entry, stop, invalidation, common mistakes), cited as UCT's setup template with the Setup Library link, then an
+  "Applying it" paragraph. Not served / refused / guard-replaced → the approved `knowledge.search` passage (cited);
+  a related concept note may follow only labelled "Generic background (not UCT's definition of …)". Neither kind
+  served → the coach says the definition lives in the playbook and never presents a note as the setup.
+- The 13 concept docs stay generic education (price action, volume, risk, sizing, market conditions …): a test
+  fails if any concept file names a canonical template.
+- Routing: the coach group's words and the `coach.explain` fast path cover COACHING phrasings ("coach me on",
+  "teach me", "help me understand how to apply", "quiz me on", "walk me through"), not bare "what is X?" questions —
+  those belong to the playbook group (agent-kn). The server coach block tells the model the same.
+
 ## Keeping it honest
 
 - The template names are checked against this file by `app/src/agent/agentCoachVocab.test.js`: every name in
