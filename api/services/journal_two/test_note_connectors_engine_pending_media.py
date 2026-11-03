@@ -337,3 +337,32 @@ async def test_retries_are_capped_per_pass_stalest_first(db, monkeypatch):
     p = Fake([], refs)
     await _pass(monkeypatch, src, p, full=True)
     assert p.fetched == ["B"]
+
+
+# ── C1: who opts in, read from the classes themselves ────────────────────────────────
+
+def _provider_classes() -> dict[str, type]:
+    import importlib
+    import pkgutil
+
+    from api.services.journal_two.note_connectors import providers
+    for mod in pkgutil.iter_modules(providers.__path__):
+        importlib.import_module(f"{providers.__name__}.{mod.name}")
+    out: dict[str, type] = {}
+    stack = list(NoteProvider.__subclasses__())
+    while stack:
+        cls = stack.pop()
+        stack.extend(cls.__subclasses__())
+        if cls.__module__.startswith(providers.__name__):
+            out[cls.__name__] = cls
+    return out
+
+
+def test_only_evernote_opts_in_to_listing_independent_fetch_and_raster_promotion():
+    """C1 and concern 5: both flags are per-provider declarations. Every provider but Evernote
+    keeps the defaults (False), so a widened default would show here before it reached OneNote."""
+    classes = _provider_classes()
+    assert {"EvernoteProvider", "OneNoteProvider", "OneDriveProvider", "DropboxProvider", "NotionProvider"} <= set(classes)
+    declared = {name: (cls.fetch_is_listing_independent, cls.promote_raster_files) for name, cls in classes.items()}
+    assert {n for n, flags in declared.items() if any(flags)} == {"EvernoteProvider"}
+    assert declared["EvernoteProvider"] == (True, True)

@@ -108,3 +108,11 @@ async def test_octet_stream_svg_stays_a_file(db, monkeypatch):
 
 async def test_other_providers_keep_their_file_intent(db, monkeypatch):
     assert await _stored_kinds(monkeypatch, NotOptedIn(_png())) == [("attachmentChip", "png")]
+
+
+async def test_a_heic_typed_octet_stream_stays_a_file(db, monkeypatch):
+    """Raster SIGNATURES only (PNG, JPEG, GIF, WebP): a HEIC would be converted and inlined by the
+    image policy, but its bytes carry no plain raster signature, so content-wins leaves it a file."""
+    from api.services.journal_two.note_connectors.corpora.corpora_gen import HEIC_FIXTURE
+    kinds = [kind for kind, _ext in await _stored_kinds(monkeypatch, FileNote(HEIC_FIXTURE.read_bytes()))]
+    assert kinds == ["attachmentChip"]
