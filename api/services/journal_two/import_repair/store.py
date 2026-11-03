@@ -83,7 +83,10 @@ def log_note(conn: sqlite3.Connection, run_id: str, user_id: str, note_id: str, 
 def log_started(conn: sqlite3.Connection, run_id: str, user_id: str, note_id: str, shapes: dict,
                 actions: list, before_body_json: str) -> None:
     """C7: the `repair_started` row holding the body about to be replaced. COMMITS, so the undo
-    copy is durable before the write; the note's outcome row, logged after, supersedes it."""
+    copy is durable before the write; the note's outcome row, logged after, supersedes it.
+    Without a body there is no undo copy: ValueError (fix round 1, M-3)."""
+    if not isinstance(before_body_json, str) or not before_body_json.strip():
+        raise ValueError("log_started needs the body about to be replaced")
     _insert_log(conn, run_id, user_id, note_id, STARTED, shapes, actions, before_body_json)
     conn.commit()
 

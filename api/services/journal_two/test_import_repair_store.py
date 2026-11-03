@@ -170,6 +170,14 @@ def test_the_started_row_is_committed_first_and_the_outcome_supersedes_it(conn):
     assert store.latest_outcome(conn, "run-2", "n1") is None
 
 
+@pytest.mark.parametrize("body", [None, "", "   "])
+def test_the_started_row_needs_a_body(conn, body):
+    """Fix round 1, M-3: an "undo copy" with no body would look like C7 was honoured."""
+    with pytest.raises(ValueError):
+        store.log_started(conn, RUN, "u1", "n1", {}, [], body)
+    assert conn.execute("SELECT COUNT(*) FROM j2_import_repair_log").fetchone()[0] == 0
+
+
 def test_latest_outcome_is_an_index_seek(conn):
     """Fix round 1, M-1: called per note on resume, so it must not scan the run's rows."""
     plan = " ".join(r[3] for r in conn.execute(
