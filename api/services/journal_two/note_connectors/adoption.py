@@ -9,6 +9,9 @@ matched against the member's file-imported rows of the same app:
 - several matches: the one whose whitespace-collapsed plain text hashes the same as the incoming
   note's wins. Exactly one survivor is adopted; none or several means no adoption, the note imports
   as new, and a failure names the title;
+- several LIVE notes of one title and minute in a call: each adopts only on a body-hash match that
+  is unique both ways (one row, one live note). The rest import as new and the title is named:
+  listing order never decides which note a row becomes;
 - a file row is adopted at most once per pass.
 
 Adoption is one timestamp-neutral `UPDATE` that moves the row onto the live key. It never touches
@@ -80,9 +83,15 @@ def adopt_file_imports(
     candidates: list[tuple[str, RemoteNote]], *, pass_state: dict | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """`candidates` are `(live_key, rn)` pairs no non-trashed row holds yet. Returns
-    `(adopted, failures)`: `adopted` is `[{"fromKey", "toKey", "noteId"}]`, `failures` is Plan D's
-    `failures_json` shape, one `{noteTitle, reason, name: None}` per ambiguous title. The caller
-    commits.
+    `(adopted, failures)`: `adopted` is `[{"fromKey", "toKey", "noteId"}]`,
+    `failures` is Plan D's `failures_json` shape, one `{noteTitle, reason, name: None}` per
+    ambiguous title. The caller commits.
+
+    The call's candidates are grouped by (stored title, created minute) first (Task 8 review I1):
+    with ONE live note in a group, today's rule (one row adopts; several rows tie-break on the
+    body hash); with TWO OR MORE, a live note adopts a row only when the pair is a unique body-hash
+    match both ways, and every live note or row left unpaired names the title. Listing order
+    never decides which live note gets a row.
 
     `pass_state` (one dict per sync pass, the engine's) carries what this pass already adopted and
     named across import chunks: in a later chunk the adopted row holds a live key and is no longer a
@@ -94,46 +103,68 @@ def adopt_file_imports(
     state = pass_state if pass_state is not None else {}
     adopted_marks: set = state.setdefault("adopted", set())  # (stored title, minute) adopted
     named: set[str] = state.setdefault("named", set())
+
+    def name(title: str, reason: str | None = None) -> None:
+        if title not in named:
+            named.add(title)
+            failures.append({"noteTitle": title, "reason": reason or ambiguous_reason(title),
+                             "name": None})
+
     # Task 8 review (concern 1): the live title goes through the file importer's OWN rule (strip,
     # cut to MAX_TITLE_CHARS) before comparing, so a long-titled `.enex` note adopts.
     by_title = _file_rows_by_title(
         conn, user_id, import_source, [import_title(rn.title) for _k, rn in candidates])
-    used: set[str] = set()
+    groups: dict[tuple[str, datetime], list[tuple[str, RemoteNote, str]]] = {}
     for live_key, rn in candidates:
         title = (rn.title or "").strip()
         minute = _minute(rn.created_at)
         if not title or minute is None:
             continue
-        same = [row for row in by_title.get(import_title(rn.title), [])
-                if _minute(row["created_at"]) == minute]
-        matches = [row for row in same if row["id"] not in used]
-        if not matches:
-            if (same or (import_title(rn.title), minute) in adopted_marks) and title not in named:
+        groups.setdefault((import_title(rn.title), minute), []).append((live_key, rn, title))
+
+    for (stored_title, minute), lives in groups.items():
+        rows = [row for row in by_title.get(stored_title, []) if _minute(row["created_at"]) == minute]
+        if not rows:
+            if (stored_title, minute) in adopted_marks:
                 # Task 8 review (concern 4): every matching file row was already adopted this pass
-                # by another live note. This one imports as new, and is named, never silently.
-                named.add(title)
-                failures.append({"noteTitle": title, "reason": ambiguous_reason(title), "name": None})
+                # by another live note. These import as new, and are named, never silently.
+                for _k, _rn, title in lives:
+                    name(title)
             continue
-        if len(matches) > 1:
-            remote_hash = _text_hash(extract_plain_text(rn.doc))
-            matches = [row for row in matches if _text_hash(row["body_plain"]) == remote_hash]
-        if len(matches) != 1:
-            if title not in named:
-                named.add(title)
-                failures.append({"noteTitle": title, "reason": ambiguous_reason(title), "name": None})
-            continue
-        row = matches[0]
-        stored_rev = row["import_remote_rev"]
-        same_instant = (rn.updated_at and _second(stored_rev) is not None
-                        and _second(stored_rev) == _second(rn.updated_at))
-        new_rev = rn.updated_at if same_instant else stored_rev
-        cur = conn.execute(
-            "UPDATE j2_notes SET import_key = ?, import_remote_rev = ? "
-            "WHERE id = ? AND user_id = ? AND import_key = ?",
-            (live_key, new_rev, row["id"], user_id, row["import_key"]),
-        )
-        if cur.rowcount == 1:
-            used.add(row["id"])
-            adopted_marks.add((import_title(rn.title), minute))
-            adopted.append({"fromKey": row["import_key"], "toKey": live_key, "noteId": row["id"]})
+        pairs: list[tuple[str, RemoteNote, str, sqlite3.Row]] = []
+        if len(lives) == 1:
+            live_key, rn, title = lives[0]
+            matches = rows
+            if len(matches) > 1:
+                remote_hash = _text_hash(extract_plain_text(rn.doc))
+                matches = [row for row in matches if _text_hash(row["body_plain"]) == remote_hash]
+            if len(matches) != 1:
+                name(title)
+                continue
+            pairs.append((live_key, rn, title, matches[0]))
+        else:
+            row_hash = {row["id"]: _text_hash(row["body_plain"]) for row in rows}
+            live_hash = [_text_hash(extract_plain_text(rn.doc)) for _k, rn, _t in lives]
+            for (live_key, rn, title), h in zip(lives, live_hash):
+                matches = [row for row in rows if row_hash[row["id"]] == h]
+                if len(matches) == 1 and live_hash.count(h) == 1:
+                    pairs.append((live_key, rn, title, matches[0]))
+            paired_rows = {row["id"] for *_x, row in pairs}
+            paired_keys = {k for k, *_x in pairs}
+            if any(k not in paired_keys for k, _rn, _t in lives) or any(
+                    row["id"] not in paired_rows for row in rows):
+                name(lives[0][2])
+        for live_key, rn, title, row in pairs:
+            stored_rev = row["import_remote_rev"]
+            same_instant = (rn.updated_at and _second(stored_rev) is not None
+                            and _second(stored_rev) == _second(rn.updated_at))
+            new_rev = rn.updated_at if same_instant else stored_rev
+            cur = conn.execute(
+                "UPDATE j2_notes SET import_key = ?, import_remote_rev = ? "
+                "WHERE id = ? AND user_id = ? AND import_key = ?",
+                (live_key, new_rev, row["id"], user_id, row["import_key"]),
+            )
+            if cur.rowcount == 1:
+                adopted_marks.add((stored_title, minute))
+                adopted.append({"fromKey": row["import_key"], "toKey": live_key, "noteId": row["id"]})
     return adopted, failures

@@ -233,11 +233,13 @@ async def test_a_long_title_adopts_through_the_file_importers_own_truncation(tmp
 
 
 async def test_two_live_notes_matching_one_file_row_name_the_second(tmp_db, monkeypatch):
-    """Task 8 concern 4: one file row, two live notes of its title and minute. The first adopts it;
-    the second imports as new and is NAMED as ambiguous, never silently."""
+    """Task 8 concern 4: one file row, two live notes of its title and minute. The one whose body
+    is the row's adopts it (I1: by body, never by order); the other imports as new and is NAMED as
+    ambiguous, never silently."""
     key = _enex()
     file_id = _rows()[0]["id"]
-    result, src = await _sync(tmp_db, monkeypatch, LiveEvernote([_rn(guid="G"), _rn(guid="H")]))
+    result, src = await _sync(tmp_db, monkeypatch, LiveEvernote([
+        _rn(guid="G"), _rn(guid="H", text="something else")]))
     rows = _rows()
     assert {r["import_key"] for r in rows} == {LIVE, enml.live_import_key("H")}
     assert next(r for r in rows if r["import_key"] == LIVE)["id"] == file_id and key not in {
@@ -246,6 +248,58 @@ async def test_two_live_notes_matching_one_file_row_name_the_second(tmp_db, monk
     assert 'adoption ambiguous: "Plan"' in result["failures"]
     assert json.loads(_log_rows(src["id"])[-1]["failures_json"]) == [
         {"noteTitle": "Plan", "reason": 'adoption ambiguous: "Plan"', "name": None}]
+
+
+async def test_one_file_row_two_live_notes_the_body_twin_adopts_not_the_first_listed(tmp_db, monkeypatch):
+    """Task 8 review I1, the reviewer's reproduction: one `.enex` row "Plan" with body "alpha";
+    live X ("beta") is listed BEFORE live Y ("alpha"). Y is the row's twin and must hold it; X
+    imports as new, and X's text never overwrites the row."""
+    _enex(text="alpha")
+    file_id = _rows()[0]["id"]
+    x_key, y_key = enml.live_import_key("X"), enml.live_import_key("Y")
+    result, _src = await _sync(tmp_db, monkeypatch, LiveEvernote([
+        _rn(guid="X", text="beta"), _rn(guid="Y", text="alpha")]))
+    rows = {r["import_key"]: r for r in _rows()}
+    assert set(rows) == {x_key, y_key}
+    assert rows[y_key]["id"] == file_id and rows[y_key]["body_plain"].strip() == "alpha"
+    assert rows[x_key]["id"] != file_id and rows[x_key]["body_plain"].strip() == "beta"
+    assert result["adopted"] == 1 and result["created"] == 1
+    assert 'adoption ambiguous: "Plan"' in result["failures"]
+
+
+async def test_two_live_notes_and_no_body_match_adopt_nothing_and_name_the_title(tmp_db, monkeypatch):
+    key = _enex(text="alpha")
+    file_id = _rows()[0]["id"]
+    result, _src = await _sync(tmp_db, monkeypatch, LiveEvernote([
+        _rn(guid="X", text="beta"), _rn(guid="Y", text="gamma")]))
+    rows = {r["import_key"]: r for r in _rows()}
+    assert set(rows) == {key, enml.live_import_key("X"), enml.live_import_key("Y")}
+    assert rows[key]["id"] == file_id and rows[key]["body_plain"].strip() == "alpha"
+    assert result["adopted"] == 0 and result["created"] == 2
+    assert result["failures"].count('adoption ambiguous: "Plan"') == 1
+
+
+async def test_two_live_notes_with_the_same_body_as_the_row_adopt_nothing(tmp_db, monkeypatch):
+    """Both live notes are body twins of the one row: no unique pair, so neither adopts it."""
+    key = _enex()
+    result, _src = await _sync(tmp_db, monkeypatch, LiveEvernote([_rn(guid="G"), _rn(guid="H")]))
+    assert {r["import_key"] for r in _rows()} == {key, LIVE, enml.live_import_key("H")}
+    assert result["adopted"] == 0 and result["created"] == 2
+    assert 'adoption ambiguous: "Plan"' in result["failures"]
+
+
+async def test_two_rows_two_live_notes_pair_by_body_regardless_of_order(tmp_db, monkeypatch):
+    k1 = _enex(text="alpha", key="evernote:A/Plan/x")
+    k2 = _enex(text="beta", key="evernote:B/Plan/x")
+    ids = {r["import_key"]: r["id"] for r in _rows()}
+    x_key, y_key = enml.live_import_key("X"), enml.live_import_key("Y")
+    result, _src = await _sync(tmp_db, monkeypatch, LiveEvernote([
+        _rn(guid="X", text="beta"), _rn(guid="Y", text="alpha")]))
+    rows = {r["import_key"]: r for r in _rows()}
+    assert set(rows) == {x_key, y_key}
+    assert rows[x_key]["id"] == ids[k2] and rows[y_key]["id"] == ids[k1]
+    assert result["adopted"] == 2 and result["created"] == 0
+    assert not any("adoption ambiguous" in f for f in result["failures"])
 
 
 async def test_the_second_live_match_is_named_across_import_chunks_too(tmp_db, monkeypatch):
