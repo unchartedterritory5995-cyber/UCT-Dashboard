@@ -137,8 +137,9 @@ export const indicatorAlertLibraryKind = {
     }
     const created = {}
     for (const [i, c] of patch.create.entries()) {
-      // EXACTLY the popover's payload (IndicatorAlertPopover.handleAdd): sym, indicator (the PLOT address), condition,
-      // tf, params when the plot has inputs, instance_id; threshold when the condition needs one; no scope = global
+      // the SAME SHAPE as the popover's payload (IndicatorAlertPopover.handleAdd): sym, indicator (the PLOT address), condition,
+      // tf, params when the plot has inputs (the INSTANCE's own inputs for the plot's declared knobs — not the popover's
+      // catalog defaults), instance_id; threshold when the condition needs one; no scope = global
       const payload = { sym: c.sym, indicator: c.indicator, condition: c.condition, tf: c.tf, ...(c.params ? { params: c.params } : {}), instance_id: c.instanceId, ...(c.threshold != null ? { threshold: c.threshold } : {}) }
       let res
       try { res = await src.create(payload) } catch (e) { res = { ok: false, error: e?.message || 'error' } }
