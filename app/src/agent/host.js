@@ -206,7 +206,9 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         ref: 'workspace', label: 'Workspace',
         widgets: all.map(w => ({
           id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h, color: w.color,
-          optsSig: JSON.stringify(w.opts ?? null),
+          // a null opts key is the same widget as an absent one (an Undo that restores a chart's never-persisted
+          // settings writes `settings: null`) — so it never reads as a later edit to the stale-undo check
+          optsSig: JSON.stringify(w.opts ? Object.fromEntries(Object.entries(w.opts).filter(([, v]) => v != null)) : null),
         })),
         visible: visible.map(w => ({ id: w.id, type: w.type, position: positionWord(w, visible) || null })),
         count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits, fitsSequence, capacity, groupPlan,
