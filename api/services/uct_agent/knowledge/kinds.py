@@ -430,7 +430,12 @@ def record(params: dict, ctx: dict) -> dict:
         triggers = {"label": "stale_record", "label_text": "the record has not been refreshed recently; figure withheld",
                     "method": triggers["method"]}
     data = {"setup": name, "regime": regime, "engine": engine, "triggers": triggers, "caution": stats.CAUTION}
-    arch = stats.archive_block(w.get("team_archive"), n_min)
+    rec_a = w.get("team_archive") if isinstance(w.get("team_archive"), dict) else None
+    a_as_of = next((str(rec_a[k]) for k in ("as_of", "through", "updated_at") if rec_a and rec_a.get(k)), None)
+    arch = stats.archive_block(rec_a, n_min, as_of=a_as_of)
+    if arch and a_as_of and _stale({"updated_at": a_as_of}) and arch["label"] not in ("insufficient_sample", "undated_record"):
+        arch = {"label": "stale_record", "label_text": "the record has not been refreshed recently; figure withheld",
+                "n": arch.get("n"), "method": arch["method"], "as_of": a_as_of}
     if arch:
         arch["scope"] = "all market conditions (the archive's own cut; not filtered by the regime asked)"
         data["team_archive"] = arch

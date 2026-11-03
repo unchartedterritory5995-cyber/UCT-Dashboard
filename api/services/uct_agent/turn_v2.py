@@ -213,6 +213,10 @@ def step_result_text(cap: dict | None, res: dict) -> tuple[str, bool]:
             return ISOLATED_NOTE, False
         r = res.get("result")
         body = _clean(r if isinstance(r, str) else json.dumps(r, separators=(",", ":"), ensure_ascii=False, default=str))
+        if body and cap is not None:
+            from api.services.uct_agent.knowledge import frame as kn_frame   # KN-1 review B2
+            if kn_frame.is_knowledge_action(cap.get("name")):
+                return f"result: {kn_frame.frame(body)}", False
         return f"result: {body}" if body else "result shown to the member", False
     if status == "proposed":
         return "proposed: waiting for the member's approval", False

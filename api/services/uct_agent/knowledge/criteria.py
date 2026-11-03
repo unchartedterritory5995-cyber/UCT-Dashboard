@@ -77,6 +77,8 @@ def condition_errors(c: Any) -> list[str]:
     if not isinstance(c.get("assumptions", []), list):
         e.append(f"{cid}: assumptions must be a list")
     if c.get("blocked"):
+        if c.get("measurable") is not None or c.get("value") is not None:
+            e.append(f"{cid}: a blocked condition carries no measurable and no value (F-16 names never ride along)")
         return e                                   # a blocked condition carries its reason instead of a measure
     if c.get("measurable") not in MEASURABLES:
         e.append(f"{cid}: measurable {c.get('measurable')!r} is not in the closed list")

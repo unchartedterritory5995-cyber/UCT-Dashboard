@@ -57,6 +57,10 @@ def classify(source: Optional[str]) -> dict:
     """{state, licence, label, reason} for one source string. Never raises."""
     pol = load()
     s = str(source or "").strip()
+    for pc in pol.get("prefix_classes") or []:      # review N2: an excluded prefix wins over any named key
+        if isinstance(pc, dict) and s.startswith(str(pc.get("prefix") or "\0")):
+            return {"state": "excluded", "licence": pc.get("licence") or "unresolved", "label": s,
+                    "reason": pc.get("reason") or "excluded by policy"}
     row = pol.get("sources", {}).get(s)
     if isinstance(row, dict):
         if row.get("admit") is True:
@@ -64,16 +68,14 @@ def classify(source: Optional[str]) -> dict:
                     "label": row.get("label") or s, "reason": ""}
         return {"state": "pending", "licence": row.get("licence") or "unresolved",
                 "label": row.get("label") or s, "reason": row.get("pending") or "not approved"}
-    for pc in pol.get("prefix_classes") or []:
-        if isinstance(pc, dict) and s.startswith(str(pc.get("prefix") or "\0")):
-            return {"state": "excluded", "licence": pc.get("licence") or "unresolved", "label": s,
-                    "reason": pc.get("reason") or "excluded by policy"}
     return {"state": "unknown", "licence": "unresolved", "label": s or "(blank)",
             "reason": "a source the policy does not list (default-deny)"}
 
 
 def admitted_sources() -> list[str]:
-    return sorted(k for k, v in load().get("sources", {}).items() if isinstance(v, dict) and v.get("admit") is True)
+    """Admitted keys, re-checked through classify() so a key under an excluded prefix can never be admitted."""
+    return sorted(k for k, v in load().get("sources", {}).items()
+                  if isinstance(v, dict) and v.get("admit") is True and classify(k)["state"] == "admitted")
 
 
 def excluded_categories() -> set[str]:

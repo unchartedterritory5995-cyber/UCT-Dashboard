@@ -14,7 +14,9 @@ CAUTION = ("Historical, descriptive figures; not a forecast and not advice. UCT'
 LABELS = {
     "insufficient_sample": "not enough sample to state a figure",
     "descriptive_uncontrolled": "descriptive record, not compared with a base rate (not evidence of an edge)",
-    "measured_edge_controlled": "measured edge versus the same stock on random days (|z| >= 3 on enough calls)",
+    "measured_edge_controlled": "measured OUTPERFORMANCE versus the same stock on random days (z >= +3 on enough calls)",
+    "measured_underperformance_controlled": "measured UNDERPERFORMANCE versus the same stock on random days (z <= -3 on enough calls)",
+    "undated_record": "the record carries no refresh date; figure withheld",
     "not_proven": "no measured edge versus the base rate",
 }
 
@@ -63,32 +65,40 @@ def engine_block(perf: Optional[dict], n_min: int, method: str) -> dict:
     return out
 
 
-def archive_block(rec: Optional[dict], n_min: int) -> Optional[dict]:
-    """The team archive's verdict block (control-relative), floored; None when the archive has no record."""
+ARCHIVE_STATS_KEY = "all_calls"     # wisdom/archive/team_record._setup_payload: every call of the setup
+
+
+def archive_block(rec: Optional[dict], n_min: int, as_of: Optional[str] = None) -> Optional[dict]:
+    """The team archive's verdict block (control-relative), floored, SIGNED; None when the archive has no record.
+
+    The stats block is chosen BY NAME (`all_calls`). The archive's verdict "measured edge" means |z| >= 3, so the sign
+    of edge_z decides the label: positive -> outperformance, negative -> UNDERPERFORMANCE, unknown sign -> not_proven.
+    The archive record carries no refresh date today: without `as_of` the figures are withheld (undated = stale)."""
     if not isinstance(rec, dict):
         return None
-    st = None
-    for v in rec.values():
-        if isinstance(v, dict) and "n_scored" in v:
-            st = v
-            break
-    if st is None and "n_scored" in rec:
-        st = rec
-    if not st:
+    st = rec.get(ARCHIVE_STATS_KEY)
+    if not isinstance(st, dict) or "n_scored" not in st:
         return None
+    method = "the team's posted calls vs the same stock on random days (control-relative, 20-session horizon)"
     n = int(_num(st.get("n_scored")) or 0)
     if n < n_min:
         return {"label": "insufficient_sample", "label_text": LABELS["insufficient_sample"], "n": n or None,
-                "n_min": n_min, "method": "the team's posted calls, outcomes measured after the fact"}
+                "n_min": n_min, "method": method}
+    if not as_of:
+        return {"label": "undated_record", "label_text": LABELS["undated_record"], "n": n, "method": method}
     verdict = str(st.get("verdict") or "")
-    label = "measured_edge_controlled" if verdict == "measured edge" else "not_proven"
-    out = {"label": label, "label_text": LABELS[label], "n": n,
-           "method": "the team's posted calls vs the same stock on random days (control-relative)"}
+    z = _num(st.get("edgeR_z"))
+    if verdict == "measured edge" and z is not None and z > 0:
+        label = "measured_edge_controlled"
+    elif verdict == "measured edge" and z is not None and z < 0:
+        label = "measured_underperformance_controlled"
+    else:
+        label = "not_proven"
+    out = {"label": label, "label_text": LABELS[label], "n": n, "method": method, "as_of": as_of}
     w = _num(st.get("win20"))
     if w is not None:
         out["win_rate_20d_pct"] = round(w * 100, 1) if w <= 1 else round(w, 1)
         out["win_rate_20d_ci95"] = wilson(int(round(out["win_rate_20d_pct"] * n / 100)), n)
-    z = _num(st.get("edgeR_z"))
     if z is not None:
         out["edge_z"] = round(z, 2)
     return out

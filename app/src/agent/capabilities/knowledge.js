@@ -78,11 +78,12 @@ function recordLine(b) {
   if (!b) return null
   const m = b.method || 'record'
   if (b.label === 'insufficient_sample') return `${m}: not enough sample${b.n ? ` (${b.n} outcomes; UCT states a figure from ${b.n_min})` : ''}, so no figure is stated.`
-  if (b.label === 'stale_record') return `${m}: ${b.label_text}.`
+  if (b.label === 'stale_record' || b.label === 'undated_record') return `${m}: ${b.label_text}.`
   const wr = b.win_rate_pct ?? b.win_rate_20d_pct
   const ci = b.win_rate_ci95 || b.win_rate_20d_ci95
   const fig = wr != null ? `win rate ${pct(wr)}${ci ? ` (95% interval ${ci[0]}–${ci[1]}%)` : ''}` : null
-  return `${m}: n = ${b.n}${fig ? `, ${fig}` : ''}. ${b.label_text}.`
+  const z = typeof b.edge_z === 'number' ? `, z = ${b.edge_z > 0 ? '+' : ''}${b.edge_z}` : ''
+  return `${m}: n = ${b.n}${fig ? `, ${fig}` : ''}${z}. ${b.label_text}.`
 }
 export function answerFromRecord(env) {
   if (!usable(env)) return refusalText(env, "UCT's setup records")

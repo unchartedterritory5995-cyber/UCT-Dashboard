@@ -147,3 +147,23 @@ describe('served vs dark', () => {
     expect(a).toBe("UCT's trading knowledge is never a source of prices; ask for the quote instead.")
   })
 })
+
+describe('review #735 B1: the sign of a controlled edge is always shown', () => {
+  it('a negative measured result reads as underperformance with its negative z', () => {
+    const neg = env('setup.record', { setup: 'Kicker Candle', regime: 'ALL',
+      engine: { label: 'insufficient_sample', label_text: 'not enough sample to state a figure', n: 12, n_min: 30, method: 'engine' },
+      triggers: { label: 'insufficient_sample', label_text: 'not enough sample to state a figure', n: 3, n_min: 30, method: 'triggers' },
+      team_archive: { label: 'measured_underperformance_controlled', label_text: 'measured UNDERPERFORMANCE versus the same stock on random days (z <= -3 on enough calls)',
+        n: 120, win_rate_20d_pct: 41.0, win_rate_20d_ci95: [32.6, 49.9], edge_z: -3.4, method: 'archive' },
+      caution: 'c' })
+    const t = answerFromRecord(neg)
+    expect(t).toContain('z = -3.4')
+    expect(t).toContain('UNDERPERFORMANCE')
+  })
+  it('an undated archive figure is withheld in words', () => {
+    const t = answerFromRecord(env('setup.record', { setup: 'EP', regime: 'ALL', engine: null, triggers: null,
+      team_archive: { label: 'undated_record', label_text: 'the record carries no refresh date; figure withheld', n: 120, method: 'archive' }, caution: 'c' }))
+    expect(t).toContain('archive: the record carries no refresh date; figure withheld.')
+    expect(t).not.toContain('n = 120')
+  })
+})
