@@ -1,8 +1,9 @@
 # Pine parity programme: lane assignments (written ONLY by the laptop coordinator)
 
 Protocol: docs/pine/parity-programme/DESKTOP-PROMPT.md section 2 (branch docs/pine-parity-programme).
-Production / master at writing: f014e73506 · SCRIPT_ENGINE_VERSION 5 (W3 takes 6 at merge; later engine
-merges take the next number in merge order, assigned here).
+Production / master at writing: f014e73506 · SCRIPT_ENGINE_VERSION 5. Engine numbers in merge order: W4-T4 -> 6 (bumped on its branch, LANDING); W3 -> 7;
+later engine merges take the next number, assigned here.
+Plan: DESKTOP-PROMPT.md v2.1 at 7809e3399b (states name the tip they judge: @sha10).
 
 ## Desktop lanes
 | lane | state | notes |
@@ -21,11 +22,11 @@ merges take the next number in merge order, assigned here).
 |---|---|
 | Language scoreboard (docs/pine-language-coverage) | LANDING |
 | W4-T1 classifier honesty (feat/pine-w4-t1-wall-report) | LANDING (review GO) |
-| W4-T4 conditional arms (feat/pine-w4-t4-conditional-arms) | REVIEWING |
+| W4-T4 conditional arms (feat/pine-w4-t4-conditional-arms) | LANDING @311fb46c7a (review GO; engine 6) |
 | W4-T3 text constants | BUILDING |
 | W4-T0 / W0 census peel + attribution | BUILDING |
 | W2 arming packet | BUILDING (round 2) |
-| W3 drawings S1 | BUILDING (round 2) - engine 6 at merge |
+| W3 drawings S1 | BUILDING (round 2) - engine 7 at merge |
 | W5-T3 codec | FIX round in progress |
 | E evidence-engine lows | BUILDING |
 | W4 docs breakdown | MERGED f014e73506 (#749) |
