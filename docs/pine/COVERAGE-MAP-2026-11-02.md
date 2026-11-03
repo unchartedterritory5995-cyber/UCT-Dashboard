@@ -17,7 +17,8 @@ Inputs:
 - **TradingView v6 reference**: **regenerated today from TradingView's public bundles** with
   `tools/pine_survey/pine_reference_extract.js` (719 functions, 251 methods, 162 variables, 241
   constants; 295 whole-script examples, the same count as the previous map). The rebuilt
-  stand-in (`ref_rebuilt.json`, 288 examples) was **not** needed and not used.
+  stand-in (`ref_rebuilt.json`, 288 examples) was **not** needed for the census or the map; the
+  capture lists were regenerated with it after review (section 9).
 - **Captures**: 336 vendor captures in `tests/fixtures/vendor/harness` (unchanged since 10-31).
 
 Definitions are unchanged from [`COVERAGE-MAP.md` section 1](COVERAGE-MAP.md#1-headline):
@@ -36,14 +37,19 @@ These are door verdicts, not parity verdicts.
 > 10-31 map had 83 rows). No count in this document depends on it. The next W0 re-run, after the
 > next merged waves, measures it with `--engine-door`.
 > Raw census caches and harness outputs are not committed: the reference sources and fetched
-> scripts are licence-held and stay local. The tables regenerate from `coverage-map.json` with
-> `tools/pine_coverage/w0/targets.py` then `gen_md.py` (section 9).
+> scripts are licence-held and stay local. The tables regenerate with
+> `tools/pine_coverage/w0/targets.py` then `gen_md.py` (commands in section 10). The wall and wave
+> lists are a join over `coverage-map.json` alone; the capture lists (section 7) also read the
+> local script sources (through the production cache's `census_input.json`), the TradingView
+> reference and the committed captures, and `gen_md.py` reads the 10-31 map, which this commit
+> replaced (`git show 6272ed7fa3:docs/pine/coverage-map.json`), for the comparison columns.
 
 ## 1. Headline
 
 > **Production lane: 211 of 679 (31.1%) transfer fully, unchanged since 10-31, script for script.**
 > **Runtime-on lane: 250 of 679 (36.8%), up from 239 (+13 gained, -2 lost; runtime attaches 29 -> 41).**
-> **Verified (transfers AND a TradingView capture MATCHes): 45 of 679 (6.6%), unchanged.**
+> **Verified, production lane (transfers AND a TradingView capture MATCHes): 45 of 679 (6.6%), unchanged.**
+> (The runtime-on lane's own count, by its own harness run, is in section 7.)
 
 What this means for ordering:
 - Today's engine-4 work moved **only the runtime lane**. The production door, its walls and the
@@ -99,8 +105,7 @@ Runtime-on gained since 10-31 (13): `builtin:time-weighted-average-price`, `buil
 `reference:market-structure-with-inducements-sweeps-luxalgo`, `reference:non-repainting-swing-highlow-signals`.
 Runtime-on lost since 10-31 (2, both deliberate `runtime:conditional-history` refusals, section 1):
 `builtin:mcginley-dynamic`, `reference:williams-vix-fix-bottoms-and-tops`.
-Two order-placing strategies now attach on the runtime lane (`builtin:parabolic-sar-strategy`,
-`reference:trailing-sl-strategy-quantnomad`); they do not count (no broker simulation, W9).
+Order-placing strategies that attach on the runtime lane: 2 (1 on 10-31). New since 10-31: `trailing-sl-strategy-quantnomad__kvEZ1RweKL`; already on 10-31: `parabolic-sar-strategy__Parabolic1SA`. They never count as transfers (no broker simulation, W9).
 
 Walls fully enumerated: production 215 of 468 non-transferring scripts; runtime-on 166 of 429.
 For the rest the peel stopped (8-step cap, whole-program refusal, no progress), so "sole" /
@@ -180,7 +185,7 @@ Every row is identical to 10-31.
 
 The runtime lane's own wall per peel step (`runtimeOn.walls.byScript`: the probe's guard, else its
 decline code, else `host:<guards>` for a refusal the runtime lane was never offered). Touches over
-the 429 scripts that do not transfer with the pane on.
+the 429 scripts that do not transfer with the pane on; ties in name order.
 
 | # | runtime-lane wall | wave | scripts (touches) |
 |---:|---|---|---:|
@@ -201,38 +206,43 @@ the 429 scripts that do not transfer with the pane on.
 | 15 | `runtime:array` | W6 | 22 |
 | 16 | `host:pine:constant-only` | other | 20 |
 | 17 | `runtime:block-value` | W4 | 16 |
-| 18 | `runtime:request` | W7 | 15 |
+| 18 | `runtime:loop` | W4 | 15 |
 | 19 | `runtime:presentation` | W4 | 15 |
-| 20 | `runtime:loop` | W4 | 15 |
+| 20 | `runtime:request` | W7 | 15 |
 | 21 | `pine:strategy-call` | W9 | 14 |
-| 22 | `runtime:call-windowed-state` | W4 | 12 |
-| 23 | `runtime:call-text-state` | W4 | 12 |
+| 22 | `runtime:call-text-state` | W4 | 12 |
+| 23 | `runtime:call-windowed-state` | W4 | 12 |
 | 24 | `runtime:request-with-state` | W7 | 11 |
 | 25 | `runtime:unbound` | W4 | 11 |
 | 26 | `lower-tf:store-unmeasured` | W7 | 9 |
-| 27 | `runtime:nothing-drawn` | W4 | 8 |
-| 28 | `runtime:colour` | W4 | 8 |
+| 27 | `runtime:colour` | W4 | 8 |
+| 28 | `runtime:nothing-drawn` | W4 | 8 |
 | 29 | `runtime:function-global-state` | W4 | 7 |
 | 30 | `pine:state` | W4 | 6 |
 | 31 | `pine:arity` | W1 | 5 |
-| 32 | `pine:offset-literal` | W4 | 4 |
-| 33 | `pine:type` | W6 | 4 |
-| 34 | `pine:collection` | W6 | 4 |
-| 35 | `runtime:tuple` | W4 | 4 |
-| 36 | `pine:drawing` | W3 | 4 |
-| 37 | `runtime:fill-target` | W4 | 4 |
-| 38 | `pine:window` | W4 | 3 |
-| 39 | `lower-tf:lookahead` | W7 | 3 |
-| 40 | `runtime:directive` | W4 | 3 |
+| 32 | `pine:collection` | W6 | 4 |
+| 33 | `pine:drawing` | W3 | 4 |
+| 34 | `pine:offset-literal` | W4 | 4 |
+| 35 | `pine:type` | W6 | 4 |
+| 36 | `runtime:fill-target` | W4 | 4 |
+| 37 | `runtime:tuple` | W4 | 4 |
+| 38 | `lower-tf:lookahead` | W7 | 3 |
+| 39 | `pine:colour-value` | W4 | 3 |
+| 40 | `pine:member` | W6 | 3 |
 
-**Caveat on `pine:builtin` / `pine:function` in this lane (W1 count).** 122 runtime-on scripts
-carry a missing-name wall, but only **68** of them name a real Pine v6 item; for **54** every missing
-name is a user function, a library alias or a UDT field (`f_security`, `zigzag.newInstance`,
+**Caveat on `pine:builtin` / `pine:function` in this lane (W1 count).** 118 runtime-on scripts carry a missing-name wall (`pine:builtin` or `pine:function` in `runtimeOn.walls.byScript`); the runtime-on W1 count of 122 in section 6 also takes the 4 whose only W1 wall is `pine:arity`.
+
+**Not reproducible from committed data:** the split that follows, and the per-name counts after
+it, were read from the runtime-on census rows (the name each refusal gives), which are not
+committed; `coverage-map.json` keeps only the guard. The split (68 + 54) was taken over the whole
+runtime-on W1 count, not only the missing-name scripts, so it cannot be re-based onto them from
+what is committed either. Only **68** name a real Pine v6 item; for **54** every missing name is a
+user function, a library alias or a UDT field (`f_security`, `zigzag.newInstance`,
 `loxxexpandedsourcetypes.rclose`, `TVta.kama`, `lastH.time`...). Those belong to W4 (user
-functions), W8 (libraries) and W6 (UDT fields), not to W1. Real Pine names the runtime lane
-lacks, by scripts: `time()` forms 16, `barstate.isnew` 5, `chart.left_visible_bar_time` 4,
-`syminfo.type` 4, `timeframe.change` 3, `chart.right_visible_bar_time` 3, `ticker.heikinashi` 3,
-`ta.dmi` 3, `box()`/`line()`/`label()`/`color()` casts 3/3/2/3, `ta.sar` 2, `session.isfirstbar` 2,
+functions), W8 (libraries) and W6 (UDT fields), not to W1. Real Pine names the runtime lane lacks,
+by scripts: `time()` forms 16, `barstate.isnew` 5, `chart.left_visible_bar_time` 4, `syminfo.type`
+4, `timeframe.change` 3, `chart.right_visible_bar_time` 3, `ticker.heikinashi` 3, `ta.dmi` 3,
+`box()`/`line()`/`label()`/`color()` casts 3/3/2/3, `ta.sar` 2, `session.isfirstbar` 2,
 `str.tonumber` 2, `math.e` 2, `interval` 2, `string()` 2, `input.string` (as an input kind) 2,
 then singles (`syminfo.volumetype`, `math.toradians`, ...).
 
@@ -329,21 +339,17 @@ Production-lane walls owned by W1 (blocker, sole, blocks): `[translator-robustne
 `ta.obv`, `timeframe.change`. Since 10-30 the names `fixnan`, `ta.alma`, `ta.cci`, `ta.rci`,
 `ta.tsi`, `ta.nvi`, `ta.pvi`, `ta.accdist`, `ta.percentile_nearest_rank`, `ta.swma` have left the
 production wall list. `fixnan` is now verified (a MATCH capture); the other nine transfer but
-have **no MATCH capture** (section 7.1 lists the captures that verify them).
+have **no MATCH capture in the production harness run** (`ta.alma` has one in the runtime-on run
+only, the `h3-alma-v4` probe); section 7.1 lists the captures that verify them.
 
 ## 7. Captures that convert the most "transfers" into graded MATCH
 
-Only 45 of the 211 production transfers (and of the 250 runtime-on) have a MATCHing capture.
-Three lists, in the order to capture:
+45 of the 211 production transfers have a capture that MATCHes in the production harness run. With the runtime pane on, 54 of the 250 runtime-on transfers have one that MATCHes in the runtime-on run: the same 45, plus 9 that transfer only with the pane on (`adx-and-di-for-v4__932`, `deadband-hysteresis-filter-backquant__3fb3d09595`, `delta-rsi-oscillator-strategy__z4Yj46FVTX`, `fibonacci-dolphintradebot__d93b208611`, `inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c`, `kalman-price-filter-backquant__47a601e4bc`, `parabolic-sar__xoeoPMOWGJ`, `renko-candles-overlay__d76a18d49e`, `wyckoff-accumulation-distribution__d9ae726e21`).
+Every list below judges a script in its own lane: a production transfer by the production run, a script that transfers only with the runtime pane on by the runtime-on run. Three lists, in the order to capture:
 
-**7.1 Greedy over unverified items.** 73 Pine items translate today but have **no MATCH capture
-anywhere** (`supported-unverified`). Each row is the transferring script (either lane, no MATCH
-yet) that verifies the most still-unverified items, then the next. 29 captures cover 49 of the 73
-(the rest are only in scripts that do not transfer, or are ungraded names: `strategy.*`,
-`alert*`, `log.*`, `runtime.*`). Capture on the dedicated rig, RDDT and SPY daily, per
-`docs/pine/capture-procedure.md`.
+**7.1 Greedy over unverified items.** 73 Pine items translate today but have **no MATCH capture in the production harness run** (`supported-unverified`). 9 of them are used by a capture that MATCHes only in the runtime-on run (`barstate.isrealtime`, `display.pane`, `format.price`, `hour`, `line.style_arrow_both`, `line.style_arrow_left`, `minute`, `shape.xcross`, `ta.alma`): that grades the runtime lane's handling of them, not the translator's. Each row is a transferring script (either lane) with no MATCH in its own lane yet that verifies the most still-unverified items, then the next; a runtime-on row does not count those 9. 28 captures cover 48 of the 73. Of the other 25, 6 are ungraded names (`strategy.*`, `alert*`, `log.*`, `runtime.*`: the harness never grades them); 18 are used by no transferring sample script (they translate only in TradingView's own reference examples); 1 is used only by transferring scripts that already MATCH in their own lane (`barstate.isrealtime`: `renko-candles-overlay__d76a18d49e`). Capture on the dedicated rig, RDDT and SPY daily, per `docs/pine/capture-procedure.md`.
 
-| # | script | lane | existing capture | items it would verify first |
+| # | script | lane | existing capture (own lane) | items it would verify first |
 |---:|---|---|---|---|
 | 1 | `reference:fxn-week-and-day-separator__ingZSaBNLa` (FXN - Week and Day Separator) | production | none | `hour`, `minute`, `scale.none`, `syminfo.timezone`, `timeframe.isdwm` |
 | 2 | `builtin:commodity-channel-index__CCI` (Commodity channel index) | production | none | `display.all`, `format.price`, `ta.dev`, `ta.rma`, `ta.vwma` |
@@ -358,24 +364,23 @@ yet) that verifies the most still-unverified items, then the next. 29 captures c
 | 11 | `reference:cm-stochastic-mtf__648` (CM_Stochastic_MTF) | production | none | `ticker.new` |
 | 12 | `committed:linear-regression-channel__jiDgL4o6Qx` (Linear Regression Channel) | runtime-on | none | `array.new_color` |
 | 13 | `reference:average-true-range-stop-loss-finder__d48234236f` (Average True Range Stop Loss Finder) | production | none | `table.cell_set_text_color` |
-| 14 | `committed:delta-rsi-oscillator-strategy__z4Yj46FVTX` (Delta-RSI Oscillator Strategy) | runtime-on | INCONCLUSIVE | `shape.xcross` |
-| 15 | `committed:renko-candles-overlay__d76a18d49e` (Renko Candles Overlay) | runtime-on | INCONCLUSIVE | `barstate.isrealtime` |
-| 16 | `reference:pivot-points-high-low-hhhllhll-anan__b04lNFHeme` (Pivot Points High Low (HH/HL/LH/LL) [Anan] ) | production | none | `last_bar_index` |
-| 17 | `reference:cog-double-channel-lazybear__7` (COG Double Channel [LazyBear]) | production | none | `ta.median` |
-| 18 | `committed:wyckoff-accumulation-distribution__d9ae726e21` (Wyckoff Accumulation Distribution) | runtime-on | INCONCLUSIVE | `display.pane` |
-| 19 | `reference:liquidation-screener__jwAtEwngOd` (Liquidation Screener) | production | none | `ta.mode` |
-| 20 | `builtin:aroon__Aroon` (Aroon) | production | none | `format.percent` |
-| 21 | `builtin:chaikin-oscillator__Chaikin_Osci` (Chaikin oscillator) | production | none | `ta.accdist` |
-| 22 | `builtin:choppiness-index__Choppiness_I` (Choppiness index) | production | none | `math.log10` |
-| 23 | `builtin:median__Median` (Median) | production | none | `ta.percentile_nearest_rank` |
-| 24 | `builtin:money-flow-index__Money_Flow` (Money flow index) | production | none | `ta.mfi` |
-| 25 | `builtin:rank-correlation-index__Rank_Correla` (Rank correlation index) | production | none | `ta.rci` |
-| 26 | `builtin:relative-vigor-index__Relative_Vig` (Relative vigor index) | production | none | `ta.swma` |
-| 27 | `builtin:smi-ergodic-indicator__SMI_Ergodic_` (SMI ergodic indicator) | production | none | `ta.tsi` |
-| 28 | `builtin:supertrend__Supertrend` (Supertrend) | production | none | `ta.supertrend` |
-| 29 | `builtin:trend-strength-index__Trend1Streng` (Trend strength index) | production | none | `ta.correlation` |
+| 14 | `reference:pivot-points-high-low-hhhllhll-anan__b04lNFHeme` (Pivot Points High Low (HH/HL/LH/LL) [Anan] ) | production | none | `last_bar_index` |
+| 15 | `reference:cog-double-channel-lazybear__7` (COG Double Channel [LazyBear]) | production | none | `ta.median` |
+| 16 | `reference:liquidation-screener__jwAtEwngOd` (Liquidation Screener) | production | none | `ta.mode` |
+| 17 | `committed:mcclellan-indicators__29fdf0235d` (McClellan Indicators) | production | DIVERGE | `shape.xcross` |
+| 18 | `builtin:aroon__Aroon` (Aroon) | production | none | `format.percent` |
+| 19 | `builtin:chaikin-oscillator__Chaikin_Osci` (Chaikin oscillator) | production | none | `ta.accdist` |
+| 20 | `builtin:choppiness-index__Choppiness_I` (Choppiness index) | production | none | `math.log10` |
+| 21 | `builtin:median__Median` (Median) | production | none | `ta.percentile_nearest_rank` |
+| 22 | `builtin:money-flow-index__Money_Flow` (Money flow index) | production | none | `ta.mfi` |
+| 23 | `builtin:rank-correlation-index__Rank_Correla` (Rank correlation index) | production | none | `ta.rci` |
+| 24 | `builtin:relative-vigor-index__Relative_Vig` (Relative vigor index) | production | none | `ta.swma` |
+| 25 | `builtin:rsi-divergence-indicator__Divergence1I` (RSI divergence indicator) | production | none | `display.pane` |
+| 26 | `builtin:smi-ergodic-indicator__SMI_Ergodic_` (SMI ergodic indicator) | production | none | `ta.tsi` |
+| 27 | `builtin:supertrend__Supertrend` (Supertrend) | production | none | `ta.supertrend` |
+| 28 | `builtin:trend-strength-index__Trend1Streng` (Trend strength index) | production | none | `ta.correlation` |
 
-**7.2 Transferring scripts whose existing capture is INCONCLUSIVE or DIVERGE** (re-capture or re-grade first; a DIVERGE on a clean script is a correctness lead): `k-clustering__8e82f5aa4b` (DIVERGE), `mcclellan-indicators__29fdf0235d` (DIVERGE), `opening-range-initial-balance-opening-price__4a7416ab01` (INCONCLUSIVE), `poor-man039s-volume-profile__ZnFTCYyvGJ` (DIVERGE), `smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c` (DIVERGE), `support-and-resistance-multi-time-frame__Ph230jpfC9` (DIVERGE), `supertrend__VfOPXWDHDP` (INCONCLUSIVE)
+**7.2 Transferring scripts whose existing capture is INCONCLUSIVE or DIVERGE in their own lane** (re-capture or re-grade first; a DIVERGE on a transferring script is a correctness lead). Production lane: `k-clustering__8e82f5aa4b` (DIVERGE), `mcclellan-indicators__29fdf0235d` (DIVERGE), `opening-range-initial-balance-opening-price__4a7416ab01` (INCONCLUSIVE), `poor-man039s-volume-profile__ZnFTCYyvGJ` (DIVERGE), `smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c` (DIVERGE), `support-and-resistance-multi-time-frame__Ph230jpfC9` (DIVERGE), `supertrend__VfOPXWDHDP` (INCONCLUSIVE). Runtime-on lane: `atr-stepped-pdf-ma-loxx__9b90a3f7bb` (INCONCLUSIVE), `cc-yata__bd898a1af0` (INCONCLUSIVE), `fvg-trend__21e364f2ed` (INCONCLUSIVE), `nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125` (INCONCLUSIVE), `trend-targets-algoalpha__92ff5628d7` (DIVERGE, production run INCONCLUSIVE).
 
 **7.3 Most popular transferring scripts with no capture at all** (by TradingView boosts; each is one capture from a MATCH that members will actually load): `order-block-finder__fVSb3j0I87` (agree 39242), `fibonacci-bollinger-bands__2835` (agree 32721), `rsi-chart-bars__131` (agree 26226), `cm-rsi-2-strat-low__568` (agree 24513), `wavetrend-with-crosses-lazybear__2295` (agree 23460), `cm-stochastic-mtf__648` (agree 22983), `cm-ultimate-rsi-mtf__454` (agree 22249), `4-colour-macd__1146` (agree 20391), `rsi-divergence__Q55lng135i` (agree 19528), `ichimoku2c__68` (agree 18815), `linear-regression-channel__jiDgL4o6Qx` (agree 17120), `support-and-resistance__1505` (agree 16390), `elliott-wave-oscillator__r4MVRjtjDc` (agree 16122), `cm-enhanced-ichimoku-cloud-v5__664` (agree 15398), `simple-moving-averages__kWRFasqqym` (agree 14583), `moving-average-colored-emasma__1581` (agree 14272), `fibonacci-levels__RHEhVHNx6d` (agree 13494), `triple-moving-averages__iRcDB7kRWk` (agree 13391), `supertrend__nlyrgnVJ8Z` (agree 13344), `average-true-range-stop-loss-finder__d48234236f` (agree 11838)
 
@@ -603,9 +608,9 @@ W4 = `imperative`, `user-functions`, `tuples`, `history-offsets`, `text-colour-v
 W8 = `imports-libraries`; W9 = `strategy`; other = `output-contract`.
 
 **Runtime-lane guard -> wave mapping:** W1 = `pine:builtin`, `pine:function`, `pine:arity`,
-`pine:input-kind`, `pine:named-argument`, `pine:role-order` (see the section 4 caveat: 54 of
-these scripts are really W4/W6/W8); W3 = `pine:drawing`, `host:pine:object*`, plus host-attached
-dirty scripts; W6 = `runtime:array*`, `runtime:udt*`, `runtime:map*`, `runtime:matrix*`,
+`pine:input-kind`, `pine:named-argument`, `pine:role-order` (see the section 4 caveat: by the
+census rows, many of these are really W4/W6/W8); W3 = `pine:drawing`, `host:pine:object*`,
+plus host-attached dirty scripts; W6 = `runtime:array*`, `runtime:udt*`, `runtime:map*`, `runtime:matrix*`,
 `pine:collection`, `pine:type`, `pine:member`; W7 = `pine:request`, `runtime:request*`,
 `lower-tf:*`; W8 = `runtime:library`; W9 = `pine:strategy*` and every order-placing strategy;
 other = `host:pine:constant-only`, `host:pine:presentation-only`, `threw`; everything else
@@ -624,15 +629,38 @@ builtin-over-state, `pine:state`, ...) = W4. Runtime-lane drawing walls (`runtim
   measured in this run (the field is empty; see the status note at the top). It does not feed
   any count above.
 
-**How the target lists were made.** `coverage-targets-2026-11-02.json` is a join over
-`coverage-map.json` only: `prodWalls` (production wall label -> scripts, from `scripts[].walls`),
-`runtimeWalls` (runtime guard -> scripts, from `runtimeOn.walls.byScript`), `prodWaves` /
-`runtimeWaves` (per wave: `blocks`, `onlyThisWave`, and production `firm`), `waveGreedy`,
-`runtimeOnHostAttachedDirty`, and the capture lists (`captureGreedy`, `captureRegradeTransferring`,
-`capturePopularUncaptured`; item usage from `coverage_map.usage_of`). Script keys are
-`<population>:<slug>__<id>`; `titles` maps each key to its TradingView title.
+**How the target lists were made.** `tools/pine_coverage/w0/targets.py` writes
+`coverage-targets-2026-11-02.json` (commands in section 10). These fields are a join over
+`coverage-map.json` alone: `prodWalls` (production wall label -> scripts, from `scripts[].walls`),
+`runtimeWalls` (runtime guard -> scripts, from `runtimeOn.walls.byScript`; ties in name order),
+`prodWaves` / `runtimeWaves` (per wave: `blocks`, `onlyThisWave`, and production `firm`),
+`waveGreedy`, `runtimeOnHostAttachedDirty`. The capture lists (`verifiedByLane`, `captureGreedy`,
+`captureRegradeTransferring`, `capturePopularUncaptured`, `unverifiedItemsMatchingOnlyInRuntimeOn`,
+`unverifiedItemsNotCovered`) also read the local script sources through the production cache's
+`census_input.json` (item usage from `coverage_map.usage_of`, which needs the TradingView
+reference) and the committed captures in `tests/fixtures/vendor/harness`. Each list judges a
+script in its own lane: a production transfer by `scripts[].vendorVerdict` (the production harness
+run); a script that transfers only with the runtime pane on by the runtime-on run, which the map
+keeps only as `runtimeOn.parity.changes` (capture, from, to). Each changed capture is joined to its
+script by source exactly as `coverage_map.py` joins captures (`norm_src`), and the script's verdict
+is the map's own per-script rule (`script_verdict`: MATCH over DIVERGE over INCONCLUSIVE) over its
+production verdict plus the verdicts its changed captures moved to. That is exact while every
+change moves up that rule (on 2026-11-02 every change starts from INCONCLUSIVE); `targets.py`
+refuses a change that moves down, and refuses local sources that do not join the captures the way
+the map did. Script keys are `<population>:<slug>__<id>`; `titles` maps each key to its
+TradingView title.
 
-## 10. How to re-run (exact commands used)
+**Regenerated after review (2026-11-02).** The capture lists were recomputed on the laptop, where
+the census caches are not: from the committed `coverage-map.json`, the laptop's copy of the sample
+(`census_input.json` rebuilt with `run_census.py`'s path rule; some built-in sources there differ
+from the measured ones, none of them with a capture) and the rebuilt reference `ref_rebuilt.json`.
+With those inputs the capture join finds exactly the map's captured scripts, every unverified item
+has the same usage counts as in the map, and the pre-fix `targets.py` reproduced the pre-fix lists
+value for value.
+
+## 10. How to re-run
+
+The measurement. 2026-11-02 ran every step below on the owner's PC except the engine-door probe:
 
 ```sh
 SCR=<scratch dir>; cp -r <sample cache>/. $SCR/prod/; cp -r <sample cache>/. $SCR/rt/
@@ -645,13 +673,30 @@ VENDOR_HARNESS_RUNTIME_ON=0 VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness 
   $L --label harness-prod -- node node_modules/vitest/vitest.mjs run src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js --maxWorkers=2
 VENDOR_HARNESS_RUNTIME_ON=1 VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness VENDOR_HARNESS_OUT=$SCR/verdicts-rt \
   $L --label harness-rt -- node node_modules/vitest/vitest.mjs run src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js --maxWorkers=2
-COVERAGE_DOOR_OUT=$SCR/engine_door.json $L --label engine-door -- node node_modules/vitest/vitest.mjs run \
-  src/components/chart/engine/ast/coverageMapDoorCensus.measure.test.js --maxWorkers=2
+# Engine-door probe: NOT run on 2026-11-02 (optional). Without it engineTableThroughPineDoor is empty.
+# COVERAGE_DOOR_OUT=$SCR/engine_door.json $L --label engine-door -- node node_modules/vitest/vitest.mjs run \
+#   src/components/chart/engine/ast/coverageMapDoorCensus.measure.test.js --maxWorkers=2
 cd ..
 python tools/pine_coverage/coverage_map.py --cache $SCR/prod --ref $SCR/ref/pine_v6_reference.json \
-  --verdicts $SCR/verdicts-prod/verdicts.json --engine-door $SCR/engine_door.json \
+  --verdicts $SCR/verdicts-prod/verdicts.json \
   --runtime-cache $SCR/rt --runtime-verdicts $SCR/verdicts-rt/verdicts.json \
   --out docs/pine/coverage-map.json --measured-on 2026-11-02 --master-sha 6272ed7fa3
+# --engine-door $SCR/engine_door.json belongs on that command only once the optional probe has
+# written the file. On 2026-11-02 there was no such file, so the table is empty; coverage_map.py
+# now refuses an --engine-door file that does not exist instead of writing an empty table.
+```
+
+The target lists and the tables. `run_census.py` writes `census_input.json` into `$SCR/prod`;
+`gen_md.py` writes the fragments this document is assembled from:
+
+```sh
+git show 6272ed7fa3:docs/pine/coverage-map.json > $SCR/coverage-map-2026-10-31.json
+python tools/pine_coverage/w0/targets.py --map docs/pine/coverage-map.json \
+  --census-input $SCR/prod/census_input.json --ref $SCR/ref/pine_v6_reference.json \
+  --out docs/pine/coverage-targets-2026-11-02.json --old-map $SCR/coverage-map-2026-10-31.json
+python tools/pine_coverage/w0/gen_md.py --map docs/pine/coverage-map.json \
+  --old-map $SCR/coverage-map-2026-10-31.json --targets docs/pine/coverage-targets-2026-11-02.json \
+  --out $SCR/tables.md    # and $SCR/tables-walls.md (section 8)
 ```
 
 Wall-clock on the owner's PC: production census 10.7 min, runtime-on census 9.3 min, each

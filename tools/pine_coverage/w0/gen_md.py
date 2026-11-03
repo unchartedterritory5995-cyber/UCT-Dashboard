@@ -1,15 +1,31 @@
 # -*- coding: utf-8 -*-
-"""Render the W0 tables (markdown fragments) from coverage-map.json + targets.json."""
+"""Render the W0 tables (markdown fragments) from coverage-map.json and the targets JSON.
+
+  python tools/pine_coverage/w0/gen_md.py --map docs/pine/coverage-map.json \
+      --old-map <previous coverage-map.json> --targets docs/pine/coverage-targets-2026-11-02.json \
+      --out <scratch>/tables.md            # the wall lists go to <scratch>/tables-walls.md
+
+Every number in a fragment is read from those JSON files: COVERAGE-MAP-2026-11-02.md is these
+fragments pasted under its prose headings."""
+import argparse
 import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-new_p, old_p, tgt_p, out_p = sys.argv[1:5]
-d = json.load(open(new_p, encoding="utf-8"))
-o = json.load(open(old_p, encoding="utf-8"))
-t = json.load(open(tgt_p, encoding="utf-8"))
+ap = argparse.ArgumentParser(description="W0 markdown fragments (see the module docstring)")
+ap.add_argument("--map", required=True, help="coverage-map.json written by coverage_map.py")
+ap.add_argument("--old-map", required=True, help="the previous coverage-map.json (the comparison columns)")
+ap.add_argument("--targets", required=True, help="the JSON written by targets.py")
+ap.add_argument("--out", required=True, help="the fragments file, *.md; the wall lists go to *-walls.md beside it")
+a = ap.parse_args()
+if not a.out.endswith(".md"):
+    ap.error("--out must end in .md (the wall lists are written to <out>-walls.md)")
+out_p = a.out
+d = json.load(open(a.map, encoding="utf-8"))
+o = json.load(open(a.old_map, encoding="utf-8"))
+t = json.load(open(a.targets, encoding="utf-8"))
 T = t["titles"]
 L = []
 WL = {"W1": "names and robustness", "W3": "drawing-object completeness", "W4": "runtime lane finished (runtime walls)", "W6": "collections, UDTs, methods", "W7": "request.*", "W8": "libraries (import)", "W9": "strategy tester", "other": "output contract (script offers nothing a pane carries)"}
@@ -66,6 +82,11 @@ for k, v in h["byVersion"].items():
 for k, v in h["byDeclaration"].items():
     w("| `%s()` | %d | %d | %s | |" % (k, v["scripts"], v["transfer"], v["pct"]))
 w("")
+ords, oords = ro["runtimeAttachedOrderStrategies"], oro.get("runtimeAttachedOrderStrategies") or []
+w("Order-placing strategies that attach on the runtime lane: %d (%d on 10-31). New since 10-31: %s; already on 10-31: %s. "
+  "They never count as transfers (no broker simulation, W9)." % (
+      len(ords), len(oords), names([k for k in ords if k not in oords]) or "none", names([k for k in ords if k in oords]) or "none"))
+w("")
 
 w("## TOP WALLS (production)")
 w("| # | wall | capability | wave | sole | blocks | prev sole/blocks |")
@@ -91,6 +112,15 @@ w("| # | runtime-lane wall | wave | scripts (touches) |")
 w("|---:|---|---|---:|")
 for i, (k, v) in enumerate(list(t["runtimeWalls"].items())[:40], 1):
     w("| %d | `%s` | %s | %d |" % (i, k, t["runtimeWallWave"][k], len(v)))
+w("")
+rt_by = ro["walls"]["byScript"]
+missing_name = {k for k, ws in rt_by.items() if {"pine:builtin", "pine:function"} & set(ws)}
+w1 = t["runtimeWaves"]["W1"]["blocks"]
+w1_other = sorted({g for k in w1 if k not in missing_name for g in rt_by[k] if t["runtimeWallWave"].get(g) == "W1"})
+w("**Caveat on `pine:builtin` / `pine:function` in this lane (W1 count).** %d runtime-on scripts carry a missing-name "
+  "wall (`pine:builtin` or `pine:function` in `runtimeOn.walls.byScript`); the runtime-on W1 count of %d in section 6 "
+  "also takes the %d whose only W1 wall is %s." % (
+      len(missing_name), len(w1), len(w1) - len(missing_name), ", ".join("`%s`" % g for g in w1_other) or "none"))
 w("")
 w("## WAVE GREEDY")
 w("| step | production lane: wave | unblocks | cumulative | runtime-on lane: wave | unblocks | cumulative |")
@@ -120,14 +150,69 @@ for wv in ("W1", "W3", "W4", "W6", "W7", "W8", "W9", "other"):
     w("- production blocks %d, runtime-on blocks %d: full lists in `coverage-targets-2026-11-02.json` (`prodWaves.%s.blocks`, `runtimeWaves.%s.blocks`)." % (len(p["blocks"]), len(r["blocks"]), wv, wv))
     w("")
 w("## CAPTURES")
-w("| # | script | lane | existing capture | items it would verify first |")
+vp, vr = t["verifiedByLane"]["production"], t["verifiedByLane"]["runtime-on"]
+both = [k for k in vr["verified"] if k in vp["verified"]]
+w("%d of the %d production transfers have a capture that MATCHes in the production harness run. With the runtime pane "
+  "on, %d of the %d runtime-on transfers have one that MATCHes in the runtime-on run: %s, plus %d that transfer only "
+  "with the pane on (%s)." % (
+      len(vp["verified"]), vp["transfer"], len(vr["verified"]), vr["transfer"],
+      "the same %d" % len(both) if len(both) == len(vp["verified"]) else "%d of those" % len(both),
+      len(vr["verifiedOnlyInThisLane"]), names(vr["verifiedOnlyInThisLane"]) or "none"))
+w("Every list below judges a script in its own lane: a production transfer by the production run, a script that "
+  "transfers only with the runtime pane on by the runtime-on run. Three lists, in the order to capture:")
+w("")
+
+
+def ticks(xs):
+    return ", ".join("`%s`" % x for x in xs)
+
+
+def n_are(n):
+    return "%d is" % n if n == 1 else "%d are" % n
+
+
+U, cov, picks = t["unverifiedItems"], t["unverifiedItemsCoveredByGreedy"], t["captureGreedy"]
+rto, nc = t["unverifiedItemsMatchingOnlyInRuntimeOn"], t["unverifiedItemsNotCovered"]
+rest = []
+if nc["ungraded"]:
+    rest.append("%s ungraded names (`strategy.*`, `alert*`, `log.*`, `runtime.*`: the harness never grades them)" % n_are(len(nc["ungraded"])))
+if nc["inNoTransferringScript"]:
+    rest.append("%s used by no transferring sample script (they translate only in TradingView's own reference examples)"
+                % n_are(len(nc["inNoTransferringScript"])))
+if nc["onlyInScriptsThatAlreadyMatch"]:
+    rest.append("%s used only by transferring scripts that already MATCH in their own lane (%s)" % (
+        n_are(len(nc["onlyInScriptsThatAlreadyMatch"])),
+        "; ".join("`%s`: %s" % (n, names(ks)) for n, ks in nc["onlyInScriptsThatAlreadyMatch"].items())))
+if nc["onlyInRuntimeOnTransfersAlreadyVerifiedThere"]:
+    rest.append("%s used only by runtime-on transfers, and a capture already MATCHes with it in the runtime-on run (%s)" % (
+        n_are(len(nc["onlyInRuntimeOnTransfersAlreadyVerifiedThere"])), ticks(nc["onlyInRuntimeOnTransfersAlreadyVerifiedThere"])))
+w("**7.1 Greedy over unverified items.** %d Pine items translate today but have **no MATCH capture in the production "
+  "harness run** (`supported-unverified`).%s Each row is a transferring script (either lane) with no MATCH in its own "
+  "lane yet that verifies the most still-unverified items, then the next%s. %d captures cover %d of the %d. Of the "
+  "other %d, %s. Capture on the dedicated rig, RDDT and SPY daily, per `docs/pine/capture-procedure.md`." % (
+      U, (" %d of them %s used by a capture that MATCHes only in the runtime-on run (%s): that grades the runtime lane's "
+          "handling of them, not the translator's." % (len(rto), "is" if len(rto) == 1 else "are", ticks(rto))) if rto else "",
+      "; a runtime-on row does not count those %d" % len(rto) if rto else "",
+      len(picks), cov, U, U - cov, "; ".join(rest) or "none"))
+w("")
+w("| # | script | lane | existing capture (own lane) | items it would verify first |")
 w("|---:|---|---|---|---|")
-for i, c in enumerate(t["captureGreedy"], 1):
+for i, c in enumerate(picks, 1):
     w("| %d | `%s` (%s) | %s | %s | %s |" % (i, c["key"], (c["title"] or "").replace("|", "/"), c["lane"], c["existingCapture"] or "none",
                                           ", ".join("`%s`" % x for x in c["verifiesNewItems"])))
 w("")
-w("**7.2 Transferring scripts whose existing capture is INCONCLUSIVE or DIVERGE** (re-capture or re-grade first; a DIVERGE on a clean script is a correctness lead): %s" % (
-    ", ".join("`%s` (%s)" % (c["key"].split(":", 1)[1], c["verdict"]) for c in t["captureRegradeTransferring"]) or "none"))
+PV = {s["key"]: s["vendorVerdict"] for s in d["scripts"]}
+
+
+def regrade(lane):
+    return ", ".join("`%s` (%s%s)" % (c["key"].split(":", 1)[1], c["verdict"],
+                                      "" if PV[c["key"]] == c["verdict"] else ", production run %s" % PV[c["key"]])
+                     for c in t["captureRegradeTransferring"] if c["lane"] == lane) or "none"
+
+
+w("**7.2 Transferring scripts whose existing capture is INCONCLUSIVE or DIVERGE in their own lane** (re-capture or "
+  "re-grade first; a DIVERGE on a transferring script is a correctness lead). Production lane: %s. Runtime-on lane: %s." % (
+      regrade("production"), regrade("runtime-on")))
 w("")
 w("**7.3 Most popular transferring scripts with no capture at all** (by TradingView boosts; each is one capture from a MATCH that members will actually load): %s" % ", ".join(
     "`%s`%s" % (c["key"].split(":", 1)[1], " (agree %s)" % c["agree"] if c["agree"] else "") for c in t["capturePopularUncaptured"][:20]))
@@ -151,4 +236,4 @@ for k, ks in list(t["runtimeWalls"].items())[:15]:
     x("<details><summary><b>%s</b> (%s): %d scripts</summary>\n" % (k, t["runtimeWallWave"][k], len(ks)))
     x("%s\n" % names(ks))
     x("</details>\n")
-open(out_p.replace(".md", "-walls.md"), "w", encoding="utf-8", newline="\n").write("\n".join(X) + "\n")
+open(out_p[:-3] + "-walls.md", "w", encoding="utf-8", newline="\n").write("\n".join(X) + "\n")

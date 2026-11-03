@@ -3406,22 +3406,22 @@
    "reference:obv-macd-indicator__5JF4Np02Ma",
    "reference:stoch-money-flow-admf-absolute-strength-index-asi-ci8dh__XqxUTKWKYq"
   ],
-  "runtime:request": [
-   "builtin:24-hour-volume__24hVolume",
-   "builtin:open-interest__OpenInterest",
-   "committed:4c-nyse-market-breadth-ratio__722410befd",
-   "committed:multi-timeframe-trend-indicator__fa4022ecf5",
-   "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
-   "committed:supply-demand-mtf-flux-charts__7fb4bff229",
-   "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
-   "reference:all-in-one-sessions-weekly-monday-previous-highslows__26254838fe",
-   "reference:gex-levels-breakout-structure-session-avwap-esspxspy__4e5d712bec",
-   "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb",
-   "reference:most-screener__d7d9ae5349",
-   "reference:ot-mtf-trend-dashboard-10__d43fa61404",
-   "reference:range-filter-x-hull-suite__8430e18838",
-   "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
-   "reference:saty-atr-levels__99165984ef"
+  "runtime:loop": [
+   "builtin:gaps__Gaps",
+   "builtin:seasonality__Seasonality",
+   "builtin:technical-ratings__Technical1Ra",
+   "builtin:trading-sessions__Trading1Sess",
+   "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
+   "committed:atr-god-strategy-by-tradesmart__4369755a29",
+   "committed:candelacharts-equal-highslows-eqheql__4485a6c447",
+   "committed:market-structure-break-order-block__3a1fb6197f",
+   "committed:smt-divergence-ict-killzones__c932d56665",
+   "committed:support-and-resistance-logistic-regression-flux-charts__9d844269d6",
+   "committed:trendline-pivots-quantvue__3dc9be8b73",
+   "reference:cumulative-volume-delta-divergence__fbc538f076",
+   "reference:fvg-order-blocks-bigbeluga__64decdabc4",
+   "reference:momentum-terrain-3d-luxalgo__f7eb2c2d64",
+   "reference:order-block-detector-luxalgo__7c893384eb"
   ],
   "runtime:presentation": [
    "builtin:cumulative-volume-delta__Cumulative1V",
@@ -3440,22 +3440,22 @@
    "reference:triangular-hull-moving-average-volatility-bigbeluga__f20311448f",
    "reference:uptrick-volatility-adjusted-trail__ff9f0f608f"
   ],
-  "runtime:loop": [
-   "builtin:gaps__Gaps",
-   "builtin:seasonality__Seasonality",
-   "builtin:technical-ratings__Technical1Ra",
-   "builtin:trading-sessions__Trading1Sess",
-   "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
-   "committed:atr-god-strategy-by-tradesmart__4369755a29",
-   "committed:candelacharts-equal-highslows-eqheql__4485a6c447",
-   "committed:market-structure-break-order-block__3a1fb6197f",
-   "committed:smt-divergence-ict-killzones__c932d56665",
-   "committed:support-and-resistance-logistic-regression-flux-charts__9d844269d6",
-   "committed:trendline-pivots-quantvue__3dc9be8b73",
-   "reference:cumulative-volume-delta-divergence__fbc538f076",
-   "reference:fvg-order-blocks-bigbeluga__64decdabc4",
-   "reference:momentum-terrain-3d-luxalgo__f7eb2c2d64",
-   "reference:order-block-detector-luxalgo__7c893384eb"
+  "runtime:request": [
+   "builtin:24-hour-volume__24hVolume",
+   "builtin:open-interest__OpenInterest",
+   "committed:4c-nyse-market-breadth-ratio__722410befd",
+   "committed:multi-timeframe-trend-indicator__fa4022ecf5",
+   "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
+   "committed:supply-demand-mtf-flux-charts__7fb4bff229",
+   "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
+   "reference:all-in-one-sessions-weekly-monday-previous-highslows__26254838fe",
+   "reference:gex-levels-breakout-structure-session-avwap-esspxspy__4e5d712bec",
+   "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb",
+   "reference:most-screener__d7d9ae5349",
+   "reference:ot-mtf-trend-dashboard-10__d43fa61404",
+   "reference:range-filter-x-hull-suite__8430e18838",
+   "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
+   "reference:saty-atr-levels__99165984ef"
   ],
   "pine:strategy-call": [
    "builtin:greedy-strategy__Greedy1Strat",
@@ -3473,20 +3473,6 @@
    "reference:trend-following-parabolic-buy-sell-strategy-tradedots__bb6d929535",
    "reference:trendline-breaks-with-multi-fibonacci-supertrend-strategy__89cd796179"
   ],
-  "runtime:call-windowed-state": [
-   "builtin:advance-decline-line__Advance1Decl",
-   "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
-   "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80",
-   "committed:chart-vwap__804099ca2f",
-   "committed:volume-divergence-by-mm__cvG2Djaryv",
-   "committed:volume-suite-by-leviathan__48da793360",
-   "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
-   "reference:best-rsi-divergences-screener__TmlpugZKr6",
-   "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J",
-   "reference:stoch-money-flow-admf-absolute-strength-index-asi-ci8dh__XqxUTKWKYq",
-   "reference:strong-knn-classifier__852c26b11d",
-   "reference:volume-profile-free-ultra-sli-by-rrb__TFpVVPsMEJ"
-  ],
   "runtime:call-text-state": [
    "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
    "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce",
@@ -3500,6 +3486,20 @@
    "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb",
    "reference:session-liquidity__96d8d1599c",
    "reference:sessions-nephew-sam__nTgXSYRNbD"
+  ],
+  "runtime:call-windowed-state": [
+   "builtin:advance-decline-line__Advance1Decl",
+   "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
+   "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80",
+   "committed:chart-vwap__804099ca2f",
+   "committed:volume-divergence-by-mm__cvG2Djaryv",
+   "committed:volume-suite-by-leviathan__48da793360",
+   "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
+   "reference:best-rsi-divergences-screener__TmlpugZKr6",
+   "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J",
+   "reference:stoch-money-flow-admf-absolute-strength-index-asi-ci8dh__XqxUTKWKYq",
+   "reference:strong-knn-classifier__852c26b11d",
+   "reference:volume-profile-free-ultra-sli-by-rrb__TFpVVPsMEJ"
   ],
   "runtime:request-with-state": [
    "builtin:advance-decline-ratio__Advance1Decl",
@@ -3538,16 +3538,6 @@
    "reference:luxy-super-duper-supertrend-predictor-engine__582421244d",
    "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326"
   ],
-  "runtime:nothing-drawn": [
-   "builtin:aroon-oscillator__Aroon_Oscill",
-   "builtin:cumulative-volume-delta__Cumulative1V",
-   "builtin:net-volume__Net1Volume",
-   "builtin:price-momentum-oscillator__Price_Moment",
-   "builtin:pring039s-special-k__Prings_Speci",
-   "builtin:relative-volume-at-time__Relative1Vol",
-   "builtin:ulcer-index__Ulcer_Index",
-   "builtin:volume-delta__Volume1Delta"
-  ],
   "runtime:colour": [
    "committed:atr-trend-bands-misu__a34d44410a",
    "committed:volatility-trend-score-backquant__0794882a37",
@@ -3557,6 +3547,16 @@
    "reference:mema-bb-parabolic-sar__nurAC4OTMa",
    "reference:nadaraya-watson-trend-quantalgo__052bdb2a18",
    "reference:supertrend-mtf-heatmap__ODcEBlvB3g"
+  ],
+  "runtime:nothing-drawn": [
+   "builtin:aroon-oscillator__Aroon_Oscill",
+   "builtin:cumulative-volume-delta__Cumulative1V",
+   "builtin:net-volume__Net1Volume",
+   "builtin:price-momentum-oscillator__Price_Moment",
+   "builtin:pring039s-special-k__Prings_Speci",
+   "builtin:relative-volume-at-time__Relative1Vol",
+   "builtin:ulcer-index__Ulcer_Index",
+   "builtin:volume-delta__Volume1Delta"
   ],
   "runtime:function-global-state": [
    "committed:bolingger-bands-inside-bar-boxes__3294017d4f",
@@ -3582,6 +3582,18 @@
    "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
    "committed:volume-suite-by-leviathan__48da793360"
   ],
+  "pine:collection": [
+   "committed:delta-volume-candles-lucf__qADnaAfCPp",
+   "committed:inside-bar-strategy-w-sl__b39f395d5d",
+   "committed:volume-suite-by-leviathan__48da793360",
+   "reference:strong-knn-classifier__852c26b11d"
+  ],
+  "pine:drawing": [
+   "committed:market-structure-break-order-block__3a1fb6197f",
+   "committed:smarter-snr__ac98ab25d5",
+   "committed:volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156",
+   "reference:ct-displacement-fvg-toolkit__1ae5bb663e"
+  ],
   "pine:offset-literal": [
    "builtin:detrended-price-oscillator__DPO",
    "committed:ict-turtle-soup-flux-charts__053c3e6056",
@@ -3594,11 +3606,11 @@
    "reference:lorentzian-classification-advanced-trading-dashboard__0de1c85a2f",
    "reference:trend-speed-analyzer-zeiierman__bd2f816c88"
   ],
-  "pine:collection": [
-   "committed:delta-volume-candles-lucf__qADnaAfCPp",
-   "committed:inside-bar-strategy-w-sl__b39f395d5d",
-   "committed:volume-suite-by-leviathan__48da793360",
-   "reference:strong-knn-classifier__852c26b11d"
+  "runtime:fill-target": [
+   "committed:stop-loss-and-take-profit-in-example__YlblCbts4x",
+   "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J",
+   "reference:ict-killzone__fE0Mzs0mp0",
+   "reference:kz-boxes__zed4AoolEW"
   ],
   "runtime:tuple": [
    "committed:kalman-psar-backquant__0a389f529b",
@@ -3606,42 +3618,30 @@
    "committed:supply-demand-mtf-flux-charts__7fb4bff229",
    "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37"
   ],
-  "pine:drawing": [
-   "committed:market-structure-break-order-block__3a1fb6197f",
-   "committed:smarter-snr__ac98ab25d5",
-   "committed:volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156",
-   "reference:ct-displacement-fvg-toolkit__1ae5bb663e"
-  ],
-  "runtime:fill-target": [
-   "committed:stop-loss-and-take-profit-in-example__YlblCbts4x",
-   "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J",
-   "reference:ict-killzone__fE0Mzs0mp0",
-   "reference:kz-boxes__zed4AoolEW"
-  ],
-  "pine:window": [
-   "builtin:hull-moving-average__Hull1MA",
-   "committed:ict-turtle-soup-flux-charts__053c3e6056",
-   "reference:most-screener__d7d9ae5349"
-  ],
   "lower-tf:lookahead": [
    "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G",
    "committed:multi-timeframe-fvg-tfo__adbed9f590",
    "reference:gex-levels-breakout-structure-session-avwap-esspxspy__4e5d712bec"
   ],
-  "runtime:directive": [
-   "committed:double-topbottom-ultimate-os__bd013ff4f5",
-   "committed:linear-regression-channel-200__243d67c804",
-   "committed:volume-profile-v054beta__PNSKf75832"
+  "pine:colour-value": [
+   "reference:engulfing-sinyal__pAgeLQw9kl",
+   "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb",
+   "reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA"
   ],
   "pine:member": [
    "committed:multi-timeframe-fvg-tfo__adbed9f590",
    "committed:trailing-take-profit-trailing-stop-loss__41jwaH1ikz",
    "reference:enhanced-mcclellan-summation-index__f2989eaa65"
   ],
-  "runtime:withheld-all": [
-   "committed:visualizing-displacement-tfo__5b861441c2",
-   "reference:anti-volume-stop-loss__QyDEhGL8DB",
-   "reference:triangular-hull-moving-average-volatility-bigbeluga__f20311448f"
+  "pine:window": [
+   "builtin:hull-moving-average__Hull1MA",
+   "committed:ict-turtle-soup-flux-charts__053c3e6056",
+   "reference:most-screener__d7d9ae5349"
+  ],
+  "runtime:directive": [
+   "committed:double-topbottom-ultimate-os__bd013ff4f5",
+   "committed:linear-regression-channel-200__243d67c804",
+   "committed:volume-profile-v054beta__PNSKf75832"
   ],
   "runtime:na-test": [
    "reference:cm-gann-swing-highlow-v2__592",
@@ -3653,18 +3653,10 @@
    "reference:footprint__6848998fe8",
    "reference:volume-with-market-buysell-and-neutral-volume-split-for-realtime-bars__f4cd30cd7f"
   ],
-  "pine:colour-value": [
-   "reference:engulfing-sinyal__pAgeLQw9kl",
-   "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb",
-   "reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA"
-  ],
-  "runtime:output-map": [
-   "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
-   "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888"
-  ],
-  "runtime:udt-method": [
-   "committed:fx-market-sessions__3KZoMPYziy",
-   "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd"
+  "runtime:withheld-all": [
+   "committed:visualizing-displacement-tfo__5b861441c2",
+   "reference:anti-volume-stop-loss__QyDEhGL8DB",
+   "reference:triangular-hull-moving-average-volatility-bigbeluga__f20311448f"
   ],
   "lower-tf:unwitnessed": [
    "committed:multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640",
@@ -3674,13 +3666,27 @@
    "committed:multi-timeframe-trend-indicator__fa4022ecf5",
    "reference:session-liquidity__96d8d1599c"
   ],
+  "pine:text-value": [
+   "reference:volume-profile-free-pro-by-rrb__a7xsrJkK2R",
+   "reference:volume-profile-free-ultra-sli-by-rrb__TFpVVPsMEJ"
+  ],
   "runtime:clock-zone": [
    "reference:session-liquidity__96d8d1599c",
    "reference:sessions-nephew-sam__nTgXSYRNbD"
   ],
-  "pine:text-value": [
-   "reference:volume-profile-free-pro-by-rrb__a7xsrJkK2R",
-   "reference:volume-profile-free-ultra-sli-by-rrb__TFpVVPsMEJ"
+  "runtime:output-map": [
+   "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
+   "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888"
+  ],
+  "runtime:udt-method": [
+   "committed:fx-market-sessions__3KZoMPYziy",
+   "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd"
+  ],
+  "budget:lookback": [
+   "reference:trend-range-detector-zeiierman__56816eee0d"
+  ],
+  "host:pine:object-removal-lost": [
+   "reference:camarilla-levels-intraday__bfb5a2b8db"
   ],
   "host:pine:presentation-only": [
    "builtin:bollinger-bars__Bollinger1Ba"
@@ -3688,73 +3694,67 @@
   "runtime:builtin-args": [
    "committed:smt-divergence-ict-killzones__c932d56665"
   ],
-  "host:pine:object-removal-lost": [
-   "reference:camarilla-levels-intraday__bfb5a2b8db"
-  ],
   "runtime:input-state": [
    "reference:most-screener__d7d9ae5349"
-  ],
-  "budget:lookback": [
-   "reference:trend-range-detector-zeiierman__56816eee0d"
   ]
  },
  "runtimeWallWave": {
-  "runtime:library": "W8",
-  "pine:statement": "W4",
-  "host:pine:constant-only": "other",
-  "pine:builtin": "W1",
-  "runtime:request": "W7",
-  "runtime:call-windowed-state": "W4",
-  "runtime:call-undeclared-builtin-state": "W4",
-  "runtime:no-output": "W4",
-  "runtime:request-with-state": "W7",
-  "pine:function": "W1",
-  "runtime:nothing-drawn": "W4",
-  "pine:arity": "W1",
-  "runtime:history-dynamic-offset": "W4",
-  "runtime:unbound": "W4",
-  "host:pine:presentation-only": "other",
-  "pine:request": "W7",
-  "runtime:presentation": "W4",
-  "pine:offset-literal": "W4",
-  "runtime:loop": "W4",
-  "runtime:object-op": "W4",
-  "pine:strategy-call": "W9",
-  "pine:window": "W4",
-  "runtime:conditional-history": "W4",
-  "runtime:array": "W6",
-  "lower-tf:lookahead": "W7",
-  "pine:type": "W6",
-  "runtime:function": "W4",
-  "runtime:statement": "W4",
-  "runtime:block-value": "W4",
-  "runtime:expression-statement": "W4",
-  "runtime:history-expression": "W4",
-  "runtime:colour": "W4",
-  "runtime:function-global-state": "W4",
-  "pine:collection": "W6",
-  "runtime:directive": "W4",
-  "runtime:call-text-state": "W4",
-  "runtime:output-map": "W4",
-  "runtime:udt-method": "W6",
-  "runtime:tuple": "W4",
-  "lower-tf:store-unmeasured": "W7",
-  "pine:drawing": "W3",
-  "pine:member": "W6",
-  "lower-tf:unwitnessed": "W7",
-  "pine:input-kind": "W1",
-  "runtime:builtin-args": "W4",
-  "runtime:fill-target": "W4",
-  "runtime:withheld-all": "W4",
-  "pine:state": "W4",
-  "host:pine:object-removal-lost": "W3",
-  "runtime:na-test": "W4",
-  "runtime:varip": "W4",
-  "pine:colour-value": "W4",
-  "runtime:input-state": "W4",
-  "runtime:clock-zone": "W4",
   "budget:lookback": "W4",
-  "pine:text-value": "W4"
+  "host:pine:constant-only": "other",
+  "host:pine:object-removal-lost": "W3",
+  "host:pine:presentation-only": "other",
+  "lower-tf:lookahead": "W7",
+  "lower-tf:store-unmeasured": "W7",
+  "lower-tf:unwitnessed": "W7",
+  "pine:arity": "W1",
+  "pine:builtin": "W1",
+  "pine:collection": "W6",
+  "pine:colour-value": "W4",
+  "pine:drawing": "W3",
+  "pine:function": "W1",
+  "pine:input-kind": "W1",
+  "pine:member": "W6",
+  "pine:offset-literal": "W4",
+  "pine:request": "W7",
+  "pine:state": "W4",
+  "pine:statement": "W4",
+  "pine:strategy-call": "W9",
+  "pine:text-value": "W4",
+  "pine:type": "W6",
+  "pine:window": "W4",
+  "runtime:array": "W6",
+  "runtime:block-value": "W4",
+  "runtime:builtin-args": "W4",
+  "runtime:call-text-state": "W4",
+  "runtime:call-undeclared-builtin-state": "W4",
+  "runtime:call-windowed-state": "W4",
+  "runtime:clock-zone": "W4",
+  "runtime:colour": "W4",
+  "runtime:conditional-history": "W4",
+  "runtime:directive": "W4",
+  "runtime:expression-statement": "W4",
+  "runtime:fill-target": "W4",
+  "runtime:function": "W4",
+  "runtime:function-global-state": "W4",
+  "runtime:history-dynamic-offset": "W4",
+  "runtime:history-expression": "W4",
+  "runtime:input-state": "W4",
+  "runtime:library": "W8",
+  "runtime:loop": "W4",
+  "runtime:na-test": "W4",
+  "runtime:no-output": "W4",
+  "runtime:nothing-drawn": "W4",
+  "runtime:object-op": "W4",
+  "runtime:output-map": "W4",
+  "runtime:presentation": "W4",
+  "runtime:request": "W7",
+  "runtime:request-with-state": "W7",
+  "runtime:statement": "W4",
+  "runtime:tuple": "W4",
+  "runtime:udt-method": "W6",
+  "runtime:unbound": "W4",
+  "runtime:varip": "W4",
+  "runtime:withheld-all": "W4"
  },
  "runtimeWaves": {
   "W1": {
@@ -4926,6 +4926,128 @@
   "reference:williams-r-rsi-ema-tendance-silver-wong__sogth7qpzs",
   "reference:zig-zag-channels-luxalgo__c253c72883"
  ],
+ "verifiedByLane": {
+  "production": {
+   "transfer": 211,
+   "verified": [
+    "committed:atr-bands__ad60b125e6",
+    "committed:atr-trailing-stoploss__2JLLfrGRHg",
+    "committed:btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a",
+    "committed:candlestick-patterns-identified-update-1-17-26__1082",
+    "committed:cdc-btc-rainbow-road__d880789793",
+    "committed:contraction-box-doji-lines__1486658151",
+    "committed:cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz",
+    "committed:cumulative-volume-delta__K07lTKE3tP",
+    "committed:donchian-channels__5df15aaa23",
+    "committed:elliott-wave-3-finder-v2__451cecfc9d",
+    "committed:engulfingcandle__0df91dc775",
+    "committed:extrapolated-pivot-connector__vROeQSQlNs",
+    "committed:fib-retracement__8XcLscnekw",
+    "committed:fibonacci-pivot-points-cc__p8DQ3RIR97",
+    "committed:ict-ipda-look-back__f85b4c8956",
+    "committed:implied-volatility-suite__CdN3hioOVl",
+    "committed:institutional-smc-order-flow-matrix-pro__0b30cae0e6",
+    "committed:keltner-center-of-gravity-channel__e4a81d76f6",
+    "committed:keltner-channels-bands__T5FsnX45Dn",
+    "committed:linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6",
+    "committed:liquidation-levels__pi4nVOJgbV",
+    "committed:liquidity-engulfing-candles-upslidedown__0a521d089c",
+    "committed:liquidity-pools__fa7b28e733",
+    "committed:madrid-moving-average-ribbon__1025",
+    "committed:makuchaku039s-trade-tools-fair-value-gaps__b951deedc8",
+    "committed:market-structure-by-leviathan__9ca1dae1ac",
+    "committed:momentum-volatility-scanner__4d1deaa855",
+    "committed:options-max-pain-calculator-backquant__c904837c16",
+    "committed:pa-zigzag-fibonacci-fan__2001",
+    "committed:pivot-point-supertrend__HN4w1eNW3B",
+    "committed:position-size-calculator__28sGm8JqI3",
+    "committed:price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7",
+    "committed:pro-trading-art-double-top-bottom-with-alert__5321f25fcb",
+    "committed:qqe-signals__EhBrwQPjZ1",
+    "committed:reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA",
+    "committed:rsi-horizontal-resistance-levels__a3f8454f81",
+    "committed:rsi-swing-indicator__CVZdVmg7ib",
+    "committed:rvol__05fcd9e160",
+    "committed:sonarlab-order-blocks__0df0d45ee6",
+    "committed:support-and-resistance__UgNPprOr8h",
+    "committed:trend-duration-forecast-chartprime__2c5c233f31",
+    "committed:trendlines__43QQg9nDN0",
+    "committed:twin-range-filter__xF3L2PeXm7",
+    "committed:ultimate-pivot-points__vRWbsbkQGe",
+    "committed:zero-lag-ma-trend-levels-chartprime__0ded7d1e36"
+   ]
+  },
+  "runtime-on": {
+   "transfer": 250,
+   "verified": [
+    "committed:adx-and-di-for-v4__932",
+    "committed:atr-bands__ad60b125e6",
+    "committed:atr-trailing-stoploss__2JLLfrGRHg",
+    "committed:btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a",
+    "committed:candlestick-patterns-identified-update-1-17-26__1082",
+    "committed:cdc-btc-rainbow-road__d880789793",
+    "committed:contraction-box-doji-lines__1486658151",
+    "committed:cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz",
+    "committed:cumulative-volume-delta__K07lTKE3tP",
+    "committed:deadband-hysteresis-filter-backquant__3fb3d09595",
+    "committed:delta-rsi-oscillator-strategy__z4Yj46FVTX",
+    "committed:donchian-channels__5df15aaa23",
+    "committed:elliott-wave-3-finder-v2__451cecfc9d",
+    "committed:engulfingcandle__0df91dc775",
+    "committed:extrapolated-pivot-connector__vROeQSQlNs",
+    "committed:fib-retracement__8XcLscnekw",
+    "committed:fibonacci-dolphintradebot__d93b208611",
+    "committed:fibonacci-pivot-points-cc__p8DQ3RIR97",
+    "committed:ict-ipda-look-back__f85b4c8956",
+    "committed:implied-volatility-suite__CdN3hioOVl",
+    "committed:inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c",
+    "committed:institutional-smc-order-flow-matrix-pro__0b30cae0e6",
+    "committed:kalman-price-filter-backquant__47a601e4bc",
+    "committed:keltner-center-of-gravity-channel__e4a81d76f6",
+    "committed:keltner-channels-bands__T5FsnX45Dn",
+    "committed:linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6",
+    "committed:liquidation-levels__pi4nVOJgbV",
+    "committed:liquidity-engulfing-candles-upslidedown__0a521d089c",
+    "committed:liquidity-pools__fa7b28e733",
+    "committed:madrid-moving-average-ribbon__1025",
+    "committed:makuchaku039s-trade-tools-fair-value-gaps__b951deedc8",
+    "committed:market-structure-by-leviathan__9ca1dae1ac",
+    "committed:momentum-volatility-scanner__4d1deaa855",
+    "committed:options-max-pain-calculator-backquant__c904837c16",
+    "committed:pa-zigzag-fibonacci-fan__2001",
+    "committed:parabolic-sar__xoeoPMOWGJ",
+    "committed:pivot-point-supertrend__HN4w1eNW3B",
+    "committed:position-size-calculator__28sGm8JqI3",
+    "committed:price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7",
+    "committed:pro-trading-art-double-top-bottom-with-alert__5321f25fcb",
+    "committed:qqe-signals__EhBrwQPjZ1",
+    "committed:renko-candles-overlay__d76a18d49e",
+    "committed:reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA",
+    "committed:rsi-horizontal-resistance-levels__a3f8454f81",
+    "committed:rsi-swing-indicator__CVZdVmg7ib",
+    "committed:rvol__05fcd9e160",
+    "committed:sonarlab-order-blocks__0df0d45ee6",
+    "committed:support-and-resistance__UgNPprOr8h",
+    "committed:trend-duration-forecast-chartprime__2c5c233f31",
+    "committed:trendlines__43QQg9nDN0",
+    "committed:twin-range-filter__xF3L2PeXm7",
+    "committed:ultimate-pivot-points__vRWbsbkQGe",
+    "committed:wyckoff-accumulation-distribution__d9ae726e21",
+    "committed:zero-lag-ma-trend-levels-chartprime__0ded7d1e36"
+   ],
+   "verifiedOnlyInThisLane": [
+    "committed:adx-and-di-for-v4__932",
+    "committed:deadband-hysteresis-filter-backquant__3fb3d09595",
+    "committed:delta-rsi-oscillator-strategy__z4Yj46FVTX",
+    "committed:fibonacci-dolphintradebot__d93b208611",
+    "committed:inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c",
+    "committed:kalman-price-filter-backquant__47a601e4bc",
+    "committed:parabolic-sar__xoeoPMOWGJ",
+    "committed:renko-candles-overlay__d76a18d49e",
+    "committed:wyckoff-accumulation-distribution__d9ae726e21"
+   ]
+  }
+ },
  "captureGreedy": [
   {
    "key": "reference:fxn-week-and-day-separator__ingZSaBNLa",
@@ -5091,28 +5213,6 @@
    ]
   },
   {
-   "key": "committed:delta-rsi-oscillator-strategy__z4Yj46FVTX",
-   "title": "Delta-RSI Oscillator Strategy",
-   "agree": 8785,
-   "v": 4,
-   "lane": "runtime-on",
-   "existingCapture": "INCONCLUSIVE",
-   "verifiesNewItems": [
-    "shape.xcross"
-   ]
-  },
-  {
-   "key": "committed:renko-candles-overlay__d76a18d49e",
-   "title": "Renko Candles Overlay",
-   "agree": 8499,
-   "v": 5,
-   "lane": "runtime-on",
-   "existingCapture": "INCONCLUSIVE",
-   "verifiesNewItems": [
-    "barstate.isrealtime"
-   ]
-  },
-  {
    "key": "reference:pivot-points-high-low-hhhllhll-anan__b04lNFHeme",
    "title": "Pivot Points High Low (HH/HL/LH/LL) [Anan] ",
    "agree": 5504,
@@ -5135,17 +5235,6 @@
    ]
   },
   {
-   "key": "committed:wyckoff-accumulation-distribution__d9ae726e21",
-   "title": "Wyckoff Accumulation Distribution",
-   "agree": 3499,
-   "v": 5,
-   "lane": "runtime-on",
-   "existingCapture": "INCONCLUSIVE",
-   "verifiesNewItems": [
-    "display.pane"
-   ]
-  },
-  {
    "key": "reference:liquidation-screener__jwAtEwngOd",
    "title": "Liquidation Screener",
    "agree": 2521,
@@ -5154,6 +5243,17 @@
    "existingCapture": null,
    "verifiesNewItems": [
     "ta.mode"
+   ]
+  },
+  {
+   "key": "committed:mcclellan-indicators__29fdf0235d",
+   "title": "McClellan Indicators",
+   "agree": 669,
+   "v": 5,
+   "lane": "production",
+   "existingCapture": "DIVERGE",
+   "verifiesNewItems": [
+    "shape.xcross"
    ]
   },
   {
@@ -5234,6 +5334,17 @@
    ]
   },
   {
+   "key": "builtin:rsi-divergence-indicator__Divergence1I",
+   "title": "RSI divergence indicator",
+   "agree": null,
+   "v": 6,
+   "lane": "production",
+   "existingCapture": null,
+   "verifiesNewItems": [
+    "display.pane"
+   ]
+  },
+  {
    "key": "builtin:smi-ergodic-indicator__SMI_Ergodic_",
    "title": "SMI ergodic indicator",
    "agree": null,
@@ -5273,6 +5384,7 @@
    "title": "K clustering",
    "agree": 5070,
    "v": 5,
+   "lane": "production",
    "verdict": "DIVERGE"
   },
   {
@@ -5280,6 +5392,7 @@
    "title": "McClellan Indicators",
    "agree": 669,
    "v": 5,
+   "lane": "production",
    "verdict": "DIVERGE"
   },
   {
@@ -5287,6 +5400,7 @@
    "title": "Opening Range, Initial Balance, Opening Price",
    "agree": 718,
    "v": 5,
+   "lane": "production",
    "verdict": "INCONCLUSIVE"
   },
   {
@@ -5294,6 +5408,7 @@
    "title": "Poor man&#039;s volume profile",
    "agree": 4839,
    "v": 4,
+   "lane": "production",
    "verdict": "DIVERGE"
   },
   {
@@ -5301,6 +5416,7 @@
    "title": "SMT Divergence ICT 01 [TradingFinder] Smart Money Technique",
    "agree": 4904,
    "v": 5,
+   "lane": "production",
    "verdict": "DIVERGE"
   },
   {
@@ -5308,6 +5424,7 @@
    "title": "Support and Resistance Multi Time frame",
    "agree": 3462,
    "v": 4,
+   "lane": "production",
    "verdict": "DIVERGE"
   },
   {
@@ -5315,7 +5432,48 @@
    "title": "Supertrend",
    "agree": 81234,
    "v": 4,
+   "lane": "production",
    "verdict": "INCONCLUSIVE"
+  },
+  {
+   "key": "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
+   "title": "ATR-Stepped PDF MA [Loxx]",
+   "agree": 750,
+   "v": 5,
+   "lane": "runtime-on",
+   "verdict": "INCONCLUSIVE"
+  },
+  {
+   "key": "committed:cc-yata__bd898a1af0",
+   "title": "CC • Yata",
+   "agree": 4510,
+   "v": 5,
+   "lane": "runtime-on",
+   "verdict": "INCONCLUSIVE"
+  },
+  {
+   "key": "committed:fvg-trend__21e364f2ed",
+   "title": "FVG Trend",
+   "agree": 2445,
+   "v": 4,
+   "lane": "runtime-on",
+   "verdict": "INCONCLUSIVE"
+  },
+  {
+   "key": "committed:nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125",
+   "title": "Nadaraya-Watson: Rational Quadratic Kernel (Non-Repainting)",
+   "agree": 4306,
+   "v": 5,
+   "lane": "runtime-on",
+   "verdict": "INCONCLUSIVE"
+  },
+  {
+   "key": "committed:trend-targets-algoalpha__92ff5628d7",
+   "title": "Trend Targets [AlgoAlpha]",
+   "agree": 15160,
+   "v": 6,
+   "lane": "runtime-on",
+   "verdict": "DIVERGE"
   }
  ],
  "capturePopularUncaptured": [
@@ -5531,7 +5689,74 @@
   }
  ],
  "unverifiedItems": 73,
- "unverifiedItemsCoveredByGreedy": 49,
+ "unverifiedItemsCoveredByGreedy": 48,
+ "unverifiedItemsMatchingOnlyInRuntimeOn": {
+  "barstate.isrealtime": [
+   "renko-candles-overlay-rddt-1d-2026-10-03"
+  ],
+  "display.pane": [
+   "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+   "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+  ],
+  "format.price": [
+   "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+   "kalman-price-filter-backquant-rddt-1d-2026-10-03"
+  ],
+  "hour": [
+   "vw-clock-close-tfchange-spy-1d-2026-09-28"
+  ],
+  "line.style_arrow_both": [
+   "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28"
+  ],
+  "line.style_arrow_left": [
+   "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28"
+  ],
+  "minute": [
+   "vw-clock-close-tfchange-spy-1d-2026-09-28"
+  ],
+  "shape.xcross": [
+   "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02"
+  ],
+  "ta.alma": [
+   "h3-alma-v4-rddt-1d-2026-10-02"
+  ]
+ },
+ "unverifiedItemsNotCovered": {
+  "ungraded": [
+   "alert",
+   "alert.freq_once_per_bar",
+   "alert.freq_once_per_bar_close",
+   "alertcondition",
+   "runtime.error",
+   "strategy"
+  ],
+  "inNoTransferringScript": [
+   "array.reverse",
+   "box.set_lefttop",
+   "box.set_rightbottom",
+   "label.set_size",
+   "label.set_xloc",
+   "label.style_circle",
+   "map.put",
+   "map.remove",
+   "math.cos",
+   "math.sin",
+   "str.contains",
+   "syminfo.prefix",
+   "ta.bbw",
+   "ta.kc",
+   "ta.kcw",
+   "ta.wpr",
+   "table.cell_set_text",
+   "table.cell_set_tooltip"
+  ],
+  "onlyInScriptsThatAlreadyMatch": {
+   "barstate.isrealtime": [
+    "committed:renko-candles-overlay__d76a18d49e"
+   ]
+  },
+  "onlyInRuntimeOnTransfersAlreadyVerifiedThere": {}
+ },
  "titles": {
   "builtin:24-hour-volume__24hVolume": "24-hour volume",
   "builtin:accumulationdistribution__Accumulation": "Accumulation/distribution",
