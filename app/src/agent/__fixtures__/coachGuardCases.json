@@ -519,10 +519,9 @@
     {
       "text": "They'll explode higher after earnings.",
       "codes": [
-        "unsupported",
-        "uncertainty"
+        "unsupported"
       ],
-      "why": "will-move ('ll) (+ uncertainty)"
+      "why": "will-move ('ll contraction)"
     },
     {
       "text": "This trade will make you money.",
@@ -606,6 +605,11 @@
       "text": "The 50\u00a0day average is one input; it may not matter.",
       "codes": [],
       "why": "clean: NBSP is a space"
+    },
+    {
+      "text": "I'll walk you through what to check; the level may or may not hold.",
+      "codes": [],
+      "why": "clean: \"I'll\" alone is not a claim about outcomes"
     }
   ]
 }

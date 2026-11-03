@@ -70,7 +70,7 @@ export const ORDER = [
   ['take-trade', /\b(?:take|make) (?:the|this|that) trade\b|\bpull the trigger\b|\bget in (?:now|here|today)\b|\bget out (?:now|here|today)\b/i],
 ]
 
-export const OUTCOME = /\b(?:will|\w+'ll|likely|unlikely|probab\w*|odds|chances?|expect\w*|outcomes?|follow[- ]?through|work(?:s|ed)? out|play(?:s|ed)? out|next (?:move|session|week|day|leg)|going to|gonna|succeed\w*|fail\w*|targets?|upside|downside|forecast\w*|predict\w*|rally|rallies|bounce\w*|break ?outs?|breakdowns?|continu\w*|resolv\w*|should (?:hold|work|go|rally|bounce))\b/i
+export const OUTCOME = /\b(?:will|likely|unlikely|probab\w*|odds|chances?|expect\w*|outcomes?|follow[- ]?through|work(?:s|ed)? out|play(?:s|ed)? out|next (?:move|session|week|day|leg)|going to|gonna|succeed\w*|fail\w*|targets?|upside|downside|forecast\w*|predict\w*|rally|rallies|bounce\w*|break ?outs?|breakdowns?|continu\w*|resolv\w*|should (?:hold|work|go|rally|bounce))\b/i
 export const HEDGE = /\b(?:may|might|could|often|sometimes|tends? to|tend|not guaranteed|no guarantee|no guarantees|isn't guaranteed|uncertain\w*|not certain|no certainty|no way to know|cannot know|can't know|nobody knows|unknown|doesn't always|does not always|not always|don't always|do not always|depends|historically|in the past|hypothesis|one input|not a forecast|not a prediction|not a promise|not predictions|can fail|could fail|might fail|may fail|can reverse|could reverse|can break|could break|can still|could still|may still|no pattern|cannot be known|can't be known|possibility|possible|possibly|perhaps|not a signal|not a rule|not rules|estimate\w*)\b/i
 
 // a figure: 20, 20.5, 1,000, $10, 15%, 2R; a letter or digit BEFORE it is not a figure ("v2"). Prefix captured, no lookbehind.
