@@ -7,7 +7,7 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 |---|---|---|---|---|---|---|
 | A-01 | `contracts/STEP-1.md`: step protocol (server loop ↔ browser executor), frozen for the wave | docs/agent/program/contracts/STEP-1.md | — | todo | | |
 | A-02 | Eval prerequisites (free): `UCT_AGENT_EFFORT` → `output_config.effort`, MAX_TOKENS 4096 when thinking is on; Haiku 5.5 row in `narrative_cost_guard._PRICES`; capture bodies for dev-nl1 / live batch / latency (no model calls); dry-run cost estimates recorded in EVAL.md | api/services/uct_agent/turn.py, api/services/narrative_cost_guard.py, app/src/agent/agent*Capture*.test.* | — | todo | | |
-| A-03 | Cumulative cross-run eval ledger: `tools/agent_eval_ledger.py` (shared SQLite, BEGIN IMMEDIATE, reserve worst case before every call, settle with actual usage incl. cache write/read + thinking, hard cumulative cap read from a file the owner sets; every eval runner must acquire it) | tools/agent_eval_ledger.py, tools/agent_eval_run.py, tools/agent_live_batch.py, tools/agent_latency_probe.py, tools/agent_live_chain.py, tests/test_uct_agent_eval_ledger.py | — | todo | | |
+| A-03 | **Owner-approved 2026-11-02; acceptance = the six proofs in EVAL.md §0.** Cumulative cross-run eval ledger: `tools/agent_eval_ledger.py` (shared SQLite, BEGIN IMMEDIATE, reserve worst case before every call, settle with actual usage incl. cache write/read + thinking, hard cumulative cap read from a file the owner sets; every eval runner must acquire it) | tools/agent_eval_ledger.py, tools/agent_eval_run.py, tools/agent_live_batch.py, tools/agent_latency_probe.py, tools/agent_live_chain.py, tests/test_uct_agent_eval_ledger.py | — | todo | | |
 | A-04 | Server loop `run_turn_v2` behind `UCT_AGENT_PLANNER=v2` (default off): tools from the manifest (12 always-loaded domain tools + deferred capability tools + tool search), ≤ N rounds (6) with per-turn $ cap, per-step `sanitize`/`enforce_approval`, step events streamed; scripted-model tests only | api/services/uct_agent/turn_v2.py (new), turn.py (dispatch only), api/routers/uct_agent.py (stream events), tests/test_uct_agent_planner_v2*.py | A-01 | todo | | |
 | A-05 | Browser step executor: each step → `planOps`/`decideMode`/`commitPlan` → tool_result back; proposal pauses the loop; "do it" resumes; turn-level Undo group ("undo all of that") | app/src/agent/useAgent.js (v2 path only), app/src/agent/steps.js (new), app/src/agent/agentPlannerV2*.test.jsx | A-01 | todo | | |
 | A-06 | Deterministic acceptance for the flagship scenario with the scripted model (every step executes against the panel harness, receipts + one approval card + Undo) | app/src/agent/agentFlagshipV2.test.jsx | A-04, A-05 | todo | | |
@@ -49,7 +49,7 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 | I-03 | `agent-ci.yml` (server + 4-shard browser + union rail) on `agent/**` pushes and PRs | doing | |
 | I-04 | `agent-ci-benchmark.yml` on branch `ci/agent-shard-benchmark`: unsharded vs 4-shard wall time | doing | |
 | I-05 | #684 (already marked merged by GitHub once agent/int contained it) and #665 closed with containment evidence | done | rev-list 0 |
-| I-06 | Spending-controls report (owner's mandate) | doing | audit-H |
+| I-06 | Spending-controls report (owner's mandate) | done | appendix H; owner decision recorded in EVAL.md §0 |
 | I-07 | Production flag verification (owner runs the read-only command) | blocked (owner) | |
 | I-08 | RC1 (B + C + SEC if green) | todo | |
 | I-09 | RC2 (A) | todo | |
