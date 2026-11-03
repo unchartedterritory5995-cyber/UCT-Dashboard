@@ -299,7 +299,9 @@ export default function ConnectedAppsCard() {
                     {p.label}
                     {p.beta && <span className={styles.betaPill}>Beta</span>}
                   </span>
-                  {!configured ? (
+                  {!configured && connected ? (
+                    <span className={styles.comingSoon}>Sync off</span>
+                  ) : !configured ? (
                     <span className={styles.comingSoon}>Coming soon</span>
                   ) : needsFolder ? (
                     <button
@@ -349,6 +351,14 @@ export default function ConnectedAppsCard() {
                   </p>
                 )}
 
+                {!configured && connected && (
+                  // Connected, but the server will not sync it for this member now (flag off, admin mode,
+                  // or no longer set up). Sync now and pause would 503; Disconnect and the log still work.
+                  <p className={styles.pausedNotice} data-testid={`sync-off-${p.key}`}>
+                    {p.label} sync is off for this account. Your imported notes stay here, and you can disconnect.
+                  </p>
+                )}
+
                 {connected && sources.length > 0 && (
                   <div className={styles.sourcesWrap}>
                     {sources.map((s) => (
@@ -362,6 +372,7 @@ export default function ConnectedAppsCard() {
                         onTogglePause={handleTogglePause}
                         onDisconnect={handleDisconnect}
                         onReconnect={() => openConnect(p)}
+                        syncOff={!configured}
                       />
                     ))}
                   </div>

@@ -1179,4 +1179,33 @@ describe('ConnectedAppsCard — Evernote (Plan E Task 10)', () => {
       expect(within(screen.getByTestId(`connector-tile-${k}`)).queryByText('Beta')).toBeNull()
     }
   })
+
+  // Coordinator ruling (concern 2): a member who ALREADY has Evernote connected keeps the tile while
+  // it is connected, even with the flag off or admin mode excluding them, so a connection is never
+  // invisible or unremovable. The server leaves Disconnect and the log ungated, but refuses Sync now
+  // and pause (503), so the tile says sync is off and offers only what works.
+  it('a connected member keeps the evernote tile while gated off: sync-off notice and a working Disconnect, no dead buttons', async () => {
+    const source = {
+      id: 'src-en-1', provider: 'evernote', displayName: 'Evernote', remoteId: 'acct-1', syncEnabled: true,
+      status: 'broken', lastSyncStatus: 'error', lastSyncError: 'Evernote sync is paused.', counts: {},
+    }
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: statusWith({ configured: false, connected: true, sources: [source] }) }],
+      ['/api/j2/notes/connectors/evernote', { body: { disconnected: true } }],
+    ])
+    renderCard()
+    const tile = await screen.findByTestId('connector-tile-evernote')
+    expect(within(tile).getByText('Evernote sync is off for this account. Your imported notes stay here, and you can disconnect.')).toBeInTheDocument()
+    expect(within(tile).queryByText('Coming soon')).toBeNull()
+    expect(within(tile).queryByRole('button', { name: /^connect$/i })).toBeNull()
+    expect(within(tile).queryByRole('button', { name: /sync now/i })).toBeNull()
+    expect(within(tile).queryByRole('button', { name: /reconnect/i })).toBeNull()
+    expect(within(tile).queryByRole('checkbox')).toBeNull()
+    fireEvent.click(within(tile).getByRole('button', { name: /disconnect/i }))
+    fireEvent.click(within(tile).getByRole('button', { name: /click again to disconnect/i }))
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find((c) => String(c[0]).endsWith('/connectors/evernote') && c[1]?.method === 'DELETE')
+      expect(call).toBeTruthy()
+    })
+  })
 })

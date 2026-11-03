@@ -67,11 +67,13 @@ export const NOTE_CONNECTOR_PROVIDERS = [
 // lists them to every member, with `configured: false` while the flag is off or the member is not
 // allowed -- deliberately the same answer as "not set up", so a member cannot tell the modes apart.
 // So a gated provider shows NO tile at all (not "Coming soon") until the server says configured.
-// Every surface that lists providers asks `isProviderShown`; none re-derives the rule.
+// EXCEPT while the member is already connected (coordinator ruling): a connection must never be
+// invisible or unremovable, so the tile stays, in its sync-off state (Disconnect and the log are
+// ungated on the server; Sync now and pause are not). Every surface asks `isProviderShown`.
 export const MEMBER_GATED_PROVIDERS = new Set(['evernote'])
 
 export function isProviderShown(key, info) {
-  return !MEMBER_GATED_PROVIDERS.has(key) || !!(info && info.configured)
+  return !MEMBER_GATED_PROVIDERS.has(key) || !!(info && (info.configured || info.connected))
 }
 
 // Providers whose sync unit is a PICKED FOLDER, not a whole account —
