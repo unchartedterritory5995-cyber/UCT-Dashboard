@@ -226,6 +226,8 @@ def test_div_lines_become_separate_paragraphs():
     out = _convert("<div>line one</div><div>line two</div><div><br/></div><div>three</div>")
     paras = [b for b in _blocks(out) if b["type"] == "paragraph"]
     assert [_text(p) for p in paras] == ["line one", "line two", "", "three"]
+    # Review m1: Evernote's empty line keeps the client's shape, a paragraph holding a line break.
+    assert paras[2]["content"] == [{"type": "hardBreak"}]
 
 
 def test_en_todo_lines_group_into_one_task_list_with_checked_state():

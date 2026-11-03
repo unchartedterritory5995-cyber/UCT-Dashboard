@@ -614,28 +614,23 @@ def _rule_codeblocks(root: _Node) -> None:
     walk(root)
 
 
-def _is_blank_line(children: list[Any]) -> bool:
-    """A line that holds nothing but whitespace and `<br>`s (Evernote's empty line)."""
-    for c in children:
-        if isinstance(c, str):
-            if c.strip():
-                return False
-        elif c.tag != "br":
-            return False
-    return True
+def _is_whitespace_only(children: list[Any]) -> bool:
+    """Inter-block whitespace text between a div's block children: never a paragraph of its own."""
+    return all(isinstance(c, str) and not c.strip() for c in children)
 
 
 def _rule_div_lines(root: _Node) -> None:
     def fn(n: _Node) -> list[Any] | None:
         if n.tag != "div":
             return None
+        # Review m1: an empty line keeps its <br> -> `paragraph[hardBreak]`, the client's shape.
         if not any(isinstance(c, _Node) and c.tag in _BLOCK_TAGS for c in n.children):
-            return [_Node("p", {}, [] if _is_blank_line(n.children) else list(n.children))]
+            return [_Node("p", {}, list(n.children))]
         out: list[Any] = []
         run: list[Any] = []
 
         def flush() -> None:
-            if run and not _is_blank_line(run):
+            if run and not _is_whitespace_only(run):
                 out.append(_Node("p", {}, list(run)))
             run.clear()
 
