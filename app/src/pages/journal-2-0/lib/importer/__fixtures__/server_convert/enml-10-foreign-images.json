@@ -53,6 +53,25 @@
       {
         "content": [
           {
+            "text": "A relative image, no clip source:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "attempts": 0,
+          "name": null,
+          "reason": "unsafe",
+          "ref": null,
+          "sourceUrl": null
+        },
+        "type": "importNotice"
+      },
+      {
+        "content": [
+          {
             "text": "end",
             "type": "text"
           }

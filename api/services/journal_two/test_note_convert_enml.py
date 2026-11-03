@@ -678,6 +678,32 @@ def test_a_forged_placeholder_href_is_its_content_only(href):
     assert text["text"] == "x" and not text.get("marks")
 
 
+@pytest.mark.parametrize("src,resolved", [
+    ("/pics/a.png", "https://site.com/pics/a.png"),
+    ("pics/a.png", "https://site.com/articles/pics/a.png"),
+    ("//cdn.site.com/a.png", "https://cdn.site.com/a.png"),
+])
+def test_a_relative_img_in_a_web_clip_resolves_against_its_source_and_is_copied(src, resolved):
+    # Controller ruling after Task 4: as the file importer, via the one link policy
+    # (`linkify.resolve_href(src, source_url)`), then the same hotlink copy as an absolute src.
+    out = _convert(f'<img src="{src}"/>', source_url="https://site.com/articles/today")
+    images = _of_type(out, "image")
+    assert [i["attrs"]["src"] for i in images] == [f"import-ref://{resolved}"]
+    assert out["media"] == [{"ref": resolved, "kind": "image", "name": "a.png"}]
+
+
+@pytest.mark.parametrize("src", ["/pics/a.png", "pics/a.png", "//cdn.site.com/a.png"])
+def test_a_relative_img_without_a_web_clip_source_stays_unsafe(src):
+    out = _convert(f'<img src="{src}"/>')
+    (notice,) = _of_type(out, "importNotice")
+    assert notice["attrs"]["reason"] == "unsafe" and out["media"] == []
+
+
+def test_an_unsafe_img_stays_unsafe_in_a_web_clip():
+    out = _convert('<img src="javascript:alert(1)"/>', source_url="https://site.com/a")
+    assert [n["attrs"]["reason"] for n in _of_type(out, "importNotice")] == ["unsafe"]
+
+
 @pytest.mark.parametrize("src,ext", [
     ("data:image/png;base64,iVBORw0KGgo=", "png"),
     ("data:image/jpeg;base64,/9j/4AAQ", "jpg"),

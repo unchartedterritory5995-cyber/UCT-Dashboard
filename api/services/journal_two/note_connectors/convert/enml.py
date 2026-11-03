@@ -442,7 +442,7 @@ def _web_image_url(src: str) -> str | None:
     return None
 
 
-def _rule_refuse_foreign_media(root: _Node, notices: _Notices) -> None:
+def _rule_refuse_foreign_media(root: _Node, notices: _Notices, base_url: str | None = None) -> None:
     """Task 3 review I4. Runs FIRST, before the converter creates any media of its own, so every
     `<img>` and placeholder href found here was written in the note (ENML has no `<img>`;
     Evernote's images are `<en-media>`). None of them becomes a media ref: the only refs this
@@ -460,6 +460,12 @@ def _rule_refuse_foreign_media(root: _Node, notices: _Notices) -> None:
         if n.tag == "img":
             src = (n.attrs.get("src") or "").strip()
             url = None if src.lower().startswith(placeholders) else _web_image_url(src)
+            if url is None and base_url and src and not src.lower().startswith(placeholders):
+                # Ruling after Task 4: in a web clip a relative src resolves against the clip's
+                # source through the one link policy, then is copied like any hotlink (the file
+                # importer's `collectRemoteImages`). With no source it stays `unsafe` below.
+                resolved = resolve_href(src, base_url)
+                url = _web_image_url(resolved) if resolved else None
             if url:
                 return [_Node("img", {"src": url})]  # every other attribute dropped
             if is_data_image_uri(src):
@@ -904,7 +910,7 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
 
     res = _Resources(resources, note_guid)
     notices = _Notices()
-    _rule_refuse_foreign_media(root, notices)  # before any media of our own exists (I4)
+    _rule_refuse_foreign_media(root, notices, _source_line_url(source_url))  # before any media of ours (I4)
     _rule_formatting(root)             # before any rule rebuilds an element without its style (m3)
     _rule_en_crypt(root)               # 2
     _rule_note_links(root)             # 3

@@ -94,6 +94,27 @@
           }
         ],
         "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Hero image:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://https://site.com/images/hero.png"
+        },
+        "type": "image"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://https://site.com/articles/thumbs/t1.png"
+        },
+        "type": "image"
       }
     ],
     "type": "doc"
@@ -105,6 +126,16 @@
       "mime": "image/png",
       "name": "chart.png",
       "ref": "evernote-res://11111111-0000-4000-8000-000000000009/365dccce50f2d8411c4e737c7ff0057d"
+    },
+    {
+      "kind": "image",
+      "name": "hero.png",
+      "ref": "https://site.com/images/hero.png"
+    },
+    {
+      "kind": "image",
+      "name": "t1.png",
+      "ref": "https://site.com/articles/thumbs/t1.png"
     }
   ]
 }

@@ -137,7 +137,13 @@ async function clientSummary(fixture) {
 // and forces its removal), and every field not named still compares.
 // ⚰️ `10-foreign-images` (a `data:` image: uploaded by the client, refused by the server) was a
 // named gap here until the controller ruled "content wins": the server now uploads it too.
-const knownClientGap = {}
+const knownClientGap = {
+  // OWNER: Plan E controller (ruling after Task 4). A RELATIVE `<img>` in a note with NO clip
+  // source: both lanes write a notice in place and copy nothing, but the reason differs. The
+  // client's post-parse pass says `unresolvable_src` ("Couldn't find the image file for …"); the
+  // server says `unsafe`, as ruled. With a clip source both resolve and copy it (09 agrees).
+  '10-foreign-images.json': { clientReads: { notices: ['unsafe', 'unresolvable_src'] } },
+}
 
 describe('Evernote client .enex <-> server ENML parity', () => {
   it('found at least one committed fixture', () => expect(fixtures.length).toBeGreaterThan(0))
