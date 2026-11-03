@@ -230,8 +230,14 @@ def test_rows_the_screener_excludes_for_stopped_bars_are_dropped_in_coverage(on,
 
 
 @pytest.mark.parametrize("kind", ["screen.run", "screen.count"])
-def test_zero_matches_is_dated_by_the_universe_and_not_stale(on, snap, kind):
+def test_zero_matches_is_dated_by_the_universe_and_not_stale(on, snap, kind, monkeypatch):
     # agent-qa F-4: a fresh snapshot with no matches must read "none as of the close", never undated/stale
+    # The fixture snapshot is the 2026-10-30 close, so "fresh" is a claim about a moment: pin the clock to
+    # Mon 2026-11-02 after the close (one session behind), as test_one_session_behind_is_not_stale does.
+    # Reading the wall clock made this go red on 2026-11-03, two sessions later.
+    real_behind = screen.sessions_behind
+    pinned = dt.datetime(2026, 11, 2, 22, 0, tzinfo=dt.timezone.utc)
+    monkeypatch.setattr(screen, "sessions_behind", lambda day, now=None: real_behind(day, pinned))
     out = _read(kind, {"spec": {"filters": [{"key": "rsi14", "op": "gte", "min": 1000}]}}, turn=f"z-{kind}")
     assert env.validate_envelope(out) == []
     assert out["status"] in ("ok", "partial") and out["coverage"] is not None
