@@ -62,3 +62,30 @@ Ownership = the paths each package touches, listed in `BOARD.md` per task. Anyth
 5. `UCT_AGENT_SCAN=1` — only after F-16 (#654/#657/#661 content) is on master, isolation audit cells 23/24 closed, rails green, and an independent verification is recorded in BOARD.
 6. `UCT_AGENT_PLANNER=v2` — only after the sealed-set result meets target with 0 FAIL and the owner approves the model.
 7. `UCT_AGENT_ISOLATED`, `UCT_AGENT_NL1`, `AGENT_BREADTH_CURRENT` — stay OFF in Wave 1.
+
+## Wave 3 — intelligent trading coach (owner-authorized 2026-11-03, builder w3-a, branch `agent/w3/coach` → base `agent/int-w3`)
+
+**Scope.** The Agent as an educational trading coach: explains trading concepts from a curated knowledge base
+(`docs/agent/coach/concepts/*.md`, ≥ 12 concepts) with ONE grounded observation from the open chart; a deterministic
+evaluation suite (`api/services/uct_agent/coach/guard.py` + browser mirror) applied to every coach reply server-side;
+trade-review foundations over the member's OWN journal (consent-gated, descriptive stats only, a PROPOSED note the
+member approves); a single-turn coaching workflow (explain → what to check → one question back, `coach.next` quick
+replies). W3-5 (`chart.describeSetup`) and W3-6 (`history.eventStudy`) are BLOCKED on Wave 2: their contract is
+`contracts/COACH-1.md`; nothing of them is built.
+
+**Dependencies.** Wave 1 (on `agent/int-w3`): conversation state (`store.STATE_KEYS`, W1-C), the MD-1 `bars.daily`
+kind for the observation, the j2 journal routes as read-only consumers. Wave 2 for W3-5/W3-6 only.
+
+**Hard rules (verbatim in effect).** Every new capability default OFF behind the NEW server flag `UCT_AGENT_COACH`
+(reported by `/api/agent/config` as `coach`) and admin-only. No autonomous trading, order placement, price targets, or
+any guaranteed / will / sure claim. Every figure in a coach answer comes from an envelope or the member's own journal
+rows (never invented); "Educational, not advice" on every coach answer. The member's journal is read ONLY after an
+explicit per-conversation consent (`coach.consent` → state key `coachConsent`, with a clear revoke); journal writes
+are limited to a PROPOSED note; telemetry is value-free (ADR-005 style: codes, counts, dates).
+
+**Acceptance.** Rails green: the concept base parses with the four sections and passes its own guard; the shared
+adversarial fixture (≥ 20 violating, ≥ 10 clean phrasings) trips exactly its codes on BOTH implementations; a coach
+turn's violating reply is replaced server-side and logged value-free; a coach answer never carries a figure absent
+from its inputs; the golden manifest is unchanged on a dark server; nothing under `coach/` calls a j2 write except
+`journal.proposeNote` → `POST /api/j2/notes`. PRs: W3-1+W3-2, then W3-3, then W3-4, each with full Agent suites via the
+lock. Activation (flag on, admin-only) is a separate owner decision after Phase 1 live testing.
