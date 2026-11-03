@@ -56,7 +56,7 @@ def _turn_state(ctx: dict) -> dict:
         return dict(_TURNS.get(key) or {"reads": 0, "chars": 0})
 
 
-def _reserve(ctx: dict, want_chars: int = 0, min_chars: int = 0) -> tuple:
+def _reserve(ctx: dict, want_chars: int = 0, min_chars: int = 0, read: bool = True) -> tuple:
     """ONE locked check-and-charge: a read (refused past max_reads_per_turn) plus up to `want_chars` excerpt
     characters (refused when fewer than `min_chars` remain). Returns (reason | None, reserved_chars)."""
     cap = policy.search_setting("max_reads_per_turn", 4)
@@ -67,13 +67,13 @@ def _reserve(ctx: dict, want_chars: int = 0, min_chars: int = 0) -> tuple:
         for k in [k for k, v in _TURNS.items() if now - v["at"] > TURN_TTL_S]:
             _TURNS.pop(k, None)
         st = _TURNS.setdefault(key, {"reads": 0, "chars": 0, "at": now})
-        if st["reads"] >= cap:
+        if read and st["reads"] >= cap:
             return f"this turn already read UCT's knowledge base {cap} times", 0
         left = total - st["chars"]
         if min_chars and left < min_chars:
             return "this turn already used its share of UCT's knowledge excerpts", 0
         got = max(0, min(want_chars, left))
-        st["reads"] += 1
+        st["reads"] += 1 if read else 0
         st["chars"] += got
         return None, got
 
@@ -259,7 +259,7 @@ def search(params: dict, ctx: dict) -> dict:
         if room < 120:
             break
         if len(p["excerpt"]) > room:
-            p["excerpt"] = p["excerpt"][:room].rsplit(" ", 1)[0] + " …"
+            p["excerpt"] = p["excerpt"][:max(0, room - 2)].rsplit(" ", 1)[0] + " …"
         used += len(p["excerpt"])
         kept.append(p)
     passages = kept
@@ -432,6 +432,9 @@ def playbook(params: dict, ctx: dict) -> dict:
     if str((ctx or {}).get("purpose") or "answer") != "answer":
         return _refused(kind, params, "UCT's trading knowledge is answered to the member only; it is never used for "
                                       "research or scans")
+    over = _over_reads(ctx)                         # r3 N-13: every playbook call counts, refusals included
+    if over:
+        return _refused(kind, params, over)
     res = resolve_setup(str(params.get("setup") or ""))
     if not res["ok"]:
         return _refused(kind, params, res["reason"])
@@ -462,7 +465,7 @@ def playbook(params: dict, ctx: dict) -> dict:
     _bound(data, protect=("name", "licence", "source", "link", "resolved_by", "approved_by_policy", "criteria",
                           "criteria_contract", "provenance_ref", "rights_review_ref"))
     size = len(json.dumps(data, ensure_ascii=False))
-    over, got = _reserve(ctx, want_chars=size, min_chars=size)
+    over, got = _reserve(ctx, want_chars=size, min_chars=size, read=False)
     if over:
         return _refused(kind, params, over)
     return _envelope(kind, params, data=data, notes=[
@@ -590,11 +593,22 @@ def _with_source(block: dict, cls: dict, calc_date=None, data_through=None) -> d
         return _not_served(block, cls, "no uncertainty interval")
     if not cls.get("methodology_id"):
         return _not_served(block, cls, "no methodology id")
+    # r3 N-9: a calculation cannot predate the data it covers (guards a date that is really an import/copy stamp)
+    if data_through and str(calc_date)[:10] < str(data_through)[:10]:
+        return _not_served(block, cls, "its calculation date is earlier than its data")
+    # r3 N-10: a fresh recompute over stalled data is still stale data
+    if data_through:
+        d_age = _days_since(data_through)
+        if d_age is None or d_age > policy.pack_setting("stats_data_stale_days", 30):
+            return _not_served(block, cls, "its newest data is older than the freshness limit")
     out = {**block, "source": cls["label"], "licence": cls["licence"], "methodology_id": cls["methodology_id"],
            "calculation_date": calc_date}
     if data_through:
         out["data_through"] = data_through
     out.pop("updated_at", None)
+    # r3 N-11: figures without an interval are not served (the owner asked for appropriate uncertainty on each)
+    for k in ("expectancy", "expectancy_r", "avg_gain_pct", "avg_loss_pct"):
+        out.pop(k, None)
     return out
 
 

@@ -96,7 +96,8 @@
   },
   "pack": {
     "stale_days": 4,
-    "stats_stale_days": 14
+    "stats_stale_days": 14,
+    "stats_data_stale_days": 30
   },
   "model_access": {
     "status": "conditionally approved for design and testing (owner, 2026-11-03)",

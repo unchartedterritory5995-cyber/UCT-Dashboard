@@ -936,6 +936,11 @@ def _local_requests(data) -> str:
     return ("The member asked for: " + "; ".join(parts) + ".") if parts else ""
 
 
+def _kn_frame():
+    from api.services.uct_agent.knowledge import frame
+    return frame
+
+
 def outcome_for_model(t: dict) -> str:
     """The text a stored OUTCOME row may contribute to a model request — the ONLY door for one."""
     data = t.get("data")
@@ -971,6 +976,10 @@ def history_messages(turns: list[dict]) -> list[dict]:
             env = (t.get("data") or {}).get("envelope") if isinstance(t.get("data"), dict) else None
             ours = isinstance(env, dict) and env.get("local_notice") is True and t.get("text") in LOCAL_NOTICES
             text = f"[UCT] {t['text']}" if ours else ""
+        elif t["role"] == "agent" and _kn_frame().used_knowledge(t.get("data")):
+            # KN-1 r3 B-1: the model's own reply in a knowledge turn quotes or paraphrases the passages; it is never
+            # replayed (citation-only, aligned with the retention direction), and its stub keeps web research blocked
+            text = f"[UCT] {_kn_frame().REPLAY_STUB}"
         else:
             text = t["text"]
         if not text:

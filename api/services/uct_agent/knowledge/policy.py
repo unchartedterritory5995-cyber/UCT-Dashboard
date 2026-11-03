@@ -150,8 +150,11 @@ def search_setting(key: str, default: int) -> int:
     return _int((load().get("search") or {}).get(key), default)
 
 
+HARD_N_MIN = 30          # owner rule: no figure below 30 outcomes; policy.json may raise it, never lower it
+
+
 def stats_n_min() -> int:
-    return max(1, _int((load().get("stats") or {}).get("n_min"), 30))
+    return max(HARD_N_MIN, _int((load().get("stats") or {}).get("n_min"), HARD_N_MIN))
 
 
 def pack_setting(key: str, default: int) -> int:

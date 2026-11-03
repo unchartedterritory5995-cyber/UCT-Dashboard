@@ -118,8 +118,8 @@ def _make_pack(root: Path, data_dir: Path, ts: int, kb=KB, perf_htf_days=60) -> 
               " avg_loss_pct REAL, expectancy REAL, sample_start TEXT, sample_end TEXT, updated_at TEXT)")
     c.executemany("INSERT INTO setup_performance (setup_type, regime_phase, total_trades, wins, losses, win_rate_pct,"
                   " avg_gain_pct, avg_loss_pct, expectancy, sample_start, sample_end, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                  [("Episodic Pivot", "ALL", 40, 22, 18, 55.0, 9.0, -4.0, 0.5, "2026-03-01", "2026-10-30", _iso(1)),
-                   ("Kicker", "ALL", 12, 7, 5, 58.3, 8.0, -3.0, 0.4, "2026-03-01", "2026-10-30", _iso(1)),
+                  [("Episodic Pivot", "ALL", 40, 22, 18, 55.0, 9.0, -4.0, 0.5, "2026-03-01", _iso(3)[:10], _iso(1)),
+                   ("Kicker", "ALL", 12, 7, 5, 58.3, 8.0, -3.0, 0.4, "2026-03-01", _iso(3)[:10], _iso(1)),
                    ("HTF", "ALL", 50, 30, 20, 60.0, 10.0, -4.0, 0.7, "2026-03-01", "2026-08-30", _iso(perf_htf_days))])
     c.execute("CREATE TABLE trigger_performance (id INTEGER PRIMARY KEY, setup_type TEXT, regime_phase TEXT,"
               " total_trades INTEGER, wins INTEGER, losses INTEGER, win_rate_pct REAL, expectancy_r REAL,"
@@ -1064,19 +1064,19 @@ def _v1_reply(env):
 def test_v1_a_knowledge_answer_in_history_never_reaches_the_model_or_the_web(monkeypatch):
     from api.services.uct_agent import turn as t1
     outbound = []
-    monkeypatch.setattr(t1, "_research", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])   # the one door both planners use to reach the web
+    monkeypatch.setattr(t1, "_research", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])
     monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
-    history = [{"role": "member", "text": "what is an EP"}, {"role": "agent", "text": "Here is UCT's playbook."},
+    history = [{"role": "member", "text": "what is an EP"}, {"role": "agent", "text": "Here is UCT's playbook.",
+                                                              "data": {"envelope": {"ops": [{"action": "playbook.explain"}]}}},
                {"role": "outcome", "text": f"From UCT's playbook: {SENTINEL} an EP is a gap on news.",
                 "data": {"kind": "answered", "actions": ["playbook.explain"]}}]
     env = {"disposition": "answer", "reply": "x", "ops": [], "question": None,
            "research": {"query": UNIQ_Q, "recency": "day"}}
     seen_by_model = []
-    t1.run_turn(message="why is NVDA moving today", context={"surface": "charts"}, history=history,
-                capabilities=[], caller=lambda **kw: (seen_by_model.append(kw), _v1_reply(env))[1])
+    out = t1.run_turn(message="why is NVDA moving today", context={"surface": "charts"}, history=history,
+                      capabilities=[], caller=lambda **kw: (seen_by_model.append(kw), _v1_reply(env))[1])
     assert SENTINEL not in json.dumps(seen_by_model)                     # N-8: the passage is never replayed
-    assert outbound == [UNIQ_Q] and not any(SENTINEL in q for q in outbound)
-
+    assert outbound == [] and out["usage"].get("research_skipped") == "knowledge_separation"   # r3: blocked in the window
 
 def test_v1_research_is_blocked_if_framed_knowledge_ever_appears_in_the_request(monkeypatch):
     from api.services.uct_agent import turn as t1
@@ -1195,3 +1195,117 @@ def test_n6_k_max_is_read_from_policy(kn, monkeypatch, tmp_path):
     monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
     assert read("knowledge.search", {"question": "episodic pivot", "k": 2})["status"] == "refused"
     assert len(read("knowledge.search", {"question": "episodic pivot gap"})["data"]["passages"]) <= 1
+
+
+# ── r3: B-1 (v2 knowledge answers replayed), N-9..N-14 ─────────────────────────────────────────────────
+def _v2_knowledge_history():
+    return [{"role": "member", "text": "what is an EP"},
+            {"role": "agent", "text": f"Per UCT's playbook: {SENTINEL} an EP is a gap on news with heavy volume.",
+             "data": {"planner": "v2", "envelope": {"disposition": "answer", "reply": "…",
+                                                     "steps": [{"action": "playbook.explain", "status": "query"}]}}}]
+
+
+def test_b1_v2_knowledge_reply_is_replayed_citation_only():
+    from api.services.uct_agent import turn as t1
+    from api.services.uct_agent.knowledge import frame
+    msgs = t1.history_messages(_v2_knowledge_history())
+    blob = json.dumps(msgs)
+    assert SENTINEL not in blob and frame.REF in blob and frame.seen(msgs)
+    other = t1.history_messages([{"role": "member", "text": "hi"}, {"role": "agent", "text": "Switched to weekly.",
+                                 "data": {"envelope": {"steps": [{"action": "chart.setTimeframe"}]}}}])
+    assert "Switched to weekly." in json.dumps(other) and not frame.seen(other)
+
+
+def test_b1_v2_turn_after_a_knowledge_answer_makes_no_research_call_and_never_sees_the_sentinel(monkeypatch):
+    import types
+    from api.services.uct_agent import turn as t1, turn_v2 as v2
+    outbound = []
+    monkeypatch.setattr(t1, "_research", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])
+    monkeypatch.setenv(v2.PLANNER_ENV, "v2")
+    monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
+    script = [_model_reply([types.SimpleNamespace(type="tool_use", id="r1", name="research__web",
+                                                  input={"query": "more on that setup", "recency": "week"})], "tool_use"),
+              _model_reply([types.SimpleNamespace(type="text", text="ok")], "end_turn")]
+    calls = []
+
+    def caller(**kw):
+        calls.append(kw)
+        return script[min(len(calls), len(script)) - 1]
+
+    class M:
+        def call(self, category, fn, **kw):
+            return fn(**kw)
+
+        def calls_left(self):
+            return 5
+
+        def research(self, fn):
+            return fn()
+    out = v2.run_turn_v2(message="search the web for more on that", context={"surface": "charts"},
+                         history=_v2_knowledge_history(), capabilities=[], caller=caller, meter=M(), on_event=None,
+                         wait_step=lambda sid: None)
+    assert outbound == [] and out["usage"].get("research_skipped") == "knowledge_separation"
+    assert SENTINEL not in json.dumps([c.get("messages") for c in calls], default=str)
+
+
+def test_b1_v1_turn_after_a_v2_knowledge_answer_makes_no_research_call(monkeypatch):
+    from api.services.uct_agent import turn as t1
+    outbound = []
+    monkeypatch.setattr(t1, "_research", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])
+    monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
+    env = {"disposition": "answer", "reply": "x", "ops": [], "question": None, "research": {"query": UNIQ_Q, "recency": "day"}}
+    seen_by_model = []
+    out = t1.run_turn(message="search the web for more on that", context={"surface": "charts"},
+                      history=_v2_knowledge_history(), capabilities=[],
+                      caller=lambda **kw: (seen_by_model.append(kw), _v1_reply(env))[1])
+    assert outbound == [] and SENTINEL not in json.dumps(seen_by_model)
+    assert "recent turns" in out["envelope"]["reply"]                        # the refusal states the real scope
+
+
+def test_n9_calculation_before_its_data_is_not_served():
+    cls = {"state": "conditional", "licence": "firm_generated", "label": "x", "methodology_id": "m"}
+    block = {"label": "descriptive_uncontrolled", "n": 40, "wins": 20, "win_rate_pct": 50.0, "win_rate_ci95": [35, 65], "method": "m"}
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    b = kinds._with_source(block, cls, calc_date=time.strftime("%Y-%m-%d", time.gmtime(time.time() - 5 * 86400)),
+                           data_through=today)
+    assert b["label"] == "source_not_approved" and "earlier than its data" in b["label_text"]
+
+
+def test_n10_fresh_calculation_over_stale_data_is_not_served():
+    cls = {"state": "conditional", "licence": "firm_generated", "label": "x", "methodology_id": "m"}
+    block = {"label": "descriptive_uncontrolled", "n": 40, "wins": 20, "win_rate_pct": 50.0, "win_rate_ci95": [35, 65], "method": "m"}
+    b = kinds._with_source(block, cls, calc_date=time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), data_through="2025-01-02")
+    assert b["label"] == "source_not_approved" and "newest data is older" in b["label_text"]
+
+
+def test_n11_figures_without_an_interval_are_not_served(kn, monkeypatch):
+    monkeypatch.delenv("UCT_AGENT_KNOWLEDGE_POLICY", raising=False)
+    e = read("setup.record", {"setup": "EP"})["data"]["engine"]
+    assert e["label"] == "descriptive_uncontrolled" and e["win_rate_ci95"]
+    assert not {"expectancy", "expectancy_r", "avg_gain_pct", "avg_loss_pct"} & set(e)
+
+
+def test_n12_policy_cannot_lower_the_30_floor(kn, monkeypatch, tmp_path):
+    pol = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
+    pol["stats"]["n_min"] = 5
+    f = tmp_path / "low.json"
+    f.write_text(json.dumps(pol), encoding="utf-8")
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+    assert policy.stats_n_min() == 30
+    assert read("setup.record", {"setup": "kicker"})["data"]["engine"]["label"] in ("insufficient_sample", "source_not_approved")
+
+
+def test_n13_refused_playbook_calls_count_toward_the_read_cap(kn):
+    outs = [gateway.read("setup.playbook", {"setup": "moon rocket"}, user_id=9, turn_id="n13") for _ in range(5)]
+    assert all(o["status"] == "refused" for o in outs)
+    assert "4 times" in outs[4]["notes"][0]
+
+
+def test_n14_trimmed_excerpts_never_exceed_the_turn_budget(kn, monkeypatch, tmp_path):
+    pol = json.loads(Path(os.environ["UCT_AGENT_KNOWLEDGE_POLICY"]).read_text(encoding="utf-8"))
+    pol["search"]["turn_excerpt_chars"] = 333
+    f = tmp_path / "b333.json"
+    f.write_text(json.dumps(pol), encoding="utf-8")
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+    out = gateway.read("knowledge.search", {"question": "episodic pivot gap volume", "k": 3}, user_id=10, turn_id="n14")
+    assert sum(len(p["excerpt"]) for p in out["data"]["passages"]) <= 333
