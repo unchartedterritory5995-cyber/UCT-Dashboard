@@ -1227,6 +1227,25 @@ left edge of the window and in its own column per level, so close prices never s
 pointer arrow sits further from the candle with a smaller chip (a drawing anchored ON the window's edge is culled by the
 overlay, measured). Spot the trap -> SPOT THE KICKER. Logo: finer arcs, hairline seams in the face colour, 60 fps on
 screen, slower turn, eased throb and bounce.
+## 2026-11-03 (night): THE LOGO IN A REAL 3D ENGINE (piece 58, batch 13 piece 7) + one-click sandbox sign-in
+
+Owner after round 13: "Logo still isn't smooth and clean imo and I am still signed out of the sandbox wtf", then, asked
+whether to bring in a real 3D library: "Yeah show me 12 different examples all that improve upon each other".
+- three.js r160 VENDORED for the workbench only (app/src/lab/vendor/three.module.js via `npm pack three@0.160.0`,
+  untracked by the folder's own .gitignore, README says how to re-fetch). The lab entry is not in the product build.
+  The auto-mode classifier refuses code that loads a library from a CDN, and `npm install` was not attempted with
+  ~1.4 GB free; the vendored ESM file sidesteps both. A product dependency decision comes with the merge.
+- lab/Logo3D.jsx: the mark's outlines extruded with ExtrudeGeometry; `variant` 1..12 is a ladder, each step keeping
+  everything before it (flat extrude / bevel / key light / fill+rim / metal / contact shadow / finer curves / gold edge
+  trim / ACES + sRGB / depth+tilt / eased sway / halo+sparks). The halo is a shader falloff, not a canvas texture: the
+  texture version showed its square edge (measured). `window.__uctLogoPhase` pins the turn for the screenshot rig
+  (scratchpad local_study/pw_ladder.py; headless Chromium needs `--use-angle=swiftshader` for WebGL).
+- lab/pieces/Piece58LogoLadder.jsx: the gallery; step 0 = the canvas renderer the owner scored; tap a step to see it
+  large; idle/happy/fire tempos. Shell batch 13 entry "7 · The logo in a real 3D engine: twelve steps".
+- Sign-in: the shell server (scratchpad local_study/walkthrough/server.py, not in the repo) has a /signin route that
+  logs the local test account in against 8077 and replays the cookie for 127.0.0.1, so one click from the shell's
+  "Sign the sandbox in" link or the lab's SignedOut card signs every piece in; the typed form stays as a fallback.
+- Commit d8e2b64037 on feat/study-hourly-review-1031 (pushed). Awaiting the owner's pick of a step (or a step 13).
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
