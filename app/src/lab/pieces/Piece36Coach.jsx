@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
 import Coach from '../Coach'
 import { useSample } from '../Lab'
@@ -16,7 +16,7 @@ const VOICES = ['welcome', 'right', 'wrong', 'kicker', 'line', 'entry', 'buy_per
 
 export default function Piece36Coach() {
   const d = useSample()
-  const [mood, setMood] = useState('idle')
+  const [moodPick, setMood] = useState(null)   // a mood tapped above, or the reaction to the question
   const [pick, setPick] = useState(null)
   const [state, setState] = useState('ask')
   const [cap, setCap] = useState(null)
@@ -30,7 +30,7 @@ export default function Piece36Coach() {
     const a = state === 'ask' ? spot(all, n - 1, { label: 'this candle', id: 'p' }) : [...spot(all, n - 1, { label: 'the trigger', id: 'p', color: '#2faf68' }), ...rayAt(bars[n - 1], 'l', { id: 'l', label: 'the line' })]
     return a
   }, [all, bars, n, state])
-  useEffect(() => { if (state === 'ask') setMood(pick != null ? 'think' : 'idle') }, [pick, state])
+  const mood = moodPick || (state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops')
   const say = async (key) => { const r = await voice(key); setCap({ key, text: r.caption, played: r.played }); setTimeout(() => setCap(null), 2600) }
   const check = () => {
     const ok = pick === 1
@@ -38,7 +38,7 @@ export default function Piece36Coach() {
     if (ok && combo + 1 >= 3) { setMood('fire'); sfx('combo'); say('right_combo') } else { setMood(ok ? 'happy' : 'oops'); say(ok ? 'right' : 'wrong') }
     if (ok) setCombo((c) => c + 1); else setCombo(0)
   }
-  const reset = () => { setPick(null); setState('ask'); setMood('idle') }
+  const reset = () => { setPick(null); setState('ask'); setMood(null) }
   return (
     <div className={d5.lesson}>
       <div className={d5.topbar}><span className={d5.eyebrowG}>The coach · moods</span><button type="button" className={d5.mini} onClick={() => { setMuted(!mute); setMute(!mute) }}>{mute ? '🔇 muted' : '🔊 sound on'}</button></div>

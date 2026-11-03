@@ -980,6 +980,47 @@ Fix: .slideIn no longer uses transform (a transformed ancestor broke the fixed f
 `left` on a relative box. Known cosmetic: pointer chips can clip at the chart's top edge for the topmost candle.
 Batches 7, 8, 9 all await scores. NEXT per PRODUCTION_PLAN.md: round 10 (Guidebook, sell-rules unit scaffold, share
 card, league results + friend streak + Discord badge post, replay-the-week).
+## 2026-11-02 (late night): FULL REVIEW of rounds 1-9 (owner: "Analyze it all and try to find anything that needs improvement")
+
+CHECKED: eslint over app/src/lab (29 findings, all in current pieces fixed; superseded pieces 1-30 left as history); a phone
+pass (Playwright, 390 px, pieces 31-45: horizontal overflow, main button inside the viewport, console warnings); a desktop
+re-render; a screen-by-screen read against the quality bar in PRODUCTION_PLAN.md.
+
+FOUND AND FIXED:
+- The full Chart widget collapsed at 390 px (toolbar, legend and watermark painted over a sliver of candles). WidgetChart
+  now runs chart-only on a phone (density mini, no drawing toolbar, legend, watermark, range bar or scale toggle, 45 bars),
+  with its own 30m/1h/1D pill row when it carries bars per timeframe, and a smaller height (phoneHeight).
+- The answer table (piece 32) forced the phone page to 988 px wide; it now stacks into labelled cards under 700 px.
+- Hit BUY (37) and the story (33) put their button below the fold on a phone; chart 320 tall on a phone and the side
+  button sticks to the bottom.
+- Pointer chips clipped at the chart's top edge for the topmost candle; spot() now puts the chip below the arrow when the
+  candle is in the top 14% of the recent range, and accepts `below` for a chip that would collide with another.
+- XP numbers drifted between pieces (+10/+12/+15/+17/+20/+25 in different places); one lab/rewards.js now holds the
+  economy and pieces 31, 35, 37, 38, 41, 42, 43, 44 read it; the Rewards tile prints from it.
+- React patterns: setState-in-effect for initial state (28, 33, 36, 37, 34's counter), state mutation during render (35),
+  a ref read during render (41), unused imports; all cleared in the current pieces.
+- The slide transition's transform had floated the fixed footer (fixed earlier tonight).
+
+FOUND, NOT FIXED, NEEDS THE OWNER OR LATER WORK:
+- The coach is a programmatic SVG; a real illustrated character (several moods, a few poses) is a design job.
+- Voice lines: nothing plays until the owner records the 17 lines (docs/study/VOICE_LINES.md).
+- Placeholders: leaderboard names, profile numbers, streak/goal counts, the Daily Set's five charts (reuse of three stored
+  examples). Real data needs the Study API (sessions, XP, streaks) wired to these screens: the next engineering step after
+  the owner signs off the screens.
+- Only one setup (Kicker) has the full ride; Slingshot and Launchpad have one chart each. Content authoring is the bulk
+  of the remaining work and is the owner's review loop (Foundations units, more approved examples, 30-min bars per
+  example for the live-reveal and answer pieces).
+- The widget's time axis shows a far-right year label from its future whitespace in bars-override mode (cosmetic).
+- Draw-it shows the annotation-editing toolbar over the standard one (two toolbars); needs a pass with the chart owner.
+- Hard mode still shows the volume pane row (empty); and hideLegend leaves the OHLC readout off everywhere on a phone,
+  which some members may want back as a tap.
+- Sound starts ON; the apps start on but ask once. A first-run prompt is a small follow-up.
+- Accessibility: keyboard works for choices and BUY; the chart taps have no keyboard path; chips are canvas text
+  (screen readers get nothing); the coach SVG is aria-hidden with no text alternative for its mood.
+- Performance: each piece mounts one or two ChartPanes; the Daily Set and Blitz remount a pane per question (fine on
+  desktop, ~1 s per chart on the owner's low-memory PC). A pane that swaps bars instead of remounting would be faster.
+- Story timing: the hourly data covers JBI only; the other two examples would need their own hourly pulls for tick
+  mode and for live-reveal.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.

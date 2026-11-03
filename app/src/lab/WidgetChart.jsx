@@ -4,16 +4,24 @@
 // `bars` = explicit bars (the Study bank's stored window, no fetch; tap-to-pick and bar-by-bar replay work because
 // the bars are in hand); `barsByTf` = explicit bars per timeframe, so the member can switch 30m / 1h / 1D on the
 // widget's own bar with no fetch at all (the bar then shows only the timeframes there is data for).
+// PHONE (≤640 px, the review of 2026-11-02): the full chrome collapsed onto the candles at 390 px, so on a phone the
+// pane runs chart-only (no identity row, no toolbar, no legend, no range bar, no watermark) with the candles given
+// the whole width, and the timeframe switch becomes a row of pills above the chart.
 import { Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import ChartPane from '../components/chart/pane/ChartPane'
+import { useIsPhone } from '../hooks/useBreakpoint'
+import d5 from './duo.module.css'
 
 const TF_ORDER = ['1', '5', '15', '30', '60', 'D', 'W', 'M']
+const TF_LABEL = { 1: '1m', 5: '5m', 15: '15m', 30: '30m', 60: '1h', D: '1D', W: '1W', M: '1M' }
+const PHONE = { showDrawingTools: false, hideLegend: true, hideWatermark: true, showRangeSelector: false, hideScaleToggle: true, hideCountdown: true }
 
 export default function WidgetChart({
   sym, tf = 'D', cutoff = null, bars = null, barsByTf = null, density = 'full', height = 460, annotations = null,
   hideTicker = false, rightPadBars = 2, frozen = false, markers = null, onBarTap = null, defaultBars = null, extra = null,
-  onTfChange = null,
+  onTfChange = null, phoneHeight = null,
 }) {
+  const phone = useIsPhone()
   // the widget's own timeframe bar works (the pane is controlled: it needs a tf setter to switch)
   const [tfState, setTf] = useState(tf)
   const setTfState = useCallback((v) => { setTf(v); onTfChange?.(v) }, [onTfChange])
@@ -29,7 +37,7 @@ export default function WidgetChart({
   const scp = useMemo(() => ({
     height: '100%',
     ...(data ? { barsOverride: data } : { replayCutoff: cutoff }),
-    ...(defaultBars ? { dailyDefaultBars: defaultBars } : {}),
+    ...(defaultBars ? { dailyDefaultBars: phone ? Math.min(defaultBars, 45) : defaultBars } : (phone ? { dailyDefaultBars: 45 } : {})),
     liveUpdates: false,
     backgroundWarm: false,
     hideJournalOverlay: true,
@@ -42,13 +50,21 @@ export default function WidgetChart({
     onCrosshairMove,
     ...(markers ? { markers } : {}),
     ...(hideTicker ? { hideWatermark: true } : {}),
+    ...(phone ? PHONE : {}),
     ...(extra || {}),
-  }), [data, cutoff, defaultBars, rightPadBars, frozen, annotations, markers, hideTicker, extra, onCrosshairMove])
+  }), [data, cutoff, defaultBars, rightPadBars, frozen, annotations, markers, hideTicker, extra, onCrosshairMove, phone])
+  const h = phone ? (phoneHeight || Math.min(height, 360)) : height
+  const effDensity = phone ? 'mini' : density
   return (
-    <div onClick={onClick} style={{ height, display: 'flex', flexDirection: 'column', cursor: onBarTap ? 'crosshair' : undefined }}>
-      <Suspense fallback={<div style={{ height, display: 'grid', placeItems: 'center', color: '#9a958a' }}>Loading the chart</div>}>
-        <ChartPane sym={sym} tf={tfState} onTfChange={setTfState} tfCodes={tfCodes} density={density} showTfBar={density !== 'mini'} stored={null} stockChartProps={scp} />
-      </Suspense>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {phone && tfCodes && tfCodes.length > 1 ? (
+        <div className={d5.tfPills}>{tfCodes.map((k) => <button key={k} type="button" className={`${d5.tfPill} ${tfState === k ? d5.on : ''}`} onClick={() => setTfState(k)}>{TF_LABEL[k] || k}</button>)}</div>
+      ) : null}
+      <div onClick={onClick} style={{ height: h, display: 'flex', flexDirection: 'column', cursor: onBarTap ? 'crosshair' : undefined }}>
+        <Suspense fallback={<div style={{ height: h, display: 'grid', placeItems: 'center', color: '#9a958a' }}>Loading the chart</div>}>
+          <ChartPane sym={sym} tf={tfState} onTfChange={setTfState} tfCodes={tfCodes} density={effDensity} showTfBar={effDensity !== 'mini'} stored={null} stockChartProps={scp} />
+        </Suspense>
+      </div>
     </div>
   )
 }

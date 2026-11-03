@@ -6,6 +6,7 @@ import { spot, rayAt } from '../pointers'
 import { sfx } from '../sfx'
 import s from '../lab.module.css'
 import d5 from '../duo.module.css'
+import { XP } from '../rewards'
 
 /** Round 8, piece 3: THE DAILY SET. Five charts, the same for every member today, a clock per question, and the
  *  day's leaderboard with your rank when you finish. The five here reuse the three stored charts (the real
@@ -36,7 +37,7 @@ function Q({ i, onDone }) {
   }, [state, d])
   const check = () => { const ok = pick === SET[i].answer; setState(ok ? 'ok' : 'bad'); sfx(ok ? 'right' : 'wrong') }
   if (!d) return <div className={s.col}><p className={s.hint}>Loading</p></div>
-  const pts = state === 'ok' ? 10 + Math.round(left / 2) : 0
+  const pts = state === 'ok' ? XP.RIGHT + Math.round(left / 2) * XP.DAILY_SPEED_PER_2S : 0
   return (
     <div className={d5.lesson}>
       <div className={d5.topbar}><span className={d5.eyebrowG}>Daily set · {i + 1} of 5</span><div className={d5.prog}>{Array.from({ length: 5 }, (_, k) => <i key={k} className={k < i || (k === i && state !== 'ask') ? d5.on : k === i ? d5.cur : ''} />)}</div><span className={`${d5.clock} ${left <= 5 ? d5.hot : ''}`}>⏱ {left}s</span></div>

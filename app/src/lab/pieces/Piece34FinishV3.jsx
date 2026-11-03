@@ -12,8 +12,10 @@ function Confetti() {
 }
 function useCount(target, on, ms = 40) {
   const [v, setV] = useState(0)
-  useEffect(() => { if (!on) { setV(0); return undefined } let i = 0; const t = setInterval(() => { i += 1; setV(Math.min(i, target)); if (i >= target) clearInterval(t) }, ms); return () => clearInterval(t) }, [target, on, ms])
-  return v
+  const [was, setWas] = useState(on)
+  if (on !== was) { setWas(on); setV(0) }   // reset on the way in and out, the React way (derived from the previous render)
+  useEffect(() => { if (!on) return undefined; let i = 0; const t = setInterval(() => { i += 1; setV(Math.min(i, target)); if (i >= target) clearInterval(t) }, ms); return () => clearInterval(t) }, [target, on, ms])
+  return on ? v : 0
 }
 function Gem({ icon, label, value, tone = 'gold', delay = 0 }) {
   return (

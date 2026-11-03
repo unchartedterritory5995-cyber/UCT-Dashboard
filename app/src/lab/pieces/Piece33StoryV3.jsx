@@ -33,14 +33,14 @@ export default function Piece33StoryV3() {
   const total = all?.length || 0
   const days = useMemo(() => (h60?.bars ? byDay(h60.bars) : null), [h60])
   const START = Math.max(2, n - 1 - LEAD)
-  const [pos, setPos] = useState(null)
+  const [pos0, setPos] = useState(null)
+  const pos = useMemo(() => pos0 || (n ? { i: START, k: 0 } : null), [pos0, n, START])
   const [playing, setPlaying] = useState(false)
   const [ask, setAsk] = useState(null)
   const [picked, setPicked] = useState(null)
   const [trim, setTrim] = useState(null)
   const [score, setScore] = useState(0)
   const timer = useRef(null)
-  useEffect(() => { if (n && !pos) setPos({ i: START, k: 0 }) }, [n, pos, START])
   const ticksOf = useCallback((i) => (all && days ? days[all[i].t] || null : null), [all, days])
   const redChg = all && n > 2 ? pct(all[n - 3].c, all[n - 2].c) : 0
   const shown = useMemo(() => {
@@ -99,7 +99,7 @@ export default function Piece33StoryV3() {
       <div className={d5.split}>
         <div className={`${s.chartBox} ${canTap ? s.pulse : ''}`}>
           {canTap ? <span className={s.tapHint}>tap a candle</span> : null}
-          <WidgetChart sym={d.sym} bars={shown} annotations={annotations} height={520} density="mini" defaultBars={36} onBarTap={canTap ? ({ index }) => { if (index >= 0) setTrim({ index }) } : null} />
+          <WidgetChart sym={d.sym} bars={shown} annotations={annotations} height={520} phoneHeight={320} density="mini" defaultBars={36} onBarTap={canTap ? ({ index }) => { if (index >= 0) setTrim({ index }) } : null} />
         </div>
         <div className={d5.side}>
           <div className={d5.story}>

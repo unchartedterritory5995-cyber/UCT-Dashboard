@@ -7,6 +7,7 @@ import { studySettingsOverride } from '../../pages/study/studyChartLook'
 import { sfx } from '../sfx'
 import s from '../lab.module.css'
 import d5 from '../duo.module.css'
+import { XP } from '../rewards'
 
 // Hard mode strips the chart to candles: no averages, no volume, no watermark, no identity row. One stable object.
 const HARD = { settingsOverride: studySettingsOverride({ overlays: false, volume: false }), hideWatermark: true, hideLegend: true }
@@ -51,7 +52,7 @@ export default function Piece43Hard() {
     return (
       <div className={d5.lesson}><div className={d5.intro}><div className={d5.legendBig}>♛</div><div className={d5.eyebrowG}>Kicker · Learn 2</div><div className={d5.heroWord}>Hard mode</div>
         <p className={d5.screenSub}>No ticker. No averages. No volume. Just the candles. A perfect run earns the legendary fourth crown.</p>
-        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>On a perfect run</small><b>Legendary</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>XP</small><b>x2</b></div></div></div></div>
+        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>On a perfect run</small><b>Legendary</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>XP</small><b>x{XP.HARD_MULT}</b></div></div></div></div>
         <div className={d5.footer}><div className={d5.footIn}><button type="button" className={`${d5.btn} ${d5.live}`} onClick={start}>Start hard mode</button></div></div></div>
     )
   }
@@ -60,7 +61,7 @@ export default function Piece43Hard() {
     return (
       <div className={`${d5.lesson} ${d5.slideIn}`}><div className={d5.screen}><div className={`${d5.legendBig} ${perfect ? d5.won : ''}`}>♛</div><div className={d5.heroWord}>{perfect ? 'Legendary' : `${right} of ${QUESTIONS.length}`}</div>
         <p className={d5.screenSub}>{perfect ? 'Every candle read right with nothing to lean on. The fourth crown is yours.' : 'A perfect run is needed for the fourth crown. Try again.'}</p>
-        <div className={d5.gems}><div className={`${d5.gem} ${perfect ? '' : d5.dim}`}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>Kicker · Learn 2</small><b>{perfect ? '4 crowns' : '3 crowns'}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>XP</small><b>+{right * 20}</b></div></div></div></div>
+        <div className={d5.gems}><div className={`${d5.gem} ${perfect ? '' : d5.dim}`}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>Kicker · Learn 2</small><b>{perfect ? '4 crowns' : '3 crowns'}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>XP</small><b>+{right * XP.RIGHT * XP.HARD_MULT}</b></div></div></div></div>
         <div className={d5.footer}><div className={d5.footIn}><button type="button" className={`${d5.btn} ${d5.live}`} onClick={start}>Again</button></div></div></div>
     )
   }

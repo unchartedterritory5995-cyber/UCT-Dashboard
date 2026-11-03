@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
 import Coach from '../Coach'
 import { useSample } from '../Lab'
@@ -6,15 +6,16 @@ import { spot } from '../pointers'
 import { sfx } from '../sfx'
 import s from '../lab.module.css'
 import d5 from '../duo.module.css'
+import { BLITZ, XP } from '../rewards'
 
-const SECS = 60
+const SECS = BLITZ.SECS
 const POOL = [
   { sample: 'JBI_2023-12-14', answer: 'Kicker' },
   { sample: 'HAS_2023-02-02', answer: 'Slingshot' },
   { sample: 'MSTR_2023-10-23', answer: 'Launchpad' },
 ]
 const NAMES = ['Kicker', 'Slingshot', 'Launchpad', 'None of these']
-const mult = (combo) => (combo >= 9 ? 5 : combo >= 6 ? 4 : combo >= 3 ? 3 : combo >= 1 ? 2 : 1)
+const mult = BLITZ.MULT
 
 /** Round 9, piece 1: TIMED BLITZ. Sixty seconds, hearts off, name as many setups as you can. The multiplier climbs
  *  with the combo (x2 at one, x3 at three, x4 at six, x5 at nine) and resets on a miss. Keys 1-4 answer instantly;
@@ -44,20 +45,19 @@ export default function Piece41Blitz() {
   const [answered, setAnswered] = useState(0)
   const [right, setRight] = useState(0)
   const [flash, setFlash] = useState(null)
-  const seed = useRef(0)
   useEffect(() => {
     if (phase !== 'play') return undefined
     const t = setInterval(() => setLeft((v) => { if (v <= 1) { clearInterval(t); setPhase('done'); sfx('levelup'); return 0 } return v - 1 }), 1000)
     return () => clearInterval(t)
   }, [phase])
   const q = POOL[i % POOL.length]
-  const order = useMemo(() => { const a = [...NAMES]; const r = (seed.current + i * 7) % 4; return [...a.slice(r), ...a.slice(0, r)] }, [i])
+  const order = useMemo(() => { const a = [...NAMES]; const r = (i * 7 + 3) % 4; return [...a.slice(r), ...a.slice(0, r)] }, [i])
   const answer = (name) => {
     const ok = name === q.answer
     setAnswered((v) => v + 1)
-    if (ok) { const c = combo + 1; setCombo(c); setBest((b) => Math.max(b, c)); setRight((v) => v + 1); setScore((v) => v + 10 * mult(c)); sfx(c >= 3 && c % 3 === 0 ? 'combo' : 'right') } else { setCombo(0); sfx('wrong') }
+    if (ok) { const c = combo + 1; setCombo(c); setBest((b) => Math.max(b, c)); setRight((v) => v + 1); setScore((v) => v + XP.RIGHT * mult(c)); sfx(c >= 3 && c % 3 === 0 ? 'combo' : 'right') } else { setCombo(0); sfx('wrong') }
     setFlash(ok ? 'ok' : 'bad'); setTimeout(() => setFlash(null), 220)
-    seed.current += 3; setI((v) => v + 1)
+    setI((v) => v + 1)
   }
   const start = () => { setPhase('play'); setLeft(SECS); setI(0); setScore(0); setCombo(0); setBest(0); setAnswered(0); setRight(0) }
   if (phase === 'intro') {

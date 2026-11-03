@@ -5,6 +5,7 @@ import { spot, rayAt } from '../pointers'
 import coach from '../../components/intro/assets/compass-mark.png'
 import s from '../lab.module.css'
 import d5 from '../duo.module.css'
+import { XP, comboBonus } from '../rewards'
 
 /** Round 7, piece 1: the loop (70) with THE POINTER redone (owner: "THIS CANDLE and the arrow can be a little more
  *  of a production and cooler look"): a thicker gold arrow with a bigger head, the label as a gold chip, a gold halo
@@ -88,7 +89,7 @@ function Question({ idx, total, hearts, combo, onDone }) {
           })}
         </div>
       )}
-      {combo > 1 && state === 'ok' ? <div className={d5.toast}>🔥 {combo} in a row · +5 XP</div> : null}
+      {combo > 1 && state === 'ok' ? <div className={d5.toast}>🔥 {combo} in a row · +{comboBonus(combo)} XP</div> : null}
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}>
         <div className={d5.footIn}>
           {state === 'ask' ? <button type="button" className={`${d5.btn} ${ready ? d5.live : ''}`} disabled={!ready} onClick={check}>Check</button> : (
@@ -115,7 +116,7 @@ export default function Piece31LoopV5() {
     const right = results.filter(Boolean).length
     return (
       <div className={d5.lesson}>
-        <div className={d5.doneScreen}><div className={d5.doneBig}>Lesson complete</div><div className={d5.doneSub}>{right} of {total} · {hearts} hearts left</div><div className={d5.xpCard}><small>TOTAL XP</small><b>{right * 10 + Math.max(0, right - 1) * 5}</b></div></div>
+        <div className={d5.doneScreen}><div className={d5.doneBig}>Lesson complete</div><div className={d5.doneSub}>{right} of {total} · {hearts} hearts left</div><div className={d5.xpCard}><small>TOTAL XP</small><b>{right * XP.RIGHT + Math.max(0, right - 1) * XP.COMBO_STEP}</b></div></div>
         <div className={d5.footer}><div className={d5.footIn}><button type="button" className={`${d5.btn} ${d5.live}`} onClick={() => { setI(0); setHearts(3); setCombo(0); setResults([]); setRun((r) => r + 1) }}>Play again</button></div></div>
       </div>
     )

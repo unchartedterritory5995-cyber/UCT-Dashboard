@@ -267,3 +267,21 @@
 .cand b { font-size: 18px; color: var(--gb); } .cand span { font-size: 12px; color: var(--mut); font-variant-numeric: tabular-nums; } .cand small { font-size: 12px; color: #e6e1d6; }
 .cand.sel { border-color: var(--g); background: #1a1708; } .cand.right { border-color: var(--up); background: #0f2a18; } .cand.wrong { border-color: var(--dn); background: #2a1113; }
 @media (max-width: 600px) { .candRow { grid-template-columns: 1fr; } }
+
+/* ── review pass 2026-11-02: phone ───────────────────────────────────────── */
+.tfPills { display: flex; gap: 6px; margin-bottom: 8px; }
+.tfPill { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line, #262626); background: #141414; color: #c9c4b8; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.tfPill.on { border-color: var(--g, #dcbb5e); color: var(--gb, #e9cd77); background: #1a1708; }
+@media (max-width: 700px) {
+  .tactTable, .tactTable thead, .tactTable tbody, .tactTable tr, .tactTable td { display: block; }
+  .tactTable thead { display: none; }
+  .tactTable tr { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; padding: 6px 0; background: var(--card); }
+  .tactTable tr.on { border-color: var(--g); }
+  .tactTable tr.on td:first-child { border-left: 0; }
+  .tactTable td { border-top: 0; padding: 6px 12px; white-space: normal; display: flex; justify-content: space-between; gap: 10px; }
+  .tactTable td::before { content: attr(data-l); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--mut); flex: none; }
+  .tactTable td:first-child { display: block; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  .tactTable td:first-child::before { display: none; }
+  .wide .sideBtn { position: sticky; bottom: 12px; z-index: 5; background: var(--bg); padding-top: 8px; }
+  .hero { grid-template-columns: 1fr; } .heroCheck { grid-row: auto; width: 48px; height: 48px; } .heroCheck span { font-size: 26px; }
+}

@@ -31,11 +31,10 @@ export function forming(dayT, ticks, k) {
 export function resample(bars, minutes) {
   const out = []
   for (const b of regularSession(bars)) {
-    const d = new Date(b.t * 1000)
     const key = Math.floor(b.t / (minutes * 60)) * (minutes * 60)
     const last = out[out.length - 1]
     if (last && last.t === key && etDay(last.t) === etDay(b.t)) { last.h = Math.max(last.h, b.h); last.l = Math.min(last.l, b.l); last.c = b.c; last.v += b.v || 0 }
-    else out.push({ t: key, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0, _d: d })
+    else out.push({ t: key, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })
   }
-  return out.map(({ _d, ...r }) => r)
+  return out
 }

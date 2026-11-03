@@ -4,19 +4,19 @@ import { SetupGlyph } from '../../pages/modelbook/SetupsView'
 import { SETUP_CATALOG } from '../../pages/modelbook/setupCatalog'
 import coach from '../../components/intro/assets/compass-mark.png'
 import d5 from '../duo.module.css'
+import { XP, CROWNS, DAILY_GOAL, RANKS } from '../rewards'
 
 /** Round 7, piece 5: the home in OUR layout (owner: "more of OUR BRAND and our layout", "3X the production",
  *  "improve the reward system and scoring a lot"). The site's own TileCard panels with its gold tile headers; the
  *  Setup Library's own glyph art as unit artwork; a rank card with the XP economy; a Rewards tile that states the
  *  rules; a league tile. Units mix Foundations and setups in a sensible order (owner ruling). */
-const XP = 1240
-const RANKS = [['Rookie', 0], ['Apprentice', 250], ['Trader', 750], ['Pro', 1500], ['Mentor', 3000]]
+const TOTAL_XP = 1240
 const RULES = [
-  ['◆', '+10 XP', 'every right answer'],
-  ['🔥', '+5 per step', 'combo bonus, up to +25'],
-  ['★', '+30 XP', 'a perfect lesson, no hearts lost'],
-  ['♛', '1 · 2 · 3 crowns', 'per level at 60 · 80 · 100% accuracy'],
-  ['🎁', 'daily chest', 'five right answers in a day'],
+  ['◆', `+${XP.RIGHT} XP`, 'every right answer'],
+  ['🔥', `+${XP.COMBO_STEP} per step`, `combo bonus, up to +${XP.COMBO_CAP}`],
+  ['★', `+${XP.PERFECT_LESSON} XP`, 'a perfect lesson, no hearts lost'],
+  ['♛', '1 · 2 · 3 crowns', `per level at ${CROWNS.ONE} · ${CROWNS.TWO} · ${CROWNS.THREE}% accuracy`],
+  ['🎁', 'daily chest', `${DAILY_GOAL} right answers in a day`],
   ['🗓', 'streak', 'a day with a finished lesson'],
   ['🏅', 'setup badge', 'three crowns on every level of a setup'],
   ['🛡', 'weekly league', 'ranked by XP, top three move up'],
@@ -43,17 +43,18 @@ export default function Piece35HomeV3() {
   const [open, setOpen] = useState('k2')
   const glyphs = useMemo(() => Object.fromEntries(SETUP_CATALOG.map((x) => [x.name, x])), [])
   const findGlyph = (key) => (key ? Object.values(glyphs).find((x) => x.name.toLowerCase().includes(key.toLowerCase())) : null)
-  const rankIdx = RANKS.reduce((r, [, min], i) => (XP >= min ? i : r), 0)
+  const rankIdx = RANKS.reduce((r, [, min], i) => (TOTAL_XP >= min ? i : r), 0)
   const [rank, min] = RANKS[rankIdx]
   const nextMin = RANKS[rankIdx + 1]?.[1] ?? min
-  const toNext = Math.min(100, ((XP - min) / Math.max(1, nextMin - min)) * 100)
-  let k = 0
+  const toNext = Math.min(100, ((TOTAL_XP - min) / Math.max(1, nextMin - min)) * 100)
+  let k0 = 0
+  const offsets = UNITS.map((u) => u.nodes.map(() => OFF[(k0++) % OFF.length]))
   return (
     <div className={`${d5.home} ${d5.homeTiles}`}>
       <div className={d5.homeBar}>
         <span className={d5.course}><img src={coach} alt="" /> Study</span>
         <span className={d5.stat}><b style={{ color: '#ff9600' }}>🔥</b> 4</span>
-        <span className={d5.stat}><b style={{ color: 'var(--g)' }}>◆</b> {XP.toLocaleString()} XP</span>
+        <span className={d5.stat}><b style={{ color: 'var(--g)' }}>◆</b> {TOTAL_XP.toLocaleString()} XP</span>
         <span className={d5.stat}><b style={{ color: 'var(--dn)' }}>♥</b> 5</span>
       </div>
       <div className={d5.scroll}>
@@ -61,7 +62,7 @@ export default function Piece35HomeV3() {
           <div className={d5.todayRow}>
             <div className={d5.goalRing} style={{ '--p': '60%', width: 92, height: 92 }}><div><b style={{ fontSize: 26 }}>3</b><small>/ 5</small></div></div>
             <div className={d5.todayText}><b>Two more to keep the streak.</b><span>Kicker · Learn 2 · about 4 minutes</span></div>
-            <div className={d5.rankCard}><small>{rank} · {XP.toLocaleString()} XP</small><div className={d5.uprog} style={{ width: 150 }}><i style={{ width: `${toNext}%` }} /></div><em>{nextMin > min ? `${(nextMin - XP).toLocaleString()} XP to ${RANKS[rankIdx + 1][0]}` : 'top rank'}</em></div>
+            <div className={d5.rankCard}><small>{rank} · {TOTAL_XP.toLocaleString()} XP</small><div className={d5.uprog} style={{ width: 150 }}><i style={{ width: `${toNext}%` }} /></div><em>{nextMin > min ? `${(nextMin - TOTAL_XP).toLocaleString()} XP to ${RANKS[rankIdx + 1][0]}` : 'top rank'}</em></div>
           </div>
         </TileCard>
         <TileCard title="Your path">
@@ -78,9 +79,9 @@ export default function Piece35HomeV3() {
                     <button type="button" className={d5.guide}>📖</button>
                   </div>
                   <div className={d5.pathCol}>
-                    <PathLine count={u.nodes.length} offs={u.nodes.map((_, i) => OFF[(k + i) % OFF.length])} />
-                    {u.nodes.map((nd) => {
-                      const off = OFF[k % OFF.length]; k += 1
+                    <PathLine count={u.nodes.length} offs={offsets[ui]} />
+                    {u.nodes.map((nd, ni) => {
+                      const off = offsets[ui][ni]
                       const isOpen = open === nd.id
                       return (
                         <div key={nd.id} className={d5.slot} style={{ transform: `translateX(${off}px)` }}>
@@ -109,7 +110,7 @@ export default function Piece35HomeV3() {
           <div className={d5.rules}>{RULES.map(([ic, v, t]) => <div key={t} className={d5.rule}><span>{ic}</span><b>{v}</b><small>{t}</small></div>)}</div>
         </TileCard>
         <TileCard title="This week's league">
-          <div className={d5.league}>{[['1', 'Trader 0412', 1890], ['2', 'Trader 0077', 1655], ['3', 'You', XP], ['4', 'Trader 1193', 1120], ['5', 'Trader 0890', 980]].map(([p, nme, x]) => <div key={p} className={`${d5.lrow} ${nme === 'You' ? d5.me : ''}`}><span>{p}</span><b>{nme}</b><em>{x.toLocaleString()} XP</em></div>)}</div>
+          <div className={d5.league}>{[['1', 'Trader 0412', 1890], ['2', 'Trader 0077', 1655], ['3', 'You', TOTAL_XP], ['4', 'Trader 1193', 1120], ['5', 'Trader 0890', 980]].map(([p, nme, x]) => <div key={p} className={`${d5.lrow} ${nme === 'You' ? d5.me : ''}`}><span>{p}</span><b>{nme}</b><em>{x.toLocaleString()} XP</em></div>)}</div>
           <p className={d5.leagueNote}>Top three move up on Sunday night.</p>
         </TileCard>
       </div>

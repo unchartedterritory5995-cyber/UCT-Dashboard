@@ -6,6 +6,7 @@ import { spot, pct } from '../pointers'
 import { sfx, voice } from '../sfx'
 import s from '../lab.module.css'
 import d5 from '../duo.module.css'
+import { XP } from '../rewards'
 
 const MAX_STOP_PCT = 3.5
 
@@ -29,7 +30,7 @@ export default function Piece44DrawIt() {
   const grade = useMemo(() => {
     if (myPrice == null || house == null) return null
     const off = Math.abs(pct(house, myPrice))
-    return { off, kind: off <= 0.5 ? 'perfect' : off <= 1.5 ? 'close' : 'off', xp: off <= 0.5 ? 25 : off <= 1.5 ? 12 : 0 }
+    return { off, kind: off <= 0.5 ? 'perfect' : off <= 1.5 ? 'close' : 'off', xp: off <= 0.5 ? XP.DRAW_PERFECT : off <= 1.5 ? XP.DRAW_CLOSE : 0 }
   }, [myPrice, house])
   const shown = useMemo(() => {
     if (!vis) return null
@@ -52,7 +53,7 @@ export default function Piece44DrawIt() {
       </div>
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
         {state === 'ask' ? <button type="button" className={`${d5.btn} ${myPrice != null ? d5.live : ''}`} disabled={myPrice == null} onClick={() => { const ok = grade.kind !== 'off'; setState(ok ? 'ok' : 'bad'); sfx(ok ? 'right' : 'wrong'); if (ok) voice('line') }}>Check my stop</button>
-          : <><div className={d5.verdictRow}><div><div className={d5.verdictBig}>{grade.kind === 'perfect' ? 'Perfect · +25 XP' : grade.kind === 'close' ? 'Close · +12 XP' : 'Off'}</div><div className={d5.verdictWhy}>The stop is the house rule: under the Kicker's low, or {MAX_STOP_PCT}% under the entry when that low is further away.</div></div></div>
+          : <><div className={d5.verdictRow}><div><div className={d5.verdictBig}>{grade.kind === 'perfect' ? `Perfect · +${XP.DRAW_PERFECT} XP` : grade.kind === 'close' ? `Close · +${XP.DRAW_CLOSE} XP` : 'Off'}</div><div className={d5.verdictWhy}>The stop is the house rule: under the Kicker's low, or {MAX_STOP_PCT}% under the entry when that low is further away.</div></div></div>
             <button type="button" className={`${d5.btn} ${state === 'ok' ? d5.live : d5.red}`} onClick={() => { setState('ask'); setDrawings([]) }}>Draw again</button></>}
       </div></div>
     </div>

@@ -30,7 +30,7 @@ export const pct = (a, b) => ((b - a) / a) * 100
 /** THE POINTER, round 7 (owner: "THIS CANDLE and the arrow can be more of a production and cooler look"): a thicker
  *  gold arrow with a bigger head, the label as a gold chip in capitals, and a soft gold halo around the candle when a
  *  bar follows it (the halo needs a time on both sides of the candle). Used on every chart that points at something. */
-export function spot(bars, i, { label = 'this candle', color = '#dcbb5e', id = 'spot', gap = 7, halo = true } = {}) {
+export function spot(bars, i, { label = 'this candle', color = '#dcbb5e', id = 'spot', gap = 7, halo = true, below = false } = {}) {
   if (!bars || i < 0 || i >= bars.length) return []
   const b = bars[i]
   const price = (b.o + b.c) / 2
@@ -38,7 +38,13 @@ export function spot(bars, i, { label = 'this candle', color = '#dcbb5e', id = '
   const out = [{ id: `${id}-arrow`, type: 'arrow', points: [{ time: from.t, price }, { time: to.t, price }], color, lineWidth: 3, arrowSize: 20 }]
   const at = bars[Math.max(0, i - gap - Math.max(3, Math.ceil(label.length / 3)))]
   const lift = Math.max(b.h - b.l, Math.abs(b.c) * 0.012) * 1.35
-  out.push({ id: `${id}-chip`, type: 'text', points: [{ time: at.t, price: price + lift }], text: `  ${label.toUpperCase()}  `, color: '#111111', fontSize: 13, bgEnabled: true, bgColor: color })
+  // the chip sits above the arrow, unless the candle is near the top of the recent range (the chip would clip at
+  // the chart's edge, seen in the 2026-11-02 review): then it sits below
+  const recent = bars.slice(Math.max(0, i - 60), Math.min(bars.length, i + 20))
+  const top = Math.max(...recent.map((x) => x.h)), bot = Math.min(...recent.map((x) => x.l))
+  const nearTop = (top - b.h) < (top - bot) * 0.14
+  const under = below || nearTop
+  out.push({ id: `${id}-chip`, type: 'text', points: [{ time: at.t, price: under ? price - lift : price + lift }], text: `  ${label.toUpperCase()}  `, color: '#111111', fontSize: 13, bgEnabled: true, bgColor: color })
   if (halo && i > 0 && i + 1 < bars.length) {
     const pad = (b.h - b.l) * 0.35
     out.push({ id: `${id}-halo`, type: 'circle', points: [{ time: bars[i - 1].t, price: b.h + pad }, { time: bars[i + 1].t, price: b.l - pad }], color, lineWidth: 2 })

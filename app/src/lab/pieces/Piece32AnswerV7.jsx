@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
 import { useSample } from '../Lab'
 import { spot, pct } from '../pointers'
-import { regularSession, byDay, etLabel } from '../intraday'
+import { regularSession, etLabel } from '../intraday'
 import s from '../lab.module.css'
 import d5 from '../duo.module.css'
 
@@ -72,7 +72,7 @@ export default function Piece32AnswerV7() {
       { id: 'e', type: 'hray', points: [{ time: anchor.t, price: row.entry }], color: '#2faf68', lineWidth: 1.5, lineStyle: 'dashed', label: tactic === 'orb' ? 'ENTRY · over the opening range high' : 'ENTRY · over the previous day\'s high' },
       { id: 'st', type: 'hray', points: [{ time: anchor.t, price: row.stop }], color: '#df4646', lineWidth: 1, lineStyle: 'dashed', label: `STOP · ${row.stopWhy}` },
     ]
-    if (tf === 'D') { a.push(...spot(all, n - 1, { label: 'Kicker · day 1', id: 'k', gap: 9 })); a.push(...spot(all, n - 2, { label: 'red day', id: 'r', gap: 9, color: '#df4646', halo: false })) }
+    if (tf === 'D') { a.push(...spot(all, n - 1, { label: 'Kicker · day 1', id: 'k', gap: 9 })); a.push(...spot(all, n - 2, { label: 'red day', id: 'r', gap: 9, color: '#df4646', halo: false, below: true })) }
     return a
   }, [all, kick, red, n, tactic, row, tf, hourly, bars30])
   const markers = useMemo(() => (tf === 'D' && kick ? [{ time: kick.t, position: 'belowBar', color: '#2faf68', shape: 'arrowUp', text: `filled day 1 · over ${money(row?.entry ?? 0)}`, id: 'fill' }] : null), [tf, kick, row])
@@ -94,15 +94,15 @@ export default function Piece32AnswerV7() {
             {rows.map((r) => (
               <tr key={r.key} className={`${d5.row} ${tactic === r.key ? d5.on : ''}`} onClick={() => setTactic(r.key)}>
                 <td><span className={d5.tname}>{r.name}</span><span className={d5.tsub}>{r.sub}</span></td>
-                <td><b>over {money(r.entry)}</b></td>
-                <td className={s.red}>under {money(r.stop)}<span className={d5.tsub}>{r.stopWhy}</span></td>
-                <td>{r.dist.toFixed(1)}%</td>
-                <td>{r.posPct.toFixed(0)}%</td>
-                <td>{r.shares} sh · ${r.riskUsd}</td>
-                <td>{r.fill}</td>
-                <td className={r.day1 >= 0 ? s.green : s.red}>{r.day1 >= 0 ? '+' : ''}{r.day1.toFixed(1)}%</td>
-                <td className={s.green}>+{r.hi.toFixed(1)}%</td>
-                <td className={r.end >= 0 ? s.green : s.red}>{r.end >= 0 ? '+' : ''}{r.end.toFixed(1)}% · stop {r.held ? 'held' : 'hit'}</td>
+                <td data-l="Trigger"><b>over {money(r.entry)}</b></td>
+                <td data-l="Stop · house rule" className={s.red}>under {money(r.stop)}<span className={d5.tsub}>{r.stopWhy}</span></td>
+                <td data-l="Risk">{r.dist.toFixed(1)}%</td>
+                <td data-l="Size">{r.posPct.toFixed(0)}%</td>
+                <td data-l="$25k">{r.shares} sh · ${r.riskUsd}</td>
+                <td data-l="Filled">{r.fill}</td>
+                <td data-l="Day 1 close" className={r.day1 >= 0 ? s.green : s.red}>{r.day1 >= 0 ? '+' : ''}{r.day1.toFixed(1)}%</td>
+                <td data-l="Best" className={s.green}>+{r.hi.toFixed(1)}%</td>
+                <td data-l="Close 20" className={r.end >= 0 ? s.green : s.red}>{r.end >= 0 ? '+' : ''}{r.end.toFixed(1)}% · stop {r.held ? 'held' : 'hit'}</td>
               </tr>
             ))}
           </tbody>

@@ -33,13 +33,13 @@ export default function Piece28StoryV2() {
   const days = useMemo(() => (h60?.bars ? byDay(h60.bars) : null), [h60])
   const START = Math.max(2, n - 1 - LEAD)
   // position = { i: index of the day forming, k: ticks shown of that day }
-  const [pos, setPos] = useState(null)
+  const [pos0, setPos] = useState(null)
+  const pos = useMemo(() => pos0 || (n ? { i: START, k: 0 } : null), [pos0, n, START])
   const [playing, setPlaying] = useState(false)
   const [ask, setAsk] = useState(null)
   const [picked, setPicked] = useState(null)
   const [score, setScore] = useState(0)
   const timer = useRef(null)
-  useEffect(() => { if (n && !pos) setPos({ i: START, k: 0 }) }, [n, pos, START])
   const ticksOf = useCallback((i) => (all && days ? days[all[i].t] || null : null), [all, days])
   const redChg = all && n > 2 ? pct(all[n - 3].c, all[n - 2].c) : 0
   const shown = useMemo(() => {

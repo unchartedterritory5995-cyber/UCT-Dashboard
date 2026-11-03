@@ -6,6 +6,7 @@ import { spot, rayAt } from '../pointers'
 import { sfx, voice } from '../sfx'
 import s from '../lab.module.css'
 import d5 from '../duo.module.css'
+import { XP } from '../rewards'
 
 const POOL = [
   { sample: 'JBI_2023-12-14', answer: 'Kicker' }, { sample: 'HAS_2023-02-02', answer: 'Slingshot' }, { sample: 'MSTR_2023-10-23', answer: 'Launchpad' },
@@ -50,14 +51,14 @@ export default function Piece42Boss() {
     return (
       <div className={d5.lesson}><div className={d5.intro}><div className={d5.bossBadge}>🏆</div><div className={d5.eyebrowG}>Unit 2 · Candles that trap</div><div className={d5.heroWord}>Boss lesson</div>
         <p className={d5.screenSub}>Ten charts. One heart. Miss once and it ends. Pass and the unit trophy and a chest are yours.</p>
-        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>♥</span><small>Hearts</small><b>1</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>On a pass</small><b>+150 XP</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>🎁</span><small>Plus</small><b>a chest</b></div></div></div></div>
+        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>♥</span><small>Hearts</small><b>1</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>On a pass</small><b>+{XP.BOSS} XP</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>🎁</span><small>Plus</small><b>a chest</b></div></div></div></div>
         <div className={d5.footer}><div className={d5.footIn}><button type="button" className={`${d5.btn} ${d5.live}`} onClick={start}>I'm ready</button></div></div></div>
     )
   }
   if (phase === 'win') {
     return (
       <div className={`${d5.lesson} ${d5.slideIn}`}><div className={d5.screen}><div className={`${d5.bossBadge} ${d5.won}`}>🏆</div><div className={d5.heroWord}>Unit cleared</div>
-        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>Boss bonus</small><b>+150</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>🎁</span><small>Chest</small><b>Open</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>Unit 2</small><b>Trophy</b></div></div></div>
+        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>Boss bonus</small><b>+{XP.BOSS}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>🎁</span><small>Chest</small><b>Open</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>Unit 2</small><b>Trophy</b></div></div></div>
         <p className={d5.screenSub}>Ten for ten with one heart. That's a trader.</p></div>
         <div className={d5.footer}><div className={d5.footIn}><button type="button" className={`${d5.btn} ${d5.live}`} onClick={() => setPhase('intro')}>Back to the path</button></div></div></div>
     )
