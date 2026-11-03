@@ -138,12 +138,11 @@ export const GROUPS = [
   { id: 'indicatorAlerts', title: 'Indicator alerts on a chart\'s indicators — RSI, MACD, bands… (create, pause / resume, delete)', domains: ['indicatorAlert'], fillLast: true,
     words: [/\b(alerts?|notify|ping me|tell me when|let me know when)\b.*\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?|overbought|oversold)\b/,
       /\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?)\b.*\b(alerts?|notify|ping me)\b/, /\b(pause|resume|re-?arm)\b.*\balerts?\b/] },
-  // KN-1 (agent-kn): UCT's own trading knowledge — concepts, setup templates, setup records. Server-gated (registers only
-  // while the knowledge kinds are served), `fillLast` like every specialised group.
-  { id: 'playbook', title: 'UCT\'s own trading knowledge: what a setup or concept means at UCT, a setup template\'s rules, a setup\'s historical record', domains: ['playbook'], fillLast: true,
-    words: [/\b(playbook|setup templates?|template for|rules? for|max(imum)? stop|invalidation|common mistakes|win ?rates?|hit rate|track record|how often does|sample size)\b/,
-      /\b(what (is|are|does)|define|definition of|explain|teach me|how does (uct|the team))\b.*\b(ep|episodic pivots?|vcp|u&r|undercut|kicker|htf|high tight flag|tight flag|flags?|bases?|pivots?|setups?|breakouts?|pullbacks?|patience|discipline)\b/,
-      /\b(according to|in) (uct|the team|the playbook)\b/] },
+  // KN-1 (agent-kn): UCT's own trading knowledge — concepts, setup templates, setup records. `words` stays EMPTY here:
+  // capabilities/knowledge.js fills it only when its capabilities register (the server serves the kinds), so with
+  // the knowledge kinds off this group never matches and routing is exactly what it was.
+  { id: 'playbook', title: 'UCT trading knowledge: what a setup or concept means at UCT, the rules of a UCT setup template, the historical record of a setup', domains: ['playbook'], fillLast: true,
+    words: [] },
   { id: 'data', title: 'Stock information and news (profile, earnings, comparisons, news, catalysts)', domains: ['stock', 'news'],
     words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do)\b/],
     // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"

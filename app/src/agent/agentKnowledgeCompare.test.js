@@ -85,3 +85,10 @@ describe('WITH the Brain (knowledge kinds served)', () => {
     for (const [m] of [...KNOWLEDGE_PROMPTS, ...CONTROL_PROMPTS]) expect(routed(m).length).toBeLessThanOrEqual(BUDGET.limit)
   })
 })
+
+describe('dark routing is unchanged: with the kinds off, the playbook group never matches', () => {
+  beforeAll(async () => { _resetAgentConfig(); _resetKnowledgeForTest(); wire([]); await loadAgentConfig(); registerKnowledgeCapabilities() })
+  it.each(KNOWLEDGE_PROMPTS)('"%s" → no playbook words match while the kinds are off', (m) => {
+    expect(wordsSelect('playbook', m)).toBe(false)
+  })
+})

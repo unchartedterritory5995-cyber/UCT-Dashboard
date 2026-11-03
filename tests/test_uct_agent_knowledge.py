@@ -18,11 +18,10 @@ from api.services.uct_agent.marketdata import envelope as env
 from api.services.uct_agent.marketdata import gateway
 
 KINDS = ",".join(kinds.KIND_NAMES)
-NOW = time.time()
 
 
 def _iso(days_ago: float) -> str:
-    return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(NOW - days_ago * 86400))
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() - days_ago * 86400))
 
 
 FAKE_ENGINE = '''
@@ -137,7 +136,7 @@ def kn(tmp_path, monkeypatch):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     brain = data_dir / "brain"
-    _make_pack(brain, data_dir, int(NOW) - 3600)
+    _make_pack(brain, data_dir, int(time.time()) - 3600)
     monkeypatch.setenv("DATA_DIR", str(data_dir))
     monkeypatch.setenv("BRAIN_DIR", str(brain))
     monkeypatch.setenv("UCT_INTEL_PATH", str(brain))
@@ -217,7 +216,7 @@ def test_dated_commentary_when_asked_is_recent_only_and_marked(kn):
 
 
 def test_stale_pack_is_flagged(kn, monkeypatch):
-    old = int(NOW) - 20 * 86400
+    old = int(time.time()) - 20 * 86400
     (kn["data"] / ".brain_last_ts").write_text(str(old), encoding="utf-8")
     out = read("setup.playbook", {"setup": "EP"})
     assert out["stale"] is True and any("last updated" in n for n in out["notes"])
@@ -398,7 +397,7 @@ def test_new_pack_version_rebuilds_the_index_and_serves_new_teaching(kn):
     assert first["data"]["passages"] == []
     kb = list(KB) + [(14, "SETUP", "UCT team playbook: VCP", "Volatility contraction pattern: tighter pullbacks into "
                       "a pivot on drying volume.", "setup_knowledge", "UCT Team", 1)]
-    new_ts = int(NOW)
+    new_ts = int(time.time()) + 1
     _make_pack(kn["brain"], kn["data"], new_ts, kb=kb)
     out = read("knowledge.search", {"question": "volatility contraction pattern"})
     assert [p["kb_id"] for p in out["data"]["passages"]] == [14]
@@ -408,9 +407,10 @@ def test_new_pack_version_rebuilds_the_index_and_serves_new_teaching(kn):
 
 def test_on_install_hook_rebuilds(kn):
     index.ensure()
-    _make_pack(kn["brain"], kn["data"], int(NOW) + 5)
+    ts = int(time.time()) + 5
+    _make_pack(kn["brain"], kn["data"], ts)
     index.on_pack_install()
-    assert index.built_info()["pack_ts"] == str(int(NOW) + 5)
+    assert index.built_info()["pack_ts"] == str(ts)
 
 
 def test_manifest_without_partner_fields_is_compatible(kn):
@@ -467,7 +467,7 @@ def test_health_report_counts_coverage_without_content(kn, monkeypatch, tmp_path
     assert set(r["pack"]["manifest_fields_missing"]) == set(pack.OPTIONAL_MANIFEST_FIELDS)
     blob = json.dumps(r)
     assert "episodic" not in blob.lower()          # counts only, never content
-    _make_pack(kn["brain"], kn["data"], int(NOW) + 9, kb=list(KB) + [(20, "RULE", "t", "c", "brand_new_2", "X", 1)])
+    _make_pack(kn["brain"], kn["data"], int(time.time()) + 9, kb=list(KB) + [(20, "RULE", "t", "c", "brand_new_2", "X", 1)])
     index.build()
     r2 = json.loads((tmp_path / "h.json").read_text(encoding="utf-8"))
     assert r2["new_sources_since_last_report"] == ["brand_new_2"]

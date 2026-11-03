@@ -13,6 +13,7 @@ import { registerCapability, registerTargetKind, registerContextProvider, getTar
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 import { kindServed } from './marketDataFacts'
+import { GROUPS } from '../routing'
 
 export const KNOWLEDGE_CAPS = { 'playbook.explain': 'knowledge.search', 'playbook.setup': 'setup.playbook', 'playbook.record': 'setup.record' }
 const NO_TURN = "this needs the Agent's turn, which wasn't available"
@@ -92,23 +93,21 @@ export function answerFromRecord(env) {
 }
 
 // ── the reads ────────────────────────────────────────────────────────────────────────────────────────
-async function read(kind, params) {
-  const turnId = currentTurnId()
-  if (!turnId) return null
-  return readData(kind, params, { purpose: 'answer', turnId })
-}
 export async function answerExplain(args = {}) {
-  const env = await read('knowledge.search', { question: String(args.question || '').slice(0, 400), k: 3 })
+  const turnId = currentTurnId()
+  const env = turnId ? await readData('knowledge.search', { question: String(args.question || '').slice(0, 400), k: 3 }, { purpose: 'answer', turnId }) : null
   return env ? answerFromSearch(env) : `I couldn't read UCT's knowledge base: ${NO_TURN}.`
 }
 export async function answerSetup(args = {}) {
-  const env = await read('setup.playbook', { setup: String(args.setup || '').slice(0, 60) })
+  const turnId = currentTurnId()
+  const env = turnId ? await readData('setup.playbook', { setup: String(args.setup || '').slice(0, 60) }, { purpose: 'answer', turnId }) : null
   return env ? answerFromPlaybook(env) : `I couldn't read UCT's setup templates: ${NO_TURN}.`
 }
 export async function answerRecord(args = {}) {
   const params = { setup: String(args.setup || '').slice(0, 60) }
   if (args.regime) params.regime = String(args.regime).toUpperCase()
-  const env = await read('setup.record', params)
+  const turnId = currentTurnId()
+  const env = turnId ? await readData('setup.record', params, { purpose: 'answer', turnId }) : null
   return env ? answerFromRecord(env) : `I couldn't read UCT's setup records: ${NO_TURN}.`
 }
 
@@ -140,6 +139,17 @@ const SPECS = {
   },
 }
 
+// the routing words, live only while a knowledge capability is registered (routing.js keeps the group's words empty)
+export const PLAYBOOK_WORDS = [
+  /\b(playbook|setup templates?|template for|rules? for|max(imum)? stop|invalidation|common mistakes|win ?rates?|hit rate|track record|how often does|sample size)\b/,
+  /\b(what (is|are|does)|define|definition of|explain|teach me|how does (uct|the team))\b.*\b(ep|eps|episodic pivots?|vcp|u&r|undercut|kicker|htf|high tight flag|tight flags?|flags?|bases?|pivots?|setups?|breakouts?|pullbacks?|patience|discipline)\b/,
+  /\b(according to|in) (uct|the team|the playbook)\b/,
+]
+const playbookGroup = () => GROUPS.find(g => g.id === 'playbook')
+function armRouting(on) {
+  const g = playbookGroup()
+  if (g) g.words.splice(0, g.words.length, ...(on ? PLAYBOOK_WORDS : []))
+}
 const unregs = {}
 let kindRegistered = false
 /** Registers each playbook.* capability ONLY while the server serves its kind. Returns the names THIS call registered. */
@@ -159,8 +169,10 @@ export function registerKnowledgeCapabilities() {
     unregs[name] = registerCapability({ name, ...common, ...SPECS[name] })
     added.push(name)
   }
+  if (Object.keys(unregs).length) armRouting(true)
   return added
 }
 export function _resetKnowledgeForTest() {
   for (const k of Object.keys(unregs)) { try { unregs[k]?.() } catch { /* already gone */ } delete unregs[k] }
+  armRouting(false)
 }
