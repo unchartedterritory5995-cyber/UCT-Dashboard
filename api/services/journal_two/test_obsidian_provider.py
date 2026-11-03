@@ -1337,6 +1337,63 @@ async def test_list_changed_relists_a_note_still_waiting_on_media_without_moving
     assert provider.opaque_cursor == T3   # never regressed to the waiting row's received_at
 
 
+async def test_list_changed_and_present_refs_read_off_the_event_loop(db, monkeypatch):
+    """Final review re-review N1: `list_changed` (with its media-retry re-list) and
+    `list_present_refs` open their connections and parse stored bodies in a worker thread,
+    never on the web pod's one event loop."""
+    import asyncio as _asyncio
+
+    from api.services.journal_two.note_connectors.providers import obsidian as provider_mod
+
+    on_loop: list[str] = []
+    real_conn, real_refs = provider_mod.get_connection, provider_mod._retry_refs
+
+    def probe(name, fn):
+        def wrapped(*a, **k):
+            try:
+                _asyncio.get_running_loop()
+                on_loop.append(name)
+            except RuntimeError:
+                pass
+            return fn(*a, **k)
+        return wrapped
+
+    monkeypatch.setattr(provider_mod, "get_connection", probe("connection", real_conn))
+    monkeypatch.setattr(provider_mod, "_retry_refs", probe("retry_refs", real_refs))
+    _stage("user-a", "vault-1", "waiting.md", "x", T1)
+    _staged_blob()
+    _synced_note("waiting.md", pending=1)
+    _manifest("user-a", "vault-1", ["waiting.md"])
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert [r.remote_id for r in await provider.list_changed({}, cursor=T2)] == ["waiting.md"]
+    assert [r.remote_id for r in await provider.list_present_refs({})] == ["waiting.md"]
+    assert on_loop == []
+
+
+async def test_the_media_retry_relist_holds_one_stored_body_at_a_time(db):
+    """N1: the re-list reads each pending note's stored body ONE at a time and lets it go,
+    never all of them at once. 40 pending notes of ~1 MB each: the peak stays near one body
+    (it used to `fetchall()` every body, about 40 MB)."""
+    import tracemalloc
+
+    big = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "x" * 1_000_000}]},
+        _retrying_body()["content"][0]]}
+    _staged_blob()
+    for i in range(40):
+        _stage("user-a", "vault-1", f"n{i}.md", "x", T1)
+        _synced_note(f"n{i}.md", pending=1, body=big)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    tracemalloc.start()
+    try:
+        refs = await provider.list_changed({}, cursor=T2)
+        _cur, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert len(refs) == 40
+    assert peak < 8_000_000, peak
+
+
 def test_every_reason_this_provider_writes_has_its_own_sentence():
     """The six reason codes are in plan A's closed notice vocabulary (an unknown code would
     read as `unsupported`). The server table is pinned equal to the client's by

@@ -1663,7 +1663,13 @@ class ObsidianProvider(NoteProvider):
         (rather than left at the class-level `None` default) so the
         engine's unconditional `update_cursor` call is a harmless no-op
         instead of silently reverting this source to "no sync has ever
-        completed" on its next full pass."""
+        completed" on its next full pass.
+
+        ⛔ Final review re-review N1: off the event loop, as `fetch` (the reads and the
+        media-retry re-list's body walks run in a worker thread)."""
+        return await asyncio.to_thread(self._list_changed_sync, cursor)
+
+    def _list_changed_sync(self, cursor: str | None) -> list[RemoteRef]:
         conn = get_connection()
         try:
             if cursor:
@@ -1716,8 +1722,12 @@ class ObsidianProvider(NoteProvider):
         changed, and then the row is listed as changed anyway. These rows never move the
         cursor (the caller computes it from `rows` alone)."""
         prefix = self.import_key(self.vault_id, "")
+        # ⛔ N1: two phases, so at most ONE stored body is held at a time. The keys and
+        # small columns first (no body), filtered; then each candidate's body read alone,
+        # walked for its retry refs, and let go. ⚰️ This `fetchall()`ed every pending note's
+        # `body_json` at once (500 large notes: ~650 MB held, every sync of the vault).
         keys = conn.execute(
-            "SELECT import_key, updated_at, imported_at, body_json FROM j2_notes"
+            "SELECT id, import_key, updated_at, imported_at FROM j2_notes"
             " WHERE user_id = ? AND deleted_at IS NULL AND import_media_pending = 1"
             " AND substr(import_key, 1, ?) = ?",
             (self.user_id, len(prefix), prefix),
@@ -1728,8 +1738,15 @@ class ObsidianProvider(NoteProvider):
             if key.endswith("#remote") or edited_since_import(k["updated_at"], k["imported_at"]):
                 continue
             path = key[len(prefix):]
-            retry_refs = _retry_refs(k["body_json"])
-            if path and path not in listed and retry_refs:
+            if not path or path in listed:
+                continue
+            body = conn.execute(
+                "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ?",
+                (k["id"], self.user_id),
+            ).fetchone()
+            retry_refs = _retry_refs(body["body_json"]) if body is not None else set()
+            del body
+            if retry_refs:
                 candidates.append((path, retry_refs))
         staged = self._staged_shas(conn, {
             _blob_sha(r) for _p, refs in candidates for r in refs if _blob_sha(r)})
@@ -1789,7 +1806,12 @@ class ObsidianProvider(NoteProvider):
         stops being enumerated at all.
         Restated: the manifest answers "what exists in the vault", NOT "what
         I successfully pushed". Those two sets differ exactly when something
-        is failing — which is precisely when getting it wrong hurts most."""
+        is failing — which is precisely when getting it wrong hurts most.
+
+        Off the event loop (final review re-review N1), as `list_changed`."""
+        return await asyncio.to_thread(self._list_present_refs_sync)
+
+    def _list_present_refs_sync(self) -> list[RemoteRef]:
         conn = get_connection()
         try:
             rows = conn.execute(
