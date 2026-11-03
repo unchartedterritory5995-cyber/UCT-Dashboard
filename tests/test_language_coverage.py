@@ -516,6 +516,11 @@ def test_the_controls_pass_when_the_good_script_is_accepted_and_the_unknown_name
     ("control:unknown-function", GOOD_ROW),                                                 # everything accepted: nothing would read refused
     ("control:unknown-function", {"host": {"clean": False, "refusals": [{"guard": "pine:block"}]},
                                   "runtime": {"ok": False, "guard": "runtime:x"}}),         # refused, but not as an unknown name
+    ("control:unknown-variable", GOOD_ROW),                                                 # an unknown VARIABLE accepted by both lanes
+    ("control:unknown-function", {"host": BAD_ROW["host"], "runtime": {"ok": True}}),       # the runtime lane alone accepts an unknown name
+    ("control:unknown-variable", {"host": {"clean": True}, "runtime": BAD_ROW["runtime"]}), # the host lane alone accepts it
+    ("control:unknown-variable", {"host": {"clean": False, "refusals": []}, "runtime": BAD_ROW["runtime"]}),   # refused with no guard named
+    ("control:unknown-variable", {"host": BAD_ROW["host"], "runtime": {"ok": False}}),      # the runtime lane refused it with no guard named
 ])
 def test_a_run_whose_controls_disagree_writes_nothing(which, row):
     rows = {"control:good": GOOD_ROW, "control:unknown-function": BAD_ROW, "control:unknown-variable": BAD_ROW}
