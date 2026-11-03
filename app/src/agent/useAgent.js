@@ -46,7 +46,8 @@ import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusa
 import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor } from './nl/lexicon'
-import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
+import { agentTurn, agentTurnStream, serverStreams, serverPlanner, loadAgentConfig, agentRecord, agentConversation, noteConversation } from './agentClient'
+import { createStepRunner } from './steps'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
 // ⭐ INDICATORS ⇄ AGENT (2026-10-12): the chart's Create Indicator / Modify doors open the Agent; the
@@ -211,7 +212,7 @@ function fanOutOf(ops) {
 // the member is told exactly that. Never a way around approval: they are on the same card.
 const isDeferred = (o) => !!getCapability(o?.action)?.deferred
 // a model reply that only acknowledges (the receipt that follows is the real confirmation)
-const BARE_ACK = /^(?:on it|sure(?: thing)?|ok(?:ay)?|got it|will do|doing (?:it|that)(?: now)?|right away|coming (?:right )?up|done|one moment|one sec)[.!…]*$/i
+export const BARE_ACK = /^(?:on it|sure(?: thing)?|ok(?:ay)?|got it|will do|doing (?:it|that)(?: now)?|right away|coming (?:right )?up|done|one moment|one sec)[.!…]*$/i
 // alias → the name a creator in these ops will give it (watchlist.create's `as`)
 function aliasNames(ops) {
   const out = {}
@@ -221,16 +222,25 @@ function aliasNames(ops) {
   }
   return out
 }
-// A deferred op re-aimed at what was created: aliases in its target / args → real refs.
+// A deferred op re-aimed at what was created: aliases in its target / args → real refs. ⭐ W1-B B-07: when the step's own
+// kind addresses a chart by a derived ref (a chart's indicators: `ixe:<chart>`), the created CHART's ref is translated
+// with that kind's `fromChart` — "open two charts … with the 9 and 20 ema on both" lands its indicator steps on the
+// charts the same request just added (the adds fit in empty space, so nothing was gridded).
 function landDeferred(ops, created, names, approved = false) {
   const real = (v) => (typeof v === 'string' && created?.[v] ? created[v] : v)
+  const realTarget = (o) => {
+    const r = real(o.target)
+    if (r === o.target) return r
+    const k = getTargetKind(getCapability(o.action)?.target)
+    return typeof k?.fromChart === 'function' ? k.fromChart(r) : r
+  }
   const made = Object.entries(names).filter(([a]) => created?.[a])
   const pendingLists = Object.fromEntries(made.map(([a, n]) => [created[a], n]))
   const followNote = made.length
     ? `${made.map(([, n]) => `“${n}”`).join(' and ')} ${made.length === 1 ? 'was' : 'were'} still created and filled — say “open ${made[0][1]}” to try again.`
     : 'The rest of your request was done.'
   return ops.map(o => ({
-    action: o.action, target: real(o.target),
+    action: o.action, target: realTarget(o),
     args: Object.fromEntries(Object.entries(o.args || {}).map(([k, v]) => [k, real(v)])),
     pendingLists, followNote,
     // a step that was ON the card the member approved runs as approved (re-validated, never re-asked)
@@ -343,6 +353,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [])
   const [conversationId, setConversationIdState] = useState(() => readLocal(AGENT_CONVERSATION_KEY))
   const conversationRef = useRef(conversationId)
+  noteConversation(conversationRef.current)   // W1-C C-01: the chat restored from localStorage counts from the first render
   const pendingRef = useRef(null)           // { kind:'proposal', id, ops } | { kind:'target', ops, path }
   // INTERRUPTED EXECUTION. A board change is marked in-flight (this browser) before its first
   // write and cleared at its receipt. A mark that survives a reload means the change was cut off
@@ -357,6 +368,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const memoryRef = useRef(null)            // GATE C session memory (agent/memory.js) — this chat only
   const tapRef = useRef(null)               // ⭐ PHASE 2: outcome kinds recorded while one step of a multi-step request runs
   const runCompoundRef = useRef(null)       // ⭐ PHASE 3 acceptance: approve() resumes a whole workspace (defined after it)
+  // PLANNER v2 (Wave 1 A-05, agent/steps.js): null unless /api/agent/config says planner 'v2' — then every model
+  // turn is the server's step loop, each step through the same `execute`. v2TapRef collects the record bodies of
+  // one step (its outcome goes back to the server); v2DepsRef hands the runner the current closures.
+  const v2Ref = useRef(null)
+  const v2TapRef = useRef(null)
+  const v2DepsRef = useRef(null)
   // NL-1 (flag off by default): the question UCT is waiting on, sent to the model with the next message
   // (pending_question) so a TYPED answer is read with the question in front of it
   const lastQuestionRef = useRef(null)      // the newest question shown (local or the model's)
@@ -372,6 +389,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     conversationRef.current = id
     setConversationIdState(id)
     writeLocal(AGENT_CONVERSATION_KEY, id)
+    noteConversation(id)                 // W1-C C-01: capabilities key their server-kept state (lastScreen) by it
   }, [])
 
   // `at`: when the line joined the chat (the panel shows it beside the sender's name).
@@ -476,6 +494,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const record = useCallback(async (body) => {
     // ⭐ PHASE 2: a multi-step request watches what each of its steps came to (runCompound) — synchronous, before any await
     if (tapRef.current && body?.outcomeData?.kind) tapRef.current.push(body.outcomeData.kind)
+    if (v2TapRef.current) v2TapRef.current.push(body)
     // a local turn's time to its first useful output (content-free: one number) rides the telemetry row
     const ms = turnOutputMs()
     if (body?.telemetry && body.telemetry.latency_ms == null && ms != null) body = { ...body, telemetry: { ...body.telemetry, latency_ms: ms } }
@@ -527,9 +546,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // 9 green") cannot be checked yet — what it names does not exist until then. It is checked at its own turn
       // (and refused there, with the real reason, if it still cannot run).
       const grows = new Set(allOps.filter(o => getCapability(o?.action)?.addsIndicators).map(o => o.target))
+      // ⭐ W1-B B-07: a step aimed at a target this request CREATES (a widget.add alias — "open two charts … with the 9 and
+      // 20 ema on both") cannot be checked yet either: it is checked at its own turn, re-aimed at the real target (landDeferred)
+      const creates = new Set(allOps.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
       for (const d of deferred) {
         const dp = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
-        if (!dp.ok && grows.has(d.target)) okd.push(d)
+        if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
         else if (!dp.ok) { push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` }); tapRef.current?.push('partial') }
         else { okd.push(d); deferredLines.push(...dp.lines) }
         if (getCapability(d?.action)?.addsIndicators) grows.add(d.target)
@@ -1096,6 +1118,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       return
     }
     patchItem(p.id, { status: 'approved' })
+    // PLANNER v2: the card is a step of a paused turn — its outcome joins THAT turn's Undo group (a fresh message
+    // typed meanwhile started its own group; this re-opens the paused one only for the approval and what follows)
+    if (v2Ref.current?.paused()) memoryRef.current.resumeTurn(v2Ref.current.memoryTurn())
     const ops = count ? p.ops.slice(0, count) : p.ops
     // ⭐ PHASE 3 acceptance: the card was one step of a whole workspace the member chose ("Replace current board" / "New
     // layout") — once it has landed in full, the rest of that request runs, each step through the same execute
@@ -1104,6 +1129,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     try {
       await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null, binding: p.binding, subset: !!count && count < p.ops.length })
     } finally { if (kinds) tapRef.current = null }
+    // PLANNER v2: the card was a step of a paused turn — its outcome resumes the server's loop
+    if (v2Ref.current?.paused()) { await v2Ref.current.afterCard(v2DepsRef.current()); return }
     if (!p.then) return
     const t = p.then
     if (!count && kinds.includes('applied') && kinds.every(k => k === 'applied' || k === 'noop')) {
@@ -1122,6 +1149,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const text = 'Okay — nothing changed.'
     push({ role: 'outcome', text })
     record({ member, outcome: text, outcomeData: { kind: 'dismissed' }, telemetry: { path: 'fast' } })
+    // PLANNER v2: a dismissed card resumes the paused turn with a refusal (the model is told; nothing ran)
+    if (v2Ref.current?.paused()) return v2Ref.current.afterCard(v2DepsRef.current())
+    return undefined
   }, [patchItem, push, record])
 
   // A local "which one?" for fast-path ops when several targets of the kind exist.
@@ -1223,6 +1253,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (steps.length > 1) push({ role: 'agent', text: `All ${steps.length} steps done.` })
   }, [host, execute, push, record])
   runCompoundRef.current = runCompound
+  // PLANNER v2: the runner reads the CURRENT closures on every call (never captured when the panel opened)
+  v2DepsRef.current = () => ({ host, push, record, execute, memoryRef, conversationRef, setConversationId, capCtx, tapRef: v2TapRef, mark, patchItem, pendingRef })
 
   const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
     const text = String(raw || '').trim()
@@ -1254,7 +1286,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         const x = exactLane(text)
         if (x?.kind === 'undo') return await doUndo(null, { member: text, voice })
         if (x?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
-        if (x?.kind === 'dismiss' && (pendingRef.current || pendingQuestionRef.current)) { pendingQuestionRef.current = null; return dismiss({ member: text }) }
+        if (x?.kind === 'dismiss' && (pendingRef.current || pendingQuestionRef.current)) { pendingQuestionRef.current = null; return await dismiss({ member: text }) }
         if (x?.kind === 'dismiss' && peekAuthoringIntent()) {
           // the Create Indicator door's question is set aside — nothing is built, no model call
           clearAuthoringIntent()
@@ -1372,7 +1404,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice, about: fast.about || null })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
-      if (fast?.kind === 'dismiss' && pendingRef.current) return dismiss({ member: text })
+      if (fast?.kind === 'dismiss' && pendingRef.current) return await dismiss({ member: text })
       // ⭐ INDICATORS ⇄ AGENT — the member is answering "What indicator would you like to build?"
       // (asked when the chart's Create Indicator / Modify door opened the Agent): THIS message is the
       // request, sent to the existing `indicator.draft` for that chart — before the fast path's actions, which
@@ -1547,6 +1579,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // (need_groups); we ask ONCE more with those groups. Nothing has executed in between.
       // M2 indicator writes are offered only when some chart on this board can manage indicators.
       const manageIndicators = (() => { try { return host?.charts?.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } })()
+      // PLANNER v2 (UCT_AGENT_PLANNER=v2 on the server): the step loop (agent/steps.js) — the v1 request below is untouched
+      if (!nl1 && serverPlanner() === 'v2') {
+        if (!v2Ref.current) v2Ref.current = createStepRunner()
+        turnPath('model')
+        await v2Ref.current.send({ text, voice, manageIndicators, pending: p?.kind === 'proposal' ? p : null }, v2DepsRef.current())
+        return
+      }
       let res, refMap, live, nl1Body = null, nl1Sel = null, rerouted = false
       let answeredRefs = []        // the chart a reply to UCT's own question picked (screenUnnamedTargets)
       if (nl1) {

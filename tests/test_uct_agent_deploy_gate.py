@@ -107,11 +107,43 @@ def test_a_FAILED_agent_step_refuses_PROMOTION_through_the_real_promotion_rules(
     assert pg.decide(gating=gating, runs=other, workflows=wf)[0] == pg.REFUSE
 
 
+def _promotion_class(path: pathlib.Path) -> str | None:
+    """The `# promotion-gate: yes|no` marker tools/promotion_gate.py reads (first token after the
+    marker, within the file's head), or None when the file declares nothing."""
+    for line in path.read_text(encoding="utf-8").splitlines()[:40]:
+        if line.startswith("# promotion-gate:"):
+            head = line.split(":", 1)[1].strip().split()[0] if line.split(":", 1)[1].strip() else ""
+            return head if head in ("yes", "no") else None
+    return None
+
+
 def test_no_OTHER_workflow_is_an_agent_gate():
-    """One Agent gate, inside the always-runs job. A separate promotion-gate workflow for the Agent
+    """One Agent GATE, inside the always-runs job. A separate promotion-gate workflow for the Agent
     suites is NOT equivalent: promotion treats an absent run of a non-always-runs gating workflow
     as "not relevant" and promotes — so a run that never started would let an untested Agent out
-    (the reconciled "UCT Agent guard" workflow, removed 2026-10-11)."""
+    (the reconciled "UCT Agent guard" workflow, removed 2026-10-11).
+
+    Amended 2026-11-02 (owner-approved, Wave 1): a workflow that runs the Agent suites but is
+    classified `# promotion-gate: no` is ADDITIVE CI, not a gate — promotion never consults it, so
+    it cannot create the hole above. Such workflows are allowed, and pinned by name below so a new
+    one is a deliberate change. Any workflow naming the Agent suites that is `yes` or unclassified
+    is still refused: the gate's own Agent steps remain the only promotion-deciding Agent run."""
     others = [w for w in (REPO / ".github" / "workflows").glob("*.y*ml") if w.name != WORKFLOW.name]
-    offenders = [w.name for w in others if re.search(r"test_uct_agent|vitest run src/agent", w.read_text(encoding="utf-8"))]
+    naming = [w for w in others if re.search(r"test_uct_agent|vitest run src/agent|AGENT_VITEST_PATHS", w.read_text(encoding="utf-8"))]
+    offenders = [w.name for w in naming if _promotion_class(w) != "no"]
     assert offenders == [], f"Agent suites gated outside {WORKFLOW.name}: {offenders}"
+    additive = sorted(w.name for w in naming)
+    assert additive == ["agent-ci-benchmark.yml", "agent-ci.yml"], additive   # additive Agent CI, by name
+    for w in naming:   # additive CI never pretends to gate: no `promotion-gate: yes`, and it never runs on master pushes
+        text = w.read_text(encoding="utf-8")
+        on = text.split("\njobs:")[0]
+        push = re.search(r"(?ms)^\s+push:\s*\n\s+branches:\s*\[([^\]]*)\]", on)
+        assert push is not None, f"{w.name}: no push.branches block to inspect"
+        assert not re.search(r"(^|[,\s'\"])master([,\s'\"]|$)", push.group(1)), f"{w.name} must not run on master pushes (PRs into master are fine; they never decide promotion)"
+
+
+def test_the_gate_still_runs_the_agent_suites_itself():
+    """The amendment above must never be read as 'the Agent suites moved to agent-ci'. The gate's
+    own server and browser steps are the mandatory coverage; this pins them next to the exemption."""
+    assert "pytest tests/test_uct_agent*.py" in _step(SERVER_STEP)["body"]
+    assert "npx vitest run src/agent" in _step(BROWSER_STEP)["body"]

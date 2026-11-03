@@ -1727,6 +1727,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   }
 }
 
+/** The colour rules a plot, a fill or a paint carries (`outputPresentation`,
+ *  `resolvePaint`): each holds the tree (`ast`) its condition column is minted from. */
+const COLOUR_RULE_KEYS = Object.freeze(['colorCondition', 'colorIndex', 'colorGradient'])
+
 /** ─── ⭐⭐ WHICH REQUIREMENT TAGS THIS DOCUMENT RAISES ───────────────────────
  *
  *  ⛔⛔ DERIVED FROM THE MANIFEST'S OWN ROSTERS, NEVER TYPED. Each tag names the
@@ -1739,6 +1743,16 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
  *  ⚠️ AND IT IS THE PANE'S OWN DOCUMENT, so it answers about what is DRAWN. The
  *  full translation's alertcondition is not here — D1 removed it — which is the
  *  correct answer: a tag is a disclosure about a value on screen.
+ *
+ *  ⭐⭐ W1 RE-REVIEW (2026-11-02) — A COLOUR IS A VALUE ON SCREEN TOO. A paint
+ *  (`barcolor`/`bgcolor`, `t.presentation.paints`), a plot's colour and a fill's
+ *  colour each draw from a rule (`colorCondition` / `colorIndex` /
+ *  `colorGradient`), and the door mints a condition column from each
+ *  (`conditionColumnFor`). ⚰️ Only the plot trees were walked, so
+ *  `barcolor(ta.obv > 0 ? color.green : na)` or `plot(close, color = ta.cum(volume)
+ *  > 0 ? …)` drew a colour decided by a running total with no history-depth badge.
+ *  The rules are walked by the SAME `walk` and matched against the SAME roster —
+ *  one detector — and they only ever ADD a tag: nothing here withholds a paint.
  */
 export function requirementTagsRaised(translation, notes = REQUIREMENT_NOTES) {
   const names = new Set()
@@ -1753,7 +1767,21 @@ export function requirementTagsRaised(translation, notes = REQUIREMENT_NOTES) {
       walk(node[k])
     }
   }
-  for (const o of (translation && translation.outputs) || []) walk(o.ast || o.tree || null)
+  /** a plot's, a fill's or a paint's colour rules, each the tree its column is minted from */
+  const walkColourRules = (pres) => {
+    if (!pres || typeof pres !== 'object') return
+    for (const k of COLOUR_RULE_KEYS) if (pres[k] && typeof pres[k] === 'object') walk(pres[k].ast || null)
+  }
+  for (const o of (translation && translation.outputs) || []) {
+    const tree = (o && (o.ast || o.tree)) || null
+    walk(tree)
+    // a refused row keeps its presentation for the runtime lane (`refusedPresentation`)
+    // and draws nothing here: only a row whose tree is walked has a colour on screen
+    if (tree) walkColourRules(o.presentation)
+  }
+  const presentation = (translation && translation.presentation) || {}
+  for (const f of presentation.fills || []) walkColourRules(f)
+  for (const p of presentation.paints || []) walkColourRules(p)
 
   const raised = []
   for (const [tag, spec] of Object.entries(notes || {})) {

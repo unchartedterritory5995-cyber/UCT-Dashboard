@@ -3,8 +3,8 @@
  "version": 1,
  "counts": {
   "call-unmapped": 390,
-  "name-unknown": 208,
-  "reachable": 157
+  "name-unknown": 204,
+  "reachable": 161
  },
  "names": {
   "abs": {
@@ -793,7 +793,7 @@
   },
   "iii": {
    "status": "name-unknown",
-   "guard": "pine:undefined"
+   "guard": "pine:function"
   },
   "indicator": {
    "status": "name-unknown",
@@ -1653,7 +1653,7 @@
   },
   "obv": {
    "status": "name-unknown",
-   "guard": "pine:undefined"
+   "guard": "pine:function"
   },
   "offset": {
    "status": "name-unknown",
@@ -1741,7 +1741,7 @@
   },
   "pvt": {
    "status": "name-unknown",
-   "guard": "pine:undefined"
+   "guard": "pine:function"
   },
   "quandl": {
    "status": "call-unmapped",
@@ -2520,12 +2520,12 @@
    "probe": "ta.change(close)"
   },
   "ta.cmo": {
-   "status": "name-unknown",
-   "guard": "pine:function"
+   "status": "reachable",
+   "probe": "ta.cmo(close, 14)"
   },
   "ta.cog": {
-   "status": "name-unknown",
-   "guard": "pine:function"
+   "status": "reachable",
+   "probe": "ta.cog(close, 14)"
   },
   "ta.correlation": {
    "status": "reachable",
@@ -2576,8 +2576,8 @@
    "probe": "ta.hma(close, 14)"
   },
   "ta.iii": {
-   "status": "name-unknown",
-   "guard": "pine:function"
+   "status": "reachable",
+   "probe": "ta.iii"
   },
   "ta.kc": {
    "status": "name-unknown",
@@ -2752,8 +2752,8 @@
    "guard": "pine:arity"
   },
   "ta.wvad": {
-   "status": "name-unknown",
-   "guard": "pine:function"
+   "status": "reachable",
+   "probe": "ta.wvad"
   },
   "table.all": {
    "status": "call-unmapped",
@@ -3005,7 +3005,7 @@
   },
   "wad": {
    "status": "name-unknown",
-   "guard": "pine:undefined"
+   "guard": "pine:function"
   },
   "weekofyear": {
    "status": "name-unknown",
@@ -3021,7 +3021,7 @@
   },
   "wvad": {
    "status": "name-unknown",
-   "guard": "pine:undefined"
+   "guard": "pine:function"
   },
   "year": {
    "status": "reachable",

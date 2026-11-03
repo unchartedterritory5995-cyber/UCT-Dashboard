@@ -221,7 +221,9 @@ describe('L3 · destructive / permanent changes still need approval', () => {
     const guarded = caps.filter(c => c.risk === 'confirm' || c.reversible === false).map(c => c.name).sort()
     // ⛔ changing this list changes what UCT asks before doing — review it with the owner (and the server mirror)
     expect(guarded).toEqual(['alert.create', 'alert.delete', 'chart.applyTemplate', 'chart.resetDefaults', 'chartSetup.copyLook', 'chartSetup.deleteTemplate',
-      'definition.delete', 'definition.duplicate', 'drawing.clear', 'indicator.discardDraft', 'indicator.remove', 'indicator.saveDraft', 'layout.create',
+      'definition.delete', 'definition.duplicate', 'drawing.clear', 'indicator.discardDraft', 'indicator.remove', 'indicator.saveDraft',
+      // W1-B B-03 (owner's Wave 1 directive: create = risk 'confirm'; delete is a hard delete in the product)
+      'indicatorAlert.create', 'indicatorAlert.delete', 'layout.create',
       'layout.delete', 'layout.duplicate', 'layout.rename', 'layout.saveAs', 'layout.saveCurrent', 'screener.deleteSaved', 'screener.duplicateSaved',
       'screener.renameSaved', 'screener.saveAs', 'watchlist.clear', 'watchlist.create', 'watchlist.delete', 'watchlist.rename'])
     // the new grid is an ordinary, reversible workspace change (exact Undo)

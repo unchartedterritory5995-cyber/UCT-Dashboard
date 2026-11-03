@@ -695,7 +695,7 @@ const PANEL_MANIFESTS = {
     paramsSchema: [
       // The widget renders ONE DAY (the week is only the fetch granularity).
       { key: 'date', type: 'string', required: true },       // 'YYYY-MM-DD'
-      { key: 'econStars', type: 'number', default: 3 },
+      { key: 'econStars', type: 'number', default: 3, min: 1, max: 3, integer: true },   // the widget's own [1, 2, 3] (CalendarWidget)
       { key: 'selectedSym', type: 'symbol' },
       { key: 'tbdOpen', type: 'boolean', default: false },
       { key: 'sections', type: 'json' },        // {bmo,amc} × {sortBy,sortDir,showAll} — child-local state, lifted at capture
@@ -764,7 +764,7 @@ const PANEL_MANIFESTS = {
     themeFollow: true,
     paramsSchema: [
       { key: 'minPrice', type: 'number', default: 0 },
-      { key: 'minCount', type: 'number', default: 1 },
+      { key: 'minCount', type: 'number', default: 1, min: 1, max: 260, integer: true },  // StockChart buildFutureWhitespace: Math.min(260, Math.max(1, n))
       { key: 'settings', type: 'json' },
     ],
     plainText: () => '[new highs / lows]',

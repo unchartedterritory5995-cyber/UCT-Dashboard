@@ -32,6 +32,7 @@ import { infoValueRefFor, requestInfoValue, addedInstanceId } from './infoValueD
 import { chromeInputKeys } from './builderInputs'
 import { outputNamer } from './authoring/readback'
 import { ackRequiredText } from './authoring/repaintWarning'
+import { withLocalLineIdentities, servedLineIdentities } from '../engine/lineIdentity'
 
 /**
  * Validate and store. One call to `saveUserDefinition` at most.
@@ -63,12 +64,17 @@ export async function storeConversation(state, { previewAcked = false, draftId =
   }
   const row = res.row || { def_id: prep.doc.id, version: prep.doc.version, rev: 1 }
   // ⛔ THE STORE'S id / version / rev / semantics — never the draft's guess.
-  const storedDoc = withStoredSemantics({
+  // ⭐ LINE IDENTITY — the copy this tab installs carries each line's identity as the
+  // store decided it, or is marked pending where only the store knows it yet
+  // (`lineIdentity.withLocalLineIdentities`); the list read replaces it.
+  const storedId = row.def_id || prep.doc.id
+  const prior = (prep.defId && engineRegistry.getDefinition(storedId)) || (prep.defId ? state.base : null) || null
+  const storedDoc = withStoredSemantics(withLocalLineIdentities({
     ...prep.doc,
-    id: row.def_id || prep.doc.id,
+    id: storedId,
     ...(Number.isInteger(row.version) ? { version: row.version } : {}),
     compute: { ...prep.doc.compute, ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}) },
-  }, row)
+  }, prior, servedLineIdentities(row)), row)
   return { ok: true, created: !prep.defId, row, storedDoc, doc: prep.doc, requests: prep.requests }
 }
 

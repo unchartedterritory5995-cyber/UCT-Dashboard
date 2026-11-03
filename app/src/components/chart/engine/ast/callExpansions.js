@@ -337,6 +337,33 @@ export const CALL_EXPANSIONS = Object.freeze({
       return cOp('-', [mid, cOp('*', [a[2], cCall('ema', [trueRangeTree(), cNum(n)])])])
     },
   },
+  // ta.bb(src, n, mult) → [middle, upper, lower]: sma(src,n) ± mult·stdev(src,n) — the SAME
+  // trees pine.js `PINE_TUPLE_BUILTINS.bb` builds, so a Pine `ta.bb` import and a member's
+  // "add Bollinger Bands" store one identity (2026-11-01).
+  bbMiddle: {
+    min: 2, max: 2, signature: 'bbMiddle(source, length)', describe: 'Bollinger Band middle line: sma(source, n)',
+    build: (a) => {
+      const n = windowOf(a[1], 1)
+      if (!Number.isFinite(n)) return null
+      return cCall('sma', [a[0], cNum(n)])
+    },
+  },
+  bbUpper: {
+    min: 3, max: 3, signature: 'bbUpper(source, length, multiplier)', describe: 'Bollinger Band upper band: sma(source, n) + multiplier × stdev(source, n)',
+    build: (a) => {
+      const n = windowOf(a[1], 1)
+      if (!Number.isFinite(n) || !a[2]) return null
+      return cOp('+', [cCall('sma', [a[0], cNum(n)]), cOp('*', [a[2], cCall('stdev', [a[0], cNum(n)])])])
+    },
+  },
+  bbLower: {
+    min: 3, max: 3, signature: 'bbLower(source, length, multiplier)', describe: 'Bollinger Band lower band: sma(source, n) − multiplier × stdev(source, n)',
+    build: (a) => {
+      const n = windowOf(a[1], 1)
+      if (!Number.isFinite(n) || !a[2]) return null
+      return cOp('-', [cCall('sma', [a[0], cNum(n)]), cOp('*', [a[2], cCall('stdev', [a[0], cNum(n)])])])
+    },
+  },
   // ta.supertrend(factor, atrPeriod)[0] / [1] — see `supertrendTrees` above.
   // ⛔ `vendorNote`: the ONE expansion that is not an exact identity. Its bands are
   // bounded recurrences, so it is disclosed wherever vendor notes are read
@@ -545,6 +572,10 @@ function candidates(t) {
   if ((isOp(t, '+', 2) || isOp(t, '-', 2)) && isCall(t.args[0], 'ema') && isOp(t.args[1], '*', 2)) {
     out.push([t.name === '+' ? 'kcUpper' : 'kcLower', [t.args[0].args[0], t.args[0].args[1], t.args[1].args[0]]])
   }
+  if (isCall(t, 'sma') && t.args.length === 2) out.push(['bbMiddle', [t.args[0], t.args[1]]])
+  if ((isOp(t, '+', 2) || isOp(t, '-', 2)) && isCall(t.args[0], 'sma') && isOp(t.args[1], '*', 2)) {
+    out.push([t.name === '+' ? 'bbUpper' : 'bbLower', [t.args[0].args[0], t.args[0].args[1], t.args[1].args[0]]])
+  }
   // supertrend / supertrendDirection: `unknown ? na : …`, where `unknown` reads the upper
   // band `W` bars back; the factor and the ATR period are read off that band's seed.
   if (isOp(t, '?:', 3) && isOp(t.args[0], '||', 2) && isCall(t.args[0].args[0], 'na')) {
@@ -582,15 +613,17 @@ function candidates(t) {
 
 /**
  * ⭐ `{name, args}` when `tree` is EXACTLY the expansion of an expansion call, else
- * null. Two shapes are too ordinary to rename by default: `kcMiddle` is a bare
- * `ema` (an EMA is an EMA unless its siblings say otherwise — `allowBareEma`) and
+ * null. Three shapes are too ordinary to rename by default: `kcMiddle` is a bare
+ * `ema` (an EMA is an EMA unless its siblings say otherwise — `allowBareEma`),
+ * `bbMiddle` a bare `sma` (`allowBareSma`) and
  * `mom` is any `x − x[n]` (a hand-written difference stays a difference —
  * `allowMom`). Both still EXPAND exactly; only the read-back name is withheld.
  */
-export function recogniseExpansion(tree, { allowBareEma = false, allowMom = false } = {}) {
+export function recogniseExpansion(tree, { allowBareEma = false, allowBareSma = false, allowMom = false } = {}) {
   if (!tree || typeof tree !== 'object') return null
   for (const [name, args] of candidates(tree)) {
     if (name === 'kcMiddle' && !allowBareEma) continue
+    if (name === 'bbMiddle' && !allowBareSma) continue
     if (name === 'mom' && !allowMom) continue
     const built = expandCall({ type: 'call', name, args })
     if (built && same(built, tree)) return { name, args }
