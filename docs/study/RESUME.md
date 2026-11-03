@@ -1093,6 +1093,64 @@ ROUND 10 PIECES (batch 10 in the shell): 46 the logo (showcase), 47 Blitz V2 (tu
 Shared: lab/Logo.jsx, lab/StartCard.jsx (card + StartButton), lab/fx.js (useRunOn: forward bars appended one by
 one; useBreath: the three-frame halo cycle), lab/duo.module.css additions (start card, button, stamp, cascade,
 heartbeat, boss bar, medallion, chest, crack, vignette, strip crossfade, coin).
+## 2026-11-03 (midday): ROUND 10 LIVE (pieces 46-51) and SCORED MID-BUILD -> ANALYSIS -> ROUND 11 PLAN
+
+Built: lab/Logo.jsx (the compass mark as a layered 3D coin, moods = tempo and glow only), lab/StartCard.jsx (start
+card + StartButton), lab/fx.js (useRunOn, useBreath, useCountUp), lab/bits.jsx (Confetti, Stamp, Heart, BossBar,
+Medal, Chest), pointers.js (chip sits a third of a candle above the arrow's tail, never clips; haloAt/boxAt; every
+pointer piece `locked`), WidgetChart (taps report the price under the pointer; `hotkeysActive: false` so a lesson's
+1-4 keys never retime the chart; `exactBars`), pieces 46-51, the Coach removed from 36-45 and deleted. Measured
+before shipping: Draw-it's two stacked toolbars (the top one drew into the chart's saved layer) and the Trap's
+off-screen candidate. Phone pass 390 px: no overflow, main buttons inside the first screen.
+
+THE OWNER SCORED BATCH 10 WHILE IT WAS STILL CHANGING (the shell serves pieces.json live): the logo he saw had the
+ghosted rim slices (fixed to a dense slab minutes later), Draw-it had tap-to-place off (the editable overlay
+swallowed the tap; tap mode is now the default with a toolbar toggle), the Trap had a 55-bar window (now 90 on a
+desktop, 55 on a phone, with the left margin clear of the legend). Scores: logo 2 ("closer ... 15/100"), Blitz 2,
+Boss 2 ("I like it ... getting close"), Hard 2, Draw-it 2, Trap 2.
+
+LINE BY LINE (batch 10)
+1. Logo: "closer to what I want but the graphics and quality can be enhanced significantly ... 15/100. The sideways
+   image in its rotation is really shitty looking."
+   Cause: a flat PNG layered in CSS has no real edge; seen side-on it is a stack of copies, however dense. Only real
+   geometry fixes the side view.
+   Fix (round 11): a TRUE 3D logo. The mark authored as vector paths (ring arcs, four points, the candle), extruded
+   with a bevel and rendered with metallic materials and soft lighting, turning slowly on a turntable with the bob
+   and throb kept. three.js if it is already in the app; otherwise a canvas extruder that draws the side faces as
+   shaded bands. Either way the side view is a solid, lit edge.
+2. Blitz: "the whole style can be improved, the size, the font, everything. especially on the intro screen."
+   Fix: a STYLE PASS over every lesson screen: the app's own typeface and type scale (the lab was falling back to a
+   system font), tighter start cards, larger titles, consistent spacing, fewer borders, the gems smaller.
+3. Blitz: "it cycled through the same 3 examples. We will need hundreds if not thousands of examples."
+   Fix: Blitz V3 draws from the STUDY BANK (the candle items the owner has already approved) through the sandbox
+   API, and the chart uses the widget's real data path (cutoff mode) so no bars are stored per item. Growth is the
+   owner's review loop plus the candidate finders; the bank holds 604 today.
+4. Boss: "essentially the same thing but I like it. Needs some enhancements on the graphics ... getting close."
+   Fix: the style pass; a drawn medallion and chest with more depth; the bar and heart kept.
+5. Hard: "show the next candles a bit slower and also give more of an interactive lesson for the buy day of where
+   and how to enter and where to place your stop."
+   Fix: the run-on slows to about a quarter second per bar with a pause on day 1; and after the name is checked
+   the lesson continues on the SAME chart: ENTER IT (tap the line you buy over: the previous day's high is drawn,
+   the ORB named) then STOP IT (tap where the stop goes, graded against the house rule). Name -> Enter -> Stop.
+6. Draw-it: "Show the entry as a line and explain why and where and how simply and easily."
+   Fix: the entry line ($0.01 over the previous day's high) is drawn from the start with its chip, and the bubble
+   says in plain words why (the red day's sellers are beaten the moment price trades over their high), where (the
+   line), how (a stop-buy, never a market order at the open).
+7. Draw-it: "I don't like the throbbing gold around the chart at all."
+   Fix: the pulsing border is removed from every chart (Draw-it, Trap, Hit BUY, the loop).
+8. Draw-it: "the chart widget can be sized better."
+   Fix: the chart gets the height (560 on a desktop) with the identity row, timeframe bar and toolbar hidden unless
+   the ray tool is chosen; fewer bars so each candle is bigger.
+9. Draw-it: "the ease of placement and adjustment for stop can be easier."
+   Fix: tap places; DRAG moves (the line carries a grab handle); the arrows repeat while held; a typed price.
+10. Trap: "Eh this one needs a lot of improvement imo."
+    Fix: the three choosable candles are painted GOLD on the chart itself (the widget's highlight) with a big letter
+    badge, everything else stays as it is; no border pulse; a tap anywhere near one selects it; on Check each
+    candidate opens a RULE CARD (the red day's size, open above the body, close in the upper half, each ticked or
+    crossed) so the reason is taught, not just stated.
+
+ROUND 11 PIECES (batch 11): 52 the logo in real 3D, 53 Blitz V3 (bank-fed, style pass), 54 Boss V3, 55 Hard V3
+(Name -> Enter -> Stop), 56 Draw-it V3, 57 Trap V3. Six again.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
