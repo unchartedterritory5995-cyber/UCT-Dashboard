@@ -31,6 +31,11 @@ export function isEvernoteNoteHref(href) {
   return APP_LINK_RE.test(h) || WEB_LINK_RE.test(h)
 }
 
+/** The text of a note link the lift adds after an image with no alt (Plan E Task 9 fix round 2,
+ *  concern 5 ruling): never the link's URL, which carries the member's Evernote user id and shard
+ *  and which no heal relabels. `enml.LINKED_NOTE_LABEL`; a test reads the Python line. */
+export const LINKED_NOTE_LABEL = 'Linked note'
+
 /** The live-sync key prefix (`enml.LIVE_KEY_PREFIX`): a note keyed by its Evernote GUID. */
 export const LIVE_KEY_PREFIX = 'evernote:guid:'
 

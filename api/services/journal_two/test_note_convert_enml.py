@@ -590,11 +590,16 @@ def test_image_inside_a_note_link_is_lifted_not_erased():
     assert label["marks"] == [{"type": "link", "attrs": {"href": "import-link://evernote:guid:g-1"}}]
 
 
-def test_note_link_emptied_by_the_lift_is_a_link_after_the_image():
-    out = _convert(f'<div><a href="evernote:///view/1/s1/g-1/g-1/">'
-                   f'<en-media hash="{IMG_HASH}" type="image/png"/></a></div>', [IMG])
-    assert _link_after_image(out) == ("evernote:///view/1/s1/g-1/g-1/", "import-link://evernote:guid:g-1")
+@pytest.mark.parametrize("href", ["evernote:///view/1/s1/g-1/g-1/",
+                                  "https://www.evernote.com/shard/s1/nl/1/g-1/"])
+def test_note_link_emptied_by_the_lift_is_a_linked_note_after_the_image(href):
+    """Fix round 2 (concern 5 ruling): with no alt, a note link reads the fixed label, never its
+    URL: the URL carries the member's Evernote user id and shard, and a heal never relabels."""
+    out = _convert(f'<div><a href="{href}"><en-media hash="{IMG_HASH}" type="image/png"/></a></div>', [IMG])
+    assert _link_after_image(out) == (enml.LINKED_NOTE_LABEL, "import-link://evernote:guid:g-1")
+    assert enml.LINKED_NOTE_LABEL == "Linked note"
     assert out["links"] == ["evernote:guid:g-1"]
+    assert "s1" not in str(out["doc"])
 
 
 def test_note_link_emptied_by_the_lift_reads_the_images_alt():

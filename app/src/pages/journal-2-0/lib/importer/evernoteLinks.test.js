@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   isEvernoteNoteHref, normTitle, pyStrip, titleKeyText, resolveEvernoteLinks,
-  PY_WHITESPACE_CLASS, SERVER_TITLE_MAX,
+  PY_WHITESPACE_CLASS, SERVER_TITLE_MAX, LINKED_NOTE_LABEL,
 } from './evernoteLinks'
 import { parseImport } from './postParse'
 import { htmlToNote } from './convert'
@@ -154,9 +154,32 @@ describe('resolveEvernoteLinks through the Evernote adapter', () => {
     expect(img.nextSibling).toBe(a)
     expect(a.getAttribute('data-import-link')).toBe('evernote:guid:abc')
     expect(a.hasAttribute('href')).toBe(false)
-    expect(a.textContent).toBe('evernote:///view/1/s1/abc/abc/')   // no alt: the href as written
+    // fix round 2 (concern 5 ruling): no alt -> the fixed label, never the URL (user id and shard)
+    expect(a.textContent).toBe(LINKED_NOTE_LABEL)
+    expect(d.html).not.toContain('/view/1/s1')
     expect(d.links).toEqual([{ targetKey: 'evernote:guid:abc' }])
     expect(warnings.filter((w) => w.includes('was kept as its content'))).toEqual([])
+  })
+
+  it('labels an image-only /shard/.../nl/ note link with no alt as a linked note, never its URL', async () => {
+    const { docs } = await evernoteAdapter.parse([enexFile('Book.enex', [
+      note('Source', `<div><a href="https://www.evernote.com/shard/s1/nl/123/abc/"><en-media type="image/png" hash="${PNG_MD5}"/></a></div>`, undefined, PNG_RES),
+    ])])
+    const a = bodyOf(docs[0].html).querySelector('a')
+    expect(a.textContent).toBe(LINKED_NOTE_LABEL)
+    expect(a.getAttribute('data-import-link')).toBe('evernote:guid:abc')
+    expect(docs[0].html).not.toContain('shard/s1')
+  })
+
+  it('reads LINKED_NOTE_LABEL from enml.py, never restates it', () => {
+    let dir = HERE
+    while (!readdirHas(dir, 'api')) {
+      const up = path.dirname(dir)
+      if (up === dir) throw new Error('repo root not found')
+      dir = up
+    }
+    const src = readFileSync(path.join(dir, 'api', 'services', 'journal_two', 'note_connectors', 'convert', 'enml.py'), 'utf8')
+    expect(src.match(/^LINKED_NOTE_LABEL = "([^"]+)"/m)[1]).toBe(LINKED_NOTE_LABEL)
   })
 
   it("names an image-only link by the image's alt", async () => {

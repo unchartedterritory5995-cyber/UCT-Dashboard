@@ -54,6 +54,10 @@ EVERNOTE_RES_SCHEME = "evernote-res://"
 LIVE_KEY_PREFIX = "evernote:guid:"
 #: `link_keys.EVERNOTE_TITLE_KIND`, the key kind the server heals by title.
 EVERNOTE_TITLE_KIND = "evernote-title:"
+#: The text of a note link the lift adds after an image with no alt (Task 9 fix round 2, concern 5
+#: ruling): never the link's URL, which carries the member's Evernote user id and shard, and which a
+#: heal would never relabel. The client's `evernoteLinks.LINKED_NOTE_LABEL` reads this line.
+LINKED_NOTE_LABEL = "Linked note"
 ENCRYPTED_TEXT = "[encrypted content — cannot be imported]"
 
 # Internal placeholder `<img src=REF_PREFIX + "evernote-notice://{i}">`: HTML cannot carry an
@@ -67,7 +71,7 @@ _VOID_TAGS = frozenset({"br", "hr", "img", "input", "col", "area", "wbr", "meta"
                         "base", "source", "embed", "param", "track"})
 _BLOCK_TAGS = frozenset({"p", "div", "ul", "ol", "li", "table", "tr", "td", "th", "pre",
                          "blockquote", "hr", "h1", "h2", "h3", "h4", "h5", "h6"})
-_INTERNAL_ATTRS = frozenset({"data-uct-chip", "data-evernote-link", "data-evernote-href", "data-uct-alt"})
+_INTERNAL_ATTRS = frozenset({"data-uct-chip", "data-evernote-link", "data-uct-alt"})
 
 _PROLOG_RE = re.compile(r"^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!DOCTYPE[^>]*>\s*)?", re.IGNORECASE)
 _CODEBLOCK_RE = re.compile(r"-en-codeblock\s*:\s*true", re.IGNORECASE)
@@ -183,8 +187,7 @@ _STRUCTURAL_CHILD = {"ul": ("li",), "ol": ("li",), "table": ("tr", "tbody", "the
 #: Attributes that carry meaning between this module's passes and `mddoc`. Written in a member's
 #: note they would forge it (a `data-uct-task` bullet read as a checked task, a `data-uct-chip`
 #: link skipping the link policy), so they are dropped as the ENML is parsed (round 2, R2).
-_OUR_ATTRS = frozenset({"data-uct-task", "data-uct-chip", "data-evernote-link", "data-evernote-href",
-                        "data-uct-alt"})
+_OUR_ATTRS = frozenset({"data-uct-task", "data-uct-chip", "data-evernote-link", "data-uct-alt"})
 
 
 def _member_attrs(attrs: list[tuple[str, str | None]]) -> dict[str, str | None]:
@@ -396,12 +399,10 @@ def _rule_note_links(root: _Node) -> None:
     def fn(n: _Node) -> list[Any] | None:
         if n.tag != "a" or not is_note_href(n.attrs.get("href")):
             return None
-        authored = (n.attrs.get("href") or "").strip()
-        guid = note_guid_from_href(authored)
+        guid = note_guid_from_href(n.attrs.get("href"))
         if guid:
             n.attrs["href"] = LINK_PREFIX + live_import_key(guid)
             n.attrs["data-evernote-link"] = "1"
-            n.attrs["data-evernote-href"] = authored  # the text an image-only link shows (concern 2)
             return None
         # Named by title only: its text, or (concern 2) the alt of an image it holds.
         title = _title_key_text(_text_of(n)) or _title_key_text(_media_alt(list(_iter(n))))
@@ -410,7 +411,6 @@ def _rule_note_links(root: _Node) -> None:
             return None
         n.attrs["href"] = LINK_PREFIX + EVERNOTE_TITLE_KIND + title
         n.attrs["data-evernote-link"] = "1"
-        n.attrs["data-evernote-href"] = authored
         return None
 
     _map_elements(root, fn)
@@ -762,10 +762,9 @@ def _rule_lift_media(root: _Node) -> None:
             return [*media, *a.children]  # its content
         # Task 9 fix round 1 (concern 2, ruling): the link survives, right after its media, with
         # the same href (a note link stays its heal-able `import-link://`). Its text: the image's
-        # alt, else the href as authored (a web href is already resolved by
-        # `_rule_resolve_web_links`; a note link shows the `evernote:`/evernote.com URL written).
-        shown = (a.attrs.get("data-evernote-href") or "").strip() if marked else href
-        a.children = [_media_alt(media) or shown or href]
+        # alt; else, for a note link, LINKED_NOTE_LABEL (fix round 2: never its URL); else, for a
+        # web link, its href (already resolved by `_rule_resolve_web_links`).
+        a.children = [_media_alt(media) or (LINKED_NOTE_LABEL if marked else href)]
         return [*media, a]
 
     _map_elements(root, fn)

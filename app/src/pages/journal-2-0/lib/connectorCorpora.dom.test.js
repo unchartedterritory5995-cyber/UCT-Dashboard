@@ -307,7 +307,7 @@ const CONSTRUCTS = [
   // Plan E Task 9 fix round 1 (concern 2, ruling): an image inside a note link keeps the link, as
   // a clickable <a href> right after the image, opening the target note.
   ['evernote: an image inside a note link is followed by its clickable link', E, EU, EWALL, (root) => {
-    const a = oneLink(root, `evernote:///view/123/s1/${ETARGET_GUID}/${ETARGET_GUID}/`)
+    const a = oneLink(root, 'Linked note')   // fix round 2: the label, never the URL
     expect(internalNoteIdFromHref(a.getAttribute('href'))).toBe(nid(E, EU, `evernote:guid:${ETARGET_GUID}`))
     const before = topBlock(a).previousElementSibling
     const img = before.tagName === 'IMG' ? before : before.querySelector('img')

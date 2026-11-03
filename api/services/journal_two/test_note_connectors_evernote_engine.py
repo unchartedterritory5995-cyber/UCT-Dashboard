@@ -303,14 +303,15 @@ def test_media_wall_kinds(work, wall):
 
 def test_image_inside_a_note_link_keeps_the_image_and_the_link(work, notes, wall):
     """Fix round 1 (concern 2, ruling): the linked image is copied AND the note link survives,
-    right after it. No alt, so its text is the href as written; healed in the same pass, it opens
-    the target note. (Was: the link was dropped, as `enml_parity/08` then pinned on both lanes.)"""
+    right after it. No alt, so its text is the fixed label (fix round 2: never the URL, which holds
+    the member's Evernote user id and shard); healed in the same pass, it opens the target note.
+    (Was: the link was dropped, as `enml_parity/08` then pinned on both lanes.)"""
     content = wall["content"]
     at = next(i for i, n in enumerate(content) if n["type"] == "image" and _image_size(work, n)[0] == (20, 10))
     after = content[at + 1]
     assert after["type"] == "paragraph"
-    assert _links(after) == [(f"evernote:///view/123/s1/{G(TARGET)}/{G(TARGET)}/",
-                              NOTE_HREF.format(notes[KEY(TARGET)]["id"]))]
+    assert _links(after) == [("Linked note", NOTE_HREF.format(notes[KEY(TARGET)]["id"]))]
+    assert "/view/123/s1/" not in json.dumps(wall)
     assert notes[KEY(WALL)]["importLinksPending"] == 0
 
 

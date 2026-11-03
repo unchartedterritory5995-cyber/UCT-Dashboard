@@ -85,7 +85,7 @@ import SparkMD5 from 'spark-md5'
 import { reportIgnoredFiles } from './reportIgnored'
 import { liftMediaOutOfLinks, rasterSignature } from '../mediaRefs'
 import { resolveHref, neutraliseRefusedAnchor } from '../linkPolicy'
-import { isEvernoteNoteHref, resolveEvernoteLinks, settleEvernoteLinks, pyStrip } from '../evernoteLinks'
+import { isEvernoteNoteHref, resolveEvernoteLinks, settleEvernoteLinks, pyStrip, LINKED_NOTE_LABEL } from '../evernoteLinks'
 
 const ENEX_EXT = /\.enex$/i
 const ENML_PROLOG_RE = /^\s*<\?xml[^>]*\?>\s*<!DOCTYPE[^>]*>\s*/i
@@ -152,7 +152,7 @@ async function parse(vfiles, opts = {}) {
     resolveWebLinks(root, doc.sourceUrl)
     // ⛔ On the LIVE DOM, before anything serialises (Review Focus 1): a chip is itself an <a>, and
     // a chip inside a link, written out and parsed again, closes the outer link early.
-    liftMediaOutOfLinks(root, { altFirst: true })
+    liftMediaOutOfLinks(root, { altFirst: true, noteLinkLabel: LINKED_NOTE_LABEL })
     settleEvernoteLinks(root)
     doc.html = root.innerHTML
   }

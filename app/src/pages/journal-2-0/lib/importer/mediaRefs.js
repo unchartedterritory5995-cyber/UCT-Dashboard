@@ -265,7 +265,7 @@ function firstAlt(els) {
   return ''
 }
 
-export function liftMediaOutOfLinks(root, { altFirst = false } = {}) {
+export function liftMediaOutOfLinks(root, { altFirst = false, noteLinkLabel = null } = {}) {
   for (const a of [...root.querySelectorAll('a[href], a[data-evernote-link]')]) {
     // Outermost media only: a chip moves whole, with any image inside it. An adapter's chip is
     // itself `<a href="import-ref://…">`; its own media has `outer === a`, so a chip is never a
@@ -278,12 +278,13 @@ export function liftMediaOutOfLinks(root, { altFirst = false } = {}) {
     for (const el of found) a.parentNode.insertBefore(el, a)
     if (a.textContent.trim()) continue
     const href = (a.getAttribute('href') || '').trim()
-    // Plan E Task 9 fix round 1 (concern 2, ruling), Evernote only (`altFirst`, and the
-    // `data-evernote-link` branch): the link survives right after its media, its text the
-    // image's alt, else the href. A resolved note link keeps its heal-able `data-import-link`.
+    // Plan E Task 9 fix round 1 (concern 2, ruling), Evernote only (`altFirst`, `noteLinkLabel`
+    // and the `data-evernote-link` branch): the link survives right after its media, its text the
+    // image's alt, else (fix round 2) the note-link label for a note link, the href for a web link.
+    // A resolved note link keeps its heal-able `data-import-link`.
     const alt = altFirst ? firstAlt(found) : ''
     if (a.hasAttribute('data-evernote-link')) {
-      if (a.hasAttribute('data-import-link') && href) a.textContent = alt || href
+      if (a.hasAttribute('data-import-link') && href) a.textContent = alt || noteLinkLabel || href
       else neutraliseAnchor(a)
     } else if (!href) {
       neutraliseAnchor(a)
