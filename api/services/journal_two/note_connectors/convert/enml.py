@@ -25,8 +25,10 @@ Rules, in order (the brief's numbering):
  5. `<div>`s carrying `<en-todo checked>` group into one `<ul><li data-uct-task="0|1">` run.
  6. Resources nothing cited are appended at the end; duplicate hashes collapse first-wins.
  7. An http(s) `source_url` (not our own site) becomes a first line `Source: <a>`.
- 8. Media inside a link moves out to just before it; an emptied note link becomes its content, an
-    emptied web link shows its href (or its content when the href is not a safe link).
+ 8. First every web link goes through `linkify.resolve_href(href, source)` (the client's
+    `resolveWebLinks`): relative against the web clip, refused -> its content. Then media inside a
+    link moves out to just before it; an emptied note link becomes its content, an emptied web
+    link shows its (already resolved) href.
  9. `<div style="...-en-codeblock:true...">` -> `<pre><code>` with its text verbatim.
 Then (needed by the server walker, which unwraps every `<div>`): each ENML line `<div>` becomes a
 `<p>`, so lines stay separate paragraphs as they do in the editor.
@@ -45,7 +47,8 @@ from urllib.parse import urlsplit
 from api.services.journal_two import import_notice
 
 from . import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX
-from .mddoc import _is_allowed_link_href, html_to_tiptap
+from .linkify import resolve_href
+from .mddoc import html_to_tiptap
 
 EVERNOTE_RES_SCHEME = "evernote-res://"
 LIVE_KEY_PREFIX = "evernote:guid:"
@@ -461,6 +464,25 @@ def _rule_source_line(root: _Node, source_url: str | None) -> None:
         root.children.insert(0, _Node("p", {}, ["Source: ", _Node("a", {"href": url}, [url])]))
 
 
+def _rule_resolve_web_links(root: _Node, base_url: str | None) -> None:
+    """The client's `resolveWebLinks`, run before the lift: every web link (not a note link, not
+    a chip) goes through the ONE import link policy, `linkify.resolve_href(href, source)`. A
+    relative href resolves against the web clip's source; a refused one (`javascript:`, `ftp:`, a
+    relative href with no source) becomes its content. So the lift can never show a raw href."""
+    def fn(n: _Node) -> list[Any] | None:
+        if n.tag != "a" or "href" not in n.attrs:
+            return None
+        if "data-uct-chip" in n.attrs or "data-evernote-link" in n.attrs:
+            return None
+        resolved = resolve_href(n.attrs.get("href"), base_url)
+        if resolved is None:
+            return list(n.children)  # refused: its content
+        n.attrs["href"] = resolved
+        return None
+
+    _map_elements(root, fn)
+
+
 def _is_media(n: Any) -> bool:
     return isinstance(n, _Node) and (n.tag == "img" or (n.tag == "a" and "data-uct-chip" in n.attrs))
 
@@ -501,10 +523,10 @@ def _rule_lift_media(root: _Node) -> None:
         container.children[idx:idx] = media
         if _text_of(a).strip():
             continue
-        if marked or not href or not _is_allowed_link_href(href):
+        if marked or not href:
             _replace(container, a, list(a.children))  # its content
         else:
-            a.children = [href]
+            a.children = [href]  # already resolved by `_rule_resolve_web_links`
 
 
 def _code_text(node: _Node) -> str:
@@ -636,6 +658,7 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     _rule_todos(root)                  # 5
     _rule_append_uncited(root, res)    # 6
     _rule_source_line(root, source_url)  # 7
+    _rule_resolve_web_links(root, _source_line_url(source_url))  # 8, the client's resolveWebLinks
     _rule_lift_media(root)             # 8
     _rule_codeblocks(root)             # 9
     _rule_div_lines(root)

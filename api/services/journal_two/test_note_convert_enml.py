@@ -365,6 +365,47 @@ def test_unsafe_web_link_emptied_by_the_lift_is_unwrapped_not_shown():
     assert "javascript" not in str(out["doc"])
 
 
+# ---- I2: every web link goes through `linkify.resolve_href` before the lift (the client's
+# `resolveWebLinks`): relative against a web clip's source, refused -> its content ----------
+
+
+@pytest.mark.parametrize("href", ["/chart", "ftp://x.org/f", "notes/a.html", "vbscript:x"])
+def test_refused_link_emptied_by_the_lift_never_shows_its_raw_href(href):
+    out = _convert(f'<div><a href="{href}"><en-media hash="{IMG_HASH}" type="image/png"/></a></div>',
+                   [IMG])
+    assert [b["type"] for b in _blocks(out)] == ["image"]
+    assert _of_type(out, "text") == []
+
+
+def test_refused_link_with_text_keeps_only_its_text():
+    out = _convert('<div><a href="javascript:alert(1)">click</a> and <a href="/rel">rel</a></div>')
+    texts = _of_type(out, "text")
+    assert "".join(t["text"] for t in texts) == "click and rel"
+    assert all(not t.get("marks") for t in texts)
+
+
+def test_relative_link_resolves_against_the_web_clip_source():
+    out = _convert('<div><a href="/chart">chart</a></div>', source_url="https://site.com/a/b")
+    (text,) = [t for t in _of_type(out, "text") if t["text"] == "chart"]
+    assert text["marks"] == [{"type": "link", "attrs": {"href": "https://site.com/chart"}}]
+
+
+def test_relative_link_emptied_by_the_lift_shows_its_resolved_href():
+    out = _convert(f'<div><a href="/chart"><en-media hash="{IMG_HASH}" type="image/png"/></a></div>',
+                   [IMG], source_url="https://site.com/a/b")
+    assert [b["type"] for b in _blocks(out)] == ["paragraph", "image", "paragraph"]
+    (text,) = [t for t in _of_type({"doc": _blocks(out)[2]}, "text")]
+    assert text["text"] == "https://site.com/chart"
+    assert text["marks"] == [{"type": "link", "attrs": {"href": "https://site.com/chart"}}]
+
+
+def test_converter_uses_no_private_mddoc_link_policy():
+    import inspect
+    source = inspect.getsource(enml)
+    assert "_is_allowed_link_href" not in source
+    assert "resolve_href" in source
+
+
 # --------------------------------------------------------------------------- source line
 
 
