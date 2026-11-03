@@ -191,7 +191,7 @@
   },
   {
    "id": "alerts",
-   "title": "Price alerts (list, create, delete)"
+   "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
   },
   {
    "id": "data",
@@ -323,7 +323,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -473,7 +473,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -630,7 +630,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -796,7 +796,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -942,7 +942,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
      },
      {
       "id": "data",

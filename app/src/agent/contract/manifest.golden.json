@@ -1434,6 +1434,87 @@
    "query": false
   },
   {
+   "name": "indicatorAlert.create",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlertLibrary",
+   "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band…), exactly as the chart's Indicator Alerts popover does: the alert watches that chart's symbol and timeframe with the instance's own settings. Undo deletes it.",
+   "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: \"crosses above 70\" = cross_above 70; \"is over 70\" = above 70); threshold = the level as a number when the condition has one, else null. A PRICE level alert (\"when NVDA hits 150\") is alert.create, not this. Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     },
+     "plot": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "condition": {
+      "type": "string"
+     },
+     "threshold": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "instance",
+     "plot",
+     "condition",
+     "threshold"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "indicatorAlert.toggle",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlert",
+   "summary": "Pause or resume ONE indicator alert (the alert manager's own switch). Undo switches it back.",
+   "hints": "target = the ref of that alert in the indicatorAlerts list; active = false to pause, true to resume. One op per alert.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "active": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "active"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "indicatorAlert.delete",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlert",
+   "summary": "Delete one of the member's indicator alerts (permanent — UCT cannot restore a deleted alert).",
+   "hints": "target = the ref of that alert in the indicatorAlerts list. One op per alert. Always shown as a proposal first; if two alerts could be the one they mean, clarify with the real alerts as choices — never pick one. To stop one without deleting it, indicatorAlert.toggle.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
    "name": "stock.profile",
    "domain": "stock",
    "target": "market",

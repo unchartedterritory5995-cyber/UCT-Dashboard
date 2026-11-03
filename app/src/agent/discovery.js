@@ -152,10 +152,10 @@ export const TOPICS = [
   {
     id: 'alerts', title: 'Alerts',
     words: [/\balerts?\b/, /\bnotify\b/, /\bping me\b/],
-    caps: ['alert.list', 'alert.create', 'alert.delete'], productHas: true,
-    canDo: 'list your price alerts, create price alerts (above/below a level) and delete them. Note: UCT checks price alerts as live prices are fetched — there is no separate background monitor yet',
-    known: () => ['indicator alerts and trendline alerts (owned by the Indicator project)', 'snoozing or re-arming alerts'],
-    planned: { when: 'Batch 10', what: 'clearer alert-monitoring wording; indicator alerts later with the Indicator team' },
+    caps: ['alert.list', 'alert.create', 'alert.delete', 'indicatorAlert.create', 'indicatorAlert.toggle', 'indicatorAlert.delete'], productHas: true,
+    canDo: 'list your price alerts, create price alerts (above/below a level) and delete them; create an indicator alert on an indicator that is on a chart (RSI above 70, MACD crossing a level, price touching a band — the alert catalog decides which), pause or resume one, and delete one. Note: UCT checks price alerts as live prices are fetched — there is no separate background monitor yet',
+    known: () => ['trendline alerts (owned by the Indicator project)', 'snoozing alerts', 'alerts on a yes/no signal (a trigger policy — set those from the chart)'],
+    planned: { when: 'Batch 10', what: 'clearer alert-monitoring wording' },
   },
   {
     id: 'stockInfo', title: 'Stock information and news',
