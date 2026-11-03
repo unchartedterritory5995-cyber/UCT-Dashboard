@@ -994,6 +994,8 @@ def test_a_complete_rights_cleared_entry_admits_with_its_references(kn, monkeypa
 
 # ── owner decision 5: knowledge never reaches a web research provider ──────────────────────────────────
 SENTINEL = "ZQX-SENTINEL-PASSAGE-7731"
+# a query no other test uses: the research layer caches by query text across tests
+UNIQ_Q = "why is NVDA moving kn1-separation-control-query"
 
 
 def _model_reply(blocks, stop):
@@ -1062,24 +1064,24 @@ def _v1_reply(env):
 def test_v1_a_knowledge_answer_in_history_never_reaches_the_model_or_the_web(monkeypatch):
     from api.services.uct_agent import turn as t1
     outbound = []
-    monkeypatch.setattr(t1, "_web_search", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])
+    monkeypatch.setattr(t1, "_research", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])   # the one door both planners use to reach the web
     monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
     history = [{"role": "member", "text": "what is an EP"}, {"role": "agent", "text": "Here is UCT's playbook."},
                {"role": "outcome", "text": f"From UCT's playbook: {SENTINEL} an EP is a gap on news.",
                 "data": {"kind": "answered", "actions": ["playbook.explain"]}}]
     env = {"disposition": "answer", "reply": "x", "ops": [], "question": None,
-           "research": {"query": "why is NVDA moving", "recency": "day"}}
+           "research": {"query": UNIQ_Q, "recency": "day"}}
     seen_by_model = []
     t1.run_turn(message="why is NVDA moving today", context={"surface": "charts"}, history=history,
                 capabilities=[], caller=lambda **kw: (seen_by_model.append(kw), _v1_reply(env))[1])
     assert SENTINEL not in json.dumps(seen_by_model)                     # N-8: the passage is never replayed
-    assert outbound == ["why is NVDA moving"] and not any(SENTINEL in q for q in outbound)
+    assert outbound == [UNIQ_Q] and not any(SENTINEL in q for q in outbound)
 
 
 def test_v1_research_is_blocked_if_framed_knowledge_ever_appears_in_the_request(monkeypatch):
     from api.services.uct_agent import turn as t1
     outbound = []
-    monkeypatch.setattr(t1, "_web_search", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])
+    monkeypatch.setattr(t1, "_research", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])   # the one door both planners use to reach the web
     monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
     history = [{"role": "member", "text": "what is an EP"},                # an agent reply that echoed the frame
                {"role": "agent", "text": f"<uct_knowledge>{SENTINEL} an EP is a gap on news.</uct_knowledge>"}]
@@ -1095,13 +1097,13 @@ def test_v1_research_is_blocked_if_framed_knowledge_ever_appears_in_the_request(
 def test_v1_research_still_runs_in_a_conversation_without_knowledge(monkeypatch):
     from api.services.uct_agent import turn as t1
     outbound = []
-    monkeypatch.setattr(t1, "_web_search", lambda q, r: (outbound.append(q), {"answer": "NVDA reported.", "citations": []})[1])
+    monkeypatch.setattr(t1, "_research", lambda q, r: (outbound.append(q), {"answer": "NVDA reported.", "citations": []})[1])
     monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
     env = {"disposition": "answer", "reply": "x", "ops": [], "question": None,
-           "research": {"query": "why is NVDA moving", "recency": "day"}}
-    t1.run_turn(message="why is NVDA moving today", context={"surface": "charts"}, history=[], capabilities=[],
-                caller=lambda **kw: _v1_reply(env))
-    assert outbound == ["why is NVDA moving"]
+           "research": {"query": UNIQ_Q, "recency": "day"}}
+    out = t1.run_turn(message="why is NVDA moving today", context={"surface": "charts"}, history=[], capabilities=[],
+                      caller=lambda **kw: _v1_reply(env))
+    assert outbound == [UNIQ_Q], json.dumps(out.get("usage"), default=str)
 
 
 # ── re-review r2: N-7, N-1, N-2, N-4, N-5, N-6 ─────────────────────────────────────────────────────────
