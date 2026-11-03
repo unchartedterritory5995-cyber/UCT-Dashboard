@@ -79,7 +79,12 @@ describe('MD-2 panel: every MD-1-phrasings row, outcome column end to end (serve
         expect(kinds.slice(1)).toEqual(['bars.daily'])
       } else {
         expect(kinds, `${kind}: no price or bars read`).toEqual(['instrument.resolve'])
-        if (kind === 'ask') expect(got.said).toContain(`Did you mean ${sym}`)
+        // §4.7.3 after #691 (owner ruling 1): neutral. SYM is the index's candidate, recorded for the test only
+        if (kind === 'ask') {
+          expect(got.said).toContain("I'm not sure which instrument \"")
+          expect(got.said).not.toContain('Did you mean')
+          expect(got.said, `the ask must not name ${sym}`).not.toContain(`${sym} (`)
+        }
         if (kind === 'limit') expect(got.said).toMatch(/isn't one I can price here/)
       }
     }, 30000)

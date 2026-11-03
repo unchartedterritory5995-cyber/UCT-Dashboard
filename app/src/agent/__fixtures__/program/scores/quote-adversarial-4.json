@@ -1,0 +1,292 @@
+{
+ "about": "agent-qa adversarial quote set 4, FRESH (agent-md has not seen it), 2026-11-02, scored over PRODUCTION rows (md2/resolve-prod-union.json). Same bar as set 3: expect null = any execution is a FAIL unless listed in either.",
+ "rows": [
+  {
+   "id": "F01",
+   "cat": "interjection",
+   "text": "nice, nvda price",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "NVDA"
+     ]
+    }
+   ],
+   "why": "an interjection before a comma is not a ticker; pricing it beside the stock the member asked about is a wrong answer"
+  },
+  {
+   "id": "F02",
+   "cat": "interjection",
+   "text": "ok nice, aapl price",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "AAPL"
+     ]
+    }
+   ],
+   "why": "an interjection before a comma is not a ticker; pricing it beside the stock the member asked about is a wrong answer"
+  },
+  {
+   "id": "F03",
+   "cat": "interjection",
+   "text": "nice, now whats nvda at",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "NVDA"
+     ]
+    }
+   ],
+   "why": "an interjection before a comma is not a ticker; pricing it beside the stock the member asked about is a wrong answer"
+  },
+  {
+   "id": "F04",
+   "cat": "interjection",
+   "text": "wow, nvda price",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "NVDA"
+     ]
+    }
+   ],
+   "why": "an interjection before a comma is not a ticker; pricing it beside the stock the member asked about is a wrong answer"
+  },
+  {
+   "id": "F05",
+   "cat": "interjection",
+   "text": "cool, tsla price",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "TSLA"
+     ]
+    }
+   ],
+   "why": "an interjection before a comma is not a ticker; pricing it beside the stock the member asked about is a wrong answer"
+  },
+  {
+   "id": "F06",
+   "cat": "interjection",
+   "text": "well, aapl price",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "AAPL"
+     ]
+    }
+   ],
+   "why": "an interjection before a comma is not a ticker; pricing it beside the stock the member asked about is a wrong answer"
+  },
+  {
+   "id": "F07",
+   "cat": "interjection",
+   "text": "good, msft price",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "MSFT"
+     ]
+    }
+   ],
+   "why": "an interjection before a comma is not a ticker; pricing it beside the stock the member asked about is a wrong answer"
+  },
+  {
+   "id": "F08",
+   "cat": "interjection",
+   "text": "sure, nvda price",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "NVDA"
+     ]
+    }
+   ],
+   "why": "an interjection before a comma is not a ticker; pricing it beside the stock the member asked about is a wrong answer"
+  },
+  {
+   "id": "F09",
+   "cat": "word_ticker",
+   "text": "nice price",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "NICE"
+     ]
+    }
+   ],
+   "why": "ambiguous: an exclamation, or NICE Ltd named in the answer"
+  },
+  {
+   "id": "F10",
+   "cat": "word_ticker",
+   "text": "eat price",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "EAT"
+     ]
+    }
+   ],
+   "why": "Brinker (EAT) is a known ticker; the ask is also acceptable"
+  },
+  {
+   "id": "F11",
+   "cat": "word_ticker",
+   "text": "lit price",
+   "expect": null
+  },
+  {
+   "id": "F12",
+   "cat": "word_ticker",
+   "text": "man price",
+   "expect": null
+  },
+  {
+   "id": "F13",
+   "cat": "word_ticker",
+   "text": "well price",
+   "expect": null
+  },
+  {
+   "id": "F14",
+   "cat": "lower_ticker",
+   "text": "pins price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "PINS"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "F15",
+   "cat": "lower_ticker",
+   "text": "nke price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "NKE"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "F16",
+   "cat": "lower_ticker",
+   "text": "wmt price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "WMT"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "F17",
+   "cat": "lower_ticker",
+   "text": "adbe and orcl price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "ADBE",
+     "ORCL"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "F18",
+   "cat": "lower_ticker",
+   "text": "qcom and panw price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "QCOM",
+     "PANW"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "F19",
+   "cat": "lower_ticker",
+   "text": "mara price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "MARA"
+    ]
+   },
+   "either": [
+    null
+   ]
+  },
+  {
+   "id": "F20",
+   "cat": "lower_ticker",
+   "text": "asml price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "ASML"
+    ]
+   },
+   "either": [
+    null
+   ]
+  },
+  {
+   "id": "F21",
+   "cat": "lower_ticker",
+   "text": "spy price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "SPY"
+    ]
+   },
+   "either": [
+    null
+   ],
+   "why": "a fund: the owner's L1 rule asks"
+  },
+  {
+   "id": "F22",
+   "cat": "lower_ticker",
+   "text": "googl price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "GOOGL"
+    ]
+   },
+   "either": [
+    null
+   ]
+  }
+ ]
+}

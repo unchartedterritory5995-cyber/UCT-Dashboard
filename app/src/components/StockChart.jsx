@@ -2622,7 +2622,7 @@ export default function StockChart({
   hidePatterns = false,     // hide the pattern-recognition toggle button
   disablePatterns: disablePatternsProp = false,  // fully disable pattern detection on this instance: no /api/patterns fetch or 30s poll, no PatternOverlay mount, toolbar toggle forced hidden. hidePatterns only hides the button; this kills the data path (grid cells — 16 instances × 30s polls otherwise).
   showSavedDrawings = false, // render the user's saved per-symbol drawings as a READ-ONLY layer when the drawing tools are off (multi-chart grid cells: a member's trendlines must not vanish there). Inert when showDrawingTools is on — the editable overlay already renders them.
-  settingsOverride = null,  // optional PARTIAL chart_settings blob merged over the user's global settings for THIS instance only (multi-chart grid: per-cell chart type). Precedence defaults < global < override; overridden keys are restored from the un-overridden base before any settings write persists, so an override can never leak into the global blob. MUST be identity-stable (useMemo) — it's a memo dep.
+  settingsOverride = null,  // optional PARTIAL chart_settings blob merged over the user's global settings for THIS instance only (a grid cell's own blob or own-chart source, a study exhibit's look). Precedence defaults < global < override. ⛔ Pass `onSettingsPersist` WITH it: without a sink, only override keys an edit left unchanged are restored, and `indicatorInstances` (a new array after any indicator edit) is written to the GLOBAL blob — railed by components/chart/settingsScope.rail.test.js. MUST be identity-stable (useMemo) — it's a memo dep.
   onSettingsPersist = null,  // optional (nextFullSettings) => void — when provided, ALL in-chart settings writes (gear, indicators, overlays, ext-hours, log/pct scale, right-click toggles) route HERE instead of the global chart_settings pref. Used by a Chart widget's EXTRA tabs so each tab's edits persist to that tab's own blob in isolation, never touching the global settings or another tab. `settingsOverride` should carry this tab's full settings so `cs` reflects it.
   hideCompare = false,      // hide both compare-symbol entry points (text input + popover)
   hideCountdown = false,    // hide the intraday bar-close countdown badge
@@ -5367,10 +5367,18 @@ export default function StockChart({
     // un-overridden base so an override never leaks into the GLOBAL blob.
     // Restore ONLY keys the write carried through unchanged (Object.is vs cs):
     // a key the user deliberately edited differs from cs and must persist —
-    // blanket-restoring would silently drop their global edit. Section-object
-    // overrides would need sub-key diffing here; today's only override is the
-    // primitive per-cell chartType. (The watermark-drag commit builds from
-    // mergeChartSettings(prefs) directly and cannot leak — keep it that way.)
+    // blanket-restoring would silently drop their global edit.
+    // ⚰️ This said "today's only override is the primitive per-cell chartType".
+    // Stale: an override is often a WHOLE settings blob (a grid cell's own-chart
+    // source, a study exhibit's house look), and `indicatorInstances` is a new
+    // array after any add/hide/remove, so it always fails the Object.is test and
+    // this path writes it to GLOBAL. That is why a host that passes an override
+    // MUST also pass `onSettingsPersist` (owner ruling 2026-11-02, policy A:
+    // an edit is saved where the chart lives) — railed by
+    // `components/chart/settingsScope.rail.test.js`. Only an explicitly
+    // allow-listed surface reaches this restore with an override.
+    // (The watermark-drag commit builds from mergeChartSettings(prefs) directly
+    // and cannot leak — keep it that way.)
     let persisted = newSettings
     if (settingsOverride) {
       persisted = { ...newSettings }
@@ -7119,14 +7127,20 @@ export default function StockChart({
   // ⭐ THE FOURTH SOURCE FAMILY'S DATA — historical point-in-time fundamentals
   // (`fund:`). Same seam, same stable-identity discipline as the line above; a
   // chart with no `fund:` source makes no request at all.
-  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, csView)
+  // ⭐ 2026-11-01 — the SAME reload rule as the other-symbol hooks above
+  // (OPEN-FINDINGS §10): `_defOf` never changes identity, so a saved `fund:` /
+  // Market Cap / `econ:` source whose definition loaded after the chart restored
+  // was never asked for until the view changed. Each hook re-reads its needed set
+  // when the member's definitions land (`userDefsGeneration`).
+  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, _otherSymbolsRevalidate)
   // ⭐ Market Cap's canonical PIT authority -- null (legacy path) unless the server
   // authority is ON; a chart with no Market Cap source makes no request.
-  const marketCapAuthoritySources = useMarketCapAuthority(_storedInstances, _defOf, sym, csView)
+  const marketCapAuthoritySources = useMarketCapAuthority(_storedInstances, _defOf, sym, _otherSymbolsRevalidate)
   // ⭐ THE FIFTH SOURCE FAMILY'S DATA — economic series (`econ:<SYMBOL>`), for an
   // overlay on ANY chart and for the primary economic series alike. Same seam, same
   // stable-identity discipline; a chart with no `econ:` source makes no request.
-  const economicSources = useEconomicSources(_storedInstances, _defOf, cs)
+  const _economicRevalidate = useMemo(() => ({ cs, userDefsGeneration }), [cs, userDefsGeneration])
+  const economicSources = useEconomicSources(_storedInstances, _defOf, _economicRevalidate)
 
   // ⭐ THE SERVER LANE'S REPAINT SIGNAL (the RS line). `computeFor` reads the
   // column cache synchronously and the fetch lands later; this is what tells
