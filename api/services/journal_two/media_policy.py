@@ -272,6 +272,15 @@ def _magic(data: bytes) -> str | None:
     return None
 
 
+def raster_signature(data: bytes) -> str | None:
+    """The inline raster type (PNG, JPEG, GIF, WebP) the bytes' own signature names, else None.
+    Never SVG, a web page, or a raster that needs converting (TIFF, BMP, HEIC, AVIF). Plan E
+    Task 9 fix round 1 (concern 5): the content-wins test for a file a provider listed under a
+    generic type, read from `_magic`, the one signature table."""
+    magic = _magic(data or b"")
+    return magic if magic in _PASSTHROUGH else None
+
+
 def _declared(value: str | None) -> str | None:
     """A declared Content-Type without parameters; `binary/octet-stream` is octet-stream."""
     if not isinstance(value, str):

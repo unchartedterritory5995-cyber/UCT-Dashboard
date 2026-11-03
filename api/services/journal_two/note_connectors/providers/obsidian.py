@@ -362,8 +362,15 @@ _WIKI_RE = re.compile(rf"(!)?\[\[({_WIKI_TARGET})(?:\|({_WIKI_ALIAS}))?\]\]")
 # note as a plain `[[Plan]]` would read -- both kept. ⚰️ The alias pattern took `![[img.png`
 # as the alias: raw brackets around the image, and the link lost. The client lane writes
 # the same (`obsidian.js::transformWikiLinks`).
+# Plugin issue #3 (fix round 1, I1): ANY markdown image as the alias, `[[q.pdf|![](att/
+# img.png)]]` or `[[Plan|![](https://e.com/a.png)]]`, splits the same way, refs or none, as
+# the client splits it (`obsidian.js::ALIAS_MD_IMAGE_RE`). The image is `_MD_LINK_OR_IMAGE_RE`'s
+# own `!` form (`_MD_LINK_TAIL`, one source), which holds the pass's `![](<...>)` markdown.
+# ⚰️ Only that `<...>` form split: a note target or a web image kept raw `[[Plan|` brackets.
+_MD_LINK_TAIL = (r"\[((?:[^\[\]\n]|\[[^\[\]\n]*\])*)\]\(\s*(<[^<>\n]*>|[^\s()<>]+)"
+                 r"(?:\s+(?:\"[^\"\n]*\"|'[^'\n]*'))?\s*\)")
 _ALIAS_EMBED_RE = re.compile(
-    rf"\[\[({_WIKI_TARGET})\|({_WIKI_EMBED}|!\[\]\(<[^<>\n]*>\))\]\]")
+    rf"\[\[({_WIKI_TARGET})\|({_WIKI_EMBED}|!{_MD_LINK_TAIL})\]\]")
 #: The same link as an original cut off at the embed's own `]]` (D2 fix round 3, N-I3).
 _CUT_ALIAS_EMBED_RE = re.compile(rf"\[\[({_WIKI_TARGET})\|({_WIKI_EMBED})")
 # D2 item 3: an embed wrapped in a wikilink, `[[![[img.png]]]]` / `[[![[img.png|300]]|alias]]`,
@@ -661,8 +668,10 @@ def _transform_wiki_and_embeds(
                 # An embed of a NOTE not in the vault yet waits like a wikilink does
                 # (Task 13), dotted name or not (`![[Dr.Smith]]` names `Dr.Smith.md`, D1).
                 # Only a known attachment extension makes it a missing FILE -> plain text
-                # of the target, never a broken <img> or a phantom media entry (mirrors
-                # obsidian.js's own unresolvable-embed fallback).
+                # of the target, never a broken <img> or a phantom media entry. ⛔ Live audit
+                # F3: a missing file a plugin LISTS (its `missing` ref) never reaches here,
+                # `_apply_attachment_refs` already made it the not-found notice the client
+                # lane writes too (`obsidian.js::transformEmbeds`); this is one no ref names.
                 bare = _unresolved_bare_target(raw_target)
                 if bare and (_NOTE_EXT_RE.search(bare)
                              or _ext_of(_basename(bare)) not in _UNSENT_ATTACHMENT_EXTS):
@@ -790,7 +799,22 @@ ATT_SCHEME = "obsidian-att:"
 FILE_SCHEME = "obsidian-file:"
 NOTICE_SCHEME = "obsidian-notice:"
 OUTDATED_REASON = "obsidian-plugin-outdated"
+#: Fix round 1 (I-1, I-2, M-5): a vault file whose bytes never reached the server and that no
+#: plugin update would bring (attachment sync off for the account, or a 0.2.0+ plugin that
+#: did not list it): "<name> wasn't sent from Obsidian, so it isn't shown here."
+NOT_SENT_REASON = "not-sent"
 UNAVAILABLE_REASON = "obsidian-attachments-unavailable"
+#: `fetch_media`'s failure text, one per case (live audit 2026-11-03, F2). It is the engine's
+#: per-note failure string (the server log, the sync log row's `error`); the member's notice
+#: reads the reason's sentence from the copy table, never this.
+ATTACHMENTS_OFF = ("{ref!r} was not sent: this server takes no Obsidian images or files from "
+                   "this account, so the plugin sent the note's text only")
+PLUGIN_TOO_OLD = ("{ref!r} was not sent: this vault's UCT Notebook Sync plugin is older than "
+                  "0.2.0, which sends no images or files")
+NOT_IN_LIST = ("{ref!r} was not in the list of files UCT Notebook Sync {version} sent with this "
+               "note, so its bytes never reached the server")
+UPLOAD_NOT_ARRIVED = ("the plugin listed this file but its upload has not reached the server "
+                      "yet; it is tried again on the next sync")
 _ATT_IMAGE_EXTS = frozenset("png jpg jpeg gif webp bmp svg heic heif tif tiff avif".split())
 #: A ref's non-ok status -> the notice reason written into `importNotice.attrs.reason`.
 _STATUS_REASONS = {
@@ -913,9 +937,7 @@ _UNSENT_ATTACHMENT_EXTS = _ATT_IMAGE_EXTS | frozenset((
     "mp3 m4a wav ogg flac aac opus "
     "mp4 mov m4v webm mkv avi "
     "canvas epub").split())
-_MD_LINK_OR_IMAGE_RE = re.compile(
-    r"(!?)\[((?:[^\[\]\n]|\[[^\[\]\n]*\])*)\]\(\s*(<[^<>\n]*>|[^\s()<>]+)"
-    r"(?:\s+(?:\"[^\"\n]*\"|'[^'\n]*'))?\s*\)")
+_MD_LINK_OR_IMAGE_RE = re.compile(rf"(!?){_MD_LINK_TAIL}")
 
 
 def _is_attachment_path(path: str) -> bool:
@@ -935,6 +957,76 @@ def _unresolved_bare_target(target: str) -> str:
     if "#" in whole and _is_attachment_path(whole):
         return whole
     return _strip_fragment(target)
+
+
+def _markdown_local_path(dest: str) -> str | None:
+    """The vault path a markdown link's or image's destination names, as written: the `<...>`
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+    (the plugin's `markdownTarget`; fix round 1, I-1(e)). None for an empty destination, an
+    anchor, a `//host` or any URL scheme: those are never a vault file."""
+    if dest.startswith("<"):
+        dest = dest[1:-1]
+    dest = dest.strip()
+    if not dest or dest.startswith(("#", "//")) or _SCHEME_RE.match(dest):
+        return None
+    return unquote(re.split(r"[#?]", dest, maxsplit=1)[0]).replace("\\", "/") or None
+
+
+def _same_note_blob(path: str, ok_by_path: dict[str, dict], from_path: str | None) -> dict | None:
+    """The ref, of the SAME note's list, that resolved the vault path a markdown image with no
+    ref of its own names, with a file that came over (`status` ok, a sha), else None (live
+    audit 2026-11-03, F1). A ref's `path` is the vault path Obsidian's resolver gave, from the
+    vault root. EXACT paths only, and only where the path can mean ONE file (fix round 1,
+    M-1): a note at the vault root (beside the note IS the root), or a destination written
+    explicitly relative (`./`, `../`), read beside the note. ⚰️ Any other destination of a
+    note in a folder was tried beside the note, then from the root; Obsidian's own resolver
+    can pick a third file the server cannot see (its vault listing holds no binaries), so the
+    fallback served the wrong image. Such an image stays as written and reads `not_sent`;
+    plugin 0.2.1 sends its real ref."""
+    from_dir = _dir_of(from_path) if from_path else ""
+    if path.startswith(("./", "../")):
+        candidate = posixpath.normpath(posixpath.join(from_dir, path))
+    elif not from_dir:
+        candidate = posixpath.normpath(path.lstrip("/"))
+    else:
+        return None
+    return ok_by_path.get(candidate)  # a ref path never climbs above the root
+
+
+#: A markdown IMAGE, `![alt](dest "title")`: `_MD_LINK_OR_IMAGE_RE`'s own `!` form.
+_MD_IMAGE_RE = re.compile(rf"!{_MD_LINK_TAIL}")
+
+
+def _same_note_image_rewrites(segment: str, refs: list[dict], table: dict[str, str],
+                              from_path: str | None) -> None:
+    """F1 (live audit 2026-11-03): each markdown image of `segment` that no ref names as its
+    `original` but whose destination is a vault path another ref of this note resolved (with
+    its file) is written as that file, into `table` beside the refs' own rewrites. Plugin 0.2.0
+    sends no ref for the image inside `[[q.pdf|![](att/img.png)]]`; the note's own
+    `![[img.png]]` ref names att/img.png with an uploaded blob. ⚰️ The image stayed a raw
+    vault path, `fetch_media` refused it, and the note read "img.png can't be shown here"."""
+    ok_by_path: dict[str, dict] = {}
+    listed: set[str] = set()
+    for ref in refs:
+        if not isinstance(ref, dict):
+            continue
+        if isinstance(ref.get("original"), str):
+            listed.add(ref["original"])
+        path, sha = ref.get("path"), ref.get("sha256")
+        if ref.get("status") == "ok" and isinstance(path, str) and path and isinstance(sha, str) and sha:
+            ok_by_path.setdefault(path, ref)
+    if not ok_by_path:
+        return
+    for m in _MD_IMAGE_RE.finditer(segment):
+        original = m.group(0)
+        if original in listed or original in table:  # a ref of its own decides it
+            continue
+        path = _markdown_local_path(m.group(2))
+        hit = _same_note_blob(path, ok_by_path, from_path) if path else None
+        if hit is not None:
+            written = _ref_markdown({**hit, "original": original, "embed": True})
+            if written is not None:
+                table[original] = written
 
 
 def _mark_unsent_attachments(
@@ -966,13 +1058,7 @@ def _mark_unsent_attachments(
         return _notice_markdown(reason, _basename(bare))
 
     def markdown(m: "re.Match[str]") -> str:
-        dest = m.group(3)
-        if dest.startswith("<"):
-            dest = dest[1:-1]
-        dest = dest.strip()
-        if (not dest or dest.startswith(("#", "//")) or _SCHEME_RE.match(dest)):
-            return m.group(0)
-        path = unquote(re.split(r"[#?]", dest, maxsplit=1)[0])
+        path = _markdown_local_path(m.group(3))
         if not path or not _is_attachment_path(path):
             return m.group(0)
         return _notice_markdown(reason, _basename(path))
@@ -1064,13 +1150,18 @@ def _apply_attachment_refs(
         written = _ref_markdown(ref)
         if written is not None:
             table[original] = written
+    _same_note_image_rewrites(segment, refs, table, from_path)
     # D2 fix round 2, N4: a file link whose alias is an embed (`[[q.pdf|![[img.png]]]]`) sent
     # as ONE ref is the embed (its own ref's rewrite, or the embed as written for the passes
     # after) and then the file's chip, as the client writes it and as `_ALIAS_EMBED_RE` reads
     # a note link. ⚰️ The whole link claimed the text first, so the image vanished silently.
+    # Issue #3 (plugin repo): a markdown image as the alias, `[[q.pdf|![](att/img.png)]]`,
+    # which Obsidian caches as ONE link and no embed, reads the same way: the image (its own
+    # ref's rewrite, or the image as written, read as any unlisted markdown image is), then
+    # the chip. The plugin sends the image's own ref only for a subset of this shape.
     for original, written in list(table.items()):
         m = _ALIAS_EMBED_RE.fullmatch(original)
-        if m is not None and m.group(2).startswith("![["):
+        if m is not None:
             table[original] = table.get(m.group(2), m.group(2)) + written
             continue
         # D2 fix round 3, N-I3: the link's original may END at the embed's own `]]`
@@ -1961,8 +2052,8 @@ class ObsidianProvider(NoteProvider):
 
         A genuine external `http(s)://` reference already in a note's markdown is copied
         in exactly like every other provider's content-controlled-URL fallback (the shared
-        SSRF guard). Anything else (a local vault path the plugin sent no ref for) is
-        refused honestly rather than pretending to succeed."""
+        SSRF guard). Anything else (a local vault path the plugin sent no file for) is
+        refused, saying which case it is (`_not_sent_error`)."""
         for scheme in (ATT_SCHEME, FILE_SCHEME):
             if ref.startswith(scheme):
                 sha = ref[len(scheme):].split("/", 1)[0]
@@ -1974,7 +2065,7 @@ class ObsidianProvider(NoteProvider):
                 staged = await asyncio.to_thread(
                     obsidian_attachments.read_blob, self.user_id, self.vault_id, sha)
                 if staged is None:
-                    raise errors.NoteConnTransient("attachment not staged yet", status=404)
+                    raise errors.NoteConnTransient(UPLOAD_NOT_ARRIVED, status=404)
                 data, mime = staged
                 return data, mime or "application/octet-stream"
         parsed = urlsplit(ref)
@@ -1982,9 +2073,27 @@ class ObsidianProvider(NoteProvider):
             # Plan A Task 9 (I-5): a hotlink is copied in -- http allowed for the download only.
             client = await self._get_client()
             return await fetch_content_url(client, ref, what="Obsidian media")
-        raise errors.NoteConnUnsupported(
-            f"Obsidian push sync does not transfer vault attachments ({ref!r}) — "
-            "only note text is pushed by the plugin. Use a public https link for "
-            "any image/file that must sync.",
-            reason="Local vault attachments are not synced by the Obsidian push transport",
-        )
+        raise await asyncio.to_thread(self._not_sent_error, ref)
+
+    def _not_sent_error(self, ref: str) -> errors.NoteConnAttachmentNotSent:
+        """Why a vault path the plugin sent no file for reached `fetch_media` (live audit
+        2026-11-03, F2), one true sentence per case. ⚰️ It said "Obsidian push sync does not
+        transfer vault attachments -- only note text is pushed by the plugin", true before
+        plugin 0.2.0 and false since; the sentence reached the member's source row.
+          * the attachment layer off for this member: the server told the plugin to send
+            no files;
+          * a plugin older than 0.2.0 (or no version reported): it sends no files;
+          * 0.2.0 and later: the file was not in the list sent with the note.
+        Only the second is "update the plugin" (`obsidian-plugin-outdated`): 0.2.0 does fix
+        it. The other two read `not-sent`, which names no remedy (fix round 1, I-1/I-2/M-5):
+        no update brings a file the server refuses or a 0.2.0 plugin left out. All three are
+        `NoteConnAttachmentNotSent`, final, never "can't be shown here"."""
+        if not obsidian_attachments.attachments_enabled_for(self.user_id):
+            return errors.NoteConnAttachmentNotSent(ATTACHMENTS_OFF.format(ref=ref),
+                                                    notice_reason=NOT_SENT_REASON)
+        version = obsidian_link.plugin_versions_for_user(self.user_id).get(self.vault_id)
+        if not obsidian_link.plugin_version_supports_attachments(version):
+            return errors.NoteConnAttachmentNotSent(PLUGIN_TOO_OLD.format(ref=ref),
+                                                    notice_reason=OUTDATED_REASON)
+        return errors.NoteConnAttachmentNotSent(NOT_IN_LIST.format(ref=ref, version=version),
+                                                notice_reason=NOT_SENT_REASON)

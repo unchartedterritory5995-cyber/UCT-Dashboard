@@ -1050,6 +1050,25 @@ describe('Task 5 — runImport media and heal', () => {
     expect(putBody(calls).importMediaPending).toBe(true)
   })
 
+  it('a note whose only dropped media were not found is not left pending; any other drop still is', async () => {
+    // Fix round 1, M-2: a missing Obsidian file embed (`not_found`) will never appear on a
+    // re-import of the same export, so the note is done: no `importMediaPending`, or the next
+    // import re-opens it forever. It still needs attention. A transient drop stays pending.
+    const missing = { ref: 'obsidian-missing:gone.png', kind: 'image', name: 'gone.png', failed: { reason: 'not_found', sourceUrl: null } }
+    let calls = server(() => null)
+    let summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://obsidian-missing:gone.png')]), [missing]) })
+    expect(putBody(calls).bodyJson.content[0].attrs.reason).toBe('not_found')
+    expect(putBody(calls).importMediaPending).toBe(false)
+    expect(summary.attentionKeys).toEqual(['file:a.md'])
+    calls = server((u) => (u.endsWith('/images') ? json({ detail: 'x', reason: 'upload_failed' }, 500) : null))
+    summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://obsidian-missing:gone.png'), img('import-ref://a.png')]),
+        [missing, { ref: 'a.png', kind: 'image', name: 'a.png', vfile: vf('a.png') }]) })
+    expect(putBody(calls).bodyJson.content.map((n) => n.attrs.reason)).toEqual(['not_found', 'upload_failed'])
+    expect(putBody(calls).importMediaPending).toBe(true)
+  })
+
   it('a refused upload leaves an importNotice in the saved body and a notices row', async () => {
     const calls = server((u) => (u.endsWith('/images') ? json({ detail: 'a.png is over the 25 MB limit', reason: 'too_large' }, 400) : null))
     const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
