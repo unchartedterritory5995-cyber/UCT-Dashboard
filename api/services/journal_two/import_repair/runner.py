@@ -296,9 +296,14 @@ def writes(plan: NotePlan) -> bool:
     return not plan.kept_edited and (plan.new_doc is not None or bool(plan.hotlinks))
 
 
-def scan(conn, *, run_id: str, members: list[str] | None = None, sleep_ms: int = 0) -> dict:
-    """The dry-run report. Never writes."""
+def scan(conn, *, run_id: str, members: list[str] | None = None, sleep_ms: int = 0,
+         rss_ceiling_mb: float | None = None) -> dict:
+    """The dry-run report. Never writes. With `rss_ceiling_mb` (the CLI passes it: re-review
+    T8-M5), memory more than that above the start raises `RepairAborted`, checked every
+    `RSS_CHECK_EVERY` notes, exactly as `apply` does."""
     tally = _Tally(conn, run_id, members, "dry-run")
+    rss_start = _rss_mb() if rss_ceiling_mb is not None else 0.0
+    planned = 0
     for user_id in (members if members is not None else list(iter_members(conn))):
         active = active_providers(conn, user_id)
         index: links.FileKeyIndex | None = None
@@ -311,6 +316,10 @@ def scan(conn, *, run_id: str, members: list[str] | None = None, sleep_ms: int =
             if row.body_bytes > MAX_SCAN_BODY_BYTES:
                 tally.too_large()
                 continue
+            planned += 1
+            if (rss_ceiling_mb is not None and planned % RSS_CHECK_EVERY == 0
+                    and _rss_mb() - rss_start > rss_ceiling_mb):
+                raise RepairAborted(f"memory grew more than {rss_ceiling_mb:.0f} MB during the dry run")
             if index is None:
                 index = links.build_file_key_index(conn, user_id)
             plan = plan_note(conn, user_id, row, note_class, index)

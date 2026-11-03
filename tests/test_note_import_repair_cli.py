@@ -37,7 +37,28 @@ def _cli():
 def cli(db, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(db))
     monkeypatch.delenv(runner.FLAG, raising=False)
+    monkeypatch.setattr(runner, "_market_hours", lambda at: False)  # never a function of the hour
     return _cli()
+
+
+def test_the_dry_run_refuses_market_hours_too(cli, capsys, monkeypatch):
+    """Re-review T8-M5: the dry run is the first command run on the pod; it reads every member's
+    notes, so it refuses 9:30-16:00 ET on a weekday as `--apply` does (exit 2), unless allowed."""
+    _note("u1", "Notion", "notion:Export/A.md", BARE)
+    monkeypatch.setattr(runner, "_market_hours", lambda at: True)
+    assert _run(cli, [], capsys)[0] == 2
+    code, report = _run(cli, ["--allow-market-hours"], capsys)
+    assert code == 0 and report["mode"] == "dry-run"
+
+
+def test_the_dry_run_has_the_memory_watchdog(cli, capsys, monkeypatch):
+    """T8-M5: memory over the ceiling during the dry run aborts it with exit 4, as apply does."""
+    for i in range(3):
+        _note("u1", "Notion", f"notion:Export/{i}.md", BARE)
+    rss = iter([100.0, 100.0, 400.0, 400.0, 400.0])
+    monkeypatch.setattr(runner, "_rss_mb", lambda: next(rss))
+    monkeypatch.setattr(runner, "RSS_CHECK_EVERY", 1)
+    assert _run(cli, [], capsys)[0] == 4
 
 
 def _files_digest(db_path: str) -> tuple:

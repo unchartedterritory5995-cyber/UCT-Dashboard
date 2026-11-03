@@ -26,6 +26,7 @@ import json
 import os
 import sqlite3
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -97,10 +98,20 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_LOCKED
     try:
         if not args.apply:
+            # Re-review T8-M5: the dry run reads every member's notes on the prod pod; it keeps
+            # the same hours and the same memory ceiling as --apply.
+            if not args.allow_market_hours and runner._market_hours(datetime.now(timezone.utc)):
+                print("refused: market hours (9:30-16:00 ET): run outside them, or pass "
+                      "--allow-market-hours", file=sys.stderr)
+                return EXIT_REFUSED
             conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
             conn.row_factory = sqlite3.Row  # C13: the runner and the link resolver read rows by name
             try:
-                report = runner.scan(conn, run_id=args.run_id, members=args.members, sleep_ms=args.sleep_ms)
+                report = runner.scan(conn, run_id=args.run_id, members=args.members, sleep_ms=args.sleep_ms,
+                                     rss_ceiling_mb=runner.RSS_CEILING_MB)
+            except runner.RepairAborted as exc:
+                print(f"aborted: {exc}", file=sys.stderr)
+                return EXIT_ABORTED
             finally:
                 conn.close()
         else:
