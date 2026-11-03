@@ -827,6 +827,23 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_manifest (
     PRIMARY KEY (user_id, vault_id, vault_path)
 );
 
+-- L2 (live Obsidian probe 2026-11-03): a rename the last final push showed. Written by
+-- `obsidian_staging.ingest_batch` when ONE push drops `old_path` from the manifest and adds
+-- `new_path` whose staged body is byte-identical (sha256 `body_sha`), the pairing unique both
+-- ways; consumed by the sync engine, which re-keys the existing note onto `new_path`
+-- (`engine._apply_source_renames`) instead of importing a duplicate. Member data: purged with
+-- the account (account_purge) and with the vault (obsidian_link disconnect). Declared once,
+-- here: `_J2_SCHEMA` runs on every `ensure_schema`, so an existing database gets it on boot.
+CREATE TABLE IF NOT EXISTS j2_obsidian_renames (
+    user_id     TEXT NOT NULL,
+    vault_id    TEXT NOT NULL,
+    new_path    TEXT NOT NULL,
+    old_path    TEXT NOT NULL,
+    body_sha    TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, vault_id, new_path)
+);
+
 -- 2026-09-02 adversarial audit, "single-process assumptions" #1:
 -- obsidian_link.py's connect-code epoch (closes I6 -- a pre-disconnect
 -- code redeeming into a full reconnection) used to live in a bare

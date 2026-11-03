@@ -53,6 +53,7 @@ Spec: .superpowers/sdd/2026-09-02-obsidian-ingest-server/task-3-brief.md
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -320,11 +321,20 @@ def ingest_batch(
                     f"manifest lists {len(fabricated)} path(s) never pushed to staging for "
                     f"this vault (e.g. {fabricated[0]!r}) -- refused"
                 )
+            previous_manifest = {
+                r["vault_path"] for r in conn.execute(
+                    "SELECT vault_path FROM j2_obsidian_manifest WHERE user_id = ? AND vault_id = ?",
+                    (user_id, vault_id),
+                ).fetchall()
+            }
             conn.execute(
                 "DELETE FROM j2_obsidian_manifest WHERE user_id = ? AND vault_id = ?",
                 (user_id, vault_id),
             )
             recorded_at = _now_iso()
+            _record_renames(conn, user_id=user_id, vault_id=vault_id,
+                            previous=previous_manifest, current=set(manifest),
+                            recorded_at=recorded_at)
             conn.executemany(
                 "INSERT INTO j2_obsidian_manifest (user_id, vault_id, vault_path, recorded_at) "
                 "VALUES (?, ?, ?, ?)",
@@ -343,3 +353,67 @@ def ingest_batch(
         "written": written, "skipped": skipped, "manifestReplaced": manifest_replaced,
         "tooLarge": too_large,
     }
+
+
+def _body_sha(body_md: str | None) -> str:
+    return hashlib.sha256((body_md or "").encode("utf-8")).hexdigest()
+
+
+def _staged_bodies(conn: Any, user_id: str, vault_id: str, paths: list[str]) -> dict[str, str]:
+    """{vault_path: sha256 of its staged body} for `paths` that have a staged row."""
+    out: dict[str, str] = {}
+    for i in range(0, len(paths), 500):  # sqlite variable-limit safety
+        part = paths[i:i + 500]
+        marks = ",".join("?" * len(part))
+        for r in conn.execute(
+                "SELECT vault_path, body_md FROM j2_obsidian_staging WHERE user_id = ? AND vault_id = ?"
+                f" AND vault_path IN ({marks})", (user_id, vault_id, *part)):
+            out[r["vault_path"]] = _body_sha(r["body_md"])
+    return out
+
+
+def _record_renames(conn: Any, *, user_id: str, vault_id: str, previous: set[str],
+                    current: set[str], recorded_at: str) -> int:
+    """L2 (live Obsidian probe 2026-11-03): an Obsidian rename used to import as a new note,
+    because `import_key` is the vault path. This is the one place that sees ONE push's manifest
+    change, so it records the renames that push showed into `j2_obsidian_renames`; the sync
+    engine re-keys the existing note (`engine._apply_source_renames`). It never writes
+    `j2_notes` (module docstring).
+
+    A rename is a path the previous manifest had and this one dropped, paired with a path this
+    manifest added whose STAGED body is byte-identical (server-side sha256 of `body_md`, never
+    the client's `content_hash`). EXACT match only, and unique BOTH ways: two dropped paths with
+    one body, or two added paths with one body, are ambiguous and record nothing for that body,
+    so those notes import exactly as before this change. A rename plus an edit in the same push
+    has different bodies and records nothing (today's behaviour: a new note). A folder move is a
+    rename. No previous manifest (the first push) records nothing.
+
+    Run inside the caller's transaction, after the manifest rows were read and before they are
+    re-inserted. A record whose new path left the manifest again is dropped here; the engine
+    re-checks the manifest when it applies one (a rename undone before the sync ran)."""
+    conn.execute(
+        "DELETE FROM j2_obsidian_renames WHERE user_id = ? AND vault_id = ? AND new_path NOT IN "
+        "(SELECT value FROM json_each(?))",
+        (user_id, vault_id, json.dumps(sorted(current))),
+    )
+    removed = sorted(previous - current)
+    added = sorted(current - previous)
+    if not previous or not removed or not added:
+        return 0
+    shas = _staged_bodies(conn, user_id, vault_id, removed + added)
+    removed_by: dict[str, list[str]] = {}
+    added_by: dict[str, list[str]] = {}
+    for p in removed:
+        if p in shas:
+            removed_by.setdefault(shas[p], []).append(p)
+    for p in added:
+        if p in shas:
+            added_by.setdefault(shas[p], []).append(p)
+    rows = [(user_id, vault_id, news[0], olds[0], sha, recorded_at)
+            for sha, olds in removed_by.items()
+            if len(olds) == 1 and len(news := added_by.get(sha, [])) == 1]
+    conn.executemany(
+        "INSERT OR REPLACE INTO j2_obsidian_renames"
+        " (user_id, vault_id, new_path, old_path, body_sha, recorded_at) VALUES (?, ?, ?, ?, ?, ?)",
+        rows)
+    return len(rows)

@@ -3711,6 +3711,110 @@ async def _confirm_and_resolve_batch(
     return result
 
 
+_FOLDER_MISSING = object()
+
+
+def _existing_folder(conn: sqlite3.Connection, user_id: str, dest: str, parts: list[str]) -> Any:
+    """The folder `import_confirm` would file `parts` under `dest` into, if it exists, WITHOUT
+    making any (the read half of `notes.ensure_folder_path`, same segment rule and the same
+    depth clamp `import_confirm` applies). `_FOLDER_MISSING` when a segment is not there;
+    `dest or None` for no parts."""
+    depth = notes_svc._folder_depth(conn, user_id, dest) if dest else 0
+    parts = list(parts)[:max(0, notes_svc.MAX_FOLDER_DEPTH - depth)]
+    if not parts:
+        return dest or None
+    pid = dest or ""
+    for raw in parts:
+        name = (raw or "").strip()[:80] or "Untitled"
+        row = conn.execute(
+            "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
+            (user_id, pid, name)).fetchone()
+        if row is None:
+            return _FOLDER_MISSING
+        pid = row["id"]
+    return pid
+
+
+def _apply_source_renames(
+    conn: sqlite3.Connection, user_id: str, source: dict[str, Any], provider: NoteProvider,
+    remote_notes: list[RemoteNote], import_keys: list[str],
+) -> int:
+    """L2 (live Obsidian probe 2026-11-03): before the existing-row read, re-key the note a
+    remote RENAME moved, so it updates in place instead of a duplicate being created. Only for a
+    provider that reports renames (`pending_renames`/`clear_renames`; Obsidian, from what one
+    final push showed: `obsidian_staging._record_renames`). Every other provider makes no query.
+
+    For each rename whose new path is in this chunk: when no row (live or trashed: the unique
+    index covers both) holds the new key yet, and a LIVE row holds the old key, that row's
+    `import_key` moves to the new key in one raw write that never touches `updated_at` or
+    `imported_at`. Its id, history, links, favourites and content stay. Its old remote-index row
+    goes (the new path's was written by `_touch_remote_index`), and a `source-deleted` tag comes
+    off (the note is tracked again). Then the ordinary import runs:
+      * an UNEDITED note is updated by `import_confirm` like any remote change, which files it
+        in the new folder and gives it the new title;
+      * a note the member EDITED is never rewritten. The rename is not a remote edit (the body is
+        identical), so its remote revision becomes this remote state (`import_remote_rev`) and
+        it reads "remote unchanged", never a "(synced copy)". Its
+        folder moves too, unless the member had filed it elsewhere in UCT, and its title only
+        when it was still the old file name.
+    Anything else (no old row, the new key already taken) applies nothing and the note imports
+    as before. Every record seen here is cleared. Commits when it wrote."""
+    pending = getattr(provider, "pending_renames", None)
+    if pending is None:
+        return 0
+    by_id = {rn.remote_id: (rn, key) for rn, key in zip(remote_notes, import_keys) if key}
+    hints = pending(conn, list(by_id))
+    if not hints:
+        return 0
+    dest = source.get("destFolderId") or ""
+    applied = 0
+    for h in hints:
+        rn, new_key = by_id[h["newId"]]
+        old_key = provider.import_key(source["remoteId"], h["oldId"])
+        if old_key == new_key or conn.execute(
+                "SELECT 1 FROM j2_notes WHERE user_id = ? AND import_key = ?",
+                (user_id, new_key)).fetchone():
+            continue
+        old = conn.execute(
+            "SELECT id, title, folder_id, tags, updated_at, imported_at FROM j2_notes"
+            " WHERE user_id = ? AND import_key = ? AND deleted_at IS NULL",
+            (user_id, old_key)).fetchone()
+        if old is None:
+            continue
+        sets: dict[str, Any] = {"import_key": new_key}
+        tags = json.loads(old["tags"] or "[]")
+        if "source-deleted" in tags:
+            sets["tags"] = json.dumps([t for t in tags if t != "source-deleted"])
+        if edited_since_import(old["updated_at"], old["imported_at"]):
+            # The remote revision IS the conflict gate's key (`_remote_changed` rule 2): stamped
+            # to this remote state, the moved note reads "remote unchanged" now and after a
+            # converter change. `import_hash` is left alone on purpose: one baseline, not two.
+            sets["import_remote_rev"] = rn.updated_at or None
+            was = _existing_folder(conn, user_id, dest, h.get("oldFolderPath") or [])
+            if was is not _FOLDER_MISSING and (old["folder_id"] or None) == (was or None):
+                parts = list(rn.folder_path or [])
+                depth = notes_svc._folder_depth(conn, user_id, dest) if dest else 0
+                parts = parts[:max(0, notes_svc.MAX_FOLDER_DEPTH - depth)]
+                sets["folder_id"] = (notes_svc.ensure_folder_path(user_id, parts, dest, conn=conn)
+                                     if parts else (dest or None))
+            title = notes_svc.import_title(rn.title)
+            if old["title"] == h.get("oldFallbackTitle") and title != old["title"]:
+                sets["title"] = title
+        cols = ", ".join(f"{c} = ?" for c in sets)
+        conn.execute(f"UPDATE j2_notes SET {cols} WHERE id = ? AND user_id = ? AND import_key = ?",
+                     (*sets.values(), old["id"], user_id, old_key))
+        conn.execute(
+            "DELETE FROM j2_note_remote_index WHERE user_id = ? AND source_id = ? AND remote_id = ?",
+            (user_id, source["id"], h["oldId"]))
+        applied += 1
+    provider.clear_renames(conn, [h["newId"] for h in hints])
+    conn.commit()
+    if applied:
+        log.info("[note-sync] source %s: %d renamed note(s) kept their note (re-keyed)",
+                 source.get("id"), applied)
+    return applied
+
+
 def _adopt_file_imports(
     conn: sqlite3.Connection, user_id: str, provider: NoteProvider,
     remote_notes: list[RemoteNote], import_keys: list[str], pass_state: dict | None = None,
@@ -3756,6 +3860,8 @@ def _prepare_import(
     import_keys = [
         provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
     ]
+    # L2: a remote rename moves the existing note onto its new key first (Obsidian only).
+    _apply_source_renames(conn, user_id, source, provider, remote_notes, import_keys)
     adopted, adoption_failures = _adopt_file_imports(
         conn, user_id, provider, remote_notes, import_keys, adoption_state)
     existing = _bulk_existing_note_meta(conn, user_id, import_keys)

@@ -1920,6 +1920,43 @@ class ObsidianProvider(NoteProvider):
             conn.close()
         return [RemoteRef(remote_id=r["vault_path"], updated_at=r["recorded_at"]) for r in rows]
 
+    def pending_renames(self, conn: Any, remote_ids: list[str]) -> list[dict[str, Any]]:
+        """L2 (2026-11-03): the renames a final push recorded (`obsidian_staging._record_renames`)
+        whose NEW path is among `remote_ids`, still true now: the old path is not back in the
+        manifest (a rename undone, or the file copied back, before the sync ran moves nothing).
+        A record whose new path left the manifest is already gone (`_record_renames` drops it). Each is
+        `{newId, oldId, oldFolderPath, oldFallbackTitle}`: what the engine needs to re-key the
+        note at `oldId` and to tell whether the member moved or renamed it in UCT since.
+        Read on the engine's connection, scoped to this member and vault like every query here."""
+        ids = sorted({r for r in remote_ids if r})
+        out: list[dict[str, Any]] = []
+        for i in range(0, len(ids), 400):  # sqlite variable-limit safety
+            part = ids[i:i + 400]
+            marks = ",".join("?" * len(part))
+            rows = conn.execute(
+                "SELECT r.new_path, r.old_path FROM j2_obsidian_renames r"
+                " WHERE r.user_id = ? AND r.vault_id = ?"
+                f" AND r.new_path IN ({marks})"
+                " AND NOT EXISTS (SELECT 1 FROM j2_obsidian_manifest m WHERE m.user_id = r.user_id"
+                "   AND m.vault_id = r.vault_id AND m.vault_path = r.old_path)",
+                (self.user_id, self.vault_id, *part),
+            ).fetchall()
+            out.extend({"newId": r["new_path"], "oldId": r["old_path"],
+                        "oldFolderPath": _folder_path_of(r["old_path"]),
+                        "oldFallbackTitle": _basename_sans_ext(r["old_path"])} for r in rows)
+        return out
+
+    def clear_renames(self, conn: Any, remote_ids: list[str]) -> None:
+        """L2: drop the rename records for these NEW paths (applied, or found not to apply).
+        Left to the caller to commit, on its connection."""
+        ids = sorted({r for r in remote_ids if r})
+        for i in range(0, len(ids), 400):
+            part = ids[i:i + 400]
+            conn.execute(
+                "DELETE FROM j2_obsidian_renames WHERE user_id = ? AND vault_id = ?"
+                f" AND new_path IN ({','.join('?' * len(part))})",
+                (self.user_id, self.vault_id, *part))
+
     def _convert_row(self, vault_path: str, body_md: str, known_paths: list[str],
                       basename_map: dict[str, list[str]], *,
                       vault_label: str | None = None, refs: Any = NO_ATTACHMENT_PASS,

@@ -100,6 +100,8 @@ _DIRECT_USER_TABLES = (
     "j2_obsidian_devices",
     "j2_obsidian_staging",
     "j2_obsidian_manifest",
+    # L2 (2026-11-03): renames a final push showed, waiting for the next sync.
+    "j2_obsidian_renames",
     "j2_obsidian_connect_epoch",
     # Plan C: staged vault attachments (rows here; the blob tree is removed in
     # purge_user_data beside the attachment tree).
