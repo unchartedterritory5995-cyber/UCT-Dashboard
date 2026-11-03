@@ -2072,6 +2072,11 @@ _PHASE_2_ALTERS = [
     #   web_reference — title + URL + domain only. No body text at all.
     #   web_passage   — the passages the member selected, and nothing else.
     "ALTER TABLE j2_note_documents ADD COLUMN capture_type TEXT NOT NULL DEFAULT 'pdf_full_text'",
+    # Plan F (Task 7 round 2, S-1): the pending sweep (`document_extraction.requeue_stale_pending`)
+    # counts its re-queues of a row, and after `MAX_SWEEP_ATTEMPTS` marks it `processing_failed`
+    # with a reason, so a row whose extraction never writes a status is never re-queued forever.
+    "ALTER TABLE j2_note_documents ADD COLUMN sweep_attempts INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE j2_note_documents ADD COLUMN failure_reason TEXT",
     # ── Phase 2a — joystick hub planned trades ────────────────────────────
     #
     # The hub's "plan a trade" surface writes here. It is deliberately NOT a

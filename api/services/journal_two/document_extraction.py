@@ -1293,6 +1293,9 @@ _QUEUED_LOCK = threading.Lock()
 STALE_PENDING_S = 600
 #: The most rows one sweep tick re-queues: the pool's own bound does the rest.
 PENDING_SWEEP_LIMIT = 20
+#: Round 2 S-1: how many times the sweep re-queues one row before it marks it failed.
+MAX_SWEEP_ATTEMPTS = 3
+SWEEP_FAILURE_REASON = "extraction never completed after repeated retries"
 
 
 def queue_extraction(document_id: str) -> None:
@@ -1324,23 +1327,40 @@ def requeue_stale_pending(*, now: datetime | None = None, older_than_s: float = 
     call, through `queue_extraction` (so the pool's bounds hold). It heals a row whose
     extraction never ran, whichever door created it: a crash or redeploy mid-queue, or the import
     repair, which creates rows only and never extracts in its own process. Idempotent: a row
-    still queued here is skipped, and a finished row is no longer `pending`."""
-    cutoff = ((now or datetime.now(timezone.utc)) - timedelta(seconds=older_than_s)).isoformat()
+    still queued here is skipped, and a finished row is no longer `pending`.
+
+    Round 2 S-1: every re-queue is counted on the row (`sweep_attempts`). A stale row already
+    re-queued `MAX_SWEEP_ATTEMPTS` times (its extraction keeps dying before writing a status) is
+    marked `processing_failed` with `failure_reason` (the member sees the normal failed state)
+    and takes no slot again. Returns `{"requeued", "failed"}`."""
+    current = now or datetime.now(timezone.utc)
+    cutoff = (current - timedelta(seconds=older_than_s)).isoformat()
     with _QUEUED_LOCK:
         queued = set(_QUEUED)
     owned = conn is None
     conn = conn or get_connection()
     try:
+        failed = conn.execute(
+            "UPDATE j2_note_documents SET status = ?, processed_at = ?, failure_reason = ?"
+            " WHERE status = ? AND created_at < ? AND sweep_attempts >= ?",
+            (_STATUS_FAILED, current.isoformat(), SWEEP_FAILURE_REASON, _STATUS_PENDING, cutoff,
+             MAX_SWEEP_ATTEMPTS)).rowcount
         rows = conn.execute(
             "SELECT id FROM j2_note_documents WHERE status = ? AND created_at < ?"
             " ORDER BY created_at LIMIT ?", (_STATUS_PENDING, cutoff, limit + len(queued))).fetchall()
+        picked = [r[0] for r in rows if r[0] not in queued][:limit]
+        for document_id in picked:
+            conn.execute("UPDATE j2_note_documents SET sweep_attempts = sweep_attempts + 1 WHERE id = ?",
+                         (document_id,))
+        conn.commit()
     finally:
         if owned:
             conn.close()
-    picked = [r[0] for r in rows if r[0] not in queued][:limit]
     for document_id in picked:
         queue_extraction(document_id)
-    return {"requeued": len(picked)}
+    if failed:
+        log.warning("[doc-extract] sweep marked %s document(s) failed after %s retries", failed, MAX_SWEEP_ATTEMPTS)
+    return {"requeued": len(picked), "failed": failed}
 
 
 # ── Seam S1 (wave 7) ─────────────────────────────────────────────────────────

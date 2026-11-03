@@ -52,14 +52,14 @@ def test_only_stale_pending_rows_are_requeued(conn, submitted):
     _doc(conn, "stale", minutes_old=30)
     _doc(conn, "done", minutes_old=30, status="ready")
     _doc(conn, "broken", minutes_old=30, status="processing_failed")
-    assert dx.requeue_stale_pending(now=NOW) == {"requeued": 1}
+    assert dx.requeue_stale_pending(now=NOW) == {"requeued": 1, "failed": 0}
     assert submitted == ["stale"]
 
 
 def test_the_sweep_is_bounded_per_tick(conn, submitted):
     for i in range(7):
         _doc(conn, f"d{i}", minutes_old=60 + i)
-    assert dx.requeue_stale_pending(now=NOW, limit=3) == {"requeued": 3}
+    assert dx.requeue_stale_pending(now=NOW, limit=3) == {"requeued": 3, "failed": 0}
     assert submitted == ["d6", "d5", "d4"]  # oldest first
 
 
@@ -68,9 +68,38 @@ def test_the_sweep_is_idempotent_while_a_row_is_queued(conn, submitted):
         _doc(conn, f"d{i}", minutes_old=60)
     first = dx.requeue_stale_pending(now=NOW, limit=3)
     second = dx.requeue_stale_pending(now=NOW, limit=3)  # the first three are still queued here
-    assert (first, second) == ({"requeued": 3}, {"requeued": 1})
+    assert (first["requeued"], second["requeued"]) == (3, 1)
     assert sorted(submitted) == ["d0", "d1", "d2", "d3"]
-    assert dx.requeue_stale_pending(now=NOW, limit=3) == {"requeued": 0}
+    assert dx.requeue_stale_pending(now=NOW, limit=3)["requeued"] == 0
+
+
+def _status(c, doc_id):
+    return tuple(c.execute("SELECT status, sweep_attempts, failure_reason FROM j2_note_documents WHERE id = ?",
+                           (doc_id,)).fetchone())
+
+
+def test_a_poison_row_is_failed_after_its_retries_and_stops_taking_slots(conn, submitted, monkeypatch):
+    """Round 2 S-1: a row whose extraction never writes a status (it raises first) would be
+    re-queued forever, oldest first, starving newer rows. Each re-queue is counted on the row;
+    after `MAX_SWEEP_ATTEMPTS` the row is marked `processing_failed` with a reason (the member
+    sees the normal failed state, never "Processing..." forever) and takes no slot again."""
+    _doc(conn, "poison", minutes_old=120)
+    _doc(conn, "newer", minutes_old=20)
+    for tick in range(dx.MAX_SWEEP_ATTEMPTS):
+        monkeypatch.setattr(dx, "_QUEUED", set())  # the attempt ran and died without a status
+        out = dx.requeue_stale_pending(now=NOW, limit=1)
+        assert out == {"requeued": 1, "failed": 0}
+        assert submitted[-1] == "poison"
+        assert _status(conn, "poison")[:2] == ("pending", tick + 1)
+    monkeypatch.setattr(dx, "_QUEUED", set())
+    out = dx.requeue_stale_pending(now=NOW, limit=1)
+    assert out == {"requeued": 1, "failed": 1}
+    assert submitted[-1] == "newer"  # the slot goes to the newer row now
+    status, attempts, reason = _status(conn, "poison")
+    assert (status, attempts) == ("processing_failed", dx.MAX_SWEEP_ATTEMPTS) and reason
+    monkeypatch.setattr(dx, "_QUEUED", set())
+    assert dx.requeue_stale_pending(now=NOW, limit=1)["requeued"] == 1
+    assert "poison" not in submitted[-1:]
 
 
 def test_queue_extraction_marks_and_the_worker_unmarks(conn, monkeypatch):
