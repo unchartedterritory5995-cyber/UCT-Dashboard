@@ -1328,6 +1328,38 @@ def _html_convert_table(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
     return {"type": "table", "content": rows}
 
 
+#: Plan E Task 3 round 2 (R1): the mark tags that may wrap block content, and the block tags
+#: that make them do so. `code` is not one: a code mark over a block has no editor meaning.
+_HTML_BLOCK_MARK_TAGS = frozenset({"b", "strong", "i", "em", "u", "s", "strike", "del"})
+_HTML_BLOCK_TAGS = frozenset({"p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "table",
+                              "pre", "blockquote", "hr"})
+
+
+def _html_holds_blocks(node: "_HtmlNode") -> bool:
+    """True when a mark tag holds a block, directly or through other mark tags."""
+    for c in node.children:
+        if isinstance(c, str):
+            continue
+        if c.tag in _HTML_BLOCK_TAGS:
+            return True
+        if c.tag in _HTML_BLOCK_MARK_TAGS and _html_holds_blocks(c):
+            return True
+    return False
+
+
+def _html_mark_text(node: Any, mark_type: str) -> None:
+    """Adds `mark_type` to every text node under `node` that lacks it; code blocks untouched."""
+    if not isinstance(node, dict) or node.get("type") == "codeBlock":
+        return
+    if node.get("type") == "text":
+        marks = node.setdefault("marks", [])
+        if not any(m.get("type") == mark_type for m in marks):
+            marks.append({"type": mark_type})
+        return
+    for child in node.get("content") or []:
+        _html_mark_text(child, mark_type)
+
+
 def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
     """Block-context walk, mirroring `_blocks` above. Stray inline content
     encountered directly (text, or an inline-vocabulary tag with no `<p>`
@@ -1388,6 +1420,15 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
         elif tag == "hr":
             flush()
             out.append({"type": "horizontalRule"})
+        elif tag in _HTML_BLOCK_MARK_TAGS and _html_holds_blocks(n):
+            # Plan E Task 3 round 2 (R1): a mark tag around BLOCKS (`<b><p>a</p><p>b</p></b>`)
+            # keeps the blocks and marks their text, as the editor does. Walking it inline (the
+            # branch below) joined the blocks into one paragraph with no separator.
+            flush()
+            inner = _html_blocks_walk(n.children, ctx)
+            for block in inner:
+                _html_mark_text(block, _HTML_INLINE_MARK_TAGS[tag])
+            out.extend(inner)
         else:
             # Any remaining known tag here (a/b/strong/i/em/s/del/strike/
             # code/img/br, or a stray li/tr/td/th outside its proper

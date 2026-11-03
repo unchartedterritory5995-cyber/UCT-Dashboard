@@ -351,6 +351,66 @@ def test_a_styled_block_marks_the_text_of_every_line_inside_it():
     assert _marks_of(out, "a") == ["bold"] and _marks_of(out, "b") == ["bold"]
 
 
+# ---- R1 (round 2): a mark tag around blocks keeps the blocks and marks their text. Fixed in the
+# SHARED HTML walker (`mddoc.html_to_tiptap`), so OneNote and Dropbox HTML get it too ------------
+
+_MARK_TAG_CASES = [("b", "bold"), ("strong", "bold"), ("i", "italic"), ("em", "italic"),
+                   ("u", "underline"), ("s", "strike"), ("strike", "strike"), ("del", "strike")]
+
+
+def _paragraph_marks(doc: dict) -> list[tuple[str, tuple]]:
+    out = []
+    for block in doc["content"]:
+        assert block["type"] == "paragraph", block
+        (text,) = block["content"]
+        out.append((text["text"], tuple(m["type"] for m in text.get("marks") or [])))
+    return out
+
+
+@pytest.mark.parametrize("tag,mark", _MARK_TAG_CASES)
+def test_mark_tag_around_lines_keeps_two_marked_paragraphs_in_enml(tag, mark):
+    out = _convert(f"<{tag}><div>a</div><div>b</div></{tag}>")
+    assert _paragraph_marks(out["doc"]) == [("a", (mark,)), ("b", (mark,))]
+
+
+@pytest.mark.parametrize("tag,mark", _MARK_TAG_CASES)
+def test_mark_tag_around_paragraphs_in_the_shared_html_walker(tag, mark):
+    from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+    out = html_to_tiptap(f"<{tag}><p>a</p><p>b</p></{tag}>")
+    assert _paragraph_marks(out["doc"]) == [("a", (mark,)), ("b", (mark,))]
+
+
+@pytest.mark.parametrize("tag,mark", _MARK_TAG_CASES)
+def test_mark_tag_around_paragraphs_in_onenote_html(tag, mark):
+    from api.services.journal_two.note_connectors.convert.onenote_html import onenote_html_to_tiptap
+    out = onenote_html_to_tiptap(f"<{tag}><p>a</p><p>b</p></{tag}>")
+    assert _paragraph_marks(out["doc"]) == [("a", (mark,)), ("b", (mark,))]
+
+
+def test_nested_mark_tags_around_blocks_combine_without_doubling():
+    from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+    out = html_to_tiptap("<b><i><p>a</p><p><b>b</b></p></i></b>")
+    assert _paragraph_marks(out["doc"]) == [("a", ("italic", "bold")), ("b", ("bold", "italic"))]
+
+
+def test_mark_tag_around_blocks_keeps_lists_and_leaves_code_unmarked():
+    from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+    out = html_to_tiptap("<b><ul><li>x</li></ul><pre><code>c</code></pre>tail</b>")
+    types = [b["type"] for b in out["doc"]["content"]]
+    assert types == ["bulletList", "codeBlock", "paragraph"]
+    assert _marks_of({"doc": out["doc"]}, "x") == ["bold"]
+    assert _marks_of({"doc": out["doc"]}, "tail") == ["bold"]
+    (code_text,) = _of_type({"doc": out["doc"]["content"][1]}, "text")
+    assert not code_text.get("marks")
+
+
+def test_mark_tag_with_only_inline_content_is_unchanged():
+    from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+    out = html_to_tiptap("<p>x <b>y</b> z</p>")
+    assert [(t["text"], [m["type"] for m in t.get("marks") or []])
+            for t in out["doc"]["content"][0]["content"]] == [("x ", []), ("y", ["bold"]), (" z", [])]
+
+
 # ---- n2: block-edge whitespace, as the client editor's parser trims it ------------------------
 
 
