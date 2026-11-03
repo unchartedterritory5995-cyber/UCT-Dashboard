@@ -26,6 +26,13 @@ Worktrees share `app/node_modules` by junction to `C:/w/txlinks/app/node_modules
 
 ## Builder reports at stop
 _(filled from each builder's wrap-up message)_
+### w2-c (website operations) — agent/w2/webops @ 4c89b53ba2 — DRAFT PR #728 (base agent/int-w2)
+- W2-C1 DONE (state pr): AgentProvider in App.jsx (admin + switch; dark otherwise) owns the panel on non-charts pages; page hosts for /screener (read + screener.openSaved via the page's own door, exact Undo), /breadth (read-only), /calendar (calendar.nextReport, calendar.day), /journal (journal.listNotes, journal.createNote via noteCreation.createNoteViaApi; Undo = trash); queries now surfaces ['*']; dock button on the four pages; /charts keeps its own host (one hook call). Golden +2 topic enum values only.
+- W2-C2 NOT STARTED (design in the PR body / BOARD W2-C section); W2-C3 NOT STARTED (design recorded).
+- Tests: new page tests (30); targeted batch 1359 passed; full Agent vitest first run 2715 passed / 3 failed → the 3 rails fixed (219/219 targeted); full pytest 2095 passed; a second full run was queued behind the suite lock (logs full-vitest-c1b.log / full-pytest-c1b.log in the session scratchpad) — NOT CONFIRMED.
+- Files outside app/src/agent (minimal, listed in PR): App.jsx, ChartsWorkspace.jsx (import + hook), ScannerShell.jsx, FocusScreener.jsx, FocusTopBar.jsx, Breadth.jsx, Calendar.jsx, CalendarHeader.jsx, JournalLayout.jsx.
+- Resume: full vitest+pytest in C:/w/w2-c under the lock; counts into #728; independent review (focus: page writers canonical, no DOM control, Undo exact, charts behaviour byte-identical); then W2-C2 on a stacked branch agent/w2/webops-c2, then W2-C3.
+
 ### repair-b — agent/w11/routing-f16 @ b923e69f8c — DRAFT PR #727 (base agent/int)
 - R-04 DONE (indicatorAlerts routing trigger words; prompt rule "never a false limitation"; false_capability_claim() → one server repair round, else clarify; need_groups reroute when the family is in an unsent group), R-05 DONE (hidden.py HIDDEN_PHRASES 30 patterns + generated scanHidden.js mirror; refusal_for_text = F-16 sentence + public alternative on refinements AND new screens; fast path claims hidden-phrase requests with 0 calls; no rs_line_trend substitution), R-06 DONE (earnings lead line "next report: <date>"; F-16/F-23 rails green).
 - Tests: new 76 pytest + 85 vitest; full Agent vitest via lock 155 files passed / 5 skipped; full Agent pytest run 1: 2183 passed / 1 failed (cost baseline, regenerated since); run 2 was still running at wrap-up (log in the session scratchpad: pytest_full2.log) — NOT CONFIRMED.
