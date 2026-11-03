@@ -109,6 +109,14 @@ class NoteProvider(ABC):
     #: note as its raw id at the folder root. Default False; Evernote declares True.
     fetch_is_listing_independent: bool = False
 
+    #: Live gate 2026-11-03: True when this provider's per-note `fetch` raises
+    #: `NoteConnRateLimited` for a note the provider's own rate limit left unread (Evernote's
+    #: per-minute tool limit). Only then does a pass that ends with such notes left over stamp the
+    #: source for a quick follow-up pass (`engine._schedule_follow_up`) and tell the member it is
+    #: still importing instead of that notes couldn't be read. Default False: every other provider's
+    #: pass reads exactly as it did.
+    follow_up_on_rate_limit: bool = False
+
     #: Plan E Task 9 fix round 1 (concern 5): True when this provider types media from a declared
     #: MIME that may be generic (Evernote's `application/octet-stream`), so content must win: a
     #: file-kind item whose downloaded bytes carry a raster signature (PNG, JPEG, GIF, WebP; never

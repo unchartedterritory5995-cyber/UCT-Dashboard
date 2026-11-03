@@ -32,13 +32,17 @@ import styles from './ConnectedAppsCard.module.css'
 function freshnessTone(source) {
   if (source.status === 'broken' || source.lastSyncStatus === 'error') return 'red'
   if (!source.syncEnabled) return 'amber'
+  // A first import a provider's rate limit cut short (live gate 2026-11-03): the engine records
+  // `importing` ONLY when nothing but those leftovers remains, and books a quick follow-up pass.
+  // In progress, not a warning, even though `lastSyncError` carries the progress sentence.
+  if (source.lastSyncStatus === 'importing') return 'progress'
   // ⛔ `lastSyncError` on its own has to move the dot. The engine records a
   // PARTIAL failure as status "ok" plus per-note error text — by design, since
   // the batch really did commit what it could. But that left a source that
   // failed to store some of the member's notes showing a GREEN dot with the
   // reason hidden in text below it, which is the green-dot-over-a-failure
   // shape this surface keeps producing.
-  if (source.warmingUntil || source.lastSyncStatus === 'warning' || source.lastSyncError) return 'amber'
+  if (source.lastSyncStatus === 'warning' || source.lastSyncError) return 'amber'
   if (source.lastSyncAt) return 'green'
   return 'amber'
 }
@@ -46,6 +50,9 @@ function freshnessTone(source) {
 function freshnessLabel(source) {
   if (source.status === 'broken') return 'reconnect needed'
   if (!source.syncEnabled) return 'sync paused'
+  if (source.lastSyncStatus === 'importing') {
+    return source.lastSyncAt ? `still importing, last batch ${timeAgo(source.lastSyncAt)}` : 'still importing'
+  }
   // A pass that fetched notes and stored NONE of them sets lastSyncAt like
   // any other, so this read "synced 2 minutes ago" over a warning saying
   // nothing landed — literally true, and the line a member scans first.
@@ -294,7 +301,11 @@ export default function SourceRow({
         </p>
       )}
 
-      {source.lastSyncError && <p className={styles.sourceErr}>{source.lastSyncError}</p>}
+      {source.lastSyncError && (
+        <p className={source.lastSyncStatus === 'importing' ? styles.sourceProgress : styles.sourceErr}>
+          {source.lastSyncError}
+        </p>
+      )}
 
       {/* A device on plugin 0.1.x reports pluginSupportsAttachments false.
           Only an explicit false shows this: null means an older server. */}

@@ -209,6 +209,20 @@ IMPORT_CHUNK_NOTES = _FETCH_BATCH_SIZE * 5
 #: worked through over several nights instead of one burst against the provider's rate limit.
 MEDIA_RETRY_NOTES_PER_PASS = 25
 
+# Quick follow-up passes (live gate 2026-11-03). Evernote's per-minute tool limit cut the owner's
+# first import at 75 of 215 notes, and the rest then waited for the hourly :23 tick. A provider that
+# declares `follow_up_on_rate_limit` (Evernote) and ends a pass with listed notes left unread by
+# `NoteConnRateLimited` gets its source stamped (`warming_until`) for ONE follow-up pass
+# retry_after + FOLLOW_UP_MARGIN_S from now, clamped to [FOLLOW_UP_MIN_DELAY_S,
+# FOLLOW_UP_MAX_DELAY_S]. The `note_sync_follow_up` APScheduler job (`sync_follow_up_sources`) runs
+# due stamps through `sync_source`, so the in-flight lock still means one pass at a time per source.
+# Repeats until the backlog is empty, at most FOLLOW_UP_MAX_PASSES_PER_HOUR passes per source per
+# hour (counted from the sync log, every kind of pass included); past that the hourly tick takes it.
+FOLLOW_UP_MIN_DELAY_S = 120
+FOLLOW_UP_MAX_DELAY_S = 300
+FOLLOW_UP_MARGIN_S = 30
+FOLLOW_UP_MAX_PASSES_PER_HOUR = 12
+
 # Server-side cap on notes_svc.import_confirm is 500/batch; the engine stays
 # well under it.
 _CONFIRM_BATCH_SIZE = 200
@@ -470,6 +484,47 @@ async def sync_source(
     raise RuntimeError("unreachable")  # loop always returns or raises
 
 
+def _schedule_follow_up(user_id: str, source_id: str, retry_afters: list[float | None]) -> bool:
+    """Book ONE quick follow-up pass for a source a rate limit cut short (see
+    FOLLOW_UP_MIN_DELAY_S). Returns False, and clears any stamp, when the source already ran
+    FOLLOW_UP_MAX_PASSES_PER_HOUR passes in the last hour (this one included): the hourly tick
+    takes it from there. Worker thread: DB reads and one write."""
+    now = datetime.now(timezone.utc)
+    passes = connections.count_passes_since(
+        user_id, source_id, (now - timedelta(hours=1)).isoformat())
+    if passes >= FOLLOW_UP_MAX_PASSES_PER_HOUR:
+        connections.set_follow_up(user_id, source_id, None)
+        return False
+    known = [r for r in retry_afters if isinstance(r, (int, float)) and r >= 0]
+    delay = (max(known) if known else 0) + FOLLOW_UP_MARGIN_S
+    delay = min(max(delay, FOLLOW_UP_MIN_DELAY_S), FOLLOW_UP_MAX_DELAY_S)
+    connections.set_follow_up(user_id, source_id, (now + timedelta(seconds=delay)).isoformat())
+    return True
+
+
+async def sync_follow_up_sources() -> dict[str, int]:
+    """Scheduler entry for the quick follow-up passes (`note_sync_follow_up`). Each due source's
+    stamp is CLAIMED (cleared) before its pass, so a pass that raises can never re-fire every tick;
+    the pass books the next one itself if notes are still left. A source another pass is already
+    syncing is skipped with its stamp KEPT: that pass replaces or clears it. Serial, and one failing
+    source never blocks the others. `manual=True`: a follow-up runs inside the 10 min cooldown."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    ran = busy = 0
+    for source in connections.list_follow_up_due(now_iso):
+        if is_source_busy(source["id"]):
+            busy += 1
+            continue
+        connections.set_follow_up(source["userId"], source["id"], None)
+        ran += 1
+        try:
+            result = await sync_source(source["id"], manual=True)
+            if isinstance(result, dict) and result.get("status") == "busy":
+                busy += 1
+        except Exception:  # noqa: BLE001 -- isolate per-source failures
+            log.exception("[note-sync] follow-up pass failed for source %s", source["id"])
+    return {"ran": ran, "busy": busy}
+
+
 async def sync_due_sources() -> None:
     """Scheduler entry: serial iteration over every due source, across all
     users. One failing source is logged and never blocks the others."""
@@ -572,6 +627,7 @@ async def _do_sync(
     delete_guard_warning: str | None = None
     delete_guard_refused = False
     fetch_failed = 0  # review M6: notes the row says could not be read (they are retried)
+    rate_limited: dict[str, tuple[str, float | None]] = {}  # live gate 2026-11-03: not failures
     deleted_count = 0
     provider: NoteProvider | None = None
 
@@ -841,7 +897,8 @@ async def _do_sync(
         adoption_state: dict = {}  # Task 8 concern 4: what this pass adopted, across chunks
         imported_any = False
         for chunk_refs in _chunks(fetch_refs, IMPORT_CHUNK_NOTES):
-            chunk_notes, fetch_failures = await _fetch_remote_notes(provider, creds, chunk_refs)
+            chunk_notes, fetch_failures = await _fetch_remote_notes(
+                provider, creds, chunk_refs, rate_limited)
             fetch_failed += len(fetch_failures)
             item_failures.extend(fetch_failures)
             _drain_provider_item_failures(provider, item_failures, notice_failures)
@@ -907,7 +964,28 @@ async def _do_sync(
         # in `failures` — still reports "ok": the batch committed what it
         # could, exactly as designed; the failure is visible in `failures`,
         # not hidden behind the top-level status.
-        lost_everything = bool(not_stored_refs) and not (
+        # Live gate 2026-11-03: listed notes a provider's rate limit left unread. For a provider
+        # that opts in they are a first import still catching up: a quick follow-up pass is booked,
+        # the member reads a progress sentence, and they are neither "lost" nor "couldn't be read".
+        follow_up = getattr(provider, "follow_up_on_rate_limit", False) is True
+        leftovers = {rid for rid in rate_limited if rid in not_stored_refs} if follow_up else set()
+        member_failures = item_failures
+        progress: str | None = None
+        if leftovers:
+            limited_strings = {rate_limited[rid][0] for rid in rate_limited}
+            fetch_failed -= sum(1 for f in item_failures if f in limited_strings)
+            member_failures = [f for f in item_failures if f not in limited_strings]
+            booked = await asyncio.to_thread(
+                _schedule_follow_up, user_id, source_id,
+                [rate_limited[rid][1] for rid in leftovers])
+            total = len(listed_ids)
+            progress = (IMPORT_PROGRESS_REASON if booked else IMPORT_PROGRESS_LATER_REASON).format(
+                label=dest_folder.provider_label(source.get("provider")),
+                stored=total - len(not_stored_refs), total=total,
+                notes="note" if total == 1 else "notes")
+        elif follow_up and source.get("warmingUntil"):
+            await asyncio.to_thread(connections.set_follow_up, user_id, source_id, None)
+        lost_everything = bool(not_stored_refs - leftovers) and not (
             counts["created"] or counts["updated"] or counts["skipped"]
         )
         # Plan E Task 6 review R2: deletions cannot propagate while every complete listing fails.
@@ -916,6 +994,10 @@ async def _do_sync(
         removal_warning = _removal_skip_warning(  # M2: its own connection, off the loop
             source, await asyncio.to_thread(connections.removal_skips, user_id, source_id))
         status = "warning" if (delete_guard_warning or lost_everything or removal_warning) else "ok"
+        if progress is not None and status == "ok" and fetch_failed == 0 and not any(
+                f.get("reason") for f in notice_failures):
+            # Nothing but the rate-limit leftovers: in progress, not a warning (SourceRow's pill).
+            status = "importing"
         error_parts = (([removal_warning] if removal_warning else [])
                        + ([delete_guard_warning] if delete_guard_warning else []) + item_failures)
 
@@ -934,8 +1016,8 @@ async def _do_sync(
         # no endpoint serves).
         member_error = _member_sync_error(
             source, removal_warning=removal_warning, delete_guard_warning=delete_guard_warning,
-            delete_guard_refused=delete_guard_refused, item_failures=item_failures,
-            notice_failures=notice_failures, fetch_failed=fetch_failed)
+            delete_guard_refused=delete_guard_refused, item_failures=member_failures,
+            notice_failures=notice_failures, fetch_failed=fetch_failed, progress=progress)
         if error_parts:
             log.warning("[note-sync] source %s pass finished %s: %s", source_id, status,
                         "; ".join(error_parts))
@@ -1332,6 +1414,13 @@ NOTES_INCOMPLETE_REASON = "Some notes didn't sync completely. Recent syncs names
 #: Notes whose fetch failed: the log rows do not name them, so this says how many and that they are
 #: retried (true: the cursor holds on an unfetched note).
 FETCH_FAILED_REASON = "{n} {notes} couldn't be read from {label} this time. {they} tried again on the next sync."
+#: Live gate 2026-11-03: a pass a provider's rate limit cut short is a first import still catching
+#: up, not a failure. `stored` of `total` are this pass's listed notes stored vs listed. The first
+#: form is used when a quick follow-up pass is booked, the second when the hourly bound is reached.
+IMPORT_PROGRESS_REASON = ("Still importing from {label}: {stored} of {total} {notes} so far. "
+                          "The rest will come in over the next few minutes.")
+IMPORT_PROGRESS_LATER_REASON = ("Still importing from {label}: {stored} of {total} {notes} so far. "
+                                "The rest will come in on the next sync.")
 #: The source row's sentence for a pass that left something unfinished and names nothing per note
 #: (a sweep that did not run, a link pass that failed): each is retried on a later pass.
 PASS_UNFINISHED_REASON = "Part of this sync didn't finish. It will be tried again on the next sync."
@@ -1383,7 +1472,7 @@ def _member_hard_error(source: dict[str, Any], exc: BaseException) -> str:
 def _member_sync_error(
     source: dict[str, Any], *, removal_warning: str | None, delete_guard_warning: str | None,
     delete_guard_refused: bool, item_failures: list[str], notice_failures: list[dict[str, Any]],
-    fetch_failed: int = 0,
+    fetch_failed: int = 0, progress: str | None = None,
 ) -> str | None:
     """What the source row tells the member about a pass (M2, live audit 2026-11-03): sentences,
     never developer text. It used to be every failure string joined, so a member read
@@ -1393,7 +1482,7 @@ def _member_sync_error(
     begin `dest_folder.DEST_SENTENCE_PREFIX`), the notes that could not be read, and a pointer to
     the log rows for the rest."""
     label = dest_folder.provider_label(source.get("provider"))
-    parts: list[str] = []
+    parts: list[str] = [progress] if progress else []
     if removal_warning:
         parts.append(removal_warning)
     if delete_guard_warning:
@@ -1564,7 +1653,11 @@ def _heal_after_pass(user_id: str, linked_note_ids: list[str]) -> list[str]:
 
 async def _fetch_remote_notes(
     provider: NoteProvider, creds: dict[str, Any], refs: list[RemoteRef],
+    rate_limited: dict[str, tuple[str, float | None]] | None = None,
 ) -> tuple[list[RemoteNote], list[str]]:
+    """`rate_limited`, when given, collects `{remote_id: (failure string, retry_after)}` for each
+    ref whose own fetch raised `NoteConnRateLimited` (live gate 2026-11-03: a follow-up pass, not
+    a failure, for a provider that opts in). The failure strings are returned as before."""
     if not refs:
         return [], []
     notes: list[RemoteNote] = []
@@ -1579,7 +1672,10 @@ async def _fetch_remote_notes(
                 try:
                     notes.append(await provider.fetch(creds, ref))
                 except Exception as e2:  # noqa: BLE001
-                    failures.append(f"fetch failed for {ref.remote_id!r}: {e2}")
+                    failure = f"fetch failed for {ref.remote_id!r}: {e2}"
+                    failures.append(failure)
+                    if rate_limited is not None and isinstance(e2, errors.NoteConnRateLimited):
+                        rate_limited[ref.remote_id] = (failure, e2.retry_after)
     return notes, failures
 
 

@@ -107,6 +107,9 @@ class EvernoteProvider(NoteProvider):
     fetch_is_listing_independent = True
     #: A resource's kind comes from its declared MIME; content wins for a raster (concern 5).
     promote_raster_files = True
+    #: Evernote's per-minute tool limit leaves notes unread on a large first import: the engine
+    #: follows up a few minutes later instead of waiting for the hourly tick (live gate 2026-11-03).
+    follow_up_on_rate_limit = True
 
     PAGE_SIZE = 100
     CURSOR_OVERLAP_S = 120

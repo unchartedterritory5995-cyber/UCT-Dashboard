@@ -457,3 +457,37 @@ describe('SourceRow — the sync checkbox names its source', () => {
     expect(screen.getByText('Paused')).toBeInTheDocument()
   })
 })
+
+// ── A first import still catching up (live gate 2026-11-03) ──────────────────
+// Evernote's per-minute limit cut the owner's first import at 75 of 215 notes and the row read
+// "140 notes couldn't be read" under an amber "synced with problems". The engine now records
+// `lastSyncStatus: 'importing'` with a progress sentence and books a quick follow-up pass; the
+// row must read as in progress, not as a failure.
+describe('SourceRow — a first import still catching up', () => {
+  const PROGRESS = 'Still importing from Evernote: 75 of 215 notes so far. The rest will come in over the next few minutes.'
+
+  it('reads as in progress: label, dot and sentence', () => {
+    const { container } = renderRow(makeSource({
+      lastSyncStatus: 'importing', lastSyncError: PROGRESS,
+      warmingUntil: '2026-11-03T15:05:00+00:00',
+    }))
+    expect(screen.getByText(/still importing/i, { selector: 'span' })).toBeInTheDocument()
+    expect(screen.queryByText(/problems|failed/i)).not.toBeInTheDocument()
+    const dot = container.querySelector('[aria-hidden="true"]')
+    expect(dot.className).toMatch(/dot_progress/)
+    expect(dot.className).not.toMatch(/dot_amber|dot_red/)
+    const line = screen.getByText(PROGRESS)
+    expect(line.className).toMatch(/sourceProgress/)
+    expect(line.className).not.toMatch(/sourceErr/)
+  })
+
+  it('a genuine failure beside the progress keeps its failure look', () => {
+    const { container } = renderRow(makeSource({
+      lastSyncStatus: 'ok',
+      lastSyncError: `${PROGRESS} 1 note couldn't be read from Evernote this time. It will be tried again on the next sync.`,
+      warmingUntil: '2026-11-03T15:05:00+00:00',
+    }))
+    expect(screen.getByText(/synced with problems/i)).toBeInTheDocument()
+    expect(container.querySelector('[aria-hidden="true"]').className).toMatch(/dot_amber/)
+  })
+})
