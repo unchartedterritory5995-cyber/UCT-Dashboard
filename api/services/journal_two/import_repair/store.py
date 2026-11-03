@@ -187,14 +187,30 @@ def latest_outcome(conn: sqlite3.Connection, run_id: str, note_id: str) -> str |
     return row[0] if row is not None else None
 
 
-def fetch_failures(conn: sqlite3.Connection, run_id: str, note_id: str) -> tuple[bool, int]:
-    """(did a hotlink fail to copy for this note in THIS run, in how many runs it failed in all).
-    Task 7 re-review I-6: a dead hotlink is done for its run and retried by at most one more."""
-    rows = conn.execute(
-        "SELECT run_id FROM j2_import_repair_log WHERE note_id = ? AND outcome = 'fetch_failed'",
-        (note_id,)).fetchall()
-    runs = {r[0] for r in rows}
-    return run_id in runs, len(runs)
+#: The action a `fetch_failed` row carries for each hotlink URL that failed (round 2 S-5).
+FAILED_URL_ACTION = "fetch_failed_url:"
+
+
+def failed_hotlinks(conn: sqlite3.Connection, run_id: str, note_id: str) -> tuple[set[str], dict[str, int]]:
+    """(the hotlink URLs of this note that failed to copy in THIS run, URL -> in how many runs it
+    failed in all). Task 7 re-review I-6 and round 2 S-5: a dead hotlink is done for its run and
+    retried by at most one more, PER URL, so a live hotlink beside it in the same note is not."""
+    this_run: set[str] = set()
+    runs_by_url: dict[str, set[str]] = {}
+    for row in conn.execute(
+            "SELECT run_id, actions_json FROM j2_import_repair_log WHERE note_id = ? AND outcome = 'fetch_failed'",
+            (note_id,)).fetchall():
+        try:
+            actions = json.loads(row[1]) if isinstance(row[1], str) else []
+        except ValueError:
+            actions = []
+        for action in actions if isinstance(actions, list) else []:
+            if isinstance(action, str) and action.startswith(FAILED_URL_ACTION):
+                url = action[len(FAILED_URL_ACTION):]
+                runs_by_url.setdefault(url, set()).add(row[0])
+                if row[0] == run_id:
+                    this_run.add(url)
+    return this_run, {url: len(runs) for url, runs in runs_by_url.items()}
 
 
 def record_notice(conn: sqlite3.Connection, user_id: str, loss_notes: int) -> None:

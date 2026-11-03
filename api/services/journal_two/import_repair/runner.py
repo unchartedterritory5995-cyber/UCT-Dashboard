@@ -439,7 +439,7 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
             changed = True
         if failed:
             store.log_note(conn, run_id, user_id, row.id, "fetch_failed", plan.shapes,
-                           [f"fetch_failed:{len(failed)}"], None)
+                           [f"fetch_failed:{len(failed)}"] + [store.FAILED_URL_ACTION + u for u in failed], None)
             conn.commit()
         if not changed:
             return "fetch_failed" if failed else "deferred"
@@ -566,9 +566,10 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
                     # Re-review I-6: a hotlink that failed to copy is DONE for this run (its image
                     # stays as it is), and a new run retries it at most once more. Without its
                     # dead hotlinks a note may need no write at all, so it never stalls a batch.
-                    failed_here, failed_runs = store.fetch_failures(conn, run_id, row.id)
-                    if failed_here or failed_runs >= DEAD_HOTLINK_RUNS:
-                        plan.hotlinks = []
+                    # Round 2 S-5: per URL, so a live hotlink beside a dead one is still fetched.
+                    failed_here, failed_runs = store.failed_hotlinks(conn, run_id, row.id)
+                    plan.hotlinks = [u for u in plan.hotlinks
+                                     if u not in failed_here and failed_runs.get(u, 0) < DEAD_HOTLINK_RUNS]
                 if writes(plan):
                     # I-2: a batch is a number of notes still needing work. A note an earlier
                     # batch repaired plans as unchanged and does not count, so each batch moves on.

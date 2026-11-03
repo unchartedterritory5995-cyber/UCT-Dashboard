@@ -162,5 +162,5 @@ cd /app && /opt/venv/bin/python -m pytest tests/test_note_import_repair_cli.py -
     - `relist_requested` rows carry the Obsidian SOURCE id in `note_id` (the log has no source column) and the prior cursor in `actions_json` (`prior_cursor:<value>`).
     - A member skipped because another runner held it appears only in `busyMembers`; re-run with `--member <id>` after the other run ends.
     - A hotlink the `--max-fetches` cap deferred is counted in `fetchDeferred`, and its member is left unfinished: resume with the same `--run-id` to fetch the rest.
-    - A hotlink that failed to copy (`fetchFailed`) keeps its image and is done for that run; a NEW `--run-id` retries it once more, never again after that.
+    - A hotlink that failed to copy (`fetchFailed`) keeps its image and is done for that run; a NEW `--run-id` retries it once more, never again after that. This is per URL: a live hotlink in the same note that the cap deferred is still fetched by a resume with the SAME `--run-id`.
     - `failed > 0`: those notes are not retried in the same run (a transient "database is locked" is the usual cause). Once the run is finished, run again with a NEW `--run-id` (e.g. `...-f2`); it retries them, and every note already repaired reads as unchanged.

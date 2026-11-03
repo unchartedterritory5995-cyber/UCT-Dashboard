@@ -781,6 +781,24 @@ def test_dead_hotlinks_never_stall_batches_and_are_retried_once_by_a_new_run(arm
     assert len(web["calls"]) == 6  # and then never again
 
 
+def test_a_same_run_resume_keeps_a_live_deferred_hotlink_beside_a_dead_one(armed, web):
+    """Round 2 S-5: only the URL that failed is done for the run. A live hotlink in the SAME note,
+    deferred by `--max-fetches`, is fetched by a resume with the same run id (runbook step 13)."""
+    dead, live = "http://dead.example.com/x.png", HOT
+    note = _note("u1", "Notion", "notion:Export/M.md", _doc(
+        {"type": "image", "attrs": {"src": dead}}, {"type": "image", "attrs": {"src": live}}))
+    web["routes"][live] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+    first = _apply(max_fetches=1)
+    assert (first["fetchFailed"], first["fetchDeferred"]) == (1, 1)
+    assert store.member_done(auth_db.get_connection(), RUN, "u1") is False
+    second = _apply(max_fetches=1)
+    assert (second["fetched"], second["fetchFailed"]) == (1, 0)  # the dead one is not retried
+    assert store.member_done(auth_db.get_connection(), RUN, "u1") is True
+    srcs = [n["attrs"]["src"] for n in json.loads(_note_row(note)[0])["content"]]
+    assert srcs[0] == dead and srcs[1].startswith("/api/j2/notes/attachments/")
+    assert web["calls"].count(dead) == 1 and web["calls"].count(live) == 1
+
+
 def test_max_fetches_bounds_the_downloads(armed, web):
     note = _note("u1", "Notion", "notion:Export/H.md", _doc(
         {"type": "image", "attrs": {"src": HOT}}, {"type": "image", "attrs": {"src": HOT2}}))

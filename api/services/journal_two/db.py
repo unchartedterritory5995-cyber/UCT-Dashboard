@@ -859,7 +859,7 @@ CREATE TABLE IF NOT EXISTS j2_import_repair_log (
 CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_run_user ON j2_import_repair_log(run_id, user_id);
 -- store.latest_outcome(run_id, note_id), called per note on resume: an index seek, never a scan.
 CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_run_note ON j2_import_repair_log(run_id, note_id);
--- store.fetch_failures(note_id): a dead hotlink's history across runs, an index seek.
+-- store.failed_hotlinks(note_id): a dead hotlink's history across runs, an index seek.
 CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_note ON j2_import_repair_log(note_id, outcome);
 -- The member's one notice that some of their imported notes lost pictures or files.
 -- Dismissing it is an UPDATE; a later run never re-arms it (INSERT OR IGNORE).
