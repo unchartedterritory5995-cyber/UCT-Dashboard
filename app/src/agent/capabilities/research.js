@@ -27,6 +27,8 @@ export const TOPICS = ['move', 'strength', 'catalysts', 'general']
 export const MAX_QUESTION = 200
 export const SECTION = { facts: "What UCT's data shows", interpretation: 'Interpretation (web commentary, not UCT data)', unknown: 'Not known / not available', sources: 'Sources' }
 const NOT_REAL_TIME = 'Not a real-time price.'
+// review (#726): a fact the SERVER worded live must not sit above "Not a real-time price."
+export const LIVE_ONLY_MARKED = 'Only a fact marked live is a real-time price; the rest are as of their own times.'
 
 export function researchServed() {
   if (!agentClient.serverServesData()) return false
@@ -67,7 +69,8 @@ export function freshnessLine(env) {
   const parts = [span]
   if (stale) parts.push('at least one source is behind its usual refresh')
   if (env.status === 'partial') parts.push('some sources were not available (listed under Not known)')
-  return `${parts.join('; ')}. ${NOT_REAL_TIME}`
+  const live = facts.some(f => / — live, /.test(String(f?.text || '')))
+  return `${parts.join('; ')}. ${live ? LIVE_ONLY_MARKED : NOT_REAL_TIME}`
 }
 
 /**
