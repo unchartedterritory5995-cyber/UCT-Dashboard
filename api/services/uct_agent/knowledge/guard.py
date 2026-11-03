@@ -12,7 +12,12 @@ import re
 _INJECTION = re.compile(
     r"(ignore|disregard|forget|override)\s+(all\s+|any\s+|the\s+|your\s+|previous\s+|prior\s+|above\s+)*"
     r"(instructions?|rules?|prompts?|system|directions?)"
-    r"|\byou\s+are\s+now\b|\bnew\s+instructions?\b|\bsystem\s*prompt\b|\bjailbreak\b"
+    r"|\byou\s+are\s+now\s+(a|an|the|my)?\s*(\w+\s+){0,2}(assistant|ai|bot|chatbot|model|agent|dan|jailbroken|unrestricted|unfiltered)\b"
+    r"|\byou\s+are\s+now\s+in\s+(developer|god|admin|jailbreak)\s+mode\b"
+    r"|\bdisregard\s+(everything|anything|all)\b.{0,40}\b(told|said|instructed|given)\b"
+    r"|\b(pretend|act)\s+(to\s+be|as)\s+(a|an|the)?\s*(\w+\s+){0,2}(assistant|ai|model|bot|system|developer)\b"
+    r"|\breveal\s+(your|the)\s+(system|hidden|secret|internal)\b"
+    r"|\bnew\s+instructions?\b|\bsystem\s*prompt\b|\bjailbreak\b"
     r"|<\s*/?\s*(system|assistant|user|tool|instructions?)\b|\[\s*(system|inst)\s*\]|<\|[a-z_]+\|>"
     r"|\b(call|use|invoke)\s+the\s+\w+\s+tool\b|\btool_use\b|\bfunction_call\b",
     re.I)

@@ -169,22 +169,40 @@ def on_pack_install() -> None:
         log.exception("[uct-agent knowledge] rebuild after pack install failed")
 
 
-def match_expr(question: str) -> str:
-    """An FTS5 OR-query of the question's content words (each quoted: no FTS operator can be injected)."""
+def content_words(question: str) -> list:
     toks = [t.lower() for t in _TOKEN.findall(question or "")]
-    words = [t for t in toks if t not in _STOP and (len(t) > 1 or t.isdigit())]
-    seen, out = set(), []
+    return [t for t in toks if t not in _STOP and (len(t) > 1 or t.isdigit())]
+
+
+def _phrase(p: str) -> str:
+    toks = _TOKEN.findall(str(p or "").lower())
+    return ('"' + " ".join(toks) + '"') if toks else ""
+
+
+def match_expr(question: str, phrases=None) -> str:
+    """An FTS5 OR-query: the question's content words, its adjacent word pairs as phrases ("stage 2", "20 ema"), and
+    any expansion phrases. Every term is quoted and built only from [A-Za-z0-9&] tokens, so no FTS operator can be
+    injected. A phrase match scores on top of its words, so passages that say the exact thing rank first."""
+    words = content_words(question)
+    terms, seen = [], set()
+
+    def add(t):
+        if t and t not in seen:
+            seen.add(t)
+            terms.append(t)
     for w in words:
-        if w not in seen:
-            seen.add(w)
-            out.append('"' + w.replace('"', "") + '"')
-    return " OR ".join(out[:16])
+        add('"' + w + '"')
+    for x, y in zip(words, words[1:]):
+        add(_phrase(f"{x} {y}"))
+    for p in phrases or []:
+        add(_phrase(p))
+    return " OR ".join(terms[:28])
 
 
 def query(question: str, *, sources: list[str], exclude_categories: set[str], category: Optional[str] = None,
-          limit: int = 40) -> list[dict]:
+          limit: int = 40, phrases=None) -> list[dict]:
     """Ranked candidate rows from ADMITTED sources only (policy applied in SQL, before ranking)."""
-    expr = match_expr(question)
+    expr = match_expr(question, phrases)
     if not expr or not sources:
         return []
     where = [f"d.source IN ({','.join('?' * len(sources))})", "d.dup_of IS NULL"]

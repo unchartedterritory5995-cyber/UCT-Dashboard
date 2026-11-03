@@ -139,8 +139,9 @@ def search(params: dict, ctx: dict) -> dict:
         return _refused(kind, params, "no knowledge source is approved for UCT Agent")
     dated = policy.dated_categories()
     exclude = policy.excluded_categories() | (set() if include_dated else dated)
-    cands = index.query(expand_question(q), sources=admitted, exclude_categories=exclude,
-                        category=params.get("category"), limit=policy.search_setting("candidates", 40))
+    phrases = expansion_phrases(q)
+    cands = index.query(q, sources=admitted, exclude_categories=exclude, category=params.get("category"),
+                        limit=policy.search_setting("candidates", 40), phrases=phrases)
     max_age = policy.dated_max_age_days()
     excerpt_chars = policy.search_setting("excerpt_chars", 500)
     passages, withheld_injection, withheld_stale = [], 0, 0
@@ -153,7 +154,10 @@ def search(params: dict, ctx: dict) -> dict:
             if age is None or age > max_age:
                 withheld_stale += 1
                 continue
-        text, flags = guard.check(r.get("content") or "", excerpt_chars)
+        if guard.suspicious(r.get("content") or ""):        # judge the WHOLE passage, not only the shown window
+            withheld_injection += 1
+            continue
+        text, flags = guard.check(_focus(r.get("content") or "", q, phrases), excerpt_chars)
         title, tflags = guard.check(r.get("title") or "", 140)
         if "instruction_like" in flags or "instruction_like" in tflags or not text:
             withheld_injection += 1
@@ -200,8 +204,7 @@ _ALIAS_CACHE: dict = {"ts": None, "map": {}}
 
 
 def _alias_map() -> dict:
-    """normalised alias or name -> the words of every name and alias of that template (cached per pack version).
-    An alias shared by two templates expands to both (search, unlike setup.playbook, does not have to choose)."""
+    """normalised term -> [(template name, is_the_name, [phrases of that template])] (cached per pack version)."""
     ts = pack.pack_ts()
     if _ALIAS_CACHE["ts"] == ts:
         return _ALIAS_CACHE["map"]
@@ -210,12 +213,13 @@ def _alias_map() -> dict:
     if c is not None:
         try:
             for r in c.execute("SELECT name, aliases FROM setup_templates WHERE COALESCE(active, 1) = 1"):
-                terms = [str(r["name"] or "")] + _aliases(r["aliases"])
-                words = " ".join(t for t in terms if t)
+                name = str(r["name"] or "")
+                terms = [name] + _aliases(r["aliases"])
+                phrases = sorted({_tok(t) for t in terms if _tok(t)})
                 for t in terms:
                     k = _tok(t)
                     if k:
-                        out[k] = (out.get(k, "") + " " + words).strip()
+                        out.setdefault(k, []).append((name, t == name, phrases))
         except Exception:  # noqa: BLE001 — no templates table: no expansion
             out = {}
         finally:
@@ -228,16 +232,42 @@ def _tok(s: str) -> str:
     return " ".join(re.findall(r"[a-z0-9&]+", str(s or "").lower()))
 
 
-def expand_question(q: str) -> str:
-    """The question plus the full names/aliases of every setup it names by a WHOLE-phrase alias ("EP" ->
-    "Episodic Pivot ...", "U&R" -> "Undercut & Rally ..."). Matching is on whole words, so "ep" never fires inside
-    "step". Expansion only adds OR terms to the lexical query; it never changes which sources are admitted."""
+def expansion_phrases(q: str) -> list:
+    """The phrases of every setup the question names by a WHOLE-word term ("EP" -> "episodic pivot", ...).
+    Precision first: when the term is a template's own NAME, only that template expands; an alias shared by several
+    templates expands to all of them only when no template carries it as its name. Whole-word matching, so "ep"
+    never fires inside "step". Phrases only add OR terms; they never change which sources are admitted."""
     nq = " " + _tok(q) + " "
-    extra = []
-    for k, words in _alias_map().items():
-        if len(k) >= 2 and f" {k} " in nq:
-            extra.append(words)
-    return (q + " " + " ".join(extra)).strip() if extra else q
+    out = []
+    for k, rows in _alias_map().items():
+        if len(k) < 2 or f" {k} " not in nq:
+            continue
+        named = [r for r in rows if r[1]]
+        for _name, _is, phrases in (named or rows):
+            out.extend(p for p in phrases if p != k)
+    return list(dict.fromkeys(out))[:8]
+
+
+def expand_question(q: str) -> str:
+    """Text form: the question followed by its expansion phrases."""
+    ph = expansion_phrases(q)
+    return (q + " " + " ".join(ph)).strip() if ph else q
+
+
+def _focus(content: str, question: str, phrases: list) -> str:
+    """Start the excerpt at the sentence holding the first multi-word phrase or the longest question word."""
+    low = content.lower()
+    cands = [p for p in phrases if " " in p] + sorted(index.content_words(question), key=len, reverse=True)
+    pos = -1
+    for t in cands:
+        i = low.find(t)
+        if i >= 0:
+            pos = i
+            break
+    if pos <= 160:
+        return content
+    start = max(content.rfind(". ", 0, pos), content.rfind("\n", 0, pos), pos - 160)
+    return "… " + content[start + 1:].lstrip(" .")
 
 
 # ── setup resolution (shared by playbook and record) ─────────────────────────────────────────────────
