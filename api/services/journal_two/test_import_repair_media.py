@@ -311,12 +311,15 @@ def test_fetch_and_store_raises_on_refusal(db, web):
     web["routes"][HOT] = lambda: httpx.Response(404)
     web["routes"]["http://cdn.example.com/page.png"] = lambda: httpx.Response(
         200, content=b"<html>not an image</html>", headers={"content-type": "text/html"})
+    from api.services.journal_two.note_connectors import engine as note_engine
     released = []
-    for url in (HOT, "http://cdn.example.com/page.png"):
+    # Fix round 1, M-5: the reason the door maps each refusal to (`media_failure_reason`), so a
+    # bug inside `store` (a NameError) could never pass as a refusal.
+    for url, reason in ((HOT, "fetch_failed"), ("http://cdn.example.com/page.png", "unsupported")):
         with pytest.raises(Exception) as err:
             asyncio.run(hotlink_fetch.fetch_and_store("u1", "n1", url, client_factory=web["factory"],
                                                       after_download=lambda: released.append(1)))
-        assert not isinstance(err.value, AssertionError)
+        assert note_engine.media_failure_reason(err.value) == reason, (url, err.value)
     assert released == [1, 1]  # the download hook runs on failure too (the door's slot)
     assert not (db / "j2_attachments" / "u1").exists()  # nothing stored
 
