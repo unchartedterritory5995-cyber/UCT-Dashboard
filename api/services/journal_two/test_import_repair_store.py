@@ -43,7 +43,9 @@ def test_tables_are_exactly_the_briefs(conn):
     assert _columns(conn, "j2_import_repair_progress") == [
         ("run_id", "TEXT", True, 1), ("user_id", "TEXT", True, 2), ("status", "TEXT", True, 0),
         ("notes_checked", "INTEGER", True, 0), ("notes_repaired", "INTEGER", True, 0),
-        ("started_at", "TEXT", True, 0), ("finished_at", "TEXT", False, 0)]
+        ("started_at", "TEXT", True, 0), ("finished_at", "TEXT", False, 0),
+        # fix round 1, M-4: the one-runner-per-member lease
+        ("lease_holder", "TEXT", False, 0), ("lease_at", "TEXT", False, 0)]
     assert _columns(conn, "j2_import_repair_log") == [
         ("id", "INTEGER", False, 1), ("run_id", "TEXT", True, 0), ("user_id", "TEXT", True, 0),
         ("note_id", "TEXT", True, 0), ("outcome", "TEXT", True, 0), ("shapes_json", "TEXT", True, 0),
@@ -92,6 +94,41 @@ def test_progress_marks_and_resumes(conn):
     assert store.member_done(conn, RUN, "u1") is True
     assert store.member_done(conn, "run-2", "u1") is False  # another run starts over
     assert store.member_done(conn, RUN, "u2") is False
+
+
+def test_one_runner_at_a_time_per_member(conn, caplog):
+    """Fix round 1, M-4: the repair's write is timestamp-neutral, so its optimistic lock cannot
+    stop a second runner. The store's lease does: a member held by a live runner is refused to
+    any other (in any run); a lease older than `stale_after_s` is taken over, and that is
+    logged; a runner that lost its lease learns it on renewal."""
+    other = auth_db.get_connection()
+    try:
+        assert store.claim_member(conn, RUN, "u1", "runner-a") == []
+        row = other.execute("SELECT status, lease_holder FROM j2_import_repair_progress").fetchone()
+        assert tuple(row) == ("in_progress", "runner-a")  # committed: the other process sees it
+        with pytest.raises(store.MemberBusy):
+            store.claim_member(other, "run-2", "u1", "runner-b")
+        with pytest.raises(store.MemberBusy):
+            store.claim_member(other, RUN, "u1", "runner-b")
+        assert store.claim_member(other, RUN, "u2", "runner-b") == []  # another member is free
+        assert store.claim_member(conn, RUN, "u1", "runner-a") == []  # the holder may resume
+        assert store.renew_lease(conn, RUN, "u1", "runner-a") is True
+        # the holder died: its lease goes stale and is taken over, logged
+        conn.execute("UPDATE j2_import_repair_progress SET lease_at = '2026-01-01T00:00:00+00:00'"
+                     " WHERE user_id = 'u1'")
+        conn.commit()
+        with caplog.at_level("WARNING"):
+            taken = store.claim_member(other, "run-2", "u1", "runner-b", stale_after_s=600)
+        assert taken == [(RUN, "runner-a")]
+        assert "stale" in caplog.text and "runner-a" in caplog.text
+        assert store.renew_lease(conn, RUN, "u1", "runner-a") is False  # A learns it lost
+        store.finish_member(other, "run-2", "u1", checked=1, repaired=0)
+        lease = other.execute("SELECT lease_holder, lease_at FROM j2_import_repair_progress"
+                              " WHERE run_id = 'run-2' AND user_id = 'u1'").fetchone()
+        assert tuple(lease) == (None, None)  # a finished member holds no lease
+        assert store.claim_member(conn, "run-3", "u1", "runner-c") == []
+    finally:
+        other.close()
 
 
 def test_finish_member_refuses_a_member_never_started(conn):

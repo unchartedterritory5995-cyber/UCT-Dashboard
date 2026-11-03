@@ -16,8 +16,14 @@ Tables (`db._J2_SCHEMA`, purged with the account):
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
+
+#: A lease not renewed for this long belongs to a runner that died or hung (`claim_member`).
+LEASE_STALE_S = 600.0
 
 #: The brief's six, then C12's `unchanged` (counted in the report, never logged: log volume) and
 #: C7's `repair_started` (the undo copy, committed BEFORE the write; the outcome row supersedes it).
@@ -46,13 +52,77 @@ def start_member(conn: sqlite3.Connection, run_id: str, user_id: str) -> None:
         " VALUES (?, ?, 'in_progress', ?)", (run_id, user_id, _now()))
 
 
+class MemberBusy(Exception):
+    """Another live runner holds this member (`claim_member`)."""
+
+
+def claim_member(conn: sqlite3.Connection, run_id: str, user_id: str, holder: str, *,
+                 stale_after_s: float = LEASE_STALE_S) -> list[tuple[str, str]]:
+    """Take the member for this runner (`holder`, a per-process token) and mark it in progress.
+    COMMITS. Fix round 1, M-4: the repair's write is timestamp-neutral, so its optimistic lock
+    cannot stop a second runner; this lease does, at the database, for every path (the CLI's
+    flock is a second layer on the pod).
+
+    Under BEGIN IMMEDIATE (one claimer at a time): a member whose lease another holder renewed
+    within `stale_after_s`, in any run, raises `MemberBusy`. An older lease is taken over (its
+    holder died or hung); each take-over is logged and returned as `(run_id, old holder)`. The
+    same holder may claim again (a resume)."""
+    conn.commit()  # BEGIN IMMEDIATE needs no transaction open on this connection
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        now = datetime.now(timezone.utc)
+        taken: list[tuple[str, str]] = []
+        for row in conn.execute(
+                "SELECT run_id, lease_holder, lease_at FROM j2_import_repair_progress"
+                " WHERE user_id = ? AND status = 'in_progress' AND lease_holder IS NOT NULL"
+                " AND lease_holder != ?", (user_id, holder)).fetchall():
+            other_run, other_holder, lease_at = row[0], row[1], row[2]
+            if (now - _parse(lease_at)).total_seconds() < stale_after_s:
+                raise MemberBusy(f"member {user_id!r} is held by runner {other_holder!r} (run {other_run!r})")
+            logger.warning("import repair: taking over the stale lease of runner %r on member %r"
+                           " (run %r, last renewed %s)", other_holder, user_id, other_run, lease_at)
+            conn.execute("UPDATE j2_import_repair_progress SET lease_holder = NULL, lease_at = NULL"
+                         " WHERE run_id = ? AND user_id = ?", (other_run, user_id))
+            taken.append((other_run, other_holder))
+        start_member(conn, run_id, user_id)
+        conn.execute("UPDATE j2_import_repair_progress SET lease_holder = ?, lease_at = ?"
+                     " WHERE run_id = ? AND user_id = ?", (holder, now.isoformat(), run_id, user_id))
+        conn.commit()
+        return taken
+    except BaseException:
+        conn.rollback()
+        raise
+
+
+def renew_lease(conn: sqlite3.Connection, run_id: str, user_id: str, holder: str) -> bool:
+    """Keep this runner's lease fresh (call it every few notes). COMMITS. False when the lease
+    was taken over: the runner must stop working on this member."""
+    cur = conn.execute(
+        "UPDATE j2_import_repair_progress SET lease_at = ? WHERE run_id = ? AND user_id = ?"
+        " AND lease_holder = ?", (_now(), run_id, user_id, holder))
+    conn.commit()
+    return cur.rowcount == 1
+
+
+def _parse(stamp: str | None) -> datetime:
+    """A lease stamp as an aware datetime; an unreadable one is as old as can be (stale)."""
+    try:
+        parsed = datetime.fromisoformat(stamp) if isinstance(stamp, str) else None
+    except ValueError:
+        parsed = None
+    if parsed is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
 def finish_member(conn: sqlite3.Connection, run_id: str, user_id: str, *, checked: int,
                   repaired: int) -> None:
-    """Mark the member done with its counts. COMMITS. A member never started raises ValueError
-    (fix round 1, M-2): updating no row would leave it not-done, re-processed next run."""
+    """Mark the member done with its counts and release its lease. COMMITS. A member never
+    started raises ValueError (fix round 1, M-2): updating no row would leave it not-done,
+    re-processed next run."""
     cur = conn.execute(
         "UPDATE j2_import_repair_progress SET status = 'done', notes_checked = ?, notes_repaired = ?,"
-        " finished_at = ? WHERE run_id = ? AND user_id = ?",
+        " finished_at = ?, lease_holder = NULL, lease_at = NULL WHERE run_id = ? AND user_id = ?",
         (checked, repaired, _now(), run_id, user_id))
     if cur.rowcount != 1:
         conn.rollback()

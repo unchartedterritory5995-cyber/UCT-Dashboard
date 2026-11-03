@@ -834,6 +834,10 @@ CREATE TABLE IF NOT EXISTS j2_import_repair_progress (
     notes_repaired  INTEGER NOT NULL DEFAULT 0,
     started_at      TEXT NOT NULL,
     finished_at     TEXT,
+    -- One runner per member at a time (store.claim_member): the holder's token and its last
+    -- renewal; NULL once the member is finished or its stale lease was taken over.
+    lease_holder    TEXT,
+    lease_at        TEXT,
     PRIMARY KEY (run_id, user_id)
 );
 -- One row per note outcome. `before_body_json` is the pre-repair body of a note the run
