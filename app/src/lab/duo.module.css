@@ -570,3 +570,9 @@
 .coinBob { animation-duration: 3.4s; animation-timing-function: cubic-bezier(.45,0,.55,1); }
 @keyframes throb { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.035) } }
 @keyframes bob2 { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-4%) } }
+
+/* the logo ladder */
+.ladder { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+.ladderCell { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px 8px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--mut); font: inherit; font-size: 11px; line-height: 1.2; text-align: center; cursor: pointer; }
+.ladderCell b { color: var(--gb); font-size: 13px; } .ladderCell.on { border-color: var(--g); background: #1a1708; color: var(--ink); }
+.ladderCap { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--gb); white-space: nowrap; }

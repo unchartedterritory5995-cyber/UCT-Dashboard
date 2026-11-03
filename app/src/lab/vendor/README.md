@@ -1,0 +1,1 @@
+three.js r160 ESM build, vendored for the local Study workbench (the logo renderer). Untracked by git. Re-fetch with `npm pack three@0.160.0` and copy build/three.module.js here. A product dependency decision comes with the merge.

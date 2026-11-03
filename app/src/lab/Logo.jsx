@@ -11,7 +11,7 @@ const GREEN = [52, 190, 112], RED = [232, 76, 70]
 const DEPTH = 9, BEVEL = 1.7, BEVEL_RISE = 1.3
 const SPEED = { idle: 12, think: 18, happy: 6, oops: 22, fire: 3.2 }   // seconds per turn
 
-function arc(cx, cy, r, a0, a1, n = 72) { const pts = []; for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]) } return pts }
+function arc(cx, cy, r, a0, a1, n = 96) { const pts = []; for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]) } return pts }
 function ring(a0, a1) { const o = arc(0, 0, 37, a0, a1), i = arc(0, 0, 27, a1, a0); return [...o, ...i] }
 const D = Math.PI / 180
 const RAW = [
@@ -94,7 +94,8 @@ function draw(ctx, W, H, theta, tilt) {
     if (yShift) { ctx.translate(0, yShift); ctx.scale(1, -0.32) }
     faces.forEach(({ poly, fill, cap, bevel }) => {
       ctx.beginPath(); poly.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath()
-      ctx.fillStyle = fill; ctx.fill()
+      ctx.lineJoin = 'round'; ctx.fillStyle = fill; ctx.fill()
+      if (bevel) { ctx.strokeStyle = fill; ctx.lineWidth = 0.9; ctx.stroke() }   // closes the hairline gaps between neighbouring chamfers
       if (cap) {
         const g = ctx.createLinearGradient(W * (0.1 + 0.3 * Math.sin(theta)), 0, W * (0.9 + 0.3 * Math.sin(theta)), H)
         g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.42, 'rgba(255,255,255,.28)'); g.addColorStop(0.58, 'rgba(255,255,255,.06)'); g.addColorStop(1, 'rgba(0,0,0,.2)')
@@ -115,7 +116,7 @@ export default function Logo({ mood = 'idle', size = 72, className = '' }) {
   const ref = useRef(null)
   useEffect(() => {
     const cv = ref.current; if (!cv) return undefined
-    const dpr = Math.min(2, window.devicePixelRatio || 1)
+    const dpr = Math.min(2, window.devicePixelRatio || 1) * 2   // supersampled: drawn at twice the device resolution, downscaled by the browser for clean edges
     cv.width = size * dpr; cv.height = size * dpr
     const ctx = cv.getContext('2d')
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
