@@ -35,10 +35,10 @@ export const GROUPS = [
   // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
   { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)', domains: ['chartSetup'], fillLast: true,
     // W1-B B-06: Replay Mode is a chart control too — here by action name, so the NL-1 core (charts group) keeps its size
-    // W2-B3: chart.describeSetup here by action name too (a grounded setup description; the charts group keeps its size)
+    // W2-B3: chart.describeSetup here by action name too (a grounded setup description; the charts group keeps its size),
+    // named by "describe / summarise / walk me through … setup"
     actions: ['chart.replay', 'chart.describeSetup'],
-    describe: [/(describe|setup|set-up)/],
-    words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
+    words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
