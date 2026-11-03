@@ -221,16 +221,25 @@ function aliasNames(ops) {
   }
   return out
 }
-// A deferred op re-aimed at what was created: aliases in its target / args → real refs.
+// A deferred op re-aimed at what was created: aliases in its target / args → real refs. ⭐ W1-B B-07: when the step's own
+// kind addresses a chart by a derived ref (a chart's indicators: `ixe:<chart>`), the created CHART's ref is translated
+// with that kind's `fromChart` — "open two charts … with the 9 and 20 ema on both" lands its indicator steps on the
+// charts the same request just added (the adds fit in empty space, so nothing was gridded).
 function landDeferred(ops, created, names, approved = false) {
   const real = (v) => (typeof v === 'string' && created?.[v] ? created[v] : v)
+  const realTarget = (o) => {
+    const r = real(o.target)
+    if (r === o.target) return r
+    const k = getTargetKind(getCapability(o.action)?.target)
+    return typeof k?.fromChart === 'function' ? k.fromChart(r) : r
+  }
   const made = Object.entries(names).filter(([a]) => created?.[a])
   const pendingLists = Object.fromEntries(made.map(([a, n]) => [created[a], n]))
   const followNote = made.length
     ? `${made.map(([, n]) => `“${n}”`).join(' and ')} ${made.length === 1 ? 'was' : 'were'} still created and filled — say “open ${made[0][1]}” to try again.`
     : 'The rest of your request was done.'
   return ops.map(o => ({
-    action: o.action, target: real(o.target),
+    action: o.action, target: realTarget(o),
     args: Object.fromEntries(Object.entries(o.args || {}).map(([k, v]) => [k, real(v)])),
     pendingLists, followNote,
     // a step that was ON the card the member approved runs as approved (re-validated, never re-asked)
@@ -529,9 +538,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // 9 green") cannot be checked yet — what it names does not exist until then. It is checked at its own turn
       // (and refused there, with the real reason, if it still cannot run).
       const grows = new Set(allOps.filter(o => getCapability(o?.action)?.addsIndicators).map(o => o.target))
+      // ⭐ W1-B B-07: a step aimed at a target this request CREATES (a widget.add alias — "open two charts … with the 9 and
+      // 20 ema on both") cannot be checked yet either: it is checked at its own turn, re-aimed at the real target (landDeferred)
+      const creates = new Set(allOps.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
       for (const d of deferred) {
         const dp = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
-        if (!dp.ok && grows.has(d.target)) okd.push(d)
+        if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
         else if (!dp.ok) { push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` }); tapRef.current?.push('partial') }
         else { okd.push(d); deferredLines.push(...dp.lines) }
         if (getCapability(d?.action)?.addsIndicators) grows.add(d.target)

@@ -21,6 +21,7 @@
 // No new settings key, so the chartDefaults allow-list is untouched.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { resolveDateWord, dayWord, isoDayMs } from '../dateWords'
 import { CHART_THEMES, CHART_THEME_BY_ID, applyThemeToOneChart } from '../../components/chart/chartThemes'
 import { primaryChartTypeFor } from '../../components/chart/engine/sourceCapability'
 import { canonicalFamily, canonicalProduct, canonicalSourceCapability, marketIndicatorRecord } from '../../hooks/useMarketIndicators'
@@ -231,22 +232,26 @@ export const chartKind = {
   name: 'chart',
   list: (host) => host?.charts?.list() || [],
   read: (host, ref) => host?.charts?.read(ref) || null,
-  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null }),
+  // `replay`: the workspace's Replay Mode cutoff (W1-B B-06) — undefined when the host has none (then chart.replay refuses)
+  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null, replay: snap.replay }),
   patch(before, after) {
     const p = {}
     if (after.cs !== before.cs) p.settings = after.cs
     if (after.tf !== before.tf) p.tf = after.tf
     if (after.symbol !== before.symbol) p.symbol = after.symbol
     if (after.goto != null) p.goto = after.goto
+    if (after.replay !== before.replay) p.replay = after.replay ?? null
     return Object.keys(p).length ? p : null
   },
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
   async commit(host, ref, patch) {
-    const { goto, ...rest } = patch
+    const { goto, replay, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
+    // Replay Mode: ChartsWorkspace's own startReplay / exitReplayMode (a VIEW on every linked chart; nothing is saved)
+    if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
     if (goto != null && ok) {
       if (!host.charts.goTo?.(ref, goto)) return false
       const t0 = Date.now()
@@ -263,6 +268,7 @@ export const chartKind = {
     if ('tf' in patch && snap.tf !== patch.tf) return false
     if ('symbol' in patch && snap.symbol !== patch.symbol) return false
     if ('goto' in patch && !viewAt(snap.view, patch.goto)) return false
+    if ('replay' in patch && (snap.replay ?? null) !== patch.replay) return false
     return true
   },
   undoPatch(item) {
@@ -273,13 +279,17 @@ export const chartKind = {
     // Undo a date jump = jump back to where the right edge was. When that edge was never read there
     // is no Undo for the change — and the receipt says why (chart.goToDate's undoNote, F6).
     if ('goto' in item.patch) { if (item.before.view?.rightMs == null) return null; p.goto = item.before.view.rightMs }
+    // Undo a replay = the cutoff as it was (off → clear it: every bar is back)
+    if ('replay' in item.patch) p.replay = item.before.replay ?? null
     return p
   },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
   // ⛔ F6: a date jump's Undo is stale once the member has moved the view since — scrolling back
   // would overwrite where they are now. Every other chart change ignores the view.
   fingerprintFor: (host, snap, item) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol,
-    ...('goto' in (item?.patch || {}) ? [snap.view?.rightMs ?? null] : [])]),
+    ...('goto' in (item?.patch || {}) ? [snap.view?.rightMs ?? null] : []),
+    // a replay's Undo is stale once the member changed the cutoff themselves (the Replay dialog)
+    ...('replay' in (item?.patch || {}) ? [snap.replay ?? null] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.
@@ -720,6 +730,34 @@ const CAPABILITIES = [
     undoNote: "I couldn't read where the chart was scrolled before, so this can't be undone here — scroll the chart back, or jump to another date.",
     apply: (st, { date }) => ({ ...st, goto: dateMs(date) }),
     describe: (b, a) => (a.goto != null ? `Moved the view to ${fmtDay(a.goto)} — the right edge shows the last bar on or before it (view only; later bars are still there)` : null),
+  },
+  {
+    // ── chart.replay (W1-B B-06): Tools → Replay Mode — the workspace's ONE shared cutoff (ChartsWorkspace replayCutoff,
+    // StockChart's `replayCutoff` prop): every linked chart hides the bars after it. A VIEW: nothing is saved; the Replay
+    // dialog's own startReplay / exitReplayMode write it; Undo puts the previous cutoff back (off → every bar is back).
+    name: 'chart.replay',
+    summary: 'Replay Mode (Tools → Replay): hide every bar after a date on the linked charts, as if it were that day — or exit replay (date null). A view only: nothing is saved; Undo clears it (or restores the previous cutoff).',
+    hints: 'date = YYYY-MM-DD (or the member\'s date word: "last friday", "oct 15") for the cutoff; null = exit replay. "As of <date>" / "replay from <date>" / "go back to <date> and hide what came after" = this; "scroll to <date>" with every bar kept = chart.goToDate.',
+    args: { type: 'object', properties: { date: { type: ['string', 'null'] } }, required: ['date'], additionalProperties: false },
+    check(st, { date }) {
+      if (st.replay === undefined) return 'Replay Mode isn\'t reachable from here.'
+      if (date == null) return null
+      const r = resolveDateWord(date)
+      if (!r) return `I couldn\'t read “${date}” as a date — use YYYY-MM-DD or a day like “last Friday”.`
+      if (r.future) return `${dayWord(r.to)} hasn\'t happened yet — replay only goes back.`
+      if (isoDayMs(r.to) < Date.UTC(1900, 0, 1)) return 'That date is earlier than any chart history.'
+      return null
+    },
+    apply(st, { date }) {
+      const to = date == null ? null : resolveDateWord(date).to
+      return (st.replay ?? null) === to ? st : { ...st, replay: to }
+    },
+    describe(b, a) {
+      if ((b.replay ?? null) === (a.replay ?? null)) return null
+      if (a.replay == null) return 'Exited Replay Mode — every bar is back on the linked charts'
+      return `Replay Mode: the linked charts show bars up to ${dayWord(a.replay)} and hide what came after (a view only — nothing is saved; exit replay to see every bar again)`
+    },
+    noop: (b, a, { date } = {}) => (date == null ? 'Replay Mode is already off' : 'Replay is already at that date'),
   },
   {
     // ── chart.compare: the Compare Symbols panel's add / remove / clear (comparisonSymbols) ──

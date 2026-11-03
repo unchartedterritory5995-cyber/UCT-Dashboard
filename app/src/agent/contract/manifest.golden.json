@@ -486,6 +486,32 @@
    "query": false
   },
   {
+   "name": "chart.replay",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Replay Mode (Tools → Replay): hide every bar after a date on the linked charts, as if it were that day — or exit replay (date null). A view only: nothing is saved; Undo clears it (or restores the previous cutoff).",
+   "hints": "date = YYYY-MM-DD (or the member's date word: \"last friday\", \"oct 15\") for the cutoff; null = exit replay. \"As of <date>\" / \"replay from <date>\" / \"go back to <date> and hide what came after\" = this; \"scroll to <date>\" with every bar kept = chart.goToDate.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "date"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
    "name": "chart.compare",
    "domain": "chart",
    "target": "chart",
@@ -2511,6 +2537,41 @@
     "required": [
      "widget",
      "list"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.setOption",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Change ONE option of a widget on the board — what its own settings control writes (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope, the Terminal's star filter…). Undo puts the previous value back.",
+   "hints": "target = the ref of the board entry; widget = the widget id; key = the option name from the widget type's own list below (never invented); value = one of its allowed values. Options by widget type — themes: period (1d|1w|1m|3m|1y|ytd), sortDir (asc|desc); fundamentals: view (annual|quarterly|analyst|ownership); breadth: tileStyle (values|spark|area|ghost); news: filter (all|up|down); calendar: econStars (1–3), tbdOpen (on/off); optionsflow: lead (tape|biggest|sentiment), scope (market|symbol); nhnl: minCount (1–260); volumescan: showLogos (on/off). A widget type not listed has no options here.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "key": {
+      "type": "string"
+     },
+     "value": {
+      "type": [
+       "string",
+       "number",
+       "boolean"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "key",
+     "value"
     ],
     "additionalProperties": false
    },

@@ -70,7 +70,7 @@ export const TOPICS = [
   {
     id: 'widgets', title: 'Adding widgets and charts',
     words: [/\bwidgets?\b/, /\badd (a |another |some |\d+ )?(new )?charts?\b/, /\bremove (a |the |this )?(widget|chart)s?\b/, /\bclose (a |the |this )?(widget|chart)s?\b/],
-    caps: ['widget.add', 'widget.addCharts', 'chartGrid.set', 'board.duplicateChart', 'widget.showList', 'widget.showScan'], productHas: true,
+    caps: ['widget.add', 'widget.addCharts', 'chartGrid.set', 'board.duplicateChart', 'widget.showList', 'widget.showScan', 'widget.setOption'], productHas: true,
     canDo: 'add widgets into empty space, set up several charts for the tickers you name in one go (“four daily charts for SPY, QQQ, NVDA and TSLA” — the charts already there are reused and the board is re-tiled into equal cells to make room; nothing else is moved or removed, and one Undo puts the board back), add up to 12 charts at once with their symbols, timeframes and chart types (Undo closes what I added), duplicate a chart (its cell is split and the copy keeps its ticker, timeframe, look and indicators), make a Watchlist widget show one of your lists, and make a Scanner widget show one of UCT’s scans',
     known: () => ['other widgets’ settings (news filters, scatter axes, breadth metrics…)'],
     planned: null,
@@ -120,7 +120,7 @@ export const TOPICS = [
   {
     id: 'charts', title: 'Chart symbol, timeframe, type, scale and session',
     words: [/\b(timeframe|symbol|ticker|chart type|log scale|percent scale|extended hours|pre-?market|post-?market|weekly|daily|monthly|intraday|tabs?|compare|overlay|go to|scroll)\b/],
-    caps: ['chart.setSymbol', 'chart.setTimeframe', 'chart.addCustomTimeframe', 'chartSetup.removeTimeframe', 'chartSetup.favoriteTimeframe', 'chart.setType', 'chart.setScale', 'chart.setSession', 'chart.goToDate', 'chart.compare', 'chartSetup.compareDisplay', 'chart.addTab', 'chart.selectTab', 'chart.closeTab', 'chart.renameTab', 'chart.linkTab'], productHas: true,
+    caps: ['chart.setSymbol', 'chart.setTimeframe', 'chart.addCustomTimeframe', 'chartSetup.removeTimeframe', 'chartSetup.favoriteTimeframe', 'chart.setType', 'chart.setScale', 'chart.setSession', 'chart.goToDate', 'chart.replay', 'chart.compare', 'chartSetup.compareDisplay', 'chart.addTab', 'chart.selectTab', 'chart.closeTab', 'chart.renameTab', 'chart.linkTab'], productHas: true,
     canDo: 'change a chart’s symbol, timeframe (including custom ones like 45 minutes or 2 days — and remove or star them), chart type, scale and regular vs extended hours; put symbols on several charts at once (“NVDA on the left, AMD on the right”, “NVDA and AMD side by side”); scroll it to a past date (view only); overlay comparison symbols and set their scale or Group only; and add, switch, rename, link and close chart tabs — with Undo',
     known: () => ['replay (hiding the bars after a date)', 'resetting the view or zoom'],
     planned: null,
