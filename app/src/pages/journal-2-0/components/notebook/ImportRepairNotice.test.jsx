@@ -71,7 +71,7 @@ describe('ImportRepairNotice', () => {
     const { unmount } = render(<ImportRepairNotice lossNotes={1} onRecover={() => {}} onDismiss={() => {}} />)
     expect(screen.getByRole('heading', { name: HEADING })).toBeInTheDocument()
     expect(screen.getByText(
-      "When you imported from Evernote, Notion or Obsidian, 1 note lost a picture or file on the way in. Where we could, we've marked the spot in the note. Import the same export again with Re-import to recover turned on to bring it back. Notes you've changed since importing are never touched.",
+      "When you imported notes from another app or from files, 1 note lost a picture or file on the way in. Where we could, we've marked the spot in the note. Import the same files again with Re-import to recover turned on to bring it back. Notes you've changed since importing are never touched.",
     )).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Re-import to recover' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument()
@@ -80,8 +80,11 @@ describe('ImportRepairNotice', () => {
 
     render(<ImportRepairNotice lossNotes={4} onRecover={() => {}} onDismiss={() => {}} />)
     expect(screen.getByText(
-      "When you imported from Evernote, Notion or Obsidian, 4 notes lost a picture or file on the way in. Where we could, we've marked the spot in each note. Import the same export again with Re-import to recover turned on to bring them back. Notes you've changed since importing are never touched.",
+      "When you imported notes from another app or from files, 4 notes lost a picture or file on the way in. Where we could, we've marked the spot in each note. Import the same files again with Re-import to recover turned on to bring them back. Notes you've changed since importing are never touched.",
     )).toBeInTheDocument()
+    // Final review M-2: the count covers every file import (the generic Files importer, Keep and
+    // Logseq too), so the copy names no single app.
+    expect(document.body.textContent).not.toMatch(/Evernote|Notion|Obsidian/)
     // ASCII only: no curly apostrophes, no em dashes.
     expect(document.body.textContent).not.toMatch(/[—‘’]/)
   })
