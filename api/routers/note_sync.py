@@ -443,7 +443,7 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
         entry = registry.get_entry(name)
         connector = connectors.get(name)
         providers[name] = {
-            "configured": entry.configured(),
+            "configured": entry.configured() and registry.provider_allowed_for(name, user),
             "connectKind": entry.connect_kind,
             "connected": connector is not None,
             "status": connector["status"] if connector else None,
@@ -513,6 +513,15 @@ def _mint_device_connect_code(provider: str, user_id: str) -> dict[str, Any]:
     return {"connectCode": code, "expiresInSeconds": obsidian_link._CONNECT_CODE_TTL_SECONDS}
 
 
+def _require_provider_allowed(provider: str, user: dict) -> None:
+    """Plan E Task 7: the per-member gate (`registry.provider_allowed_for`; only Evernote's
+    `admin` mode ever says no). The SAME 503 text as an unconfigured provider, so a member cannot
+    tell "admin-only" from "off". Disconnect and the log stay ungated: a paused member can leave."""
+    if not registry.provider_allowed_for(provider, user):
+        label = registry.get_entry(provider).label
+        raise HTTPException(status_code=503, detail=f"{label} is not configured on this server.")
+
+
 def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
     entry = registry.get_entry(provider)
     if not entry.configured():
@@ -527,6 +536,11 @@ def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
         # per-name code here, the branch is keyed on which providers
         # `oauth.py` itself knows how to talk to.
         url = oauth.authorize_url(provider, state)
+    elif provider == "evernote":
+        # Plan E Task 7: an explicit branch BEFORE the Dropbox `else`, which assumes
+        # "not in oauth._PROVIDERS" means Dropbox. PKCE: the verifier is derived from the state.
+        from api.services.journal_two.note_connectors import evernote_oauth
+        url = evernote_oauth.authorize_url(state, _state_secret())
     else:  # dropbox -- owns its OAuth mechanics outside oauth.py, see this
         # module's own docstring / oauth.py's docstring for why.
         from api.services.journal_two.note_connectors.providers.dropbox import authorize_url as dbx_authorize_url
@@ -541,6 +555,7 @@ async def connect(provider: str, user: dict = Depends(_paid), body: ConnectBody 
     if not body.consent:
         raise HTTPException(status_code=400, detail="Consent is required to connect a note source.")
 
+    _require_provider_allowed(provider, user)
     entry = registry.get_entry(provider)
     if entry.connect_kind == "oauth":
         return _start_oauth(provider, user["id"])
@@ -560,6 +575,17 @@ async def connect(provider: str, user: dict = Depends(_paid), body: ConnectBody 
 # `onedrive` -- OneDrive must stay sourceless -> folder-picker, same as
 # Dropbox (see `_FOLDER_PICKER_PROVIDERS` below).
 _MSGRAPH_WHOLE_ACCOUNT_PROVIDERS = frozenset({"onenote"})
+
+# Plan E Task 7: the `reason=` an Evernote account that cannot use the MCP server lands with (a
+# 403 at validate, or a consent refusal whose description names the plan). The card offers the
+# `.enex` import path for it.
+EVERNOTE_PLAN_REASON = "evernote_plan"
+_PLAN_WORDS = ("plan", "subscription", "upgrade", "premium", "personal", "professional", "tier")
+
+
+def _is_evernote_plan_refusal(error: str, description: str | None) -> bool:
+    text = (description or "").lower()
+    return error == "access_denied" and any(word in text for word in _PLAN_WORDS)
 
 
 
@@ -628,6 +654,7 @@ def _oauth_state_failure_page(provider: str) -> HTMLResponse:
 async def oauth_callback(
     provider: str, code: str | None = None, state: str | None = None, error: str | None = None,
     user: dict | None = Depends(get_current_user_optional),
+    error_description: str | None = None,
 ) -> RedirectResponse | HTMLResponse:
     """Fix-round-1 Important #2: the redirect from the provider is a
     top-level browser GET, so the user's OWN `Lax` session cookie arrives
@@ -643,6 +670,8 @@ async def oauth_callback(
     if not registry.is_known(provider) or registry.get_entry(provider).connect_kind != "oauth":
         raise HTTPException(status_code=404, detail=f"unknown OAuth provider {provider!r}")
 
+    if error and provider == "evernote" and _is_evernote_plan_refusal(error, error_description):
+        error = EVERNOTE_PLAN_REASON
     if error:
         return RedirectResponse(
             f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(error)}",
@@ -664,6 +693,12 @@ async def oauth_callback(
         return _oauth_state_failure_page(provider)
     user_id = state_user_id
     entry = registry.get_entry(provider)
+    if not registry.provider_allowed_for(provider, user):
+        # The flag can change between connect and callback: nothing is exchanged or stored.
+        return RedirectResponse(
+            f"{dashboard}/settings?section=connections&connector={provider}&connected=0",
+            status_code=302,
+        )
 
     try:
         if provider in oauth._PROVIDERS:
@@ -710,6 +745,19 @@ async def oauth_callback(
                     await _aclose(provider_obj)
                 account_label = info.label or account_label
                 remote_id = (info.raw or {}).get("id") or "me"
+        elif provider == "evernote":
+            # Plan E Task 7: explicit, BEFORE the Dropbox `else`. The PKCE verifier is re-derived
+            # from the signed state; one whole-account source (a member has one connector).
+            from api.services.journal_two.note_connectors import evernote_oauth
+            from api.services.journal_two.note_connectors.providers.evernote import EvernoteProvider
+            creds = await evernote_oauth.exchange_code(code, state, _state_secret())
+            provider_obj = EvernoteProvider(user_id=user_id)
+            try:
+                await provider_obj.validate(creds)
+            finally:
+                await _aclose(provider_obj)
+            account_label = "Evernote"
+            remote_id = "account"
         else:  # dropbox -- no oauth.py entry (see providers/dropbox.py's own OAuth
             # mechanics); exchanges directly against its documented private
             # helper (the module's own docstring invites this: "the router
@@ -737,8 +785,11 @@ async def oauth_callback(
             # connector IS the one implicit source).
             remote_id = None
     except errors.NoteConnError as e:
+        reason = str(e)
+        if provider == "evernote" and getattr(e, "code", None) == "evernote_forbidden":
+            reason = EVERNOTE_PLAN_REASON  # ruling: any 403 at validate reads as the plan message
         return RedirectResponse(
-            f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(str(e))}",
+            f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(reason)}",
             status_code=302,
         )
 
@@ -831,6 +882,7 @@ async def list_provider_folders(
 async def add_source(provider: str, user: dict = Depends(_paid), body: AddSourceBody = Depends(_json(AddSourceBody))) -> dict[str, Any]:
     if not registry.is_known(provider):
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
+    _require_provider_allowed(provider, user)
     if connections.get_connector(user["id"], provider) is None:
         raise HTTPException(status_code=409, detail=f"Connect {provider} first.")
     remote_id = (body.remoteId or "").strip()
@@ -864,6 +916,7 @@ async def sync_source_now(
     source = connections.get_source(user["id"], source_id)
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
+    _require_provider_allowed(source["provider"], user)
 
     if background:
         if engine.is_source_busy(source_id):
@@ -898,6 +951,7 @@ def update_source(source_id: str, user: dict = Depends(_paid), body: SourceUpdat
     source = connections.get_source(user["id"], source_id)
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
+    _require_provider_allowed(source["provider"], user)
     if body.syncEnabled is None and body.destFolderId is None:
         raise HTTPException(status_code=400, detail="nothing to update")
     if body.syncEnabled is not None:
