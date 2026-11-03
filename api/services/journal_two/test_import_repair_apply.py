@@ -576,6 +576,23 @@ def test_failed_hotlink_keeps_the_image(armed, web):
     assert _note_row(only) == before and _outcomes(only) == ["fetch_failed"]
 
 
+def test_a_fetch_cap_leaves_the_member_for_a_same_run_resume(armed, web):
+    """Fix round 1 (review M-1): runbook step 6 resumes with the SAME run id, so a member whose
+    hotlinks the cap deferred is not finished; the resume fetches the rest."""
+    a = _note("u1", "Notion", "notion:Export/A.md", _doc({"type": "image", "attrs": {"src": HOT}}))
+    b = _note("u1", "Notion", "notion:Export/B.md", _doc({"type": "image", "attrs": {"src": HOT2}}))
+    for url in (HOT, HOT2):
+        web["routes"][url] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+    first = _apply(max_fetches=1)
+    assert (first["fetched"], first["fetchDeferred"]) == (1, 1)
+    assert store.member_done(auth_db.get_connection(), RUN, "u1") is False
+    second = _apply(max_fetches=1)
+    assert (second["fetched"], second["fetchDeferred"]) == (1, 0)
+    assert store.member_done(auth_db.get_connection(), RUN, "u1") is True
+    for note in (a, b):
+        assert json.loads(_note_row(note)[0])["content"][0]["attrs"]["src"].startswith("/api/j2/notes/attachments/")
+
+
 def test_max_fetches_bounds_the_downloads(armed, web):
     note = _note("u1", "Notion", "notion:Export/H.md", _doc(
         {"type": "image", "attrs": {"src": HOT}}, {"type": "image", "attrs": {"src": HOT2}}))

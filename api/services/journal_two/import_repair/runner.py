@@ -404,9 +404,12 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
             doc = json.loads(current)
         del current
         failed: list[str] = []
-        for url in plan.hotlinks:
+        for i, url in enumerate(plan.hotlinks):
             if counts["fetched"] + counts["fetchFailed"] >= max_fetches:
-                break  # the rest waits for the next run
+                # review M-1: the rest waits; the member is left unfinished (apply), so a resume
+                # with the SAME run id fetches them.
+                counts["fetchDeferred"] += len(plan.hotlinks) - i
+                break
             try:
                 # T4 M-1: this row's own member and note. Sequential: one download at a time (C8).
                 stored = asyncio.run(hotlink_fetch.fetch_and_store(user_id, row.id, url))
@@ -423,7 +426,7 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
                            [f"fetch_failed:{len(failed)}"], None)
             conn.commit()
         if not changed:
-            return "fetch_failed"
+            return "fetch_failed" if failed else "deferred"
         body = notes._validate_body_json(doc)
         # Task 6 M-3: the lease, re-checked right before the write.
         if not store.renew_lease(conn, run_id, user_id, holder):
@@ -471,7 +474,7 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
     holder = holder or uuid.uuid4().hex
     tally = _Tally(conn, run_id, members, "apply")
     counts = {"repaired": 0, "raceLost": 0, "failed": 0, "fetchFailed": 0, "fetched": 0,
-              "busyMembers": 0, "leaseLost": 0, "relistRequested": 0}
+              "busyMembers": 0, "leaseLost": 0, "relistRequested": 0, "fetchDeferred": 0}
     by_outcome = {"repaired": "repaired", "race_lost": "raceLost", "failed": "failed"}
     rss_start = _rss_mb()
     planned = taken = 0
@@ -495,6 +498,7 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
                 counts["relistRequested"] += _relist(conn, run_id, user_id)
             index: links.FileKeyIndex | None = None
             tally.member(user_id)
+            deferred_before = counts["fetchDeferred"]
             checked = repaired = 0
             complete = True
             for row in rows:
@@ -544,6 +548,8 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
                 if sleep_ms:
                     time.sleep(sleep_ms / 1000)
             loss_notes = tally.member_end()
+            if counts["fetchDeferred"] > deferred_before:
+                complete = False  # review M-1: hotlinks wait for a resume of this run
             if complete:
                 store.record_notice(conn, user_id, loss_notes)
                 store.finish_member(conn, run_id, user_id, checked=checked, repaired=repaired)  # commits
