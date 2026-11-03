@@ -524,3 +524,51 @@ def test_no_converter_output_holds_an_orphan_media_entry():
             if orphans:
                 bad.append((name, orphans))
     assert bad == []
+
+
+# ── fix round 1, I1: the list-item repair is iterative ───────────────────────
+
+
+@pytest.mark.parametrize("n", [1000, 5000])
+def test_a_long_list_of_items_opening_with_a_block_converts(n):
+    """D3 review I1: `_split_list` recursed per broken item; 1,000 items raised RecursionError
+    and the whole note failed to import (a long `- ![[chart-...png]]` log)."""
+    import time
+    started = time.perf_counter()
+    md = md_to_tiptap("\n".join(f"- ![x](a{i}.png)" for i in range(n)))
+    nested = md_to_tiptap("\n".join("- - a" for _ in range(n)))
+    html = html_to_tiptap("<ul>" + "<li><ul><li>a</li></ul></li>" * n + "</ul>")
+    assert time.perf_counter() - started < 30
+    assert sum(1 for c in md["doc"]["content"] if c["type"] == "image") == n
+    assert sum(1 for c in nested["doc"]["content"] if c["type"] == "bulletList") == 2 * n
+    assert sum(1 for c in html["doc"]["content"] if c["type"] == "bulletList") == 2 * n
+
+
+def _split_list_reference(lst):
+    """The recursive rule as it was (the ENML converter's), the iterative one's oracle."""
+    items = lst.get("content") or []
+    for idx, item in enumerate(items):
+        content = item.get("content") or []
+        if content and content[0].get("type") != "paragraph":
+            closed = {**item, "content": [{"type": "paragraph", "content": []}]}
+            out = [{**lst, "content": [*items[:idx], closed]}, *content]
+            rest = items[idx + 1:]
+            if rest:
+                out.extend(_split_list_reference({"type": "bulletList", "content": rest}))
+            return out
+    return [lst]
+
+
+def test_the_iterative_list_repair_is_the_recursive_rule():
+    import random
+    from api.services.journal_two.note_connectors.convert.mddoc import _split_list
+    rnd = random.Random(11)
+    para = {"type": "paragraph", "content": [{"type": "text", "text": "p"}]}
+    blocks = [{"type": "image", "attrs": {"src": "x"}}, {"type": "bulletList", "content": []}, para]
+    for _ in range(3000):
+        items = [{"type": "listItem", "content": [rnd.choice(blocks) for _ in range(rnd.randrange(0, 3))]}
+                 for _ in range(rnd.randrange(0, 7))]
+        lst = {"type": rnd.choice(["bulletList", "orderedList"]), "attrs": {"start": 3}, "content": items}
+        if rnd.random() < 0.1:
+            del lst["content"]
+        assert _split_list(lst) == _split_list_reference(lst)

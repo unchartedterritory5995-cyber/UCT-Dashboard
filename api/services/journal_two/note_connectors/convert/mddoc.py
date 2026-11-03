@@ -1952,17 +1952,26 @@ def _split_list(lst: dict[str, Any]) -> list[dict[str, Any]]:
     (`enml._split_list`), measured there by its parity rail and here by the shared
     `html_block_vectors.json`. ⚰️ The server kept `listItem(bulletList(...))`, a list item the
     schema refuses (`paragraph block*`), where every client import showed the repaired shape."""
+    # ⛔ ONE pass, never recursion per broken item (D3 review I1): a 1,000-item
+    # `- ![[chart.png]]` log raised RecursionError, and the re-slicing was quadratic first.
     items = lst.get("content") or []
-    for idx, item in enumerate(items):
+    out: list[dict[str, Any]] = []
+    head: dict[str, Any] = lst  # the list being filled: the original, then new bulletLists
+    current: list[dict[str, Any]] = []
+    for item in items:
         content = item.get("content") or []
         if content and content[0].get("type") != "paragraph":
             closed = {**item, "content": [{"type": "paragraph", "content": []}]}
-            out = [{**lst, "content": [*items[:idx], closed]}, *content]
-            rest = items[idx + 1:]
-            if rest:
-                out.extend(_split_list({"type": "bulletList", "content": rest}))
-            return out
-    return [lst]
+            out.append({**head, "content": [*current, closed]})
+            out.extend(content)
+            head, current = {"type": "bulletList"}, []
+        else:
+            current.append(item)
+    if not out:
+        return [lst]
+    if current:
+        out.append({**head, "content": current})
+    return out
 
 
 def repair_list_items(node: Any) -> None:
