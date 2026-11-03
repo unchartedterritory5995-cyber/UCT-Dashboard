@@ -187,8 +187,11 @@ describe('registry, context and routing', () => {
     expect(context.indicatorAlertLibrary[0]).toMatchObject({ active: 1, paused: 0 })
     expect(context.indicatorAlerts[0]).toMatchObject({ symbol: 'NVDA', indicator: 'RSI', when: 'cross above 70', timeframe: 'D', status: 'active' })
     const r = routeManifest(manifestFor(CTX), 'Alert me when RSI crosses above 70 on NVDA', { limit: 60, budget: 55 })
-    expect(r.routing.selected).toContain('alerts')
+    expect(r.routing.selected).toContain('indicatorAlerts')
     expect(r.manifest.some(c => c.name === 'indicatorAlert.create')).toBe(true)
+    // a message nothing named still carries the screener (F-SB-1): the new group is a fillLast group, never a filler
+    const none = routeManifest(manifestFor(CTX), "what's ripping this month", { limit: 60, budget: 55 })
+    expect(none.routing.selected).toContain('screener')
   })
 })
 

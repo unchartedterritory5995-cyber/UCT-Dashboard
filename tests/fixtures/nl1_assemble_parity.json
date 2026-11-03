@@ -50,6 +50,9 @@
   "alert.list": "alerts",
   "alert.create": "alerts",
   "alert.delete": "alerts",
+  "indicatorAlert.create": "indicatorAlerts",
+  "indicatorAlert.toggle": "indicatorAlerts",
+  "indicatorAlert.delete": "indicatorAlerts",
   "stock.profile": "data",
   "stock.earnings": "data",
   "stock.compare": "data",
@@ -191,7 +194,11 @@
   },
   {
    "id": "alerts",
-   "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
+   "title": "Price alerts (list, create, delete)"
+  },
+  {
+   "id": "indicatorAlerts",
+   "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
   },
   {
    "id": "data",
@@ -323,7 +330,11 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
+      "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -473,7 +484,11 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
+      "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -630,7 +645,11 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
+      "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -796,7 +815,11 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
+      "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -942,7 +965,11 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete) and indicator alerts on a chart's indicators — RSI, MACD… (create, pause / resume, delete)"
+      "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -991,6 +1018,7 @@
     "lists",
     "screener",
     "alerts",
+    "indicatorAlerts",
     "data",
     "breadth",
     "settings",
@@ -1041,6 +1069,9 @@
     "alert.list",
     "alert.create",
     "alert.delete",
+    "indicatorAlert.create",
+    "indicatorAlert.toggle",
+    "indicatorAlert.delete",
     "stock.profile",
     "stock.earnings",
     "stock.compare",

@@ -81,7 +81,6 @@ export const GROUPS = [
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
-  // `fillLast` like every specialised group: never a filler, so a message nothing named still carries the screener (F-SB-1).
   { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP', domains: [], fillLast: true,
     actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap'],
     words: [/\b(draw|add|put|place|plot|anchor|drop|mark)\b.*\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|boxe?s?|notes?|text|anchored vwap|avwap)\b/,
@@ -121,9 +120,14 @@ export const GROUPS = [
       /\b(gainers?|losers?|movers?|gap(ped|ping|s)? (up|down)|new highs?|near (the )?highs?|all[- ]time highs?|pull(ing|s)?[- ]?backs?|pulling back|tagging|tight (bases?|flags?|ranges?)|bases?|flags?|breakouts?|unusual volume|big volume|leaders?|leading groups?|laggards?|acting well|working)\b/,
       /\b(over|under|above|below) \$?\d+ (bucks|dollars)\b|\b\d+ (million|mil|m|billion|bn?) (a day|dollar volume)\b|\bliquid (names|stocks)\b/,
       /\b(sort (it|them|that|by)|only the ones|same thing but|just (the )?(large|small|mid)[- ]?caps)\b/] },
-  // W1-B B-03: indicator alerts (RSI, MACD…) ride with price alerts — one small group, one vocabulary
-  { id: 'alerts', title: 'Price alerts (list, create, delete) and indicator alerts on a chart\'s indicators — RSI, MACD… (create, pause / resume, delete)', domains: ['alert', 'indicatorAlert'],
-    words: [/\balerts?\b/, /\b(notify|ping|tell) me\b/, /\b(crosses|breaks|hits)\b/, /\b(pause|resume|re-?arm)\b.*\balert/] },
+  { id: 'alerts', title: 'Price alerts (list, create, delete)', domains: ['alert'],
+    words: [/\balerts?\b/, /\b(notify|ping|tell) me\b/, /\b(crosses|breaks|hits)\b/] },
+  // ⭐ W1-B B-03: INDICATOR alerts (RSI, MACD…) in their own small group, `fillLast` like every specialised group — so the
+  // fallback fill for a message nothing named still carries the screener (F-SB-1: every discovery question reaches the
+  // planner with it) exactly as before. Named by an alert word beside an indicator word, or pause / resume.
+  { id: 'indicatorAlerts', title: 'Indicator alerts on a chart\'s indicators — RSI, MACD, bands… (create, pause / resume, delete)', domains: ['indicatorAlert'], fillLast: true,
+    words: [/\b(alerts?|notify|ping me|tell me when|let me know when)\b.*\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?|overbought|oversold)\b/,
+      /\b(rsi|macd|stochastics?|bollinger|bands?|adx|cci|mfi|ichimoku|donchian|williams|indicators?)\b.*\b(alerts?|notify|ping me)\b/, /\b(pause|resume|re-?arm)\b.*\balerts?\b/] },
   { id: 'data', title: 'Stock information and news (profile, earnings, comparisons, news, catalysts)', domains: ['stock', 'news'],
     words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do)\b/],
     // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"
