@@ -12,6 +12,7 @@ node/mark vocabulary declared by `tiptap.js::buildExtensions`:
     tableCell / codeBlock(language) / blockquote / horizontalRule /
     hardBreak / image(src) / attachmentChip(href,name,size) /
     text with marks bold / italic / strike / code / link(href) /
+    underline (the HTML walker's `<u>` only) /
     highlight (from an inline `<mark>`…`</mark>` pair only -- wave 5's
     NotebookHighlight; how an Obsidian `==x==` arrives, review N5)
 
@@ -941,6 +942,7 @@ _HTML_KNOWN_TAGS = frozenset({
     "pre", "code",
     "blockquote", "hr", "br", "img", "a",
     "b", "strong", "i", "em", "s", "del", "strike",
+    "u",  # Plan E Task 3 fix round 1 (m3): underline, a level-0 mark in notebook_schema
 })
 
 # Tags whose content model never permits children (no close tag expected) —
@@ -957,6 +959,7 @@ _HTML_INLINE_MARK_TAGS = {
     "i": "italic", "em": "italic",
     "s": "strike", "del": "strike", "strike": "strike",
     "code": "code",
+    "u": "underline",
 }
 
 

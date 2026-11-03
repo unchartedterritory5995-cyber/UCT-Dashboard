@@ -288,6 +288,43 @@ def test_inline_marks_survive():
     assert any(t.get("marks") == [{"type": "italic"}] for t in texts)
 
 
+# ---- m3: formatting the client keeps (TipTap's Bold/Italic/Underline/Strike parse rules) ------
+
+
+def _marks_of(out: dict, text: str) -> list[str]:
+    (node,) = [t for t in _of_type(out, "text") if t["text"] == text]
+    return sorted(m["type"] for m in node.get("marks") or [])
+
+
+@pytest.mark.parametrize("html,text,marks", [
+    ("<u>u</u>", "u", ["underline"]),
+    ('<span style="font-weight: bold;">B</span>', "B", ["bold"]),
+    ('<span style="font-weight:700">B</span>', "B", ["bold"]),
+    ('<span style="font-weight: bolder">B</span>', "B", ["bold"]),
+    ('<span style="font-weight:400">N</span>', "N", []),
+    ('<span style="font-weight:normal">N</span>', "N", []),
+    ('<span style="text-decoration: underline;">U</span>', "U", ["underline"]),
+    ('<span style="text-decoration:underline line-through">X</span>', "X", ["strike", "underline"]),
+    ('<span style="font-style: italic">I</span>', "I", ["italic"]),
+    ('<span style="text-decoration: line-through">S</span>', "S", ["strike"]),
+    ('<span style="color: red">C</span>', "C", []),
+    ('<font color="red">C</font>', "C", []),
+    ('<b style="font-weight: normal">n</b>', "n", []),
+    ('<i style="font-style: normal">n</i>', "n", []),
+    ('<span style="font-weight:bold"><b>bb</b></span>', "bb", ["bold"]),
+    ('<span style="font-weight:bold;font-style:italic;text-decoration:underline">all</span>', "all",
+     ["bold", "italic", "underline"]),
+])
+def test_style_and_tag_formatting_matches_the_client(html, text, marks):
+    assert _marks_of(_convert(f"<div>{html}</div>"), text) == marks
+
+
+def test_a_styled_block_marks_the_text_of_every_line_inside_it():
+    out = _convert('<div style="font-weight:bold"><div>a</div><div>b</div></div>')
+    assert [b["type"] for b in _blocks(out)] == ["paragraph", "paragraph"]
+    assert _marks_of(out, "a") == ["bold"] and _marks_of(out, "b") == ["bold"]
+
+
 # --------------------------------------------------------------------------- links
 
 

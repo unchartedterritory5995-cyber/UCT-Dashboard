@@ -298,6 +298,61 @@ def _serialize(node: Any) -> str:
 # ---------------------------------------------------------------------------
 
 
+#: The tag `mddoc` reads for each mark, and the order they nest in.
+_MARK_TAGS = ("b", "i", "u", "s")
+_NATIVE_MARK = {"b": "b", "strong": "b", "i": "i", "em": "i", "u": "u",
+                "s": "s", "del": "s", "strike": "s"}
+_BOLD_WEIGHT_RE = re.compile(r"^(?:bold(?:er)?|[5-9]\d{2,})$")
+
+
+def _style_decls(style: str | None) -> dict[str, str]:
+    decls: dict[str, str] = {}
+    for part in (style or "").split(";"):
+        if ":" in part:
+            prop, _, value = part.partition(":")
+            decls[prop.strip().lower()] = value.strip().lower()
+    return decls
+
+
+def _rule_formatting(root: _Node) -> None:
+    """Task 3 review m3: the formatting the client's editor keeps from ENML, by TipTap's own
+    parse rules. Bold: `<b>`/`<strong>`, or `font-weight` bold/bolder/500-900, but not a `<b>`
+    whose font-weight is normal or 400. Italic: `<i>`/`<em>` or `font-style: italic`, but not an
+    `<i>` whose font-style is normal. Underline: `<u>` or `text-decoration` underline. Strike:
+    `<s>`/`<del>`/`<strike>` or `text-decoration` line-through. Colour and font are NOT kept (the
+    client drops them too). A style on any element marks every piece of text under it, inside
+    nested lines included; a mark an enclosing tag already gives is never doubled."""
+    def walk(node: _Node, have: frozenset, want: frozenset) -> None:
+        new_children: list[Any] = []
+        for c in node.children:
+            if isinstance(c, str):
+                wrap = [m for m in _MARK_TAGS if m in want and m not in have]
+                for m in reversed(wrap):
+                    c = _Node(m, {}, [c])
+                new_children.append(c)
+                continue
+            decls = _style_decls(c.attrs.get("style"))
+            if (c.tag == "b" and decls.get("font-weight") in ("normal", "400")) or (
+                    c.tag == "i" and decls.get("font-style") == "normal"):
+                c.tag = "span"  # TipTap does not read these as bold / italic
+            child_have = have | {_NATIVE_MARK[c.tag]} if c.tag in _NATIVE_MARK else have
+            adds = set()
+            if _BOLD_WEIGHT_RE.match(decls.get("font-weight", "")):
+                adds.add("b")
+            if decls.get("font-style") == "italic":
+                adds.add("i")
+            decoration = f'{decls.get("text-decoration", "")} {decls.get("text-decoration-line", "")}'
+            if "underline" in decoration:
+                adds.add("u")
+            if "line-through" in decoration:
+                adds.add("s")
+            walk(c, frozenset(child_have), want | adds)
+            new_children.append(c)
+        node.children = new_children
+
+    walk(root, frozenset(), frozenset())
+
+
 def _rule_en_crypt(root: _Node) -> None:
     _map_elements(root, lambda n: [_Node("p", {}, [ENCRYPTED_TEXT])] if n.tag == "en-crypt" else None)
 
@@ -714,6 +769,7 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     res = _Resources(resources, note_guid)
     notices = _Notices()
     _rule_refuse_foreign_media(root, notices)  # before any media of our own exists (I4)
+    _rule_formatting(root)             # before any rule rebuilds an element without its style (m3)
     _rule_en_crypt(root)               # 2
     _rule_note_links(root)             # 3
     _rule_en_media(root, res, notices)  # 4
