@@ -25,6 +25,7 @@ import time
 from typing import Any, Callable
 
 from api.services.uct_agent import turn as t1
+from api.services.uct_agent.args import ArgsRefused, example_args, normalize_args
 
 log = logging.getLogger(__name__)
 
@@ -341,7 +342,9 @@ def _start(message, context, history, capabilities, pending, reference, repair, 
         "results": [], "pending_uses": [], "researched": False, "started": time.monotonic(),
         "usage": {"model": t1.model(), "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "research_calls": 0,
                   "model_calls": 0, "citations": [], "cache_read_tokens": 0, "cache_write_tokens": 0, "planner": "v2",
-                  "stages": {"model": [], "steps": []}},
+                  "stages": {"model": [], "steps": []},
+                  # RAILS (value-free counts per turn): what the args normalizer did (W2-A3)
+                  "rails": {"args_normalized": 0, "args_refused": 0}},
     }
 
 
@@ -410,9 +413,20 @@ def _run_pending_steps(state: dict, on_event, wait_step, meter=None) -> dict | N
         args = inp.get("args") if isinstance(inp, dict) else None
         if isinstance(args, dict):
             args = t1._fill_absent_nullables(cap["args"], t1._wrap_lone_argument(cap["args"], args))
+        # ⭐ W2-A3: the schema-driven normalizer (args.py) makes what it can valid and names what it cannot — the model is
+        # told the reason and the exact example shape, so its next try is the right one. Counted in the turn's rails.
+        why = None
+        try:
+            args, changes = normalize_args(cap["args"], args)
+            if changes:
+                state["usage"]["rails"]["args_normalized"] += 1
+        except ArgsRefused as e:
+            why = e.reason
         if not isinstance(args, dict) or not t1.args_match(cap["args"], args):
+            state["usage"]["rails"]["args_refused"] += 1
             props = ", ".join(sorted((cap["args"].get("properties") or {})))
-            state["results"].append(_tool_result(uid, f"args off schema for {cap['name']}: give exactly {{{props}}}", True))
+            ex = json.dumps(example_args(cap["args"]), separators=(",", ":"), ensure_ascii=False)
+            state["results"].append(_tool_result(uid, f"args off schema for {cap['name']}{': ' + why if why else ''}. Give exactly {{{props}}}, e.g. {ex}", True))
             continue
         if not isinstance(target, str) or target not in state["valid_refs"] | state["aliases"]:
             state["results"].append(_tool_result(uid, "unknown target: use a ref from <workspace_context> (or an `as` name declared earlier in this turn)", True))

@@ -1,0 +1,2809 @@
+{
+ "version": 1,
+ "about": "W2-A3 golden corpus: model-output arg shapes -> the args UCT accepts (api/services/uct_agent/args.py), or an explicit refusal. Scored by tests/test_uct_agent_args_corpus.py against app/src/agent/contract/manifest.golden.json schemas. Seeded from the Phase 1 live failures (LT-3, 2026-11-03) and the catalog hints. No market values.",
+ "sources": {
+  "live-LT-3-2026-11-03": "docs/agent/program/LIVE-TESTING-RESULTS-2026-11-03.md",
+  "catalog-hint": "the capability's own hints in manifest.golden.json",
+  "model-shape": "shapes small models write (measured 2026-10-08 and since)"
+ },
+ "rows": [
+  {
+   "id": "r001",
+   "action": "chart.setSetting",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "setting": "bgGradient.top",
+    "value": "off"
+   },
+   "expect": {
+    "args": {
+     "setting": "bgGradient.top",
+     "value": "off"
+    }
+   },
+   "note": "a string is a valid union value; the browser's setting check reads 'off' (schema cannot know)"
+  },
+  {
+   "id": "r002",
+   "action": "chart.setSetting",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "bgGradient.top": false
+   },
+   "expect": {
+    "args": {
+     "setting": "bgGradient.top",
+     "value": false
+    }
+   },
+   "note": "a one-entry name→value map read as setting/value"
+  },
+  {
+   "id": "r003",
+   "action": "chart.setSetting",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "settings": {
+     "bgGradient.top": false
+    }
+   },
+   "expect": {
+    "args": {
+     "setting": "bgGradient.top",
+     "value": false
+    }
+   },
+   "note": "the map under the argument's plural"
+  },
+  {
+   "id": "r004",
+   "action": "chart.setSetting",
+   "source": "live-LT-3-2026-11-03",
+   "input": [
+    {
+     "key": "bgGradient.top",
+     "value": false
+    }
+   ],
+   "expect": {
+    "args": {
+     "setting": "bgGradient.top",
+     "value": false
+    }
+   },
+   "note": "a [{key, value}] list"
+  },
+  {
+   "id": "r005",
+   "action": "chart.setSetting",
+   "source": "catalog-hint",
+   "input": {
+    "setting": "grid.visible",
+    "value": "true"
+   },
+   "expect": {
+    "args": {
+     "setting": "grid.visible",
+     "value": true
+    }
+   },
+   "note": "the word true under a union with boolean"
+  },
+  {
+   "id": "r006",
+   "action": "chart.setSetting",
+   "source": "catalog-hint",
+   "input": {
+    "setting": "grid.visible",
+    "value": "false"
+   },
+   "expect": {
+    "args": {
+     "setting": "grid.visible",
+     "value": false
+    }
+   },
+   "note": "the word false"
+  },
+  {
+   "id": "r007",
+   "action": "chart.setSetting",
+   "source": "catalog-hint",
+   "input": {
+    "setting": "textSize",
+    "value": "14"
+   },
+   "expect": {
+    "args": {
+     "setting": "textSize",
+     "value": 14
+    }
+   },
+   "note": "numeric text under a union with number"
+  },
+  {
+   "id": "r008",
+   "action": "chart.setSetting",
+   "source": "model-shape",
+   "input": {
+    "setting": "Grid.Visible",
+    "value": false
+   },
+   "expect": {
+    "args": {
+     "setting": "grid.visible",
+     "value": false
+    }
+   },
+   "note": "enum case fold"
+  },
+  {
+   "id": "r009",
+   "action": "chart.setSetting",
+   "source": "model-shape",
+   "input": {
+    "setting": "grid_visible",
+    "value": false
+   },
+   "expect": {
+    "args": {
+     "setting": "grid.visible",
+     "value": false
+    }
+   },
+   "note": "enum punctuation fold"
+  },
+  {
+   "id": "r010",
+   "action": "chart.setSetting",
+   "source": "catalog-hint",
+   "input": {
+    "setting": "crosshair.width",
+    "value": "2"
+   },
+   "expect": {
+    "args": {
+     "setting": "crosshair.width",
+     "value": 2
+    }
+   },
+   "note": "width as text"
+  },
+  {
+   "id": "r011",
+   "action": "chart.setSetting",
+   "source": "catalog-hint",
+   "input": {
+    "setting": "watermark.color",
+    "value": "#2962ff"
+   },
+   "expect": {
+    "args": {
+     "setting": "watermark.color",
+     "value": "#2962ff"
+    }
+   },
+   "note": "a hex colour stays text"
+  },
+  {
+   "id": "r012",
+   "action": "chart.setSetting",
+   "source": "catalog-hint",
+   "input": {
+    "setting": "crosshair.mode",
+    "value": "hold"
+   },
+   "expect": {
+    "args": {
+     "setting": "crosshair.mode",
+     "value": "hold"
+    }
+   },
+   "note": "a word value stays text"
+  },
+  {
+   "id": "r013",
+   "action": "chart.setSetting",
+   "source": "model-shape",
+   "input": {
+    "setting": "grid.visible",
+    "value": true,
+    "reason": "the member asked"
+   },
+   "expect": {
+    "args": {
+     "setting": "grid.visible",
+     "value": true
+    }
+   },
+   "note": "a meta key is dropped"
+  },
+  {
+   "id": "r014",
+   "action": "chart.setSetting",
+   "source": "model-shape",
+   "input": {
+    "setting": "nonexistent.thing",
+    "value": true
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "an unknown setting is refused, never mapped"
+  },
+  {
+   "id": "r015",
+   "action": "chart.setSetting",
+   "source": "model-shape",
+   "input": {
+    "setting": "grid.visible"
+   },
+   "expect": {
+    "refused": "missing value"
+   },
+   "note": "a missing non-nullable value is refused"
+  },
+  {
+   "id": "r016",
+   "action": "chart.setSetting",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "gradient": false
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "a map key that is not an enum member is refused"
+  },
+  {
+   "id": "r017",
+   "action": "chart.setSetting",
+   "source": "model-shape",
+   "input": {
+    "Setting": "grid.visible",
+    "Value": "false"
+   },
+   "expect": {
+    "args": {
+     "setting": "grid.visible",
+     "value": false
+    }
+   },
+   "note": "key case fold"
+  },
+  {
+   "id": "r018",
+   "action": "chart.replay",
+   "source": "catalog-hint",
+   "input": {
+    "date": null
+   },
+   "expect": {
+    "args": {
+     "date": null
+    }
+   },
+   "note": "exit as declared"
+  },
+  {
+   "id": "r019",
+   "action": "chart.replay",
+   "source": "live-LT-3-2026-11-03",
+   "input": {},
+   "expect": {
+    "args": {
+     "date": null
+    }
+   },
+   "note": "a left-out nullable is null (exit)"
+  },
+  {
+   "id": "r020",
+   "action": "chart.replay",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "date": "null"
+   },
+   "expect": {
+    "args": {
+     "date": null
+    }
+   },
+   "note": "the word null"
+  },
+  {
+   "id": "r021",
+   "action": "chart.replay",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "date": ""
+   },
+   "expect": {
+    "args": {
+     "date": null
+    }
+   },
+   "note": "an empty string"
+  },
+  {
+   "id": "r022",
+   "action": "chart.replay",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "date": "none"
+   },
+   "expect": {
+    "args": {
+     "date": null
+    }
+   },
+   "note": "the word none"
+  },
+  {
+   "id": "r023",
+   "action": "chart.replay",
+   "source": "catalog-hint",
+   "input": {
+    "date": "2026-10-15"
+   },
+   "expect": {
+    "args": {
+     "date": "2026-10-15"
+    }
+   },
+   "note": "a date as declared"
+  },
+  {
+   "id": "r024",
+   "action": "chart.replay",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "exit": true
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "an invented flag is refused (the catalog hint names null = exit)"
+  },
+  {
+   "id": "r025",
+   "action": "chart.replay",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "date": "2026-10-15",
+    "exit": false
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "an extra flag beside a valid date is refused"
+  },
+  {
+   "id": "r026",
+   "action": "chart.replay",
+   "source": "model-shape",
+   "input": {
+    "dates": "2026-10-15"
+   },
+   "expect": {
+    "args": {
+     "date": "2026-10-15"
+    }
+   },
+   "note": "a plural key for a singular argument"
+  },
+  {
+   "id": "r027",
+   "action": "chart.replay",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "date": "exit"
+   },
+   "expect": {
+    "args": {
+     "date": "exit"
+    }
+   },
+   "note": "the word exit is a valid string: the schema cannot read it as null (the catalog hint says null = exit; the browser refuses the date)"
+  },
+  {
+   "id": "r028",
+   "action": "chart.replay",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "date": null,
+    "mode": "exit"
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "an invented mode flag beside the valid null"
+  },
+  {
+   "id": "r029",
+   "action": "screener.run",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "sort_by": "perf_3m",
+    "sort_dir": "desc",
+    "mode": "refine"
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "'sort_by' is not 'sort_field'"
+  },
+  {
+   "id": "r030",
+   "action": "screener.run",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "sort_field": "perf_3m",
+    "sort_dir": "desc",
+    "mode": "refine"
+   },
+   "expect": {
+    "args": {
+     "filters": [],
+     "sort_field": "perf_3m",
+     "sort_dir": "desc",
+     "mode": "refine",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "a refine with only a sort: filters [] and the nullables null"
+  },
+  {
+   "id": "r031",
+   "action": "screener.run",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "filters": [],
+    "sort_field": "perf_3m",
+    "sort_dir": "DESC",
+    "mode": "refine",
+    "show": null,
+    "as": null,
+    "within": null
+   },
+   "expect": {
+    "args": {
+     "filters": [],
+     "sort_field": "perf_3m",
+     "sort_dir": "desc",
+     "mode": "refine",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "enum case fold"
+  },
+  {
+   "id": "r032",
+   "action": "screener.run",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "filters": [],
+    "sortField": "perf_3m",
+    "sortDir": "desc",
+    "mode": "refine"
+   },
+   "expect": {
+    "args": {
+     "filters": [],
+     "sort_field": "perf_3m",
+     "sort_dir": "desc",
+     "mode": "refine",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "camelCase keys"
+  },
+  {
+   "id": "r033",
+   "action": "screener.run",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "filters": [],
+    "sort_field": "perf_3m",
+    "sort_dir": "descending",
+    "mode": "refine"
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "'descending' is not asc|desc: refused, never guessed"
+  },
+  {
+   "id": "r034",
+   "action": "screener.run",
+   "source": "catalog-hint",
+   "input": {
+    "filters": [
+     {
+      "field": "price",
+      "op": "gte",
+      "value": "10"
+     }
+    ],
+    "mode": "new"
+   },
+   "expect": {
+    "args": {
+     "filters": [
+      {
+       "field": "price",
+       "op": "gte",
+       "value": 10,
+       "max": null,
+       "values": null
+      }
+     ],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "new",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "a numeric string in a nested filter; nested nullables filled"
+  },
+  {
+   "id": "r035",
+   "action": "screener.run",
+   "source": "catalog-hint",
+   "input": {
+    "filters": [
+     {
+      "field": "rel_volume",
+      "op": "gte",
+      "value": "2x"
+     }
+    ],
+    "mode": "new"
+   },
+   "expect": {
+    "args": {
+     "filters": [
+      {
+       "field": "rel_volume",
+       "op": "gte",
+       "value": 2,
+       "max": null,
+       "values": null
+      }
+     ],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "new",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "'2x' reads as 2"
+  },
+  {
+   "id": "r036",
+   "action": "screener.run",
+   "source": "catalog-hint",
+   "input": {
+    "filters": [
+     {
+      "field": "pct_change",
+      "op": "gte",
+      "value": "5%"
+     }
+    ],
+    "mode": "new"
+   },
+   "expect": {
+    "args": {
+     "filters": [
+      {
+       "field": "pct_change",
+       "op": "gte",
+       "value": 5,
+       "max": null,
+       "values": null
+      }
+     ],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "new",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "a percent reads as its number (the hint: 5 for 5%)"
+  },
+  {
+   "id": "r037",
+   "action": "screener.run",
+   "source": "catalog-hint",
+   "input": {
+    "filters": [
+     {
+      "field": "dollar_volume",
+      "op": "gte",
+      "value": "$10M"
+     }
+    ],
+    "mode": "new"
+   },
+   "expect": {
+    "args": {
+     "filters": [
+      {
+       "field": "dollar_volume",
+       "op": "gte",
+       "value": 10000000,
+       "max": null,
+       "values": null
+      }
+     ],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "new",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "$10M reads as 10000000 (the hint)"
+  },
+  {
+   "id": "r038",
+   "action": "screener.run",
+   "source": "catalog-hint",
+   "input": {
+    "filters": [
+     {
+      "field": "price",
+      "op": "between",
+      "value": 10,
+      "max": "20"
+     }
+    ],
+    "mode": "new"
+   },
+   "expect": {
+    "args": {
+     "filters": [
+      {
+       "field": "price",
+       "op": "between",
+       "value": 10,
+       "max": 20,
+       "values": null
+      }
+     ],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "new",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "max as text"
+  },
+  {
+   "id": "r039",
+   "action": "screener.run",
+   "source": "catalog-hint",
+   "input": {
+    "filters": [
+     {
+      "field": "sector",
+      "op": "in",
+      "values": "software"
+     }
+    ],
+    "mode": "new"
+   },
+   "expect": {
+    "args": {
+     "filters": [
+      {
+       "field": "sector",
+       "op": "in",
+       "value": null,
+       "max": null,
+       "values": [
+        "software"
+       ]
+      }
+     ],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "new",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "a single word wrapped as the list"
+  },
+  {
+   "id": "r040",
+   "action": "screener.run",
+   "source": "catalog-hint",
+   "input": {
+    "filters": [
+     {
+      "field": "sector",
+      "op": "in",
+      "values": "software, semis"
+     }
+    ],
+    "mode": "new"
+   },
+   "expect": {
+    "args": {
+     "filters": [
+      {
+       "field": "sector",
+       "op": "in",
+       "value": null,
+       "max": null,
+       "values": [
+        "software",
+        "semis"
+       ]
+      }
+     ],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "new",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "comma-separated words split"
+  },
+  {
+   "id": "r041",
+   "action": "screener.run",
+   "source": "model-shape",
+   "input": {
+    "filters": "[]",
+    "mode": "new"
+   },
+   "expect": {
+    "args": {
+     "filters": [],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "new",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "a JSON string for an array"
+  },
+  {
+   "id": "r042",
+   "action": "screener.run",
+   "source": "model-shape",
+   "input": {
+    "filters": [],
+    "mode": "Refine",
+    "show": "10"
+   },
+   "expect": {
+    "args": {
+     "filters": [],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "refine",
+     "show": 10,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "mode case fold, show as text"
+  },
+  {
+   "id": "r043",
+   "action": "screener.run",
+   "source": "model-shape",
+   "input": {
+    "filter": {
+     "field": "price",
+     "op": "gte",
+     "value": 10,
+     "max": null,
+     "values": null
+    },
+    "mode": "new"
+   },
+   "expect": {
+    "args": {
+     "filters": [
+      {
+       "field": "price",
+       "op": "gte",
+       "value": 10,
+       "max": null,
+       "values": null
+      }
+     ],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "new",
+     "show": null,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "singular key and one object wrapped in the list"
+  },
+  {
+   "id": "r044",
+   "action": "screener.run",
+   "source": "model-shape",
+   "input": {
+    "filters": [],
+    "mode": "new",
+    "show": 10.0
+   },
+   "expect": {
+    "args": {
+     "filters": [],
+     "sort_field": null,
+     "sort_dir": null,
+     "mode": "new",
+     "show": 10,
+     "as": null,
+     "within": null
+    }
+   },
+   "note": "an integral float for an integer"
+  },
+  {
+   "id": "r045",
+   "action": "screener.run",
+   "source": "model-shape",
+   "input": {
+    "filters": [],
+    "mode": "new",
+    "show": 10.5
+   },
+   "expect": {
+    "refused": "whole number"
+   },
+   "note": "a fraction for an integer is refused"
+  },
+  {
+   "id": "r046",
+   "action": "screener.run",
+   "source": "model-shape",
+   "input": {
+    "filters": [],
+    "mode": "new",
+    "show": "all"
+   },
+   "expect": {
+    "refused": "must be integer or null"
+   },
+   "note": "'all' for show is refused (null means all — the hint's job, not a guess)"
+  },
+  {
+   "id": "r047",
+   "action": "screener.run",
+   "source": "catalog-hint",
+   "input": {
+    "filters": [
+     {
+      "field": "price",
+      "op": ">=",
+      "value": 10
+     }
+    ],
+    "mode": "new"
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "an operator symbol is not an op name: refused"
+  },
+  {
+   "id": "r048",
+   "action": "screener.run",
+   "source": "model-shape",
+   "input": {
+    "filters": [],
+    "mode": "new",
+    "sort": "desc"
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "'sort' names no argument"
+  },
+  {
+   "id": "r049",
+   "action": "screener.run",
+   "source": "model-shape",
+   "input": {
+    "filters": [],
+    "mode": "new",
+    "sort_field": "perf_3m",
+    "sort_dir": "desc",
+    "limit": 5
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "'limit' is not 'show'"
+  },
+  {
+   "id": "r050",
+   "action": "screener.run",
+   "source": "model-shape",
+   "input": {
+    "filters": [
+     {
+      "field": "price",
+      "value": 10
+     }
+    ],
+    "mode": "new"
+   },
+   "expect": {
+    "refused": "missing filters[0].op"
+   },
+   "note": "a nested required key missing"
+  },
+  {
+   "id": "r051",
+   "action": "screener.run",
+   "source": "model-shape",
+   "input": {
+    "filters": [
+     {
+      "field": "price",
+      "op": "gte",
+      "value": "ten"
+     }
+    ],
+    "mode": "new"
+   },
+   "expect": {
+    "refused": "must be number or null"
+   },
+   "note": "a word for a number"
+  },
+  {
+   "id": "r052",
+   "action": "widget.addCharts",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "symbols": [
+     "NVDA",
+     "AMD"
+    ],
+    "timeframe": "D",
+    "chart_type": null,
+    "exact": null,
+    "indicators": [
+     "EMA 9",
+     "EMA 20"
+    ]
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "indicators are not an argument of this action: refused with the reason (the model plans indicator.add after)"
+  },
+  {
+   "id": "r053",
+   "action": "widget.addCharts",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "symbols": {
+     "from": "lastScreen",
+     "top": "2"
+    },
+    "timeframe": "D",
+    "chart_type": "Candles",
+    "exact": "false"
+   },
+   "expect": {
+    "args": {
+     "symbols": {
+      "from": "lastScreen",
+      "top": 2
+     },
+     "timeframe": "D",
+     "chart_type": "candles",
+     "exact": false
+    }
+   },
+   "note": "top as text, enum fold, boolean word"
+  },
+  {
+   "id": "r054",
+   "action": "widget.addCharts",
+   "source": "live-LT-3-2026-11-03",
+   "input": {
+    "symbols": {
+     "from": "lastScreen"
+    },
+    "timeframe": null,
+    "chart_type": null,
+    "exact": null
+   },
+   "expect": {
+    "args": {
+     "symbols": {
+      "from": "lastScreen",
+      "top": null
+     },
+     "timeframe": null,
+     "chart_type": null,
+     "exact": null
+    }
+   },
+   "note": "a nested nullable left out"
+  },
+  {
+   "id": "r055",
+   "action": "widget.addCharts",
+   "source": "model-shape",
+   "input": {
+    "symbols": "NVDA",
+    "timeframe": "D"
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "NVDA"
+     ],
+     "timeframe": "D",
+     "chart_type": null,
+     "exact": null
+    }
+   },
+   "note": "one ticker wrapped; nullables filled"
+  },
+  {
+   "id": "r056",
+   "action": "widget.addCharts",
+   "source": "model-shape",
+   "input": {
+    "symbol": "NVDA"
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "NVDA"
+     ],
+     "timeframe": null,
+     "chart_type": null,
+     "exact": null
+    }
+   },
+   "note": "singular key"
+  },
+  {
+   "id": "r057",
+   "action": "widget.addCharts",
+   "source": "model-shape",
+   "input": {
+    "symbols": "NVDA, AMD",
+    "timeframe": "W",
+    "chart_type": null,
+    "exact": null
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "NVDA",
+      "AMD"
+     ],
+     "timeframe": "W",
+     "chart_type": null,
+     "exact": null
+    }
+   },
+   "note": "comma-separated tickers"
+  },
+  {
+   "id": "r058",
+   "action": "widget.addCharts",
+   "source": "model-shape",
+   "input": {
+    "symbols": [
+     "NVDA"
+    ],
+    "timeframe": "60",
+    "chartType": "bars",
+    "exact": true
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "NVDA"
+     ],
+     "timeframe": "60",
+     "chart_type": "bars",
+     "exact": true
+    }
+   },
+   "note": "camelCase key"
+  },
+  {
+   "id": "r059",
+   "action": "widget.addCharts",
+   "source": "model-shape",
+   "input": {
+    "symbols": [
+     "NVDA"
+    ],
+    "timeframe": 5,
+    "chart_type": null,
+    "exact": null
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "NVDA"
+     ],
+     "timeframe": "5",
+     "chart_type": null,
+     "exact": null
+    }
+   },
+   "note": "a number for a numeric enum string"
+  },
+  {
+   "id": "r060",
+   "action": "widget.addCharts",
+   "source": "catalog-hint",
+   "input": {
+    "symbols": [
+     "NVDA"
+    ],
+    "timeframe": "daily"
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "'daily' is not a timeframe code: refused"
+  },
+  {
+   "id": "r061",
+   "action": "widget.addCharts",
+   "source": "catalog-hint",
+   "input": {
+    "symbols": [
+     "NVDA"
+    ],
+    "timeframe": "1D"
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "'1D' is not a timeframe code"
+  },
+  {
+   "id": "r062",
+   "action": "widget.addCharts",
+   "source": "model-shape",
+   "input": {
+    "from": "lastScreen",
+    "top": 2
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "from/top at the top level of a four-argument action name nothing"
+  },
+  {
+   "id": "r063",
+   "action": "widget.addCharts",
+   "source": "model-shape",
+   "input": {
+    "symbols": {
+     "from": "lastScreen",
+     "top": "all"
+    },
+    "timeframe": null,
+    "chart_type": null,
+    "exact": null
+   },
+   "expect": {
+    "refused": "none of its allowed forms fit"
+   },
+   "note": "'all' for top fits no form"
+  },
+  {
+   "id": "r064",
+   "action": "watchlist.add",
+   "source": "catalog-hint",
+   "input": {
+    "from": "screen1",
+    "top": 5
+   },
+   "expect": {
+    "args": {
+     "symbols": {
+      "from": "screen1",
+      "top": 5
+     }
+    }
+   },
+   "note": "the object's keys at the top level (measured 2026-10-08)"
+  },
+  {
+   "id": "r065",
+   "action": "watchlist.add",
+   "source": "model-shape",
+   "input": {
+    "symbols": "AAPL"
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "AAPL"
+     ]
+    }
+   },
+   "note": "one ticker wrapped"
+  },
+  {
+   "id": "r066",
+   "action": "watchlist.add",
+   "source": "model-shape",
+   "input": {
+    "symbol": [
+     "AAPL",
+     "MSFT"
+    ]
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "AAPL",
+      "MSFT"
+     ]
+    }
+   },
+   "note": "singular key"
+  },
+  {
+   "id": "r067",
+   "action": "watchlist.add",
+   "source": "model-shape",
+   "input": [
+    "AAPL",
+    "MSFT"
+   ],
+   "expect": {
+    "args": {
+     "symbols": [
+      "AAPL",
+      "MSFT"
+     ]
+    }
+   },
+   "note": "a bare list for the one list argument"
+  },
+  {
+   "id": "r068",
+   "action": "watchlist.add",
+   "source": "catalog-hint",
+   "input": {
+    "symbols": {
+     "from": "lastScreen"
+    }
+   },
+   "expect": {
+    "args": {
+     "symbols": {
+      "from": "lastScreen",
+      "top": null
+     }
+    }
+   },
+   "note": "top left out = all (nullable)"
+  },
+  {
+   "id": "r069",
+   "action": "watchlist.add",
+   "source": "catalog-hint",
+   "input": {
+    "symbols": {
+     "from": "lastScreen",
+     "top": "5"
+    }
+   },
+   "expect": {
+    "args": {
+     "symbols": {
+      "from": "lastScreen",
+      "top": 5
+     }
+    }
+   },
+   "note": "top as text"
+  },
+  {
+   "id": "r070",
+   "action": "watchlist.add",
+   "source": "model-shape",
+   "input": {
+    "tickers": [
+     "AAPL"
+    ]
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "'tickers' is not 'symbols'"
+  },
+  {
+   "id": "r071",
+   "action": "watchlist.add",
+   "source": "model-shape",
+   "input": {
+    "symbols": {
+     "from": "lastScreen",
+     "top": "all"
+    }
+   },
+   "expect": {
+    "refused": "none of its allowed forms fit"
+   },
+   "note": "'all' fits neither form"
+  },
+  {
+   "id": "r072",
+   "action": "watchlist.add",
+   "source": "model-shape",
+   "input": {
+    "symbols": "[\"AAPL\",\"MSFT\"]"
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "AAPL",
+      "MSFT"
+     ]
+    }
+   },
+   "note": "a JSON string for the list"
+  },
+  {
+   "id": "r073",
+   "action": "alert.create",
+   "source": "catalog-hint",
+   "input": {
+    "symbol": "NVDA",
+    "price": "150",
+    "direction": "Above"
+   },
+   "expect": {
+    "args": {
+     "symbol": "NVDA",
+     "price": 150,
+     "direction": "above"
+    }
+   },
+   "note": "price as text, enum fold"
+  },
+  {
+   "id": "r074",
+   "action": "alert.create",
+   "source": "catalog-hint",
+   "input": {
+    "symbol": "NVDA",
+    "price": "$150.50",
+    "direction": "below"
+   },
+   "expect": {
+    "args": {
+     "symbol": "NVDA",
+     "price": 150.5,
+     "direction": "below"
+    }
+   },
+   "note": "a dollar amount"
+  },
+  {
+   "id": "r075",
+   "action": "alert.create",
+   "source": "model-shape",
+   "input": {
+    "symbol": "NVDA",
+    "price": "1,250",
+    "direction": "above"
+   },
+   "expect": {
+    "args": {
+     "symbol": "NVDA",
+     "price": 1250,
+     "direction": "above"
+    }
+   },
+   "note": "a thousands separator"
+  },
+  {
+   "id": "r076",
+   "action": "alert.create",
+   "source": "catalog-hint",
+   "input": {
+    "symbol": "NVDA",
+    "price": 150
+   },
+   "expect": {
+    "refused": "missing direction"
+   },
+   "note": "no direction: refused (the hint says clarify above/below)"
+  },
+  {
+   "id": "r077",
+   "action": "alert.create",
+   "source": "model-shape",
+   "input": {
+    "symbol": "NVDA",
+    "price": "one fifty",
+    "direction": "above"
+   },
+   "expect": {
+    "refused": "must be number"
+   },
+   "note": "words for a number"
+  },
+  {
+   "id": "r078",
+   "action": "alert.create",
+   "source": "model-shape",
+   "input": {
+    "symbol": "NVDA",
+    "price": 150,
+    "direction": "crosses above"
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "a phrase is not the enum member"
+  },
+  {
+   "id": "r079",
+   "action": "alert.create",
+   "source": "model-shape",
+   "input": {
+    "symbol": "NVDA",
+    "price": 150,
+    "direction": "up"
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "'up' is not above"
+  },
+  {
+   "id": "r080",
+   "action": "indicatorAlert.create",
+   "source": "catalog-hint",
+   "input": {
+    "instance": "i1",
+    "condition": "cross_above",
+    "threshold": "70"
+   },
+   "expect": {
+    "args": {
+     "instance": "i1",
+     "plot": null,
+     "condition": "cross_above",
+     "threshold": 70
+    }
+   },
+   "note": "threshold as text, plot filled"
+  },
+  {
+   "id": "r081",
+   "action": "indicatorAlert.create",
+   "source": "catalog-hint",
+   "input": {
+    "instance": "i1",
+    "plot": null,
+    "condition": "cross_above",
+    "threshold": null
+   },
+   "expect": {
+    "args": {
+     "instance": "i1",
+     "plot": null,
+     "condition": "cross_above",
+     "threshold": null
+    }
+   },
+   "note": "as declared"
+  },
+  {
+   "id": "r082",
+   "action": "indicatorAlert.create",
+   "source": "model-shape",
+   "input": {
+    "instance": "i1",
+    "condition": "cross_above",
+    "threshold": "none"
+   },
+   "expect": {
+    "args": {
+     "instance": "i1",
+     "plot": null,
+     "condition": "cross_above",
+     "threshold": null
+    }
+   },
+   "note": "'none' for a nullable number"
+  },
+  {
+   "id": "r083",
+   "action": "indicatorAlert.create",
+   "source": "model-shape",
+   "input": {
+    "instance": "i1",
+    "condition": "cross_above",
+    "threshold": "70%"
+   },
+   "expect": {
+    "args": {
+     "instance": "i1",
+     "plot": null,
+     "condition": "cross_above",
+     "threshold": 70
+    }
+   },
+   "note": "a percent threshold"
+  },
+  {
+   "id": "r084",
+   "action": "indicatorAlert.create",
+   "source": "catalog-hint",
+   "input": {
+    "instance": "i1",
+    "condition": "cross above",
+    "threshold": 70
+   },
+   "expect": {
+    "args": {
+     "instance": "i1",
+     "plot": null,
+     "condition": "cross above",
+     "threshold": 70
+    }
+   },
+   "note": "condition has no enum in the schema: the words pass as text (the browser reads them)"
+  },
+  {
+   "id": "r085",
+   "action": "indicatorAlert.create",
+   "source": "model-shape",
+   "input": {
+    "instance": 12,
+    "condition": "above",
+    "threshold": 70
+   },
+   "expect": {
+    "refused": "must be text"
+   },
+   "note": "a number for a string id is refused, never rewritten"
+  },
+  {
+   "id": "r086",
+   "action": "indicatorAlert.create",
+   "source": "model-shape",
+   "input": {
+    "instance": "i1",
+    "condition": "cross_above",
+    "threshold": 70,
+    "symbol": "NVDA"
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "a symbol does not belong here"
+  },
+  {
+   "id": "r087",
+   "action": "drawing.addTrendline",
+   "source": "catalog-hint",
+   "input": {
+    "from": {
+     "date": "2026-10-09",
+     "price": "150"
+    },
+    "to": {
+     "date": "2026-10-28",
+     "price": "180"
+    }
+   },
+   "expect": {
+    "args": {
+     "from": {
+      "date": "2026-10-09",
+      "price": 150
+     },
+     "to": {
+      "date": "2026-10-28",
+      "price": 180
+     },
+     "color": null,
+     "style": null
+    }
+   },
+   "note": "nested prices as text; colour/style null"
+  },
+  {
+   "id": "r088",
+   "action": "drawing.addTrendline",
+   "source": "catalog-hint",
+   "input": {
+    "from": {
+     "date": "2026-10-09",
+     "price": 150
+    },
+    "to": {
+     "date": "2026-10-28",
+     "price": 180
+    },
+    "style": "Dashed",
+    "color": "red"
+   },
+   "expect": {
+    "args": {
+     "from": {
+      "date": "2026-10-09",
+      "price": 150
+     },
+     "to": {
+      "date": "2026-10-28",
+      "price": 180
+     },
+     "color": "red",
+     "style": "dashed"
+    }
+   },
+   "note": "style enum fold"
+  },
+  {
+   "id": "r089",
+   "action": "drawing.addTrendline",
+   "source": "model-shape",
+   "input": {
+    "from": [
+     {
+      "key": "date",
+      "value": "2026-10-09"
+     },
+     {
+      "key": "price",
+      "value": 150
+     }
+    ],
+    "to": {
+     "date": "2026-10-28",
+     "price": 180
+    }
+   },
+   "expect": {
+    "args": {
+     "from": {
+      "date": "2026-10-09",
+      "price": 150
+     },
+     "to": {
+      "date": "2026-10-28",
+      "price": 180
+     },
+     "color": null,
+     "style": null
+    }
+   },
+   "note": "a nested key/value list"
+  },
+  {
+   "id": "r090",
+   "action": "drawing.addTrendline",
+   "source": "model-shape",
+   "input": {
+    "from": "{\"date\":\"2026-10-09\",\"price\":150}",
+    "to": {
+     "date": "2026-10-28",
+     "price": 180
+    }
+   },
+   "expect": {
+    "args": {
+     "from": {
+      "date": "2026-10-09",
+      "price": 150
+     },
+     "to": {
+      "date": "2026-10-28",
+      "price": 180
+     },
+     "color": null,
+     "style": null
+    }
+   },
+   "note": "a nested JSON string"
+  },
+  {
+   "id": "r091",
+   "action": "drawing.addTrendline",
+   "source": "model-shape",
+   "input": {
+    "From": {
+     "Date": "2026-10-09",
+     "Price": 150
+    },
+    "To": {
+     "date": "2026-10-28",
+     "price": 180
+    }
+   },
+   "expect": {
+    "args": {
+     "from": {
+      "date": "2026-10-09",
+      "price": 150
+     },
+     "to": {
+      "date": "2026-10-28",
+      "price": 180
+     },
+     "color": null,
+     "style": null
+    }
+   },
+   "note": "nested key case fold"
+  },
+  {
+   "id": "r092",
+   "action": "drawing.addTrendline",
+   "source": "catalog-hint",
+   "input": {
+    "from": "2026-10-09 @ 150",
+    "to": {
+     "date": "2026-10-28",
+     "price": 180
+    }
+   },
+   "expect": {
+    "refused": "must be object"
+   },
+   "note": "a point as prose is refused (never parsed into a price)"
+  },
+  {
+   "id": "r093",
+   "action": "drawing.addTrendline",
+   "source": "catalog-hint",
+   "input": {
+    "from": {
+     "date": "2026-10-09",
+     "price": 150
+    },
+    "to": {
+     "date": "2026-10-28"
+    }
+   },
+   "expect": {
+    "refused": "missing to.price"
+   },
+   "note": "a missing nested price is refused, never invented"
+  },
+  {
+   "id": "r094",
+   "action": "drawing.addTrendline",
+   "source": "model-shape",
+   "input": {
+    "from": {
+     "date": "2026-10-09",
+     "price": 150
+    },
+    "to": {
+     "date": "2026-10-28",
+     "price": 180
+    },
+    "width": 2
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "width is not an argument here"
+  },
+  {
+   "id": "r095",
+   "action": "drawing.addTrendline",
+   "source": "model-shape",
+   "input": {
+    "from": {
+     "date": "2026-10-09",
+     "price": 150
+    },
+    "to": {
+     "date": "2026-10-28",
+     "price": 180
+    },
+    "style": "thick"
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "an unknown style"
+  },
+  {
+   "id": "r096",
+   "action": "drawing.addHorizontalRay",
+   "source": "catalog-hint",
+   "input": {
+    "date": "2026-10-15",
+    "price": "100"
+   },
+   "expect": {
+    "args": {
+     "date": "2026-10-15",
+     "price": 100,
+     "color": null,
+     "style": null
+    }
+   },
+   "note": "price as text"
+  },
+  {
+   "id": "r097",
+   "action": "drawing.addHorizontalRay",
+   "source": "catalog-hint",
+   "input": {
+    "price": 100
+   },
+   "expect": {
+    "refused": "missing date"
+   },
+   "note": "no start date (the hint: that is drawing.addLevel)"
+  },
+  {
+   "id": "r098",
+   "action": "drawing.addLevel",
+   "source": "model-shape",
+   "input": {
+    "price": "100",
+    "colour": "red"
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "British spelling is not the key"
+  },
+  {
+   "id": "r099",
+   "action": "drawing.addLevel",
+   "source": "catalog-hint",
+   "input": {
+    "price": 100
+   },
+   "expect": {
+    "args": {
+     "price": 100,
+     "color": null,
+     "style": null
+    }
+   },
+   "note": "nullables filled"
+  },
+  {
+   "id": "r100",
+   "action": "drawing.setVisible",
+   "source": "model-shape",
+   "input": {
+    "drawing": "d1",
+    "visible": "no"
+   },
+   "expect": {
+    "args": {
+     "drawing": "d1",
+     "visible": false
+    }
+   },
+   "note": "'no' for a boolean"
+  },
+  {
+   "id": "r101",
+   "action": "drawing.style",
+   "source": "model-shape",
+   "input": {
+    "drawing": "d1",
+    "width": "3"
+   },
+   "expect": {
+    "args": {
+     "drawing": "d1",
+     "color": null,
+     "style": null,
+     "width": 3
+    }
+   },
+   "note": "width as text, nullables filled"
+  },
+  {
+   "id": "r102",
+   "action": "drawing.style",
+   "source": "model-shape",
+   "input": {
+    "drawing": "d1",
+    "width": "thick"
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "a word for a width"
+  },
+  {
+   "id": "r103",
+   "action": "chart.setTimeframe",
+   "source": "catalog-hint",
+   "input": {
+    "timeframe": "w"
+   },
+   "expect": {
+    "args": {
+     "timeframe": "W"
+    }
+   },
+   "note": "enum case fold"
+  },
+  {
+   "id": "r104",
+   "action": "chart.setTimeframe",
+   "source": "catalog-hint",
+   "input": {
+    "timeframe": 5
+   },
+   "expect": {
+    "args": {
+     "timeframe": "5"
+    }
+   },
+   "note": "a number for the numeric code"
+  },
+  {
+   "id": "r105",
+   "action": "chart.setTimeframe",
+   "source": "model-shape",
+   "input": {
+    "timeframe": " D "
+   },
+   "expect": {
+    "args": {
+     "timeframe": "D"
+    }
+   },
+   "note": "stray spaces"
+  },
+  {
+   "id": "r106",
+   "action": "chart.setTimeframe",
+   "source": "model-shape",
+   "input": {
+    "tf": "W"
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "'tf' is not 'timeframe'"
+  },
+  {
+   "id": "r107",
+   "action": "chart.setTimeframe",
+   "source": "catalog-hint",
+   "input": {
+    "timeframe": "Weekly"
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "a word for a code is refused (the hint lists the codes)"
+  },
+  {
+   "id": "r108",
+   "action": "chart.setTimeframe",
+   "source": "model-shape",
+   "input": {},
+   "expect": {
+    "refused": "missing timeframe"
+   },
+   "note": "nothing given"
+  },
+  {
+   "id": "r109",
+   "action": "chart.setType",
+   "source": "model-shape",
+   "input": {
+    "type": "Candles"
+   },
+   "expect": {
+    "args": {
+     "type": "candles"
+    }
+   },
+   "note": "enum case fold"
+  },
+  {
+   "id": "r110",
+   "action": "chart.setType",
+   "source": "model-shape",
+   "input": {
+    "chart_type": "bars"
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "another action's key"
+  },
+  {
+   "id": "r111",
+   "action": "chart.setSymbol",
+   "source": "model-shape",
+   "input": {
+    "symbol": "nvda"
+   },
+   "expect": {
+    "args": {
+     "symbol": "nvda"
+    }
+   },
+   "note": "a string passes as-is (the browser resolves the ticker)"
+  },
+  {
+   "id": "r112",
+   "action": "chart.setSymbol",
+   "source": "model-shape",
+   "input": {
+    "symbols": "NVDA"
+   },
+   "expect": {
+    "args": {
+     "symbol": "NVDA"
+    }
+   },
+   "note": "plural key for a singular argument"
+  },
+  {
+   "id": "r113",
+   "action": "chart.compare",
+   "source": "model-shape",
+   "input": {
+    "add": [
+     "AMD"
+    ],
+    "remove": [],
+    "clear": "false"
+   },
+   "expect": {
+    "args": {
+     "add": [
+      "AMD"
+     ],
+     "remove": [],
+     "clear": false
+    }
+   },
+   "note": "boolean word"
+  },
+  {
+   "id": "r114",
+   "action": "chart.compare",
+   "source": "model-shape",
+   "input": {
+    "add": "AMD",
+    "clear": false
+   },
+   "expect": {
+    "args": {
+     "add": [
+      "AMD"
+     ],
+     "remove": [],
+     "clear": false
+    }
+   },
+   "note": "one symbol wrapped; a missing array is []"
+  },
+  {
+   "id": "r115",
+   "action": "chart.compare",
+   "source": "model-shape",
+   "input": {
+    "add": "AMD"
+   },
+   "expect": {
+    "refused": "missing clear"
+   },
+   "note": "a missing non-nullable boolean is refused"
+  },
+  {
+   "id": "r116",
+   "action": "chart.goToDate",
+   "source": "catalog-hint",
+   "input": {
+    "date": "2026-03-01"
+   },
+   "expect": {
+    "args": {
+     "date": "2026-03-01"
+    }
+   },
+   "note": "as declared"
+  },
+  {
+   "id": "r117",
+   "action": "chart.addCustomTimeframe",
+   "source": "model-shape",
+   "input": {
+    "unit": "minute",
+    "count": "90",
+    "switch": "yes"
+   },
+   "expect": {
+    "args": {
+     "unit": "minutes",
+     "count": 90,
+     "switch": true
+    }
+   },
+   "note": "enum singular→plural fold, count as text, boolean word"
+  },
+  {
+   "id": "r118",
+   "action": "chart.setCandleColors",
+   "source": "model-shape",
+   "input": {
+    "up": "#26a69a"
+   },
+   "expect": {
+    "args": {
+     "up": "#26a69a",
+     "down": null
+    }
+   },
+   "note": "a nullable left out"
+  },
+  {
+   "id": "r119",
+   "action": "widget.setOption",
+   "source": "catalog-hint",
+   "input": {
+    "widget": "w1",
+    "key": "showChange",
+    "value": "true"
+   },
+   "expect": {
+    "args": {
+     "widget": "w1",
+     "key": "showChange",
+     "value": true
+    }
+   },
+   "note": "union: the word true"
+  },
+  {
+   "id": "r120",
+   "action": "widget.setOption",
+   "source": "catalog-hint",
+   "input": {
+    "widget": "w1",
+    "key": "rows",
+    "value": "20"
+   },
+   "expect": {
+    "args": {
+     "widget": "w1",
+     "key": "rows",
+     "value": 20
+    }
+   },
+   "note": "union: numeric text"
+  },
+  {
+   "id": "r121",
+   "action": "widget.setOption",
+   "source": "catalog-hint",
+   "input": {
+    "widget": "w1",
+    "key": "period",
+    "value": "1m"
+   },
+   "expect": {
+    "args": {
+     "widget": "w1",
+     "key": "period",
+     "value": "1m"
+    }
+   },
+   "note": "a code stays text"
+  },
+  {
+   "id": "r122",
+   "action": "widget.move",
+   "source": "model-shape",
+   "input": {
+    "widget": "w1",
+    "x": "0",
+    "y": "10"
+   },
+   "expect": {
+    "args": {
+     "widget": "w1",
+     "x": 0,
+     "y": 10,
+     "w": null,
+     "h": null
+    }
+   },
+   "note": "ints as text, nullables filled"
+  },
+  {
+   "id": "r123",
+   "action": "widget.move",
+   "source": "model-shape",
+   "input": {
+    "widget": "w1",
+    "x": 0.5,
+    "y": 0
+   },
+   "expect": {
+    "refused": "whole number"
+   },
+   "note": "a fraction for a grid cell"
+  },
+  {
+   "id": "r124",
+   "action": "widget.resize",
+   "source": "model-shape",
+   "input": {
+    "widget": "w1",
+    "edge": "right",
+    "by": "2"
+   },
+   "expect": {
+    "args": {
+     "widget": "w1",
+     "edge": "right",
+     "by": 2
+    }
+   },
+   "note": "by as text"
+  },
+  {
+   "id": "r125",
+   "action": "widget.remove",
+   "source": "model-shape",
+   "input": {
+    "widgets": "w1"
+   },
+   "expect": {
+    "args": {
+     "widget": "w1"
+    }
+   },
+   "note": "plural key"
+  },
+  {
+   "id": "r126",
+   "action": "chartGrid.set",
+   "source": "model-shape",
+   "input": {
+    "symbols": "NVDA, AMD, TSLA",
+    "timeframe": "D"
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "NVDA",
+      "AMD",
+      "TSLA"
+     ],
+     "timeframe": "D",
+     "layout": null,
+     "new_charts": null,
+     "watchlist": null,
+     "replace": null
+    }
+   },
+   "note": "comma list, nullables filled"
+  },
+  {
+   "id": "r127",
+   "action": "chartGrid.set",
+   "source": "model-shape",
+   "input": {
+    "symbols": [
+     "NVDA"
+    ],
+    "newCharts": "true"
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "NVDA"
+     ],
+     "timeframe": null,
+     "layout": null,
+     "new_charts": true,
+     "watchlist": null,
+     "replace": null
+    }
+   },
+   "note": "camelCase + boolean word"
+  },
+  {
+   "id": "r128",
+   "action": "watchlist.create",
+   "source": "catalog-hint",
+   "input": {
+    "name": "Momentum"
+   },
+   "expect": {
+    "args": {
+     "name": "Momentum",
+     "as": null
+    }
+   },
+   "note": "as left out"
+  },
+  {
+   "id": "r129",
+   "action": "watchlist.create",
+   "source": "model-shape",
+   "input": {
+    "name": "Momentum",
+    "as": "list1",
+    "note": "for the next step"
+   },
+   "expect": {
+    "args": {
+     "name": "Momentum",
+     "as": "list1"
+    }
+   },
+   "note": "meta key dropped"
+  },
+  {
+   "id": "r130",
+   "action": "watchlist.create",
+   "source": "model-shape",
+   "input": {
+    "name": 2026
+   },
+   "expect": {
+    "refused": "must be text"
+   },
+   "note": "a number for a name is refused"
+  },
+  {
+   "id": "r131",
+   "action": "watchlist.create",
+   "source": "model-shape",
+   "input": {
+    "title": "Momentum"
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "'title' is not 'name'"
+  },
+  {
+   "id": "r132",
+   "action": "watchlist.remove",
+   "source": "model-shape",
+   "input": {
+    "symbols": "AAPL"
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "AAPL"
+     ]
+    }
+   },
+   "note": "one ticker wrapped"
+  },
+  {
+   "id": "r133",
+   "action": "watchlist.reorder",
+   "source": "model-shape",
+   "input": {
+    "top": "AAPL"
+   },
+   "expect": {
+    "args": {
+     "sort": null,
+     "top": [
+      "AAPL"
+     ]
+    }
+   },
+   "note": "wrapped, sort null"
+  },
+  {
+   "id": "r134",
+   "action": "layout.rename",
+   "source": "model-shape",
+   "input": {
+    "layouts": "l1",
+    "name": "Swing"
+   },
+   "expect": {
+    "args": {
+     "layout": "l1",
+     "name": "Swing"
+    }
+   },
+   "note": "plural key"
+  },
+  {
+   "id": "r135",
+   "action": "layout.rename",
+   "source": "model-shape",
+   "input": {
+    "layout": "l1",
+    "new_name": "Swing"
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "'new_name' is not 'name'"
+  },
+  {
+   "id": "r136",
+   "action": "layout.duplicate",
+   "source": "model-shape",
+   "input": {
+    "layout": "l1"
+   },
+   "expect": {
+    "args": {
+     "layout": "l1",
+     "name": null
+    }
+   },
+   "note": "name left out"
+  },
+  {
+   "id": "r137",
+   "action": "settings.setAlertSound",
+   "source": "model-shape",
+   "input": {
+    "enabled": "on"
+   },
+   "expect": {
+    "args": {
+     "enabled": true,
+     "sound": null
+    }
+   },
+   "note": "'on' for a boolean; sound null"
+  },
+  {
+   "id": "r138",
+   "action": "settings.setAlertSound",
+   "source": "model-shape",
+   "input": {
+    "enabled": 1,
+    "sound": null
+   },
+   "expect": {
+    "args": {
+     "enabled": true,
+     "sound": null
+    }
+   },
+   "note": "1 for true"
+  },
+  {
+   "id": "r139",
+   "action": "app.open",
+   "source": "model-shape",
+   "input": {
+    "page": "screener"
+   },
+   "expect": {
+    "args": {
+     "page": "screener",
+     "section": null,
+     "symbol": null
+    }
+   },
+   "note": "nullables filled"
+  },
+  {
+   "id": "r140",
+   "action": "indicator.add",
+   "source": "model-shape",
+   "input": {
+    "defId": "movingAverage",
+    "inputs": "[{\"period\": 9}]"
+   },
+   "expect": {
+    "args": {
+     "defId": "movingAverage",
+     "inputs": [
+      {
+       "key": "period",
+       "value": 9
+      }
+     ]
+    }
+   },
+   "note": "a JSON string for the inputs list; a one-entry map read as the {key, value} pair the schema declares"
+  },
+  {
+   "id": "r141",
+   "action": "indicator.add",
+   "source": "model-shape",
+   "input": {
+    "defId": "movingAverage",
+    "inputs": {
+     "period": 9,
+     "maType": "ema"
+    }
+   },
+   "expect": {
+    "args": {
+     "defId": "movingAverage",
+     "inputs": [
+      {
+       "key": "period",
+       "value": 9
+      },
+      {
+       "key": "maType",
+       "value": "ema"
+      }
+     ]
+    }
+   },
+   "note": "a map for a list of {key, value} pairs"
+  },
+  {
+   "id": "r142",
+   "action": "indicator.add",
+   "source": "model-shape",
+   "input": {
+    "def_id": "movingAverage"
+   },
+   "expect": {
+    "args": {
+     "defId": "movingAverage",
+     "inputs": null
+    }
+   },
+   "note": "snake_case key, inputs null"
+  },
+  {
+   "id": "r143",
+   "action": "indicator.update",
+   "source": "model-shape",
+   "input": {
+    "instance": "i1",
+    "inputs": {
+     "period": 20
+    }
+   },
+   "expect": {
+    "args": {
+     "instance": "i1",
+     "inputs": [
+      {
+       "key": "period",
+       "value": 20
+      }
+     ]
+    }
+   },
+   "note": "one map entry → one {key, value} pair in the list"
+  },
+  {
+   "id": "r144",
+   "action": "pane.resize",
+   "source": "catalog-hint",
+   "input": {
+    "pane": "volume",
+    "size": "30"
+   },
+   "expect": {
+    "args": {
+     "pane": "volume",
+     "size": 30
+    }
+   },
+   "note": "union: numeric text"
+  },
+  {
+   "id": "r145",
+   "action": "pane.resize",
+   "source": "catalog-hint",
+   "input": {
+    "pane": "volume",
+    "size": "bigger"
+   },
+   "expect": {
+    "args": {
+     "pane": "volume",
+     "size": "bigger"
+    }
+   },
+   "note": "a word value stays text"
+  },
+  {
+   "id": "r146",
+   "action": "indicatorStyle.set",
+   "source": "catalog-hint",
+   "input": {
+    "instance": "i1",
+    "property": "LineWidth",
+    "value": "2"
+   },
+   "expect": {
+    "args": {
+     "instance": "i1",
+     "property": "lineWidth",
+     "value": 2,
+     "output": null
+    }
+   },
+   "note": "enum fold + union numeric"
+  },
+  {
+   "id": "r147",
+   "action": "breadth.show",
+   "source": "catalog-hint",
+   "input": {
+    "mode": "value",
+    "universe": "US",
+    "metrics": "pct_above_50sma"
+   },
+   "expect": {
+    "args": {
+     "mode": "value",
+     "universe": "us",
+     "metrics": [
+      "pct_above_50sma"
+     ],
+     "date": null,
+     "compare_date": null,
+     "start": null,
+     "end": null,
+     "basis": null,
+     "side": null,
+     "sessions": null
+    }
+   },
+   "note": "enum fold, one metric wrapped, nullables filled"
+  },
+  {
+   "id": "r148",
+   "action": "breadth.show",
+   "source": "catalog-hint",
+   "input": {
+    "mode": "value",
+    "universe": "us",
+    "metrics": [
+     "pct_above_50"
+    ]
+   },
+   "expect": {
+    "refused": "not one of the options"
+   },
+   "note": "an unknown metric key is refused"
+  },
+  {
+   "id": "r149",
+   "action": "stock.compare",
+   "source": "model-shape",
+   "input": {
+    "symbols": [
+     "NVDA",
+     "AMD"
+    ],
+    "reasoning": "two chip names"
+   },
+   "expect": {
+    "args": {
+     "symbols": [
+      "NVDA",
+      "AMD"
+     ]
+    }
+   },
+   "note": "meta key dropped"
+  },
+  {
+   "id": "r150",
+   "action": "stock.profile",
+   "source": "model-shape",
+   "input": {
+    "symbol": [
+     "NVDA",
+     "AMD"
+    ]
+   },
+   "expect": {
+    "refused": "must be string"
+   },
+   "note": "a list for one symbol is refused"
+  },
+  {
+   "id": "r151",
+   "action": "stock.profile",
+   "source": "model-shape",
+   "input": "NVDA",
+   "expect": {
+    "refused": "args were not JSON"
+   },
+   "note": "a bare word is not args"
+  },
+  {
+   "id": "r152",
+   "action": "stock.profile",
+   "source": "model-shape",
+   "input": "{\"symbol\": \"NVDA\"}",
+   "expect": {
+    "args": {
+     "symbol": "NVDA"
+    }
+   },
+   "note": "args as a JSON string"
+  },
+  {
+   "id": "r153",
+   "action": "chart.resetDefaults",
+   "source": "model-shape",
+   "input": {},
+   "expect": {
+    "args": {}
+   },
+   "note": "no arguments"
+  },
+  {
+   "id": "r154",
+   "action": "chart.resetDefaults",
+   "source": "model-shape",
+   "input": {
+    "confirm": true
+   },
+   "expect": {
+    "refused": "unexpected argument"
+   },
+   "note": "an argument for an action with none"
+  },
+  {
+   "id": "r155",
+   "action": "chart.resetDefaults",
+   "source": "model-shape",
+   "input": {
+    "reason": "the member asked"
+   },
+   "expect": {
+    "args": {}
+   },
+   "note": "only a meta key"
+  }
+ ]
+}

@@ -48,6 +48,8 @@ import os
 import logging
 import re
 import time
+
+from api.services.uct_agent.args import ArgsRefused, example_args, normalize_args
 from typing import Any, Callable
 
 DISPOSITIONS = ("answer", "clarify", "apply", "propose", "unsupported")
@@ -366,8 +368,19 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
             _unreadable("args_json", action=o.get("action"), size=len(str(o.get("args_json") or "")))
         if cap is not None and isinstance(args, dict):
             args = _fill_absent_nullables(cap["args"], _wrap_lone_argument(cap["args"], args))
+        # ⭐ W2-A3 SCHEMA-CONSTRAINED ARGS (live LT-3): what can be made valid by the capability's own schema is
+        # (typed coercion, key folds, wrapping — args.py), each change logged by shape; what cannot is refused
+        # with its reason in the log. The strict gate (args_match) still decides, as before.
+        why = None
+        if cap is not None:
+            try:
+                args, changes = normalize_args(cap["args"], args)
+                if changes:
+                    log.info("uct_agent args normalized: %s %s", o.get("action"), changes)
+            except ArgsRefused as e:
+                why = e.reason
         if cap is None or not args_match(cap["args"], args):
-            _unreadable("args_schema", action=o.get("action"),
+            _unreadable("args_schema", action=o.get("action"), why=why,
                         keys=sorted(args) if isinstance(args, dict) else type(args).__name__,
                         want=sorted((cap or {}).get("args", {}).get("properties") or {}))
         out.append({"action": o.get("action"), "target": o.get("target"), "args": args})
@@ -676,6 +689,10 @@ def _catalog_lines(capabilities: list[dict], lean: bool = False) -> list[str]:
         line = f"- {a['name']}({props}) [target: {a['target']}{risk}]: {a['summary']}"
         if a.get("hints") and not lean:          # lean (NL-1 eval variant): every action, its args and summary — no usage hints
             line += f" {a['hints']}"
+        if not lean and a["args"]["properties"]:
+            # ⭐ W2-A3: ONE example args object from the schema itself (enum → its first option, nullable → null), so
+            # the model sees the exact shape — types and all — not only the argument names
+            line += " e.g. args " + json.dumps(example_args(a["args"]), separators=(",", ":"), ensure_ascii=False)
         lines.append(line)
         for k, v in a["args"]["properties"].items():
             vals = [x for x in (v.get("enum") or []) if x is not None]
