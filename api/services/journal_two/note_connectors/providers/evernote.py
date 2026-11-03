@@ -30,6 +30,7 @@ strings and the epoch-ms rule for numbers, so the engine's string cursor compari
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 from datetime import datetime, timedelta, timezone
@@ -48,6 +49,14 @@ from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef
 log = logging.getLogger(__name__)
 
 EPOCH_FLOOR = "1970-01-01T00:00:00.000+00:00"
+#: Task 5 review I2: how many times a listing whose `totalResultCount` moved between pages is
+#: restarted before `list_changed` gives up with `NoteConnTransient` (the cursor then stays put).
+LISTING_ATTEMPTS = 3
+
+
+class _ListingMoved(Exception):
+    """A page reported a different `totalResultCount` from page 0: a note entered or left the
+    listing while it was read, so the offset pages shifted and one note may have been skipped."""
 _HASH_RE = re.compile(r"^[0-9a-f]{32}$")
 _MAX_PAGES = 1000  # 100 000 notes: a runaway pager stops here
 
@@ -166,13 +175,20 @@ class EvernoteProvider(NoteProvider):
         return AccountInfo(label="Evernote", raw={"noteCount": int(total) if isinstance(total, (int, float)) else 0})
 
     async def _pages(self, creds: dict[str, Any], query: str):
-        """Yields `(hits, page)` newest first."""
+        """Yields `(hits, page)` newest first. Raises `_ListingMoved` when a later page reports a
+        different `totalResultCount` from page 0 (review I2): offset paging over a set that
+        changed mid-read can skip a note without any other sign."""
         client = self._client(creds)
         start = 0
+        first_total: Any = None
         for _ in range(_MAX_PAGES):
             page = await client.call_tool("search_notes", {
                 "query": query, "sortBy": "updated", "ascending": False,
                 "maxResults": self.PAGE_SIZE, "startIndex": start})
+            if start == 0:
+                first_total = page.get("totalResultCount")
+            elif page.get("totalResultCount") != first_total:
+                raise _ListingMoved()
             hits = [h for h in page.get("hits") or [] if isinstance(h, dict) and h.get("noteId")]
             yield hits, page
             if page.get("isLastPage") or not hits:
@@ -193,21 +209,31 @@ class EvernoteProvider(NoteProvider):
         `cursor - CURSOR_OVERLAP_S`; hits at or after that bound are returned (a re-fetch inside
         the overlap is an unchanged-note skip). A hit with no timestamps is listed at the floor:
         the cursor itself, so it can never move the cursor or stop a page."""
+        for _attempt in range(LISTING_ATTEMPTS):
+            try:
+                return await self._changed_once(credentials, cursor)
+            except _ListingMoved:
+                continue
+        raise errors.NoteConnTransient(
+            "evernote: the note listing kept changing while it was read (cursor kept)")
+
+    async def _changed_once(self, credentials: dict[str, Any], cursor: str | None) -> list[RemoteRef]:
         floor = cursor or EPOCH_FLOOR
         cursor_at = import_provenance.instant(cursor) if cursor else None
         bound = cursor_at - timedelta(seconds=self.CURSOR_OVERLAP_S) if cursor_at else None
         refs: dict[str, RemoteRef] = {}
-        async for hits, _page in self._pages(credentials, ""):
-            older_seen = False
-            for hit in hits:
-                ref = self._ref(hit, floor)
-                at = import_provenance.instant(ref.updated_at)
-                if bound is not None and at is not None and at < bound:
-                    older_seen = True
-                    continue
-                refs.setdefault(ref.remote_id, ref)
-            if older_seen:
-                break
+        async with contextlib.aclosing(self._pages(credentials, "")) as pages:  # closed on break
+            async for hits, _page in pages:
+                older_seen = False
+                for hit in hits:
+                    ref = self._ref(hit, floor)
+                    at = import_provenance.instant(ref.updated_at)
+                    if bound is not None and at is not None and at < bound:
+                        older_seen = True
+                        continue
+                    refs.setdefault(ref.remote_id, ref)
+                if older_seen:
+                    break
         return list(refs.values())
 
     async def _full(self, credentials: dict[str, Any], query: str) -> list[RemoteRef]:
@@ -218,12 +244,15 @@ class EvernoteProvider(NoteProvider):
             refs: dict[str, RemoteRef] = {}
             total: Any = None
             last = False
-            async for hits, page in self._pages(credentials, query):
-                total = page.get("totalResultCount")
-                last = bool(page.get("isLastPage"))
-                for hit in hits:
-                    ref = self._ref(hit, EPOCH_FLOOR)
-                    refs.setdefault(ref.remote_id, ref)
+            try:
+                async for hits, page in self._pages(credentials, query):
+                    total = page.get("totalResultCount")
+                    last = bool(page.get("isLastPage"))
+                    for hit in hits:
+                        ref = self._ref(hit, EPOCH_FLOOR)
+                        refs.setdefault(ref.remote_id, ref)
+            except _ListingMoved:
+                continue  # review m4: the count could match the new total with one note skipped
             if last and isinstance(total, (int, float)) and len(refs) == int(total):
                 return list(refs.values())
         raise errors.NoteConnTransient(

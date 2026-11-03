@@ -53,7 +53,8 @@ class FakeMcp:
     def __init__(self, *, active: list[dict] | None = None, trash: list[dict] | None = None,
                  notes: dict[str, dict] | None = None, notebooks: list[dict] | None = None,
                  tags: list[dict] | None = None, attachments: dict[tuple, dict] | None = None,
-                 totals: list[int] | None = None):
+                 totals: list[int] | None = None, after_page=None,
+                 last_page_flag: bool | None = None):
         self.active = active or []
         self.trash = trash or []
         self.notes = notes or {}
@@ -61,6 +62,10 @@ class FakeMcp:
         self.tags = tags or []
         self.attachments = attachments or {}
         self.totals = list(totals or [])  # per full pass: the totalResultCount to report
+        # Called as after_page(fake, query, startIndex) once a page is served: lets a test trash or
+        # edit notes BETWEEN page calls, as a member using Evernote during a sync would.
+        self.after_page = after_page
+        self.last_page_flag = last_page_flag  # force isLastPage (None: computed)
         self.tool_calls: list[str] = []
         self.calls: list[tuple[str, dict]] = []
         self.closed = False
@@ -76,10 +81,14 @@ class FakeMcp:
             start = arguments.get("startIndex", 0)
             size = arguments.get("maxResults", 100)
             if start == 0:
-                self._pass_total = self.totals.pop(0) if self.totals else len(source)
-            page = source[start:start + size]
-            return {"hits": page, "totalResultCount": self._pass_total,
-                    "startIndex": start, "isLastPage": start + size >= len(source)}
+                self._pass_total = self.totals.pop(0) if self.totals else None
+            total = self._pass_total if self._pass_total is not None else len(source)
+            page = list(source[start:start + size])
+            last = start + size >= len(source) if self.last_page_flag is None else self.last_page_flag
+            result = {"hits": page, "totalResultCount": total, "startIndex": start, "isLastPage": last}
+            if self.after_page is not None:
+                self.after_page(self, arguments.get("query"), start)
+            return result
         if name == "get_note":
             return self.notes[arguments["noteId"]]
         if name == "search_notebooks":
@@ -199,6 +208,53 @@ async def test_null_hit_timestamps_are_listed_and_never_move_the_cursor():
     fake2 = FakeMcp(active=[_hit(2, updated=None, created=None)])
     (ref,) = await _provider(fake2).list_changed(CREDS, None)
     assert ref.updated_at == EPOCH_FLOOR
+
+
+# ---- review I2: a note trashed DURING paging shifts every later note up one place ----------
+
+
+def _trash_once(index: int):
+    """after_page hook: after page 0 is served (once), the note at `index` leaves the active set."""
+    state = {"done": False}
+
+    def hook(fake, query, start):
+        if query == "" and start == 0 and not state["done"]:
+            state["done"] = True
+            del fake.active[index]
+
+    return hook
+
+
+def _trash_every_pass(fake, query, start):
+    if query == "" and start == 0 and len(fake.active) > 1:
+        del fake.active[0]
+
+
+async def test_a_note_trashed_during_paging_never_hides_the_note_at_the_page_boundary():
+    fake = FakeMcp(active=[_hit(i) for i in range(150)], after_page=_trash_once(50))
+    refs = await _provider(fake).list_changed(CREDS, None)
+    ids = {r.remote_id for r in refs}
+    # Without the stable-total check, _guid(100) shifted to index 99 (page 0) after page 0 was
+    # read, and was never returned; the engine's max cursor then moved past it for good.
+    assert _guid(100) in ids
+    assert ids == {_guid(i) for i in range(150) if i != 50}
+    starts = [a["startIndex"] for n, a in fake.calls if n == "search_notes"]
+    assert starts == [0, 100, 0, 100]  # the change was seen, the listing restarted once
+
+
+async def test_a_listing_that_keeps_changing_is_transient_so_the_cursor_never_moves():
+    fake = FakeMcp(active=[_hit(i) for i in range(150)], after_page=_trash_every_pass)
+    with pytest.raises(errors.NoteConnTransient):
+        await _provider(fake).list_changed(CREDS, None)
+    restarts = [a for n, a in fake.calls if n == "search_notes" and a["startIndex"] == 0]
+    assert len(restarts) == ev.LISTING_ATTEMPTS
+
+
+async def test_present_refs_rejects_a_total_that_changes_between_pages():
+    # m4: the unique count can equal the NEW total while a shifted note was skipped.
+    fake = FakeMcp(active=[_hit(i) for i in range(150)], after_page=_trash_once(50))
+    refs = await _provider(fake).list_present_refs(CREDS)
+    assert len(refs) == 149 and _guid(100) in {r.remote_id for r in refs}
 
 
 async def test_present_refs_reenumerates_once_when_ids_do_not_match_total():
