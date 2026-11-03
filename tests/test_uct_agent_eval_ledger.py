@@ -113,11 +113,11 @@ def test_actual_cost_prices_input_cache_write_cache_read_and_output_at_the_deare
     assert L.cost_usd("claude-haiku-5-5", cache_write=10_000) == pytest.approx(0.125 / 100)
     assert L.cost_usd("claude-haiku-5-5", cache_read=10_000) == pytest.approx(0.01 / 100)
     assert L.cost_usd("claude-haiku-5-5", output=1_000_000) == pytest.approx(0.50)
-    # Sonnet 5.5: $2 in, cache write $2.50, $10 out; the two tables disagree on cache reads ($0.10 vs the
-    # estimator's 0.1x = $0.20) — the DEARER one is charged, so a disagreement can only over-count
+    # Sonnet 5.5: $2 in, cache write $2.50, cache read $0.10 (0.05x, the published page), $10 out — both tables agree;
+    # the DEARER of the two is always charged, so a future disagreement can only over-count
     assert L.cost_usd("claude-sonnet-5-5", input=1_000_000) == pytest.approx(2.0)
     assert L.cost_usd("claude-sonnet-5-5", cache_write=1_000_000) == pytest.approx(2.5)
-    assert L.cost_usd("claude-sonnet-5-5", cache_read=1_000_000) == pytest.approx(0.20)
+    assert L.cost_usd("claude-sonnet-5-5", cache_read=1_000_000) == pytest.approx(0.10)
     assert L.cost_usd("claude-sonnet-5-5", output=1_000_000) == pytest.approx(10.0)
     # Haiku 4.5 (production): $1 / $5
     assert L.cost_usd("claude-haiku-4-5", input=1_000_000, output=1_000_000) == pytest.approx(6.0)
@@ -251,16 +251,58 @@ def test_two_processes_reserve_against_one_cap_and_the_second_is_refused_at_the_
 
 def test_the_ledger_path_is_shared_and_resolved_the_same_way_everywhere(monkeypatch, tmp_path):
     monkeypatch.setenv(L.LEDGER_ENV, str(tmp_path / "x.db"))
-    assert L.ledger_path() == str(tmp_path / "x.db")
+    assert L.ledger_path() == str(tmp_path / "x.db")                 # under pytest: a scratch ledger (its cap file beside it)
     assert L.cap_file_path() == str(tmp_path / L.CAP_FILE_NAME)
     monkeypatch.delenv(L.LEDGER_ENV)
-    p = L.ledger_path()
-    assert p in (L.DEFAULT_LEDGER, L.FALLBACK_LEDGER)
+    assert L.ledger_path() == L.DEFAULT_LEDGER == r"C:\UCT\agent-eval-ledger.db"
+    assert L.cap_file_path() == r"C:\UCT\agent-eval-cap.json"
     with open(L.__file__, encoding="utf-8") as f:
         assert "PRAGMA journal_mode=WAL" in f.read()
     for t in PAID_TOOLS:                                          # every tool resolves the path through the ONE module
         src = open(os.path.join(ROOT, "tools", t), encoding="utf-8").read()
         assert "from tools import agent_eval_ledger as ledger" in src
+
+
+def test_the_override_is_refused_outside_pytest_and_there_is_no_fallback_ledger(monkeypatch, tmp_path):
+    src = open(L.__file__, encoding="utf-8").read()
+    assert not hasattr(L, "FALLBACK_LEDGER") and "HERE, \".agent" not in src and ".agent-eval-ledger" not in src
+    monkeypatch.setenv(L.LEDGER_ENV, str(tmp_path / "elsewhere.db"))
+    (tmp_path / L.CAP_FILE_NAME).write_text('{"cap_usd": 21.0}', encoding="utf-8")
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)         # a worker outside the test suite
+    with pytest.raises(L.LedgerRefused) as e:
+        L.ledger_path()
+    assert "only under pytest" in str(e.value)
+    with pytest.raises(L.LedgerRefused):
+        L.Ledger(str(tmp_path / "elsewhere.db"))                     # an explicit path is no way around it either
+    with pytest.raises(L.LedgerRefused):
+        L.Ledger()                                                   # (the override is still set: refused, not fallen back on)
+    ro = L.Ledger(str(tmp_path / "elsewhere.db"), readonly=True)     # the report may READ any file…
+    with pytest.raises(L.LedgerRefused):
+        ro.reserve("r", 0.01)                                        # …never reserve against it
+    monkeypatch.delenv(L.LEDGER_ENV)
+    assert L.ledger_path() == L.DEFAULT_LEDGER                       # outside pytest, without the override: the pinned file
+    # the pinned directory cannot be created → refused, never a fallback
+    monkeypatch.setattr(L.os, "makedirs", lambda *a, **k: (_ for _ in ()).throw(OSError("read-only")))
+    with pytest.raises(L.LedgerRefused) as e:
+        L.ledger_path()
+    assert "cannot be created" in str(e.value)
+
+
+def test_live_chain_settles_each_turn_request_at_the_worst_case_without_usage_or_a_non_200():
+    chain = _load("agent_live_chain.py")
+    usage = {"model": "claude-haiku-4-5", "input_tokens": 10_000, "output_tokens": 200, "cache_read_tokens": 0, "cache_write_tokens": 0}
+    actual = chain.chain_charge(200, usage)
+    assert actual == pytest.approx(chain.NAMING_ALLOWANCE_USD + L.cost_usd("claude-haiku-4-5", input=10_000, output=200))
+    assert actual < chain.WORST_TURN_USD
+    assert chain.chain_charge(503, usage) == chain.WORST_TURN_USD            # not a 200: the backend may have charged the worst case
+    assert chain.chain_charge(200, None) == chain.WORST_TURN_USD             # no usage at all
+    assert chain.chain_charge(200, {}) == chain.WORST_TURN_USD               # usage without token counts
+    assert chain.chain_charge(None, usage) == chain.WORST_TURN_USD           # no response (a failed fetch)
+    src = open(os.path.join(ROOT, "tools", "agent_live_chain.py"), encoding="utf-8").read()
+    on_turn = src[src.index("def on_turn(route):"):src.index("c.route(")]
+    assert "led.reserve(run_id, WORST_TURN_USD" in on_turn and "route.fetch()" in on_turn   # reserved per request, before the fetch
+    assert 'led.settle(rid, None, outcome="worst_case")' in on_turn                        # a failed fetch: the full worst case
+    assert "turn_actual_usd" not in src
 
 
 # ── proof 1: only the eval key, in every tool, before any client ────────────────────────────────
@@ -518,6 +560,11 @@ def test_A02_effort_unset_is_byte_identical_and_set_adds_effort_with_a_4096_ceil
 def test_A02_the_cost_guard_prices_haiku_5_5_and_sonnet_5_5_at_the_verified_rates():
     from api.services import narrative_cost_guard as g
     assert g._PRICES["claude-haiku-5-5"] == (0.10, 0.50) and g._PRICES["claude-sonnet-5-5"] == (2.0, 10.0) and g._PRICES["claude-haiku-4-5"] == (1.0, 5.0)
-    assert g.estimate_cost("claude-haiku-5-5", 0, 0, cache_creation_tokens=1_000_000) == pytest.approx(0.125)
-    assert g.estimate_cost("claude-haiku-5-5", 0, 0, cache_read_tokens=1_000_000) == pytest.approx(0.01)
+    assert g.estimate_cost("claude-haiku-5-5", 0, 0, cache_creation_tokens=10_000) == pytest.approx(0.125 / 100)   # (10K: under the 100K tier)
+    assert g.estimate_cost("claude-haiku-5-5", 0, 0, cache_read_tokens=10_000) == pytest.approx(0.01 / 100)
     assert g.estimate_cost("claude-sonnet-5-5", 0, 0, cache_creation_tokens=1_000_000) == pytest.approx(2.5)
+    assert g.estimate_cost("claude-sonnet-5-5", 0, 0, cache_read_tokens=1_000_000) == pytest.approx(0.10)     # 0.05x (published), not the family's 0.1x
+    assert g.estimate_cost("claude-sonnet-5", 0, 0, cache_read_tokens=1_000_000) == pytest.approx(0.20)       # the family rule elsewhere
+    assert g.estimate_cost("claude-haiku-5-5", 100_000, 0) == pytest.approx(0.01)                                # up to 100K: $0.10/MTok
+    assert g.estimate_cost("claude-haiku-5-5", 100_001, 0) == pytest.approx(100_001 * 0.50 / 1e6)              # over 100K: the higher tier
+    assert g.estimate_cost("claude-haiku-5-5", 0, 1_000, cache_read_tokens=150_000) == pytest.approx(150_000 * 0.05 / 1e6 + 1_000 * 2.5 / 1e6)

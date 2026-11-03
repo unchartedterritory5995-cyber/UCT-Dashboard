@@ -86,7 +86,7 @@ def eval_ledger_section(path: str, days: int) -> list[str]:
     table = [(k, by_day[k]["reserved"], by_day[k]["settled"], by_day[k]["released"], by_day[k]["reserved_usd"], by_day[k]["settled_usd"]) for k in keys]
     out = _table("eval ledger (cumulative, all runs)", ["et_day", "open", "settled", "released", "open $", "settled $"], table, _money)
     try:
-        s = ledger.Ledger(path).status()
+        s = ledger.Ledger(path, readonly=True).status()
         cap = f"${s['cap_usd']:.2f}" if s["cap_usd"] is not None else f"UNREADABLE ({s['cap_error']})"
         out.append(f"  cumulative: settled ${s['settled_usd']:.4f} + open ${s['reserved_usd']:.4f} = ${s['committed_usd']:.4f} of cap {cap}"
                    f"; remaining {('$%.4f' % s['remaining_usd']) if s['remaining_usd'] is not None else 'n/a'}")
@@ -150,8 +150,12 @@ def main(argv=None) -> int:
     ap.add_argument("--auth-db", default=None, help="auth.db (llm_route_cost_log)")
     ap.add_argument("--days", type=int, default=14)
     a = ap.parse_args(argv)
-    print(report(ledger_path=a.ledger or ledger.ledger_path(), agent_db=a.agent_db, catalyst_db=a.catalyst_db,
-                 auth_db=a.auth_db, days=max(1, a.days)))
+    try:
+        path = a.ledger or ledger.ledger_path()
+    except ledger.LedgerRefused as e:
+        path = ledger.DEFAULT_LEDGER
+        print(f"(ledger path: {e})")
+    print(report(ledger_path=path, agent_db=a.agent_db, catalyst_db=a.catalyst_db, auth_db=a.auth_db, days=max(1, a.days)))
     return 0
 
 

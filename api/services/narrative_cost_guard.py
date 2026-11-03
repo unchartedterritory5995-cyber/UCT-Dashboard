@@ -75,6 +75,12 @@ _PRICES = {
     "claude-haiku-4-5": (1.0, 5.0),
 }
 
+# Per-model departures from the family rule (cache read 0.1x, cache write 1.25x), from the published page
+# (2026-11-02): Sonnet 5.5 cache reads are $0.10/MTok = 0.05x; Haiku 5.5 prompts over 100K tokens bill at
+# $0.50 in / $2.50 out (the cache multipliers apply to that tier's input rate).
+_CACHE_READ_MULT = {"claude-sonnet-5-5": 0.05}
+_LONG_PROMPT_TIER = {"claude-haiku-5-5": (100_000, (0.50, 2.50))}
+
 # Server-side `web_search` tool: $10 per 1,000 searches. The result tokens are
 # billed as ordinary input tokens and already flow through the token maths.
 _WEB_SEARCH_USD_EACH = 0.01
@@ -158,11 +164,12 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int,
     that reads only input_tokens under-counts a cached surface and silently
     loosens its daily cap."""
     rates = _PRICES.get(model)
+    key = model if rates is not None else None
     if rates is None:
         # Tolerate a dated alias like claude-sonnet-4-6-20260101.
         for known, known_rates in _PRICES.items():
             if str(model or "").startswith(known):
-                rates = known_rates
+                rates, key = known_rates, known
                 break
     if rates is None:
         rates = max(_PRICES.values(), key=lambda r: r[1])
@@ -171,8 +178,12 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int,
             "priciest known rate ($%.0f/$%.0f per MTok) so the daily cap stays "
             "enforceable", model, rates[0], rates[1])
     pin, pout = rates
+    tier = _LONG_PROMPT_TIER.get(key)
+    prompt = float(input_tokens or 0) + float(cache_read_tokens or 0) + float(cache_creation_tokens or 0)
+    if tier and prompt > tier[0]:
+        pin, pout = tier[1]
     return (float(input_tokens or 0) * pin / 1e6
-            + float(cache_read_tokens or 0) * pin * 0.1 / 1e6
+            + float(cache_read_tokens or 0) * pin * _CACHE_READ_MULT.get(key, 0.1) / 1e6
             + float(cache_creation_tokens or 0) * pin * 1.25 / 1e6
             + float(output_tokens or 0) * pout / 1e6
             + float(web_searches or 0) * _WEB_SEARCH_USD_EACH)
