@@ -132,6 +132,7 @@ from ..convert import (
     md_to_tiptap,
     txt_to_tiptap,
 )
+from ..convert.placeholders import map_image_nodes
 from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
 
 
@@ -904,26 +905,19 @@ class DropboxProvider(NoteProvider):
         `image` node whose `src` carries `_MD_ATTACH_SCHEME` into a real
         `attachmentChip` node, and every matching `media` entry's `kind`
         from `'image'` (what `md_to_tiptap`'s generic image path always
-        registers) to `'file'`. Never mutates `converted`."""
+        registers) to `'file'`. Never mutates `converted`. The tree walk is the shared
+        `convert/placeholders.py::map_image_nodes` (Plan C Task 3, also Obsidian's)."""
         marker = f"{REF_PREFIX}{_MD_ATTACH_SCHEME}"
 
-        def walk(node: Any) -> Any:
-            if not isinstance(node, dict):
-                return node
-            if node.get("type") == "image":
-                src = (node.get("attrs") or {}).get("src", "")
-                if src.startswith(marker):
-                    ref = src[len(REF_PREFIX):]
-                    name = _basename_of_ref(ref)
-                    return {"type": "attachmentChip", "attrs": {"href": src, "name": name}}
-                return node
-            if isinstance(node.get("content"), list):
-                new_node = dict(node)
-                new_node["content"] = [walk(c) for c in node["content"]]
-                return new_node
+        def promote(node: dict[str, Any]) -> dict[str, Any]:
+            src = (node.get("attrs") or {}).get("src", "")
+            if src.startswith(marker):
+                ref = src[len(REF_PREFIX):]
+                name = _basename_of_ref(ref)
+                return {"type": "attachmentChip", "attrs": {"href": src, "name": name}}
             return node
 
-        doc = walk(converted["doc"])
+        doc = map_image_nodes(converted["doc"], promote)
         media = [
             {**m, "kind": "file"} if m.get("ref", "").startswith(_MD_ATTACH_SCHEME) else m
             for m in converted["media"]

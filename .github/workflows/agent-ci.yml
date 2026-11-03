@@ -1,11 +1,9 @@
 # promotion-gate: no — ADDITIVE CI for the Agent program's branches (agent/**, PRs into
 #   agent/int and master from them). It never decides promotion: the master deploy gate keeps
 #   every Agent step it has today, and tools/promotion_gate.py classifies this file as "no".
-#   PENDING OWNER DECISION (BOARD I-03): tests/test_uct_agent_deploy_gate.py::
-#   test_no_OTHER_workflow_is_an_agent_gate forbids ANY other workflow that names the Agent
-#   suites, gating or not. Until that rail is amended (with approval) to exempt
-#   promotion-gate:no workflows, this file must NOT reach master (the gate would go red on
-#   that rail) and the server job below deselects that single meta-rail, nothing else.
+#   Owner-approved 2026-11-02: tests/test_uct_agent_deploy_gate.py::test_no_OTHER_workflow_is_an_agent_gate
+#   exempts promotion-gate:no workflows (pinned by name) and keeps refusing any gating or
+#   unclassified workflow that names the Agent suites; the gate's own Agent steps stay mandatory.
 # UCT Agent CI — the Agent program's own integration check (Wave 1, 2026-11-02).
 #
 # ADDITIVE. This does not change the master deploy gate; the gate keeps every step it has
@@ -40,9 +38,13 @@ env:
   AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations
   AGENT_SHARDS: '4'
 
+# A PR from a branch in this repo already ran on its push; running it again on the
+# pull_request event only doubles the queue. Fork PRs have no push run here, so they keep it.
+# (All three jobs carry the same condition; `union` needs `browser`.)
 jobs:
   server:
     name: UCT Agent server tests (production dependency set)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -63,14 +65,11 @@ jobs:
           python -m pip install --quiet --upgrade pip
           python -m pip install --quiet -r requirements.txt pytest httpx
       - name: pytest tests/test_uct_agent*.py
-        # The one deselected test is the meta-rail that forbids this workflow's existence (see the
-        # header). Every other Agent server test runs, including the rest of test_uct_agent_deploy_gate.py.
-        run: >-
-          python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
-          --deselect tests/test_uct_agent_deploy_gate.py::test_no_OTHER_workflow_is_an_agent_gate
+        run: python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
 
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -104,6 +103,7 @@ jobs:
   union:
     name: Shards cover every Agent test file (equivalence rail)
     needs: browser
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

@@ -25,7 +25,9 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "drawing": "drawings", "indicator": "indicators", "breadth": "breadth",
              "chartSetup": "chartSetup", "indicatorStyle": "indicatorSetup", "indicatorCopy": "indicatorSetup",
              "pane": "indicatorSetup", "definition": "definitions", "chartGrid": "chartGrid", "board": "boardEdit",
-             "guide": "guide"}
+             "guide": "guide",
+             # W1-B (2026-11-02): indicator alerts in their own fillLast group (app/src/agent/routing.js)
+             "indicatorAlert": "indicatorAlerts"}
 
 
 def _requests():

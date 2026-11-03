@@ -339,6 +339,10 @@ export const indicatorEditsKind = {
   noun: 'chart',                 // what a local "which one?" asks for
   // Its target IS a chart: the mutation policy counts "this chart's indicators" and "this chart" as one.
   groupOf: (ref) => chartRefOf(ref) ?? ref,
+  // …and the inverse (W1-B B-07): a step aimed at a chart another step of the same request CREATES ("open two charts
+  // … with the 9 and 20 ema on both") is re-aimed from the chart's real ref to this kind's ref once it exists (useAgent
+  // landDeferred) — the same chart, the same interface, no second way in.
+  fromChart: (chartRef) => refOf(chartRef),
   selfDescribing: true,
   list: (host) => (host?.charts ? host.charts.list().map(c => snapOf(host, c)) : []),
   read: (host, ref) => {

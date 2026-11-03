@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**146 tables in auth.db** (135 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
+**147 tables in auth.db** (136 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -115,6 +115,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_obsidian_staging` | `user_id` | Direct | `DELETE FROM j2_obsidian_staging WHERE user_id = ?` |
 | `j2_obsidian_manifest` | `user_id` | Direct | `DELETE FROM j2_obsidian_manifest WHERE user_id = ?` |
 | `j2_obsidian_connect_epoch` | `user_id` | Direct | `DELETE FROM j2_obsidian_connect_epoch WHERE user_id = ?` |
+| `j2_obsidian_attachments` | `user_id` | Direct | `DELETE FROM j2_obsidian_attachments WHERE user_id = ?` |
 | `j2_trade_attachments` | `user_id` | Direct | `DELETE FROM j2_trade_attachments WHERE user_id = ?` |
 | `j2_trade_excursions` | `user_id` | Direct | `DELETE FROM j2_trade_excursions WHERE user_id = ?` |
 | `j2_trade_adherence` | `user_id` | Direct | `DELETE FROM j2_trade_adherence WHERE user_id = ?` |

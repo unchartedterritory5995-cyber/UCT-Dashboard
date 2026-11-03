@@ -206,7 +206,7 @@ export function evaluateFormula(source, inputs = undefined, dialect = 'auto', { 
   // ⛔ Every other caller (authoring `model.js`, Pine, library intake, member panes)
   // keeps `sentenceFor` exactly: their saved descriptions do not move.
   const named = nameFunctions && typeof source === 'string'
-    ? { allowMom: /\bmom\s*\(/.test(source), allowBareEma: /\bkcMiddle\s*\(/.test(source) }
+    ? { allowMom: /\bmom\s*\(/.test(source), allowBareEma: /\bkcMiddle\s*\(/.test(source), allowBareSma: /\bbbMiddle\s*\(/.test(source) }
     : null
   let readback
   try {

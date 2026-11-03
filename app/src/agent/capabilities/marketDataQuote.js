@@ -27,6 +27,7 @@ import { parsePriceSentence, MAX_TICKERS } from './marketDataPhrases'
 import { num, money, signedMoney, signedPct } from './marketDataFormat'
 import { registerBarsCapability, _resetBarsForTest } from './marketDataBars'
 import { RESOLVE_KIND, toCandidates, resolveInstruments, isFundLabel, FUND_NOTE } from './marketDataResolve'
+import { answerAssetRoute } from './marketDataAssets'
 
 export const CAPABILITY = 'stock.quote'
 const ET = 'America/New_York'
@@ -202,7 +203,9 @@ export async function answerQuote(args) {
   if (candidates.length > MAX_TICKERS) return `That's more than ${MAX_TICKERS} tickers at once; ask for a few at a time.`
   // MD-1 §4.7: every word is resolved against UCT's symbol index BEFORE any price is read; all or nothing
   const r = await resolveInstruments(candidates)
-  if (!r.ok) return r.text
+  // W1-C C-03: an asset-class word ("gold", "s&p", "btc") whose dedicated kind is served → that kind's answer (the
+  // honest decline today), never a ticker guess; with no served route, the §4.7.3 sentence exactly as before
+  if (!r.ok) return r.route ? answerAssetRoute(r.route) : r.text
   // the member's open turn (trace.js): the server's per-turn budget key; never minted, never injected
   const turnId = currentTurnId()
   if (!turnId) return "I couldn't read the price: this needs the Agent's turn, which wasn't available."

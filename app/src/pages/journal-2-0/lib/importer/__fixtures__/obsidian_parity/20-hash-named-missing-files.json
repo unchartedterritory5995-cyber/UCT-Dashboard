@@ -1,0 +1,19 @@
+{
+  "id": "20-hash-named-missing-files",
+  "input_markdown": "# Missing files with a hash in the name\n\nsee [[report #2.pdf]] and [[q3 #4.xlsx|the sheet]] now\n\n![[my chart #1 (v2).png]] stays text.\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [],
+    "highlights": [],
+    "images": [],
+    "links": [],
+    "pending": [],
+    "task_checked": [],
+    "text": "Missing files with a hash in the name see report #2.pdf and the sheet now my chart #1 (v2).png stays text."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md"
+  ]
+}

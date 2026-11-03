@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sheet from '../../components/mobile/Sheet'
 import StickyActionBar from '../../components/mobile/StickyActionBar'
 import StockChart from '../../components/StockChart'
+import useSessionChartSettings from '../../components/chart/pane/useSessionChartSettings'
 import { SkeletonBlock, SkeletonLine } from '../../components/Skeleton'
 import UIcon from '../../components/ui/UIcon'
 import { pauseOtherAudio } from '../../components/video/audioExclusivity'
@@ -132,10 +133,14 @@ export default function DrillPlayer({
   const houseSettings = useHouseChart(fetcher)
   // A Slingshot item carries the E4H (4-EMA of highs) beside the house averages,
   // before and after the reveal: the line the trigger is judged against.
-  const settingsOverride = useMemo(
+  const studyOverride = useMemo(
     () => studySettingsOverride(chartOpts, houseSettings, { instances: slingshotInstances(chartItem) }),
     [chartOpts, houseSettings, chartItem],
   )
+  // ⭐ Policy A (2026-11-02): an exhibit has no stored settings of its own, so an
+  // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
+  // session instead of falling through to the member's global chart_settings.
+  const sessionChart = useSessionChartSettings(studyOverride, chartItemId || null)
   const entryDate = chartBars?.[0]?.t ?? null
   const exitDate = chartBars?.length ? chartBars[chartBars.length - 1].t : null
 
@@ -293,7 +298,8 @@ export default function DrillPlayer({
               entryDate={entryDate}
               exitDate={exitDate}
               exactDateRange
-              settingsOverride={settingsOverride}
+              settingsOverride={sessionChart.settingsOverride}
+              onSettingsPersist={sessionChart.onSettingsPersist}
               annotations={annotations}
               annotationsVisible={!!annotations}
               onCrosshairMove={onCrosshairMove}

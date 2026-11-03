@@ -10,7 +10,7 @@ import { registerBuiltins } from './builtins'
 import { fastParse } from './fastPath'
 import { allCapabilityNames, getCapability } from './capabilities'
 import { registerMarketDataCapabilities, _resetForTest, CAPABILITY as QUOTE } from './capabilities/marketDataQuote'
-import { match, answerFromBars, answerDailyBars, barsFor, CAPABILITY, SESSIONS_52W } from './capabilities/marketDataBars'
+import { match, answerFromBars, answerDailyBars, barsFor, windowFor, CAPABILITY, SESSIONS_52W } from './capabilities/marketDataBars'
 import { resolveEnvelope } from './marketdata/__fixtures__/fakeResolve'
 
 let TURN = 't-bars'
@@ -134,6 +134,88 @@ describe('stock.dailyBars answers (completed sessions only)', () => {
     expect(barsFor('change', 10)).toBe(11)
     expect(barsFor('range52w')).toBe(252)
     expect(barsFor('change', 9999)).toBe(251)          // capped below the kind's 500
+    expect(barsFor('session')).toBe(1)
+    expect(barsFor('range', 5)).toBe(5)
+    expect(barsFor('range', null, { month: true })).toBe(23)
+  })
+})
+
+// ── W1-B (BOARD B-02): point-in-time phrasing — "close last Friday", "high on 2026-10-15", "range last week" ──
+describe('stock.dailyBars point in time (W1-B): one read ending at the asked day, named honestly', () => {
+  const d = (to, word = to, extra = {}) => ({ to, word, ...extra })
+  it('lastClose on the day itself: the close "on <day>" (no "last completed session" claim); on a weekend: the last completed session on or before it', () => {
+    const e = barsEnv([bar('2026-10-29', 140), bar('2026-10-30', 142.1)])
+    expect(says(answerFromBars(e, { symbol: 'NVDA', measure: 'lastClose', date: d('2026-10-30') })).split('\n')[0])
+      .toBe('NVDA closed at $142.10 on Fri, Oct 30: +$2.10 (+1.50%) vs the previous close of $140.00 on Thu, Oct 29.')
+    expect(says(answerFromBars(e, { symbol: 'NVDA', measure: 'lastClose', date: d('2026-10-31', 'saturday') })).split('\n')[0])
+      .toBe('NVDA closed at $142.10 on Fri, Oct 30, the last completed session on or before saturday (Sat, Oct 31): +$2.10 (+1.50%) vs the previous close of $140.00 on Thu, Oct 29.')
+    expect(says(answerFromBars(e, { symbol: 'NVDA', measure: 'lastClose', date: d('2026-10-30', 'last friday') })).split('\n')[0]).toMatch(/^NVDA closed at \$142\.10 on Fri, Oct 30: /)
+  })
+  it('session: one day\'s open / high / low / close, its range and volume — and the completed-sessions line', () => {
+    const e = barsEnv([bar('2026-10-15', 180, { open: 176.5, high: 183.25, low: 175, volume: 41234567 })])
+    const t = says(answerFromBars(e, { symbol: 'aapl', measure: 'session', date: d('2026-10-15'), name: 'Apple Inc.' }))
+    expect(t.split('\n')).toEqual([
+      'AAPL (Apple Inc.) on Thu, Oct 15: open $176.50, high $183.25, low $175.00, close $180.00 (a $8.25 range); volume 41,234,567.',
+      "From UCT's daily bars: completed sessions only, today's session is not included.",
+    ])
+    const out = answerFromBars(e, { symbol: 'AAPL', measure: 'session', date: d('2026-10-15') })
+    expect(out.present.items.map(i => i.label)).toEqual(['Open', 'High', 'Low', 'Close', 'Volume'])
+  })
+  it('range over a week: the window named by the member\'s word, its first and last session, the high and low with their dates', () => {
+    const ds = sessions(5, '2026-10-30')                          // Mon Oct 26 … Fri Oct 30
+    const bars = ds.map((x, i) => bar(x, 100 + i))
+    bars[1] = bar(ds[1], 101, { high: 109.5 })
+    bars[3] = bar(ds[3], 103, { low: 97.25 })
+    const t = says(answerFromBars(barsEnv(bars), { symbol: 'TSLA', measure: 'range', sessions: 5, date: d('2026-10-30', 'last week', { sessions: 5 }) }))
+    expect(t.split('\n')[0]).toBe('TSLA over the 5 completed sessions of last week ending Fri, Oct 30, from Mon, Oct 26: high $109.50 on Tue, Oct 27, low $97.25 on Thu, Oct 29. Close $104.00 on Fri, Oct 30.')
+    // fewer held than the window: said, nothing extrapolated
+    const short = says(answerFromBars(barsEnv(bars.slice(2), { status: 'partial' }), { symbol: 'TSLA', measure: 'range', sessions: 5, date: d('2026-10-30', 'last week', { sessions: 5 }) }))
+    expect(short).toMatch(/^TSLA over the 3 completed sessions held \(you asked for 5\) of last week ending Fri, Oct 30/)
+    expect(short).toContain('Only 3 completed sessions are held')
+  })
+  it('range over a calendar month: the read ends at the month\'s last day and only that month\'s bars count', () => {
+    const ds = sessions(23, '2026-10-31')                         // reaches back into September
+    const bars = ds.map((x, i) => bar(x, 50 + (i % 5)))
+    const sep = bars.filter(b => b.date < '2026-10-01')
+    expect(sep.length).toBeGreaterThan(0)
+    sep[0].high = 999                                              // a September high must NOT win
+    const t = says(answerFromBars(barsEnv(bars), { symbol: 'NVDA', measure: 'range', date: d('2026-10-31', 'last month', { month: '2026-10' }) }))
+    const oct = bars.filter(b => b.date >= '2026-10-01')
+    expect(t.split('\n')[0]).toMatch(new RegExp(`^NVDA in October 2026 \\(${oct.length} completed sessions, Thu, Oct 1 to Fri, Oct 30\\): high \\$55\\.00 on `))
+    expect(t).not.toContain('$999')
+    expect(says(answerFromBars(barsEnv(sep), { symbol: 'NVDA', measure: 'range', date: d('2026-10-31', 'last month', { month: '2026-10' }) }))).toBe('No completed sessions are held for NVDA in October 2026. No price is stated.')
+  })
+  it('change / range52w as of a date say so; a store that ends before the asked session says which session it has', () => {
+    const ds = sessions(6, '2026-10-15')
+    const t = says(answerFromBars(barsEnv(ds.map((x, i) => bar(x, 100 + i * 2))), { symbol: 'NVDA', measure: 'change', sessions: 5, date: d('2026-10-15') }))
+    expect(t).toContain('NVDA over the 5 completed sessions ending Thu, Oct 15: +10.00% (+$10.00), from a close of $100.00 on Thu, Oct 8 to $110.00 on Thu, Oct 15.')
+    const y = says(answerFromBars(barsEnv(sessions(252, '2026-10-15').map(x => bar(x, 3))), { symbol: 'NVDA', measure: 'range52w', date: d('2026-10-17', 'oct 17') }))
+    expect(y).toMatch(/^NVDA 52-week range as of Thu, Oct 15 \(the last completed session on or before oct 17 \(Sat, Oct 17\)\) \(the 252 completed sessions, /)
+    const e = barsEnv([bar('2026-10-13', 140), bar('2026-10-14', 141)], { stale: true })
+    e.data.latest_completed_session = '2026-10-15'
+    const c = says(answerFromBars(e, { symbol: 'NVDA', measure: 'lastClose', date: d('2026-10-15') }))
+    expect(c).toContain("Note: UCT's bars for NVDA end Wed, Oct 14, but the last completed session on or before Thu, Oct 15 was Thu, Oct 15, so this is an earlier session than asked.")
+  })
+  it('the window from the member\'s words: an unreadable or future date is refused in words, never guessed; "last week" brings its own session count', () => {
+    expect(windowFor('lastClose', null, 'the earnings day').why).toMatch(/couldn't read “the earnings day” as a date/)
+    expect(windowFor('lastClose', null, '2999-01-05').why).toMatch(/hasn't happened yet — UCT's daily bars cover completed sessions only/)
+    const w = windowFor('range', null, 'last week')
+    expect(w.sessions).toBe(5)
+    expect(w.date).toMatchObject({ sessions: 5, word: 'last week' })
+    expect(windowFor('range', 10, 'last week').sessions).toBe(10)          // the member's own count wins
+    expect(windowFor('range', null, '2026-10-15')).toMatchObject({ date: { to: '2026-10-15' }, sessions: null })
+    expect(windowFor('lastClose', null, null)).toEqual({ date: null, sessions: null })
+  })
+  it('never live/now wording on the new measures; only { text, present } leave', () => {
+    for (const [e, a] of [
+      [barsEnv([bar('2026-10-15', 1, { open: 1, high: 2, low: 0.5, volume: 10 })]), { measure: 'session', date: d('2026-10-15') }],
+      [barsEnv(sessions(5).map(x => bar(x, 3))), { measure: 'range', sessions: 5, date: d('2026-10-30', 'last week', { sessions: 5 }) }],
+    ]) {
+      const out = answerFromBars(e, { symbol: 'NVDA', ...a })
+      expect(Object.keys(out).every(k => ['text', 'present'].includes(k))).toBe(true)
+      expect(out.text).not.toMatch(/\b(live|now|right now|real-time)\b/i)
+      expect(out.text).toContain('completed sessions only')
+    }
   })
 })
 
@@ -144,7 +226,8 @@ function wire({ data, kinds }) {
     if (u === '/api/agent/data') {
       const b = JSON.parse(init.body)
       if (b.kind === 'instrument.resolve') return json(resolveEnvelope(b.params))
-      return json(barsEnv(sessions(b.params.bars).map((d, i) => bar(d, 100 + i))))
+      // the adapter's own `to`: the window ends at the newest completed session on or before it
+      return json(barsEnv(sessions(b.params.bars, b.params.to || '2026-10-30').map((d, i) => bar(d, 100 + i))))
     }
     return json({}, 404)
   })
@@ -161,7 +244,7 @@ describe('stock.dailyBars on the real fast path, served and dark', () => {
     const m = match(r.phrase)
     const f = fastParse(r.phrase, {})
     const text = r.cand.slice(0, r.cand.lastIndexOf(':'))
-    expect(m).toEqual({ action: CAPABILITY, params: { symbol: text, measure: MEASURE[r.intent], sessions: r.n } })
+    expect(m).toEqual({ action: CAPABILITY, params: { symbol: text, measure: MEASURE[r.intent], sessions: r.n, date: null } })
     expect(f?.ops?.map(o => o.action)).toEqual([CAPABILITY])                 // the sole claimant among every builtin
   })
 
@@ -202,6 +285,24 @@ describe('stock.dailyBars on the real fast path, served and dark', () => {
     expect(fastParse('AAPL close', {})?.ops?.some(o => o.action === CAPABILITY) ?? false).toBe(false)
     expect(says(await answerDailyBars({ symbol: 'AAPL', measure: 'lastClose', sessions: null }))).toBe("UCT's daily bars aren't available to the Agent here.")
     expect(posts()).toEqual([])
+  })
+
+  it('W1-B: a dated question is ONE bars.daily read with the adapter\'s `to`, sized for the measure — never a second read', async () => {
+    wire({ data: true, kinds: ['instrument.resolve', 'bars.daily'] })
+    await loadAgentConfig()
+    registerMarketDataCapabilities()
+    const ask = (args) => getCapability(CAPABILITY).answer(null, { sessions: null, date: null, ...args })
+    expect(says(await ask({ symbol: 'NVDA', measure: 'lastClose', date: '2026-10-30' }))).toMatch(/^NVDA \(NVIDIA Corporation\) closed at \$101\.00 on Fri, Oct 30: /)
+    expect(says(await ask({ symbol: 'AAPL', measure: 'session', date: '2026-10-15' }))).toMatch(/^AAPL \(Apple Inc\.\) on Thu, Oct 15: open /)
+    expect(says(await ask({ symbol: 'TSLA', measure: 'range', date: 'last week' }))).toMatch(/^TSLA \(.+\) over the 5 completed sessions of last week ending \w{3}, \w{3} \d+/)
+    expect(says(await ask({ symbol: 'NVDA', measure: 'change', sessions: 5, date: '2026-10-15' }))).toMatch(/over the 5 completed sessions ending Thu, Oct 15/)
+    const lastFri = windowFor('range', null, 'last week').date.to
+    expect(posts().filter(p => p.kind === 'bars.daily').map(p => [p.params.bars, p.params.to])).toEqual([[2, '2026-10-30'], [1, '2026-10-15'], [5, lastFri], [6, '2026-10-15']])
+    // refused in words, nothing read
+    const before = posts().length
+    expect(await ask({ symbol: 'NVDA', measure: 'lastClose', date: 'the earnings day' })).toMatch(/couldn't read “the earnings day” as a date/)
+    expect(await ask({ symbol: 'NVDA', measure: 'range', date: null })).toMatch(/Over which window\?/)
+    expect(posts().length).toBe(before)
   })
 
   it('no turn id: no read', async () => {

@@ -45,6 +45,15 @@ Ownership = the paths each package touches, listed in `BOARD.md` per task. Anyth
 - RC windows are announced a day ahead in BOARD.md and by SendMessage; the Agent RC waits while another train's RC is in the master gate.
 - Indicators RC #701 and PR #516 (on hold) are untouched.
 
+## Owner decisions 2026-11-02 (evening)
+- APPROVED: the narrowly scoped deploy-gate rail amendment (promotion-gate:no Agent CI workflows allowed, pinned by name; gate coverage intact) — landed on agent/int 3356d5a4b2.
+- APPROVED: ONE combined Wave 1 release candidate (F-16/F-23 #704, W1-A #712/#713/#714, W1-B #707/#711/#715, W1-C #705/#706/#708, Agent CI). No separate deploys. After the merges: combined integration run + independent QA on the agent/int head, then a release manifest (commits, CI, security results, proposed flags, rollback plan, GO/HOLD) before any production promotion.
+- On promotion: admin-only `UCT_AGENT_STREAM`, quote kinds and `UCT_AGENT_NEWS` only after their specific checks pass; `bars.daily` and `UCT_AGENT_SCAN` only with confirmed F-16/F-23 protections and green isolation rails in the combined RC, followed by production verification.
+- Planner v2 (`UCT_AGENT_PLANNER=v2`) stays OFF pending real-model evaluation and separate approval. No paid evaluations, no extra spending, no member rollout, no flow-worker restart.
+- MANDATORY after deployment (this and every future major Agent release): Phase 1 Claude-led live production testing and Phase 2 owner hands-on acceptance (Levels 1–5, ≥ 30 prompts, scorecard) — `LIVE-TESTING.md` and `OWNER-ACCEPTANCE.md`. Wave 1 is "technically deployed" after Phase 1 and "owner-accepted" only after the owner's own session and review; serious execution / financial-accuracy / permission / Undo failures block acceptance; unrelated safe development continues meanwhile.
+
+- 2026-11-03 02:30Z (via agent-lead's session, owner's choice): PR #717 (separate "scans release") CLOSED; scans ship in the combined Wave 1 RC; #716 (scan routing, agent-sc GO, agent-qa GO, AUDIT review APPROVE) merges into agent/int last, with one SAT-1 capture re-bless (d26 moves to screener+agent). The owner explicitly chose to keep `UCT_AGENT_SCAN=1` in production (set 01:52Z, admin-only) until the RC ships F-16 enforcement — recorded as an accepted interim exposure, not an oversight. agent-lead's session has ended; the Agent project continues in this integrator session.
+
 ## Activation checklist (admin-only; owner sets flags; order is mandatory)
 1. `UCT_AGENT_STREAM=1` — after production flags are verified.
 2. `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,quotes,instrument.resolve` — after RC1.

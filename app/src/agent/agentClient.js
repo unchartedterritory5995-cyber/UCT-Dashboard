@@ -215,6 +215,14 @@ const convUrl = (id) => `/api/agent/conversations/${encodeURIComponent(id)}`
 export const renameConversation = (id, title) => send(convUrl(id), 'PATCH', { title })
 export const pinConversation = (id, pinned) => send(convUrl(id), 'PATCH', { pinned })
 export const deleteConversation = (id) => send(convUrl(id), 'DELETE')
+// W1-C C-01 (builder-c): per-conversation STATE the server keeps beyond the session (today: `lastScreen`, the
+// screener's last spec + result ids). useAgent notes the open conversation here so a capability can read / write
+// its own state without holding the hook; null while no chat is open (a brand-new chat gets its id on its first turn).
+let activeConversation = null
+export const noteConversation = (id) => { activeConversation = typeof id === 'string' && id ? id : null }
+export const activeConversationId = () => activeConversation
+export const agentConversationState = (id, key) => send(`${convUrl(id)}/state/${encodeURIComponent(key)}`, 'GET')
+export const agentConversationStateSet = (id, key, value) => send(`${convUrl(id)}/state/${encodeURIComponent(key)}`, 'PUT', { value })
 export async function searchHistory(q) {
   const r = await send(`/api/agent/search?q=${encodeURIComponent(q)}`, 'GET')
   return r.ok ? (r.data?.results || []) : []
