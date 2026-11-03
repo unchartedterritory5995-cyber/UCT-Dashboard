@@ -469,23 +469,43 @@ export default function NotebookTab() {
   // false | true | 'kinds' (Notebook P1: "From a style" opens the sheet with focus on the first kind, not the search box)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
-  // Plan F Task 10: the wizard opened from the repair notice starts with "Re-import to recover" ticked.
+  // Plan F Task 10: the wizard opened from the repair notice starts with "Re-import to recover" ticked,
+  // and hands focus back to the pane heading on close (the notice and its button are gone by then).
+  // Both are set at OPEN and left alone on close, so the Sheet still reads them as it closes;
+  // every ordinary Import door goes through `openImport`, which clears them.
   const [importRecover, setImportRecover] = useState(false)
+  const [importReturnFocus, setImportReturnFocus] = useState(null)
+  const openImport = useCallback(() => {
+    setImportRecover(false)
+    setImportReturnFocus(null)
+    setImportOpen(true)
+  }, [])
   const [repairLossNotes, setRepairLossNotes] = useState(0)
   useEffect(() => {
     let live = true
     readRepairNotice().then((n) => { if (live) setRepairLossNotes(n) })
     return () => { live = false }
   }, [])
-  const dismissRepair = useCallback(() => {
+  // Review M-1: either button unmounts the notice, and the button with it, so focus must not be left
+  // to fall to <body>. It goes to the pane heading, the Notebook's landing place for focus with
+  // nowhere better to go: at once after Dismiss, and through the wizard's `returnFocusTo` when the
+  // wizard closes after Recover. `paneHeadingRef` is declared further down; these run on a click.
+  const retireRepairNotice = useCallback(() => {
     setRepairLossNotes(0)
-    return dismissRepairNotice()
+    dismissRepairNotice()
   }, [])
-  const recoverFromRepairNotice = useCallback(async () => {
-    await dismissRepair()
+  const dismissRepair = useCallback(() => {
+    retireRepairNotice()
+    paneHeadingRef.current?.focus()
+  }, [retireRepairNotice])
+  // Review M-5: the dismiss is a best-effort write and is NOT awaited. It is sent first (so it
+  // still goes out before anything the wizard asks for), and the wizard opens at once.
+  const recoverFromRepairNotice = useCallback(() => {
+    retireRepairNotice()
     setImportRecover(true)
+    setImportReturnFocus(paneHeadingRef)
     setImportOpen(true)
-  }, [dismissRepair])
+  }, [retireRepairNotice])
   // ONE element, rendered by whichever pane branch is on screen (Research Home or a list).
   const repairNotice = repairLossNotes > 0 ? (
     <ImportRepairNotice
@@ -2468,7 +2488,7 @@ export default function NotebookTab() {
             onOpenNote={openNote}
             onCreateNote={() => createNote()}
             onCreateThesis={createThesisNote}
-            onImport={() => setImportOpen(true)}
+            onImport={openImport}
             hasAnyNotes={hasAnyNotes}
             // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
             blockedNoteIds={blockedNoteIds}
@@ -2635,7 +2655,7 @@ export default function NotebookTab() {
             <button
               type="button"
               className={styles.importBtn}
-              onClick={() => setImportOpen(true)}
+              onClick={openImport}
               aria-haspopup="dialog"
               data-tour="import"
             >
@@ -2798,7 +2818,7 @@ export default function NotebookTab() {
                 <button
                   type="button"
                   className={`${styles.importBtn} ${styles.importBtnEmphasized}`}
-                  onClick={() => setImportOpen(true)}
+                  onClick={openImport}
                   aria-haspopup="dialog"
                 >
                   <UIcon name="upload" size={16} gold={false} />
@@ -2970,7 +2990,8 @@ export default function NotebookTab() {
         <ImportWizard
           open={importOpen}
           initialRecover={importRecover}
-          onClose={() => { setImportOpen(false); setImportRecover(false) }}
+          returnFocusTo={importReturnFocus}
+          onClose={() => setImportOpen(false)}
           onImported={handleImported}
         />
         {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]} />}

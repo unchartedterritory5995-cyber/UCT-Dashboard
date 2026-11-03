@@ -1,19 +1,20 @@
 /* Plan F Task 10: the one-time import-repair notice above the note list. No fixed widths: it
-   takes the list's width and its text wraps. */
+   takes the list's width and its text wraps. Colours are the Notebook's own tokens, so the
+   contrast rail (a11y/notebookContrast.test.js) reads them in all three themes. */
 .notice {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   margin: 8px 0;
   padding: 12px 14px;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
-  color: var(--color-text, #e8e8ea);
+  background: var(--bg-surface);
+  color: var(--text);
   min-width: 0;
 }
 
-.icon { flex-shrink: 0; margin-top: 2px; color: var(--warn); }
+.icon { flex-shrink: 0; margin-top: 2px; color: var(--text-muted); }
 
 .text { flex: 1; min-width: 0; }
 
@@ -21,13 +22,14 @@
   margin: 0 0 4px;
   font-size: 14px;
   font-weight: 600;
+  color: var(--text-bright);
 }
 
 .body {
   margin: 0 0 10px;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 

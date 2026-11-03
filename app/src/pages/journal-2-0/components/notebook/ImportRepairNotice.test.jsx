@@ -2,40 +2,54 @@
 //
 // The copy is checked on the component itself; the rest runs through the real NotebookTab, with
 // only the network faked (the a11y fixtures), because what matters is the wiring: one read per
-// page load, the chunk fetched only when there is something to show, the dismiss POST, and the
-// live import wizard opened with recover already ticked.
+// page load, the dismiss POST, focus after either button, and the live import wizard opened with
+// recover already ticked. Whether the chunk loads at all is ImportRepairNotice.chunk.test.jsx.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react'
 import { installFetch, latchWave8Flags, Providers } from '../../a11y/fixtures'
+import Layout from '../../../../components/Layout'
 import NotebookTab, { __resetRepairNoticeForTests } from '../../tabs/NotebookTab'
-
-// Counts how many times NotebookTab's lazy import pulls the notice chunk in. The copy tests below
-// read the real module through `vi.importActual`, which bypasses this factory, so only the
-// NotebookTab path is counted.
-const chunk = vi.hoisted(() => ({ loads: 0 }))
-vi.mock('./ImportRepairNotice', async () => {
-  chunk.loads += 1
-  return vi.importActual('./ImportRepairNotice')
-})
+import ImportRepairNotice from './ImportRepairNotice'
 
 const NOTICE_GET = '/api/j2/notes/import/repair-notice'
 const NOTICE_DISMISS = '/api/j2/notes/import/repair-notice/dismiss'
 const LIST_ROUTE = '/journal/notebook?view=all'
 const HEADING = 'Some imported notes are missing pictures'
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 
+const pathOf = (input) => (typeof input === 'string' ? input : input?.url || '').split('?')[0]
+
 function calls(spy, path, method = 'GET') {
-  return spy.mock.calls.filter(([input, init]) => {
-    const url = typeof input === 'string' ? input : input?.url || ''
-    return url.split('?')[0] === path && (init?.method || 'GET').toUpperCase() === method
-  })
+  return spy.mock.calls.filter(([input, init]) => (
+    pathOf(input) === path && (init?.method || 'GET').toUpperCase() === method
+  ))
 }
+
+const NOTICE_ROUTES = (lossNotes) => [
+  [/^\/api\/j2\/notes\/import\/repair-notice\/dismiss$/, { ok: true }],
+  [/^\/api\/j2\/notes\/import\/repair-notice$/, { show: true, lossNotes }],
+  [/^\/api\/j2\/notes\/import\/check$/, {
+    existing: { 'file:hello.md': { id: 'n1', updatedAt: '2026-10-01T00:00:00Z', importHash: null } },
+  }],
+]
+
+// The pane's own heading: the Notebook's landing place for the skip link and for focus that has
+// nowhere better to go (wave 8, 8A A4). Present on Research Home and on every list.
+const paneHeading = () => document.querySelector('#notebook-pane > h2')
 
 async function renderList() {
   render(<Providers route={LIST_ROUTE}><NotebookTab /></Providers>)
   await screen.findAllByText('Weekly plan')
   await settle()
+}
+
+async function scanHelloAndExpectTicked(input) {
+  const md = new File(['# Hello\n\nbody'], 'hello.md', { type: 'text/markdown' })
+  fireEvent.change(input, { target: { files: [md] } })
+  await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
+  expect(screen.getByTestId('import-recover-mode')).toBeChecked()
 }
 
 beforeEach(() => {
@@ -45,19 +59,15 @@ beforeEach(() => {
 afterEach(() => { cleanup() })
 
 describe('ImportRepairNotice', () => {
-  // ORDER MATTERS: this runs first, while the chunk counter can still move. A later test loads the
-  // chunk on purpose, and a module loads once per file, so this check would be vacuous after it.
-  it('nothing renders and no chunk loads when show is false', async () => {
+  it('nothing renders when show is false', async () => {
     const spy = installFetch([[/^\/api\/j2\/notes\/import\/repair-notice$/, { show: false, lossNotes: 0 }]])
     await renderList()
     expect(calls(spy, NOTICE_GET)).toHaveLength(1)
     expect(screen.queryByText(HEADING)).toBeNull()
     expect(screen.queryByTestId('import-repair-notice')).toBeNull()
-    expect(chunk.loads).toBe(0)
   })
 
-  it('renders the singular and plural copy exactly', async () => {
-    const { default: ImportRepairNotice } = await vi.importActual('./ImportRepairNotice')
+  it('renders the singular and plural copy exactly', () => {
     const { unmount } = render(<ImportRepairNotice lossNotes={1} onRecover={() => {}} onDismiss={() => {}} />)
     expect(screen.getByRole('heading', { name: HEADING })).toBeInTheDocument()
     expect(screen.getByText(
@@ -76,18 +86,19 @@ describe('ImportRepairNotice', () => {
     expect(document.body.textContent).not.toMatch(/[—‘’]/)
   })
 
-  it('Dismiss posts once and hides', async () => {
-    const spy = installFetch([
-      [/^\/api\/j2\/notes\/import\/repair-notice\/dismiss$/, { ok: true }],
-      [/^\/api\/j2\/notes\/import\/repair-notice$/, { show: true, lossNotes: 2 }],
-    ])
+  it('Dismiss posts once, hides, and leaves focus on the pane heading', async () => {
+    const spy = installFetch(NOTICE_ROUTES(2))
     await renderList()
     await screen.findByRole('heading', { name: HEADING })
-    expect(chunk.loads).toBe(1) // the control for the first test: a shown notice DOES load the chunk
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    const dismiss = screen.getByRole('button', { name: 'Dismiss' })
+    dismiss.focus()
+    fireEvent.click(dismiss)
     await waitFor(() => expect(screen.queryByText(HEADING)).toBeNull())
     expect(calls(spy, NOTICE_DISMISS, 'POST')).toHaveLength(1)
     expect(calls(spy, NOTICE_DISMISS, 'POST')[0][1].credentials).toBe('include')
+    // Review M-1: the button that held focus is gone; focus lands somewhere a member can resume from.
+    expect(paneHeading()).not.toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(paneHeading()))
 
     // Once per page load: a remount of the tab neither reads again nor shows it again.
     cleanup()
@@ -97,40 +108,54 @@ describe('ImportRepairNotice', () => {
     expect(calls(spy, NOTICE_DISMISS, 'POST')).toHaveLength(1)
   })
 
-  it('Re-import to recover dismisses then opens the wizard with recover ticked', async () => {
-    const spy = installFetch([
-      [/^\/api\/j2\/notes\/import\/repair-notice\/dismiss$/, { ok: true }],
-      [/^\/api\/j2\/notes\/import\/repair-notice$/, { show: true, lossNotes: 1 }],
-      [/^\/api\/j2\/notes\/import\/check$/, {
-        existing: { 'file:hello.md': { id: 'n1', updatedAt: '2026-10-01T00:00:00Z', importHash: null } },
-      }],
-    ])
+  it('Re-import to recover dismisses then opens the wizard with recover ticked, and closing it returns focus', async () => {
+    const spy = installFetch(NOTICE_ROUTES(1))
     await renderList()
     await screen.findByRole('heading', { name: HEADING })
     expect(screen.queryByTestId('import-file-input')).toBeNull()
 
+    const recover = screen.getByRole('button', { name: 'Re-import to recover' })
+    recover.focus()
+    fireEvent.click(recover)
+    const input = await screen.findByTestId('import-file-input', {}, { timeout: 10000 })
+    expect(screen.queryByText(HEADING)).toBeNull()
+    expect(calls(spy, NOTICE_DISMISS, 'POST')).toHaveLength(1)
+
+    await scanHelloAndExpectTicked(input)
+    // Review M-3: the order is checked AFTER the scan, so the wizard's own call is there to compare.
+    const order = spy.mock.calls.map(([u]) => pathOf(u))
+    const dismissAt = order.indexOf(NOTICE_DISMISS)
+    const checkAt = order.indexOf('/api/j2/notes/import/check')
+    expect(dismissAt).toBeGreaterThan(-1)
+    expect(checkAt).toBeGreaterThan(-1)
+    expect(dismissAt).toBeLessThan(checkAt)
+
+    // Review M-1: closing the wizard puts focus back on the pane heading, not on <body>.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByTestId('import-file-input')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(paneHeading()))
+  }, 30000)
+
+  it('Re-import to recover opens the wizard even while the dismiss POST hangs', async () => {
+    const routed = installFetch(NOTICE_ROUTES(3))
+    // Review M-5: a dismiss that never answers must not hold the wizard back.
+    const spy = vi.fn((input, init) => (pathOf(input) === NOTICE_DISMISS ? new Promise(() => {}) : routed(input, init)))
+    global.fetch = spy
+    await renderList()
+    await screen.findByRole('heading', { name: HEADING })
     fireEvent.click(screen.getByRole('button', { name: 'Re-import to recover' }))
     const input = await screen.findByTestId('import-file-input', {}, { timeout: 10000 })
     expect(screen.queryByText(HEADING)).toBeNull()
-    const dismisses = calls(spy, NOTICE_DISMISS, 'POST')
-    expect(dismisses).toHaveLength(1)
-    // The dismiss went out before the wizard did anything on the network.
-    const order = spy.mock.calls.map(([u]) => String(typeof u === 'string' ? u : u?.url))
-    const firstImportCall = order.findIndex((u) => u.includes('/api/j2/notes/import/') && !u.includes('repair-notice'))
-    expect(order.indexOf(NOTICE_DISMISS)).toBeGreaterThan(-1)
-    if (firstImportCall !== -1) expect(order.indexOf(NOTICE_DISMISS)).toBeLessThan(firstImportCall)
-
-    const md = new File(['# Hello\n\nbody'], 'hello.md', { type: 'text/markdown' })
-    fireEvent.change(input, { target: { files: [md] } })
-    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
-    expect(screen.getByTestId('import-recover-mode')).toBeChecked()
-  }, 20000)
+    expect(calls(spy, NOTICE_DISMISS, 'POST')).toHaveLength(1)
+    await scanHelloAndExpectTicked(input)
+    expect(screen.queryByText(HEADING)).toBeNull()
+  }, 30000)
 })
 
 // Task 10 concern 2: a member lands on Research Home (the bare root), not on a list.
 describe('ImportRepairNotice on Research Home', () => {
-  async function renderHome() {
-    render(<Providers route="/journal/notebook"><NotebookTab /></Providers>)
+  async function renderHome(wrap = (x) => x) {
+    render(<Providers route="/journal/notebook">{wrap(<NotebookTab />)}</Providers>)
     await screen.findAllByText('Theses') // the folder tree is real and fed by the fixtures
     // Non-vacuity: this IS Research Home, not a list (the list's view switcher is absent).
     await waitFor(() => expect(screen.queryByRole('button', { name: 'List view' })).toBeNull())
@@ -150,13 +175,7 @@ describe('ImportRepairNotice on Research Home', () => {
   }, 20000)
 
   it('shows once on Research Home, and its Re-import to recover opens the wizard ticked', async () => {
-    const spy = installFetch([
-      [/^\/api\/j2\/notes\/import\/repair-notice\/dismiss$/, { ok: true }],
-      [/^\/api\/j2\/notes\/import\/repair-notice$/, { show: true, lossNotes: 5 }],
-      [/^\/api\/j2\/notes\/import\/check$/, {
-        existing: { 'file:hello.md': { id: 'n1', updatedAt: '2026-10-01T00:00:00Z', importHash: null } },
-      }],
-    ])
+    const spy = installFetch(NOTICE_ROUTES(5))
     await renderHome()
     await screen.findByRole('heading', { name: HEADING })
     expect(screen.getAllByTestId('import-repair-notice')).toHaveLength(1)
@@ -166,9 +185,22 @@ describe('ImportRepairNotice on Research Home', () => {
     const input = await screen.findByTestId('import-file-input', {}, { timeout: 10000 })
     expect(screen.queryByText(HEADING)).toBeNull()
     expect(calls(spy, NOTICE_DISMISS, 'POST')).toHaveLength(1)
-    const md = new File(['# Hello\n\nbody'], 'hello.md', { type: 'text/markdown' })
-    fireEvent.change(input, { target: { files: [md] } })
-    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
-    expect(screen.getByTestId('import-recover-mode')).toBeChecked()
+    await scanHelloAndExpectTicked(input)
   }, 20000)
+
+  // Review M-2: in the app shell, every skip link comes before the notice in Tab order, and the
+  // Notebook's own "Skip to notes list" lands on the pane heading, which comes before it too.
+  it('in the shell, the notice follows every skip link and the pane heading', async () => {
+    installFetch(NOTICE_ROUTES(2))
+    await renderHome((tab) => <Layout>{tab}</Layout>)
+    await screen.findByRole('heading', { name: HEADING })
+    const recover = screen.getByRole('button', { name: 'Re-import to recover' })
+    const stops = [...document.querySelectorAll(FOCUSABLE)]
+    const skips = stops.filter((el) => /^Skip to /.test(el.textContent.trim()))
+    expect(skips.map((el) => el.textContent.trim())).toEqual(expect.arrayContaining(['Skip to main content', 'Skip to notes list']))
+    for (const skip of skips) {
+      expect(skip.compareDocumentPosition(recover) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+    expect(paneHeading().compareDocumentPosition(recover) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  }, 30000)
 })

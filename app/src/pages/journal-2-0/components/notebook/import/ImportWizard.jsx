@@ -269,7 +269,9 @@ export class ImportWizardBoundary extends Component {
 // main component
 // ---------------------------------------------------------------------------
 
-export default function ImportWizard({ open, onClose, onImported, initialRecover = false }) {
+// `returnFocusTo` (optional, Plan F Task 10 review M-1): handed to Sheet, which focuses it on close
+// instead of whatever held focus at open. Unset, Sheet's default restore runs, as before.
+export default function ImportWizard({ open, onClose, onImported, initialRecover = false, returnFocusTo }) {
   const isTouch = useIsTouch()
   const { folders, create: createFolder } = useJ2NoteFolders()
 
@@ -972,6 +974,7 @@ export default function ImportWizard({ open, onClose, onImported, initialRecover
       // F4 / A2R-08: named by its visible title, which follows the step.
       labelledByTitle
       maxWidth={640}
+      returnFocusTo={returnFocusTo || undefined}
       dismissOnBackdrop={step !== 'scanning' && step !== 'running'}
     >
       <ImportWizardBoundary onClose={onClose}>
