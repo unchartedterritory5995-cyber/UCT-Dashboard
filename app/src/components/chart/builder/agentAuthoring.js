@@ -30,6 +30,7 @@ import {
 } from './authoring/authoringSession'
 import { withPendingInputs } from './studio/editPreview'
 import { sameMaths } from './authoring/sameMaths'
+import { withServedRowIdentities } from '../engine/lineIdentity'
 
 export const AUTHORING_CONTRACT = 'uct.indicators.authoring/1'
 
@@ -425,7 +426,8 @@ export async function readStoredDefinition(defId, fetchImpl = (typeof fetch === 
     const r = await fetchImpl(`/api/user-definitions/${encodeURIComponent(defId)}`, { credentials: 'include', cache: 'no-store' })
     if (!r || !r.ok) return null
     const row = await r.json()
-    return isObj(row) ? row : null
+    // ⭐ LINE IDENTITY — the served identities, worn by the copy this browser holds.
+    return isObj(row) ? withServedRowIdentities(row) : null
   } catch { return null }
 }
 
