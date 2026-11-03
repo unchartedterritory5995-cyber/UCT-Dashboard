@@ -20,9 +20,14 @@
 //
 // ⛔ UNDO IS BY ID, NEVER the store's undo(): that history is shared with the member's own edits
 // ("undo the last change to this symbol, whoever made it"), so it could revert THEIR work.
-// ⛔ NOT OFFERED YET: tools anchored in TIME (trendlines, rectangles, Fibonacci, text…). The drawing
-// layer now exports what they need (components/chart/drawingTools.js: POINT_COUNT, validateDrawing,
-// drawingTimeFor) — the anchored tools themselves are the next phase.
+// ⭐ W1-B (Wave 1, 2026-11-02) — tools anchored in TIME, through the SAME store writer and the drawing
+// layer's own exports (components/chart/drawingTools.js: POINT_COUNT, validateDrawing, drawingTimeFor):
+//   drawing.addTrendline / addRay / addRectangle / addFib   two anchors {date, price}
+//   drawing.addHorizontalRay / addText / addAvwap           one anchor {date, price} (+ text)
+//   A date is an ISO day or a member's date word (agent/dateWords.js: "last friday", "oct 15"); it is
+//   converted to the chart's stored point shape for the symbol's chart TIMEFRAME (drawingTimeFor), every
+//   point is checked by validateDrawing, and an anchor outside the history the chart has loaded (or in
+//   the future) is refused — a drawing is never written where the chart could not place it.
 // Drawings are keyed by SYMBOL (every chart on NVDA shares one array) — receipts say so.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
@@ -31,7 +36,10 @@ import { UCT_DRAW_GOLD } from '../../components/chart/drawingColors'
 import { LINE_DASH } from '../../components/chart/drawingStyle'
 import { normalizeColor } from './chart'
 // the drawing layer's own rule for what a tool's points must be (C-3): every point the Agent writes is checked by it
-import { validateDrawing } from '../../components/chart/drawingTools'
+import { validateDrawing, drawingTimeFor } from '../../components/chart/drawingTools'
+import { newDrawingProps } from '../../components/chart/drawingSettingsSchema'
+import { PRICE } from '../../components/chart/drawingPanes'
+import { resolveDateWord, isoDayMs, dayWord } from '../dateWords'
 import { loadAlerts } from './alert'
 
 const STYLES = Object.keys(LINE_DASH)            // solid, dashed, dotted
@@ -39,6 +47,7 @@ const WIDTHS = [1, 2, 3, 4]
 const TEMP = 'new:'
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 const money = (n) => `$${Number(n).toLocaleString('en-US', { maximumFractionDigits: 4 })}`
+const fmtMs = (ms) => new Date(ms).toISOString().slice(0, 10)
 // What an update may change on an existing drawing (each key is one the drawing's own controls write):
 // its style, its eye (hidden), its lock, and — for a level — its anchor's price (points).
 const STYLE_KEYS = ['color', 'labelColor', 'lineStyle', 'lineWidth', 'hidden', 'locked', 'points']
@@ -64,7 +73,7 @@ export const drawingKind = {
   // host.drawings: one entry per SYMBOL shown on a chart (agent/host.js buildDrawingSource)
   list: (host) => host?.drawings?.list() || [],
   read: (host, ref) => host?.drawings?.read(ref) || null,
-  stateOf: (snap) => ({ drawings: snap.drawings, defaults: snap.defaults, symbol: snap.symbol, n: 0 }),
+  stateOf: (snap) => ({ drawings: snap.drawings, defaults: snap.defaults, symbol: snap.symbol, tf: snap.tf || 'D', history: snap.history || null, n: 0 }),
   patch(before, after) {
     const b = new Map(before.drawings.map(d => [d.id, d]))
     const a = new Map(after.drawings.map(d => [d.id, d]))
@@ -157,7 +166,9 @@ export function registerDrawingCapabilities() {
     build: (host, refFor) => {
       const list = drawingKind.list(host)
       return list.length ? list.map(s => ({
-        ref: refFor('drawing', s.ref), symbol: s.symbol, shownOn: s.charts,
+        ref: refFor('drawing', s.ref), symbol: s.symbol, shownOn: s.charts, timeframe: s.tf || 'D',
+        // the history the chart has loaded: a time anchor must fall inside it (W1-B anchored tools)
+        ...(s.history ? { loadedHistory: `${fmtMs(s.history.firstMs)} to ${fmtMs(s.history.lastMs)}` } : {}),
         drawings: s.drawings.slice(-40).map(d => ({
           id: d.id, what: nameOf(d), color: d.color || null, style: d.lineStyle || 'solid', width: d.lineWidth || 1,
           ...(d.locked ? { locked: true } : {}), ...(d.hidden ? { hidden: true } : {}),
@@ -171,6 +182,7 @@ export function registerDrawingCapabilities() {
       ? { ...e, drawings: e.drawings.slice(-10), omitted: `${e.drawings.length - 10} older drawings not listed` } : e)),
   })
   const common = { target: 'drawing', surfaces: ['charts'], available: (ctx) => ctx.surface === 'charts' }
+  registerAnchoredDrawingCapabilities(common)
 
   registerCapability({
     ...common,
@@ -423,6 +435,203 @@ export function registerDrawingCapabilities() {
       if (!gone) return null
       const kept = a.drawings.length ? ` · kept ${a.drawings.length} (locked or with an alert attached)` : ''
       return `Removed ${gone} drawing${gone === 1 ? '' : 's'} from ${a.symbol} — on every chart and layout showing ${a.symbol}${kept}`
+    },
+  })
+}
+
+// ── W1-B: TIME-ANCHORED tools — the toolbar's own drawings, placed from dates instead of clicks ─────
+//
+// What the overlay writes when a member finishes placing a tool (ChartDrawingOverlay, the "finish"
+// block): { type, points, color, lineWidth, lineStyle, pane: PRICE, ...newDrawingProps(type, byTool) }.
+// The Agent writes the same keys. A point's `time` is what `drawingTimeFor(day, tf)` gives for the
+// symbol's chart timeframe ('YYYY-MM-DD' on D/W/M, ET-shifted 09:30 seconds intraday) — never a time
+// the Agent computed itself. The chart's overlay places a daily anchor that is not a bar on the
+// containing bar (its toPixel fallback), so a weekend date on a trendline still lands; the AVWAP
+// renderer looks its anchor up by EXACT bar time, so its anchor must be a weekday (a market holiday
+// cannot be known here — said in the receipt).
+const DAY_MS = 86400000
+const TEXT_MAX = 200
+const ANCHOR_ARG = { type: 'object', properties: { date: { type: 'string' }, price: { type: 'number' } }, required: ['date', 'price'], additionalProperties: false }
+const STYLE_ARGS = { color: { type: ['string', 'null'] }, style: { type: ['string', 'null'], enum: [...STYLES, null] } }
+const TOOL_NAME = { trendline: 'trendline', ray: 'ray', hray: 'horizontal ray', rect: 'rectangle', fib: 'Fibonacci retracement', text: 'note', avwap: 'anchored VWAP' }
+const DATE_HINT = 'a date is YYYY-MM-DD or the member\'s words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented'
+
+/** A member's anchor {date, price} → { time, price, day } for this symbol's timeframe, or a refusal sentence. */
+function anchorFor(st, pt, { needsWeekday = false } = {}) {
+  if (!pt || typeof pt !== 'object') return { why: 'Say the date and price for each point.' }
+  const price = Number(pt.price)
+  if (!Number.isFinite(price) || price <= 0) return { why: `“${pt.price}” isn't a price — say a positive number.` }
+  const r = resolveDateWord(pt.date)
+  if (!r) return { why: `I couldn't read “${pt.date}” as a date — use YYYY-MM-DD or a day like “last Friday”.` }
+  if (r.future) return { why: `${dayWord(r.to)} is in the future — a drawing can only be anchored on history the chart has.` }
+  const ms = isoDayMs(r.to)
+  if (st.history) {
+    if (ms < st.history.firstMs) return { why: `${dayWord(r.to)} is before the history loaded on the chart (it starts ${dayWord(fmtMs(st.history.firstMs))}) — scroll the chart back to load it first.` }
+    if (ms > st.history.lastMs + DAY_MS) return { why: `${dayWord(r.to)} is after the last bar on the chart (${dayWord(fmtMs(st.history.lastMs))}).` }
+  }
+  if (needsWeekday) {
+    const w = new Date(ms).getUTCDay()
+    if (w === 0 || w === 6) return { why: `${dayWord(r.to)} is a ${w === 0 ? 'Sunday' : 'Saturday'} — an anchored VWAP starts on a trading day.` }
+  }
+  const time = drawingTimeFor(r.to, st.tf)
+  if (time == null) return { why: `I couldn't place ${dayWord(r.to)} on this chart's timeframe.` }
+  return { time, price, day: r.to }
+}
+const anchorsFor = (st, pts, opts) => {
+  const out = []
+  for (const p of pts) { const a = anchorFor(st, p, opts); if (a.why) return a; out.push(a) }
+  return { points: out }
+}
+const styleWhy = ({ color, style }) => (color != null && !normalizeColor(color) ? `“${color}” isn't a colour I know — use a name like blue or a #hex.`
+  : style != null && !STYLES.includes(style) ? `Line styles are ${STYLES.join(', ')}.` : null)
+/** The drawing exactly as the toolbar would store it for this symbol's chart. */
+function newDrawing(st, type, points, { color, style, extra = {} }) {
+  return {
+    id: `${TEMP}${st.n + 1}`,
+    type,
+    points: points.map(a => ({ time: a.time, price: a.price })),
+    color: color != null ? normalizeColor(color) : (st.defaults?.color || UCT_DRAW_GOLD),
+    lineWidth: st.defaults?.width || 1,
+    ...(style && style !== 'solid' ? { lineStyle: style } : {}),
+    pane: PRICE,
+    ...(newDrawingProps(type, st.defaults?.byTool || null) || {}),
+    ...extra,
+  }
+}
+const sameAnchors = (a, b) => JSON.stringify((a || []).map(p => [p.time, p.price])) === JSON.stringify((b || []).map(p => [p.time, p.price]))
+const dupOf = (st, type, points) => st.drawings.find(d => d.type === type && !d.hidden && sameAnchors(d.points, points))
+const at = (a) => `${money(a.price)} on ${dayWord(a.day)}`
+const addedBy = (b, a) => a.drawings.filter(d => !b.drawings.some(o => o.id === d.id))
+
+function registerAnchoredDrawingCapabilities(common) {
+  // two-anchor tools: trendline, ray, rectangle, Fibonacci retracement
+  const two = [
+    ['drawing.addTrendline', 'trendline', 'Draw a TRENDLINE between two points (date + price each) on a chart\'s symbol — the toolbar\'s own trendline tool. Every chart on that symbol shows it; Undo removes it.',
+      'from / to = {date, price}: the two anchors in time order ("from the Oct 15 low at 180 to last Friday at 195"). A point the member describes without a date AND a price ("the recent low") has no anchor — clarify, never guess.'],
+    ['drawing.addRay', 'ray', 'Draw a RAY from one point (date + price) through a second, extended to the right — the toolbar\'s own ray tool. Every chart on that symbol shows it; Undo removes it.',
+      'from = the start {date, price}; to = a second point it passes through {date, price}, after the first.'],
+    ['drawing.addRectangle', 'rect', 'Draw a RECTANGLE between two opposite corners (date + price each) on a chart\'s symbol — the toolbar\'s own rectangle, e.g. a consolidation box. Undo removes it.',
+      'from / to = {date, price}: opposite corners ("a box from Oct 1 at 170 to Oct 20 at 185").'],
+    ['drawing.addFib', 'fib', 'Draw a FIBONACCI RETRACEMENT between two points (date + price each) on a chart\'s symbol — the toolbar\'s own tool with its standard levels. Undo removes it.',
+      'from = the swing start {date, price} (the low for an up move); to = the swing end {date, price}. "Fib from the Oct 7 low at 150 to the Oct 28 high at 190".'],
+  ]
+  for (const [name, type, summary, hint] of two) {
+    registerCapability({
+      ...common,
+      name,
+      summary,
+      hints: `target = the drawings entry for the chart's symbol; ${hint} ${DATE_HINT}; color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.`,
+      args: { type: 'object', properties: { from: ANCHOR_ARG, to: ANCHOR_ARG, ...STYLE_ARGS }, required: ['from', 'to', 'color', 'style'], additionalProperties: false },
+      check(st, { from, to, color, style }) {
+        const s = styleWhy({ color, style })
+        if (s) return s
+        const r = anchorsFor(st, [from, to])
+        if (r.why) return r.why
+        if (r.points[0].time === r.points[1].time && r.points[0].price === r.points[1].price) return 'The two points are the same — say two different points.'
+        if (type !== 'rect' && isoDayMs(r.points[1].day) < isoDayMs(r.points[0].day)) return `The second point (${dayWord(r.points[1].day)}) is before the first (${dayWord(r.points[0].day)}) — give them in time order.`
+        const v = validateDrawing(type, r.points.map(a => ({ time: a.time, price: a.price })), { tf: st.tf })
+        if (!v.ok) return `That ${TOOL_NAME[type]} can't be drawn here (${v.reason}).`
+        if (dupOf(st, type, r.points)) return `There is already a ${TOOL_NAME[type]} between those two points on ${st.symbol}.`
+        return null
+      },
+      apply(st, { from, to, color, style }) {
+        const r = anchorsFor(st, [from, to])
+        const d = newDrawing(st, type, r.points, { color, style })
+        return { ...st, n: st.n + 1, drawings: [...st.drawings, d] }
+      },
+      describe(b, a, { from, to }) {
+        const added = addedBy(b, a)
+        if (!added.length) return null
+        const r = anchorsFor(b, [from, to])
+        return `Drew a ${TOOL_NAME[type]} on ${a.symbol} from ${at(r.points[0])} to ${at(r.points[1])}${added[0].lineStyle ? ` (${added[0].lineStyle})` : ''} — on every chart showing ${a.symbol}`
+      },
+    })
+  }
+
+  registerCapability({
+    ...common,
+    name: 'drawing.addHorizontalRay',
+    summary: 'Draw a HORIZONTAL RAY from a date at a price, extending to the right — the toolbar\'s own horizontal ray (a level that starts on a day, e.g. a breakout level from its breakout date). Undo removes it.',
+    hints: `target = the drawings entry for the chart's symbol; date = where the ray starts; price = its level; ${DATE_HINT}; color / style as for other drawings (null = defaults). A level with no start date is drawing.addLevel.`,
+    args: { type: 'object', properties: { date: { type: 'string' }, price: { type: 'number' }, ...STYLE_ARGS }, required: ['date', 'price', 'color', 'style'], additionalProperties: false },
+    check(st, { date, price, color, style }) {
+      const s = styleWhy({ color, style })
+      if (s) return s
+      const r = anchorsFor(st, [{ date, price }])
+      if (r.why) return r.why
+      const v = validateDrawing('hray', r.points.map(a => ({ time: a.time, price: a.price })), { tf: st.tf })
+      if (!v.ok) return `That horizontal ray can't be drawn here (${v.reason}).`
+      if (dupOf(st, 'hray', r.points)) return `There is already a horizontal ray from ${at(r.points[0])} on ${st.symbol}.`
+      return null
+    },
+    apply(st, { date, price, color, style }) {
+      const r = anchorsFor(st, [{ date, price }])
+      return { ...st, n: st.n + 1, drawings: [...st.drawings, newDrawing(st, 'hray', r.points, { color, style })] }
+    },
+    describe(b, a, { date, price }) {
+      const added = addedBy(b, a)
+      if (!added.length) return null
+      const r = anchorsFor(b, [{ date, price }])
+      return `Drew a horizontal ray on ${a.symbol} from ${at(r.points[0])}, extending right${added[0].lineStyle ? ` (${added[0].lineStyle})` : ''} — on every chart showing ${a.symbol}`
+    },
+  })
+
+  registerCapability({
+    ...common,
+    name: 'drawing.addText',
+    summary: 'Place a TEXT NOTE on a chart\'s symbol at a date and price — the toolbar\'s own text tool, with the member\'s exact words. Undo removes it.',
+    hints: `target = the drawings entry for the chart's symbol; text = the note exactly as the member said it (never reworded, up to ${TEXT_MAX} characters); date / price = where it sits; ${DATE_HINT}; color = a colour name or #hex, null = the member's default.`,
+    args: { type: 'object', properties: { text: { type: 'string' }, date: { type: 'string' }, price: { type: 'number' }, color: { type: ['string', 'null'] } }, required: ['text', 'date', 'price', 'color'], additionalProperties: false },
+    check(st, { text, date, price, color }) {
+      const t = String(text || '').trim()
+      if (!t) return 'Say what the note should say.'
+      if (t.length > TEXT_MAX) return `That note is ${t.length} characters — keep it under ${TEXT_MAX}.`
+      const s = styleWhy({ color, style: null })
+      if (s) return s
+      const r = anchorsFor(st, [{ date, price }])
+      if (r.why) return r.why
+      const v = validateDrawing('text', r.points.map(a => ({ time: a.time, price: a.price })), { tf: st.tf })
+      if (!v.ok) return `That note can't be placed here (${v.reason}).`
+      if (st.drawings.some(d => d.type === 'text' && !d.hidden && sameAnchors(d.points, r.points) && String(d.text || '').trim() === t)) return `That note is already on ${st.symbol} at that point.`
+      return null
+    },
+    apply(st, { text, date, price, color }) {
+      const r = anchorsFor(st, [{ date, price }])
+      const d = newDrawing(st, 'text', r.points, { color, style: null, extra: { text: String(text).trim(), fontSize: st.defaults?.fontSize || 13, boxWidth: null } })
+      return { ...st, n: st.n + 1, drawings: [...st.drawings, d] }
+    },
+    describe(b, a, { text, date, price }) {
+      if (!addedBy(b, a).length) return null
+      const r = anchorsFor(b, [{ date, price }])
+      const t = String(text).trim()
+      return `Added the note “${t.length > 40 ? `${t.slice(0, 40)}…` : t}” on ${a.symbol} at ${at(r.points[0])} — on every chart showing ${a.symbol}`
+    },
+  })
+
+  registerCapability({
+    ...common,
+    name: 'drawing.addAvwap',
+    summary: 'Draw an ANCHORED VWAP on a chart\'s symbol starting from a date — the toolbar\'s own anchored VWAP (volume-weighted average price from that session forward). Undo removes it.',
+    hints: `target = the drawings entry for the chart's symbol; date = the anchor session (a trading day: an earnings day, a low, "last friday"); price = the price on that day the member named, or the price they are looking at there (the anchor's level — the VWAP itself is computed from the bars); ${DATE_HINT}; color null = the member's default.`,
+    args: { type: 'object', properties: { date: { type: 'string' }, price: { type: 'number' }, color: { type: ['string', 'null'] } }, required: ['date', 'price', 'color'], additionalProperties: false },
+    check(st, { date, price, color }) {
+      const s = styleWhy({ color, style: null })
+      if (s) return s
+      const r = anchorsFor(st, [{ date, price }], { needsWeekday: true })
+      if (r.why) return r.why
+      const v = validateDrawing('avwap', r.points.map(a => ({ time: a.time, price: a.price })), { tf: st.tf })
+      if (!v.ok) return `That anchored VWAP can't be drawn here (${v.reason}).`
+      if (st.drawings.some(d => d.type === 'avwap' && !d.hidden && d.points?.[0]?.time === r.points[0].time)) return `There is already an anchored VWAP from ${dayWord(r.points[0].day)} on ${st.symbol}.`
+      return null
+    },
+    apply(st, { date, price, color }) {
+      const r = anchorsFor(st, [{ date, price }], { needsWeekday: true })
+      return { ...st, n: st.n + 1, drawings: [...st.drawings, newDrawing(st, 'avwap', r.points, { color, style: null })] }
+    },
+    describe(b, a, { date, price }) {
+      if (!addedBy(b, a).length) return null
+      const r = anchorsFor(b, [{ date, price }], { needsWeekday: true })
+      return `Drew an anchored VWAP on ${a.symbol} from ${dayWord(r.points[0].day)} forward (it draws from that session's bar; a market holiday would show nothing) — on every chart showing ${a.symbol}`
     },
   })
 }

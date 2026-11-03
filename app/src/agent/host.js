@@ -448,10 +448,16 @@ export function buildDrawingSource(charts, store = drawingsStore) {
     for (const c of charts.list()) {
       const sym = c.drawSym || c.symbol
       if (!sym) continue
-      const e = by.get(sym) || { ref: sym, symbol: sym, charts: [], defaults: null }
+      const e = by.get(sym) || { ref: sym, symbol: sym, charts: [], defaults: null, tf: null, history: null }
       e.charts.push(c.label)
-      // the chart's own "drawing defaults" (Chart Settings → Drawings), as the context menu uses them
-      if (!e.defaults) { const dd = c.cs?.drawingDefaults || {}; e.defaults = { color: dd.color || null, width: dd.width || null } }
+      // the chart's own "drawing defaults" (Chart Settings → Drawings), as the context menu and the
+      // toolbar's tools use them (`byTool` = the per-tool half a member saved with "Save as default")
+      if (!e.defaults) { const dd = c.cs?.drawingDefaults || {}; e.defaults = { color: dd.color || null, width: dd.width || null, fontSize: dd.fontSize || null, byTool: dd.byTool || null } }
+      // ⭐ W1-B anchored drawings: the timeframe a time anchor is written for (the FIRST chart showing
+      // the symbol — every chart on it shares the drawings) and the history that chart has loaded
+      // (the Time Navigator's own read-out), so an anchor outside it is refused, never drawn blind.
+      if (!e.tf) e.tf = c.tf || 'D'
+      if (!e.history && c.view && Number.isFinite(c.view.firstMs) && Number.isFinite(c.view.lastMs)) e.history = { firstMs: c.view.firstMs, lastMs: c.view.lastMs }
       by.set(sym, e)
     }
     // `board`: the ACTIVE Drawing Board (tracing). The store holds only the active board's
