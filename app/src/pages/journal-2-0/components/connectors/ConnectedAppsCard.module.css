@@ -90,9 +90,11 @@
 
 .tileName { font-size: 14px; font-weight: 600; }
 
-.comingSoon {
+/* The quiet state pill ("Coming soon", "Sync off"). Review M4: was `.comingSoon` at opacity 0.6, which
+   put the text at 4.1:1 in light; now --text-muted at full strength (rendered rail: notebookContrast). */
+.statusPill {
   font-size: 12px;
-  opacity: 0.6;
+  color: var(--text-muted);
   padding: 3px 10px;
   border: 1px solid var(--color-border, #333);
   border-radius: var(--radius-pill);
@@ -222,3 +224,33 @@
 .logEntry { display: flex; flex-direction: column; gap: 2px; }
 .logLine { font-size: 12px; margin: 0; opacity: 0.85; }
 .failureList { margin: 0; padding-left: 18px; font-size: 12px; color: var(--color-danger, #f87171); }
+
+/* Plan E Task 10: the "Beta" pill beside a provider's label (text, no icon), and the `.enex`
+   offer link. Notebook tokens only. */
+.betaPill {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+/* Review M1: the lines that carry the `.enex` link are NOT dimmed (`.muted` and `.pausedNotice` use opacity,
+   which took --accent to 3.1:1 in light). Ink at full strength, measured rendered in notebookContrast.test.js. */
+.offerLine { font-size: 13px; margin: 0; color: var(--text-muted); }
+.offerNotice {
+  font-size: 12.5px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+}
+
+.offerLink {
+  color: var(--accent);
+  text-decoration: underline;
+}
