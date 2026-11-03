@@ -1233,6 +1233,17 @@ def _untag_note_source_reappeared(conn: sqlite3.Connection, user_id: str, import
     _write_tags_preserving_updated_at(conn, user_id, row["id"], tags)
 
 
+#: The member's sentence for a note that could not be stored, when nothing better was said.
+NOT_STORED_RETRY_REASON = "This note couldn't be saved this time. It will be tried again on the next sync."
+
+
+def _not_stored_notice(title: Any, key: Any, reason: str) -> dict[str, Any]:
+    """`failures_json`'s `{noteTitle, reason, name}` for a note that was not stored (concern 4):
+    its title, else its import key, so the row always names something."""
+    name = title.strip() if isinstance(title, str) and title.strip() else str(key or "Untitled")
+    return {"noteTitle": name, "reason": reason, "name": None}
+
+
 def _pending_media_refs(
     user_id: str, source: dict[str, Any], provider: NoteProvider,
     refs: list[RemoteRef], index_refs: list[RemoteRef],
@@ -2222,6 +2233,9 @@ async def _confirm_and_resolve_batch(
     # bucket and returns normally, see below) can still report every one of
     # them as not-stored — the cursor must not advance past ANY of them.
     remote_id_by_key = {key: rn.remote_id for rn, key in pairs}
+    # Plan E Task 9 fix round 1 (concern 4): a note that is not stored is named by its TITLE
+    # for the member (`failures_json`), once per pass; the failure strings above stay by key.
+    title_by_key = {e.get("importKey"): e.get("title") for e in entries}
     if budget is None:
         budget = media_policy.MediaBudget.for_member(user_id)
     try:
@@ -2235,6 +2249,8 @@ async def _confirm_and_resolve_batch(
             f"confirm failed for a batch of {len(entries)} note(s): {e}"
         )
         result["notStoredRefs"].extend(remote_id_by_key.values())
+        result["noticeFailures"].extend(
+            _not_stored_notice(title_by_key.get(k), k, NOT_STORED_RETRY_REASON) for k in remote_id_by_key)
         return result
 
     result["created"] = len(r["created"])
@@ -2264,6 +2280,10 @@ async def _confirm_and_resolve_batch(
         rid = remote_id_by_key.get(fkey)
         if rid is not None:
             result["notStoredRefs"].append(rid)
+        error = item.get("error")
+        result["noticeFailures"].append(_not_stored_notice(
+            title_by_key.get(fkey), fkey, error if isinstance(error, str) and error.strip()
+            else NOT_STORED_RETRY_REASON))
 
     # Self-heal (Critical 3, SAFETY NET): a note marked 'skipped' this round
     # (content hash unchanged) may still carry a stranded import-ref://

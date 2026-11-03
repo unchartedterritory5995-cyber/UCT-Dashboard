@@ -134,6 +134,17 @@ def _row(rid: str) -> dict[str, Any]:
         conn.close()
 
 
+def _last_log_failures(src) -> list[dict]:
+    import json
+    conn = auth_db.get_connection()
+    try:
+        row = conn.execute("SELECT failures_json FROM j2_note_sync_log WHERE source_id = ? ORDER BY rowid DESC",
+                           (src["id"],)).fetchone()
+    finally:
+        conn.close()
+    return json.loads(row["failures_json"]) if row and row["failures_json"] else []
+
+
 def _cursor(src) -> str | None:
     return connections.get_source_by_id(src["id"])["cursor"]
 
@@ -181,6 +192,8 @@ async def test_pending_media_retry_never_moves_or_holds_the_cursor(db, monkeypat
     result = await _pass(monkeypatch, src, Fake([a4], [a4, b]), full=True)
     monkeypatch.setattr(notes_svc, "import_confirm", real_confirm)
     assert any("'fake:B' could not be stored" in f for f in result["failures"])
+    # concern 4: a retried note that cannot be stored is named by its title for the member
+    assert _last_log_failures(src) == [{"noteTitle": "Note B", "reason": "disk full", "name": None}]
     assert _cursor(src) == a4.updated_at
     a3 = a4
 

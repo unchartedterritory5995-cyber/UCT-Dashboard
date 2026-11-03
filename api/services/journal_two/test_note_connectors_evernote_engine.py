@@ -375,12 +375,17 @@ def test_six_hundred_kb_note_imports_whole(notes):
 
 
 def test_oversize_note_is_isolated_and_named(notes, passes):
-    """Over the 1 MB body limit: not stored, named in every pass, and nothing else is held back."""
+    """Over the 1 MB body limit: not stored, named in every pass, and nothing else is held back.
+    Fix round 1 (concern 4): named by TITLE for the member, once per pass in the log's
+    `failures_json`; the engine's own failure string (by import key) is kept as it was."""
     assert KEY(HUGE) not in notes
     for p in passes:
         named = [f for f in p["failures"] if KEY(HUGE) in f]
         assert named == [f"note {KEY(HUGE)!r} could not be stored: This note is too long to save as one "
                          "page. Split it into two or more notes and try again."]
+        by_title = [f for f in p["failuresJson"] if f["noteTitle"] == "Over the limit"]
+        assert by_title == [{"noteTitle": "Over the limit", "name": None, "reason": (
+            "This note is too long to save as one page. Split it into two or more notes and try again.")}]
         assert p["status"] == "ok"
     assert passes[0]["created"] == 12
 

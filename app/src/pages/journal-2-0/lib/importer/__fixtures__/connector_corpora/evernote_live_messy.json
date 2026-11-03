@@ -28060,6 +28060,11 @@
      "failuresJson": [
       {
        "name": null,
+       "noteTitle": "Over the limit",
+       "reason": "This note is too long to save as one page. Split it into two or more notes and try again."
+      },
+      {
+       "name": null,
        "noteTitle": "Media wall",
        "reason": "This item couldn't be found, so it wasn't copied"
       },
@@ -28095,6 +28100,11 @@
      "failuresJson": [
       {
        "name": null,
+       "noteTitle": "Over the limit",
+       "reason": "This note is too long to save as one page. Split it into two or more notes and try again."
+      },
+      {
+       "name": null,
        "noteTitle": "Media wall",
        "reason": "This item couldn't be found, so it wasn't copied"
       }
@@ -28112,7 +28122,13 @@
      "failures": [
       "note 'evernote:guid:e0000000-0000-4000-8000-000000000007' could not be stored: This note is too long to save as one page. Split it into two or more notes and try again."
      ],
-     "failuresJson": [],
+     "failuresJson": [
+      {
+       "name": null,
+       "noteTitle": "Over the limit",
+       "reason": "This note is too long to save as one page. Split it into two or more notes and try again."
+      }
+     ],
      "mediaUploaded": 0,
      "skipped": 12,
      "sourceDeleted": 1,
