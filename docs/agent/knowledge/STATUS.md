@@ -42,6 +42,10 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `3852446f29` | setup-criteria pilot + KN-1 contract with the measurables table (K-16; AUDIT go) |
 | `668f9903ed` | independent review #735 fixes: B1 signed edge labels, B2 model-visible data frame (turn_v2 step result + v1 history replay, AUDIT-approved hunks), B3 guard shapes, N1, N2, N4, N8 (K-18) |
 | `4b144368ce` | owner decisions: N3 default-deny for templates (origin) and records, N5 coach split, B3 round 2, per-turn caps, archive date requirement (K-19) |
+| `adca17b6a9` + `10a478526b` | modelIsolation scan fix (cherry-pick of AUDIT b3ed064223) + knowledge.js as a known reader |
+| `3faccb7b07` | owner decisions (PROGRAM.md @ b8d20a1286): brain stats CONDITIONAL gate, rights-cleared concept path (empty), web-research separation (block by default), ARCHIVE-ASOF-1 contract (K-20) |
+| `e25ebc813e` | re-review r2: N-7a/b, N-8 citation-only replay, N-1..N-6; guard false positive from 4b144368ce fixed (K-21) |
+| `6d9ee0f727` | separation tests stub the research door; robust to the eval-ledger stub leak |
 
 ## Tasks
 | id | task | state | evidence |
@@ -76,6 +80,8 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 
 | `668f9903ed` | 2,207 passed, 0 failed | 2,657 passed, 6 skipped, 1 timeout (same qa/modelIsolation scan test; alone 12/12 in 8.7 s) |
 | `4b144368ce` | 2,223 passed, 0 failed | 2,665 passed, 6 skipped, 1 timeout (same qa/modelIsolation scan test; passes alone) |
+| `e25ebc813e` | 2,248 passed, 2 failed (suite-order leak, fixed in 6d9ee0f727) | 2,673 passed, 6 skipped, 0 failed (isolation timeout fixed) |
+| `6d9ee0f727` | 2,250 passed, 0 failed | (server-test-only change; browser as e25ebc813e) |
 
 Browser suite notes (head 3852446f29):
 - 1 timeout: qa/modelIsolation.test.jsx "no module reads an isolated kind outside a local-only capability…" exceeded its 15 s limit while the full suite loaded the machine; rerun alone it passes 12/12 in 7.6 s (9.5 s on the earlier full run). Not a regression; the test scans every Agent source file and sits close to its budget. File owned by agent-qa; reported to AUDIT.
@@ -99,6 +105,16 @@ the archive exposes one — a requirement for the Wisdom archive owner.
   Breakout excluded as third-party methodology). Engine setup_performance / trigger_performance PENDING (firm-generated);
   team_archive admitted but undated, so setup.record currently serves n and reasons only. Owner to decide both.
 - N5: coaching phrasings never route to the playbook group.
+
+## Owner decisions (PROGRAM.md @ b8d20a1286) and re-review r2, implemented
+- Brain statistics: CONDITIONAL — served only with provenance, calculation date (<= 14 days, not future), n >= 30,
+  methodology id and Wilson interval; each failure mode -> figure-free block naming it.
+- Third-party templates: blocked; rights-cleared concept allow-list exists and is EMPTY.
+- Web research: knowledge never reaches it (v1 + v2 blocked when framed knowledge is in the request; knowledge kinds
+  refuse non-answer purposes; replay is citation-only) — sentinel tests in both planners.
+- Archive date: interface contract ARCHIVE-ASOF-1 to the proposed owner (partner/ledger maintainer); undated withheld.
+- N-7b real snapshot: 14 of 98 setup_knowledge SETUP rows withheld (linked only to excluded templates).
+- Real snapshot after all changes: P@3 0.89, 38/40, p50 17.6 ms, guard false positives 0 of 5,270.
 
 ## Quality work stopped (owner rule: stop when the measurable benefit is small)
 Admitted corpus on the real snapshot: 0 passages under 200 characters, 0 remaining duplicates, 0 near-duplicate titles,
