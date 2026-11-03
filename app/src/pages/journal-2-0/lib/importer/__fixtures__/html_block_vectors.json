@@ -66,7 +66,13 @@
     {"name": "a stray closing tag is nothing", "md": "a </b> stray z", "shape": "doc(paragraph('a stray z'))"},
     {"name": "a comment is nothing", "md": "a <!-- c --> b", "shape": "doc(paragraph('a b'))"},
     {"name": "nested tags compose", "md": "a <b><i>bi</i></b> c", "shape": "doc(paragraph('a ', 'bi'[bold+italic], ' c'))"},
-    {"name": "a raw tag inside markdown emphasis", "md": "**a <i>b</i> c**", "shape": "doc(paragraph('a '[bold], 'b'[bold+italic], ' c'[bold]))"}
+    {"name": "a raw tag inside markdown emphasis", "md": "**a <i>b</i> c**", "shape": "doc(paragraph('a '[bold], 'b'[bold+italic], ' c'[bold]))"},
+    {"name": "I2: a > inside a double-quoted attribute keeps the link", "md": "a <a href=\"https://x.com\" title=\"a>b\">l</a> tail", "shape": "doc(paragraph('a ', 'l'[link=https://x.com], ' tail'))"},
+    {"name": "I2: a > inside a single-quoted attribute keeps the link", "md": "a <a title='x>y' href=\"https://x.com\">l</a> tail", "shape": "doc(paragraph('a ', 'l'[link=https://x.com], ' tail'))"},
+    {"name": "I2: a close tag with a space ends the link", "md": "a <a href=\"https://x.com\">l</a > tail", "shape": "doc(paragraph('a ', 'l'[link=https://x.com], ' tail'))"},
+    {"name": "I2: upper-case tag and attribute names", "md": "a <A HREF=\"https://x.com\">l</A> tail", "shape": "doc(paragraph('a ', 'l'[link=https://x.com], ' tail'))"},
+    {"name": "I2: a quoted > in a mark tag, and its spaced close", "md": "a <b title=\"x>y\">b</b > c", "shape": "doc(paragraph('a ', 'b'[bold], ' c'))"},
+    {"name": "I2: a quoted > in an image's alt", "md": "a <img src=\"https://e.com/i.png\" alt=\"a>b\"> c", "shape": "doc(paragraph('a '), image, paragraph(' c'))"}
   ],
   "region_vectors_doc": "D3 fix round 1 (C1): markdown inside an inline or leaf element a <details>/<aside> region holds open across blocks keeps its text, links and images on both lanes, placed as the browser's tree builder places it (a block start closes <p>/<pre>; inline elements wrap the blocks with their marks). Server: md_to_tiptap. Client: mdToHtml then htmlToNote. `shape` spelled as inline_vectors.",
   "region_vectors": [

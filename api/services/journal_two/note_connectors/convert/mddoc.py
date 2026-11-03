@@ -790,10 +790,17 @@ def _link_href(href: str, ctx: _Ctx) -> str:
 
 
 # A raw tag that is ONE `<img ...>` or one opening `<a ...>`, nothing else.
-_RAW_TAG_RE = re.compile(r"^<(img|a)(\s[^<>]*)?/?>$", re.IGNORECASE)
+#: A tag's attributes, quote-aware (D3 review I2): a `>` inside a quoted value is part of the
+#: value, as markdown-it's own HTML_TAG_RE and the browser read it. Each alternative starts on
+#: a different character, so the scan is linear.
+_TAG_ATTRS = r"""(?:\s(?:[^<>"']|"[^"]*"|'[^']*')*)?"""
+_RAW_TAG_RE = re.compile(r"^<(img|a)" + _TAG_ATTRS + r"/?>$", re.IGNORECASE)
+#: A raw `</a>` close, spaces before its `>` allowed (`</a >`), any case (I2).
+_CLOSE_A_RE = re.compile(r"^</a\s*>$", re.IGNORECASE)
 #: D3 follow-up (difference 3): one inline raw tag, opening or closing (`<b>`, `</b>`, `<br/>`).
 #: A comment, declaration or processing instruction does not match and renders as nothing.
-_INLINE_TAG_RE = re.compile(r"^<(/?)([A-Za-z][A-Za-z0-9-]*)(?:\s[^>]*?)?(/?)>$", re.DOTALL)
+_INLINE_TAG_RE = re.compile(
+    r"^<(/?)([A-Za-z][A-Za-z0-9-]*)" + _TAG_ATTRS.replace(")*)?", ")*?)?") + r"(/?)>$", re.DOTALL)
 #: The inline tags with a mark in the editor's schema, as its parse rules read them.
 _INLINE_MARK_TAGS = {
     "b": "bold", "strong": "bold", "i": "italic", "em": "italic", "u": "underline",
@@ -1139,7 +1146,7 @@ def _inline_nodes(
                         ctx.links.append(href[len(LINK_PREFIX):])
                     marks.append({"type": "link", "attrs": {"href": href}})
                 raw_links.append(opened)
-            elif (child.content or "").strip().lower() == "</a>":
+            elif _CLOSE_A_RE.match((child.content or "").strip()):
                 # Only a `</a>` closing a RAW `<a>` pops: a stray one never strips the
                 # mark of a markdown link it happens to sit inside.
                 if raw_links:
