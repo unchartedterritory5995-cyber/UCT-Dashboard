@@ -349,3 +349,25 @@ def test_a_raw_block_never_mints_an_attachment_or_an_unsafe_image():
     assert out["media"] == [] and out["doc"]["content"][0]["type"] == "importNotice"
     out = md_to_tiptap('<div><a href="javascript:alert(1)">x</a></div>')
     assert _links(out["doc"]) == []
+
+
+# ── follow-up (difference 1): an unsafe raw <img> is the same notice on both lanes ──
+
+_UNSAFE_IMG_VECTORS = json.loads(_HTML_VECTORS_PATH.read_text(encoding="utf-8"))["unsafe_image_vectors"]
+
+
+def _notices(node: Any, out: list | None = None) -> list:
+    out = [] if out is None else out
+    if isinstance(node, dict):
+        if node.get("type") == "importNotice":
+            out.append([node["attrs"]["reason"], node["attrs"].get("name")])
+        for child in node.get("content") or []:
+            _notices(child, out)
+    return out
+
+
+@pytest.mark.parametrize("v", _UNSAFE_IMG_VECTORS, ids=[v["name"] for v in _UNSAFE_IMG_VECTORS])
+def test_shared_unsafe_image_vectors(v):
+    out = md_to_tiptap(v["md"], unsafe_image_notice=True)
+    assert _notices(out["doc"]) == v["notices"]
+    assert out["media"] == []

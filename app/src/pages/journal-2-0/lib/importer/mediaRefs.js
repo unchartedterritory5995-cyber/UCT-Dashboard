@@ -24,7 +24,8 @@
  * the link and the media both survive (TipTap cannot hold an image inside a link mark).
  */
 import SparkMD5 from 'spark-md5'
-import { resolveHref, neutraliseAnchor } from './linkPolicy'
+import { resolveHref, neutraliseAnchor, isUnsafeSrc } from './linkPolicy'
+import { NOTICE_REASONS } from './importNotice'
 
 export const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic|heif|avif|tiff?)$/i
 
@@ -218,8 +219,17 @@ export function collectRemoteImages(root, media, sourceUrl = null) {
     const src = img.getAttribute('src')
     const trimmed = src.trim()
     if (OURS.some((p) => trimmed.startsWith(p)) || DATA_PREFIX_RE.test(trimmed)) continue
-    const url = remoteUrlFor(src, sourceUrl)
     let ref
+    if (isUnsafeSrc(src)) {
+      // D3 follow-up (difference 1): an unsafe scheme is the server's `unsafe` notice, named by
+      // the image's alt (`commit.js` falls back to it), never `unresolvable_src` naming the
+      // raw `javascript:` source. Written here, before the sanitiser strips the src.
+      ref = failedItem(media, 'unsafe-', null, NOTICE_REASONS.unsafe)
+      known.add(ref)
+      img.setAttribute('src', REF + ref)
+      continue
+    }
+    const url = remoteUrlFor(src, sourceUrl)
     if (url) {
       ref = `remote-${SparkMD5.hash(url.href).toLowerCase()}`
       if (!known.has(ref)) {

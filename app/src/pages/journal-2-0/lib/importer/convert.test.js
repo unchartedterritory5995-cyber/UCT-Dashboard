@@ -365,3 +365,27 @@ describe('mdToHtml + htmlToNote — D3 follow-up: shared raw HTML block vectors'
     expect(quoted(htmlToNote(mdToHtml(v.md)).bodyJson)).toBe(v.shape)
   })
 })
+
+// D3 follow-up (difference 1): an unsafe raw <img> leaves the server's own notice (`unsafe`,
+// named by its alt), never a silent drop and never `unresolvable_src` naming the raw src.
+describe('import pipeline — D3 follow-up: shared unsafe image vectors', () => {
+  const vfile = (p, text) => ({ path: p, size: text.length, lastModified: null, bytes: async () => new TextEncoder().encode(text) })
+  const images = (node, out = []) => {
+    if (node && typeof node === 'object') {
+      if (node.type === 'image') out.push(node)
+      for (const c of node.content || []) images(c, out)
+    }
+    return out
+  }
+  it.each(HTML_BLOCK_VECTORS.unsafe_image_vectors.map((v) => [v.name, v]))('%s', async (_name, v) => {
+    const { parseImport } = await import('./postParse')
+    const { genericAdapter } = await import('./adapters/generic')
+    const { docs } = await parseImport(genericAdapter, [vfile('n.md', v.md)], {})
+    const byRef = new Map(docs[0].media.map((m) => [m.ref, m]))
+    const notices = images(htmlToNote(docs[0].html).bodyJson).map((img) => {
+      const item = byRef.get(img.attrs.src.slice('import-ref://'.length))
+      return [item?.failed?.reason ?? null, item?.name ?? img.attrs.alt ?? null]
+    })
+    expect(notices).toEqual(v.notices)
+  })
+})

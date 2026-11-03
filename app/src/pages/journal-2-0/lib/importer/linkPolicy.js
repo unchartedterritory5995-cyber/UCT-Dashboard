@@ -233,6 +233,18 @@ export function resolveHref(href, sourceUrl = null, { hostLike = true } = {}) {
   return (hostLike ? hostLikeHref(h) : null) ?? resolveRelative(h, sourceUrl)
 }
 
+/**
+ * D3 follow-up (difference 1): true when `src` names an UNSAFE scheme as a browser reads it
+ * (`javascript:`, `vbscript:`, `file:`, `data:`; `java<TAB>script:` included). The server's
+ * `mddoc._is_unsafe_image_src`, read raw and as read: such an image is the `unsafe` notice on
+ * both lanes, never fetched and never silently dropped.
+ */
+export function isUnsafeSrc(src) {
+  if (typeof src !== 'string') return false
+  const m = SCHEME_RE.exec(hrefAsRead(pyStrip(src)))
+  return !!m && UNSAFE_SCHEMES.has(m[1].toLowerCase())
+}
+
 /** Replaces `a` with its children (bold, italic, media kept). Never `textContent`. */
 export function neutraliseAnchor(a) {
   const parent = a.parentNode

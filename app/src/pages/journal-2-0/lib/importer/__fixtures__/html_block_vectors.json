@@ -38,5 +38,13 @@
     {"name": "markdown between an opening and a closing div", "md": "<div>\n\n*md* inside\n\n</div>", "shape": "doc(paragraph('md', ' inside'))"},
     {"name": "a table block", "md": "<table><tr><td>t</td></tr></table>", "shape": "doc(table(tableRow(tableCell(paragraph('t')))))"},
     {"name": "a paragraph block", "md": "<p>para</p>", "shape": "doc(paragraph('para'))"}
+  ],
+  "unsafe_image_vectors_doc": "D3 follow-up (difference 1): a raw <img> whose src the policy refuses as UNSAFE leaves the same visible notice on both lanes, never a silent drop. Server: md_to_tiptap(md, unsafe_image_notice=True), its importNotice nodes. Client: parseImport with the generic adapter, htmlToNote, each image's media item failure (its name, else the image's alt). `notices` = [reason, name] in document order.",
+  "unsafe_image_vectors": [
+    {"name": "a javascript src in a block", "md": "a\n\n<div><img src=\"javascript:alert(1)\" alt=\"pic\"></div>\n\nb", "notices": [["unsafe", "pic"]]},
+    {"name": "a javascript src inline, no alt", "md": "x <img src=\"javascript:alert(1)\"> y", "notices": [["unsafe", null]]},
+    {"name": "a file src", "md": "x <img src=\"file:///C:/a.png\" alt=\"local\"> y", "notices": [["unsafe", "local"]]},
+    {"name": "a tab inside the scheme", "md": "<img src=\"java&#9;script:x\" alt=\"t\">", "notices": [["unsafe", "t"]]},
+    {"name": "a vbscript src", "md": "<p><img src=\"vbscript:x\" alt=\"v\"></p>", "notices": [["unsafe", "v"]]}
   ]
 }
