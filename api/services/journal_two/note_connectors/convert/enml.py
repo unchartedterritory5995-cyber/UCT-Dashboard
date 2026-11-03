@@ -67,7 +67,7 @@ _VOID_TAGS = frozenset({"br", "hr", "img", "input", "col", "area", "wbr", "meta"
                         "base", "source", "embed", "param", "track"})
 _BLOCK_TAGS = frozenset({"p", "div", "ul", "ol", "li", "table", "tr", "td", "th", "pre",
                          "blockquote", "hr", "h1", "h2", "h3", "h4", "h5", "h6"})
-_INTERNAL_ATTRS = frozenset({"data-uct-chip", "data-evernote-link"})
+_INTERNAL_ATTRS = frozenset({"data-uct-chip", "data-evernote-link", "data-evernote-href", "data-uct-alt"})
 
 _PROLOG_RE = re.compile(r"^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!DOCTYPE[^>]*>\s*)?", re.IGNORECASE)
 _CODEBLOCK_RE = re.compile(r"-en-codeblock\s*:\s*true", re.IGNORECASE)
@@ -183,7 +183,8 @@ _STRUCTURAL_CHILD = {"ul": ("li",), "ol": ("li",), "table": ("tr", "tbody", "the
 #: Attributes that carry meaning between this module's passes and `mddoc`. Written in a member's
 #: note they would forge it (a `data-uct-task` bullet read as a checked task, a `data-uct-chip`
 #: link skipping the link policy), so they are dropped as the ENML is parsed (round 2, R2).
-_OUR_ATTRS = frozenset({"data-uct-task", "data-uct-chip", "data-evernote-link"})
+_OUR_ATTRS = frozenset({"data-uct-task", "data-uct-chip", "data-evernote-link", "data-evernote-href",
+                        "data-uct-alt"})
 
 
 def _member_attrs(attrs: list[tuple[str, str | None]]) -> dict[str, str | None]:
@@ -380,20 +381,36 @@ def _rule_en_crypt(root: _Node) -> None:
     _map_elements(root, lambda n: [_Node("p", {}, [ENCRYPTED_TEXT])] if n.tag == "en-crypt" else None)
 
 
+def _media_alt(nodes: list[Any]) -> str:
+    """The first image's alt among `nodes` (an `<img alt>`, or an `<en-media alt>` carried as
+    `data-uct-alt`), stripped; "" when none has one. Task 9 fix round 1, concern 2."""
+    for n in nodes:
+        if isinstance(n, _Node) and n.tag in ("img", "en-media"):
+            alt = (n.attrs.get("alt") or n.attrs.get("data-uct-alt") or "").strip()
+            if alt:
+                return alt
+    return ""
+
+
 def _rule_note_links(root: _Node) -> None:
     def fn(n: _Node) -> list[Any] | None:
         if n.tag != "a" or not is_note_href(n.attrs.get("href")):
             return None
-        guid = note_guid_from_href(n.attrs.get("href"))
+        authored = (n.attrs.get("href") or "").strip()
+        guid = note_guid_from_href(authored)
         if guid:
             n.attrs["href"] = LINK_PREFIX + live_import_key(guid)
             n.attrs["data-evernote-link"] = "1"
+            n.attrs["data-evernote-href"] = authored  # the text an image-only link shows (concern 2)
             return None
-        title = _title_key_text(_text_of(n))
+        # Named by title only: its text, or (concern 2) the alt of an image it holds.
+        title = _title_key_text(_text_of(n)) or _title_key_text(_media_alt(list(_iter(n))))
         if not title:
-            return list(n.children)  # no title to resolve by: its content
+            # Nothing to heal by: a web link (the share page), left to the web link policy.
+            return None
         n.attrs["href"] = LINK_PREFIX + EVERNOTE_TITLE_KIND + title
         n.attrs["data-evernote-link"] = "1"
+        n.attrs["data-evernote-href"] = authored
         return None
 
     _map_elements(root, fn)
@@ -482,13 +499,15 @@ def _rule_refuse_foreign_media(root: _Node, notices: _Notices, base_url: str | N
                 # importer's `collectRemoteImages`). With no source it stays `unsafe` below.
                 resolved = resolve_href(src, base_url)
                 url = _web_image_url(resolved) if resolved else None
+            # Every other attribute is dropped; the alt is kept privately for the lift (concern 2).
+            alt = {"data-uct-alt": n.attrs["alt"].strip()} if (n.attrs.get("alt") or "").strip() else {}
             if url:
-                return [_Node("img", {"src": url})]  # every other attribute dropped
+                return [_Node("img", {"src": url, **alt})]
             if is_data_image_uri(src):
                 # Ruling after Task 4 (content wins): a `data:image/*` image is uploaded as the
                 # file importer uploads it; the walker's data-URI path, media_policy caps in the
                 # engine. Scheme lower-cased: the walker reads `data:` case-sensitively.
-                return [_Node("img", {"src": "data:" + src[5:]})]
+                return [_Node("img", {"src": "data:" + src[5:], **alt})]
             if not _SCHEME_RE.match(re.sub(r"[\x00-\x20]", "", src)):
                 # Task 5 review, concern 2 ruling: no scheme and no clip source to resolve it
                 # against -- not dangerous, just unresolvable. The client's code and name
@@ -559,6 +578,9 @@ def _rule_en_media(root: _Node, res: _Resources, notices: _Notices) -> None:
         if entry is not None:
             res.cited.add(entry["hash"])
             node = _media_node(entry)
+            alt = (n.attrs.get("alt") or "").strip()
+            if alt and node.tag == "img":
+                node.attrs["data-uct-alt"] = alt  # read by the lift only, never stored (concern 2)
         else:
             node = notices.placeholder("missing_resource")
         # Content the parser nested inside the en-media (the client's `unwrapInPlace`) follows it.
@@ -736,9 +758,14 @@ def _rule_lift_media(root: _Node) -> None:
             return None
         if _text_of(a).strip():
             return [*media, a]
-        if marked or not href:
+        if not href:
             return [*media, *a.children]  # its content
-        a.children = [href]  # already resolved by `_rule_resolve_web_links`
+        # Task 9 fix round 1 (concern 2, ruling): the link survives, right after its media, with
+        # the same href (a note link stays its heal-able `import-link://`). Its text: the image's
+        # alt, else the href as authored (a web href is already resolved by
+        # `_rule_resolve_web_links`; a note link shows the `evernote:`/evernote.com URL written).
+        shown = (a.attrs.get("data-evernote-href") or "").strip() if marked else href
+        a.children = [_media_alt(media) or shown or href]
         return [*media, a]
 
     _map_elements(root, fn)

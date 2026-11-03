@@ -650,6 +650,23 @@
         "type": "image"
        },
        {
+        "content": [
+         {
+          "marks": [
+           {
+            "attrs": {
+             "href": "/journal?j2tab=notebook&note=e91fb040c0494ad69ed3e36c0bebbe99"
+            },
+            "type": "link"
+           }
+          ],
+          "text": "evernote:///view/123/s1/e0000000-0000-4000-8000-000000000002/e0000000-0000-4000-8000-000000000002/",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       },
+       {
         "attrs": {
          "src": "/api/j2/notes/attachments/u-evernote/c250237cb34a4bcb90ae4c4e29eabe2d/inline/1cd531a0840f9409216b007c7308e169.png"
         },

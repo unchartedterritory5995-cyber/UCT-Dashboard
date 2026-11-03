@@ -543,13 +543,34 @@ def test_shared_sh_note_link_falls_back_to_title_key():
     assert out["links"] == ["evernote-title:Plan"]
 
 
-def test_title_note_link_without_text_keeps_its_content_and_drops_the_link():
+def _link_after_image(out: dict) -> tuple[str, str]:
+    """The link the lift adds right after an image-only link: (its text, its href)."""
+    blocks = _blocks(out)
+    assert [b["type"] for b in blocks] == ["image", "paragraph"]
+    (text,) = _of_type(out, "text")
+    (mark,) = [m for m in text.get("marks") or [] if m["type"] == "link"]
+    return text["text"], mark["attrs"]["href"]
+
+
+# ---- Task 9 fix round 1 (concern 2, ruling): an image inside a link keeps the image and gains a
+# link right after it: text = the image's alt when it has one, else the href as authored; the
+# href is the same allow-listed one, and a note link stays a heal-able `import-link://` -------
+
+
+def test_title_note_link_without_text_or_alt_stays_a_web_link_after_the_image():
+    """A `/l/` share link names its note only by title; with neither text nor alt there is no
+    title to heal by, so it stays what it is: an https link to the share page."""
     out = _convert(f'<div><a href="https://www.evernote.com/l/AbCd">'
                    f'<en-media hash="{IMG_HASH}" type="image/png"/></a></div>', [IMG])
-    assert len(_of_type(out, "image")) == 1
+    assert _link_after_image(out) == ("https://www.evernote.com/l/AbCd", "https://www.evernote.com/l/AbCd")
     assert out["links"] == []
-    assert not any(m.get("type") == "link" for t in _of_type(out, "text")
-                   for m in t.get("marks") or [])
+
+
+def test_title_note_link_without_text_heals_by_the_images_alt():
+    out = _convert(f'<div><a href="https://www.evernote.com/l/AbCd">'
+                   f'<en-media hash="{IMG_HASH}" type="image/png" alt="Q3 plan"/></a></div>', [IMG])
+    assert _link_after_image(out) == ("Q3 plan", "import-link://evernote-title:Q3 plan")
+    assert out["links"] == ["evernote-title:Q3 plan"]
 
 
 def test_a_plain_web_link_is_left_alone():
@@ -569,11 +590,28 @@ def test_image_inside_a_note_link_is_lifted_not_erased():
     assert label["marks"] == [{"type": "link", "attrs": {"href": "import-link://evernote:guid:g-1"}}]
 
 
-def test_note_link_emptied_by_the_lift_is_unwrapped():
+def test_note_link_emptied_by_the_lift_is_a_link_after_the_image():
     out = _convert(f'<div><a href="evernote:///view/1/s1/g-1/g-1/">'
                    f'<en-media hash="{IMG_HASH}" type="image/png"/></a></div>', [IMG])
-    assert [b["type"] for b in _blocks(out)] == ["image"]
-    assert _of_type(out, "text") == []
+    assert _link_after_image(out) == ("evernote:///view/1/s1/g-1/g-1/", "import-link://evernote:guid:g-1")
+    assert out["links"] == ["evernote:guid:g-1"]
+
+
+def test_note_link_emptied_by_the_lift_reads_the_images_alt():
+    out = _convert(f'<div><a href="https://www.evernote.com/shard/s1/nl/123/g-2/">'
+                   f'<en-media hash="{IMG_HASH}" type="image/png" alt="Setup chart"/></a></div>', [IMG])
+    assert _link_after_image(out) == ("Setup chart", "import-link://evernote:guid:g-2")
+
+
+def test_web_link_emptied_by_the_lift_reads_the_images_alt():
+    out = _convert('<div><a href="https://example.com/p"><img src="https://cdn.example.com/a.png" alt="A chart"/>'
+                   '</a></div>')
+    assert _link_after_image(out) == ("A chart", "https://example.com/p")
+
+
+def test_the_private_alt_attribute_never_reaches_the_stored_doc():
+    out = _convert(f'<div><en-media hash="{IMG_HASH}" type="image/png" alt="x"/></div>', [IMG])
+    assert "data-uct-alt" not in str(out["doc"])
 
 
 def test_web_link_emptied_by_the_lift_shows_its_href():

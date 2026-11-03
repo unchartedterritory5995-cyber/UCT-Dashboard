@@ -31,6 +31,44 @@ export function isEvernoteNoteHref(href) {
   return APP_LINK_RE.test(h) || WEB_LINK_RE.test(h)
 }
 
+/** The live-sync key prefix (`enml.LIVE_KEY_PREFIX`): a note keyed by its Evernote GUID. */
+export const LIVE_KEY_PREFIX = 'evernote:guid:'
+
+const APP_GUID_RE = /^evernote:\/\/\/?view\/(.*)$/i
+const NL_GUID_RE = /^https?:\/\/(?:www\.)?evernote\.com\/shard\/[^/]+\/nl\/[^/]+\/([^/?#]+)/i
+const GUID_RE = /^[0-9A-Za-z-]+$/
+
+/**
+ * The note GUID in `evernote:///view/{uid}/{shard}/{guid}/{guid}/` or
+ * `https://www.evernote.com/shard/{s}/nl/{uid}/{guid}/`; null for every other link. A port of
+ * `enml.note_guid_from_href`. Plan E Task 9 fix round 1 (concern 2): an image-only note link has
+ * no text to resolve by title, but its GUID is the live note's, so a `evernote:guid:` key heals
+ * once live sync holds that note.
+ */
+export function noteGuidFromHref(href) {
+  const h = typeof href === 'string' ? href.trim() : ''
+  let guid = null
+  const app = APP_GUID_RE.exec(h)
+  if (app) {
+    const segments = app[1].split('/')
+    if (segments.length >= 3) guid = segments[2]
+  } else {
+    const nl = NL_GUID_RE.exec(h)
+    if (nl) guid = nl[1]
+  }
+  return guid && GUID_RE.test(guid) ? guid : null
+}
+
+/** The first image's alt inside `a` (an `<img alt>`, or an `<en-media alt>` carried as
+ *  `data-uct-alt`), whitespace-normalised; '' when none has one. Concern 2. */
+export function imageAlt(a) {
+  for (const img of a.querySelectorAll('img')) {
+    const alt = normTitle(img.getAttribute('alt') || img.getAttribute('data-uct-alt') || '')
+    if (alt) return alt
+  }
+  return ''
+}
+
 // ---------------------------------------------------------------------------
 // Task 7: note links resolved BY TITLE (spec E-5, §15 Q5)
 // ---------------------------------------------------------------------------
@@ -103,12 +141,29 @@ export function resolveEvernoteLinks(docs, warnings) {
       links.push({ targetKey })
     }
     for (const a of anchors) {
-      const text = normTitle(a.textContent)
-      if (!text) {
-        // Left marked: the lift (live DOM) or the settle below makes it its content.
-        warnings.push(`A link to another note in "${d.title}" was kept as its content: it has no text, and Evernote links name their note only by its title.`)
+      let text = normTitle(a.textContent)
+      if (!text && !a.querySelector('img, a[data-type="attachmentChip"]')) {
+        // No text and no media: nothing to show a link on. Left marked; the lift or the settle
+        // below makes it its content.
         if (!live) neutraliseAnchor(a)
         continue
+      }
+      if (!text) {
+        // Plan E Task 9 fix round 1 (concern 2, ruling): an image-only note link survives, right
+        // after its image (the lift). By its GUID when the href carries one (heal-able once live
+        // sync holds the note), else by the image's alt as a title; with neither, it is a web
+        // link to the page it names (a `/l/` share link), left to the web link policy.
+        const guid = noteGuidFromHref(a.getAttribute('href'))
+        if (guid) {
+          a.setAttribute('data-import-link', `${LIVE_KEY_PREFIX}${guid}`)
+          keep(`${LIVE_KEY_PREFIX}${guid}`)
+          continue
+        }
+        text = imageAlt(a)
+        if (!text) {
+          a.removeAttribute('data-evernote-link')
+          continue
+        }
       }
       const keys = keysByTitle.get(text) || []
       if (keys.length > 1) {
@@ -116,7 +171,7 @@ export function resolveEvernoteLinks(docs, warnings) {
         warnings.push(`Link "${text}" in "${d.title}" was kept as text: more than one note is titled "${text}".`)
         continue
       }
-      const targetKey = keys.length === 1 ? keys[0] : `${EVERNOTE_TITLE_KIND}${titleKeyText(a.textContent)}`
+      const targetKey = keys.length === 1 ? keys[0] : `${EVERNOTE_TITLE_KIND}${titleKeyText(a.textContent.trim() ? a.textContent : text)}`
       a.setAttribute('data-import-link', targetKey)
       keep(targetKey)
     }

@@ -103,6 +103,7 @@ function summarize(doc, { imageRef, noticeFor, linkTarget }) {
 const REF = 'import-ref://'
 const LINK = 'import-link://'
 const TITLE_KIND = 'evernote-title:'
+const LIVE_KIND = 'evernote:guid:'
 
 async function clientSummary(fixture) {
   const notebook = fixture.note.notebook
@@ -126,6 +127,10 @@ async function clientSummary(fixture) {
       if (!href.startsWith(LINK)) return href
       const key = href.slice(LINK.length)
       if (key.startsWith(TITLE_KIND)) return `note:${key.slice(TITLE_KIND.length)}`
+      // A GUID key (an image-only note link, Task 9 fix round 1): through the sidecar's `notes`,
+      // as the server summary maps it (`_link_target`).
+      const guid = key.startsWith(LIVE_KIND) ? key.slice(LIVE_KIND.length) : null
+      if (guid && fixture.note.notes?.[guid]) return `note:${fixture.note.notes[guid]}`
       return titleByKey.has(key) ? `note:${titleByKey.get(key)}` : key
     },
   })

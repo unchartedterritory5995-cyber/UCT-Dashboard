@@ -152,7 +152,7 @@ async function parse(vfiles, opts = {}) {
     resolveWebLinks(root, doc.sourceUrl)
     // ⛔ On the LIVE DOM, before anything serialises (Review Focus 1): a chip is itself an <a>, and
     // a chip inside a link, written out and parsed again, closes the outer link early.
-    liftMediaOutOfLinks(root)
+    liftMediaOutOfLinks(root, { altFirst: true })
     settleEvernoteLinks(root)
     doc.html = root.innerHTML
   }
@@ -374,6 +374,10 @@ function replaceEnMedia(doc, root, resources, resourcesByHash, referencedHashes)
     let node
     if (resource) {
       node = mediaNode(doc, resource)
+      // Task 9 fix round 1 (concern 2): an en-media's alt names the link the lift adds after it;
+      // carried privately (the editor reads no such attribute), as the server does.
+      const alt = (el.getAttribute('alt') || '').trim()
+      if (alt && node.tagName === 'IMG') node.setAttribute('data-uct-alt', alt)
     } else {
       // No unambiguous resource: a placeholder the commit turns into a visible missing_resource
       // notice IN PLACE. Never a silent drop; any uncited resource is still appended at the end.

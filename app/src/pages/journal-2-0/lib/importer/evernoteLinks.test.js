@@ -141,16 +141,41 @@ describe('resolveEvernoteLinks through the Evernote adapter', () => {
     expect(a.textContent).toBe('Target Note')
   })
 
-  it('keeps the image of an image-only note link, and says the link could not be kept (no title to resolve by)', async () => {
+  // Plan E Task 9 fix round 1 (concern 2, ruling): the link survives, right after the image.
+  it('keeps the image of an image-only note link and adds the link right after it, heal-able by its GUID', async () => {
     const { docs, warnings } = await evernoteAdapter.parse([enexFile('Book.enex', [
       note('Source', `<div>Lead <a href="evernote:///view/1/s1/abc/abc/"><en-media type="image/png" hash="${PNG_MD5}"/></a> tail</div>`, undefined, PNG_RES),
     ])])
     const d = docs[0]
-    expect(d.html).toContain(`<img src="import-ref://${PNG_MD5}">`)
-    expect(d.html).not.toContain('evernote:')
-    expect(bodyOf(d.html).querySelector('a')).toBeNull()
-    expect(d.links).toEqual([])
-    expect(warnings).toContain('A link to another note in "Source" was kept as its content: it has no text, and Evernote links name their note only by its title.')
+    const b = bodyOf(d.html)
+    const img = b.querySelector(`img[src="import-ref://${PNG_MD5}"]`)
+    const a = b.querySelector('a')
+    expect(img).not.toBeNull()
+    expect(img.nextSibling).toBe(a)
+    expect(a.getAttribute('data-import-link')).toBe('evernote:guid:abc')
+    expect(a.hasAttribute('href')).toBe(false)
+    expect(a.textContent).toBe('evernote:///view/1/s1/abc/abc/')   // no alt: the href as written
+    expect(d.links).toEqual([{ targetKey: 'evernote:guid:abc' }])
+    expect(warnings.filter((w) => w.includes('was kept as its content'))).toEqual([])
+  })
+
+  it("names an image-only link by the image's alt", async () => {
+    const { docs } = await evernoteAdapter.parse([enexFile('Book.enex', [
+      note('Source', `<div><a href="https://www.evernote.com/l/AbCd"><en-media type="image/png" hash="${PNG_MD5}" alt="Q3 plan"/></a></div>`, undefined, PNG_RES),
+    ])])
+    const a = bodyOf(docs[0].html).querySelector('a')
+    expect(a.textContent).toBe('Q3 plan')
+    expect(a.getAttribute('data-import-link')).toBe('evernote-title:Q3 plan')
+  })
+
+  it('keeps an image-only share link with no alt as a web link to the share page', async () => {
+    const { docs } = await evernoteAdapter.parse([enexFile('Book.enex', [
+      note('Source', `<div><a href="https://www.evernote.com/l/AbCd"><en-media type="image/png" hash="${PNG_MD5}"/></a></div>`, undefined, PNG_RES),
+    ])])
+    const a = bodyOf(docs[0].html).querySelector('a')
+    expect(a.getAttribute('href')).toBe('https://www.evernote.com/l/AbCd')
+    expect(a.textContent).toBe('https://www.evernote.com/l/AbCd')
+    expect(a.hasAttribute('data-import-link')).toBe(false)
   })
 
   it('resolves across two .enex files dropped together', async () => {

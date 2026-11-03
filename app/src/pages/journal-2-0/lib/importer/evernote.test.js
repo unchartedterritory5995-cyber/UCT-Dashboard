@@ -207,10 +207,13 @@ describe('evernote adapter: Plan B Task 6', () => {
     expect(d.html.indexOf(`import-ref://${pngMd5}`)).toBeLessThan(d.html.indexOf('Tail'))
     expect((d.html.match(/<img/g) || []).length).toBe(1)
     expect(d.media.map((m) => m.ref)).toContain(pngMd5)
-    // Through the post-parse pass too: the image is still there, no evernote: href is left.
+    // Through the post-parse pass too: the image is still there, no evernote: HREF is left.
+    // Task 9 fix round 1 (concern 2, ruling): the link survives right after the image, heal-able by
+    // its GUID; with no alt its visible text is the href as written.
     const f = await finishOne(body)
     expect(f.html).toContain(`<img src="import-ref://${pngMd5}">`)
-    expect(f.html).not.toContain('evernote:')
+    expect(f.html).not.toMatch(/href="evernote:/i)
+    expect(f.html).toContain('data-import-link="evernote:guid:abc"')
     expect(f.media.map((m) => m.ref)).toContain(pngMd5)
   })
 

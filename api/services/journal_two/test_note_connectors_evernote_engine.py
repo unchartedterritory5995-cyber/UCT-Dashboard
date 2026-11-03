@@ -297,11 +297,17 @@ def test_media_wall_kinds(work, wall):
     assert not [n for n in _nodes(wall, "image") if n["attrs"]["src"].endswith(".svg")]
 
 
-def test_image_inside_a_note_link_keeps_the_image(work, wall):
-    """The linked image is copied; the note link around it is NOT kept (no text to carry the
-    mark), exactly as the `.enex` lane does (`enml_parity/08-link-around-image.json`)."""
-    assert ((20, 10), "PNG") in [_image_size(work, n) for n in _nodes(wall, "image")]
-    assert _links(wall) == []
+def test_image_inside_a_note_link_keeps_the_image_and_the_link(work, notes, wall):
+    """Fix round 1 (concern 2, ruling): the linked image is copied AND the note link survives,
+    right after it. No alt, so its text is the href as written; healed in the same pass, it opens
+    the target note. (Was: the link was dropped, as `enml_parity/08` then pinned on both lanes.)"""
+    content = wall["content"]
+    at = next(i for i, n in enumerate(content) if n["type"] == "image" and _image_size(work, n)[0] == (20, 10))
+    after = content[at + 1]
+    assert after["type"] == "paragraph"
+    assert _links(after) == [(f"evernote:///view/123/s1/{G(TARGET)}/{G(TARGET)}/",
+                              NOTE_HREF.format(notes[KEY(TARGET)]["id"]))]
+    assert notes[KEY(WALL)]["importLinksPending"] == 0
 
 
 # ── structure and links ───────────────────────────────────────────────────────────

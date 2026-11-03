@@ -143,6 +143,10 @@ const DBS = 'notion:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const CAP = 'notion:88888888-8888-4888-8888-888888888888'
 const OHUB = 'obsidian:vault-messy/Notes/Hub.md'
 const OWALL = 'obsidian:vault-messy/Media wall.md'
+const E = 'evernote_live_messy'
+const EU = 'u-evernote'
+const EWALL = 'evernote:guid:e0000000-0000-4000-8000-000000000004'
+const ETARGET_GUID = 'e0000000-0000-4000-8000-000000000002'
 const ok = (corpus, user, key) => (key ? note(corpus, user, key).bodyJson : null)
 const paragraphOf = (root, starts) => [...root.querySelectorAll('p')].find((p) => p.textContent.startsWith(starts))
 /** The top-level block (a direct child of the editor root) holding `el`. */
@@ -299,6 +303,15 @@ const CONSTRUCTS = [
   ['obsidian: a link written before its target existed opens it', O, OU, 'obsidian:vault-messy/Notes/Other note.md', (root) => {
     expect(internalNoteIdFromHref(oneLink(root, 'Later').getAttribute('href')))
       .toBe(nid(O, OU, 'obsidian:vault-messy/Later.md'))
+  }],
+  // Plan E Task 9 fix round 1 (concern 2, ruling): an image inside a note link keeps the link, as
+  // a clickable <a href> right after the image, opening the target note.
+  ['evernote: an image inside a note link is followed by its clickable link', E, EU, EWALL, (root) => {
+    const a = oneLink(root, `evernote:///view/123/s1/${ETARGET_GUID}/${ETARGET_GUID}/`)
+    expect(internalNoteIdFromHref(a.getAttribute('href'))).toBe(nid(E, EU, `evernote:guid:${ETARGET_GUID}`))
+    const before = topBlock(a).previousElementSibling
+    const img = before.tagName === 'IMG' ? before : before.querySelector('img')
+    expect(img.getAttribute('src').startsWith(ATTACHMENTS)).toBe(true)
   }],
 ]
 
