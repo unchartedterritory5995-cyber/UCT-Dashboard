@@ -24,7 +24,8 @@
  * the link and the media both survive (TipTap cannot hold an image inside a link mark).
  */
 import SparkMD5 from 'spark-md5'
-import { resolveHref, neutraliseAnchor } from './linkPolicy'
+import { resolveHref, neutraliseAnchor, isUnsafeSrc } from './linkPolicy'
+import { NOTICE_REASONS } from './importNotice'
 
 export const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic|heif|avif|tiff?)$/i
 
@@ -208,7 +209,9 @@ function lastSegment(url) {
 
 /** The fetchable http(s) URL `src` names, or null. */
 function remoteUrlFor(src, sourceUrl) {
-  const resolved = resolveHref(src, sourceUrl)
+  // An image src is never read as a host (D3 item 6 is a LINK rule; the server lane does not
+  // read an image src through the href policy at all).
+  const resolved = resolveHref(src, sourceUrl, { hostLike: false })
   if (resolved === null) return null
   let url
   try {
@@ -233,8 +236,17 @@ export function collectRemoteImages(root, media, sourceUrl = null) {
     const src = img.getAttribute('src')
     const trimmed = src.trim()
     if (OURS.some((p) => trimmed.startsWith(p)) || DATA_PREFIX_RE.test(trimmed)) continue
-    const url = remoteUrlFor(src, sourceUrl)
     let ref
+    if (isUnsafeSrc(src)) {
+      // D3 follow-up (difference 1): an unsafe scheme is the server's `unsafe` notice, named by
+      // the image's alt (`commit.js` falls back to it), never `unresolvable_src` naming the
+      // raw `javascript:` source. Written here, before the sanitiser strips the src.
+      ref = failedItem(media, 'unsafe-', null, NOTICE_REASONS.unsafe)
+      known.add(ref)
+      img.setAttribute('src', REF + ref)
+      continue
+    }
+    const url = remoteUrlFor(src, sourceUrl)
     if (url) {
       ref = `remote-${SparkMD5.hash(url.href).toLowerCase()}`
       if (!known.has(ref)) {
@@ -252,20 +264,29 @@ export function collectRemoteImages(root, media, sourceUrl = null) {
 const CHIP_SELECTOR = '[data-type="attachmentChip"]'
 const MEDIA_SELECTOR = `img, ${CHIP_SELECTOR}`
 
-/** Media inside a link moves, in order, to just before it; an emptied link is made whole. */
-/** The first image's alt among `els` (an `<img alt>`, or `data-uct-alt`); '' when none. */
-function firstAlt(els) {
-  for (const el of els) {
-    const imgs = el.tagName === 'IMG' ? [el] : [...el.querySelectorAll('img')]
-    for (const img of imgs) {
-      const alt = (img.getAttribute('alt') || img.getAttribute('data-uct-alt') || '').trim()
-      if (alt) return alt
-    }
+/**
+ * The text a media-only link keeps (D3 fix round 2 ruling): the first moved image's alt, else ''.
+ * An `<img alt>`, or the `data-uct-alt` the Evernote adapter carries an `<en-media alt>` in
+ * (Plan E Task 9 fix round 1, concern 2; no other importer writes it). ONE reader for every
+ * importer: the server's `mddoc` label rule, pinned by the shared `media_link_vectors`.
+ */
+function mediaLinkAlt(found) {
+  for (const el of found) {
+    if (el.tagName !== 'IMG') continue
+    const alt = (el.getAttribute('alt') || el.getAttribute('data-uct-alt') || '').trim()
+    if (alt) return alt
   }
   return ''
 }
 
-export function liftMediaOutOfLinks(root, { altFirst = false, noteLinkLabel = null } = {}) {
+/**
+ * Media inside a link moves, in order, to just before it; an emptied link is made whole.
+ * A link wrapping only media survives as a link right after it, reading `mediaLinkAlt`, else the
+ * href, on every importer (D3). `noteLinkLabel` is Evernote's override on top (Plan E Task 9 fix
+ * round 2): a resolved `data-evernote-link` note link with no alt reads that fixed label instead
+ * of its href; an unresolved one is neutralised.
+ */
+export function liftMediaOutOfLinks(root, { noteLinkLabel = null } = {}) {
   for (const a of [...root.querySelectorAll('a[href], a[data-evernote-link]')]) {
     // Outermost media only: a chip moves whole, with any image inside it. An adapter's chip is
     // itself `<a href="import-ref://…">`; its own media has `outer === a`, so a chip is never a
@@ -278,18 +299,14 @@ export function liftMediaOutOfLinks(root, { altFirst = false, noteLinkLabel = nu
     for (const el of found) a.parentNode.insertBefore(el, a)
     if (a.textContent.trim()) continue
     const href = (a.getAttribute('href') || '').trim()
-    // Plan E Task 9 fix round 1 (concern 2, ruling), Evernote only (`altFirst`, `noteLinkLabel`
-    // and the `data-evernote-link` branch): the link survives right after its media, its text the
-    // image's alt, else (fix round 2) the note-link label for a note link, the href for a web link.
-    // A resolved note link keeps its heal-able `data-import-link`.
-    const alt = altFirst ? firstAlt(found) : ''
     if (a.hasAttribute('data-evernote-link')) {
-      if (a.hasAttribute('data-import-link') && href) a.textContent = alt || noteLinkLabel || href
+      // A resolved note link keeps its heal-able `data-import-link`.
+      if (a.hasAttribute('data-import-link') && href) a.textContent = mediaLinkAlt(found) || noteLinkLabel || href
       else neutraliseAnchor(a)
     } else if (!href) {
       neutraliseAnchor(a)
     } else {
-      a.textContent = alt || href
+      a.textContent = mediaLinkAlt(found) || href
     }
   }
 }

@@ -25,12 +25,13 @@ the process down or accumulate unbounded temp state.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import threading
 import time
 import uuid
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Any
 
@@ -1284,6 +1285,20 @@ def _process_document_bounded(document_id: str) -> None:
                     document_id, e)
 
 
+#: The documents this process has queued and not yet finished (Plan F Task 7 re-review I-5):
+#: the pending sweep never queues one twice. Per-process, like the pool it mirrors.
+_QUEUED: set[str] = set()
+_QUEUED_LOCK = threading.Lock()
+#: A `pending` row older than this was never extracted (a crash, a redeploy mid-queue, or a row
+#: created by a process that does not extract, such as the import repair): the sweep re-queues it.
+STALE_PENDING_S = 600
+#: The most rows one sweep tick re-queues: the pool's own bound does the rest.
+PENDING_SWEEP_LIMIT = 20
+#: Round 2 S-1: how many times the sweep re-queues one row before it marks it failed.
+MAX_SWEEP_ATTEMPTS = 3
+SWEEP_FAILURE_REASON = "extraction never completed after repeated retries"
+
+
 def queue_extraction(document_id: str) -> None:
     """Fire-and-forget: queues the document on `_EXTRACTION_POOL` and returns.
 
@@ -1293,7 +1308,89 @@ def queue_extraction(document_id: str) -> None:
     the rest wait as ids in the pool's queue. ⚰️ This used to start one daemon
     thread per document that then parked on the semaphore -- unbounded, and
     email-in can hand over 20 attachments per message."""
-    _EXTRACTION_POOL.submit(_process_document_bounded, document_id)
+    with _QUEUED_LOCK:
+        _QUEUED.add(document_id)
+    _EXTRACTION_POOL.submit(_process_queued, document_id)
+
+
+def _process_queued(document_id: str) -> None:
+    try:
+        _process_document_bounded(document_id)
+    finally:
+        with _QUEUED_LOCK:
+            _QUEUED.discard(document_id)
+
+
+#: Round 2 S-2: the sweep's first pass waits at least this long after the web process booted
+#: (a deploy has enough to do, and a backlog older than the deploy is drained at 20 per tick).
+SWEEP_STARTUP_GRACE_S = 600
+#: Round 2 S-3: the sweep's kill switch on `web` (docs/feature_flags.json). Read per tick from the
+#: PROCESS environment, which a Railway variable change reaches only on a new boot (final review
+#: I-2): set or delete it, then redeploy web.
+SWEEP_DISABLED_ENV = "NOTEBOOK_DOC_PENDING_SWEEP_DISABLED"
+#: When the importing process booted, for the grace (`time.monotonic()`).
+_PROCESS_STARTED = time.monotonic()
+
+
+def pending_sweep_tick(*, started_monotonic: float | None = None, now_monotonic: float | None = None,
+                       now: datetime | None = None) -> dict[str, Any]:
+    """ONE tick of the web pod's `j2_doc_pending_sweep` job: nothing within
+    `SWEEP_STARTUP_GRACE_S` of boot, else `requeue_stale_pending`."""
+    # Round 2 S-3: the kill switch, read per tick from os.environ (a new value arrives with a new boot).
+    if os.environ.get(SWEEP_DISABLED_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
+        return {"skipped": "disabled"}
+    started = _PROCESS_STARTED if started_monotonic is None else started_monotonic
+    clock = time.monotonic() if now_monotonic is None else now_monotonic
+    if clock - started < SWEEP_STARTUP_GRACE_S:
+        return {"skipped": "startup_grace"}
+    return requeue_stale_pending(now=now)
+
+
+def requeue_stale_pending(*, now: datetime | None = None, older_than_s: float = STALE_PENDING_S,
+                          limit: int = PENDING_SWEEP_LIMIT, conn=None) -> dict[str, int]:
+    """The web pod's sweep (Plan F Task 7 re-review I-5): re-queue `pending` documents older
+    than `older_than_s` that this process has not queued, oldest first, at most `limit` per
+    call, through `queue_extraction` (so the pool's bounds hold). It heals a row whose
+    extraction never ran, whichever door created it: a crash or redeploy mid-queue, or the import
+    repair, which creates rows only and never extracts in its own process. Idempotent: a row
+    still queued here is skipped, and a finished row is no longer `pending`.
+
+    Round 2 S-1: every re-queue is counted on the row (`sweep_attempts`). A stale row already
+    re-queued `MAX_SWEEP_ATTEMPTS` times (its extraction keeps dying before writing a status) is
+    marked `processing_failed` with `failure_reason` (the member sees the normal failed state)
+    and takes no slot again. Returns `{"requeued", "failed"}`."""
+    current = now or datetime.now(timezone.utc)
+    cutoff = (current - timedelta(seconds=older_than_s)).isoformat()
+    with _QUEUED_LOCK:
+        queued = set(_QUEUED)
+    owned = conn is None
+    conn = conn or get_connection()
+    # Final review I-1: `pending` is ALSO OCR's derived status for a document whose extraction
+    # already finished and whose pages wait for OCR (document_ocr.derive_document_status, written by
+    # refresh_document_status WITH processed_at). Every process_document outcome sets processed_at
+    # too, so `processed_at IS NULL` is exactly "never extracted": the only rows this sweep heals.
+    try:
+        failed = conn.execute(
+            "UPDATE j2_note_documents SET status = ?, processed_at = ?, failure_reason = ?"
+            " WHERE status = ? AND processed_at IS NULL AND created_at < ? AND sweep_attempts >= ?",
+            (_STATUS_FAILED, current.isoformat(), SWEEP_FAILURE_REASON, _STATUS_PENDING, cutoff,
+             MAX_SWEEP_ATTEMPTS)).rowcount
+        rows = conn.execute(
+            "SELECT id FROM j2_note_documents WHERE status = ? AND processed_at IS NULL AND created_at < ?"
+            " ORDER BY created_at LIMIT ?", (_STATUS_PENDING, cutoff, limit + len(queued))).fetchall()
+        picked = [r[0] for r in rows if r[0] not in queued][:limit]
+        for document_id in picked:
+            conn.execute("UPDATE j2_note_documents SET sweep_attempts = sweep_attempts + 1 WHERE id = ?",
+                         (document_id,))
+        conn.commit()
+    finally:
+        if owned:
+            conn.close()
+    for document_id in picked:
+        queue_extraction(document_id)
+    if failed:
+        log.warning("[doc-extract] sweep marked %s document(s) failed after %s retries", failed, MAX_SWEEP_ATTEMPTS)
+    return {"requeued": len(picked), "failed": failed}
 
 
 # ── Seam S1 (wave 7) ─────────────────────────────────────────────────────────
@@ -1305,9 +1402,12 @@ def on_attachment_saved(
     content_type: str | None,
     *,
     kind: str = "file",
+    queue: bool = True,
 ) -> dict[str, Any] | None:
     """The ONE place that decides whether a freshly saved attachment becomes
-    a searchable document. Called by BOTH upload routes in
+    a searchable document. ``queue=False`` (Plan F Task 7 re-review I-5, the
+    import repair's short-lived process) creates the row only, `pending`; the
+    web pod's sweep (`requeue_stale_pending`) extracts it. Called by BOTH upload routes in
     api/routers/journal_two.py (``kind="image"`` from /images, ``kind="file"``
     from /attachments) AFTER the bytes are on disk, so a failure here can
     never make the upload look broken (callers do not await anything of it
@@ -1336,7 +1436,8 @@ def on_attachment_saved(
     """
     if kind == "file" and content_type == "application/pdf":
         doc = create_document(user_id, note_id, att["url"], att.get("name"))
-        queue_extraction(doc["id"])
+        if queue:
+            queue_extraction(doc["id"])
         return doc
     if not image_docx_documents_enabled():
         return None
@@ -1347,12 +1448,14 @@ def on_attachment_saved(
             return None
         doc = create_document(user_id, note_id, url, _IMAGE_DOC_NAME,
                               source_kind=SOURCE_KIND_IMAGE)
-        queue_extraction(doc["id"])
+        if queue:
+            queue_extraction(doc["id"])
         return doc
     if kind == "file" and content_type == DOCX_MIME and url.lower().endswith(".docx"):
         doc = create_document(user_id, note_id, url, att.get("name"),
                               source_kind=SOURCE_KIND_DOCX)
-        queue_extraction(doc["id"])
+        if queue:
+            queue_extraction(doc["id"])
         return doc
     # Wave 10 (G-160, R-4): a spreadsheet, under the SAME gate and the same
     # rule -- the saved URL must really end in `.xlsx`, so the preview (which
@@ -1360,6 +1463,7 @@ def on_attachment_saved(
     if kind == "file" and content_type == XLSX_MIME and url.lower().endswith(".xlsx"):
         doc = create_document(user_id, note_id, url, att.get("name"),
                               source_kind=SOURCE_KIND_XLSX)
-        queue_extraction(doc["id"])
+        if queue:
+            queue_extraction(doc["id"])
         return doc
     return None

@@ -1057,7 +1057,10 @@
               "basis": null
             }
           ],
-          "all_symbols": true
+          "all_symbols": true,
+          "routes": [
+            null
+          ]
         },
         "notes": [
           "classified from UCT's symbol index (US stocks and ETFs, with indexes and UCT series typed apart)"
@@ -1128,7 +1131,14 @@
               ]
             }
           ],
-          "all_symbols": false
+          "all_symbols": false,
+          "routes": [
+            {
+              "kind": "commodity.quote",
+              "asset": "gold",
+              "label": "gold"
+            }
+          ]
         },
         "notes": [
           "classified from UCT's symbol index (US stocks and ETFs, with indexes and UCT series typed apart)"
@@ -1193,7 +1203,14 @@
               "basis": null
             }
           ],
-          "all_symbols": false
+          "all_symbols": false,
+          "routes": [
+            {
+              "kind": "index.quote",
+              "asset": "spx",
+              "label": "S&P 500"
+            }
+          ]
         },
         "notes": [
           "classified from UCT's symbol index (US stocks and ETFs, with indexes and UCT series typed apart)"

@@ -63,6 +63,14 @@ export function mdToHtml(text) {
   return getMd().render(text || '')
 }
 
+/** What inline markdown READS as: `the **deck**` -> `the deck`, `the\_x` -> `the_x`
+ * (D2 fix round 1: a chip label from a wikilink alias, the same text the server's
+ * `providers/obsidian.py::_rendered_text` keeps). */
+export function mdInlineText(text) {
+  const html = getMd().renderInline(text || '')
+  return new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body.textContent || ''
+}
+
 /** The markdown lane's own linkify-it instance: ONE linkify behaviour (../linkPolicy.js). */
 export function getLinkify() {
   return getMd().linkify
@@ -413,19 +421,36 @@ export function resolveRelativeMedia(html, dir, byPath, opts = {}) {
       }
       return
     }
-    const name = basename(resolvedPath)
-    a.setAttribute('data-type', 'attachmentChip')
-    a.setAttribute('data-import-ref', resolvedPath)
-    a.setAttribute('data-name', name)
-    // The AttachmentChip TipTap node (Task 5) reads `href` in parseHTML — not
-    // `data-import-ref` — mirroring the <img src> branch above. Without this,
-    // the placeholder never reaches bodyJson and Task 13's rewriteBody (which
-    // matches `href === 'import-ref://<ref>'`) has nothing to swap.
-    a.setAttribute('href', `import-ref://${resolvedPath}`)
+    const name = markAttachmentChip(a, resolvedPath)
     media.push({ ref: resolvedPath, vfile: target, kind: 'file', name })
   })
 
   return { html: doc.body.innerHTML, media, links }
+}
+
+/**
+ * Turns a parsed `<a>` that names a vault file into the attachment chip, returning the
+ * file's name. ONE writer for every chip made from a markdown link: this module's
+ * beside-the-note path and the Obsidian adapter's vault-resolved one
+ * (`obsidian.js::resolveVaultAnchors`, post-merge fix 3).
+ * D2 item 6: the member's own link text, as rendered (`[**the** report](q.pdf)` ->
+ * `the report`), is the chip's LABEL when it says something other than the name; the
+ * download name stays `name` (`attachmentChip.js`). The server's Obsidian lane writes the
+ * same (`providers/obsidian.py::_ref_label`).
+ */
+export function markAttachmentChip(a, resolvedPath) {
+  const name = basename(resolvedPath)
+  const text = (a.textContent || '').trim()
+  a.setAttribute('data-type', 'attachmentChip')
+  a.setAttribute('data-import-ref', resolvedPath)
+  a.setAttribute('data-name', name)
+  if (text && text !== name) a.setAttribute('data-label', text)
+  // The AttachmentChip TipTap node (Task 5) reads `href` in parseHTML — not
+  // `data-import-ref` — mirroring the <img src> branch above. Without this,
+  // the placeholder never reaches bodyJson and Task 13's rewriteBody (which
+  // matches `href === 'import-ref://<ref>'`) has nothing to swap.
+  a.setAttribute('href', `import-ref://${resolvedPath}`)
+  return name
 }
 
 function isAbsoluteRef(src) {

@@ -118,6 +118,8 @@ async def chart_iq_pack_build(force: bool = Query(default=False), user: dict = D
         raise HTTPException(status_code=404, detail="Not found")
     import threading
     from api.services.chart_iq import pack
+    if not pack.server_build_allowed():
+        return {"started": False, "reason": "server build disabled (CHART_IQ_PACK_FALLBACK_ENABLED); the lab PC builds the pack"}
     if pack._BUILDING.is_set():
         return {"started": False, "reason": "already building"}
     if pack.in_session() and not force:

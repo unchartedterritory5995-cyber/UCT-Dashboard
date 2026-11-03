@@ -1,0 +1,34 @@
+{
+  "id": "24-embed-as-alias",
+  "input_markdown": "# Embed as a wikilink alias\n\nx [[Plan|![[img.png]]]] y\n\nand [[Ghost#Risk|![[img.png]]]] waits.\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [],
+    "highlights": [],
+    "images": [
+      "attachments/img.png",
+      "attachments/img.png"
+    ],
+    "links": [
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      }
+    ],
+    "pending": [
+      {
+        "key": "name:obsidian:vault-1/ghost",
+        "text": "Ghost > Risk"
+      }
+    ],
+    "task_checked": [],
+    "text": "Embed as a wikilink alias x  Plan y and  Ghost > Risk waits."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "Plan.md",
+    "attachments/img.png"
+  ]
+}

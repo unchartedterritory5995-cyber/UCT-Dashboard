@@ -153,7 +153,10 @@ const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
 /** One node → compact chart words. Deterministic; total over the node grammar. */
 /** ⭐ BATCH 2 — how an exact-identity function reads in a name ("LINREG 50"). */
-const EXPANSION_LABELS = Object.freeze({ kcUpper: 'KC upper', kcLower: 'KC lower', kcMiddle: 'KC middle' })
+const EXPANSION_LABELS = Object.freeze({
+  kcUpper: 'KC upper', kcLower: 'KC lower', kcMiddle: 'KC middle',
+  bbUpper: 'BB upper', bbLower: 'BB lower', bbMiddle: 'BB middle',
+})
 
 /** ⭐⭐ 2026-10-29 — A NAME IS WORDS, NOT A FORMULA (owner: "no formulas in chat").
  *  `plain` (the default) says the maths the way a chart label reads: "EMA 9 above

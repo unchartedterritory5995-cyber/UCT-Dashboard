@@ -31,6 +31,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from api.services.uct_agent.marketdata import asset_classes
 from api.services.uct_agent.marketdata import envelope as env
 
 SOURCE = "uct-symbol-index"
@@ -73,7 +74,9 @@ def validate(params: dict) -> Optional[str]:
     for it in items:
         if not isinstance(it, dict) or set(it) != {"text", "form"}:
             return "each entry is {text, form}"
-        if not isinstance(it["text"], str) or not _TOKEN_RE.match(it["text"].lstrip("$")):
+        # W1-C C-03: an asset-class word that is not symbol-shaped ("s&p") is still a word the resolver can route
+        if not isinstance(it["text"], str) or not (_TOKEN_RE.match(it["text"].lstrip("$"))
+                                                   or asset_classes.lookup(it["text"]) is not None):
             return "an entry's text is not a word that could be a symbol"
         if it["form"] not in FORMS:
             return f"an entry's form must be one of {', '.join(FORMS)}"
@@ -246,10 +249,24 @@ def read_instruments(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no pe
         built = 0.0
     stale = built <= 0 or (time.time() - built) > INDEX_STALE_S
     results = [classify(it["text"], it["form"], idx, index_stale=stale) for it in _entries(params)]
+    routes = [route_for(r) for r in results]
     as_of = env.utc_iso(datetime.fromtimestamp(built, timezone.utc)) if built > 0 else None
     notes = [NOTE_FROM_INDEX]
     if as_of is None:
         notes.append("the symbol index does not say when it was built")
     return env.make_envelope(kind, params, status="ok", freshness="periodic", as_of=as_of, source=SOURCE,
-                             data={"results": results, "all_symbols": all(r["class"] == "symbol" for r in results)},
+                             data={"results": results, "all_symbols": all(r["class"] == "symbol" for r in results),
+                                   "routes": routes},
                              stale=stale, notes=notes, provider_calls=0)
+
+
+# ---- W1-C C-03 (builder-c): asset-class routes, PARALLEL to the §4.7 classes ------------------------------------------
+# `data.routes[i]` is {kind, asset, label} when results[i] is an asset-class word (asset_classes.py) the member did
+# NOT price as an explicit stock/ETF ticker, else None. The class itself never moves (the per-result shape, and the
+# client fixture generated from `classify`, are unchanged): a lowercase "gold" is still `symbol_typed_lowercase`, a
+# plain "bitcoin" still `unknown`, "SPX" still `non_equity`. Explicit capitals on a stock/ETF symbol (`GOLD`, `$BTC`)
+# are the member's choice (MD-1 §4.7.3) and carry no route.
+def route_for(result: dict) -> Optional[dict]:
+    if not isinstance(result, dict) or result.get("class") == "symbol":
+        return None
+    return asset_classes.lookup(str(result.get("input") or ""))

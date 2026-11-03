@@ -1,0 +1,146 @@
+# promotion-gate: no — ADDITIVE CI for the Agent program's branches (agent/**, PRs into
+#   agent/int and master from them). It never decides promotion: the master deploy gate keeps
+#   every Agent step it has today, and tools/promotion_gate.py classifies this file as "no".
+#   Owner-approved 2026-11-02: tests/test_uct_agent_deploy_gate.py::test_no_OTHER_workflow_is_an_agent_gate
+#   exempts promotion-gate:no workflows (pinned by name) and keeps refusing any gating or
+#   unclassified workflow that names the Agent suites; the gate's own Agent steps stay mandatory.
+# UCT Agent CI — the Agent program's own integration check (Wave 1, 2026-11-02).
+#
+# ADDITIVE. This does not change the master deploy gate; the gate keeps every step it has
+# today. This runs the Agent suites where they belong — on every push to an Agent branch and
+# on every PR into agent/int or master from one — so breakage is visible BEFORE a release
+# candidate reaches the serial gate, and so the suites can be sharded in parallel.
+#
+# Coverage equivalence is a rail, not a promise: the `union` job fails unless the set of test
+# files the four shards executed equals the set `vitest list` reports for the same paths, and
+# unless the file count clears the same floor the gate uses (30).
+name: agent ci
+
+on:
+  push:
+    branches: ['agent/**']
+  pull_request:
+    branches: [agent/int, master]
+    paths:
+      - 'app/src/agent/**'
+      - 'app/src/components/chart/builder/agent*'
+      - 'api/services/uct_agent/**'
+      - 'api/routers/uct_agent*.py'
+      - 'tests/test_uct_agent*.py'
+      - 'tools/agent_*'
+      - '.github/workflows/agent-ci.yml'
+
+concurrency:
+  group: agent-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations
+  AGENT_SHARDS: '4'
+
+# A PR from a branch in this repo already ran on its push; running it again on the
+# pull_request event only doubles the queue. Fork PRs have no push run here, so they keep it.
+# (All three jobs carry the same condition; `union` needs `browser`.)
+jobs:
+  server:
+    name: UCT Agent server tests (production dependency set)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Some QA rails diff the tree against the integration branch (e.g. the F-16 rail that proves
+      # the member Screener's server code is untouched). A shallow checkout has no such ref.
+      - name: Fetch the integration branch for diff-based rails
+        run: git fetch --no-tags --quiet origin +refs/heads/agent/int:refs/remotes/origin/agent/int +refs/heads/master:refs/remotes/origin/master
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Production dependency set + pytest
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet -r requirements.txt pytest httpx
+      - name: pytest tests/test_uct_agent*.py
+        run: python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
+
+  browser:
+    name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci
+        working-directory: app
+        run: npm ci
+      - name: vitest shard
+        working-directory: app
+        run: |
+          start=$(date +%s)
+          npx vitest run $AGENT_VITEST_PATHS --shard=${{ matrix.shard }}/${AGENT_SHARDS} \
+            --reporter=default --reporter=json --outputFile=../shard-${{ matrix.shard }}.json
+          echo "shard ${{ matrix.shard }} wall: $(( $(date +%s) - start )) s"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent-shard-${{ matrix.shard }}
+          path: shard-${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  union:
+    name: Shards cover every Agent test file (equivalence rail)
+    needs: browser
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci
+        working-directory: app
+        run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: agent-shard-*
+          path: shards
+          merge-multiple: true
+      - name: Expected file list
+        working-directory: app
+        run: npx vitest list $AGENT_VITEST_PATHS --filesOnly > ../expected-files.txt && wc -l ../expected-files.txt
+      - name: Union of executed files equals the expected list; floor 30; no failures
+        run: |
+          node - <<'EOF'
+          const fs = require('fs'), path = require('path');
+          const norm = p => path.resolve(p).replace(/\\/g, '/').replace(/^.*?\/app\//, 'app/');
+          const expected = new Set(fs.readFileSync('expected-files.txt', 'utf8').split(/\r?\n/).filter(Boolean).map(f => norm(path.join('app', f))));
+          const ran = new Set(); let failed = 0, passed = 0, files = 0;
+          for (const f of fs.readdirSync('shards').filter(f => f.endsWith('.json'))) {
+            const r = JSON.parse(fs.readFileSync(path.join('shards', f), 'utf8'));
+            for (const t of r.testResults) { files++; ran.add(norm(t.name)); }
+            failed += r.numFailedTests || 0; passed += r.numPassedTests || 0;
+          }
+          const missing = [...expected].filter(f => !ran.has(f));
+          const extra = [...ran].filter(f => !expected.has(f));
+          console.log(`expected ${expected.size} files; shards ran ${ran.size} distinct (${files} total); passed ${passed}, failed ${failed}`);
+          if (missing.length) { console.log('::error::files no shard ran:\n' + missing.join('\n')); }
+          if (extra.length) { console.log('::warning::files ran but not in the expected list:\n' + extra.join('\n')); }
+          if (ran.size < 30) { console.log('::error::fewer than 30 Agent test files ran'); process.exit(1); }
+          if (missing.length || failed > 0) process.exit(1);
+          EOF

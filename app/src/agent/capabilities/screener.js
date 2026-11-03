@@ -14,8 +14,11 @@
 //
 // ⭐ READ-ONLY. Running a screen here changes nothing in UCT (the Screener page's
 // own state lives inside that page), so every action is a QUERY: nothing to undo,
-// nothing to propose. The Agent remembers only its LAST screen in this session, so
-// "add price above $10" can refine it.
+// nothing to propose. The Agent remembers its LAST screen so "add price above $10"
+// can refine it — per CONVERSATION, kept on the server (W1-C C-01, scanRefine.js):
+// a reload or a chat switch restores it, so "now only technology", "exclude anything
+// under $10", "sort them by three-month performance" still compose onto it. A refinement
+// that would add a hidden UCT field is refused with the F-16 sentence + one public alternative.
 //
 // ⭐ NO FIELD LIST HERE. Fields come from the live catalog; a field the Screener
 // gains is usable the moment `/fields` lists it. Range, yes/no and LIST fields (sector,
@@ -39,9 +42,11 @@
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
 import { matchName } from '../nl/match'
-import { serverServesScan, serverDataKinds } from '../agentClient'
+import { serverServesScan, serverDataKinds, activeConversationId } from '../agentClient'
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
+import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS } from './scanHidden'
+import { composeRefine, refineRefusal, persistLastScreen, restoreLastScreen, NO_LAST_SCREEN } from './scanRefine'
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
 const SAVED_TTL_MS = 60 * 1000
@@ -56,7 +61,22 @@ const PAGE = 500                  // the engine's own page cap (services/screene
 // limit (the watchlist server has none): a bound on one request, always SAID, never a silent cut.
 export const FILL_MAX = 1000
 const CANDIDATES_MAX = 10000      // a screen with measure conditions reads at most this many candidates
-const DEFAULT_SORT = { key: 'uct_composite', dir: 'desc' }
+// SC-1 §2d (owner F-16): never the Screener's own default order (UCT Composite, a proprietary rating). DEFAULT_SORT
+// and DEFAULT_ORDER_WORDS come from scanHidden.js, generated from the server's spec.DEFAULT_SORT: one authority.
+/** SC-1 §2d: the refusal sentence when ANY part of a wire spec names a hidden field (a filter, an `other`, a logic
+ *  leaf, an arithmetic term, the sort, a rank criterion, a column), or null. One walk, every shape. */
+export function hiddenRefusal(spec) {
+  const keys = []
+  const walk = (v, depth = 0) => {
+    if (depth > 24 || v == null || typeof v !== 'object') return
+    if (Array.isArray(v)) { v.forEach(x => walk(x, depth + 1)); return }
+    for (const k of ['key', 'other', 'f', 'column']) if (typeof v[k] === 'string') keys.push(v[k])
+    for (const x of Object.values(v)) walk(x, depth + 1)
+  }
+  walk(spec)
+  if (Array.isArray(spec?.columns)) keys.push(...spec.columns.filter(c => typeof c === 'string'))
+  return refusalFor(keys)
+}
 // A saved screen named in the member's words before the saved list had loaded (SAT-1 F-SAT-3) — never an id.
 const BY_NAME = 'name:'
 
@@ -71,15 +91,50 @@ async function json(r, what) {
   return r.json()
 }
 
-const cache = { meta: null, metaAt: 0, metaP: null, options: null, optionsAt: 0, optionsP: null, saved: null, savedAt: 0, last: null }
-export function _resetScreenerCache() { cache.meta = null; cache.metaAt = 0; cache.metaP = null; cache.options = null; cache.optionsAt = 0; cache.optionsP = null; cache.saved = null; cache.savedAt = 0; cache.last = null }
+const cache = { meta: null, metaAt: 0, metaP: null, options: null, optionsAt: 0, optionsP: null, saved: null, savedAt: 0, last: null, lastConv: null, restoreP: null }
+export function _resetScreenerCache() { cache.meta = null; cache.metaAt = 0; cache.metaP = null; cache.options = null; cache.optionsAt = 0; cache.optionsP = null; cache.saved = null; cache.savedAt = 0; cache.last = null; cache.lastConv = null; cache.restoreP = null }
+
+// ── the LAST SCREEN, per conversation (W1-C C-01) ──
+/** Record the screen just run as the conversation's last screen and persist it server-side (fire-and-forget). */
+function setLast(last) {
+  cache.last = last
+  cache.lastConv = activeConversationId()
+  persistLastScreen(last)
+}
+/** Is the screen held here the CURRENT conversation's? A screen run before the chat had an id (a new chat gets its
+ *  id on its first turn) belongs to whichever chat is open now; one from another chat does not. Sync. */
+function lastIsCurrent() {
+  if (!cache.last) return false
+  const conv = activeConversationId()
+  if (cache.lastConv == null) {
+    if (conv) { cache.lastConv = conv; persistLastScreen(cache.last) }   // adopt: the id arrived after the screen ran
+    return true
+  }
+  return cache.lastConv === conv
+}
+/** The last screen for the member's CURRENT conversation: the one run here, else the server's copy (a reload, a
+ *  chat switch). One read per conversation switch; null when there is none. */
+export function ensureLast() {
+  if (lastIsCurrent()) return Promise.resolve(cache.last)
+  const conv = activeConversationId()
+  if (!conv) { cache.last = null; cache.lastConv = null; return Promise.resolve(null) }   // a new chat: the old chat's screen is not its
+  if (!cache.restoreP) {
+    cache.restoreP = restoreLastScreen().then(l => {
+      if (activeConversationId() !== conv) return lastIsCurrent() ? cache.last : null    // the chat changed meanwhile
+      cache.last = l
+      cache.lastConv = conv
+      return l
+    }).catch(() => (lastIsCurrent() ? cache.last : null)).finally(() => { cache.restoreP = null })
+  }
+  return cache.restoreP
+}
 
 export function loadMeta() {
   if (cache.meta && Date.now() - cache.metaAt < META_TTL_MS) return Promise.resolve(cache.meta)
   if (!cache.metaP) {
     cache.metaP = req('/api/screener/fields').then(r => json(r, 'Reading the Screener fields')).then(m => {
       const list = Array.isArray(m.fields) ? m.fields : []
-      cache.meta = { fields: list.filter(f => f && f.key && (f.type === 'range' || f.type === 'bool' || f.type === 'enum')).map(f => ({ key: f.key, label: f.label || f.key, type: f.type === 'enum' ? 'list' : f.type, unit: f.unit || '', category: f.category || null })) }
+      cache.meta = { fields: list.filter(f => f && f.key && !isHidden(f.key) && (f.type === 'range' || f.type === 'bool' || f.type === 'enum')).map(f => ({ key: f.key, label: f.label || f.key, type: f.type === 'enum' ? 'list' : f.type, unit: f.unit || '', category: f.category || null })) }
       cache.metaAt = Date.now()
       return cache.meta
     }).finally(() => { cache.metaP = null })
@@ -205,6 +260,7 @@ export function toWireFilters(filters, { lenient = false } = {}) {
   const post = []
   const notes = []
   for (const x of filters || []) {
+    if (isHidden(String(x.field || ''))) return { error: refusalFor([x.field]) }
     const f = fieldOf(String(x.field || ''))
     if (!f) return { error: `the Screener has no field “${x.field}”` }
     if (f.type === 'list') {
@@ -349,6 +405,8 @@ const unrankableText = (label, dir) => `${label} data is unavailable for these r
 
 /** Run a wire spec through the engine: the real count + the first `show` rows. */
 async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [] } = {}) {
+  const hidden = hiddenRefusal(spec)                      // SC-1 §2d: refused, never stripped
+  if (hidden) return `I didn't run ${name ? `“${name}”` : 'it'}: ${hidden}.`
   const keys = [...new Set([...(spec.filters || []).map(f => f.key), spec.sort?.key].filter(k => k && fieldOf(k) && !fieldOf(k).provider && fieldOf(k).type !== 'list'))]
   const shown = Math.min(SHOW_MAX, Math.max(1, show))
   const t0 = Date.now()
@@ -372,7 +430,7 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
   }
   const valueOf = (row, k) => (mkeys.includes(k) ? r.values[row.ticker]?.[k] : row[k])
   const total = r.total
-  cache.last = { spec, name, savedId, total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols: rows.map(x => x.ticker), ms }
+  setLast({ spec, name, savedId, total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols: rows.map(x => x.ticker), ms })
   const head = `${name ? `${name}: ` : ''}${Number(total).toLocaleString()} stock${total === 1 ? '' : 's'} match${total === 1 ? 'es' : ''}`
   const all = [...(spec.filters || []), ...(spec.post || [])]
   const what = all.length ? ` (${all.map(describeFilter).join(' · ')})` : ''
@@ -383,7 +441,7 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
   const { label: sortLabel, ranked } = sortCoverage(spec, rows, r.values)
   // ⛔ NO usable value at all: the engine's order is not that ranking, so no rows are shown as one.
   const unrankable = !!spec.sort && rows.length > 0 && ranked === 0
-  const sortWord = !spec.sort ? ''
+  const sortWord = !spec.sort ? `, ${DEFAULT_ORDER_WORDS}`
     : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
   const showing = unrankable ? ` ${unrankableText(sortLabel, spec.sort.dir)}.` : rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
   const notes = [...extra, ...coverageNotes(spec), ...r.notes]
@@ -410,6 +468,8 @@ const usesGateway = (spec) => servesKind('screen.run') && !(spec?.post || []).le
 
 /** One `screen.run` through the gateway → the answer text/table, or a refusal sentence. */
 async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [] } = {}) {
+  const hidden = hiddenRefusal(spec)                      // SC-1 §2d: refused, never stripped
+  if (hidden) return `I didn't run ${name ? `“${name}”` : 'it'}: ${hidden}.`
   // the member's open turn (trace.js: ONE per message / panel action) — the server's budget key; never minted
   const turnId = currentTurnId()
   if (!turnId) return "I didn't run it: this screen needs the Agent's turn, which wasn't available."
@@ -439,19 +499,19 @@ async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId =
     return f?.unit === '$' || k === 'price' ? `$${n}` : f?.unit === '%' ? `${n}%` : n
   }
   const asOfDay = typeof env.as_of === 'string' ? env.as_of.slice(0, 10) : null
-  cache.last = { spec, name: name || d.origin?.name || null, savedId, total, asOf: asOfDay, live: null, symbols: rows.map(x => x.ticker), ms, envelope: { as_of: env.as_of, stale: env.stale, coverage: env.coverage, freshness: env.freshness } }
+  setLast({ spec, name: name || d.origin?.name || null, savedId, total, asOf: asOfDay, live: null, symbols: rows.map(x => x.ticker), ms, envelope: { as_of: env.as_of, stale: env.stale, coverage: env.coverage, freshness: env.freshness } })
   const head = `${name ? `${name}: ` : ''}${total.toLocaleString()} stock${total === 1 ? '' : 's'} match${total === 1 ? 'es' : ''}`
   const what = (spec.filters || []).length ? ` (${spec.filters.map(describeFilter).join(' · ')})` : ''
   const { label: sortLabel, ranked } = sortCoverage(spec, rows, {})
   const unrankable = !!spec.sort && rows.length > 0 && ranked === 0
-  const sortWord = !spec.sort ? ''
+  const sortWord = !spec.sort ? `, ${DEFAULT_ORDER_WORDS}`
     : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
   const showing = unrankable ? ` ${unrankableText(sortLabel, spec.sort.dir)}.` : rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
   const c = env.coverage
   const covLine = c && (c.dropped || c.not_computable) ? `Checked ${c.evaluated.toLocaleString()} stocks: ${c.answered.toLocaleString()} could be decided${c.not_computable ? `, ${c.not_computable.toLocaleString()} had a missing value` : ''}${c.dropped ? `, ${c.dropped.toLocaleString()} ${c.dropped === 1 ? 'was' : 'were'} excluded for stopped price history` : ''}` : null
   // the envelope's own notes carry the data's time ("as of the <date> close, not live"), staleness and any overlay
   // (the coverage line above already says what was excluded / not computable: the envelope's own coverage notes would repeat it)
-  const envNotes = (env.notes || []).filter(n => !/^Showing \d+ of \d+ matches\.?$/.test(n) && !/^\d[\d,]* names? (?:was|were) excluded because|^\d[\d,]* names? could not be decided/.test(n)).map(n => n.replace(/\.$/, ''))
+  const envNotes = (env.notes || []).filter(n => !/^Showing \d+ of \d+ matches\.?$/.test(n) && !/^Ordered by market cap, largest first/.test(n) && !/^\d[\d,]* names? (?:was|were) excluded because|^\d[\d,]* names? could not be decided/.test(n)).map(n => n.replace(/\.$/, ''))
   const notes = [...extra, ...coverageNotes(spec), ...(env.stale ? ['This data is stale'] : []), ...(covLine ? [covLine] : []), ...envNotes]
   return {
     text: `${head}${what}.${showing}${notes.length ? ` ${notes.map(n => `${n}.`).join(' ')}` : ''}`,
@@ -476,6 +536,12 @@ async function listSavedViaGateway() {
 /** The model's screen args → the Screener's wire spec (with "refine" building on the last screen). */
 function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, within = null }, { lenient = false, host = null } = {}) {
   if ((filters || []).length > MAX_FILTERS) return { error: `that's more than ${MAX_FILTERS} conditions at once` }
+  // W1-C C-01: a REFINEMENT that adds a hidden UCT field gets the SC-1 §2d sentence PLUS one public alternative
+  // (scanRefine.js), checked before the catalog so the alternative is always offered on a follow-up
+  if (mode === 'refine') {
+    const why = refineRefusal([...(filters || []).map(x => String(x?.field || '')), ...(sortField ? [sortField] : [])])
+    if (why) return { error: why.replace(/\.$/, '') }
+  }
   const w = toWireFilters(filters, { lenient })
   if (w.error) return { error: w.error }
   let wire = w.filters
@@ -487,16 +553,24 @@ function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, wi
     wire = [...wire.filter(f => f.key !== 'list'), { key: 'list', op: 'in', value: `wl:${within}`, label: l?.name || null }]
   }
   let postF = w.post
-  let sort = cache.last && mode === 'refine' ? cache.last.spec.sort : null
-  if (mode === 'refine' && cache.last) {
-    const mine = new Set([...wire, ...postF].map(f => f.key))
-    wire = [...(cache.last.spec.filters || []).filter(f => !mine.has(f.key)), ...wire]
-    postF = [...(cache.last.spec.post || []).filter(f => !mine.has(f.key)), ...postF]
-  }
+  let sort = null
   if (sortField) {
+    if (isHidden(sortField)) return { error: refusalFor([sortField]) }
     const sf = fieldOf(sortField)
     if (!sf || sf.provider || sf.type === 'list') return { error: `the Screener has no field “${sortField}” to sort by` }
     sort = { key: sortField, dir: sortDir === 'asc' ? 'asc' : 'desc' }
+  }
+  if (mode === 'refine') {
+    // SC-2 §3 (W1-C C-01): a follow-up is a DELTA on the last screen — add / narrow replace by key, a sector or
+    // industry replaces the universe slot, a sort replaces only the sort — and a hidden UCT field is refused with
+    // the F-16 sentence + one public alternative (scanRefine.js). No last screen: ask, never guess.
+    if (!lastIsCurrent()) return { error: NO_LAST_SCREEN.replace(/\.$/, '') }
+    const c = composeRefine(cache.last.spec, { wire: wire.filter(f => f.key !== 'list'), post: postF, sort })
+    if (c.error) return { error: c.error.replace(/\.$/, '') }
+    const listF = wire.find(f => f.key === 'list')
+    wire = listF ? [...c.spec.filters.filter(f => f.key !== 'list'), listF] : c.spec.filters
+    postF = c.spec.post
+    sort = c.spec.sort
   }
   if (!wire.length && !postF.length && !sort) return { error: 'which conditions? For example: ADR above 5% and price above $10' }
   return { spec: settleClock({ filters: wire, post: postF, sort: sort || null }), notes: w.notes }
@@ -507,6 +581,8 @@ const specWords = (spec) => [...(spec.filters || []), ...(spec.post || [])].map(
 /** A screen's RESULT as a typed symbol set: EVERY match (up to FILL_MAX) in the engine's own order.
  *  `count` is the true number of matches, so a consumer can refuse rather than cut. */
 async function produceSymbols(spec, { name = null, savedId = null, notes: extra = [] } = {}) {
+  const hidden = hiddenRefusal(spec)                      // SC-1 §2d: refused, never stripped
+  if (hidden) throw new Error(hidden)
   const sk = spec.sort?.key
   const sortCol = sk && fieldOf(sk) && !fieldOf(sk).provider && fieldOf(sk).type !== 'list' && !(spec.post || []).some(f => f.key === sk) ? [sk] : []
   const r = await resultOf(spec, ['ticker', ...sortCol], FILL_MAX)
@@ -516,7 +592,7 @@ async function produceSymbols(spec, { name = null, savedId = null, notes: extra 
   // it is refused downstream (compose); some → the count is said on the receipt line.
   const unranked = spec.sort && r.rows.length && cov.ranked === 0 ? { label: cov.label, dir: spec.sort.dir } : null
   const partial = spec.sort && cov.ranked > 0 && cov.ranked < r.rows.length ? `only ${cov.ranked} of ${r.rows.length} have ${cov.label} values; the rest are not ranked by it` : null
-  cache.last = { spec, name, savedId, total: r.total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols, ms: 0 }
+  setLast({ spec, name, savedId, total: r.total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols, ms: 0 })
   const what = name ? `${name} (${specWords(spec)})` : specWords(spec)
   const notes = [...extra, ...coverageNotes(spec), ...r.notes, ...(unranked ? [`${unranked.label} data is unavailable for these results`] : []), ...(partial ? [partial] : [])]
   const when = r.asOf ? ` on ${r.asOf}` : ''
@@ -563,6 +639,7 @@ const usesList = (args) => (args?.filters || []).some(x => fieldOf(String(x?.fie
 async function specFor(args, host = null) {
   await loadMeta()
   if (usesList(args)) await loadOptions()
+  if (args?.mode === 'refine') await ensureLast()        // a reload / chat switch: the conversation's last screen
   return buildSpec(args, { host })
 }
 
@@ -582,7 +659,10 @@ export function registerScreenerCapabilities() {
   registerContextProvider({
     key: 'screener',
     build: (_host, refFor, { message = '', nl1 = false } = {}) => {
-      const last = cache.last
+      // W1-C C-01: the conversation's last screen may live only on the server yet (a reload); start the one read
+      // so the model sees `lastScreen` from the next turn on, and a refine in THIS turn awaits it in specFor
+      if (!lastIsCurrent() && activeConversationId()) ensureLast()
+      const last = lastIsCurrent() ? cache.last : null
       // CONTEXT RELEVANCE: the full catalog (key:Label(unit), ~5 KB) only when the request could
       // be about screening; otherwise its KEYS (~2 KB) — the model can still see every field it
       // could screen on and discover a screen is wanted, it just gets no labels/units.
@@ -604,7 +684,7 @@ export function registerScreenerCapabilities() {
   // "Put the top 10 in Momentum" after a screen: the LAST screen, re-run fresh at apply.
   registerOutputSource({
     ref: 'lastScreen', type: SYMBOLS,
-    available: () => !!cache.last,
+    available: () => lastIsCurrent(),
     summary: () => `Use your last screen (${specWords(cache.last.spec)}) — run fresh when you apply`,
     resolve: () => produceSymbols(cache.last.spec, { name: cache.last.name, savedId: cache.last.savedId }),
   })
@@ -613,6 +693,8 @@ export function registerScreenerCapabilities() {
   registerCapability({
     name: 'screener.run',
     target: 'screener', query: true, surfaces: ['charts'],
+    // tried on the WHOLE message first, so "rank them by RS" is the screener's, never read as a plural chart target
+    fastWhole: true,
     summary: 'Run a stock screen on UCT\'s Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for "show me / find stocks with …".',
     hints: 'target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. '
       + 'Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). '
@@ -664,7 +746,17 @@ export function registerScreenerCapabilities() {
     // call). With the catalog loaded and no `rs_rank`, it is the planner's, exactly as before.
     fast: ({ lower }) => {
       if (/^(?:please )?(?:(?:show(?: me)?|find(?: me)?|list|give me|get(?: me)?|what are|which are) )?(?:my |the )?(?:strongest|rs leaders|relative strength leaders|highest rs(?: rank(?:ed)?)?)(?: stocks| names)?(?: right now| today)?$/.test(lower)) {
-        return !cache.meta || fieldOf('rs_rank') ? { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null } : null
+        // ⛔ SC-1 §2d (owner F-16 ruling): "strongest" in UCT's vocabulary IS the RS Rank ranking, a proprietary
+        // rating. The phrase stays claimed so it never reaches the planner, and answer() refuses it with the §2d
+        // sentence: 0 model calls, no screen, nothing substituted (never a return sort in its place).
+        return { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }
+      }
+      // ⛔ the same refusal for an explicit request to RANK by RS ("rank them by RS", "sort by relative strength").
+      // ONLY a screen or ranking by strength is claimed here: "put the strongest five on my watchlist" (the shown
+      // order, memory), "the strongest of those", "stocks looking really strong today" (today's performance) and
+      // "which is stronger, NVDA or AMD" are never claimed, so they never get a false refusal.
+      if (/^(?:please )?(?:rank|sort|order)(?: (?:them|these|those|it|my stocks|the results|the list|this screen))? by (?:rs|rs rank|relative strength)(?: rank(?:ing)?)?$/.test(lower)) {
+        return { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }
       }
       if (!cache.meta) return null
       const m = /^(?:(?:now|and|ok|okay) )?(?:show me )?(?:only|just) (?:the ones|those|them|the stocks|the names|stocks|names)? ?(above|over|under|below) \$(\d+(?:\.\d+)?)$/.exec(lower)

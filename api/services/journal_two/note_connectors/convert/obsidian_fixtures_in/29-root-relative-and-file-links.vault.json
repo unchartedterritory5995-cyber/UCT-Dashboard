@@ -1,0 +1,19 @@
+{
+  "_comment": "Post-merge fix 1: a leading-/ wikilink is vault-root relative on both lanes (the client's Plan B rule, now the server's _resolve_rooted): the root Plan.md, not the same-folder pick a bare [[Plan]] gets. Post-merge fix 3: a markdown link from a sub-folder note to a file the VAULT rules find (not beside the note) is a chip whose label is the rendered link text on both lanes (client resolveVaultAnchors + markAttachmentChip, server _ref_label); a link whose text is the name has no label.",
+  "vault_id": "vault-1",
+  "self_path": "Notes/a.md",
+  "vault_paths": [
+    "Notes/a.md",
+    "Plan.md",
+    "Notes/Plan.md",
+    "files/deck.pdf"
+  ],
+  "attachments": [
+    {"original": "[the **q3** deck](files/deck.pdf)", "embed": false,
+     "path": "files/deck.pdf", "size": 4096,
+     "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
+    {"original": "[deck.pdf](files/deck.pdf)", "embed": false,
+     "path": "files/deck.pdf", "size": 4096,
+     "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"}
+  ]
+}

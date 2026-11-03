@@ -373,13 +373,17 @@ def test_pack_build_stores_reads_and_skips_safely(packdb, monkeypatch):
     from api.services.chart_iq import pack, pipeline
     assert pack.build() == {"skipped": "disabled"}
     monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.delenv("CHART_IQ_PACK_FALLBACK_ENABLED", raising=False)
+    assert pack.build() == {"skipped": "server build disabled"}            # the web pod never builds unless armed
+    monkeypatch.setenv("CHART_IQ_PACK_FALLBACK_ENABLED", "1")
     monkeypatch.setattr(pack, "in_session", lambda now=None: True)
     assert pack.build() == {"skipped": "regular session"}                   # never during the session unless forced
     monkeypatch.setattr(pack, "in_session", lambda now=None: False)
     monkeypatch.setattr(pipeline, "latest_day", lambda: "2026-10-30")
-    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: {"error": "x"} if t == "BAD" else dict(FAKE, ticker=t, asof=d, bars=[1], timing={}))
-    rep = pack.build(tickers=["AAA", "BAD", "CCC"], sleep=lambda s: None)
-    assert rep["ok"] == 2 and rep["errors"] == 1 and rep["day"] == "2026-10-30"
+    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: {"error": "x"} if t == "BAD" else
+                        dict(FAKE, ticker=t, asof="2026-03-16" if t == "DEAD" else d, bars=[1], timing={}))
+    rep = pack.build(tickers=["AAA", "BAD", "CCC", "DEAD"], sleep=lambda s: None)
+    assert rep["ok"] == 2 and rep["errors"] == 2 and rep["day"] == "2026-10-30"   # a dead symbol (last bar months back) is not packed
     got = pack.get("aaa", today="2026-11-02")
     assert got["ticker"] == "AAA" and got["asof"] == "2026-10-30" and "bars" not in got and "timing" not in got
     assert pack.get("BAD", today="2026-11-02") is None
@@ -403,7 +407,7 @@ def test_pack_session_window():
 def test_route_answers_a_latest_read_from_the_pack_without_computing(packdb, monkeypatch, fbdb):
     from api.services.chart_iq import pack, pipeline
     monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_MEMBERS_ENABLED", "1")
-    monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PACK_FALLBACK_ENABLED", "1")
     monkeypatch.setattr(pack, "in_session", lambda now=None: False)
     monkeypatch.setattr(pipeline, "latest_day", lambda: "2026-10-30")
     monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: dict(FAKE, ticker=t, asof="2026-10-30", thesis="packed"))
@@ -430,6 +434,12 @@ def test_pack_admin_endpoints_and_jobs(packdb, monkeypatch):
     monkeypatch.delenv("CHART_IQ_PACK_ENABLED", raising=False)
     assert M.register_chart_iq_pack_jobs(sched) is False and jobs == []
     monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.delenv("CHART_IQ_PACK_FALLBACK_ENABLED", raising=False)
+    assert M.register_chart_iq_pack_jobs(sched) is True and jobs == ["chart_iq_pack_sync"]   # no in-pod build by default
+    assert client(ADMIN, monkeypatch).post("/api/chart-iq/pack/build").json()["started"] is False
+    from api.services.chart_iq import pack as _p
+    assert _p.build(force=True) == {"skipped": "server build disabled"}
+    jobs.clear(); monkeypatch.setenv("CHART_IQ_PACK_FALLBACK_ENABLED", "1")
     assert M.register_chart_iq_pack_jobs(sched) is True and sorted(jobs) == ["chart_iq_pack_evening", "chart_iq_pack_morning", "chart_iq_pack_sync"]
 
 

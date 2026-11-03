@@ -505,13 +505,27 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   routes), in-process only, so a second process doubles both, and since connector fidelity Plan A
   Task 9 `notebook-media-fetch` (120/minute, keyed on the member, `NOTE_MEDIA_FETCH_RATE` in
   `api/routers/journal_two.py`, the `POST /api/j2/notes/media/fetch` hotlink-copy door), in-process
-  only, so a second process doubles it · that door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
+  only, so a second process doubles it, and since connector fidelity Plan F Task 9
+  `notebook-import-repair-notice` (60/minute, keyed on the member, `NOTE_IMPORT_REPAIR_NOTICE_RATE`
+  in `api/routers/journal_two.py`, shared by `GET /api/j2/notes/import/repair-notice` and its
+  `POST .../dismiss`), in-process only, so a second process doubles it · that door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
   (`MEDIA_FETCH_GLOBAL_INFLIGHT` = 8 downloads at once) and `journal_two._media_fetch_inflight`
   (`MEDIA_FETCH_PER_MEMBER_INFLIGHT` = 2 per member, one more answers 429): a second process
   doubles both · since the connector fidelity Plan A final review (I3), the editor upload doors'
   (`POST /api/j2/notes/{id}/images` and `/attachments`) in-flight caps `journal_two._UPLOAD_GATE`
   (`UPLOAD_PER_MEMBER_INFLIGHT` = 2 per member and `UPLOAD_GLOBAL_INFLIGHT` = 4 for the pod; over
   either answers 429 at once, before the threadpool): a second process doubles both ·
+  since connector fidelity Plan C Task 2 (fix round 1, M5), the Obsidian blob upload door's
+  (`PUT /api/j2/notes/connectors/obsidian/attachments/{sha256}`) in-flight caps
+  `note_sync._OBSIDIAN_UPLOAD_GATE`, its OWN instance of that gate class
+  (`OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT` = 2 per member and `OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT` = 8 for
+  the pod; over either answers 429 before any byte is read): a second process doubles both ·
+  since the Plan C final review (M1), the Obsidian staging store's `obsidian_attachments._COMMIT_LOCK`
+  (a `threading.Lock` around each blob commit's device check, staged-sum room re-check, rename and
+  row insert, and each GC unlink's re-check; the member's stored-media usage walk runs BEFORE it, never
+  under it): it is what makes the per-member room check atomic, so a second process would let two
+  uploads both pass it · and `obsidian_attachments._SWEEP_OFFSET` (the orphan sweep's per-vault resume
+  point; a second process sweeps from its own offset, harmless) ·
   `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
@@ -524,6 +538,12 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   its own 60 s, and a restart clears the pause) · the two document permit pools
   `document_extraction._EXTRACTION_POOL` and `document_ocr._OCR_POOL` (wave 7 lane G: a
   second process doubles how many extractions and OCR runs the box does at once) · since
+  connector fidelity Plan F, `document_extraction._QUEUED` (the ids this process has queued and
+  not finished, kept by `queue_extraction`) and the `j2_doc_pending_sweep` job that reads it
+  (`requeue_stale_pending`, every 10 min, at most `PENDING_SWEEP_LIMIT` = 20 per tick): a second
+  process keeps its own set, so each sweep can re-queue a stale `pending` row the other process
+  already has queued (the extraction runs twice; it is idempotent, `INSERT OR IGNORE` pages), and
+  two sweeps double the per-tick re-queue · since
   the wave 12-15 landing `entry_context._capture_executor` + `_capture_pending` (the
   manual-add capture queue: 2 threads, 40 queued in total, 3 per member),
   `entry_context._VENDOR_SLOTS` (2 report-date vendor reads in flight) and
