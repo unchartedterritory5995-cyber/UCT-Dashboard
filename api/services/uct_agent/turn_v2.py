@@ -76,6 +76,8 @@ ISOLATED_NOTE = ("[UCT showed the member this result on their screen. Its values
                  "never given to you: do not state, estimate or repeat any value from it.]")
 
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+_SHORT_REF = re.compile(r"^[a-z]{1,3}\d{1,3}$")
+MAX_ADDED_REFS = 24
 
 
 # ── flags ─────────────────────────────────────────────────────────────────────────────────────
@@ -199,7 +201,12 @@ def step_result_text(cap: dict | None, res: dict) -> tuple[str, bool]:
     isolated = bool(cap and cap.get("isolated")) or (cap is not None and cap["name"] in t1.LOCAL_ONLY_ACTIONS) \
         or res.get("isolated") is True or t1._strip_isolated(res.get("result"))[1] > 0
     if status == "done":
-        return f"done: {_clean(res.get('receipt')) or 'applied'}", False
+        text = f"done: {_clean(res.get('receipt')) or 'applied'}"
+        added = added_refs(res)
+        if added:
+            # a step that CREATED targets (new charts): their refs, so the next step can name them
+            text += " New refs: " + "; ".join(f"{a['ref']} = {a['label']}" if a["label"] else a["ref"] for a in added)
+        return text, False
     if status == "query":
         if isolated:
             return ISOLATED_NOTE, False
@@ -211,6 +218,19 @@ def step_result_text(cap: dict | None, res: dict) -> tuple[str, bool]:
     if status == "refused":
         return f"refused: {_clean(res.get('refusal')) or 'UCT did not run that step'}", True
     return f"failed: {_clean(res.get('refusal') or res.get('receipt')) or 'the step did not take effect'}", True
+
+
+def added_refs(res: dict) -> list[dict]:
+    """The refs a DONE step created, as the browser reported them (short refs + labels only; bounded, cleaned)."""
+    out = []
+    for a in (res.get("added") or [])[:MAX_ADDED_REFS]:
+        if not isinstance(a, dict):
+            continue
+        ref = str(a.get("ref") or "")
+        if not _SHORT_REF.match(ref):
+            continue
+        out.append({"ref": ref, "kind": _clean(a.get("kind"), 40), "label": _clean(a.get("label"), 60)})
+    return out
 
 
 # ── the loop ──────────────────────────────────────────────────────────────────────────────────
@@ -247,11 +267,9 @@ def _final(state: dict, reply: str, usage_note: str | None = None) -> dict:
     text = _clean(reply, 6000)
     if not applied and t1._CLAIMS_WITHOUT_ACTION.match(text):
         text = t1.NOTHING_DONE                          # nothing ran: a claim never reaches the member
-    envelope = {"disposition": "answer", "reply": text or ("Done." if applied else ""), "question": None, "ops": [],
+    envelope = {"disposition": "answer", "reply": text, "question": None, "ops": [],
                 "unsupported_category": None, "planner": "v2",
                 "steps": [{k: s[k] for k in ("id", "action", "target", "mode", "status")} for s in state["steps"]]}
-    if not envelope["reply"]:
-        envelope["reply"] = "I had nothing to add."
     return {"envelope": envelope, "usage": usage, "title": None, "paused": False, "turn_token": state["token"]}
 
 
@@ -436,6 +454,9 @@ def _settle_step(state: dict, step: dict, cap: dict, res: dict) -> None:
     alias = (step.get("args") or {}).get("as")
     if step["status"] == "done" and isinstance(alias, str) and alias:
         state["aliases"].add(alias)
+    if step["status"] == "done":
+        for a in added_refs(res):
+            state["valid_refs"].add(a["ref"])
 
 
 def _research_step(state: dict, inp: Any, uid: str, meter) -> dict:

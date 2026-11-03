@@ -87,7 +87,7 @@ export function streamingEnabled() {
 }
 // Whether THIS server streams turns (GET /api/agent/config, read once when the Agent opens). Until it
 // has answered yes, every turn is asked the old way — a server with streaming off sees no change at all.
-let serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, failed: false, inflight: null, at: 0 }
+let serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, planner: 'v1', failed: false, inflight: null, at: 0 }
 const CONFIG_TTL_MS = 5 * 60 * 1000
 export function loadAgentConfig() {
   if (serverStream.inflight) return serverStream.inflight
@@ -99,6 +99,7 @@ export function loadAgentConfig() {
       serverStream.data = !!(c && c.data === true); serverStream.scan = !!(c && c.scan === true)
       serverStream.kinds = serverStream.data && Array.isArray(c.data_kinds) ? c.data_kinds.filter(k => typeof k === 'string') : null
       serverStream.news = !!(c && c.news === true); serverStream.failed = false
+      serverStream.planner = c && c.planner === 'v2' ? 'v2' : 'v1'
       serverStream.at = Date.now(); return serverStream.on
     })
     .catch(() => { serverStream.failed = true; return serverStream.on })
@@ -118,15 +119,27 @@ export const serverDataKinds = () => (serverStream.data === true && Array.isArra
 // News -> Agent (UCT_AGENT_NEWS): true / false once the config has answered (false on any error, or an Agent this
 // server does not serve), null while it has not.
 export const serverNewsState = () => (serverStream.at ? serverStream.news === true : (serverStream.failed ? false : null))
-export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, failed: false, inflight: null, at: 0 } }
+export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, planner: 'v1', failed: false, inflight: null, at: 0 } }
+// PLANNER v2 (Wave 1 A-05, UCT_AGENT_PLANNER=v2 → config `planner`): 'v1' until the config has answered 'v2', and on any error.
+export const serverPlanner = () => (serverStream.planner === 'v2' ? 'v2' : 'v1')
 // One MD-1 gateway read (POST /api/agent/data) -> { ok, data: DataEnvelope } | { ok: false, error }.
 // Only app/src/agent/data/client.js calls this.
 export const agentDataRead = (body) => post('/api/agent/data', body)
 export async function agentTurnStream(body, onEvent = () => {}) {
   if (!streamingEnabled()) return agentTurn(body)
+  return streamTurn('/api/agent/turn/stream', body, onEvent)
+}
+// PLANNER v2 (STEP-1): the same event stream, ALWAYS streamed (the step events are the turn; the kill switch
+// above is for v1's early reply text). `onEvent` gets {t:'step', …} and {t:'paused', …}; the result is the
+// final event's JSON (its envelope is an `answer` with no ops — nothing executes from it).
+export const agentTurnV2 = (body, onEvent = () => {}) => streamTurn('/api/agent/turn/stream', body, onEvent)
+export const agentResumeV2 = (body, onEvent = () => {}) => streamTurn('/api/agent/turn/resume', body, onEvent)
+export const agentStepResult = (body) => post('/api/agent/turn/step', body)
+
+async function streamTurn(url, body, onEvent) {
   let r
   try {
-    r = await fetch('/api/agent/turn/stream', {
+    r = await fetch(url, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
       body: JSON.stringify(modelSafeBody(body)),

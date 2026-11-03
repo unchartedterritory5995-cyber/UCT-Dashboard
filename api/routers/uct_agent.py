@@ -220,6 +220,7 @@ class StepIn(BaseModel):
     refusal: Optional[str] = None
     result: Optional[Any] = None
     isolated: Optional[bool] = None
+    added: Optional[list] = None                       # refs a DONE step created (a new chart): [{ref, kind, label}]
 
 
 class ResumeIn(BaseModel):
@@ -228,6 +229,7 @@ class ResumeIn(BaseModel):
     status: str                                       # done | refused | failed
     receipt: Optional[str] = None
     refusal: Optional[str] = None
+    added: Optional[list] = None
     voice: bool = False
 
 
@@ -367,7 +369,8 @@ def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event) -
         out = agent.run_turn(message="(resume)", context={}, history=[], on_event=on_event,
                              meter=budget.Meter(user_id=uid, request_id=None),
                              v2={"wait_step": _v2_waiter(q), "turn_token": token, "resume": p["state"],
-                                 "resume_result": {"id": body.id, "status": body.status, "receipt": body.receipt, "refusal": body.refusal}})
+                                 "resume_result": {"id": body.id, "status": body.status, "receipt": body.receipt, "refusal": body.refusal,
+                                                   "added": body.added}})
     except budget.BudgetRefused as e:
         raise HTTPException(status_code=503 if e.reason == "unavailable" else 429, detail=e.sentence)
     except agent.TurnError as e:
