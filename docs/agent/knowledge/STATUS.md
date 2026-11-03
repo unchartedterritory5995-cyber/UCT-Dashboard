@@ -61,6 +61,12 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `68c401482a` | 2,148 passed, 1 failed (clock rail — this branch; fixed) | 2,576 passed, 3 failed (this branch; fixed) |
 | `f9a03577da` | 2,156 passed, 0 failed | 2,653 passed, 6 skipped, 0 failed |
 | `8a4993b520` | knowledge + clock rail 69 passed (change is knowledge-package only) | knowledge suites 87 passed |
+| `3852446f29` | 2,183 passed, 0 failed | 2,655 passed, 6 skipped, 1 timeout (qa/modelIsolation scan test hit 15 s under suite load; alone: 12/12 in 7.6 s) |
+
+## Quality work stopped (owner rule: stop when the measurable benefit is small)
+Admitted corpus on the real snapshot: 0 passages under 200 characters, 0 remaining duplicates, 0 near-duplicate titles,
+0 guard false positives. Retrieval: 38/40 realistic questions answered relevantly, P@3 0.89, p95 < 20 ms. Further
+filtering or ranking work would add complexity without a measurable gain; embeddings stay out (no external calls).
 
 ## Blocked / needs the owner
 - Admitting `self_review`, `manual`, `chart_intake:*` or any `intake:*` source (policy.json is the switch; default-deny until the owner rules).
