@@ -162,6 +162,14 @@ def test_the_started_row_is_committed_first_and_the_outcome_supersedes_it(conn):
     assert store.latest_outcome(conn, "run-2", "n1") is None
 
 
+def test_latest_outcome_is_an_index_seek(conn):
+    """Fix round 1, M-1: called per note on resume, so it must not scan the run's rows."""
+    plan = " ".join(r[3] for r in conn.execute(
+        "EXPLAIN QUERY PLAN SELECT outcome FROM j2_import_repair_log WHERE run_id = ? AND note_id = ?"
+        " ORDER BY id DESC LIMIT 1", (RUN, "n1")))
+    assert "idx_j2_import_repair_log_run_note" in plan and "(run_id=? AND note_id=?)" in plan, plan
+
+
 def test_the_member_tables_leave_with_the_account():
     """C2: all three are keyed on the member, and the log holds member note bodies."""
     for table in TABLES:

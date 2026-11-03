@@ -852,6 +852,8 @@ CREATE TABLE IF NOT EXISTS j2_import_repair_log (
     created_at       TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_run_user ON j2_import_repair_log(run_id, user_id);
+-- store.latest_outcome(run_id, note_id), called per note on resume: an index seek, never a scan.
+CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_run_note ON j2_import_repair_log(run_id, note_id);
 -- The member's one notice that some of their imported notes lost pictures or files.
 -- Dismissing it is an UPDATE; a later run never re-arms it (INSERT OR IGNORE).
 CREATE TABLE IF NOT EXISTS j2_import_repair_notices (
