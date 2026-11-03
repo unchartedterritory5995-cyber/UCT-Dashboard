@@ -185,3 +185,39 @@ def test_markdown_side_by_side_images_leave_no_space_paragraph(src, expected):
 ])
 def test_html_side_by_side_images_leave_no_space_paragraph(html, expected):
     assert _shape(html_to_tiptap(html)["doc"]) == expected
+
+
+# ── item 6: a host-like href is its https:// URL, as linkify writes one ───────
+
+
+def _links(doc: dict[str, Any]) -> list[tuple[str, str]]:
+    return [(r["text"], m["attrs"]["href"]) for r in _texts(doc) for m in r.get("marks") or []
+            if m["type"] == "link"]
+
+
+@pytest.mark.parametrize("src, expected", [
+    ("[x](www.example.com)", [("x", "https://www.example.com")]),
+    ("[x](example.com/path)", [("x", "https://example.com/path")]),
+    ('<a href="www.example.com/a?b=1">x</a> y', [("x", "https://www.example.com/a?b=1")]),
+    # A note link is never a host: it stays as written for the engine's policy to judge.
+    ("[x](notes.md)", [("x", "notes.md")]),
+    ("[x](docs/page)", []),
+])
+def test_markdown_host_like_hrefs(src, expected):
+    assert _links(md_to_tiptap(src)["doc"]) == expected
+
+
+def test_html_walker_host_like_href():
+    assert _links(html_to_tiptap('<p><a href="example.com/p">x</a></p>')["doc"]) == [
+        ("x", "https://example.com/p")]
+
+
+def test_a_connector_note_answer_wins_over_host_like():
+    out = md_to_tiptap("[x](plan.co)", resolve_href=lambda h: "import-link://k:" + h)
+    assert _links(out["doc"]) == [("x", "import-link://k:plan.co")]
+
+
+def test_the_engine_policy_keeps_a_host_like_link_and_drops_a_note_path():
+    from api.services.journal_two.note_connectors.convert.linkify import finalize_links
+    doc = md_to_tiptap("[a](www.example.com) [b](notes.md)")["doc"]
+    assert _links(finalize_links(doc)) == [("a", "https://www.example.com")]

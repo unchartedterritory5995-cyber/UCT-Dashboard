@@ -191,7 +191,9 @@ function lastSegment(url) {
 
 /** The fetchable http(s) URL `src` names, or null. */
 function remoteUrlFor(src, sourceUrl) {
-  const resolved = resolveHref(src, sourceUrl)
+  // An image src is never read as a host (D3 item 6 is a LINK rule; the server lane does not
+  // read an image src through the href policy at all).
+  const resolved = resolveHref(src, sourceUrl, { hostLike: false })
   if (resolved === null) return null
   let url
   try {

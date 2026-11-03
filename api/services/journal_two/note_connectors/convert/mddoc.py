@@ -728,13 +728,20 @@ def _link_href(href: str, ctx: _Ctx) -> str:
     `javascript%3A...` or `%2F%2Fhost` must never reach a resolver as `javascript:` or
     `//host` (see `_destination_as_written` for why relative hrefs are otherwise left
     encoded). An `import-link://` href is already decoded and never asked."""
-    if ctx.resolve_href is None or not _is_scheme_less_path(href):
+    if not _is_scheme_less_path(href):
         return href
-    decoded = urllib.parse.unquote(href)
-    if not _is_scheme_less_path(decoded):
-        return href
-    answer = ctx.resolve_href(decoded)
-    return answer if isinstance(answer, str) and answer else href
+    if ctx.resolve_href is not None:
+        decoded = urllib.parse.unquote(href)
+        if _is_scheme_less_path(decoded):
+            answer = ctx.resolve_href(decoded)
+            if isinstance(answer, str) and answer:
+                return answer
+    # D3 item 6: a host-like href (`www.example.com`, `example.com/path`) is its `https://`
+    # URL, as linkify writes one, asked only after the connector's own note answer. Here, not
+    # only in the engine's `finalize_links`: TipTap's allow-list below refuses
+    # `example.com/path` as a link, so the mark (and its target) was gone before then.
+    from .linkify import host_like_href  # linkify imports this module
+    return host_like_href(href.strip()) or href
 
 
 # A raw tag that is ONE `<img ...>` or one opening `<a ...>`, nothing else.

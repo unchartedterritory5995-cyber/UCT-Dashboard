@@ -178,8 +178,33 @@ function resolveRelative(href, sourceUrl) {
   }
 }
 
-/** The href to keep, or `null` meaning "render as text". The server's `resolve_href`. */
-export function resolveHref(href, sourceUrl = null) {
+// A note link's path ends `.md`, and `.md` is also a TLD linkify-it accepts: such a path is a
+// NOTE, never a host (D3 item 6; the server's `_NOTE_PATH_RE`).
+const NOTE_PATH_RE = /\.md$/i
+
+/**
+ * D3 item 6: `https://<h>` when the scheme-less href `h` is a HOST as linkify reads one
+ * (`www.example.com`, `example.com/path`), else null. The server's `host_like_href`, pinned by
+ * the shared `href_vectors`: linkify-it matches all of `h` as exactly one fuzzy link (no
+ * schema; an email is not a host), and the `https://` URL passes `keptSchemeHref`. A path
+ * ending `.md` is a note link, never a host; an adapter that resolves a link to a note writes
+ * `data-import-link` before this runs. ⚰️ Until D3 such an href was "relative" with no source,
+ * so the link became text and its target was lost.
+ */
+export function hostLikeHref(h) {
+  if (!h || /^[/.#?]/.test(h) || !clean(h)) return null
+  if (NOTE_PATH_RE.test(h.split(/[?#]/, 1)[0])) return null
+  const found = getLinkify().match(h) || []
+  if (found.length !== 1 || found[0].index !== 0 || found[0].lastIndex !== h.length || found[0].schema !== '') return null
+  return keptSchemeHref('https://' + h)
+}
+
+/**
+ * The href to keep, or `null` meaning "render as text". The server's `resolve_href`.
+ * `hostLike: false` (an image src, `mediaRefs.js`): a scheme-less src is a path, as the server
+ * lane reads an image src; only a link's href is read as a host (D3 item 6).
+ */
+export function resolveHref(href, sourceUrl = null, { hostLike = true } = {}) {
   if (typeof href !== 'string') return null
   // B-14 fix round 1: Python's `str.strip()` set, never `trim()` (U+FEFF, U+001C-U+001F, U+0085).
   const h = pyStrip(href)
@@ -202,7 +227,8 @@ export function resolveHref(href, sourceUrl = null) {
   }
   // B-14 fix round 1: built from `h`, never `read`: `//ex.com/a<TAB>b` must not become `ex.com/ab`.
   if (read.startsWith('//')) return keptSchemeHref('https:' + h)
-  return resolveRelative(h, sourceUrl)
+  // D3 item 6: a host is a host, never a path relative to the note's source.
+  return (hostLike ? hostLikeHref(h) : null) ?? resolveRelative(h, sourceUrl)
 }
 
 /** Replaces `a` with its children (bold, italic, media kept). Never `textContent`. */
