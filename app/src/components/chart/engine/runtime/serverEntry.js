@@ -9,7 +9,8 @@ export {
   runtimeVersionRefusal,
   resetRuntimeSessions,
   resetRuntimeLedgers,
+  RUNTIME_FRONTEND_LANGUAGE,
+  RUNTIME_FRONTEND_VERSION,
 } from './runtimeColumns.js'
 export { SCRIPT_ENGINE_VERSION } from '../scriptEngineVersion.js'
-export { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../ast/pineRuntimeFrontend.js'
 export { RUNTIME_IR_VERSION } from './ir.js'

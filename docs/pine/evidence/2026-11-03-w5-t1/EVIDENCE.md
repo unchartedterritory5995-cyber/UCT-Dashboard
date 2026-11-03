@@ -2,8 +2,13 @@
 
 Lane: W5-T1 (docs/pine/SERVER-RUNTIME-DESIGN.md section 7, P0 T1), desktop machine.
 Branch `feat/pine-w5-t1-server-bundle`. Tested on master `5d95103c8a` (merge-base = origin/master at start).
-No engine source changed (runtime files untouched except the new `serverEntry.js`), so no
-measure-pair is required and **no SCRIPT_ENGINE_VERSION bump is needed**.
+One engine-file touch, non-behavioural: `runtime/runtimeColumns.js` gains `export { RUNTIME_FRONTEND_LANGUAGE,
+RUNTIME_FRONTEND_VERSION }` beside the existing `export { RUNTIME_WARMUP_KEY, ... }` (2 lines). Reason: the server entry
+may not import `ast/pineRuntimeFrontend` itself, because `pineRuntimeFrontendGate.test.js` ("no live file reaches the
+runtime lane without the tri-state producer") fails any non-test importer lacking `pineRuntimeClock`; this was the
+first final-tip run's only new red, fixed by re-exporting through the module that already imports both. Proof it
+changes no output: the bundle built before and after the touch is byte-identical (sha256 a27a389e3b78..., 2,140,179
+bytes), so no measure-pair was run and **no SCRIPT_ENGINE_VERSION bump is needed**.
 
 ## What is new
 - `app/src/components/chart/engine/runtime/serverEntry.js`: re-exports only (computeRuntimeColumns,
