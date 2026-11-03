@@ -1280,8 +1280,6 @@ export function registerBoardCapabilities() {
     name: 'chart.renameTab',
     summary: 'Rename a chart widget\'s tab (double-click on the tab).',
     hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} name = the new label (24 characters at most).`,
-    // W1.1 R-03 (LT-9): "rename <a layout name> to …" was read as this op live
-    shape: 'only for a chart widget\'s TAB the member names as a tab ("rename the tab"). "rename <a layout name> to …" is layout.rename.',
     args: { type: 'object', properties: { widget: widgetArg, tab: tabArg, name: { type: 'string' } }, required: ['widget', 'tab', 'name'], additionalProperties: false },
     check(st, { widget, tab, name }) {
       const { t, why } = chartWidget(st, widget)

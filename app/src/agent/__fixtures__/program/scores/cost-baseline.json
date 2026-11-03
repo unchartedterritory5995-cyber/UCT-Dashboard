@@ -28,7 +28,7 @@
      "phrasings": 5
     },
     "strength": {
-     "model_calls": 8,
+     "model_calls": 10,
      "phrasings": 5
     },
     "volatility": {
@@ -49,11 +49,11 @@
      "server_calls": 1
     },
     "d02": {
-     "browser_requests": 0,
-     "model_calls": 0,
-     "naming_call": 0,
+     "browser_requests": 1,
+     "model_calls": 2,
+     "naming_call": 1,
      "research_calls": 0,
-     "server_calls": 0
+     "server_calls": 1
     },
     "d03": {
      "browser_requests": 1,
@@ -260,9 +260,9 @@
     }
    },
    "totals": {
-    "browser_requests": 30,
-    "fast_path_zero_call": 1,
-    "model_calls": 62,
+    "browser_requests": 31,
+    "fast_path_zero_call": 0,
+    "model_calls": 64,
     "phrasings": 31,
     "research_calls": 2
    },

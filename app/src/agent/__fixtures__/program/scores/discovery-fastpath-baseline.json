@@ -2,14 +2,14 @@
   "corpus_version": "1.0",
   "interpreter": "browser-fast-path",
   "total": 31,
-  "passed": 1,
+  "passed": 0,
   "answerable": {
     "passed": 0,
-    "of": 21
+    "of": 26
   },
   "refusals": {
-    "passed": 1,
-    "of": 10
+    "passed": 0,
+    "of": 5
   },
   "by_category": {
     "earnings": {
@@ -37,7 +37,7 @@
       "of": 5
     },
     "strength": {
-      "passed": 1,
+      "passed": 0,
       "of": 5
     },
     "volatility": {
@@ -55,15 +55,14 @@
       "of": 13
     },
     "plain": {
-      "passed": 1,
+      "passed": 0,
       "of": 18
     }
   },
-  "passing": [
-    "d02"
-  ],
+  "passing": [],
   "planner_handoffs": [
     "d01",
+    "d02",
     "d03",
     "d04",
     "d05",

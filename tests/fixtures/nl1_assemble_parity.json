@@ -200,7 +200,7 @@
   },
   {
    "id": "indicatorAlerts",
-   "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+   "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
   },
   {
    "id": "data",
@@ -336,7 +336,7 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -490,7 +490,7 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -651,7 +651,7 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -821,7 +821,7 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -971,7 +971,7 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",

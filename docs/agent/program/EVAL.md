@@ -24,11 +24,6 @@
 |---|---|---|---|---|---|---|
 | | | | | | | |
 
-## 2b. Production live run (Phase 1, owner-approved production use, NOT an eval-key run)
-| date | where | turns | model calls | $ (production ledger) | E | C | R | U | X | W | H | notes |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-11-03 | uctintelligence.com/charts, admin, planner v1 claude-haiku-4-5 | ~55 | 41 | ≈0.64 | 26 | 8 | 5 | 3 | 9 | 1 (substitution, nothing ran) | 0 | LIVE-TESTING-RESULTS-2026-11-03.md; counts approximate per the turn log |
-
 ## 3. Paid runs (none yet)
 | date | phase | set | model | effort | n | E | C | R | U | X | W | H | task completion | exec gap | calls/turn | cache read % | $ actual | $ reserved | p50 ms | notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|

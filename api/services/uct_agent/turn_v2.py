@@ -409,11 +409,7 @@ def _run_pending_steps(state: dict, on_event, wait_step, meter=None) -> dict | N
         target = inp.get("target") if isinstance(inp, dict) else None
         args = inp.get("args") if isinstance(inp, dict) else None
         if isinstance(args, dict):
-            # W1.1 R-01: the same aliases / coercions / defaults the legacy path honours (turn.normalize_args)
-            args, applied = t1.normalize_args(cap, t1._wrap_lone_argument(cap["args"], args))
-            args = t1._fill_absent_nullables(cap["args"], args)
-            if applied:
-                t1.log.info("uct_agent args normalized: %s %s", cap["name"], applied)
+            args = t1._fill_absent_nullables(cap["args"], t1._wrap_lone_argument(cap["args"], args))
         if not isinstance(args, dict) or not t1.args_match(cap["args"], args):
             props = ", ".join(sorted((cap["args"].get("properties") or {})))
             state["results"].append(_tool_result(uid, f"args off schema for {cap['name']}: give exactly {{{props}}}", True))

@@ -59,14 +59,8 @@ def test_the_capture_covers_every_corpus_question_with_its_own_words():
     assert R["corpus_version"] == CORPUS["version"]
     qs = {q["id"]: q["question"] for q in CORPUS["questions"]}
     assert set(R["requests"]) == set(qs)
-    refused = {q["id"] for q in CORPUS["questions"] if q.get("expect_refusal")}
     for qid, body in R["requests"].items():
-        if body is None:
-            # W1.1 R-05 (live LT-8): a hidden-field PHRASE ("RS rank") is refused by the browser's fast path with 0 model
-            # calls, so no planner request exists for it — allowed only for a question the corpus expects refused
-            assert qid in refused, f"{qid} reached no planner request but the corpus does not expect a refusal"
-            continue
-        assert body["message"] == qs[qid]
+        assert body is not None and body["message"] == qs[qid]
         assert body["capabilities_ref"] in R["manifests"]
         if body.get("reroute_on"):
             rb = body["reroute_on"]["body"]
@@ -76,11 +70,10 @@ def test_the_capture_covers_every_corpus_question_with_its_own_words():
 def test_after_the_F_SB_1_routing_fix_every_corpus_question_reaches_the_planner_with_the_screener_group():
     """agent-lead's #626 pinned here from the capture: no discovery question needs a need_groups reroute any more,
     and every one is sent the LABELLED catalog (#628). A regression shows up as a reroute in the capture."""
-    sent = {q: b for q, b in R["requests"].items() if b is not None}          # (a null body never reached the planner)
-    without = [q for q, b in sent.items() if "screener" not in (b["routing"]["selected"] or [])]
+    without = [q for q, b in R["requests"].items() if "screener" not in (b["routing"]["selected"] or [])]
     assert without == []
-    assert not [q for q, b in sent.items() if b.get("reroute_on")]
-    keys_only = [q for q, b in sent.items() if ";" not in str(b["context"]["screener"][0].get("fields", ""))]
+    assert not [q for q, b in R["requests"].items() if b.get("reroute_on")]
+    keys_only = [q for q, b in R["requests"].items() if ";" not in str(b["context"]["screener"][0].get("fields", ""))]
     assert keys_only == []
 
 
@@ -107,15 +100,15 @@ def test_DRY_RUN_prices_every_question_and_sends_nothing_and_opens_no_database(m
     finally:
         sqlite3.connect = real
     assert opened == []                                      # no ledger, store or cost row was touched
-    assert p["planner_questions"] == sum(1 for b in R["requests"].values() if b is not None)
+    assert p["planner_questions"] == len(CORPUS["questions"])
     assert p["model"] == turn.model()
-    assert all(r["first"]["worst_usd"] > r["first"]["estimate_usd"] > 0 for r in p["questions"] if r.get("planner"))
-    assert p["may_reroute"] == sum(1 for b in R["requests"].values() if b and b.get("reroute_on"))
-    assert p["worst_usd"] == pytest.approx(sum(r["worst_usd"] for r in p["questions"] if r.get("planner")), abs=1e-5)
+    assert all(r["first"]["worst_usd"] > r["first"]["estimate_usd"] > 0 for r in p["questions"])
+    assert p["may_reroute"] == sum(1 for b in R["requests"].values() if b.get("reroute_on"))
+    assert p["worst_usd"] == pytest.approx(sum(r["worst_usd"] for r in p["questions"]), abs=1e-5)
 
 
 def test_DRY_RUN_bound_is_the_ledgers_own_worst_case_for_the_request_run_turn_builds():
-    body = R["requests"]["d05"]
+    body = R["requests"]["d02"]
     kw = sb.capture_kwargs(sb.body_args(body, R["manifests"]))
     assert kw["model"] == turn.model() and kw["messages"][-1]["role"] == "user"
     assert sb.price_request(kw)["worst_usd"] == round(budget.worst_case_usd(kw), 6)
@@ -124,9 +117,9 @@ def test_DRY_RUN_bound_is_the_ledgers_own_worst_case_for_the_request_run_turn_bu
 def test_the_cli_dry_run_is_the_default_and_needs_no_key(monkeypatch, capsys):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setattr(turn, "_default_caller", lambda **kw: pytest.fail("reached the model"))
-    assert sb.main(["--only", "d05,r04"]) == 0
+    assert sb.main(["--only", "d02,r04"]) == 0
     out = capsys.readouterr().out
-    assert "DRY RUN (nothing sent)" in out and "d05" in out and "r04" in out and "d01 " not in out
+    assert "DRY RUN (nothing sent)" in out and "d02" in out and "r04" in out and "d01 " not in out
 
 
 # ═══ --run is refused without every precondition ═══════════════════════════════════════════════
@@ -166,16 +159,16 @@ def _model_for(answers):
 
 
 def test_RUN_counts_every_call_in_the_agent_ledger_and_records_raw_evidence_first(ledger, tmp_path):
-    b = R["requests"]["d05"]
-    op = _screen_op(_screener_ref(b), [{"field": "chg_pct_3m", "op": "gt", "value": 30, "max": None, "values": None}], _compact(b))
+    b = R["requests"]["d02"]
+    op = _screen_op(_screener_ref(b), [{"field": "rs_rank", "op": "gt", "value": 90, "max": None, "values": None}], _compact(b))
     model = _model_for({b["message"]: [_env("apply", [op])]})
-    s = sb.run(R, ["d05"], 1.0, tmp_path, caller=model, site_reader=ZERO_SITE)
+    s = sb.run(R, ["d02"], 1.0, tmp_path, caller=model, site_reader=ZERO_SITE)
     assert s["status"] == "COMPLETE" and s["model_calls"] == 1 and model.calls == [b["message"]]
     assert s["spent_usd"] > 0
     assert budget.state()["committed_usd"] == pytest.approx(s["spent_usd"], abs=1e-6)      # in the $5 ledger
     rec = [json.loads(x) for x in (tmp_path / "raw.jsonl").read_text(encoding="utf-8").splitlines()]
-    assert len(rec) == 1 and rec[0]["id"] == "d05" and rec[0]["outcome"] == "ok"
-    assert rec[0]["candidate"]["logic"] == {"key": "chg_pct_3m", "op": "gt", "min": 30}
+    assert len(rec) == 1 and rec[0]["id"] == "d02" and rec[0]["outcome"] == "ok"
+    assert rec[0]["candidate"]["logic"] == {"key": "rs_rank", "op": "gt", "min": 90}
     assert json.loads((tmp_path / "summary.json").read_text(encoding="utf-8"))["status"] == "COMPLETE"
 
 
@@ -201,23 +194,23 @@ def test_RUN_never_improvises_a_reroute_that_was_not_captured(ledger, tmp_path):
 
 
 def test_RUN_stops_before_a_question_whose_worst_case_would_pass_the_runs_cap(ledger, tmp_path):
-    bound = sb.plan(R, ["d05"])["worst_usd"]
+    bound = sb.plan(R, ["d02"])["worst_usd"]
     heavy = lambda **kw: _resp(_env(reply="ok"), usage=(20000, 200, 0, 0))     # ~$0.021 actual per call  # noqa: E731
-    s = sb.run(R, ["d05", "d08"], bound + 0.005, tmp_path, caller=heavy, site_reader=ZERO_SITE)
+    s = sb.run(R, ["d02", "d05"], bound + 0.005, tmp_path, caller=heavy, site_reader=ZERO_SITE)
     assert s["status"] == "STOPPED" and "--max-usd" in s["stopped_because"] and s["questions_run"] == 1
-    assert s["not_reached"] == ["d08"] and s["spent_usd"] <= bound + 0.005          # never past the cap
-    assert len((tmp_path / "raw.jsonl").read_text(encoding="utf-8").splitlines()) == 1   # d08 made no call
+    assert s["not_reached"] == ["d05"] and s["spent_usd"] <= bound + 0.005          # never past the cap
+    assert len((tmp_path / "raw.jsonl").read_text(encoding="utf-8").splitlines()) == 1   # d05 made no call
 
 
 def test_RUN_with_a_cap_below_the_first_questions_worst_case_makes_no_call_at_all(ledger, tmp_path):
-    model = _model_for({R["requests"]["d05"]["message"]: [_env()]})
-    s = sb.run(R, ["d05"], 0.01, tmp_path, caller=model, site_reader=ZERO_SITE)
-    assert model.calls == [] and s["not_reached"] == ["d05"] and s["answered"] == 0 and budget.state()["committed_usd"] == 0
+    model = _model_for({R["requests"]["d02"]["message"]: [_env()]})
+    s = sb.run(R, ["d02"], 0.01, tmp_path, caller=model, site_reader=ZERO_SITE)
+    assert model.calls == [] and s["not_reached"] == ["d02"] and s["answered"] == 0 and budget.state()["committed_usd"] == 0
 
 
 def test_RUN_is_stopped_by_the_shared_15_ledger_and_spends_nothing(ledger, tmp_path):
-    model = _model_for({R["requests"]["d05"]["message"]: [_env()]})
-    s = sb.run(R, ["d05"], 1.0, tmp_path, caller=model, site_reader=lambda: (15.0, 15.0))
+    model = _model_for({R["requests"]["d02"]["message"]: [_env()]})
+    s = sb.run(R, ["d02"], 1.0, tmp_path, caller=model, site_reader=lambda: (15.0, 15.0))
     assert s["status"] == "STOPPED" and model.calls == [] and s["spent_usd"] == 0
     assert budget.state()["committed_usd"] == 0
     rec = json.loads((tmp_path / "raw.jsonl").read_text(encoding="utf-8").splitlines()[0])
@@ -226,8 +219,8 @@ def test_RUN_is_stopped_by_the_shared_15_ledger_and_spends_nothing(ledger, tmp_p
 
 def test_RUN_is_stopped_by_the_agents_own_5_day(ledger, tmp_path, monkeypatch):
     monkeypatch.setenv("UCT_AGENT_BUDGET_USD", "0.01")
-    model = _model_for({R["requests"]["d05"]["message"]: [_env()]})
-    s = sb.run(R, ["d05"], 1.0, tmp_path, caller=model, site_reader=ZERO_SITE)
+    model = _model_for({R["requests"]["d02"]["message"]: [_env()]})
+    s = sb.run(R, ["d02"], 1.0, tmp_path, caller=model, site_reader=ZERO_SITE)
     assert s["status"] == "STOPPED" and model.calls == []
 
 

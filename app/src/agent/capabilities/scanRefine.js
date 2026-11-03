@@ -13,7 +13,7 @@
 // memory.js (result sets for "the third one") stays session-only by design; this is the screen's SPEC + result ids.
 
 import { activeConversationId, agentConversationState, agentConversationStateSet } from '../agentClient'
-import { RATING_FIELDS, FLOW_FIELDS, RATINGS_REFUSAL, FLOW_REFUSAL, hiddenPhraseIn } from './scanHidden'
+import { RATING_FIELDS, FLOW_FIELDS, RATINGS_REFUSAL, FLOW_REFUSAL } from './scanHidden'
 
 export const STATE_KEY = 'lastScreen'
 export const ROW_CAP = 50
@@ -44,15 +44,6 @@ export function refineRefusal(keys) {
     return `${isFlow(k) ? FLOW_REFUSAL : RATINGS_REFUSAL}. A public alternative: ${alt.label} (${alt.key}).`
   }
   return null
-}
-
-/** W1.1 R-05 (live LT-8): the F-16 sentence + the public alternative when the member's own WORDS name a hidden field
- *  ("rs rank", "uct composite", "dark pool"…) — checked BEFORE any catalog or look-alike matching, so a hidden field is
- *  never re-mapped to a public look-alike (rs_rank → rs_line_trend) and run in its place. Null when no hidden phrase is
- *  present. The phrase list is scan/hidden.py's (one authority, generated into scanHidden.js). Mirror: refine.refusal_for_text. */
-export function refineRefusalForText(text) {
-  const hit = hiddenPhraseIn(text)
-  return hit ? refineRefusal([hit.key]) : null
 }
 
 /**

@@ -78,15 +78,6 @@ def refusal_for(keys: Iterable[str]) -> Optional[str]:
     return None
 
 
-def refusal_for_text(text: Any) -> Optional[str]:
-    """W1.1 R-05 (live LT-8): the F-16 sentence + the public alternative when the member's own WORDS name a hidden
-    field ("rs rank", "uct composite", "dark pool"…) — checked BEFORE any catalog or look-alike matching, so a
-    hidden field is never re-mapped to a public look-alike (rs_rank → rs_line_trend) and run in its place. None when
-    no hidden phrase is present. The phrase list is scan/hidden.py's (one authority; mirrored to scanHidden.js)."""
-    hit = hidden.hidden_phrase_in(text)
-    return refusal_for([hit[0]]) if hit else None
-
-
 # ── the stored shape ───────────────────────────────────────────────────────────────────────────────────────────────
 
 def _filter_keys(filters: Any) -> list:

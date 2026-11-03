@@ -89,17 +89,6 @@ export function isolationViolations(src, file) {
   return out
 }
 
-/** Could this module yield a rule-(1) violation? Exact pre-filter: see the scan test below. */
-const NEEDLES = ['readData', '/api/agent/data']
-const unescape = (s) => s.replace(/\\(?:u\{([0-9a-fA-F]+)\}|u([0-9a-fA-F]{4})|x([0-9a-fA-F]{2})|(\r\n|\r|\n|\u2028|\u2029)|([\s\S]))/g,
-  (_, cp, u4, x2, nl, ch) => cp || u4 || x2 ? String.fromCodePoint(parseInt(cp || u4 || x2, 16)) : nl ? '' : ch)
-export function couldViolate(src) {
-  if (NEEDLES.some(n => src.includes(n))) return true
-  if (!src.includes('\\')) return false
-  const dec = unescape(src)
-  return NEEDLES.some(n => dec.includes(n))
-}
-
 function sourceFiles(dir, acc = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name)
@@ -115,32 +104,11 @@ describe('agent-qa model isolation (1): exposure is nil and stays guarded', () =
     expect([...LOCAL_ONLY].length).toBeGreaterThan(0)
   })
 
-  // Cost: parsing all ~2,800 sources (~35 MB, pine.js / StockChart.jsx dominate) took 8-11 s alone and blew the
-  // 15 s testTimeout under two concurrent full suites. A timeout FAILS (no retry is configured), so it never hid a
-  // violation — but it made a real one look like the known flake. Both violation shapes need the text `readData` or
-  // `/api/agent/data` in the source; only a JS escape (`\x61`, `a`, `\u{61}`, `\/`, line continuation) can
-  // hide either from a raw text search, so a file with a backslash is checked again with escapes decoded. The
-  // filter is therefore exact (no file that could yield a violation is skipped); couldViolate is railed below.
   it('no module reads an isolated kind outside a local-only capability, and only agentClient.js names /api/agent/data', () => {
     const files = sourceFiles(SRC)
     expect(files.length).toBeGreaterThan(500)
-    const scanned = files.map(f => [f, fs.readFileSync(f, 'utf8')]).filter(([, src]) => couldViolate(src))
-    const rels = scanned.map(([f]) => path.relative(SRC, f).split(path.sep).join('/'))
-    // non-vacuity: the known readers / the one route owner are still parsed, so the filter cannot empty the scan
-    expect(rels).toEqual(expect.arrayContaining(['agent/agentClient.js', 'agent/marketdata/client.js',
-      'agent/capabilities/marketDataFacts.js', 'agent/capabilities/screener.js']))
-    const bad = scanned.flatMap(([f, src]) => isolationViolations(src, f))
+    const bad = files.flatMap(f => isolationViolations(fs.readFileSync(f, 'utf8'), f))
     expect(bad, bad.join('\n')).toEqual([])
-  }, 60000)   // explicit: load-independent budget; the filtered scan itself runs in ~2 s
-
-  it('the pre-filter keeps every shape that could violate, escapes included, and skips the rest', () => {
-    const keep = ["import { readData } from '../marketdata/client'", "fetch('/api/agent/data')",
-      "fetch('/api/agent/d\\x61ta')", "fetch('/api/agent/d\\u0061ta')", "fetch(`/api/agent/d\\u{61}ta`)",
-      "fetch('\\/api\\/agent\\/data')", "fetch('/api/agent/da\\\nta')", "import { read\\u0044ata } from '../marketdata/client'"]
-    keep.forEach(s => expect(couldViolate(s), s).toBe(true))
-    // CONTROL: an escaped route the raw text search misses is still flagged once parsed
-    expect(isolationViolations("export const f = () => fetch('/api/agent/d\\x61ta')", path.join(SRC, 'agent', 'x.js')).length).toBeGreaterThan(0)
-    expect(couldViolate("export const f = () => fetch('/api/agent/turn') // a \\n regex /\\d+/")).toBe(false)
   })
 
   const CAP = path.join(SRC, 'agent', 'capabilities', 'qaVirtual.js')
