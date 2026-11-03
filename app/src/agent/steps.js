@@ -74,13 +74,48 @@ export async function newRefs(host, capCtx, refMap) {
   return added
 }
 
+/** A step's `as` alias, when the step names one: a CREATOR (watchlist.create …) → {alias, kind} (the alias then names
+ *  the created target's short ref in later steps of the turn); a SCREENER producer → {alias, source: 'lastScreen'} (a
+ *  later `{from: alias}` reads the screen it ran). Anything else → null. */
+export function aliasOf(op) {
+  const as = op?.args?.as
+  if (as == null || as === '') return null
+  const cap = getCapability(op.action)
+  const c = cap?.creates?.(op.args || {})
+  if (c?.alias) return { alias: String(c.alias), kind: c.kind || null }
+  if (cap?.produces && /^screener\./.test(String(op.action))) return { alias: String(as), source: 'lastScreen' }
+  return null
+}
+
+/** A done creator step's alias → the short ref its `added` reported (the first of the created kind). */
+export function bindAlias(turn, al, added) {
+  if (!turn || !al?.alias || !al.kind || !Array.isArray(added)) return
+  const hit = added.find(a => a.kind === al.kind) || null
+  if (hit && turn.refMap[hit.ref]) turn.refMap[al.alias] = turn.refMap[hit.ref]
+}
+
+/** `{from: alias}` args naming an earlier step's screen → `{from: 'lastScreen'}` (the source the executor knows). */
+export function withSources(op, sources) {
+  if (!sources || !Object.keys(sources).length || !op?.args) return op
+  let changed = false
+  const args = {}
+  for (const [k, v] of Object.entries(op.args)) {
+    if (v && typeof v === 'object' && !Array.isArray(v) && typeof v.from === 'string' && sources[v.from]) {
+      args[k] = { ...v, from: sources[v.from] }
+      changed = true
+    } else args[k] = v
+  }
+  return changed ? { ...op, args } : op
+}
+
 export function createStepRunner() {
-  let paused = null              // { turnId, id, memoryTurn } while a card waits
-  let active = null              // the turn being served: { turnId, refMap, voice, chain }
+  let paused = null              // { turnId, id, memoryTurn, alias } while a card waits
+  let active = null              // the turn being served: { turnId, refMap, sources, voice, chain }
 
   async function runStep(ev, deps) {
     const { host, execute, tapRef } = deps
-    const op = { action: ev.action, target: ev.target, args: ev.args || {} }
+    const op = withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources)
+    const al = aliasOf(op)
     const bound = translateRefs(bindSourceRefs([op], active.refMap, { host, message: '' }), active.refMap)
     const mode = ev.mode === 'propose' ? 'propose' : 'apply'
     tapRef.current = []
@@ -101,10 +136,12 @@ export function createStepRunner() {
       // server lets the next step name them and the model learns them from the result
       const added = await newRefs(host, deps.capCtx, active.refMap)
       if (added.length) res.added = added
+      bindAlias(active, al, added)
     }
+    if (al?.source && (res.status === 'query' || res.status === 'done')) active.sources[al.alias] = al.source
     if (res.status === 'proposed') {
       // the card waits: whatever the member does about it (approve / dismiss) is recorded for afterCard
-      paused = { turnId: ev.turnId, id: ev.id, memoryTurn: deps.memoryRef?.current?.currentTurn?.() ?? null }
+      paused = { turnId: ev.turnId, id: ev.id, memoryTurn: deps.memoryRef?.current?.currentTurn?.() ?? null, alias: al?.kind ? al : null }
       tapRef.current = []
     }
     await agentStepResult({ turnId: ev.turnId, id: ev.id, ...res })
@@ -153,7 +190,7 @@ export function createStepRunner() {
         context: mem ? { ...context, conversation_memory: withModelRefs(mem, back) } : context,
         capabilities: full, manifestVersion: MANIFEST_VERSION, routing: null, planner: 'v2',
       }
-      active = { turnId: null, refMap, voice, chain: Promise.resolve() }
+      active = { turnId: null, refMap, sources: {}, voice, chain: Promise.resolve() }
       mark?.('turn:sent')
       const res = await agentTurnV2(body, onEvent(deps))
       mark?.('turn:received', res.ok ? 'ok' : res.status || 'error')
@@ -168,9 +205,10 @@ export function createStepRunner() {
       deps.tapRef.current = null
       const res = outcomeOf(bodies.length ? bodies : [{ outcome: 'the member dismissed the card', outcomeData: { kind: 'dismissed' } }], null)
       const status = res.status === 'done' ? 'done' : (res.status === 'failed' ? 'failed' : 'refused')
-      if (!active) active = { turnId: p.turnId, refMap: {}, voice: false, chain: Promise.resolve() }
+      if (!active) active = { turnId: p.turnId, refMap: {}, sources: {}, voice: false, chain: Promise.resolve() }
       active.chain = Promise.resolve()
       const added = status === 'done' ? await newRefs(deps.host, deps.capCtx, active.refMap) : []
+      if (status === 'done') bindAlias(active, p.alias, added)      // the approved creator's alias names what it made
       const r = await agentResumeV2({ turnId: p.turnId, id: p.id, status, receipt: res.receipt || null, refusal: res.refusal || null,
         added: added.length ? added : null }, onEvent(deps))
       await finish(r, deps)

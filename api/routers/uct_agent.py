@@ -160,6 +160,9 @@ class TurnIn(BaseModel):
     pending: Optional[dict] = None
     recentOutcome: Optional[str] = None
     voice: bool = False
+    # W2-A1: how the browser read this message against the question UCT was waiting on
+    # (turn.validate_open_question: answered | closed, bounded); stored on the member's row, shown to the model as data.
+    openQuestion: Optional[dict] = None
 
 
 class RecordIn(BaseModel):
@@ -168,6 +171,7 @@ class RecordIn(BaseModel):
     outcome: Optional[str] = None          # the deterministic receipt / refusal / undo text
     outcomeData: Optional[dict] = None     # structured: {kind, lines, actions, ...}
     telemetry: Optional[dict] = None
+    openQuestion: Optional[dict] = None    # W2-A1: the same reading, for a turn the browser answered itself
 
 
 NO_TITLE_YET = "(no name yet)"
@@ -290,13 +294,18 @@ def _v2_finish(uid, cid: str, out: dict, voice: bool, background: BackgroundTask
         "clarified": False, "latency_ms": usage.get("latency_ms"), "model": usage.get("model"), "cost_usd": usage.get("cost_usd"),
         "research_calls": usage.get("research_calls"), "unsupported": None, "voice": voice,
     })
-    log.info("[uct-agent] v2 turn rounds=%s steps=%s calls=%s in=%s out=%s cache_read=%s stopped=%s", usage.get("rounds"),
-             usage.get("steps"), usage.get("model_calls"), usage.get("input_tokens"), usage.get("output_tokens"),
-             usage.get("cache_read_tokens"), usage.get("stopped"))
+    rails = usage.get("rails") or {}
+    # value-free: counts, tokens and dollars only (never a step's args, target or result)
+    log.info("[uct-agent] v2 turn rounds=%s steps=%s calls=%s in=%s out=%s cache_read=%s stopped=%s usd=%s worst_round_usd=%s "
+             "tool_search=%s tool_search_miss=%s unknown_actions=%s paused=%s resumed=%s args_normalized=%s args_refused=%s",
+             usage.get("rounds"), usage.get("steps"), usage.get("model_calls"), usage.get("input_tokens"), usage.get("output_tokens"),
+             usage.get("cache_read_tokens"), usage.get("stopped"), rails.get("usd"), rails.get("worst_round_usd"),
+             rails.get("tool_search_calls"), rails.get("tool_search_misses"), rails.get("unknown_actions"), rails.get("paused"),
+             rails.get("resumed"), rails.get("args_normalized"), rails.get("args_refused"))
     return {"conversationId": cid, "turnId": turn_id, "envelope": env,
             "usage": {**{k: usage.get(k) for k in ("model", "input_tokens", "output_tokens", "cost_usd", "latency_ms", "research_calls",
                                                    "citations", "model_calls", "cache_read_tokens", "cache_write_tokens", "rounds", "steps")},
-                      "stages": usage.get("stages")}}
+                      "stages": usage.get("stages"), "rails": usage.get("rails")}}
 
 
 @router.post("/api/agent/turn/step")
@@ -535,8 +544,10 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         if body.reroute and history and history[-1].get("role") == "member" and history[-1].get("text") == body.message:
             history = history[:-1]        # the same message, asked again with more actions
         else:
+            oq = agent.validate_open_question(body.openQuestion)
             store.add_turn(uid, cid, "member", body.message,
-                           {"voice": bool(body.voice), **({"news": headline["id"]} if answer_only else {})})
+                           {"voice": bool(body.voice), **({"news": headline["id"]} if answer_only else {}),
+                            **({"open_question": oq} if oq else {})})
     except Exception:  # noqa: BLE001 -- logged with its traceback; the member gets a sentence
         log.exception("[uct-agent] conversation store failed before the model call")
         _give_back(uid)
@@ -565,7 +576,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
                              conversation_title=nameable, on_event=on_event,
                              meter=budget.Meter(user_id=uid, request_id=None if v2 else request_id), reroute=body.reroute,
                              interpreter=body.interpreter, repair=body.repair, reference=body.reference,
-                             headline=headline, answer_only=answer_only, v2=v2)
+                             headline=headline, answer_only=answer_only, v2=v2, open_question=body.openQuestion)
     except budget.BudgetRefused as e:
         # refused BEFORE a paid call: nothing was sent, nothing changed; the day's count is given back
         _give_back(uid)
@@ -674,7 +685,9 @@ def agent_record(body: RecordIn, user: dict = Depends(require_admin_dark)):
     try:
         cid = store.ensure_conversation(uid, body.conversationId, body.member or body.outcome or "")
         if body.member:
-            store.add_turn(uid, cid, "member", body.member, {"local": True})
+            from api.services.uct_agent import turn as agent
+            oq = agent.validate_open_question(body.openQuestion)
+            store.add_turn(uid, cid, "member", body.member, {"local": True, **({"open_question": oq} if oq else {})})
         if body.outcome:
             store.add_turn(uid, cid, "outcome", body.outcome, body.outcomeData or None)
     except Exception:  # noqa: BLE001
