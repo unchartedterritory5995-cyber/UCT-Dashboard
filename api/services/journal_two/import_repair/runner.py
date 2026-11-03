@@ -134,7 +134,15 @@ def plan_note(conn, user_id: str, row: NoteRow, note_class: str, index: links.Fi
         if orphans:
             found["orphan_media"] = orphans
     del body_text
-    loss = note_class == FILE and any(found.get(s) for s in shapes.LOSS_SHAPES)
+    # Fix round 1, I-1: a link to a file that never came over is a lost file too. Counted for
+    # EVERY FILE note, edited or not (counting reads; only the write waits on the guard).
+    lost_links = 0
+    if note_class == FILE:
+        _marked, lost_links = media.lost_file_link_notices(doc, import_key=row.import_key,
+                                                           import_source=row.import_source or "",
+                                                           index=index)
+        del _marked
+    loss = note_class == FILE and (lost_links > 0 or any(found.get(s) for s in shapes.LOSS_SHAPES))
 
     # C4: an unreadable stamp makes `edited_since_import` answer "not edited"; the repair must
     # read it as hands off instead. A readability precondition, not a second "edited" rule.
@@ -147,7 +155,8 @@ def plan_note(conn, user_id: str, row: NoteRow, note_class: str, index: links.Fi
             # C3: the file importer's own composition, never restated here.
             legacy = not notes._edited_since_file_import(
                 conn, user_id, {"id": row.id, "updated_at": row.updated_at, "imported_at": row.imported_at})
-        return NotePlan(note_class, found, True, legacy, None, [], [], loss, unreadable_stamp=not readable)
+        return NotePlan(note_class, found, True, legacy, None, [], [], loss, lost_links=lost_links,
+                        unreadable_stamp=not readable)
 
     if note_class not in (FILE, ORPHANED):
         return NotePlan(note_class, found, False, False, None, [], [], loss)

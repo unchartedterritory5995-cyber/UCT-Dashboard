@@ -230,6 +230,21 @@ def test_plan_note_for_a_file_note_links_marks_and_lists_hotlinks(db):
     assert "linkified" in plan.actions and "relative_file_unresolved" in plan.actions
 
 
+@pytest.mark.parametrize("edited", [False, True])
+def test_a_lost_file_link_is_a_loss_the_member_is_told_about(db, edited):
+    """Fix round 1, I-1: a FILE note whose ONLY problem is a link to a file that never came over
+    is a lost file: counted in `lostLinks` and in `lossNotes` / `noticeMembers`, edited or not
+    (counting is read-only; only the write waits on the guard)."""
+    note = _note("u1", "Obsidian", "obsidian:Vault/Here.md", _doc(_para(_t("deck", _link("deck.pdf")))))
+    if edited:
+        _sql("UPDATE j2_notes SET updated_at = ? WHERE id = ?", EDITED_AT, note)
+    report = _scan()
+    t = report["totals"]
+    assert (t["lostLinks"], t["noticeMembers"]) == (1, 1)
+    assert report["perMember"][0]["lossNotes"] == 1 and report["perMember"][0]["lostLinks"] == 1
+    assert t["wouldRepairNotes"] == (0 if edited else 1)
+
+
 def test_scan_counts_live_connector_notes_but_never_plans_them(db):
     _source("u1", "notion")
     _source("u1", "obsidian")
