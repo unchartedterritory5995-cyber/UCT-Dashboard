@@ -102,10 +102,12 @@ export const TOPICS = [
   {
     id: 'drawings', title: 'Drawing tools',
     words: [/\bdraw\w*\b/, /\b(trend ?lines?|horizontal (line|level)s?|fib\w*|rectangles?|channels?|pitchforks?|annotat\w+)\b/],
-    caps: ['drawing.addLevel', 'drawing.setLevel', 'drawing.style', 'drawing.setVisible', 'drawing.lock', 'drawing.setAllVisible', 'drawing.remove', 'drawing.clear', 'drawing.list'], productHas: true,
-    canDo: 'draw a horizontal line at a price you give me and move it to a new price, change one drawing\'s colour, line style or width, show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo',
-    known: () => [`the rest of the drawing toolbar (${drawingTools().length} tools: ${sample(drawingTools())}) — trendlines, rectangles, Fibonacci and text need anchors in time, which I can't place yet`],
-    planned: { when: 'Batch 8b', what: 'trendlines, rectangles and Fibonacci tools from the dates and prices you give me, once the drawing layer exposes its point and time rules' },
+    caps: ['drawing.addLevel', 'drawing.setLevel', 'drawing.style', 'drawing.setVisible', 'drawing.lock', 'drawing.setAllVisible', 'drawing.remove', 'drawing.clear', 'drawing.list',
+      // W1-B: the time-anchored tools, from the dates and prices the member gives
+      'drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap'], productHas: true,
+    canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw a trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note or anchored VWAP from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded); change one drawing\'s colour, line style or width, show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo',
+    known: () => [`the rest of the drawing toolbar (${drawingTools().length} tools: ${sample(drawingTools())}) — channels, pitchforks, arrows, measurements and the others are drawn on the chart`],
+    planned: null,
   },
   {
     id: 'chartSettings', title: 'Chart appearance and settings',

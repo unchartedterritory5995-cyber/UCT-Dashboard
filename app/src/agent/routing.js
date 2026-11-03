@@ -78,6 +78,14 @@ export const GROUPS = [
       /\b(make|turn|colou?r|paint)\b.*\bthe \d{1,3}\b.*\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y)\b/] },
   { id: 'definitions', title: 'Indicator definitions: search UCT\'s and your own indicators, describe one, save a copy, delete one of yours', domains: ['definition'], fillLast: true,
     words: [/\b(my|saved|custom|own) indicators?\b/, /\bindicators? (for|that|which|to)\b/, /\b(find|search|look for|what) .*\bindicators?\b/, /\b(describe|explain|what does)\b.*\b(indicator|rsi|macd|atr|study)\b/, /\b(delete|remove|copy|duplicate)\b.*\b(my|saved|custom)\b(?:\s+[a-z0-9-]+){0,3}\s+(indicator|formula|study)\b/] },
+  // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
+  // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
+  // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
+  // `fillLast` like every specialised group: never a filler, so a message nothing named still carries the screener (F-SB-1).
+  { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP', domains: [], fillLast: true,
+    actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap'],
+    words: [/\b(draw|add|put|place|plot|anchor|drop|mark)\b.*\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|boxe?s?|notes?|text|anchored vwap|avwap)\b/,
+      /\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|anchored vwap|avwap)\b.*\b(from|between|starting|anchored|since)\b/, /\banchored vwap\b|\bavwap\b/] },
   { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
     words: [/\bdraw\w*\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
   { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)', domains: ['watchlist'],
@@ -148,6 +156,8 @@ const tickerWords = (raw) => (String(raw).match(/(?:^|[\s$])([A-Z]{1,5})(?=[\s,.
   .map(w => w.trim().replace('$', '')).filter(w => !NOT_TICKERS.has(w))
 
 const BY_DOMAIN = new Map(GROUPS.flatMap(g => g.domains.map(d => [d, g.id])))
+// a group may claim whole ACTION NAMES (W1-B drawingTools): checked before the name's domain
+const BY_ACTION = new Map(GROUPS.flatMap(g => (g.actions || []).map(a => [a, g.id])))
 // ⭐ Memoised per action name: BY_DOMAIN is a module constant, so a name's group never changes. Selection
 // asks this per action per group per reroute (the eval's reroute table is ~100 selections per request), and
 // the split allocated on every call (2026-10-28: 85% of agentNl1SelectionCoverage's time after PR #481).
@@ -158,7 +168,7 @@ export const groupOfAction = (name) => {
   const key = String(name || '')
   const hit = GROUP_MEMO.get(key)
   if (hit !== undefined) return hit
-  const id = BY_DOMAIN.get(key.split('.')[0]) || null
+  const id = BY_ACTION.get(key) || BY_DOMAIN.get(key.split('.')[0]) || null
   if (GROUP_MEMO.size < GROUP_MEMO_MAX) GROUP_MEMO.set(key, id)
   return id
 }
