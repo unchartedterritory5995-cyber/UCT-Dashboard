@@ -269,6 +269,36 @@ def test_callback_refused_for_member_in_admin_mode(client_member, monkeypatch):
     assert connections.get_connector("u1", "evernote") is None
 
 
+def _folder_name(user_id: str, folder_id: str | None) -> str | None:
+    from api.services.journal_two import notes as notes_svc
+    return next((f["name"] for f in notes_svc.list_folders(user_id) if f["id"] == folder_id), None)
+
+
+def test_callback_default_folder_is_named_exactly_evernote(client_admin, monkeypatch):
+    """T7-m1: never "Evernote — Evernote"."""
+    _fake_exchange(monkeypatch)
+    _fake_validate(monkeypatch)
+    assert _callback(client_admin, ns._sign_state("u1", "evernote")).status_code == 302
+    src = next(s for s in connections.list_sources("u1") if s["provider"] == "evernote")
+    assert _folder_name("u1", src["destFolderId"]) == "Evernote"
+
+
+def test_callback_folder_name_of_other_providers_is_unchanged(client_admin, monkeypatch):
+    """T7-m1 is scoped to Evernote: Notion keeps "<label> — <workspace>"."""
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+
+    async def notion_exchange(provider, code, **kw):
+        return {"accessToken": "t", "workspaceId": "ws-1", "workspaceName": "Acme"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", notion_exchange)
+    r = client_admin.get(f"{BASE}/notion/callback", follow_redirects=False,
+                         params={"code": "c", "state": ns._sign_state("u1", "notion")})
+    assert r.status_code == 302 and "connected=1" in r.headers["location"]
+    src = next(s for s in connections.list_sources("u1") if s["provider"] == "notion")
+    assert _folder_name("u1", src["destFolderId"]) == "Notion — Acme"
+
+
 # ── the other member doors ───────────────────────────────────────────────────
 
 def _seed_evernote_source(user_id="u1"):

@@ -814,7 +814,10 @@ async def oauth_callback(
             status_code=302,
         )
     if remote_id:
-        dest_folder_id = _default_dest_folder_id(user_id, f"{entry.label} — {account_label}")
+        folder_name = f"{entry.label} — {account_label}"
+        if provider == "evernote":
+            folder_name = entry.label  # Task 7 review m1: "Evernote", never "Evernote — Evernote"
+        dest_folder_id = _default_dest_folder_id(user_id, folder_name)
         source = connections.create_source(
             user_id, provider, remote_id, display_name=account_label, dest_folder_id=dest_folder_id,
         )
