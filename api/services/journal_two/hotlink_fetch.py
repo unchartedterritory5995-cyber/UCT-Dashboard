@@ -91,12 +91,13 @@ def stored_payload(stored: media_policy.StoredMedia) -> dict[str, Any]:
 def hand_off(user_id: str, note_id: str, stored: media_policy.StoredMedia) -> None:
     """Plan B R7 (a), for the import repair: a fetched file is searchable exactly as one the
     member door fetched (`_hand_off_to_documents`): the same payload through the same seam.
-    Guarded: a failure here is one log line and never costs the repair (blocking: the repair
-    runs it from its own process, never on the web loop)."""
+    Re-review I-5: the row only (`queue=False`). The repair is a short-lived process on the prod
+    pod; extraction and OCR run on the web pod, whose pending sweep picks the row up, never here.
+    Guarded: a failure here is one log line and never costs the repair."""
     from api.services.journal_two import document_extraction
     try:
         document_extraction.on_attachment_saved(user_id, note_id, stored_payload(stored), stored.mime,
-                                                kind=stored.kind)
+                                                kind=stored.kind, queue=False)
     except Exception as e:  # noqa: BLE001 -- extraction never costs the copy
         logger.warning("[import repair] document hand-off failed after a stored copy (%s)",
                        type(e).__name__)

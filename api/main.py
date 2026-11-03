@@ -6237,6 +6237,26 @@ async def lifespan(app: FastAPI):
         except Exception as _e_ocr_sweep:
             print(f"[startup] j2 ocr recovery sweep skip: {_e_ocr_sweep}")
 
+        # Plan F Task 7 re-review I-5: a document row left `pending` was never extracted (a
+        # crash or redeploy mid-queue, or a row the import repair created: that short-lived
+        # process never extracts). Re-queue the stale ones through the same bounded pool, a few
+        # per tick, on a scheduler thread (off the event loop). Ungated, like PDF extraction.
+        try:
+            from api.services.journal_two import document_extraction as _doc_pending
+
+            def _doc_requeue_pending() -> None:
+                out = _doc_pending.requeue_stale_pending()
+                if out.get("requeued"):
+                    logging.getLogger(__name__).info(
+                        "[doc-extract] sweep re-queued %s pending document(s)", out["requeued"])
+
+            _scheduler.add_job(
+                _doc_requeue_pending,
+                CronTrigger(minute="7/10"),
+                id="j2_doc_pending_sweep", replace_existing=True, max_instances=1)
+        except Exception as _e_doc_sweep:
+            print(f"[startup] j2 document pending sweep skip: {_e_doc_sweep}")
+
         # live room is never a dead room. Self-gates on COMMUNITY_CHAT_ENABLED at
         # run time (no-op while dark) — NOT a Compass LLM job, so registered directly.
         try:

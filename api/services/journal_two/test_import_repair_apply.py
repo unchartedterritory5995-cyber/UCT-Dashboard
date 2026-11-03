@@ -676,6 +676,23 @@ def test_a_hotlink_inside_a_figure_keeps_the_figure_well_formed(armed, web, monk
     assert _no_orphans(note)
 
 
+def test_the_repair_creates_document_rows_but_starts_no_extraction(armed, web, monkeypatch):
+    """Re-review I-5: the repair is a short-lived process on the prod pod. It creates the
+    document row (`pending`) and never queues extraction or OCR there: the web pod's sweep
+    (`requeue_stale_pending`) picks the row up. No extraction thread exists after the run."""
+    import threading
+    from api.services.journal_two import document_extraction
+    monkeypatch.setenv("NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "1")
+    submitted = []
+    monkeypatch.setattr(document_extraction._EXTRACTION_POOL, "submit", lambda *a: submitted.append(a))
+    note = _note("u1", "Notion", "notion:Export/H.md", _doc({"type": "image", "attrs": {"src": HOT}}))
+    web["routes"][HOT] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+    _apply()
+    assert submitted == []
+    assert _q("SELECT status FROM j2_note_documents WHERE note_id = ?", note) == [("pending",)]
+    assert not [t for t in threading.enumerate() if t.name in ("j2-doc-extract", "j2-doc-ocr")]
+
+
 def test_a_repaired_copy_is_handed_to_documents_like_the_doors(armed, web, monkeypatch):
     """Fix round 1 (review M-6): Plan B R7 (a) -- a fetched image is searchable (OCR) exactly as
     the member door's is: the same payload, the same seam, once the note's write landed."""
@@ -684,11 +701,11 @@ def test_a_repaired_copy_is_handed_to_documents_like_the_doors(armed, web, monke
     web["routes"][HOT] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
     seen = []
     monkeypatch.setattr(document_extraction, "on_attachment_saved",
-                        lambda user_id, note_id, saved, content_type, *, kind: seen.append(
-                            (user_id, note_id, saved["url"], content_type, kind)))
+                        lambda user_id, note_id, saved, content_type, *, kind, queue=True: seen.append(
+                            (user_id, note_id, saved["url"], content_type, kind, queue)))
     _apply()
     src = json.loads(_note_row(note)[0])["content"][0]["attrs"]["src"]
-    assert seen == [("u1", note, src, "image/png", "image")]
+    assert seen == [("u1", note, src, "image/png", "image", False)]  # I-5: the row only
 
 
 def test_failed_hotlink_keeps_the_image(armed, web):

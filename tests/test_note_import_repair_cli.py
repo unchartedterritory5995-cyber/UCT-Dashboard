@@ -92,6 +92,38 @@ def test_apply_writes_and_reports(cli, capsys, monkeypatch, tmp_path):
     assert json.loads(out.read_text(encoding="utf-8")) == report
 
 
+def test_the_cli_starts_no_extraction_threads(cli, capsys, monkeypatch):
+    """Re-review I-5: a repaired image becomes a `pending` document row; no extraction or OCR
+    runs in the CLI's process (the web pod's sweep extracts it)."""
+    import threading
+
+    import httpx
+
+    from api.services.journal_two import document_extraction
+    from api.services.journal_two.test_import_repair_apply import HOT, PNG
+    from api.services.journal_two import hotlink_fetch
+    from api.services.journal_two.note_connectors.providers import base as base_module
+
+    async def _public(host):
+        return ["142.250.0.1"]
+
+    monkeypatch.setattr(base_module, "_resolve_host", _public)
+    monkeypatch.setattr(hotlink_fetch, "default_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, content=PNG, headers={"content-type": "image/png"}))))
+    monkeypatch.setenv(runner.FLAG, "1")
+    monkeypatch.setenv("NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "1")
+    submitted = []
+    monkeypatch.setattr(document_extraction._EXTRACTION_POOL, "submit", lambda *a: submitted.append(a))
+    note = _note("u1", "Notion", "notion:Export/H.md", _doc({"type": "image", "attrs": {"src": HOT}}))
+    code, report = _run(cli, ["--apply", "--allow-market-hours", "--sleep-ms", "0"], capsys)
+    assert code == 0 and report["fetched"] == 1
+    assert submitted == []
+    rows = auth_db.get_connection().execute(
+        "SELECT status FROM j2_note_documents WHERE note_id = ?", (note,)).fetchall()
+    assert [r[0] for r in rows] == ["pending"]
+    assert not [t for t in threading.enumerate() if t.name in ("j2-doc-extract", "j2-doc-ocr")]
+
+
 def test_report_is_json_with_the_documented_keys(cli, capsys, tmp_path):
     _note("u1", "Notion", "notion:Export/A.md", BARE)
     out = tmp_path / "dry" / "dryrun-1.json"
