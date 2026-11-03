@@ -35,12 +35,30 @@ UTF-16, which differs above U+FFFF). A string with a lone surrogate has no UTF-8
 refused, as in JS. Every field is length-prefixed, so no two different inputs share a
 preimage by sliding a boundary.
 
+WHAT IS ACCEPTED (the JS half accepts and refuses exactly the same inputs, and every case below
+is in the shared fixture, so a drift turns one half red):
+
+  container  ``engine``, ``columns`` and each refusal are plain ``dict`` objects. Any other
+             mapping (``UserDict``, ``MappingProxyType``) is refused, as a JS ``Map`` is.
+  column     a ``list``, a ``tuple``, an ``array.array('d')`` or a one-dimensional
+             ``memoryview`` of float64. A ``str``, ``set``, ``range``, ``bytes``,
+             ``array('f')`` or dict view is refused. Elements are numbers or ``None``.
+  rows       ``None`` means "not given"; otherwise a non-negative ``int`` (never a ``bool``).
+  identity   ``bundle_sha256`` must be a ``str`` of 64 lowercase hex digits (an ``int`` is
+             refused). The other fields may be a non-negative safe ``int`` or a ``str``.
+  numbers    an ``int`` past 2**53 that is exactly a double (``2**53``, ``10**20``) is that
+             double, as JS reads the same JSON. An ``int`` that is NOT exactly a double is
+             refused here. The JS half cannot see such a value (``JSON.parse`` rounds it
+             first), so this one refusal is Python-only, a known gap, pinned in
+             ``tests/test_pine_runtime_codec.py`` and not in the shared fixture.
+
 The engine identity is NEVER retyped here: callers read it from the modules that declare it
 (``user_definitions.read_script_engine_version`` and the service's own ``engine`` block) and
 pass it in; this module only checks its shape.
 """
 from __future__ import annotations
 
+import array
 import base64
 import binascii
 import hashlib
@@ -83,10 +101,31 @@ def _str(b: bytes) -> bytes:
 
 # ─── columns ────────────────────────────────────────────────────────────────────
 
+def _is_column(col: Any) -> bool:
+    """list, tuple, array('d') or a 1-D float64 memoryview: the Python spellings of a JS Array
+    or Float64Array. Everything else (str, set, range, bytes, array('f')...) is refused."""
+    if isinstance(col, (list, tuple)):
+        return True
+    if isinstance(col, array.array):
+        return col.typecode == "d"
+    if isinstance(col, memoryview):
+        return col.format == "d" and col.ndim == 1
+    return False
+
+
+def _rows_arg(rows: Any) -> Optional[int]:
+    """``None`` means "not given"; otherwise a non-negative int (a bool is not one)."""
+    if rows is None:
+        return None
+    if isinstance(rows, bool) or not isinstance(rows, int) or rows < 0:
+        raise CodecError("rows must be null or a non-negative integer")
+    return rows
+
+
 def encode_column(col: Sequence[Any], what: str = "column") -> bytes:
     """Canonical bytes of one column: 8 bytes per row, NaN/None canonicalised."""
-    if isinstance(col, (bytes, bytearray, Mapping)) or not hasattr(col, "__len__"):
-        raise CodecError(f"{what} must be a list, tuple or array of numbers")
+    if not _is_column(col):
+        raise CodecError(f"{what} must be a list, tuple or float64 array of numbers")
     n = len(col)
     vals: List[float] = []
     nan_at: List[int] = []
@@ -97,9 +136,13 @@ def encode_column(col: Sequence[Any], what: str = "column") -> bytes:
         elif isinstance(x, bool) or not isinstance(x, (int, float)):
             raise CodecError(f"{what}[{i}] must be a number or None")
         elif isinstance(x, int):
-            if abs(x) > _MAX_SAFE_INT:
-                raise CodecError(f"{what}[{i}] is an integer beyond 2**53, which JS cannot hold")
-            vals.append(float(x))
+            try:
+                f = float(x)
+            except OverflowError:
+                raise CodecError(f"{what}[{i}] is an integer too large for a double") from None
+            if f != x:
+                raise CodecError(f"{what}[{i}] is an integer that is not exactly a double")
+            vals.append(f)
         elif x != x:
             vals.append(0.0)
             nan_at.append(i)
@@ -122,8 +165,9 @@ def decode_column(data: bytes, rows: Optional[int] = None) -> List[float]:
     if len(data) % 8 != 0:
         raise CodecError(f"column bytes length {len(data)} is not a multiple of 8")
     n = len(data) // 8
-    if rows is not None and rows != n:
-        raise CodecError(f"column has {n} rows, expected {rows}")
+    want = _rows_arg(rows)
+    if want is not None and want != n:
+        raise CodecError(f"column has {n} rows, expected {want}")
     vals = struct.unpack("<%dd" % n, data)
     for i, v in enumerate(vals):
         if v != v and data[i * 8:i * 8 + 8] != CANONICAL_NAN_BYTES:
@@ -152,6 +196,8 @@ def b64_to_bytes(text: Any) -> bytes:
 def _identity_field(engine: Mapping[str, Any], field: str) -> bytes:
     """The UTF-8 bytes of one identity field. An integer and its decimal string are one value."""
     v = engine.get(field)
+    if field == "bundle_sha256" and not isinstance(v, str):
+        raise CodecError("engine.bundle_sha256 must be a string")
     if isinstance(v, bool):
         raise CodecError(f"engine.{field} must be a non-negative integer or a string")
     if isinstance(v, int):
@@ -167,7 +213,7 @@ def _identity_field(engine: Mapping[str, Any], field: str) -> bytes:
 
 
 def _identity_bytes(engine: Any) -> bytes:
-    if not isinstance(engine, Mapping):
+    if not isinstance(engine, dict):
         raise CodecError("engine must be an object")
     for k in engine:
         if k not in ENGINE_FIELDS:
@@ -180,7 +226,7 @@ def _normalise_refusals(refusals: Any) -> List[tuple]:
         raise CodecError("refusals must be an array")
     rows = []
     for i, r in enumerate(refusals):
-        if not isinstance(r, Mapping):
+        if not isinstance(r, dict):
             raise CodecError(f"refusals[{i}] must be an object")
         key = _utf8(r.get("key"), f"refusals[{i}].key")
         guard = _utf8(r.get("guard"), f"refusals[{i}].guard")
@@ -209,7 +255,7 @@ def canonical_preimage(
     """The exact bytes the digest hashes. ``columns`` maps plot key -> column; ``refusals``
     is ``[{key | '*', guard, bar | None, sentence?}]``; ``rows``, when given, is the bar
     count every column must have."""
-    if not isinstance(columns, Mapping):
+    if not isinstance(columns, dict):
         raise CodecError("columns must be an object")
     out = [_str(_utf8(CODEC_TAG, "tag")), _identity_bytes(engine)]
     entries = []
@@ -220,7 +266,7 @@ def canonical_preimage(
         entries.append((key, name))
     entries.sort(key=lambda e: e[0])
     out.append(_u32(len(entries)))
-    n = rows
+    n = _rows_arg(rows)
     for key, name in entries:
         data = encode_column(columns[name], f"column {name!r}")
         length = len(data) // 8

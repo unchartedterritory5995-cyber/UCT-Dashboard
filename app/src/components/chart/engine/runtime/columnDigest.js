@@ -38,6 +38,20 @@
 // Every field is length-prefixed, so no two different inputs share a preimage by sliding
 // a boundary.
 //
+// WHAT IS ACCEPTED (the Python half accepts and refuses exactly the same inputs, and every
+// case below is in the shared fixture, so a drift turns one half red):
+//   container  `engine`, `columns` and each refusal are PLAIN objects (prototype Object.prototype
+//              or null). A Map, a class instance or an array is refused, never read as empty.
+//   column     an Array or a Float64Array. A string, Set, array-like, Float32Array or
+//              Uint8Array is refused. Elements are numbers, null or undefined.
+//   rows       null and undefined both mean "not given"; otherwise a non-negative integer.
+//   identity   bundle_sha256 must be a STRING of 64 lowercase hex digits (an integer is
+//              refused). The other fields may be a non-negative safe integer or a string.
+//   numbers    a JSON integer past 2**53 that is exactly a double (9007199254740992,
+//              1e20 written out) is that double in both halves. An integer that is NOT exactly a
+//              double cannot reach this half (JSON.parse rounds it first) and Python refuses it;
+//              that one-sided case is a known gap, pinned in the Python test only.
+//
 // ⛔ The engine identity is NEVER retyped here. Callers read it from the modules that
 // declare it (`scriptEngineVersion.js`, `ast/pineRuntimeFrontend.js`, `runtime/ir.js`)
 // plus the bundle's sha256, and pass it in; this file only checks its shape.
@@ -59,6 +73,23 @@ export class CodecError extends Error {
 }
 
 const fail = (msg) => { throw new CodecError(msg) }
+
+/** A plain object: `{}`, `Object.create(null)` or JSON.parse output, from any realm. A Map, a
+ *  Set, an Array, a class instance or a typed array is not (Object.keys of a Map is empty, so
+ *  it would otherwise digest as an empty run). */
+function isPlainObject(x) {
+  if (x === null || typeof x !== 'object' || Object.prototype.toString.call(x) !== '[object Object]') return false
+  const proto = Object.getPrototypeOf(x)
+  return proto === null || Object.getPrototypeOf(proto) === null
+}
+
+/** `rows`: null and undefined mean "not given" (as None does in Python); otherwise a
+ *  non-negative integer. Returns the integer or undefined. */
+function rowsArg(rows) {
+  if (rows === null || rows === undefined) return undefined
+  if (!Number.isInteger(rows) || rows < 0) fail('rows must be null or a non-negative integer')
+  return rows
+}
 
 // ─── strings ────────────────────────────────────────────────────────────────────
 
@@ -136,7 +167,8 @@ export function decodeColumn(bytes, rows) {
   if (!(bytes instanceof Uint8Array)) fail('column bytes must be a Uint8Array')
   if (bytes.length % 8 !== 0) fail(`column bytes length ${bytes.length} is not a multiple of 8`)
   const n = bytes.length / 8
-  if (rows !== undefined && rows !== n) fail(`column has ${n} rows, expected ${rows}`)
+  const want = rowsArg(rows)
+  if (want !== undefined && want !== n) fail(`column has ${n} rows, expected ${want}`)
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.length)
   const out = new Float64Array(n)
   for (let i = 0; i < n; i++) {
@@ -169,6 +201,7 @@ export function b64ToBytes(text) {
 /** The UTF-8 bytes of one identity field. An integer and its decimal string are one value. */
 function identityField(engine, field) {
   const v = engine[field]
+  if (field === 'bundle_sha256' && typeof v !== 'string') fail('engine.bundle_sha256 must be a string')
   if (typeof v === 'number') {
     if (!Number.isSafeInteger(v) || v < 0) fail(`engine.${field} must be a non-negative integer or a string`)
     return utf8(String(v), `engine.${field}`)
@@ -180,7 +213,7 @@ function identityField(engine, field) {
 }
 
 function writeIdentity(w, engine) {
-  if (engine == null) fail('engine must be an object')
+  if (!isPlainObject(engine)) fail('engine must be an object')
   for (const k of Object.keys(engine)) if (!ENGINE_FIELDS.includes(k)) fail(`engine.${k} is not an identity field`)
   for (const f of ENGINE_FIELDS) w.str(identityField(engine, f))
 }
@@ -188,7 +221,7 @@ function writeIdentity(w, engine) {
 function normaliseRefusals(refusals) {
   if (!Array.isArray(refusals)) fail('refusals must be an array')
   const rows = refusals.map((r, i) => {
-    if (r == null) fail(`refusals[${i}] must be an object`)
+    if (!isPlainObject(r)) fail(`refusals[${i}] must be an object`)
     const key = utf8(r.key, `refusals[${i}].key`)
     const guard = utf8(r.guard, `refusals[${i}].guard`)
     if (key.length === 0) fail(`refusals[${i}].key must not be empty (use '*' for the whole run)`)
@@ -216,7 +249,7 @@ function normaliseRefusals(refusals) {
  *   `rows`, when given, is the bar count every column must have.
  */
 export function canonicalPreimage({ engine, columns, refusals = [], rows } = {}) {
-  if (columns === null || typeof columns !== 'object' || Array.isArray(columns)) fail('columns must be an object')
+  if (!isPlainObject(columns)) fail('columns must be an object')
   const w = new Writer()
   w.str(utf8(CODEC_TAG, 'tag'))
   writeIdentity(w, engine)
@@ -224,7 +257,7 @@ export function canonicalPreimage({ engine, columns, refusals = [], rows } = {})
   for (const e of entries) if (e.key.length === 0) fail('a column key must not be empty')
   entries.sort((a, b) => cmpBytes(a.key, b.key))
   w.u32(entries.length)
-  let n = rows
+  let n = rowsArg(rows)
   for (const e of entries) {
     const bytes = encodeColumn(columns[e.name], `column ${JSON.stringify(e.name)}`)
     const len = bytes.length / 8
@@ -296,19 +329,5 @@ export function sha256Hex(data) {
   }
   let out = ''
   for (let i = 0; i < 8; i++) out += h[i].toString(16).padStart(8, '0')
-  return out
-}
-
-/** Lowercase hex of bytes (the fixture's byte strings). */
-export function bytesToHex(bytes) {
-  let s = ''
-  for (let i = 0; i < bytes.length; i++) s += bytes[i].toString(16).padStart(2, '0')
-  return s
-}
-
-/** Fixture helper: the caller supplies well-formed hex (the fixture is the authority). */
-export function hexToBytes(hex) {
-  const out = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
   return out
 }

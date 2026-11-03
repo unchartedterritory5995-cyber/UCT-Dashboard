@@ -182,19 +182,49 @@ may add a second implementation of anything the run computes.
 
 ### 2.3 The proof that both hosts produce byte-identical columns
 
-**Canonical encoding (T3), one function per host, held equal by a shared fixture:**
+**Canonical encoding (T3), one function per host, held equal by a shared fixture.** Code:
+`runtime/columnDigest.js` (JS) and `api/services/pine_runtime_codec.py` (Python). The fixture
+`tests/fixtures/pine_runtime/codec_parity.json` is the one authority: both test files read it,
+so a rule changed in one language turns the other red. The bytes below are exactly what the
+code writes. Every integer is little-endian; `str(x)` is a `u32` byte length followed by the
+UTF-8 bytes of `x`.
 
-- Each column is a little-endian Float64 array of length `rows.length`. `null`, `undefined` and
-  every NaN payload are canonicalised to `0x7FF8000000000000`. `-0` stays distinct from `+0`:
-  bit-identical means bit-identical, and a consumer that cares about the difference must be able
-  to see it.
-- Each refusal is sorted `[{key | '*', guard, bar|null}]`. The sentence is excluded, because
-  sentences are allowed to change wording (PHASE3 3.6 item 6: "map by guard, never by sentence").
-- `digest = sha256(engine identity ‖ sorted keys ‖ column bytes ‖ refusals)`.
-- `engine identity = SCRIPT_ENGINE_VERSION ‖ RUNTIME_FRONTEND_LANGUAGE ‖ RUNTIME_FRONTEND_VERSION ‖
-  RUNTIME_IR_VERSION ‖ bundle sha256`. These are read from the modules that declare them
-  (`scriptEngineVersion.js`, `pineRuntimeFrontend.js`, `ir.js`), never retyped.
-- Python decodes the same bytes (`pine_runtime_client.decode`). A round-trip rail checks Python
+- **A column** is `rows * 8` bytes, one little-endian IEEE-754 Float64 per row. `null`,
+  `undefined` and every NaN payload and sign are canonicalised to `0x7FF8000000000000`. `-0`
+  stays distinct from `+0` (`0x8000000000000000`): bit-identical means bit-identical, and a
+  consumer that cares about the difference must be able to see it. The infinities keep their own
+  bit patterns and are not `na`.
+- **The preimage** (the bytes that are hashed), in this order:
+  1. `str("pine-runtime-columns/1")`, the codec's own tag;
+  2. the engine identity, five `str` fields in this order: `script_engine`, `runtime_language`,
+     `runtime_frontend`, `runtime_ir`, `bundle_sha256`. A non-negative integer is written as its
+     decimal string, so `4` and `"4"` are one value; `bundle_sha256` must be a string of 64
+     lowercase hex digits;
+  3. `u32` column count, then for each column **in UTF-8 byte order of its key**, key, rows and
+     bytes interleaved: `str(key)`, `u32 rows`, then the `rows * 8` column bytes;
+  4. `u32` refusal count, then each refusal sorted on `(key, guard, bar)` (strings compared on
+     their UTF-8 bytes, a null `bar` before any number): `str(key | '*')`, `str(guard)`, a `u8`
+     `hasBar` (0 or 1), and, only when `hasBar` is 1, a `u32 bar`.
+- **The digest** is `sha256(preimage)`, written as lowercase hex.
+- A refusal's sentence is **excluded**, because sentences are allowed to change wording
+  (PHASE3 3.6 item 6: "map by guard, never by sentence"). Two runs that differ only in a
+  sentence have one digest.
+- Every string has a length prefix, so no two different runs can share a preimage by sliding a
+  boundary. UTF-8 byte order is used for keys because JS sorts strings by UTF-16 and Python by
+  code point, and the two orders differ above U+FFFF. A string with a lone surrogate has no
+  UTF-8 form and is refused by both halves.
+- `engine` is the wire block of section 3.2. It carries exactly the five fields above; an extra
+  or a missing field is refused. The values are read from the modules that declare them
+  (`SCRIPT_ENGINE_VERSION` in `scriptEngineVersion.js`; `RUNTIME_FRONTEND_LANGUAGE` and
+  `RUNTIME_FRONTEND_VERSION` in `pineRuntimeFrontend.js`; `RUNTIME_IR_VERSION` in `ir.js`; the
+  bundle's sha256), never retyped.
+- **Both halves accept and refuse the same inputs.** A column is an Array or Float64Array in JS,
+  and a list, tuple, `array('d')` or float64 `memoryview` in Python; `engine`, `columns` and each
+  refusal are plain objects (a `Map` or `UserDict` is refused, not read as empty); `rows` is
+  `null`/absent or a non-negative integer; `bundle_sha256` is a string. Each of these is a case
+  in the fixture.
+- Python decodes the same bytes with `pine_runtime_codec.decode_column`, which is strict: whole
+  rows, the asked-for row count, and only the canonical NaN. A round-trip rail checks Python
   against JS on a fixture written by the JS side, in the `block_runs_parity.json` pattern.
 
 **The corpus (T4).** It is committed under `app/src/components/chart/engine/runtime/__fixtures__/hostParity/`:
@@ -292,7 +322,7 @@ Each script runs over five fixed bar sets:
 {
   "protocol": 1,
   "profile": "alert" | "on-demand" | "backtest" | "sweep" | "record",   // priority + limits
-  "engine": { "script_engine": 4, "runtime_frontend": "...", "runtime_ir": "...", "bundle_sha256": "..." },
+  "engine": { "script_engine": 4, "runtime_language": "pine", "runtime_frontend": "...", "runtime_ir": "...", "bundle_sha256": "..." },
   "definition": {
     "def_id": "u_0123456789ab", "version": 7,
     "doc_sha256": "...",               // sha256 of the canonical JSON of the document sent/cached

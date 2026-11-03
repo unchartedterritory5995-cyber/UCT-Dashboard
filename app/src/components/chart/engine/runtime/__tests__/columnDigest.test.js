@@ -6,8 +6,9 @@
 // `tests/test_pine_runtime_codec.py` reads the SAME file and holds the Python half
 // (`api/services/pine_runtime_codec.py`) to the same bytes and the same digests, so a
 // rule changed in one language only fails the other. This file can rewrite the fixture's
-// `expect` blocks from its own codec (`PINE_CODEC_FIXTURE_WRITE=1`); the inputs, the
-// `equal` groups and the refusals are authored by hand and never rewritten.
+// `expect` block of a NEW case from its own codec (`PINE_CODEC_FIXTURE_WRITE=1`, refused when
+// `CI` is set; a case that already has an `expect` is never rewritten, so a mutated codec cannot
+// re-bless the authority); the inputs, the `equal` groups and the refusals are authored by hand.
 //
 // What it proves (each normalisation rule is mutation-proved, see the commit message):
 //   - every case: the preimage bytes, each column's bytes and the digest equal the fixture;
@@ -25,7 +26,7 @@ import { createHash, randomBytes } from 'node:crypto'
 
 import {
   CodecError, ENGINE_FIELDS, CODEC_TAG, canonicalPreimage, columnDigest, encodeColumn, decodeColumn,
-  sha256Hex, bytesToHex, hexToBytes, bytesToB64, b64ToBytes,
+  sha256Hex, bytesToB64, b64ToBytes,
 } from '../columnDigest'
 import { SCRIPT_ENGINE_VERSION } from '../../scriptEngineVersion'
 import { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../../ast/pineRuntimeFrontend'
@@ -34,6 +35,16 @@ import { RUNTIME_IR_VERSION } from '../ir'
 const REPO = path.resolve(process.cwd(), '..')
 const FIXTURE = path.join(REPO, 'tests/fixtures/pine_runtime/codec_parity.json')
 const doc = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'))
+
+// Fixture-only helpers live here, not in the production module. hexToBytes is strict: a fixture
+// string that is not whole lowercase hex bytes is a broken fixture, not a zero byte.
+const bytesToHex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+function hexToBytes(hex) {
+  if (typeof hex !== 'string' || hex.length % 2 !== 0 || !/^[0-9a-f]*$/.test(hex)) throw new Error(`bad fixture hex: ${hex}`)
+  const out = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+  return out
+}
 
 const HEX16 = /^[0-9a-f]{16}$/
 const f64 = (hex) => new DataView(hexToBytes(hex).buffer).getFloat64(0, true)
@@ -47,22 +58,41 @@ const element = (e) => (e === 'undef' ? undefined : typeof e === 'string' && HEX
  *  the buffer before any JS number exists. na (null / undefined) becomes the canonical NaN. */
 function typedColumn(col) {
   const bytes = new Uint8Array(col.length * 8)
+  const dv = new DataView(bytes.buffer)
   col.forEach((e, i) => {
-    const h = typeof e === 'string' && HEX16.test(e) ? e : '000000000000f87f'
-    bytes.set(hexToBytes(h), i * 8)
+    if (typeof e === 'number') dv.setFloat64(i * 8, e, true)
+    else bytes.set(hexToBytes(typeof e === 'string' && HEX16.test(e) ? e : '000000000000f87f'), i * 8)
   })
   return new Float64Array(bytes.buffer)
 }
 
-const inputOf = (c, mode) => {
-  let columns = c.columns
-  if (columns !== null && typeof columns === 'object' && !Array.isArray(columns)) {
-    columns = {}
-    for (const [k, col] of Object.entries(c.columns)) {
-      columns[k] = !Array.isArray(col) ? col : mode === 'typed' ? typedColumn(col) : col.map(element)
-    }
+/** The fixture spells a container JS and Python build differently as {"$container": kind, ...}.
+ *  map -> Map (Python: UserDict), set -> Set, array_like -> {length, 0..n}, float32 -> Float32Array,
+ *  bytes8 -> Uint8Array(8). `build` converts the entries of a map. */
+const isSentinel = (x) => x !== null && typeof x === 'object' && !Array.isArray(x) && '$container' in x
+function sentinel(x, build) {
+  switch (x.$container) {
+    case 'map': return new Map(Object.entries(x.entries).map(([k, v]) => [k, build(v)]))
+    case 'set': return new Set(x.items.map(element))
+    case 'array_like': { const o = { length: x.items.length }; x.items.forEach((e, i) => { o[i] = element(e) }); return o }
+    case 'float32': return new Float32Array(x.items)
+    case 'bytes8': return new Uint8Array(8)
+    default: throw new Error(`unknown $container ${x.$container}`)
   }
-  return { engine: c.engine, columns, refusals: c.refusals, rows: c.rows }
+}
+const same = (v) => v
+
+const inputOf = (c, mode) => {
+  const column = (col) => (isSentinel(col) ? sentinel(col, same) : !Array.isArray(col) ? col : mode === 'typed' ? typedColumn(col) : col.map(element))
+  let columns = c.columns
+  if (isSentinel(columns)) columns = sentinel(columns, column)
+  else if (columns !== null && typeof columns === 'object' && !Array.isArray(columns)) {
+    columns = {}
+    for (const [k, col] of Object.entries(c.columns)) columns[k] = column(col)
+  }
+  const plain = (x) => (isSentinel(x) ? sentinel(x, same) : x)
+  const refusals = Array.isArray(c.refusals) ? c.refusals.map(plain) : c.refusals
+  return { engine: plain(c.engine), columns, refusals, rows: c.rows }
 }
 
 const expectOf = (c) => {
@@ -74,7 +104,8 @@ const expectOf = (c) => {
 }
 
 if (process.env.PINE_CODEC_FIXTURE_WRITE === '1') {
-  for (const c of doc.cases) c.expect = expectOf(c)
+  if (process.env.CI) throw new Error('PINE_CODEC_FIXTURE_WRITE rewrites the authority and is refused in CI')
+  for (const c of doc.cases) if (!c.expect) c.expect = expectOf(c)
   fs.writeFileSync(FIXTURE, JSON.stringify(doc, null, 1) + '\n')
 }
 
@@ -105,7 +136,7 @@ function distinguishingProblems(digestByName, groups) {
 
 describe('codec_parity.json, JS half', () => {
   it('the fixture is shaped as the Python half reads it', () => {
-    expect(Object.keys(doc).sort()).toEqual(['cases', 'decode_refuse', 'engine', 'equal', 'refuse'])
+    expect(Object.keys(doc).sort()).toEqual(['cases', 'decode_accept', 'decode_refuse', 'engine', 'equal', 'refuse'])
     expect(doc.cases.length).toBeGreaterThanOrEqual(40)
     expect(new Set(doc.cases.map((c) => c.name)).size).toBe(doc.cases.length)
     expect(doc.cases.every((c) => c.expect && c.expect.digest && c.expect.preimage_hex)).toBe(true)
@@ -178,16 +209,24 @@ describe('codec_parity.json, JS half', () => {
   })
 
   it('refuses every input the fixture lists, by CodecError', () => {
-    expect(doc.refuse.length).toBeGreaterThanOrEqual(30)
+    expect(doc.refuse.length).toBeGreaterThanOrEqual(45)
     for (const r of doc.refuse) {
       expect(() => canonicalPreimage(inputOf(r, 'array')), r.name).toThrow(CodecError)
     }
   })
 
   it('refuses every byte string the fixture lists as not decodable', () => {
-    expect(doc.decode_refuse.length).toBeGreaterThanOrEqual(4)
+    expect(doc.decode_refuse.length).toBeGreaterThanOrEqual(10)
     for (const r of doc.decode_refuse) {
       expect(() => decodeColumn(hexToBytes(r.hex), r.rows), r.name).toThrow(CodecError)
+    }
+  })
+
+  it('accepts every byte string the fixture lists as decodable, and re-encodes it to the same bytes', () => {
+    expect(doc.decode_accept.length).toBeGreaterThanOrEqual(5)
+    for (const r of doc.decode_accept) {
+      const back = decodeColumn(hexToBytes(r.hex), r.rows)
+      expect(bytesToHex(encodeColumn(back)), r.name).toBe(r.hex)
     }
   })
 
@@ -306,6 +345,35 @@ describe('input shapes', () => {
     for (const bad of [[1n], [Symbol('x')], ['1'], [{}], [[1]], [true]]) {
       expect(() => encodeColumn(bad)).toThrow(CodecError)
     }
+  })
+
+  it('containers: only plain objects are accepted (a Map is refused, not read as empty)', () => {
+    const col = { v: [1] }
+    for (const bad of [new Map([['v', [1]]]), new Map(), [], new Set(), new (class Cols { constructor() { this.v = [1] } })(), 'x', 7, null, undefined]) {
+      expect(() => canonicalPreimage({ engine: e, columns: bad }), String(bad)).toThrow(CodecError)
+    }
+    expect(() => canonicalPreimage({ engine: new Map(Object.entries(e)), columns: col })).toThrow(CodecError)
+    expect(() => canonicalPreimage({ engine: e, columns: col, refusals: [new Map([['key', '*'], ['guard', 'g']])] })).toThrow(CodecError)
+    const bare = Object.create(null)
+    bare.v = [1]
+    expect(columnDigest({ engine: e, columns: bare })).toBe(columnDigest({ engine: e, columns: col }))
+  })
+
+  it('rows: null and undefined both mean "not given"; anything but a non-negative integer is refused', () => {
+    const base = columnDigest({ engine: e, columns: { v: [1, 2] } })
+    expect(columnDigest({ engine: e, columns: { v: [1, 2] }, rows: null })).toBe(base)
+    expect(columnDigest({ engine: e, columns: { v: [1, 2] }, rows: undefined })).toBe(base)
+    expect(columnDigest({ engine: e, columns: { v: [1, 2] }, rows: 2 })).toBe(base)
+    for (const bad of [true, '2', -1, 1.5, NaN, Infinity, {}, []]) {
+      expect(() => canonicalPreimage({ engine: e, columns: { v: [1, 2] }, rows: bad }), String(bad)).toThrow(CodecError)
+      expect(() => canonicalPreimage({ engine: e, columns: {}, rows: bad }), String(bad)).toThrow(CodecError)
+    }
+    expect(() => decodeColumn(new Uint8Array(8), null)).not.toThrow()
+  })
+
+  it('bundle_sha256 must be a string: an integer is refused even though other fields may be integers', () => {
+    expect(() => canonicalPreimage({ engine: { ...e, bundle_sha256: 5 }, columns: {} })).toThrow(CodecError)
+    expect(() => canonicalPreimage({ engine: { ...e, script_engine: 4 }, columns: {} })).not.toThrow()
   })
 
   it('rows, when given, is held against every column', () => {

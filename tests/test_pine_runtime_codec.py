@@ -14,12 +14,17 @@ What it proves (each normalisation rule is mutation-proved, see the commit messa
 * the fixture DISTINGUISHES: the cases fall into exactly the declared equal groups, and a
   fixture whose cases all digest alike is rejected by the same check;
 * round trip: decode(encode(x)) is x, encode(decode(b)) is b, strict on non-canonical bytes;
+* both halves accept and refuse the SAME inputs: the containers (a JS Map / Python UserDict is
+  refused, not read as empty), the column types, ``rows`` null vs a non-negative integer, a
+  string ``bundle_sha256``, and integers past 2**53 that are exactly doubles. Each is a case in
+  the fixture; the one-sided Python refusal of an integer that is not exactly a double is below;
 * the layout, hand-assembled from the module's header for one small run;
 * base64 strictness, and the engine identity read from the module that declares it.
 """
 from __future__ import annotations
 
 import array
+import collections
 import hashlib
 import io
 import json
@@ -64,22 +69,56 @@ def _typed(col):
     """The same column as an ``array('d')`` built straight from the bytes, so a NaN payload is
     in the buffer before any float object exists. na becomes the canonical NaN."""
     a = array.array("d")
-    a.frombytes(b"".join(bytes.fromhex(e if isinstance(e, str) and HEX16.match(e) else NAN_HEX) for e in col))
+    a.frombytes(b"".join(
+        struct.pack("<d", e) if isinstance(e, (int, float)) and not isinstance(e, bool)
+        else bytes.fromhex(e if isinstance(e, str) and HEX16.match(e) else NAN_HEX)
+        for e in col))
     return a
 
 
+def _is_sentinel(x) -> bool:
+    return isinstance(x, dict) and "$container" in x
+
+
+def _sentinel(x: dict, build):
+    """The fixture spells a container JS and Python build differently as {"$container": kind, ...}.
+    map -> UserDict (JS: Map), set -> set, array_like -> range (JS: {length, 0..n}),
+    float32 -> array('f') (JS: Float32Array), bytes8 -> bytes(8) (JS: Uint8Array(8))."""
+    kind = x["$container"]
+    if kind == "map":
+        return collections.UserDict({k: build(v) for k, v in x["entries"].items()})
+    if kind == "set":
+        return {_element(e) for e in x["items"]}
+    if kind == "array_like":
+        return range(len(x["items"]))
+    if kind == "float32":
+        return array.array("f", x["items"])
+    if kind == "bytes8":
+        return bytes(8)
+    raise AssertionError("unknown $container " + str(kind))
+
+
 def _input(case: dict, mode: str) -> dict:
+    def column(col):
+        if _is_sentinel(col):
+            return _sentinel(col, lambda v: v)
+        if not isinstance(col, list):
+            return col
+        return _typed(col) if mode == "typed" else [_element(e) for e in col]
+
     cols = case["columns"]
-    if isinstance(cols, dict):
-        cols = {}
-        for k, col in case["columns"].items():
-            if not isinstance(col, list):
-                cols[k] = col
-            elif mode == "typed":
-                cols[k] = _typed(col)
-            else:
-                cols[k] = [_element(e) for e in col]
-    return {"engine": case["engine"], "columns": cols, "refusals": case["refusals"], "rows": case.get("rows")}
+    if _is_sentinel(cols):
+        cols = _sentinel(cols, column)
+    elif isinstance(cols, dict):
+        cols = {k: column(col) for k, col in case["columns"].items()}
+
+    def plain(x):
+        return _sentinel(x, lambda v: v) if _is_sentinel(x) else x
+
+    refusals = case["refusals"]
+    if isinstance(refusals, list):
+        refusals = [plain(r) for r in refusals]
+    return {"engine": plain(case["engine"]), "columns": cols, "refusals": refusals, "rows": case.get("rows")}
 
 
 def _preimage(run: dict) -> bytes:
@@ -120,7 +159,7 @@ CASES = DOC["cases"]
 
 
 def test_fixture_is_shaped_as_the_js_half_reads_it():
-    assert sorted(DOC) == ["cases", "decode_refuse", "engine", "equal", "refuse"]
+    assert sorted(DOC) == ["cases", "decode_accept", "decode_refuse", "engine", "equal", "refuse"]
     assert len(CASES) >= 40
     assert len({c["name"] for c in CASES}) == len(CASES)
     assert all(c.get("expect", {}).get("digest") and c["expect"].get("preimage_hex") for c in CASES)
@@ -195,13 +234,23 @@ def test_refuses_every_input_the_fixture_lists_by_codec_error(case):
 
 
 def test_the_refusal_list_is_not_trivially_short():
-    assert len(DOC["refuse"]) >= 30
+    assert len(DOC["refuse"]) >= 45
 
 
 @pytest.mark.parametrize("case", DOC["decode_refuse"], ids=lambda c: c["name"])
 def test_refuses_every_byte_string_the_fixture_lists_as_not_decodable(case):
     with pytest.raises(CodecError):
         codec.decode_column(bytes.fromhex(case["hex"]), case.get("rows"))
+
+
+def test_the_decode_refusal_list_is_not_trivially_short():
+    assert len(DOC["decode_refuse"]) >= 10
+
+
+@pytest.mark.parametrize("case", DOC["decode_accept"], ids=lambda c: c["name"])
+def test_accepts_every_byte_string_the_fixture_lists_as_decodable_and_re_encodes_it_to_the_same_bytes(case):
+    back = codec.decode_column(bytes.fromhex(case["hex"]), case.get("rows"))
+    assert codec.encode_column(back).hex() == case["hex"]
 
 
 def test_round_trip_decode_of_encode_is_x_bit_for_bit_and_encode_of_decode_is_b():
@@ -286,7 +335,7 @@ def test_input_shapes():
     for bad in ("abc", b"abc", bytearray(b"ab"), 5, {1: 2}, {"0": 1}, None):
         with pytest.raises(CodecError):
             codec.encode_column(bad)
-    for bad in ([True], ["1"], [{}], [[1]], [2 ** 60], [b"x"]):
+    for bad in ([True], ["1"], [{}], [[1]], [b"x"]):
         with pytest.raises(CodecError):
             codec.encode_column(bad)
     codec.canonical_preimage(e, {"v": [1, 2]}, rows=2)
@@ -303,3 +352,64 @@ def test_the_engine_identity_can_be_read_from_the_module_that_declares_it():
     base = codec.column_digest(live, {"v": [1.0]})
     assert re.fullmatch(r"[0-9a-f]{64}", base)
     assert codec.column_digest(dict(live, script_engine=version + 1), {"v": [1.0]}) != base
+
+
+def test_the_column_types_python_accepts_are_the_ones_js_accepts():
+    """list / tuple / array('d') / float64 memoryview are the spellings of an Array or a
+    Float64Array. Everything the fixture lists as a refused column is refused (see
+    test_refuses_every_input_the_fixture_lists_by_codec_error); these are the accepted side."""
+    want = codec.encode_column([1.0, -0.0, math.nan])
+    assert codec.encode_column((1.0, -0.0, math.nan)) == want
+    assert codec.encode_column(array.array("d", [1.0, -0.0, math.nan])) == want
+    assert codec.encode_column(memoryview(array.array("d", [1.0, -0.0, math.nan]))) == want
+    for bad in ("", "ab", {1.0}, frozenset([1.0]), range(2), {1.0: 2}.keys(), {1.0: 2}.values(), b"12345678",
+                bytearray(8), array.array("f", [1.0]), memoryview(b"12345678"), memoryview(array.array("f", [1.0])),
+                iter([1.0]), (x for x in [1.0])):
+        with pytest.raises(CodecError):
+            codec.encode_column(bad)
+
+
+def test_an_integer_is_the_double_of_the_same_value_only_when_it_is_exactly_one():
+    """JS reads the same JSON integer as the nearest double. Python takes it only when that
+    double IS the integer. 2**53, 2**60 and 10**20 are exact; 2**53 + 1 and 2**60 + 1 are not.
+    The refusal is Python-only on purpose: the JS half never sees an inexact integer, because
+    JSON.parse has already rounded it, so it cannot be a shared fixture case."""
+    assert codec.encode_column([2 ** 53, 2 ** 60, 10 ** 20]) == codec.encode_column([float(2 ** 53), float(2 ** 60), 1e20])
+    assert codec.encode_column([-(2 ** 53)]) == codec.encode_column([-9007199254740992.0])
+    for bad in (2 ** 53 + 1, 2 ** 60 + 1, 10 ** 20 + 1, -(2 ** 53) - 1, 10 ** 400):
+        with pytest.raises(CodecError):
+            codec.encode_column([bad])
+
+
+def test_rows_none_is_not_given_and_a_bool_is_not_a_row_count():
+    e = DOC["engine"]
+    base = codec.column_digest(e, {"v": [1.0, 2.0]})
+    assert codec.column_digest(e, {"v": [1.0, 2.0]}, rows=None) == base
+    assert codec.column_digest(e, {"v": [1.0, 2.0]}, rows=2) == base
+    for bad in (True, False, "2", -1, 1.5, math.nan, [], {}):
+        with pytest.raises(CodecError):
+            codec.canonical_preimage(e, {"v": [1.0, 2.0]}, rows=bad)
+        with pytest.raises(CodecError):
+            codec.canonical_preimage(e, {}, rows=bad)
+    codec.decode_column(bytes(8), None)
+    with pytest.raises(CodecError):
+        codec.decode_column(bytes(8), True)
+
+
+def test_only_plain_dicts_are_containers():
+    e = DOC["engine"]
+    for bad in (collections.UserDict({"v": [1.0]}), [], (), "x", 7, None):
+        with pytest.raises(CodecError):
+            codec.canonical_preimage(e, bad)
+    with pytest.raises(CodecError):
+        codec.canonical_preimage(collections.UserDict(e), {"v": [1.0]})
+    with pytest.raises(CodecError):
+        codec.canonical_preimage(e, {"v": [1.0]}, [collections.UserDict({"key": "*", "guard": "g"})])
+    assert codec.column_digest(e, collections.OrderedDict(v=[1.0])) == codec.column_digest(e, {"v": [1.0]})
+
+
+def test_bundle_sha256_must_be_a_string():
+    e = DOC["engine"]
+    with pytest.raises(CodecError):
+        codec.canonical_preimage(dict(e, bundle_sha256=5), {})
+    codec.canonical_preimage(dict(e, script_engine=4), {})
