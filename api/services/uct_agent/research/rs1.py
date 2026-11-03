@@ -52,10 +52,14 @@ _SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 _NUM_RE = re.compile(r"(?<![A-Za-z])[-+]?\$?\d[\d,]*(?:\.\d+)?")
 _SENT_RE = re.compile(r"(?<=[.!?])\s+")
 _CITE_RE = re.compile(r"\[\d+\]")
-_MONTH = r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?"
+#: a WHOLE month name or abbreviation (review B2: a bare prefix matched "declined", "margin", "market", "decreased",
+#: so the next number passed as a "date"). "May" only capitalised — "may" is a verb far more often than a month.
+_MONTH_NAME = (r"(?:\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|"
+               r"oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b|\b(?-i:May)\b)")
+_MONTH = _MONTH_NAME + r"\.?"
 #: numbers that are DATES, not figures: a year, a day beside a month name, a quarter label, a clock time, an ordinal
 _DATE_NUM_RE = re.compile(
-    r"\b(?:19|20)\d\d\b|\b" + _MONTH + r"\s+\d{1,2}(?:st|nd|rd|th)?\b|\b\d{1,2}(?:st|nd|rd|th)?\s+" + _MONTH + r"\b|"
+    r"\b(?:19|20)\d\d\b|" + _MONTH + r"\s+\d{1,2}(?:st|nd|rd|th)?\b|\b\d{1,2}(?:st|nd|rd|th)?\s+" + _MONTH_NAME + r"|"
     r"\b[Qq][1-4]\b|\b(?:fy|fiscal)\s*\d{2,4}\b|\b\d{1,2}:\d\d\b|\b\d{1,2}(?:st|nd|rd|th)\b", re.I)
 
 NOTE_FACTS = "facts carry only figures the UCT data gateway returned; each names its own source and as_of"
@@ -69,6 +73,8 @@ NOTE_WEB_SHARED = "the web lookup was shared with an earlier research read in th
 UNKNOWN_KIND = "UCT's {label} data was not available for this answer"
 UNKNOWN_WEB = "no web commentary was available for this answer"
 UNKNOWN_WEB_BUDGET = "the web lookup was not run (the Agent's research budget did not admit it)"
+UNKNOWN_WEB_TURN_USED = ("the web lookup was not run: this turn's one web lookup was already used for another research "
+                         "question, so no web commentary is given for this one")
 UNKNOWN_STRIPPED = "{n} web sentence{s} cited figures UCT's data did not return and {were} left out"
 UNKNOWN_SOURCE_DATES = "web sources carry no publication date from the search provider"
 UNKNOWN_EARNINGS_DATES = "UCT's earnings data carries no report dates for past quarters"
@@ -406,6 +412,8 @@ def assemble(symbol: str, topic: str, *, inputs: dict[str, dict], facts: list[di
         pass
     elif web.get("budget_refused"):
         unknown.append(UNKNOWN_WEB_BUDGET)
+    elif web.get("turn_used"):
+        unknown.append(UNKNOWN_WEB_TURN_USED)
     elif web.get("error") or not str(web.get("answer") or "").strip():
         unknown.append(UNKNOWN_WEB)
     else:
@@ -434,7 +442,7 @@ def assemble(symbol: str, topic: str, *, inputs: dict[str, dict], facts: list[di
 
 # ── the web seam: ONE call per turn, metered as the turn meters it ────────────────────────────────────
 
-_web_cache: dict[tuple[Any, str], tuple[float, dict]] = {}
+_web_cache: dict[tuple[Any, str], dict] = {}
 _web_lock = threading.Lock()
 
 
@@ -458,21 +466,34 @@ def _web_lookup(ctx: dict, query: str, recency: str) -> dict:
     return res
 
 
-def web_for_turn(ctx: dict, query: str, recency: str) -> tuple[dict, bool]:
-    """(result, shared): the turn's single web lookup. A second research read in the same turn gets the first
-    read's result and makes no call."""
+def web_for_turn(ctx: dict, query: str, recency: str, symbol: str = "") -> tuple[dict, bool]:
+    """(result, shared): the turn's ONE web lookup, keyed by (user, turn) for the budget and by (symbol, query) for
+    its content (review B1). The SAME symbol and query again in the turn gets the first result and makes no call
+    (shared); a DIFFERENT symbol or query in the same turn makes no call and gets `{"turn_used": True}` — never
+    another company's commentary. Single-flight: the slot is claimed under the lock before the call, so two
+    concurrent reads with one turn id cannot both call."""
     key = (ctx.get("user_id"), str(ctx.get("turn_id") or ""))
+    what = (str(symbol or "").upper(), str(query or ""))
     now = time.time()
     with _web_lock:
-        for k in [k for k, (at, _r) in _web_cache.items() if now - at > WEB_TTL_S]:
+        for k in [k for k, v in _web_cache.items() if now - v["at"] > WEB_TTL_S]:
             _web_cache.pop(k, None)
-        hit = _web_cache.get(key)
-    if hit is not None:
-        return hit[1], True
-    res = _web_lookup(ctx, query, recency)
-    with _web_lock:
-        _web_cache[key] = (now, res)
-    return res, False
+        slot = _web_cache.get(key)
+        mine = slot is None
+        if mine:
+            slot = {"at": now, "what": what, "done": threading.Event(), "res": None}
+            _web_cache[key] = slot
+    if not mine:
+        if slot["what"] != what:
+            return {"turn_used": True, "citations": []}, False
+        slot["done"].wait(timeout=60)
+        res = slot["res"]
+        return (res if isinstance(res, dict) else {"error": "no answer", "citations": []}), True
+    try:
+        slot["res"] = _web_lookup(ctx, query, recency)
+    finally:
+        slot["done"].set()
+    return slot["res"], False
 
 
 def _reset_for_test() -> None:
@@ -536,7 +557,7 @@ def read_research_company(params: dict, ctx: dict) -> dict:
             facts.extend(facts_from_themes(e))
 
     query, recency = query_for(sym, topic, question)
-    web, shared = web_for_turn(ctx, query, recency)
+    web, shared = web_for_turn(ctx, query, recency, sym)
     data = assemble(sym, topic, inputs=inputs, facts=facts, web=web, extra_unknown=extra_unknown,
                     news_sources=news_sources)
 
