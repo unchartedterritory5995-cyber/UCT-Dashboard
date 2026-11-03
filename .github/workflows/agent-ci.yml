@@ -38,9 +38,13 @@ env:
   AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations
   AGENT_SHARDS: '4'
 
+# A PR from a branch in this repo already ran on its push; running it again on the
+# pull_request event only doubles the queue. Fork PRs have no push run here, so they keep it.
+# (All three jobs carry the same condition; `union` needs `browser`.)
 jobs:
   server:
     name: UCT Agent server tests (production dependency set)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -65,6 +69,7 @@ jobs:
 
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -98,6 +103,7 @@ jobs:
   union:
     name: Shards cover every Agent test file (equivalence rail)
     needs: browser
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
