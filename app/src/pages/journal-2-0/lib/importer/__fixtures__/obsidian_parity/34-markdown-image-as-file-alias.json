@@ -1,0 +1,35 @@
+{
+  "id": "34-markdown-image-as-file-alias",
+  "input_markdown": "# Markdown image as the alias of a file link\n\nx [[q.pdf|![](att/img.png)]] y\n\nold [[r.pdf|![](att/img2.png)]] plugin\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [
+      {
+        "label": null,
+        "name": "q.pdf"
+      },
+      {
+        "label": null,
+        "name": "r.pdf"
+      }
+    ],
+    "highlights": [],
+    "images": [
+      "att/img.png",
+      "att/img2.png"
+    ],
+    "links": [],
+    "pending": [],
+    "task_checked": [],
+    "text": "Markdown image as the alias of a file link x  [file: q.pdf]  y old  [file: r.pdf]  plugin"
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "att/q.pdf",
+    "att/img.png",
+    "att/r.pdf",
+    "att/img2.png"
+  ]
+}

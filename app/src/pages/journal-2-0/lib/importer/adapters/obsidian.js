@@ -119,6 +119,14 @@ const WIKI_STOP = '\\[\\[|\\n[ \\t\\r]*(?:>[ \\t\\r]*)*\\n|\\n {0,3}(?:>[ \\t]*)
 const EMBED_RE = new RegExp(`!\\[\\[((?:(?!${WIKI_STOP})[^\\]])+)\\]\\]`, 'g')
 const WIKILINK_RE = new RegExp(
   `\\[\\[((?:(?!${WIKI_STOP})[^\\]|])+)(?:\\|((?:(?!${WIKI_STOP})[^\\]])+))?\\]\\]`, 'g')
+// Plugin issue #3: a link whose alias is exactly ONE markdown image,
+// `[[q.pdf|![](att/img.png)]]`. The image is the server's `_MD_LINK_OR_IMAGE_RE` with
+// its `!`, source for source; the server splits this shape (`_alias_md_image`) into the
+// image, then the link as `[[q.pdf]]` reads, and so does `transformWikiLinks`.
+// ⚰️ WIKILINK_RE's alias stops at the image's `]`: the image showed, the link was raw text.
+const ALIAS_MD_IMAGE_RE = new RegExp(
+  `\\[\\[((?:(?!${WIKI_STOP})[^\\]|])+)\\|(!\\[(?:[^\\[\\]\\n]|\\[[^\\[\\]\\n]*\\])*\\]`
+  + `\\(\\s*(?:<[^<>\\n]*>|[^\\s()<>]+)(?:\\s+(?:"[^"\\n]*"|'[^'\\n]*'))?\\s*\\))\\]\\]`, 'g')
 // ⛔ A trader's prose is full of `==` COMPARISONS ("if rsi == 30 and macd == 0").
 // The old `/==([^=\n]+)==/` highlighted the span between two comparisons and
 // deleted both operators. A highlight now needs a non-space just inside each
@@ -623,7 +631,10 @@ function transformWikiLinks(text, ctx) {
     }
     return noteLink(resolvedPath, display, ctx)
   }
-  return replaceClearOfCode(text, WIKILINK_RE, (_, rawTarget, rawAlias) => piece(rawTarget, rawAlias),
+  // The image stays as written, for the markdown parse to read as any markdown image.
+  const split = replaceClearOfCode(text, ALIAS_MD_IMAGE_RE,
+    (_, rawTarget, image) => image + piece(rawTarget, ''), true, ctx.net)
+  return replaceClearOfCode(split, WIKILINK_RE, (_, rawTarget, rawAlias) => piece(rawTarget, rawAlias),
     true, ctx.net)
 }
 

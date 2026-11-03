@@ -2047,6 +2047,50 @@ def test_a_file_link_original_cut_off_at_its_embeds_brackets_still_keeps_both():
         assert "]]" not in _plain(conv["doc"])
 
 
+def test_a_markdown_image_as_the_alias_of_a_file_link_keeps_the_image_and_the_chip():
+    """Issue #3 (plugin repo): real Obsidian caches `[[q.pdf|![](att/img.png)]]` as ONE link
+    and no embed. Sent as one ref (plugin 0.2.0/0.2.1) or beside the image's own embed ref
+    (0.2.2+), it reads as the image, then the chip, as the wiki-embed alias does. The whole
+    link used to claim the text, so the image the member wrote was gone."""
+    original = "[[q.pdf|![](att/img.png)]]"
+    pdf = REF(original=original, embed=False, path="att/q.pdf", sha256="b" * 64)
+    img = REF(original="![](att/img.png)", path="att/img.png")
+    chip = {"href": "import-ref://obsidian-file:" + "b" * 64 + "/q.pdf", "name": "q.pdf"}
+    for refs in ([pdf, img], [img, pdf]):
+        conv = _convert(f"x {original} y", refs=refs)
+        kinds = [n["type"] for n in conv["doc"]["content"]]
+        assert kinds == ["paragraph", "image", "attachmentChip", "paragraph"], kinds
+        assert _only(conv["doc"], "attachmentChip")["attrs"] == chip
+        assert _only(conv["doc"], "image")["attrs"]["src"] == "import-ref://obsidian-att:" + _SHA + "/img.png"
+        assert [m["kind"] for m in conv["media"]] == ["image", "file"]
+        assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y"
+    # The whole link only (an older plugin): the image as an unsent markdown image reads,
+    # the same image `x ![](att/img.png) y` makes with no ref of its own, then the chip.
+    conv = _convert(f"x {original} y", refs=[pdf])
+    alone = _convert("x ![](att/img.png) y", refs=[])
+    assert _only(conv["doc"], "image") == _only(alone["doc"], "image")
+    assert [n["type"] for n in conv["doc"]["content"]] == [
+        "paragraph", "image", "attachmentChip", "paragraph"]
+    # A missing file: the image, then the notice; the member's text is never dropped.
+    gone = REF(original=original, embed=False, path="att/q.pdf", status="missing")
+    conv = _convert(f"x {original} y", refs=[gone, img])
+    assert [n["type"] for n in conv["doc"]["content"]] == [
+        "paragraph", "image", "importNotice", "paragraph"]
+    # Only the exact shape splits: an alias with text beside the image, a markdown LINK as
+    # the alias, a target no wikilink can hold (across a blank line), or a code span holding
+    # the link keeps today's reading (the chip alone).
+    for other in ("[[q.pdf|see ![](att/img.png)]]", "[[q.pdf|[see](att/img.png)]]",
+                  "[[q\n\nr.pdf|![](att/img.png)]]", "((q.pdf|![](att/img.png)))"):
+        conv = _convert(f"x {other} y", refs=[REF(original=other, embed=False, path="att/q.pdf")])
+        assert [n["type"] for n in conv["doc"]["content"]] == [
+            "paragraph", "attachmentChip", "paragraph"], other
+        assert _all(conv["doc"], "image") == [] and _link_marks(conv["doc"]) == [], other
+        assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y", other
+    conv = _convert(f"x `{original}` y", refs=[pdf, img])
+    assert _all(conv["doc"], "image") == [] and _all(conv["doc"], "attachmentChip") == []
+    assert original in _plain(conv["doc"])
+
+
 def test_the_attachment_pass_is_near_linear_in_overlapping_originals():
     """Final review I1: originals `a`, `aa`, ... over a 200 KB body of `a` took 15.8 s: each
     original rescanned the body from `at + 1` inside the spans the longer ones claimed. A
