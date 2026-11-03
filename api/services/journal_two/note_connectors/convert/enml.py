@@ -829,6 +829,84 @@ def _rule_div_lines(root: _Node) -> None:
     _map_elements(root, fn)
 
 
+#: D2 item 5 (master, #721), the client's `convert.js::markBlockAtomEdges` (b) on this lane. An
+#: image or a chip is a BLOCK atom, so the client's editor parser closes the line's paragraph
+#: before it and, closing it, would strip its trailing space (`Report: ` read `Report:`). The
+#: client keeps that space by putting a marker right after it before the parse and taking the
+#: marker out after; `_trim_block_edges` below ports the same strip, so this lane marks the same
+#: texts the same way. Case (a) of that rule (an atom opening a `<p>`) is not mirrored: the
+#: server walker never leaves the empty paragraph it removes.
+_ATOM_MARKERS = tuple(chr(c) for c in range(0xFDD0, 0xFDF0))  # the client's `pickMarker` range
+
+
+def _is_block_atom(node: Any) -> bool:
+    """The client's `BLOCK_ATOMS` (`img, a[data-type="attachmentChip"]`), as this tree holds them."""
+    return isinstance(node, _Node) and (
+        node.tag == "img" or (node.tag == "a" and "data-uct-chip" in node.attrs))
+
+
+def _last_text_slot(node: _Node) -> tuple[_Node, int] | None:
+    """The client's `lastTextIn`: the last text under `node`, as (the element holding it, its
+    index). Depth is bounded by `MAX_DEPTH`, so the recursion is too."""
+    for i in range(len(node.children) - 1, -1, -1):
+        c = node.children[i]
+        if isinstance(c, str):
+            return node, i
+        found = _last_text_slot(c) if isinstance(c, _Node) else None
+        if found is not None:
+            return found
+    return None
+
+
+def _rule_mark_atom_edges(root: _Node) -> str | None:
+    """Puts the marker after a text's trailing whitespace where the text ends right before a
+    block atom (the atom's immediate previous sibling, as the client reads it). Returns the
+    marker, or None when nothing was marked (or the note holds all 32 noncharacters).
+
+    Never inside a `<pre>`: the client drops a code block's final line end (`dropCodeLineEnds`)
+    BEFORE it marks, and a code block keeps its whitespace anyway, so the client's marker
+    changes nothing there; here a marker after that line end would hide it from
+    `mddoc._code_without_line_end` (measured: `enml_parity/07-codeblock` kept its final line end)."""
+    html = "".join(_serialize(c) for c in root.children)
+    marker = next((m for m in _ATOM_MARKERS if m not in html), None)
+    if marker is None:
+        return None
+    in_pre = {id(x) for pre in _iter(root, "pre") for x in (pre, *_iter(pre))}
+    marked = False
+    for n in [root, *_iter(root)]:
+        for i, atom in enumerate(n.children):
+            if not _is_block_atom(atom):
+                continue
+            j = i - 1
+            while j >= 0 and isinstance(n.children[j], str) and not n.children[j].strip(_PM_SPACE):
+                j -= 1
+            if j < 0:
+                continue  # the atom opens its line: case (a), not mirrored
+            prev = n.children[i - 1]
+            slot = (n, i - 1) if isinstance(prev, str) else _last_text_slot(prev)
+            if slot is None or id(slot[0]) in in_pre:
+                continue
+            text = slot[0].children[slot[1]]
+            if text.endswith(tuple(_PM_SPACE)) and text.strip(_PM_SPACE):
+                slot[0].children[slot[1]] = text + marker
+                marked = True
+    return marker if marked else None
+
+
+def _drop_atom_marker(node: Any, marker: str) -> None:
+    """Takes the marker out of every text again (the client's `dropMarker`, case (b))."""
+    if not isinstance(node, dict):
+        return
+    if node.get("type") == "text" and marker in node.get("text", ""):
+        node["text"] = node["text"].replace(marker, "")
+    content = node.get("content")
+    if isinstance(content, list):
+        for child in content:
+            _drop_atom_marker(child, marker)
+        node["content"] = [c for c in content
+                           if not (isinstance(c, dict) and c.get("type") == "text" and c.get("text") == "")]
+
+
 # ---------------------------------------------------------------------------
 # post-pass on the TipTap doc
 # ---------------------------------------------------------------------------
@@ -936,11 +1014,15 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     _rule_native_p_leading(root)       # before line divs become <p> (Task 4, R4)
     _rule_div_lines(root)
 
+    atom_marker = _rule_mark_atom_edges(root)  # last: it reads each atom's final neighbour
+
     result = html_to_tiptap("".join(_serialize(c) for c in root.children))
 
     names = {e["ref"]: e["name"] for e in res.unique if e["kind"] == "file"}
     repair_list_items(result["doc"])  # before the post-pass: it reads each block's final place
     _post_pass(result["doc"], names, notices)
+    if atom_marker is not None:
+        _drop_atom_marker(result["doc"], atom_marker)  # after the trim it protected the space from
 
     # Two kinds of ref only, by construction (I4 + the hotlink ruling): the note's resources
     # (`evernote-res://`), then the web hotlinks the walker registered. Everything else was

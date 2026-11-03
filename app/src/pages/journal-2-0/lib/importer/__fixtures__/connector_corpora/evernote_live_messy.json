@@ -530,7 +530,7 @@
        {
         "content": [
          {
-          "text": "PNG:",
+          "text": "PNG: ",
           "type": "text"
          }
         ],
@@ -545,7 +545,7 @@
        {
         "content": [
          {
-          "text": "JPEG:",
+          "text": "JPEG: ",
           "type": "text"
          }
         ],
@@ -560,7 +560,7 @@
        {
         "content": [
          {
-          "text": "HEIC:",
+          "text": "HEIC: ",
           "type": "text"
          }
         ],
@@ -583,7 +583,7 @@
        {
         "content": [
          {
-          "text": "PDF:",
+          "text": "PDF: ",
           "type": "text"
          }
         ],
@@ -600,7 +600,7 @@
        {
         "content": [
          {
-          "text": "SVG:",
+          "text": "SVG: ",
           "type": "text"
          }
         ],
@@ -617,7 +617,7 @@
        {
         "content": [
          {
-          "text": "Octet:",
+          "text": "Octet: ",
           "type": "text"
          }
         ],
@@ -632,7 +632,7 @@
        {
         "content": [
          {
-          "text": "Huge:",
+          "text": "Huge: ",
           "type": "text"
          }
         ],
@@ -651,7 +651,7 @@
        {
         "content": [
          {
-          "text": "Expired:",
+          "text": "Expired: ",
           "type": "text"
          }
         ],
@@ -666,7 +666,7 @@
        {
         "content": [
          {
-          "text": "Moved:",
+          "text": "Moved: ",
           "type": "text"
          }
         ],
@@ -685,7 +685,7 @@
        {
         "content": [
          {
-          "text": "Missing:",
+          "text": "Missing: ",
           "type": "text"
          }
         ],
@@ -704,7 +704,7 @@
        {
         "content": [
          {
-          "text": "Linked:",
+          "text": "Linked: ",
           "type": "text"
          }
         ],

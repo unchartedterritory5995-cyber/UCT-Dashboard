@@ -28,7 +28,7 @@
       {
         "content": [
           {
-            "text": "Report:",
+            "text": "Report: ",
             "type": "text"
           }
         ],
@@ -44,7 +44,7 @@
       {
         "content": [
           {
-            "text": "Same chart again",
+            "text": "Same chart again ",
             "type": "text"
           }
         ],
