@@ -7,6 +7,15 @@ Resume from this file. It is the record; chat messages are notices only. Last up
 - NOT authorized: merge to master, deploy, flag activation, member rollout, paid model calls, external model calls, new source families, proprietary-data export, flow-worker restart, any change to the partner's pipeline, the planner, the Brain engines or the indicator systems.
 - Main integrator (session AUDIT) 2026-11-03: OK for hooks 1–6 as one commit on this branch; **merges are frozen program-wide until the owner returns**; open a DRAFT PR into `agent/int-w2` (not `agent/int`); integrator regenerates the golden manifest at merge time.
 
+## Owner decisions (recorded 2026-11-03, end of phase 1)
+- Phase complete. Stopping further feature work without measurable benefit: approved.
+- Source policy stays as is (trader_archive + setup_knowledge only). No additional sources.
+- Wisdom vocabulary expansion (31 of 48 templates unmapped): approved in principle; owned by the main integrator and the Wisdom maintainer, not this package.
+- VCP RS-rank criterion stays BLOCKED (F-16). No public substitute is to be invented.
+- Feature NOT activated (UCT_AGENT_KNOWLEDGE stays off).
+- The five structured setup criteria stay unserved (reviewed:false) until reviewed.
+- This package is on STANDBY: implementation resumes only for a concrete defect or integration requirement in the knowledge package reported by AUDIT. No merge, deploy, flag change or scope expansion.
+
 ## Branches, commits, PRs
 | Branch | Worktree | Base | Head | PR |
 |---|---|---|---|---|
@@ -63,6 +72,10 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `8a4993b520` | knowledge + clock rail 69 passed (change is knowledge-package only) | knowledge suites 87 passed |
 | `3852446f29` | 2,183 passed, 0 failed | 2,655 passed, 6 skipped, 1 timeout (qa/modelIsolation scan test hit 15 s under suite load; alone: 12/12 in 7.6 s) |
 
+Browser suite notes (head 3852446f29):
+- 1 timeout: qa/modelIsolation.test.jsx "no module reads an isolated kind outside a local-only capability…" exceeded its 15 s limit while the full suite loaded the machine; rerun alone it passes 12/12 in 7.6 s (9.5 s on the earlier full run). Not a regression; the test scans every Agent source file and sits close to its budget. File owned by agent-qa; reported to AUDIT.
+- 6 skipped, all PRE-EXISTING conditional skips (it.skipIf on an env var), none added by this branch: agentNl1EvalScore (AGENT_EVAL_BODIES/RESULTS), agentNl1EvalCapture, agentLiveCapture, agentSmokeCapture (capture OUT dir), agentLiveFlow (live RELAY), agentScreenerSortCoverage one case (ROUTE). They run only for live-model or eval-capture runs, which are paid and not authorised.
+
 ## Quality work stopped (owner rule: stop when the measurable benefit is small)
 Admitted corpus on the real snapshot: 0 passages under 200 characters, 0 remaining duplicates, 0 near-duplicate titles,
 0 guard false positives. Retrieval: 38/40 realistic questions answered relevantly, P@3 0.89, p95 < 20 ms. Further
@@ -83,6 +96,9 @@ filtering or ranking work would add complexity without a measurable gain; embedd
 - Retrieval is lexical (FTS5, porter stemming); no embeddings by design (no external calls).
 
 ## Next step to resume
+STANDBY (owner, end of phase 1): act only on a concrete defect or integration requirement in the knowledge package reported by AUDIT.
+
+Previous notes:
 The PoC is complete and reviewed; it is waiting on the owner. Release candidate = PR #735 head (GO for owner evaluation as a dark admin-only RC; HOLD on activation until the owner admits sources and sets the flag).
 1. Owner: review PR #735; decide sources beyond team-owned; when merges reopen, the integrator merges into `agent/int-w2` and regenerates the golden manifest.
 2. Optional free work within scope: an FTS synonym table for UCT slang (EP, U&R, HTF) to raise recall; health card on the Admin page (needs a page-owner OK).
