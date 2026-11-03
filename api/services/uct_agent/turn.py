@@ -1708,6 +1708,10 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     if coach_turn:
         from api.services.uct_agent.coach import prompt as coach_prompt
         parts = parts + [coach_prompt.RULES]
+        # W3-3: the journal reaches the model as counts and stats only (coach.sanitize_context -> review.model_view),
+        # and the workspace_context block is rebuilt from the sanitised entry
+        context = agent_coach.sanitize_context(context)
+        blocks = [_block("workspace_context", context)]
     system_blocks = [{"type": "text", "text": t, "cache_control": {"type": "ephemeral"}} for t in parts]
     if headline is not None:
         blocks.append(_block("news_headline", headline))

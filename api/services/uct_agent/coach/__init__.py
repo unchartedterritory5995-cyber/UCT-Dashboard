@@ -48,6 +48,57 @@ def coach_entry(context: Any) -> dict | None:
     return next((x for x in sec if isinstance(x, dict) and x.get("ref")), None)
 
 
+CONSENT_STATES = ("granted", "revoked", "unknown")
+MAX_CONCEPT_CHARS = 4000
+MAX_OBSERVATION_CHARS = 300
+
+
+def validate_consent(value: Any) -> dict:
+    """The stored shape of `coachConsent`: {granted: bool, at: ISO-8601 UTC seconds}. The browser sends
+    {granted: true|false}; anything else is a ValueError (a 400). `at` is the SERVER's clock, never the browser's."""
+    import datetime as _dt
+    if not isinstance(value, dict) or not isinstance(value.get("granted"), bool):
+        raise ValueError("consent must be {granted: true | false}")
+    return {"granted": value["granted"],
+            "at": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")}
+
+
+def consent_state(stored: Any) -> str:
+    """'granted' | 'revoked' | 'unknown' from a stored value (store.get_state(...)['value'])."""
+    if isinstance(stored, dict) and isinstance(stored.get("granted"), bool):
+        return "granted" if stored["granted"] else "revoked"
+    return "unknown"
+
+
+def sanitize_context(context: Any) -> Any:
+    """What the MODEL may see of the coach entry: the concept text and observation (bounded), the consent state,
+    the concept ids, and the review ONLY through review.model_view (counts and stats; never a trade's prices,
+    symbols or dates -- whatever a browser sent). Every other key of the entry is dropped. Non-coach context is
+    returned as is."""
+    from api.services.uct_agent.coach import review as _review
+    if not isinstance(context, dict) or not isinstance(context.get("coach"), list):
+        return context
+    out: list[dict] = []
+    for e in context["coach"]:
+        if not isinstance(e, dict) or not e.get("ref"):
+            continue
+        clean: dict[str, Any] = {"ref": str(e["ref"]), "label": str(e.get("label") or "Trading coach")[:200]}
+        if isinstance(e.get("conceptId"), str):
+            clean["conceptId"] = e["conceptId"][:80]
+        if isinstance(e.get("concept"), str) and e["concept"].strip():
+            clean["concept"] = e["concept"][:MAX_CONCEPT_CHARS]
+        if isinstance(e.get("observation"), str) and e["observation"].strip():
+            clean["observation"] = e["observation"][:MAX_OBSERVATION_CHARS]
+        if isinstance(e.get("concepts"), str):
+            clean["concepts"] = e["concepts"][:1000]
+        clean["consent"] = e.get("consent") if e.get("consent") in CONSENT_STATES else "unknown"
+        mv = _review.model_view(e.get("review")) if clean["consent"] == "granted" else None
+        if mv:
+            clean["review"] = mv
+        out.append(clean)
+    return {**context, "coach": out}
+
+
 def guard_inputs(context: Any, message: str) -> list[str]:
     """The texts a coach reply's figures may come from: the coach entry's concept text, observation and review
     stats (as the browser published them), and the member's own message."""

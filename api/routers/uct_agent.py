@@ -756,17 +756,34 @@ def agent_conversation_delete(conversation_id: str, user: dict = Depends(require
 
 
 # ── per-conversation state (W1-C C-01, builder-c): the last screen, so a follow-up composes after a reload ──
-# GET/PUT /api/agent/conversations/{id}/state/{key}. Keys are store.STATE_KEYS (`lastScreen`); the value is
-# validated by services/uct_agent/scan/refine.py before it is stored (the screener's catalog, F-16 hidden keys,
-# ≤ 50 result ids). Owner-scoped: a conversation that is not the member's is 404, like every route above.
+# GET/PUT /api/agent/conversations/{id}/state/{key}. Keys are store.STATE_KEYS (`lastScreen`; W3-3 `coachConsent`);
+# the value is validated per key before it is stored: `lastScreen` by services/uct_agent/scan/refine.py (the
+# screener's catalog, F-16 hidden keys, ≤ 50 result ids), `coachConsent` by services/uct_agent/coach.validate_consent
+# ({granted: bool}; the server stamps `at`), and that key exists only while UCT_AGENT_COACH is on (404 otherwise).
+# Owner-scoped: a conversation that is not the member's is 404, like every route above.
 class StateIn(BaseModel):
     value: Any
+
+
+def _state_key_served(key: str) -> bool:
+    if key == "coachConsent":
+        from api.services.uct_agent import coach
+        return coach.enabled()
+    return True
+
+
+def _validate_state(key: str, value: Any) -> Any:
+    if key == "coachConsent":
+        from api.services.uct_agent import coach
+        return coach.validate_consent(value)
+    from api.services.uct_agent.scan import refine
+    return refine.validate_last_screen(value)
 
 
 @router.get("/api/agent/conversations/{conversation_id}/state/{key}")
 def agent_conversation_state(conversation_id: str, key: str, user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import store
-    if key not in store.STATE_KEYS or not store.owns(user["id"], conversation_id):
+    if key not in store.STATE_KEYS or not _state_key_served(key) or not store.owns(user["id"], conversation_id):
         raise HTTPException(status_code=404, detail="Conversation not found")
     got = store.get_state(user["id"], conversation_id, key)
     return {"key": key, "value": got["value"] if got else None, "updated_at": got["updated_at"] if got else None}
@@ -775,11 +792,10 @@ def agent_conversation_state(conversation_id: str, key: str, user: dict = Depend
 @router.put("/api/agent/conversations/{conversation_id}/state/{key}")
 def agent_conversation_state_put(conversation_id: str, key: str, body: StateIn, user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import store
-    from api.services.uct_agent.scan import refine
-    if key not in store.STATE_KEYS or not store.owns(user["id"], conversation_id):
+    if key not in store.STATE_KEYS or not _state_key_served(key) or not store.owns(user["id"], conversation_id):
         raise HTTPException(status_code=404, detail="Conversation not found")
     try:
-        value = refine.validate_last_screen(body.value)
+        value = _validate_state(key, body.value)
         store.set_state(user["id"], conversation_id, key, value)
     except ValueError as e:                      # RefineError is a ValueError, with the member-facing sentence
         raise HTTPException(status_code=400, detail=str(e)[:400])
