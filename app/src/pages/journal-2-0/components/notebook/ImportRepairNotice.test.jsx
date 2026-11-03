@@ -6,7 +6,7 @@
 // recover already ticked. Whether the chunk loads at all is ImportRepairNotice.chunk.test.jsx.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react'
-import { installFetch, latchWave8Flags, Providers } from '../../a11y/fixtures'
+import { AUTH, installFetch, latchWave8Flags, Providers } from '../../a11y/fixtures'
 import Layout from '../../../../components/Layout'
 import NotebookTab, { __resetRepairNoticeForTests } from '../../tabs/NotebookTab'
 import ImportRepairNotice from './ImportRepairNotice'
@@ -134,6 +134,30 @@ describe('ImportRepairNotice', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByTestId('import-file-input')).toBeNull())
     await waitFor(() => expect(document.activeElement).toBe(paneHeading()))
+  }, 30000)
+
+  // Final review M-1: sign-out does not reload the page, so the one read per page load is per
+  // MEMBER. A second member on the same tab gets their own read and their own count.
+  it('the read is per member: a different member on the same page load reads again', async () => {
+    const counts = { u1: 3, u2: 7 }
+    let who = 'u1'
+    const spy = installFetch([[/^\/api\/j2\/notes\/import\/repair-notice$/, () => ({ show: true, lossNotes: counts[who] })]])
+    const as = (id) => ({ ...AUTH, user: { ...AUTH.user, id } })
+    render(<Providers route={LIST_ROUTE} auth={as('u1')}><NotebookTab /></Providers>)
+    await screen.findByText(/, 3 notes lost a picture/)
+    cleanup()
+
+    who = 'u2'
+    render(<Providers route={LIST_ROUTE} auth={as('u2')}><NotebookTab /></Providers>)
+    await screen.findByText(/, 7 notes lost a picture/)
+    expect(screen.queryByText(/, 3 notes lost a picture/)).toBeNull()
+    expect(calls(spy, NOTICE_GET)).toHaveLength(2)
+    cleanup()
+
+    // and the same member again is still one read per page load
+    render(<Providers route={LIST_ROUTE} auth={as('u2')}><NotebookTab /></Providers>)
+    await screen.findByText(/, 7 notes lost a picture/)
+    expect(calls(spy, NOTICE_GET)).toHaveLength(2)
   }, 30000)
 
   it('Re-import to recover opens the wizard even while the dismiss POST hangs', async () => {

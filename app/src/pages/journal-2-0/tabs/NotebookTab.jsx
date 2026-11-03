@@ -151,27 +151,32 @@ const ImportWizard = lazyDialog(() => import('../components/notebook/import/Impo
 // says there is one to show, so the first-open bytes are unchanged for everyone else.
 const ImportRepairNotice = lazyView(() => import('../components/notebook/ImportRepairNotice'), 'import repair notice', null)
 
-// Plan F Task 10: ONE read of the notice per page load, shared by every mount of this tab (no
-// polling, and switching tabs and back does not ask again). Resolves to the count of notes that
-// lost something, or 0 for "nothing to show" -- a failed read included, so it never blocks the list.
+// Plan F Task 10: ONE read of the notice per page load AND MEMBER, shared by every mount of this
+// tab (no polling, and switching tabs and back does not ask again). Final review M-1: signing out
+// does not reload the page, so the read is keyed on the member's id: a different member on the
+// same tab reads their own notice, never the last member's count. No member, no read. Resolves to
+// the count of notes that lost something, or 0 for "nothing to show" -- a failed read included,
+// so it never blocks the list.
 const REPAIR_NOTICE_URL = '/api/j2/notes/import/repair-notice'
-let repairNoticeRead = null
-function readRepairNotice() {
-  if (!repairNoticeRead) {
-    repairNoticeRead = fetch(REPAIR_NOTICE_URL, { credentials: 'include' })
+let repairNoticeRead = null // { userId, promise }
+function readRepairNotice(userId) {
+  if (!userId) return Promise.resolve(0)
+  if (!repairNoticeRead || repairNoticeRead.userId !== userId) {
+    const promise = fetch(REPAIR_NOTICE_URL, { credentials: 'include' })
       .then((r) => (r && r.ok ? r.json() : null))
       .then((b) => {
         const n = Number(b?.lossNotes)
         return b?.show === true && Number.isInteger(n) && n > 0 ? n : 0
       })
       .catch(() => 0)
+    repairNoticeRead = { userId, promise }
   }
-  return repairNoticeRead
+  return repairNoticeRead.promise
 }
 // Either button retires it for this page load at once; the POST retires it for good. A failed POST
 // leaves the server row, so the notice can come back on a later load: never lost, never repeated here.
-function dismissRepairNotice() {
-  repairNoticeRead = Promise.resolve(0)
+function dismissRepairNotice(userId) {
+  repairNoticeRead = { userId, promise: Promise.resolve(0) }
   return fetch(`${REPAIR_NOTICE_URL}/dismiss`, { method: 'POST', credentials: 'include' }).catch(() => null)
 }
 export function __resetRepairNoticeForTests() { repairNoticeRead = null }
@@ -481,19 +486,21 @@ export default function NotebookTab() {
     setImportOpen(true)
   }, [])
   const [repairLossNotes, setRepairLossNotes] = useState(0)
+  const repairUserId = auth?.user?.id || null
   useEffect(() => {
     let live = true
-    readRepairNotice().then((n) => { if (live) setRepairLossNotes(n) })
+    setRepairLossNotes(0) // a member change never shows the previous member's count meanwhile
+    readRepairNotice(repairUserId).then((n) => { if (live) setRepairLossNotes(n) })
     return () => { live = false }
-  }, [])
+  }, [repairUserId])
   // Review M-1: either button unmounts the notice, and the button with it, so focus must not be left
   // to fall to <body>. It goes to the pane heading, the Notebook's landing place for focus with
   // nowhere better to go: at once after Dismiss, and through the wizard's `returnFocusTo` when the
   // wizard closes after Recover. `paneHeadingRef` is declared further down; these run on a click.
   const retireRepairNotice = useCallback(() => {
     setRepairLossNotes(0)
-    dismissRepairNotice()
-  }, [])
+    dismissRepairNotice(repairUserId)
+  }, [repairUserId])
   const dismissRepair = useCallback(() => {
     retireRepairNotice()
     paneHeadingRef.current?.focus()
