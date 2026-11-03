@@ -52,7 +52,8 @@ import styles from './ConnectTilesCompact.module.css'
 
 export default function ConnectTilesCompact() {
   const {
-    providers, isLoading, connectToken, startOAuth, mintConnectCode, refresh, listFolders, addSource,
+    providers, obsidianAttachments, isLoading, connectToken, startOAuth, mintConnectCode, refresh, listFolders,
+    addSource,
   } = useNoteConnectors()
   const [tokenModalProvider, setTokenModalProvider] = useState(null)
   const [consentProvider, setConsentProvider] = useState(null)
@@ -171,6 +172,7 @@ export default function ConnectTilesCompact() {
         open={!!deviceModalProvider}
         providerLabel={NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === deviceModalProvider)?.label || 'Obsidian'}
         mintConnectCode={mintConnectCode}
+        attachments={obsidianAttachments}
         onClose={() => setDeviceModalProvider(null)}
       />
 

@@ -135,6 +135,11 @@ function walkSemantic(node, out) {
     if (hlMark) out.highlights.push({ text: node.text || '', color: hlMark.attrs?.color ?? null })
   } else if (node.type === 'image') {
     out.images.push(normalizeImageSrc(attrs.src || ''))
+  } else if (node.type === 'attachmentChip') {
+    // Plan C Task 4: a non-image file is a chip in both lanes; its NAME, in document
+    // order (the client lane writes it from `data-name`, the server from the ref), and
+    // D2 item 6, its LABEL (the member's link text; null when absent).
+    out.files.push({ name: attrs.name ?? null, label: attrs.label ?? null })
   } else if (node.type === 'callout') {
     out.callouts.push(attrs.variant ?? null)
   } else if (node.type === 'taskItem') {
@@ -148,7 +153,7 @@ function walkSemantic(node, out) {
 // lockstep with the server's `notes.py::extract_plain_text` for the
 // notebook search index — rather than a third hand-rolled text walker.
 function semanticSummary(doc) {
-  const out = { links: [], images: [], task_checked: [], highlights: [], pending: [], callouts: [] }
+  const out = { links: [], images: [], task_checked: [], highlights: [], pending: [], callouts: [], files: [] }
   walkSemantic(doc, out)
   return { text: extractPlainText(doc), ...out }
 }
@@ -192,14 +197,16 @@ async function clientSummaryFor(fixture) {
 // 13 (duplicate names) and 14 (deep links) were listed here until Plan B Task 8 closed
 // them (`obsidianResolve.js` + `adapters/obsidian.js`).
 const knownClientGap = {
-  // Callouts: spec §5.6 polish, not in Plan B (ruling R9) -- the client writes a blockquote
-  // with a bold title, and its marker regex loses the untitled callout's title.
-  '12-callouts.json': {
-    clientReads: {
-      callouts: [],
-      text: 'Callouts Size Keep it small. > Wait for the pivot.',
-    },
-  },
+  // ⚰️ 11-anchors-and-embeds: also closed by D2 item 8. Both lanes show a heading link as
+  // `Other note > Risk` (the client showed `Other note#Risk`); the `![[Other note]]` file
+  // chip was closed by D1 fix round 2, M4.
+  // ⚰️ 12-callouts, 16-links-in-highlights-and-callouts, 17-member-placeholder-characters:
+  // closed by D2 item 1 (master listed 12 here as ruling R9's polish until the merge). The
+  // client writes an Obsidian callout as the callout node (the server's variant and bold
+  // title), and an untitled callout's title is its type.
+  // ⚰️ 13-duplicate-basenames: also closed by D1 fix round 2 (M1). Both lanes share one
+  // tie-break (same folder, then fewest folders, then sort order; `obsidianResolve.js::rank`
+  // and the server's `_pick`).
   // Plan B final review, fix 2 (DELIBERATE, not a Plan B gap): the server knows its vault's
   // name (the plugin's device label), so `vault=Trading` resolves there. A client drop of
   // LOOSE files (no `.obsidian/`, no single top folder) cannot show the link is into the
@@ -208,7 +215,101 @@ const knownClientGap = {
   '14-raw-html-and-deep-link.json': {
     missingLinks: [{ target: 'Plan.md', text: 'the plan' }],
   },
+  // ⚰️ 15-dotted-names and 18-attachment-names: closed by Plan C Task 4 fix round 1.
+  // Both lanes dropped the no-dot stem rule (`[[chart]]` names `chart.md` only), and
+  // both check a `#`-holding target against the vault's full file names before
+  // splitting an anchor (`![[my chart #1 (v2).png]]` keeps its image).
+  // 25-code-span-link-text (D2 fix round 4, N-I4): both lanes make the link to Plan from
+  // `[[Plan|the `x` plan]]` and from the callout title; what is left is the code RUN inside
+  // the link. The editor's code mark excludes every other mark, so the client's parse
+  // (`generateJSON`) drops the link from `x`, while the server's shared `mddoc` stores it as
+  // link+code (as it does for any `[`x`](url)`, every connector). Not an Obsidian pass:
+  // closed by D3 (shared-converter follow-up PR: a code run carries no other mark) --
+  // delete this entry then.
+  '25-code-span-link-text.json': {
+    missingLinks: [{ target: 'Plan.md', text: 'x' }, { target: 'Plan.md', text: 'x' }],
+  },
+  // 27-tilde-fence (D2 fix round 3, M-new-1): images, links and media agree -- the `~~~`
+  // fence keeps its embed and wikilink as code on both lanes. What is left is a code BLOCK
+  // difference no Obsidian pass makes: the shared client parse keeps the fence's final
+  // newline in the codeBlock text (markdown-it), the server's `mddoc` drops it. Every
+  // importer's fenced code has it. Closed by D3 (shared-converter follow-up PR: fenced
+  // code final newline) -- delete this entry then.
+  '27-tilde-fence.json': {
+    clientReads: {
+      text: 'Tilde fence before ![[img.png]] [[Plan]]\n after ',
+    },
+  },
+  // 28-blank-line-and-fence-alias (D2 fix round 5, M-r4-1): links, images and media agree --
+  // a link or embed across a blank line or a fence is left as written on both lanes, and a
+  // single-newline alias is the one link, in a quote too (follow-up: a `>`-only quote line
+  // is a paragraph break, and a one-line ``` run is inline code a link may hold). What is
+  // left is two D3 differences, neither an Obsidian pass:
+  //   - 27's code BLOCK difference: the client keeps the fence's final newline in the
+  //     codeBlock text, the server's `mddoc` drops it (D3: fenced code final newline);
+  //   - 25's code RUN difference: the client's code mark drops the link from `x`, the
+  //     server stores link+code (D3: a code run carries no other mark).
+  //   - Round 5 (final), ruling A's `[[Plan|a\n<div>b]]` row: no link and no key on either
+  //     lane, but the raw HTML block `<div>b]]` reads differently in the SHARED parses: the
+  //     server's `mddoc` keeps the tag as text (`<div>b]]`), the client's parse renders it
+  //     (`b]]`). Not an Obsidian pass; named for D3 (shared-converter follow-up PR: raw
+  //     HTML blocks).
+  // Delete this entry when D3 lands.
+  '28-blank-line-and-fence-alias.json': {
+    missingLinks: [{ target: 'Plan.md', text: 'x' }],
+    clientReads: {
+      text: 'Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end '
+        + 'x ![[chart.png|a b]] y [[Plan|a code\n b]] see one line still links '
+        + 'quoted [[Plan|c d]] stays text quoted one line still links see a x b inline code links '
+        + 'see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end '
+        + 'see [[Plan|a b]] end see [[Plan|a b]] end [[Plan|a b]]',
+    },
+  },
+  // ⚰️ 18-attachment-names and 19-nested-embeds: their text gaps (the EMPTY paragraph
+  // beside a block image, and `Read ` losing its trailing space at a chip split, from the
+  // shared parse `convert.js::htmlToNote`) are closed by D2 item 5.
+  // Both lanes still drop the link text `the report` for a chip in 18 (no label
+  // attribute); D2 item 6 adds an optional `attachmentChip.label`, and 18's `files`/`text`
+  // move when it lands.
 }
+
+// DELIBERATE lane differences no parity fixture can carry, named one by one, each pinned
+// below on the client and in `test_obsidian_provider.py::test_the_named_lane_differences`
+// on the server, so a change on either side is seen. Never a gap to close.
+//   attachment-folder (post-merge fix 2): Obsidian's "Files and links > Default location for
+//   new attachments" lives in `<vault>/.obsidian/app.json`. A FILE IMPORT holds that file,
+//   so the client's resolver ties a same-named file to the attachment folder after the
+//   note's own folder (`obsidianResolve.js::rank`, Plan B). The SERVER lane never sees
+//   `.obsidian/`: the plugin stages notes and their attachment refs only. A live sync from a
+//   0.2.0 plugin resolves every attachment with Obsidian's OWN resolver and sends the
+//   result as a ref (`_apply_attachment_refs`), so it honours the setting already; only the
+//   old-plugin fallback (no ref list) resolves by the server's rule, which has no setting to
+//   read and ties by fewest folders, then sort order (`_pick`). With no setting both lanes
+//   agree (the vault root's files already have the fewest folders).
+const DELIBERATE_LANE_DIFFERENCES = {
+  'attachment-folder': {
+    paths: ['V/A/x.png', 'V/Files/x.png', 'V/C/m.md'],
+    appJson: '{"attachmentFolderPath":"Files"}',
+    source: 'V/C/m.md',
+    target: 'x.png',
+    client: 'V/Files/x.png',
+    server: 'V/A/x.png',
+  },
+}
+
+describe('Obsidian deliberate lane differences', () => {
+  it('attachment-folder: the client honours app.json; the server cannot see it', async () => {
+    const { makeObsidianResolver } = await import('./obsidianResolve')
+    const d = DELIBERATE_LANE_DIFFERENCES['attachment-folder']
+    const files = [vf('V/.obsidian/app.json', d.appJson), ...d.paths.map((p) => vf(p, ''))]
+    const r = await makeObsidianResolver(files)
+    expect(r.resolve(d.target, d.source)).toBe(d.client)
+    expect(d.client).not.toBe(d.server)
+    // With no setting the client takes the server's answer.
+    const bare = await makeObsidianResolver(d.paths.map((p) => vf(p, '')))
+    expect(bare.resolve(d.target, d.source)).toBe(d.server)
+  })
+})
 
 describe('Obsidian client<->server pre-pass parity', () => {
   // Non-vacuity control — mirrors serverConvert.contract.test.js's own: a
@@ -246,5 +347,57 @@ describe('Obsidian client<->server pre-pass parity', () => {
       }
       expect(clientSummary).toEqual(expected)
     })
+  })
+})
+
+// ── D2 fix round 5 (final), ruling B: the adversarial alias corpus ───────────
+// `obsidian_parity_fixtures_gen.py::generate_adversarial` writes ~200 alias shapes (block
+// starts, quote prefixes, newlines, fences, code spans) with the notes the SERVER links
+// each to. The client must link the same notes, and neither lane may ever show an internal
+// key or scheme as text (the client's held-markup placeholders included).
+const ADVERSARIAL = JSON.parse(fs.readFileSync(
+  path.resolve(__dirname, '__fixtures__/obsidian_adversarial/corpus.json'), 'utf8'))
+// `obsidian_parity_fixtures_gen.py::INTERNAL_MARKERS`, plus the client's own placeholders.
+const INTERNAL_MARKERS = ['import-link://', 'import-ref://', 'obsidian-att:', 'obsidian-file:',
+  'obsidian-notice:']
+// The held-markup placeholder code points (U+FDD0, U+E001, U+E010 to U+E019), built from
+// numbers so this file holds no raw noncharacter or private-use code point.
+const CLIENT_PLACEHOLDER_RE = new RegExp(`[${String.fromCharCode(0xfdd0, 0xe001, 0xe010)}-${String.fromCharCode(0xe019)}]`)
+
+// Mirrors `providers/obsidian.py::_visible_strings`.
+function visibleStrings(node, out = []) {
+  if (node && typeof node === 'object') {
+    if (node.type === 'text' && typeof node.text === 'string') out.push(node.text)
+    for (const [k, v] of Object.entries(node.attrs || {})) {
+      if (['label', 'name', 'alt', 'title'].includes(k) && typeof v === 'string') out.push(v)
+    }
+    for (const child of node.content || []) visibleStrings(child, out)
+  }
+  return out
+}
+
+describe('Obsidian adversarial alias corpus (ruling B)', () => {
+  it('holds the committed corpus', () => {
+    expect(ADVERSARIAL.cases.length).toBeGreaterThanOrEqual(190)
+  })
+
+  it('the client links the same notes as the server and never shows an internal key', async () => {
+    const disagree = []
+    const leaks = []
+    for (const { input, targets } of ADVERSARIAL.cases) {
+      const vfiles = ADVERSARIAL.vault_paths.map((p) => vf(p, p === 'a.md' ? input : ''))
+      // Through `parseImport`, the wizard's own call (as `clientSummaryFor` above).
+      const { docs } = await parseImport(obsidianAdapter, vfiles, {})
+      const doc = docs.find((d) => d.importKey === 'obsidian:a.md')
+      const { bodyJson } = htmlToNote(doc.html)
+      const got = [...new Set(semanticSummary(bodyJson).links.map((l) => l.target))].sort()
+      if (JSON.stringify(got) !== JSON.stringify(targets)) disagree.push({ input, got, targets })
+      const seen = visibleStrings(bodyJson).join(' ')
+      if (INTERNAL_MARKERS.some((m) => seen.includes(m)) || CLIENT_PLACEHOLDER_RE.test(seen)) {
+        leaks.push({ input, seen })
+      }
+    }
+    expect(leaks).toEqual([])
+    expect(disagree).toEqual([])
   })
 })

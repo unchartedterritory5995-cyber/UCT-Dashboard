@@ -15,23 +15,35 @@
  *  - `attachmentFolderPath` comes from `<root>/.obsidian/app.json`; missing or unreadable
  *    reads `'/'` (the vault root), as Obsidian does.
  *
- * `resolve` drops `#…` and `|…`, removes ONE trailing `\` (a wikilink's pipe escaped
- * inside a table cell, `[[Note\|alias]]`, O-8), and percent-decodes ONCE only when
- * `decode` is set (a markdown href or image src; never a wikilink, whose `%20` is part of
- * a name as written) -- after splitting off `#`/`?`, so an encoded `%23` stays in the
- * name. Then, in order:
+ * `resolve` drops `|…`, removes ONE trailing `\` (a wikilink's pipe escaped inside a
+ * table cell, `[[Note\|alias]]`, O-8), and works in one of two modes:
+ *
+ * A wikilink, embed or deep-link `file` (no `decode`): THE wikilink rule of the server
+ * lane, `providers/obsidian.py::_resolve_in`, step for step (merge of Plan B with D1/D2:
+ * one resolver, one rule):
+ *   - a target holding `#` that EXACTLY names a vault file opens that file (`my chart #1
+ *     (v2).png` is a name); only otherwise is the `#anchor` split off;
+ *   - then the exact NOTE the target names (`[[Dr.Smith]]` -> `Dr.Smith.md`,
+ *     `[[report.pdf]]` -> `report.pdf.md`), always first; then a file whose full name IS
+ *     the target. Never an extension-stripped form (no stem rule);
+ *   - a target holding `/` matches the end of each path at a folder boundary; a bare one
+ *     the file name; a leading `/` names the path from the vault root, the exact note
+ *     first, then as written (the server's `_resolve_rooted`, post-merge fix 1).
+ *
+ * A markdown href or image src (`decode`): percent-decoded ONCE, after splitting off
+ * `#`/`?` (an encoded `%23` stays in the name). Then, in order:
  *   1. a leading `/` -> root-relative exact;
  *   2. a path holding `/` -> beside the source note, then from the root, each as written
- *      and then with `.md` appended (unless it already ends `.md`) (a `..` that climbs above the root is never a target);
- *   3. by name -> every file whose basename is the target (or the target + `.md`), any
- *      case; ties go to the source note's own folder, then the attachment folder, then
- *      the fewest folders, then the shorter path, then lexicographic order;
- *   4. a path holding `/` with no exact hit -> a `/`-boundary suffix match, same ties.
+ *      and then with `.md` appended (unless it already ends `.md`) (a `..` that climbs
+ *      above the root is never a target);
+ *   3. by name -> the target + `.md` first, else the target, any case;
+ *   4. a path holding `/` with no exact hit -> a `/`-boundary suffix match.
  * Exact matches prefer the path as cased, then any case (the server's `by_lower`).
  *
- * The server lane (`providers/obsidian.py::_resolve_in` / `_resolve_relative`) agrees on
- * every parity fixture; it ties a bare name by folder, then depth, then first seen, and has
- * no attachment-folder step (it has no `.obsidian/app.json`).
+ * Ties, both modes (`rank`): the source note's own folder (bare names only), then the
+ * attachment folder, then the fewest folders, then lexicographic order -- the server's
+ * `_pick` plus the client-only attachment step, which agrees with it when the vault has no
+ * `.obsidian/app.json` setting.
  */
 
 const CONFIG_RE = /(^|\/)\.obsidian\//i
@@ -78,13 +90,22 @@ async function makeVaultIndex(root, allPaths, vfiles) {
   const lookup = (path) => exact.get(path) ?? exactLower.get(path.toLowerCase()) ?? null
   const lookupWithMd = (path) => lookup(path) ?? (isNote(path) ? null : lookup(`${path}.md`))
 
-  function rank(candidates, sourcePath) {
+  // THE tie-break among same-named paths (`providers/obsidian.py::_pick` is the server's;
+  // the 68-case resolution harness and the parity fixtures pin both): the one in the
+  // source note's own folder (bare names only, `near`), then the attachment folder, then
+  // the fewest folders, then the lexicographically first path, so the answer never depends
+  // on listing order. The attachment step is the client's alone (the server has no
+  // `.obsidian/app.json`); with none, the attachment folder is the vault root, whose files
+  // already have the fewest folders, so the two lanes agree. ⚰️ Plan B Task 8 ranked a
+  // same-depth tie by the SHORTER path before sort order, which the server never did
+  // (merge with D1/D2, one tie-break).
+  function rank(candidates, sourcePath, near = true) {
     if (candidates.length <= 1) return candidates[0] ?? null
-    const here = dirOf(sourcePath).toLowerCase()
+    const here = near ? dirOf(sourcePath).toLowerCase() : null
     const attach = attachmentDir(attachmentFolder, root, sourcePath).toLowerCase()
     const score = (p) => {
       const d = dirOf(p).toLowerCase()
-      return [d === here ? 0 : 1, d === attach ? 0 : 1, p.split('/').length, p.length]
+      return [d === here ? 0 : 1, d === attach ? 0 : 1, p.split('/').length]
     }
     return [...candidates].sort((a, b) => {
       const sa = score(a)
@@ -92,6 +113,23 @@ async function makeVaultIndex(root, allPaths, vfiles) {
       for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return sa[i] - sb[i]
       return a < b ? -1 : a > b ? 1 : 0
     })[0]
+  }
+
+  // The two name steps of the wikilink rule (`providers/obsidian.py::_resolve_steps`): the
+  // exact NOTE the target names (`noteFileOf`) always first, then a file whose full name
+  // IS the target. Never an extension-stripped form (no stem rule: `[[chart]]` names
+  // `chart.md` only). `exactFileOnly`: the second step alone.
+  function nameSteps(target, sourcePath, exactFileOnly) {
+    const lower = target.toLowerCase()
+    const pathQualified = lower.includes('/')
+    const wants = exactFileOnly ? [lower] : [noteFileOf(lower), lower]
+    for (const want of wants) {
+      const hits = pathQualified
+        ? paths.filter((p) => endsAt(p.toLowerCase(), want))
+        : byName.get(want) || []
+      if (hits.length) return rank(hits, sourcePath, !pathQualified)
+    }
+    return null
   }
 
   function resolve(linkpath, sourcePath, opts = {}) {
@@ -104,17 +142,33 @@ async function makeVaultIndex(root, allPaths, vfiles) {
       } catch {
         // a malformed escape: the href as written
       }
-    } else {
-      target = target.split('#')[0]
     }
     target = target.split('|')[0]
     if (target.endsWith('\\')) target = target.slice(0, -1)
     target = target.trim()
+    if (!opts.decode) {
+      // A wikilink, embed or deep-link `file`: THE wikilink rule of the server
+      // (`providers/obsidian.py::_resolve_in`), step for step. First, a target holding a
+      // `#` (an anchor, or part of a NAME: `my chart #1 (v2).png`) that EXACTLY names a
+      // vault file opens that file; only otherwise is the anchor split off (Plan C Task 4
+      // fix round 1). A target with a `/` matches the end of each path at a folder
+      // boundary; a bare one the file name.
+      if (target.includes('#') && !target.startsWith('/')) {
+        const hit = nameSteps(target, sourcePath, true)
+        if (hit) return hit
+      }
+      target = target.split('#')[0].trim()
+      if (!target) return null
+      if (!target.startsWith('/')) return nameSteps(target, sourcePath, false)
+    }
     if (!target) return null
 
     if (target.startsWith('/')) {
       const rooted = normalize(target.replace(/^\/+/, ''), root)
-      return rooted === null ? null : lookupWithMd(rooted)
+      if (rooted === null || rooted === root) return null
+      // A wikilink: the exact note first, as every wikilink step takes it (the server's
+      // `_resolve_rooted`). A markdown href names a file: as written first.
+      return opts.decode ? lookupWithMd(rooted) : lookup(noteFileOf(rooted)) ?? lookup(rooted)
     }
     if (target.includes('/')) {
       for (const candidate of [normalize(target, dirOf(sourcePath)), normalize(target, root)]) {
@@ -130,8 +184,8 @@ async function makeVaultIndex(root, allPaths, vfiles) {
       return rank(suffixHits, sourcePath)
     }
     const name = target.toLowerCase()
-    const candidates = [...(byName.get(name) || []), ...(isNote(name) ? [] : byName.get(`${name}.md`) || [])]
-    return rank(candidates, sourcePath)
+    const notes = isNote(name) ? [] : byName.get(`${name}.md`) || []
+    return rank(notes.length ? notes : byName.get(name) || [], sourcePath)
   }
 
   /** `rel` joined onto the folder `base`, `.`/`..` folded; null when a `..` climbs above
@@ -204,4 +258,17 @@ function dirOf(path) {
  *  (`[[v1.2]]` names `v1.2.md`, where an "has an extension" test would not). */
 function isNote(path) {
   return /\.md$/i.test(path)
+}
+
+/** The note file a wikilink target names, lowercased: `<target>.md`, or the target itself
+ *  when it already ends in `.md`. Every dot is part of the note's name: `[[Dr.Smith]]`,
+ *  `[[Q3.Review]]` and even `[[Brief.txt]]` name `Dr.Smith.md`, `Q3.Review.md` and
+ *  `Brief.txt.md`. `providers/obsidian.py::_note_file_of`. */
+function noteFileOf(lower) {
+  return isNote(lower) ? lower : `${lower}.md`
+}
+
+/** `form` is `want`, or ends in it at a folder boundary (`providers/obsidian.py::_ends_at`). */
+function endsAt(form, want) {
+  return form === want || form.endsWith(`/${want}`)
 }
