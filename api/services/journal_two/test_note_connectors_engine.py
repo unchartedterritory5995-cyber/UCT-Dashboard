@@ -842,15 +842,17 @@ async def test_a_sever_is_persisted_to_the_sync_log_row_the_card_reads(source, p
 
 
 async def test_delete_detection_refuses_when_enumeration_returns_under_half(source, provider):
+    # L1 (2026-11-03): the guard applies from DELETE_GUARD_MIN_KNOWN tracked items up.
+    n = engine.DELETE_GUARD_MIN_KNOWN
     provider.refs = [
-        RemoteRef(remote_id=str(i), updated_at="2026-08-01T00:00:00+00:00") for i in range(4)
+        RemoteRef(remote_id=str(i), updated_at="2026-08-01T00:00:00+00:00") for i in range(n)
     ]
-    provider.notes_by_id = {str(i): _rn(str(i), f"N{i}") for i in range(4)}
+    provider.notes_by_id = {str(i): _rn(str(i), f"N{i}") for i in range(n)}
     await engine.sync_source(source["id"], full=True)
     before = {r["remote_id"]: r["miss_streak"] for r in _remote_index_rows(source["id"])}
-    assert len(before) == 4
+    assert len(before) == n
 
-    # A suspicious enumeration: only 1 of 4 previously-known items comes back.
+    # A suspicious enumeration: only 1 of n previously-known items comes back.
     provider.refs = provider.refs[:1]
     result = await engine.sync_source(source["id"], full=True, manual=True)
 
@@ -861,7 +863,7 @@ async def test_delete_detection_refuses_when_enumeration_returns_under_half(sour
     after = {r["remote_id"]: r["miss_streak"] for r in _remote_index_rows(source["id"])}
     # Nothing was touched by the refused delete pass.
     assert after == before
-    assert len(after) == 4
+    assert len(after) == n
 
     log_row = _log_rows(source["id"])[-1]
     assert log_row["status"] == "warning"
@@ -2661,8 +2663,10 @@ async def test_removal_check_lists_fully_first_and_fetches_only_the_delta(source
 
 
 async def test_the_under_half_guard_still_refuses_a_member_press(source, provider, monkeypatch):
-    provider.refs = _refs("0", "1", "2", "3")
-    provider.notes_by_id = {str(i): _rn(str(i), f"N{i}") for i in range(4)}
+    # L1 (2026-11-03): sized at the guard's floor (`engine.DELETE_GUARD_MIN_KNOWN`).
+    n = engine.DELETE_GUARD_MIN_KNOWN
+    provider.refs = _refs(*[str(i) for i in range(n)])
+    provider.notes_by_id = {str(i): _rn(str(i), f"N{i}") for i in range(n)}
     _at(monkeypatch, T0)
     await engine.sync_source(source["id"], full=True)
     before = {row["remote_id"]: row["miss_streak"] for row in _remote_index_rows(source["id"])}

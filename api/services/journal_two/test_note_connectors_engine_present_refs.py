@@ -414,12 +414,17 @@ async def test_mutation_check_hook_is_load_bearing_for_the_50pct_refuse_guard(so
     from "3 of 4 items vanished", so the wave-1 <50% refuse guard correctly
     goes blind. With it, the guard sees the true (unchanged) 4-of-4
     enumeration and proceeds normally. This is the proof the hook is
-    load-bearing, not merely convenient."""
-    refs_all = [RemoteRef(remote_id=f"p{i}", updated_at=T1) for i in range(4)]
+    load-bearing, not merely convenient.
+
+    L1 (2026-11-03): the ratio guard now applies only from
+    `engine.DELETE_GUARD_MIN_KNOWN` tracked items up, so the source is sized
+    at that floor (the drain still reaches 1 of them)."""
+    refs_all = [RemoteRef(remote_id=f"p{i}", updated_at=T1)
+                for i in range(engine.DELETE_GUARD_MIN_KNOWN)]
     provider.notes_by_id = {r.remote_id: _rn(r.remote_id, f"Note {r.remote_id}") for r in refs_all}
     provider.list_changed_refs = refs_all
     await engine.sync_source(source["id"], full=True)
-    assert len(_remote_index_rows(source["id"])) == 4
+    assert len(_remote_index_rows(source["id"])) == len(refs_all)
 
     # A OneNote-shaped bounded drain: content fetch only reaches 1 of 4 --
     # nothing has actually been deleted from the remote.
@@ -433,7 +438,7 @@ async def test_mutation_check_hook_is_load_bearing_for_the_50pct_refuse_guard(so
     warning = result_without["deleteDetectionWarning"] or ""
     assert "50%" in warning or "known items" in warning
     assert result_without["sourceDeleted"] == 0
-    assert len(_remote_index_rows(source["id"])) == 4  # nothing touched by the refused pass
+    assert len(_remote_index_rows(source["id"])) == len(refs_all)  # nothing touched by the refused pass
 
     # WITH the hook: index_refs becomes the COMPLETE (unchanged) set -- same
     # bounded drain, same starting state, different outcome.
@@ -446,7 +451,7 @@ async def test_mutation_check_hook_is_load_bearing_for_the_50pct_refuse_guard(so
     assert result_with["status"] == "ok"
     assert result_with["deleteDetectionWarning"] is None
     assert result_with["sourceDeleted"] == 0
-    assert len(_remote_index_rows(source["id"])) == 4
+    assert len(_remote_index_rows(source["id"])) == len(refs_all)
 
     # The two outcomes differ in the expected direction on identical inputs.
     assert result_without["status"] != result_with["status"]

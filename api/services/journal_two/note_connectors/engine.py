@@ -193,6 +193,19 @@ _COOLDOWN_SECONDS = 600
 # trash refs); only their enumeration strikes wait for the gap.
 MEMBER_FULL_PASS_MIN_INTERVAL_S = 600
 
+# The <50% enumeration guard in `_run_delete_detection` applies only when the source tracks at
+# least this many notes (live Obsidian probe 2026-11-03, L1). In a 2- or 3-note vault one rename
+# plus one delete is already "fewer than half came back", so the guard refused every removal
+# check and the ghost notes stayed live forever. Why 10: below it, half a source is at most four
+# notes, a count a member can see and fix at a glance, and the guard's job (catching a listing
+# that silently came back short) is still done by the 2-strike rule with its
+# MEMBER_FULL_PASS_MIN_INTERVAL_S gap: a bad listing must repeat on two passes at least ten
+# minutes apart before anything is tagged. And a sever is NON-DESTRUCTIVE: it adds the
+# `source-deleted` tag and stops tracking, never erases the note, and the tag comes off by itself
+# when the item is listed again (`_untag_note_source_reappeared`). From 10 up the ratio guard is
+# unchanged, so a 20-note source returning 3 is still refused. Every provider.
+DELETE_GUARD_MIN_KNOWN = 10
+
 # A stored `last_full_sync_at` up to this far in the future is clock skew and
 # still counts; further ahead it is treated as "no previous full pass", so a
 # bad stamp can never lock a member out of the removal check.
@@ -2027,7 +2040,9 @@ def _run_delete_detection(
             (user_id, source_id),
         ).fetchall()
         prev_count = len(existing_rows)
-        if prev_count > 0 and len(seen_ids) < prev_count * 0.5:
+        # L1 (2026-11-03): the ratio guard only from DELETE_GUARD_MIN_KNOWN tracked items up;
+        # below it the 2-strike rule and its strike gap (below) protect a small source.
+        if prev_count >= DELETE_GUARD_MIN_KNOWN and len(seen_ids) < prev_count * 0.5:
             conn.commit()  # the stamp only: no index row is touched
             return {
                 "status": "warning",
