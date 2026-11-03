@@ -167,7 +167,7 @@ export const TOPICS = [
   },
   {
     id: 'calendar', title: 'Earnings calendar',
-    words: [/(calendar|report(s|ing)? (date|day|week)|next report|who reports|reports? (today|tomorrow|this week|on))/],
+    words: [/\b(calendar|report(s|ing)? (date|day|week)|next report|who reports|reports? (today|tomorrow|this week|on))\b/],
     caps: ['calendar.nextReport', 'calendar.day'], productHas: true,
     canDo: 'say when a stock next reports (date and session) and list the reports on a day or on the week the Calendar page has loaded — tickers and session only, on the Calendar page',
     known: () => ['estimates, implied moves and reactions (read them on the Calendar page)', 'my-stocks sets and calendar filters (the page’s own controls)'],
@@ -175,7 +175,7 @@ export const TOPICS = [
   },
   {
     id: 'journal', title: 'Journal notes',
-    words: [/(journal|notebook|notes?|note it|write (it|that) down|jot)/],
+    words: [/\b(journal|notebook|notes?|note it|write (it|that) down|jot)\b/],
     caps: ['journal.listNotes', 'journal.createNote'], productHas: true,
     canDo: 'list your recent Notebook notes and create a new note (title, text, optional ticker) through the Notebook’s own New-note path — Undo moves it to Trash — on the Journal pages',
     known: () => ['logging trades, positions or accounts (personal records — not operated by the Agent)', 'editing or deleting an existing note', 'templates and journal styles'],
