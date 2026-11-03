@@ -86,7 +86,7 @@ const SavedRow = memo(function SavedRow({ item, collections, linkedSym, onSym, o
           {explainable(item) && (
             <button ref={explainRef} type="button" className={`${news.rowBtn}${explainOpen ? ' ' + news.rowBtnOn : ''}`}
               onClick={(e) => onExplain(item, e.currentTarget)}
-              aria-label="Explain this headline" aria-expanded={!!explainOpen} title="Explain (AI)">
+              aria-label="Explain this headline" aria-expanded={!!explainOpen} title="Explain">
               <UIcon name="sparkle" size={11} gold={false} /></button>
           )}
           <button type="button" className={`${news.rowBtn}${noteOpen || note ? ' ' + news.rowBtnOn : ''}`} onClick={() => onNote(item)}

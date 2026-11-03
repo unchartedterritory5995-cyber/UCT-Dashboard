@@ -1565,7 +1565,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              routing: dict | None = None, conversation_title: str | None = None,
              on_event: Callable[[dict], None] | None = None, stream_caller: Callable[..., Any] | None = None,
              meter=None, reroute: bool = False, interpreter: str | None = None, repair: dict | None = None,
-             reference: dict | None = None) -> dict:
+             reference: dict | None = None, headline: dict | None = None, answer_only: bool = False) -> dict:
     """Returns {envelope, usage, title}. Raises TurnError with a member sentence.
     `on_event` (streaming, optional): receives {"t": "delta", "text"} for an answer's reply as it is
     written (ReplyStream's gate), {"t": "retract"} when streamed text will not be the answer after all
@@ -1582,7 +1582,10 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     request's 2-call ceiling): UCT's planner refused the previous plan for these reasons — the model plans
     again with them in view. A repair request is never repaired again. With NL-1 and no `repair`, a plan the
     SERVER would reject (unknown action, arguments off-schema, a target the browser never offered) is sent
-    back to the model once, in this request, if a call is left; the result passes every check as usual."""
+    back to the model once, in this request, if a call is left; the result passes every check as usual.
+    `headline` (News -> Agent, news.py): ONE stored UCT News headline the SERVER read by its id, shown to the
+    model as data with news.RULES. `answer_only` (the News Ask box): no web research runs and any op the model
+    writes is dropped -- the turn can only answer."""
     t_build = time.perf_counter()
     context, pending, reference, repair, history, _ = strip_isolated_request(context, pending, reference, repair, history)
     context = context or {}
@@ -1616,7 +1619,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     # NL-1: no keyword decides research. The model asks for it (`research`); the structural gates stay —
     # research only on an answer or a mixed request, never a change based on what was found, never for a
     # plan that looks up UCT's own data (a local lookup), always inside the call and budget limits.
-    forced_research = False if nl1 else _needs_current_facts(msg)
+    forced_research = False if (nl1 or answer_only) else _needs_current_facts(msg)
     compact = True if nl1 else compact_ops(caps)
     schema = envelope_schema(caps, unselected, compact, nl1=nl1)
     has_last = bool(((context or {}).get("conversation_memory") or {}).get("last_change_detail")) if nl1 else False
@@ -1632,7 +1635,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         parts = texts[:1] + ([ref_block] if ref_block else []) + texts[1:]
     else:
         parts = [system_prompt(caps, unselected, compact)]
+    if headline is not None:
+        from api.services.uct_agent import news as agent_news
+        parts = parts + [agent_news.RULES + (agent_news.ANSWER_ONLY if answer_only else "")]
     system_blocks = [{"type": "text", "text": t, "cache_control": {"type": "ephemeral"}} for t in parts]
+    if headline is not None:
+        blocks.append(_block("news_headline", headline))
     if repair_in:
         blocks.append(_block("validation_error", repair_in))
     if pending:
@@ -1743,6 +1751,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             usage["research_forced"] = True
         wants = ((disp == "answer" or (disp in MUTATING and (nl1 or _asks_question(msg)))) and isinstance(req, dict)
                  and str(req.get("query") or "").strip() and round_ < MAX_RESEARCH_CALLS)
+        if answer_only:
+            wants = False             # the News Ask box answers from the stored headline, never the web
         if _plans_local_lookup(env):
             # ⛔ MIXED requests beside a local-only lookup: no research (nothing is searched or spent),
             # and no explanation of figures the model never saw. The lookup runs; the member is TOLD
@@ -1839,6 +1849,10 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    else env.get("reply")}
         if compact and isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps)
+        if answer_only and isinstance(env, dict) and (env.get("ops") or env.get("disposition") in MUTATING):
+            # ⛔ answer-only: the News Ask box never changes anything, whatever the model wrote
+            env = {**env, "disposition": "answer", "ops": [], "question": None,
+                   "reply": env.get("reply") or "I can only answer questions about this headline here."}
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice), env), caps)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]

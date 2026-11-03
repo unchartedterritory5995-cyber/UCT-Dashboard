@@ -59,6 +59,7 @@ from api.services.trade_exchange_news import library as txn_library
 from api.services.trade_exchange_news import integrity as txn_integrity
 from api.services.trade_exchange_news import ops_alerts as txn_ops_alerts
 from api.services.trade_exchange_news import reconcile as txn_reconcile
+from api.services.trade_exchange_news import release_links as txn_release_links
 from api.services.trade_exchange_news.loop_lag import LAG as _loop_lag
 from api.services.trade_exchange_news.records import RecordError
 
@@ -528,6 +529,7 @@ def status(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
         "loop_lag": _loop_lag.snapshot(),
         "explain": txn_explain.snapshot(),
         "library": txn_library.snapshot(pipe.store if pipe else None),
+        "release_links": txn_release_links.snapshot(pipe.store if pipe else None),
     }
 
 
@@ -563,9 +565,13 @@ async def start_background() -> None:
     import threading
     from api.services.ticker_resolver import prewarm_company_index
     threading.Thread(target=prewarm_company_index, name="txn-company-index", daemon=True).start()
+    # Original press-release links: stored ones load now; the resolver thread runs only
+    # with TXN_RELEASE_LINKS_ENABLED=1, after company-news polls, off the delivery path.
+    txn_release_links.start(pipe)
 
 
 def stop_background() -> None:
+    txn_release_links.stop()
     _loop_lag.stop()
     txn_integrity.stop()
     txn_reconcile.stop()
