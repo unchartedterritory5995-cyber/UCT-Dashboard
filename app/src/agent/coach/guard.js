@@ -25,14 +25,23 @@ const CONFUSABLES = {
   '\u200b': '', '\u200c': '', '\u200d': '', '\u2060': '', '\ufeff': '', '\u00ad': '',
 }
 const CONFUSABLE_RX = new RegExp(`[${Object.keys(CONFUSABLES).join('')}]`, 'g')
-export const normalize = (text) => String(text || '').normalize('NFKC').replace(CONFUSABLE_RX, ch => CONFUSABLES[ch])
+// review: accents folded (NFKD, combining marks dropped, then NFKC — NBSP becomes a space), Arabic-Indic and extended
+// Arabic-Indic digits read as ASCII digits, a (non-breaking) hyphen INSIDE a word dropped — the server's normalize, same steps
+const ARABIC_DIGIT = /[٠-٩۰-۹]/g
+const arabicDigit = (ch) => String(ch.charCodeAt(0) - (ch.charCodeAt(0) >= 0x06F0 ? 0x06F0 : 0x0660))
+export const normalize = (text) => String(text || '').normalize('NFKD').replace(/\p{Mn}/gu, '').normalize('NFKC')
+  .replace(CONFUSABLE_RX, ch => CONFUSABLES[ch]).replace(ARABIC_DIGIT, arabicDigit).replace(/([A-Za-z])[‐‑]([A-Za-z])/g, '$1$2')
 // the mandated footer is NOT a hedge: removed before the uncertainty check (W3 review C2)
 const FOOTER_RX = /educational,?\s*not\s+(?:financial\s+|investment\s+)?advice\.?/gi
 
 const MOVE = '(?:go|move|head|trade|rally|rip|run|climb|rise|fall|drop|tank|crash|break ?out|bounce|recover|double|triple|soar|plunge|squeeze|explode|moon|continue|hold|keep going|take off|hit|reach)'
 export const UNSUPPORTED = [
   ['guarantee', /\bguarantee[sd]?\b/i],
-  ['will-move', new RegExp(`\\bwill\\s+(?:definitely\\s+|certainly\\s+|surely\\s+|almost certainly\\s+|probably\\s+)?${MOVE}\\b`, 'i')],
+  ['will-move', new RegExp(`(?:\\bwill|[a-z]'ll)\\s+(?:definitely\\s+|certainly\\s+|surely\\s+|almost certainly\\s+|probably\\s+)?${MOVE}\\b`, 'i')],
+  // review B2: a promised result, a certainty stated as a negation, hype-predictive verbs
+  ['will-profit', /(?:\bwill|[a-z]'ll)\s+(?:definitely\s+|certainly\s+|surely\s+|probably\s+)?(?:make (?:you )?(?:money|a profit|profits|gains?|bank)|profit|win|earn|pay off|be profitable|be a winner|be a big winner)\b/i],
+  ['no-chance', /\b(?:zero|no|nil|little|almost no|essentially no|practically no)\s+(?:chance|way|risk|possibility)\s+(?:that\s+)?(?:this|it|that|the stock|the setup|the trade)\s+(?:\w+\s+)?(?:fails?|loses?|drops?|goes down|go down|breaks? down|doesn't work|won't work|reverses?)\b/i],
+  ['hype', /\b(?:poised|primed|set|ready|due|destined|about)\s+to\s+(?:soar|explode|rip|rocket|moon|skyrocket|surge|rally|break ?out|take off|run|pop|fly|squeeze)\b|\bto the moon\b|\bcan't[- ]miss\b/i],
   ['going-to', new RegExp(`\\b(?:is|are|it's|its|this is|that's)\\s+(?:going to|gonna)\\s+${MOVE}\\b`, 'i')],
   ['cant-lose', /\bcan(?:'t|not|t)\s+(?:lose|fail|miss|go wrong|go down|go lower)\b/i],
   ['wont-lose', /\b(?:won't|wont|will not)\s+(?:lose|fail|miss|go wrong|go down|go lower|drop|fall|break down)\b/i],
@@ -52,11 +61,16 @@ export const ORDER = [
   ['shares', /\b(?:buy|sell|short|purchase|pick up|grab|dump|unload)\s+(?:\d[\d,]*\s+|some\s+|more\s+|a few\s+)?shares\b/i],
   ['place-order', /\b(?:place|put in|enter|submit|set|execute)\s+(?:an?\s+|the\s+|your\s+)?(?:buy|sell|limit|market|stop|stop-loss|bracket)?\s*(?:order|trade)\b/i],
   ['you-should', /\b(?:you should|you need to|you must|you have to|i would|i'd|i'd say|go ahead and|my advice is to|time to|consider|i'd be|i would be|i'm|i am)\s+(?:(?:buy|sell|short)(?:ing)?|cover|go long|go short|get in|get out|take the trade|take this trade|add|enter|exit|bail|dump)\b/i],
+  // review B2: advice by recommendation, "you might want to", opening / building a position, "worth trading"
+  ['recommend', /\b(?:recommend|suggest|advise|urge)\s+(?:that you\s+|you\s+)?(?:(?:buy|sell|short)(?:ing)?|picking up|adding|taking (?:a|the) (?:trade|position)|entering|getting (?:in|long|short)|going (?:long|short)|accumulat\w+|initiat\w+|opening a|starting a|a (?:starter|full|small|long|short) position|a position)\b/i],
+  ['want-to', /\byou (?:might|may|could|should|would|will) (?:want|wish|like) to\s+(?:buy|sell|short|accumulate|add|enter|exit|initiate|start|open|pick up|grab|load|trim|get (?:in|long|short)|go (?:long|short))\b/i],
+  ['position', /\b(?:initiat\w*|open(?:ing)?|start(?:ing)?|establish\w*|build(?:ing)?|take|taking)\s+(?:a |an |your )?(?:new |starter |small |full |initial )?(?:long |short )position\b/i],
+  ['worth-trading', /\b(?:worth|good (?:time|spot|place|entry|idea)|great (?:time|spot|entry)|ideal (?:time|spot|entry))\s+(?:(?:trading|buying|selling|shorting|owning)\b|to (?:buy|sell|short|trade|initiate|enter|get in|start|own)\b)/i],
   ['load-up', /\bload(?:ing)? up\b|\btrim(?:ming)?\s+(?:half|some|a third|a quarter|\d)/i],
   ['take-trade', /\b(?:take|make) (?:the|this|that) trade\b|\bpull the trigger\b|\bget in (?:now|here|today)\b|\bget out (?:now|here|today)\b/i],
 ]
 
-export const OUTCOME = /\b(?:will|likely|unlikely|probab\w*|odds|chances?|expect\w*|outcomes?|follow[- ]?through|work(?:s|ed)? out|play(?:s|ed)? out|next (?:move|session|week|day|leg)|going to|gonna|succeed\w*|fail\w*|targets?|upside|downside|forecast\w*|predict\w*|rally|rallies|bounce\w*|break ?outs?|breakdowns?|continu\w*|resolv\w*|should (?:hold|work|go|rally|bounce))\b/i
+export const OUTCOME = /\b(?:will|\w+'ll|likely|unlikely|probab\w*|odds|chances?|expect\w*|outcomes?|follow[- ]?through|work(?:s|ed)? out|play(?:s|ed)? out|next (?:move|session|week|day|leg)|going to|gonna|succeed\w*|fail\w*|targets?|upside|downside|forecast\w*|predict\w*|rally|rallies|bounce\w*|break ?outs?|breakdowns?|continu\w*|resolv\w*|should (?:hold|work|go|rally|bounce))\b/i
 export const HEDGE = /\b(?:may|might|could|often|sometimes|tends? to|tend|not guaranteed|no guarantee|no guarantees|isn't guaranteed|uncertain\w*|not certain|no certainty|no way to know|cannot know|can't know|nobody knows|unknown|doesn't always|does not always|not always|don't always|do not always|depends|historically|in the past|hypothesis|one input|not a forecast|not a prediction|not a promise|not predictions|can fail|could fail|might fail|may fail|can reverse|could reverse|can break|could break|can still|could still|may still|no pattern|cannot be known|can't be known|possibility|possible|possibly|perhaps|not a signal|not a rule|not rules|estimate\w*)\b/i
 
 // a figure: 20, 20.5, 1,000, $10, 15%, 2R; a letter or digit BEFORE it is not a figure ("v2"). Prefix captured, no lookbehind.

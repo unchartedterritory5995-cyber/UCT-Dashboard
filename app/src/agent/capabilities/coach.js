@@ -19,6 +19,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import * as agentClient from '../agentClient'
+import { GROUPS } from '../routing'
 import { explainWords, explainTopic } from '../guide/explain'
 import { loadConcepts, conceptsLoaded, conceptFor, conceptTitles, coachFooter } from '../coach/concepts'
 import { observe, lastObserved, observedChart, barsServed } from '../coach/observe'
@@ -45,7 +46,15 @@ export function coachTopic(raw) {
 let registered = false
 let lastConceptId = null
 let disposers = []
-export const _resetCoachForTest = () => { for (const d of disposers) { try { d() } catch { /* */ } } disposers = []; registered = false; lastConceptId = null }
+
+// review B1: the coach routing group's words, live ONLY while the coach capabilities are registered (routing.js keeps
+// the group's words empty), so a dark server routes exactly as the base does
+export const COACH_ROUTE_WORDS = [/\b(coach|coaching|teach me about|help me understand|how (?:should|do) i think about|my (?:trades|trading|journal|last \d+ trades|recent trades|win rate|results)|review my|use my journal|stop using my journal|position siz\w+|risk per trade|r[- ]multiple|expectancy|drawdown|relative strength|support and resistance|consolidation|tightness|failed breakouts?|earnings gaps?|stop placement|where to put (?:a|my) stop)\b/]
+function armRouting(on) {
+  const g = GROUPS.find(x => x.id === 'coach')
+  if (g) g.words.splice(0, g.words.length, ...(on ? COACH_ROUTE_WORDS : []))
+}
+export const _resetCoachForTest = () => { for (const d of disposers) { try { d() } catch { /* */ } } disposers = []; registered = false; lastConceptId = null; armRouting(false) }
 
 /** The concept explanation + one observation (when served) + the footer → { text, title } (mirror-guarded). */
 export async function explainConcept(topic, host) {
@@ -68,6 +77,8 @@ export async function explainConcept(topic, host) {
 export function registerCoachCapabilities() {
   if (registered || !agentClient.serverServesCoach()) return
   registered = true
+  armRouting(true)
+  disposers.push(() => armRouting(false))
   loadConcepts()                                   // once per page; the fast path uses it once it has arrived
   const self = () => ({ ref: 'coach', label: LABEL })
   disposers.push(registerTargetKind({
