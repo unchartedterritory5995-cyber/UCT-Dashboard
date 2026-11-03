@@ -1321,29 +1321,35 @@ _CLAIM_AVAIL = re.compile(r"\b(?:yet|available|supported|possible|offered|from h
                           r"through (?:the|this) agent|by hand|manually|directly|only (?:in|on|through|via|from)|"
                           r"handled (?:in|by)|set up in|done (?:in|from|through))\b", re.I)
 _SENTENCES = re.compile(r"[.!?\n]+")
-#: (family id, words that name it in the claim, action-name prefixes / exact names in the manifest, routing group ids,
-#:  the clarify UCT asks instead of the claim). Checked IN ORDER: "indicator alerts" before "alerts".
+#: W1.1 review BLOCKING-1: ONLY the families actually seen live (LT-4 indicator alerts, LT-9 rename). Honest PARTIAL
+#: limits about other families ("alerts by SMS", "export a layout to a file", "share a watchlist", "a live intraday
+#: count") are true answers and must never be replaced. (family id, words that name it, the action verbs it must be
+#: the object of, action-name prefixes / exact names in the manifest, routing group ids, the clarify UCT asks instead.)
+_IA_WORDS = (r"(?:indicator alerts?|alerts?\b[^.]{0,40}\b(?:indicators?|rsi|macd|ema|sma|wma|moving averages?|"
+             r"\d{1,3}[- ]?(?:ema|sma|ma|day))\b|(?:indicators?|rsi|macd|ema|sma|wma|moving averages?|"
+             r"\d{1,3}[- ]?(?:ema|sma|ma|day))\b[^.]{0,40}\balerts?)")
+_CREATE_VERB = r"(?:creat\w*|set(?:ting)?(?: up)?|add\w*|mak\w*|build\w*|configur\w*|schedul\w*)"
 CLAIM_FAMILIES: tuple = (
-    ("indicatorAlerts", re.compile(r"\bindicator alerts?\b|\balerts?\b[^.]{0,40}\b(?:indicators?|rsi|macd|ema|sma|wma|moving averages?|"
-                                   r"\d{1,3}[- ]?(?:ema|sma|ma|day))\b|\b(?:indicators?|rsi|macd|ema|sma|wma|moving averages?|"
-                                   r"\d{1,3}[- ]?(?:ema|sma|ma|day))\b[^.]{0,40}\balerts?\b", re.I),
+    ("indicatorAlerts", re.compile(r"\b" + _IA_WORDS, re.I),
+     # the family (or a pronoun for it, named in the sentence before) as the OBJECT of a create/set/add verb, either
+     # order ("I can't create them", "setting indicator alerts is not supported", "an alert on the 9 EMA … isn't
+     # something I can set up"), or the WHOLE family as the subject of the denial ("Indicator alerts aren't available")
+     re.compile(r"\b" + _CREATE_VERB + r"\b[^.]{0,30}\b(?:" + _IA_WORDS + r"|them|it|one|those|that)\b|\b" + _IA_WORDS
+                + r"\b[^.]{0,60}\b" + _CREATE_VERB + r"\b|^(?:the |an? )?indicator alerts?\s+(?:aren(?:'|’)?t|are not|isn(?:'|’)?t|is not)"
+                r"\s+(?:yet |currently )?(?:available|supported|possible|offered)\b", re.I),
      ("indicatorAlert.",), ("indicatorAlerts",),
      "I can set up indicator alerts here. Which chart and indicator should it watch, and on what condition (for example the 9 EMA crossing above the 20)?"),
-    ("alerts", re.compile(r"(?<!indicator )\b(?:price )?alerts?\b", re.I), ("alert.",), ("alerts",),
-     "I can set price alerts here. Which symbol and price level?"),
-    ("drawings", re.compile(r"\b(?:drawings?|trend ?lines?|rays?|fib\w*|retracements?|rectangles?|annotations?|anchored vwap|avwap|"
-                            r"horizontal (?:lines?|levels?)|price (?:lines?|levels?))\b", re.I),
-     ("drawing.",), ("drawings", "drawingTools"), "I can draw that here. Which chart, and from which points or price?"),
-    ("layouts", re.compile(r"\blayouts?\b", re.I), ("layout.",), ("layouts",), "I can do that with your saved layouts here. Which layout?"),
-    ("lists", re.compile(r"\bwatch ?lists?\b", re.I), ("watchlist.",), ("lists",), "I can do that with your watchlists here. Which list?"),
-    ("screener", re.compile(r"\b(?:screens?|screener|scans?)\b", re.I), ("screener.",), ("screener",),
-     "I can run that screen here. Which conditions?"),
-    ("replay", re.compile(r"\breplay\b", re.I), ("chart.replay",), ("chartSetup",), "I can use Replay Mode here. Which chart, and from which date?"),
-    ("templates", re.compile(r"\btemplates?\b", re.I), ("chartSetup.",), ("chartSetup",), "I can do that with chart templates here. Which template?"),
-    ("widgets", re.compile(r"\bwidgets?\b", re.I), ("widget.",), ("workspace",), "I can change the widgets on this board. Which one, and how?"),
-    ("rename", re.compile(r"\brenam(?:e|es|ed|ing)\b", re.I), (".rename",), ("layouts", "charts", "lists", "screener"),
+    ("rename", re.compile(r"\brenam(?:e|es|ed|ing)\b", re.I),
+     re.compile(r"\brenam(?:e|es|ed|ing)\b", re.I),
+     (".rename",), ("layouts", "charts", "lists", "screener"),
      "I can rename things here. Which did you mean — a saved layout, a chart tab, a watchlist or a saved screen?"),
 )
+#: an HONEST qualifier in the claim sentence: the limit is about a channel, a destination, other members, a data
+#: basis or another product — a part of the feature, not the feature. Such a sentence is never a false claim.
+_CLAIM_QUALIFIER = re.compile(r"\b(?:by|via|over|through) (?:sms|text|e-?mail|phone|push|webhooks?)\b|\bsms\b|\btext messages?\b|"
+                              r"\be-?mail\w*\b|\bwebhooks?\b|\bpush notifications?\b|\bto a file\b|\bexport\w*\b|\bshar(?:e|es|ed|ing)\b|"
+                              r"\b(?:other|another) members?\b|\bintraday\b|\breal[- ]?time\b|\bend[- ]of[- ]day\b|\btrades?\b|\btrading\b|"
+                              r"\borders?\b|\bbrokers?\b|\bprotected\b", re.I)
 
 
 def _family_in_manifest(prefixes: tuple, cap_names: set[str]) -> bool:
@@ -1363,17 +1369,22 @@ def false_capability_claim(env: Any, cap_names: set[str] | None, unselected_ids:
     if not reply.strip() or not cap_names:
         return None
     sentences = [s.strip() for s in _SENTENCES.split(reply) if s.strip()]
-    claim_texts = []
+    claims = []                          # (the claim sentence, the sentence before it)
     for i, s in enumerate(sentences):
         if _CLAIM_NEG.search(s) and _CLAIM_AVAIL.search(s):
-            claim_texts.append(((sentences[i - 1] + " ") if i else "") + s)
-    if env.get("disposition") == "unsupported" and sentences:
-        claim_texts.append(sentences[0])
-    if not claim_texts:
-        return None
-    text = "\n".join(claim_texts)
-    for fam, words, prefixes, groups, question in CLAIM_FAMILIES:
-        if not words.search(text):
+            claims.append((s, sentences[i - 1] if i else ""))
+    if env.get("disposition") == "unsupported" and sentences and not any(c[0] == sentences[0] for c in claims):
+        claims.append((sentences[0], ""))
+    for fam, words, verb_object, prefixes, groups, question in CLAIM_FAMILIES:
+        hit_claim = False
+        for s, before in claims:
+            if _CLAIM_QUALIFIER.search(s):
+                continue                 # an honest PARTIAL limit (a channel, a file, other members…): never a claim
+            named = words.search(s) or (words.search(before) and not _CLAIM_QUALIFIER.search(before))
+            if named and verb_object.search(s):
+                hit_claim = True
+                break
+        if not hit_claim:
             continue
         if _family_in_manifest(prefixes, cap_names):
             return {"family": fam, "where": "caps", "question": question,
@@ -1388,7 +1399,8 @@ def false_capability_claim(env: Any, cap_names: set[str] | None, unselected_ids:
 
 
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
-                      unselected_ids: set[str] | None = None, local_notice: str | None = None) -> dict:
+                      unselected_ids: set[str] | None = None, local_notice: str | None = None,
+                      claim_repaired: bool = False) -> dict:
     """The server-side gate between the model and the browser."""
     need = env.get("need_groups") if unselected_ids else None
     need = [g for g in need if g in unselected_ids] if isinstance(need, list) else []
@@ -1407,9 +1419,14 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         log.warning("uct_agent false capability claim (%s): rerouting to %s", claim["family"], claim["groups"])
         return {"disposition": "clarify", "reply": "", "question": {"text": "Looking at more of UCT…", "choices": []},
                 "ops": [], "unsupported_category": None, "need_groups": sorted(set(claim["groups"])), "false_claim": claim["family"]}
+    if claim and claim_repaired:
+        # W1.1 review BLOCKING-1: the model repeated the claim AFTER its one repair round. The detector is a heuristic,
+        # so the model's own reply is served (never a clarify that may offer something UCT cannot do); codes only.
+        log.warning("uct_agent false capability claim repeated after repair (%s): served the %s", claim["family"], disp)
+        claim = None
     if claim:
-        # ⛔ R-04: the family IS in the manifest the model was sent (run_turn has already given it one repair round
-        # when it could): the member is asked what is needed, never told a limitation that is not true
+        # ⛔ R-04: the family IS in the manifest the model was sent and no repair round was possible (no call left):
+        # the member is asked what is needed, never told a limitation that is not true
         log.warning("uct_agent false capability claim (%s): replaced a %d-char %s with a clarify", claim["family"], len(str(env.get("reply") or "")), disp)
         return {"disposition": "clarify", "reply": "", "question": {"text": claim["question"], "choices": []},
                 "ops": [], "unsupported_category": None, "false_claim": claim["family"]}
@@ -2039,7 +2056,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # The change planned before the research, with the researched answer as its reply.
             env = {**env, "disposition": pre_research["disposition"], "ops": pre_research["ops"],
                    "question": None, "research": None}
-            envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids), env), caps)
+            envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids,
+                                                                 claim_repaired=bool(usage.get("false_claim"))), env), caps)
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
@@ -2059,7 +2077,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # ⛔ answer-only: the News Ask box never changes anything, whatever the model wrote
             env = {**env, "disposition": "answer", "ops": [], "question": None,
                    "reply": env.get("reply") or "I can only answer questions about this headline here."}
-        envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice), env), caps)
+        envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
+                                                             claim_repaired=bool(usage.get("false_claim"))), env), caps)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         title = clean_title(env) if conversation_title and not envelope.get("need_groups") else None
