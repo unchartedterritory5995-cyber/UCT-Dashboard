@@ -517,6 +517,12 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   `note_sync._OBSIDIAN_UPLOAD_GATE`, its OWN instance of that gate class
   (`OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT` = 2 per member and `OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT` = 8 for
   the pod; over either answers 429 before any byte is read): a second process doubles both ·
+  since the Plan C final review (M1), the Obsidian staging store's `obsidian_attachments._COMMIT_LOCK`
+  (a `threading.Lock` around each blob commit's device check, staged-sum room re-check, rename and
+  row insert, and each GC unlink's re-check; the member's stored-media usage walk runs BEFORE it, never
+  under it): it is what makes the per-member room check atomic, so a second process would let two
+  uploads both pass it · and `obsidian_attachments._SWEEP_OFFSET` (the orphan sweep's per-vault resume
+  point; a second process sweeps from its own offset, harmless) ·
   `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the

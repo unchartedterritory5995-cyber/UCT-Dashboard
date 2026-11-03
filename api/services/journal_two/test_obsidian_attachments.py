@@ -93,6 +93,28 @@ async def test_stage_then_read_round_trips_bytes_and_mime(env):
 
 
 @pytest.mark.asyncio
+async def test_no_disk_walk_runs_under_the_pod_wide_commit_lock(env, monkeypatch):
+    """Final review M1: `_COMMIT_LOCK` serialises every member's blob commit and every GC
+    unlink. The member's stored-media usage (a whole-tree `os.scandir` walk on a memo miss)
+    is read BEFORE the lock; under it only the device check, the staged sum and the rename."""
+    held: list[bool] = []
+    real = media_policy.member_media_bytes
+
+    def spy(user_id):
+        held.append(oa._COMMIT_LOCK.locked())
+        return real(user_id)
+
+    monkeypatch.setattr(media_policy, "member_media_bytes", spy)
+    # The memo expired between the early room check and the commit (its TTL elapsed under
+    # load): the read under the lock would then be a walk.
+    monkeypatch.setattr(media_policy, "USAGE_MEMO_TTL_S", -1)
+    for i in range(3):
+        media_policy._USAGE_MEMO.clear()  # every read a memo miss: the walk runs each time
+        assert await _stage(data=b"blob-%d" % i, name=f"{i}.png") is True
+    assert held and not any(held), held
+
+
+@pytest.mark.asyncio
 async def test_hash_mismatch_rejected_and_nothing_left_on_disk(env):
     with pytest.raises(oa.BlobRejected) as e:
         await oa.stage_blob_stream(user_id="u", vault_id="v", sha256="0" * 64, declared_mime=None,
@@ -441,7 +463,7 @@ async def test_commit_time_room_recheck_refuses(env, monkeypatch):
     calls = []
     real = oa.remaining_bytes
 
-    def shrinking(user_id):
+    def shrinking(user_id, **_kw):  # the commit passes its connection and the usage read first
         calls.append(user_id)
         return 10 ** 9 if len(calls) == 1 else 0
 

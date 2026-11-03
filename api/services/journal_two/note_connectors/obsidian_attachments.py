@@ -168,17 +168,23 @@ def _staged_sum(conn: sqlite3.Connection, user_id: str) -> int:
     return int(row[0] or 0)
 
 
-def remaining_bytes(user_id: str) -> int:
+def remaining_bytes(user_id: str, *, conn: sqlite3.Connection | None = None,
+                    live: int | None = None) -> int:
     """Bytes this member may still stage: the smaller of the staged-blob remainder and
     the live stored-media remainder (`media_policy`'s memoised per-member usage), floored
-    at 0. Both against the one `MEMBER_IMPORT_MEDIA_CAP_BYTES`."""
+    at 0. Both against the one `MEMBER_IMPORT_MEDIA_CAP_BYTES`. `live`: the usage already
+    read (`_commit` reads it before taking `_COMMIT_LOCK`); `conn`: an open connection."""
     cap = MEMBER_IMPORT_MEDIA_CAP_BYTES
-    conn = get_connection()
-    try:
+    if conn is None:
+        own = get_connection()
+        try:
+            staged = _staged_sum(own, user_id)
+        finally:
+            own.close()
+    else:
         staged = _staged_sum(conn, user_id)
-    finally:
-        conn.close()
-    live = media_policy.MediaBudget.for_member(user_id).used
+    if live is None:
+        live = media_policy.MediaBudget.for_member(user_id).used
     return max(0, min(cap - staged, cap - live))
 
 
@@ -236,7 +242,16 @@ def _commit(user_id: str, vault_id: str, sha256: str, tmp: Path, final: Path, si
     `stage_blob_stream` run outside the lock, so two concurrent uploads can both pass
     them. The device check refuses an upload that finishes after `revoke_devices` or the
     account purge removed this (member, vault)'s device: without it, the commit would
-    recreate a row and a file for a revoked vault or a deleted member."""
+    recreate a row and a file for a revoked vault or a deleted member.
+
+    ⛔ Final review M1: the lock is POD-WIDE (every member's commit and every GC unlink
+    wait on it), so nothing slow runs under it. The member's live stored-media usage is
+    read FIRST, outside it: on a memo miss that is a whole-tree `os.scandir` walk of the
+    member's attachments. Under the lock: the device check, the staged sum (one indexed
+    SUM, the part concurrent uploads race on), the rename and the row. ⛔ It is a
+    SINGLE-PROCESS assumption (CLAUDE.md): a second web process would let two uploads both
+    pass the room check."""
+    live = media_policy.MediaBudget.for_member(user_id).used
     with _COMMIT_LOCK:
         conn = get_connection()
         try:
@@ -245,7 +260,7 @@ def _commit(user_id: str, vault_id: str, sha256: str, tmp: Path, final: Path, si
                 (user_id, vault_id),
             ).fetchone() is None:
                 raise BlobRejected(403, "this vault is no longer connected")
-            if size > remaining_bytes(user_id):
+            if size > remaining_bytes(user_id, conn=conn, live=live):
                 raise _no_room()
             os.replace(tmp, final)
             cur = conn.execute(
