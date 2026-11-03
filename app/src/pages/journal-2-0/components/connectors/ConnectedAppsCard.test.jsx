@@ -1169,6 +1169,17 @@ describe('ConnectedAppsCard — Evernote (Plan E Task 10)', () => {
     expect(window.location.search).toBe('?section=connections')
   })
 
+  // Review M3: the Evernote sentence keys on BOTH connector=evernote and reason=evernote_plan.
+  it('reason=evernote_plan on another connector never shows the Evernote plan sentence', async () => {
+    window.history.replaceState({}, '', '/settings?section=connections&connector=notion&connected=0&reason=evernote_plan')
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
+    renderCard()
+    const note = await screen.findByTestId('oauth-return-notice')
+    expect(note.textContent).toBe("Couldn't connect Notion: evernote_plan")   // the generic line, as any other reason
+    expect(screen.queryByText(EVERNOTE_PLAN_RETURN, { exact: false })).toBeNull()
+    expect(within(note).queryByRole('link')).toBeNull()
+  })
+
   it('evernote tile carries a Beta pill and no other tile does', async () => {
     mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
     renderCard()

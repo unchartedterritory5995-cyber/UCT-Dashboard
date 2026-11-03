@@ -216,6 +216,8 @@ export default function ConnectedAppsCard() {
   }
 
   const activeTokenProvider = NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === tokenModalProvider)
+  // Review M3: Evernote's plan sentence needs BOTH the connector and the reason; any other pair is generic.
+  const evernotePlanReturn = !!returnNotice && returnNotice.connector === 'evernote' && returnNotice.reason === 'evernote_plan'
 
   return (
     <TileCard icon="link" title="Connected Apps">
@@ -244,7 +246,7 @@ export default function ConnectedAppsCard() {
 
         {actionError && <div className={styles.error} role="alert">{actionError}</div>}
 
-        {returnNotice && returnNotice.reason === 'evernote_plan' && (
+        {evernotePlanReturn && (
           // Evernote refused a Free account (the callback maps that to `evernote_plan`): say what it
           // means and offer the import a Free member CAN use, never the raw reason.
           <p className={styles.offerNotice} role="status" data-testid="oauth-return-notice">
@@ -253,7 +255,7 @@ export default function ConnectedAppsCard() {
           </p>
         )}
 
-        {returnNotice && returnNotice.reason !== 'evernote_plan' && (() => {
+        {returnNotice && !evernotePlanReturn && (() => {
           const label = NOTE_CONNECTOR_PROVIDERS.find((x) => x.key === returnNotice.connector)?.label || returnNotice.connector
           const text = returnNotice.reason === 'oauth_state'
             ? `Connecting ${label} didn't finish in this browser. Press Connect below to start again here.`
