@@ -29,7 +29,7 @@ Each branch's newest WIP commit holds the exact next step.
 | W4-T3 fix round | QUEUED | `feat/pine-w4-t3-session-text` @ 572376edf6. M1/L1 are done; run ONLY the final-tip (command at the end of its EVIDENCE.md) and record it. READY. Engine 7 at merge. |
 | W3 S1 round 2 | QUEUED | `feat/pine-w3-drawings` @ 7eaca7777f. Finish the pending checks in its newest commit (measure-pair both lanes, final-tip). READY. Engine 8 at merge. |
 | W2 round 3 | QUEUED | `feat/pine-w2-arming` @ 1a8dddb408. Follow round2/WIP-STATE.md + round3-job.sh: classify P11, edit the packet. READY. NEVER arm or touch flags. |
-| E evidence-engine lows | QUEUED | `fix/pine-evidence-engine-lows` (if pushed) - offline tooling. |
+| E evidence-engine lows | QUEUED | `fix/pine-evidence-engine-lows` @ e58edcbeaf: all 5 lows coded. Run deploy-gate pytest + hygiene + rails, write EVIDENCE.md. READY. |
 
 ## Merge queue held for the new coordinator (already reviewed GO + landing checks passed)
 Language scoreboard @ 397ecee294 · W4-T1 @ f9b85fb442 · W4-T4 @ 311fb46c7a (engine 6, bumped on its branch).
