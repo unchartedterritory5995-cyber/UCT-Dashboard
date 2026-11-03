@@ -35,3 +35,29 @@ def test_the_door_releases_its_slot_before_decode_and_store(app, client, web, mo
     assert seen == [{}]  # the member's slot was already given back when the store ran
 
 
+def test_the_door_delegates_to_the_shared_fetch_with_its_own_seams(app, client, web, monkeypatch):
+    """M-4: behavioural, not a source-text check. The door calls `fetch_and_store` with ITS
+    client factory, deadline and semaphore, read at call time."""
+    from api.routers import journal_two as router
+    _login_as(app, "u1")
+    note_id = _imported(client, "notion:page-1")
+    calls = []
+    real = hotlink_fetch.fetch_and_store
+
+    async def spy(user_id, n_id, url, **kwargs):
+        calls.append((user_id, n_id, url, kwargs))
+        return await real(user_id, n_id, url, **kwargs)
+
+    monkeypatch.setattr(hotlink_fetch, "fetch_and_store", spy)
+    monkeypatch.setattr(router, "MEDIA_FETCH_DEADLINE_S", 7.5)
+    web["routes"][_HOT] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+    r = _fetch(client)
+    assert r.status_code == 200, r.text
+    assert len(calls) == 1
+    user_id, n_id, url, kwargs = calls[0]
+    assert (user_id, n_id, url) == ("u1", note_id, _HOT)
+    assert kwargs["client_factory"] is router._media_fetch_client
+    assert kwargs["deadline_s"] == 7.5
+    assert kwargs["semaphore"] is router._MEDIA_FETCH_SEM
+    assert callable(kwargs["after_download"])
+
