@@ -8,7 +8,7 @@ import { registerBuiltins } from './builtins'
 import { _resetScreenerCache, lastScreenNow, ensureLast } from './capabilities/screener'
 import { noteConversation } from './agentClient'
 import {
-  composeRefine, refusalFor, publicAlternative, HIDDEN_FALLBACK, RATINGS_REFUSAL, FLOW_REFUSAL, ALT_STRENGTH, ALT_SETUP, ALT_FLOW, NO_LAST_SCREEN, useHiddenSet,
+  composeRefine, refineRefusal, publicAlternative, hiddenKeys, RATINGS_REFUSAL, FLOW_REFUSAL, ALT_STRENGTH, ALT_SETUP, ALT_FLOW, NO_LAST_SCREEN,
 } from './capabilities/scanRefine'
 
 registerBuiltins()
@@ -128,23 +128,18 @@ describe('F-16 on a refinement: the owner\'s sentence + ONE public alternative, 
     expect(scans()).toHaveLength(1)
     expect(lastScreenNow().spec.filters).toEqual([{ key: 'pct_vs_ema20', op: 'gt', min: 0 }])      // the last screen is untouched
   })
-  it('pure: refusalFor / publicAlternative for the whole ruling set; the wording never names a weight or formula', () => {
-    expect(refusalFor(['price', 'chg_pct_3m'])).toBeNull()
-    expect(refusalFor(['dp_net_flow'])).toBe(`${FLOW_REFUSAL}. A public alternative: ${ALT_FLOW.label} (${ALT_FLOW.key}).`)
+  it('pure: refineRefusal / publicAlternative for the whole hidden set (scanHidden.js); the wording never names a weight or formula', () => {
+    expect(refineRefusal(['price', 'chg_pct_3m'])).toBeNull()
+    expect(refineRefusal(['dp_notional_1d'])).toBe(`${FLOW_REFUSAL}. A public alternative: ${ALT_FLOW.label} (${ALT_FLOW.key}).`)
     expect(publicAlternative('pattern_expectancy_r')).toEqual(ALT_SETUP)
     expect(publicAlternative('uct_composite')).toEqual(ALT_STRENGTH)
-    for (const k of HIDDEN_FALLBACK) {
-      const s = refusalFor([k])
+    for (const k of hiddenKeys()) {
+      const s = refineRefusal([k])
       expect(s).toBeTruthy()
       for (const w of ['0.40', '0.20', '25/18', 'weight', 'formula', 'percentile', 'sum of']) expect(s).not.toContain(w)
       expect(s.match(/\(/g)).toHaveLength(1)
-      expect(HIDDEN_FALLBACK.has(publicAlternative(k).key)).toBe(false)
+      expect(hiddenKeys().has(publicAlternative(k).key)).toBe(false)
     }
-    // W1-SEC's mirror, once present, replaces the ruling set
-    useHiddenSet(new Set(['price']))
-    expect(refusalFor(['price'])).toMatch(/^UCT Agent can't screen/)
-    expect(refusalFor(['rs_rank'])).toBeNull()
-    useHiddenSet(null)
   })
   it('composeRefine: add / narrow replace by key, universe replaces the slot, sort replaces only the sort (the server mirror has the same rules)', () => {
     const last = { filters: [{ key: 'pct_vs_ema20', op: 'gt', min: 0 }, { key: 'sector', op: 'in', values: ['Energy'] }], post: [{ key: 'dollar_volume_1d', op: 'gte', min: 1e7 }], sort: { key: 'price', dir: 'asc' } }

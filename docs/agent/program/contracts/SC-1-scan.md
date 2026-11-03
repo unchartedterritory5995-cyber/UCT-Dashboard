@@ -1,9 +1,9 @@
-# SC-1 — Agent scan contract (v1.3)
+# SC-1 — Agent scan contract (v1.4)
 
 - **Owner:** agent-sc.
 - **Consumers:** agent-rs, agent-qa, and later the G workstream.
 - **Depends on:** MD-1 (envelope, gateway and budgets).
-- **Status:** v1.0 accepted for Sprint 1; v1.1 (additive, 2026-11-01) pins the `as_of`/`stale` mapping in §2a; v1.3 (additive) adds §2c, relative volume. **v1.2 is reserved** for the IC-1 delegating kind (ADR-004), which is not scheduled.
+- **Status:** v1.0 accepted for Sprint 1; v1.1 (additive, 2026-11-01) pins the `as_of`/`stale` mapping in §2a; v1.3 (additive) adds §2c, relative volume; v1.4 adds §2d, fields the Agent never reaches (owner F-16). **v1.2 is reserved** for the IC-1 delegating kind (ADR-004), which is not scheduled.
 
 ## 1. Purpose
 
@@ -70,6 +70,41 @@ Two screener fields carry it. Both are read through `screen.run` / `screen.count
 - Neither field is ever called "live" or "now" without its time: the overlay's time for `rvol_live`, the session for `vol_ratio`.
 
 *Implementation status:* both fields and their envelope disclosures already work through `screen.run` (§2, §2a). The discovery planning that applies these rules to a member's question is SC-1 PR 3.
+
+## 2d. Fields the Agent never reaches (v1.4, owner F-16 ruling, Sprint 2)
+
+The Agent never reaches UCT's proprietary ratings and scores, or options-flow and dark-pool data.
+- "Never reaches" means: not in any catalog the planner sees; never a filter, logic leaf, arithmetic term, sort, rank criterion, requested column or named view; never a value in a returned row; never a saved screen the Agent runs.
+- A spec that names one is **refused with a sentence**, before any read, so the refusal spends nothing (the `Kind.validate` hook). It is never silently dropped and never substituted:
+  - "UCT Agent can't screen on UCT's proprietary ratings and scores. You can use them on the Screener page."
+  - "UCT Agent can't screen on options-flow or dark-pool data. You can use it on the Screener page."
+- A member's saved screen that uses one is listed with `runnable: false`, that reason, and `spec: null`, so its criteria never reach the model. Running it by id is refused.
+- A view asked for by name that shows hidden columns is refused. The default view's own hidden columns (overview carries RS Rank) are simply not returned, because the member never asked for them.
+- **The member-facing Screener page and `/api/screener/*` do not change.** This section is the Agent's view only.
+
+**The set has one authority:** `api/services/uct_agent/scan/hidden.py`. The browser mirror `capabilities/scanHidden.js` is generated from it and pinned by a test.
+- **Ratings:** every column `screener/enrich.ratings_fields()` writes under a constant name, derived by AST, so a rating added there is hidden the day it lands. Today that is `uct_composite`, `rating_eps`, `rating_growth`, `rating_value`, `rating_smr`, `accdis`, `sponsorship`, `sector_rs_pct` and `blended_growth` (UCT's own 0.6/0.4 blend, computed in the ratings pipeline).
+- **Owner-named:**
+  - `rs_rank`, plus `rs_return`, the return it is a percentile of;
+  - the other UCT-computed scores and signals: `candle_score`, `earnings_setup_grade`, `in_uct20`, `archive_calls_n`, every pattern-engine field (`pattern_engine_*`, `pattern_entry_dist_pct`, `pattern_stop_dist_pct`, `pattern_expectancy_r`), the base-detector outputs `base_structure`, `base_relation_count` and `base_pivot_px`, `hvc_52w`, and `theme` (UCT's taxonomy, protected pending its own exposure review).
+  - These are explicit names, each with a comment, because the field catalog carries no metadata that marks a field as UCT-computed. Proposed: a `proprietary` tag on the catalog, in the Screener workstream's file; these names are then derived from it.
+- **Flow:** every catalog field whose category is `flow`.
+- **Only catalog fields, ever.** A sort, requested column, rank criterion or returned row may name only a catalog field that is not hidden, or the row's identity (`ticker`, `company`). The 33 raw snapshot columns outside the catalog, among them UCT research-archive (`archive_*`) and base-detector internals, are never used. That stops the bypass a field-name list cannot see.
+- **Next:** the hand-named entries are replaced by an authoritative exposure tag on the field catalog: `SC-1-field-exposure-design.md`, under design with the Screener owner.
+- **Visible:** ordinary public market and fundamental inputs stay visible. That includes price and price changes, volume, moving averages, standard candlestick properties, PEG, earnings growth, institutional ownership, and the vendor passthroughs. Any other field that may be proprietary is escalated to agent-lead before it is exposed.
+
+**Order.** The Screener's own default order is UCT Composite. When no order is asked for, the Agent's screens are ordered by **market cap, largest first** (`DEFAULT_SORT`), and the receipt says so ("Ordered by market cap, largest first (no other order was asked for)."). That applies to saved screens and criteria text too.
+
+**What this does not promise (the owner's accepted position).** Hiding UCT's outputs does **not** make them impossible to reconstruct. Public inputs that stay visible can produce similar, or for some ratings identical, orderings:
+- a return blend over the visible `chg_pct_*` fields;
+- a sort by earnings growth, PEG or institutional ownership, the inputs to some component ratings.
+
+The rule is narrower:
+- the Agent never reads or shows UCT's own outputs;
+- it never deliberately reproduces UCT's rating formulas, and no hint, summary, glossary or contract text describes their weights or construction;
+- it never suggests "UCT-like" composite recipes.
+
+A member who asks for an ordinary public-data ranking ("sort by 6-month return") gets it, as ordinary analysis.
 
 ## 3. Specs
 

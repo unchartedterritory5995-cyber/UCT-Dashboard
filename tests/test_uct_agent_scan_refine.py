@@ -197,13 +197,13 @@ def test_a_refinement_adding_a_hidden_field_is_refused_with_the_sentence_and_one
 
 def test_a_flow_field_gets_the_flow_sentence_and_the_volume_alternative():
     with pytest.raises(refine.RefineError) as e:
-        refine.compose(BASE, {"add": [{"key": "dp_net_flow", "op": "gt", "min": 0}]})
+        refine.compose(BASE, {"add": [{"key": "dp_notional_1d", "op": "gt", "min": 0}]})
     assert str(e.value) == f"{refine.FLOW_REFUSAL}. A public alternative: {refine.ALT_FLOW[1]} ({refine.ALT_FLOW[0]})."
 
 
 def test_the_alternative_wording_never_reproduces_a_uct_formula_or_weight():
     """F-16-R (owner): the Agent must not name a UCT weight or formula. The sentences name one public field each."""
-    sentences = {refine.refusal_for([k]) for k in refine.HIDDEN_FALLBACK}
+    sentences = {refine.refusal_for([k]) for k in refine.hidden_keys()}
     assert all(sentences)
     forbidden = ("0.40", "0.20", "0.4", "0.2", "25/18", "weight", "formula", "percentile", "composite of", "sum of", "×", "+ ")
     for s in sentences:
@@ -215,7 +215,7 @@ def test_the_alternative_wording_never_reproduces_a_uct_formula_or_weight():
         assert k not in refine.hidden_keys()
 
 
-def test_the_hidden_set_follows_the_owner_ruling_until_scan_hidden_lands():
+def test_the_hidden_set_is_scan_hidden_py_and_covers_the_owner_ruling():
     ruling = {"uct_composite", "rating_eps", "rating_growth", "rating_value", "rating_smr", "sponsorship", "accdis", "rs_rank",
               "rs_return", "candle_score", "earnings_setup_grade", "in_uct20", "sector_rs_pct", "pattern_entry_dist_pct",
               "pattern_stop_dist_pct", "pattern_expectancy_r", "archive_calls_n"}

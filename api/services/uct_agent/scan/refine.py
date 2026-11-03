@@ -18,9 +18,7 @@ The browser (capabilities/screener.js) runs screens and refines them; what this 
   the row count). The browser mirrors these rules in capabilities/scanRefine.js; `tests/test_uct_agent_scan_refine.py`
   pins both the rules and the sentence.
 
-The hidden set comes from scan/hidden.py when that module is present (W1-SEC, PRs #654/#657/#661 → agent/int);
-until then HIDDEN_FALLBACK carries the owner's F-16 FINAL RULING set (docs/agent/program/status/agent-qa.md) so
-the rule is enforced from the first merge.
+The hidden set and the two refusal sentences are scan/hidden.py's (W1-SEC, #704): one authority, never a copy.
 """
 from __future__ import annotations
 
@@ -35,20 +33,10 @@ _SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,11}$")
 _OPS = frozenset({"gt", "gte", "lt", "lte", "eq", "between", "in", "not_in"})
 UNIVERSE_KEYS = frozenset({"sector", "industry"})
 
-RATINGS_REFUSAL = "UCT Agent can't screen on UCT's proprietary ratings and scores. You can use them on the Screener page"
-FLOW_REFUSAL = "UCT Agent can't screen on options-flow or dark-pool data. You can use it on the Screener page"
+from api.services.uct_agent.scan import hidden
 
-#: the owner's F-16 FINAL RULING set (26 + B1 + B2 + archive_calls_n), used only until scan/hidden.py lands
-HIDDEN_FALLBACK = frozenset({
-    "uct_composite", "rating_eps", "rating_growth", "rating_value", "rating_smr", "sponsorship", "accdis",
-    "rs_rank", "rs_return", "sector_rs_pct",
-    "dp_net_flow", "dp_net_flow_pct", "dp_trades", "dp_dollar_vol",
-    "opt_call_prem", "opt_put_prem", "opt_pc_ratio",
-    "candle_score", "earnings_setup_grade", "in_uct20", "archive_calls_n",
-    "pattern_engine_id", "pattern_engine_conf", "pattern_engine_dir", "pattern_engine_vcp", "pattern_engine_flat_base",
-    "pattern_expectancy_r", "pattern_entry_dist_pct", "pattern_stop_dist_pct",
-})
-_FLOW_PREFIXES = ("dp_", "opt_")
+RATINGS_REFUSAL = hidden.RATINGS_REFUSAL
+FLOW_REFUSAL = hidden.FLOW_REFUSAL
 _SETUP_KEYS = frozenset({"candle_score", "earnings_setup_grade", "pattern_engine_id", "pattern_engine_conf",
                          "pattern_engine_dir", "pattern_engine_vcp", "pattern_engine_flat_base", "pattern_expectancy_r",
                          "pattern_entry_dist_pct", "pattern_stop_dist_pct", "base_structure", "base_relation_count",
@@ -65,19 +53,12 @@ class RefineError(ValueError):
 
 
 def hidden_keys() -> frozenset:
-    try:
-        from api.services.uct_agent.scan import hidden
-        return frozenset(hidden.hidden_keys())
-    except Exception:  # noqa: BLE001 — not merged yet, or unreadable: the owner's ruling set applies
-        return HIDDEN_FALLBACK
+    """scan/hidden.py's set (ratings + owner-named proprietary + flow): the one authority."""
+    return frozenset(hidden.hidden_keys())
 
 
 def is_flow(key: str) -> bool:
-    try:
-        from api.services.uct_agent.scan import hidden
-        return key in hidden.flow_keys()
-    except Exception:  # noqa: BLE001
-        return key.startswith(_FLOW_PREFIXES)
+    return key in hidden.flow_keys()
 
 
 def public_alternative(key: str) -> dict:
@@ -88,9 +69,9 @@ def public_alternative(key: str) -> dict:
 
 def refusal_for(keys: Iterable[str]) -> Optional[str]:
     """The F-16 sentence for the first hidden key among `keys`, with one public alternative, else None."""
-    hidden = hidden_keys()
+    hid = hidden_keys()
     for k in keys:
-        if k in hidden:
+        if k in hid:
             alt = public_alternative(k)
             base = FLOW_REFUSAL if is_flow(k) else RATINGS_REFUSAL
             return f"{base}. A public alternative: {alt['label']} ({alt['key']})."

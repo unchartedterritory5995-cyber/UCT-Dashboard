@@ -7,28 +7,19 @@
 //     never blocks an answer) and restores it with the matching GET when the screener has no last screen for the
 //     conversation the member is in (a reload, a chat switch);
 //   * composes a refinement with the SC-2 §3 rules (mirrored from api/services/uct_agent/scan/refine.py);
-//   * F-16: a refinement that adds a HIDDEN UCT field is refused with the owner's sentence AND one public alternative
-//     (a public field's name only — never a formula, a weight or an input-by-input reconstruction).
+//   * F-16: a refinement that adds a HIDDEN UCT field is refused with the owner's sentence (scanHidden.js, the
+//     generated mirror of scan/hidden.py — one authority) AND one public alternative: a public field's name only,
+//     never a formula, a weight or an input-by-input reconstruction (F-16-R, owner decision 2026-11-02).
 // memory.js (result sets for "the third one") stays session-only by design; this is the screen's SPEC + result ids.
-// The hidden set: scanHidden.js when W1-SEC's mirror is present (PR #657), else the owner's F-16 FINAL RULING set.
 
 import { activeConversationId, agentConversationState, agentConversationStateSet } from '../agentClient'
+import { RATING_FIELDS, FLOW_FIELDS, RATINGS_REFUSAL, FLOW_REFUSAL } from './scanHidden'
 
 export const STATE_KEY = 'lastScreen'
 export const ROW_CAP = 50
 export const UNIVERSE_KEYS = ['sector', 'industry']
-export const RATINGS_REFUSAL = "UCT Agent can't screen on UCT's proprietary ratings and scores. You can use them on the Screener page"
-export const FLOW_REFUSAL = "UCT Agent can't screen on options-flow or dark-pool data. You can use it on the Screener page"
+export { RATINGS_REFUSAL, FLOW_REFUSAL }
 
-// the owner's F-16 FINAL RULING set (26 + B1 + B2 + archive_calls_n), used only until scanHidden.js lands
-export const HIDDEN_FALLBACK = new Set([
-  'uct_composite', 'rating_eps', 'rating_growth', 'rating_value', 'rating_smr', 'sponsorship', 'accdis',
-  'rs_rank', 'rs_return', 'sector_rs_pct',
-  'dp_net_flow', 'dp_net_flow_pct', 'dp_trades', 'dp_dollar_vol', 'opt_call_prem', 'opt_put_prem', 'opt_pc_ratio',
-  'candle_score', 'earnings_setup_grade', 'in_uct20', 'archive_calls_n',
-  'pattern_engine_id', 'pattern_engine_conf', 'pattern_engine_dir', 'pattern_engine_vcp', 'pattern_engine_flat_base',
-  'pattern_expectancy_r', 'pattern_entry_dist_pct', 'pattern_stop_dist_pct',
-])
 const SETUP_KEYS = new Set(['candle_score', 'earnings_setup_grade', 'pattern_engine_id', 'pattern_engine_conf', 'pattern_engine_dir',
   'pattern_engine_vcp', 'pattern_engine_flat_base', 'pattern_expectancy_r', 'pattern_entry_dist_pct', 'pattern_stop_dist_pct',
   'base_structure', 'base_relation_count', 'base_pivot_px', 'hvc_52w'])
@@ -36,12 +27,9 @@ export const ALT_STRENGTH = { key: 'chg_pct_3m', label: '3-month price change' }
 export const ALT_SETUP = { key: 'dist_52w_high_pct', label: 'distance from the 52-week high' }
 export const ALT_FLOW = { key: 'vol_ratio', label: 'volume vs its 30-day average' }
 
-let hiddenSet = null
-/** The hidden keys: W1-SEC's generated mirror when present (set by `useHiddenSet`), else the ruling set. */
-export const hiddenKeys = () => hiddenSet || HIDDEN_FALLBACK
-/** scanHidden.js (PR #657) registers its own set here once merged; tests may inject one. */
-export const useHiddenSet = (set) => { hiddenSet = set instanceof Set && set.size ? set : null }
-const isFlow = (k) => /^(dp_|opt_)/.test(k)
+/** The hidden keys (scanHidden.js: ratings + proprietary + flow). */
+export const hiddenKeys = () => new Set([...RATING_FIELDS, ...FLOW_FIELDS])
+const isFlow = (k) => FLOW_FIELDS.has(k)
 
 /** One public field a member can use instead of the hidden `key`. */
 export function publicAlternative(key) {
@@ -49,10 +37,9 @@ export function publicAlternative(key) {
 }
 
 /** The F-16 sentence (+ one public alternative) for the first hidden key among `keys`, or null. */
-export function refusalFor(keys) {
-  const hidden = hiddenKeys()
+export function refineRefusal(keys) {
   for (const k of keys || []) {
-    if (!hidden.has(k)) continue
+    if (!RATING_FIELDS.has(k) && !FLOW_FIELDS.has(k)) continue
     const alt = publicAlternative(k)
     return `${isFlow(k) ? FLOW_REFUSAL : RATINGS_REFUSAL}. A public alternative: ${alt.label} (${alt.key}).`
   }
@@ -65,7 +52,7 @@ export function refusalFor(keys) {
  * universe slot; `sort` replaces only the sort. → { spec } | { error }
  */
 export function composeRefine(last, { wire = [], post = [], sort = null } = {}) {
-  const why = refusalFor([...wire.map(f => f.key), ...post.map(f => f.key), ...(sort ? [sort.key] : [])])
+  const why = refineRefusal([...wire.map(f => f.key), ...post.map(f => f.key), ...(sort ? [sort.key] : [])])
   if (why) return { error: why }
   const universe = wire.filter(f => UNIVERSE_KEYS.includes(f.key))
   const mine = new Set([...wire, ...post].map(f => f.key))

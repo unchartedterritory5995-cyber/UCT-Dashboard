@@ -9,7 +9,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { refsOf, checkRefs } from './compose'
 import { _resetScreenerCache, loadMeta } from './capabilities/screener'
-import { refusalFor, HIDDEN_FALLBACK } from './capabilities/scanRefine'
+import { refineRefusal, hiddenKeys } from './capabilities/scanRefine'
 import { makeBoard } from './__fixtures__/board'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -91,8 +91,8 @@ const TOP5 = ['PASS11', 'PASS10', 'PASS09', 'PASS08', 'PASS07']
 describe('flagship scan slice: one validated public-field spec → one approval card → watchlist.create + add', () => {
   it('the spec names public fields only, and the composition refs check', () => {
     const keys = [...FLAGSHIP.filters.map(f => f.field), FLAGSHIP.sort_field]
-    expect(keys.some(k => HIDDEN_FALLBACK.has(k))).toBe(false)
-    expect(refusalFor(keys)).toBeNull()
+    expect(keys.some(k => hiddenKeys().has(k))).toBe(false)
+    expect(refineRefusal(keys)).toBeNull()
     const ops = [
       { action: 'screener.run', target: S, args: FLAGSHIP },
       { action: 'watchlist.create', target: LIB, args: { name: 'Momentum Review', as: 'new1' } },
