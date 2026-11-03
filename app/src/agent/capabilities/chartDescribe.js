@@ -23,8 +23,9 @@
 // `weekly` (timeframe W only) is the weekly VIEW the text describes — the same formulas over calendar weeks built from
 // the same daily bars (a week dated by its last completed session). It is not a KN-1 measurable.
 //
-// Dark by construction: unless the server serves data AND lists `bars.daily` and `instrument.resolve`
-// (`data_kinds`, fail-closed), `match` returns null and `registerChartDescribeCapability` registers nothing.
+// Gated on the served kinds: unless the server serves data AND lists `bars.daily` and `instrument.resolve`
+// (`data_kinds`, fail-closed), `match` returns null and nothing registers. Production lists both, so this is LIVE for
+// admins on merge (intended, W2 sprint; pinned by agentProdKinds.test.js), unlike history.afterEvent.
 
 import { registerCapability } from '../capabilities'
 import * as agentClient from '../agentClient'
