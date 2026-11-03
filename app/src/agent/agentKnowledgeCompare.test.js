@@ -140,3 +140,14 @@ describe('N5: coaching phrasings never match the playbook group (kinds served)',
     expect(wordsSelect('playbook', m)).toBe(true)
   })
 })
+
+describe('re-review r2 N-3: the coaching exclusion reads the whole message; "practice" is narrowed', () => {
+  beforeAll(async () => { _resetAgentConfig(); _resetKnowledgeForTest(); wire(['quote', 'quotes', ...Object.values(KNOWLEDGE_CAPS)]); await loadAgentConfig(); registerKnowledgeCapabilities() })
+  afterAll(() => { _resetKnowledgeForTest(); _resetAgentConfig() })
+  it.each(['hi\nwhat is a VCP setup', 'what is the practice of a VCP setup', 'i practice a lot; what is a VCP setup'])('"%s" → the playbook group', (m) => {
+    expect(wordsSelect('playbook', m)).toBe(true)
+  })
+  it.each(['what is a VCP setup\nteach me', 'what is a VCP setup? practice with me', 'practice applying the EP setup'])('"%s" → coaching, not the playbook group', (m) => {
+    expect(wordsSelect('playbook', m)).toBe(false)
+  })
+})

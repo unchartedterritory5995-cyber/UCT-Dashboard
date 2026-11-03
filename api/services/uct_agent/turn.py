@@ -949,7 +949,7 @@ def outcome_for_model(t: dict) -> str:
     label = _OUTCOME_LABEL.get(data.get("kind"), "[UCT]")
     from api.services.uct_agent.knowledge import frame as kn_frame          # KN-1 review B2: knowledge text replayed
     if any(kn_frame.is_knowledge_action(a) for a in (_row_actions(data) or [])):
-        return f"{label} {kn_frame.frame(t['text'])}"
+        return f"{label} {kn_frame.REPLAY_STUB}"          # N-8: never replay passage text; re-ask to re-gate
     return f"{label} {t['text']}"
 
 

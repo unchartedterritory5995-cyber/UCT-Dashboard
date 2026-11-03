@@ -12,6 +12,7 @@ its metadata; the source POLICY is applied at query time, so a policy change nee
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import os
 import re
@@ -24,7 +25,7 @@ from api.services.uct_agent.knowledge import pack
 
 log = logging.getLogger(__name__)
 ENV_PATH = "UCT_AGENT_KNOWLEDGE_INDEX"
-SCHEMA = 1
+SCHEMA = 2
 _LOCK = threading.Lock()
 FAIL_COOLDOWN_S = 60
 _FAILED: dict = {"at": 0.0, "ts": None}
@@ -85,11 +86,12 @@ def build() -> dict:
             CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT);
             CREATE TABLE docs (kb_id INTEGER PRIMARY KEY, category TEXT, source TEXT, trader TEXT, source_ref TEXT,
                                epoch TEXT, created_at TEXT, updated_at TEXT, regime TEXT, title TEXT, content TEXT,
-                               content_sha TEXT, dup_of INTEGER);
+                               content_sha TEXT, dup_of INTEGER, setup_templates TEXT);
             CREATE VIRTUAL TABLE fts USING fts5(title, content, tags, content='', tokenize='porter unicode61');
         """)
         seen: dict[str, int] = {}
         dups = 0
+        alias_to_templates = _template_aliases(src)
         for r in rows:
             d = dict(r)
             title, content = str(d.get("title") or ""), str(d.get("content") or "")
@@ -100,11 +102,12 @@ def build() -> dict:
                 dups += 1
             else:
                 seen[sha] = seen[key] = int(d["id"])
-            dst.execute("INSERT INTO docs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            linked = _linked_templates(d, alias_to_templates)
+            dst.execute("INSERT INTO docs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (int(d["id"]), str(d.get("category") or "").upper(), d.get("source") or "",
                          d.get("trader") or "", d.get("source_ref") or "", str(d.get("knowledge_epoch") or ""),
                          d.get("created_at") or "", d.get("updated_at") or "", d.get("regime_context") or "",
-                         title, content, sha, dup_of))
+                         title, content, sha, dup_of, "|".join(linked)))
             dst.execute("INSERT INTO fts(rowid, title, content, tags) VALUES (?,?,?,?)",
                         (int(d["id"]), title, content, str(d.get("tags") or "")))
         meta = {"schema": SCHEMA, "pack_ts": ts, "built_at": int(time.time()), "rows": len(rows), "duplicates": dups}
@@ -137,6 +140,59 @@ def build() -> dict:
                 os.remove(tmp)
             except OSError:
                 pass
+
+
+def _norm_alias(s: str) -> str:
+    return " ".join(_TOKEN.findall(str(s or "").lower()))
+
+
+def _template_aliases(src) -> dict:
+    """normalised template name/alias -> {template names} (from the pack's own setup_templates)."""
+    out: dict = {}
+    try:
+        for r in src.execute("SELECT name, aliases FROM setup_templates"):
+            name = str(r["name"] or "")
+            try:
+                al = json.loads(r["aliases"] or "[]")
+            except ValueError:
+                al = [a for a in str(r["aliases"] or "").split(",")]
+            for t in [name, *(al if isinstance(al, list) else [])]:
+                k = _norm_alias(t)
+                if k:
+                    out.setdefault(k, set()).add(name)
+    except sqlite3.Error:
+        return {}
+    return out
+
+
+def _linked_templates(d: dict, alias_to_templates: dict) -> list:
+    """The setup templates a setup_knowledge row describes: its setup id and aliases are the leading tags (the sync
+    writes setup id + aliases + family + 'setup_knowledge'); the last two tags are never used for linking."""
+    if d.get("source") != "setup_knowledge" or str(d.get("category") or "").upper() != "SETUP":
+        return []
+    tags = [t.strip() for t in str(d.get("tags") or "").split(",") if t.strip()]
+    if len(tags) < 3:
+        return []
+    names: set = set()
+    for t in tags[:-2]:
+        names |= alias_to_templates.get(_norm_alias(t), set())
+    return sorted(names)
+
+
+def excluded_by_template(template_admitted) -> list:
+    """kb_ids of setup_knowledge rows whose linked templates are ALL not admitted (N-7b). `template_admitted(name)`
+    answers per template; rows linked to no template (principles, market reads) are never excluded here."""
+    if not os.path.isfile(index_path()):
+        return []
+    c = _connect()
+    try:
+        rows = c.execute("SELECT kb_id, setup_templates FROM docs WHERE source = 'setup_knowledge' "
+                         "AND setup_templates != ''").fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        c.close()
+    return [int(r[0]) for r in rows if not any(template_admitted(n) for n in str(r[1]).split("|") if n)]
 
 
 def ensure() -> dict:
@@ -200,7 +256,7 @@ def match_expr(question: str, phrases=None) -> str:
 
 
 def query(question: str, *, sources: list[str], exclude_categories: set[str], category: Optional[str] = None,
-          limit: int = 40, phrases=None) -> list[dict]:
+          limit: int = 40, phrases=None, exclude_ids=None) -> list[dict]:
     """Ranked candidate rows from ADMITTED sources only (policy applied in SQL, before ranking)."""
     expr = match_expr(question, phrases)
     if not expr or not sources:
@@ -213,6 +269,9 @@ def query(question: str, *, sources: list[str], exclude_categories: set[str], ca
     if category:
         where.append("d.category = ?")
         args.append(category.upper())
+    if exclude_ids:
+        where.append(f"d.kb_id NOT IN ({','.join('?' * len(exclude_ids))})")
+        args.extend(int(i) for i in exclude_ids)
     sql = (f"SELECT d.*, bm25(fts, 6.0, 1.0, 2.0) AS rank FROM fts JOIN docs d ON d.kb_id = fts.rowid "
            f"WHERE fts MATCH ? AND {' AND '.join(where)} ORDER BY rank LIMIT ?")
     c = _connect()

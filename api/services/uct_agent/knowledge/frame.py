@@ -33,6 +33,10 @@ def seen(obj) -> bool:
     return seen(c) if c is not None and c is not obj else False
 
 
+REPLAY_STUB = ("(UCT showed the member an answer from its approved knowledge base here. The text is not replayed: "
+               "to use it again, retrieve it again so the current source policy applies.)")
+
+
 def is_knowledge_action(name) -> bool:
     return isinstance(name, str) and name.startswith(ACTION_PREFIX)
 
