@@ -213,6 +213,96 @@ f(s) =>
 `)
     expect(r.guard).toBe('runtime:conditional-history')
   })
+  describe('CONTROL: a block, loop or function that rebinds the name shadows the `var` (review M1)', () => {
+    const G = 'g() =>\n    ["0945-1000:23456", 1]\n'
+    const VAR = 'var string SESS = "0930-1000:23456"\n'
+    const USE = 'not na(time(timeframe.period, SESS)) ? 1 : 0'
+    const refused = (body) => {
+      const r = refuse5(`${HEAD5}${STATE}${G}${VAR}${body}`)
+      expect(r.guard).toMatch(/^runtime:(statement|history-dynamic-offset)$/)
+      return r
+    }
+    it('a tuple in an `if` block: the read there is the inner text, never the outer literal', () => {
+      // Pine reads "0945-1000" there (0,0,0,1,1,1); the outer literal would read 1,1,1,1,1,1
+      const r = refused(`c = close > 0
+r = if c
+    [SESS, k] = g()
+    ${USE}
+plot(r + x * 0)
+`)
+      expect(r.message).toMatch(/a session has to reach the engine as a literal/)
+    })
+    it('a tuple in a `for` loop', () => {
+      refused(`acc = 0
+for i = 0 to 1
+    [SESS, k] = g()
+    acc += ${USE}
+plot(acc + x * 0)
+`)
+    })
+    it('a tuple in a function body', () => {
+      refused(`f() =>
+    [SESS, k] = g()
+    ${USE}
+plot(f() + x * 0)
+`)
+    })
+    it('a tuple in a block counts as a rebinding even when the read is OUTSIDE it (conservative)', () => {
+      refused(`c = close > 0
+r = if c
+    [SESS, k] = g()
+    1
+plot((${USE}) + x * 0)
+`)
+    })
+    it('a `:=` in a nested block', () => {
+      refused(`c = close > 0
+r = if c
+    SESS := "0945-1000:23456"
+    ${USE}
+plot(r + x * 0)
+`)
+    })
+    it('a same-name local in an `if` block, a loop and a function', () => {
+      refused(`c = close > 0
+r = if c
+    SESS = "0945-1000:23456"
+    ${USE}
+plot(r + x * 0)
+`)
+      refused(`acc = 0
+for i = 0 to 1
+    SESS = "0945-1000:23456"
+    acc += ${USE}
+plot(acc + x * 0)
+`)
+      refused(`f() =>
+    SESS = "0945-1000:23456"
+    ${USE}
+plot(f() + x * 0)
+`)
+    })
+    it('a loop counter named like the `var`', () => {
+      refused(`acc = 0
+for SESS = 0 to 1
+    acc += ${USE}
+plot(acc + x * 0)
+`)
+    })
+    it('a typed local, a `var` local and a `varip` local in a block', () => {
+      refused(`c = close > 0\nr = if c\n    string SESS = "0945-1000:23456"\n    ${USE}\nplot(r + x * 0)\n`)
+      refused(`c = close > 0\nr = if c\n    var string SESS = "0945-1000:23456"\n    ${USE}\nplot(r + x * 0)\n`)
+    })
+    it('CONTROL: with no rebinding the same shape is served', () => {
+      const [o] = run5(`${HEAD5}${STATE}${VAR}c = close > 0
+r = if c
+    ${USE}
+    
+plot(r + x * 0)
+`)
+      expect(head(o)).toEqual(WANT)
+    })
+  })
   it('CONTROL: a `var` reassigned anywhere is not a constant', () => {
     const r = refuse5(`${HEAD5}var string s = "0930-1000:23456"\nif close > 1000000\n    s := "1000-1100:23456"\n`
       + `plot(not na(time(timeframe.period, s)) ? 1 : 0)\n`)

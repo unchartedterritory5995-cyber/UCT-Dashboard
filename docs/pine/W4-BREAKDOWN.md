@@ -340,7 +340,12 @@ Terms used in the measure-pair lines:
     `nubia-auto-midas-anchored-vwap-xdecow`, `smart-money-concepts-by-welotrades`,
     `cm-forex-sessions-highlight-v1`, `ict-killzone`, `kz-boxes`, `rsi-trend-reversal`,
     `trading-session-indicator`, `session-hilo`, `volume-profile-v054beta`.
-  - Attach expected: `nubia-auto-midas-anchored-vwap-xdecow`, `cm-forex-sessions-highlight-v1`.
+  - Attach expected: **none from T3 alone** (corrected after the build, see
+    `docs/pine/evidence/2026-11-03-w4-t3/EVIDENCE.md`). `nubia-auto-midas-anchored-vwap-xdecow` is held by
+    `len`, a `simple int` through `getMidas`, which is T2's wall. `cm-forex-sessions-highlight-v1` stops at
+    the no-day-list refusal (Pine before v5; capture W4-T3a), with overnight windows behind it (W4-T3b).
+    The step-0 walls of `initial-balance`, `ict-killzone`, `kz-boxes`, `session-hilo` and
+    `trading-session-indicator` move to those same two named refusals.
 - **Captures:** W4-T1 (day mask), W4-T2 (session through a UDF on 5-minute bars). Section 5.
 - **Engine bump:** yes.
 - **Depends:** none. T2 helps `nubia` (a `simple int` through `getMidas`).

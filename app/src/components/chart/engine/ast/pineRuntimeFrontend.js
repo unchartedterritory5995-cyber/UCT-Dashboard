@@ -10590,8 +10590,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // ⛔ A `var` written per bar is not in that map, so it stays the slot it is.
       const lit = inputConsts.get(node.name)
       if (lit && lit.type === 'string' && typeof lit.value === 'string') {
+        // ⛔ THE SLOT THE NAME RESOLVES TO AT THIS SITE MUST BE THE MAIN PROGRAM'S OWN: a block,
+        // a loop counter, a tuple or a function that declares the same name here shadows the
+        // `var`, and reading the outer literal there is a silent wrong text (a main-program slot
+        // of the SAME OWNER is not enough: a block local has owner `null` too).
         const sl = scope ? scope.lookup(node.name) : null
-        if (sl === null || (slots[sl] && slots[sl].owner === null)) return lit.value
+        if (sl === root.lookup(node.name)) return lit.value
       }
       return null
     }
