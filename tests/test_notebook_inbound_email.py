@@ -921,6 +921,9 @@ class TestBodyCap:
 
 class TestBodyFallback:
     def test_two_thousand_nested_divs_become_a_note_not_a_bounce(self, client, on):
+        # D3 review M1: the shared HTML converter now caps nesting (`mddoc._HTML_MAX_DEPTH`),
+        # so 2,000 nested divs CONVERT (flattened) instead of raising RecursionError; the
+        # words are kept and no fallback is needed. The fallback itself is pinned below.
         from api.services.journal_two import inbound_email
         uid = _user()
         html = "<div>" * 2000 + "deeply buried words" + "</div>" * 2000
@@ -928,6 +931,20 @@ class TestBodyFallback:
         assert r.status_code == 202
         [n] = _notes(uid)
         assert "deeply buried words" in n["body_plain"]
+        assert inbound_email.FALLBACK_SENTENCE not in n["body_plain"]
+
+    def test_a_body_the_converter_cannot_handle_falls_back_to_its_text(self, client, on, monkeypatch):
+        from api.services.journal_two import inbound_email
+
+        def boom(text, html):
+            raise RecursionError("too deep")
+
+        monkeypatch.setattr(inbound_email, "_converted_body", boom)
+        uid = _user()
+        r = _send(client, {"to": _address(uid), "subject": "nested", "html": "<p>kept words</p>"})
+        assert r.status_code == 202
+        [n] = _notes(uid)
+        assert "kept words" in n["body_plain"]
         assert inbound_email.FALLBACK_SENTENCE in n["body_plain"]
 
 
