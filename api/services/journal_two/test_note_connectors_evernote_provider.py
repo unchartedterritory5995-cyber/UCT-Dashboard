@@ -754,3 +754,22 @@ async def test_the_real_client_is_built_from_the_access_token_with_a_refresher()
 async def test_no_access_token_is_an_auth_error():
     with pytest.raises(errors.NoteConnAuthError):
         await ev.EvernoteProvider(user_id="u1").validate({})
+
+
+async def test_enml_conversion_runs_off_the_event_loop_thread(monkeypatch):
+    """Final review I1(b): a 1.7 MB web clip converts in ~1.6 s, which on the uvicorn loop stalls
+    every request (the first sync after connect, and every "Sync now", run there). The converter is
+    pure, so `fetch` runs it in a worker thread."""
+    import threading
+    loop_thread = threading.get_ident()
+    seen: list[int] = []
+    real = ev.enml.enml_to_tiptap
+
+    def spy(*args, **kwargs):
+        seen.append(threading.get_ident())
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(ev.enml, "enml_to_tiptap", spy)
+    _, note = await _fetch(_fetch_fake(resources=None, content="<en-note><div>x</div></en-note>"))
+    assert seen and all(t != loop_thread for t in seen)
+    assert note.doc["content"][0]["content"][0]["text"] == "x"

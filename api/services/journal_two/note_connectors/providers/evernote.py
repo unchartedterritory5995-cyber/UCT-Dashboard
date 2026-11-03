@@ -30,6 +30,7 @@ strings and the epoch-ms rule for numbers, so the engine's string cursor compari
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 import re
@@ -410,8 +411,10 @@ class EvernoteProvider(NoteProvider):
         # attachments); the converter holds the ONE null-resources guard.
         resources = self._note_field(sc, "resources", title)
         attributes = self._note_field(sc, "attributes", title)
-        converted = enml.enml_to_tiptap(
-            content if isinstance(content, str) else "", resources,
+        # Final review I1(b): the converter is pure and a large web clip takes seconds, so it runs in
+        # a worker thread, never on the event loop (the first sync and every "Sync now" run there).
+        converted = await asyncio.to_thread(
+            enml.enml_to_tiptap, content if isinstance(content, str) else "", resources,
             note_guid=guid, source_url=self._source_url(attributes))
         folder = await self._folder(credentials, self._note_field(sc, "notebook", title), title)
         tags = await self._tag_labels(credentials, self._note_field(sc, "tags", title), title)
