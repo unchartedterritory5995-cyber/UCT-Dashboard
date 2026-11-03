@@ -42,14 +42,14 @@ queue still owes our own rows.
 
 | name | published body (one line) | where published | second witness | TradingView export check | ours | verdict |
 |---|---|---|---|---|---|---|
-| `ta.obv` | `ta.cum(math.sign(ta.change(close)) * volume)` | v6 and v5 `ta.obv`; v4 `obv` (`cum(sign(change(close)) * volume)`) | PyneCore `obv`, ta.py:1720 (sign of the change; an `na` change is `na`; then `cum`) | 99 of 99 finite rows equal; bar 0 `na` in both | `app/src/components/chart/engine/ast/pine.js:1451` (`BUILTIN_SERIES_TREE.obv`) | MATCHES |
-| `ta.pvt` | `ta.cum((ta.change(close) / close[1]) * volume)` | v6/v5 `ta.pvt`; v4 `pvt` | PyneCore `pvt`, ta.py:2418 | 149 of 149 finite rows equal; bar 0 `na` in both | `pine.js:1452` | MATCHES |
-| `ta.wad` | `ta.cum(mom > 0 ? close - math.min(low, close[1]) : mom < 0 ? close - math.max(high, close[1]) : 0)`, `mom = ta.change(close)` | v6/v5 `ta.wad` (written with `trueHigh` / `trueLow` / `gain`); v4 `wad` | PyneCore `wad`, ta.py:3175 | 150 of 150 rows equal; bar 0 is 0 in both | `pine.js:1485` | MATCHES |
-| `ta.wvad` | `(close - open) / (high - low) * volume` | v6/v5 `ta.wvad`; v4 `wvad` | PyneCore `wvad`, ta.py:3283 | 150 of 150 rows equal | `pine.js:1481` | MATCHES |
-| `ta.iii` | `(2 * close - high - low) / ((high - low) * volume)` | v4 `iii`. ⚠️ The v6 and v5 pages print `((2 * close - high - low) / (high - low)) * volume` | PyneCore `iii`, ta.py:1017: the volume divides | dividing: 100 of 100 rows equal; the v5/v6 page's multiplying: 0 of 100 (row 1: TradingView -0.008536585365854584, multiplying -85.366) | `pine.js:1477` | FIXED (was the v5/v6 page's multiplying body) |
-| `ta.cmo` | `100 * (sm1 - sm2) / (sm1 + sm2)`, `sm1 = math.sum(mom >= 0 ? mom : 0.0, length)`, `sm2 = math.sum(mom >= 0 ? 0.0 : -mom, length)`, `mom = ta.change(src)` | v6/v5 `ta.cmo` (`f_cmo`); v4 `cmo` | PyneCore `cmo`, ta.py:314: the same sums, with a TOLERANT sign test and `na` handling of its own (open item 2) | `ta.cmo(close, 20)`: 130 of 130 finite rows equal; first value on bar 20 (`length`) in both | `pine.js:2549` (`BUILTIN_CALL_TREE.cmo`) | MATCHES on `close`; derived and gappy sources open (item 2) |
-| `ta.cog` | `-num / math.sum(source, length)`, `num = Σ source[i] * (i + 1)` for i = 0 … length − 1, in that order | v6/v5 `ta.cog` (`pine_cog`); v4 `cog` | PyneCore `cog`, ta.py:342: the same loop order (its note: "MEASURED … bit-exact"), with `na` handling of its own (open item 3) | `ta.cog(close, 21)`: 130 of 130 finite rows equal; first value on bar 20 (`length - 1`) in both | `pine.js:2568` (`BUILTIN_CALL_TREE.cog`) | MATCHES on `close`; gappy sources open (item 3) |
-| v1-v4 bare `barssince(cond)` | `barssince(condition) → series[integer]` (v4); `ta.barssince(condition) → series int` (v5/v6) | v4 `barssince` and v5/v6 `ta.barssince` carry the same description, return and remark texts word for word ("Counts the number of bars since the last time the condition was true."; "If the condition has never been met prior to the current bar, the function returns na."); the v5 migration guide's rename table lists it, spelled `barsince()` → `ta.barsince()` there: https://www.tradingview.com/pine-script-docs/migration-guides/to-pine-version-5/ | PyneCore `barssince`, ta.py:196: 0 on a true bar, `na` before the first, +1 on each bar after | not in the fixtures; our own capture of the v6 spelling: `tests/fixtures/vendor/r11-barssince-spy-1d-2026-09-11.json` | the route, `pine.js:13393`, to master's `ta.barssince` on a pane, `pine.js:13832` (`barindex − valuewhenOccurrence(cond, barindex, 0)`) | MATCHES (W1 adds the route only) |
+| `ta.obv` | `ta.cum(math.sign(ta.change(close)) * volume)` | v6 and v5 `ta.obv`; v4 `obv` (`cum(sign(change(close)) * volume)`) | PyneCore `obv`, ta.py:1720 (sign of the change; an `na` change is `na`; then `cum`) | 99 of 99 finite rows equal; bar 0 `na` in both | `app/src/components/chart/engine/ast/pine.js:1472` (`BUILTIN_SERIES_TREE.obv`) | MATCHES |
+| `ta.pvt` | `ta.cum((ta.change(close) / close[1]) * volume)` | v6/v5 `ta.pvt`; v4 `pvt` | PyneCore `pvt`, ta.py:2418 | 149 of 149 finite rows equal; bar 0 `na` in both | `pine.js:1473` | MATCHES |
+| `ta.wad` | `ta.cum(mom > 0 ? close - math.min(low, close[1]) : mom < 0 ? close - math.max(high, close[1]) : 0)`, `mom = ta.change(close)` | v6/v5 `ta.wad` (written with `trueHigh` / `trueLow` / `gain`); v4 `wad` | PyneCore `wad`, ta.py:3175 | 150 of 150 rows equal; bar 0 is 0 in both | `pine.js:1506` | MATCHES |
+| `ta.wvad` | `(close - open) / (high - low) * volume` | v6/v5 `ta.wvad`; v4 `wvad` | PyneCore `wvad`, ta.py:3283 | 150 of 150 rows equal | `pine.js:1502` | MATCHES |
+| `ta.iii` | `(2 * close - high - low) / ((high - low) * volume)` | v4 `iii`. ⚠️ The v6 and v5 pages print `((2 * close - high - low) / (high - low)) * volume` | PyneCore `iii`, ta.py:1017: the volume divides | dividing: 100 of 100 rows equal; the v5/v6 page's multiplying: 0 of 100 (row 1: TradingView -0.008536585365854584, multiplying -85.366) | `pine.js:1498` | FIXED (was the v5/v6 page's multiplying body) |
+| `ta.cmo` | `100 * (sm1 - sm2) / (sm1 + sm2)`, `sm1 = math.sum(mom >= 0 ? mom : 0.0, length)`, `sm2 = math.sum(mom >= 0 ? 0.0 : -mom, length)`, `mom = ta.change(src)` | v6/v5 `ta.cmo` (`f_cmo`); v4 `cmo` | PyneCore `cmo`, ta.py:314: the same sums, with a TOLERANT sign test and `na` handling of its own (open item 2) | `ta.cmo(close, 20)`: 130 of 130 finite rows equal; first value on bar 20 (`length`) in both | `pine.js:2599` (`BUILTIN_CALL_TREE.cmo`); the source gate `pine.js:1646` (`cmoSourceCannotGap`) | MATCHES on `close` and every price the bar holds; a source that can be `na` after its first value is refused by name since the W1 fix; derived sources open (item 2) |
+| `ta.cog` | `-num / math.sum(source, length)`, `num = Σ source[i] * (i + 1)` for i = 0 … length − 1, in that order | v6/v5 `ta.cog` (`pine_cog`); v4 `cog` | PyneCore `cog`, ta.py:342: the same loop order (its note: "MEASURED … bit-exact"), with `na` handling of its own (open item 3) | `ta.cog(close, 21)`: 130 of 130 finite rows equal; first value on bar 20 (`length - 1`) in both | `pine.js:2618` (`BUILTIN_CALL_TREE.cog`) | MATCHES on `close`; gappy sources open (item 3) |
+| v1-v4 bare `barssince(cond)` | `barssince(condition) → series[integer]` (v4); `ta.barssince(condition) → series int` (v5/v6) | v4 `barssince` and v5/v6 `ta.barssince` carry the same description, return and remark texts word for word ("Counts the number of bars since the last time the condition was true."; "If the condition has never been met prior to the current bar, the function returns na."); the v5 migration guide's rename table lists it, spelled `barsince()` → `ta.barsince()` there: https://www.tradingview.com/pine-script-docs/migration-guides/to-pine-version-5/ | PyneCore `barssince`, ta.py:196: 0 on a true bar, `na` before the first, +1 on each bar after | not in the fixtures; our own capture of the v6 spelling: `tests/fixtures/vendor/r11-barssince-spy-1d-2026-09-11.json` | the route, `pine.js:13443`, to master's `ta.barssince` on a pane, `pine.js:13896` (`barindex − valuewhenOccurrence(cond, barindex, 0)`) | MATCHES (W1 adds the route only) |
 
 Rails, each computed in plain loops from the body above and sharing nothing with the
 engine: `app/src/components/chart/engine/ast/pineW1Builtins.test.js`, one `describe`
@@ -82,12 +82,25 @@ exported rows. The bare `barssince` route in a `?:` arm:
    m548)"), and its `core/pine_compare.py` says TradingView's float comparisons are
    tolerant at 1e-10 in general; ours is the published `mom >= 0`, exactly. (b)
    TradingView's v5/v6 remark for `ta.cmo` says "`na` values in the `source` series are
-   ignored", which the literal body does not do; ours is the literal body. On a source
-   with an `na` after its first value, ours draws a value on that bar and on the next
-   `length` bars (an `na` momentum adds 0.0 to `sm1` and is skipped by `sm2`), where
-   PyneCore returns `na` on that bar and advances neither sum. Code unchanged: the
-   published body says what ours does. Capture queue W1-E rows E01-E05 settle both; a
-   TradingView `na` where ours draws would refuse `ta.cmo` over such sources by name.
+   ignored", which the literal body does not do. On a source with an `na` after its
+   first value, the literal body draws a value on that bar and on the next `length` bars
+   (an `na` momentum adds 0.0 to `sm1` and is skipped by `sm2`), where PyneCore returns
+   `na` on that bar and advances neither sum.
+   ⛔ W1 FIX (coordinator ruling, 2026-11-02) for (b): what TradingView draws there is
+   unknown, and a remark does not settle it (the captures behind `interpret.js::NA` found
+   the windowed family treating a gap three ways: `sum` skips, `dev` propagates,
+   `highest`/`lowest` restart). So `ta.cmo` is served only over a source that cannot be
+   `na` after its first value, and refused by name, `pine:arity`, over any other
+   (`pine.js::cmoSourceCannotGap`). The test asks the engine's two existing authorities,
+   never a list of its own: `isBarPriceSource` (a price the bar holds, `open` / `high` /
+   `low` / `close`, or one of Pine's means of them, the rule `ta.vwap(source)` already
+   used, now shared) and `neverNaTree` (a number, a comparison, `na(...)`). A computed
+   source with no gap in fact (`ta.sma(close, 5)`, `close - open`, `close[1]`) and `volume`
+   (a bar may carry none) are refused too: the rule is a whitelist. A warm-up is not a gap,
+   so `ta.cmo(close, n)` is unchanged, and on master `ta.cmo` is refused entirely, so the
+   gate stops drawing nothing that matched TradingView. Rails: `pineW1Builtins.test.js`.
+   Capture queue W1-E: rows E01-E03 settle (a) (E02 and E03 are computed sources, refused
+   today); rows E04/E05 decide whether the refusal in (b) can lift.
 3. **`ta.cog` on gappy sources.** The same remark ("`na` values in the `source` series
    are ignored"); PyneCore skips the `na` and holds the last value. Ours, the literal
    body, is `na` while an `na` is in the window: it fails to draw there, and never draws

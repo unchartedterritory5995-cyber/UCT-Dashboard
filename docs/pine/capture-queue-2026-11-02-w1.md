@@ -120,9 +120,15 @@ serves (`docs/pine/evidence/2026-11-02-w1/formula-sources.md`):
   PyneCore returns `na` on an `na`-momentum bar without advancing either sum (`cmo`),
   and holds the last value and skips the `na` (`cog`). Only a source with an `na` AFTER
   its first value can tell them apart: an `na` only at the start (a warm-up) gives the
-  same values either way, since both windows begin after it. On such a source our `cmo`
-  draws a value on the `na` bar and on the `length` bars after it, and our `cog` draws
-  nothing while the `na` is in its window (both seen on a `close` with one `na` bar).
+  same values either way, since both windows begin after it. On such a source the literal
+  `f_cmo` body draws a value on the `na` bar and on the `length` bars after it, and our `cog`
+  draws nothing while the `na` is in its window (both seen on a `close` with one `na` bar).
+
+⛔ W1 FIX (coordinator ruling, 2026-11-02): so ours no longer draws that `cmo`. `ta.cmo` is
+served only over a source that cannot be `na` after its first value (a price the bar holds,
+`open` / `high` / `low` / `close`, one of Pine's means of them, `hl2` / `hlc3` / `ohlc4` /
+`hlcc4`, or a number) and is refused by name, `pine:arity`, over any other, computed sources
+and `volume` included (`pine.js::cmoSourceCannotGap`; rail `pineW1Builtins.test.js`).
 
 ```pine
 //@version=6
@@ -140,7 +146,7 @@ plot(ta.cog(hlc3, 10), "E08_cog_hlc3_10")
 
 | row | what it settles |
 |---|---|
-| E01-E03 | the sign test on derived sources: equal to ours on every bar means the published `mom >= 0`; a bar where they differ (E03 most likely: its source is 0 or one rounding step of `close` on every bar, so every momentum is dust) means the tolerant test, and `ta.cmo` goes back to refused by name on derived sources until it is built |
-| E04/E05 | `ta.cmo` over a source with a mid-series `na`: on bar 25 + 50k and the 9 bars after it ours draws from the literal body. A TradingView `na` on E05 where ours is a number is a value we draw where TradingView hides: `ta.cmo` over a source that can be `na` mid-series is then refused by name |
+| E01-E03 | the sign test on derived sources: equal to ours on every bar means the published `mom >= 0`; a bar where they differ (E03 most likely: its source is 0 or one rounding step of `close` on every bar, so every momentum is dust) means the tolerant test, and `ta.cmo` goes back to refused by name on derived sources until it is built. Since the W1 fix ours compares on E01 only: E02 and E03 are computed sources, refused by name today, and their rows still settle the sign test for the day that gate widens |
+| E04/E05 | `ta.cmo` over a source with a mid-series `na`. ⛔ Since the W1 fix ours REFUSES it by name (`pine:arity`), so these rows decide whether that refusal can lift, never what we draw: TradingView numbers on bar 25 + 50k and the 9 bars after it that equal the literal body (the rail's `refCmo` over the same source) lift it for the literal body; a TradingView `na` there (E05 = 1) keeps it refused until the reading TradingView computes is built and railed |
 | E06/E07 | `ta.cog` over the same: ours is `na` while the hole is in the window; TradingView's remark says the `na` is ignored. A TradingView number there is a value we fail to draw, never a wrong one |
 | E08 | `ta.cog` on a derived source, values (no `na` expected after warm-up) |

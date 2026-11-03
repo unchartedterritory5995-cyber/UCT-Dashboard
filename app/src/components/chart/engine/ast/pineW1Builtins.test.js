@@ -17,6 +17,7 @@ import { translatePine, BUILTIN_CALL_TREE } from './pine'
 import { parseFormula } from './parse'
 import { interpret } from './interpret'
 import { checkBudget, DEFAULT_BUDGET } from './budget'
+import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 
 const REPO = path.resolve(process.cwd(), '..')
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO, rel), 'utf8'))
@@ -247,20 +248,87 @@ const refSum = (xs, n) => xs.map((_, i) => {
 describe('ta.cmo — REFERENCE: TradingView\'s f_cmo, 100 * (sm1 - sm2) / (sm1 + sm2)', () => {
   const refCmo = (xs, n) => {
     const mom = xs.map((x, i) => (i === 0 ? NaN : x - xs[i - 1]))
-    // `na >= 0` is false in Pine: an unknown momentum adds 0.0 to sm1 and na to sm2
+    // bar 0's momentum is the warm-up `na`: `na >= 0` is false in Pine, so it adds 0.0 to sm1 and
+    // na to sm2, and the first value lands on bar n. On a source with no gap that is the only `na`,
+    // and a warm-up gives the same values whether the `na` is read literally or ignored.
     const sm1 = refSum(mom.map((m) => (m >= 0 ? m : 0)), n)
     const sm2 = refSum(mom.map((m) => (m >= 0 ? 0 : -m)), n)
     return sm1.map((a, i) => 100 * (a - sm2[i]) / (a + sm2[i]))
   }
-  it('every bar, holes included; the first value lands on bar n (bar 0\'s change is na)', () => {
+  // ⛔ W1 FIX (coordinator ruling, 2026-11-02): this rail no longer holds the literal body over a
+  // HOLED source as the reference. What TradingView draws on an `na` after the source's first value
+  // is not known (its v5/v6 remark says the `na` is ignored; PyneCore answers `na`; the literal body
+  // draws), so such a source is refused by name below, and the reference is asserted on bars with
+  // no gap, where every reading agrees.
+  it('every bar of a source with no gap; the first value lands on bar n (bar 0\'s change is na)', () => {
     for (const n of [5, 14]) {
       for (const opts of [undefined, pane]) {
-        const ours = interpret(treeOf(V6(`plot(ta.cmo(close, ${n}))`), opts).tree, holedBars)
-        same(ours, refCmo(holedBars.map((b) => b.c), n), 1e-12)
+        const ours = interpret(treeOf(V6(`plot(ta.cmo(close, ${n}))`), opts).tree, BARS)
+        expect(same(ours, refCmo(BARS.map((b) => b.c), n), 1e-12)).toBe(1500 - n)
         expect(Number.isFinite(ours[n - 1])).toBe(false)
         expect(Number.isFinite(ours[n])).toBe(true)
       }
     }
+  })
+  it('every price the bar holds, and Pine\'s means of them, is a source with no gap: served, equal to the reference', () => {
+    const PRICE = {
+      open: (b) => b.o,
+      high: (b) => b.h,
+      low: (b) => b.l,
+      hl2: (b) => (b.h + b.l) / 2,
+      hlc3: (b) => (b.h + b.l + b.c) / 3,
+      ohlc4: (b) => (b.o + b.h + b.l + b.c) / 4,
+      hlcc4: (b) => (b.h + b.l + b.c + b.c) / 4,
+    }
+    for (const [name, at] of Object.entries(PRICE)) {
+      for (const opts of [undefined, pane]) {
+        const ours = interpret(treeOf(V6(`plot(ta.cmo(${name}, 9))`), opts).tree, BARS)
+        expect(same(ours, refCmo(BARS.map(at), 9), 1e-12), name).toBe(1500 - 9)
+      }
+    }
+    // an `input.source` left at a bar price IS that price
+    expect(treeOf(V6(['src = input.source(close, "Source")', 'plot(ta.cmo(src, 9))'].join(NL))).formula)
+      .toBe(treeOf(V6('plot(ta.cmo(close, 9))')).formula)
+    // a number is never `na`, so it passes this gate (the column it gives is one number on every
+    // bar, and it meets that rule instead). It is also what the runtime lane's history probe asks
+    // with (`pineRuntimeFrontend.js::callHeadStateful` replaces every argument by `2`): rail
+    // `runtime/__tests__/w1BareConditionalHistory.test.js`
+    expect(refusalOf(V6('plot(ta.cmo(2, 2))')).guard).toBe('pine:constant-only')
+  })
+  it('⛔ a source that can be `na` after its first value is REFUSED BY NAME, on a screen and on a pane', () => {
+    // capture rows E04/E05 (docs/pine/capture-queue-2026-11-02-w1.md) are what would lift this
+    const gappyLines = ['gappy = bar_index % 50 == 25 ? na : close'] // row E04's own source
+    const cases = [
+      V6([...gappyLines, 'plot(ta.cmo(gappy, 9))'].join(NL)),
+      V6('plot(ta.cmo(close > open ? close : na, 9))'),
+      // no gap in fact, but the rule is a whitelist: a computed source is refused, never guessed at
+      V6('plot(ta.cmo(ta.sma(close, 5), 9))'),
+      V6('plot(ta.cmo(close - open, 9))'),
+      V6('plot(ta.cmo(close[1], 9))'),
+      // `volume` is not a price the bar must hold: a bar may carry none
+      V6('plot(ta.cmo(volume, 9))'),
+      V(4, [...gappyLines, 'plot(cmo(gappy, 9))'].join(NL)),
+    ]
+    for (const source of cases) {
+      for (const opts of [undefined, pane]) {
+        const r = refusalOf(source, opts)
+        expect(r && r.guard, source).toBe('pine:arity')
+        expect(r.message, source).toMatch(/was given a source that can be `na` on a bar after its first value/)
+        expect(r.message, source).toMatch(/TO UNBLOCK: give it one of those/)
+      }
+    }
+    // the way forward is spelled the way the script spells the name
+    expect(refusalOf(V(4, 'plot(cmo(close > open ? close : na, 9))')).message).toMatch(/`cmo\(close, 14\)`/)
+    expect(refusalOf(V6('plot(ta.cmo(close > open ? close : na, 9))')).message).toMatch(/`ta\.cmo\(close, 14\)`/)
+    // …and on the runtime pane, which asks the same Resolver, while a bar price still builds there
+    const runtimePane = (source) => buildRuntimeIr(source, { bars: [], inputs: {}, pane: true })
+    for (const source of [cases[0], cases[1], cases[6]]) {
+      const b = runtimePane(source)
+      expect(b.ok, source).toBe(false)
+      expect(b.refusal.guard, source).toBe('pine:arity')
+      expect(b.refusal.message, source).toMatch(/was given a source that can be `na` on a bar after its first value/)
+    }
+    expect(runtimePane(V6('plot(ta.cmo(close, 9))')).ok).toBe(true)
   })
   it('an input length is folded and recorded as a window, not left a member knob', () => {
     const t = translatePine(V6(['len = input.int(9, "Len")', 'plot(ta.cmo(close, len))'].join(NL)),

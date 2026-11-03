@@ -1336,6 +1336,27 @@ export function derivedSeriesTree(name, table) {
   return cOp('/', [sum, cNum(parts.length)])
 }
 
+/** ⛔ IS THIS (RESOLVED) SOURCE A PRICE THE BAR ITSELF HOLDS? `open`, `high`,
+ *  `low`, `close`, or one of Pine's means of them (`hl2`, `hlc3`, `ohlc4`,
+ *  `hlcc4`, exactly as `derivedSeriesTree` builds them), compared on the resolved
+ *  canonical tree, so `input.source(close)` and a hand-written `(high + low) / 2`
+ *  answer as the names do.
+ *  ⭐ THE ENGINE'S ONE ANSWER TO "CAN THIS SOURCE BE `na` ON A BAR?", written for
+ *  the H3 `ta.vwap(source)` refusal and asked by `ta.cmo` too since W1 — never a
+ *  list of either's own. Every bar holds its four prices, so these are known on
+ *  every bar; anything COMPUTED can be `na` on a bar after its first value (an `na`
+ *  arm, a division by zero, a `ta.*` call's own gap), and `volume` is not a price:
+ *  a bar may carry none, and `interpret.js` seeds a missing field `na`, never 0.
+ *  ⛔ A whitelist, never "might be `na` at runtime" (see `isNaNLiteral`): whoever
+ *  asks refuses by name what is not on it. */
+function isBarPriceSource(tree, table) {
+  const got = JSON.stringify(tree)
+  return ['open', 'high', 'low', 'close'].filter((n) => own((table && table.series) || {}, n))
+    .map((n) => cSeries(n))
+    .concat(['hl2', 'hlc3', 'ohlc4', 'hlcc4'].map((n) => derivedSeriesTree(n, table)).filter(Boolean))
+    .some((t) => JSON.stringify(t) === got)
+}
+
 /** Pine built-ins that are not a MEAN of price series but are still an exact
  *  expansion in this table's own vocabulary.
  *
@@ -1598,6 +1619,32 @@ function cogOverBudget(args, tree) {
   let fit
   try { fit = checkBudget(tree) } catch (e) { if (isStackOverflow(e)) throw e; return null }
   return fit.ok ? null : fit.error
+}
+
+/** ⛔ W1 FIX (coordinator ruling, 2026-11-02) — CAN `ta.cmo`'S SOURCE BE `na` ON A
+ *  BAR AFTER ITS FIRST VALUE? `ta.cmo` is served only where the answer is no, by the
+ *  engine's two existing authorities and never a list of its own: a tree that is
+ *  never `na` at all (`neverNaTree`: a number, a comparison, `na(…)`, and the logic
+ *  over them), or a price the bar itself holds (`isBarPriceSource`, H3's rule). Every
+ *  other source is refused by name (`resolveTableCall`'s `cmo`/`cog` arm).
+ *  WHY: on an `na` momentum AFTER the source's first value, TradingView's published
+ *  `f_cmo` and its own v5/v6 remark ("`na` values in the `source` series are
+ *  ignored") give different numbers. Read literally, the body adds 0.0 to `sm1` and
+ *  `math.sum` (`NA.SKIP`) skips the bar in `sm2`, so it draws a value on that bar and
+ *  on the `length` bars after it; PyneCore answers `na` there and advances neither
+ *  sum. A remark does not settle it: the captures behind `interpret.js::NA` found the
+ *  windowed family treating a gap three ways (`sum` skips, `dev` propagates,
+ *  `highest`/`lowest` restart). No capture says which `ta.cmo` computes (capture queue
+ *  W1-E, rows E04/E05), and this engine never draws where TradingView may hide.
+ *  ⭐ A WARM-UP IS NOT A GAP: the momentum's own `na` on bar 0 (or a source's leading
+ *  `na`) gives the same values either way, because both windows begin after it, so
+ *  `ta.cmo(close, n)` is unchanged (`docs/pine/evidence/2026-11-02-w1/formula-sources.md`:
+ *  130 of 130 of TradingView's exported rows).
+ *  ⚠️ CONSERVATIVE BY CONSTRUCTION: a computed source with no gap in fact
+ *  (`ta.sma(close, 5)`, `close - open`, `close[1]`) is refused too, and `volume` (a bar
+ *  may carry none). Widening the rule is a capture's decision, not this function's. */
+function cmoSourceCannotGap(source, table) {
+  return neverNaTree(source) || isBarPriceSource(source, table)
 }
 
 /** `exp(cum(cond ? ln(1 + (close - close[1]) / close[1]) : 0))` — see `nvi`/`pvi`
@@ -2541,11 +2588,14 @@ export const BUILTIN_CALL_TREE = Object.freeze({
   // ⚠️ An `na` momentum is NOT symmetric in that body and is kept so: `na >= 0`
   // is false, so it adds 0.0 to `sm1` and `-na` (= `na`) to `sm2`, which
   // `math.sum` SKIPS (the table's `sum`, vendor-pinned `NA.SKIP`). So `sm2` holds
-  // `length` known values only from bar `length`, the first bar this answers,
-  // and a hole later in the source skews `sm2`'s window by one bar exactly as
-  // the published body does. `length` must be a whole
-  // number this engine can read when it builds the formula (the caller records
-  // an input that reaches it). ⚠️ No capture yet (capture queue W1-C).
+  // `length` known values only from bar `length`, the first bar this answers.
+  // ⛔ W1 FIX (coordinator ruling, 2026-11-02): a hole LATER in the source would
+  // skew `sm2`'s window the same way, and there TradingView's answer is unknown,
+  // so the Resolver hands this expansion only a source that cannot be `na` after
+  // its first value and refuses every other by name (`cmoSourceCannotGap`).
+  // `length` must be a whole number this engine can read when it builds the
+  // formula (the caller records an input that reaches it). ⚠️ No capture yet
+  // (capture queue W1-C; the gap rows are W1-E's E04/E05).
   cmo: (a) => {
     if (a.length !== 2) return null
     const n = foldWindow(a[1])
@@ -13559,6 +13609,20 @@ export class Resolver {
       // refuse downstream after the member was told it worked.
       if (bare === 'cmo' || bare === 'cog') {
         if (built.length === 2) for (const n of declaredInputNames(built[1])) this.windowBoundInputs.add(n)
+        // ⛔ W1 FIX (coordinator ruling, 2026-11-02) — `ta.cmo` over a source that can
+        // be `na` after its first value is REFUSED BY NAME (`cmoSourceCannotGap` says
+        // why), on every lane this Resolver serves: TradingView's answer there is
+        // unknown, and a value drawn where it may hide is the one thing never shipped.
+        if (bare === 'cmo' && built.length === 2 && !cmoSourceCannotGap(built[0], this.table)) {
+          throw new PineRefusal('pine:arity',
+            `${REFUSALS['pine:arity']} — \`${pineName}\` was given a source that can be \`na\` on a bar `
+            + 'after its first value, and what TradingView draws there is not known: its published body '
+            + 'and its own remark ("na values in the source series are ignored") give different numbers '
+            + 'on that bar and the bars after it, and no capture says which it computes, so this engine '
+            + 'draws neither. It is served over a price the bar itself holds (`close`, `open`, `high`, '
+            + '`low`, `hl2`, `hlc3`, `ohlc4`, `hlcc4`). TO UNBLOCK: give it one of those, e.g. '
+            + `\`${pineName}(close, 14)\``, locate(tok))
+        }
         const tree = BUILTIN_CALL_TREE[bare](built)
         const over = bare === 'cog' ? cogOverBudget(built, tree) : null
         if (over) {
@@ -14110,10 +14174,9 @@ export class Resolver {
           // or one of their means. A computed source can be `na`, and what Pine's
           // session sum does with an `na` term is unwitnessed, so it keeps the
           // refusal below rather than a guess.
-          const barPrice = ['open', 'high', 'low', 'close'].filter((n) => own(this.table.series || {}, n))
-            .map((n) => cSeries(n))
-            .concat(['hl2', 'ohlc4', 'hlcc4'].map((n) => derivedSeriesTree(n, this.table)).filter(Boolean))
-            .some((t) => JSON.stringify(t) === JSON.stringify(got))
+          // ⭐ W1 — asked of `isBarPriceSource`, the one place the question is answered
+          // (`ta.cmo` asks it too); `hlc3` itself never reaches here (it is `want`).
+          const barPrice = isBarPriceSource(got, this.table)
           if (barPrice && own(this.table.functions, 'vwapOf')) return cCall('vwapOf', [got])
           throw new PineRefusal('pine:arity',
             REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given a '
