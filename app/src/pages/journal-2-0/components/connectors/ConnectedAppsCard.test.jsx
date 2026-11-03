@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import ConnectedAppsCard from './ConnectedAppsCard'
+import ConnectConsentPanel from './ConnectConsentPanel'
 import { ENEX_IMPORT_HREF, EVERNOTE_CONNECT_NOTES, EVERNOTE_ENEX_OFFER, EVERNOTE_PLAN_RETURN } from './evernoteCopy'
 
 let mockIsPaid = true
@@ -1224,3 +1225,23 @@ describe('ConnectedAppsCard — Evernote (Plan E Task 10)', () => {
     })
   })
 })
+
+// Review M6: the notes list keys by position, so two identical notes both render with no duplicate-key warning.
+describe('ConnectConsentPanel — notes', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('renders a repeated note twice, with no duplicate-key warning', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(<ConnectConsentPanel providerLabel="X" checked={false} onCheck={() => {}} onConfirm={() => {}} onCancel={() => {}} notes={['Same.', 'Same.']} />)
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Same.', 'Same.'])
+    expect(err.mock.calls.some((c) => /same key/i.test(String(c[0])) || c.some((a) => /same key/i.test(String(a))))).toBe(false)
+  })
+
+  it('renders no list when notes is empty or absent', () => {
+    const { rerender } = render(<ConnectConsentPanel providerLabel="X" checked={false} onCheck={() => {}} onConfirm={() => {}} onCancel={() => {}} notes={[]} />)
+    expect(screen.queryByRole('list')).toBeNull()
+    rerender(<ConnectConsentPanel providerLabel="X" checked={false} onCheck={() => {}} onConfirm={() => {}} onCancel={() => {}} />)
+    expect(screen.queryByRole('list')).toBeNull()
+  })
+})
+

@@ -23,7 +23,8 @@ export default function ConnectConsentPanel({ providerLabel, checked, onCheck, o
       </p>
       {Array.isArray(notes) && notes.length > 0 && (
         <ul className={styles.notes}>
-          {notes.map((n) => <li key={n}>{n}</li>)}
+          {/* Keyed by position (review M6): the list is static per render, and two equal notes must both show. */}
+          {notes.map((n, i) => <li key={i}>{n}</li>)}
         </ul>
       )}
       <label className={styles.consentCheck}>
