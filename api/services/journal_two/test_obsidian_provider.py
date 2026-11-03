@@ -1370,6 +1370,27 @@ async def test_list_changed_and_present_refs_read_off_the_event_loop(db, monkeyp
     assert on_loop == []
 
 
+async def test_the_media_retry_relist_follows_the_master_switch(db, monkeypatch):
+    """Final review re-review N2: the pending-media re-list is part of Plan C. With the
+    attachment layer OFF for the member it does not run at all, so `list_changed` returns
+    exactly what was pushed since the cursor, as master's provider did, a hotlink retry
+    included. ON (and `admin` for an admin), today's re-list."""
+    hotlink = {"type": "doc", "content": [{"type": "importNotice", "attrs": {
+        "reason": "fetch_failed", "name": "x.png", "sourceUrl": "https://example.com/x.png",
+        "ref": "https://example.com/x.png", "attempts": 1}}]}
+    _stage("user-a", "vault-1", "blob.md", "x", T1)
+    _stage("user-a", "vault-1", "hot.md", "x", T1)
+    _staged_blob()
+    _synced_note("blob.md", pending=1)
+    _synced_note("hot.md", pending=1, body=hotlink)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    for mode in ("0", "admin"):
+        monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", mode)
+        assert await provider.list_changed({}, cursor=T2) == [], mode
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1")
+    assert sorted(r.remote_id for r in await provider.list_changed({}, cursor=T2)) == ["blob.md", "hot.md"]
+
+
 async def test_the_media_retry_relist_holds_one_stored_body_at_a_time(db):
     """N1: the re-list reads each pending note's stored body ONE at a time and lets it go,
     never all of them at once. 40 pending notes of ~1 MB each: the peak stays near one body

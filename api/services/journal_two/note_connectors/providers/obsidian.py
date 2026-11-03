@@ -1686,7 +1686,11 @@ class ObsidianProvider(NoteProvider):
                     "ORDER BY received_at ASC, vault_path ASC",
                     (self.user_id, self.vault_id),
                 ).fetchall()
-            retry_rows = self._media_retry_rows(conn, {r["vault_path"] for r in rows})
+            # N2: the pending-media re-list is part of Plan C, so with the attachment layer
+            # OFF for this member it does not run at all: exactly master's `list_changed`,
+            # a hotlink retry included (`obsidian_attachments.attachments_enabled_for`).
+            retry_rows = (self._media_retry_rows(conn, {r["vault_path"] for r in rows})
+                          if obsidian_attachments.attachments_enabled_for(self.user_id) else [])
         finally:
             conn.close()
         if rows:
