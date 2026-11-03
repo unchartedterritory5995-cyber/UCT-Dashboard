@@ -46,7 +46,8 @@ TradingView's published `f_cmo` read literally draws a value on that bar and on 
 
 - Served: `close`, `open`, `high`, `low`, `hl2`, `hlc3`, `ohlc4`, `hlcc4`, also when they
   arrive through `input.source`. A number passes the gate too (it is never `na`), though a
-  plot of it alone is one number on every bar and meets that rule instead. The test is the
+  plot of it alone is one number on every bar and meets that rule instead. A comparison
+  (`close > open`) or an `na(x)` test passes for the same reason: it is never `na` itself. The test is the
   engine's existing answer to "can this source be `na` on a bar?" (`pine.js::isBarPriceSource`,
   the rule `ta.vwap(source)` already used, now shared) plus its never-`na` rule
   (`neverNaTree`), never a list of its own.
