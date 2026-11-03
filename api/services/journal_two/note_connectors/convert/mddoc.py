@@ -1253,6 +1253,12 @@ _HTML_KNOWN_TAGS = frozenset({
 # appended as a leaf, never pushed onto the open-element stack.
 _HTML_VOID_TAGS = frozenset({"br", "hr", "img"})
 
+#: D3 review M1: the most open elements the tree builder nests. The walkers recurse per level
+#: (two or three frames for a `<details>`), so a hostile `"<div>" * 1600` raised RecursionError
+#: and the note failed to import; past this depth a start tag is a sibling instead. A browser's
+#: own parser caps nesting too (Chromium at 512); no real note comes near 100.
+_HTML_MAX_DEPTH = 100
+
 # Dropped ENTIRELY (tag + every descendant, text included) — see module note
 # above. `head` is a deliberate addition beyond the brief's explicit
 # script/style pair.
@@ -1307,6 +1313,9 @@ class _HtmlDomBuilder(HTMLParser):
         self.root = _HtmlNode("root", {})
         self._stack: list[_HtmlNode] = [self.root]
         self._skip_depth = 0
+        # D3 review M1: start tags past `_HTML_MAX_DEPTH` that were kept FLAT (as siblings, not
+        # children), per name, so their own close tags are swallowed, not matched outward.
+        self._flat_open: dict[str, int] = {}
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
@@ -1317,8 +1326,14 @@ class _HtmlDomBuilder(HTMLParser):
             return
         node = _HtmlNode(tag, {k.lower(): v for k, v in attrs})
         self._stack[-1].children.append(node)
-        if tag not in _HTML_VOID_TAGS:
-            self._stack.append(node)
+        if tag in _HTML_VOID_TAGS:
+            return
+        if len(self._stack) > _HTML_MAX_DEPTH:
+            # Too deep: the element stays empty and what follows is its sibling, so no walker
+            # recurses past the cap ("imports flattened", never a RecursionError).
+            self._flat_open[tag] = self._flat_open.get(tag, 0) + 1
+            return
+        self._stack.append(node)
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
@@ -1327,6 +1342,9 @@ class _HtmlDomBuilder(HTMLParser):
                 self._skip_depth -= 1
             return
         if self._skip_depth or tag in _HTML_VOID_TAGS:
+            return
+        if self._flat_open.get(tag):
+            self._flat_open[tag] -= 1
             return
         for i in range(len(self._stack) - 1, 0, -1):
             if self._stack[i].tag == tag:

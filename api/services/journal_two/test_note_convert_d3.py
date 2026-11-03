@@ -572,3 +572,20 @@ def test_the_iterative_list_repair_is_the_recursive_rule():
         if rnd.random() < 0.1:
             del lst["content"]
         assert _split_list(lst) == _split_list_reference(lst)
+
+
+# ── fix round 1, M1: a deeply nested raw HTML block imports flattened, never crashes ──
+
+
+@pytest.mark.parametrize("make", [
+    lambda: md_to_tiptap("<div>" * 1600 + "deep text"),
+    lambda: html_to_tiptap("<div>" * 5000 + "deep text" + "</div>" * 5000),
+    lambda: md_to_tiptap("\n\n".join(["<details>"] * 800) + "\n\ndeep text"),
+    lambda: html_to_tiptap("<details><summary>s</summary>" * 3000 + "deep text"),
+    lambda: html_to_tiptap("<b>" * 5000 + "deep text"),
+])
+def test_deep_nesting_imports_flattened(make):
+    """D3 review M1: past the builder's depth cap a start tag is a sibling, not a child, so
+    nothing recurses past it; the text is all there."""
+    out = make()
+    assert "deep text" in "".join(r["text"] for r in _texts(out["doc"]))
