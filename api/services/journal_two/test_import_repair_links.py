@@ -241,6 +241,16 @@ def test_a_trashed_target_is_never_replaced_by_a_same_named_note(db):
     assert out == doc and actions == ["relative_target_trashed"]
 
 
+def test_an_exact_case_trashed_target_beats_a_live_case_twin(db):
+    """Fix round 3, N-7 (re-review R12): `other.md` is trashed and `Other.md` is live. The
+    link names `other.md` exactly, so it meant the trashed note, not its case twin."""
+    _trash(_import("Obsidian", "obsidian:V/other.md"))
+    _import("Obsidian", "obsidian:V/Other.md")
+    doc = _doc(_para(_t("o", _link("other.md"))))
+    out, actions = _repair(doc, import_key="obsidian:V/Here.md", import_source="Obsidian")
+    assert out == doc and actions == ["relative_target_trashed"]
+
+
 def test_a_trashed_same_name_note_counts_toward_ambiguity(db):
     """Fix round 2, N-5 (re-review R6): the name was not unique when the link was written if a
     trashed note carries it too, so the one live match is not taken by name."""
@@ -465,6 +475,20 @@ def test_a_note_in_a_folder_named_like_a_domain_is_still_a_note(db, target_key, 
     out, actions = _repair(_doc(_para(_t("m", _link(href)))), import_key=here, import_source=source)
     assert _hrefs(out) == [_note_href(target)]
     assert actions == ["relative_to_note", "link_resolved:1"]
+
+
+@pytest.mark.parametrize("href,here,source", [
+    ("www.site.com/post.md", "obsidian:V/Here.md", "Obsidian"),   # R13: a `.md` href is a note
+    ("www.site.md", "obsidian:V/Here.md", "Obsidian"),            # R13b: `.md` is also a TLD
+    ("www.blog.com/p.html", "file:Here.html", "Files (1)"),       # R17: a generic note file
+])
+def test_a_missing_note_link_is_never_sent_to_the_web(db, href, here, source):
+    """Fix round 3, N-6: host-like applies ONLY where the source's rule says the href is not a
+    note (`relative_file_unresolved`). A note link whose note did not arrive stays as written
+    and is counted: a later import can still heal it, a rewrite to https could not."""
+    doc = _doc(_para(_t("s", _link(href))))
+    out, actions = _repair(doc, import_key=here, import_source=source)
+    assert out == doc and actions == ["relative_unresolved"]
 
 
 def test_a_textbundle_text_link_opens_the_bundle_note(db):

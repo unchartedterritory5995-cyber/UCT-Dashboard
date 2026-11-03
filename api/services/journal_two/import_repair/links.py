@@ -95,8 +95,10 @@ class FileKeyIndex:
     #: folded (NFC + lowercase) -> every such path (the fallback, taken only when unique).
     obsidian_paths: frozenset[str] = frozenset()
     obsidian_folded: dict[str, list[str]] = field(default_factory=dict)
-    #: Folded FULL key paths of the member's TRASHED Obsidian file notes (I-1).
+    #: Folded FULL key paths of the member's TRASHED Obsidian file notes (I-1), and the same
+    #: paths as STORED (fix round 3, N-7: an exact trashed hit beats a live case twin).
     obsidian_trashed: frozenset[str] = frozenset()
+    obsidian_trashed_exact: frozenset[str] = frozenset()
     #: vault -> (`_VaultIndex` over NFC inner paths, NFC inner -> stored inner paths) of the
     #: TRASHED notes (fix round 2, N-5): a trashed same-name note counts toward the name rule's
     #: ambiguity.
@@ -146,6 +148,7 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
     paths: set[str] = set()
     folded: dict[str, list[str]] = {}
     trashed: set[str] = set()
+    trashed_exact: set[str] = set()
     trashed_raw: dict[str, dict[str, list[str]]] = {}
     for row in conn.execute(
         "SELECT import_key, import_source, deleted_at IS NOT NULL FROM j2_notes"
@@ -165,6 +168,7 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
                 continue
             if is_trashed:
                 trashed.add(_fold(full))
+                trashed_exact.add(full)
                 trashed_raw.setdefault(vault, {}).setdefault(_nfc(inner), []).append(inner)
             else:
                 paths.add(full)
@@ -177,6 +181,7 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
         obsidian_paths=frozenset(paths),
         obsidian_folded=folded,
         obsidian_trashed=frozenset(trashed),
+        obsidian_trashed_exact=frozenset(trashed_exact),
         obsidian_trashed_names={v: (obsidian_provider._build_basename_map(sorted(r)), r)
                                 for v, r in trashed_raw.items()},
         by_nfc=by_nfc,
@@ -253,6 +258,11 @@ def _obsidian_target(path: str, full: str, index: FileKeyIndex) -> tuple[str | N
     tries = [prefix + f for f in _exact_forms(path, obsidian_provider._dir_of(inner))]
     tries += _exact_forms(path, obsidian_provider._dir_of(full), rooted=False)
     for form in tries:
+        # exact live, then exact TRASHED (N-7), then the one folded live match, then folded trashed
+        if form in index.obsidian_paths:
+            return form, TO_NOTE
+        if form in index.obsidian_trashed_exact:
+            return None, TRASHED
         found = index.obsidian_path(form)
         if found is not None:
             return found, TO_NOTE
@@ -298,10 +308,12 @@ def relative_target(href: str, *, import_key: str, import_source: str,
     if not isinstance(href, str) or not isinstance(import_key, str):
         return None, UNRESOLVED
     key, action = _source_target(href, import_key=import_key, import_source=import_source, index=index)
-    # Host-like (concern 2) only when NOTHING resolves (fix round 2, N-2): a folder named
-    # `acme.io` or `www.site.com` holding the member's note is still that note. An ambiguous or
-    # trashed target keeps its own count.
-    if key is None and action in (UNRESOLVED, FILE_UNRESOLVED):
+    # Host-like (concern 2) only when NOTHING resolves (fix round 2, N-2) AND the source's own
+    # rule says the href is not a note (fix round 3, N-6). A folder named `acme.io` holding the
+    # member's note is still that note; a NOTE link whose note did not arrive
+    # (`relative_unresolved`, e.g. `www.site.com/post.md`) stays as written so a later import
+    # can heal it; an ambiguous or trashed target keeps its own count.
+    if key is None and action == FILE_UNRESOLVED:
         is_host, url = _hostlike(href)
         if is_host:
             return None, HOSTLIKE_LINKED if url else HOSTLIKE
