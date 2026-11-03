@@ -345,11 +345,18 @@ export const getCapability = (name) => CAPS.get(name) || null
 export const getTargetKind = (name) => KINDS.get(name) || null
 export const allCapabilityNames = () => [...CAPS.keys()]
 
+// ⭐ W2-C1 (multi-page host): a capability's `surfaces` names the pages it is offered on. `['*']`
+// (ALL_SURFACES) = every page the Agent is mounted on — QUERIES that read UCT's own data (stock.*,
+// news.*, breadth.*, guide, about, app.open) and need nothing from the page. A WRITE names its page
+// ('charts', 'screener', 'journal' …): it is offered only where the page's own writer is on the host.
+export const ALL_SURFACES = ['*']
+export const onSurface = (cap, surface) => !cap?.surfaces || !surface || cap.surfaces.includes('*') || cap.surfaces.includes(surface)
+
 /** Capabilities this member may use on this surface now (gates, entitlements, flags). */
 export function availableCapabilities(ctx = {}) {
   return [...CAPS.values()].filter(c => {
     if (!KINDS.has(c.target)) return false
-    if (c.surfaces && ctx.surface && !c.surfaces.includes(ctx.surface)) return false
+    if (!onSurface(c, ctx.surface)) return false
     try { return c.available ? !!c.available(ctx) : true } catch { return false }
   })
 }

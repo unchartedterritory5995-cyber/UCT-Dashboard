@@ -71,7 +71,11 @@ describe('capability registry', () => {
       expect(c.args.additionalProperties).toBe(false)
       expect([...c.args.required].sort()).toEqual(Object.keys(c.args.properties).sort())
     }
-    expect(manifestFor({ surface: 'journal' })).toEqual([])          // not offered off-surface
+    // ⭐ W2-C1: off-surface, only the queries offered everywhere remain (surfaces ['*']); no write and no chart control
+    const off = manifestFor({ surface: 'nowhere' })
+    expect(off.length).toBeGreaterThan(0)
+    expect(off.every(c => c.query || c.name === 'app.open')).toBe(true)
+    expect(off.some(c => c.name.startsWith('chart.') || c.name.startsWith('widget.') || c.name.startsWith('drawing.'))).toBe(false)
   })
   it('theme enum is exactly the shipped chart themes', () => {
     expect(getCapability('chart.applyTheme').args.properties.theme.enum).toEqual(CHART_THEMES.map(t => t.id))

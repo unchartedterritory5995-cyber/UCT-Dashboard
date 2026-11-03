@@ -19,6 +19,7 @@ import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
 import { useInRouterContext } from 'react-router-dom'
 import AgentNavBridge from '../../agent/AgentNavBridge'
+import { useAgentPageHost } from '../../agent/agentApp'
 import { setIndicatorAgentRoute, resolveAgentChart } from '../../agent/indicatorEntry'
 const loadAgentPanel = () => import('../../agent/AgentPanel')
 const AgentPanel = lazy(loadAgentPanel)
@@ -3172,6 +3173,8 @@ function ChartsWorkspaceBoard() {
       set: (iso) => { const r = agentReplayRef.current; if (!r) return; if (iso) r.start(iso, null); else r.exit() },
     },
   }), [])
+  // ⭐ W2-C1: the app-level Agent host knows this page's host; /charts keeps its own dock + panel below (`owned`).
+  useAgentPageHost('charts', agentHost, { owned: true })
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
   // Modify door opens the Agent on THAT chart (it asks what to build) instead of the chart-side dock.
   // The toolbar names its chart `chartId` or `chartId:tabId`; the host names it `chartId~tabId`. A

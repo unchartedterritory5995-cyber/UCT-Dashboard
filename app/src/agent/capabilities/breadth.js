@@ -306,7 +306,7 @@ export function registerBreadthCapabilities() {
 
   registerCapability({
     name: 'breadth.show',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'breadth', query: true,
     // ⛔ the boundary: this answer is shown to the member and never replayed to a model
     localOnly: true,
