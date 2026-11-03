@@ -1596,8 +1596,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              routing: dict | None = None, conversation_title: str | None = None,
              on_event: Callable[[dict], None] | None = None, stream_caller: Callable[..., Any] | None = None,
              meter=None, reroute: bool = False, interpreter: str | None = None, repair: dict | None = None,
-             reference: dict | None = None, headline: dict | None = None, answer_only: bool = False) -> dict:
+             reference: dict | None = None, headline: dict | None = None, answer_only: bool = False,
+             v2: dict | None = None) -> dict:
     """Returns {envelope, usage, title}. Raises TurnError with a member sentence.
+    `v2` (Wave 1 A-04; the router passes it ONLY when UCT_AGENT_PLANNER=v2 and the turn streams): the planner v2
+    arguments {wait_step, turn_token[, resume, resume_result]} — the turn is served by turn_v2.run_turn_v2, the
+    tool-use step loop. Absent (the default, and always when the flag is unset) this function runs exactly as before.
     `on_event` (streaming, optional): receives {"t": "delta", "text"} for an answer's reply as it is
     written (ReplyStream's gate), {"t": "retract"} when streamed text will not be the answer after all
     (research follows), and {"t": "status", "stage": "research"} when a web search starts. Nothing else —
@@ -1617,6 +1621,11 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     `headline` (News -> Agent, news.py): ONE stored UCT News headline the SERVER read by its id, shown to the
     model as data with news.RULES. `answer_only` (the News Ask box): no web research runs and any op the model
     writes is dropped -- the turn can only answer."""
+    if v2 is not None:
+        from api.services.uct_agent import turn_v2
+        return turn_v2.run_turn_v2(message=message, context=context, history=history, capabilities=capabilities,
+                                   pending=pending, caller=caller, meter=meter, on_event=on_event, reference=reference,
+                                   repair=repair, **v2)
     t_build = time.perf_counter()
     context, pending, reference, repair, history, _ = strip_isolated_request(context, pending, reference, repair, history)
     context = context or {}
