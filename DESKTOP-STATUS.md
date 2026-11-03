@@ -1,9 +1,9 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-03 21:43 CT
+updated: 2026-11-03 22:02 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
-free RAM: 18056 MB · builder cap: 4 (max 2 Opus); currently 4 running (1 Opus, 3 Sonnet)
+free RAM: 11867 MB · builder cap: owner raised it 2026-11-03 ("use more agents"); currently 6 running (1 Opus, 5 Sonnet). Heavy jobs still one at a time through the lock, so expect queue waits.
 master at start: 5d95103c8a
 baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
 poll on ops/pine-coord: ARMED (15 min); ASSIGNMENTS.md last read at a coordinator commit with all 8 desktop lanes QUEUED
@@ -19,14 +19,15 @@ poll on ops/pine-coord: ARMED (15 min); ASSIGNMENTS.md last read at a coordinato
 1. `pine-handoff` does not exist on the desktop. Used the documented fallback: `pine-handoff-dsk`, detached at origin/docs/pine-parity-programme (7809e3399b). $H points there.
 2. BUILDER-RULES setup step 1 runs `git -C $UCT_WORKTREES/pine-handoff worktree add`. Desktop builders use `git -C $UCT_WORKTREES/pine-base worktree add` instead (same repo, same result).
 3. pine-base is detached at 6272ed7fa3 (older than master). Left untouched: it only supplies node_modules, and the lockfile matches master. The measure-pair base is pine-dsk-mpbase, which builders switch to their own merge-base inside each hl job.
-4. Owner's standing PC-load memory says 1 build agent at a time. This plan's RAM rule allows 4. Running 4, with heavy jobs serialised by the lock. Reported to the owner, who has not asked for fewer.
+4. Owner's standing PC-load memory says 1 build agent at a time; the plan allows 4. The owner has since said to use more agents, so 6 builders are running. Heavy jobs remain serialised by the lock.
+5. Plan correction: W3 edits app/src/components/chart/engine/pineTextFormat.js (engine/, not ast/pineTextFormat.js as DESKTOP-PROMPT section 4 says). The T11 builder was told; that file is off limits to every desktop lane until W3 merges. W3 also edits ast/pine.js 19357+ and ast/objectProgram.js.
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
-- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11 (created by builders)
+- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12 (created by builders)
 
 ### Queue (in order, as slots and dependencies allow)
-W5-T6 (after W5-T1 READY) · W4-T17 probes + T13 spike · W5-T2 (after W5-T1 MERGED) · W4-T12 (after a W3 overlap check)
+W5-T6 (after W5-T1 READY) · W5-T2 (after W5-T1 MERGED). W4-T17/T13 and W4-T12 started early, since slots opened.
 
 ## W4-T2
 state: BUILDING   round: r0   updated: 2026-11-03 21:11 CT
@@ -51,3 +52,16 @@ state: BUILDING   round: r0   updated: 2026-11-03 21:11 CT
 branch: feat/pine-w4-t11-runtime-text   worktree: pine-dsk-w4t11   model: Sonnet
 engine bump needed: expected yes (engine change), confirmed at READY
 next: builder implementing W4-BREAKDOWN T11 in RT/text.js and FE ~6120-6160; will set BLOCKED if it needs ast/pineTextFormat.js
+
+## W4-T17
+state: BUILDING   round: r0   updated: 2026-11-03 22:02 CT
+branch: docs/pine-w4-t17-t13-probes   worktree: pine-dsk-w4t17   model: Sonnet
+engine bump needed: no (docs and probes only)
+next: builder writing the T17 probes and the T13 spike note
+
+## W4-T12
+state: BUILDING   round: r0   updated: 2026-11-03 22:02 CT
+branch: feat/pine-w4-t12-paint   worktree: pine-dsk-w4t12   model: Sonnet
+engine bump needed: decided at READY
+overlap check (2026-11-03): origin/feat/pine-w3-drawings touches neither memberPaneDefinition.js nor RT/colours.js, so not BLOCKED. Builder re-checks before its first commit.
+next: builder implementing W4-BREAKDOWN T12
