@@ -1,7 +1,7 @@
 // Chart IQ client rails: the drawing plan (chartIqPlan.buildPlan), the gate, the daily-only fetch key and the panel.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { buildPlan, defaultLayers, LAYERS } from './chartIqPlan'
+import { buildPlan, defaultLayers, LAYERS, levelsOnly, CHART_IQ_TFS } from './chartIqPlan'
 import { chartIqAllowed } from './chartIqGate'
 import { chartIqKey, chartIqRetry } from '../../../hooks/useChartIq'
 import ChartIqPanel, { firstSentence, ChartIqFeedback, errorText, closeLabel } from './ChartIqPanel'
@@ -85,9 +85,9 @@ describe('gate and fetch key', () => {
     expect(chartIqAllowed({ user: null, chartIqEnabled: true })).toBe(false)
     expect(chartIqAllowed({ user: { id: 1 }, chartIqEnabled: true })).toBe(true)
   })
-  it('fetches on the daily timeframe only, and only when enabled', () => {
+  it('fetches on the daily and weekly timeframes only, and only when enabled', () => {
     expect(chartIqKey('cvlt', 'D', true)).toBe('/api/chart-iq/CVLT')
-    expect(chartIqKey('CVLT', 'W', true)).toBeNull()
+    expect(chartIqKey('CVLT', 'W', true)).toBe('/api/chart-iq/CVLT')   // weekly: the daily read's levels (11/03)
     expect(chartIqKey('CVLT', '5', true)).toBeNull()
     expect(chartIqKey('CVLT', 'D', false)).toBeNull()
   })
@@ -237,5 +237,43 @@ describe('layoutLabels: no label sits on another (live site 2026-11-02)', () => 
     render(<PatternToolbarButton active={false} onToggle={() => {}} />)
     const b = screen.getByRole('button', { name: /pattern/i })
     expect(b.style.width).toBe('auto')
+  })
+})
+
+
+describe('weekly charts: the daily read, price levels only', () => {
+  it('fetches the same daily read on W, nothing on intraday', () => {
+    expect(CHART_IQ_TFS).toEqual(['D', 'W'])
+    expect(chartIqKey('cvlt', 'W', true)).toBe('/api/chart-iq/CVLT')
+    expect(chartIqKey('cvlt', '15', true)).toBeNull()
+  })
+  it('keeps flat levels and drops sloped trendlines and every day marker', () => {
+    const plan = {
+      segments: [
+        { t1: 'a', p1: 10, t2: 'b', p2: 10, kind: 'level' },
+        { t1: 'a', p1: 10, t2: 'b', p2: 12, kind: 'trendline' },
+        { t1: 'a', p1: 9, t2: 'b', p2: 9, kind: 'buypoint' },
+      ],
+      markers: [{ t: 'a', kind: 'buy' }],
+      hlines: [{ price: 11, kind: 'trigger' }],
+    }
+    const w = levelsOnly(plan)
+    expect(w.segments.map((g) => g.kind)).toEqual(['level', 'buypoint'])
+    expect(w.markers).toEqual([])
+    expect(w.hlines).toEqual(plan.hlines)
+    expect(levelsOnly(null)).toBeNull()
+  })
+  it('the panel says what a weekly chart shows and offers the daily chart', () => {
+    let toDaily = 0
+    render(<ChartIqPanel data={PAYLOAD} layers={defaultLayers()} onLayer={() => {}} weekly onShowDaily={() => { toDaily += 1 }} />)
+    expect(screen.getByTestId('chart-iq-weekly').textContent).toBe('weekly: levels')
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+    expect(screen.getByTestId('chart-iq-weekly-note').textContent).toMatch(/daily read's price levels/)
+    fireEvent.click(screen.getByText('Show daily'))
+    expect(toDaily).toBe(1)
+  })
+  it('a daily chart shows no weekly note', () => {
+    render(<ChartIqPanel data={PAYLOAD} layers={defaultLayers()} onLayer={() => {}} />)
+    expect(screen.queryByTestId('chart-iq-weekly')).toBeNull()
   })
 })

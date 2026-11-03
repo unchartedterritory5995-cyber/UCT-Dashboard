@@ -45,6 +45,17 @@ function colorOf(o) {
 
 const fx = (n) => (typeof n === 'number' && Number.isFinite(n) ? n : null)
 
+/** The timeframes Chart IQ reads. The engine reads DAILY bars; a weekly chart shows the same daily read (2026-11-03). */
+export const CHART_IQ_TFS = Object.freeze(['D', 'W'])
+
+/** A weekly chart gets the daily read's PRICE LEVELS only: support/resistance, zones, base lines, buy points, gaps, trigger and
+ * stop are prices, true on any timeframe. Sloped trendlines are projected bar by bar on DAILY bars and day markers name a single
+ * day, so on weekly bars both would be drawn in the wrong place: they stay on the daily chart. */
+export function levelsOnly(plan) {
+  if (!plan) return plan
+  return { ...plan, segments: (plan.segments || []).filter((g) => g.p1 === g.p2), markers: [] }
+}
+
 export function buildPlan(payload, barTimes, layers = defaultLayers()) {
   const out = { segments: [], markers: [], hlines: [] }
   if (!payload || !Array.isArray(barTimes) || !barTimes.length) return out

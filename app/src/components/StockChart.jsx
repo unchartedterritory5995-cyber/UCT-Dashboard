@@ -75,7 +75,7 @@ import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
 import ChartIqOverlay from './chart/chartIq/ChartIqOverlay'
 import ChartIqPanel from './chart/chartIq/ChartIqPanel'
-import { buildPlan as buildChartIqPlan, defaultLayers as chartIqDefaultLayers } from './chart/chartIq/chartIqPlan'
+import { buildPlan as buildChartIqPlan, defaultLayers as chartIqDefaultLayers, CHART_IQ_TFS, levelsOnly as chartIqLevelsOnly } from './chart/chartIq/chartIqPlan'
 import { useChartIqAllowed } from './chart/chartIq/chartIqGate'
 import { useChartIq } from '../hooks/useChartIq'
 import PatternSidePanel from './chart/PatternSidePanel'
@@ -6342,7 +6342,7 @@ export default function StockChart({
     handleUpdateChartSettings({ ...cs, showChartIq: next, preset: 'custom' })
   }, [cs, handleUpdateChartSettings])
   const chartIqOn = showChartIq && chartIqAllowed && !disablePatterns
-  const chartIqActive = chartIqOn && resolvedTf === 'D'
+  const chartIqActive = chartIqOn && CHART_IQ_TFS.includes(resolvedTf)   // daily, or weekly (the daily read's price levels)
   const { data: chartIqData, error: chartIqError, isLoading: chartIqLoading } = useChartIq(sym, resolvedTf, chartIqActive)
   const [chartIqLayers, setChartIqLayers] = useState(chartIqDefaultLayers)   // per tab, not persisted
   const handleChartIqLayer = useCallback((id, on) => setChartIqLayers((l) => ({ ...l, [id]: on })), [])
@@ -9782,8 +9782,12 @@ export default function StockChart({
   const patternLastPrice = patternsActive && ohlcData.length ? ohlcData[ohlcData.length - 1].close : null
   // Chart IQ's drawing plan: its dates are the daily series' own keys ('YYYY-MM-DD'), clipped to the loaded bars.
   const chartIqPlan = useMemo(
-    () => (chartIqActive && chartIqData && ohlcData.length ? buildChartIqPlan(chartIqData, ohlcData.map((d) => d.time), chartIqLayers) : null),
-    [chartIqActive, chartIqData, ohlcData, chartIqLayers],
+    () => {
+      if (!(chartIqActive && chartIqData && ohlcData.length)) return null
+      const plan = buildChartIqPlan(chartIqData, ohlcData.map((d) => d.time), chartIqLayers)
+      return resolvedTf === 'W' ? chartIqLevelsOnly(plan) : plan
+    },
+    [chartIqActive, chartIqData, ohlcData, chartIqLayers, resolvedTf],
   )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
   // every change rather than latched once, so a chart that recovers on a later
@@ -20743,7 +20747,7 @@ export default function StockChart({
       )}
       {/* Chart IQ is ON but this chart is not daily: say so (and offer the switch) instead of a switch that silently does nothing.
           Measured on the live phone shell 2026-11-02: the phone chart sat on 15m, so turning Chart IQ on drew nothing. */}
-      {chartIqOn && resolvedTf !== 'D' && bars?.length > 0 && (
+      {chartIqOn && !CHART_IQ_TFS.includes(resolvedTf) && bars?.length > 0 && (
         <ChartIqPanel
           notDaily
           onShowDaily={typeof onTfChange === 'function' ? () => onTfChange('D') : null}
@@ -20758,6 +20762,8 @@ export default function StockChart({
           layers={chartIqLayers}
           onLayer={handleChartIqLayer}
           onClose={() => handleToggleChartIq(false)}
+          weekly={resolvedTf === 'W'}
+          onShowDaily={typeof onTfChange === 'function' ? () => onTfChange('D') : null}
         />
       )}
       {/* The UCT Intelligence indicator's panel: only on a chart that added it, only while the pattern
