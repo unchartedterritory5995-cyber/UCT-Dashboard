@@ -65,6 +65,46 @@ _SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT_LOCK = threading.Lock()
 
 
+# ── The master switch (final review I3) ──────────────────────────────────────
+#
+# `NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED`, read per call: `0` (the default, also
+# unset and any unknown value) OFF; `admin` on for admins only; `1` on for everyone.
+# OFF for a member means the Plan C attachment layer does not exist for them: both
+# attachment routes answer 404 (the plugin then syncs text only, as against a server
+# without them), `/status` reports no plugin capability and the old consent copy, and
+# the provider converts every row exactly as before Plan C (no attachment pass, so no
+# "update the plugin" or "will be retried" notice). ⚰️ It was a kill switch defaulting ON,
+# and shipped ahead of plugin 0.2.0 it told every member to install an update that did
+# not exist yet (final review I3, M2).
+ATTACHMENTS_FLAG = "NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED"
+ATTACHMENTS_MODES = ("0", "admin", "1")
+
+
+def attachments_mode() -> str:
+    """`0`, `admin` or `1`; anything else reads `0` (OFF), never on by accident."""
+    raw = (os.environ.get(ATTACHMENTS_FLAG) or "0").strip().lower()
+    return raw if raw in ATTACHMENTS_MODES else "0"
+
+
+def attachments_enabled_for_user(user: dict | None) -> bool:
+    """Whether the attachment layer is on for this already-loaded user (its `role`)."""
+    mode = attachments_mode()
+    if mode == "1":
+        return True
+    return mode == "admin" and bool(user) and user.get("role") == "admin"
+
+
+def attachments_enabled_for(user_id: str) -> bool:
+    """`attachments_enabled_for_user` by id: one user read, and none when the mode
+    already decides (`0` or `1`)."""
+    mode = attachments_mode()
+    if mode != "admin":
+        return mode == "1"
+    from api.services import auth_service
+    row = auth_service.get_user_by_id(user_id)
+    return attachments_enabled_for_user(dict(row) if row is not None else None)
+
+
 class BlobRejected(Exception):
     """A staging upload refused: `.status` is the HTTP status (400/403/413/503)."""
 

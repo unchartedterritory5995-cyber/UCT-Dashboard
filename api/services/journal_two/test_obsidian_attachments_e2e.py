@@ -58,6 +58,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("PUSH_SECRET", "test-push-secret")
     monkeypatch.setenv("NOTE_ENCRYPTION_KEY", Fernet.generate_key().decode())
     monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
+    # The attachment layer ON (final review I3 made its master switch default OFF).
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1")
     monkeypatch.setenv("J2_OBSIDIAN_BLOB_ROOT", str(tmp_path / "blobs"))
     monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "att")
     monkeypatch.setenv("J2_ATTACHMENT_ROOT", str(tmp_path / "att"))

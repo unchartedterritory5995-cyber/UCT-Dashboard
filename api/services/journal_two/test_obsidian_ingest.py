@@ -74,6 +74,9 @@ def client(tmp_path, monkeypatch):
     # Plan C Task 2: the attachment routes stage blobs on disk and size the
     # member's room off the stored-media tree. Both sandboxed per test.
     monkeypatch.setenv("J2_OBSIDIAN_BLOB_ROOT", str(tmp_path / "blobs"))
+    # Final review I3: the attachment layer's master switch defaults OFF; the tests in this
+    # file that exercise it run it ON for everyone, and the switch's own tests set it.
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1")
     monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "att")
     monkeypatch.setenv("J2_ATTACHMENT_ROOT", str(tmp_path / "att"))
     media_policy._USAGE_MEMO.clear()
@@ -1699,6 +1702,84 @@ def test_the_device_gate_runs_off_the_event_loop(client, monkeypatch):
                    headers={**headers, "Content-Type": "application/pdf", "X-UCT-Attachment-Name": "x.pdf"})
     assert r.status_code in (200, 400), r.text
     assert on_loop == []
+
+
+# ── Final review I3: the master switch, `0` / `admin` / `1` ───────────────────
+
+def _make_admin(user_id: str) -> None:
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("UPDATE users SET role = 'admin' WHERE id = ?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _put_blob(client, tok, data=b"x"):
+    import hashlib
+    sha = hashlib.sha256(data).hexdigest()
+    return client.put(f"/api/j2/notes/connectors/obsidian/attachments/{sha}", content=data,
+                      headers={**H(tok, "0.2.0"), "Content-Type": "application/pdf",
+                               "X-UCT-Attachment-Name": "x.pdf"})
+
+
+def _obsidian_status(client):
+    body = client.get("/api/j2/notes/connectors/status").json()
+    return body, body["providers"]["obsidian"]["sources"][0]
+
+
+@pytest.mark.parametrize("mode", [None, "0", "garbage"])
+def test_attachments_off_is_404_everywhere_and_reports_no_capability(client, monkeypatch, mode):
+    """OFF (the default, unset, or any unknown value): both routes answer 404, never 401,
+    403 or 5xx, so the plugin syncs text only as against a server without them; /status
+    reports no plugin capability (the card hint never shows) and `obsidianAttachments`
+    false (the connect modal's old consent copy)."""
+    if mode is None:
+        monkeypatch.delenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", raising=False)
+    else:
+        monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", mode)
+    _login_as(client, "user-a")
+    tok = _redeem_via_http(client, "user-a")
+    for headers in (H(tok, "0.2.0"), {}):
+        assert client.post(_CHECK, json={"sha256": []}, headers=headers).status_code == 404
+    assert _put_blob(client, tok).status_code == 404
+    body, src = _obsidian_status(client)
+    assert body["obsidianAttachments"] is False
+    assert src["pluginSupportsAttachments"] is None
+
+
+def test_attachments_admin_mode_is_404_for_a_member_and_on_for_an_admin(client, monkeypatch):
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "admin")
+    _login_as(client, "user-a")
+    tok = _redeem_via_http(client, "user-a")
+    assert client.post(_CHECK, json={"sha256": []}, headers=H(tok, "0.2.0")).status_code == 404
+    assert _put_blob(client, tok).status_code == 404
+    body, src = _obsidian_status(client)
+    assert body["obsidianAttachments"] is False and src["pluginSupportsAttachments"] is None
+    # A NON-PAYING non-admin is still a 404 (never the paid gate's 403): the plugin goes
+    # legacy, never "offline".
+    free_tok = _device_token("user-free")
+    assert client.post(_CHECK, json={"sha256": []}, headers=H(free_tok, "0.2.0")).status_code == 404
+    _make_admin("user-a")
+    client.app.dependency_overrides[authmw.get_current_user] = lambda: {"id": "user-a", "role": "admin"}
+    r = client.post(_CHECK, json={"sha256": []}, headers=H(tok, "0.2.0"))
+    assert r.status_code == 200, r.text
+    body, src = _obsidian_status(client)
+    assert body["obsidianAttachments"] is True and src["pluginSupportsAttachments"] is True
+
+
+def test_attachments_on_check_reports_the_caps(client):
+    """ON: today's behaviour, and the check answer carries the per-note refs cap and the
+    per-blob byte cap the plugin must respect."""
+    _login_as(client, "user-a")
+    tok = _redeem_via_http(client, "user-a")
+    r = client.post(_CHECK, json={"sha256": []}, headers=H(tok, "0.2.0"))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["maxRefsPerNote"] == note_sync_router._MAX_ATTACHMENTS_PER_NOTE == 5000
+    assert body["maxBlobBytes"] == body["maxBytes"] == 25 * 1024 * 1024
+    status, _ = _obsidian_status(client)
+    assert status["obsidianAttachments"] is True
 
 
 @pytest.mark.parametrize("version,ok", [

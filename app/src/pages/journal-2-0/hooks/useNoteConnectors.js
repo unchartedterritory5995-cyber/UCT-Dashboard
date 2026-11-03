@@ -232,7 +232,11 @@ export function normalizeStatus(raw) {
     providers[p.key] = normalizeProvider(rawProviders[p.key])
   }
   const enabled = !!pick(raw, 'enabled', 'enabled', true)
-  return { providers, enabled }
+  // Final review I3: whether the Obsidian attachment layer is on for THIS member (the
+  // server's master switch). Only an explicit `true` turns it on: absent (an older server,
+  // or still loading) keeps the text-only consent copy, never a promise of images.
+  const obsidianAttachments = pick(raw, 'obsidianAttachments', 'obsidian_attachments', false) === true
+  return { providers, enabled, obsidianAttachments }
 }
 
 // ── Folder picker (Task 12b, widened to OneDrive in Task 7) ──────────────
@@ -303,7 +307,7 @@ export default function useNoteConnectors() {
     { revalidateOnFocus: false, shouldRetryOnError: false }
   )
 
-  const { providers, enabled } = normalizeStatus(data)
+  const { providers, enabled, obsidianAttachments } = normalizeStatus(data)
 
   // Token providers (roam/craft): payload carries the pasted credentials.
   // Callers (ConnectTokenModal) only invoke this after their own consent
@@ -467,6 +471,7 @@ export default function useNoteConnectors() {
   return {
     providers,
     enabled,
+    obsidianAttachments,
     isLoading,
     error,
     refresh,

@@ -8,6 +8,16 @@ import useNoteConnectors, {
   FOLDER_PICKER_ROOT_REMOTE_ID,
 } from './useNoteConnectors'
 
+describe('normalizeStatus — obsidianAttachments (final review I3)', () => {
+  it('is true only for an explicit true from the server, either casing', () => {
+    expect(normalizeStatus({ obsidianAttachments: true }).obsidianAttachments).toBe(true)
+    expect(normalizeStatus({ obsidian_attachments: true }).obsidianAttachments).toBe(true)
+    for (const raw of [undefined, null, {}, { obsidianAttachments: false }, { obsidianAttachments: 'true' }]) {
+      expect(normalizeStatus(raw).obsidianAttachments).toBe(false)
+    }
+  })
+})
+
 describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, corrected by Task 12b, widened to msgraph in Task 7)', () => {
   it('always returns every registered provider key, even from an empty/undefined payload', () => {
     for (const raw of [undefined, null, {}, { providers: {} }]) {

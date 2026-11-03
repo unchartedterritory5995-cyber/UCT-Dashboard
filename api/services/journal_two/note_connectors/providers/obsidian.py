@@ -1828,10 +1828,15 @@ class ObsidianProvider(NoteProvider):
         return row["label"] if row is not None else None
 
     def _note_from_row(self, row: Any, known_paths: list[str], basename_map: dict[str, list[str]],
-                       vault_label: str | None = None, plugin_supports: bool = False) -> RemoteNote:
+                       vault_label: str | None = None, plugin_supports: bool = False,
+                       attachments_on: bool = True) -> RemoteNote:
+        # Final review I3: with the attachment layer OFF for this member, no attachment pass
+        # at all, whatever the row carries: the row converts exactly as before Plan C, with
+        # no "update the plugin" or "will be retried" notice
+        # (`obsidian_attachments.attachments_enabled_for`).
+        refs = _refs_from_row(row["attachments_json"]) if attachments_on else NO_ATTACHMENT_PASS
         converted = self._convert_row(row["vault_path"], row["body_md"], known_paths, basename_map,
-                                      vault_label=vault_label,
-                                      refs=_refs_from_row(row["attachments_json"]),
+                                      vault_label=vault_label, refs=refs,
                                       plugin_supports=plugin_supports)
         fallback_title = _basename_sans_ext(row["vault_path"])
         return RemoteNote(
@@ -1873,7 +1878,8 @@ class ObsidianProvider(NoteProvider):
                 reason="Note content is no longer staged",
             )
         return self._note_from_row(row, known_paths, _build_basename_map(known_paths), label,
-                                   plugin_supports=self._plugin_supports_attachments())
+                                   plugin_supports=self._plugin_supports_attachments(),
+                                   attachments_on=obsidian_attachments.attachments_enabled_for(self.user_id))
 
     async def fetch_many(
         self, credentials: dict[str, Any], refs: list[RemoteRef],
@@ -1905,6 +1911,7 @@ class ObsidianProvider(NoteProvider):
         by_path = {r["vault_path"]: r for r in rows}
         basename_map = _build_basename_map(known_paths)
         supports = self._plugin_supports_attachments()
+        attachments_on = obsidian_attachments.attachments_enabled_for(self.user_id)
         notes: list[RemoteNote] = []
         for ref in refs:
             row = by_path.get(ref.remote_id)
@@ -1914,7 +1921,7 @@ class ObsidianProvider(NoteProvider):
                     reason="Note content is no longer staged",
                 )
             notes.append(self._note_from_row(row, known_paths, basename_map, label,
-                                             plugin_supports=supports))
+                                             plugin_supports=supports, attachments_on=attachments_on))
         return notes
 
     async def fetch_media(self, credentials: dict[str, Any], ref: str) -> tuple[bytes, str]:

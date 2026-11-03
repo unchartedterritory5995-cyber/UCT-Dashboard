@@ -38,6 +38,9 @@ def db(tmp_path, monkeypatch):
     conn = auth_db.get_connection()
     ensure_schema(conn)
     conn.close()
+    # Final review I3: the attachment layer's master switch defaults OFF; this file's fetch
+    # tests run it ON for everyone, and the switch's own tests set it.
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1")
     return auth_db
 
 
@@ -298,6 +301,41 @@ async def test_fetch_and_fetch_many_convert_off_the_event_loop(db, monkeypatch):
                                    RemoteRef(remote_id="b.md", updated_at=T2)])
     assert len(seen) == 3
     assert loop_thread not in seen
+
+
+async def test_attachments_off_converts_every_row_exactly_as_before_plan_c(db, monkeypatch):
+    """Final review I3: with the master switch OFF for the member (`0`, or `admin` for a
+    non-admin), every staged row converts with NO attachment pass, exactly as before Plan C:
+    no "update the plugin" or "will be retried" notice, whatever the row carries. Proved
+    byte-identical on every parity input, staged with its refs and as a 0.1.x row (None)."""
+    import json as _json
+
+    from api.services.journal_two.note_connectors.convert import obsidian_parity_fixtures_gen as gen
+
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    inputs = sorted(gen.FIXTURES_IN_DIR.glob("*.md"))
+    for mode in ("0", "admin"):
+        monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", mode)
+        for md in inputs:
+            manifest = _json.loads((gen.FIXTURES_IN_DIR / f"{md.stem}.vault.json").read_text("utf-8"))
+            paths = [p for p in manifest["vault_paths"] if p.endswith(".md")]
+            body = md.read_text("utf-8")
+            expected = provider._convert_row(manifest["self_path"], body, sorted(paths),
+                                             _build_basename_map(sorted(paths)))
+            for refs in (manifest.get("attachments", []), None):
+                _stage("user-a", "vault-1", manifest["self_path"], body, T1, attachments=refs)
+                _manifest("user-a", "vault-1", paths)
+                note = await provider.fetch({}, RemoteRef(remote_id=manifest["self_path"], updated_at=T1))
+                assert note.doc == expected["doc"], (mode, md.name, refs is None)
+                assert note.media == expected["media"] and note.links == expected["links"], md.name
+    # Control: ON, the same 0.1.x row carries the outdated-plugin notice.
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1")
+    _stage("user-a", "vault-1", "Notes/old.md", "![[chart.png]]", T1, attachments=None)
+    note = await provider.fetch({}, RemoteRef(remote_id="Notes/old.md", updated_at=T1))
+    assert [n["attrs"]["reason"] for n in _all(note.doc, "importNotice")] == ["obsidian-plugin-outdated"]
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "0")
+    note = await provider.fetch({}, RemoteRef(remote_id="Notes/old.md", updated_at=T1))
+    assert _all(note.doc, "importNotice") == []
 
 
 async def test_fetch_many_raises_on_a_missing_row_so_the_engine_can_fall_back(db):

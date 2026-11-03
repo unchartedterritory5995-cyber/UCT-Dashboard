@@ -57,8 +57,8 @@ import styles from './ConnectedAppsCard.module.css'
 export default function ConnectedAppsCard() {
   const { isPaid, startCheckout } = useAuth()
   const {
-    providers, enabled, isLoading, refresh, connectToken, startOAuth, mintConnectCode, syncSource, getSourceLog,
-    updateSource, disconnect, listFolders, addSource,
+    providers, enabled, obsidianAttachments, isLoading, refresh, connectToken, startOAuth, mintConnectCode,
+    syncSource, getSourceLog, updateSource, disconnect, listFolders, addSource,
   } = useNoteConnectors()
 
   const [tokenModalProvider, setTokenModalProvider] = useState(null)
@@ -359,6 +359,7 @@ export default function ConnectedAppsCard() {
         open={!!deviceModalProvider}
         providerLabel={NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === deviceModalProvider)?.label || 'Obsidian'}
         mintConnectCode={mintConnectCode}
+        attachments={obsidianAttachments}
         onClose={() => setDeviceModalProvider(null)}
       />
 

@@ -33,7 +33,10 @@ import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './ObsidianConnectModal.module.css'
 
-export default function ObsidianConnectModal({ open, providerLabel, mintConnectCode, onClose }) {
+// `attachments`: the server's `/status` `obsidianAttachments` (final review I3). False or
+// absent (the switch is off for this member, or an older server) shows the text-only
+// consent, word for word as before Plan C: the modal never promises what will not arrive.
+export default function ObsidianConnectModal({ open, providerLabel, mintConnectCode, onClose, attachments = false }) {
   const [consentChecked, setConsentChecked] = useState(false)
   const [busy, setBusy] = useState(false)
   const [errorDetail, setErrorDetail] = useState(null)
@@ -115,9 +118,18 @@ export default function ObsidianConnectModal({ open, providerLabel, mintConnectC
     >
       {!code ? (
         <div className={styles.form}>
-          <p className={styles.lead}>
-            Once connected, the {label} plugin sends the markdown text of your notes, and the images and files your notes use, to your UCT Notebook. Nothing is ever written back to your vault.
-          </p>
+          {attachments ? (
+            <p className={styles.lead}>
+              Once connected, the {label} plugin sends the markdown text of your notes, and the images and files your notes use, to your UCT Notebook. Nothing is ever written back to your vault.
+            </p>
+          ) : (
+            <p className={styles.lead}>
+              Once connected, the {label} plugin sends the markdown text of your
+              notes — file path, content, and last-modified time — into your
+              Notebook. It does not upload attachments or images stored in your
+              vault, and nothing is ever written back to your vault.
+            </p>
+          )}
           {/* ⛔ This modal told members to paste a code "into the plugin"
               without ever saying where to GET the plugin — the instruction
               assumed a thing the member had no way to find. The plugin is now

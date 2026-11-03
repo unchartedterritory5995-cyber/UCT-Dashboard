@@ -434,13 +434,18 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     # update hint again (fix round 1, M1).
     plugin_versions = (obsidian_link.plugin_versions_for_user(user["id"])
                        if any(s.get("provider") == "obsidian" for s in all_sources) else {})
+    # Final review I3: with the attachment layer OFF for this member, no capability is
+    # reported (null: the card's update hint never shows) and `obsidianAttachments` is
+    # false (the connect modal shows the text-only consent copy).
+    attachments_on = obsidian_attachments.attachments_enabled_for_user(user)
     sources_by_provider: dict[str, list[dict[str, Any]]] = {}
     for s in all_sources:
         s = dict(s)
         if s.get("provider") == "obsidian":
             version = plugin_versions.get(s.get("remoteId"))
             s["pluginVersion"] = version
-            s["pluginSupportsAttachments"] = obsidian_link.plugin_version_supports_attachments(version)
+            s["pluginSupportsAttachments"] = (
+                obsidian_link.plugin_version_supports_attachments(version) if attachments_on else None)
         s["counts"] = counts_by_source.get(s["id"], dict(_ZERO_COUNTS))
         s["pendingRemoval"] = int(pending.get(s["id"], 0))
         # None = the newest row's failures could not be read: the count is
@@ -463,7 +468,7 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
             "accountLabel": connector["accountLabel"] if connector else None,
             "sources": sources_by_provider.get(name, []),
         }
-    return {"enabled": _sync_enabled(), "providers": providers}
+    return {"enabled": _sync_enabled(), "obsidianAttachments": attachments_on, "providers": providers}
 
 
 # ── POST /{provider}/connect ──────────────────────────────────────────────────
@@ -1310,18 +1315,25 @@ def _device_from_authorization(header: str | None) -> dict[str, Any]:
     return device
 
 
-async def _paid_obsidian_device(request: Request) -> dict[str, Any]:
+async def _paid_obsidian_device(request: Request, *, attachments: bool = False) -> dict[str, Any]:
     """The plugin's door, shared by ingest, the attachment check and the blob upload: device
     auth (which writes `last_seen_at`), the paid-plan reads and the plugin-version record,
     in ONE worker-thread call (final review I2). On the event loop these were up to four
     SQLite calls, two of them writes, per request, and the upload runs once per BLOB: under
-    auth.db write contention each could hold every member's request for its busy timeout."""
+    auth.db write contention each could hold every member's request for its busy timeout.
+    `attachments`: an attachment route. When the master switch is off for this device's
+    member (`admin` mode, a non-admin) it answers 404 right after authenticating, before the
+    paid gate, so the plugin reads "this server takes no attachments" and syncs text only,
+    never a 403 it would read as offline (final review I3)."""
     authorization = request.headers.get("authorization")
     version = request.headers.get(PLUGIN_VERSION_HEADER)
 
     def gate() -> dict[str, Any]:
         device = _device_from_authorization(authorization)
-        _require_paid_device_user(device["user_id"])
+        user = _device_user(device["user_id"])
+        if attachments and not obsidian_attachments.attachments_enabled_for_user(user):
+            raise HTTPException(status_code=404, detail="Not Found")
+        _require_paid(user)
         obsidian_link.record_plugin_version(device["device_id"], version)
         return device
 
@@ -1340,12 +1352,21 @@ def _require_paid_device_user(user_id: str) -> None:
     reaching it, so the cookie path and the device path can never drift.
     The identity itself still comes from ONLY the already-authenticated
     device — this never reads a user id out of the request."""
+    _require_paid(_device_user(user_id))
+
+
+def _device_user(user_id: str) -> dict[str, Any] | None:
+    """The device's member with their plan, or None."""
     user = auth_service.get_user_by_id(user_id)
     if user is None:
-        raise HTTPException(status_code=403, detail="Upgrade required")
+        return None
     user = dict(user)
     user["plan"] = auth_service.get_user_plan(user_id)
-    if meets_plan_gate(user, list(PAID_PLANS)):
+    return user
+
+
+def _require_paid(user: dict[str, Any] | None) -> None:
+    if user is not None and meets_plan_gate(user, list(PAID_PLANS)):
         return
     raise HTTPException(status_code=403, detail="Upgrade required")
 
@@ -1456,9 +1477,11 @@ _OBSIDIAN_UPLOAD_GATE = _UploadGate(per_member=OBSIDIAN_UPLOAD_PER_MEMBER_INFLIG
                                     total=OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT)
 
 
-def _obsidian_attachments_enabled() -> bool:
-    """`NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED`, default ON: only `"0"` turns it off."""
-    return os.environ.get("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1") != "0"
+def _obsidian_attachments_off_for_everyone() -> bool:
+    """The master switch at `0` (default, unset, unknown): both attachment routes 404 before
+    reading anything. `admin` is decided per member after authenticating
+    (`_paid_obsidian_device(attachments=True)`). `obsidian_attachments.attachments_mode`."""
+    return obsidian_attachments.attachments_mode() == "0"
 
 
 class ObsidianAttachmentCheckBody(BaseModel):
@@ -1520,12 +1543,12 @@ async def obsidian_attachments_check(request: Request) -> dict[str, Any]:
     """`{"sha256": [..≤5000]}` -> `{"protocol", "missing", "maxBytes", "remainingBytes"}`.
     `missing` is the hashes not staged for THIS device's (member, vault), in request order;
     an empty list is how the plugin learns the protocol and the limits."""
-    if not _obsidian_attachments_enabled():
+    if _obsidian_attachments_off_for_everyone():
         raise HTTPException(status_code=404, detail="Not Found")
     entry = registry.get_entry("obsidian")
     if not entry.configured():
         raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
-    device = await _paid_obsidian_device(request)
+    device = await _paid_obsidian_device(request, attachments=True)
 
     raw = await _read_bounded_body(request, _MAX_ATTACHMENT_CHECK_BYTES)
     try:
@@ -1547,6 +1570,10 @@ async def obsidian_attachments_check(request: Request) -> dict[str, Any]:
         "protocol": ATTACHMENT_PROTOCOL_VERSION,
         "missing": missing,
         "maxBytes": obsidian_attachments.MAX_BLOB_BYTES,
+        # The plugin's own final review: the limits it must respect, stated by the server
+        # (`maxBytes` kept for 0.2.0 plugins that read it).
+        "maxBlobBytes": obsidian_attachments.MAX_BLOB_BYTES,
+        "maxRefsPerNote": _MAX_ATTACHMENTS_PER_NOTE,
         "remainingBytes": remaining,
     }
 
@@ -1558,12 +1585,12 @@ async def obsidian_attachments_put(sha256: str, request: Request) -> dict[str, A
     (member, vault) already had it. The store refuses a hash mismatch (400), a body over
     the per-file cap or the member's room (413, the declared length checked before any
     byte is read) and a full volume (503); nothing is left on disk after a refusal."""
-    if not _obsidian_attachments_enabled():
+    if _obsidian_attachments_off_for_everyone():
         raise HTTPException(status_code=404, detail="Not Found")
     entry = registry.get_entry("obsidian")
     if not entry.configured():
         raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
-    device = await _paid_obsidian_device(request)
+    device = await _paid_obsidian_device(request, attachments=True)
 
     name = _attachment_name(request.headers.get("x-uct-attachment-name"))
     mime = _declared_mime(request.headers.get("content-type"))
