@@ -62,6 +62,9 @@ def _setup(monkeypatch, ymds=SESSIONS, latest=20251202):
         ymd = int(now.strftime("%Y%m%d"))
         return max(d for d in SESSIONS + [latest] if d <= ymd)
     monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", last_closed)
+    # the adapters ask sessions.last_completed_session (F-23); pin it to the same fixture calendar, never the wall clock
+    from api.services.uct_agent.marketdata import sessions
+    monkeypatch.setattr(sessions, "last_completed_session", last_closed)
     return store
 
 
