@@ -164,6 +164,54 @@ def test_content_nested_inside_a_non_self_closed_en_media_is_unwrapped_after_it(
     assert _text(_blocks(out)[1]) == "insidetail"
 
 
+# ---- I1: the client's `unambiguousPairs` (a hash-mismatched en-media pairs only when it cannot
+# be a guess) ---------------------------------------------------------------------------------
+
+PNG2 = _res(PNG2_HASH, "image/png", "second.png")
+WRONG = "f" * 32
+WRONG2 = "e" * 32
+
+
+def test_lone_mismatched_image_pairs_with_the_lone_uncited_image_in_place():
+    out = _convert(f'<div>before<en-media hash="{WRONG}" type="image/png"/>after</div>', [IMG])
+    assert [b["type"] for b in _blocks(out)] == ["paragraph", "image", "paragraph"]
+    assert _blocks(out)[1]["attrs"]["src"] == f"import-ref://{_ref(IMG_HASH)}"
+    assert not _of_type(out, "importNotice")
+    assert [m["ref"] for m in out["media"]] == [_ref(IMG_HASH)]
+
+
+def test_lone_untyped_mismatch_pairs_with_the_lone_uncited_resource():
+    out = _convert(f'<en-media hash="{WRONG}"/>', [PDF])
+    assert [b["type"] for b in _blocks(out)] == ["attachmentChip"]
+    assert not _of_type(out, "importNotice")
+
+
+def test_one_exact_citation_plus_one_mismatch_pairs_the_mismatch():
+    out = _convert(f'<en-media hash="{IMG_HASH}" type="image/png"/>'
+                   f'<en-media hash="{WRONG}" type="image/png"/>', [IMG, PNG2])
+    srcs = [n["attrs"]["src"] for n in _of_type(out, "image")]
+    assert srcs == [f"import-ref://{_ref(IMG_HASH)}", f"import-ref://{_ref(PNG2_HASH)}"]
+    assert not _of_type(out, "importNotice")
+
+
+@pytest.mark.parametrize("resources", [[IMG, PNG2], [PNG2, IMG]], ids=["order", "swapped"])
+def test_two_mismatches_and_two_uncited_resources_are_notices_never_a_guess(resources):
+    out = _convert(f'<en-media hash="{WRONG}" type="image/png"/>'
+                   f'<en-media hash="{WRONG2}" type="image/png"/>', resources)
+    types = [b["type"] for b in _blocks(out)]
+    assert types == ["importNotice", "importNotice", "image", "image"]  # both appended at the end
+
+
+def test_a_typed_mismatch_does_not_pair_while_an_untyped_mismatch_exists():
+    out = _convert(f'<en-media hash="{WRONG}" type="image/png"/><en-media hash="{WRONG2}"/>', [IMG])
+    assert [b["type"] for b in _blocks(out)] == ["importNotice", "importNotice", "image"]
+
+
+def test_a_mismatch_of_another_kind_does_not_pair():
+    out = _convert(f'<en-media hash="{WRONG}" type="application/pdf"/>', [IMG])
+    assert [b["type"] for b in _blocks(out)] == ["importNotice", "image"]
+
+
 def test_null_resources_is_read_as_no_resources():
     body = f'<div>x</div><en-media hash="{IMG_HASH}" type="image/png"/>'
     assert _convert(body, None) == _convert(body, [])

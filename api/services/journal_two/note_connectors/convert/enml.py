@@ -18,8 +18,10 @@ Rules, in order (the brief's numbering):
     live_import_key(guid)`, every child kept; any other note link -> `LINK_PREFIX +
     "evernote-title:" + <its text>` (the key `link_keys` heals); with no text it becomes its content.
  4. `<en-media hash type>` against `resources` by hash: an image -> `<img src=REF_PREFIX+ref>`,
-    anything else -> an attachment chip named from the resource; no resource -> an importNotice
-    `missing_resource` IN PLACE. Content nested inside an `<en-media>` is unwrapped after it.
+    anything else -> an attachment chip named from the resource. A hash that matches nothing
+    pairs with an uncited resource only when unambiguous (the client's `unambiguousPairs`);
+    otherwise an importNotice `missing_resource` IN PLACE. Content nested inside an
+    `<en-media>` is unwrapped after it.
  5. `<div>`s carrying `<en-todo checked>` group into one `<ul><li data-uct-task="0|1">` run.
  6. Resources nothing cited are appended at the end; duplicate hashes collapse first-wins.
  7. An http(s) `source_url` (not our own site) becomes a first line `Source: <a>`.
@@ -327,14 +329,55 @@ def _media_node(entry: dict) -> _Node:
                  [entry["name"]])
 
 
+def _kind_of_type(type_: str | None) -> str | None:
+    """The client's `kindOfType`: the media kind an `<en-media type>` asks for; None (any) when
+    it has none."""
+    t = (type_ or "").strip().lower()
+    if not t:
+        return None
+    return "image" if t.startswith("image/") else "file"
+
+
+def _unambiguous_pairs(unmatched: list[_Node], res: _Resources) -> dict[int, dict]:
+    """The client's `unambiguousPairs` (Plan B E-14, fix round 1 ruling 1), exactly: an
+    `<en-media>` whose hash matches no resource pairs with an uncited resource ONLY when that
+    cannot be a guess. A typed one pairs when it is the only unmatched one of its kind, exactly
+    one uncited resource of that kind exists, and no untyped one is unmatched. An untyped one
+    pairs when it is the only unmatched one at all and exactly one resource is uncited. Never
+    positional. Returns `id(en-media) -> resource`."""
+    pairs: dict[int, dict] = {}
+    uncited = [r for r in res.unique if r["hash"] not in res.cited]
+
+    def typed(kind: str | None) -> list[_Node]:
+        return [el for el in unmatched if _kind_of_type(el.attrs.get("type")) == kind]
+
+    untyped = typed(None)
+    for kind in ("image", "file"):
+        els = typed(kind)
+        candidates = [r for r in uncited if r["kind"] == kind]
+        if len(els) == 1 and len(candidates) == 1 and not untyped:
+            pairs[id(els[0])] = candidates[0]
+    if len(untyped) == 1 and len(unmatched) == 1 and len(uncited) == 1:
+        pairs[id(untyped[0])] = uncited[0]
+    return pairs
+
+
 def _rule_en_media(root: _Node, res: _Resources) -> None:
     missing = 0
+    hash_of = lambda el: str(el.attrs.get("hash") or "").strip().lower()  # noqa: E731
+    # Exact citations first, across the whole note, so an earlier mismatched en-media can never
+    # take a resource a later one cites exactly.
+    els = _iter(root, "en-media")
+    for el in els:
+        if hash_of(el) in res.by_hash:
+            res.cited.add(hash_of(el))
+    pairs = _unambiguous_pairs([el for el in els if hash_of(el) not in res.by_hash], res)
 
     def fn(n: _Node) -> list[Any] | None:
         nonlocal missing
         if n.tag != "en-media":
             return None
-        entry = res.by_hash.get(str(n.attrs.get("hash") or "").strip().lower())
+        entry = res.by_hash.get(hash_of(n)) or pairs.get(id(n))
         if entry is not None:
             res.cited.add(entry["hash"])
             node = _media_node(entry)
