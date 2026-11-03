@@ -75,7 +75,7 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     expect(await refuse(host, { widget: 'nh', key: 'minCount', value: 0 })).toMatch(/“minCount” is from 1 to 260/)
     // an UNBOUNDED numeric key (no min/max in the registry: nhnl.minPrice, volumescan.minRvol/minMove/minDollarK) is not an option at all
     expect(await refuse(host, { widget: 'nh', key: 'minPrice', value: 5 })).toMatch(/has no option “minPrice” — its options are minCount/)
-    expect(await refuse(host, { widget: 'vs', key: 'minRvol', value: 3 })).toMatch(/has no option “minRvol” — its options are showLogos$/)
+    expect(await refuse(host, { widget: 'vs', key: 'minRvol', value: 3 })).toMatch(/has no option “minRvol” — its options are showLogos\.$/)
     expect(await refuse(host, { widget: 'ch', key: 'tf', value: 'W' })).toMatch(/has no options I can change here/)
     expect(shapeError('widget.setOption', { widget: 'th', key: 'period' }, CTX)).toBeTruthy()                        // a closed schema
     expect(JSON.stringify(state.widgets)).toBe(before)
