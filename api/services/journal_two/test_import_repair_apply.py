@@ -296,6 +296,24 @@ def test_the_body_lock_is_in_the_same_update_as_the_stamp_lock(armed):
     assert runner.body_sha is engine.stored_body_sha  # one definition of the hash
 
 
+def test_the_body_hash_function_is_registered_once_per_connection(armed):
+    """Re-review N-1: SQLite refuses to RE-register a function while another statement on the
+    connection is still active. The engine registers it only when the connection lacks it."""
+    a = _note("u1", "Notion", "notion:Export/A.md", BARE)
+    b = _note("u1", "Notion", "notion:Export/B.md", BARE)
+    c = auth_db.get_connection()
+    try:
+        for note in (a, b):
+            stored, stamp = _note_row(note)[0], _note_row(note)[1]
+            cursor = c.execute("SELECT id FROM j2_notes")  # left open, mid-iteration
+            cursor.fetchone()
+            assert engine._apply_resolved_body(c, "u1", note, _doc(_para(_t("x"))), expected_updated_at=stamp,
+                                               expected_body_hash=engine.stored_body_sha(stored)) is True
+            cursor.close()
+    finally:
+        c.close()
+
+
 def test_a_timestamp_neutral_write_at_the_last_moment_is_never_overwritten(armed, monkeypatch):
     """Concern 2: a timestamp-neutral write (the heal pass) landing AFTER the repair's last
     body check and before its UPDATE is caught by the UPDATE itself: `race_lost`."""

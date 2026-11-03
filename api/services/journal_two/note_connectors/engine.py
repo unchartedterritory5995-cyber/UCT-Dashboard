@@ -1343,6 +1343,17 @@ def stored_body_sha(body_json_text: Any) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _ensure_body_sha_function(conn: sqlite3.Connection) -> None:
+    """Register `stored_body_sha` on `conn` ONLY if the connection lacks it (Plan F re-review
+    N-1): SQLite refuses to RE-register a function while another statement on the connection is
+    active, so registering on every call would fail inside a caller's cursor loop. A probe
+    answers whether this connection has it (a pooled connection drops its functions on reuse)."""
+    try:
+        conn.execute(f"SELECT {_BODY_SHA_SQL}('')").fetchone()
+    except sqlite3.OperationalError:
+        conn.create_function(_BODY_SHA_SQL, 1, stored_body_sha, deterministic=True)
+
+
 def _apply_resolved_body(
     conn: sqlite3.Connection, user_id: str, note_id: str, body: dict[str, Any],
     *, expected_updated_at: str | None, expected_body_hash: str | None = None,
@@ -1397,7 +1408,7 @@ def _apply_resolved_body(
     # THIS note's body write and nothing else the connection may hold.
     body_clause, body_params = "", ()
     if expected_body_hash is not None:
-        conn.create_function(_BODY_SHA_SQL, 1, stored_body_sha, deterministic=True)
+        _ensure_body_sha_function(conn)
         body_clause, body_params = f" AND {_BODY_SHA_SQL}(body_json) = ?", (expected_body_hash,)
     conn.execute("SAVEPOINT apply_resolved_body")
     try:
