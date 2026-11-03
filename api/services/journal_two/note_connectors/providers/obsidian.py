@@ -668,8 +668,10 @@ def _transform_wiki_and_embeds(
                 # An embed of a NOTE not in the vault yet waits like a wikilink does
                 # (Task 13), dotted name or not (`![[Dr.Smith]]` names `Dr.Smith.md`, D1).
                 # Only a known attachment extension makes it a missing FILE -> plain text
-                # of the target, never a broken <img> or a phantom media entry (mirrors
-                # obsidian.js's own unresolvable-embed fallback).
+                # of the target, never a broken <img> or a phantom media entry. ⛔ Live audit
+                # F3: a missing file a plugin LISTS (its `missing` ref) never reaches here,
+                # `_apply_attachment_refs` already made it the not-found notice the client
+                # lane writes too (`obsidian.js::transformEmbeds`); this is one no ref names.
                 bare = _unresolved_bare_target(raw_target)
                 if bare and (_NOTE_EXT_RE.search(bare)
                              or _ext_of(_basename(bare)) not in _UNSENT_ATTACHMENT_EXTS):
