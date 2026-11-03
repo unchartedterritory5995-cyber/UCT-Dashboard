@@ -436,9 +436,13 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
         store.log_started(conn, run_id, user_id, row.id, plan.shapes, plan.actions, before)  # C7, commits
         applied = engine._apply_resolved_body(conn, user_id, row.id, body, expected_updated_at=row.updated_at)
         outcome = "repaired" if applied else "race_lost"
-        store.log_note(conn, run_id, user_id, row.id, outcome, plan.shapes, plan.actions,
-                       before if applied else None)
-        conn.commit()
+        try:
+            store.log_note(conn, run_id, user_id, row.id, outcome, plan.shapes, plan.actions,
+                           before if applied else None)
+            conn.commit()
+        except Exception as exc:  # noqa: BLE001 -- review M-4: the write itself is committed
+            conn.rollback()
+            logger.warning("import repair: note %s %s, but its log row failed: %s", row.id, outcome, exc)
         return outcome
     except Exception as exc:  # noqa: BLE001 -- one note's failure never stops the run
         conn.rollback()

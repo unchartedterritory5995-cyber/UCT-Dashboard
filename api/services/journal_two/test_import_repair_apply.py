@@ -351,6 +351,24 @@ def test_the_lease_is_released_on_any_exit(armed, monkeypatch):
         c.close()
 
 
+def test_a_committed_write_is_reported_repaired_even_if_its_log_row_fails(armed, monkeypatch):
+    """Fix round 1 (review M-4): the body write commits on its own; if the outcome row then
+    fails, the note IS repaired and the report says so (the undo copy is already durable)."""
+    note = _work_note()
+    real = store.log_note
+
+    def refuse_outcome(conn, run_id, user_id, note_id, outcome, *a):
+        if outcome == "repaired":
+            raise RuntimeError("log write failed")
+        return real(conn, run_id, user_id, note_id, outcome, *a)
+
+    monkeypatch.setattr(store, "log_note", refuse_outcome)
+    report = _apply()
+    assert (report["repaired"], report["failed"]) == (1, 0)
+    assert "/journal?j2tab=notebook&note=" in _note_row(note)[0]
+    assert _outcomes(note) == ["repair_started"]  # runbook 10 resolves a lone started row
+
+
 def test_an_unchanged_note_writes_no_log_row(armed):
     """C12: counted, never logged."""
     note = _note("u1", "Notion", "notion:Export/Plain.md", _doc(_para(_t("plain"))))
