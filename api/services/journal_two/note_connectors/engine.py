@@ -202,6 +202,10 @@ _FETCH_BATCH_SIZE = 40
 #: most one chunk of converted notes is held at once (a 5000-note first sync held all 5000). A
 #: multiple of `_FETCH_BATCH_SIZE`, so each provider's `fetch_many` batches are unchanged.
 IMPORT_CHUNK_NOTES = _FETCH_BATCH_SIZE * 5
+#: Plan E Task 9 fix round 1 (I2): at most this many unlisted notes are fetched per full pass to
+#: retry their pending media (`_pending_media_refs`), stalest import first, so a large backlog is
+#: worked through over several nights instead of one burst against the provider's rate limit.
+MEDIA_RETRY_NOTES_PER_PASS = 25
 
 # Server-side cap on notes_svc.import_confirm is 500/batch; the engine stays
 # well under it.
@@ -753,11 +757,12 @@ async def _do_sync(
         # which is an incremental pass; review C2), and ONLY for a provider
         # whose `fetch` needs no listing state (`fetch_is_listing_independent`,
         # Evernote; review C1), the listed notes still waiting on a retryable
-        # copy are fetched too: unedited ones only (review I1). Each is a
-        # media retry and nothing else: `_import_remote_notes` lets it through
-        # only when its payload hash equals the stored one (C1's belt guard).
-        # They never feed the cursor (OneNote's is a drain watermark a newer
-        # ref would jump) and never hold it.
+        # copy are fetched too: unedited ones only (review I1), at most
+        # MEDIA_RETRY_NOTES_PER_PASS, stalest import first (review I2). Each
+        # is a media retry and nothing else: `_import_remote_notes` lets it
+        # through only when its payload hash equals the stored one (C1's
+        # belt guard). They never feed the cursor (OneNote's is a drain
+        # watermark a newer ref would jump) and never hold it.
         fetch_refs = refs
         retry_ids: set[str] = set()
         if (full and present_fn is not None and not enumeration_failed
@@ -1236,7 +1241,8 @@ def _pending_media_refs(
     hold and whose stored note waits on a retryable media copy (`import_media_pending = 1`;
     2, waiting for storage space, is not a retry). A note the member edited is never one
     (`_is_conflict`, the one predicate: its edited branch never confirms, so it would be
-    refetched every pass for nothing; review I1). One query: the
+    refetched every pass for nothing; review I1). At most `MEDIA_RETRY_NOTES_PER_PASS`, the
+    stalest `imported_at` first, so every note gets its turn (review I2). One query: the
     pending rows are few, and the listing is matched in memory. See the call site."""
     listed = {r.remote_id for r in refs}
     by_key: dict[str, RemoteRef] = {}
@@ -1250,7 +1256,7 @@ def _pending_media_refs(
         rows = conn.execute(
             "SELECT import_key, updated_at, imported_at FROM j2_notes "
             "WHERE user_id = ? AND deleted_at IS NULL AND import_media_pending = ? "
-            "ORDER BY import_key",
+            "ORDER BY imported_at, import_key",
             (user_id, import_notice.MEDIA_PENDING_RETRY),
         ).fetchall()
     finally:
@@ -1261,6 +1267,8 @@ def _pending_media_refs(
         if r is None or _is_conflict({"updatedAt": row["updated_at"], "importedAt": row["imported_at"]}):
             continue
         out.append(r)
+        if len(out) >= MEDIA_RETRY_NOTES_PER_PASS:
+            break
     return out
 
 

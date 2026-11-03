@@ -316,3 +316,25 @@ async def test_member_edited_note_with_pending_media_is_not_refetched(db, monkey
         assert p.fetched == []
 
 
+# ── I2: a cap per pass, stalest first ────────────────────────────────────────────────
+
+async def test_retries_are_capped_per_pass_stalest_first(db, monkeypatch):
+    monkeypatch.setattr(engine, "MEDIA_RETRY_NOTES_PER_PASS", 2)
+    src = _source()
+    refs = [ref("A", 1), ref("B", 2), ref("C", 3)]
+    await _pass(monkeypatch, src, Fake(refs, fail_media={"A", "B", "C"}), full=True)
+    conn = auth_db.get_connection()
+    try:  # C is the stalest import, then A, then B (updated_at kept equal: never "edited")
+        for rid, stamp in (("C", "2026-01-10T00:00:00+00:00"), ("A", "2026-01-11T00:00:00+00:00"),
+                           ("B", "2026-01-12T00:00:00+00:00")):
+            conn.execute("UPDATE j2_notes SET imported_at = ?, updated_at = ? WHERE import_key = ?",
+                         (stamp, stamp, f"fake:{rid}"))
+        conn.commit()
+    finally:
+        conn.close()
+    p = Fake([], refs)
+    await _pass(monkeypatch, src, p, full=True)
+    assert sorted(p.fetched) == ["A", "C"]
+    p = Fake([], refs)
+    await _pass(monkeypatch, src, p, full=True)
+    assert p.fetched == ["B"]
