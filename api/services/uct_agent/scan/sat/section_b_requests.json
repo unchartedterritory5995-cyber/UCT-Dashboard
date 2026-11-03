@@ -2300,8 +2300,8 @@
     "name": "chart.setSetting",
     "domain": "chart",
     "target": "chart",
-    "summary": "Change one chart display setting from UCT's approved list (grid and its color, crosshair and its color, scale text size/color, legend, watermark and its size/weight/lines, labels, event markers, swing labels and their options, prev-day lines and their style/width/color, countdown, title, color mode, thin bars, inverted scale).",
-    "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false); a hex color (#2962ff) for color settings. Allowed values — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high.width, prevDayLevels.low.width, prevDayLevels.close.width: 1|2|3|4; crosshair.style, prevDayLevels.high.style, prevDayLevels.low.style, prevDayLevels.close.style: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800. Only these settings: for any other chart setting (watermark opacity, volume style…) do NOT plan an op — say it is not Agent-enabled yet and where it lives in Chart Settings.",
+    "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
+    "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Only these settings: for any other (header info-row fields, volume plot style…) do NOT plan an op — say where it lives in Chart Settings.",
     "args": {
      "type": "object",
      "properties": {
@@ -2363,7 +2363,33 @@
         "markers.desk",
         "prevDayLevels.high.enabled",
         "prevDayLevels.low.enabled",
-        "prevDayLevels.close.enabled"
+        "prevDayLevels.close.enabled",
+        "bgGradient.top",
+        "bgGradient.bottom",
+        "volume.upColor",
+        "volume.downColor",
+        "volume.hvcEnabled",
+        "volume.separatePane",
+        "volume.paneHeightPct",
+        "volume.labelVisible",
+        "volume.labelColor",
+        "volume.maPeriod",
+        "volume.maColor",
+        "volume.maLineWidth",
+        "volume.maLineStyle",
+        "volume.barStyle",
+        "watermark.opacity",
+        "watermark.x",
+        "watermark.y",
+        "markers.ipo",
+        "markers.ipoColor",
+        "darkPool.enabled",
+        "darkPool.barColor",
+        "darkPool.labelColor",
+        "heikinAshi",
+        "showChartIq",
+        "positionCalc.accountSize",
+        "positionCalc.riskPct"
        ]
       },
       "value": {
@@ -4466,8 +4492,8 @@
     "name": "chart.setSetting",
     "domain": "chart",
     "target": "chart",
-    "summary": "Change one chart display setting from UCT's approved list (grid and its color, crosshair and its color, scale text size/color, legend, watermark and its size/weight/lines, labels, event markers, swing labels and their options, prev-day lines and their style/width/color, countdown, title, color mode, thin bars, inverted scale).",
-    "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false); a hex color (#2962ff) for color settings. Allowed values — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high.width, prevDayLevels.low.width, prevDayLevels.close.width: 1|2|3|4; crosshair.style, prevDayLevels.high.style, prevDayLevels.low.style, prevDayLevels.close.style: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800. Only these settings: for any other chart setting (watermark opacity, volume style…) do NOT plan an op — say it is not Agent-enabled yet and where it lives in Chart Settings.",
+    "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
+    "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Only these settings: for any other (header info-row fields, volume plot style…) do NOT plan an op — say where it lives in Chart Settings.",
     "args": {
      "type": "object",
      "properties": {
@@ -4529,7 +4555,33 @@
         "markers.desk",
         "prevDayLevels.high.enabled",
         "prevDayLevels.low.enabled",
-        "prevDayLevels.close.enabled"
+        "prevDayLevels.close.enabled",
+        "bgGradient.top",
+        "bgGradient.bottom",
+        "volume.upColor",
+        "volume.downColor",
+        "volume.hvcEnabled",
+        "volume.separatePane",
+        "volume.paneHeightPct",
+        "volume.labelVisible",
+        "volume.labelColor",
+        "volume.maPeriod",
+        "volume.maColor",
+        "volume.maLineWidth",
+        "volume.maLineStyle",
+        "volume.barStyle",
+        "watermark.opacity",
+        "watermark.x",
+        "watermark.y",
+        "markers.ipo",
+        "markers.ipoColor",
+        "darkPool.enabled",
+        "darkPool.barColor",
+        "darkPool.labelColor",
+        "heikinAshi",
+        "showChartIq",
+        "positionCalc.accountSize",
+        "positionCalc.riskPct"
        ]
       },
       "value": {
@@ -5597,8 +5649,8 @@
     "name": "chart.setSetting",
     "domain": "chart",
     "target": "chart",
-    "summary": "Change one chart display setting from UCT's approved list (grid and its color, crosshair and its color, scale text size/color, legend, watermark and its size/weight/lines, labels, event markers, swing labels and their options, prev-day lines and their style/width/color, countdown, title, color mode, thin bars, inverted scale).",
-    "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false); a hex color (#2962ff) for color settings. Allowed values — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high.width, prevDayLevels.low.width, prevDayLevels.close.width: 1|2|3|4; crosshair.style, prevDayLevels.high.style, prevDayLevels.low.style, prevDayLevels.close.style: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800. Only these settings: for any other chart setting (watermark opacity, volume style…) do NOT plan an op — say it is not Agent-enabled yet and where it lives in Chart Settings.",
+    "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
+    "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Only these settings: for any other (header info-row fields, volume plot style…) do NOT plan an op — say where it lives in Chart Settings.",
     "args": {
      "type": "object",
      "properties": {
@@ -5660,7 +5712,33 @@
         "markers.desk",
         "prevDayLevels.high.enabled",
         "prevDayLevels.low.enabled",
-        "prevDayLevels.close.enabled"
+        "prevDayLevels.close.enabled",
+        "bgGradient.top",
+        "bgGradient.bottom",
+        "volume.upColor",
+        "volume.downColor",
+        "volume.hvcEnabled",
+        "volume.separatePane",
+        "volume.paneHeightPct",
+        "volume.labelVisible",
+        "volume.labelColor",
+        "volume.maPeriod",
+        "volume.maColor",
+        "volume.maLineWidth",
+        "volume.maLineStyle",
+        "volume.barStyle",
+        "watermark.opacity",
+        "watermark.x",
+        "watermark.y",
+        "markers.ipo",
+        "markers.ipoColor",
+        "darkPool.enabled",
+        "darkPool.barColor",
+        "darkPool.labelColor",
+        "heikinAshi",
+        "showChartIq",
+        "positionCalc.accountSize",
+        "positionCalc.riskPct"
        ]
       },
       "value": {
@@ -8110,6 +8188,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -8362,6 +8444,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -8610,6 +8696,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -8861,6 +8951,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -9121,6 +9215,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -9369,6 +9467,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -9622,6 +9724,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -9871,6 +9977,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -10392,6 +10502,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -10644,6 +10758,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -10892,6 +11010,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -11405,6 +11527,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -11654,6 +11780,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -12175,6 +12305,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -12685,6 +12819,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -13199,6 +13337,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -13448,6 +13590,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -13969,6 +14115,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -14218,6 +14368,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -14478,6 +14632,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -14734,6 +14892,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -14994,6 +15156,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -15243,6 +15409,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -15757,6 +15927,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -16008,6 +16182,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -16257,6 +16435,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -16778,6 +16960,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -17288,6 +17474,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
@@ -17802,6 +17992,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -18314,6 +18508,10 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
       "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
      },
@@ -18562,6 +18760,10 @@
      {
       "id": "alerts",
       "title": "Price alerts (list, create, delete)"
+     },
+     {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",

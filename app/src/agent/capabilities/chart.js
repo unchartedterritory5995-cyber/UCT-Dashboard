@@ -143,18 +143,33 @@ const SETTING_HINTS = (() => {
     const key = d.labels ? Object.keys(d.labels).join('|') : d.options.join('|')
     groups.set(key, [...(groups.get(key) || []), d.id])
   }
+  // ids that differ in ONE segment are written once ("prevDayLevels.high|low|close.width"); the rest listed (W1-B: mixed prefixes)
   const short = (ids) => {
-    if (ids.length === 1) return ids[0]
-    const parts = ids.map(id => id.split('.'))
-    const same = parts.every(p => p.length === parts[0].length && p.every((x, i) => i === 1 || x === parts[0][i]))
-    return same ? parts[0].map((x, i) => (i === 1 ? ids.map(id => id.split('.')[1]).join('|') : x)).join('.') : ids.join(', ')
+    const out = []
+    const left = new Set(ids)
+    while (left.size) {
+      const id = [...left][0]
+      const parts = id.split('.')
+      let best = null
+      for (let i = 0; i < parts.length; i += 1) {
+        const members = [...left].filter(x => { const q = x.split('.'); return q.length === parts.length && q.every((p, j) => j === i || p === parts[j]) })
+        if (members.length > 1 && (!best || members.length > best.members.length)) best = { i, members }
+      }
+      if (best) { out.push(parts.map((p, j) => (j === best.i ? best.members.map(m => m.split('.')[best.i]).join('|') : p)).join('.')); best.members.forEach(m => left.delete(m)) } else { out.push(id); left.delete(id) }
+    }
+    return out.join(', ')
   }
   const enums = [...groups.entries()].map(([opts, ids]) => `${short(ids)}: ${opts}`)
-  return 'value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false); '
-    + 'a hex color (#2962ff) for color settings. '
-    + `Allowed values — ${enums.join('; ')}. `
-    + 'Only these settings: for any other chart setting (watermark opacity, volume style…) do NOT plan an op — '
-    + 'say it is not Agent-enabled yet and where it lives in Chart Settings.'
+  // W1-B: number settings, grouped by range ("watermark.opacity|x|y: 0–1")
+  const ranges = new Map()
+  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'number')) {
+    const key = `${d.min}–${d.max}${d.integer ? ' (whole)' : ''}`
+    ranges.set(key, [...(ranges.get(key) || []), d.id])
+  }
+  const nums = [...ranges.entries()].map(([r, ids]) => `${short(ids)}: ${r}`)
+  return 'value = true/false for on/off settings (crosshair.mode and header.legendMode too); a hex color (#2962ff) for colors; a number in range. '
+    + `Allowed — ${enums.join('; ')}; ${nums.join('; ')}. `
+    + 'Only these settings: for any other (header info-row fields, volume plot style…) do NOT plan an op — say where it lives in Chart Settings.'
 })()
 // "turn off the grid", "hide the watermark", "crosshair off", "show swing labels"
 const SETTING_WORDS = new Map(ELIGIBLE_SETTINGS.flatMap(d => (d.words || []).map(w => [w, d])))
@@ -615,7 +630,7 @@ const CAPABILITIES = [
     // read back, and undoable like every other chart change. A UI prerequisite (thin bars only
     // on Bars/HLC) refuses exactly where the dialog hides the control.
     name: 'chart.setSetting',
-    summary: 'Change one chart display setting from UCT\'s approved list (grid and its color, crosshair and its color, scale text size/color, legend, watermark and its size/weight/lines, labels, event markers, swing labels and their options, prev-day lines and their style/width/color, countdown, title, color mode, thin bars, inverted scale).',
+    summary: 'Change one chart display setting from UCT\'s approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).',
     hints: SETTING_HINTS,
     args: { type: 'object', properties: {
       setting: { type: 'string', enum: ELIGIBLE_SETTINGS.map(d => d.id) },

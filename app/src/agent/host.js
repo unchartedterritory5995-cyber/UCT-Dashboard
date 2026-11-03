@@ -15,6 +15,8 @@ import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/char
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
 import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
 import * as drawingsStore from '../components/chart/drawingsStore'
+// ⭐ W1-B B-03 (announced to Indicators): the indicator-alert product's OWN writers, called — never modified
+import { createIndicatorAlert, toggleIndicatorAlert, deleteIndicatorAlert, alertsKey } from '../hooks/useIndicatorAlerts'
 import { chartTabList } from '../pages/charts/chartTabs'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
@@ -507,6 +509,27 @@ export async function confirmDrawingsSynced(sym, store = drawingsStore, { timeou
   return { ok: false, reason: 'not-synced' }
 }
 
+/**
+ * ⭐ W1-B B-03: the member's INDICATOR alerts — hooks/useIndicatorAlerts.js is the product's one client of
+ * /api/indicator-alerts, and these are its exported writers (create / toggle / delete, each revalidating every
+ * listing the browser holds) and its own routes for the list and the catalog. The Agent adds no route, no
+ * payload shape and no cache of its own; the hook file is not modified.
+ */
+export function buildIndicatorAlertSource({ fetchFn = (u, o) => fetch(u, o) } = {}) {
+  const read = async (url, what) => {
+    const r = await fetchFn(url, { credentials: 'include', cache: 'no-store' })
+    if (!r.ok) throw new Error(`${what} failed (${r.status})`)
+    return r.json()
+  }
+  return {
+    list: async () => { const b = await read(alertsKey(null), 'Reading your indicator alerts'); return Array.isArray(b?.alerts) ? b.alerts : [] },
+    catalog: async () => { const b = await read(`${alertsKey(null)}/catalog`, 'Reading the indicator alert catalog'); return Array.isArray(b?.catalog) ? b.catalog : [] },
+    create: (payload) => createIndicatorAlert(payload),
+    toggle: (id) => toggleIndicatorAlert(id),
+    remove: (id) => deleteIndicatorAlert(id),
+  }
+}
+
 export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
@@ -517,6 +540,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets, selectedChart }),
     drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets })),
+    indicatorAlerts: buildIndicatorAlertSource(),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
     ...(layoutSource ? {
       layouts: layoutSource,

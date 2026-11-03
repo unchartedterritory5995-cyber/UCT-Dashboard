@@ -8,6 +8,7 @@ import { registerWatchlistCapabilities } from './capabilities/watchlist'
 import { registerScreenerCapabilities } from './capabilities/screener'
 import { registerSessionMeasures } from './capabilities/sessionMeasures'
 import { registerAlertCapabilities } from './capabilities/alert'
+import { registerIndicatorAlertCapabilities } from './capabilities/indicatorAlerts'
 import { registerStockCapabilities } from './capabilities/stock'
 import { registerSettingsCapabilities } from './capabilities/settings'
 import { registerAppCapabilities } from './capabilities/app'
@@ -40,6 +41,7 @@ export function registerBuiltins() {
   registerScreenerCapabilities()
   registerSessionMeasures()
   registerAlertCapabilities()
+  registerIndicatorAlertCapabilities()
   registerStockCapabilities()
   registerBreadthCapabilities()
   registerBreadthHistoryCapability()
