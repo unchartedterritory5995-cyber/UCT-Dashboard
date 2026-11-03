@@ -96,9 +96,51 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
     assert "market cap" in scan_spec.DEFAULT_ORDER_NOTE.lower()
 
 
+#: The base the "member Screener untouched" rail diffs against, first one that resolves in THIS checkout:
+#: agent-ci fetches `origin/agent/int`; a master checkout has `origin/master`; a local clone may only carry `master`.
+DIFF_BASE_REFS = ("origin/agent/int", "origin/master", "master")
+
+
+def _diff_base(refs=DIFF_BASE_REFS, run=None):
+    """The first ref in `refs` that `git rev-parse --verify` accepts, or None when none does (a shallow checkout
+    with no base ref, e.g. the master deploy gate's fetch-depth 2)."""
+    import subprocess
+    run = run or subprocess.run
+    for ref in refs:
+        r = run(["git", "rev-parse", "--verify", "--quiet", ref], capture_output=True, text=True)
+        if r.returncode == 0:
+            return ref
+    return None
+
+
+def test_the_diff_base_is_the_first_ref_the_checkout_resolves(monkeypatch):
+    """Pins the fallback order: agent/int (agent-ci) before master (the gate), before a bare local `master`."""
+    import subprocess
+    calls = []
+
+    def fake(cmd, **kw):
+        calls.append(cmd[-1])
+        return subprocess.CompletedProcess(cmd, 0 if cmd[-1] in present else 128, "", "fatal: bad revision")
+
+    present = {"origin/agent/int", "origin/master", "master"}
+    assert _diff_base(run=fake) == "origin/agent/int" and calls == ["origin/agent/int"]     # stops at the first hit
+    calls.clear(); present = {"origin/master", "master"}
+    assert _diff_base(run=fake) == "origin/master" and calls == ["origin/agent/int", "origin/master"]
+    calls.clear(); present = {"master"}
+    assert _diff_base(run=fake) == "master"
+    calls.clear(); present = set()
+    assert _diff_base(run=fake) is None
+    assert calls == ["origin/agent/int", "origin/master", "master"]              # every ref tried, in this order
+
+
 def test_the_member_screeners_own_server_code_is_untouched_by_the_F16_work():
     import subprocess
-    r = subprocess.run(["git", "diff", "--name-only", "origin/agent/int...HEAD", "--", "api/services/screener",
+    base = _diff_base()
+    if base is None:
+        # A shallow checkout with no base ref (the master deploy gate fetches depth 2 and no agent/int) cannot carry
+        # this comparison at all; a skip is the honest reading there. agent-ci fetches the ref and runs it for real.
+        pytest.skip("no base ref in this checkout (none of %s resolves)" % ", ".join(DIFF_BASE_REFS))
+    r = subprocess.run(["git", "diff", "--name-only", f"{base}...HEAD", "--", "api/services/screener",
                         "api/routers/screener.py", "api/routers/scan_results.py"], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     assert r.stdout.strip() == "", r.stdout
