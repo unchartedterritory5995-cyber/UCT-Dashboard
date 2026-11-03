@@ -524,6 +524,12 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   its own 60 s, and a restart clears the pause) · the two document permit pools
   `document_extraction._EXTRACTION_POOL` and `document_ocr._OCR_POOL` (wave 7 lane G: a
   second process doubles how many extractions and OCR runs the box does at once) · since
+  connector fidelity Plan F, `document_extraction._QUEUED` (the ids this process has queued and
+  not finished, kept by `queue_extraction`) and the `j2_doc_pending_sweep` job that reads it
+  (`requeue_stale_pending`, every 10 min, at most `PENDING_SWEEP_LIMIT` = 20 per tick): a second
+  process keeps its own set, so each sweep can re-queue a stale `pending` row the other process
+  already has queued (the extraction runs twice; it is idempotent, `INSERT OR IGNORE` pages), and
+  two sweeps double the per-tick re-queue · since
   the wave 12-15 landing `entry_context._capture_executor` + `_capture_pending` (the
   manual-add capture queue: 2 threads, 40 queued in total, 3 per member),
   `entry_context._VENDOR_SLOTS` (2 report-date vendor reads in flight) and
