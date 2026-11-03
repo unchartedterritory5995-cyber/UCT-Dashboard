@@ -352,6 +352,29 @@ async def test_the_same_shape_without_the_media_file_still_reads_edited(tmp_db, 
     assert result["adopted"] == 1 and result["conflicts"] == 1
 
 
+@pytest.mark.parametrize("stamp", [None, "", "not a date"])
+async def test_a_row_without_a_readable_import_date_is_never_adopted(tmp_db, monkeypatch, stamp):
+    """Task 8 review nit 2: as recover does, a row whose `imported_at` is missing or unreadable is
+    hands off. The live note imports as new, the row is untouched, and the title is named."""
+    key = _enex(text="old body")
+    note_id = _rows()[0]["id"]
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("UPDATE j2_notes SET imported_at = ? WHERE id = ?", (stamp, note_id))
+        conn.commit()
+    finally:
+        conn.close()
+    result, src = await _sync(tmp_db, monkeypatch, LiveEvernote([_rn(text="new body", updated=LATER)]))
+    rows = {r["import_key"]: r for r in _rows()}
+    assert set(rows) == {key, LIVE}
+    assert rows[key]["id"] == note_id and rows[key]["body_plain"].strip() == "old body"
+    assert result["adopted"] == 0 and result["created"] == 1
+    reason = 'adoption refused, import date unreadable: "Plan"'
+    assert reason in result["failures"]
+    assert json.loads(_log_rows(src["id"])[-1]["failures_json"]) == [
+        {"noteTitle": "Plan", "reason": reason, "name": None}]
+
+
 async def test_the_second_live_match_is_named_across_import_chunks_too(tmp_db, monkeypatch):
     """Concern 4 across the chunk boundary: the first adopter is in chunk 1, the second in chunk 2,
     where the file row already holds a live key. Still named, once."""

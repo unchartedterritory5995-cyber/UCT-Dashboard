@@ -57,6 +57,10 @@ def ambiguous_reason(title: str) -> str:
     return f'adoption ambiguous: "{title}"'
 
 
+def undated_reason(title: str) -> str:
+    return f'adoption refused, import date unreadable: "{title}"'
+
+
 def _file_rows_by_title(conn: sqlite3.Connection, user_id: str, import_source: str,
                         titles: list[str]) -> dict[str, list[sqlite3.Row]]:
     """Non-trashed rows of `import_source` that are NOT live rows, keyed on title."""
@@ -99,7 +103,9 @@ def adopt_file_imports(
     `editedSinceImport` is the file importer's own answer (`notes._edited_since_file_import`: the
     one predicate minus the old importer's image-finalize write that moved `updated_at`), so a
     pre-cutoff image note whose only write was that finalize reads as unedited (review M1). The
-    engine reads it for the adopting pass in place of its plain conflict rule.
+    engine reads it for the adopting pass in place of its plain conflict rule. A row whose
+    `imported_at` is missing or unreadable is never adopted, as recover refuses it (review nit 2),
+    and its title is named.
 
     `pass_state` (one dict per sync pass, the engine's) carries what this pass already adopted and
     named across import chunks: in a later chunk the adopted row holds a live key and is no longer a
@@ -163,6 +169,11 @@ def adopt_file_imports(
                     row["id"] not in paired_rows for row in rows):
                 name(lives[0][2])
         for live_key, rn, title, row in pairs:
+            # Task 8 review nit 2: as recover does, a row whose import cannot be dated is hands
+            # off: "edited since import" has no answer for it. The live note imports as new.
+            if not import_provenance.stamp_readable(row["imported_at"]):
+                name(title, undated_reason(title))
+                continue
             stored_rev = row["import_remote_rev"]
             same_instant = (rn.updated_at and _second(stored_rev) is not None
                             and _second(stored_rev) == _second(rn.updated_at))
