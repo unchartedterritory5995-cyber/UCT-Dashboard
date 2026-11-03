@@ -48,7 +48,7 @@ def test_the_table_prices_every_verified_model_without_a_key_or_a_ledger():
 def test_the_worst_case_is_the_ledgers_own_math():
     kw = dry.build_request("claude-haiku-4-5", 0)
     assert kw["tools"][0]["name"] == "tool_search_tool_regex" and kw["messages"][0]["role"] == "user"
-    assert dry.price_model("claude-haiku-4-5", 1, led)["worst_usd"] == pytest.approx(led.worst_case_usd(kw), abs=1e-6)
+    assert dry.price_model("claude-haiku-4-5", 1, led)["worst_usd"] == pytest.approx(led.worst_case_usd(kw), abs=1e-4)   # the table rounds to 4 places
 
 
 def test_the_markdown_names_the_caps_and_the_no_run_rule(capsys):
