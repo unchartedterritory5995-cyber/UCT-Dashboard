@@ -30,6 +30,7 @@ import { registerGuideCapabilities } from './capabilities/guide'
 import { registerMarketDataCapabilities } from './capabilities/marketDataQuote'
 import { registerMarketFactsCapabilities } from './capabilities/marketDataFacts'
 import { registerKnowledgeCapabilities } from './capabilities/knowledge'
+import { registerResearchCapability } from './capabilities/research'
 
 let done = false
 export function registerBuiltins() {
@@ -70,4 +71,5 @@ export function registerServerGatedBuiltins() {
   registerMarketDataCapabilities()
   registerMarketFactsCapabilities()      // W1-C C-02: stock.themes while the server serves `themes`
   registerKnowledgeCapabilities()        // KN-1: playbook.* while the server serves the knowledge kinds
+  registerResearchCapability()           // W2-B1 RS-1: research.ask while the server serves `research.company`
 }

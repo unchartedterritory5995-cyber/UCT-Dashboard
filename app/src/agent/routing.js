@@ -152,8 +152,9 @@ export const GROUPS = [
   // the knowledge kinds off this group never matches and routing is exactly what it was.
   { id: 'playbook', title: 'UCT trading knowledge: what a setup or concept means at UCT, the rules of a UCT setup template, the historical record of a setup', domains: ['playbook'], fillLast: true, addOnly: true,
     words: [] },
-  { id: 'data', title: 'Stock information and news (profile, earnings, comparisons, news, catalysts)', domains: ['stock', 'news'],
-    words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do)\b/],
+  // W2-B1 (RS-1): `research.ask` rides in this group by domain ("why is X down", "what's driving …", catalysts)
+  { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving)', domains: ['stock', 'news', 'research'],
+    words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving)\b/],
     // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"
     vocab: [/\b(reports?|reporting|valuation|stacks? up|anything new (on|with)|what'?s (going on|happening) with|why did .+ (gap|move|drop|fall|jump|rally|sell off))\b/] },
   // MARKET INTELLIGENCE breadth slice 1 (2026-10-11): historical breadth QUESTIONS. "breadth" alone is
