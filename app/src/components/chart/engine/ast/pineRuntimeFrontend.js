@@ -2114,15 +2114,99 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // A binding the resolver will expand (`y = up ? ta.sma(close, 5) : close`, read
   // later as `plot(y)`) is walked once, where it is first lowered.
   const armChecked = new WeakSet()
-  const armHistoryGuard = (node, scope, deep, d = 0) => {
-    if (inRequestValue || !node || typeof node !== 'object' || d > 96) return
+  // ─── ⭐⭐⭐ W4 T4 — A `?:` ARM RUNS ONLY WHEN IT IS CHOSEN (per-call-site state) ───
+  //
+  // Pine evaluates only the operand a `?:` picks, so a `ta.*` written in an arm
+  // keeps the history of the bars THAT ARM ran on. WITNESSED for Pine v6:
+  // `vw-arm-history-rddt/spy-1d-2026-10-02` rows T03 / T04 / K02 (`ta.sma` /
+  // `ta.ema`), T05 / K03 (`ta.change`), N02 (`ta.sma` of a source with `na`), and
+  // T03 equals the `if` block's I02, so an arm is the same call site an `if`
+  // block is (C48, `servedCondCall`). Such a `?:` is lowered as a JUMP
+  // (`lowerIr.js` `EXPR.TERNARY`, `lazy`): its test is read as a condition and the
+  // unpicked arm never runs, so the arm's served calls step only on its own runs.
+  //
+  // ⛔ SERVED ONLY WHERE EVERY FACT IS WITNESSED, refused by name everywhere else:
+  //   · Pine v6 only. v5's lazy `?:` is documented, not captured (queue
+  //     `capture-queue-2026-10-31-prod-ternary.md` Q-PT1); v1-v4 (Q-PT3 / Q-PT4)
+  //     and v4 `iff` (H10) are unwitnessed;
+  //   · the `?:` lowered at the ROOT of the script (not in a function body, a loop,
+  //     a block that runs on some bars, a request's value, the drawing build or
+  //     the object door), so the `?:` itself runs on every bar;
+  //   · every history in its arms is `ta.sma` / `ta.ema` / `ta.rma` (the block's
+  //     served set) or a one-argument `ta.change`, over a source with no history
+  //     of its own (`armServable`, which reads the ONE served set `servedCondCall`
+  //     lowers from, `SERVED_COND` + `ARM_ONLY_SERVED_COND`); anything else
+  //     (`ta.highest`, `ta.stdev`, a
+  //     function that keeps history, `(expr)[k]`, a nested `?:` with history) keeps
+  //     `runtime:conditional-history` (T5's queue rows H1-H5, H9);
+  //   · reached through operators only (`opaque`): a `?:` inside a call's
+  //     argument or an offset (`ta.sma(up ? … : …, 5)`, `(up ? … : …)[1]`) is
+  //     lowered by a route that would not split it, so it keeps the refusal.
+  // A colour `?:` keeps the refusal too (its test rule is the colour one).
+  const armServedName = (bare) => Object.prototype.hasOwnProperty.call(SERVED_COND, bare)
+    || Object.prototype.hasOwnProperty.call(ARM_ONLY_SERVED_COND, bare)
+  /** `?:` nodes cleared for the jump form (`case 'ternary'` lowers them lazily). */
+  const lazyArmNodes = new WeakSet()
+  /** bindings whose expansion holds such a `?:` (a name read must be split too). */
+  const lazyArmBindings = new WeakSet()
+  /** the r4 region of the arm being lowered lazily (`servedCondCall`'s arm-only set). */
+  let lazyArmRegion = null
+  const lazyArmContext = () => pineVersion !== null && pineVersion >= 6 && !objectsInRun && !atObjectDoor
+    && owner === null && loopDepth === 0 && r4Level() === 0 && !inRequestValue
+  const armServable = (n, d = 0) => {
+    if (!n || typeof n !== 'object') return true
+    if (d > 64) return false
+    if (Array.isArray(n)) return n.every((x) => armServable(x, d + 1))
+    if (n.type === 'ternary' && (lexArmHistory(n.yes) || lexArmHistory(n.no))) return false
+    if (n.type === 'binary' && SHORT_CIRCUIT.has(n.op) && lexArmHistory(n.right)) return false
+    if (n.type === 'call') {
+      const name = String(n.name || '')
+      if (/^request\./.test(name)) return true      // as `lexArmHistory`: the requested symbol's own series
+      if (fnByName.has(name)) {
+        if (fnArmHistory(name)) return false
+      } else if (name.startsWith('ta.') && armServedName(name.slice(3))) {
+        return !(n.args || []).some((a) => lexArmHistory(a && a.value !== undefined ? a.value : a))
+      } else if (name.startsWith('ta.') || name === 'fixnan' || callHeadStateful(n)) return false
+    }
+    if (n.type === 'offset' && n.arg && n.arg.type !== 'name') return false
+    for (const k of Object.keys(n)) {
+      if (k === 'tok') continue
+      const v = n[k]
+      if (v && typeof v === 'object' && !armServable(v, d + 1)) return false
+    }
+    return true
+  }
+  /** Does lowering this child keep the `?:` reachable as a node of its own
+   *  (`lowerExpr`'s operator cases re-ask the route per operand)? */
+  const armEdgeTransparent = (node, k) => (node.type === 'binary' && (k === 'left' || k === 'right'))
+    || (node.type === 'unary' && k === 'arg')
+    || (node.type === 'ternary' && k === 'test')
+  const refuseLazyArm = (node, why) => {
+    note('runtime:conditional-history')
+    throw new RuntimeRefusal('runtime:conditional-history',
+      `history (a \`ta.*\` call) in one arm of \`?:\` ${why} — Pine runs it only on the bars that arm `
+      + 'is taken, and this lane serves that only for a `?:` lowered at the root of a Pine v6 script, '
+      + 'reached through operators', locate(node.tok))
+  }
+  /** ⭐ Returns true when the caller must NOT take this subtree as one column:
+   *  it holds a `?:` cleared for the jump form, which only the operator-by-
+   *  operator lowering reaches as a node of its own. */
+  const armHistoryGuard = (node, scope, deep, d = 0, opaque = false) => {
+    if (inRequestValue || !node || typeof node !== 'object' || d > 96) return false
     if (deep && node.type === 'name') {
       const b = env.get(node.name)
-      if (b && b.kind === 'expr' && b.node && !armChecked.has(b)) {
-        armChecked.add(b)
-        armHistoryGuard(b.node, scope, true, d + 1)
+      if (b && b.kind === 'expr' && b.node) {
+        if (!armChecked.has(b)) {
+          armChecked.add(b)
+          if (armHistoryGuard(b.node, scope, true, d + 1, opaque)) lazyArmBindings.add(b)
+        }
+        if (lazyArmBindings.has(b)) {
+          // a later read of the same binding, in a place its `?:` cannot be split
+          if (opaque || !lazyArmContext()) refuseLazyArm(node, `(bound to \`${node.name}\`, read where it cannot run as written)`)
+          return true
+        }
       }
-      return
+      return false
     }
     const own = () => {
       let arms = null
@@ -2137,7 +2221,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         arms = [g[1], g[2]]; test = g[0]
       }
       else if (node.type === 'binary' && SHORT_CIRCUIT.has(node.op) && pineVersion >= 6) { arms = [node.right]; test = node.left }
-      if (!arms || !arms.some((a) => lexArmHistory(a))) return
+      if (!arms || !arms.some((a) => lexArmHistory(a))) return false
       let inv = false
       // the parameter this test is blocked on, if any (`invariantTest`), read
       // here and nowhere else: the region bookkeeping keeps its own value
@@ -2146,7 +2230,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
       try { inv = invariantTest(test, scope) } catch { inv = false }
       const culprit = r4CulpritSeen
       r4CulpritSeen = prevSeen
-      if (inv) return
+      if (inv) return false
+      // ⭐⭐⭐ W4 T4 — the witnessed half is SERVED: lowered as a jump (`case 'ternary'`)
+      if (node.type === 'ternary' && !opaque && lazyArmContext() && !holdsColour(node, scope)
+          && armServable(node.yes) && armServable(node.no)) {
+        lazyArmNodes.add(node)
+        return true
+      }
       note('runtime:conditional-history')
       const err = new RuntimeRefusal('runtime:conditional-history',
         `history (a \`ta.*\` call, or a function that keeps it) ${node.type === 'ternary' ? 'in one arm of `?:`' : node.type === 'call' ? 'in an argument of `iff` (whether Pine evaluates the one not chosen is not witnessed)' : `on the right of v6's \`${node.op}\``} `
@@ -2164,23 +2254,48 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       throw err
     }
-    own()
-    if (!deep) return
+    let split = own()
+    if (!deep) return split
     for (const k of Object.keys(node)) {
       if (k === 'tok') continue
       const v = node[k]
-      if (Array.isArray(v)) v.forEach((x) => armHistoryGuard(x, scope, true, d + 1))
-      else if (v && typeof v === 'object' && v.type) armHistoryGuard(v, scope, true, d + 1)
+      // an untyped wrapper (a call's `{name, value}` argument) keeps its parent's path
+      const childOpaque = opaque || (!!node.type && !armEdgeTransparent(node, k))
+      if (Array.isArray(v)) v.forEach((x) => { if (armHistoryGuard(x, scope, true, d + 1, childOpaque)) split = true })
+      else if (v && typeof v === 'object' && v.type && armHistoryGuard(v, scope, true, d + 1, childOpaque)) split = true
     }
+    return split
   }
   const SERVED_COND = { sma: 'window', ema: 'carried', rma: 'carried' }
+  // ⭐ W4 T4 — served in a `?:` ARM only (its region is `lazyArmRegion`): the
+  // previous RUN's value is witnessed there (vw-arm-history T05 / K03), not yet in
+  // an `if` block (queue H2), so a block keeps the refusal.
+  const ARM_ONLY_SERVED_COND = { change: 'change' }
   const servedCondCall = (node, scope) => {
     if (objectsInRun || owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')
     const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
-    const kind = bare ? SERVED_COND[bare] : undefined
+    const inLazyArm = lazyArmRegion !== null && r4Region === lazyArmRegion
+    const kind = bare ? (SERVED_COND[bare] || (inLazyArm && name.startsWith('ta.') ? ARM_ONLY_SERVED_COND[bare] : undefined)) : undefined
     if (!kind) return null
+    if (kind === 'change') {
+      // ⭐ `ta.change(source)` over RUNS: `source - source one RUN back`. The run
+      // before is Pine's `valuewhen` ring with a condition true on every run and
+      // occurrence 1 (`CARRIED2.valuewhen`: pushed on each run, `na` while fewer
+      // than two runs) — the same `x - x[1]` this lane serves on every bar, with
+      // the `[1]` counted in runs. ⛔ One argument only (the closed table's
+      // `change`); `ta.change(x, n)` keeps the refusal (queue W4-A1).
+      const args = node.args || []
+      if (args.length !== 1) return null
+      const a0 = args[0]
+      if (a0 && a0.name && String(a0.name) !== 'source') return null
+      const srcNode = a0 && a0.value !== undefined ? a0.value : a0
+      if (!srcNode || lexCondHistory(srcNode)) return null
+      const src = lowerExpr(srcNode, scope)
+      const idx = pushCarried2({ fn: 'valuewhen', n: 1, name: `${name}(…) per call site` })
+      return binary('-', src, carried2Call(idx, num(1), src))
+    }
     // ⭐ review L3 — `ta.sma(source = close, length = 3)` is the positional call:
     // named arguments take their declared positions (`source`, `length`); any
     // other name, a duplicate, or a positional after a named one keeps the refusal.
@@ -5333,7 +5448,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // lowered per call site; a composite around one is lowered piece by piece
       // (each piece asks this question again); anything else is refused by name.
       // A function body's own history is recorded for its CALL SITES to judge.
-      armHistoryGuard(node, scope, true)   // WS-C — every `?:` in this pure subtree
+      // WS-C — every `?:` in this pure subtree; W4 T4 — one cleared for the jump
+      // form is reached operator by operator (`splitForArms`), never as one column
+      const splitForArms = armHistoryGuard(node, scope, true)
       lexForeign = false
       const condHistory = !objectsInRun && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
       if (condHistory && owner !== null) functions[owner].rt5Lex = true
@@ -5344,7 +5461,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (!condTransparent(node)) {
           r4Guard(node.type === 'call' ? `\`${node.name}\`` : 'a series with history', locate(node.tok))
         }
-      } else if (!mbbDynamicColumn(node, scope)) try {
+      } else if (!splitForArms && !mbbDynamicColumn(node, scope)) try {
         return column(columnOf(node, locate(node.tok)))
       } catch (e) {
         // ⛔ ONLY over a subtree that really does carry text, and only for the
@@ -5709,6 +5826,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
         {
           const fixed = fixedTestOf(node.test, scope)
           if (fixed !== null) return lowerExpr(fixed ? node.yes : node.no, scope)
+        }
+        // ⭐⭐⭐ W4 T4 — AN ARM WITH WITNESSED HISTORY RUNS ONLY WHEN IT IS CHOSEN
+        // (`armHistoryGuard` cleared this node). Each arm is its own conditional
+        // region, so its `ta.sma` / `ta.ema` / `ta.rma` / `ta.change` take per-call-
+        // site state (`servedCondCall`) and anything else there is refused by name
+        // (`r4Guard`); the jump form (`lazy`) runs only the picked arm.
+        // ⛔ AND THE ARM RULE IS ASKED HERE OF EVERY `?:`, whatever route brought it.
+        // The route decision above asks it only of a column candidate or a `?:` that
+        // reads a slot, so a `?:` sent past the column route for another reason (a
+        // Pine twin in an arm, `up ? ta.valuewhen(…) : x` / `fixnan`; a colour) was
+        // lowered with `SELECT` and its arm's state stepped on EVERY bar, served
+        // with no note. ⛔ Not at the object door, which builds what master builds.
+        if (!atObjectDoor && !lazyArmNodes.has(node)) armHistoryGuard(node, scope, false)
+        if (lazyArmNodes.has(node)) {
+          if (!lazyArmContext()) refuseLazyArm(node, '(read where it cannot run as written)')
+          const lowerLazyArm = (arm) => inR4Region(false, () => {
+            const prev = lazyArmRegion
+            lazyArmRegion = r4Region
+            try { return lowerArm(arm, scope) } finally { lazyArmRegion = prev }
+          })
+          const test = lowerExpr(node.test, scope)
+          const yes = lowerLazyArm(node.yes)
+          const no = lowerLazyArm(node.no)
+          return { ...ternary(test, yes, no), lazy: true }
         }
         if (holdsColour(node, scope)) {
           return ternary(binary('!=', lowerExpr(node.test, scope), num(0)),
