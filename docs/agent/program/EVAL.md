@@ -8,7 +8,9 @@
   3. provider-side hard limit verified (not an alert);
   4. accounting includes retries, cache writes/reads, thinking tokens, second calls;
   5. SDK retries off (`max_retries=0`) and no automatic fallback model.
-- Controls audit: `docs/agent/audit-2026-11-02/appendix/H-spending.md` (when landed).
+- Controls audit: `docs/agent/audit-2026-11-02/appendix/H-spending.md` (docs branch, PR #702).
+- **Owner decision 2026-11-02 (after the spending report):** APPROVED — free Wave 1 development; the cumulative $21 reservation ledger; eval-key separation across all four tools; fail-closed on unverifiable budget/credentials; stubbed paid research during evals; concurrency/retry/timeout/exhaustion tests; daily spending reports. NOT APPROVED — any paid evaluation call; production credentials for evals; automatic limit increases; extra paid Claude Code usage; production spending-policy changes without review.
+- **Proofs required before Phase A can be requested** (BOARD A-03 acceptance): (1) every eval tool uses only `UCT_AGENT_EVAL_API_KEY`; (2) all workers share one durable cumulative ledger; (3) the $21 cap cannot be exceeded via concurrent calls, retries or separate runs under the stated accounting; (4) the dedicated Anthropic workspace spend limit is configured and verified (owner); (5) no paid secondary provider can be called; (6) the production Agent budget (`budget.py`, `limits.py`) is unmodified and never imports the ledger.
 
 ## 1. Baselines (free, deterministic)
 | date | set | mode | result | source |
