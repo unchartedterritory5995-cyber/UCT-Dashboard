@@ -80,7 +80,7 @@ def account(db, monkeypatch):
     monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: p)
     imported: list[int] = []
 
-    async def record_import(user_id, source, provider, creds, remote_notes):
+    async def record_import(user_id, source, provider, creds, remote_notes, **kw):
         provider.events.append(("import", len(remote_notes)))
         provider.alive -= len(remote_notes)
         imported.append(len(remote_notes))
@@ -109,7 +109,7 @@ async def test_a_5000_note_first_sync_never_holds_more_than_one_chunk(account):
 async def test_the_cursor_still_advances_only_when_every_chunk_stored_everything(account, monkeypatch):
     p, source, imported, db = account
 
-    async def lose_one_in_the_last_chunk(user_id, src, provider, creds, remote_notes):
+    async def lose_one_in_the_last_chunk(user_id, src, provider, creds, remote_notes, **kw):
         lost = [rn.remote_id for rn in remote_notes if rn.remote_id == f"n{N - 1}"]
         return {"created": len(remote_notes) - len(lost), "updated": 0, "skipped": 0,
                 "mediaUploaded": 0, "conflicts": 0, "failures": [], "noticeFailures": [],
@@ -120,9 +120,25 @@ async def test_the_cursor_still_advances_only_when_every_chunk_stored_everything
     assert db.get_source("u1", source["id"])["cursor"] is None  # A1: kept where it was
 
     monkeypatch.setattr(engine, "_import_remote_notes",
-                        lambda *a, **k: _all_stored(a[-1]))
+                        lambda *a, **k: _all_stored(a[4]))
     await engine.sync_source(source["id"], manual=True)
     assert db.get_source("u1", source["id"])["cursor"] == max(r.updated_at for r in p.refs)
+
+
+async def test_a_note_lost_in_an_early_chunk_keeps_the_cursor(account, monkeypatch):
+    # Task 6 review m3: lost at IMPORT level in chunk 1, then clean chunks. An accumulation that
+    # REPLACED instead of adding would forget it and advance the cursor past it.
+    p, source, imported, db = account
+
+    async def lose_n0(user_id, src, provider, creds, remote_notes, **kw):
+        lost = [rn.remote_id for rn in remote_notes if rn.remote_id == "n0"]
+        return {"created": len(remote_notes) - len(lost), "updated": 0, "skipped": 0,
+                "mediaUploaded": 0, "conflicts": 0, "failures": [], "noticeFailures": [],
+                "notStoredRefs": lost}
+
+    monkeypatch.setattr(engine, "_import_remote_notes", lose_n0)
+    await engine.sync_source(source["id"], manual=True)
+    assert db.get_source("u1", source["id"])["cursor"] is None
 
 
 async def _all_stored(remote_notes):

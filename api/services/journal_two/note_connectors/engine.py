@@ -744,6 +744,8 @@ async def _do_sync(
         # after every chunk, and only when nothing went unstored.
         fetched_ids: set[str] = set()
         not_stored_refs: set[str] = set()
+        linked_note_ids: list[str] = []
+        imported_any = False
         for chunk_refs in _chunks(refs, IMPORT_CHUNK_NOTES):
             chunk_notes, fetch_failures = await _fetch_remote_notes(provider, creds, chunk_refs)
             item_failures.extend(fetch_failures)
@@ -751,7 +753,10 @@ async def _do_sync(
             chunk_notes = await asyncio.to_thread(_finalize_remote_notes, chunk_notes)
             fetched_ids.update(rn.remote_id for rn in chunk_notes)
             if chunk_notes:
-                result = await _import_remote_notes(user_id, source, provider, creds, chunk_notes)
+                imported_any = True
+                result = await _import_remote_notes(
+                    user_id, source, provider, creds, chunk_notes, heal=False)
+                linked_note_ids.extend(result.get("linkedNoteIds", []))
                 counts["created"] += result["created"]
                 counts["updated"] += result["updated"]
                 counts["skipped"] += result["skipped"]
@@ -762,6 +767,9 @@ async def _do_sync(
                 not_stored_refs.update(result.get("notStoredRefs", []))
             del chunk_notes  # this chunk's docs are not held while the next is fetched
         not_stored_refs.update({r.remote_id for r in refs} - fetched_ids)
+        if imported_any:
+            item_failures.extend(await asyncio.to_thread(
+                _heal_after_pass, user_id, linked_note_ids))
 
         # Task 11 MUST-RESOLVE #1: an opaque cursor the provider published
         # on ITSELF (Dropbox — see base.py's `opaque_cursor` docstring)
@@ -1222,6 +1230,39 @@ def _touch_remote_index(
 
 
 # ── Fetch (batched, with per-ref fallback) ───────────────────────────────────
+
+_HEAL_NAMED_CHUNK = 200  # named notes healed per call: bounds the bodies held at once
+
+
+def _heal_after_pass(user_id: str, linked_note_ids: list[str]) -> list[str]:
+    """Plan E Task 6 review R1: after the LAST chunk of a pass, heal BY NAME every note this pass
+    stored that still has a pending link (a forward link into a later chunk), then run the
+    member's random sweep ONCE (review m4: it used to run once per chunk). Named notes are read
+    regardless of the sweep's sample; they are filtered to `import_links_pending = 1` first and
+    healed `_HEAL_NAMED_CHUNK` at a time, so a 5000-note pass never holds 5000 bodies. Runs in
+    a worker thread, each call on its own connection. Never fails the pass: returns failures."""
+    failures: list[str] = []
+    try:
+        pending: list[str] = []
+        ids = list(dict.fromkeys(linked_note_ids))
+        conn = get_connection()
+        try:
+            for i in range(0, len(ids), 500):  # SQLite variable limit
+                chunk = ids[i:i + 500]
+                pending.extend(r["id"] for r in conn.execute(
+                    f"SELECT id FROM j2_notes WHERE user_id = ? AND import_links_pending = 1 "
+                    f"AND id IN ({','.join('?' * len(chunk))})", (user_id, *chunk)).fetchall())
+        finally:
+            conn.close()
+        for i in range(0, len(pending), _HEAL_NAMED_CHUNK):
+            result = heal_pending_links(user_id, note_ids=pending[i:i + _HEAL_NAMED_CHUNK], limit=0)
+            failures.extend(result.get("failures", []))
+        result = heal_pending_links(user_id)  # the member's sweep: once per pass
+        failures.extend(result.get("failures", []))
+    except Exception as e:  # noqa: BLE001
+        failures.append(f"link heal pass failed: {e}")
+    return failures
+
 
 async def _fetch_remote_notes(
     provider: NoteProvider, creds: dict[str, Any], refs: list[RemoteRef],
@@ -2247,7 +2288,7 @@ async def _confirm_and_resolve_batch(
 
 async def _import_remote_notes(
     user_id: str, source: dict[str, Any], provider: NoteProvider, creds: dict[str, Any],
-    remote_notes: list[RemoteNote],
+    remote_notes: list[RemoteNote], *, heal: bool = True,
 ) -> dict[str, Any]:
     conn = get_connection()
     try:
@@ -2428,12 +2469,20 @@ async def _import_remote_notes(
         # loop (a manual "Sync now" runs this pass on the uvicorn loop). A worker thread, on
         # its OWN connection (`conn=None`): a sqlite connection never crosses threads. Same
         # writes as before (timestamp-neutral, per-note edited re-check inside the heal).
-        try:
-            conn.commit()   # nothing of this pass left open to make the heal's writes wait
-            heal = await asyncio.to_thread(heal_pending_links, user_id)
-            totals["failures"].extend(heal.get("failures", []))
-        except Exception as e:  # noqa: BLE001
-            totals["failures"].append(f"link heal pass failed: {e}")
+        # Plan E Task 6 review R1: a caller importing in CHUNKS passes `heal=False` and heals
+        # once, after its last chunk, naming this pass's notes (`linkedNoteIds`): a forward link
+        # into a later chunk is pending until then, and the random sweep alone heals it only by
+        # chance.
+        totals["linkedNoteIds"] = [note_id for rn, _key, note_id in all_touched if rn.links]
+        if heal:
+            try:
+                conn.commit()   # nothing of this pass left open to make the heal's writes wait
+                heal_result = await asyncio.to_thread(heal_pending_links, user_id)
+                totals["failures"].extend(heal_result.get("failures", []))
+            except Exception as e:  # noqa: BLE001
+                totals["failures"].append(f"link heal pass failed: {e}")
+        else:
+            conn.commit()
 
         return totals
     finally:
