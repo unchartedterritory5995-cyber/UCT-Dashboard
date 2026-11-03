@@ -26,6 +26,7 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `f9a03577da` | independent review round 1 fixes (findings 2–7, 9) |
 | `224f057b8e` | board, QA record, RESUME-KN |
 | `8a4993b520` | independent review round 2 fixes (live figure not withheld; pack-scoped cooldown) |
+| (next) | relevance: query expansion from the pack template aliases (K-14) |
 
 ## Tasks
 | id | task | state | evidence |
@@ -44,6 +45,7 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | K-11 | Full Agent suites on head `f9a03577da` | done: all green | server 2,156 passed; browser 2,653 passed, 6 skipped |
 | K-12 | Draft PR into `agent/int-w2` + RESUME-KN note | done | PR #735 (draft) |
 | K-13 | Second review round | done: 0 blocking; findings 1, 2, 4 fixed in `8a4993b520`; 3 and 5 recorded | |
+| K-14 | Relevance: expand shorthand (EP, U&R, VCP, HTF…) with the template names/aliases from the pack, whole-word only | done | real snapshot, 6 shorthand questions: top passages naming the setup in full 7/14 → 9/13 |
 
 ## Full-suite record
 | Head | Server (tests/test_uct_agent*.py + brain tests) | Browser (src/agent) |

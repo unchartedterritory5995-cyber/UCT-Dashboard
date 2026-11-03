@@ -583,3 +583,22 @@ def test_cooldown_applies_only_to_the_pack_that_failed(kn, monkeypatch):
     monkeypatch.setattr(index, "build", real_build)
     assert index.ensure()["ok"] is True                                      # a new pack is tried at once
     index._FAILED.update(at=0.0, ts=None)
+
+
+# ── relevance: alias expansion from the pack's own templates ───────────────────────────────────────────
+def test_alias_expansion_is_whole_word_and_data_driven(kn):
+    assert "Episodic Pivot" in kinds.expand_question("what is an EP?")
+    assert kinds.expand_question("next step for the trade") == "next step for the trade"       # 'ep' inside 'step'
+    both = kinds.expand_question("is a gap play worth it")
+    assert "Kicker" in both and "Gap Fill Long" in both                                        # shared alias: both
+
+
+def test_shorthand_question_finds_the_spelled_out_teaching(kn):
+    c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
+    c.execute("INSERT INTO knowledge_base VALUES (30,'SETUP','UCT team playbook: catalyst gaps','A fresh catalyst gap: "
+              "Episodic Pivot rules from the team.','','UCT Team','ref:30','',2,1,'setup_knowledge','2026',?,?)",
+              (time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime()),) * 2)
+    c.commit(); c.close()
+    (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 3), encoding="utf-8")
+    ids = [p["kb_id"] for p in read("knowledge.search", {"question": "EP?", "k": 3})["data"]["passages"]]
+    assert 30 in ids

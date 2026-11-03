@@ -139,8 +139,8 @@ def search(params: dict, ctx: dict) -> dict:
         return _refused(kind, params, "no knowledge source is approved for UCT Agent")
     dated = policy.dated_categories()
     exclude = policy.excluded_categories() | (set() if include_dated else dated)
-    cands = index.query(q, sources=admitted, exclude_categories=exclude, category=params.get("category"),
-                        limit=policy.search_setting("candidates", 40))
+    cands = index.query(expand_question(q), sources=admitted, exclude_categories=exclude,
+                        category=params.get("category"), limit=policy.search_setting("candidates", 40))
     max_age = policy.dated_max_age_days()
     excerpt_chars = policy.search_setting("excerpt_chars", 500)
     passages, withheld_injection, withheld_stale = [], 0, 0
@@ -193,6 +193,51 @@ def search(params: dict, ctx: dict) -> dict:
         notes.append("dated market commentary is excluded unless asked for")
     return _envelope(kind, params, data={"passages": passages, "method": "fts"}, notes=notes,
                      extra_coverage={"index_rows": _int(ready.get("rows")), "admitted_sources": admitted})
+
+
+# ── query expansion from the partner's own template aliases (data-driven; no hand-written slang list) ──
+_ALIAS_CACHE: dict = {"ts": None, "map": {}}
+
+
+def _alias_map() -> dict:
+    """normalised alias or name -> the words of every name and alias of that template (cached per pack version).
+    An alias shared by two templates expands to both (search, unlike setup.playbook, does not have to choose)."""
+    ts = pack.pack_ts()
+    if _ALIAS_CACHE["ts"] == ts:
+        return _ALIAS_CACHE["map"]
+    out: dict = {}
+    c = pack.connect()
+    if c is not None:
+        try:
+            for r in c.execute("SELECT name, aliases FROM setup_templates WHERE COALESCE(active, 1) = 1"):
+                terms = [str(r["name"] or "")] + _aliases(r["aliases"])
+                words = " ".join(t for t in terms if t)
+                for t in terms:
+                    k = _tok(t)
+                    if k:
+                        out[k] = (out.get(k, "") + " " + words).strip()
+        except Exception:  # noqa: BLE001 — no templates table: no expansion
+            out = {}
+        finally:
+            c.close()
+    _ALIAS_CACHE.update(ts=ts, map=out)
+    return out
+
+
+def _tok(s: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9&]+", str(s or "").lower()))
+
+
+def expand_question(q: str) -> str:
+    """The question plus the full names/aliases of every setup it names by a WHOLE-phrase alias ("EP" ->
+    "Episodic Pivot ...", "U&R" -> "Undercut & Rally ..."). Matching is on whole words, so "ep" never fires inside
+    "step". Expansion only adds OR terms to the lexical query; it never changes which sources are admitted."""
+    nq = " " + _tok(q) + " "
+    extra = []
+    for k, words in _alias_map().items():
+        if len(k) >= 2 and f" {k} " in nq:
+            extra.append(words)
+    return (q + " " + " ".join(extra)).strip() if extra else q
 
 
 # ── setup resolution (shared by playbook and record) ─────────────────────────────────────────────────

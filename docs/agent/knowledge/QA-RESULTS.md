@@ -68,3 +68,7 @@ A paid real-model comparison (answer quality with and without the passages) is N
 Round 1 (diff-only subagent): 2 blocking (dark routing changed; a possible 0 % rate from a count alone), 7 non-blocking. All fixed in 3f3afea069 and f9a03577da with a regression test each, except finding 8 (with the feature ON, a message matching only the playbook group narrows the routed request), recorded as a known limitation for the integrator.
 
 Round 2 (diff-only, on the fix commits): 0 blocking. Fixed in 8a4993b520: a live facade figure was withheld when the pack had no row; the rebuild cooldown delayed a new pack; a redundant assertion. Recorded: routing words never disarmed at runtime (latent); a rate without a win count is withheld (fails closed).
+
+## 6. Relevance improvement (K-14)
+
+Query expansion from the pack's own template aliases (data-driven; whole-word matching, so "ep" never fires inside "step"; a shared alias expands to both templates). Real snapshot, 6 shorthand questions (EP, U&R, VCP, HTF, kicker, PEG), k = 3: top passages that name the setup in full went from 7 of 14 to 9 of 13; no question returned nothing in either run. Lexical retrieval still misses paraphrase; embeddings stay out by design (no external calls).
