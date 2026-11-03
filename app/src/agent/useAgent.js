@@ -46,7 +46,7 @@ import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusa
 import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor } from './nl/lexicon'
-import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
+import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation, noteConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
 // ⭐ INDICATORS ⇄ AGENT (2026-10-12): the chart's Create Indicator / Modify doors open the Agent; the
@@ -343,6 +343,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [])
   const [conversationId, setConversationIdState] = useState(() => readLocal(AGENT_CONVERSATION_KEY))
   const conversationRef = useRef(conversationId)
+  noteConversation(conversationRef.current)   // W1-C C-01: the chat restored from localStorage counts from the first render
   const pendingRef = useRef(null)           // { kind:'proposal', id, ops } | { kind:'target', ops, path }
   // INTERRUPTED EXECUTION. A board change is marked in-flight (this browser) before its first
   // write and cleared at its receipt. A mark that survives a reload means the change was cut off
@@ -372,6 +373,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     conversationRef.current = id
     setConversationIdState(id)
     writeLocal(AGENT_CONVERSATION_KEY, id)
+    noteConversation(id)                 // W1-C C-01: capabilities key their server-kept state (lastScreen) by it
   }, [])
 
   // `at`: when the line joined the chat (the panel shows it beside the sender's name).

@@ -96,6 +96,27 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     ("finviz", "short_interest"): LicensingClassEntry(
         "LA", "Short float / short ratio (and short interest derived from them) off the Finviz Elite whole-market export — T-48, ANSWERED (see T-47): LA. Still single-sourced; the owner ruling of 2026-09-29 makes it the short-interest source (TERM-046).", "T-48",
     ),
+    # ── UCT Agent asset-class kinds (W1-C C-03): index.quote / commodity.quote / crypto.quote serve a class ONLY from
+    # a row in force as A or LA (api/services/uct_agent/marketdata/asset_quotes.py). None below is, so every read
+    # declines honestly today. Flipping a row (after the register changes) is what turns the kind on — no adapter edit.
+    ("massive", "indices"): LicensingClassEntry(
+        "U", "Index snapshots (/v3/snapshot/indices) — a LIVE-CONFIRMED entitlement gap: 403 for this key/plan (api/routers/massive_adapter_status.py). T-72 names 'Massive index snapshots' as the plan, nothing executes it and no register row licenses an Indices plan. Unknown, not licensed.", "T-72",
+    ),
+    ("massive", "crypto"): LicensingClassEntry(
+        "U", "Massive crypto snapshots — no register row, no plan, nothing in the stack reads it. Unknown, not licensed.", "T-72",
+    ),
+    ("yahoo", "indices"): LicensingClassEntry(
+        "X", "Index/futures snapshots via yfinance (^GSPC, ^NDX, ^DJI, ^RUT, ^VIX) — Yahoo ToS §2.4(ix)/§2.5/§2.8: no licence exists to buy at any price (T-71/T-72). Never a member path.", "T-72",
+    ),
+    ("yahoo", "crypto"): LicensingClassEntry(
+        "X", "BTC-USD via yfinance (massive._yfinance_snapshot) — the same Yahoo ToS bar as T-71/T-72: no licence exists. Never a member path.", "T-72",
+    ),
+    ("yahoo", "commodities"): LicensingClassEntry(
+        "X", "Commodity/futures quotes via yfinance — the same Yahoo ToS bar as T-71/T-72: no licence exists. Never a member path.", "T-72",
+    ),
+    ("alphavantage", "commodities"): LicensingClassEntry(
+        "R", "AlphaVantage Commodities APIs import the FRED API Terms (AV §20) — R pending the FRED flow-down check (ESC-15); not a display source for the Agent.", "T-59",
+    ),
     # No ("fmp", "ipo") row: the licensing register's IPO-calendar row (T-52)
     # covers Finnhub's leg, not FMP's `stable/ipos-calendar` specifically — no
     # research exists for that pair, so it is left unregistered and correctly

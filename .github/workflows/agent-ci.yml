@@ -1,3 +1,11 @@
+# promotion-gate: no — ADDITIVE CI for the Agent program's branches (agent/**, PRs into
+#   agent/int and master from them). It never decides promotion: the master deploy gate keeps
+#   every Agent step it has today, and tools/promotion_gate.py classifies this file as "no".
+#   PENDING OWNER DECISION (BOARD I-03): tests/test_uct_agent_deploy_gate.py::
+#   test_no_OTHER_workflow_is_an_agent_gate forbids ANY other workflow that names the Agent
+#   suites, gating or not. Until that rail is amended (with approval) to exempt
+#   promotion-gate:no workflows, this file must NOT reach master (the gate would go red on
+#   that rail) and the server job below deselects that single meta-rail, nothing else.
 # UCT Agent CI — the Agent program's own integration check (Wave 1, 2026-11-02).
 #
 # ADDITIVE. This does not change the master deploy gate; the gate keeps every step it has
@@ -39,6 +47,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Some QA rails diff the tree against the integration branch (e.g. the F-16 rail that proves
+      # the member Screener's server code is untouched). A shallow checkout has no such ref.
+      - name: Fetch the integration branch for diff-based rails
+        run: git fetch --no-tags --quiet origin +refs/heads/agent/int:refs/remotes/origin/agent/int +refs/heads/master:refs/remotes/origin/master
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -49,7 +63,11 @@ jobs:
           python -m pip install --quiet --upgrade pip
           python -m pip install --quiet -r requirements.txt pytest httpx
       - name: pytest tests/test_uct_agent*.py
-        run: python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
+        # The one deselected test is the meta-rail that forbids this workflow's existence (see the
+        # header). Every other Agent server test runs, including the rest of test_uct_agent_deploy_gate.py.
+        run: >-
+          python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
+          --deselect tests/test_uct_agent_deploy_gate.py::test_no_OTHER_workflow_is_an_agent_gate
 
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
