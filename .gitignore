@@ -251,3 +251,7 @@ tools/scan_handoff_out.json
 # Pine support loop working directory (member script source while a report is open; purged on close).
 # docs/pine/support-loop/PHASE-B.md
 /.support-loop-work/
+
+# Wave 1 A-03: the repo-relative fallback of the cumulative eval ledger (never committed)
+tools/.agent-eval-ledger.db*
+tools/agent-eval-cap.json

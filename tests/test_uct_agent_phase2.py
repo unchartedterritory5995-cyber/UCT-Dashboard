@@ -88,13 +88,16 @@ def test_LIVE_BATCH_scoring_and_refusals(monkeypatch, tmp_path, capsys):
     assert not m.score({"want": {"honest": True}}, {"disposition": "apply", "ops": [{"action": "indicator.add", "args": {"defId": "movingAverage"}}]})["ok"]
     bodies = tmp_path / "b.json"
     bodies.write_text("[]", encoding="utf-8")
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("UCT_AGENT_EVAL_API_KEY", raising=False)         # A-03: only the SEPARATE eval key, never ANTHROPIC_API_KEY
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-prod")
+    import anthropic
     called = []
+    monkeypatch.setattr(anthropic, "Anthropic", lambda *a, **k: called.append(1))
     monkeypatch.setattr(turn, "_default_caller", lambda **k: called.append(1))
     for argv, code in ((["x", str(bodies), "--run"], 2), (["x", str(bodies), "--run", "--max-usd", "1"], 2), (["x", str(bodies)], 0)):
         monkeypatch.setattr("sys.argv", argv)
         assert m.main() == code
-    assert called == []                                          # never a model call without key + ceiling
+    assert called == []                                          # never a client, never a model call without key + ceiling
 
 
 def test_LIVE_BATCH_the_ceiling_is_checked_before_EVERY_call_and_nothing_else_is_paid_or_written(monkeypatch, tmp_path, capsys):
@@ -105,11 +108,17 @@ def test_LIVE_BATCH_the_ceiling_is_checked_before_EVERY_call_and_nothing_else_is
     item = {"id": "x", "want": {"actions": []}, "body": {"message": "hi", "context": {}, "capabilities": [], "routing": None}}
     bodies = tmp_path / "b.json"
     bodies.write_text(_json.dumps([item, {**item, "id": "y"}]), encoding="utf-8")
+    # A-03: the SEPARATE eval key (the production key is never read), a scratch CUMULATIVE ledger with its cap file
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-not-a-key")
-    from api.services import engine
-    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: types.SimpleNamespace(models=types.SimpleNamespace(retrieve=lambda name: {"id": name})))
+    monkeypatch.setenv("UCT_AGENT_EVAL_API_KEY", "sk-eval-not-a-key")
+    monkeypatch.setenv("UCT_AGENT_EVAL_LEDGER", str(tmp_path / "ledger.db"))
+    (tmp_path / "agent-eval-cap.json").write_text('{"cap_usd": 21.0}', encoding="utf-8")
+    import anthropic
     calls, ledger, research = [], [], []
-    monkeypatch.setattr(turn, "_default_caller", lambda **k: calls.append(k) or _caller([])(**k))
+    fake = types.SimpleNamespace(max_retries=0, models=types.SimpleNamespace(retrieve=lambda name: {"id": name}),
+                                 messages=types.SimpleNamespace(create=lambda **k: calls.append(k) or _caller([])(**k)))
+    monkeypatch.setattr(anthropic, "Anthropic", lambda *a, **k: fake)
+    monkeypatch.setattr(turn, "_default_caller", lambda **k: (_ for _ in ()).throw(AssertionError("the production client was used")))
     monkeypatch.setattr(narrative_cost_guard, "record", lambda *a, **k: ledger.append(a))
     monkeypatch.setattr("api.services.perplexity_search.web_search", lambda **k: research.append(k), raising=False)
     # a ceiling below one call's worst case: NOTHING is called
@@ -117,10 +126,19 @@ def test_LIVE_BATCH_the_ceiling_is_checked_before_EVERY_call_and_nothing_else_is
     assert m.main() == 0 and calls == []
     assert "STOP before the next call" in capsys.readouterr().out
     # a ceiling that fits ONE call's worst case but not two: exactly one call, then it stops
-    monkeypatch.setattr("sys.argv", ["x", str(bodies), "--run", "--max-usd", "0.02"])
+    from tools import agent_eval_ledger as L
+    caps = turn.validate_manifest([])
+    sample = dict(model=turn.model(), max_tokens=turn.MAX_TOKENS, system=[{"type": "text", "text": turn.system_prompt(caps)}],
+                  messages=[{"role": "user", "content": "x"}], output_config={"format": {"type": "json_schema", "schema": turn.envelope_schema(caps)}})
+    one = L.worst_case_usd(sample)                              # one call's worst case (every request byte as a cache write + max_tokens)
+    monkeypatch.setattr("sys.argv", ["x", str(bodies), "--run", "--max-usd", f"{one + 0.004:.4f}"])
     assert m.main() == 0
     assert len(calls) == 1
-    assert ledger == [] and research == []                 # no ledger write, no research spend
+    assert "STOP before the next call" in capsys.readouterr().out
+    assert one + 0.004 < L.worst_case_usd(calls[0]) + L.cost_usd(turn.model(), **L.usage_tokens(_caller([])()))   # the 2nd would pass it
+    assert ledger == [] and research == []                 # no production ledger write, no research spend
+    rows = L.Ledger(str(tmp_path / "ledger.db")).rows()
+    assert [r["status"] for r in rows] == ["settled"] and rows[0]["tool"] == "agent_live_batch"   # the cumulative ledger has it
 
 
 def test_PROMPT_ranking_words_are_UCTs_own_never_invented():
