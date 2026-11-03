@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-03 22:47 CT
+updated: 2026-11-03 23:07 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (1 Opus, 5 Sonnet). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -67,14 +67,21 @@ engine bump needed: expected yes (engine change), confirmed at READY
 next: builder implementing W4-BREAKDOWN T11 in RT/text.js and FE ~6120-6160; will set BLOCKED if it needs ast/pineTextFormat.js
 
 ## W4-T17
-state: BUILDING   round: r0   updated: 2026-11-03 22:02 CT
-branch: docs/pine-w4-t17-t13-probes   worktree: pine-dsk-w4t17   model: Sonnet
-engine bump needed: no (docs and probes only)
-next: builder writing the T17 probes and the T13 spike note
-
+state: READY            round: r0            updated: 2026-11-03 23:07 CT
+branch: docs/pine-w4-t17-t13-probes   tip: 950b4736ff   tested on master: 4ea661a8d8
+engine bump needed: no (docs, probes and one test file only; no engine source touched, verified by git diff --name-only)
+evidence: docs/pine/evidence/2026-11-03-w4-t17-t13/EVIDENCE.md (on the branch)
+report: Tip 950b4736ff adds EVIDENCE.md over tested tree b8715ef592. Probes in tools/visual_conformance/probes/: vw-w4-int-div-window (+v5, v4) for D1; vw-w4-max-bars-back (M1) and -m2..-m5, one row per file. Test engine/__tests__/w4T17T13Probes.test.js, 19 tests. T17: v4/v5 already truncate a literal/const int quotient as a window length (9/2 -> 4) and fold a const offset (21/2+1 -> 11) with no capture behind either; the literal offset refuses in v4/v5; every input.int operand refuses; v6 refuses all division by name; M1/M4/M5 refuse runtime:directive; M2 builds and the VM stops on the read past the declared 20-bar buffer; M3 builds and serves the 250-bar offset. T13 spike: the renderer exists (candlestick and bar series) and the run can compute the four columns (an na open is NaN on that bar only), but plotcandle/plotbar refuse runtime:presentation and binder.js's only OHLC feed reads the symbol's own bars and refuses a computed row as NOT_PASSTHROUGH. T13 stays an M task: a second payload source in binder.js plus per-point colour/wick/border (candles all three, bars colour only). It touches binder.js beyond the breakdown's file list, so T12 must merge first. Checks: new test 19 passed; mutation pool.js candles->line killed (1 red); final-tip gate pytest 46 passed, version-gate 6 passed, hygiene clean (34685 files); chart+hooks vitest Test Files 1 failed | 1334 passed | 27 skipped, Tests 22379 passed | 1 failed (pollingSites.rail, the desktop baseline): 0 new failures. Open: D1, M1-M5 and W4-P1 captures (owner's rig); the D1 capture-queue row text is in EVIDENCE.md.
+desktop check of the definition of done: PASS (files scoped, rail plus mutation shown, final-tip at baseline, EVIDENCE committed, worktree clean and pushed)
 ## W4-T12
 state: BUILDING   round: r0   updated: 2026-11-03 22:02 CT
 branch: feat/pine-w4-t12-paint   worktree: pine-dsk-w4t12   model: Sonnet
 engine bump needed: decided at READY
 overlap check (2026-11-03): origin/feat/pine-w3-drawings touches neither memberPaneDefinition.js nor RT/colours.js, so not BLOCKED. Builder re-checks before its first commit.
 next: builder implementing W4-BREAKDOWN T12
+
+## W4-T3 (re-homed fix round)
+state: BUILDING   round: r1   updated: 2026-11-03 23:07 CT
+branch: feat/pine-w4-t3-session-text   start tip: 572376edf6   worktree: pine-dsk-w4t3   model: Sonnet
+engine bump needed: yes (engine 7 at merge, per ASSIGNMENTS)
+next: run ONLY the final-tip named at the end of its EVIDENCE.md, record it, READY for delta review
