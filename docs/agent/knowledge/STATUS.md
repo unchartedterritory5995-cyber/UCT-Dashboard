@@ -46,6 +46,7 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `3faccb7b07` | owner decisions (PROGRAM.md @ b8d20a1286): brain stats CONDITIONAL gate, rights-cleared concept path (empty), web-research separation (block by default), ARCHIVE-ASOF-1 contract (K-20) |
 | `e25ebc813e` | re-review r2: N-7a/b, N-8 citation-only replay, N-1..N-6; guard false positive from 4b144368ce fixed (K-21) |
 | `6d9ee0f727` | separation tests stub the research door; robust to the eval-ledger stub leak |
+| `de59823327` | r3: B-1 v2 knowledge replies replay citation-only (research blocked in the window); N-9..N-14 (K-22) |
 
 ## Tasks
 | id | task | state | evidence |
@@ -82,6 +83,7 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `4b144368ce` | 2,223 passed, 0 failed | 2,665 passed, 6 skipped, 1 timeout (same qa/modelIsolation scan test; passes alone) |
 | `e25ebc813e` | 2,248 passed, 2 failed (suite-order leak, fixed in 6d9ee0f727) | 2,673 passed, 6 skipped, 0 failed (isolation timeout fixed) |
 | `6d9ee0f727` | 2,250 passed, 0 failed | (server-test-only change; browser as e25ebc813e) |
+| `de59823327` | 2,259 passed, 0 failed | 2,673 passed, 6 skipped, 0 failed |
 
 Browser suite notes (head 3852446f29):
 - 1 timeout: qa/modelIsolation.test.jsx "no module reads an isolated kind outside a local-only capability…" exceeded its 15 s limit while the full suite loaded the machine; rerun alone it passes 12/12 in 7.6 s (9.5 s on the earlier full run). Not a regression; the test scans every Agent source file and sits close to its budget. File owned by agent-qa; reported to AUDIT.
@@ -114,6 +116,8 @@ the archive exposes one — a requirement for the Wisdom archive owner.
   refuse non-answer purposes; replay is citation-only) — sentinel tests in both planners.
 - Archive date: interface contract ARCHIVE-ASOF-1 to the proposed owner (partner/ledger maintainer); undated withheld.
 - N-7b real snapshot: 14 of 98 setup_knowledge SETUP rows withheld (linked only to excluded templates).
+- r3 B-1: a v2 knowledge reply is replayed citation-only; the reviewer's probe shows no replay and 0 research calls.
+- N-15 (count): 20 of 42 setup_knowledge SETUP rows resolve to no template and stay served (fail open) — sync-format owner to check.
 - Real snapshot after all changes: P@3 0.89, 38/40, p50 17.6 ms, guard false positives 0 of 5,270.
 
 ## Quality work stopped (owner rule: stop when the measurable benefit is small)
