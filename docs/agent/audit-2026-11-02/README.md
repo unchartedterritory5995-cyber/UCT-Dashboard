@@ -23,5 +23,6 @@ Appendices (raw audit evidence with `file:line` citations and the commands used)
 - [E — Security, cost and model audit](appendix/E-security-cost.md)
 - [F — Indicators, News, research, roadmap state](appendix/F-integrations-roadmap.md)
 - [G — Claude Code orchestration features (from official docs)](appendix/G-orchestration.md)
+- [H — Spending controls audit (owner mandate 2026-11-02)](appendix/H-spending.md)
 
 Unverified in this audit (access denied or out of scope): production values of the `UCT_AGENT_*` flags and model id (Railway read denied); whether `#692`'s pending QA verdict ran; real latency, cache hit rate and cost (no paid calls); which members hold Create/Manage Indicator entitlements; nothing was executed in a browser.
