@@ -107,6 +107,9 @@ class EvernoteProvider(NoteProvider):
     fetch_is_listing_independent = True
     #: A resource's kind comes from its declared MIME; content wins for a raster (concern 5).
     promote_raster_files = True
+    #: Evernote's per-minute tool limit leaves notes unread on a large first import: the engine
+    #: follows up a few minutes later instead of waiting for the hourly tick (live gate 2026-11-03).
+    follow_up_on_rate_limit = True
 
     PAGE_SIZE = 100
     CURSOR_OVERLAP_S = 120
@@ -125,6 +128,10 @@ class EvernoteProvider(NoteProvider):
         self._notebooks: dict[str, dict] | None = None
         self._tags: dict[str, str] | None = None
         self._hit_titles: dict[str, str] = {}
+        # Fix round 1 (D1): the `updatedAt` each listed note carried, only when it had one (a hit
+        # listed by `createdAt` or the floor has no real revision and is always fetched).
+        self._listing_revs: dict[str, str] = {}
+        self._pace_seed: float | None = None  # D3
         self._failures: list[dict] = []
         self._recorded: dict[str, dict] = {}
         self._tags_capped = False
@@ -147,7 +154,27 @@ class EvernoteProvider(NoteProvider):
             else:
                 self._mcp = EvernoteMcpClient(
                     token, on_unauthorized=self._on_unauthorized if self._user_id else None)
+            if self._pace_seed is not None and hasattr(self._mcp, "seed_interval"):
+                self._mcp.seed_interval(self._pace_seed)
         return self._mcp
+
+    def seed_pacing(self, interval_s: float) -> None:
+        """D3: the engine's learned interval for this session, applied when the client is made."""
+        self._pace_seed = interval_s
+        if self._mcp is not None and hasattr(self._mcp, "seed_interval"):
+            self._mcp.seed_interval(interval_s)
+
+    def learned_pacing(self) -> tuple[float | None, bool]:
+        """D3: (the session's adaptive interval or None, whether a rate limit tripped)."""
+        if self._mcp is None or not hasattr(self._mcp, "learned_interval"):
+            return None, False
+        return self._mcp.learned_interval()
+
+    def listing_revision(self, ref: RemoteRef) -> str | None:
+        """D1: the listing's `updatedAt` for this note (normalised by `_iso`), or None when the
+        hit had none. The SAME Evernote field as `get_note.updated`, which `fetch` stores as the
+        note's revision; the engine compares the two at whole seconds (`engine._same_revision`)."""
+        return self._listing_revs.get(ref.remote_id)
 
     async def _on_unauthorized(self) -> str:
         """The MCP client's 401 hook: a forced refresh that names the token it saw rejected, so a
@@ -193,6 +220,20 @@ class EvernoteProvider(NoteProvider):
         different `totalResultCount` from page 0 (review I2): offset paging over a set that
         changed mid-read can skip a note without any other sign."""
         client = self._client(creds)
+        # Fix round 2 (N2): each listing has its own clock allowance in the client, sized by its
+        # page count once page 0 says how many results there are, and closed when it ends.
+        begin = getattr(client, "begin_listing", None)
+        end = getattr(client, "end_listing", None)
+        if begin is not None:
+            begin()
+        try:
+            async for item in self._paged(client, query):
+                yield item
+        finally:
+            if end is not None:
+                end()
+
+    async def _paged(self, client: Any, query: str):
         start = 0
         first_total: Any = None
         for _ in range(_MAX_PAGES):
@@ -201,6 +242,9 @@ class EvernoteProvider(NoteProvider):
                 "maxResults": self.PAGE_SIZE, "startIndex": start})
             if start == 0:
                 first_total = page.get("totalResultCount")
+                size = getattr(client, "size_listing", None)
+                if size is not None and isinstance(first_total, (int, float))                         and not isinstance(first_total, bool):
+                    size(max(1, -(-int(first_total) // self.PAGE_SIZE)))
             elif page.get("totalResultCount") != first_total:
                 raise _ListingMoved()
             hits = []
@@ -223,7 +267,12 @@ class EvernoteProvider(NoteProvider):
         note_id = hit["noteId"]
         if isinstance(hit.get("title"), str):
             self._hit_titles[note_id] = hit["title"]
-        when = _iso(hit.get("updatedAt")) or _iso(hit.get("createdAt")) or floor
+        updated = _iso(hit.get("updatedAt"))
+        if updated is not None:
+            self._listing_revs[note_id] = updated
+        else:
+            self._listing_revs.pop(note_id, None)
+        when = updated or _iso(hit.get("createdAt")) or floor
         return RemoteRef(remote_id=note_id, updated_at=when)
 
     async def list_changed(self, credentials: dict[str, Any],

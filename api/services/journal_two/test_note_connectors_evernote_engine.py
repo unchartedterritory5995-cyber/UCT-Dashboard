@@ -166,7 +166,10 @@ def test_every_pass_completed(passes):
          "adopted": 0, "sourceDeleted": 1},
         {"status": "ok", "created": 0, "updated": 0, "skipped": 13, "mediaUploaded": 0, "conflicts": 0,
          "adopted": 0, "sourceDeleted": 1},
-        {"status": "ok", "created": 0, "updated": 0, "skipped": 13, "mediaUploaded": 0, "conflicts": 0,
+        # Pass 4 (a member's removal check, an incremental pass): rate-limit fix round 1 (D1) does
+        # not fetch the 11 notes whose stored revision matches the listing, and round 2 (N8)
+        # counts them as `unchanged`, never `skipped` (the card's "Unchanged"): 2 were fetched.
+        {"status": "ok", "created": 0, "updated": 0, "skipped": 2, "mediaUploaded": 0, "conflicts": 0,
          "adopted": 0, "sourceDeleted": 0}]
     assert passes[3]["removalCheckRan"] is True   # pass 4: a member's removal-check pass
 
@@ -482,10 +485,12 @@ def test_member_edited_note_is_never_refetched_once_the_cursor_moves(cursor_move
 
 
 def test_removal_check_pass_fetches_only_its_delta(cursor_moves_run):
-    """Pass 4 is a member's removal check with no remote change: it fetches exactly what the
-    scheduler pass before it fetched (the same delta), never a media retry (C2)."""
+    """Pass 4 is a member's removal check with no remote change: it fetches at most the delta
+    the scheduler pass before it fetched, never a media retry (C2). Rate-limit fix round 1 (D1):
+    a note of that delta whose stored revision equals the listing's is not fetched again (the
+    full pass before it still fetched it: a full pass never skips)."""
     fetched = cursor_moves_run["getNoteByPass"]
     assert cursor_moves_run["members"][USER]["passes"][3]["removalCheckRan"] is True
-    assert sorted(fetched[3]) == sorted(fetched[2])
+    assert set(fetched[3]) < set(fetched[2])
     assert len(fetched[3]) < 5
 

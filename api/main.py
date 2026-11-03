@@ -7314,6 +7314,15 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(minute=23, timezone=_ET),
                 id="note_sync_due", max_instances=1, replace_existing=True,
             )
+            # Quick follow-up passes (live gate 2026-11-03): a source a provider's rate limit
+            # cut short (Evernote's per-minute tool limit) is stamped a few minutes ahead and
+            # synced again here instead of waiting for the hourly tick. A cheap no-op when no
+            # source is stamped; bounded per source per hour in the engine.
+            _scheduler.add_job(
+                _note_sync_scheduler.run_follow_up_sync_blocking,
+                trigger=IntervalTrigger(minutes=int(os.getenv("NOTE_SYNC_FOLLOW_UP_INTERVAL_MIN", "2"))),
+                id="note_sync_follow_up", max_instances=1, replace_existing=True,
+            )
             # Nightly FULL-listing pass (MUST-RESOLVE #2, distinct minute
             # offset from the tick above) -- delete detection (engine.py's
             # 2-strike miss_streak + the list_deleted wiring) ONLY runs on a
