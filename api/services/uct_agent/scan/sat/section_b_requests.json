@@ -11426,13 +11426,12 @@
      }
     ],
     "selected": [
-     "workspace",
      "indicators",
      "screener",
      "agent"
     ]
    },
-   "capabilities_ref": "m1"
+   "capabilities_ref": "m7"
   },
   "d13": {
    "conversationId": null,
