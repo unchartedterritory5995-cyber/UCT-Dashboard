@@ -105,6 +105,17 @@ def test_missing_notices_leave_a_resolved_image_alone():
     assert out == doc and names == []
 
 
+def test_missing_notices_keep_a_pending_note_link_beside_a_stranded_ref():
+    """M-6: the placeholder rewrite runs with `strip_unresolved_links=False`, so a still-pending
+    `import-link://` mark in the same body keeps its href for the live heal."""
+    link = _para(_t("target", _link("import-link://notion:abc")))
+    doc = _doc(_img(src=REF_PREFIX + "a.png"), link, _img(src=REF_PREFIX + "a.png", alt="again"))
+    out, names = media.missing_notices(doc)
+    assert out == _doc(_notice("a.png"), link, _notice("a.png"))
+    assert names == ["a.png", "a.png"]  # a repeated ref keeps its first name
+    assert out["content"][0] is not out["content"][2]  # one copy per use, never aliased
+
+
 def test_missing_notices_is_a_fixed_point():
     once, _ = media.missing_notices(_doc(_img(src=REF_PREFIX + "a.png"), _img(src="")))
     twice, names = media.missing_notices(once)
@@ -222,7 +233,9 @@ def test_a_lost_file_link_gets_the_marker_beside_it_and_keeps_its_href(db):
     doc = _doc(_para(_t("see "), _t("the deck", _link("files/Deck%20v2.pdf")), _t(" and "),
                      _t("notes", _link("Missing.md"))),
                _para(_t("web", _link("www.example.com"))))
+    before = copy.deepcopy(doc)
     out, lost = _lost(doc)
+    assert doc == before  # fix round 1, M-6: never mutates its input
     assert lost == 1
     # the link stays exactly as written (Task 3: never made worse); the marker follows its block
     assert out == _doc(doc["content"][0], _notice("Deck v2.pdf"), doc["content"][1])
