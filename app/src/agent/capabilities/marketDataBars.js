@@ -314,7 +314,7 @@ export async function answerDailyBars(args) {
   if (w.why) return w.why
   const { date, sessions } = w
   if (measure === 'change' && !(sessions >= 1)) return 'Over how many sessions? For example "NVDA 5-day change".'
-  if (measure === 'range' && !date?.month && !date?.from && !(sessions >= 1)) return 'Over which window? For example "TSLA range last week", "TSLA range over the last 10 sessions" or "TSLA range from Oct 1 to Oct 15".'
+  if (measure === 'range' && !date?.month && !date?.from && !(sessions >= 1)) return 'Over which window? For example "TSLA range last week" or "TSLA range over the last 10 sessions".'
   // MD-1 §4.7: the word is resolved against UCT's symbol index BEFORE any bars are read
   const r = await resolveInstruments(candidates)
   if (!r.ok) return r.text
@@ -371,13 +371,12 @@ export function registerBarsCapability() {
     surfaces: ['charts'],
     target: 'market', query: true,
     summary: 'Answer questions about ONE stock\'s COMPLETED daily sessions from UCT\'s daily bars: the close (latest, or on a date), one session\'s open/high/low/close, '
-      + 'the change over N sessions, the high and low of a window (a week, a month, N sessions, or from one date to another), the 52-week range, how far it sits off its 52-week high, '
-      + 'or its pullbacks (the one in progress beside the last three completed ones) — each as of a date when one is given. Use this (disposition apply, research null) '
-      + 'for "how did AAPL close yesterday", "NVDA close last Friday", "AAPL high on 2026-10-15", "TSLA range last week", "NVDA 5-day change", "how far is NVDA off its high", "compare this pullback in AMD to the last three". Never for today\'s price (stock.quote).',
+      + 'the change over N sessions, the high and low of a window (a week, a month, N sessions, or dated), the 52-week range, the distance off its 52-week high, or its pullbacks — each as of a date when one is given. Use this (disposition apply, research null) '
+      + 'for "how did AAPL close yesterday", "NVDA close last Friday", "AAPL high on 2026-10-15", "TSLA range last week", "NVDA 5-day change". Never for today\'s price (stock.quote).',
     hints: 'target = the ref of the stockData entry; symbol uppercase; measure = lastClose (the close, latest or on `date`) | session (open/high/low/close/volume of ONE day: "high on", "low on", "open on") '
-      + '| change (N sessions) | range (high and low over a window) | range52w | offHigh (distance below the 52-week high) | pullbacks (the current pullback vs the last three completed, close to close); sessions = the N of an N-session change or range (weeks × 5), else null; '
-      + 'date = the member\'s date words exactly ("last friday", "yesterday", "oct 15", "2026-10-15", "last week", "last month") or null for the latest; from = the window\'s start words for a range "from X to Y" (date = Y), else null. '
-      + '"close last Friday" → lastClose + date; "high on Oct 15" → session + date; "range last week" → range + date (sessions null: the week decides); "range over the last 10 sessions" → range + sessions 10; "range from Oct 1 to Oct 15" → range + from "oct 1" + date "oct 15".',
+      + '| change (N sessions) | range (high and low over a window) | range52w | offHigh (below the 52-week high) | pullbacks; sessions = the N of an N-session change or range (weeks × 5), else null; '
+      + 'date = the member\'s date words exactly ("last friday", "yesterday", "oct 15", "2026-10-15", "last week", "last month") or null for the latest; from = a range\'s start words ("from X to Y": date = Y), else null. '
+      + '"close last Friday" → lastClose + date; "high on Oct 15" → session + date; "range last week" → range + date (sessions null: the week decides); "range over the last 10 sessions" → range + sessions 10.',
     args: {
       type: 'object',
       properties: {
@@ -390,6 +389,8 @@ export function registerBarsCapability() {
       required: ['symbol', 'measure', 'sessions', 'date', 'from'],
       additionalProperties: false,
     },
+    // W2-B2 added `from`: every arg shape from before it (no `from` key) still validates, as `from: null`
+    absentAsNull: ['from'],
     fastWhole: true,
     fastCorrect: false,
     fast: ({ raw }) => { const m = match(raw); return m ? m.params : null },
