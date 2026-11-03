@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { loadAgentConfig, _resetAgentConfig, noteConversation } from './agentClient'
 import { getCapability, getTargetKind, manifestFor } from './capabilities'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
-import { reviewTrades, noteBody, _resetCoachForTest, _lastReview } from './capabilities/coach'
+import { reviewTrades, noteBody, _resetCoachForTest, _lastReview, JOURNAL_MARKER } from './capabilities/coach'
 import { reviewStats, reviewText, modelView, clampN } from './coach/review'
 import { consentState, readConsent, writeConsent, _resetConsentForTest } from './coach/consent'
 import { loadConcepts, _resetConceptsForTest } from './coach/concepts'
@@ -238,6 +238,12 @@ describe('🔴 PANEL: consent → review → a proposed note, through the real p
     expect(review).toMatch(/5 wins, 3 losses/)
     expect(review).not.toMatch(/AAA|\$\d/)
     expect(st.j2).toEqual([['GET', '/api/j2/trades?limit=10&offset=0']])
+    // ⛔ review B3: the transcript row is the value-free marker only, flagged local (never replayed to a model)
+    const rec = p.st.calls.filter(c => c[1] === '/api/agent/record').map(c => c[2]).pop()
+    expect(JSON.stringify(rec)).not.toMatch(/5 wins|3 losses|chased|win rate/i)
+    expect(JSON.stringify(rec)).toContain(JOURNAL_MARKER)
+    expect(rec.outcomeData).toMatchObject({ local: true, actions: ['journal.reviewTrades'] })
+    expect(rec.outcomeData.views).toBeUndefined()
     // the model proposes a note (scripted, aimed at the coach entry's minted ref): a card, nothing written
     p.st.envelopes.push((body) => p.env('propose', [{ action: 'journal.proposeNote', target: body.context.coach[0].ref, args: { title: 'Review: chasing', body: 'Two losses carried the tag chased. What entry rule would rule those out?' } }], 'Here is a note you could keep.'))
     const proposed = await say('write that up as a note for my journal')
@@ -251,9 +257,24 @@ describe('🔴 PANEL: consent → review → a proposed note, through the real p
     // a grant the MODEL writes (not the member's words) is a card, and nothing is granted until Apply
     p.st.envelopes.push((body) => p.env('apply', [{ action: 'coach.consent', target: body.context.coach[0].ref, args: { granted: true } }], 'Allowing it.'))
     const card = await say('coach, I want you to look at my journal again')
+    // after revoke, the turn the model saw carries no journal content at all
+    expect(JSON.stringify(p.lastTurnBody())).not.toMatch(/winRatePct|5 wins|chased/)
     expect(card).toMatch(/Allow/i)
     expect(st.consent).toEqual({ granted: false })
     await click('Apply')
     expect(st.consent).toEqual({ granted: true })
+  })
+})
+
+describe('review fix: the last review is kept PER CONVERSATION', () => {
+  it('a review in chat A never rides into chat B (context entry and note-guard inputs)', async () => {
+    await up({ consent: { granted: true, at: '2026-11-03T00:00:00Z' } })
+    await readConsent()
+    await reviewTrades(10)
+    expect(_lastReview()?.stats).toEqual(FX.expected_n10)
+    noteConversation('ac_2')
+    expect(_lastReview()).toBe(null)
+    noteConversation('ac_1')
+    expect(_lastReview()?.stats).toEqual(FX.expected_n10)
   })
 })

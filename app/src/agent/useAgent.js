@@ -679,9 +679,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (syms) memoryRef.current.noteResults({ source: o.action, label: answers[i]?.title || null, symbols: syms })
       })
       answers.forEach((a, i) => push(views[i] ? { role: 'agent', present: views[i], text: a.text || '' } : { role: 'agent', text: a.text, table: a.table || null, link: a.link || null }))
-      const text = answers.map(a => a.text).filter(Boolean).join('\n\n')
+      // ⛔ W3 review B3: an answer whose capability says `storedAs` (journal.reviewTrades) is SHOWN now but never
+      // stored as text or as a view — the transcript keeps only that capability's value-free marker
+      const markerOf = (i) => getCapability(queries[i]?.action)?.storedAs || null
+      const text = answers.map((a, i) => markerOf(i) || a.text).filter(Boolean).join('\n\n')
       // the member's transcript keeps the views (restored on reload); never read into a model request
-      const saved = compactViews(views.filter(Boolean))
+      const saved = compactViews(views.filter((v, i) => v && !markerOf(i)))
       // ⛔ LOCAL-RESULT BOUNDARY: the member's transcript keeps the answer; the row says it is LOCAL
       // ONLY (and what was asked — args, never values), so the server never replays it to a model.
       // The server also decides by the action name (turn.LOCAL_ONLY_ACTIONS); this is the second signal.

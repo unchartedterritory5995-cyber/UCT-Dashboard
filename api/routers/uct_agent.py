@@ -578,10 +578,14 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     v2 = None
     # (a COACH turn stays on v1: its prompt block and server guard live there -- W3 review C1)
     from api.services.uct_agent import coach as agent_coach
+    turn_context = body.context
+    if agent_coach.is_coach_turn(turn_context):
+        # W3 review: the journal review rides to the model only with the consent the SERVER stored for this chat
+        turn_context = agent_coach.with_stored_consent(turn_context, agent_coach.stored_consent(uid, cid))
     if on_event is not None and planner_v2() and headline is None and not body.reroute and not agent_coach.is_coach_turn(body.context):
         token, v2 = _v2_register(uid)
     try:
-        out = agent.run_turn(message=body.message, context=body.context, history=history,
+        out = agent.run_turn(message=body.message, context=turn_context, history=history,
                              capabilities=body.capabilities,
                              pending=body.pending, recent_outcome=body.recentOutcome,
                              manifest_version=body.manifestVersion, routing=body.routing,
