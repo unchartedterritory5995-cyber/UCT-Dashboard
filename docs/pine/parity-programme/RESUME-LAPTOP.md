@@ -39,7 +39,7 @@ Landing rule:
 | 1 | Language scoreboard | `docs/pine-language-coverage` @ 397ecee294 | review GO (2 lows folded); short landing PASS on 1ae3bb9540 (gate 46, hygiene, 3 vitest files) | no bump |
 | 2 | W4 T1 classifier honesty | `feat/pine-w4-t1-wall-report` @ f9b85fb442 | review GO; PR body at the end of this table; short landing PASS (gate 46, hygiene, 142 vitest files / 2021 tests) | no bump |
 | 3 | W4 T4 conditional arms | `feat/pine-w4-t4-conditional-arms` @ 311fb46c7a | review GO (mediums folded into docs/pine/evidence/2026-11-03-w4-t4/EVIDENCE.md); short landing PASS (gate 52 incl. version gate, hygiene, 144 files / 2062 tests) | **already bumped 5->6 on the branch** |
-| 4 | W4 T3 text constants | `feat/pine-w4-t3-session-text` @ f7fbf49425 | review GO with must-fix M1 (tuple shadow read the outer literal). The fix round is pushed; its delta re-review and final-tip are pending | bump to 7 at merge (needs a 6->7 commit after T4 merges) |
+| 4 | W4 T3 text constants | `feat/pine-w4-t3-session-text` @ 572376edf6 | review GO with must-fix M1; M1 FIXED (2 guards, each mutation-proved; 10 new rails; delta rails 81/81, 88/88, 38/38; L1 done; EVIDENCE.md written). Pending: final-tip (exact command at the end of EVIDENCE.md) + delta Opus re-review | bump to 7 at merge (needs a 6->7 commit after T4 merges) |
 
 W4 T1 PR text: "Refusal names only; nothing newly draws. No SCRIPT_ENGINE_VERSION bump. 22/22 rail
 (6 fail on master). Mutations 11 killed, 1 equivalent survivor (null version). measure-pair:
