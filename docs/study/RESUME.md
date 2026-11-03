@@ -817,6 +817,30 @@ checks: scratchpad local_study/pw_study.py (LAB_BASE=http://127.0.0.1:5232, /lab
 Feedback: walkthrough/feedback.jsonl -> local_study/ingest_feedback.py -> owner_verdicts.jsonl (pass "workbench").
 
 NEXT: wait for batch-3 scores, ingest, commit, analyze, build round 4 (batch 4). Parked work unchanged (PR #559 open).
+## 2026-11-02 (late night): WORKBENCH ROUND 4 LIVE (pieces 16-20), all on the real Chart widget
+
+Round-3 verdicts (verbatim in owner_verdicts.jsonl, commit 45b2681df9): widget 69 ("Honestly love it"); loop 2 (no words);
+answer 2 (entry = over previous day high OR day-1 Kicker ORB on the 30-minute; numbers for all; simpler presentation);
+replay 2 (starts too far back; play must teach); finish 2 then OKAY ("could be better and cooler and more interactive").
+
+Round 4 (batch 4 in scratchpad walkthrough/pieces.json): lab/WidgetChart.jsx now takes `bars` (barsOverride, no fetch,
+tap works) or `cutoff` (real data path), `tf`, `onBarTap`, `defaultBars`.
+- 16 Piece16LoopWidget: the non-leading loop on the widget (NAME/FIND/ENTER; ENTER = 30-min ORB day 1 or PDH).
+- 17 Piece17AnswerV4: two tactics with numbers. Day-1 30-minute ORB on the REAL 30-minute chart (bars fetched once
+  from the site's own /api/bars/JBI?tf=30 through the owner's signed-in production tab, saved to
+  walkthrough/data/JBI_2023-12-14_30m.json; the pod's bars.db has no intraday before 2026-09-28 for any Kicker day);
+  opening range = first regular 30-min bar (11.20/10.82), break at 10:00 ET; Day-2 PDH on the daily. Stops = the
+  structure's low, marked proposed (owner said entry AND stop were not proper; the house stop is still unstated).
+- 18 Piece18ReplayV4: starts 10 bars before the red day; per-bar captions from measured facts (change, vs EMA 9/20,
+  widest range in 10, close at high/low); house rule at the two stops; runs 20 on; default speed 900 ms.
+- 19 Piece19FinishV4: the real last question -> sheet -> finish with level bar + level-up, flame, next lesson flips
+  open, misses open their own chart.
+- 20 Piece20Path: the home / lesson path (Foundations then Method nodes, goal ring, streak, tap -> lesson card).
+Known cosmetic: the widget's vertical legend overlaps the first candles in compact density; the time axis shows a
+far-right year label from the chart's future whitespace in barsOverride mode.
+
+NEXT: batch-4 scores -> ingest -> round 5. Open rulings to get from the owner: house STOP for ORB and for PDH;
+ticker shown or hidden on a question; Foundations-first or setups-first on the path.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.

@@ -16,8 +16,18 @@ import Piece12Questions from './pieces/Piece12Questions'
 import Piece13AnswerV3 from './pieces/Piece13AnswerV3'
 import Piece14ReplayV3 from './pieces/Piece14ReplayV3'
 import Piece15FinishV3 from './pieces/Piece15FinishV3'
+import Piece16LoopWidget from './pieces/Piece16LoopWidget'
+import Piece17AnswerV4 from './pieces/Piece17AnswerV4'
+import Piece18ReplayV4 from './pieces/Piece18ReplayV4'
+import Piece19FinishV4 from './pieces/Piece19FinishV4'
+import Piece20Path from './pieces/Piece20Path'
 
 const PIECES = {
+  16: Piece16LoopWidget,
+  17: Piece17AnswerV4,
+  18: Piece18ReplayV4,
+  19: Piece19FinishV4,
+  20: Piece20Path,
   11: Piece11Widget,
   12: Piece12Questions,
   13: Piece13AnswerV3,
