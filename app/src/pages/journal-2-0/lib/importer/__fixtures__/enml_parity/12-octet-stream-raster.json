@@ -1,0 +1,54 @@
+{
+  "enml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Octet PNG:</div><en-media hash=\"9cf11463434d3f4c630afecc396501c8\" type=\"application/octet-stream\"/><div>Octet SVG:</div><en-media hash=\"f951b382d6bf89942d5b6a116cf26a2c\" type=\"application/octet-stream\"/></en-note>",
+  "id": "12-octet-stream-raster",
+  "note": {
+    "created": "20260101T090000Z",
+    "guid": "11111111-0000-4000-8000-000000000012",
+    "notebook": "Trading",
+    "notes": {},
+    "resources": [
+      {
+        "data_b64": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGM8uUidgYGBiQEMABOkAZbubr9wAAAAAElFTkSuQmCC",
+        "hash": "9cf11463434d3f4c630afecc396501c8",
+        "mime": "application/octet-stream",
+        "name": "shot.png"
+      },
+      {
+        "data_b64": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiLz48L3N2Zz4=",
+        "hash": "f951b382d6bf89942d5b6a116cf26a2c",
+        "mime": "application/octet-stream",
+        "name": "logo.svg"
+      }
+    ],
+    "title": "Octet raster"
+  },
+  "server": {
+    "blocks": [
+      {
+        "text": "Octet PNG:",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "Octet SVG:",
+        "type": "paragraph"
+      },
+      {
+        "text": "[file: logo.svg]",
+        "type": "attachmentChip"
+      }
+    ],
+    "chips": [
+      "logo.svg"
+    ],
+    "images": [
+      "9cf11463434d3f4c630afecc396501c8"
+    ],
+    "links": [],
+    "notices": [],
+    "task_checked": []
+  }
+}

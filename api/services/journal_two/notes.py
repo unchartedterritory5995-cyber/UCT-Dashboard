@@ -1125,9 +1125,7 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
         # name, with no idea what to do about it. One raise site fixes
         # both surfaces; a per-surface translation would fix neither for
         # the other and would be a second authority over this sentence.
-        raise NoteValidationError(
-            "This note is too long to save as one page. "
-            "Split it into two or more notes and try again.")
+        raise NoteValidationError(TOO_LONG_BODY_DETAIL)
     # ⛔ Wave 10 (10C): never STORE a note no door can serve back -- see MAX_BODY_DEPTH.
     if _json_depth_exceeds(raw, MAX_BODY_DEPTH):
         raise NoteValidationError(TOO_DEEP_BODY_DETAIL)
@@ -1148,6 +1146,13 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
 # goes red rather than notes going unreadable. Notes already stored deeper than this
 # still 500 on read -- that half is the router's (the 10C report names it).
 MAX_BODY_DEPTH = 97
+
+#: The sentence a body over MAX_BODY_JSON_BYTES is refused with; it reaches a member verbatim (see
+#: its raise site in `_validate_body_json`). Named so the sync engine can recognise it (Plan E Task 9
+#: fix round 2, m1) without restating it.
+TOO_LONG_BODY_DETAIL = (
+    "This note is too long to save as one page. "
+    "Split it into two or more notes and try again.")
 
 TOO_DEEP_BODY_DETAIL = (
     "This note has too many lists, quotes or toggles nested inside each other to "
@@ -1330,6 +1335,13 @@ def validate_title(raw: Any) -> str:
 
 
 # ── Import support ───────────────────────────────────────────────────────────
+
+def import_title(raw: Any) -> str:
+    """The title `import_confirm` stores: stripped, "Untitled" when empty, cut to
+    `MAX_TITLE_CHARS`. Public for the connectors' `.enex` adoption (Plan E Task 8), which compares a
+    live title through this same rule."""
+    return (raw or "Untitled").strip()[:MAX_TITLE_CHARS]
+
 
 def _import_payload_hash(note: dict) -> str:
     """Compute a SHA256 hash of the note's immutable content for fingerprinting."""
@@ -1587,7 +1599,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 _refuse_unbuildable(body_json)
                 body_plain = extract_plain_text(body_json)
                 first_image = _extract_first_image(body_json)
-                title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]
+                title = import_title(n.get("title"))
                 tags = _validate_tags(n.get("tags"))
                 ticker = _validate_ticker(n.get("ticker"))
                 h = _import_payload_hash(n)
