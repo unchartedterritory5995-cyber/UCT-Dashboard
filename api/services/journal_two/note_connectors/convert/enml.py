@@ -429,8 +429,11 @@ def _rule_refuse_foreign_media(root: _Node, notices: _Notices) -> None:
     """Task 3 review I4. Runs FIRST, before the converter creates any media of its own, so every
     `<img>` and placeholder href found here was written in the note (ENML has no `<img>`;
     Evernote's images are `<en-media>`). None of them becomes a media ref: the only refs this
-    converter emits are `evernote-res://`, and Task 5's `fetch_media` refuses any other.
-      - an `<img>` with a web src -> an `unsupported` notice whose `sourceUrl` opens the original;
+    converter emits are `evernote-res://{guid}/{md5}` and web hotlinks, the two Task 5's
+    `fetch_media` accepts (a resource via `get_attachment`; a hotlink copied in through the base
+    provider's guarded path, as every other connector copies one).
+      - an `<img>` with an http(s) src -> kept, a hotlink image the engine copies in (program
+        rule: hotlinked images are copied in); `mddoc` registers it, ref = the URL;
       - any other `<img>` (`javascript:`, `vbscript:`, `data:`, `file:`, relative, empty, or a
         forged `import-ref://`) -> an `unsafe` notice;
       - an `<a>` whose href is one of our placeholder prefixes -> its content."""
@@ -441,8 +444,7 @@ def _rule_refuse_foreign_media(root: _Node, notices: _Notices) -> None:
             src = (n.attrs.get("src") or "").strip()
             url = None if src.lower().startswith(placeholders) else _web_image_url(src)
             if url:
-                name = urlsplit(url).path.rstrip("/").rsplit("/", 1)[-1] or None
-                return [notices.placeholder("unsupported", name=name, source_url=url)]
+                return [_Node("img", {"src": url})]  # every other attribute dropped
             return [notices.placeholder("unsafe")]
         if n.tag == "a" and (n.attrs.get("href") or "").strip().lower().startswith(placeholders):
             return list(n.children)
@@ -818,8 +820,15 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     names = {e["ref"]: e["name"] for e in res.unique if e["kind"] == "file"}
     _post_pass(result["doc"], names, notices)
 
-    # Only `evernote-res://` refs, by construction (I4): every foreign <img> and placeholder href
-    # was refused before this, so the walker registered nothing of its own worth fetching.
+    # Two kinds of ref only, by construction (I4 + the hotlink ruling): the note's resources
+    # (`evernote-res://`), then the web hotlinks the walker registered. Everything else was
+    # refused before the walk; the filter below is the second guard.
     media = [{"ref": e["ref"], "kind": e["kind"], "name": e["name"], "mime": e["mime"]}
              for e in res.unique]
+    refs = {m["ref"] for m in media}
+    for entry in result["media"]:
+        ref = entry.get("ref")
+        if isinstance(ref, str) and ref not in refs and _web_image_url(ref):
+            refs.add(ref)
+            media.append(entry)
     return {"doc": result["doc"], "media": media, "links": result["links"]}

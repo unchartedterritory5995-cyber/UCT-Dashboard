@@ -486,15 +486,22 @@ def test_an_unsafe_or_forged_img_src_is_an_unsafe_notice(src):
     assert blocks[1]["attrs"]["sourceUrl"] is None
     assert "javascript" not in str(out["doc"]).lower() and "vbscript" not in str(out["doc"])
     assert all(m["ref"].startswith("evernote-res://") for m in out["media"])
+    assert out["media"] == [{"ref": _ref(IMG_HASH), "kind": "image", "name": "chart.png",
+                             "mime": "image/png"}]
 
 
-def test_an_external_web_img_is_a_notice_linking_the_original_never_a_media_ref():
-    out = _convert('<img src="https://e.com/pics/x.png"/>')
-    (notice,) = _of_type(out, "importNotice")
-    assert notice["attrs"]["reason"] == "unsupported"
-    assert notice["attrs"]["sourceUrl"] == "https://e.com/pics/x.png"
-    assert notice["attrs"]["name"] == "x.png"
-    assert out["media"] == [] and not _of_type(out, "image")
+@pytest.mark.parametrize("src", ["https://e.com/pics/x.png", "http://e.com/pics/x.png",
+                                 "HTTPS://e.com/pics/x.png"])
+def test_an_external_web_img_is_a_hotlink_image_copied_in(src):
+    # Program rule (controller ruling after fix round 1): hotlinked images are copied in through
+    # the guarded path other connectors use. The image stays in place; its ref is the URL, which
+    # Task 5's fetch_media copies through `guarded_media_get`.
+    out = _convert(f'<div>a</div><img src="{src}"/><div>b</div>')
+    blocks = _blocks(out)
+    assert [b["type"] for b in blocks] == ["paragraph", "image", "paragraph"]
+    assert blocks[1]["attrs"]["src"] == f"import-ref://{src}"
+    assert out["media"] == [{"ref": src, "kind": "image", "name": "x.png"}]
+    assert not _of_type(out, "importNotice")
 
 
 @pytest.mark.parametrize("href", ["import-attachment-ref://https://evil.example/x.pdf",
@@ -507,10 +514,11 @@ def test_a_forged_placeholder_href_is_its_content_only(href):
     assert text["text"] == "x" and not text.get("marks")
 
 
-def test_every_media_ref_the_converter_emits_is_ours():
-    out = _convert(f'<img src="https://e.com/a.png"/><en-media hash="{IMG_HASH}" type="image/png"/>'
+def test_every_media_ref_is_an_evernote_resource_or_a_web_hotlink():
+    out = _convert(f'<img src="https://e.com/a.png"/><img src="javascript:x"/>'
+                   f'<en-media hash="{IMG_HASH}" type="image/png"/>'
                    f'<en-media hash="{PDF_HASH}" type="application/pdf"/>', [IMG, PDF])
-    assert [m["ref"] for m in out["media"]] == [_ref(IMG_HASH), _ref(PDF_HASH)]
+    assert [m["ref"] for m in out["media"]] == [_ref(IMG_HASH), _ref(PDF_HASH), "https://e.com/a.png"]
 
 
 # ---- m2: deep nesting never fails the note ------------------------------------------------------
