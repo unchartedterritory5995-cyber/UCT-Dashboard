@@ -55,6 +55,19 @@
     {"name": "a closed details still imports open, its summary marked", "html": "<details><summary>S <b>b</b></summary>x</details>", "shape": "doc(toggle(toggleSummary('S ', 'b'), toggleContent(paragraph('x'))))", "attrs": ["toggle open=true"]},
     {"name": "a details inside an aside", "html": "<aside><details><summary>T</summary><p>in</p></details></aside>", "shape": "doc(callout(toggle(toggleSummary('T'), toggleContent(paragraph('in')))))", "attrs": ["callout emoji=default variant=null", "toggle open=true"]}
   ],
+  "inline_vectors_doc": "D3 follow-up (difference 3): inline raw HTML inside a markdown paragraph renders on both lanes, sanitised: marks and links through the one allow-list, unknown tags unwrap to their text, script/style content dropped, never literal tag text. Server: md_to_tiptap. Client: mdToHtml then htmlToNote. `shape` spells each text run as its text in single quotes followed by its marks in brackets, sorted, `+`-joined, a link as `link=<href>` (no brackets when unmarked).",
+  "inline_vectors": [
+    {"name": "the mark tags", "md": "a <b>b</b> <strong>s</strong> <i>i</i> <em>e</em> <u>u</u> <s>s</s> <del>d</del> <code>c</code> <mark>m</mark> z", "shape": "doc(paragraph('a ', 'b'[bold], ' ', 's'[bold], ' ', 'i'[italic], ' ', 'e'[italic], ' ', 'u'[underline], ' ', 's'[strike], ' ', 'd'[strike], ' ', 'c'[code], ' ', 'm'[highlight], ' z'))"},
+    {"name": "unknown inline tags unwrap to their text", "md": "a <sub>x</sub> <sup>y</sup> <span>sp</span> <kbd>k</kbd> <small>sm</small> <abbr>ab</abbr> <q>q</q> z", "shape": "doc(paragraph('a x y sp k sm ab q z'))"},
+    {"name": "a raw link through the allow-list; a refused or bare anchor is its text", "md": "a <a href=\"https://e.com\">l</a> <a href=\"javascript:x\">j</a> <a>na</a> z", "shape": "doc(paragraph('a ', 'l'[link=https://e.com], ' j na z'))"},
+    {"name": "a line break; a word-break hint is nothing", "md": "a <br> b <wbr> c", "shape": "doc(paragraph('a ', hardBreak, 'b c'))"},
+    {"name": "script and style lose their content", "md": "a <script>x</script> b <style>y</style> c", "shape": "doc(paragraph('a b c'))"},
+    {"name": "an unclosed tag marks to the paragraph end", "md": "a <b>unclosed z", "shape": "doc(paragraph('a ', 'unclosed z'[bold]))"},
+    {"name": "a stray closing tag is nothing", "md": "a </b> stray z", "shape": "doc(paragraph('a stray z'))"},
+    {"name": "a comment is nothing", "md": "a <!-- c --> b", "shape": "doc(paragraph('a b'))"},
+    {"name": "nested tags compose", "md": "a <b><i>bi</i></b> c", "shape": "doc(paragraph('a ', 'bi'[bold+italic], ' c'))"},
+    {"name": "a raw tag inside markdown emphasis", "md": "**a <i>b</i> c**", "shape": "doc(paragraph('a '[bold], 'b'[bold+italic], ' c'[bold]))"}
+  ],
   "unsafe_image_vectors_doc": "D3 follow-up (difference 1): a raw <img> whose src the policy refuses as UNSAFE leaves the same visible notice on both lanes, never a silent drop. Server: md_to_tiptap(md, unsafe_image_notice=True), its importNotice nodes. Client: parseImport with the generic adapter, htmlToNote, each image's media item failure (its name, else the image's alt). `notices` = [reason, name] in document order.",
   "unsafe_image_vectors": [
     {"name": "a javascript src in a block", "md": "a\n\n<div><img src=\"javascript:alert(1)\" alt=\"pic\"></div>\n\nb", "notices": [["unsafe", "pic"]]},

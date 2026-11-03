@@ -787,6 +787,18 @@ def _link_href(href: str, ctx: _Ctx) -> str:
 
 # A raw tag that is ONE `<img ...>` or one opening `<a ...>`, nothing else.
 _RAW_TAG_RE = re.compile(r"^<(img|a)(\s[^<>]*)?/?>$", re.IGNORECASE)
+#: D3 follow-up (difference 3): one inline raw tag, opening or closing (`<b>`, `</b>`, `<br/>`).
+#: A comment, declaration or processing instruction does not match and renders as nothing.
+_INLINE_TAG_RE = re.compile(r"^<(/?)([A-Za-z][A-Za-z0-9-]*)(?:\s[^>]*?)?(/?)>$", re.DOTALL)
+#: The inline tags with a mark in the editor's schema, as its parse rules read them.
+_INLINE_MARK_TAGS = {
+    "b": "bold", "strong": "bold", "i": "italic", "em": "italic", "u": "underline",
+    "s": "strike", "del": "strike", "strike": "strike", "code": "code", "mark": "highlight",
+}
+#: HTML's whitespace, the characters the client's parse collapses.
+_HTML_SPACE_CHARS = " \t\r\n\f"
+#: Inline tags whose content is dropped with them, as the client's sanitiser drops it.
+_INLINE_SKIPPED_TAGS = frozenset({"script", "style"})
 #: The only tags a raw markdown HTML block may hold to be converted (Task 13).
 _RAW_HTML_BLOCK_TAGS = frozenset({"img", "a"})
 
@@ -918,8 +930,23 @@ def _inline_nodes(
     items: list[dict[str, Any]] = []
     marks: list[dict[str, Any]] = []
     raw_links: list[bool] = []  # one entry per open raw `<a>`: did it push a mark?
+    open_tags: list[tuple[str, str | None]] = []  # open raw inline tags: (name, mark pushed)
+    skip = 0  # inside a raw `<script>`/`<style>`: its content is dropped, as the client does
+    eat_space = False  # a raw tag just rendered as nothing, or a raw `<br>`: see push_text
 
     def push_text(text: str, extra: list[dict[str, Any]] | None = None) -> None:
+        nonlocal eat_space
+        if eat_space and text:
+            # D3 follow-up (difference 3): where a raw tag rendered as nothing (or a raw
+            # `<br>` broke the line), the whitespace either side is ONE space, or none after
+            # the break, as the client's HTML parse collapses it.
+            prev = items[-1] if items else None
+            after_break = prev is not None and prev.get("type") == "hardBreak"
+            after_space = (prev is not None and prev.get("type") == "text"
+                           and prev["text"][-1:] in _HTML_SPACE_CHARS)
+            if after_break or after_space:
+                text = text.lstrip(_HTML_SPACE_CHARS)
+            eat_space = False
         if text == "":
             return
         node: dict[str, Any] = {"type": "text", "text": text}
@@ -937,6 +964,8 @@ def _inline_nodes(
             items.append(node)
 
     for idx, child in enumerate(children):
+        if skip and child.type != "html_inline":
+            continue  # inside a raw <script>/<style>
         if child.type == "text":
             content = child.content or ""
             if lstrip_first and idx == 0:
@@ -1002,33 +1031,61 @@ def _inline_nodes(
             # Plan A Task 13 (§5.2 polish): a raw `<img>` and a raw `<a href>`…`</a>`
             # pair have homes too, the image node and the link mark, through the HTML
             # walker's own rules (`_html_image_node`, `_link_href`, the one allow-list).
-            tag = (child.content or "").strip().lower()
+            # D3 follow-up (difference 3): EVERY other inline tag renders as the client's
+            # parse renders it (`_inline_html_tag` below), never as literal tag text.
             raw = _raw_inline_tag(child.content or "")
-            if tag == "<mark>":
-                marks.append({"type": "highlight"})
-            elif tag == "</mark>":
-                _pop_mark(marks, "highlight")
-            elif raw is not None and raw.tag == "img":
+            eat_space = raw is None or raw.tag != "img"
+            if skip:
+                if _INLINE_TAG_RE.match((child.content or "").strip()) is not None:
+                    _close, _name, _ = _INLINE_TAG_RE.match((child.content or "").strip()).groups()
+                    if _close and _name.lower() in _INLINE_SKIPPED_TAGS:
+                        skip -= 1
+                continue
+            if raw is not None and raw.tag == "img":
                 node = _html_image_node(raw, ctx)
                 if node is None:
-                    push_text(child.content or "")
+                    push_text("[unsupported image]")
                 else:
                     items.append(node)
             elif raw is not None and raw.tag == "a":
                 href = _link_href(_destination_as_written((raw.attrs.get("href") or "").strip()), ctx)
-                opened = _is_allowed_link_href(href) and not href.startswith(ATTACHMENT_REF_PREFIX)
+                # An `<a>` with no href is no link (the editor's rule is `a[href]`).
+                opened = (bool((raw.attrs.get("href") or "").strip()) and _is_allowed_link_href(href)
+                          and not href.startswith(ATTACHMENT_REF_PREFIX))
                 if opened:
                     if href.startswith(LINK_PREFIX):
                         ctx.links.append(href[len(LINK_PREFIX):])
                     marks.append({"type": "link", "attrs": {"href": href}})
                 raw_links.append(opened)
-            elif tag == "</a>" and raw_links:
+            elif (child.content or "").strip().lower() == "</a>":
                 # Only a `</a>` closing a RAW `<a>` pops: a stray one never strips the
                 # mark of a markdown link it happens to sit inside.
-                if raw_links.pop():
+                if raw_links and raw_links.pop():
                     _pop_mark(marks, "link")
             else:
-                push_text(child.content or "")
+                m = _INLINE_TAG_RE.match((child.content or "").strip())
+                if m is None:
+                    continue  # a comment, declaration or processing instruction: nothing
+                close, name, _self = m.groups()
+                name = name.lower()
+                mark = _INLINE_MARK_TAGS.get(name)
+                if name in _INLINE_SKIPPED_TAGS:
+                    skip += 0 if close else 1
+                elif name == "br" and not close:
+                    items.append({"type": "hardBreak"})
+                elif close:
+                    # The most recent open tag of that name closes; a stray close is nothing.
+                    for k in range(len(open_tags) - 1, -1, -1):
+                        if open_tags[k][0] == name:
+                            if open_tags[k][1] is not None:
+                                _pop_mark(marks, open_tags[k][1])
+                            del open_tags[k]
+                            break
+                elif not _self:
+                    if mark is not None:
+                        marks.append({"type": mark})
+                    open_tags.append((name, mark))
+                # Any other tag (`<span>`, `<sub>`, `<kbd>`...) unwraps: its text stays.
 
         else:
             # Unknown inline construct -> degrade to its literal text
@@ -1092,7 +1149,7 @@ _HTML_KNOWN_TAGS = frozenset({
     "table", "tr", "td", "th",
     "pre", "code",
     "blockquote", "hr", "br", "img", "a",
-    "b", "strong", "i", "em", "s", "del", "strike",
+    "b", "strong", "i", "em", "s", "del", "strike", "u", "mark",
     # D3 follow-up (difference 2): the client's callout and toggle (`convert.js::
     # mapCalloutsAndToggles`); `_html_aside_callout` / `_html_details_toggle` below.
     "aside", "details", "summary",
@@ -1112,6 +1169,9 @@ _HTML_INLINE_MARK_TAGS = {
     "i": "italic", "em": "italic",
     "s": "strike", "del": "strike", "strike": "strike",
     "code": "code",
+    # D3 follow-up (difference 3): the editor's underline and highlight marks, as its parse
+    # and the markdown lane's inline tags (`_INLINE_MARK_TAGS`) read them.
+    "u": "underline", "mark": "highlight",
 }
 
 

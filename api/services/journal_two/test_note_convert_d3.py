@@ -427,3 +427,28 @@ def test_the_default_emoji_is_the_callout_nodes_own():
     src = (_HTML_VECTORS_PATH.parents[2] / "calloutNode.js").read_text(encoding="utf-8")
     m = re.search(r"emoji:\s*\{\s*default:\s*'([^']+)'", src)
     assert m is not None and m.group(1) == CALLOUT_DEFAULT_EMOJI
+
+
+# ── follow-up (difference 3): inline raw HTML renders, sanitised ─────────────
+
+_INLINE_VECTORS = json.loads(_HTML_VECTORS_PATH.read_text(encoding="utf-8"))["inline_vectors"]
+
+
+def _shape_marks(node: dict[str, Any]) -> str:
+    if node["type"] == "text":
+        marks = sorted(
+            f"link={m['attrs']['href']}" if m["type"] == "link" else m["type"]
+            for m in node.get("marks") or [])
+        return f"'{node['text']}'" + (f"[{'+'.join(marks)}]" if marks else "")
+    kids = node.get("content") or []
+    return node["type"] + (f"({', '.join(_shape_marks(k) for k in kids)})" if kids else "")
+
+
+@pytest.mark.parametrize("v", _INLINE_VECTORS, ids=[v["name"] for v in _INLINE_VECTORS])
+def test_shared_inline_html_vectors(v):
+    assert _shape_marks(md_to_tiptap(v["md"])["doc"]) == v["shape"]
+
+
+def test_the_html_walker_reads_underline_and_highlight_as_the_client_does():
+    doc = html_to_tiptap("<p>a <u>u</u> <mark>m</mark> z</p>")["doc"]
+    assert _shape_marks(doc) == "doc(paragraph('a ', 'u'[underline], ' ', 'm'[highlight], ' z'))"
