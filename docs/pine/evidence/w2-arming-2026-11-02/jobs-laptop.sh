@@ -6,6 +6,16 @@
 #   S=/c/Users/pgosz/uct-worktrees/_resume-laptop/runs/w2 bash docs/pine/evidence/w2-arming-2026-11-02/jobs-laptop.sh
 #
 # Logs go to $S. The committed copies in this directory are trimmed of colour codes.
+#
+# What the run actually did differently from this list (the commands are the same, the plumbing is not):
+#  - steps 4 to 6 were launched from a small driver, each through a three-line wrapper; the build wrapper refuses to start
+#    below 1,800 MB of free RAM (exit 75) and the driver retried it every five minutes;
+#  - the census (step 4) ran twice: the first attempt failed on its own assertion and wrote nothing (census-first-run.log),
+#    the instrument was fixed (commit 4a884aff97), the second attempt passed (census-run.log);
+#  - the two probes (step 6) were queued as two separate lock waiters, so that the lock race had more than one waiter of ours;
+#  - the pytest rails (step 3) never got the lock on the first-merge tree; they ran for the first time on the final tree,
+#    inside final-job.sh (one lock hold: the parity rail, J2 and the lane rails in one vitest run, the pytest rails,
+#    the deploy-gate and census-detector pytest, then the two harness runs of jobs.sh J3a and J3b).
 source /c/Users/pgosz/uct-worktrees/pine-handoff/docs/pine/parity-programme/scripts/env-laptop.sh
 S=${S:?set S to a scratch dir (a bash path)}
 SW=$(cygpath -m "$S")                       # the same directory as C:/... for native programs
