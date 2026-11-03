@@ -342,3 +342,28 @@ async def test_audit_f1_a_markdown_image_alias_shows_the_blob_its_embed_uploaded
     assert _of_type(note["doc"], "importNotice") == []
     assert note["pending"] == 0
     assert not any(s in t for t in _member_texts(result, source_id) for s in _STALE)
+
+
+@pytest.mark.parametrize("version,listed", [("0.2.0", True), (None, False)])
+async def test_audit_f2_an_image_the_plugin_did_not_send_says_update_the_plugin(client, version, listed):
+    """F1/F2: a markdown image no ref names and no other ref resolves. With 0.2.0 (a list,
+    without it) and with a plugin that reports no version (no list, an extension the no-list
+    pass does not read as a file): the note says the plugin did not send it and to update,
+    Recent syncs says the same sentence, and nothing the member reads says the plugin sends
+    no files or that the image "can't be shown here"."""
+    token, source_id = _connect(client)
+    _ingest(client, token, "x ![](att/gone.webp?v=1) y" if listed else "x ![](att/gone) y",
+            [] if listed else None, version=version)
+    result = await sync_engine.sync_source(source_id, full=True, manual=True)
+
+    note = _stored_note()
+    [notice] = _of_type(note["doc"], "importNotice")
+    name = "gone.webp" if listed else "gone"
+    assert notice["attrs"]["reason"] == "obsidian-plugin-outdated"
+    assert note["pending"] == 0  # final: nothing to retry until the plugin sends it
+    sentence = (f"{name} wasn't synced. Update the UCT Notebook Sync plugin "
+                "in Obsidian to bring images and files over.")
+    assert notice["attrs"]["name"] == name
+    assert [f["reason"] for f in _latest_log_failures(source_id)] == [sentence]
+    texts = _member_texts(result, source_id)
+    assert not any(s in t for t in texts for s in _STALE), texts

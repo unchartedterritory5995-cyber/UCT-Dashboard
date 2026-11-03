@@ -615,6 +615,73 @@ async def test_fetch_media_refuses_a_non_https_reference(db):
         await provider.fetch_media({}, "Notes/attachments/file.pdf")
 
 
+#: What the provider said before plugin 0.2.0 sent files; true then, false since (audit F2).
+_STALE_COPY = ("does not transfer", "only note text", "not synced by the obsidian push transport",
+               "public https link")
+
+
+def _says_nothing_stale(exc):
+    for text in (str(exc), getattr(exc, "reason", "")):
+        assert not any(s in text.lower() for s in _STALE_COPY), text
+
+
+def _set_version(version):
+    conn = auth_db.get_connection()
+    conn.execute("UPDATE j2_obsidian_devices SET plugin_version = ?", (version,))
+    conn.commit()
+    conn.close()
+
+
+async def test_a_local_file_the_plugin_did_not_send_says_why_for_each_case(db, monkeypatch):
+    """Live audit 2026-11-03, F2: a vault path reaching `fetch_media` is a file the plugin did
+    not send. What the member and the log read says WHICH case it is, and never that the
+    plugin sends no files (0.2.0 does). The notice reason rides the error's TYPE
+    (`NoteConnAttachmentNotSent.notice_reason`), never its wording."""
+    from api.services.journal_two.note_connectors import engine
+
+    _device("user-a", "vault-1")
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+
+    # Plugin 0.2.0+: the file was not in the list it sent with the note.
+    _set_version("0.2.0")
+    with pytest.raises(errors.NoteConnAttachmentNotSent) as exc:
+        await provider.fetch_media({}, "att/img.png")
+    assert exc.value.notice_reason == "obsidian-plugin-outdated"
+    assert engine.media_failure_reason(exc.value) == "obsidian-plugin-outdated"
+    assert str(exc.value) == ("'att/img.png' was not in the list of files UCT Notebook Sync "
+                              "0.2.0 sent with this note, so its bytes never reached the server")
+    _says_nothing_stale(exc.value)
+
+    # Older than 0.2.0, or no version reported: that plugin sends no files at all.
+    for version in ("0.1.4", None):
+        _set_version(version)
+        with pytest.raises(errors.NoteConnAttachmentNotSent) as exc:
+            await provider.fetch_media({}, "att/img.png")
+        assert engine.media_failure_reason(exc.value) == "obsidian-plugin-outdated"
+        assert str(exc.value) == ("'att/img.png' was not sent: this vault's UCT Notebook Sync "
+                                  "plugin is older than 0.2.0, which sends no images or files")
+        _says_nothing_stale(exc.value)
+
+    # The attachment layer off for this member: the plugin was told not to send files.
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "0")
+    with pytest.raises(errors.NoteConnUnsupported) as exc:
+        await provider.fetch_media({}, "att/img.png")
+    assert not isinstance(exc.value, errors.NoteConnAttachmentNotSent)
+    assert engine.media_failure_reason(exc.value) == "unsupported"
+    assert str(exc.value) == ("'att/img.png' was not sent: image and file sync from Obsidian "
+                              "is not turned on for this account")
+    _says_nothing_stale(exc.value)
+
+
+async def test_a_listed_file_whose_upload_has_not_arrived_says_so(db):
+    """F2, the fourth case: the plugin listed the file but its blob is not staged (yet)."""
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    with pytest.raises(errors.NoteConnTransient) as exc:
+        await provider.fetch_media({}, "obsidian-att:" + "d" * 64 + "/chart.png")
+    assert str(exc.value) == ("the plugin listed this file but its upload has not reached the "
+                              "server yet; it is tried again on the next sync")
+    assert exc.value.status == 404
+
 
 # ---------------------------------------------------------------------------
 # ⛔⛔ session-audit.md A1 — the honest markdown-side boundary. Nothing

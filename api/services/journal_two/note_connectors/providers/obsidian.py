@@ -798,6 +798,17 @@ FILE_SCHEME = "obsidian-file:"
 NOTICE_SCHEME = "obsidian-notice:"
 OUTDATED_REASON = "obsidian-plugin-outdated"
 UNAVAILABLE_REASON = "obsidian-attachments-unavailable"
+#: `fetch_media`'s failure text, one per case (live audit 2026-11-03, F2). It is the engine's
+#: per-note failure string (the server log, the sync log row's `error`); the member's notice
+#: reads the reason's sentence from the copy table, never this.
+ATTACHMENTS_OFF = ("{ref!r} was not sent: image and file sync from Obsidian is not turned on "
+                   "for this account")
+PLUGIN_TOO_OLD = ("{ref!r} was not sent: this vault's UCT Notebook Sync plugin is older than "
+                  "0.2.0, which sends no images or files")
+NOT_IN_LIST = ("{ref!r} was not in the list of files UCT Notebook Sync {version} sent with this "
+               "note, so its bytes never reached the server")
+UPLOAD_NOT_ARRIVED = ("the plugin listed this file but its upload has not reached the server "
+                      "yet; it is tried again on the next sync")
 _ATT_IMAGE_EXTS = frozenset("png jpg jpeg gif webp bmp svg heic heif tif tiff avif".split())
 #: A ref's non-ok status -> the notice reason written into `importNotice.attrs.reason`.
 _STATUS_REASONS = {
@@ -2030,8 +2041,8 @@ class ObsidianProvider(NoteProvider):
 
         A genuine external `http(s)://` reference already in a note's markdown is copied
         in exactly like every other provider's content-controlled-URL fallback (the shared
-        SSRF guard). Anything else (a local vault path the plugin sent no ref for) is
-        refused honestly rather than pretending to succeed."""
+        SSRF guard). Anything else (a local vault path the plugin sent no file for) is
+        refused, saying which case it is (`_not_sent_error`)."""
         for scheme in (ATT_SCHEME, FILE_SCHEME):
             if ref.startswith(scheme):
                 sha = ref[len(scheme):].split("/", 1)[0]
@@ -2043,7 +2054,7 @@ class ObsidianProvider(NoteProvider):
                 staged = await asyncio.to_thread(
                     obsidian_attachments.read_blob, self.user_id, self.vault_id, sha)
                 if staged is None:
-                    raise errors.NoteConnTransient("attachment not staged yet", status=404)
+                    raise errors.NoteConnTransient(UPLOAD_NOT_ARRIVED, status=404)
                 data, mime = staged
                 return data, mime or "application/octet-stream"
         parsed = urlsplit(ref)
@@ -2051,9 +2062,24 @@ class ObsidianProvider(NoteProvider):
             # Plan A Task 9 (I-5): a hotlink is copied in -- http allowed for the download only.
             client = await self._get_client()
             return await fetch_content_url(client, ref, what="Obsidian media")
-        raise errors.NoteConnUnsupported(
-            f"Obsidian push sync does not transfer vault attachments ({ref!r}) — "
-            "only note text is pushed by the plugin. Use a public https link for "
-            "any image/file that must sync.",
-            reason="Local vault attachments are not synced by the Obsidian push transport",
-        )
+        raise await asyncio.to_thread(self._not_sent_error, ref)
+
+    def _not_sent_error(self, ref: str) -> errors.NoteConnUnsupported:
+        """Why a vault path the plugin sent no file for reached `fetch_media` (live audit
+        2026-11-03, F2), one true sentence per case. ⚰️ It said "Obsidian push sync does not
+        transfer vault attachments -- only note text is pushed by the plugin", true before
+        plugin 0.2.0 and false since; the sentence reached the member's source row.
+          * the attachment layer off for this member: the plugin was told to send no files
+            (`unsupported`, as before Plan C: final review I3 keeps "update the plugin" off
+            members whose server cannot take files);
+          * a plugin older than 0.2.0 (or no version reported): it sends no files;
+          * 0.2.0 and later: the file was not in the list sent with the note.
+        The last two are `NoteConnAttachmentNotSent`, whose notice says to update the plugin."""
+        if not obsidian_attachments.attachments_enabled_for(self.user_id):
+            return errors.NoteConnUnsupported(ATTACHMENTS_OFF.format(ref=ref))
+        version = obsidian_link.plugin_versions_for_user(self.user_id).get(self.vault_id)
+        if not obsidian_link.plugin_version_supports_attachments(version):
+            return errors.NoteConnAttachmentNotSent(PLUGIN_TOO_OLD.format(ref=ref),
+                                                    notice_reason=OUTDATED_REASON)
+        return errors.NoteConnAttachmentNotSent(NOT_IN_LIST.format(ref=ref, version=version),
+                                                notice_reason=OUTDATED_REASON)

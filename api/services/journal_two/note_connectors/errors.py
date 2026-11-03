@@ -86,6 +86,17 @@ class NoteConnUnsafeAddress(NoteConnUnsupported):
     refusal is a plain `NoteConnUnsupported` and reads `unsupported`."""
 
 
+class NoteConnAttachmentNotSent(NoteConnUnsupported):
+    """An Obsidian vault file the plugin did not send (live audit 2026-11-03, F2): a plugin
+    older than 0.2.0, or a file missing from the list a newer one sent with the note. Final.
+    `notice_reason` is the importNotice reason the engine writes (`media_failure_reason`),
+    so the member reads what to do ("update the plugin"), never "can't be shown here"."""
+
+    def __init__(self, message: str, *, notice_reason: str, **kw):
+        super().__init__(message, **kw)
+        self.notice_reason = notice_reason
+
+
 class NoteConnTooLarge(NoteConnUnsupported):
     """A download refused for its size, by a header or while reading (`providers/base.py`'s
     capped reads). The engine's importNotice reads `too_large`, never `unsupported`."""
