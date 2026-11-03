@@ -200,7 +200,7 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
             nxt = src.find("registerCapability(", m.end())
             if "localOnly: true" in src[m.end(): nxt if nxt != -1 else len(src)]:
                 found.add(m.group(1))
-    assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history"}
+    assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent"}   # W2-B2: history.afterEvent
 
 
 # ═══ 3. the one door: what a stored row may say to a model ══════════════════════════════════════════

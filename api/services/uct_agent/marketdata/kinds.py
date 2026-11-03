@@ -14,11 +14,14 @@ MODEL-ISOLATED: the gateway serves them for purpose "answer" only.
 Sprint 2: `instrument.resolve` (the canonical symbol index, ticker_search_index — see instruments.py, MD-1 §4.7).
 Wave 2 (W2-B1, agent-rs): `research.company` (RS-1 v1 — composed from the served kinds above plus the turn's one
 web search; api/services/uct_agent/research/rs1.py).
+Wave 2 (W2-B2, builder-b): `history.eventStudy` (Market Intelligence's existing event_study over technical series;
+history_event_study.py) and `bars.daily` gains `from`.
 """
 from __future__ import annotations
 
 from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadth, commodity_quote, crypto_quote, earnings,
                                               index_quote, instruments, news_company, quotes, ratings, statements, themes)
+from api.services.uct_agent.marketdata import history_event_study
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -54,8 +57,22 @@ def register(registry) -> None:
         owner="agent-md",
         max_symbols=ONE_SYMBOL,
         description="Completed daily sessions for one ticker from UCT's bars store (never today's "
-                    "developing bar); as_of is the newest bar's session close. Point-in-time with `to`. "
-                    f"Params: {{symbol, bars (1-{bars_daily.MAX_BARS}, default {bars_daily.DEFAULT_BARS}), to?}}.",
+                    "developing bar); as_of is the newest bar's session close. Point-in-time with `to`; a window "
+                    f"with `from`. Params: {{symbol, bars (1-{bars_daily.MAX_BARS}, default {bars_daily.DEFAULT_BARS}), "
+                    "to?, from?}.",
+    ))
+    # W2-B2 (builder-b): the event study, LOCAL-ONLY to the model through the capability (turn.LOCAL_ONLY_ACTIONS
+    # "history.afterEvent"): the member sees the table; the model gets the request note and counts. Technical series
+    # only — a breadth-conditioned study is refused before any read (ADR-005).
+    registry.register(Kind(
+        name=history_event_study.KIND, fn=history_event_study.read_event_study, validate=history_event_study.validate,
+        freshness="historical", owner="builder-b", max_symbols=ONE_SYMBOL,
+        description="Event study from UCT's stored daily closes (Market Intelligence event_study): every time one "
+                    "ticker met a technical condition — an opening gap of N%+ (gap_pct), RSI, % from an N-day SMA, "
+                    "Bollinger %B or the MACD histogram above / below / crossing a level — its forward price returns "
+                    "over 1-252 sessions, with a baseline of all sessions. Descriptive, not predictive; shown to the "
+                    f"member only. Params: {{symbol, indicator: {'|'.join(history_event_study.INDICATORS)}, period?, "
+                    f"op: {'|'.join(history_event_study.OPS)}, threshold, horizons? (sessions), since?}}.",
     ))
     registry.register(Kind(
         name="fundamentals", fn=statements.read_fundamentals, validate=statements.validate, freshness="periodic",

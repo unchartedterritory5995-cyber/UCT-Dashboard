@@ -709,7 +709,7 @@ _OUTCOME_LABEL = {
 # the member reads it — and THIS is the one place that decides what a stored row may say to a model.
 #: Actions whose results are local only. Decided by NAME on the server (never trusted from the
 #: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
-LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history"})
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent"})
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
                      "from it. To answer about it again, plan the same lookup.]")
@@ -895,6 +895,16 @@ def _history_note(args) -> str:
     return str(note or "")[:300]
 
 
+def _event_study_note(args) -> str:
+    """A history.afterEvent request, described by the event study's own value-free note (uct_agent/history_note.py —
+    outside marketdata/, so this module still imports no gateway module: agent-qa L6)."""
+    try:
+        from api.services.uct_agent import history_note
+        return history_note.request_note(args)
+    except Exception:  # noqa: BLE001 -- the dependency absent / the args invalid: say nothing
+        return ""
+
+
 def _local_requests(data) -> str:
     """What the member ASKED for, rebuilt from validated request args only (enums and ISO dates —
     no value can pass validation). Anything that does not validate is left out."""
@@ -907,6 +917,13 @@ def _local_requests(data) -> str:
         return ""
     parts = []
     for r in reqs[:4]:
+        if isinstance(r, dict) and "indicator" in r and "threshold" in r:
+            # W2-B2 history.afterEvent: the event study's own value-free note (symbol, condition, windows, dates),
+            # rebuilt from validated args only — a request that does not validate says nothing
+            note = _event_study_note(r)
+            if note:
+                parts.append(note)
+            continue
         if isinstance(r, dict) and r.get("mode") == "rows":
             # the last N sessions of one measure (breadth_select.rows) — enums and a count only, never a value
             mets = r.get("metrics") if isinstance(r.get("metrics"), list) else []
