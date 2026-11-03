@@ -189,7 +189,7 @@ def test_concept_retrieval_returns_team_owned_passages_with_provenance(kn):
         assert p["licence"] == "team_owned"
         assert p["kb_id"] and p["title"] and p["source"] and p["trader"]
         assert "episodic" in (p["title"] + p["excerpt"]).lower()
-    assert out["coverage"]["policy_version"] == 3
+    assert out["coverage"]["policy_version"] == 4
     assert out["coverage"]["admitted_sources"] == ["setup_knowledge", "trader_archive"]
 
 
@@ -841,7 +841,7 @@ def test_n3_an_unresolved_origin_is_refused():
 
 def test_n3_served_template_carries_provenance(kn):
     d = read("setup.playbook", {"setup": "EP"})["data"]
-    assert d["licence"] == "team_owned" and "UCT team setup template" in d["source"] and d["approved_by_policy"] == 3
+    assert d["licence"] == "team_owned" and "UCT team setup template" in d["source"] and d["approved_by_policy"] == 4
     assert d["origin_trader"] == "TSDR"
 
 
@@ -1383,15 +1383,118 @@ def test_r4_4_no_interval_figures_are_dropped_on_the_admitted_path_too(kn):
 
 
 def test_r4_6_exclusion_failure_withholds_every_setup_knowledge_setup_row(kn, monkeypatch):
+    # refinement (owner 2026-11-03, AUDIT condition 3): any "cannot tell" withholds EVERYTHING, not only SETUP rows
     kinds._BLOCKED_CACHE.update(key=None, ids=[])
     monkeypatch.setattr(index, "excluded_by_template", lambda admitted: None)          # cannot tell
-    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "episodic pivot catalyst gap trigger", "k": 3})["data"]["passages"]}
-    assert 2 not in ids                                                    # the team SETUP row is withheld
-    assert ids                                                             # other admitted rows still answer
+    out = read("knowledge.search", {"question": "episodic pivot catalyst gap trigger", "k": 3})
+    assert out["status"] == "unavailable" and out["data"] is None
     assert kinds._BLOCKED_CACHE["key"] is None                             # a "cannot tell" is never cached
 
 
 def test_r4_6_a_missing_index_file_is_a_cannot_tell(tmp_path, monkeypatch):
     monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_INDEX", str(tmp_path / "absent.db"))
     assert index.excluded_by_template(lambda n: True) is None
+
+
+# ── owner source-policy decision 2026-11-03: mentions of excluded setups in admitted rows ──────────────
+def _add_rows(kn, rows):
+    c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
+    now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+    for (i, cat, title, body, src) in rows:
+        c.execute("INSERT INTO knowledge_base VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (i, cat, title, body, "", "TSDR", f"ref:{i}", "", 2, 1, src, "2026", now, now))
+    c.commit()
+    c.close()
+    (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 11), encoding="utf-8")
+
+
+MENTION_ROWS = [
+    (60, "SETUP", "TSDR 2026-09-01 t60: cup and handle note",
+     "The cup and handle is a rounded base where the entry is the handle high.", "trader_archive"),      # definitional
+    (61, "SETUP", "TSDR 2026-09-02 t61: watching a cup and handle",
+     "Watching NVDA work on a cup and handle. Patient here; waiting for volume.", "trader_archive"),      # commentary
+    (62, "SETUP", "TSDR 2026-09-03 t62: kicker note",
+     "The kicker is a gap over the moving averages and the entry is the open.", "trader_archive"),       # admitted template
+]
+
+
+def test_refine_definitional_mention_of_an_excluded_setup_is_withheld(kn):
+    _add_rows(kn, MENTION_ROWS)
+    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "cup and handle handle high entry rounded base", "k": 3})["data"]["passages"]}
+    assert 60 not in ids
+
+
+def test_refine_commentary_mention_is_served_and_flagged(kn):
+    _add_rows(kn, MENTION_ROWS)
+    ps = read("knowledge.search", {"question": "watching a cup and handle patient volume", "k": 3})["data"]["passages"]
+    p = next(p for p in ps if p["kb_id"] == 61)
+    assert p["commentary_only"] is True and p["mentions_excluded_setup"] == ["Cup with Handle"]
+
+
+def test_refine_admitted_template_definitions_are_untouched(kn):
+    _add_rows(kn, MENTION_ROWS)
+    ps = read("knowledge.search", {"question": "kicker gap over the moving averages entry", "k": 3})["data"]["passages"]
+    p = next(p for p in ps if p["kb_id"] == 62)
+    assert "commentary_only" not in p
+
+
+def test_refine_a_complete_clearance_serves_the_row(kn, monkeypatch, tmp_path):
+    _add_rows(kn, MENTION_ROWS)
+    pol = json.loads(Path(os.environ["UCT_AGENT_KNOWLEDGE_POLICY"]).read_text(encoding="utf-8"))
+    entry = {"kb_id": 60, "provenance_ref": "PROV-60", "rights_review_ref": "RR-60", "approved_by": "owner", "approved_on": "2026-11-04"}
+    pol["cleared_rows"] = [entry]
+    f = tmp_path / "cleared_rows.json"
+    f.write_text(json.dumps(pol), encoding="utf-8")
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+    ps = read("knowledge.search", {"question": "cup and handle handle high entry rounded base", "k": 3})["data"]["passages"]
+    p = next(p for p in ps if p["kb_id"] == 60)
+    assert p["commentary_only"] is True                                   # still flagged: cleared is not a definition
+    pol["cleared_rows"] = [{**entry, "rights_review_ref": ""}]           # incomplete clearance: withheld again
+    f.write_text(json.dumps(pol), encoding="utf-8")
+    os.utime(f, (time.time() + 5, time.time() + 5))
+    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "cup and handle handle high entry rounded base", "k": 3})["data"]["passages"]}
+    assert 60 not in ids
+
+
+def test_refine_shipped_policy_clears_nothing():
+    assert json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))["cleared_rows"] == []
+    assert policy.cleared_row_ids() == set()
+
+
+def test_refine_cue_matches_the_reviewed_pattern():
+    mi = {"terms": {"cup and handle": {"Cup with Handle"}}}
+    import re as _re
+    e = _re.escape("cup and handle")
+    mi["any"] = _re.compile(r"\b(" + e + r")\b", _re.I)
+    mi["per"] = {"cup and handle": (_re.compile(r"\b" + e + r"\b", _re.I),
+                                    _re.compile(r"\b" + e + r"\b" + index.DEFINITIONAL_CUE, _re.I))}
+    for txt in ("A cup and handle is a base", "Cup and Handle rules: buy the handle", "cup and handle - entry at pivot",
+                "the cup and handle stop goes under the handle", "cup and handle criteria"):
+        assert index._mentions(txt, mi)[1] == ["Cup with Handle"], txt
+    assert index._mentions("Nice cup and handle. It is working.", mi)[1] == []                 # the cue is past a full stop
+    assert index._mentions("cup and handle forming on SMCI", mi) == (["Cup with Handle"], [], False)
+
+
+def test_refine_unparseable_rows_and_unreadable_index_fail_closed(kn, monkeypatch):
+    assert index._mentions("anything", None) == ([], [], True)                                  # no mention index: error
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    monkeypatch.setattr(index, "mention_rows", lambda: None)
+    out = read("knowledge.search", {"question": "episodic pivot", "k": 3})
+    assert out["status"] == "unavailable" and "cannot verify" in out["notes"][0]
+    assert kinds._BLOCKED_CACHE["key"] is None
+
+
+def test_refine_mention_error_rows_are_withheld(kn, monkeypatch):
+    _add_rows(kn, MENTION_ROWS)
+    index.ensure()
+    real = index.mention_rows
+    monkeypatch.setattr(index, "mention_rows", lambda: [(r[0], r[1], r[2], r[3], r[4], 1 if r[0] == 61 else r[5]) for r in real()])
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "watching a cup and handle patient volume", "k": 3})["data"]["passages"]}
+    assert 61 not in ids
+
+
+def test_refine_frame_rule_tells_the_model_commentary_is_not_a_definition():
+    from api.services.uct_agent.knowledge import frame
+    assert "commentary only, never UCT's definition" in frame.RULE
 

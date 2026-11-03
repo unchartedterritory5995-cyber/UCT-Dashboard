@@ -1,5 +1,5 @@
 {
-  "policy_version": 3,
+  "policy_version": 4,
   "about": "UCT Agent knowledge source policy (KN-1). DEFAULT-DENY: a Brain Pack source the policy does not list as admitted is invisible to the Agent. Admitting a source is an owner decision recorded here as a reviewed diff. Read per request by api/services/uct_agent/knowledge/policy.py.",
   "approval": {
     "by": "owner",
@@ -169,5 +169,7 @@
       ],
       "approval": "owner 2026-11-03: CONDITIONALLY APPROVED; anything failing a condition stays source_not_approved"
     }
-  }
+  },
+  "cleared_rows": [],
+  "cleared_rows_about": "Owner decision 2026-11-03: admitted rows that NAME an excluded setup with definitional wording are withheld pending provenance and rights review. A row is served only after review, listed here as {kb_id, provenance_ref, rights_review_ref, approved_by, approved_on} (every field required). Other mentions are served as team commentary, flagged commentary_only. Empty: nothing is cleared yet."
 }

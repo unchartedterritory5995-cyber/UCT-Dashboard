@@ -32,6 +32,35 @@ Status vs code at be4c127a41: (1) and (4) already hold. (3) does NOT hold yet â€
 inconsistent dates withhold). Refinement proposal for (2)/(3) sent to AUDIT; no code change until AUDIT confirms it is
 necessary (owner point 5).
 
+## Source-policy refinement: mentions of excluded setups (branch agent/kn/mention-refine, stacked on #735)
+Owner wording (relayed to this session, 2026-11-03): do not exclude original team commentary merely for mentioning EP,
+VCP, HTF or another excluded setup; do not admit all 380 either; eligibility requires verified team ownership or
+authorization, original commentary, and no reproduced or closely paraphrased restricted third-party material; keep the
+71 definition-like posts withheld pending provenance and rights review.
+Owner wording (relayed to AUDIT): "third-party setup commentary remains excluded unless independently established as
+original, authorized team-owned analysis". AUDIT: consistent with the above, given ownership verified by construction
+plus the definitional proxy. Activation stays on HOLD.
+
+What the code does (AUDIT-approved design (a)-(d), its conditions 1-3):
+- At index build every row records the templates it names (each template name/alias of >= 3 characters, whole word,
+  case-insensitive) and those named with DEFINITIONAL wording nearby: within 40 non-full-stop characters one of
+  is|are|means|defined|definition|rule(s)|entry|stop|criteria (the review r4 pattern, probe_n15.py:35).
+- An admitted row with a definitional mention of an EXCLUDED template is withheld unless it is on policy.cleared_rows
+  with a complete {kb_id, provenance_ref, rights_review_ref, approved_by, approved_on} entry (list EMPTY).
+- Every other admitted row that mentions an excluded setup is served as team commentary: the passage carries
+  mentions_excluded_setup + commentary_only, the browser text says "team commentary that mentions X; not UCT's
+  definition of it", and the model frame rule says commentary is never a definition. Coach: read commentary_only.
+- Fail closed: a row whose check failed (mention_error) is withheld; if the exclusion data cannot be read at all, the
+  search answers "unavailable" and serves nothing.
+Real snapshot (counts only): of 2,837 rows servable before the refinement, 71 are withheld (exactly the review's 71)
+and 309 are served flagged as commentary; 0 parse errors. Across all admitted rows including dated categories: 100
+withheld. Index build 9.2 s (was 0.7 s; once per Brain Pack); search unchanged (~15 ms).
+
+DETECTION LIMIT (stated plainly): team ownership is verified by construction (the ledger stores only the six team
+authors' posts). Reproduced or closely paraphrased third-party material is NOT detected beyond the definitional-wording
+proxy above: a post that paraphrases a third-party definition without those cue words near the setup name would be
+served as commentary. Provenance and rights review (cleared_rows) is the only way to establish more.
+
 ## Branches, commits, PRs
 | Branch | Worktree | Base | Head | PR |
 |---|---|---|---|---|

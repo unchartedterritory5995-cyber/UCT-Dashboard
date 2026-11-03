@@ -206,9 +206,13 @@ def search(params: dict, ctx: dict) -> dict:
     exclude = policy.excluded_categories() | (set() if include_dated else dated)
     phrases = expansion_phrases(q)
     blocked_ids = _blocked_ids()
+    if blocked_ids is None:                          # cannot tell what to withhold: withhold everything (fail closed)
+        _refund(ctx, budget)
+        return _envelope(kind, params, status="unavailable",
+                         notes=["UCT's knowledge base cannot verify its source rules right now, so nothing is served"])
+    flags_by_id = _commentary_flags()
     cands = index.query(q, sources=admitted, exclude_categories=exclude, category=params.get("category"),
-                        limit=policy.search_setting("candidates", 40), phrases=phrases,
-                        exclude_ids=blocked_ids or [], withhold_setup_knowledge_setups=blocked_ids is None)
+                        limit=policy.search_setting("candidates", 40), phrases=phrases, exclude_ids=blocked_ids)
     max_age = policy.dated_max_age_days()
     excerpt_chars = policy.search_setting("excerpt_chars", 500)
     passages, withheld_injection, withheld_stale = [], 0, 0
@@ -244,6 +248,10 @@ def search(params: dict, ctx: dict) -> dict:
             p["as_of_post"] = r.get("created_at") or None
         if flags:
             p["scrubbed"] = [f for f in flags if f != "truncated"] or None
+        ex = flags_by_id.get(int(r["kb_id"]))
+        if ex:                                       # owner 2026-11-03: commentary on an excluded setup, never a definition
+            p["mentions_excluded_setup"] = ex
+            p["commentary_only"] = True
         passages.append(p)
     # bound the serialised result for the v2 planner
     while passages and len(json.dumps(passages, ensure_ascii=False)) > DATA_CHARS:
@@ -650,8 +658,12 @@ def _bound(data: dict, protect=(), limit: int = DATA_CHARS) -> None:
 _BLOCKED_CACHE: dict = {"key": None, "ids": []}
 
 
-def _blocked_ids() -> list:
-    """N-7b exclusions, computed once per pack version, index build and policy file state (not per query)."""
+def _blocked_ids() -> Optional[list]:
+    """Every kb_id withheld by template rules, computed once per pack version, index build and policy file state:
+      - N-7b / N-15: setup_knowledge SETUP rows tied only to excluded templates or to none;
+      - owner decision (2026-11-03): rows naming an EXCLUDED template with definitional wording nearby, unless the row
+        is on policy.cleared_rows with a complete provenance + rights-review entry; and rows whose mention check failed.
+    None = cannot tell (index unreadable): the caller refuses the search (fail closed)."""
     try:
         pmt = policy.path().stat().st_mtime
     except OSError:
@@ -659,12 +671,31 @@ def _blocked_ids() -> list:
     key = (pack.pack_ts(), index.built_info().get("built_at"), str(policy.path()), pmt)
     if _BLOCKED_CACHE["key"] != key:
         origins = _template_origins()
-        ids = index.excluded_by_template(
-            lambda n: policy.classify_template(origins.get(n), n)["state"] == "admitted")
-        if ids is None:                              # r4 R4-6: never cache a "cannot tell"
+        excluded = {n for n in origins if policy.classify_template(origins.get(n), n)["state"] != "admitted"}
+        ids = index.excluded_by_template(lambda n: n not in excluded)
+        rows = index.mention_rows()
+        if ids is None or rows is None:              # never cache a "cannot tell"
             return None
-        _BLOCKED_CACHE.update(key=key, ids=ids)
+        cleared = policy.cleared_row_ids()
+        mention_blocked, flagged = set(), {}
+        for kb_id, _src, _cat, mentioned, definitional, err in rows:
+            if err:
+                mention_blocked.add(int(kb_id))
+                continue
+            ex_def = [n for n in str(definitional or "").split("|") if n and n in excluded]
+            ex_men = [n for n in str(mentioned or "").split("|") if n and n in excluded]
+            if ex_def and int(kb_id) not in cleared:
+                mention_blocked.add(int(kb_id))
+            elif ex_men:
+                flagged[int(kb_id)] = ex_men
+        _BLOCKED_CACHE.update(key=key, ids=sorted(set(ids) | mention_blocked), flagged=flagged,
+                              mention_blocked=sorted(mention_blocked))
     return _BLOCKED_CACHE["ids"]
+
+
+def _commentary_flags() -> dict:
+    """kb_id -> excluded setups a SERVED row mentions (team commentary, never a definition)."""
+    return _BLOCKED_CACHE.get("flagged") or {}
 
 
 def _template_origins() -> dict:

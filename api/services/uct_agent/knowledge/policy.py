@@ -123,6 +123,21 @@ def classify_record(key: str) -> dict:
     return {"state": "unknown", "licence": "unresolved", "label": key, "reason": "a record source the policy does not list"}
 
 
+_CLEARED_ROW_FIELDS = ("kb_id", "provenance_ref", "rights_review_ref", "approved_by", "approved_on")
+
+
+def cleared_row_ids() -> set:
+    """kb_ids on policy.cleared_rows with EVERY required field present (provenance + rights review); others ignored."""
+    out = set()
+    for e in load().get("cleared_rows") or []:
+        if isinstance(e, dict) and all(str(e.get(f) or "").strip() for f in _CLEARED_ROW_FIELDS):
+            try:
+                out.add(int(e["kb_id"]))
+            except (TypeError, ValueError):
+                continue
+    return out
+
+
 def admitted_sources() -> list[str]:
     """Admitted keys, re-checked through classify() so a key under an excluded prefix can never be admitted."""
     return sorted(k for k, v in load().get("sources", {}).items()

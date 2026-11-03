@@ -25,7 +25,7 @@ from api.services.uct_agent.knowledge import pack
 
 log = logging.getLogger(__name__)
 ENV_PATH = "UCT_AGENT_KNOWLEDGE_INDEX"
-SCHEMA = 2
+SCHEMA = 3
 _LOCK = threading.Lock()
 FAIL_COOLDOWN_S = 60
 _FAILED: dict = {"at": 0.0, "ts": None}
@@ -86,12 +86,14 @@ def build() -> dict:
             CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT);
             CREATE TABLE docs (kb_id INTEGER PRIMARY KEY, category TEXT, source TEXT, trader TEXT, source_ref TEXT,
                                epoch TEXT, created_at TEXT, updated_at TEXT, regime TEXT, title TEXT, content TEXT,
-                               content_sha TEXT, dup_of INTEGER, setup_templates TEXT);
+                               content_sha TEXT, dup_of INTEGER, setup_templates TEXT,
+                               mention_templates TEXT, definitional_templates TEXT, mention_error INTEGER);
             CREATE VIRTUAL TABLE fts USING fts5(title, content, tags, content='', tokenize='porter unicode61');
         """)
         seen: dict[str, int] = {}
         dups = 0
         alias_to_templates = _template_aliases(src)
+        mention_index = _mention_index(src)
         for r in rows:
             d = dict(r)
             title, content = str(d.get("title") or ""), str(d.get("content") or "")
@@ -103,11 +105,13 @@ def build() -> dict:
             else:
                 seen[sha] = seen[key] = int(d["id"])
             linked = _linked_templates(d, alias_to_templates)
-            dst.execute("INSERT INTO docs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            mentioned, definitional, m_err = _mentions(content, mention_index)
+            dst.execute("INSERT INTO docs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (int(d["id"]), str(d.get("category") or "").upper(), d.get("source") or "",
                          d.get("trader") or "", d.get("source_ref") or "", str(d.get("knowledge_epoch") or ""),
                          d.get("created_at") or "", d.get("updated_at") or "", d.get("regime_context") or "",
-                         title, content, sha, dup_of, "|".join(linked)))
+                         title, content, sha, dup_of, "|".join(linked), "|".join(mentioned), "|".join(definitional),
+                         1 if m_err else 0))
             dst.execute("INSERT INTO fts(rowid, title, content, tags) VALUES (?,?,?,?)",
                         (int(d["id"]), title, content, str(d.get("tags") or "")))
         meta = {"schema": SCHEMA, "pack_ts": ts, "built_at": int(time.time()), "rows": len(rows), "duplicates": dups}
@@ -163,6 +167,79 @@ def _template_aliases(src) -> dict:
     except sqlite3.Error:
         return {}
     return out
+
+
+# The definitional cue (review r4, probe_n15.py:35, owner decision 2026-11-03 point 3): a template name/alias, whole
+# word, then within 40 characters that are not a full stop one of these words.
+DEFINITIONAL_CUE = r"[^.]{0,40}\b(is|are|means|defined|definition|rules?|entry|stop|criteria)\b"
+MIN_TERM = 3
+
+
+def _mention_index(src) -> Optional[dict]:
+    """{term: {template names}} for every template name/alias of >= 3 characters (lowercase, raw form: the same
+    terms the review counted with), plus one combined whole-word regex as a prefilter. None when unreadable."""
+    terms: dict = {}
+    try:
+        for r in src.execute("SELECT name, aliases FROM setup_templates"):
+            name = str(r["name"] or "")
+            try:
+                al = json.loads(r["aliases"] or "[]")
+            except ValueError:
+                al = str(r["aliases"] or "").split(",")
+            for t in [name, *(al if isinstance(al, list) else [])]:
+                t = str(t).strip().lower()
+                if len(t) >= MIN_TERM:
+                    terms.setdefault(t, set()).add(name)
+    except sqlite3.Error:
+        return None
+    if not terms:
+        return {"terms": {}, "any": None, "per": {}}
+    ordered = sorted(terms, key=len, reverse=True)
+    anyre = re.compile(r"\b(" + "|".join(re.escape(t) for t in ordered) + r")\b", re.I)
+    per = {}
+    for t in ordered:
+        e = re.escape(t)
+        per[t] = (re.compile(r"\b" + e + r"\b", re.I), re.compile(r"\b" + e + r"\b" + DEFINITIONAL_CUE, re.I))
+    return {"terms": terms, "any": anyre, "per": per}
+
+
+def _mentions(content: str, mi: Optional[dict]) -> tuple:
+    """(templates mentioned, templates mentioned with definitional wording, error?) for one row's content. Each term
+    is tested on its own, so one term can never hide another's match. Any failure is reported as an error (the
+    caller withholds the row: fail closed)."""
+    if mi is None:
+        return [], [], True
+    try:
+        if not mi["any"] or not mi["any"].search(content or ""):
+            return [], [], False
+        mentioned, definitional = set(), set()
+        for t, (m_re, d_re) in mi["per"].items():
+            if m_re.search(content):
+                mentioned |= mi["terms"][t]
+                if d_re.search(content):
+                    definitional |= mi["terms"][t]
+        return sorted(mentioned), sorted(definitional), False
+    except Exception:  # noqa: BLE001 — unparseable row: withheld by the caller
+        return [], [], True
+
+
+def mention_rows() -> Optional[list]:
+    """[(kb_id, source, category, mention_templates, definitional_templates, mention_error)] for every row that
+    mentions a template or failed to parse; None when the index cannot be read (the caller fails closed)."""
+    if not os.path.isfile(index_path()):
+        return None
+    try:
+        c = _connect()
+    except sqlite3.Error:
+        return None
+    try:
+        return [tuple(r) for r in c.execute(
+            "SELECT kb_id, source, category, mention_templates, definitional_templates, mention_error FROM docs "
+            "WHERE mention_templates != '' OR mention_error = 1")]
+    except sqlite3.Error:
+        return None
+    finally:
+        c.close()
 
 
 def _linked_templates(d: dict, alias_to_templates: dict) -> list:
