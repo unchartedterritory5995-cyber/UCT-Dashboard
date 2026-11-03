@@ -444,3 +444,18 @@ describe('mdToHtml + htmlToNote — D3 follow-up: shared inline HTML vectors', (
     expect(marked(htmlToNote(mdToHtml(v.md)).bodyJson)).toBe(v.shape)
   })
 })
+
+// D3 fix round 1 (C1): a region's markdown inside an open inline or leaf element keeps its
+// text, links and images; the server (`test_note_convert_d3.py`) reads the same vectors.
+describe('mdToHtml + htmlToNote — D3 fix round 1: shared region vectors', () => {
+  const marked = (n) => {
+    if (n.type === 'text') {
+      const marks = (n.marks || []).map((m) => (m.type === 'link' ? `link=${m.attrs.href}` : m.type)).sort()
+      return `'${n.text}'` + (marks.length ? `[${marks.join('+')}]` : '')
+    }
+    return n.type + (n.content ? `(${n.content.map(marked).join(', ')})` : '')
+  }
+  it.each(HTML_BLOCK_VECTORS.region_vectors.map((v) => [v.name, v]))('%s', (_name, v) => {
+    expect(marked(htmlToNote(mdToHtml(v.md)).bodyJson)).toBe(v.shape)
+  })
+})

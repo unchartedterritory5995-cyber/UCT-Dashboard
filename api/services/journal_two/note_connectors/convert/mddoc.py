@@ -90,7 +90,7 @@ def _validate_link(url: str) -> bool:
 
 class _Ctx:
     __slots__ = ("media", "links", "media_refs", "data_uri_counter", "resolve_href",
-                 "unsafe_image_notice")
+                 "unsafe_image_notice", "inherited")
 
     def __init__(self, resolve_href: Callable[[str], str | None] | None = None,
                  unsafe_image_notice: bool = False) -> None:
@@ -103,6 +103,10 @@ class _Ctx:
         self.data_uri_counter: int = 0  # for synthesizing bounded md-img-N refs
         # Plan A Task 13: a connector's answer for a scheme-less link (`_link_href`).
         self.resolve_href = resolve_href
+        # D3 fix round 1 (C1): the inline elements an HTML region holds open around the
+        # markdown blocks being converted, as `[tag, mark or None]` lists, outermost first.
+        # `_inline_nodes` starts every run inside them and REMOVES one a raw close tag ends.
+        self.inherited: list[list[Any]] = []
 
 
 # Plan A Task 9 (I-6): EVERY `data:image/*` destination -- any image MIME, base64 or
@@ -894,8 +898,7 @@ def _html_region(
         last = _find_close(tokens, k, tk.type[:-len("_open")] + "_close") if tk.nesting == 1 else k
         if tk.type == "paragraph_open":
             last = k + 2
-        placeholder = _BlocksNode(_blocks(tokens, k, last + 1, ctx))
-        builder._stack[-1].children.append(placeholder)
+        _place_region_blocks(builder, tokens, k, last + 1, ctx)
         k = last + 1
     builder.close()
     seen: list[_HtmlNode] = []
@@ -914,6 +917,72 @@ def _html_region(
     return _html_blocks_walk(_unwrap_unknown_html(builder.root.children), ctx), k
 
 
+#: Elements a region's markdown blocks may stand in (D3 fix round 1, C1): the root, the
+#: region elements, the block wrappers and the containers whose content is blocks.
+_REGION_BLOCK_CONTAINERS = frozenset({
+    "root", "html", "body", "details", "aside", "summary", "li", "td", "th", "blockquote",
+    "ul", "ol", "table", "tr",
+})  # and every `_HTML_BLOCK_WRAPPERS` tag (defined below; read at call time)
+#: Elements a block start closes, as the browser's tree builder closes an open `<p>` (a
+#: `<pre>` or heading cannot hold a paragraph either: the client's parse splits it there).
+_REGION_CLOSED_BY_A_BLOCK = frozenset({"p", "pre", "h1", "h2", "h3", "h4", "h5", "h6"})
+
+
+def _place_region_blocks(
+    builder: "_HtmlDomBuilder", tokens: list[Token], start: int, end: int, ctx: _Ctx,
+) -> None:
+    """D3 fix round 1 (C1): convert the markdown blocks `tokens[start:end]` and put them where
+    the client's parse puts them.
+
+    ⚰️ They were appended to whatever element was open, and an inline or leaf element's walker
+    (`<p>`, `<a>`, `<b>`, `<pre>`) dropped them, images and links included, while the images
+    stayed registered as media. Now, as the browser's tree builder does at a block start:
+      * an open `<p>`, `<pre>` or heading is CLOSED (it keeps what it already held);
+      * open inline elements (`<a>`, `<b>`, `<span>`...) wrap the blocks: every run starts
+        inside their marks (a link only through the one allow-list, `ctx.inherited`), a raw
+        close tag in the blocks ends one (`</a>` in `after</a> tail`), and the ones still open
+        are re-opened after the blocks (the "reconstruct the active formatting elements"
+        step), so later text stays inside them, in document order;
+      * the blocks stand in the nearest element that holds blocks (`_REGION_BLOCK_CONTAINERS`)."""
+    stack = builder._stack
+    while len(stack) > 1 and stack[-1].tag in _REGION_CLOSED_BY_A_BLOCK:
+        stack.pop()
+    at = len(stack) - 1
+    while at > 0 and stack[at].tag not in _REGION_BLOCK_CONTAINERS \
+            and stack[at].tag not in _HTML_BLOCK_WRAPPERS:
+        at -= 1
+    inline = stack[at + 1:]
+    del stack[at + 1:]
+    entries = [[el.tag, _inline_element_mark(el, ctx), el] for el in inline]
+    saved, ctx.inherited = ctx.inherited, list(entries)
+    try:
+        blocks = _blocks(tokens, start, end, ctx)
+        still_open = {id(e[2]) for e in ctx.inherited}
+    finally:
+        ctx.inherited = saved
+    stack[at].children.append(_BlocksNode(blocks))
+    parent = stack[at]
+    for el in inline:  # re-open the inline elements the blocks did not close
+        if id(el) not in still_open:
+            continue
+        clone = _HtmlNode(el.tag, dict(el.attrs))
+        parent.children.append(clone)
+        stack.append(clone)
+        parent = clone
+
+
+def _inline_element_mark(el: "_HtmlNode", ctx: _Ctx) -> dict[str, Any] | None:
+    """The mark an open inline element puts on the text inside it, as `_html_inline_walk`."""
+    if el.tag in _HTML_INLINE_MARK_TAGS:
+        return {"type": _HTML_INLINE_MARK_TAGS[el.tag]}
+    if el.tag == "a":
+        raw = (el.attrs.get("href") or "").strip()
+        href = _link_href(_destination_as_written(raw), ctx)
+        if raw and _is_allowed_link_href(href) and not href.startswith(ATTACHMENT_REF_PREFIX):
+            return {"type": "link", "attrs": {"href": href}}
+    return None
+
+
 #: Tag syntax: an element, a closing tag, a comment or declaration, or a processing
 #: instruction. A block with none is text and is kept as written.
 _HTML_TAG_SYNTAX_RE = re.compile(r"<[A-Za-z/!?]")
@@ -930,7 +999,20 @@ def _inline_nodes(
     items: list[dict[str, Any]] = []
     marks: list[dict[str, Any]] = []
     raw_links: list[bool] = []  # one entry per open raw `<a>`: did it push a mark?
-    open_tags: list[tuple[str, str | None]] = []  # open raw inline tags: (name, mark pushed)
+    # Open raw inline tags: [name, mark type pushed or None, the `ctx.inherited` entry or None].
+    open_tags: list[list[Any]] = []
+    for entry in list(ctx.inherited):  # C1: elements an HTML region holds open around us
+        if entry[1] is not None:
+            marks.append(dict(entry[1]))
+        open_tags.append([entry[0], entry[1]["type"] if entry[1] else None, entry])
+
+    def close_open_tag(k: int) -> None:
+        if open_tags[k][1] is not None:
+            _pop_mark(marks, open_tags[k][1])
+        if open_tags[k][2] is not None and open_tags[k][2] in ctx.inherited:
+            ctx.inherited.remove(open_tags[k][2])  # closed here: not re-opened after us
+        del open_tags[k]
+
     skip = 0  # inside a raw `<script>`/`<style>`: its content is dropped, as the client does
     eat_space = False  # a raw tag just rendered as nothing, or a raw `<br>`: see push_text
 
@@ -1060,8 +1142,15 @@ def _inline_nodes(
             elif (child.content or "").strip().lower() == "</a>":
                 # Only a `</a>` closing a RAW `<a>` pops: a stray one never strips the
                 # mark of a markdown link it happens to sit inside.
-                if raw_links and raw_links.pop():
-                    _pop_mark(marks, "link")
+                if raw_links:
+                    if raw_links.pop():
+                        _pop_mark(marks, "link")
+                else:
+                    # C1: the `<a>` an HTML region holds open around this paragraph.
+                    for k in range(len(open_tags) - 1, -1, -1):
+                        if open_tags[k][0] == "a" and open_tags[k][2] is not None:
+                            close_open_tag(k)
+                            break
             else:
                 m = _INLINE_TAG_RE.match((child.content or "").strip())
                 if m is None:
@@ -1077,14 +1166,12 @@ def _inline_nodes(
                     # The most recent open tag of that name closes; a stray close is nothing.
                     for k in range(len(open_tags) - 1, -1, -1):
                         if open_tags[k][0] == name:
-                            if open_tags[k][1] is not None:
-                                _pop_mark(marks, open_tags[k][1])
-                            del open_tags[k]
+                            close_open_tag(k)
                             break
                 elif not _self:
                     if mark is not None:
                         marks.append({"type": mark})
-                    open_tags.append((name, mark))
+                    open_tags.append([name, mark, None])
                 # Any other tag (`<span>`, `<sub>`, `<kbd>`...) unwraps: its text stays.
 
         else:
@@ -1238,7 +1325,11 @@ class _HtmlDomBuilder(HTMLParser):
             if self._stack[i].tag == tag:
                 del self._stack[i:]
                 return
-        # Stray close tag with no matching open -> ignore (malformed HTML).
+        if tag == "p":
+            # D3 fix round 1 (C1): a `</p>` with no open `<p>` is an EMPTY paragraph, as the
+            # HTML parser (and so the client's parse) writes it.
+            self._stack[-1].children.append(_HtmlNode("p", {}))
+        # Any other stray close tag with no matching open -> ignore (malformed HTML).
 
     def handle_data(self, data: str) -> None:
         if self._skip_depth or not data:
@@ -1337,6 +1428,12 @@ def _html_inline_walk(
             items.append(node)
 
     for n in nodes:
+        if isinstance(n, _BlocksNode):
+            # C1: `_place_region_blocks` never puts blocks under an inline element, so this is
+            # unreachable; if it ever is, nothing vanishes: every text run and block atom in
+            # the blocks comes inline (an atom is hoisted by the caller's `_wrap_paragraph`).
+            items.extend(_blocks_inline(n.blocks))
+            continue
         if isinstance(n, str):
             # A bounded, simple whitespace collapse (any run of HTML
             # whitespace -> one space) — not the full HTML5 whitespace
@@ -1438,11 +1535,32 @@ def _html_convert_pre(node: "_HtmlNode") -> dict[str, Any]:
     return {"type": "codeBlock", "attrs": {"language": language}, "content": content}
 
 
+def _blocks_inline(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every text run, hard break and block atom in `blocks`, in order (C1's fallback)."""
+    out: list[dict[str, Any]] = []
+
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        if node.get("type") in ("text", "hardBreak") or node.get("type") in _HOISTABLE_BLOCK_TYPES:
+            out.append(node)
+            return
+        for child in node.get("content") or []:
+            walk(child)
+
+    for b in blocks:
+        walk(b)
+    return out
+
+
 def _html_literal_text(nodes: list[Any]) -> str:
     out: list[str] = []
     for n in nodes:
         if isinstance(n, str):
             out.append(n)
+        elif isinstance(n, _BlocksNode):
+            # C1: unreachable (a block start closes a `<pre>`); if reached, the text stays.
+            out.append("".join(t.get("text", "") for t in _blocks_inline(n.blocks)))
         else:
             if n.tag == "br":
                 out.append("\n")
@@ -1643,10 +1761,17 @@ def _html_aside_callout(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
 def _html_details_toggle(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
     summary = next((c for c in node.children if isinstance(c, _HtmlNode) and c.tag == "summary"), None)
     rest = [c for c in node.children if c is not summary]
-    flat = _html_inline_walk(summary.children, ctx) if summary is not None else []
-    # toggleSummary is `inline*`: a block atom in it moves to the start of the content.
+    kids = summary.children if summary is not None else []
+    flat = _html_inline_walk([c for c in kids if not isinstance(c, _BlocksNode)], ctx)
+    # toggleSummary is `inline*`: a block atom in it, and markdown blocks a region put in it
+    # (`_place_region_blocks`, C1), move to the start of the content, as in the client's parse.
     title = [x for x in flat if x.get("type") not in _HOISTABLE_BLOCK_TYPES]
     hoisted = [x for x in flat if x.get("type") in _HOISTABLE_BLOCK_TYPES]
+    for c in kids:
+        if isinstance(c, _BlocksNode):
+            hoisted.extend(c.blocks)
+    if title and _blank_run(title):
+        title = []  # only whitespace: an empty summary, as the client's parse strips it
     body = hoisted + _html_blocks_walk(rest, ctx)
     return {"type": "toggle", "attrs": {"open": True}, "content": [
         {"type": "toggleSummary", "content": title},
@@ -1670,9 +1795,11 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
 
     def flush() -> None:
         nonlocal buf
-        if buf:
+        if buf and not _blank_run(buf):
             # Runs buffered from sibling nodes (`<span>a</span><span>b</span>`) join as the
-            # editor's parser joins them (D3 item 7).
+            # editor's parser joins them (D3 item 7). Loose whitespace between blocks (the
+            # line end inside an inline element a region's blocks split, C1) is no paragraph,
+            # as in the client's parse.
             out.extend(_wrap_paragraph(_merge_text_runs(buf)))
             buf = []
 
@@ -1691,8 +1818,10 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
         if tag == "p":
             flush()
             # `_wrap_paragraph` always returns >=1 node (even for an empty
-            # `<p></p>`) — see its own docstring above.
-            out.extend(_wrap_paragraph(_html_inline_walk(n.children, ctx)))
+            # `<p></p>`) — see its own docstring above. A `<p>` holding only whitespace is
+            # an EMPTY paragraph, as the client's parse strips it (C1: `<p align>` + newline).
+            flat = _html_inline_walk(n.children, ctx)
+            out.extend(_wrap_paragraph([] if flat and _blank_run(flat) else flat))
         elif tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
             flush()
             level = min(int(tag[1]), 3)

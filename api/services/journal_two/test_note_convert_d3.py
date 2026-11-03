@@ -452,3 +452,75 @@ def test_shared_inline_html_vectors(v):
 def test_the_html_walker_reads_underline_and_highlight_as_the_client_does():
     doc = html_to_tiptap("<p>a <u>u</u> <mark>m</mark> z</p>")["doc"]
     assert _shape_marks(doc) == "doc(paragraph('a ', 'u'[underline], ' ', 'm'[highlight], ' z'))"
+
+
+# ── fix round 1, C1: a region's markdown inside an open inline or leaf element ──
+
+_REGION_VECTORS = json.loads(_HTML_VECTORS_PATH.read_text(encoding="utf-8"))["region_vectors"]
+
+
+@pytest.mark.parametrize("v", _REGION_VECTORS, ids=[v["name"] for v in _REGION_VECTORS])
+def test_shared_region_vectors(v):
+    out = md_to_tiptap(v["md"])
+    assert _shape_marks(out["doc"]) == v["shape"]
+    assert not _orphan_media(out)
+
+
+def _orphan_media(out: dict[str, Any]) -> list[str]:
+    """Media refs the doc never references: always a dropped node (C1's class of bug)."""
+    used: set[str] = set()
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            attrs = node.get("attrs") or {}
+            for key in ("src", "href"):
+                val = attrs.get(key)
+                if isinstance(val, str) and val.startswith("import-ref://"):
+                    used.add(val[len("import-ref://"):])
+            if isinstance(attrs.get("ref"), str):
+                used.add(attrs["ref"])
+            for child in node.get("content") or []:
+                walk(child)
+
+    walk(out["doc"])
+    return [m["ref"] for m in out["media"] if m["ref"] not in used]
+
+
+def _rail_inputs() -> list[tuple[str, str, str]]:
+    """(name, kind, text) for every input the shared converters' rails hold: the shared
+    vectors, the server_convert and obsidian parity fixture inputs, the adversarial corpus
+    and the messy Obsidian vault the connector corpora import."""
+    convert_dir = pathlib.Path(__file__).resolve().parent / "note_connectors" / "convert"
+    corpora_dir = pathlib.Path(__file__).resolve().parent / "note_connectors" / "corpora"
+    vectors = json.loads(_HTML_VECTORS_PATH.read_text(encoding="utf-8"))
+    out: list[tuple[str, str, str]] = []
+    for key in ("vectors", "block_node_vectors"):
+        out += [(f"{key}/{v['name']}", "html", v["html"]) for v in vectors[key]]
+    for key in ("markdown_vectors", "inline_vectors", "region_vectors", "unsafe_image_vectors"):
+        out += [(f"{key}/{v['name']}", "md", v["md"]) for v in vectors[key]]
+    for p in sorted((convert_dir / "fixtures_in").iterdir()):
+        if p.suffix in (".md", ".html"):
+            out.append((f"fixtures_in/{p.name}", p.suffix[1:], p.read_text(encoding="utf-8")))
+    for p in sorted((convert_dir / "obsidian_fixtures_in").glob("*.md")):
+        out.append((f"obsidian_fixtures_in/{p.name}", "md", p.read_text(encoding="utf-8")))
+    adversarial = json.loads((_HTML_VECTORS_PATH.parent / "obsidian_adversarial" / "corpus.json")
+                             .read_text(encoding="utf-8"))
+    out += [(f"adversarial/{i}", "md", c["input"]) for i, c in enumerate(adversarial["cases"])]
+    for p in sorted((corpora_dir / "obsidian_messy").rglob("*.md")):
+        out.append((f"obsidian_messy/{p.name}", "md", p.read_text(encoding="utf-8")))
+    return out
+
+
+def test_no_converter_output_holds_an_orphan_media_entry():
+    """C1's rail: every media entry a conversion registers is referenced by a node in its doc
+    (an image, a chip, a notice). An orphan is always content dropped after it was seen."""
+    inputs = _rail_inputs()
+    assert len(inputs) > 300
+    bad = []
+    for name, kind, text in inputs:
+        for notice in (False, True):
+            out = html_to_tiptap(text) if kind == "html" else md_to_tiptap(text, unsafe_image_notice=notice)
+            orphans = _orphan_media(out)
+            if orphans:
+                bad.append((name, orphans))
+    assert bad == []

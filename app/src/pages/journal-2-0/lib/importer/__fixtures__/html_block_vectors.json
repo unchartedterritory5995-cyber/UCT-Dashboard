@@ -68,6 +68,16 @@
     {"name": "nested tags compose", "md": "a <b><i>bi</i></b> c", "shape": "doc(paragraph('a ', 'bi'[bold+italic], ' c'))"},
     {"name": "a raw tag inside markdown emphasis", "md": "**a <i>b</i> c**", "shape": "doc(paragraph('a '[bold], 'b'[bold+italic], ' c'[bold]))"}
   ],
+  "region_vectors_doc": "D3 fix round 1 (C1): markdown inside an inline or leaf element a <details>/<aside> region holds open across blocks keeps its text, links and images on both lanes, placed as the browser's tree builder places it (a block start closes <p>/<pre>; inline elements wrap the blocks with their marks). Server: md_to_tiptap. Client: mdToHtml then htmlToNote. `shape` spelled as inline_vectors.",
+  "region_vectors": [
+    {"name": "a link held open across blocks", "md": "<details>\n<a href=\"https://x.com\">\n\nlink text para with ![i](https://e.com/i.png)\n\n</a>\n\n</details>", "shape": "doc(toggle(toggleSummary, toggleContent(paragraph('link text para with '[link=https://x.com]), image)))"},
+    {"name": "a centred paragraph around a screenshot", "md": "<details>\n<p align=\"center\">\n\n![img](https://e.com/i.png)\n\n</p>\n\n</details>", "shape": "doc(toggle(toggleSummary, toggleContent(paragraph, image, paragraph)))"},
+    {"name": "bold held open across blocks", "md": "<details>\n<b>\n\nbold para\n\n</b>\n\n</details>", "shape": "doc(toggle(toggleSummary, toggleContent(paragraph('bold para'[bold]))))"},
+    {"name": "a summary held open across blocks", "md": "<details>\n<summary>\n\nsum *md*\n\n</summary>\n\nbody\n\n</details>", "shape": "doc(toggle(toggleSummary, toggleContent(paragraph('sum ', 'md'[italic]), paragraph('body'))))"},
+    {"name": "a pre held open across blocks", "md": "<details>\n<pre>\n\ncode para\n\n</pre>\n\n</details>", "shape": "doc(toggle(toggleSummary, toggleContent(codeBlock, paragraph('code para'))))"},
+    {"name": "a paragraph held open in an aside", "md": "<aside>\n<p>\n\ninside\n\n</p>\n\n</aside>", "shape": "doc(callout(paragraph, paragraph('inside'), paragraph))"},
+    {"name": "a link text after the blocks stays in the link", "md": "<details>\n<a href=\"https://x.com\">\n\npara\n\nafter</a> tail\n\n</details>", "shape": "doc(toggle(toggleSummary, toggleContent(paragraph('para'[link=https://x.com]), paragraph('after'[link=https://x.com], ' tail'))))"}
+  ],
   "unsafe_image_vectors_doc": "D3 follow-up (difference 1): a raw <img> whose src the policy refuses as UNSAFE leaves the same visible notice on both lanes, never a silent drop. Server: md_to_tiptap(md, unsafe_image_notice=True), its importNotice nodes. Client: parseImport with the generic adapter, htmlToNote, each image's media item failure (its name, else the image's alt). `notices` = [reason, name] in document order.",
   "unsafe_image_vectors": [
     {"name": "a javascript src in a block", "md": "a\n\n<div><img src=\"javascript:alert(1)\" alt=\"pic\"></div>\n\nb", "notices": [["unsafe", "pic"]]},
