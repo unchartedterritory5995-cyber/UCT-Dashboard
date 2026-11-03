@@ -259,7 +259,21 @@ nothing. Like stock.quote, it takes the turn id from `currentTurnId()` at the re
 - **What leaves the module.** Only `{text, present}`.
 
 **Fast path.** `match(text)` handles the bars rows of `MD-1-phrasings.md` (P18–P24) and returns `{action:
-'stock.dailyBars', params: {symbol, measure, sessions}}`. "This week" (P21) and an intraday low (P26) go to the
+'stock.dailyBars', params: {symbol, measure, sessions}}`.
+
+**W2-B2 (builder-b, 2026-11-03) — ranges and comparisons.** `bars.daily` takes `from` (an ISO day): the bars on or
+after it up to the cutoff (`to` or the newest completed session), ONE store read of up to 500 bars filtered in the
+adapter, note `window: bars on or after <from>`; when the store's oldest held bar is after `from` the read is
+`partial` with `the store's oldest held bar in the window is <first>, after the <from> asked for`; `from` after `to`
+is refused before admission. `data.window_from` echoes it. `stock.dailyBars` gains three measures and a `from` arg:
+
+| measure | read | answer |
+|---|---|---|
+| `offHigh` | `bars: 252` | `NVDA closed at $X on <date>, −12.34% (−$Y) below its 52-week high of $H on <date> (the highest high of the 252 completed sessions from <first> to <last>).` At the high: `… closed at its 52-week high …`. |
+| `pullbacks` | `bars: 252` | the current pullback (close-to-close drawdown from the highest close, its date, the lowest close since and the sessions elapsed) beside the last three COMPLETED pullbacks of 3%+ (peak → low → the close that recovered the peak), as a table; fewer than three is said. |
+| `range` with `from` (and `to`) | `from`, `to` | `NVDA from <from> to <to> (N completed sessions, <first> to <last>): high $X on <date>, low $Y on <date>. Close $Z on <date>.` |
+
+Every answer keeps the §4.6 rules (completed sessions, dates named, stale / partial said, fixed no-bars words). "This week" (P21) and an intraday low (P26) go to the
 model. The hook is `fastWhole` + `fast` with `fastCorrect: false`, the same as stock.quote.
 `registerMarketDataCapabilities()` registers both capabilities, each only when its own kinds are active. Its return
 value still means what it did in #624: true only when that call registered `stock.quote`.
@@ -475,6 +489,31 @@ fresh contributing input and `as_of` the oldest contributing fact's time. `provi
 (nested reads report their own). Params: `{symbol, topic: move|strength|catalysts|general, question?}`. Default OFF
 (`UCT_AGENT_DATA_KINDS`), like every kind.
 
+### 4.9 `history.eventStudy` (v1.6, builder-b, W2-B2)
+
+A thin kind over Market Intelligence's EXISTING event study (`api/services/market_intel/event_study.py`, Slice 2,
+previously without a caller): `api/services/uct_agent/marketdata/history_event_study.py`. "Every time `symbol` met a
+technical condition, what did it do over the next N sessions" — events, hit rate, average, median, best, worst, with a
+baseline of all sessions. Params `{symbol, indicator: gap_pct|pct_from_sma|rsi|bb_pct_b|macd_hist, period?, op:
+above|below|cross_above|cross_below, threshold, horizons? (1–252 sessions, at most 4; default 1, 5, 21), since?}`.
+`gap_pct` is the opening gap vs the previous close from the stored opens / closes (`price_reads.daily_open_close`,
+the same read-only loader), on ANY session — UCT's data carries no past earnings dates, and the answer says so.
+
+- **Scope:** series kind `technical` only. A breadth-conditioned study carries UCT-derived values (ADR-005) and is
+  refused before any read: "breadth-conditioned studies are not available to UCT Agent yet".
+- **Envelope:** `historical`; `as_of` = the regular-session close of the last stored price session the study used;
+  `stale` when that session predates the newest completed session; `provider_calls` 0. Notes always carried:
+  `descriptive, not predictive: …`, `completed sessions only, …`, `shown to the member only; the model receives the
+  request and counts, never a return`.
+- **Data:** `study` = the member's part (`lead`, `text`, `table`, `caveats` from `event_study_answer.answer`);
+  `summary` = the value-free part (event counts, dates, horizon labels and sample sizes, `small_sample`); `request`,
+  `method`, `coverage`, the study's own `notes`.
+- **LOCAL ONLY on the model path.** The capability `history.afterEvent` (`app/src/agent/capabilities/history.js`,
+  query on the `market` target, `localOnly: true`) is in `turn.LOCAL_ONLY_ACTIONS`; a stored row replays as
+  `LOCAL_RESULT_NOTE` plus `event_study.request_note` of the validated args (symbol, condition, windows, dates) —
+  never a return. The member sees the table. Every answer ends with *Descriptive, not predictive: …* and dates the
+  stored closes it rests on. Default OFF (`UCT_AGENT_DATA_KINDS`), like every kind.
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -484,6 +523,7 @@ fresh contributing input and `as_of` the oldest contributing fact's time. `provi
 
 ## 9. Changelog
 
+- **v1.6 addition (2026-11-03, builder-b, W2-B2):** `bars.daily` gains `from` (a window read); §4.6 `offHigh`, `pullbacks` and `range` with `from`; §4.9 `history.eventStudy` over Market Intelligence's event study (technical series only, local-only to the model). No envelope change.
 - **v1.6 addition (2026-11-03, agent-rs, W2-B1):** §4.8 `research.company`, a composed kind over the served kinds plus the turn's one web search (contract RS-1). No envelope change.
 - **v1.5 amendment (2026-11-02, agent-md, G2):** §4.7.5 L6. While the symbol index is older than 3 days (or undated), no lowercase word or lowercase cashtag is confirmed; it gets the #691 neutral ask with `basis` `index_stale`. Classes and reads unchanged.
 - **v1.5 amendment (2026-11-02, agent-md, owner ruling):** §4.7.5. A lowercase word or lowercase cashtag is priced when the index confirms it (L1–L5), each result carries `basis`, and a list must name a candidate in every item. Classes, precedence and reads are unchanged.

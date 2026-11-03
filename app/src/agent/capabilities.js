@@ -50,6 +50,14 @@ export function registerCapability(cap) {
       || JSON.stringify([...(a.required || [])].sort()) !== JSON.stringify(Object.keys(a.properties || {}).sort())) {
     throw new Error(`${cap.name}: args must be a closed object whose properties are all required`)
   }
+  // `absentAsNull`: args ADDED to an existing capability. The manifest still lists them as required (the
+  // server's strict grammar needs a fully required object), but an arg shape from BEFORE they existed (the
+  // key left out) validates as if it were null, as the server's own _fill_absent_nullables does. Each must be
+  // a declared, nullable property.
+  for (const k of cap.absentAsNull || []) {
+    const t = a.properties[k]?.type
+    if (!(Array.isArray(t) ? t : [t]).includes('null')) throw new Error(`${cap.name}: absentAsNull “${k}” must be a nullable property`)
+  }
   // A QUERY capability only reads: `answer(snapshot, args, host)` returns the reply
   // (a string, or { text, table?, link? } for structured results; it may be async),
   // and nothing is planned or committed. The model may route to it (so the answer comes
@@ -412,8 +420,10 @@ export function shapeError(name, args, ctx) {
   const sch = c.args
   if (!args || typeof args !== 'object' || Array.isArray(args)) return 'That action is missing its details.'
   for (const k of Object.keys(args)) if (!(k in sch.properties)) return `Unexpected detail “${k}”.`
-  for (const k of sch.required) if (!(k in args)) return `Missing “${k}”.`
+  const asNull = c.absentAsNull || []
+  for (const k of sch.required) if (!(k in args) && !asNull.includes(k)) return `Missing “${k}”.`
   for (const [k, p] of Object.entries(sch.properties)) {
+    if (!(k in args) && asNull.includes(k)) continue
     const v = args[k]
     // A typed-output input (capability.inputs) may hold a reference instead.
     if (c.inputs?.[k] && isRef(v)) continue

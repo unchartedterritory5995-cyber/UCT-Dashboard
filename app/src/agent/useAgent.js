@@ -1535,6 +1535,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           record({ member: text, outcome: 'Asked which target.', outcomeData: { kind: 'clarify-target', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
+        // W2-B3: the follow-up groups ride along after a lone-target fast op too ("describe this setup" → "and on the
+        // weekly?"), as every other fast branch above already records
+        lastActionsRef.current = fast.ops.map(o => o.action)
         return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice, onTarget: implicitTarget })
       }
 
