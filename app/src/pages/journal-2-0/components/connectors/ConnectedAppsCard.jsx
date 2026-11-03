@@ -247,7 +247,7 @@ export default function ConnectedAppsCard() {
         {returnNotice && returnNotice.reason === 'evernote_plan' && (
           // Evernote refused a Free account (the callback maps that to `evernote_plan`): say what it
           // means and offer the import a Free member CAN use, never the raw reason.
-          <p className={styles.pausedNotice} role="status" data-testid="oauth-return-notice">
+          <p className={styles.offerNotice} role="status" data-testid="oauth-return-notice">
             {EVERNOTE_PLAN_RETURN}{' '}
             <Link to={ENEX_IMPORT_HREF} className={styles.offerLink}>Import an .enex export</Link>
           </p>
@@ -346,7 +346,7 @@ export default function ConnectedAppsCard() {
                 )}
 
                 {!connected && showingConsent && p.key === 'evernote' && (
-                  <p className={styles.muted}>
+                  <p className={styles.offerLine}>
                     <Link to={ENEX_IMPORT_HREF} className={styles.offerLink}>{EVERNOTE_ENEX_OFFER}</Link>
                   </p>
                 )}
