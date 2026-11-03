@@ -433,11 +433,16 @@ def test_nl1_a_number_for_a_string_enum_value_is_read_as_that_value_and_nothing_
     assert turn.coerce_enum_numbers({"properties": {"t": {"type": "string", "enum": ["5"]}}}, {"t": True}) == {"t": True}
 
 
-def test_legacy_never_coerces(flag_off):
-    legacy = {"disposition": "apply", "reply": "", "question": None, "unsupported_category": None, "research": None, "title": None,
-              "ops": [{"action": "chart.setTimeframe", "target": "c1", "args_json": json.dumps({"timeframe": 15})}]}
+def test_legacy_reads_a_number_as_its_enum_value_but_never_guesses(flag_off):
+    # W2-A3 (schema-constrained args, live LT-3): the legacy path now normalizes by the capability's OWN schema too —
+    # 15 for the enum "15" is that value; a number that is not an allowed value is still unreadable (never guessed)
+    def legacy(tf):
+        return {"disposition": "apply", "reply": "", "question": None, "unsupported_category": None, "research": None, "title": None,
+                "ops": [{"action": "chart.setTimeframe", "target": "c1", "args_json": json.dumps({"timeframe": tf})}]}
+    out = turn.run_turn(message="15m", context=CTX, history=[], capabilities=CATALOG[:40], caller=caller_of(_resp(legacy(15))), interpreter="nl1")
+    assert out["envelope"]["ops"] == [TF15]
     with pytest.raises(turn.TurnError):
-        turn.run_turn(message="15m", context=CTX, history=[], capabilities=CATALOG[:40], caller=caller_of(_resp(legacy)), interpreter="nl1")
+        turn.run_turn(message="7m", context=CTX, history=[], capabilities=CATALOG[:40], caller=caller_of(_resp(legacy(7))), interpreter="nl1")
 
 
 def test_nl1_rules_name_protected_layouts(flag_on):
