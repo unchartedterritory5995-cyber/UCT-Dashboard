@@ -614,6 +614,21 @@ def test_a_hotlink_inside_a_figure_keeps_the_figure_well_formed(armed, web, monk
     assert _no_orphans(note)
 
 
+def test_a_repaired_copy_is_handed_to_documents_like_the_doors(armed, web, monkeypatch):
+    """Fix round 1 (review M-6): Plan B R7 (a) -- a fetched image is searchable (OCR) exactly as
+    the member door's is: the same payload, the same seam, once the note's write landed."""
+    from api.services.journal_two import document_extraction
+    note = _note("u1", "Notion", "notion:Export/H.md", _doc({"type": "image", "attrs": {"src": HOT}}))
+    web["routes"][HOT] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+    seen = []
+    monkeypatch.setattr(document_extraction, "on_attachment_saved",
+                        lambda user_id, note_id, saved, content_type, *, kind: seen.append(
+                            (user_id, note_id, saved["url"], content_type, kind)))
+    _apply()
+    src = json.loads(_note_row(note)[0])["content"][0]["attrs"]["src"]
+    assert seen == [("u1", note, src, "image/png", "image")]
+
+
 def test_failed_hotlink_keeps_the_image(armed, web):
     note = _note("u1", "Notion", "notion:Export/H.md", _doc(
         {"type": "image", "attrs": {"src": HOT}}, _para(_t("see https://example.com/a"))))

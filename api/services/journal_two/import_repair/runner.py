@@ -407,6 +407,7 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
             doc = json.loads(current)
         del current
         failed: list[str] = []
+        copies: list = []  # review M-6: handed to documents once the write lands
         for i, url in enumerate(plan.hotlinks):
             if counts["fetched"] + counts["fetchFailed"] >= max_fetches:
                 # review M-1: the rest waits; the member is left unfinished (apply), so a resume
@@ -422,6 +423,7 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
                 logger.info("import repair: hotlink not copied for note %s: %s", row.id, exc)
                 continue
             counts["fetched"] += 1
+            copies.append(stored)
             doc = media.place_stored(doc, url, stored)  # I-1: kind and original, as the door
             changed = True
         if failed:
@@ -442,6 +444,9 @@ def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, h
         store.log_started(conn, run_id, user_id, row.id, plan.shapes, plan.actions, before)  # C7, commits
         applied = engine._apply_resolved_body(conn, user_id, row.id, body, expected_updated_at=row.updated_at)
         outcome = "repaired" if applied else "race_lost"
+        if applied:
+            for stored in copies:  # review M-6: searchable like the door's copies
+                hotlink_fetch.hand_off(user_id, row.id, stored)
         try:
             store.log_note(conn, run_id, user_id, row.id, outcome, plan.shapes, plan.actions,
                            before if applied else None)

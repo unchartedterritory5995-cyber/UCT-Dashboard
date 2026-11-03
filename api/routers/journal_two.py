@@ -4047,15 +4047,9 @@ _NOTE_FILE_UPLOAD = body_cap.capped_upload(
     "file", lambda: notes_service._MAX_FILE_BYTES, lambda: notes_service.FILE_TOO_BIG_SENTENCE)
 
 
-def _stored_media_payload(stored: "media_policy.StoredMedia") -> dict[str, Any]:
-    """[B A1] The upload doors' answer: additive over the old `{url, width, height}` (images)
-    and `{url, name, size}` (files), so an older client keeps reading what it read."""
-    return {
-        "url": stored.url, "kind": stored.kind, "name": stored.name, "size": stored.size,
-        "mime": stored.mime, "width": stored.width, "height": stored.height,
-        "original": ({"url": stored.original.url, "name": stored.original.name}
-                     if stored.original is not None else None),
-    }
+#: [B A1] The upload doors' answer. Plan F Task 7 review M-6: the one builder lives in
+#: `hotlink_fetch` so the import repair hands documents exactly what these doors do.
+_stored_media_payload = hotlink_fetch.stored_payload
 
 
 #: Final review I3: uploads through the media policy in flight at once, per member and for the

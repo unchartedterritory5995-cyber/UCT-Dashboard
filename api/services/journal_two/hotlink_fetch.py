@@ -21,10 +21,13 @@ time, so its tests' patches still hold; this module holds the defaults the repai
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any, Callable
 from urllib.parse import unquote, urlsplit
 
 from api.services.journal_two import media_policy
+
+logger = logging.getLogger(__name__)
 
 #: Per read (the client's timeout).
 FETCH_TIMEOUT_S = 30.0
@@ -71,6 +74,32 @@ def store(user_id: str, note_id: str, data: bytes, content_type: str | None,
     result = media_policy.normalize_media(data, content_type, filename)
     budget = media_policy.MediaBudget.for_member(user_id)
     return media_policy.store_media(user_id, note_id, result, budget=budget)
+
+
+def stored_payload(stored: media_policy.StoredMedia) -> dict[str, Any]:
+    """[B A1] The upload doors' answer: additive over the old `{url, width, height}` (images)
+    and `{url, name, size}` (files), so an older client keeps reading what it read. THE builder:
+    the router's `_stored_media_payload` is this function (Plan F Task 7 review M-6)."""
+    return {
+        "url": stored.url, "kind": stored.kind, "name": stored.name, "size": stored.size,
+        "mime": stored.mime, "width": stored.width, "height": stored.height,
+        "original": ({"url": stored.original.url, "name": stored.original.name}
+                     if stored.original is not None else None),
+    }
+
+
+def hand_off(user_id: str, note_id: str, stored: media_policy.StoredMedia) -> None:
+    """Plan B R7 (a), for the import repair: a fetched file is searchable exactly as one the
+    member door fetched (`_hand_off_to_documents`): the same payload through the same seam.
+    Guarded: a failure here is one log line and never costs the repair (blocking: the repair
+    runs it from its own process, never on the web loop)."""
+    from api.services.journal_two import document_extraction
+    try:
+        document_extraction.on_attachment_saved(user_id, note_id, stored_payload(stored), stored.mime,
+                                                kind=stored.kind)
+    except Exception as e:  # noqa: BLE001 -- extraction never costs the copy
+        logger.warning("[import repair] document hand-off failed after a stored copy (%s)",
+                       type(e).__name__)
 
 
 async def fetch_and_store(user_id: str, note_id: str, url: str, *,
