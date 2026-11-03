@@ -9,7 +9,8 @@ Reads (nothing here asks the engine anything; it joins what the door answered):
   --ref        TradingView's own Pine v6 reference (tools/pine_survey/pine_reference_extract.js)
   <cache>/sample_manifest.json + census.jsonl   (fetch_sample.py, run_census.py)
   --verdicts   a fresh vendor-harness verdicts.json over tests/fixtures/vendor/harness
-  --engine-door  doorCoverage's probe of the engine's own declared functions
+  --engine-door  doorCoverage's probe of the engine's own declared functions. Optional: left out,
+                 engineTableThroughPineDoor is empty (not measured); named but missing, refused
 
 Writes coverage-map.json: deterministic (sorted keys, no wall-clock stamp unless
 --measured-on is passed), so a daily job can recompute and DIFF it.
@@ -469,6 +470,34 @@ def read_verdicts(path, lane, what):
     return vd
 
 
+def read_engine_door(path):
+    """--engine-door: left out -> [] (not measured; engineTableThroughPineDoor is empty).
+    Named but missing -> REFUSED. It used to read as [] too, so a re-run that named the
+    probe's output without running the probe wrote "measured, and empty" with no error
+    (W0 review, 2026-11-02). main() asks this first, before any input is read."""
+    if not path:
+        return []
+    if not os.path.exists(path):
+        sys.exit("--engine-door %s does not exist: run the engine-door probe first (COVERAGE_DOOR_OUT=<file>, "
+                 "coverageMapDoorCensus.measure.test.js), or leave --engine-door out "
+                 "(engineTableThroughPineDoor is then empty: not measured)" % path)
+    return json.load(open(path, encoding="utf-8"))
+
+
+def norm_src(text):
+    """The key a vendor capture is joined to a sample script by: its source, whitespace-insensitive.
+    One rule for every such join (main() below, and tools/pine_coverage/w0/targets.py, which joins
+    the runtime-on parity changes to scripts with it)."""
+    return hashlib.sha1(re.sub(r"\s+", "", text).encode("utf-8")).hexdigest()
+
+
+def script_verdict(verdicts):
+    """One script's vendor verdict over its captures' verdicts: MATCH if any capture MATCHes,
+    else DIVERGE if any DIVERGEs, else INCONCLUSIVE; None for a script without a capture."""
+    v = set(verdicts)
+    return None if not v else ("MATCH" if "MATCH" in v else "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE")
+
+
 def runtime_walls_of(row):
     """The runtime lane's walls over every peel step of a runtime-on census row:
     its probe's guard where it declined with a position, else its decline code, else
@@ -616,6 +645,7 @@ def main():
     ap.add_argument("--runtime-cache", default=None, help="a census cache run with run_census.py --runtime-on")
     ap.add_argument("--runtime-verdicts", default=None, help="verdicts.json from VENDOR_HARNESS_RUNTIME_ON=1")
     a = ap.parse_args()
+    engine_door = read_engine_door(a.engine_door)   # first: a named file that is not there stops here
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:  # noqa: BLE001
@@ -671,9 +701,7 @@ def main():
     items_by_key = {s["key"]: s["_items"] for s in scripts}
 
     # ── vendor parity evidence
-    # a capture is joined to a sample script by its source, whitespace-insensitive
-    def norm_src(t):
-        return hashlib.sha1(re.sub(r"\s+", "", t).encode("utf-8")).hexdigest()
+    # a capture is joined to a sample script by its source, whitespace-insensitive (norm_src)
     by_norm = {norm_src(open(inputs[s["key"]]["path"], encoding="utf-8").read()): s for s in scripts}
     vd = read_verdicts(a.verdicts, LANE_PRODUCTION, "--verdicts")
     verified_items, diverge_items = collections.Counter(), collections.Counter()
@@ -699,8 +727,7 @@ def main():
             tgt[it] += 1
     vcount = collections.Counter(r["verdict"] for r in cap_rows)
     for s in scripts:
-        v = s.pop("_captures", None)
-        s["vendorVerdict"] = None if not v else ("MATCH" if "MATCH" in v else "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE")
+        s["vendorVerdict"] = script_verdict(s.pop("_captures", ()))
     sample_parity = collections.Counter(
         ("transfers" if s["clean"] else "does-not-transfer") + ":" + s["vendorVerdict"]
         for s in scripts if s["vendorVerdict"])
@@ -740,8 +767,6 @@ def main():
                 tok = inv.normalise((r.get("token") or "").strip(), s["version"]) if r.get("token") else None
                 if tok:
                     blocked[tok][r.get("guard")] += 1
-
-    engine_door = json.load(open(a.engine_door, encoding="utf-8")) if a.engine_door and os.path.exists(a.engine_door) else []
 
     def status_of(nm):
         dl = data_limited(nm)
