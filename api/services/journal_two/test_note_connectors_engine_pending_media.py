@@ -65,6 +65,11 @@ async def test_pending_media_retry_never_moves_or_holds_the_cursor(tmp_path, mon
 
         async def fetch(self, credentials, ref):
             self.fetched.append(ref.remote_id)
+            if ref.remote_id == "B" and self.fail_fetch_b == "store":
+                # fetched, but too big to store: `import_confirm` isolates it (notStoredRefs)
+                big = "x" * (notes_svc.MAX_BODY_JSON_BYTES + 10)
+                return RemoteNote(remote_id="B", title="B", doc=doc(big),
+                                  updated_at="2026-01-09T00:00:00.000+00:00")
             if ref.remote_id == "B" and self.fail_fetch_b:
                 raise engine.errors.NoteConnTransient("get_note timed out")
             if ref.remote_id == "B":
@@ -114,13 +119,23 @@ async def test_pending_media_retry_never_moves_or_holds_the_cursor(tmp_path, mon
     assert pending_b() == import_notice.MEDIA_PENDING_RETRY
     assert cursor() == "2026-01-02T00:00:00.000+00:00"
 
+    # pass 2b: A edited again; B is fetched but cannot be STORED. Still never holds the cursor.
+    a3 = RemoteRef(remote_id="A", updated_at="2026-01-03T00:00:00.000+00:00")
+    second_b = Fake([a3], [a3, b], fail_media_once=False, fail_fetch_b="store")
+    monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: second_b)
+    result = await engine.sync_source(src["id"], full=True, manual=True)
+    assert any("'fake:B' could not be stored" in f for f in result["failures"])
+    assert pending_b() == import_notice.MEDIA_PENDING_RETRY
+    assert cursor() == "2026-01-03T00:00:00.000+00:00"
+    a2 = a3
+
     # pass 3: the retry lands; B's newer listing time never becomes the cursor
     third = Fake([a2], [a2, b], fail_media_once=False)
     monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: third)
     await engine.sync_source(src["id"], full=True, manual=True)
     assert third.fetched == ["A", "B"]
     assert pending_b() == import_notice.MEDIA_PENDING_NONE
-    assert cursor() == "2026-01-02T00:00:00.000+00:00"
+    assert cursor() == "2026-01-03T00:00:00.000+00:00"
 
     # an incremental pass (no complete listing) adds nothing
     fourth = Fake([a2], [a2, b], fail_media_once=False)
