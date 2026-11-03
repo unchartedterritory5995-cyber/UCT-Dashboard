@@ -640,7 +640,7 @@ def test_converter_uses_no_private_mddoc_link_policy():
 @pytest.mark.parametrize("src", ["javascript:alert(1)", "vbscript:msgbox(1)", " JaVaScRiPt:x",
                                  "data:text/html;base64,PGI+eDwvYj4=", "data:,plain",
                                  "file:///etc/passwd",
-                                 "/local.png", "", "import-ref://javascript:alert(1)",
+                                 "ftp://x.org/a.png", "import-ref://javascript:alert(1)",
                                  f"import-ref://evernote-res://{GUID}/{IMG_HASH}"])
 def test_an_unsafe_or_forged_img_src_is_an_unsafe_notice(src):
     out = _convert(f'<div>a</div><img src="{src}"/><div>b</div>', [IMG])
@@ -692,11 +692,29 @@ def test_a_relative_img_in_a_web_clip_resolves_against_its_source_and_is_copied(
     assert out["media"] == [{"ref": resolved, "kind": "image", "name": "a.png"}]
 
 
-@pytest.mark.parametrize("src", ["/pics/a.png", "pics/a.png", "//cdn.site.com/a.png"])
-def test_a_relative_img_without_a_web_clip_source_stays_unsafe(src):
+@pytest.mark.parametrize("src", ["/pics/a.png", "pics/a.png", "//cdn.site.com/a.png", "/local.png"])
+def test_a_relative_img_without_a_web_clip_source_is_unresolvable_named_by_its_src(src):
+    # Task 5 review, concern 2 ruling: not dangerous, just unresolvable -- the product-wide code
+    # (the client's `collectRemoteImages`), its src as the name. `unsafe` would say "its address
+    # isn't allowed", which is false here.
     out = _convert(f'<img src="{src}"/>')
     (notice,) = _of_type(out, "importNotice")
-    assert notice["attrs"]["reason"] == "unsafe" and out["media"] == []
+    assert notice["attrs"]["reason"] == "unresolvable_src"
+    assert notice["attrs"]["name"] == src
+    assert out["media"] == []
+
+
+def test_an_unresolvable_src_name_is_bounded_like_the_client():
+    src = "/" + "x" * 300 + ".png"
+    out = _convert(f'<img src="{src}"/>')
+    (notice,) = _of_type(out, "importNotice")
+    assert notice["attrs"]["name"] == src[:199] + "…"  # MEDIA_NAME_MAX = 200, as mediaRefs.js
+
+
+def test_an_empty_img_src_is_unresolvable_with_no_name():
+    out = _convert('<img src=""/>')
+    (notice,) = _of_type(out, "importNotice")
+    assert notice["attrs"]["reason"] == "unresolvable_src" and notice["attrs"]["name"] is None
 
 
 def test_an_unsafe_img_stays_unsafe_in_a_web_clip():

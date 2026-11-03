@@ -62,8 +62,8 @@
       {
         "attrs": {
           "attempts": 0,
-          "name": null,
-          "reason": "unsafe",
+          "name": "/local/x.png",
+          "reason": "unresolvable_src",
           "ref": null,
           "sourceUrl": null
         },

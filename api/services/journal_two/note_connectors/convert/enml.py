@@ -438,6 +438,16 @@ class _Notices:
         return _Node("img", {"src": f"{REF_PREFIX}{_NOTICE_SCHEME}{len(self.nodes) - 1}"})
 
 
+_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
+#: `mediaRefs.js::MEDIA_NAME_MAX`: a media item's display name is bounded (a src can be huge).
+MEDIA_NAME_MAX = 200
+
+
+def _bounded_name(name: str) -> str:
+    """The client's `boundedName`: at most MEDIA_NAME_MAX characters, an ellipsis when cut."""
+    return name if len(name) <= MEDIA_NAME_MAX else name[:MEDIA_NAME_MAX - 1] + "…"
+
+
 def _web_image_url(src: str) -> str | None:
     try:
         parts = urlsplit(src)
@@ -479,7 +489,12 @@ def _rule_refuse_foreign_media(root: _Node, notices: _Notices, base_url: str | N
                 # file importer uploads it; the walker's data-URI path, media_policy caps in the
                 # engine. Scheme lower-cased: the walker reads `data:` case-sensitively.
                 return [_Node("img", {"src": "data:" + src[5:]})]
-            return [notices.placeholder("unsafe")]
+            if not _SCHEME_RE.match(re.sub(r"[\x00-\x20]", "", src)):
+                # Task 5 review, concern 2 ruling: no scheme and no clip source to resolve it
+                # against -- not dangerous, just unresolvable. The client's code and name
+                # (`collectRemoteImages`: `unresolvable_src`, the src bounded to 200 chars).
+                return [notices.placeholder("unresolvable_src", name=_bounded_name(src) or None)]
+            return [notices.placeholder("unsafe")]  # a refused scheme
         if n.tag == "a" and (n.attrs.get("href") or "").strip().lower().startswith(placeholders):
             return list(n.children)
         return None
