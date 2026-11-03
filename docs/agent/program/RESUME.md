@@ -26,6 +26,14 @@ Worktrees share `app/node_modules` by junction to `C:/w/txlinks/app/node_modules
 
 ## Builder reports at stop
 _(filled from each builder's wrap-up message)_
+### w3-a (Wave 3 coach) — three stacked branches, base agent/int-w3; flag UCT_AGENT_COACH default OFF, admin-only
+- agent/w3/coach @ 4a3250519f → PR #724 (ready, NOT draft; agent-ci green): W3-1 coach.explain over 13 reviewed concepts (docs/agent/coach/concepts) + one grounded observation from bars.daily; W3-2 guard (unsupported/order/figure/uncertainty) applied to every coach reply, 32 violating / 12 clean fixture, mutation note. Full suites: pytest 2180, vitest 2640/6 skipped.
+- agent/w3/coach-journal @ aadadf7b3e → DRAFT PR #729 (stacked): W3-3 coach.consent (conversation state `coachConsent`, owner-scoped), journal.reviewTrades (consent-gated, descriptive stats, model sees only a sanitized view), journal.proposeNote (always proposed). Targeted tests green; FULL suites NOT run.
+- agent/w3/coach-workflow @ a45050c296 → DRAFT PR #730 "WIP" (stacked): W3-4 next-step quick replies + structured-block rails; 1 of 8 pytest assertions red (test-only expectation order). FULL suites NOT run.
+- W3-5/W3-6 blocked on Wave 2; contract docs/agent/program/contracts/COACH-1.md written.
+- Outside package paths: tests/test_uct_agent_contract.py (_GROUP_OF +coach/journal). Golden unchanged (gated registration). Pre-existing unrelated red on base: src/noRegexLookbehind.test.js.
+- Resume: fix the one expectation in tests/test_uct_agent_coach_workflow.py; full suites on aadadf7b3e and the fixed head; counts into #729/#730; independent review (consent gating, value-free telemetry, no j2 writes except proposeNote); merge order into agent/int-w3: #724 → #729 → #730 — only with the owner's go.
+
 ### w2-c (website operations) — agent/w2/webops @ 4c89b53ba2 — DRAFT PR #728 (base agent/int-w2)
 - W2-C1 DONE (state pr): AgentProvider in App.jsx (admin + switch; dark otherwise) owns the panel on non-charts pages; page hosts for /screener (read + screener.openSaved via the page's own door, exact Undo), /breadth (read-only), /calendar (calendar.nextReport, calendar.day), /journal (journal.listNotes, journal.createNote via noteCreation.createNoteViaApi; Undo = trash); queries now surfaces ['*']; dock button on the four pages; /charts keeps its own host (one hook call). Golden +2 topic enum values only.
 - W2-C2 NOT STARTED (design in the PR body / BOARD W2-C section); W2-C3 NOT STARTED (design recorded).
