@@ -2647,6 +2647,20 @@
       ],
       "note": "GT (2026-10-02): WHO the per-bar runtime pane is for. A MODE, not a gate: off (default; unset, empty or unrecognised all read off) | admins (role == 'admin' only) | all. Read PER REQUEST in api/services/runtime_definitions.py::stage / pane_permitted, declared as PINE_RUNTIME_MODE_FLAGS so feature_flag_index.mode_flags() derives it. Rides the auth payload resolved for THIS member as pine_runtime_pane_enabled (api/routers/auth.py::_access_payload, no new endpoint); the client latches it per tab (engine/runtimePaneGate.js) and runtimePaneEnabled() needs BOTH it and the build flag VITE_PINE_RUNTIME_PANE_ENABLED. The save door asks the same question of the saving member. While admins or all, the lane serves only the starter allowlist (adx-and-di-for-v4 today). WS-I (2026-10-31, R2): cohort = admins plus members tagged into the pine-runtime-pane cohort (a user_tags row rollout:pine-runtime-pane, written only by tools/rollout_cohort.py add --cohort pine-runtime-pane --user <id> --apply; api/services/rollout_gate.py::pine_runtime_cohort_enabled_for). The stage itself is the cohort's kill switch, read FIRST: at any other stage no tag is read, so stepping back to admins or off withdraws every tagged member without touching a tag. Rollback: set a lower stage, never delete a tag (a variable, NO deploy; reaches a member on their next authenticated request; since WS-I (S6) an OPEN tab that holds a yes re-asks /api/auth/me once its answer is 60 s old and APPLIES a no (app/src/lib/runtimePanePermission.js), and with off every served runtime row is stamped meta.runtimeKilled so the install door refuses it on the next read; and every run of a loaded pane re-asks the per-member permission and the kill list, so a drawing pane stops on its next run with runtime:switched-off or runtime:killed (app/src/components/chart/engine/nativeRegistry.js::runtimeColumnsOrReasons)). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeSwitchOn.test.js, app/src/lib/runtimePaneRevocation.test.js, app/src/components/chart/engine/__tests__/runtimeRunGate.test.js."
     },
+    "PINE_RUNTIME_SERVER_STAGE": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine parity programme",
+      "owner_decision": "2026-11-02 owner ruling Q4 (docs/pine/SERVER-RUNTIME-DESIGN.md section 9.1): a separate variable for the server lanes, with the effective stage min(pane stage, server stage). The flip itself is not yet taken: arming it is T20, the owner's Railway step.",
+      "default": "off",
+      "values": [
+        "off",
+        "admins",
+        "cohort",
+        "all"
+      ],
+      "note": "W5 T12 (2026-11-02): WHO the SERVER lanes (alerts, scans, backtests, the rule record: docs/pine/SERVER-RUNTIME-DESIGN.md 3.5) run a member's runtime script for. A MODE, not a gate: off (default; unset, empty or unrecognised all read off) | admins | cohort | all, the same ladder and the same cohort tag (rollout:pine-runtime-pane) as PINE_RUNTIME_STAGE. Read PER CALL in api/services/runtime_definitions.py::server_stage / effective_server_stage / server_permitted / server_lane_refusal, declared in PINE_RUNTIME_MODE_FLAGS so feature_flag_index.mode_flags() derives it. The effective server stage is min(pane stage, server stage): server_permitted asks pane_permitted FIRST (called, not copied), so a server lane can never reach a member whose chart cannot draw the script. It is checked against the definition's OWNER at EVALUATION time on every call, not once at arm, so lowering it withholds every runtime alert by name (runtime:server-stage) on the next cycle and deletes nothing. As of T12 nothing calls server_lane_refusal (T13 onward wire the lanes to it), so until a lane is wired this variable changes no member's behaviour, and no Railway variable is set. Arming order (T20, the owner's step): PINE_RUNTIME_SERVICE_SECRET on web and on the pine-runtime service, then PINE_RUNTIME_SERVICE_URL on web; this variable stays UNSET (off) until the post-deploy smoke passes; then admins with the allowlist only for a week (exit: zero runtime:server-integrity, canary green, smoke green on each deploy), then cohort, then all, never ahead of the pane stage. Rollback: set a lower stage or blank it (a variable, no deploy; verify a NEW boot and read it in-process, never from --kv). Rails: tests/test_runtime_server_stage.py."
+    },
     "PROVIDER_COVERAGE_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
@@ -3663,6 +3677,28 @@
       "owner": "pine parity programme",
       "owner_decision": "2026-10-02 ruling D6 (only a script graded MATCH on a TradingView capture is served); 2026-10-31 ruling R1: per-capability conformance is the primary gate AND every allowlisted script has at least one MATCH capture with the runtime pane on (api/services/rollout_gate.py::pine_runtime_admission over the committed JSON). Keep this variable UNSET in production: its entries carry no evidence, so a set value serves a script outside R1",
       "note": "GT (2026-10-02): the operator half of the starter allowlist. WS-I (2026-10-31, R1): the COMMITTED list is graded: a script there is served only when every census capability it names is conformant in the file's capabilities registry and it names a MATCH capture with the pane on; one that fails is withheld (served as not graded, never deleted) and allow_report() names why, and the rail goes red by name. This variable stays additive and ungraded (an operator override, used by tests to admit synthetic sources); allow_report() reports its entries as env_overrides so a set value is never invisible. The way to admit a script is a commit to the JSON with its evidence. Lever to WITHDRAW one: remove its line (commit + deploy) or, faster, add it to PINE_RUNTIME_KILL_LIST (a variable, no deploy). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeSwitchOn.test.js."
+    },
+    "PINE_RUNTIME_SERVICE_URL": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/runtime_definitions.py::service_missing, asked by server_lane_refusal step 5 (read per call; blank counts as unset). The client that connects to it (T11, api/services/pine_runtime_client.py) reads the same name.",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "default": "unset (no runtime service configured: every server lane refuses by name, runtime:server-unavailable)",
+      "owner": "pine parity programme",
+      "owner_decision": "2026-11-02 owner decision: the Pine runtime runs server-side as a SEPARATE sandboxed service, reachable only on the private network (docs/pine/SERVER-RUNTIME-DESIGN.md sections 0 and 3.6). Setting this is T20, the owner's Railway step; it is set on no service.",
+      "note": "W5 T12 (2026-11-02): where the web pod reaches the pine-runtime service, its private-network address (pine-runtime.railway.internal, design 3.6): the service has NO public domain. Unset or blank means the service is not configured: server_lane_refusal answers runtime:server-unavailable BEFORE any network call, and the client maps the same case the same way (design 3.7). It is an address, not a credential, but no admission sentence ever carries its value. It arms nothing by itself: a server lane also needs PINE_RUNTIME_SERVER_STAGE above off and PINE_RUNTIME_SERVICE_SECRET set. Set order (T20): the secret on both services first, then this on web. Rollback: set it to \"\" (Railway ignores null) and verify a NEW boot; a delete does not restart. Rails: tests/test_runtime_server_stage.py."
+    },
+    "PINE_RUNTIME_SERVICE_SECRET": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/runtime_definitions.py::service_missing, asked by server_lane_refusal step 5, which asks ONLY whether it is set (read per call; blank counts as unset). The signing read is the client's (T11, api/services/pine_runtime_client.py).",
+      "kind": "secret",
+      "status": "dark",
+      "where": [],
+      "default": "unset (the web pod cannot sign a request: every server lane refuses by name, runtime:server-unavailable)",
+      "owner": "pine parity programme",
+      "owner_decision": "2026-11-02 owner decision: the Pine runtime runs server-side as a SEPARATE sandboxed service (docs/pine/SERVER-RUNTIME-DESIGN.md sections 0 and 3.6). The owner creates this key in the Railway dashboard (T20); no agent sets it, and it is set on no service.",
+      "note": "A SECRET: its value is never recorded in this ledger, in the repo, in a log, in a sentence or in a chat. W5 T12 (2026-11-02): the HMAC key that signs every request from web to the pine-runtime service (design 3.6); the SAME value is set on BOTH services (the service accepts a comma-separated list so a key can rotate). Here it is only asked about being set: server_lane_refusal step 5 answers runtime:server-unavailable while it is not, so a lane never builds a request it cannot sign. (Design 3.5 step 5 names only the URL; the secret is added to that step so a pod holding one without the other fails closed by name instead of at the first request.) Rotation without a joint restart: add the new key to the service, switch web to it, then remove the old one from the service. Rollback: blank it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."
     }
   }
 }
