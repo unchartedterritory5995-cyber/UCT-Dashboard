@@ -135,12 +135,18 @@ def test_hands_off_is_the_one_predicate():
     assert runner.hands_off(_row("Notion")) is False
 
 
-def test_an_unreadable_stamp_is_hands_off(db):
+#: Fix round 1, I-2: the two classes `plan_note` writes. The guard is railed on both.
+WRITABLE = [("Notion", "notion:Export/A.md", FILE), ("roam", "roam:g/p", ORPHANED)]
+
+
+@pytest.mark.parametrize("source,key,note_class", WRITABLE)
+def test_an_unreadable_stamp_is_hands_off(db, source, key, note_class):
     """C4: `edited_since_import` answers "not edited" when a stamp cannot be read. The repair
     never writes such a note: kept as edited, counted as `unreadableStamp`."""
-    note = _note("u1", "Notion", "notion:Export/A.md", BARE)
+    note = _note("u1", source, key, BARE)
     _sql("UPDATE j2_notes SET updated_at = 'not a time' WHERE id = ?", note)
     report = _scan()
+    assert report["totals"]["byClass"][note_class] == 1
     assert report["totals"]["keptEdited"] == 1 and report["totals"]["unreadableStamp"] == 1
     assert report["totals"]["wouldRepairNotes"] == 0
     assert report["totals"]["byShape"]["bare_url"] == {"unedited": 0, "edited": 1}
@@ -149,16 +155,19 @@ def test_an_unreadable_stamp_is_hands_off(db):
 EDITED_AT = "2099-01-01T00:00:00+00:00"  # later than any `imported_at` the import stamps (now)
 
 
-def test_scan_counts_an_edited_note_and_plans_no_write(db, monkeypatch):
-    note = _note("u1", "Notion", "notion:Export/A.md", BARE)
+@pytest.mark.parametrize("source,key,note_class", WRITABLE)
+def test_scan_counts_an_edited_note_and_plans_no_write(db, monkeypatch, source, key, note_class):
+    note = _note("u1", source, key, BARE)
     _sql("UPDATE j2_notes SET updated_at = ? WHERE id = ?", EDITED_AT, note)
     report = _scan()
     t = report["totals"]
+    assert t["byClass"][note_class] == 1
     assert (t["keptEdited"], t["wouldRepairNotes"], t["legacyFinalize"]) == (1, 0, 0)
     assert t["byShape"] == {"bare_url": {"unedited": 0, "edited": 1}}
-    # C3: the legacy-finalize count is the file importer's own composition, never restated
-    monkeypatch.setattr(notes_svc, "_edited_since_file_import", lambda conn, user_id, row: False)
-    assert _scan()["totals"]["legacyFinalize"] == 1
+    if note_class == FILE:
+        # C3: the legacy-finalize count is the file importer's own composition, never restated
+        monkeypatch.setattr(notes_svc, "_edited_since_file_import", lambda conn, user_id, row: False)
+        assert _scan()["totals"]["legacyFinalize"] == 1
 
 
 def test_the_guard_is_what_stops_the_write(db, monkeypatch):
