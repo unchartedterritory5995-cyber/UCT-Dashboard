@@ -92,3 +92,15 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 | W3-4 | Coaching conversation workflow: ask → explain → check → next step; explicit uncertainty; uses W2-A1 threading once merged (single-turn fallback) | w3-a | W2-A1 (soft) | pr (draft, WIP) | #730 | a45050c296; 1 test expectation to fix |
 | W3-5 | Setup analysis + explanation on top of `chart.describeSetup` | w3-a | W2-B3 merged + reviewed | blocked (dependency) | | |
 | W3-6 | Historical setup comparison on top of `history.eventStudy` / dated ranges | w3-a | W2-B2 merged + reviewed | blocked (dependency) | | |
+
+## Trading Brain integration (KN; candidate branch agent/rc/brain-w2; NOT merged)
+| id | task | owner | depends | state | PR | evidence |
+|---|---|---|---|---|---|---|
+| KN-R1 | Independent review of #735 against the nine points | integrator (reviewer subagent) | — | doing | #735 | review-735.md |
+| KN-R2 | Fixes from the review, with regression tests | blake-d8 / integrator | KN-R1 | todo | | |
+| KN-W1 | Structured setup criteria (per template: named conditions → measurables) + a mapping to served data | blake-d8 (criteria) + integrator | #735 | todo | | |
+| KN-W2 | `setup.analyze` combined workflow (Example B): criteria × chart.describeSetup/bars → present / missing / watch, evidence vs interpretation, sources | builder (after W2-B3) | KN-W1, W2-B3 | todo | | |
+| KN-W3 | Example C: setup.record with n / rates / horizon + uncertainty wording guard (no "proven edge" under min-n) | blake-d8 + integrator | #735 | todo | | |
+| KN-W4 | Example D: scan (public fields) + knowledge criteria + workspace composition | builder | KN-W2, W1 screener caps | todo | | |
+| KN-E1 | Deterministic with/without-Brain evaluation harness + corpus (definitions, interpretation, grounding, attribution, stats, ambiguity, freshness, refusals, multi-step, regression) | eval builder | #735 | todo | | |
+| KN-RC | Candidate agent/rc/brain-w2 = agent/int-w2 + #735 + needed Wave 2 PRs; suites + independent review; GO/HOLD | integrator | all above | todo | | |
