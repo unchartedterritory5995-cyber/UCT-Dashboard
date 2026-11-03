@@ -146,16 +146,55 @@ def test_a_run_that_reaches_market_hours_stops_before_the_next_member(armed):
     from zoneinfo import ZoneInfo
     _note("u1", "Notion", "notion:Export/A.md", BARE)
     _note("u2", "Notion", "notion:Export/B.md", BARE)
-    times = iter([datetime(2026, 11, 4, 9, 29, tzinfo=ZoneInfo("America/New_York")),   # start
-                  datetime(2026, 11, 4, 9, 29, 30, tzinfo=ZoneInfo("America/New_York")),  # member 1
-                  datetime(2026, 11, 4, 9, 30, tzinfo=ZoneInfo("America/New_York"))])     # member 2
-    report = _apply(allow_market_hours=False, now=lambda: next(times))
+    et = ZoneInfo("America/New_York")
+    report = _apply(allow_market_hours=False, now=_stepping_clock(
+        datetime(2026, 11, 4, 9, 29, tzinfo=et),        # start
+        datetime(2026, 11, 4, 9, 29, 30, tzinfo=et),    # member 1
+        datetime(2026, 11, 4, 9, 29, 40, tzinfo=et),    # member 1's note
+        datetime(2026, 11, 4, 9, 30, tzinfo=et)))       # member 2 (and after)
     assert report["repaired"] == 1 and report["stoppedForMarketHours"] is True
     c = auth_db.get_connection()
     try:
         assert store.member_done(c, RUN, "u1") is True and store.member_done(c, RUN, "u2") is False
     finally:
         c.close()
+
+
+def _stepping_clock(*times):
+    """A clock that answers each time in turn, then keeps answering the last one."""
+    seq = list(times)
+
+    def clock():
+        return seq.pop(0) if len(seq) > 1 else seq[0]
+    return clock
+
+
+def test_a_run_that_reaches_market_hours_stops_between_notes_of_one_member(armed):
+    """Final review M-4: one member with many notes (hotlinks can take up to a minute each) must
+    not carry a run into the session. Market hours are re-checked before each note's write; the
+    member is released unfinished (no notice, not done, lease free), and a later run resumes it."""
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    first = _note("u1", "Notion", "notion:Export/A.md", BARE)
+    second = _note("u1", "Notion", "notion:Export/B.md", BARE)
+    report = _apply(allow_market_hours=False, now=_stepping_clock(
+        datetime(2026, 11, 4, 9, 29, tzinfo=et),        # start
+        datetime(2026, 11, 4, 9, 29, 10, tzinfo=et),    # the member
+        datetime(2026, 11, 4, 9, 29, 20, tzinfo=et),    # note 1
+        datetime(2026, 11, 4, 9, 30, tzinfo=et)))       # note 2: the session has opened
+    assert report["repaired"] == 1 and report["stoppedForMarketHours"] is True
+    assert [_outcomes(first), _outcomes(second)].count([]) == 1  # exactly one note was written
+    c = auth_db.get_connection()
+    try:
+        assert store.member_done(c, RUN, "u1") is False
+        assert store.pending_notice(c, "u1") is None
+        store.claim_member(c, RUN, "u1", "another-runner")  # the lease was given back
+        store.release_lease(c, RUN, "u1", "another-runner")
+        c.commit()
+    finally:
+        c.close()
+    resumed = _apply(allow_market_hours=False, now=lambda: datetime(2026, 11, 4, 17, 0, tzinfo=et))
+    assert resumed["repaired"] == 1 and resumed["stoppedForMarketHours"] is False
 
 
 # ── the guard ─────────────────────────────────────────────────────────────────

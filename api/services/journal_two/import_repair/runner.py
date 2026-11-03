@@ -570,6 +570,13 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
                     failed_here, failed_runs = store.failed_hotlinks(conn, run_id, row.id)
                     plan.hotlinks = [u for u in plan.hotlinks
                                      if u not in failed_here and failed_runs.get(u, 0) < DEAD_HOTLINK_RUNS]
+                # Final review M-4: one member's notes (hotlinks up to a minute each) can carry a
+                # run past 09:30 ET, so the session is re-checked before each note too. The member
+                # is released unfinished, like a batch limit, and a later run resumes it.
+                if not allow_market_hours and _market_hours(clock()):
+                    stopped_for_market = True
+                    complete = False
+                    break
                 if writes(plan):
                     # I-2: a batch is a number of notes still needing work. A note an earlier
                     # batch repaired plans as unchanged and does not count, so each batch moves on.
@@ -608,5 +615,7 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
             except Exception as exc:  # noqa: BLE001 -- never mask the exit's own exception
                 logger.warning("import repair: could not release member %s: %s", user_id, exc)
         if not complete and max_notes is not None and worked >= max_notes:
+            break
+        if stopped_for_market:
             break
     return tally.report(**counts, stoppedForMarketHours=stopped_for_market)
