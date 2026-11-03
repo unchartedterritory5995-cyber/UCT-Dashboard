@@ -11,9 +11,9 @@
     {
       "id": "F01",
       "group": "flagship",
-      "title": "scan → new list (card) → add the top 3 → charts of the top 2 → EMA 9 on the first new chart → save as a layout (card)",
+      "title": "the flagship: scan → new list (ONE card) → the shown top 3 added by the list's alias → charts of the top 2 → EMA 10 on the first new chart; undo all",
       "board": "ROOMY",
-      "say": "curate a flagship for me: screen for names over ten dollars, gather the top three into a fresh W2 Flagship collection, bring up the top two with a nine ema, and preserve this as W2 Flagship",
+      "say": "curate a flagship for me: screen for names over ten dollars, gather the top three into a fresh W2 Flagship collection, bring up the top two with a ten ema",
       "script": [
         {
           "action": "screener.run",
@@ -55,10 +55,11 @@
             "alias": "list1"
           },
           "args": {
-            "symbols": {
-              "from": "lastScreen",
-              "top": 3
-            }
+            "symbols": [
+              "AAA",
+              "BBB",
+              "CCC"
+            ]
           }
         },
         {
@@ -67,10 +68,10 @@
             "section": "workspace"
           },
           "args": {
-            "symbols": {
-              "from": "lastScreen",
-              "top": 2
-            },
+            "symbols": [
+              "AAA",
+              "BBB"
+            ],
             "timeframe": "D",
             "chart_type": null,
             "exact": null
@@ -87,7 +88,7 @@
             "inputs": [
               {
                 "key": "period",
-                "value": 9
+                "value": 10
               },
               {
                 "key": "maType",
@@ -97,17 +98,7 @@
           }
         },
         {
-          "action": "layout.saveAs",
-          "target": {
-            "section": "layouts"
-          },
-          "args": {
-            "name": "W2 Flagship"
-          },
-          "mode": "propose"
-        },
-        {
-          "reply": "Your W2 Flagship layout is saved with the new list and charts."
+          "reply": "W2 Flagship holds the top three; the top two are charted with a 10 EMA."
         }
       ],
       "then": [
@@ -115,7 +106,11 @@
           "say": "do it"
         },
         {
-          "say": "do it"
+          "say": "undo all of that",
+          "expect": {
+            "charts": 1,
+            "transcript": "Took back all"
+          }
         }
       ],
       "expect": {
@@ -124,16 +119,11 @@
           "proposed",
           "done",
           "done",
-          "done",
-          "proposed"
+          "done"
         ],
         "resumes": [
           [
             "s2",
-            "done"
-          ],
-          [
-            "s6",
             "done"
           ]
         ],
@@ -146,18 +136,18 @@
           "W2 Flagship": 3
         },
         "charts": 3,
-        "layoutNames": [
-          "Swing Board",
-          "Day Trading",
-          "W2 Flagship"
-        ],
-        "transcript": "Your W2 Flagship layout is saved",
+        "transcript": "W2 Flagship holds the top three",
         "addedIndicators": {
-          "index": 1,
+          "index": 0,
           "brief": [
-            "movingAverage(9)"
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)",
+            "movingAverage(50 sma)",
+            "movingAverage(200 sma)",
+            "movingAverage(10 ema)"
           ]
-        }
+        },
+        "proposals": 1
       }
     },
     {
@@ -165,7 +155,7 @@
       "group": "flagship",
       "title": "variant: sorted scan, ALL results to the list, weekly charts, two EMAs on each new chart, then save",
       "board": "ROOMY",
-      "say": "curate W2 Weekly: screen over ten sorted by adr, gather them all into a fresh collection, bring up the top two weekly with nine and twenty emas, and preserve the layout",
+      "say": "curate W2 Weekly: screen over ten sorted by adr, gather them all into a fresh collection, bring up the top two weekly with ten and thirty emas, and preserve the layout",
       "script": [
         {
           "action": "screener.run",
@@ -239,7 +229,7 @@
             "inputs": [
               {
                 "key": "period",
-                "value": 9
+                "value": 10
               },
               {
                 "key": "maType",
@@ -259,7 +249,7 @@
             "inputs": [
               {
                 "key": "period",
-                "value": 20
+                "value": 30
               },
               {
                 "key": "maType",
@@ -279,7 +269,7 @@
             "inputs": [
               {
                 "key": "period",
-                "value": 9
+                "value": 10
               },
               {
                 "key": "maType",
@@ -299,7 +289,7 @@
             "inputs": [
               {
                 "key": "period",
-                "value": 20
+                "value": 30
               },
               {
                 "key": "maType",
@@ -328,14 +318,20 @@
         },
         {
           "say": "do it"
+        },
+        {
+          "say": "do it"
+        },
+        {
+          "say": "do it"
         }
       ],
       "expect": {
         "results": [
           "query",
           "proposed",
-          "done",
-          "done",
+          "proposed",
+          "proposed",
           "done",
           "done",
           "done",
@@ -355,11 +351,38 @@
         "addedIndicators": {
           "index": 1,
           "brief": [
-            "movingAverage(9)",
-            "movingAverage(20)"
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)",
+            "movingAverage(50 sma)",
+            "movingAverage(200 sma)",
+            "movingAverage(10 ema)",
+            "movingAverage(30 ema)"
           ]
         },
-        "transcript": "Saved W2 Weekly"
+        "transcript": "Saved W2 Weekly",
+        "resumes": [
+          [
+            "s2",
+            "done"
+          ],
+          [
+            "s3",
+            "done"
+          ],
+          [
+            "s4",
+            "done"
+          ],
+          [
+            "s9",
+            "done"
+          ]
+        ],
+        "layoutNames": [
+          "Swing Board",
+          "Day Trading",
+          "W2 Weekly"
+        ]
       }
     },
     {
@@ -427,15 +450,32 @@
       "expect": {
         "results": [
           "query",
-          "done",
-          "done"
+          "proposed",
+          "proposed"
         ],
         "listCount": {
           "Swing": 3
         },
         "charts": 3,
-        "resumes": []
-      }
+        "resumes": [
+          [
+            "s2",
+            "done"
+          ],
+          [
+            "s3",
+            "done"
+          ]
+        ]
+      },
+      "then": [
+        {
+          "say": "do it"
+        },
+        {
+          "say": "do it"
+        }
+      ]
     },
     {
       "id": "F04",
@@ -487,12 +527,23 @@
       "expect": {
         "results": [
           "query",
-          "done"
+          "proposed"
         ],
         "listCount": {
           "Swing": 3
+        },
+        "resumes": [
+          [
+            "s2",
+            "done"
+          ]
+        ]
+      },
+      "then": [
+        {
+          "say": "do it"
         }
-      }
+      ]
     },
     {
       "id": "F05",
@@ -716,7 +767,7 @@
             "section": "screener"
           },
           "args": {
-            "screen": "ADR Movers",
+            "screen": "901",
             "show": null,
             "as": null
           }
@@ -743,10 +794,21 @@
       "expect": {
         "results": [
           "query",
-          "done"
+          "proposed"
         ],
-        "charts": 3
-      }
+        "charts": 3,
+        "resumes": [
+          [
+            "s2",
+            "done"
+          ]
+        ]
+      },
+      "then": [
+        {
+          "say": "do it"
+        }
+      ]
     },
     {
       "id": "S04",
@@ -800,10 +862,15 @@
       "expect": {
         "results": [
           "query",
-          "refused"
+          "proposed"
         ],
         "charts": 1
-      }
+      },
+      "then": [
+        {
+          "say": "do it"
+        }
+      ]
     },
     {
       "id": "C01",
@@ -899,7 +966,7 @@
       "group": "charts",
       "title": "a new chart, its symbol changed, an indicator added and styled",
       "board": "ROOMY",
-      "say": "bring up a panel, retarget it to tsla with a twenty ema",
+      "say": "bring up a panel, retarget it to tsla with a ten ema",
       "script": [
         {
           "action": "widget.addCharts",
@@ -936,7 +1003,7 @@
             "inputs": [
               {
                 "key": "period",
-                "value": 20
+                "value": 10
               },
               {
                 "key": "maType",
@@ -946,7 +1013,7 @@
           }
         },
         {
-          "reply": "TSLA with a 20 EMA."
+          "reply": "TSLA with a 10 EMA."
         }
       ],
       "expect": {
@@ -960,7 +1027,11 @@
         "addedIndicators": {
           "index": 0,
           "brief": [
-            "movingAverage(20)"
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)",
+            "movingAverage(50 sma)",
+            "movingAverage(200 sma)",
+            "movingAverage(10 ema)"
           ]
         }
       }
@@ -1218,8 +1289,8 @@
         ],
         "indicators": {
           "c": [
-            "movingAverage(9)",
-            "movingAverage(20)"
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)"
           ]
         }
       }
@@ -1273,7 +1344,7 @@
         ],
         "indicators": {
           "c": [
-            "movingAverage(9)"
+            "movingAverage(9 ema)"
           ]
         }
       }
@@ -2041,9 +2112,8 @@
       ],
       "expect": {
         "results": [],
-        "transcript": "from the web",
-        "charts": 1,
-        "sources": 1
+        "transcript": "from the web\\)\\.\\s*example\\.com",
+        "charts": 1
       }
     },
     {

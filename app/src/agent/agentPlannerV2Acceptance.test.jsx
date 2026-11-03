@@ -26,7 +26,7 @@ const ROOMY = () => [[{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 10, color:
 const BOARDS = { ROOMY, TWO: () => TWO(), FOUR: () => FOUR() }
 // the fixture Screener: three rows, a saved screen; value-free fixture tickers
 const SCAN = { total: 3, rows: [{ ticker: 'AAA', adr_pct: 9, price: 60 }, { ticker: 'BBB', adr_pct: 7, price: 55 }, { ticker: 'CCC', adr_pct: 6, price: 50 }], snapshot_date: '2026-10-15' }
-const SAVED = [{ id: 901, name: 'ADR Movers', spec: { filters: { adr_pct: { op: 'gt', min: 5 } } } }]
+const SAVED = [{ id: 901, name: 'ADR Movers', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }]   // the Screener's stored shape (filters is a list)
 
 let p, srv
 beforeEach(() => { _resetAgentConfig(); _resetScreenerCache(); p = setupPanel() })
@@ -43,7 +43,8 @@ function resolveTarget(t, c) {
   if (t.alias) return t.alias
   if (t.section) { const s = c.body.context[t.section]; const e = Array.isArray(s) ? s[t.index || 0] : s; return e?.ref }
   if (t.added) {
-    const added = [...c.results].reverse().find(r => Array.isArray(r.added) && r.added.length)?.added || []
+    // every ref a step reported, from step results AND from resumes (a card approved mid-turn), in turn order
+    const added = c.results.flatMap(r => r.added || []).concat(c.srv.resumes.flatMap(r => r.added || []))
     const kind = added.filter(a => a.kind === t.added)
     return kind[t.index || 0]?.ref || `missing:${t.added}`
   }
@@ -114,17 +115,16 @@ describe('W2-A2 — planner v2 scripted acceptance set', () => {
       if (cs.failApplyBoard) board.state.failApplyBoard = true
       await say(cs.say)
       await settled()
+      // cs.expect is the state once the turn is over: after the initial say and any continuation ("do it") turns
+      // that carry no expectation of their own — i.e. before the first follow-up that pins its own (an Undo)
+      let checked = false
       for (const step of cs.then || []) {
+        if (step.expect && !checked) { check(cs.expect, { board, cs }); checked = true }
         await say(step.say)
         await settled()
         check(step.expect, { board, cs })
       }
-      if (process.env.V2_ACC_DEBUG) {
-        const added = chartIds(board).filter(id => id.startsWith('w-chart-'))
-        process.stdout.write(`ACC ${cs.id} results=${JSON.stringify(srv.results.map(r => [r.status, (r.refusal || r.receipt || r.result || '').slice(0, 90)]))} resumes=${JSON.stringify(srv.resumes.map(r => [r.id, r.status]))} lists=${JSON.stringify(board.state.server.lists.map(l => [l.name, l.items.length]))} charts=${JSON.stringify(chartIds(board))} tf=${JSON.stringify(chartIds(board).map(id => tfOf(board, id)))} addedInd=${JSON.stringify(added.map(id => p.brief(board, id)))} ind=${JSON.stringify(chartIds(board).slice(0, 1).map(id => p.brief(board, id)))} layouts=${JSON.stringify(board.state.layouts.entries.map(e => e.name))} turns=${p.turns()} tail=${JSON.stringify(p.transcript().slice(-160))}
-`)
-      }
-      check(cs.expect, { board, cs })
+      if (!checked) check(cs.expect, { board, cs })
     }, 45000)
   }
 })
