@@ -16,7 +16,7 @@ import { mergeChartSettings } from '../../chartDefaults'
 import { validateDefinition } from '../../engine/defSchema'
 import { translatePine, REFUSALS } from '../../engine/ast/pine'
 import {
-  memberPaneDefinition, memberPaneVariants,
+  memberPaneDefinition, memberPaneVariants, requirementTagsRaised,
   MEMBER_PANE_HEIGHT, MEMBER_PANE_DEF_PREFIX,
 } from './memberPaneDefinition'
 
@@ -291,5 +291,81 @@ describe('⭐⭐ TWO DEFINITIONS with different `lookbackBarsHVE` — not two in
     // ⛔ AND IT IS NOT SIMPLY UNKNOWN — the script declares it.
     const t = memberPaneDefinition({ source: V2 }).translation
     expect((t.inputParams || []).map((p) => p.id)).toContain('__uct_param_3')
+  })
+})
+
+// ─── ⛔ W1 RE-REVIEW (2026-11-02) — A COLOUR DECIDED BY A RUNNING TOTAL CARRIES THE BADGE ──
+//
+// `requirementTagsRaised` walked the plot trees only, so a paint (`barcolor` / `bgcolor`),
+// a plot's colour or a fill's colour drawn from `ta.cum`, `ta.obv`, `ta.wad`, … had no
+// history-depth disclosure, while `plot(ta.obv)` had one. The colour rules are walked now
+// by the same detector against the same roster. A DISCLOSURE, NEVER A REFUSAL: each case
+// below also proves the colour is still drawn (its condition column is minted and named).
+describe('⛔ W1 re-review — a colour that reads a window-dependent series raises window_dependent', () => {
+  const NLC = String.fromCharCode(10)
+  const ov = (...lines) => ['//@version=6', 'indicator("p", overlay = true)', ...lines].join(NLC)
+  const tagsOf = (src) => {
+    const r = memberPaneDefinition({ source: src })
+    expect(r.ok, r.reason).toBe(true)
+    // the saved document carries the same tags the door reports
+    expect(r.definition.meta.requirementTags).toEqual(r.requirementTags)
+    return r
+  }
+  const conditionKeys = (r) => r.rows.filter((x) => x.conditionFor).map((x) => x.key)
+
+  it('a PAINT: barcolor(ta.obv > 0 ? color.green : na) is tagged, and the paint is still drawn', () => {
+    const src = ov('plot(close)', 'barcolor(ta.obv > 0 ? color.green : na)')
+    expect(requirementTagsRaised(translatePine(src, { strict: true }))).toEqual(['window_dependent'])
+    const r = tagsOf(src)
+    expect(r.requirementTags).toEqual(['window_dependent'])
+    expect(r.definition.paints.map((p) => [p.kind, p.colorMode])).toEqual([['barcolor', `column:${conditionKeys(r)[0]}`]])
+    // master's own running total in a background paint, the same way
+    expect(tagsOf(ov('plot(close)', 'bgcolor(ta.cum(volume) > 1e9 ? color.new(color.green, 80) : na)')).requirementTags)
+      .toEqual(['window_dependent'])
+  })
+
+  it('a PLOT\'S COLOUR: plot(close, color = ta.wad > 0 ? color.green : color.red) is tagged, and coloured by its column', () => {
+    const src = ov('plot(close, color = ta.wad > 0 ? color.green : color.red)')
+    expect(requirementTagsRaised(translatePine(src, { strict: true }))).toEqual(['window_dependent'])
+    const r = tagsOf(src)
+    expect(r.requirementTags).toEqual(['window_dependent'])
+    expect(r.rows[0].colorMode).toBe(`column:${conditionKeys(r)[0]}`)
+    // a palette chain and a gradient are colour rules too
+    for (const s of [
+      ov('plot(close, color = ta.obv > 0 ? color.green : ta.obv < 0 ? color.red : color.gray)'),
+      ov('plot(close, color = color.from_gradient(ta.cum(volume), 0, 1e9, color.red, color.green))'),
+    ]) expect(tagsOf(s).requirementTags, s).toEqual(['window_dependent'])
+  })
+
+  it('a FILL\'S COLOUR: fill(p1, p2, color = ta.wad > 0 ? …) is tagged, and the band is coloured by its column', () => {
+    const src = ov('p1 = plot(high, "H")', 'p2 = plot(low, "L")', 'fill(p1, p2, color = ta.wad > 0 ? color.green : color.red)')
+    expect(requirementTagsRaised(translatePine(src, { strict: true }))).toEqual(['window_dependent'])
+    const r = tagsOf(src)
+    expect(r.requirementTags).toEqual(['window_dependent'])
+    expect(r.rows[0].fill.colorMode).toBe(`column:${conditionKeys(r)[0]}`)
+  })
+
+  it('⛔ a REFUSED row draws no colour: the presentation it keeps for the runtime lane raises nothing', () => {
+    // `refusedPresentation` (the runtime fallback's option) keeps a refused row's colour
+    // rule; the host draws no such row, so its colour is not a value on screen
+    const t = translatePine(ov('plot(close)',
+      'plot(ta.lowest(close, bar_index + 1), color = ta.cum(volume) > 0 ? color.green : color.red)'),
+    { strict: true, refusedPresentation: true })
+    const refused = (t.outputs || []).filter((o) => o.refusal)
+    expect(refused.length).toBe(1)
+    expect(refused[0].presentation.colorCondition.formula).toMatch(/^cum\(volume\) > 0/)
+    expect(requirementTagsRaised(t)).toEqual([])
+  })
+
+  it('CONTROL: the same three colours over a series that reads no running total raise nothing, and are drawn', () => {
+    const paint = tagsOf(ov('plot(close)', 'barcolor(close > open ? color.green : na)'))
+    expect(paint.requirementTags).toEqual([])
+    expect(paint.definition.paints.map((p) => p.kind)).toEqual(['barcolor'])
+    const plotted = tagsOf(ov('plot(close, color = close > open ? color.green : color.red)'))
+    expect(plotted.requirementTags).toEqual([])
+    expect(plotted.rows[0].colorMode).toBe(`column:${conditionKeys(plotted)[0]}`)
+    const band = tagsOf(ov('p1 = plot(high, "H")', 'p2 = plot(low, "L")', 'fill(p1, p2, color = close > open ? color.green : color.red)'))
+    expect(band.requirementTags).toEqual([])
+    expect(band.rows[0].fill.colorMode).toBe(`column:${conditionKeys(band)[0]}`)
   })
 })

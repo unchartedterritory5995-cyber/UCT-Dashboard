@@ -180,10 +180,18 @@ def universe() -> list[str]:
     return uniq
 
 
+def server_build_allowed() -> bool:
+    """The in-process build reads every stock inside the web pod: on 11/02 (20:20 CT) it took the pod down (restart, ~1 min of
+    502s). Off unless CHART_IQ_PACK_FALLBACK_ENABLED=1; the lab PC builds the pack and the pod only installs it from R2."""
+    return os.environ.get("CHART_IQ_PACK_FALLBACK_ENABLED", "0") == "1"
+
+
 def build(force: bool = False, tickers: list[str] | None = None, sleep=time.sleep, clock=time.time) -> dict:
     """Read every ticker for the latest session into the pack. Returns a report; never raises."""
     if not enabled() and not force:
         return {"skipped": "disabled"}
+    if not server_build_allowed():
+        return {"skipped": "server build disabled"}
     if in_session() and not force:
         return {"skipped": "regular session"}
     if _BUILDING.is_set():

@@ -2,7 +2,7 @@
 // routed without the screener group, so the planner spent its second call on need_groups before it could
 // screen. They now ADD the screener group; the group the words already matched stays.
 import { describe, it, expect } from 'vitest'
-import { selectGroups } from './routing.js'
+import { selectGroups, wordsSelect } from './routing.js'
 
 const sel = (q) => selectGroups(q).selected
 
@@ -49,5 +49,26 @@ describe('chart and alert commands do not gain the screener group', () => {
   ]
   for (const q of NOT_SCREENS) {
     it(`"${q}"`, () => { expect(sel(q)).not.toContain('screener') })
+  }
+})
+
+// 2026-11-03 production miss: a count / list of stocks on a move named no screen word, so the model never saw
+// the screener and the server web-researched "today". These now select the screener group.
+describe('counts and lists of stocks on a move reach the screener group', () => {
+  const SCREENS = [
+    'how many stocks are up more than 5% today',
+    'how many stocks are up more than 5%',
+    'which stocks gained over 5% today',
+    'what stocks are down more than 3% this week',
+    'stocks up more than 5% today',
+    'names that are green on big volume',
+  ]
+  for (const q of SCREENS) {
+    it(`"${q}"`, () => { expect(sel(q)).toContain('screener') })
+  }
+  const NOT_SCREENS = ['is NVDA up more than 5% today', 'nvda price', 'why is TSLA up today', 'make the up candles green']
+  for (const q of NOT_SCREENS) {
+    // the screener's own words never match (a message no group matches still falls back to every group)
+    it(`not a screen: "${q}"`, () => { expect(wordsSelect('screener', q)).toBe(false) })
   }
 })

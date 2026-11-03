@@ -27,6 +27,8 @@ const named = {
   storageFull: 'storage_full',
   fetchFailed: 'fetch_failed',
   unresolvableSrc: 'unresolvable_src',
+  unsafe: 'unsafe', // D3 follow-up: an unsafe image src, the server's own reason
+
   decodeFailed: 'decode_failed',
   missingResource: 'missing_resource',
 }

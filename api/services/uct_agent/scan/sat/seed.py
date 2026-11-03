@@ -15,7 +15,7 @@ What it does:
 
 Scenarios: `fresh` (bars through the last closed session), `stale` (3 sessions behind), `mixed` (half one
 session behind, half fresh), `empty` (no rows at all, which gives an empty universe).
-Every non-empty scenario also has 5 names with no RS Rank (not computable) and 1 name whose bars stopped
+Every non-empty scenario also has 5 names with no Float % (not computable) and 1 name whose bars stopped
 40 sessions ago (the screener's stale gate drops it).
 
 ⛔ It refuses to run when:
@@ -111,7 +111,7 @@ def rows(scenario: str, now: dt.datetime | None = None) -> list[dict]:
             "security_type": "Common Stock", "exchange": "NASDAQ",
             "price": round(5 + i * 1.7, 2), "market_cap": 5e8 + i * 2.5e8, "chg_pct_1d": round(((i * 7) % 21 - 10) / 2, 2),
             "chg_pct_1m": float((i * 3) % 60 - 15), "chg_pct_3m": float((i * 5) % 90 - 20),
-            "vol_ratio": round(0.4 + (i % 17) * 0.25, 2), "rs_rank": (i * 37) % 100, "adr_pct": round(2 + (i % 11) * 0.6, 2),
+            "vol_ratio": round(0.4 + (i % 17) * 0.25, 2), "float_pct": (i * 37) % 100, "adr_pct": round(2 + (i % 11) * 0.6, 2),
             "dist_52w_high_pct": float(i % 25), "new_52w_high": 1 if i % 25 == 0 else 0, "rsi14": float(20 + (i * 13) % 65),
             "above_50sma": 1 if i % 3 else 0, "tight_consolidation": 1 if i % 9 == 0 else 0,
             "eps_growth": float((i * 11) % 80 - 10), "rev_growth": float((i * 7) % 60 - 5),
@@ -120,8 +120,8 @@ def rows(scenario: str, now: dt.datetime | None = None) -> list[dict]:
             "bars_asof": asof, "snapshot_date": dt.date.today().isoformat(),
         })
     for r in out[-5:]:
-        r["rs_rank"] = None                                       # not computable for an RS screen
-    out.append(dict(out[0], ticker="SYSTOP", company="SAT synthetic stopped", rs_rank=99,
+        r["float_pct"] = None                                   # not computable for a float screen
+    out.append(dict(out[0], ticker="SYSTOP", company="SAT synthetic stopped", float_pct=99,
                     bars_asof=_sessions_back(40, now)))           # dropped by the screener's own stale gate
     return out
 
@@ -134,11 +134,14 @@ def seed_screens(member_email: str) -> dict:
         _refuse(f"no sandbox user {member_email!r}; sign up in the sandbox first, then re-run with --member-email")
     saved_screens.init()
     mine = [
-        saved_screens.create(u["id"], "SAT Leaders", {"filters": [{"key": "rs_rank", "op": "gte", "min": 90}],
-                                                       "sort": {"key": "rs_rank", "dir": "desc"}}),
+        saved_screens.create(u["id"], "SAT Leaders", {"filters": [{"key": "float_pct", "op": "gte", "min": 90}],
+                                                       "sort": {"key": "float_pct", "dir": "desc"}}),
         saved_screens.create(u["id"], "SAT Semis volume", {"filters": [{"key": "industry", "op": "in", "values": ["Semiconductors"]},
                                                                          {"key": "vol_ratio", "op": "gte", "min": 2}]}),
         saved_screens.create(u["id"], "SAT EMA cross (indicator)", {"filters": [{"key": "scan", "op": "in", "value": ["sha256:" + "0" * 64]}]}),
+        # SC-1 §2d (owner F-16): a member's screen on a UCT rating is listed, never run, and says why
+        saved_screens.create(u["id"], "SAT Composite (rating)", {"filters": [{"key": "uct_composite", "op": "gte", "min": 80}],
+                                                                  "sort": {"key": "rs_rank", "dir": "desc"}}),
     ]
     other = saved_screens.create(OTHER_MEMBER, "SAT other member's screen", {"filters": [{"key": "price", "op": "gte", "min": 1}]})
     return {"member_id": u["id"], "mine": [(s["id"], s["name"]) for s in mine], "other_id": other["id"]}
@@ -152,8 +155,8 @@ def measured(member_id: str | None) -> list[tuple[str, dict]]:
     gateway._reset_for_test()
     uid = member_id or "sat1-measure"
     asks = [
-        ("A1 strongest (sort by RS, no filter)", "screen.run", {"spec": {"filters": [], "sort": {"key": "rs_rank", "dir": "desc"}}, "limit": 10}),
-        ("RS rank >= 90", "screen.count", {"spec": {"filters": [{"key": "rs_rank", "op": "gte", "min": 90}]}}),
+        ("A1 default order (no sort asked: market cap, largest first)", "screen.run", {"spec": {"filters": []}, "limit": 10}),
+        ("Float % >= 90", "screen.count", {"spec": {"filters": [{"key": "float_pct", "op": "gte", "min": 90}]}}),
         ("Semiconductors with vol_ratio >= 2", "screen.count", {"spec": {"filters": [
             {"key": "industry", "op": "in", "values": ["Semiconductors"]}, {"key": "vol_ratio", "op": "gte", "min": 2}]}}),
         ("price > 100000 (zero matches)", "screen.count", {"spec": {"filters": [{"key": "price", "op": "gt", "min": 100000}]}}),

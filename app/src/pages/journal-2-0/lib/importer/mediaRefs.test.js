@@ -207,12 +207,16 @@ describe('collectRemoteImages', () => {
     expect(srcs).toEqual(['import-ref://unresolvable-1', 'import-ref://unresolvable-2'])
   })
 
-  it('an unsafe, app or non-web src is unresolvable, never kept', () => {
+  it('an unsafe src is the server\'s `unsafe` notice; an app or non-web src is unresolvable; never kept', () => {
+    // D3 follow-up (difference 1): `javascript:` and `file:` were `unresolvable_src` named by the
+    // raw src; they are the server's `unsafe` now, with no name of their own (the alt is used).
     const b = dom('<p><img src="javascript:alert(1)"><img src="file:///c/x.png"><img src="/journal/x.png"><img src="ftp://h/x.png"></p>')
     const media = []
     collectRemoteImages(b, media, 'https://news.example.com/')
-    expect(media.map((m) => m.failed && m.failed.reason)).toEqual(['unresolvable_src', 'unresolvable_src', 'unresolvable_src', 'unresolvable_src'])
-    expect([...b.querySelectorAll('img')].every((i) => i.getAttribute('src').startsWith('import-ref://unresolvable-'))).toBe(true)
+    expect(media.map((m) => m.failed && m.failed.reason)).toEqual(['unsafe', 'unsafe', 'unresolvable_src', 'unresolvable_src'])
+    expect(media.map((m) => m.name)).toEqual([null, null, '/journal/x.png', 'ftp://h/x.png'])
+    expect([...b.querySelectorAll('img')].map((i) => i.getAttribute('src').replace(/-\d+$/, '')))
+      .toEqual(['import-ref://unsafe', 'import-ref://unsafe', 'import-ref://unresolvable', 'import-ref://unresolvable'])
   })
 
   it('skips refs already ours and stored attachments', () => {

@@ -3320,6 +3320,9 @@ def register_chart_iq_pack_jobs(scheduler):
         pass
     scheduler.add_job(_sync, trigger=IntervalTrigger(minutes=15), id="chart_iq_pack_sync", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=600)
+    from api.services.chart_iq import pack as _ciq_pack_gate
+    if not _ciq_pack_gate.server_build_allowed():   # the in-pod build took the pod down 11/02; the PC owns the build
+        return True
     scheduler.add_job(_fallback, trigger=CronTrigger(day_of_week="mon-fri", hour=23, minute=0, timezone=_ET),
                       id="chart_iq_pack_evening", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
     scheduler.add_job(_fallback, trigger=CronTrigger(day_of_week="mon-fri", hour=6, minute=30, timezone=_ET),
@@ -6236,6 +6239,28 @@ async def lifespan(app: FastAPI):
                 id="j2_ocr_recovery_sweep", replace_existing=True, max_instances=1)
         except Exception as _e_ocr_sweep:
             print(f"[startup] j2 ocr recovery sweep skip: {_e_ocr_sweep}")
+
+        # Plan F Task 7 re-review I-5: a document row left `pending` was never extracted (a
+        # crash or redeploy mid-queue, or a row the import repair created: that short-lived
+        # process never extracts). Re-queue the stale ones through the same bounded pool, a few
+        # per tick, on a scheduler thread (off the event loop). Ungated, like PDF extraction.
+        try:
+            from api.services.journal_two import document_extraction as _doc_pending
+
+            def _doc_requeue_pending() -> None:
+                # One tick: waits out a startup grace (round 2 S-2), then re-queues.
+                out = _doc_pending.pending_sweep_tick()
+                if out.get("requeued") or out.get("failed"):
+                    logging.getLogger(__name__).info(
+                        "[doc-extract] sweep re-queued %s pending document(s), failed %s",
+                        out.get("requeued", 0), out.get("failed", 0))
+
+            _scheduler.add_job(
+                _doc_requeue_pending,
+                CronTrigger(minute="7/10"),
+                id="j2_doc_pending_sweep", replace_existing=True, max_instances=1)
+        except Exception as _e_doc_sweep:
+            print(f"[startup] j2 document pending sweep skip: {_e_doc_sweep}")
 
         # live room is never a dead room. Self-gates on COMMUNITY_CHAT_ENABLED at
         # run time (no-op while dark) — NOT a Compass LLM job, so registered directly.

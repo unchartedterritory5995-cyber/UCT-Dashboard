@@ -269,7 +269,9 @@ export class ImportWizardBoundary extends Component {
 // main component
 // ---------------------------------------------------------------------------
 
-export default function ImportWizard({ open, onClose, onImported }) {
+// `returnFocusTo` (optional, Plan F Task 10 review M-1): handed to Sheet, which focuses it on close
+// instead of whatever held focus at open. Unset, Sheet's default restore runs, as before.
+export default function ImportWizard({ open, onClose, onImported, initialRecover = false, returnFocusTo }) {
   const isTouch = useIsTouch()
   const { folders, create: createFolder } = useJ2NoteFolders()
 
@@ -299,7 +301,10 @@ export default function ImportWizard({ open, onClose, onImported }) {
   const [summaryResult, setSummaryResult] = useState(null)
   // Plan B Task 11: "Re-import to recover missing pictures and links" (server `mode: "recover"`).
   // Component state only, off by default, never persisted: it is a per-import choice.
-  const [recoverMode, setRecoverMode] = useState(false)
+  // Plan F Task 10: `initialRecover` (the one-time repair notice's door) seeds it on each OPEN; the
+  // box itself still shows only once a re-import is possible (`canRecover`), and `recoverOn` gates
+  // what is sent, so a first import is never sent in recover mode.
+  const [recoverMode, setRecoverMode] = useState(Boolean(open && initialRecover))
   // The running step's Stop. `stopRef` is what `runImport`'s `isCancelled` reads between items;
   // `stopping` only drives the button's label while the item in flight finishes.
   const stopRef = useRef(false)
@@ -358,7 +363,8 @@ export default function ImportWizard({ open, onClose, onImported }) {
   // Fresh state every time the wizard is reopened.
   useEffect(() => {
     if (!open) resetAll()
-  }, [open, resetAll])
+    else setRecoverMode(Boolean(initialRecover))
+  }, [open, resetAll]) // eslint-disable-line react-hooks/exhaustive-deps -- seeded on OPEN only, never mid-import
 
   // Sheet calls this unconditionally on Escape (it doesn't consult
   // dismissOnBackdrop) — no-op it during scanning/running so Escape can't
@@ -968,6 +974,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
       // F4 / A2R-08: named by its visible title, which follows the step.
       labelledByTitle
       maxWidth={640}
+      returnFocusTo={returnFocusTo || undefined}
       dismissOnBackdrop={step !== 'scanning' && step !== 'running'}
     >
       <ImportWizardBoundary onClose={onClose}>

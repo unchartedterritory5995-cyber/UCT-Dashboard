@@ -71,7 +71,7 @@ describe('chart.setSetting — Batch 6 rows (colours, watermark detail, prev-day
     expect((await plan(host, [op('chart.setSetting', { setting: 'swingLabels.tintByType', value: true })])).p.refusals[0].reason).toMatch(/swing labels on first/)
     const both = await plan(host, [op('chart.setSetting', { setting: 'swingLabels.enabled', value: true }), op('chart.setSetting', { setting: 'swingLabels.tintByType', value: true })])
     expect(both.p.ok).toBe(true)                // in ONE plan, in order — exactly as a member would click
-    expect(shapeError('chart.setSetting', { setting: 'watermark.opacity', value: 0.5 }, CTX)).toMatch(/isn't an option/)
+    expect(shapeError('chart.setSetting', { setting: 'header.showMarketCap', value: true }, CTX)).toMatch(/isn't an option/)   // W1-B: watermark.opacity is eligible now; the Info-row flags stay known
   })
 })
 

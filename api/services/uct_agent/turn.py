@@ -81,6 +81,37 @@ def model() -> str:
     return os.environ.get("UCT_AGENT_MODEL", "claude-haiku-4-5")
 
 
+# ── A-02 (Wave 1 eval prerequisite): the effort switch ──────────────────────────────────────────
+# UNSET = today's request, byte for byte (no `effort`, MAX_TOKENS 2048). Set to low|medium|high|xhigh|max,
+# the request carries `output_config.effort` and the output ceiling is MAX_TOKENS_WITH_EFFORT: on the 5.5
+# models thinking is adaptive and its tokens count against max_tokens, so the envelope needs the room.
+# Haiku 4.5 (today's production model) rejects `effort` and never thinks: the switch is ignored for it.
+EFFORT_ENV = "UCT_AGENT_EFFORT"
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
+MAX_TOKENS_WITH_EFFORT = 4096
+NO_EFFORT_MODELS = ("claude-haiku-4-5",)
+
+
+def effort() -> str | None:
+    v = os.environ.get(EFFORT_ENV, "").strip().lower()
+    return v if v in EFFORT_LEVELS else None
+
+
+def effort_for(model_id: str) -> str | None:
+    e = effort()
+    return e if e and not str(model_id or "").startswith(NO_EFFORT_MODELS) else None
+
+
+def output_ceiling(model_id: str) -> int:
+    return MAX_TOKENS_WITH_EFFORT if effort_for(model_id) else MAX_TOKENS
+
+
+def output_config_for(model_id: str, schema: dict) -> dict:
+    oc = {"format": {"type": "json_schema", "schema": schema}}
+    e = effort_for(model_id)
+    return {**oc, "effort": e} if e else oc
+
+
 # ── the capability manifest (from the browser registry) ──────────────────────
 # Manifest wire contract (app/src/agent/contract/manifest.contract.json holds the same numbers;
 # tests/test_uct_agent_contract.py fails if the two ever differ).
@@ -648,6 +679,8 @@ def _catalog_lines(capabilities: list[dict], lean: bool = False) -> list[str]:
                 lines.append(f"  {k} ids: " + ", ".join(map(str, vals)))
     if any(a["name"] == "breadth.show" for a in capabilities):
         lines.append(BREADTH_RULE)
+    if any(a["name"] == "screener.run" for a in capabilities):
+        lines.append(SCREEN_RULE)
     return lines
 
 
@@ -745,6 +778,26 @@ def _last_breadth_row(history) -> bool:
 
 def is_breadth_question(message: str) -> bool:
     return bool(_BREADTH_Q.search(message or ""))
+
+
+#: A COUNT or LIST of stocks meeting a condition is UCT's own Screener, never the web (2026-11-03, production:
+#: "how many stocks are up more than 5% today" was web-researched). A STRICTER subset of the screener words in
+#: app/src/agent/routing.js: routing ADDS a group, this SUBTRACTS research — so it needs the universe words AND a
+#: numeric condition ("what stocks did Pelosi buy", "are stocks up today" keep their web research; agent-sc review).
+_SCREEN_UNIV = re.compile(r"\b(how many|which|what) (stocks|names|tickers|equities)\b|"
+                          r"\b(stocks|names|tickers|equities) (are |were |that are |that were )?(up|down|gained|lost|gaining|"
+                          r"losing|rose|fell|rising|falling|green|red)\b", re.I)
+_SCREEN_COND = re.compile(r"(more than|over|above|under|below|at least|less than|>=|<=|>|<)\s*\$?-?\d+(\.\d+)?\s*(%|x\b|percent\b)|"
+                          r"\b(up|down|gained|lost|rose|fell)\s+\d+(\.\d+)?\s*(%|percent\b)", re.I)
+SCREEN_RULE = ("SCREENS: a count or list of stocks meeting a price, volume, change or other field condition (\"how many "
+               "stocks are up more than 5%\", \"which stocks gained over 5%\") is UCT's Screener — plan screener.run, never "
+               "research it and never answer it from memory. Say the Screener snapshot date the result reports, never "
+               "promise a live intraday count.")
+
+
+def is_screen_question(message: str) -> bool:
+    m = message or ""
+    return bool(_SCREEN_UNIV.search(m) and _SCREEN_COND.search(m))
 
 
 #: Every notice UCT may give on a local plan — the ONLY agent text of such a plan ever shown or replayed.
@@ -1565,8 +1618,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              routing: dict | None = None, conversation_title: str | None = None,
              on_event: Callable[[dict], None] | None = None, stream_caller: Callable[..., Any] | None = None,
              meter=None, reroute: bool = False, interpreter: str | None = None, repair: dict | None = None,
-             reference: dict | None = None, headline: dict | None = None, answer_only: bool = False) -> dict:
+             reference: dict | None = None, headline: dict | None = None, answer_only: bool = False,
+             v2: dict | None = None) -> dict:
     """Returns {envelope, usage, title}. Raises TurnError with a member sentence.
+    `v2` (Wave 1 A-04; the router passes it ONLY when UCT_AGENT_PLANNER=v2 and the turn streams): the planner v2
+    arguments {wait_step, turn_token[, resume, resume_result]} — the turn is served by turn_v2.run_turn_v2, the
+    tool-use step loop. Absent (the default, and always when the flag is unset) this function runs exactly as before.
     `on_event` (streaming, optional): receives {"t": "delta", "text"} for an answer's reply as it is
     written (ReplyStream's gate), {"t": "retract"} when streamed text will not be the answer after all
     (research follows), and {"t": "status", "stage": "research"} when a web search starts. Nothing else —
@@ -1586,6 +1643,11 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     `headline` (News -> Agent, news.py): ONE stored UCT News headline the SERVER read by its id, shown to the
     model as data with news.RULES. `answer_only` (the News Ask box): no web research runs and any op the model
     writes is dropped -- the turn can only answer."""
+    if v2 is not None:
+        from api.services.uct_agent import turn_v2
+        return turn_v2.run_turn_v2(message=message, context=context, history=history, capabilities=capabilities,
+                                   pending=pending, caller=caller, meter=meter, on_event=on_event, reference=reference,
+                                   repair=repair, **v2)
     t_build = time.perf_counter()
     context, pending, reference, repair, history, _ = strip_isolated_request(context, pending, reference, repair, history)
     context = context or {}
@@ -1678,9 +1740,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         try:
             resp = _paid(
                 meter, category, call,
-                model=model(), max_tokens=MAX_TOKENS,
+                model=model(), max_tokens=output_ceiling(model()),
                 system=system_blocks,
-                output_config={"format": {"type": "json_schema", "schema": schema}},
+                output_config=output_config_for(model(), schema),
                 messages=messages,
             )
         except Exception as e:  # noqa: BLE001 — anything but a schema refusal is re-raised unchanged
@@ -1694,9 +1756,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             system_blocks = [{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}]
             resp = _paid(
                 meter, "schema_retry", call,
-                model=model(), max_tokens=MAX_TOKENS,
+                model=model(), max_tokens=output_ceiling(model()),
                 system=system_blocks,
-                output_config={"format": {"type": "json_schema", "schema": schema}},
+                output_config=output_config_for(model(), schema),
                 messages=messages,
             )
         usage["model_calls"] += 1
@@ -1743,8 +1805,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         if breadth_q and isinstance(req, dict) and not (_NEWS_WORDS.search(msg) or _EXPLAIN_WORDS.search(msg)):
             req = None                # ⛔ a breadth LOOKUP is UCT's own data: never the web
             usage["breadth_research_blocked"] = True
+        screen_q = "screener.run" in cap_names and is_screen_question(msg)
+        if screen_q and isinstance(req, dict) and not (_NEWS_WORDS.search(msg) or _EXPLAIN_WORDS.search(msg)):
+            req = None                # ⛔ a count / list of stocks is UCT's Screener: never the web
+            usage["screen_research_blocked"] = True
         if (round_ == 0 and disp == "answer" and not (isinstance(req, dict) and str(req.get("query") or "").strip())
-                and not breadth_q and not nl1 and _needs_current_facts(msg)):
+                and not breadth_q and not screen_q and not nl1 and _needs_current_facts(msg)):
             # A clearly time-sensitive external question answered from memory: look it up once,
             # with the member's own words as the query (never the model's answer).
             req = {"query": msg, "recency": "week"}
