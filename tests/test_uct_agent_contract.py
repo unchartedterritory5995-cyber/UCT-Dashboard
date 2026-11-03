@@ -27,7 +27,9 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "pane": "indicatorSetup", "definition": "definitions", "chartGrid": "chartGrid", "board": "boardEdit",
              "guide": "guide",
              # W1-B (2026-11-02): indicator alerts in their own fillLast group (app/src/agent/routing.js)
-             "indicatorAlert": "indicatorAlerts"}
+             "indicatorAlert": "indicatorAlerts",
+             # Wave 3 (2026-11-03): the coach's own fillLast group (registered only while UCT_AGENT_COACH is on)
+             "coach": "coach", "journal": "coach"}
 
 
 def _requests():

@@ -3,9 +3,10 @@
   POST /api/agent/turn                     one model turn -> structured envelope
   POST /api/agent/turn/stream              the same turn as text/event-stream (an answer streams when
                                            UCT_AGENT_STREAM is on; the final event is /turn's JSON)
-  GET  /api/agent/config                   {stream, nl1, news, data, scan, planner}: does this server stream turns (UCT_AGENT_STREAM),
+  GET  /api/agent/config                   {stream, nl1, news, data, scan, planner, coach}: does this server stream turns (UCT_AGENT_STREAM),
                                            does it serve NL-1 (UCT_AGENT_NL1), the MD-1 data gateway
                                            (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN); planner v1 | v2
+  GET  /api/agent/coach/concepts           Wave 3 coach (UCT_AGENT_COACH, default off): the concept knowledge base
   POST /api/agent/turn/step                planner v2 (UCT_AGENT_PLANNER=v2) only: the browser's outcome of ONE step
   POST /api/agent/turn/resume              planner v2 only: continue a turn paused on an approval card (event stream)
   POST /api/agent/data                     one MD-1 market-data read -> DataEnvelope (read-only, no model;
@@ -194,9 +195,29 @@ def agent_config(user: dict = Depends(require_admin_dark)):
     NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on."""
     from api.services.uct_agent import news, turn, turn_v2
     from api.services.uct_agent.marketdata import gateway
+    from api.services.uct_agent import coach
     return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled(), "news": news.enabled(),
             "data": gateway.data_enabled(), "scan": gateway.scan_enabled(),
-            "data_kinds": sorted(gateway.enabled_kinds()), "planner": turn_v2.planner()}
+            "data_kinds": sorted(gateway.enabled_kinds()), "planner": turn_v2.planner(),
+            # Wave 3 (W3-1): the coach, UCT_AGENT_COACH (default off) -- the browser registers coach.* only on true
+            "coach": coach.enabled()}
+
+
+# ── COACH (Wave 3, UCT_AGENT_COACH, default off): the curated concept knowledge base the browser explains from ──
+# docs/agent/coach/concepts/*.md, parsed by services/uct_agent/coach/concepts.py. Read-only, no model call, no
+# member data. 404 while the flag is off (the route does not exist for a dark server), admin-dark like every route.
+@router.get("/api/agent/coach/concepts")
+def agent_coach_concepts(user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import coach
+    from api.services.uct_agent.coach import concepts
+    if not coach.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"concepts": concepts.public_rows(), "footer": coach_footer()}
+
+
+def coach_footer() -> str:
+    from api.services.uct_agent.coach import guard
+    return guard.FOOTER
 
 
 # ── PLANNER v2 (Wave 1 A-04, docs/agent/program/contracts/STEP-1.md): the step registry ───────────────────
@@ -555,10 +576,16 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     # PLANNER v2 (UCT_AGENT_PLANNER=v2): only a STREAMED, ordinary turn (no headline, no reroute) takes the step loop;
     # its rounds are metered by the daily cap per call (request_id None: the 2-call ceiling is v1's), never by routing
     v2 = None
-    if on_event is not None and planner_v2() and headline is None and not body.reroute:
+    # (a COACH turn stays on v1: its prompt block and server guard live there -- W3 review C1)
+    from api.services.uct_agent import coach as agent_coach
+    turn_context = body.context
+    if agent_coach.is_coach_turn(turn_context):
+        # W3 review: the journal review rides to the model only with the consent the SERVER stored for this chat
+        turn_context = agent_coach.with_stored_consent(turn_context, agent_coach.stored_consent(uid, cid))
+    if on_event is not None and planner_v2() and headline is None and not body.reroute and not agent_coach.is_coach_turn(body.context):
         token, v2 = _v2_register(uid)
     try:
-        out = agent.run_turn(message=body.message, context=body.context, history=history,
+        out = agent.run_turn(message=body.message, context=turn_context, history=history,
                              capabilities=body.capabilities,
                              pending=body.pending, recent_outcome=body.recentOutcome,
                              manifest_version=body.manifestVersion, routing=body.routing,
@@ -735,17 +762,34 @@ def agent_conversation_delete(conversation_id: str, user: dict = Depends(require
 
 
 # ── per-conversation state (W1-C C-01, builder-c): the last screen, so a follow-up composes after a reload ──
-# GET/PUT /api/agent/conversations/{id}/state/{key}. Keys are store.STATE_KEYS (`lastScreen`); the value is
-# validated by services/uct_agent/scan/refine.py before it is stored (the screener's catalog, F-16 hidden keys,
-# ≤ 50 result ids). Owner-scoped: a conversation that is not the member's is 404, like every route above.
+# GET/PUT /api/agent/conversations/{id}/state/{key}. Keys are store.STATE_KEYS (`lastScreen`; W3-3 `coachConsent`);
+# the value is validated per key before it is stored: `lastScreen` by services/uct_agent/scan/refine.py (the
+# screener's catalog, F-16 hidden keys, ≤ 50 result ids), `coachConsent` by services/uct_agent/coach.validate_consent
+# ({granted: bool}; the server stamps `at`), and that key exists only while UCT_AGENT_COACH is on (404 otherwise).
+# Owner-scoped: a conversation that is not the member's is 404, like every route above.
 class StateIn(BaseModel):
     value: Any
+
+
+def _state_key_served(key: str) -> bool:
+    if key == "coachConsent":
+        from api.services.uct_agent import coach
+        return coach.enabled()
+    return True
+
+
+def _validate_state(key: str, value: Any) -> Any:
+    if key == "coachConsent":
+        from api.services.uct_agent import coach
+        return coach.validate_consent(value)
+    from api.services.uct_agent.scan import refine
+    return refine.validate_last_screen(value)
 
 
 @router.get("/api/agent/conversations/{conversation_id}/state/{key}")
 def agent_conversation_state(conversation_id: str, key: str, user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import store
-    if key not in store.STATE_KEYS or not store.owns(user["id"], conversation_id):
+    if key not in store.STATE_KEYS or not _state_key_served(key) or not store.owns(user["id"], conversation_id):
         raise HTTPException(status_code=404, detail="Conversation not found")
     got = store.get_state(user["id"], conversation_id, key)
     return {"key": key, "value": got["value"] if got else None, "updated_at": got["updated_at"] if got else None}
@@ -754,11 +798,10 @@ def agent_conversation_state(conversation_id: str, key: str, user: dict = Depend
 @router.put("/api/agent/conversations/{conversation_id}/state/{key}")
 def agent_conversation_state_put(conversation_id: str, key: str, body: StateIn, user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import store
-    from api.services.uct_agent.scan import refine
-    if key not in store.STATE_KEYS or not store.owns(user["id"], conversation_id):
+    if key not in store.STATE_KEYS or not _state_key_served(key) or not store.owns(user["id"], conversation_id):
         raise HTTPException(status_code=404, detail="Conversation not found")
     try:
-        value = refine.validate_last_screen(body.value)
+        value = _validate_state(key, body.value)
         store.set_state(user["id"], conversation_id, key, value)
     except ValueError as e:                      # RefineError is a ValueError, with the member-facing sentence
         raise HTTPException(status_code=400, detail=str(e)[:400])

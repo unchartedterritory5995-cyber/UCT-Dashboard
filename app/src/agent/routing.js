@@ -163,6 +163,12 @@ export const GROUPS = [
   { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
     // (show-me words only: an explanation question is the model's to answer, as before — it may reroute to this group)
     words: [/\b(where (do|can|would|should) i|where(?:'s| is| are) the|show me (where|how)|how (do|can|would|should) i|walk me through|guide me|teach me|tutorial)\b/] },
+  // ⭐ Wave 3 (W3-1..W3-4, UCT_AGENT_COACH, default off): the trading coach — registered only while the server serves
+  // `coach`, so the group is empty (and never sent) on a dark server. Its own fillLast group: the NL-1 core keeps its size.
+  { id: 'coach', title: 'Trading coach (educational, not advice): explain a trading concept — price action, support/resistance, consolidation, breakouts, relative strength, volume, moving averages, risk per trade and sizing, stops, market conditions and breadth, earnings gaps, drawdown, expectancy — with one grounded observation from the open chart; consent to use the member’s own journal in this chat; a descriptive review of their recent trades; propose a review note', domains: ['coach', 'journal'], fillLast: true,
+    // review B1: EMPTY here — capabilities/coach.js arms COACH_ROUTE_WORDS only while the coach capabilities are
+    // registered, so on a dark server routing is byte-identical to the base (a coach word never narrows the catalog)
+    words: [] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
