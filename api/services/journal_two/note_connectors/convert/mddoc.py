@@ -808,6 +808,8 @@ _INLINE_MARK_TAGS = {
 }
 #: HTML's whitespace, the characters the client's parse collapses.
 _HTML_SPACE_CHARS = " \t\r\n\f"
+#: D3 review M3: the most raw inline tags held open in one paragraph; past it a tag unwraps.
+_INLINE_MAX_OPEN = 100
 #: Inline tags whose content is dropped with them, as the client's sanitiser drops it.
 _INLINE_SKIPPED_TAGS = frozenset({"script", "style"})
 #: The only tags a raw markdown HTML block may hold to be converted (Task 13).
@@ -1008,12 +1010,16 @@ def _inline_nodes(
     raw_links: list[bool] = []  # one entry per open raw `<a>`: did it push a mark?
     # Open raw inline tags: [name, mark type pushed or None, the `ctx.inherited` entry or None].
     open_tags: list[list[Any]] = []
+    any_open: dict[str, int] = {}  # M3: open tags per name, so a stray close is O(1)
+    flat_open: dict[str, int] = {}  # M3: tags kept flat past `_INLINE_MAX_OPEN`, per name
     for entry in list(ctx.inherited):  # C1: elements an HTML region holds open around us
         if entry[1] is not None:
             marks.append(dict(entry[1]))
         open_tags.append([entry[0], entry[1]["type"] if entry[1] else None, entry])
+        any_open[entry[0]] = any_open.get(entry[0], 0) + 1
 
     def close_open_tag(k: int) -> None:
+        any_open[open_tags[k][0]] = any_open.get(open_tags[k][0], 1) - 1
         if open_tags[k][1] is not None:
             _pop_mark(marks, open_tags[k][1])
         if open_tags[k][2] is not None and open_tags[k][2] in ctx.inherited:
@@ -1171,14 +1177,26 @@ def _inline_nodes(
                     items.append({"type": "hardBreak"})
                 elif close:
                     # The most recent open tag of that name closes; a stray close is nothing.
-                    for k in range(len(open_tags) - 1, -1, -1):
-                        if open_tags[k][0] == name:
-                            close_open_tag(k)
-                            break
+                    # M3: a close of a tag kept flat past the cap, or of a name with none open,
+                    # is O(1).
+                    if flat_open.get(name):
+                        flat_open[name] -= 1
+                    elif any_open.get(name):
+                        for k in range(len(open_tags) - 1, -1, -1):
+                            if open_tags[k][0] == name:
+                                close_open_tag(k)
+                                break
                 elif not _self:
-                    if mark is not None:
-                        marks.append({"type": mark})
-                    open_tags.append([name, mark, None])
+                    if len(open_tags) >= _INLINE_MAX_OPEN:
+                        # D3 review M3: past the cap a tag is unwrapped (its text kept, no new
+                        # mark), as an HTML parser caps its formatting elements, so each run's
+                        # mark set stays bounded and the walk linear.
+                        flat_open[name] = flat_open.get(name, 0) + 1
+                    else:
+                        if mark is not None:
+                            marks.append({"type": mark})
+                        open_tags.append([name, mark, None])
+                        any_open[name] = any_open.get(name, 0) + 1
                 # Any other tag (`<span>`, `<sub>`, `<kbd>`...) unwraps: its text stays.
 
         else:

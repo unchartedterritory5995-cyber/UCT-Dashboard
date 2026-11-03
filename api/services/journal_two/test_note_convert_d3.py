@@ -589,3 +589,25 @@ def test_deep_nesting_imports_flattened(make):
     nothing recurses past it; the text is all there."""
     out = make()
     assert "deep text" in "".join(r["text"] for r in _texts(out["doc"]))
+
+
+# ── fix round 1, M3: inline raw tags are linear in how many are open ─────────
+
+
+@pytest.mark.parametrize("make", [
+    lambda n: "<b>x " * n + "</b>" * n,
+    lambda n: "a " + "</b>" * n + " z",
+    lambda n: "<span>x " * n,
+])
+def test_inline_raw_tags_scale_linearly(make):
+    """D3 review M3: every text run re-checked the whole open-mark list and every close scanned
+    the open tags: 53 / 184 / 694 / 2,891 ms at 1k / 2k / 4k / 8k nested `<b>`."""
+    import time
+
+    def timed(n):
+        started = time.perf_counter()
+        md_to_tiptap(make(n))
+        return time.perf_counter() - started
+
+    small, big = timed(2000), timed(8000)
+    assert big / max(small, 1e-3) < 8, (small, big)  # quadratic is 16x for 4x the input
