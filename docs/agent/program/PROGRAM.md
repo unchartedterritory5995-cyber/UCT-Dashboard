@@ -121,6 +121,13 @@ AUDIT is the integrator for PR #735 (agent/kn/knowledge-poc, Trading Brain knowl
 3. **Transcript retention: NOT APPROVED.** Document what is stored, where, who can access it, how long, and provider retention; prefer source IDs, version metadata and citations over passage text; return a minimal-retention proposal for approval (branch agent/kn/retention-proposal, design only).
 4. Next: independent re-review of the #735 fixes (signed statistics, data-vs-instructions frame, injection guard, the isolation-test timeout); GO/HOLD for eventual integration; no merge/deploy/flags/access changes without explicit approval.
 
+
+## Owner policy decisions on #735 (B4, N3, N5), 2026-11-03
+- **B4:** conditional approval stands (minimal, relevant excerpts of approved team-owned knowledge to the existing authorized provider, admin-only). Before any production activation: verify the provider's data-handling terms and UCT's logging/transcript behaviour. No raw retrieved passages persisted in transcripts, logs, traces or analytics without a separately approved retention policy; prefer source ids, versions, citations. Not activation; not paid evals.
+- **N3:** the same default-deny source policy applies to setup templates and historical records; presence in the Brain Pack is not approval; provenance, licensing, freshness and permission metadata preserved.
+- **N5:** the approved playbook + Wisdom vocabulary are authoritative for setup definitions/methodology; the Wave 3 coach does educational interpretation, teaching and application, using the playbook definition as evidence; no competing definitions or engines. Concept questions → playbook; coaching requests → coach.
+- Undated archive figures/verdicts stay withheld; the recurring browser-suite timeout must be resolved or isolated before final release approval; Wisdom expansion coordinated with its maintainer.
+
 ## Activation checklist (admin-only; owner sets flags; order is mandatory)
 1. `UCT_AGENT_STREAM=1` — after production flags are verified.
 2. `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,quotes,instrument.resolve` — after RC1.
