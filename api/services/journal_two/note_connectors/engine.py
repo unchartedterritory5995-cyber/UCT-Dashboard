@@ -666,34 +666,52 @@ async def _do_sync(
             # today's behavior, unchanged. `present_fn` itself was already
             # resolved once, above, before the cursor decision — reused here.
             # (A removal check already called it, as step (1), above.)
+            # ⛔ Plan E Task 5 review I1: when the complete listing FAILS and no removal listing
+            # stood in for it, there is NO complete set this pass. The changed-note delta must
+            # never stand in for one: every unchanged note would read as missing, and two such
+            # nights severed notes that were still there (the <50% guard only catches a SMALL
+            # delta). So the removal check does not run at all (no strike, no stamp), exactly as
+            # on the member path when its listing fails. OneNote takes this branch too.
+            enumeration_failed = False
             if full and present_fn is not None:
                 try:
                     index_refs = await present_fn(creds)
                 except Exception as e:  # noqa: BLE001
-                    item_failures.append(
-                        f"list_present_refs sweep failed (falling back to "
-                        f"refs-drive-everything): {e}"
-                    )
+                    if removal_listing is None:
+                        enumeration_failed = True
+                        item_failures.append(
+                            f"list_present_refs sweep failed (removal check skipped "
+                            f"this pass, no strikes): {e}"
+                        )
+                    else:
+                        item_failures.append(
+                            f"list_present_refs sweep failed (the removal listing stands "
+                            f"in for it): {e}"
+                        )
 
-            # Every full pass, scheduler or member, stamps
-            # `last_full_sync_at` in the detection transaction (refused
-            # included) — the member rate limit reads it.
-            dd = _run_delete_detection(
-                user_id, source, index_refs, deleted_refs=deleted_refs,
-                stamp_at=_now_iso(),
-            )
-            if removal_check:
-                removal_reason = "refused" if dd["refused"] else None
-            # `deleted` is meaningful even alongside a warning now (Fix-round-1
-            # #1a): the explicit-sever cap can refuse the LIST_DELETED signal
-            # for a subset of rows in the same pass unrelated 2-strike misses
-            # still legitimately sever — unlike the <50% guard, which always
-            # returns deleted=0 because it refuses the WHOLE pass before any
-            # row is touched. Reading `dd["deleted"]` unconditionally is a
-            # strict superset of the old "else" branch's behavior.
-            deleted_count = dd["deleted"]
-            if dd["status"] == "warning":
-                delete_guard_warning = dd["reason"]
+            if enumeration_failed:
+                if removal_check:
+                    removal_reason = "enumeration_failed"
+            else:
+                # Every full pass, scheduler or member, stamps
+                # `last_full_sync_at` in the detection transaction (refused
+                # included) — the member rate limit reads it.
+                dd = _run_delete_detection(
+                    user_id, source, index_refs, deleted_refs=deleted_refs,
+                    stamp_at=_now_iso(),
+                )
+                if removal_check:
+                    removal_reason = "refused" if dd["refused"] else None
+                # `deleted` is meaningful even alongside a warning now (Fix-round-1
+                # #1a): the explicit-sever cap can refuse the LIST_DELETED signal
+                # for a subset of rows in the same pass unrelated 2-strike misses
+                # still legitimately sever — unlike the <50% guard, which always
+                # returns deleted=0 because it refuses the WHOLE pass before any
+                # row is touched. Reading `dd["deleted"]` unconditionally is a
+                # strict superset of the old "else" branch's behavior.
+                deleted_count = dd["deleted"]
+                if dd["status"] == "warning":
+                    delete_guard_warning = dd["reason"]
 
         _touch_remote_index(user_id, source, provider, index_refs)
 
