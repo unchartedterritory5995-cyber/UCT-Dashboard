@@ -182,3 +182,9 @@ def test_the_owners_later_rulings_are_hidden_and_refused(key):
     with pytest.raises(scan_spec.SpecError) as e:
         scan_spec.validate({"filters": [], "sort": {"key": key, "dir": "desc"}})
     assert str(e.value) == hidden.RATINGS_REFUSAL
+
+
+def test_the_browser_mirror_is_generated_from_this_module_and_current():
+    """capabilities/scanHidden.js is hidden.py's own output (`--write`); a hand edit or a stale copy fails here."""
+    have = hidden.MIRROR.read_text(encoding="utf-8").replace("\r\n", "\n")
+    assert have == hidden.mirror_text(), "regenerate: python -m api.services.uct_agent.scan.hidden --write"

@@ -114,6 +114,18 @@ def refusal_for(keys: Iterable[str]) -> Optional[str]:
     return None
 
 
+def _default_sort() -> dict:
+    """SC-1 §2d: the server's own default order (spec.DEFAULT_SORT), mirrored so the browser holds no copy of it."""
+    from api.services.uct_agent.scan import spec as scan_spec
+    return dict(scan_spec.DEFAULT_SORT)
+
+
+def _default_order_words() -> str:
+    from api.services.uct_agent.scan import spec as scan_spec
+    note = scan_spec.DEFAULT_ORDER_NOTE.rstrip(".")
+    return note[0].lower() + note[1:]
+
+
 def mirror_text() -> str:
     """The browser mirror (scanHidden.js), byte-for-byte."""
     ratings, flow = sorted(rating_keys()), sorted(flow_keys())
@@ -124,6 +136,8 @@ def mirror_text() -> str:
             f"export const FLOW_FIELDS = new Set({json.dumps(flow)})\n"
             f"export const RATINGS_REFUSAL = {json.dumps(RATINGS_REFUSAL)}\n"
             f"export const FLOW_REFUSAL = {json.dumps(FLOW_REFUSAL)}\n"
+            f"export const DEFAULT_SORT = Object.freeze({json.dumps(_default_sort())})\n"
+            f"export const DEFAULT_ORDER_WORDS = {json.dumps(_default_order_words())}\n"
             "export const isHidden = (key) => RATING_FIELDS.has(key) || FLOW_FIELDS.has(key)\n"
             "/** the sentence for the first hidden key among `keys` (ratings first), or null */\n"
             "export const refusalFor = (keys) => {\n"
