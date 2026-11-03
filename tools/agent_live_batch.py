@@ -8,9 +8,11 @@ the request asked for. Nothing is executed: no browser, no database, no workspac
   python tools/agent_live_batch.py BODIES.json                       # DRY RUN (default): size + max cost
   python tools/agent_live_batch.py BODIES.json --run --max-usd 2.00  # real calls, hard dollar ceiling
 
-⛔ --run needs ANTHROPIC_API_KEY in the environment and an explicit --max-usd. Before EVERY call the
-worst case of that call (its prompt + max_tokens output) is added to the spend so far; if that could
-pass the ceiling, the batch stops. Research (web search) is disabled for the batch.
+⛔ --run needs UCT_AGENT_EVAL_API_KEY (the SEPARATE eval key — never the production ANTHROPIC_API_KEY,
+refused when equal or unset) and an explicit --max-usd. Before EVERY call the worst case of that call
+(its whole request as a cache write + max_tokens output) is checked against this run's ceiling AND
+RESERVED in the cumulative ledger (tools/agent_eval_ledger.py, the owner's $21 across every run); it is
+settled from usage after. Research (web search) is stubbed for the batch (a second provider).
 """
 from __future__ import annotations
 
@@ -25,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import (every *_DB_PATH → a sandbox)
 from api.services import narrative_cost_guard  # noqa: E402
 from api.services.uct_agent import turn  # noqa: E402
+from tools import agent_eval_ledger as ledger  # noqa: E402
 
 CHARS_PER_TOKEN = 3.0          # conservative (real ratio is higher → fewer tokens)
 
@@ -95,48 +98,42 @@ def main() -> int:
     if not a.run:
         print("DRY RUN — no model call was made.")
         return 0
-    if a.max_usd is None or a.max_usd <= 0:
-        print("refused: --run needs an explicit --max-usd ceiling")
-        return 2
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("refused: ANTHROPIC_API_KEY is not set")
-        return 2
     # ── isolation: no research (Perplexity is a second paid service), no cost-ledger writes ──
-    turn._research = lambda *_a, **_k: {"results": [], "citations": [], "note": "research disabled for this batch"}
-    turn._record_cost = lambda _resp: 0.0
+    ledger.stub_research(turn)
     model = turn.model()
+    # ── the SEPARATE eval key, this run's ceiling, the cumulative ledger and the model on the EVAL account, before any call ──
+    try:
+        led, key, key_fp = ledger.preflight(turn, max_usd=a.max_usd)
+        import anthropic
+        client = anthropic.Anthropic(api_key=key, max_retries=0, timeout=60.0)
+        ledger.check_model(client, model)
+    except ledger.LedgerRefused as e:
+        print(f"refused: {e}")
+        return 2
+    run_id = f"live_batch-{int(time.time())}"
     budget = {"spent": 0.0, "calls": 0}
+    print(f"cumulative ledger: ${led.remaining():.4f} left of ${led.cap():.2f} (run {run_id})")
 
     class BudgetStop(Exception):
         pass
 
     def guarded(**kw):
-        """⛔ THE CEILING, BEFORE EVERY API CALL. Worst case of THIS call: its whole prompt billed as
-        a cache WRITE (1.25x input) + its full max_tokens output. run_turn may make up to three calls
+        """⛔ THE CEILINGS, BEFORE EVERY API CALL: this run's --max-usd, then the cumulative ledger RESERVES the
+        worst case of THIS call (its whole request billed as a cache WRITE + its full max_tokens output) and
+        settles it from usage after (a timeout settles at the worst case). run_turn may make up to three calls
         for one request (research round, schema fallback) — each one passes through here."""
-        chars = len(json.dumps(kw.get("system"), default=str)) + len(json.dumps(kw.get("messages"), default=str)) \
-            + len(json.dumps(kw.get("output_config"), default=str))
-        worst = narrative_cost_guard.estimate_cost(model, 0, int(kw.get("max_tokens") or turn.MAX_TOKENS),
-                                                   cache_creation_tokens=int(chars / CHARS_PER_TOKEN))
-        if budget["spent"] + worst > a.max_usd:
-            raise BudgetStop(f"${budget['spent']:.4f} spent + worst ${worst:.4f} for the next call would pass ${a.max_usd:.2f}")
-        resp = turn._default_caller(**kw)
-        u = getattr(resp, "usage", None)
-        budget["spent"] += narrative_cost_guard.estimate_cost(
-            model, int(getattr(u, "input_tokens", 0) or 0), int(getattr(u, "output_tokens", 0) or 0),
-            cache_read_tokens=int(getattr(u, "cache_read_input_tokens", 0) or 0),
-            cache_creation_tokens=int(getattr(u, "cache_creation_input_tokens", 0) or 0))
+        def run_cap(worst: float) -> str | None:
+            if budget["spent"] + worst > a.max_usd:
+                return f"${budget['spent']:.4f} spent + worst ${worst:.4f} for the next call would pass ${a.max_usd:.2f}"
+            return None
+        try:
+            resp, worst = led.guarded_call(run_id, client.messages.create, kw, tool="agent_live_batch", key_fp=key_fp, per_run_cap=run_cap)
+        except ledger.LedgerRefused as e:
+            raise BudgetStop(str(e)) from e
+        u = ledger.usage_tokens(resp)
+        budget["spent"] += ledger.cost_usd(model, **u) if u else worst
         budget["calls"] += 1
         return resp
-
-    # the model must exist on this account (a free models lookup — not billed)
-    try:
-        from api.services.engine import _get_anthropic_client
-        _get_anthropic_client().models.retrieve(model)
-        print(f"model {model}: available on this account")
-    except Exception as e:  # noqa: BLE001
-        print(f"refused: model {model} is not available on this account ({type(e).__name__})")
-        return 2
 
     def outcome_of(env: dict) -> str:
         """What UCT would have receipted for a planned turn (this batch never executes it)."""
@@ -180,6 +177,7 @@ def main() -> int:
             + ([{"role": "outcome", "text": done, "data": {"kind": "applied"}}] if done else [])
     spent = budget["spent"]
     print(f"spent ${spent:.4f} of ${a.max_usd:.2f}   passed {sum(1 for o in out if o['ok'])}/{len(out)}")
+    print(f"cumulative ledger: ${led.remaining():.4f} left of ${led.cap():.2f}")
     if a.out:
         json.dump(out, open(a.out, "w", encoding="utf-8"), indent=2)
     return 0
