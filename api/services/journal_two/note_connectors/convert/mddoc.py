@@ -1429,6 +1429,12 @@ class _HtmlDomBuilder(HTMLParser):
                 self._flat_push_inline(el.tag, el.attrs)
 
     def _flat_push_inline(self, tag: str, attrs: dict[str, str | None]) -> None:
+        if tag not in _FLAT_CHAINED:
+            # D3 fix round 4 (N4): any other inline tag unwraps in the walker, so it adds
+            # nothing to the chain. ⚰️ Every distinct NAME was counted, custom tags included:
+            # `<x0><x1>…` built a chain as deep as the name count (1,000 names raised
+            # RecursionError; 3,000 with words took 11.5 s, every leaf building it whole).
+            return
         self._flat_marks[tag] = self._flat_marks.get(tag, 0) + 1
         if tag == "a":
             self._flat_links.append(attrs)
@@ -1442,8 +1448,8 @@ class _HtmlDomBuilder(HTMLParser):
         return self._flat_para
 
     def _flat_chain(self, leaf: Any) -> Any:
-        """`leaf` inside ONE element per open inline tag NAME (at most a few levels, never the
-        nesting depth): the innermost anchor's href, and each mark tag once."""
+        """`leaf` inside ONE element per open mark tag NAME and the innermost anchor (at most
+        `len(_FLAT_CHAINED)` levels, never the nesting depth or the count of distinct names)."""
         node = leaf
         for name in sorted(n for n, c in self._flat_marks.items() if c > 0 and n != "a"):
             wrap = _HtmlNode(name, {})
@@ -1478,7 +1484,8 @@ class _HtmlDomBuilder(HTMLParser):
             if self._flat[i][0] == tag:
                 for closed in self._flat[i:]:
                     if closed[2]:
-                        self._flat_marks[closed[0]] -= 1
+                        if closed[0] in _FLAT_CHAINED:  # N4: only these were counted
+                            self._flat_marks[closed[0]] -= 1
                         if closed[0] == "a" and self._flat_links:
                             self._flat_links.pop()
                     else:
@@ -1537,6 +1544,9 @@ _FLAT_HOLDERS = frozenset({"root", "html", "body", "td", "th", "li", "blockquote
                            "aside", *_HTML_BLOCK_WRAPPERS})
 #: Elements whose walkers skip loose children (rows, items): the flat runs never go in one.
 _FLAT_STRUCTURAL = frozenset({"table", "thead", "tbody", "tfoot", "tr", "ul", "ol", "dl"})
+#: D3 fix round 4 (N4): the only inline tags the flat chain wraps a leaf in: the ones that
+#: carry something (a mark, or a link). Every other inline tag unwraps in `_html_inline_walk`.
+_FLAT_CHAINED = frozenset({*_HTML_INLINE_MARK_TAGS, "a"})
 #: Tags that end a paragraph in the flat mode (block elements); any other tag is inline.
 _FLAT_BREAK_TAGS = frozenset({
     "p", "li", "td", "th", "tr", "table", "thead", "tbody", "tfoot", "ul", "ol", "dl", "dt",

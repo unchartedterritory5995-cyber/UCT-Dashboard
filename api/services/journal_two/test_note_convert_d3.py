@@ -694,3 +694,31 @@ def test_deep_nesting_keeps_words_in_document_order(case):
     expected = re.findall(_WORD_RE, re.sub(r"<[^>]*>", " ", case["html"]))
     got = re.findall(_WORD_RE, " ".join(r["text"] for r in _texts(html_to_tiptap(case["html"])["doc"])))
     assert got == expected
+
+
+# ── fix round 4, N4: distinct tag names past the cap never deepen the chain ───
+
+
+def _distinct_custom_tags(n: int) -> str:
+    return "<div>" * 101 + "".join(f"<x{i}>w{i} " for i in range(n))
+
+
+def test_distinct_custom_tags_past_the_cap_convert_linearly_in_order():
+    """D3 re-review r2 (N4): past the depth cap `_flat_chain` wrapped every leaf in one element
+    per open inline tag NAME, custom tags included, so `<x0><x1>…` built a chain as deep as the
+    name count: 1,000 names raised RecursionError, and 3,000 with words took 11.5 s (every leaf
+    built the whole chain). Only mark tags and `a` carry anything, so only they are chained."""
+    import re
+    import time
+
+    def run(n):
+        html = _distinct_custom_tags(n)
+        started = time.perf_counter()
+        out = html_to_tiptap(html)
+        elapsed = time.perf_counter() - started
+        got = re.findall(_WORD_RE, " ".join(r["text"] for r in _texts(out["doc"])))
+        assert got == [f"w{i}" for i in range(n)]
+        return elapsed
+
+    small, big = run(1000), run(5000)
+    assert big / max(small, 1e-3) < 12, (small, big)  # linear is 5x; quadratic is 25x
