@@ -39,7 +39,7 @@ import {
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
-import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
+import { importLinesOf, linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 import { splitCommaStatements } from './objectFnInline.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse } from './interpret.js'
@@ -1222,6 +1222,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
   lexed = linkLibraries(lexed, opts, { lexPine, blockStatements })
   holder.link = lexed.libraryLink || null
   const { tokens, indents, version } = lexed
+
+  /** ⭐ W4 T1 — the alias of every `import … as <alias>` the member wrote, read from
+   *  the tokens as lexed (`unlinked`: the linker removes the line of a library it
+   *  served). It only NAMES a refusal (`builtinStateFamily`): a dotted call whose
+   *  head is one of these is a library member this lane did not compile. */
+  const libraryAliases = new Set()
+  for (const line of importLinesOf(tokens.unlinked || tokens, indents)) {
+    if (line.imp && line.imp.alias) libraryAliases.add(line.imp.alias)
+  }
+  /** ⭐ W4 T1 — the v1–v4 spellings of a data request (`request.*` from v5). */
+  const LEGACY_REQUEST_CALLS = new Set(['security', 'security_lower_tf', 'financial'])
 
   let stmts
   try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
@@ -4891,6 +4902,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // CONVERSION, which is a third wrong answer rather than the second.
     if (isInputName(name)) return 'runtime:input-state'
     if (/^request\./.test(name)) return 'runtime:request-with-state'
+    // ⭐ W4 T1 — THE v1–v4 SPELLING OF A REQUEST IS THE SAME WALL. `security(…)`,
+    // `security_lower_tf(…)` and `financial(…)` became `request.security`,
+    // `request.security_lower_tf` and `request.financial` in v5 (the v4 → v5
+    // migration guide), so a bare one is a data request, not a builtin the closed
+    // table forgot. ⛔ ONLY BEFORE v5: in a v5/v6 script the bare spelling is no
+    // Pine function at all, and `undeclared` stays the true sentence for it. A
+    // name the script defines itself never reaches here (a user function is
+    // routed first), and this only picks the NAME of a refusal — nothing that
+    // refused before runs now.
+    if (LEGACY_REQUEST_CALLS.has(name) && !(pineVersion >= 5)) {      // no version line = v1
+      return 'runtime:request-with-state'
+    }
     // ⚰️⚰️ A PRESENTATION CALL BOUND TO A NAME IS PRESENTATION, NOT AN UNKNOWN
     // BUILTIN — and 2F-2's census is what caught this. `upPlot = plot(trend == 1 ? up : na, …)`
     // is the standard SuperTrend/Chandelier idiom: Pine's `plot()` RETURNS a plot
@@ -4928,7 +4951,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // closed table actually declares can be said to need the series bridge; a
     // name it does not declare is blocked on the builtin existing, and calling
     // that "windowed" inflates the series row with work that belongs elsewhere.
-    if (!spec) return 'runtime:call-undeclared-builtin-state'
+    if (!spec) {
+      // ⭐ W4 T1 — `ml.n_rsi(x)` with `import … as ml` written: the name is a
+      // LIBRARY member, and "the closed table does not declare it" sends the next
+      // engineer to the wrong place. Read only after the table said no, so a
+      // builtin namespace a script reuses as an alias keeps its table answer.
+      const dotAt = name.indexOf('.')
+      if (dotAt > 0 && libraryAliases.has(name.slice(0, dotAt))) return 'runtime:library'
+      return 'runtime:call-undeclared-builtin-state'
+    }
     return 'runtime:call-windowed-state'
   }
 
