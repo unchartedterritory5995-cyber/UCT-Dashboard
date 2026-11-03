@@ -26,6 +26,13 @@ Worktrees share `app/node_modules` by junction to `C:/w/txlinks/app/node_modules
 
 ## Builder reports at stop
 _(filled from each builder's wrap-up message)_
+### repair-b — agent/w11/routing-f16 @ b923e69f8c — DRAFT PR #727 (base agent/int)
+- R-04 DONE (indicatorAlerts routing trigger words; prompt rule "never a false limitation"; false_capability_claim() → one server repair round, else clarify; need_groups reroute when the family is in an unsent group), R-05 DONE (hidden.py HIDDEN_PHRASES 30 patterns + generated scanHidden.js mirror; refusal_for_text = F-16 sentence + public alternative on refinements AND new screens; fast path claims hidden-phrase requests with 0 calls; no rs_line_trend substitution), R-06 DONE (earnings lead line "next report: <date>"; F-16/F-23 rails green).
+- Tests: new 76 pytest + 85 vitest; full Agent vitest via lock 155 files passed / 5 skipped; full Agent pytest run 1: 2183 passed / 1 failed (cost baseline, regenerated since); run 2 was still running at wrap-up (log in the session scratchpad: pytest_full2.log) — NOT CONFIRMED.
+- Measurements regenerated: fast-path corpus, cost baseline (64→62 calls), SAT-1 capture, NL-1 parity. All files inside Agent paths.
+- Resume: re-run `python tools/agent_suite_lock.py run --who repair-b -- python -m pytest tests/test_uct_agent*.py tests/test_agent_eval*.py -q` in C:/w/w11-b; independent review; `gh pr ready 727`. Live re-verification of LT-4 only possible after a deploy (R-08).
+- Integration note: #725 and #727 both touch turn.py, routing.js, screener.js and the SAT capture — expect a merge to resolve; merge #725 first, then #727 (re-bless the SAT capture once on agent/int).
+
 ### repair-a — agent/w11/args @ 74a9b21cf4 — DRAFT PR #725 (base agent/int)
 - R-01 DONE (args tolerance: per-capability argAliases/coerce/defaults/shape; turn.normalize_args on compact/strict/v2 paths; registry normalizeArgs; catalog prints SHAPE lines; bgMode row made ELIGIBLE so "turn the gradient off" is a 0-call fast path; chart.replay exit words; screener refinement sort shapes; widget.addCharts shapes), R-02 DONE (empty-board add → one new chart, fast path), R-03 DONE (protected rename refused by name, 0 calls; nonsense → deterministic clarify with 5 choices; 5xx keeps FAILED).
 - Tests: FULL Agent pytest 2222 passed (125 new, incl. tests/test_uct_agent_args_live_shapes.py); targeted vitest 354 passed (new agentW11RepairA.test.jsx); FULL vitest src/agent NOT CONFIRMED (was running at wrap-up).
