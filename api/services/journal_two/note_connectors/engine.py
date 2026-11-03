@@ -753,11 +753,11 @@ async def _do_sync(
         # which is an incremental pass; review C2), and ONLY for a provider
         # whose `fetch` needs no listing state (`fetch_is_listing_independent`,
         # Evernote; review C1), the listed notes still waiting on a retryable
-        # copy are fetched too. Each is a media retry and nothing else:
-        # `_import_remote_notes` lets it through only when its payload hash
-        # equals the stored one (C1's belt guard). They never feed the cursor
-        # (OneNote's is a drain watermark a newer ref would jump) and never
-        # hold it.
+        # copy are fetched too: unedited ones only (review I1). Each is a
+        # media retry and nothing else: `_import_remote_notes` lets it through
+        # only when its payload hash equals the stored one (C1's belt guard).
+        # They never feed the cursor (OneNote's is a drain watermark a newer
+        # ref would jump) and never hold it.
         fetch_refs = refs
         retry_ids: set[str] = set()
         if (full and present_fn is not None and not enumeration_failed
@@ -1234,7 +1234,10 @@ def _pending_media_refs(
 ) -> list[RemoteRef]:
     """The refs of the complete listing `index_refs` that `refs` (this pass's delta) does not
     hold and whose stored note waits on a retryable media copy (`import_media_pending = 1`;
-    2, waiting for storage space, is not a retry). Listing order kept. See the call site."""
+    2, waiting for storage space, is not a retry). A note the member edited is never one
+    (`_is_conflict`, the one predicate: its edited branch never confirms, so it would be
+    refetched every pass for nothing; review I1). One query: the
+    pending rows are few, and the listing is matched in memory. See the call site."""
     listed = {r.remote_id for r in refs}
     by_key: dict[str, RemoteRef] = {}
     for r in index_refs:
@@ -1242,21 +1245,23 @@ def _pending_media_refs(
             by_key.setdefault(provider.import_key(source["remoteId"], r.remote_id), r)
     if not by_key:
         return []
-    keys = list(by_key)
-    pending: set[str] = set()
     conn = get_connection()
     try:
-        for i in range(0, len(keys), 500):
-            chunk = keys[i:i + 500]
-            rows = conn.execute(
-                f"SELECT import_key FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL "
-                f"AND import_media_pending = ? AND import_key IN ({','.join('?' * len(chunk))})",
-                (user_id, import_notice.MEDIA_PENDING_RETRY, *chunk),
-            ).fetchall()
-            pending.update(row["import_key"] for row in rows)
+        rows = conn.execute(
+            "SELECT import_key, updated_at, imported_at FROM j2_notes "
+            "WHERE user_id = ? AND deleted_at IS NULL AND import_media_pending = ? "
+            "ORDER BY import_key",
+            (user_id, import_notice.MEDIA_PENDING_RETRY),
+        ).fetchall()
     finally:
         conn.close()
-    return [by_key[k] for k in keys if k in pending]
+    out: list[RemoteRef] = []
+    for row in rows:
+        r = by_key.get(row["import_key"])
+        if r is None or _is_conflict({"updatedAt": row["updated_at"], "importedAt": row["imported_at"]}):
+            continue
+        out.append(r)
+    return out
 
 
 def _touch_remote_index(

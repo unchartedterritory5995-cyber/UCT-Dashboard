@@ -303,3 +303,16 @@ async def test_failed_complete_listing_never_retries(db, monkeypatch):
     assert p.fetched == ["A"]
 
 
+# ── I1: a note the member edited is never retried ───────────────────────────────────
+
+async def test_member_edited_note_with_pending_media_is_not_refetched(db, monkeypatch):
+    src = _source()
+    a, b = ref("A", 1), ref("B", 9)
+    await _pass(monkeypatch, src, Fake([a, b], fail_media={"B"}), full=True)
+    notes_svc.update_note(USER, _row("B")["id"], {"bodyJson": _doc("my own words")})
+    for _ in range(2):
+        p = Fake([], [a, b])
+        await _pass(monkeypatch, src, p, full=True)
+        assert p.fetched == []
+
+
