@@ -154,4 +154,15 @@ can only remove served shapes relative to round 1 (a shadowed constant `var`, a 
 
 ## Fix-round final-tip
 
-See the bottom of this file once appended (second commit): `runs/w4-t3-fix-final`.
+**PENDING (not run).** The queued job was stopped at the usage limit; it never held the lock.
+Run on the laptop or the next machine, from `pine-handoff`, as ONE heavy job:
+
+```
+source docs/pine/parity-programme/scripts/env-laptop.sh
+hl w4-t3-fix-final -- bash -c 'UCT_RESUME=$UCT_RESUME bash $UCT_WORKTREES/pine-handoff/docs/pine/parity-programme/scripts/final-tip.sh pine-w4-t3 w4-t3-fix-final tests/test_script_engine_version_gate.py'
+```
+
+Expected: gate pytest 46 passed, hygiene clean, version-gate pytest 6 passed, chart+hooks vitest with only
+the 2 known baseline failures. Passed so far on the fix tree: `w4TextConstants` + `objectDoorGate` 81/81,
+`runtimeInputKinds` + `runtimeInputs` 88/88, `runtimeClockCalls` + `textInputs` 38/38; all fix-round
+mutations run (`runs/w4-t3-fix/mutate3-5.out`).
