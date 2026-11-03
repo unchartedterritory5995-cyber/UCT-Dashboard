@@ -14,7 +14,7 @@ script. Full rules: AGENT-RULES.md (this folder). Its absolute paths are the des
      `cmd //c "mklink /J <wt>\app\node_modules <pine-base>\app\node_modules"`.
      Without it, Python rails that shell out to node fail with "Cannot find module 'acorn'".
      Remove a junction only with `cmd //c rmdir`, never by deleting through it.
-3. Source the env file.
+3. Source the env file at the start of EVERY Bash call; shell state does not persist between calls.
 
 ## Heavy jobs (one at a time per machine, through that machine's lock)
 - Heavy means any of: more than 2 vitest files, census, harness, measure-pair, the deploy-gate
@@ -28,7 +28,7 @@ script. Full rules: AGENT-RULES.md (this folder). Its absolute paths are the des
 - Scripts in `docs/pine/parity-programme/scripts/` (pine-handoff worktree):
   - `measure-pair.sh <out> tip:<wt> base:<base-wt> <runtimeOn 0|1> 1` compares tip with base. Run it
     with both 0 and 1. The base must be the tip's OWN master. Set it INSIDE the same hl job:
-    `M=$(git -C <wt> merge-base HEAD origin/master); git -C <base-wt> switch -q --detach $M`.
+    `M=$(git -C <wt> merge-base HEAD origin/master); git -C <base-wt> switch -q --detach $M && test "$(git -C <base-wt> rev-parse HEAD)" = "$M" || exit 3`.
     `<base-wt>` is the machine's measure-pair base worktree (desktop: `pine-dsk-mpbase`;
     laptop: `pine-base`), with the node_modules junction. Record M as tested-on-master.
     Run `npm ci` only inside an hl job.

@@ -10,6 +10,9 @@ export UCT_RESUME="${UCT_RESUME:-$UCT_WORKTREES/_resume-2026-11-01}"
 export HEAVY_LOCK="${HEAVY_LOCK:-C:/Users/Patrick/uct-clips/tools/heavy_lock.py}"
 # The python that has pytest + the api deps (requirements.txt, incl. linkify-it-py).
 export UCT_PY="${UCT_PY:-python}"
+# The hand-off folder and its scripts (DESKTOP-PROMPT.md uses $H and $S).
+export H="${H:-$UCT_WORKTREES/pine-handoff}"
+export S="$H/docs/pine/parity-programme/scripts"
 freeram() { powershell.exe -NoProfile -Command "[int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1KB)" | tr -d '\r'; }
 # One heavy job under this machine's lock:  hl <label> -- <command...>  (12 h queue wait)
 hl() {

@@ -3,7 +3,7 @@
 **Before pasting:** open Claude Code on the desktop in the same permission mode the laptop session
 uses. Otherwise the session stops at every tool prompt. Then paste this one line:
 
-    Run the Pine parity programme's desktop build lane: cd C:/Users/Patrick/uct-worktrees/pine-handoff && git fetch origin && git merge --ff-only origin/docs/pine-parity-programme (if that fails: git worktree add --detach ../pine-handoff-dsk origin/docs/pine-parity-programme and use that folder instead), then read and follow docs/pine/parity-programme/DESKTOP-PROMPT.md there (full autonomy, same grant as the laptop).
+    Run the Pine parity programme's desktop build lane: cd C:/Users/Patrick/uct-worktrees/pine-handoff && git fetch origin && git merge --ff-only origin/docs/pine-parity-programme (if that fails: git -C C:/Users/Patrick/uct-worktrees/pine-base worktree add --detach C:/Users/Patrick/uct-worktrees/pine-handoff-dsk origin/docs/pine-parity-programme and use that folder instead), then read and follow docs/pine/parity-programme/DESKTOP-PROMPT.md there (full autonomy, same grant as the laptop).
 
 ---
 
@@ -84,8 +84,10 @@ written in ASSIGNMENTS.md.
 | `MERGED <sha>` | laptop | done; drop the worktree (`cmd //c rmdir` the node_modules junction first, then `git worktree remove`) |
 | `WITHDRAWN` | laptop | lane taken back or re-planned; push your WIP, set `RELEASED <tip>`, stop the builder |
 
-**SHA rule:** act on a laptop state only when its `@<sha10>` equals the tip in your latest
-READY. If they differ, the laptop is judging an older tip. Wait for the next update.
+**SHA rule** (REVIEWING, FIX, REFRESH, LANDING): act only when `@<sha10>` equals your latest READY
+tip. From LANDING on, it may instead equal the tip of `origin/<branch>` after you run
+`git merge --ff-only origin/<branch>`. Otherwise wait for the next update. QUEUED, WITHDRAWN and
+MERGED apply at once.
 
 **Two-writer rule:** from LANDING on, the laptop may push to the lane branch (a master merge,
 the engine bump). If a lane returns to FIX or REFRESH after that, first run
@@ -107,7 +109,10 @@ force-push. Never rebase a pushed branch; always merge origin/master.
 The desktop is where the programme started, so most of this already exists. Verify each item;
 fix only what is missing.
 
-1. Run `source $S/env-desktop.sh`. Check that `UCT_WORKTREES`, `UCT_RESUME`, `HEAVY_LOCK` and
+1. Shell state does not persist between tool calls. Start EVERY Bash call, background ones
+   included, with `source C:/Users/Patrick/uct-worktrees/pine-handoff/docs/pine/parity-programme/scripts/env-desktop.sh`
+   (or the `pine-handoff-dsk` path, with `H` exported to that folder first). It sets `$H` and `$S`.
+   Builders' prompts must say the same. Check that `UCT_WORKTREES`, `UCT_RESUME`, `HEAVY_LOCK` and
    `UCT_PY` exist and work. Override in the shell, not in the scripts.
 2. **Shared install.** The `pine-base` worktree is detached at origin/master and has `npm ci` in
    `app/`. Run `npm ci` only inside an hl job, and only when `app/package-lock.json` changed.
