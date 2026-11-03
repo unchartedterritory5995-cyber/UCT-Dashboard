@@ -479,10 +479,14 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
     rss_start = _rss_mb()
     planned = taken = 0
     worked = 0  # I-2: notes that needed a write; `max_notes` counts only these
+    stopped_for_market = False
     for user_id in (members if members is not None else list(iter_members(conn))):
         if store.member_done(conn, run_id, user_id):
             continue
         if max_members is not None and taken >= max_members:
+            break
+        if not allow_market_hours and _market_hours(clock()):
+            stopped_for_market = True  # review M-5: a long run never writes into the session
             break
         try:
             store.claim_member(conn, run_id, user_id, holder)
@@ -563,4 +567,4 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
                 logger.warning("import repair: could not release member %s: %s", user_id, exc)
         if not complete and max_notes is not None and worked >= max_notes:
             break
-    return tally.report(**counts)
+    return tally.report(**counts, stoppedForMarketHours=stopped_for_market)
