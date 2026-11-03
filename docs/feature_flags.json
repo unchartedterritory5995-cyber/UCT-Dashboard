@@ -2071,6 +2071,12 @@
       "where": [],
       "note": "Plan F: gates tools/note_import_repair.py --apply only. Set on web for the one production run after the owner approves the dry-run numbers, then deleted + redeployed (runbook docs/runbooks/note-import-repair.md)."
     },
+    "NOTEBOOK_DOC_PENDING_SWEEP_DISABLED": {
+      "status": "pending",
+      "since": "2026-11-02",
+      "where": [],
+      "note": "Plan F (Task 7 round 2, S-3): the KILL SWITCH of the web pod's j2_doc_pending_sweep job (api/main.py; document_extraction.pending_sweep_tick), which re-queues searchable-document rows left 'pending' (older than 10 min, 20 per tick, a row failed after 3 tries, first tick 10 min after boot). SHIPS ON: unset, or any value but 1/true/yes/on, means the sweep runs. Set it to 1 on web to stop the sweep; it is read PER TICK, so no redeploy is needed to stop it, and unsetting it resumes it at the next tick."
+    },
     "OI_MASSIVE_ENABLED": {
       "status": "armed",
       "where": [

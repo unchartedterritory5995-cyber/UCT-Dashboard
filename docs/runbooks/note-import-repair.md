@@ -86,7 +86,8 @@ railway ssh --service web
 
 (`created_at` is stored as ISO text with a `T`, so the cutoff is built in the same shape.) At 20 rows
 per 10 minutes, N rows take N/2 minutes to drain. A row the sweep cannot finish after 3 tries is
-marked failed, never retried forever.
+marked failed, never retried forever. Kill switch: `NOTEBOOK_DOC_PENDING_SWEEP_DISABLED=1` on `web`,
+read at each tick (no redeploy needed to stop it; unset it to resume).
 
 ## Before arming: the lock test must pass on Linux
 

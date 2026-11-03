@@ -117,6 +117,19 @@ def test_the_sweep_is_registered_on_the_web_scheduler():
     assert 'id="j2_doc_pending_sweep"' in src and "pending_sweep_tick" in src
 
 
+@pytest.mark.parametrize("value,stopped", [("1", True), ("true", True), ("0", False), ("", False)])
+def test_the_kill_switch_stops_the_sweep_per_tick(conn, submitted, monkeypatch, value, stopped):
+    """Round 2 S-3: `NOTEBOOK_DOC_PENDING_SWEEP_DISABLED=1` on `web` stops the sweep at its next
+    tick (read per tick, never at boot), so a misbehaving sweep is stopped without a code revert."""
+    _doc(conn, "stale", minutes_old=60)
+    monkeypatch.setenv(dx.SWEEP_DISABLED_ENV, value)
+    out = dx.pending_sweep_tick(started_monotonic=0.0, now_monotonic=10_000.0, now=NOW)
+    if stopped:
+        assert out == {"skipped": "disabled"} and submitted == []
+    else:
+        assert out["requeued"] == 1
+
+
 def test_the_first_sweep_waits_out_a_startup_grace(conn, submitted):
     """Round 2 S-2: right after a boot (a deploy) the web pod has enough to do; the sweep's
     first pass runs no sooner than `SWEEP_STARTUP_GRACE_S` (10 min) after it."""

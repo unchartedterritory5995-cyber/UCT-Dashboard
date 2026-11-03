@@ -25,6 +25,7 @@ the process down or accumulate unbounded temp state.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import threading
 import time
@@ -1323,6 +1324,8 @@ def _process_queued(document_id: str) -> None:
 #: Round 2 S-2: the sweep's first pass waits at least this long after the web process booted
 #: (a deploy has enough to do, and a backlog older than the deploy is drained at 20 per tick).
 SWEEP_STARTUP_GRACE_S = 600
+#: Round 2 S-3: the sweep's kill switch on `web`, read per tick (docs/feature_flags.json).
+SWEEP_DISABLED_ENV = "NOTEBOOK_DOC_PENDING_SWEEP_DISABLED"
 #: When the importing process booted, for the grace (`time.monotonic()`).
 _PROCESS_STARTED = time.monotonic()
 
@@ -1331,6 +1334,9 @@ def pending_sweep_tick(*, started_monotonic: float | None = None, now_monotonic:
                        now: datetime | None = None) -> dict[str, Any]:
     """ONE tick of the web pod's `j2_doc_pending_sweep` job: nothing within
     `SWEEP_STARTUP_GRACE_S` of boot, else `requeue_stale_pending`."""
+    # Round 2 S-3: the kill switch, read per tick (never at boot).
+    if os.environ.get(SWEEP_DISABLED_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
+        return {"skipped": "disabled"}
     started = _PROCESS_STARTED if started_monotonic is None else started_monotonic
     clock = time.monotonic() if now_monotonic is None else now_monotonic
     if clock - started < SWEEP_STARTUP_GRACE_S:
