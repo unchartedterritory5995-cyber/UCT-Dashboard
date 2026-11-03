@@ -21,16 +21,22 @@ rows), C11 (`byClassShape`: shapes per class), Task 3/4 (count-only actions neve
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
+import os
 import time
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterator
 
-from api.services.journal_two import import_provenance, import_repair, sample_marker
+from api.services.journal_two import hotlink_fetch, import_provenance, import_repair, sample_marker
 from api.services.journal_two import notes
-from api.services.journal_two.import_repair import links, media, shapes
-from api.services.journal_two.note_connectors import registry
+from api.services.journal_two.import_repair import links, media, shapes, store
+from api.services.journal_two.note_connectors import engine, registry
+
+logger = logging.getLogger(__name__)
 
 FLAG = "NOTE_IMPORT_REPAIR_ENABLED"
 RUN_ID_DEFAULT = "2026-11-connector-fidelity-f"
@@ -203,68 +209,307 @@ def _sources(conn, members: list[str] | None) -> tuple[int, int]:
     return stale, relist
 
 
+class _Tally:
+    """The report both `scan` and `apply` build, one note at a time."""
+
+    def __init__(self, conn, run_id: str, members: list[str] | None, mode: str):
+        self.started = _now()
+        self.run_id, self.mode = run_id, mode
+        self.stale, relist = _sources(conn, members)
+        self.totals: dict[str, Any] = {
+            "members": 0, "notesScanned": 0, "tooLargeToScan": 0,
+            "byClass": dict.fromkeys(import_repair.NOTE_CLASSES, 0), "byShape": {}, "bySource": {},
+            "wouldRepairNotes": 0, "hotlinksToFetch": 0, "keptEdited": 0, "legacyFinalize": 0,
+            "obsidianSourcesToRelist": relist, "noticeMembers": 0,
+            "unreadableStamp": 0, "byClassShape": {}, "lostLinks": 0, "unreadableBody": 0,
+        }
+        self.per_member: list[dict] = []
+        self.samples: dict[str, list[str]] = {}
+        self.mine: dict = {}
+
+    def member(self, user_id: str) -> None:
+        self.mine = {"userId": user_id, "notes": 0, "wouldRepair": 0, "byShape": {}, "lossNotes": 0,
+                     "lostLinks": 0}
+
+    def row(self, note_class: str) -> None:
+        self.totals["notesScanned"] += 1
+        self.totals["byClass"][note_class] += 1
+        self.mine["notes"] += 1
+
+    def too_large(self) -> None:
+        self.totals["tooLargeToScan"] += 1
+
+    def plan(self, row: NoteRow, note_class: str, plan: NotePlan) -> None:
+        t, mine = self.totals, self.mine
+        t["unreadableBody"] += plan.unreadable_body
+        side = "edited" if plan.kept_edited else "unedited"
+        for shape, n in plan.shapes.items():
+            t["byShape"].setdefault(shape, {"unedited": 0, "edited": 0})[side] += n
+            t["byClassShape"].setdefault(note_class, {}).setdefault(shape, {"unedited": 0, "edited": 0})[side] += n
+            source = t["bySource"].setdefault(row.import_source or "", {})
+            source[shape] = source.get(shape, 0) + n
+            mine["byShape"][shape] = mine["byShape"].get(shape, 0) + n
+            bucket = self.samples.setdefault(shape, [])
+            if len(bucket) < SAMPLE_PER_SHAPE:
+                bucket.append(row.id)
+        t["keptEdited"] += plan.kept_edited
+        t["legacyFinalize"] += plan.legacy_finalize
+        t["unreadableStamp"] += plan.unreadable_stamp
+        t["hotlinksToFetch"] += len(plan.hotlinks)
+        t["lostLinks"] += plan.lost_links
+        mine["lostLinks"] += plan.lost_links
+        if writes(plan):
+            t["wouldRepairNotes"] += 1
+            mine["wouldRepair"] += 1
+        if plan.loss:
+            mine["lossNotes"] += 1
+
+    def member_end(self) -> int:
+        """Close the member; returns its loss-note count."""
+        mine = self.mine
+        if mine["notes"]:
+            self.totals["members"] += 1
+        if mine["byShape"]:
+            self.per_member.append(mine)
+        if mine["lossNotes"]:
+            self.totals["noticeMembers"] += 1
+        return mine["lossNotes"]
+
+    def report(self, **extra: Any) -> dict:
+        return {"runId": self.run_id, "mode": self.mode, "startedAt": self.started, "finishedAt": _now(),
+                "peakRssMb": _peak_rss_mb(), "sourcesNotFullSyncedSinceConverter": self.stale,
+                "totals": self.totals, "perMember": self.per_member, "samples": self.samples, **extra}
+
+
+def writes(plan: NotePlan) -> bool:
+    """Would the apply write this note? A changed body, or a hotlink to swap for our copy (M-2)."""
+    return not plan.kept_edited and (plan.new_doc is not None or bool(plan.hotlinks))
+
+
 def scan(conn, *, run_id: str, members: list[str] | None = None, sleep_ms: int = 0) -> dict:
     """The dry-run report. Never writes."""
-    started = _now()
-    stale, relist = _sources(conn, members)
-    totals: dict[str, Any] = {
-        "members": 0, "notesScanned": 0, "tooLargeToScan": 0,
-        "byClass": dict.fromkeys(import_repair.NOTE_CLASSES, 0), "byShape": {}, "bySource": {},
-        "wouldRepairNotes": 0, "hotlinksToFetch": 0, "keptEdited": 0, "legacyFinalize": 0,
-        "obsidianSourcesToRelist": relist, "noticeMembers": 0,
-        "unreadableStamp": 0, "byClassShape": {}, "lostLinks": 0, "unreadableBody": 0,
-    }
-    per_member: list[dict] = []
-    samples: dict[str, list[str]] = {}
+    tally = _Tally(conn, run_id, members, "dry-run")
     for user_id in (members if members is not None else list(iter_members(conn))):
         active = active_providers(conn, user_id)
         index: links.FileKeyIndex | None = None
-        mine = {"userId": user_id, "notes": 0, "wouldRepair": 0, "byShape": {}, "lossNotes": 0, "lostLinks": 0}
+        tally.member(user_id)
         for row in iter_note_rows(conn, user_id):
             note_class = classify(row, active)
             if note_class is None:
                 continue
-            totals["notesScanned"] += 1
-            totals["byClass"][note_class] += 1
-            mine["notes"] += 1
+            tally.row(note_class)
             if row.body_bytes > MAX_SCAN_BODY_BYTES:
-                totals["tooLargeToScan"] += 1
+                tally.too_large()
                 continue
             if index is None:
                 index = links.build_file_key_index(conn, user_id)
             plan = plan_note(conn, user_id, row, note_class, index)
-            totals["unreadableBody"] += plan.unreadable_body
-            side = "edited" if plan.kept_edited else "unedited"
-            for shape, n in plan.shapes.items():
-                totals["byShape"].setdefault(shape, {"unedited": 0, "edited": 0})[side] += n
-                totals["byClassShape"].setdefault(note_class, {}).setdefault(
-                    shape, {"unedited": 0, "edited": 0})[side] += n
-                source = totals["bySource"].setdefault(row.import_source or "", {})
-                source[shape] = source.get(shape, 0) + n
-                mine["byShape"][shape] = mine["byShape"].get(shape, 0) + n
-                bucket = samples.setdefault(shape, [])
-                if len(bucket) < SAMPLE_PER_SHAPE:
-                    bucket.append(row.id)
-            totals["keptEdited"] += plan.kept_edited
-            totals["legacyFinalize"] += plan.legacy_finalize
-            totals["unreadableStamp"] += plan.unreadable_stamp
-            totals["hotlinksToFetch"] += len(plan.hotlinks)
-            totals["lostLinks"] += plan.lost_links
-            mine["lostLinks"] += plan.lost_links
-            if plan.new_doc is not None or plan.hotlinks:  # M-2: a hotlink swap is a write too
-                totals["wouldRepairNotes"] += 1
-                mine["wouldRepair"] += 1
-            if plan.loss:
-                mine["lossNotes"] += 1
+            tally.plan(row, note_class, plan)
             del plan
             if sleep_ms:
                 time.sleep(sleep_ms / 1000)
-        if mine["notes"]:
-            totals["members"] += 1
-        if mine["byShape"]:
-            per_member.append(mine)
-        if mine["lossNotes"]:
-            totals["noticeMembers"] += 1
-    return {"runId": run_id, "mode": "dry-run", "startedAt": started, "finishedAt": _now(),
-            "peakRssMb": _peak_rss_mb(), "sourcesNotFullSyncedSinceConverter": stale,
-            "totals": totals, "perMember": per_member, "samples": samples}
+        tally.member_end()
+    return tally.report()
+
+
+# ── apply (Plan F Task 7) ────────────────────────────────────────────────────
+
+class RepairRefused(Exception):
+    """`apply` will not start: the flag is off, or it is market hours (C8)."""
+
+
+class RepairAborted(Exception):
+    """`apply` stopped itself: memory grew past its ceiling (C8). The CLI exits 4; the run is
+    resumable (finished members are skipped, every note write is a fixed point)."""
+
+
+#: C8: memory may grow at most this far above the start before the run aborts, checked every
+#: `RSS_CHECK_EVERY` notes.
+RSS_CEILING_MB = 250.0
+RSS_CHECK_EVERY = 25
+_ET = "America/New_York"
+
+
+def _rss_mb() -> float:
+    """The process's CURRENT resident memory, in MB (Linux /proc); 0 where it cannot be read."""
+    try:
+        with open("/proc/self/statm", encoding="ascii") as f:
+            pages = int(f.read().split()[1])
+        import os as _os
+        return pages * _os.sysconf("SC_PAGE_SIZE") / (1024 * 1024)
+    except (OSError, ValueError, IndexError, AttributeError):
+        return 0.0
+
+
+def _market_hours(at: datetime) -> bool:
+    """9:30-16:00 ET on a weekday (C8: `--apply` refuses then unless allowed)."""
+    from zoneinfo import ZoneInfo
+    et = at.astimezone(ZoneInfo(_ET))
+    minutes = et.hour * 60 + et.minute
+    return et.weekday() < 5 and 9 * 60 + 30 <= minutes < 16 * 60
+
+
+def _relist(conn, run_id: str, user_id: str) -> int:
+    """The Obsidian re-list: NULL the cursor of the member's active Obsidian sources, so the web
+    process's own scheduled sync converts every note again (never a sync started from here: the
+    engine's in-flight guard is per process). One `relist_requested` row per source, carrying the
+    prior cursor."""
+    rows = conn.execute(
+        "SELECT id, cursor FROM j2_note_sources WHERE user_id = ? AND provider = ? AND status = 'active'"
+        " AND sync_enabled = 1", (user_id, _RELIST_PROVIDER)).fetchall()
+    for source_id, cursor in rows:
+        conn.execute("UPDATE j2_note_sources SET cursor = NULL WHERE id = ? AND user_id = ?", (source_id, user_id))
+        store.log_note(conn, run_id, user_id, source_id, "relist_requested", {}, [f"prior_cursor:{cursor}"], None)
+    conn.commit()
+    return len(rows)
+
+
+def _current_updated_at(conn, note_id: str) -> str | None:
+    row = conn.execute("SELECT updated_at FROM j2_notes WHERE id = ?", (note_id,)).fetchone()
+    return row[0] if row is not None else None
+
+
+def _apply_note(conn, run_id: str, user_id: str, row: NoteRow, plan: NotePlan, holder: str,
+                counts: dict, max_fetches: int) -> str:
+    """Carry out one note's plan. Returns its outcome; `lease_lost` means stop this member."""
+    if plan.kept_edited:
+        if plan.shapes:
+            store.log_note(conn, run_id, user_id, row.id, "kept_edited", plan.shapes, [], None)
+            conn.commit()
+        return "kept_edited"
+    if not writes(plan):
+        return "unchanged"  # C12: counted, never logged
+    try:
+        # C7: a member edit since the listing means hands off, BEFORE anything is downloaded
+        # (a lost race must not leave an orphan file on the member's budget).
+        if _current_updated_at(conn, row.id) != row.updated_at:
+            store.log_note(conn, run_id, user_id, row.id, "race_lost", plan.shapes, plan.actions, None)
+            conn.commit()
+            return "race_lost"
+        doc = plan.new_doc
+        changed = doc is not None
+        if doc is None:
+            doc = json.loads(load_body(conn, row.id))
+        failed: list[str] = []
+        for url in plan.hotlinks:
+            if counts["fetched"] + counts["fetchFailed"] >= max_fetches:
+                break  # the rest waits for the next run
+            try:
+                # T4 M-1: this row's own member and note. Sequential: one download at a time (C8).
+                stored = asyncio.run(hotlink_fetch.fetch_and_store(user_id, row.id, url))
+            except Exception as exc:  # noqa: BLE001 -- refused, unreachable, over the cap: keep the image
+                counts["fetchFailed"] += 1
+                failed.append(url)
+                logger.info("import repair: hotlink not copied for note %s: %s", row.id, exc)
+                continue
+            counts["fetched"] += 1
+            doc = media.replace_src(doc, url, stored.url)
+            changed = True
+        if failed:
+            store.log_note(conn, run_id, user_id, row.id, "fetch_failed", plan.shapes,
+                           [f"fetch_failed:{len(failed)}"], None)
+            conn.commit()
+        if not changed:
+            return "fetch_failed"
+        body = notes._validate_body_json(doc)
+        # Task 6 M-3: the lease, re-checked right before the write.
+        if not store.renew_lease(conn, run_id, user_id, holder):
+            return "lease_lost"
+        before = load_body(conn, row.id)
+        store.log_started(conn, run_id, user_id, row.id, plan.shapes, plan.actions, before)  # C7, commits
+        applied = engine._apply_resolved_body(conn, user_id, row.id, body, expected_updated_at=row.updated_at)
+        outcome = "repaired" if applied else "race_lost"
+        store.log_note(conn, run_id, user_id, row.id, outcome, plan.shapes, plan.actions,
+                       before if applied else None)
+        conn.commit()
+        return outcome
+    except Exception as exc:  # noqa: BLE001 -- one note's failure never stops the run
+        conn.rollback()
+        logger.warning("import repair: note %s failed: %s", row.id, exc)
+        store.log_note(conn, run_id, user_id, row.id, "failed", plan.shapes, plan.actions, None)
+        conn.commit()
+        return "failed"
+
+
+def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: int = 2000,
+          sleep_ms: int = 20, obsidian_relist: bool = False, allow_market_hours: bool = False,
+          now: Any = None, max_members: int | None = None, max_notes: int | None = None,
+          rss_ceiling_mb: float = RSS_CEILING_MB, holder: str | None = None) -> dict:
+    """Write the repair. Refused unless `NOTE_IMPORT_REPAIR_ENABLED == "1"` and outside market
+    hours (or `allow_market_hours`). Per member: skip it when done in this run; claim its lease
+    (another live runner's member is skipped, counted `busyMembers`); the Obsidian re-list only
+    with `obsidian_relist` (C10: off until Plan C is deployed); then each note through
+    `plan_note` and `_apply_note`. A member is finished, and its loss notice recorded, only when
+    every note was gone through. Returns the scan-shaped report with `mode: apply` and the
+    write counts."""
+    if os.environ.get(FLAG) != "1":
+        raise RepairRefused(f"{FLAG} is not set to 1")
+    clock = now or (lambda: datetime.now(timezone.utc))
+    if not allow_market_hours and _market_hours(clock()):
+        raise RepairRefused("market hours (9:30-16:00 ET): run outside them, or allow it explicitly")
+    holder = holder or uuid.uuid4().hex
+    tally = _Tally(conn, run_id, members, "apply")
+    counts = {"repaired": 0, "raceLost": 0, "failed": 0, "fetchFailed": 0, "fetched": 0,
+              "busyMembers": 0, "leaseLost": 0, "relistRequested": 0}
+    by_outcome = {"repaired": "repaired", "race_lost": "raceLost", "failed": "failed"}
+    rss_start = _rss_mb()
+    planned = taken = 0
+    for user_id in (members if members is not None else list(iter_members(conn))):
+        if store.member_done(conn, run_id, user_id):
+            continue
+        if max_members is not None and taken >= max_members:
+            break
+        try:
+            store.claim_member(conn, run_id, user_id, holder)
+        except store.MemberBusy:
+            counts["busyMembers"] += 1
+            continue
+        taken += 1
+        active = active_providers(conn, user_id)
+        rows = list(iter_note_rows(conn, user_id))
+        classes = {r.id: classify(r, active) for r in rows}
+        if obsidian_relist and RELIST in classes.values():
+            counts["relistRequested"] += _relist(conn, run_id, user_id)
+        index: links.FileKeyIndex | None = None
+        tally.member(user_id)
+        checked = repaired = 0
+        complete = True
+        for row in rows:
+            note_class = classes[row.id]
+            if note_class is None:
+                continue
+            if max_notes is not None and planned >= max_notes:
+                complete = False
+                break
+            tally.row(note_class)
+            if row.body_bytes > MAX_SCAN_BODY_BYTES:  # Task 6 M-6 (1)
+                tally.too_large()
+                continue
+            planned += 1
+            checked += 1
+            if planned % RSS_CHECK_EVERY == 0 and _rss_mb() - rss_start > rss_ceiling_mb:
+                raise RepairAborted(f"memory grew more than {rss_ceiling_mb:.0f} MB during the run")
+            if index is None:
+                index = links.build_file_key_index(conn, user_id)
+            plan = plan_note(conn, user_id, row, note_class, index)
+            tally.plan(row, note_class, plan)
+            outcome = _apply_note(conn, run_id, user_id, row, plan, holder, counts, max_fetches)
+            del plan
+            if outcome == "lease_lost":
+                counts["leaseLost"] += 1
+                complete = False
+                break
+            if outcome in by_outcome:
+                counts[by_outcome[outcome]] += 1
+            repaired += outcome == "repaired"
+            if sleep_ms:
+                time.sleep(sleep_ms / 1000)
+        loss_notes = tally.member_end()
+        if not complete:
+            store.release_lease(conn, run_id, user_id, holder)
+            if max_notes is not None and planned >= max_notes:
+                break
+            continue
+        store.record_notice(conn, user_id, loss_notes)
+        store.finish_member(conn, run_id, user_id, checked=checked, repaired=repaired)  # commits
+    return tally.report(**counts)

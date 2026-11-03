@@ -96,6 +96,15 @@ def claim_member(conn: sqlite3.Connection, run_id: str, user_id: str, holder: st
         raise
 
 
+def release_lease(conn: sqlite3.Connection, run_id: str, user_id: str, holder: str) -> None:
+    """Give the member back without finishing it (a batch limit stopped the run), so the next
+    run resumes it at once instead of waiting for the lease to go stale. COMMITS."""
+    conn.execute(
+        "UPDATE j2_import_repair_progress SET lease_holder = NULL, lease_at = NULL"
+        " WHERE run_id = ? AND user_id = ? AND lease_holder = ?", (run_id, user_id, holder))
+    conn.commit()
+
+
 def renew_lease(conn: sqlite3.Connection, run_id: str, user_id: str, holder: str) -> bool:
     """Keep this runner's lease fresh (call it every few notes). COMMITS. False when the lease
     was taken over: the runner must stop working on this member."""
@@ -194,7 +203,7 @@ def pending_notice(conn: sqlite3.Connection, user_id: str) -> int | None:
 
 
 def dismiss_notice(conn: sqlite3.Connection, user_id: str) -> bool:
-    """Dismiss the member's notice: an UPDATE, never a DELETE. True when a pending notice was
+    """Dismiss the member's notice: an UPDATE; the row is never removed. True when a pending notice was
     dismissed. COMMITS."""
     cur = conn.execute(
         "UPDATE j2_import_repair_notices SET dismissed_at = ? WHERE user_id = ? AND dismissed_at IS NULL",
