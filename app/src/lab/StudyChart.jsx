@@ -10,8 +10,11 @@ import { studySettingsOverride } from '../pages/study/studyChartLook'
 export default function StudyChart({
   bars, height = 360, markers = null, annotations = null, highlightBarTime = null, highlightColor = '#e6b800',
   highlightBodyOnly = false, onBarTap = null, chartOpts = null, exitDate: exitProp = null, houseLook = false,
-  rightPadBars = 3,
+  rightPadBars = 2, frame = 'exact', defaultBars = 126,
 }) {
+  // frame='exact' pins the view to [first bar, last bar] (a still exhibit). frame='default' lets the chart keep
+  // its own default zoom of `defaultBars` candles, so bars appended one at a time scroll in from the right
+  // without the frame re-zooming (replay).
   const house = useHouseChart()
   const override = useMemo(() => (houseLook ? studySettingsOverride(chartOpts, house) : null), [houseLook, chartOpts, house])
   const entryDate = bars?.[0]?.t ?? null
@@ -42,9 +45,7 @@ export default function StudyChart({
         hideCompare
         hideLegend
         showDrawingTools={false}
-        entryDate={entryDate}
-        exitDate={exitDate}
-        exactDateRange
+        {...(frame === 'exact' ? { entryDate, exitDate, exactDateRange: true } : { dailyDefaultBars: defaultBars })}
         rightPadBars={rightPadBars}
         settingsOverride={override}
         annotations={annotations}

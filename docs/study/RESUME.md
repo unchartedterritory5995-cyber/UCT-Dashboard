@@ -792,6 +792,31 @@ railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py  
 railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py --only recall.glossary
 ```
 
+## 2026-11-02 (night): WORKBENCH ROUND 3 LIVE (pieces 11-15)
+
+Round-2 verdicts (all verbatim in owner_verdicts.jsonl, commit 8b385c25a3): widget 12/100 ("slight gap at the right", "still
+isnt the full UCT Widget"), flow 2 ("that question is very leading"), answer 2 (no "body" word, entries = ORB or break of
+previous day high), replay 2 ("awful"), finish 2 ("cleaner, cool, fun, real production").
+
+Round 3 (app/src/lab, batch 3 in scratchpad walkthrough/pieces.json, shell http://127.0.0.1:8793/):
+- 11 Piece11Widget: THE REAL ChartPane (components/chart/pane/ChartPane, same as every /charts widget, popup and
+  journal card) via lab/WidgetChart.jsx: real data path (/api/bars/JBI from the sandbox bars.db), replayCutoff at the
+  question date, rightPadBars 2, density full/compact/mini, hideWatermark in mini. Arrow via annotations.
+- 12 Piece12Questions: no leading questions. NAME (4 choices, answer slot varies, None of these), FIND (tap; chart ran
+  on), ENTER (owner's tactics: ORB or break of previous day's high vs three distractors I wrote; owner to confirm).
+- 13 Piece13AnswerV3: red day shown as performance (close/close), two entry tactics (ORB not measured on daily bars;
+  PDH measured), stop + sizing marked proposed.
+- 14 Piece14ReplayV3: StudyChart frame='default' (no exactDateRange; dailyDefaultBars 70) so appended bars scroll in
+  without re-zoom; play/pause/step/3 speeds/scrubber/keys; auto-stops red day + Kicker, runs 20 on; line-held measured.
+- 15 Piece15FinishV3: frame = bar + combo; finish = ring count-up, rank word, 3 stats, 3 chips, misses on tap.
+StudyChart gained frame/defaultBars props; rightPadBars default now 2.
+
+Servers: sandbox backend 8077 (start_backend.sh / reset_local.sh), workbench shell 8793 (walkthrough/server.py), Vite
+lab 5232 (`cd app && npx vite --config vite.config.lab.mjs --host 127.0.0.1 --port 5232 --strictPort`). Headless
+checks: scratchpad local_study/pw_study.py (LAB_BASE=http://127.0.0.1:5232, /lab.html?piece=N) and pw_r3.py.
+Feedback: walkthrough/feedback.jsonl -> local_study/ingest_feedback.py -> owner_verdicts.jsonl (pass "workbench").
+
+NEXT: wait for batch-3 scores, ingest, commit, analyze, build round 4 (batch 4). Parked work unchanged (PR #559 open).
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.

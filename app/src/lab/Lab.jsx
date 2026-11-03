@@ -11,8 +11,18 @@ import Piece7Flow from './pieces/Piece7Flow'
 import Piece8AnswerV2 from './pieces/Piece8AnswerV2'
 import Piece9TeachV2 from './pieces/Piece9TeachV2'
 import Piece10FinishV2 from './pieces/Piece10FinishV2'
+import Piece11Widget from './pieces/Piece11Widget'
+import Piece12Questions from './pieces/Piece12Questions'
+import Piece13AnswerV3 from './pieces/Piece13AnswerV3'
+import Piece14ReplayV3 from './pieces/Piece14ReplayV3'
+import Piece15FinishV3 from './pieces/Piece15FinishV3'
 
 const PIECES = {
+  11: Piece11Widget,
+  12: Piece12Questions,
+  13: Piece13AnswerV3,
+  14: Piece14ReplayV3,
+  15: Piece15FinishV3,
   1: Piece1QuestionCard,
   2: Piece2AnswerCard,
   3: Piece3Highlights,

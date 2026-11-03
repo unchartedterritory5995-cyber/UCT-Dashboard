@@ -98,3 +98,26 @@
 .pulse { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(217,184,74,.5) } 50% { box-shadow: 0 0 0 8px rgba(217,184,74,0) } }
 @media (max-width: 480px) { .trade { grid-template-columns: 1fr 1fr; } .big { font-size: 19px; } }
+
+/* ── round 3 ─────────────────────────────────────────────────────────────── */
+.l { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #9a958a; }
+.tactics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tactic { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid #262626; background: #0f0f0f; color: #f2efe6; font: inherit; cursor: pointer; }
+.tactic b { color: #d9b84a; font-size: 15px; }
+.tactic span { font-size: 14px; }
+.tactic small { font-size: 12px; color: #9a958a; }
+.tactic.on { border-color: #d9b84a; background: #1a1708; }
+.ctl { display: flex; align-items: center; gap: 8px; }
+.ctl input[type=range] { flex: 1; accent-color: #d9b84a; min-width: 80px; }
+.ctlBtn { width: 40px; height: 40px; border-radius: 10px; border: 1px solid #2a2a2a; background: #151515; color: #f2efe6; font: inherit; font-size: 15px; cursor: pointer; flex: none; }
+.ctlBtn.play { width: 52px; background: #d9b84a; color: #111; border-color: #d9b84a; font-weight: 800; }
+.speed { display: flex; gap: 4px; }
+.speed .pill { padding: 5px 9px; font-size: 12px; }
+.day { display: flex; justify-content: space-between; font-size: 12px; color: #9a958a; font-variant-numeric: tabular-nums; }
+.finish { border: 1px solid #3a3115; border-radius: 18px; padding: 22px 16px 18px; display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; background: radial-gradient(120% 80% at 50% 0%, #241f0c 0%, #141414 60%); box-shadow: 0 0 40px rgba(217,184,74,.12); }
+.eyebrow { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #d9b84a; }
+.rank { font-size: 28px; font-weight: 900; letter-spacing: -.01em; min-height: 34px; }
+.link { background: none; border: 0; color: #d9b84a; font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.finish .miss { width: 100%; text-align: left; }
+.finish .strip { width: 60%; }
+@media (max-width: 480px) { .tactics { grid-template-columns: 1fr; } .ctl { flex-wrap: wrap; } .ctl input[type=range] { order: 5; flex-basis: 100%; } }
