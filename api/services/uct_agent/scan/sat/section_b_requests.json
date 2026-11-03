@@ -16462,19 +16462,11 @@
      }
     ],
     "selected": [
-     "charts",
-     "chartGrid",
-     "indicators",
      "screener",
-     "alerts",
-     "data",
-     "breadth",
-     "settings",
-     "agent",
-     "guide"
+     "agent"
     ]
    },
-   "capabilities_ref": "m4"
+   "capabilities_ref": "m2"
   },
   "r01": {
    "conversationId": null,
