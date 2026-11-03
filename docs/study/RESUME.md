@@ -946,6 +946,25 @@ feedback thoroughly each time ... implemented as a full plan and fix fully")
   pages/modelbook/SetupsView + SETUP_CATALOG as unit artwork; rank card (Rookie 0 / Apprentice 250 / Trader 750 /
   Pro 1500 / Mentor 3000 XP); the reward rules stated; units mixed Foundations/setups per the ruling.
 NEXT: batch-7 scores -> full analysis -> round 8. Open: the reward numbers are a proposal for the owner to confirm.
+## 2026-11-02 (night): THE PRODUCTION PROGRAMME (owner: "let's do it all") + ROUND 8 LIVE (pieces 36-40)
+
+The owner asked what else would raise quality, production and excitement; I proposed ~30 items; he said "Yes let's do it
+all. Think of ways to make this extremely high quality and a really thorough detailed production". The full list, in build
+order, with the quality bar, is docs/study/PRODUCTION_PLAN.md (rounds 8, 9, 10 + cross-cutting). Voice lines for him to
+record: docs/study/VOICE_LINES.md (files go to app/public/study/voice/<key>.mp3; the player is silent until then).
+
+Round 8 built: lab/Coach.jsx (SVG coach from the compass mark, moods idle/think/happy/oops/fire), lab/sfx.js (sound
+map + voice player, mutable, localStorage study.sfx.muted).
+- 36 Piece36Coach: moods, sounds, voice captions, a live question with coach reactions.
+- 37 Piece37HitBuy: the Kicker day tick by tick on the 30-minute widget; BUY/space; early/perfect/good/late scored
+  (+0/+25/+15/+5), reaction ms; trigger = first 30-min bar over the red day's high (measured).
+- 38 Piece38DailySet: intro, five timed charts (20 s, points for speed), day board with rank (placeholder names).
+- 39 Piece39IntroFlow: lesson intro with SetupGlyph art, slide-in transition everywhere, miss side-by-side on two
+  StudyCharts (yours vs the trigger).
+- 40 Piece40Profile: rank/XP, charts seen, best run, setups with crowns + accuracy, crown decay at 14 idle days with
+  Review, 12-week heat map, league card (placeholders labelled).
+Round 7 (31-35) is still unscored; batches 7 and 8 are both in the shell. NEXT: his scores -> full analysis -> fixes,
+then round 9 (Blitz, Boss, Hard mode, Draw-it, Spot-the-trap) per the plan.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.

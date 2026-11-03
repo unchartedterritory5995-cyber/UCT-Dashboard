@@ -36,8 +36,18 @@ import Piece32AnswerV7 from './pieces/Piece32AnswerV7'
 import Piece33StoryV3 from './pieces/Piece33StoryV3'
 import Piece34FinishV3 from './pieces/Piece34FinishV3'
 import Piece35HomeV3 from './pieces/Piece35HomeV3'
+import Piece36Coach from './pieces/Piece36Coach'
+import Piece37HitBuy from './pieces/Piece37HitBuy'
+import Piece38DailySet from './pieces/Piece38DailySet'
+import Piece39IntroFlow from './pieces/Piece39IntroFlow'
+import Piece40Profile from './pieces/Piece40Profile'
 
 const PIECES = {
+  36: Piece36Coach,
+  37: Piece37HitBuy,
+  38: Piece38DailySet,
+  39: Piece39IntroFlow,
+  40: Piece40Profile,
   31: Piece31LoopV5,
   32: Piece32AnswerV7,
   33: Piece33StoryV3,
