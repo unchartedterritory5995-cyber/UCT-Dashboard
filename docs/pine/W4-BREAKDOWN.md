@@ -382,6 +382,10 @@ This is the R4 correctness item on its witnessed half.
     `banknifty-mcclellan-oscillator`, `kernel-channel-backquant`, both
     `strategyrszigzag-pa-strategy-v4*`, `trendlines-2x`, `trendlines-jd`.
   - Attach expected: `mcginley-dynamic`, `trendlines-2x`.
+  - Measured at T4's merge: only `mcginley-dynamic` attaches; `luxy-momentum`'s first wall moves
+    (the `na(x) ? na : ta.ema(…)` arm is now served; next wall later in the script); `cm-gann` (v1)
+    moves na-test → conditional-history (fail-closed). The other listed rows did not move: they are
+    v1-v4 or hit another wall first, and stay refused by name (see the T4 evidence note).
   - Harness: the McGinley built-in capture, if any, must be MATCH or unchanged.
 - **Engine bump:** yes.
 - **Depends:** none. RSI's attach needs T2 as well (batch 2).
