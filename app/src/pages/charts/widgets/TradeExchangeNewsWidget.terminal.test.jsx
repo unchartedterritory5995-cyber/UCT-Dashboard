@@ -4,8 +4,13 @@
 // (continuous scrolling, calendar, previous/next day, jump to time, live Today),
 // several widgets at once, and re-render economy on a quote tick. The shared pool
 // and the day server are faked (fakeNewsDay); synthetic only.
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AuthContext } from '../../../context/AuthContext'
+import { setAgentFlag } from '../../../agent/agentFlag'
+import { NewsAgentContext } from './tradeExchangeNewsAgent'
+import { useContext, useState as useStateForStub } from 'react'
+import { openAgent as agentOpenAgent, useAgentAsk } from '../../../agent/newsAsk'
 
 const feed = vi.hoisted(() => {
   const listeners = new Set()
@@ -86,8 +91,13 @@ const BASE = [
   H(3, 'SYNTHETIC: NVDA and AMD rally while NVDA leads', ['NVDA', 'AMD']),
 ]
 
-function mount(opts = {}, items = BASE, onOptsChange = vi.fn()) {
-  const utils = render(<TradeExchangeNewsWidget color="A" opts={opts} onOptsChange={onOptsChange} />)
+function mount(opts = {}, items = BASE, onOptsChange = vi.fn(), { role, agent } = {}) {
+  let widget = <TradeExchangeNewsWidget color="A" opts={opts} onOptsChange={onOptsChange} />
+  // `agent`: what UCT Agent provides News ({ useAsk, openAgent }); a stub here, or null for "no Agent". Omitted = the real exports.
+  if (agent !== undefined) widget = <NewsAgentContext.Provider value={agent}>{widget}</NewsAgentContext.Provider>
+  // `role`: the signed-in member's role, for what only an admin sees (UCT Agent's mark).
+  // Unset = no AuthProvider, which the widget treats as a member.
+  const utils = render(role ? <AuthContext.Provider value={{ user: { id: 'u1', role }, isPaid: true }}>{widget}</AuthContext.Provider> : widget)
   act(() => feed.set({ status: 'live', items, lastSeq: items.length, replayUntil: items.length, lastHeadlineAt: NOW }))
   return { ...utils, onOptsChange }
 }
@@ -722,13 +732,14 @@ describe('one calendar day at a time', () => {
   })
 })
 
-describe('AI Explanation', () => {
+describe('Explanation', () => {
   const EXPL = { id: 'id2', explanation: 'SYNTHETIC: The headline reports that Fed minutes are due, which could shape rate expectations.',
     watch: 'Fed funds futures, 2-year Treasury yield', generated_at_ms: NOW, cached: false, version: 'v1' }
   const explainBtn = (container, seq) => within(rowEl(container, seq)).getByRole('button', { name: 'Explain this headline' })
   const ok = (body = EXPL) => ({ ok: true, status: 200, json: async () => body })
   const refused = (status, reason, detail) => ({ ok: false, status, json: async () => ({ reason, detail }) })
   beforeEach(() => _resetExplainCacheForTests())
+  afterEach(() => setAgentFlag(null))
 
   it('is offered only on headlines with text: never on a graphic-only post or a row without an id', () => {
     const { container } = mount({ settings: { graphicPlaceholders: 'show' } }, [...BASE,
@@ -744,21 +755,26 @@ describe('AI Explanation', () => {
     }
   })
 
-  it('asks only when clicked, by id alone, and expands one paragraph and a bold Watch line INSIDE that row', async () => {
+  it('asks only when clicked, by id alone, and expands "What this means" and "What to watch" INSIDE that row', async () => {
     const fetchMock = vi.fn().mockResolvedValue(ok())
     vi.stubGlobal('fetch', fetchMock)
     const { container } = mount()
     expect(fetchMock).not.toHaveBeenCalled()                               // nothing on render
     const before = rows(container)
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
     await within(panel).findByText(EXPL.explanation)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/trade-exchange-news/explain')
     expect(JSON.parse(init.body)).toEqual({ id: 'id2' })                    // the server explains its own text
-    expect(within(panel).getByText('Watch:').tagName).toBe('STRONG')
-    expect(panel.textContent).toContain(EXPL.watch)
+    // two labelled sections, in order, each followed by its text
+    const labels = [...panel.querySelectorAll('h4')]
+    expect(labels.map((h) => h.textContent)).toEqual(['What this means', 'What to watch'])
+    expect(labels[0].nextElementSibling.textContent).toBe(EXPL.explanation)
+    expect(labels[1].nextElementSibling.textContent).toBe(EXPL.watch)
+    // the old footer is gone, and nothing else stands in for it
+    expect(panel.textContent).not.toMatch(/AI-generated|not advice|Watch:/)
     expect(panel.closest('[data-seq]')).toBe(rowEl(container, 2))         // under ITS headline, in the row
     expect(rowEl(container, 2).className).toMatch(/rowExplaining/)
     expect(rowEl(container, 2).textContent.indexOf('Fed minutes due'))
@@ -771,9 +787,66 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok({ ...EXPL, explanation: 'SYNTHETIC <b>bold</b> <img src=x onerror=alert(1)> text here' })))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
     await within(panel).findByText(/SYNTHETIC <b>bold<\/b>/)
     expect(panel.querySelector('b, img')).toBeNull()
+  })
+
+  it('the Explain button says just "Explain"', () => {
+    const { container } = mount()
+    expect(explainBtn(container, 2).getAttribute('title')).toBe('Explain')
+  })
+
+  it('a member reads it under a neutral "Explanation" heading: no UCT Agent mark or name', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+    for (const role of [undefined, 'member']) {
+      const { container, unmount } = mount({}, BASE, vi.fn(), { role })
+      fireEvent.click(explainBtn(container, 2))
+      const panel = await screen.findByRole('region', { name: 'Explanation' })
+      await within(panel).findByText(EXPL.explanation)
+      expect(panel.textContent).toContain('Explanation')
+      expect(panel.textContent).not.toMatch(/UCT Agent|AI Explanation/)
+      expect(panel.querySelector('img')).toBeNull()
+      unmount()
+    }
+  })
+
+  it('an admin with the Agent switch OFF reads the neutral heading, like the /charts panel', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+    setAgentFlag(false)
+    const { container } = mount({}, BASE, vi.fn(), { role: 'admin' })
+    fireEvent.click(explainBtn(container, 2))
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
+    await within(panel).findByText(EXPL.explanation)
+    expect(panel.textContent).not.toContain('UCT Agent')
+    expect(panel.querySelector('img')).toBeNull()
+  })
+
+  it('a member with the switch ON (a shared browser) still reads the neutral heading', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+    setAgentFlag(true)
+    const { container } = mount({}, BASE, vi.fn(), { role: 'member' })
+    fireEvent.click(explainBtn(container, 2))
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
+    await within(panel).findByText(EXPL.explanation)
+    expect(panel.textContent).not.toContain('UCT Agent')
+  })
+
+  it('an admin with the Agent switch on reads it in UCT Agent\'s voice: the compass mark and the name, same sections, no footer', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+    setAgentFlag(true)
+    const { container } = mount({}, BASE, vi.fn(), { role: 'admin' })
+    fireEvent.click(explainBtn(container, 2))
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
+    await within(panel).findByText(EXPL.explanation)
+    const head = panel.firstElementChild
+    expect(head.textContent).toContain('UCT Agent')
+    expect(head.textContent).not.toMatch(/AI Explanation|^Explanation/)
+    const img = head.querySelector('img')
+    expect(img).toBeTruthy()
+    expect(img.getAttribute('alt')).toBe('')                            // decorative: the name is the text
+    expect([...panel.querySelectorAll('h4')].map((h) => h.textContent)).toEqual(['What this means', 'What to watch'])
+    expect(panel.textContent).not.toMatch(/AI-generated|not advice/)
   })
 
   it('Copy explanation copies the compact format as plain text', async () => {
@@ -782,9 +855,9 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
     fireEvent.click(await within(panel).findByRole('button', { name: /Copy explanation/ }))
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`AI Explanation\n\n${EXPL.explanation}\n\nWatch: ${EXPL.watch}`))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`What this means: ${EXPL.explanation}\n\nWhat to watch: ${EXPL.watch}`))
     expect(await within(panel).findByRole('button', { name: 'Explanation copied' })).toBeTruthy()
   })
 
@@ -795,7 +868,7 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', fetchMock)
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
     await within(panel).findByText('Explanations are busy right now. Try again in a moment.')
     fireEvent.click(within(panel).getByRole('button', { name: 'Retry' }))
     await within(panel).findByText(EXPL.explanation)
@@ -806,13 +879,13 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(refused(429, 'daily_limit', "You've used today's headline explanations. They reset at midnight ET.")))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    let panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    let panel = await screen.findByRole('region', { name: 'Explanation' })
     await within(panel).findByText(/reset at midnight ET/)
     expect(within(panel).queryByRole('button', { name: 'Retry' })).toBeNull()
     fireEvent.click(within(panel).getByRole('button', { name: 'Close explanation' }))
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
     fireEvent.click(explainBtn(container, 1))
-    panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    panel = await screen.findByRole('region', { name: 'Explanation' })
     await within(panel).findByText(/Could not reach UCT/)
     expect(within(panel).getByRole('button', { name: 'Retry' })).toBeTruthy()
   })
@@ -821,32 +894,32 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    let panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    let panel = await screen.findByRole('region', { name: 'Explanation' })
     fireEvent.keyDown(panel, { key: 'Escape' })
-    expect(screen.queryByRole('region', { name: 'AI Explanation' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Explanation' })).toBeNull()
     fireEvent.click(explainBtn(container, 2))
-    await screen.findByRole('region', { name: 'AI Explanation' })
+    await screen.findByRole('region', { name: 'Explanation' })
     fireEvent.click(explainBtn(container, 2))
-    expect(screen.queryByRole('region', { name: 'AI Explanation' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Explanation' })).toBeNull()
     fireEvent.click(explainBtn(container, 2))
-    panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    panel = await screen.findByRole('region', { name: 'Explanation' })
     expect(panel.closest('[data-seq]')).toBe(rowEl(container, 2))
     fireEvent.click(explainBtn(container, 1))                              // the expansion moves: one at a time
-    await waitFor(() => expect(screen.getByRole('region', { name: 'AI Explanation' }).closest('[data-seq]')).toBe(rowEl(container, 1)))
-    expect(screen.getAllByRole('region', { name: 'AI Explanation' })).toHaveLength(1)
-    panel = screen.getByRole('region', { name: 'AI Explanation' })
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Explanation' }).closest('[data-seq]')).toBe(rowEl(container, 1)))
+    expect(screen.getAllByRole('region', { name: 'Explanation' })).toHaveLength(1)
+    panel = screen.getByRole('region', { name: 'Explanation' })
     fireEvent.click(within(panel).getByRole('button', { name: 'Close explanation' }))
-    expect(screen.queryByRole('region', { name: 'AI Explanation' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Explanation' })).toBeNull()
   })
 
   it('stays open while live headlines arrive: the feed keeps updating, the reader keeps their place', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
     act(() => feed.set({ items: [...BASE, H(4, 'SYNTHETIC: a new one')], lastSeq: 4 }))
     expect(rows(container)[0]).toBe(4)
-    expect(screen.getByRole('region', { name: 'AI Explanation' })).toBe(panel)
+    expect(screen.getByRole('region', { name: 'Explanation' })).toBe(panel)
     expect(await screen.findByRole('button', { name: /Jump to live · 1 new/ })).toBeTruthy()   // held, not followed
   })
 
@@ -854,9 +927,9 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
     fireEvent.keyDown(panel, { key: 'Escape' })
-    expect(screen.queryByRole('region', { name: 'AI Explanation' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Explanation' })).toBeNull()
     expect(rowEl(container, 2).className).not.toMatch(/rowExplaining/)
     expect(document.activeElement).toBe(explainBtn(container, 2))
   })
@@ -873,9 +946,168 @@ describe('AI Explanation', () => {
     const btn = (i) => within(lists[i].querySelector('[data-seq="2"]')).getByRole('button', { name: 'Explain this headline' })
     fireEvent.click(btn(0))
     fireEvent.click(btn(1))                                                // while the first is still in flight
-    await waitFor(() => expect(screen.getAllByRole('region', { name: 'AI Explanation' })).toHaveLength(2))
-    for (const d of screen.getAllByRole('region', { name: 'AI Explanation' })) await within(d).findByText(EXPL.explanation)
+    await waitFor(() => expect(screen.getAllByRole('region', { name: 'Explanation' })).toHaveLength(2))
+    for (const d of screen.getAllByRole('region', { name: 'Explanation' })) await within(d).findByText(EXPL.explanation)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ── Ask UCT Agent (increments 2/3): News renders the thread; the Agent runs it ──
+// The stub stands in for agent-lead's `useAgentAsk` / `openAgent` (the agreed contract):
+// it records exactly what News hands the Agent, and answers like the server would.
+describe('Ask UCT Agent', () => {
+  const EXPL = { id: 'id2', explanation: 'SYNTHETIC: The headline reports Fed minutes are due.', watch: '2-year yield',
+    generated_at_ms: NOW, cached: false, version: 'v2' }
+  const ok = () => ({ ok: true, status: 200, json: async () => EXPL })
+  const explainBtn = (container, seq) => within(rowEl(container, seq)).getByRole('button', { name: 'Explain this headline' })
+  let calls, threads, pending, openAgent, stubAvailable
+  // Threads live OUTSIDE React (as the Agent's own store would): render only reads them.
+  const thread = (key) => threads.get(key) || { turns: [], busy: false, error: null, conversationId: null }
+  const patch = (key, fn) => threads.set(key, fn(thread(key)))
+  const settle = (key, answer) => patch(key, (t) => (answer instanceof Error
+    ? { ...t, busy: false, error: { text: answer.message, retry: true } }
+    : { ...t, busy: false, conversationId: 'ac_news_1', turns: [...t.turns, { id: `a${t.turns.length}`, role: 'agent', text: answer }] }))
+  function useAskStub(args) {
+    recordCall(args)
+    const key = args.newsId
+    const [, bump] = useStateForStub(0)
+    return { ...thread(key), available: stubAvailable, ask: (text) => {
+      patch(key, (t) => ({ ...t, busy: true, error: null, turns: [...t.turns, { id: `m${t.turns.length}`, role: 'member', text }] }))
+      bump((n) => n + 1)
+      pending.push((answer) => { settle(key, answer); bump((n) => n + 1) })
+    } }
+  }
+  const recordCall = (args) => calls.push(args)
+  const agent = () => ({ useAsk: useAskStub, openAgent })
+  beforeEach(() => {
+    _resetExplainCacheForTests()
+    calls = []; threads = new Map(); pending = []; openAgent = vi.fn(); stubAvailable = true
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+  })
+  afterEach(() => setAgentFlag(null))
+  const open = async (who) => {
+    const utils = mount({}, BASE, vi.fn(), who)
+    fireEvent.click(explainBtn(utils.container, 2))
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
+    await within(panel).findByText(EXPL.explanation)
+    return { ...utils, panel }
+  }
+  const answer = (x) => act(() => { pending.shift()(x) })
+  const askBox = (panel) => within(panel).getByRole('textbox', { name: 'Ask UCT Agent about this headline' })
+  const say = (panel, text) => {
+    fireEvent.change(askBox(panel), { target: { value: text } })
+    fireEvent.submit(askBox(panel).closest('form'))
+  }
+
+  it('shows nowhere the Agent is not allowed: member, admin with the switch off, or no Agent provided yet', async () => {
+    for (const [flag, who] of [[true, { role: 'member', agent: agent() }], [false, { role: 'admin', agent: agent() }],
+      [true, { role: 'admin', agent: null }], [true, { agent: agent() }]]) {
+      setAgentFlag(flag)
+      const { panel, unmount } = await open(who)
+      expect(within(panel).queryByRole('textbox', { name: 'Ask UCT Agent about this headline' })).toBeNull()
+      expect(calls).toEqual([])                                           // the Agent was never even asked to mount
+      unmount()
+    }
+  })
+
+  it('no box until the server says News questions are on: not while that is read (null), not when off (false)', async () => {
+    setAgentFlag(true)
+    for (const v of [null, false, undefined]) {
+      stubAvailable = v
+      const { panel, unmount } = await open({ role: 'admin', agent: agent() })
+      expect(within(panel).queryByRole('textbox', { name: 'Ask UCT Agent about this headline' })).toBeNull()
+      expect(within(panel).queryByRole('log')).toBeNull()
+      unmount()
+    }
+    stubAvailable = true
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    expect(within(panel).getByRole('textbox', { name: 'Ask UCT Agent about this headline' })).toBeTruthy()
+  })
+
+  it('an admin with the switch on gets the box under the explanation, once the explanation is there', async () => {
+    setAgentFlag(true)
+    let release
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise((r) => { release = r })))
+    const { container } = mount({}, BASE, vi.fn(), { role: 'admin', agent: agent() })
+    fireEvent.click(explainBtn(container, 2))
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
+    expect(within(panel).queryByRole('textbox')).toBeNull()               // not while it is still being written
+    await act(async () => release(ok()))
+    const box = await within(panel).findByRole('textbox', { name: 'Ask UCT Agent about this headline' })
+    expect(box.getAttribute('placeholder')).toBe('Ask UCT Agent…')
+    expect(box.getAttribute('maxlength')).toBe('500')
+    expect(within(panel).queryByRole('button', { name: /Continue in UCT Agent/ })).toBeNull()  // nothing to continue yet
+  })
+
+  it('asks by headline id only, shows the question, typing, then the answer; follow-ups stay in the same thread', async () => {
+    setAgentFlag(true)
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    expect(calls.every((c) => JSON.stringify(c) === JSON.stringify({ newsId: 'id2' }))).toBe(true)  // never the headline text
+    say(panel, '  What does this mean for banks?  ')
+    expect(askBox(panel).value).toBe('')
+    const log = within(panel).getByRole('log', { name: 'Conversation with UCT Agent' })
+    expect(log.textContent).toContain('What does this mean for banks?')
+    expect(log.textContent).toContain('UCT Agent is typing…')
+    expect(within(panel).getByRole('button', { name: 'Send question' }).disabled).toBe(true)
+    answer('SYNTHETIC: Banks may watch the rate path; I don’t have a live quote here.')
+    expect(log.textContent).not.toContain('is typing')
+    say(panel, 'And regional banks?')
+    answer('SYNTHETIC: Regional lenders are more rate-sensitive; the headline says nothing specific about them.')
+    const lines = [...log.querySelectorAll('p')].map((p) => p.textContent.replace('UCT Agent: ', ''))
+    expect(lines).toEqual(['What does this mean for banks?', 'SYNTHETIC: Banks may watch the rate path; I don’t have a live quote here.',
+      'And regional banks?', 'SYNTHETIC: Regional lenders are more rate-sensitive; the headline says nothing specific about them.'])
+  })
+
+  it('an empty question sends nothing; an answer renders as text, never markup', async () => {
+    setAgentFlag(true)
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    say(panel, '   ')
+    expect(pending).toHaveLength(0)
+    say(panel, 'q')
+    answer('SYNTHETIC <b>bold</b> <img src=x onerror=alert(1)>')
+    expect(within(panel).getByRole('log').querySelector('b, img')).toBeNull()
+  })
+
+  it('a failed answer shows the Agent’s own words and Retry asks the same question again', async () => {
+    setAgentFlag(true)
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    say(panel, 'Why now?')
+    answer(new Error('UCT Agent has used today’s budget. It resets at midnight ET.'))
+    expect(within(panel).getByRole('log').textContent).toContain('used today’s budget')
+    fireEvent.click(within(panel).getByRole('button', { name: 'Retry' }))
+    expect(thread('id2').turns.filter((t) => t.role === 'member').map((t) => t.text)).toEqual(['Why now?', 'Why now?'])
+  })
+
+  it('Continue in UCT Agent hands the SAME conversation id to the Agent panel', async () => {
+    setAgentFlag(true)
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    say(panel, 'Context?')
+    answer('SYNTHETIC: context.')
+    fireEvent.click(within(panel).getByRole('button', { name: /Continue in UCT Agent/ }))
+    expect(openAgent).toHaveBeenCalledTimes(1)
+    expect(openAgent).toHaveBeenCalledWith({ conversationId: 'ac_news_1' })
+  })
+
+  it('typing stays in the box; Esc still closes the explanation, and reopening keeps the thread', async () => {
+    setAgentFlag(true)
+    const { container, panel } = await open({ role: 'admin', agent: agent() })
+    say(panel, 'Kept?')
+    answer('SYNTHETIC: kept.')
+    fireEvent.keyDown(askBox(panel), { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: 'Explanation' })).toBeNull()
+    fireEvent.click(explainBtn(container, 2))
+    const again = await screen.findByRole('region', { name: 'Explanation' })
+    expect((await within(again).findByRole('log')).textContent).toContain('SYNTHETIC: kept.')
+  })
+
+  it('a long thread folds its earlier turns behind "Show earlier"', async () => {
+    setAgentFlag(true)
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    for (let i = 0; i < 4; i++) { say(panel, `Q${i}`); answer(`A${i}`) }
+    const log = within(panel).getByRole('log')
+    expect(log.querySelectorAll('p')).toHaveLength(6)
+    fireEvent.click(within(log).getByRole('button', { name: 'Show 2 earlier' }))
+    expect(log.querySelectorAll('p')).toHaveLength(8)
   })
 })
 
@@ -928,5 +1160,12 @@ describe('Bookmark a headline', () => {
     fireEvent.click(saveBtn(container, 3))
     expect(await screen.findByText(/Your library holds 5,000 headlines/)).toBeTruthy()
     expect(saveBtn(container, 3)).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('News ↔ UCT Agent seam', () => {
+  it('by default News uses UCT Agent’s own News exports (nothing else)', () => {
+    const { result } = renderHook(() => useContext(NewsAgentContext))
+    expect(result.current).toEqual({ useAsk: useAgentAsk, openAgent: agentOpenAgent })
   })
 })

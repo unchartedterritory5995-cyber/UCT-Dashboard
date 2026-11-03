@@ -8,13 +8,14 @@ vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: ()
 import { setupPanel, ONE, MODEL_SENTINEL } from './testing/panelHarness'
 import { registerBuiltins } from './builtins'
 import { _resetScreenerCache, META_UNAVAILABLE, META_WAIT_MS, screenerKind, savedScreensNow } from './capabilities/screener'
+import { RATINGS_REFUSAL } from './capabilities/scanHidden'
 import { _resetAgentConfig } from './agentClient'
 import { _resetTurns } from './trace'
 
 registerBuiltins()
 
-const META = { fields: [{ key: 'rs_rank', label: 'RS Rank', type: 'range', unit: '' }, { key: 'price', label: 'Price', type: 'range', unit: '$' }] }
-const SAVED = { saved: [{ id: 7, name: 'Leaders', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 80 }] } }], starters: [] }
+const META = { fields: [{ key: 'chg_pct_3m', label: '3M %', type: 'range', unit: '%' }, { key: 'price', label: 'Price', type: 'range', unit: '$' }] }
+const SAVED = { saved: [{ id: 7, name: 'Leaders', spec: { filters: [{ key: 'chg_pct_3m', op: 'gte', min: 80 }] } }], starters: [] }
 
 let p, fields, saved, scans
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
@@ -48,22 +49,21 @@ beforeEach(() => {
       return json(u.includes('options') ? { options: {} } : (fields.meta || META))
     }
     if (u === '/api/screener/saved-screens') { if (saved.gate) await saved.gate.promise; return json(SAVED) }
-    if (u === '/api/screener/scan') { scans.push(JSON.parse(init.body)); return json({ total: 3, rows: [{ ticker: 'AAA', price: 1, rs_rank: 99 }], snapshot_date: '2026-10-31', snapshot: {} }) }
+    if (u === '/api/screener/scan') { scans.push(JSON.parse(init.body)); return json({ total: 3, rows: [{ ticker: 'AAA', price: 1, chg_pct_3m: 99 }], snapshot_date: '2026-10-31', snapshot: {} }) }
     return harness(url, init)
   })
 })
 afterEach(() => { _resetTurns(); vi.restoreAllMocks() })
 
 describe('F-SAT-3: a screener message typed before the field catalog loads', () => {
-  it('waits for the catalog and takes the fast path: 0 model turns', async () => {
+  it('waits for the catalog and answers locally: 0 model turns (F-16: the strongest phrase is the §2d refusal)', async () => {
     fields.gate = deferred()
     const { say } = p.mount(...ONE())
     const out = await sayBeforeLoad(say, 'show me my strongest stocks', fields.gate)   // catalog arrives AFTER the send
     expect(p.turns()).toBe(0)
     expect(out).not.toContain(MODEL_SENTINEL)
-    expect(out).toContain('3 stocks match')
-    expect(scans).toHaveLength(1)
-    expect(scans[0].sort).toEqual({ key: 'rs_rank', dir: 'desc' })
+    expect(out).toContain(RATINGS_REFUSAL)
+    expect(scans).toEqual([])                                                          // nothing ran, nothing substituted
   }, 30000)
 
   it('a catalog that FAILS to load is a local answer: no model turn, no scan, nothing applied', async () => {
@@ -93,7 +93,7 @@ describe('F-SAT-3: a screener message typed before the field catalog loads', () 
     const out = await sayBeforeLoad(say, 'run my leaders screen', saved.gate)
     expect(p.turns()).toBe(0)
     expect(out).toContain('Leaders: 3 stocks match')
-    expect(scans[0].filters).toEqual([{ key: 'rs_rank', op: 'gte', min: 80 }])
+    expect(scans[0].filters).toEqual([{ key: 'chg_pct_3m', op: 'gte', min: 80 }])
   }, 30000)
 
   it('an unknown saved-screen name before the list loads is a local sentence naming the real screens', async () => {
@@ -116,12 +116,13 @@ describe('F-SAT-3: after the catalog has loaded, behaviour is unchanged', () => 
     expect(p.turns()).toBe(1)
   }, 30000)
 
-  it('with the catalog loaded but no RS Rank field, the strongest phrase is the planner\'s, as before', async () => {
+  it('with the catalog loaded, the strongest phrase is still claimed and refused locally (F-16), never the planner\'s', async () => {
     fields.meta = { fields: [{ key: 'price', label: 'Price', type: 'range', unit: '$' }] }
     const { say } = p.mount(...ONE())
     await ready()
-    await say('show me my strongest stocks')
-    expect(p.turns()).toBe(1)
+    const out = await say('show me my strongest stocks')
+    expect(p.turns()).toBe(0)
+    expect(out).toContain(RATINGS_REFUSAL)
     expect(scans).toEqual([])
   }, 30000)
 

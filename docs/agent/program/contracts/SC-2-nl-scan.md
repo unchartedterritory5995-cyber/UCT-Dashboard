@@ -40,7 +40,7 @@ compiled into a spec only when every part of the message was accounted for (§5)
 | `liquidity` | dollar-volume words or bounds | `dollar_vol_30d` (the 30-day average: "a day" / "per day" with no session named) or `dollar_vol_1d` (only when a session is named: "today", "yesterday", "last session") (agent-lead ruling) |
 | `price` | price bounds | `price` bounds |
 | `trend` | moving-average relations, stage, MA stack | `above_50sma`, `ema20_rising`, `ema_stack_intact`, `stage2`, `pct_vs_ema20`, `pct_vs_sma20` |
-| `strength` | RS words or bounds | `rs_rank`, `sector_rs_pct`, `rs_line_trend` |
+| `strength` | RS words ("strong", "leaders", "RS over 80") | **refused** (SC-1 §2d: RS Rank and Sector RS are UCT ratings); `rs_line_trend` (price vs SPY) stays |
 | `location` | near or at highs, distance from levels | `dist_52w_high_pct`, `dist_20d_high_pct`, `new_52w_high`, `new_ath`, `dist_ath_pct` |
 | `performance` | returns over a window | `chg_pct_1d` … `chg_pct_ytd`, `gap_pct` |
 | `volume` | relative or absolute volume | §2c: `vol_ratio` (full session) or `rvol_live` (by now); `vol_nweek_low` |
@@ -103,7 +103,7 @@ with the discovery corpus tolerances, and they need the owner's ruling. A defaul
 | above the 20-day EMA / pullback to the 20 EMA | `pct_vs_ema20 > 0` / `pct_vs_ema20` within ±2 and `ema20_rising = yes` | discovery d14 |
 | uptrend, trending | `ema_stack_intact = yes` | PROPOSED |
 | stage 2 | `stage2 = yes` | catalog |
-| strong RS, leaders | `rs_rank >= 80` | discovery d01, d03 |
+| strong RS, leaders, top RS, RS over N, strongest sectors' leaders | **refused**: "UCT Agent can't screen on UCT's proprietary ratings and scores…" (never a return substituted) | owner F-16; discovery d01–d03, d13, d25 |
 | near highs | `dist_52w_high_pct <= 5` | discovery d01 |
 | near the 20-day high | `dist_20d_high_pct <= 3` | discovery d16 |
 | making new highs | `new_52w_high = yes` | discovery d03 |
@@ -119,7 +119,7 @@ with the discovery corpus tolerances, and they need the owner's ruling. A defaul
 | fast growers | `rev_growth >= 25` | discovery d21 |
 | heavily shorted | `short_float_pct > 20` | discovery d22 |
 | reporting soon / this week | `days_to_earnings` 0–5 | discovery d23 |
-| biggest first / strongest first | sort by the screen's own measure, else `rs_rank` desc | PROPOSED |
+| biggest first | sort by the screen's own measure, else asked about; "strongest first" is refused (RS) | owner F-16 |
 
 **Numbers and units** follow the catalog's own units (screener.js hints): `%` fields take 5 for 5%; `$` fields take
 dollars (`$50M` = 50000000, `$2B` = 2000000000); `×` fields take the multiple (`3x` = 3). A number with no unit on a
@@ -151,15 +151,12 @@ defect, not a coverage win. Coverage is reported together with the false-resolve
 
 - **Indicator conditions** (crosses, MACD, custom indicators): SC-1's indicator refusal, unchanged until IC-1.
 - **A measure the catalog lacks** (put/call ratio, …): "The Screener doesn't have <measure>", with no substitute.
-- **Flow fields** (`dp_*`, `opt_*`): **refused, with a stated reason** (agent-lead ruling, 2026-11-01). The owner's
-  standing rule is no options flow or dark pool without approval, and ADR-003 is still a draft. The answer says
-  "Dark pool and options-flow screens aren't available in UCT Agent yet", never a substitute field. Discovery r05
-  ("dark pool prints over $10M") keeps its refusal expectation.
-  - **Recorded gap:** today's Agent screener catalog still LISTS these fields through the existing route.
-    `filters.field_catalog()` serves `dp_notional_1d` ("Dark Pool Block Notional (1d)", `$`), `dp_prints_1d`,
-    `dp_notional_5d`, `dp_level_dist_pct` and the `opt_*` premium fields as filterable. The planner can therefore
-    see them in the `fields` context and write a `screener.run` on them. agent-lead is raising this with the owner
-    together with F-16. SC-2's deterministic layer will refuse them regardless.
+- **UCT's proprietary ratings and scores, options flow and dark pool: hidden AND refused** (SC-1 §2d, owner F-16).
+  The planner's catalog no longer lists them. A message that asks for one ("leaders", "RS over 80", "sort by UCT
+  composite", "high setup score", "dark pool prints over $10M", "bullish options flow") is refused with SC-1 §2d's
+  sentence, never answered with a substitute. A follow-up may not ADD a hidden key to the last screen, and cannot keep
+  one, because no screen holding one ever runs. Discovery r05 keeps its refusal. Public-data rankings the member asks for
+  plainly ("sort by 6-month return") are ordinary analysis, but no SC-2 text describes or suggests UCT's rating recipes.
 
 ## 7. Where it runs (Sprint 2 task C)
 

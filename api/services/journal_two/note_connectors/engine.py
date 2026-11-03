@@ -94,6 +94,7 @@ import base64
 import binascii
 import copy
 import dataclasses
+import hashlib
 import json
 import logging
 import os
@@ -1329,9 +1330,33 @@ def _bulk_existing_note_meta(
     return out
 
 
+#: Plan F (Task 7 fix round 1, concern 2): the SQL name of `stored_body_sha`, registered on the
+#: connection right before the UPDATE that uses it.
+_BODY_SHA_SQL = "j2_body_sha256"
+
+
+def stored_body_sha(body_json_text: Any) -> str:
+    """sha256 of a note's stored `body_json` text (NULL reads as ""). THE body hash: the import
+    repair records it when it plans a note and `_apply_resolved_body(expected_body_hash=)`
+    compares it inside the UPDATE, so the two can never hash differently."""
+    text = body_json_text if isinstance(body_json_text, str) else ""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _ensure_body_sha_function(conn: sqlite3.Connection) -> None:
+    """Register `stored_body_sha` on `conn` ONLY if the connection lacks it (Plan F re-review
+    N-1): SQLite refuses to RE-register a function while another statement on the connection is
+    active, so registering on every call would fail inside a caller's cursor loop. A probe
+    answers whether this connection has it (a pooled connection drops its functions on reuse)."""
+    try:
+        conn.execute(f"SELECT {_BODY_SHA_SQL}('')").fetchone()
+    except sqlite3.OperationalError:
+        conn.create_function(_BODY_SHA_SQL, 1, stored_body_sha, deterministic=True)
+
+
 def _apply_resolved_body(
     conn: sqlite3.Connection, user_id: str, note_id: str, body: dict[str, Any],
-    *, expected_updated_at: str | None,
+    *, expected_updated_at: str | None, expected_body_hash: str | None = None,
 ) -> bool:
     """Writes the placeholder-resolved body directly, WITHOUT bumping
     `updated_at` (unlike `notes_svc.update_note`). This call is the sync
@@ -1365,7 +1390,14 @@ def _apply_resolved_body(
     its media on every pass, for a link no re-import can resolve. The link
     heal pass (`link_keys.heal_pending_links`, run at the end of every
     import round and from the member's heal door) finishes it once its
-    target exists, writing through THIS function."""
+    target exists, writing through THIS function.
+
+    Plan F (`expected_body_hash`, optional; None = exactly the behaviour above, for every
+    existing caller): a timestamp-neutral writer (this function, from the heal pass) does not
+    move `updated_at`, so the stamp lock cannot see it. With a hash, the write also requires the
+    STORED body to still hash to it (`stored_body_sha`), checked in the SAME UPDATE's WHERE
+    through a deterministic SQL function registered on this connection. One statement: no
+    window between the check and the write, whatever else writes the row."""
     body_plain = notes_svc.extract_plain_text(body)
     body_blob = json.dumps(body)
     # Plan A Task 6: tri-state -- 1 while a placeholder or a retryable importNotice
@@ -1374,14 +1406,18 @@ def _apply_resolved_body(
     links_pending = 1 if notes_svc._body_has_import_link(body) else 0
     # One unit with its sidecars (below): a SAVEPOINT, so a failed projection undoes
     # THIS note's body write and nothing else the connection may hold.
+    body_clause, body_params = "", ()
+    if expected_body_hash is not None:
+        _ensure_body_sha_function(conn)
+        body_clause, body_params = f" AND {_BODY_SHA_SQL}(body_json) = ?", (expected_body_hash,)
     conn.execute("SAVEPOINT apply_resolved_body")
     try:
         cur = conn.execute(
             "UPDATE j2_notes SET body_json = ?, body_plain = ?, import_media_pending = ?, "
             "import_links_pending = ? "
-            "WHERE id = ? AND user_id = ? AND updated_at = ?",
+            "WHERE id = ? AND user_id = ? AND updated_at = ?" + body_clause,
             (body_blob, body_plain, media_pending, links_pending, note_id, user_id,
-             expected_updated_at),
+             expected_updated_at, *body_params),
         )
         applied = cur.rowcount > 0
         if applied:

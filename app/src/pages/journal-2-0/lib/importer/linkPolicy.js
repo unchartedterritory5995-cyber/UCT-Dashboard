@@ -178,8 +178,35 @@ function resolveRelative(href, sourceUrl) {
   }
 }
 
-/** The href to keep, or `null` meaning "render as text". The server's `resolve_href`. */
-export function resolveHref(href, sourceUrl = null) {
+// A note link's path ends `.md`, and `.md` is also a TLD linkify-it accepts: such a path is a
+// NOTE, never a host (D3 item 6; the server's `_NOTE_PATH_RE`).
+const NOTE_PATH_RE = /\.md$/i
+
+/**
+ * D3 item 6: the `https://` URL linkify WOULD MAKE of the scheme-less href `h`, else null.
+ * ⛔ Linkify's own decision, never a second one (controller ruling): `matches(h)` -- the same
+ * instance, allow-list, trim and `keptSchemeHref` the prose pass uses -- must make exactly one
+ * link spanning all of `h`, a web address (`https://`; an email is not). So `www.example.com/x`
+ * links, while `example.com/path`, `NVDA.US`, `AAPL.O` and `BRK.B` stay text, as in prose.
+ * The server's `host_like_href`, pinned by the shared `href_vectors`. A path ending `.md` is a
+ * note link, never a host; an adapter that resolves a link to a note writes `data-import-link`
+ * before this runs. ⚰️ Until D3 a `www.` href was "relative" with no source, so the link became
+ * text and its target was lost.
+ */
+export function hostLikeHref(h) {
+  if (!h || /^[/.#?]/.test(h) || !clean(h)) return null
+  if (NOTE_PATH_RE.test(h.split(/[?#]/, 1)[0])) return null
+  const found = matches(h)
+  if (found.length !== 1 || found[0][0] !== 0 || found[0][1] !== h.length || !found[0][2].startsWith('https://')) return null
+  return found[0][2]
+}
+
+/**
+ * The href to keep, or `null` meaning "render as text". The server's `resolve_href`.
+ * `hostLike: false` (an image src, `mediaRefs.js`): a scheme-less src is a path, as the server
+ * lane reads an image src; only a link's href is read as a host (D3 item 6).
+ */
+export function resolveHref(href, sourceUrl = null, { hostLike = true } = {}) {
   if (typeof href !== 'string') return null
   // B-14 fix round 1: Python's `str.strip()` set, never `trim()` (U+FEFF, U+001C-U+001F, U+0085).
   const h = pyStrip(href)
@@ -202,7 +229,20 @@ export function resolveHref(href, sourceUrl = null) {
   }
   // B-14 fix round 1: built from `h`, never `read`: `//ex.com/a<TAB>b` must not become `ex.com/ab`.
   if (read.startsWith('//')) return keptSchemeHref('https:' + h)
-  return resolveRelative(h, sourceUrl)
+  // D3 item 6: a host is a host, never a path relative to the note's source.
+  return (hostLike ? hostLikeHref(h) : null) ?? resolveRelative(h, sourceUrl)
+}
+
+/**
+ * D3 follow-up (difference 1): true when `src` names an UNSAFE scheme as a browser reads it
+ * (`javascript:`, `vbscript:`, `file:`, `data:`; `java<TAB>script:` included). The server's
+ * `mddoc._is_unsafe_image_src`, read raw and as read: such an image is the `unsafe` notice on
+ * both lanes, never fetched and never silently dropped.
+ */
+export function isUnsafeSrc(src) {
+  if (typeof src !== 'string') return false
+  const m = SCHEME_RE.exec(hrefAsRead(pyStrip(src)))
+  return !!m && UNSAFE_SCHEMES.has(m[1].toLowerCase())
 }
 
 /** Replaces `a` with its children (bold, italic, media kept). Never `textContent`. */

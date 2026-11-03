@@ -98,6 +98,24 @@ def headline_event(row: dict[str, Any], epoch: str = "", derived: dict[str, Any]
     differently, and an R2 LIST is only the order RECOVERY ingests in. Every
     client sees the same seq order, and a client that ever sees seq != last+1
     knows it missed something and replays."""
+    ev = _headline_event(row, epoch, derived)
+    # A VERIFIED original press-release link, when release_links.py has stored one:
+    # a dict lookup (never matching, never I/O), so every read path carries it.
+    link = _release_link(row["event_id"])
+    if link:
+        ev["link"] = link
+    return ev
+
+
+def _release_link(event_id: str) -> dict[str, str] | None:
+    try:
+        from api.services.trade_exchange_news.release_links import lookup
+        return lookup(event_id)
+    except Exception:  # noqa: BLE001 -- a link is an extra; never cost a headline
+        return None
+
+
+def _headline_event(row: dict[str, Any], epoch: str, derived: dict[str, Any] | None) -> dict[str, Any]:
     return {"type": "headline", "epoch": epoch, "seq": row["seq"], "id": row["event_id"],
             "source": row["source"], "content": row["content"],
             "received_at_ms": row["received_at_ms"],

@@ -1101,9 +1101,15 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         src = _import_notice.safe_source_url(attrs.get("sourceUrl"))
         return f"{line} [{_import_notice.OPEN_ORIGINAL}](<{src}>)" if src else line
     if ntype == "attachmentChip":
+        # D2 item 6: the chip's text is its optional label (the member's link text), else
+        # its name, as the editor shows it; the link is the file either way.
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None
-        return f"[{_closed(_prose(attrs.get('name') or 'attachment'))}]({local or href})"
+        shown = _link_text(_closed(_prose(chip_label(attrs) or attrs.get("name") or "attachment")))
+        target = local or href
+        # D2 fix round 1 (M2): only ever a web or relative address; any other href is the
+        # chip's text alone, never a link (a crafted `javascript:` chip cannot become one).
+        return f"[{shown}]({_chip_destination(target)})" if _chip_target_ok(target) else shown
     if ntype == "videoTimestamp":
         # Mirrors app/src/components/video/playerUtils.js::fmtTime exactly --
         # the same helper the editor's own node view renders with
@@ -1242,6 +1248,57 @@ def _trade_canvas_markdown(attrs: Any) -> str:
         lines.append("")
         lines.extend(f"- {_prose(r)}" for r in rows)
     return "\n".join(lines)
+
+
+#: A `[` or `]` (or a tag-opening `<`) in link text that is not already escaped: an even
+#: run of backslashes (none included) before it.
+_UNESCAPED_LINK_TEXT_PUNCT = re.compile(r"(?<!\\)((?:\\\\)*)(\[|\]|<(?=[A-Za-z/!?]))")
+_CHIP_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
+
+
+def _link_text(prose: str) -> str:
+    """`_prose` output that sits between a link's `[` and `]` (D2 fix round 1, M2): every
+    bracket and tag-opening `<` the member wrote is escaped, so the text can neither end the
+    link early (`a](javascript:...) [b` planted a second, live link) nor open raw HTML. A
+    member's own escape (`\\]`, which `_prose` already wrote as an escaped backslash and an
+    escaped bracket) is left as it is. Raw inside a raw island, like `_prose`."""
+    if not _ESCAPE_PROSE_DOLLARS.get():
+        return prose
+    return _UNESCAPED_LINK_TEXT_PUNCT.sub(lambda m: f"{m.group(1)}\\{m.group(2)}", prose)
+
+
+def _chip_target_ok(target: str) -> bool:
+    """A chip links only an http(s) address or a relative path (our upload URL, a bundled
+    file's archive path) -- never another scheme or a protocol-relative `//host`."""
+    t = (target or "").strip()
+    if not t or t != target or t.startswith("//") or any(ord(c) < 32 for c in t):
+        return False
+    m = _CHIP_SCHEME_RE.match(t)
+    return m is None or m.group(0).lower() in ("http:", "https:")
+
+
+_BARE_DESTINATION_UNSAFE = re.compile(r"[\s()<>\\]")
+_ANGLE_DESTINATION_ESCAPE = re.compile(r"[<>\\]")
+
+
+def _chip_destination(target: str) -> str:
+    """A chip address as ONE CommonMark destination (D2 fix round 2, N2). An ordinary address
+    is written bare, as before; one holding whitespace, a parenthesis, an angle bracket or a
+    backslash is written in the `<...>` form, `<`, `>` and backslash escaped, so it can
+    neither close the link early (`q3.pdf) [x](javascript:...)` planted a second, live link)
+    nor stop being a link (`files/q3 report.pdf`). Line breaks never reach here
+    (`_chip_target_ok` refuses control characters)."""
+    if not _BARE_DESTINATION_UNSAFE.search(target):
+        return target
+    return "<" + _ANGLE_DESTINATION_ESCAPE.sub(lambda m: "\\" + m.group(0), target) + ">"
+
+
+def chip_label(attrs: dict[str, Any]) -> str | None:
+    """An attachment chip's optional `label` (D2 item 6): the member's own link text, shown
+    in place of the file name. None when absent, blank or not a string -- a chip written
+    before labels existed exports exactly as it did. Mirrors `attachmentChip.js::chipLabel`."""
+    label = attrs.get("label") if isinstance(attrs, dict) else None
+    return label if isinstance(label, str) and label.strip() else None
 
 
 def tiptap_to_markdown(doc: dict[str, Any] | None, *, attachment_resolver=None) -> str:

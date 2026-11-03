@@ -1,0 +1,15 @@
+{
+  "_comment": "D2 items 3 and 4: an embed wrapped in a wikilink reads as the embed (the image, a note's link); with an alias it reads as the alias alone, and lists no media entry and no link.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "Plan.md",
+    "attachments/img.png"
+  ],
+  "attachments": [
+    {"original": "![[img.png]]", "embed": true,
+     "path": "attachments/img.png", "size": 1024,
+     "sha256": "7c1f0b0e8b6f2d4f5a3c9e1d0b2a4c6e8f0a1b3c5d7e9f1a3b5c7d9e1f3a5b7c", "status": "ok"}
+  ]
+}

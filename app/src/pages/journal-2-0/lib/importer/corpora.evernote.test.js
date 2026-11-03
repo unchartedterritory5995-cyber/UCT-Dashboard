@@ -163,7 +163,9 @@ describe('Evernote corpus: the web clip', () => {
     const body = run.bodyOf('Web clip: semis rally')
     const types = body.content.map((n) => n.type)
     const at = types.indexOf('importNotice')
-    expect(body.content[at - 1].content[0].text).toBe(' blocked:')
+    // D2 item 5 (`convert.js::htmlToNote`, merged with Plan B): the space before a split
+    // block is kept, as the server's parse keeps it (`Read ` before a chip).
+    expect(body.content[at - 1].content[0].text).toBe(' blocked: ')
     expect(body.content[at].attrs).toEqual({ reason: 'fetch_failed', name: 'p.png', sourceUrl: 'https://blocked.example.org/p.png',
       ref: expect.stringMatching(/^remote-/), attempts: MEDIA_RETRY_MAX_ATTEMPTS })
     expect(renderedNotices(renderBody(body))).toEqual([
@@ -241,7 +243,7 @@ describe('Evernote corpus: media', () => {
 
   it('hash-mismatched image stays in place when the pairing is unambiguous (1 : 1)', () => {
     const body = run.bodyOf('Hash mismatch paired')
-    expect(body.content[0].content.map((x) => x.text)).toEqual(['Before'])
+    expect(body.content[0].content.map((x) => x.text)).toEqual(['Before ']) // D2 item 5
     expect(body.content[1]).toMatchObject({ type: 'image', attrs: { src: `${ATTACH}${id('Hash mismatch paired')}/inline/13-reencoded.png` } })
     expect(body.content[2].content.map((x) => x.text)).toEqual([' after'])
     expect(nodes(body, 'importNotice')).toEqual([])
@@ -320,7 +322,8 @@ describe('Evernote corpus: links between notes', () => {
 
   it('the stored text of the links note reads as written', () => {
     expect(storedText(run.bodyOf('Links to notes'))).toBe(['App link: Trade plan', 'Shard link: Trade plan', 'Share link: Watchlist',
-      'Shared: Missing note', 'Ambiguous: Duplicate title', 'Picture link:', 'Trade plan', `Long: ${'L'.repeat(320)}`,
+      // D2 item 5: `Picture link: ` keeps its space before the lifted image.
+      'Shared: Missing note', 'Ambiguous: Duplicate title', 'Picture link: ', 'Trade plan', `Long: ${'L'.repeat(320)}`,
       'Not a note: pricing'].join(''))
   })
 })

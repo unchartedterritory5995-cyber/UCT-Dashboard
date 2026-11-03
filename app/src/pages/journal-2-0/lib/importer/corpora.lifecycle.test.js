@@ -19,7 +19,9 @@ describe('storage_full: the door answers storage_limit', () => {
     const run = await importCorpus(folderDrop('generic'), { server })
     const alpha = run.storedByKey.get('file:notes/Alpha.md')
     const at = alpha.content.findIndex((n) => n.type === 'importNotice')
-    expect(alpha.content[at - 1].content[0].text).toBe('Picture:')
+    // D2 item 5: the text before a block atom keeps its trailing space (`Read ` before a chip),
+    // as the server lane writes it; this expectation predates that rule.
+    expect(alpha.content[at - 1].content[0].text).toBe('Picture: ')
     expect(alpha.content[at].attrs).toEqual({ reason: 'storage_full', name: 'pic.png', sourceUrl: null,
       ref: 'notes/sub/pic.png', attempts: MEDIA_RETRY_MAX_ATTEMPTS })
     expect(renderedNotices(renderBody(alpha))).toEqual([

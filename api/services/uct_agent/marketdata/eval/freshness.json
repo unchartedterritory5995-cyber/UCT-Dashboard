@@ -1053,10 +1053,14 @@
               "symbol": "NVDA",
               "name": "NVIDIA Corporation",
               "type": "stock",
-              "candidate": null
+              "candidate": null,
+              "basis": null
             }
           ],
-          "all_symbols": true
+          "all_symbols": true,
+          "routes": [
+            null
+          ]
         },
         "notes": [
           "classified from UCT's symbol index (US stocks and ETFs, with indexes and UCT series typed apart)"
@@ -1121,10 +1125,20 @@
                 "symbol": "GOLD",
                 "name": "Barrick Gold Corporation",
                 "type": "stock"
-              }
+              },
+              "basis": [
+                "name_word"
+              ]
             }
           ],
-          "all_symbols": false
+          "all_symbols": false,
+          "routes": [
+            {
+              "kind": "commodity.quote",
+              "asset": "gold",
+              "label": "gold"
+            }
+          ]
         },
         "notes": [
           "classified from UCT's symbol index (US stocks and ETFs, with indexes and UCT series typed apart)"
@@ -1185,10 +1199,18 @@
               "symbol": null,
               "name": "S&P 500 Index",
               "type": "index",
-              "candidate": null
+              "candidate": null,
+              "basis": null
             }
           ],
-          "all_symbols": false
+          "all_symbols": false,
+          "routes": [
+            {
+              "kind": "index.quote",
+              "asset": "spx",
+              "label": "S&P 500"
+            }
+          ]
         },
         "notes": [
           "classified from UCT's symbol index (US stocks and ETFs, with indexes and UCT series typed apart)"

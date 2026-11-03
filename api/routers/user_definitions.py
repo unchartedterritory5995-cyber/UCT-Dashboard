@@ -243,7 +243,23 @@ def _save_or_400(user_id, def_id: str, definition: dict,
         user_id, "import_accepted", import_id=import_id, dialect=source_dialect,
         def_id=def_id, def_hash=row.get("ast_hash"),
     )
+    # ⭐ 2026-11-02 -- LINE IDENTITY: the identities this version's lines were given,
+    # so the saving tab knows which of its lines are new without a refetch.
+    if isinstance(row, dict) and row.get("version") is not None:
+        row = dict(row, plot_identities=svc.line_identities(user_id, def_id, row["version"]))
     return row
+
+
+def _served_lines(user_id: Any, row: Any) -> Any:
+    """⭐ 2026-11-02 -- LINE IDENTITY, BESIDE THE SERVED DEFINITION. The row carries
+    `plot_identities` (``{plotKey: identity}``, the save response's shape); the
+    `definition` itself is served exactly as stored -- a contract several rails
+    pin (`tests/test_pine_runtime_switch_on.py`: served == stored). A document a
+    browser sends back with a `uid` on a plot has it stripped (`strip_line_fields`)."""
+    if not isinstance(row, dict) or not isinstance(row.get("definition"), dict):
+        return row
+    return dict(row, plot_identities=svc.line_identities(
+        user_id, row.get("def_id"), row.get("version")))
 
 
 def _stamped(row: dict) -> dict:
@@ -367,7 +383,15 @@ def list_definitions(user: dict = Depends(require_paid),
     asked = isinstance(engine, int) and not isinstance(engine, bool)
     rows = (svc.list_for_user(user["id"], source_below=engine) if asked
             else svc.list_for_user(user["id"]))
-    return {"definitions": _maybe_compact([_stamped(r) for r in rows], graph)}
+    stamped = [_stamped(r) for r in rows]
+    # ⭐ 2026-11-02 -- LINE IDENTITY, read for every row on ONE connection.
+    ids = svc.line_identities_many(
+        user["id"], [(r.get("def_id"), r.get("version")) for r in stamped
+                     if isinstance(r, dict)])
+    stamped = [dict(r, plot_identities=ids.get((r.get("def_id"), r.get("version")), {}))
+               if isinstance(r, dict) and isinstance(r.get("definition"), dict) else r
+               for r in stamped]
+    return {"definitions": _maybe_compact(stamped, graph)}
 
 
 @router.post("")
@@ -596,6 +620,7 @@ def get_definition(def_id: str,
         raise HTTPException(status_code=404, detail="Not found")
     row = runtime_definitions.stamp_served(row)
     row = dict(row, repaint_notice=relint.member_notice(row))
+    row = _served_lines(user["id"], row)
     return svc.compact_row(row) if graph else row
 
 
@@ -769,7 +794,10 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
     # version of a document that stores as a graph would otherwise arrive as a
     # separate expanded forest, so a ten-version history of the corpus'
     # heaviest script is ~3.6 MB of response for ~80 KB of stored program.
-    rows = [runtime_definitions.stamp_served(r) for r in rows]
+    by_version = svc.history_line_identities(user["id"], def_id)
+    rows = [dict(r, plot_identities=by_version.get(r.get("version"), {}))
+            if isinstance(r, dict) else r
+            for r in (runtime_definitions.stamp_served(r) for r in rows)]
     return {"def_id": def_id, "versions": _maybe_compact(rows, graph)}
 
 

@@ -3287,6 +3287,49 @@ def _pattern_vision_contract_line() -> str:
             f"confirmed_only={'on' if conf_only is True else 'OFF'}[api_default]")
 
 
+def register_chart_iq_pack_jobs(scheduler):
+    """Chart IQ nightly pack (api/services/chart_iq/pack.py): every stock's latest-session read, so a member's read is one lookup.
+    The lab PC builds it (fast local disk, ~10 min) and uploads one file to R2; this pod pulls it every 15 minutes (sync_from_r2).
+    The server-side build is the FALLBACK: 23:00 ET and 06:30 ET weekdays, and only when the installed pack is behind the latest
+    session (build_if_behind), so a missing upload never leaves the pack stale. Gate: CHART_IQ_PACK_ENABLED=1. Returns True if
+    registered."""
+    import os
+    if os.environ.get("CHART_IQ_PACK_ENABLED", "").strip() != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.interval import IntervalTrigger
+
+    def _sync():
+        try:
+            from api.services.chart_iq import pack
+            pack.sync_from_r2()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] sync job error: %s", exc)
+
+    def _fallback():
+        try:
+            from api.services.chart_iq import pack
+            pack.build_if_behind()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] fallback job error: %s", exc)
+
+    try:   # boot: page the installed pack in now, so the first member after a deploy is not the one who waits on the disk
+        from api.services.chart_iq import pack as _ciq_pack
+        _ciq_pack.warm_file(_ciq_pack._path())
+    except Exception:  # noqa: BLE001
+        pass
+    scheduler.add_job(_sync, trigger=IntervalTrigger(minutes=15), id="chart_iq_pack_sync", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=600)
+    from api.services.chart_iq import pack as _ciq_pack_gate
+    if not _ciq_pack_gate.server_build_allowed():   # the in-pod build took the pod down 11/02; the PC owns the build
+        return True
+    scheduler.add_job(_fallback, trigger=CronTrigger(day_of_week="mon-fri", hour=23, minute=0, timezone=_ET),
+                      id="chart_iq_pack_evening", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    scheduler.add_job(_fallback, trigger=CronTrigger(day_of_week="mon-fri", hour=6, minute=30, timezone=_ET),
+                      id="chart_iq_pack_morning", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    return True
+
+
 def register_chart_iq_prewarm_jobs(scheduler):
     """Chart IQ group pre-warm (api/services/chart_iq/prewarm.py): after the close, warm the rows cache for the industries members
     opened in the last few days, so the first chart of each industry on the new session is not the 5-25 s cold read. 18:30 ET
@@ -6197,6 +6240,28 @@ async def lifespan(app: FastAPI):
         except Exception as _e_ocr_sweep:
             print(f"[startup] j2 ocr recovery sweep skip: {_e_ocr_sweep}")
 
+        # Plan F Task 7 re-review I-5: a document row left `pending` was never extracted (a
+        # crash or redeploy mid-queue, or a row the import repair created: that short-lived
+        # process never extracts). Re-queue the stale ones through the same bounded pool, a few
+        # per tick, on a scheduler thread (off the event loop). Ungated, like PDF extraction.
+        try:
+            from api.services.journal_two import document_extraction as _doc_pending
+
+            def _doc_requeue_pending() -> None:
+                # One tick: waits out a startup grace (round 2 S-2), then re-queues.
+                out = _doc_pending.pending_sweep_tick()
+                if out.get("requeued") or out.get("failed"):
+                    logging.getLogger(__name__).info(
+                        "[doc-extract] sweep re-queued %s pending document(s), failed %s",
+                        out.get("requeued", 0), out.get("failed", 0))
+
+            _scheduler.add_job(
+                _doc_requeue_pending,
+                CronTrigger(minute="7/10"),
+                id="j2_doc_pending_sweep", replace_existing=True, max_instances=1)
+        except Exception as _e_doc_sweep:
+            print(f"[startup] j2 document pending sweep skip: {_e_doc_sweep}")
+
         # live room is never a dead room. Self-gates on COMMUNITY_CHAT_ENABLED at
         # run time (no-op while dark) — NOT a Compass LLM job, so registered directly.
         try:
@@ -7344,6 +7409,8 @@ async def lifespan(app: FastAPI):
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
+            if register_chart_iq_pack_jobs(_scheduler):
+                logging.getLogger(__name__).info("[startup] chart-iq pack: R2 sync every 15 min; fallback build 23:00 / 06:30 ET if behind")
             if register_chart_iq_prewarm_jobs(_scheduler):
                 logging.getLogger(__name__).info("[startup] chart-iq group pre-warm: 18:30 / 07:00 ET weekdays")
             if register_call_recap_warm_jobs(_scheduler):

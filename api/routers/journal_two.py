@@ -35,6 +35,7 @@ from api.middleware.auth_middleware import (
 # Slice 3: the ONE route below that an external door may reach opts into this by
 # name. `get_current_user` above is untouched -- see api/middleware/capture_scope.
 from api.middleware.capture_scope import require_capture_scope
+from api.services.upload_gate import UPLOAD_BUSY_SENTENCE, UploadGate
 
 logger = logging.getLogger(__name__)
 from api.services.journal_two import (
@@ -2681,11 +2682,15 @@ def sector_theme_facets_endpoint(
 NOTE_MEDIA_FETCH_RATE = "120/minute"
 SCOPE_NOTE_MEDIA_FETCH = "notebook-media-fetch"
 NOTE_MEDIA_FETCH_RATE_SENTENCE = "That's a lot of images to copy in at once. Try again in a minute."
-_MEDIA_FETCH_TIMEOUT_S = 30.0
+from api.services.journal_two import hotlink_fetch  # noqa: E402
+
+#: Plan F Task 4: the values live in `hotlink_fetch` (one each, shared with the import repair);
+#: these names stay because the door's tests patch them, and are read at call time.
+_MEDIA_FETCH_TIMEOUT_S = hotlink_fetch.FETCH_TIMEOUT_S
 #: Task 9 fix round 1 (I2): the whole fetch (every hop, every slow-drip read) has ONE deadline.
 #: `_MEDIA_FETCH_TIMEOUT_S` is per read, so without it a server trickling a byte at a time
 #: holds the socket indefinitely. Waiting for a global slot counts against it too.
-MEDIA_FETCH_DEADLINE_S = 60.0
+MEDIA_FETCH_DEADLINE_S = hotlink_fetch.FETCH_DEADLINE_S
 #: ...and at most this many downloads at once: per member (over it => 429 at once, never a
 #: queue) and for the whole pod (`notebook_link_preview._SEM`'s pattern). Per-process state,
 #: like that one (CLAUDE.md's single-process roster): a second process doubles both.
@@ -2704,10 +2709,7 @@ def _media_fetch_client():
     return media_http_client(timeout=_MEDIA_FETCH_TIMEOUT_S)
 
 
-def _hotlink_filename(url: str) -> str:
-    from urllib.parse import unquote, urlsplit
-    name = unquote(urlsplit(url).path.rsplit("/", 1)[-1]).strip()
-    return name or "image"
+_hotlink_filename = hotlink_fetch.filename_of
 
 
 # ⛔ Declared ABOVE every `POST /notes/{note_id}/...` route, so no path parameter can ever
@@ -2726,10 +2728,8 @@ async def notes_media_fetch_endpoint(payload: dict[str, Any] = Depends(_json(dic
     our own URL; the stored file is handed to documents like an upload; any refusal => 422 `{"reason", "markerText"}` at the
     top level, the reason decided by TYPE (`engine.media_failure_reason`), never a 500."""
     from fastapi.responses import JSONResponse
-    from starlette.concurrency import run_in_threadpool
     from api.services.journal_two import public_note_payload as public
     from api.services.journal_two.note_connectors import engine as note_engine
-    from api.services.journal_two.note_connectors.providers.base import fetch_content_url
     url = payload.get("url")
     key = payload.get("noteImportKey")
     if not isinstance(url, str) or not url.strip():
@@ -2750,27 +2750,19 @@ async def notes_media_fetch_endpoint(payload: dict[str, Any] = Depends(_json(dic
         raise HTTPException(status_code=429, detail=NOTE_MEDIA_FETCH_BUSY_SENTENCE)
     _media_fetch_inflight[user_id] = _media_fetch_inflight.get(user_id, 0) + 1
 
-    async def download():
-        async with _MEDIA_FETCH_SEM:
-            async with _media_fetch_client() as client:
-                return await fetch_content_url(client, url, what="Linked image")
+    def release_slot():
+        left = _media_fetch_inflight.get(user_id, 1) - 1
+        if left > 0:
+            _media_fetch_inflight[user_id] = left
+        else:
+            _media_fetch_inflight.pop(user_id, None)
 
     try:
-        try:
-            data, content_type = await asyncio.wait_for(download(), MEDIA_FETCH_DEADLINE_S)
-        finally:
-            left = _media_fetch_inflight.get(user_id, 1) - 1
-            if left > 0:
-                _media_fetch_inflight[user_id] = left
-            else:
-                _media_fetch_inflight.pop(user_id, None)
-
-        def decide_and_store():
-            result = media_policy.normalize_media(data, content_type, filename)
-            budget = media_policy.MediaBudget.for_member(user_id)
-            return media_policy.store_media(user_id, note_id, result, budget=budget)
-
-        stored = await run_in_threadpool(decide_and_store)
+        # Plan F Task 4: the one fetch core, shared with the import repair. The door's seams are
+        # read here, at call time (C1), and the slot is given back when the download ends.
+        stored = await hotlink_fetch.fetch_and_store(
+            user_id, note_id, url, client_factory=_media_fetch_client, deadline_s=MEDIA_FETCH_DEADLINE_S,
+            semaphore=_MEDIA_FETCH_SEM, after_download=release_slot)
     except Exception as e:  # noqa: BLE001 -- every refusal is a named 422, never a 500
         reason = note_engine.media_failure_reason(e)
         if reason == "storage_limit":
@@ -3436,6 +3428,55 @@ def notes_import_heal_links_endpoint(payload: dict[str, Any] = Depends(_json(dic
     return {"healed": out["healed"], "unresolved": out["unresolved"]}
 
 
+#: Plan F Task 9: the member's import-repair notice doors. Cheap reads of one row, but a
+#: polled GET still gets a budget. In-process Limiter state (CLAUDE.md's single-process
+#: roster): a second process doubles it.
+NOTE_IMPORT_REPAIR_NOTICE_RATE = "60/minute"
+SCOPE_NOTE_IMPORT_REPAIR_NOTICE = "notebook-import-repair-notice"
+NOTE_IMPORT_REPAIR_NOTICE_RATE_SENTENCE = "Too many requests. Try again in a minute."
+
+
+def _repair_notice_rate(user_id: str) -> None:
+    from api.services.journal_two import public_note_payload as public
+    public.enforce_rate(NOTE_IMPORT_REPAIR_NOTICE_RATE, SCOPE_NOTE_IMPORT_REPAIR_NOTICE, f"member:{user_id}",
+                        NOTE_IMPORT_REPAIR_NOTICE_RATE_SENTENCE, public=False)
+
+
+# ⛔ Declared ABOVE every `/notes/{note_id}` route, so no path parameter reads "import" as a
+# note id. Plain `def` routes: FastAPI runs them on the threadpool, never SQLite on the loop.
+@router.get("/notes/import/repair-notice")
+def notes_import_repair_notice_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Plan F Task 9: the CALLER's own import-repair notice: some of their imported notes lost
+    a picture, a file, or a link to a file (`store.pending_notice`; a lost-file-link-only note
+    counts, as ruled). `{show, lossNotes}`; no undismissed notice reads `{show: false, lossNotes: 0}`.
+    The member id comes only from the session, never from the request."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two.import_repair import store
+    _repair_notice_rate(user["id"])
+    conn = get_connection()
+    try:
+        loss = store.pending_notice(conn, user["id"])
+    finally:
+        conn.close()
+    return {"show": bool(loss), "lossNotes": int(loss or 0)}
+
+
+@router.post("/notes/import/repair-notice/dismiss")
+def notes_import_repair_notice_dismiss_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Plan F Task 9: dismiss the CALLER's own notice. An UPDATE (`store.dismiss_notice`; the
+    row stays), idempotent: dismissing an already-dismissed or missing notice is still ok, and
+    a later repair run never re-arms it."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two.import_repair import store
+    _repair_notice_rate(user["id"])
+    conn = get_connection()
+    try:
+        store.dismiss_notice(conn, user["id"])
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
 @router.post("/notes/enrichment/scan")
 def notes_enrichment_scan_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
     """The arrival-screen enrichment offer (spec §8.1): scan a set of a
@@ -4056,15 +4097,9 @@ _NOTE_FILE_UPLOAD = body_cap.capped_upload(
     "file", lambda: notes_service._MAX_FILE_BYTES, lambda: notes_service.FILE_TOO_BIG_SENTENCE)
 
 
-def _stored_media_payload(stored: "media_policy.StoredMedia") -> dict[str, Any]:
-    """[B A1] The upload doors' answer: additive over the old `{url, width, height}` (images)
-    and `{url, name, size}` (files), so an older client keeps reading what it read."""
-    return {
-        "url": stored.url, "kind": stored.kind, "name": stored.name, "size": stored.size,
-        "mime": stored.mime, "width": stored.width, "height": stored.height,
-        "original": ({"url": stored.original.url, "name": stored.original.name}
-                     if stored.original is not None else None),
-    }
+#: [B A1] The upload doors' answer. Plan F Task 7 review M-6: the one builder lives in
+#: `hotlink_fetch` so the import repair hands documents exactly what these doors do.
+_stored_media_payload = hotlink_fetch.stored_payload
 
 
 #: Final review I3: uploads through the media policy in flight at once, per member and for the
@@ -4074,32 +4109,12 @@ def _stored_media_payload(stored: "media_policy.StoredMedia") -> dict[str, Any]:
 #: single-process roster): a second process doubles both.
 UPLOAD_PER_MEMBER_INFLIGHT = 2
 UPLOAD_GLOBAL_INFLIGHT = 4
-UPLOAD_BUSY_SENTENCE = "Too many uploads at once. Try again in a moment."
 
 
-class _UploadGate:
-    """The two in-flight counts. Event-loop state only: `acquire` and `release` never await,
-    so a check and its increment cannot interleave with another request."""
-
-    def __init__(self) -> None:
-        self.total = 0
-        self.by_member: dict[str, int] = {}
-
-    def acquire(self, user_id: str) -> bool:
-        mine = self.by_member.get(user_id, 0)
-        if mine >= UPLOAD_PER_MEMBER_INFLIGHT or self.total >= UPLOAD_GLOBAL_INFLIGHT:
-            return False
-        self.by_member[user_id] = mine + 1
-        self.total += 1
-        return True
-
-    def release(self, user_id: str) -> None:
-        self.total = max(0, self.total - 1)
-        left = self.by_member.get(user_id, 1) - 1
-        if left > 0:
-            self.by_member[user_id] = left
-        else:
-            self.by_member.pop(user_id, None)
+def _UploadGate() -> UploadGate:  # noqa: N802 -- kept name: a fresh gate for this door's limits
+    """This door's gate: the shared class (`api/services/upload_gate.py`, Plan C final review
+    M4) with this door's two constants. The Obsidian blob PUT keeps its OWN instance."""
+    return UploadGate(per_member=UPLOAD_PER_MEMBER_INFLIGHT, total=UPLOAD_GLOBAL_INFLIGHT)
 
 
 _UPLOAD_GATE = _UploadGate()
