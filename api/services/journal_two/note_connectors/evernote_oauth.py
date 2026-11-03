@@ -52,6 +52,9 @@ TOKEN_URL = f"{AUTH_BASE}/auth/token"
 #: metadata (https://accounts.evernote.com/.well-known/oauth-authorization-server, read 2026-11-03;
 #: final review M5). Not yet exercised against a live grant: confirm at the live gate (T11).
 REVOKE_URL = f"{AUTH_BASE}/auth/revoke"
+#: Final re-review N1: each revoke request is bounded on its own, whoever built the client; the
+#: router's `EVERNOTE_REVOKE_BUDGET_S` bounds the whole best-effort revoke on top.
+REVOKE_TIMEOUT_S = 5.0
 RESOURCE = "https://mcp.evernote.com"
 SCOPE = "read"
 
@@ -186,14 +189,14 @@ async def revoke_token(creds: dict[str, Any], *, client: httpx.AsyncClient | Non
     if not tokens:
         return
     owns = client is None
-    http = client or httpx.AsyncClient(timeout=_HTTP_TIMEOUT)
+    http = client or httpx.AsyncClient(timeout=REVOKE_TIMEOUT_S)
     try:
         for token, hint in tokens:
             body = {"token": token, "token_type_hint": hint}
             if cid:
                 body["client_id"] = cid
             try:
-                resp = await http.post(REVOKE_URL, data=body, headers=_HEADERS)
+                resp = await http.post(REVOKE_URL, data=body, headers=_HEADERS, timeout=REVOKE_TIMEOUT_S)
             except httpx.RequestError as exc:
                 raise errors.NoteConnTransient(
                     f"evernote token revoke failed ({type(exc).__name__})") from None

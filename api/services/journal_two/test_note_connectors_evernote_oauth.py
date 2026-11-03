@@ -693,3 +693,15 @@ async def test_revoke_raises_on_a_refusal_without_leaking_the_token():
             await evernote_oauth.revoke_token({"accessToken": "at-SECRET", "refreshToken": "rt-SECRET",
                                                "clientId": "cid-x"}, client=http)
     assert "SECRET" not in str(info.value)
+
+
+async def test_each_revoke_request_carries_a_five_second_timeout():
+    """Final re-review N1: per request, whoever built the client (the router's budget bounds the
+    whole revoke on top)."""
+    server = TokenServer(lambda req: httpx.Response(200))
+    async with httpx.AsyncClient(transport=httpx.MockTransport(server), timeout=60.0) as http:
+        await evernote_oauth.revoke_token({"accessToken": "a", "refreshToken": "r", "clientId": "c"}, client=http)
+    assert evernote_oauth.REVOKE_TIMEOUT_S == 5.0
+    assert len(server.requests) == 2
+    for req in server.requests:
+        assert set(req.extensions["timeout"].values()) == {5.0}

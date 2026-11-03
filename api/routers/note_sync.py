@@ -1032,6 +1032,11 @@ async def _best_effort_revoke_dropbox(user_id: str) -> None:
         log.warning("[note_sync] Dropbox token revoke failed (disconnect proceeds regardless): %s", e)
 
 
+#: Final re-review N1: the whole best-effort Evernote revoke (two POSTs) may take at most this long,
+#: so a hanging Evernote never holds a member's Disconnect.
+EVERNOTE_REVOKE_BUDGET_S = 10.0
+
+
 async def _best_effort_revoke_evernote(user_id: str) -> None:
     """Final review M5: Evernote publishes an RFC 7009 `revocation_endpoint`
     (`evernote_oauth.revoke_token`), so Disconnect ends the grant there too, the same shape as
@@ -1046,7 +1051,7 @@ async def _best_effort_revoke_evernote(user_id: str) -> None:
         return
     try:
         from api.services.journal_two.note_connectors import evernote_oauth  # lazy, as the doors above
-        await evernote_oauth.revoke_token(creds)
+        await asyncio.wait_for(evernote_oauth.revoke_token(creds), EVERNOTE_REVOKE_BUDGET_S)
     except Exception as e:  # noqa: BLE001 — best-effort; must NEVER block or fail the disconnect
         log.warning("[note_sync] Evernote token revoke failed (disconnect proceeds regardless): %s", e)
 

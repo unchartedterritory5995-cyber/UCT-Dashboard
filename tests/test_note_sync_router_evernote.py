@@ -446,3 +446,27 @@ def test_disconnect_evernote_revokes_even_while_the_flag_is_off(client_admin, mo
     monkeypatch.setattr(evernote_oauth, "revoke_token", fake_revoke)
     assert client_admin.delete(f"{BASE}/evernote").status_code == 200
     assert len(calls) == 1
+
+
+def test_a_hanging_revoke_never_holds_the_disconnect(client_admin, monkeypatch):
+    """Final re-review N1: the whole best-effort revoke is bounded (EVERNOTE_REVOKE_BUDGET_S, 10 s
+    in production; shortened here so no real 10 s wait), so a hanging Evernote never holds the
+    member's Disconnect, and the purge still happens."""
+    import asyncio
+    import time
+    _seed_evernote_source()
+    monkeypatch.setattr(ns, "EVERNOTE_REVOKE_BUDGET_S", 0.2)
+
+    async def hangs(creds, **kw):
+        await asyncio.sleep(3600)
+
+    monkeypatch.setattr(evernote_oauth, "revoke_token", hangs)
+    t0 = time.monotonic()
+    r = client_admin.delete(f"{BASE}/evernote")
+    assert time.monotonic() - t0 < 5
+    assert r.status_code == 200 and r.json()["disconnected"] is True
+    assert connections.get_connector("u1", "evernote") is None
+
+
+def test_the_revoke_budget_is_ten_seconds():
+    assert ns.EVERNOTE_REVOKE_BUDGET_S == 10.0
