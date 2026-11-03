@@ -685,10 +685,12 @@ def _best_of(fn, runs: int = 2) -> float:
     return best
 
 
-def test_4000_linked_images_convert_in_about_a_second():
+def test_4000_linked_images_convert_in_bounded_time():
+    # Round 2 R3: a loose ceiling (~0.17 s measured; the quadratic lift took 10.5 s), so a busy box
+    # cannot turn it red. The ratio test below is the real rail.
     body = _linked_images(4000)
     elapsed = _best_of(lambda: _convert(body, [IMG]))
-    assert elapsed < 1.0, f"4000 linked images took {elapsed:.2f}s"
+    assert elapsed < 5.0, f"4000 linked images took {elapsed:.2f}s"
     out = _convert(body, [IMG])
     assert len(_of_type(out, "image")) == 4000
 
