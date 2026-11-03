@@ -184,24 +184,42 @@ describe('N5 — a named setup is taught from UCT’s playbook, cited; never a c
     expect(out.text.endsWith(FOOTER)).toBe(true)
     expect(out.link).toEqual({ href: '/setups/vcp', label: 'Open the Setup Library' })
   })
-  it('a template the guard would replace is never shown: the approved passage (cited) answers instead', async () => {
+  // owner refinement (2026-11-03): no approved definition → say so plainly, never invent one; a generic note only under
+  // its own heading, only for a teach / explain request, only when the note is generic and names no setup
+  const NODEF = (s) => `UCT can't currently retrieve an approved playbook definition for ${s}, so I won't give one here.`
+  const BG = 'General background (not the UCT playbook definition):'
+  it('a template the guard would replace is never shown: the statement + the approved passage (cited) instead', async () => {
     await bootBoth({ play: playEnv({ ...TEMPLATE, entry_triggers: ['buy it now, guaranteed'] }) })
     const out = await explainConcept('VCP', host())
-    expect(out.text).toBe(`${LEAD}\n\n${FOOTER}`)
+    expect(out.text).toBe(`${NODEF('VCP')} The closest approved passage:\n${LEAD}\n\n${FOOTER}`)
   })
-  it('only knowledge.search served: the passage leads; a related concept note follows ONLY as labelled generic background', async () => {
+  it('passage only: the statement, the cited passage, and a permitted concept note ONLY under the background heading', async () => {
     await bootBoth({ kinds: ['bars.daily', BRAIN_KIND] })
     const out = await explainConcept('Stage 2 Breakout', host())
     expect(dataCalls.map(c => c.kind)).toEqual([BRAIN_KIND])
-    expect(out.text).toBe(`${LEAD}\n\nGeneric background (not UCT's definition of Stage 2 Breakout): ${CONCEPTS[0].text}\n\n${FOOTER}`)
+    expect(out.text).toBe(`${NODEF('Stage 2 Breakout')} The closest approved passage:\n${LEAD}\n\n${BG}\n${CONCEPTS[0].text}\n\n${FOOTER}`)
   })
-  it('neither kind served: no read; the coach says where the definition lives and never presents a note as the setup', async () => {
+  it('nothing served + a permitted concept note: no read; the statement, then the note under the background heading', async () => {
     await bootBoth({ kinds: ['bars.daily'] })
-    const related = await explainConcept('Stage 2 Breakout', host())
+    const out = await explainConcept('Stage 2 Breakout', host())
     expect(dataCalls).toEqual([])
-    expect(related.text).toBe(`UCT's own definition of Stage 2 Breakout lives in the approved setup playbook, which isn't available here right now — what follows is generic background, not that definition.\n\n${CURATED}`)
-    const none = await explainConcept('VCP', host())
-    expect(none.text).toBe(`UCT's own definition of VCP lives in the approved setup playbook, which isn't available here right now. ${FOOTER}`)
+    expect(out.text).toBe(`${NODEF('Stage 2 Breakout')}\n\n${BG}\n${CURATED}`)
+    expect(out.text).not.toMatch(/Stage 2 Breakout is|Stage 2 Breakout means/)
+  })
+  it('nothing served + no concept note: the statement only', async () => {
+    await bootBoth({ kinds: ['bars.daily'] })
+    expect((await explainConcept('VCP', host())).text).toBe(`${NODEF('VCP')} ${FOOTER}`)
+  })
+  it('nothing served + a note the policy refuses (it names a setup) or a request that is not a teach / explain: the statement only', async () => {
+    reset()
+    stubBoth({ kinds: ['bars.daily'] })
+    const named = [{ ...CONCEPTS[0], text: 'Breakouts and failed breakouts. Like a VCP, a move through a level. Uncertainty: it may fail.' }]
+    globalThis.fetch.mockImplementation(async (url) => (String(url) === '/api/agent/coach/concepts'
+      ? json({ concepts: named, footer: FOOTER }) : json({ stream: false, data: true, data_kinds: ['bars.daily'], coach: true })))
+    await loadAgentConfig(); await loadConcepts()
+    expect((await explainConcept('Stage 2 Breakout', host())).text).toBe(`${NODEF('Stage 2 Breakout')} ${FOOTER}`)
+    await bootBoth({ kinds: ['bars.daily'] })
+    expect((await explainConcept('Stage 2 Breakout', host(), { teach: false })).text).toBe(`${NODEF('Stage 2 Breakout')} ${FOOTER}`)
   })
   it('a non-setup coaching topic is unchanged by the playbook kind (no setup.playbook read)', async () => {
     await bootBoth({ kinds: ['bars.daily', PLAYBOOK_KIND] })

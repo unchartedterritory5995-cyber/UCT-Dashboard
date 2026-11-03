@@ -75,9 +75,12 @@ member apply those definitions — **no competing setup definitions**.
 - When the topic names one of the 48 templates (`coach/brain.js` `setupNamed`; EP and PEG only in capitals),
   `coach.explain` reads `setup.playbook` (when served) and teaches FROM the template: its own fields (what it is,
   entry, stop, invalidation, common mistakes), cited as UCT's setup template with the Setup Library link, then an
-  "Applying it" paragraph. Not served / refused / guard-replaced → the approved `knowledge.search` passage (cited);
-  a related concept note may follow only labelled "Generic background (not UCT's definition of …)". Neither kind
-  served → the coach says the definition lives in the playbook and never presents a note as the setup.
+  "Applying it" paragraph. No approved definition (not served / refused / guard-replaced) → the answer first says
+  plainly "UCT can't currently retrieve an approved playbook definition for <setup>" and never invents one; then the
+  closest approved `knowledge.search` passage (cited) when served. A concept note may follow ONLY under the heading
+  "General background (not the UCT playbook definition):", only for a teach / explain request, and only when the
+  source policy allows it (the note exists, is a generic concept note, and names no setup). Otherwise: the
+  statement only.
 - The 13 concept docs stay generic education (price action, volume, risk, sizing, market conditions …): a test
   fails if any concept file names a canonical template.
 - Routing: the coach group's words and the `coach.explain` fast path cover COACHING phrasings ("coach me on",

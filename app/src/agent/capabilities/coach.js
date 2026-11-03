@@ -106,11 +106,18 @@ export async function reviewTrades(count) {
 // served, or a read is refused / empty / fails, the answer falls back as above. Nothing here imports the knowledge
 // package (coach/brain.js reads through the MD-1 gateway only).
 export const APPLY = 'Applying it: take each line above to your own chart and check whether every condition is actually there — a chart that meets only some of them is a different situation. A template says what to look for; it may not fit every chart, and the decision stays yours.'
-const playbookOff = (setup) => `UCT's own definition of ${setup} lives in the approved setup playbook, which isn't available here right now`
+/** The plain statement when no approved playbook definition can be read (the coach never invents one). */
+export const noDefinition = (setup) => `UCT can't currently retrieve an approved playbook definition for ${setup}, so I won't give one here.`
+export const BACKGROUND_HEADING = 'General background (not the UCT playbook definition):'
+/** Source policy for the optional background: the note exists, is a generic concept note and names no setup at all. */
+const namesASetup = (text) => String(text || '').split(/[.\n]/).some(part => setupNamed(part))
+const backgroundAllowed = (c) => !!c && typeof c.text === 'string' && !namesASetup(`${c.title}. ${c.text}`)
 
-/** Teach a named setup FROM UCT's playbook (or say where its definition lives). Never a coach-written definition. */
-async function explainSetup(setup, topic, c, rows, host) {
-  const next = c ? nextFor({ after: 'explain', conceptId: c.id, consent: consentState(), hasChart: !!observedChart(host), concepts: rows }) : undefined
+/** Teach a named setup FROM UCT's playbook, or say plainly that its approved definition can't be retrieved. A generic
+ *  concept note is offered ONLY under BACKGROUND_HEADING, only for a teach / explain request, only when policy allows. */
+async function explainSetup(setup, topic, c, rows, host, { teach = true } = {}) {
+  const bg = teach && backgroundAllowed(c) ? c : null
+  const next = bg ? nextFor({ after: 'explain', conceptId: bg.id, consent: consentState(), hasChart: !!observedChart(host), concepts: rows }) : undefined
   const t = await setupTemplate(setup)
   if (t) {
     const g = guardEnforce(`${t.text}\n\n${APPLY}`, [t.text, APPLY])
@@ -118,24 +125,23 @@ async function explainSetup(setup, topic, c, rows, host) {
   }
   const p = await brainPassage(topic)
   if (p) {
-    const bg = c ? `\n\nGeneric background (not UCT's definition of ${setup}): ${c.text}` : ''
-    const g = guardEnforce(`${p.text}${bg}`, [p.text, c?.text || '', setup])
+    const g = guardEnforce(`${noDefinition(setup)} The closest approved passage:\n${p.text}${bg ? `\n\n${BACKGROUND_HEADING}\n${bg.text}` : ''}`,
+      [p.text, bg?.text || '', setup])
     if (!g.violations.length) return { text: g.text, title: p.title || setup, ...(next ? { next } : {}) }
   }
-  if (c) {
-    lastConceptId = c.id
-    const g = guardEnforce(`${playbookOff(setup)} — what follows is generic background, not that definition.\n\n${c.text}`, [c.text, setup])
-    if (!g.violations.length) return { text: g.text, title: c.title, next }
+  if (bg) {
+    const g = guardEnforce(`${noDefinition(setup)}\n\n${BACKGROUND_HEADING}\n${bg.text}`, [bg.text, setup])
+    if (!g.violations.length) { lastConceptId = bg.id; return { text: g.text, title: setup, next } }
   }
-  return { text: `${playbookOff(setup)}. ${coachFooter()}`, title: setup }
+  return { text: `${noDefinition(setup)} ${coachFooter()}`, title: setup }
 }
 
 /** The concept explanation + one observation (when served) + the footer → { text, title } (mirror-guarded). */
-export async function explainConcept(topic, host) {
+export async function explainConcept(topic, host, { teach = true } = {}) {
   const rows = conceptsLoaded() || await loadConcepts()
   const c = conceptFor(topic, rows)
   const setup = setupNamed(topic)
-  if (setup) return explainSetup(setup, topic, c, rows, host)
+  if (setup) return explainSetup(setup, topic, c, rows, host, { teach })
   const brain = await brainPassage(topic)
   if (!c && brain) {
     const g = guardEnforce(brain.text, [brain.text])
