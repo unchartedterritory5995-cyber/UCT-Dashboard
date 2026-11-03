@@ -454,6 +454,7 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
     by_outcome = {"repaired": "repaired", "race_lost": "raceLost", "failed": "failed"}
     rss_start = _rss_mb()
     planned = taken = 0
+    worked = 0  # I-2: notes that needed a write; `max_notes` counts only these
     for user_id in (members if members is not None else list(iter_members(conn))):
         if store.member_done(conn, run_id, user_id):
             continue
@@ -478,9 +479,6 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
             note_class = classes[row.id]
             if note_class is None:
                 continue
-            if max_notes is not None and planned >= max_notes:
-                complete = False
-                break
             tally.row(note_class)
             if row.body_bytes > MAX_SCAN_BODY_BYTES:  # Task 6 M-6 (1)
                 tally.too_large()
@@ -492,6 +490,13 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
             if index is None:
                 index = links.build_file_key_index(conn, user_id)
             plan = plan_note(conn, user_id, row, note_class, index)
+            if writes(plan):
+                # I-2: a batch is a number of notes still needing work. A note an earlier batch
+                # repaired plans as unchanged and does not count, so each batch moves on.
+                if max_notes is not None and worked >= max_notes:
+                    complete = False
+                    break
+                worked += 1
             tally.plan(row, note_class, plan)
             outcome = _apply_note(conn, run_id, user_id, row, plan, holder, counts, max_fetches)
             del plan
@@ -507,7 +512,7 @@ def apply(conn, *, run_id: str, members: list[str] | None = None, max_fetches: i
         loss_notes = tally.member_end()
         if not complete:
             store.release_lease(conn, run_id, user_id, holder)
-            if max_notes is not None and planned >= max_notes:
+            if max_notes is not None and worked >= max_notes:
                 break
             continue
         store.record_notice(conn, user_id, loss_notes)

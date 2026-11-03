@@ -339,6 +339,17 @@ def test_rss_watchdog_aborts_the_run(armed, monkeypatch):
     assert store.member_done(auth_db.get_connection(), RUN, "u1") is False
 
 
+def test_batches_progress_with_the_same_limit_every_run(armed):
+    """Fix round 1, I-2: `max_notes` counts only notes still needing work, so a resumed batch
+    moves on past the notes an earlier batch repaired: 3 notes at 2 per run is 2, then 1, done."""
+    for i in range(3):
+        _note("u1", "Notion", f"notion:Export/{i}.md", BARE)
+    assert _apply(max_notes=2, holder="a")["repaired"] == 2
+    assert store.member_done(auth_db.get_connection(), RUN, "u1") is False
+    assert _apply(max_notes=2, holder="b")["repaired"] == 1
+    assert store.member_done(auth_db.get_connection(), RUN, "u1") is True
+
+
 def test_batches_stop_cleanly_and_resume(armed):
     """C8 (2): `max_notes` stops mid-member without finishing it; its lease is released, so the
     next run resumes at once."""
