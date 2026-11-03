@@ -58,6 +58,17 @@
     {"name": "M7: inline content before the summary is an outer toggle's summary", "html": "<details>intro <b>x</b><summary>S</summary>b</details>", "shape": "doc(toggle(toggleSummary('intro ', 'x'), toggleContent(toggle(toggleSummary('S'), toggleContent(paragraph('b'))))))", "attrs": ["toggle open=true", "toggle open=true"]},
     {"name": "M7: a block before the summary closes an empty toggle first", "html": "<details><p>pre</p><summary>S</summary><p>b</p></details>", "shape": "doc(toggle(toggleSummary, toggleContent(paragraph)), paragraph('pre'), toggle(toggleSummary('S'), toggleContent(paragraph('b'))))", "attrs": ["toggle open=true", "toggle open=true"]}
   ],
+  "media_link_vectors_doc": "D3 fix round 2 ruling (a link must survive): a link wrapping only an image keeps the image AND survives as a link right after it, reading the first image's alt when non-empty, else the href, with the same allow-listed href. Server: md_to_tiptap (`md`) or html_to_tiptap (`html`). Client: the wizard's parseImport with the generic adapter (n.md or n.html), then htmlToNote. `shape` spelled as inline_vectors.",
+  "media_link_vectors": [
+    {"name": "a markdown image link with an alt", "md": "[![chart](https://e.com/c.png)](https://e.com/page)", "shape": "doc(image, paragraph('chart'[link=https://e.com/page]))"},
+    {"name": "a markdown image link with no alt reads the href", "md": "[![](https://e.com/c.png)](https://e.com/page)", "shape": "doc(image, paragraph('https://e.com/page'[link=https://e.com/page]))"},
+    {"name": "a raw HTML block anchor around an image", "md": "<a href=\"https://e.com/p\"><img src=\"https://e.com/c.png\" alt=\"pic\"></a>", "shape": "doc(image, paragraph('pic'[link=https://e.com/p]))"},
+    {"name": "an inline raw anchor around an image", "md": "see <a href=\"https://e.com/p\"><img src=\"https://e.com/c.png\" alt=\"pic\"></a> end", "shape": "doc(paragraph('see '), image, paragraph('pic'[link=https://e.com/p], ' end'))"},
+    {"name": "two images in one link read the first alt", "md": "[![a](https://e.com/1.png) ![b](https://e.com/2.png)](https://e.com/p)", "shape": "doc(image, image, paragraph('a'[link=https://e.com/p]))"},
+    {"name": "a refused href keeps the image and makes no link", "md": "[![x](https://e.com/c.png)](javascript:alert(1))", "shape": "doc(image)"},
+    {"name": "an HTML file's anchor around an image", "html": "<p><a href=\"https://e.com/p\"><img src=\"https://e.com/c.png\" alt=\"pic\"></a></p>", "shape": "doc(image, paragraph('pic'[link=https://e.com/p]))"},
+    {"name": "an HTML file's anchor around an image with a blank alt", "html": "<p><a href=\"https://e.com/p\"><img src=\"https://e.com/c.png\" alt=\" \"></a></p>", "shape": "doc(image, paragraph('https://e.com/p'[link=https://e.com/p]))"}
+  ],
   "known_differences_doc": "Differences kept ON PURPOSE, each pinned per lane so a change on either side is seen (D3 review M7). `server` and `client` are each lane's shape (the markdown_vectors spelling).",
   "known_differences": [
     {"name": "M7: an unclosed inline <script> drops to its paragraph end on the server; the client's script raw-text state swallows the rest of the note. The server keeps more, which is the safe side.", "md": "a <script>x\n\nnext para\n\nlast", "server": "doc(paragraph('a '), paragraph('next para'), paragraph('last'))", "client": "doc(paragraph('a'))"}

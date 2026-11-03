@@ -668,3 +668,15 @@ def test_deep_nesting_keeps_every_word_link_and_image(case):
 def test_the_deep_nesting_fixture_is_current(tmp_path):
     written = _deep.generate(tmp_path / "cases.json")
     assert written.read_bytes() == _deep.OUT_PATH.read_bytes()
+
+
+# ── fix round 2 ruling: a link wrapping only an image survives after it ───────
+
+_MEDIA_LINK_VECTORS = json.loads(_HTML_VECTORS_PATH.read_text(encoding="utf-8"))["media_link_vectors"]
+
+
+@pytest.mark.parametrize("v", _MEDIA_LINK_VECTORS, ids=[v["name"] for v in _MEDIA_LINK_VECTORS])
+def test_shared_media_link_vectors(v):
+    out = md_to_tiptap(v["md"]) if "md" in v else html_to_tiptap(v["html"])
+    assert _shape_marks(out["doc"]) == v["shape"]
+    assert not _orphan_media(out)

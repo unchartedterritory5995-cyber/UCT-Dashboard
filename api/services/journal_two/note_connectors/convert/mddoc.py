@@ -1016,7 +1016,28 @@ def _inline_nodes(
     the same text node, mirroring what the real editor's schema produces."""
     items: list[dict[str, Any]] = []
     marks: list[dict[str, Any]] = []
-    raw_links: list[bool] = []  # one entry per open raw `<a>`: did it push a mark?
+    # One entry per open raw `<a>`, and one per open markdown link: `[first item index, href]`
+    # when it pushed a link mark, else None (`media_link_label` reads the frame at the close).
+    raw_links: list[list[Any] | None] = []
+    md_links: list[list[Any] | None] = []
+    atom_alts: dict[int, str] = {}  # an image's (or its notice's) alt text, by node id
+
+    def media_link_label(frame: list[Any]) -> None:
+        """D3 fix round 2 ruling (a link must survive): a link that wrapped only media (an
+        image is a block node, so the link mark has no text to sit on) becomes a link right
+        after it, reading the first non-blank alt, else the href. Pushed while the link mark
+        is still open, so it carries the same allow-listed href. The client's
+        `mediaRefs.liftMediaOutOfLinks` writes the same (`media_link_vectors`)."""
+        start, href = frame
+        tail = items[start:]
+        if any(i.get("type") == "text" and i.get("text", "").strip() for i in tail):
+            return  # the link has words of its own (whitespace is not words, as on the client)
+        atoms = [i for i in tail if i.get("type") in _HOISTABLE_BLOCK_TYPES]
+        if not atoms:
+            return
+        alt = next((atom_alts.get(id(a), "").strip() for a in atoms
+                    if atom_alts.get(id(a), "").strip()), "")
+        push_text(alt or href)
     # Open raw inline tags: [name, mark type pushed or None, the `ctx.inherited` entry or None].
     open_tags: list[list[Any]] = []
     any_open: dict[str, int] = {}  # M3: open tags per name, so a stray close is O(1)
@@ -1105,16 +1126,21 @@ def _inline_nodes(
 
         elif child.type == "link_open":
             href = _link_href(_destination_as_written(child.attrs.get("href") or ""), ctx)
+            md_links.append(None)
             if _is_allowed_link_href(href):
                 if href.startswith(LINK_PREFIX):
                     ctx.links.append(href[len(LINK_PREFIX):])
                 marks.append({"type": "link", "attrs": {"href": href}})
+                md_links[-1] = [len(items), href]
             # else: disallowed scheme -> no mark pushed. `link_close` below
             # is then a safe no-op (nothing matching 'link' on the stack),
             # so the text run itself still comes through, unmarked —
             # mirroring the real editor's parseHTML rejecting the `<a>` while
             # its text content still parses.
         elif child.type == "link_close":
+            frame = md_links.pop() if md_links else None
+            if frame is not None:
+                media_link_label(frame)
             _pop_mark(marks, "link")
 
         elif child.type == "image":
@@ -1122,6 +1148,7 @@ def _inline_nodes(
             if node is None:
                 push_text("[unsupported image]")
             else:
+                atom_alts[id(node)] = child.content or ""
                 items.append(node)
 
         elif child.type == "html_inline":
@@ -1150,6 +1177,7 @@ def _inline_nodes(
                 if node is None:
                     push_text("[unsupported image]")
                 else:
+                    atom_alts[id(node)] = raw.attrs.get("alt") or ""
                     items.append(node)
             elif raw is not None and raw.tag == "a":
                 href = _link_href(_destination_as_written((raw.attrs.get("href") or "").strip()), ctx)
@@ -1160,12 +1188,14 @@ def _inline_nodes(
                     if href.startswith(LINK_PREFIX):
                         ctx.links.append(href[len(LINK_PREFIX):])
                     marks.append({"type": "link", "attrs": {"href": href}})
-                raw_links.append(opened)
+                raw_links.append([len(items), href] if opened else None)
             elif _CLOSE_A_RE.match((child.content or "").strip()):
                 # Only a `</a>` closing a RAW `<a>` pops: a stray one never strips the
                 # mark of a markdown link it happens to sit inside.
                 if raw_links:
-                    if raw_links.pop():
+                    frame = raw_links.pop()
+                    if frame is not None:
+                        media_link_label(frame)
                         _pop_mark(marks, "link")
                 else:
                     # C1: the `<a>` an HTML region holds open around this paragraph.
@@ -1621,7 +1651,19 @@ def _html_inline_walk(
                 if href.startswith(LINK_PREFIX):
                     ctx.links.append(href[len(LINK_PREFIX):])
                 link_marks = marks + [{"type": "link", "attrs": {"href": href}}]
-                items.extend(_html_inline_walk(n.children, ctx, link_marks))
+                sub = _html_inline_walk(n.children, ctx, link_marks)
+                # D3 fix round 2 ruling: a link wrapping only media survives right after it
+                # (`_inline_nodes.media_link_label`, the same rule for the markdown lane).
+                if href and any(x.get("type") in _HOISTABLE_BLOCK_TYPES for x in sub) and not any(
+                        x.get("type") == "text" and x.get("text", "").strip() for x in sub):
+                    alt = next(((img.attrs.get("alt") or "").strip() for img in _html_descendants(n, "img")
+                                if (img.attrs.get("alt") or "").strip()), "")
+                    label: dict[str, Any] = {"type": "text", "text": alt or href}
+                    run_marks = exclusive_marks(link_marks)
+                    if run_marks:
+                        label["marks"] = [dict(m) for m in run_marks]
+                    sub.append(label)
+                items.extend(sub)
             else:
                 items.extend(_html_inline_walk(n.children, ctx, marks))
         elif tag == "br":
@@ -1682,6 +1724,19 @@ def _html_convert_pre(node: "_HtmlNode") -> dict[str, Any]:
     text = _code_without_line_end(_html_literal_text(source.children))
     content = [{"type": "text", "text": text}] if text else []
     return {"type": "codeBlock", "attrs": {"language": language}, "content": content}
+
+
+def _html_descendants(node: "_HtmlNode", tag: str) -> list["_HtmlNode"]:
+    """Every `tag` element under `node`, in document order (iterative: no recursion)."""
+    out: list[_HtmlNode] = []
+    todo = list(reversed(node.children))
+    while todo:
+        n = todo.pop()
+        if isinstance(n, _HtmlNode):
+            if n.tag == tag:
+                out.append(n)
+            todo.extend(reversed(n.children))
+    return out
 
 
 def _blocks_inline(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:

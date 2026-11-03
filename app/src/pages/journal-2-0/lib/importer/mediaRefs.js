@@ -264,7 +264,12 @@ export function liftMediaOutOfLinks(root) {
     if (a.hasAttribute('data-evernote-link') || !href) {
       neutraliseAnchor(a)
     } else {
-      a.textContent = href
+      // D3 fix round 2 ruling: a link wrapping only media survives as a link right after it,
+      // reading the first moved image's alt, else the href (the server's
+      // `mddoc._media_link_label`, pinned by the shared `media_link_vectors`).
+      const alt = found.map((el) => (el.tagName === 'IMG' ? (el.getAttribute('alt') || '').trim() : ''))
+        .find((t) => t)
+      a.textContent = alt || href
     }
   }
 }

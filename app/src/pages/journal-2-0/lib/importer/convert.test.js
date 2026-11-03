@@ -482,3 +482,23 @@ describe('mdToHtml + htmlToNote — D3 fix round 1: known differences, client si
     expect(quoted(htmlToNote(mdToHtml(v.md)).bodyJson)).toBe(v.client)
   })
 })
+
+// D3 fix round 2 ruling: a link wrapping only an image survives as a link right after it (the
+// image's alt, else the href). The wizard's own pipeline; the server reads the same vectors.
+describe('import pipeline — D3 fix round 2: shared media-link vectors', () => {
+  const vfile = (p, text) => ({ path: p, size: text.length, lastModified: null, bytes: async () => new TextEncoder().encode(text) })
+  const marked = (n) => {
+    if (n.type === 'text') {
+      const marks = (n.marks || []).map((m) => (m.type === 'link' ? `link=${m.attrs.href}` : m.type)).sort()
+      return `'${n.text}'` + (marks.length ? `[${marks.join('+')}]` : '')
+    }
+    return n.type + (n.content ? `(${n.content.map(marked).join(', ')})` : '')
+  }
+  it.each(HTML_BLOCK_VECTORS.media_link_vectors.map((v) => [v.name, v]))('%s', async (_name, v) => {
+    const { parseImport } = await import('./postParse')
+    const { genericAdapter } = await import('./adapters/generic')
+    const file = 'md' in v ? vfile('n.md', v.md) : vfile('n.html', v.html)
+    const { docs } = await parseImport(genericAdapter, [file], {})
+    expect(marked(htmlToNote(docs[0].html).bodyJson)).toBe(v.shape)
+  })
+})
