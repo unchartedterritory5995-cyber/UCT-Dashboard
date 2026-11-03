@@ -11,7 +11,6 @@ export function arrowAt(bars, i, { label = '', color = GOLD, gap = 9, id = 'ptr'
   const to = bars[Math.max(0, i - 1)]
   const out = [{ id: `${id}-arrow`, type: 'arrow', points: [{ time: from.t, price }, { time: to.t, price }], color, lineWidth: 2.5, arrowSize: 15 }]
   if (label) {
-    // the label sits ABOVE the arrow's tail, never on the shaft: up by about one candle height, anchored a few bars further left
     const at = bars[Math.max(0, i - gap - Math.max(4, Math.ceil(label.length / 3)))]
     const lift = Math.max(b.h - b.l, Math.abs(b.c) * 0.012) * 1.3
     out.push({ id: `${id}-label`, type: 'text', points: [{ time: at.t, price: price + lift }], text: label, color, fontSize: 13, bgEnabled: true, bgColor: '#141414cc' })
@@ -27,27 +26,40 @@ export function rayAt(bar, which = 'l', { color = GOLD, id = 'ray', label = '' }
 
 export const pct = (a, b) => ((b - a) / a) * 100
 
-/** THE POINTER, round 7 (owner: "THIS CANDLE and the arrow can be more of a production and cooler look"): a thicker
- *  gold arrow with a bigger head, the label as a gold chip in capitals, and a soft gold halo around the candle when a
- *  bar follows it (the halo needs a time on both sides of the candle). Used on every chart that points at something. */
-export function spot(bars, i, { label = 'this candle', color = '#dcbb5e', id = 'spot', gap = 7, halo = true, below = false } = {}) {
+/** THE POINTER (round 7, "a production and cooler look"; round 10: the chip can never clip). A thick gold arrow
+ *  with a big head pointing at the candle's body from the left, the label as a gold chip in capitals sitting just
+ *  above the arrow's tail, and a soft halo around the candle when a bar follows it. The chip used to be lifted a
+ *  full candle height above the arrow, which pushed it out of the price range for the topmost candle (batch 9,
+ *  Spot-the-trap: the Kicker's chip clipped); it now sits a third of a candle above the shaft, inside the range
+ *  the candle itself already occupies. `locked` marks every piece so an editable chart cannot move them. */
+export function spot(bars, i, { label = 'this candle', color = '#dcbb5e', id = 'spot', gap = 7, halo = true, locked = true, chip = true } = {}) {
   if (!bars || i < 0 || i >= bars.length) return []
   const b = bars[i]
   const price = (b.o + b.c) / 2
   const from = bars[Math.max(0, i - gap)], to = bars[Math.max(0, i - 1)]
-  const out = [{ id: `${id}-arrow`, type: 'arrow', points: [{ time: from.t, price }, { time: to.t, price }], color, lineWidth: 3, arrowSize: 20 }]
-  const at = bars[Math.max(0, i - gap - Math.max(3, Math.ceil(label.length / 3)))]
-  const lift = Math.max(b.h - b.l, Math.abs(b.c) * 0.012) * 1.35
-  // the chip sits above the arrow, unless the candle is near the top of the recent range (the chip would clip at
-  // the chart's edge, seen in the 2026-11-02 review): then it sits below
-  const recent = bars.slice(Math.max(0, i - 60), Math.min(bars.length, i + 20))
-  const top = Math.max(...recent.map((x) => x.h)), bot = Math.min(...recent.map((x) => x.l))
-  const nearTop = (top - b.h) < (top - bot) * 0.14
-  const under = below || nearTop
-  out.push({ id: `${id}-chip`, type: 'text', points: [{ time: at.t, price: under ? price - lift : price + lift }], text: `  ${label.toUpperCase()}  `, color: '#111111', fontSize: 13, bgEnabled: true, bgColor: color })
-  if (halo && i > 0 && i + 1 < bars.length) {
-    const pad = (b.h - b.l) * 0.35
-    out.push({ id: `${id}-halo`, type: 'circle', points: [{ time: bars[i - 1].t, price: b.h + pad }, { time: bars[i + 1].t, price: b.l - pad }], color, lineWidth: 2 })
+  const out = [{ id: `${id}-arrow`, type: 'arrow', points: [{ time: from.t, price }, { time: to.t, price }], color, lineWidth: 3, arrowSize: 20, locked }]
+  if (chip && label) {
+    const at = bars[Math.max(0, i - gap - Math.max(3, Math.ceil(label.length / 3)))]
+    const lift = Math.max(b.h - b.l, Math.abs(b.c) * 0.012) * 0.46
+    out.push({ id: `${id}-chip`, type: 'text', points: [{ time: at.t, price: price + lift }], text: `  ${label.toUpperCase()}  `, color: '#111111', fontSize: 13, bgEnabled: true, bgColor: color, locked })
   }
+  if (halo && i > 0 && i + 1 < bars.length) out.push(...haloAt(bars, i, { id: `${id}-halo`, color, locked }))
   return out
+}
+
+/** A ring around candle `i` (needs a bar on each side). `swell` 0..1 widens it; `solid` thickens it. */
+export function haloAt(bars, i, { id = 'halo', color = '#dcbb5e', swell = 0, solid = false, locked = true } = {}) {
+  if (!bars || i <= 0 || i + 1 >= bars.length) return []
+  const b = bars[i]
+  const pad = (b.h - b.l) * (0.3 + swell * 0.35)
+  return [{ id, type: 'circle', points: [{ time: bars[i - 1].t, price: b.h + pad }, { time: bars[i + 1].t, price: b.l - pad }], color, lineWidth: solid ? 3 : 1.5 + swell, locked }]
+}
+
+/** A box around candle `i`: the selected candle's highlight. */
+export function boxAt(bars, i, { id = 'box', color = '#dcbb5e', locked = true } = {}) {
+  if (!bars || i < 0 || i >= bars.length) return []
+  const b = bars[i]
+  const l = bars[Math.max(0, i - 1)], r = bars[Math.min(bars.length - 1, i + 1)]
+  const pad = (b.h - b.l) * 0.18
+  return [{ id, type: 'rect', points: [{ time: l.t, price: b.h + pad }, { time: r.t, price: b.l - pad }], color, lineWidth: 2, locked }]
 }

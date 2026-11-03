@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import TileCard from '../../components/TileCard'
-import Coach from '../Coach'
+import Logo from '../Logo'
 import d5 from '../duo.module.css'
 
 /** Round 8, piece 5: THE PROFILE. Setups mastered with crowns, accuracy per setup, best run, charts seen, a
@@ -21,11 +21,11 @@ export default function Piece40Profile() {
   const total = SETUPS.reduce((a, x) => a + x.seen, 0)
   return (
     <div className={`${d5.home} ${d5.homeTiles}`}>
-      <div className={d5.homeBar}><span className={d5.course}><Coach mood="idle" size={28} /> Profile</span><span className={d5.stat}><b style={{ color: '#ff9600' }}>🔥</b> 4</span><span className={d5.stat}><b style={{ color: 'var(--g)' }}>◆</b> 1,240 XP</span></div>
+      <div className={d5.homeBar}><span className={d5.course}><Logo mood="idle" size={28} /> Profile</span><span className={d5.stat}><b style={{ color: '#ff9600' }}>🔥</b> 4</span><span className={d5.stat}><b style={{ color: 'var(--g)' }}>◆</b> 1,240 XP</span></div>
       <div className={d5.scroll}>
         <TileCard title="Trader">
           <div className={d5.todayRow}>
-            <Coach mood="happy" size={92} />
+            <Logo mood="happy" size={92} />
             <div className={d5.todayText}><b>Patrick · Trader</b><span>Member since Oct 2026 · 260 XP to Pro</span><div className={d5.uprog} style={{ width: 180, marginTop: 6 }}><i style={{ width: '66%' }} /></div></div>
             <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>📈</span><small>Charts seen</small><b>{total}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>🔥</span><small>Best run</small><b>9</b></div></div></div>
           </div>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
 import StudyChart from '../StudyChart'
-import Coach from '../Coach'
+import Logo from '../Logo'
 import { SetupGlyph } from '../../pages/modelbook/SetupsView'
 import { SETUP_CATALOG } from '../../pages/modelbook/setupCatalog'
 import { useSample } from '../Lab'
@@ -45,7 +45,7 @@ function Question({ idx, onDone }) {
   return (
     <div className={`${d5.lesson} ${d5.slideIn}`} key={idx}>
       <div className={d5.topbar}><button type="button" className={d5.close} aria-label="Close">✕</button><div className={d5.prog}>{QUESTIONS.map((_, i) => <i key={i} className={i < idx || (i === idx && state !== 'ask') ? d5.on : i === idx ? d5.cur : ''} />)}</div><div className={d5.hearts}><span>♥</span><span>♥</span><span>♥</span></div></div>
-      <div className={d5.ask}><Coach mood={state === 'ask' ? (ready ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={72} /><div className={d5.bubble}>{Q.q}</div></div>
+      <div className={d5.ask}><Logo mood={state === 'ask' ? (ready ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={72} /><div className={d5.bubble}>{Q.q}</div></div>
       {state === 'bad' && missPick ? (
         <div className={d5.sideBy}>
           <div><div className={d5.sbLabel} style={{ color: '#ff9d9d' }}>You picked</div><div className={s.chartBox}><StudyChart bars={missPick} annotations={spot(missPick, Math.min(30, tap.index), { label: 'yours', color: '#df4646', id: 'm1', halo: false, gap: 5 })} height={230} /></div></div>
@@ -62,7 +62,7 @@ function Question({ idx, onDone }) {
       )}
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
         {state === 'ask' ? <button type="button" className={`${d5.btn} ${ready ? d5.live : ''}`} disabled={!ready} onClick={check}>Check</button> : (
-          <><div className={d5.verdictRow}><Coach mood={state === 'ok' ? 'happy' : 'oops'} size={44} /><div><div className={d5.verdictBig}>{state === 'ok' ? 'Nicely done!' : 'Not quite.'}</div><div className={d5.verdictWhy}>{state === 'ok' ? Q.why : (Q.miss || Q.why)}</div></div></div>
+          <><div className={d5.verdictRow}><Logo mood={state === 'ok' ? 'happy' : 'oops'} size={44} /><div><div className={d5.verdictBig}>{state === 'ok' ? 'Nicely done!' : 'Not quite.'}</div><div className={d5.verdictWhy}>{state === 'ok' ? Q.why : (Q.miss || Q.why)}</div></div></div>
             <button type="button" className={`${d5.btn} ${state === 'ok' ? d5.live : d5.red}`} onClick={() => onDone(state === 'ok')}>Continue</button></>
         )}
       </div></div>
@@ -90,7 +90,7 @@ export default function Piece39IntroFlow() {
   }
   if (screen === 'done') {
     return (
-      <div className={`${d5.lesson} ${d5.slideIn}`}><div className={d5.screen}><Coach mood="happy" size={110} /><div className={d5.heroWord}>Lesson done</div><p className={d5.screenSub}>Every screen in this flow slid in from the right at one speed. That is the only transition the app uses.</p></div>
+      <div className={`${d5.lesson} ${d5.slideIn}`}><div className={d5.screen}><Logo mood="happy" size={110} /><div className={d5.heroWord}>Lesson done</div><p className={d5.screenSub}>Every screen in this flow slid in from the right at one speed. That is the only transition the app uses.</p></div>
         <div className={d5.footer}><div className={d5.footIn}><button type="button" className={`${d5.btn} ${d5.live}`} onClick={() => setScreen('intro')}>Back to the intro</button></div></div></div>
     )
   }

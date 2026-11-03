@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
-import Coach from '../Coach'
+import Logo from '../Logo'
 import { useSample } from '../Lab'
 import { spot, rayAt } from '../pointers'
 import { sfx, voice, voiceCaption, isMuted, setMuted } from '../sfx'
@@ -42,11 +42,11 @@ export default function Piece36Coach() {
   return (
     <div className={d5.lesson}>
       <div className={d5.topbar}><span className={d5.eyebrowG}>The coach · moods</span><button type="button" className={d5.mini} onClick={() => { setMuted(!mute); setMute(!mute) }}>{mute ? '🔇 muted' : '🔊 sound on'}</button></div>
-      <div className={d5.moodRow}>{MOODS.map((m) => <button key={m} type="button" className={`${d5.moodBtn} ${mood === m ? d5.on : ''}`} onClick={() => setMood(m)}><Coach mood={m} size={84} /><small>{m}</small></button>)}</div>
+      <div className={d5.moodRow}>{MOODS.map((m) => <button key={m} type="button" className={`${d5.moodBtn} ${mood === m ? d5.on : ''}`} onClick={() => setMood(m)}><Logo mood={m} size={84} /><small>{m}</small></button>)}</div>
       <div className={d5.rowWrap}><span className={d5.eyebrowG}>Sounds</span>{SOUNDS.map((k) => <button key={k} type="button" className={s.pill} onClick={() => sfx(k)}>{k}</button>)}</div>
       <div className={d5.rowWrap}><span className={d5.eyebrowG}>Voice lines</span>{VOICES.map((k) => <button key={k} type="button" className={s.pill} onClick={() => say(k)} title={voiceCaption(k)}>{k}</button>)}</div>
-      {cap ? <div className={`${d5.voiceCap} ${cap.played ? d5.played : ''}`}><Coach mood="happy" size={28} /><b>“{cap.text}”</b><small>{cap.played ? 'your recording' : 'not recorded yet · caption only'}</small></div> : null}
-      <div className={d5.ask}><Coach mood={mood} size={84} /><div className={d5.bubble}>{state === 'ask' ? 'What setup, if any, just fired on this candle?' : state === 'ok' ? 'Nicely done.' : 'Not that one. Look again.'}</div></div>
+      {cap ? <div className={`${d5.voiceCap} ${cap.played ? d5.played : ''}`}><Logo mood="happy" size={28} /><b>“{cap.text}”</b><small>{cap.played ? 'your recording' : 'not recorded yet · caption only'}</small></div> : null}
+      <div className={d5.ask}><Logo mood={mood} size={84} /><div className={d5.bubble}>{state === 'ask' ? 'What setup, if any, just fired on this candle?' : state === 'ok' ? 'Nicely done.' : 'Not that one. Look again.'}</div></div>
       {d ? <div className={s.chartBox}><WidgetChart sym={d.sym} bars={all} annotations={annotations} height={420} density="compact" defaultBars={90} /></div> : null}
       <div className={d5.cards}>
         {['Launchpad', 'Kicker', 'Slingshot', 'None of these'].map((c, i) => {

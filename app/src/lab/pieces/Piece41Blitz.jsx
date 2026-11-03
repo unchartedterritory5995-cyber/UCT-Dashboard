@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
-import Coach from '../Coach'
+import Logo from '../Logo'
 import { useSample } from '../Lab'
 import { spot } from '../pointers'
 import { sfx } from '../sfx'
@@ -62,7 +62,7 @@ export default function Piece41Blitz() {
   const start = () => { setPhase('play'); setLeft(SECS); setI(0); setScore(0); setCombo(0); setBest(0); setAnswered(0); setRight(0) }
   if (phase === 'intro') {
     return (
-      <div className={d5.lesson}><div className={d5.intro}><Coach mood="fire" size={110} /><div className={d5.eyebrowG}>Challenge</div><div className={d5.heroWord}>Blitz</div>
+      <div className={d5.lesson}><div className={d5.intro}><Logo mood="fire" size={110} /><div className={d5.eyebrowG}>Challenge</div><div className={d5.heroWord}>Blitz</div>
         <p className={d5.screenSub}>Sixty seconds. No hearts. Name the setup on each candle as fast as you can. The multiplier climbs with your combo and resets on a miss. Keys 1 to 4 answer instantly.</p>
         <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>🏆</span><small>Your best</small><b>310</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>⚡</span><small>Multiplier up to</small><b>x5</b></div></div></div></div>
         <div className={d5.footer}><div className={d5.footIn}><button type="button" className={`${d5.btn} ${d5.live}`} onClick={start}>Start the clock</button></div></div></div>
@@ -70,7 +70,7 @@ export default function Piece41Blitz() {
   }
   if (phase === 'done') {
     return (
-      <div className={d5.lesson}><div className={d5.screen}><Coach mood={score >= 200 ? 'fire' : 'happy'} size={110} /><div className={d5.heroWord}>{score} points</div>
+      <div className={d5.lesson}><div className={d5.screen}><Logo mood={score >= 200 ? 'fire' : 'happy'} size={110} /><div className={d5.heroWord}>{score} points</div>
         <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>Right</small><b>{right}/{answered}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>🔥</span><small>Best combo</small><b>{best}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>⚡</span><small>Top multiplier</small><b>x{mult(best)}</b></div></div></div>
         <p className={d5.screenSub}>{score > 310 ? 'A new best.' : 'Your best stands at 310.'}</p></div>
         <div className={d5.footer}><div className={d5.footIn}><button type="button" className={`${d5.btn} ${d5.live}`} onClick={start}>Again</button></div></div></div>

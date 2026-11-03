@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
-import Coach from '../Coach'
+import Logo from '../Logo'
 import { useSample } from '../Lab'
 import { spot, rayAt } from '../pointers'
 import { sfx } from '../sfx'
@@ -41,7 +41,7 @@ function Q({ i, onDone }) {
   return (
     <div className={d5.lesson}>
       <div className={d5.topbar}><span className={d5.eyebrowG}>Daily set · {i + 1} of 5</span><div className={d5.prog}>{Array.from({ length: 5 }, (_, k) => <i key={k} className={k < i || (k === i && state !== 'ask') ? d5.on : k === i ? d5.cur : ''} />)}</div><span className={`${d5.clock} ${left <= 5 ? d5.hot : ''}`}>⏱ {left}s</span></div>
-      <div className={d5.ask}><Coach mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={72} /><div className={d5.bubble}>{state === 'ask' ? 'What setup, if any, just fired on this candle?' : state === 'ok' ? `Right. +${pts} XP, ${left}s to spare.` : left === 0 ? 'Time. The clock beat you.' : 'Not that one.'}</div></div>
+      <div className={d5.ask}><Logo mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={72} /><div className={d5.bubble}>{state === 'ask' ? 'What setup, if any, just fired on this candle?' : state === 'ok' ? `Right. +${pts} XP, ${left}s to spare.` : left === 0 ? 'Time. The clock beat you.' : 'Not that one.'}</div></div>
       <div className={s.chartBox}><WidgetChart sym={d.sym} bars={all} annotations={annotations} height={440} density="compact" defaultBars={90} /></div>
       <div className={d5.cards}>{SET[i].choices.map((c, k) => { let cls = d5.card; if (state === 'ask' && pick === k) cls += ` ${d5.sel}`; if (state !== 'ask' && k === SET[i].answer) cls += ` ${d5.right}`; if (state === 'bad' && pick === k) cls += ` ${d5.wrong}`; return <button key={c} type="button" className={cls} disabled={state !== 'ask'} onClick={() => setPick(k)}><span className={d5.key}>{k + 1}</span>{c}</button> })}</div>
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
@@ -60,7 +60,7 @@ export default function Piece38DailySet() {
     return (
       <div className={d5.lesson}>
         <div className={d5.intro}>
-          <Coach mood="idle" size={110} />
+          <Logo mood="idle" size={110} />
           <div className={d5.eyebrowG}>Daily set · Monday</div>
           <div className={d5.heroWord}>Five charts, one shot</div>
           <p className={d5.screenSub}>The same five for every member today. Twenty seconds a chart. Points for right and for fast. The board resets at midnight ET.</p>
@@ -75,7 +75,7 @@ export default function Piece38DailySet() {
     const rank = rows.findIndex((r) => r[0] === 'You') + 1
     return (
       <div className={d5.lesson}>
-        <div className={d5.screen}><Coach mood={rank <= 3 ? 'fire' : 'happy'} size={100} /><div className={d5.heroWord}>#{rank} today</div>
+        <div className={d5.screen}><Logo mood={rank <= 3 ? 'fire' : 'happy'} size={100} /><div className={d5.heroWord}>#{rank} today</div>
           <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>Your score</small><b>{score}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>🏆</span><small>Rank</small><b>{rank} / {rows.length}</b></div></div></div>
           <div className={d5.league} style={{ width: '100%', maxWidth: 460 }}>{rows.map(([nme, x], k) => <div key={nme} className={`${d5.lrow} ${nme === 'You' ? d5.me : ''}`}><span>{k + 1}</span><b>{nme}</b><em>{x}</em></div>)}</div>
           <p className={d5.screenSub}>Names are placeholders until the board is live.</p></div>

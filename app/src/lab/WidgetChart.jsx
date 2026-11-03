@@ -19,7 +19,7 @@ const PHONE = { showDrawingTools: false, hideLegend: true, hideWatermark: true, 
 export default function WidgetChart({
   sym, tf = 'D', cutoff = null, bars = null, barsByTf = null, density = 'full', height = 460, annotations = null,
   hideTicker = false, rightPadBars = 2, frozen = false, markers = null, onBarTap = null, defaultBars = null, extra = null,
-  onTfChange = null, phoneHeight = null,
+  onTfChange = null, phoneHeight = null, exactBars = false,
 }) {
   const phone = useIsPhone()
   // the widget's own timeframe bar works (the pane is controlled: it needs a tf setter to switch)
@@ -32,12 +32,13 @@ export default function WidgetChart({
   const onClick = useCallback(() => {
     if (!onBarTap || !last.current) return
     const i = data ? data.findIndex((b) => String(b.t) === String(last.current.time)) : -1
-    onBarTap({ time: last.current.time, index: i, bar: i >= 0 ? data[i] : null })
+    onBarTap({ time: last.current.time, index: i, bar: i >= 0 ? data[i] : null, price: last.current.price })
   }, [onBarTap, data])
   const scp = useMemo(() => ({
     height: '100%',
     ...(data ? { barsOverride: data } : { replayCutoff: cutoff }),
-    ...(defaultBars ? { dailyDefaultBars: phone ? Math.min(defaultBars, 45) : defaultBars } : (phone ? { dailyDefaultBars: 45 } : {})),
+    ...(defaultBars ? { dailyDefaultBars: phone && !exactBars ? Math.min(defaultBars, 45) : defaultBars } : (phone ? { dailyDefaultBars: 45 } : {})),
+    hotkeysActive: false,       // the lessons own the keyboard (1-4, Enter, space); the chart's timeframe hotkeys must not fire
     liveUpdates: false,
     backgroundWarm: false,
     hideJournalOverlay: true,
@@ -52,7 +53,7 @@ export default function WidgetChart({
     ...(hideTicker ? { hideWatermark: true } : {}),
     ...(phone ? PHONE : {}),
     ...(extra || {}),
-  }), [data, cutoff, defaultBars, rightPadBars, frozen, annotations, markers, hideTicker, extra, onCrosshairMove, phone])
+  }), [data, cutoff, defaultBars, rightPadBars, frozen, annotations, markers, hideTicker, extra, onCrosshairMove, phone, exactBars])
   const h = phone ? (phoneHeight || Math.min(height, 360)) : height
   const effDensity = phone ? 'mini' : density
   return (

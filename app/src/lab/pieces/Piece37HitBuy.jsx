@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import WidgetChart from '../WidgetChart'
-import Coach from '../Coach'
+import Logo from '../Logo'
 import { useSample } from '../Lab'
 import { spot } from '../pointers'
 import { XP } from '../rewards'
@@ -74,7 +74,7 @@ export default function Piece37HitBuy() {
       <div className={d5.split}>
         <div className={s.chartBox}><WidgetChart sym={d.sym} tf="30" bars={shown} annotations={annotations} height={520} phoneHeight={320} density="mini" /></div>
         <div className={d5.side}>
-          <div className={d5.ask}><Coach mood={mood} size={84} /><div className={d5.bubble}>{!result ? (playing ? 'Day 1. Hit BUY the moment a bar trades over the line.' : 'Yesterday was a real red day. Its high is the line. Press play, then hit BUY on the trigger.') : result.kind === 'perfect' ? 'Right on the trigger.' : result.kind === 'good' ? 'One bar late. Fine.' : result.kind === 'early' ? 'Too early. Nothing had triggered.' : result.kind === 'late' ? 'Late. The move was already on.' : 'The day ended. You never bought.'}</div></div>
+          <div className={d5.ask}><Logo mood={mood} size={84} /><div className={d5.bubble}>{!result ? (playing ? 'Day 1. Hit BUY the moment a bar trades over the line.' : 'Yesterday was a real red day. Its high is the line. Press play, then hit BUY on the trigger.') : result.kind === 'perfect' ? 'Right on the trigger.' : result.kind === 'good' ? 'One bar late. Fine.' : result.kind === 'early' ? 'Too early. Nothing had triggered.' : result.kind === 'late' ? 'Late. The move was already on.' : 'The day ended. You never bought.'}</div></div>
           <div className={d5.live}>
             <div><small>Bar</small><b>{last ? etLabel(last.t) : ''} ET</b></div>
             <div><small>Last</small><b>${last ? last.c.toFixed(2) : ''}</b></div>

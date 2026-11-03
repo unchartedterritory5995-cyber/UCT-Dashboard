@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
-import Coach from '../Coach'
+import Logo from '../Logo'
 import { useSample } from '../Lab'
 import { spot, rayAt } from '../pointers'
 import { sfx, voice } from '../sfx'
@@ -31,7 +31,7 @@ function Q({ idx, onDone }) {
   return (
     <div className={`${d5.lesson} ${d5.slideIn}`}>
       <div className={d5.topbar}><span className={d5.eyebrowG}>Boss · {idx + 1} of {TOTAL}</span><div className={d5.prog}>{Array.from({ length: TOTAL }, (_, k) => <i key={k} className={k < idx || (k === idx && state === 'ok') ? d5.on : k === idx ? d5.cur : ''} />)}</div><div className={d5.hearts}><span>♥</span><span className={d5.lost}>♥</span><span className={d5.lost}>♥</span></div></div>
-      <div className={d5.ask}><Coach mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={72} /><div className={d5.bubble}>{state === 'ask' ? 'One heart. What setup, if any, just fired on this candle?' : state === 'ok' ? 'Still standing.' : 'That was the heart.'}</div></div>
+      <div className={d5.ask}><Logo mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={72} /><div className={d5.bubble}>{state === 'ask' ? 'One heart. What setup, if any, just fired on this candle?' : state === 'ok' ? 'Still standing.' : 'That was the heart.'}</div></div>
       <div className={s.chartBox}><WidgetChart sym={d.sym} bars={all} annotations={ann} height={420} density="compact" defaultBars={90} /></div>
       <div className={d5.cards}>{order.map((c, k) => { let cls = d5.card; if (state === 'ask' && pick === k) cls += ` ${d5.sel}`; if (state !== 'ask' && c === q.answer) cls += ` ${d5.right}`; if (state === 'bad' && pick === k) cls += ` ${d5.wrong}`; return <button key={c} type="button" className={cls} disabled={state !== 'ask'} onClick={() => setPick(k)}><span className={d5.key}>{k + 1}</span>{c}</button> })}</div>
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
@@ -65,7 +65,7 @@ export default function Piece42Boss() {
   }
   if (phase === 'fail') {
     return (
-      <div className={`${d5.lesson} ${d5.slideIn}`}><div className={d5.screen}><Coach mood="oops" size={110} /><div className={d5.heroWord} style={{ background: 'none', color: '#ff9d9d' }}>Not yet</div>
+      <div className={`${d5.lesson} ${d5.slideIn}`}><div className={d5.screen}><Logo mood="oops" size={110} /><div className={d5.heroWord} style={{ background: 'none', color: '#ff9d9d' }}>Not yet</div>
         <p className={d5.screenSub}>You fell on chart {i + 1} of {TOTAL}. The one you missed was a {missed}.</p>
         <div className={d5.fixCard}><b>Review before you retry</b><span>{missed} · Learn 2 and Practice. A boss needs every rule cold: the real red day, the open above the body, the strong close, the line.</span></div>
         <div className={d5.nextCard}><small>REVIEW</small><b>{missed} · Practice</b><span>five charts, hearts on, about three minutes</span></div></div>

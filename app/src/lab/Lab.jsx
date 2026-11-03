@@ -46,8 +46,20 @@ import Piece42Boss from './pieces/Piece42Boss'
 import Piece43Hard from './pieces/Piece43Hard'
 import Piece44DrawIt from './pieces/Piece44DrawIt'
 import Piece45Trap from './pieces/Piece45Trap'
+import Piece46LogoLab from './pieces/Piece46LogoLab'
+import Piece47BlitzV2 from './pieces/Piece47BlitzV2'
+import Piece48BossV2 from './pieces/Piece48BossV2'
+import Piece49HardV2 from './pieces/Piece49HardV2'
+import Piece50DrawItV2 from './pieces/Piece50DrawItV2'
+import Piece51TrapV2 from './pieces/Piece51TrapV2'
 
 const PIECES = {
+  46: Piece46LogoLab,
+  47: Piece47BlitzV2,
+  48: Piece48BossV2,
+  49: Piece49HardV2,
+  50: Piece50DrawItV2,
+  51: Piece51TrapV2,
   41: Piece41Blitz,
   42: Piece42Boss,
   43: Piece43Hard,

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
-import Coach from '../Coach'
+import Logo from '../Logo'
 import { useSample } from '../Lab'
 import { spot, pct } from '../pointers'
 import { sfx, voice } from '../sfx'
@@ -44,7 +44,7 @@ export default function Piece44DrawIt() {
   return (
     <div className={d5.lesson}>
       <div className={d5.topbar}><button type="button" className={d5.close} aria-label="Close">✕</button><div className={d5.prog}>{Array.from({ length: 10 }, (_, k) => <i key={k} className={k < 6 ? d5.on : k === 6 ? d5.cur : ''} />)}</div><div className={d5.hearts}><span>♥</span><span>♥</span><span>♥</span></div></div>
-      <div className={d5.ask}><Coach mood={mood} size={72} /><div className={d5.bubble}>{state === 'ask' ? `A Kicker. You are in over $${entry?.toFixed(2)}. Draw your stop: pick the horizontal ray in the toolbar and click the chart where it goes.` : grade.kind === 'perfect' ? `On the house line. ${grade.off.toFixed(2)}% off.` : grade.kind === 'close' ? `Close. ${grade.off.toFixed(1)}% from the house stop.` : `${grade.off.toFixed(1)}% away. The house stop is the Kicker's low, or ${MAX_STOP_PCT}% under the entry when that low is further.`}</div></div>
+      <div className={d5.ask}><Logo mood={mood} size={72} /><div className={d5.bubble}>{state === 'ask' ? `A Kicker. You are in over $${entry?.toFixed(2)}. Draw your stop: pick the horizontal ray in the toolbar and click the chart where it goes.` : grade.kind === 'perfect' ? `On the house line. ${grade.off.toFixed(2)}% off.` : grade.kind === 'close' ? `Close. ${grade.off.toFixed(1)}% from the house stop.` : `${grade.off.toFixed(1)}% away. The house stop is the Kicker's low, or ${MAX_STOP_PCT}% under the entry when that low is further.`}</div></div>
       <div className={s.chartBox}><WidgetChart sym={d.sym} bars={vis} annotations={shown} height={480} density="compact" defaultBars={90} extra={extra} /></div>
       <div className={d5.live}>
         <div><small>Entry</small><b>${entry?.toFixed(2)}</b></div>

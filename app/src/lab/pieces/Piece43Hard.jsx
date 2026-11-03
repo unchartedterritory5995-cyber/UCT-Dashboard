@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
-import Coach from '../Coach'
+import Logo from '../Logo'
 import { useSample } from '../Lab'
 import { spot, rayAt } from '../pointers'
 import { studySettingsOverride } from '../../pages/study/studyChartLook'
@@ -32,7 +32,7 @@ function Q({ idx, onDone }) {
   return (
     <div className={`${d5.lesson} ${d5.slideIn}`}>
       <div className={d5.topbar}><span className={d5.hardTag}>HARD</span><div className={d5.prog}>{QUESTIONS.map((_, k) => <i key={k} className={k < idx || (k === idx && state !== 'ask') ? d5.on : k === idx ? d5.cur : ''} />)}</div><span className={d5.legend}>♛♛♛<b>♛</b></span></div>
-      <div className={d5.ask}><Coach mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={72} /><div className={d5.bubble}>{state === 'ask' ? 'Candles only. What setup, if any, just fired?' : state === 'ok' ? 'You read the candles.' : 'Not that one.'}</div></div>
+      <div className={d5.ask}><Logo mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={72} /><div className={d5.bubble}>{state === 'ask' ? 'Candles only. What setup, if any, just fired?' : state === 'ok' ? 'You read the candles.' : 'Not that one.'}</div></div>
       <div className={s.chartBox}><WidgetChart sym={d.sym} bars={all} annotations={ann} height={440} density="mini" defaultBars={90} hideTicker extra={HARD} /></div>
       <div className={d5.cards}>{q.choices.map((c, k) => { let cls = d5.card; if (state === 'ask' && pick === k) cls += ` ${d5.sel}`; if (state !== 'ask' && k === q.answer) cls += ` ${d5.right}`; if (state === 'bad' && pick === k) cls += ` ${d5.wrong}`; return <button key={c} type="button" className={cls} disabled={state !== 'ask'} onClick={() => setPick(k)}><span className={d5.key}>{k + 1}</span>{c}</button> })}</div>
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>

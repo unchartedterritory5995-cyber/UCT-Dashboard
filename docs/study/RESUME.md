@@ -1021,6 +1021,78 @@ FOUND, NOT FIXED, NEEDS THE OWNER OR LATER WORK:
   desktop, ~1 s per chart on the owner's low-memory PC). A pane that swaps bars instead of remounting would be faster.
 - Story timing: the hourly data covers JBI only; the other two examples would need their own hourly pulls for tick
   mode and for live-reveal.
+## 2026-11-03: ROUND 9 VERDICTS (batch 9) -> FULL ANALYSIS -> ROUND 10 PLAN
+
+Scores (verbatim words in owner_verdicts.jsonl, pass "workbench"): Blitz 23, Boss 20, Hard 2, Draw-it 2, Trap 2.
+Batches 7 and 8 were never shown (the shell shows the highest batch only); they stay unscored.
+
+LINE BY LINE
+1. Blitz: "TOo much space from the page to the START THE CLOCK BUTTON"
+   Cause: every mode's intro centres its content in a 62vh box while the button lives in the FIXED footer at the
+   bottom of the viewport, so on a tall window there is a 150-250 px void between the text and the button.
+   Fix (all modes): a START CARD pattern. The content and the primary button sit together in one centred card;
+   no fixed footer on start screens. Applies to Blitz, Boss, Hard (and later the Daily Set / intro pieces).
+2. Blitz: "it should begin with a tutorial imo"
+   Fix: a three-step HOW BLITZ WORKS (the marked candle; keys 1-4 or tap, the clock never waits; the combo
+   multiplier x2..x5 and the reset on a miss), then ONE untimed practice chart, then the start card. Shown on the
+   first run (localStorage flag), with Skip and a "How it works" button on later runs.
+3. Blitz: "I hate the logo character and think we should change it to just a throbbing and bouncing version of
+   our logo that we had previously but a 3D version that slowly spins and rotates"
+   Fix: the Coach SVG character is REMOVED from every call site (36-45). New lab/Logo.jsx: the compass mark
+   (compass-mark.png, the previous logo) as a 3D coin (layered copies with translateZ for thickness, a darker rim),
+   slow continuous Y-spin (~9 s per turn), a soft throb (scale) and a bounce (translateY) on different periods so
+   they never sync. Mood only changes tempo and glow: idle slow, think slower, happy a hop + gold glow, oops a short
+   shake + dim, fire faster + ember glow. No face. Reduced-motion: no spin. Piece 36 becomes the logo showcase.
+4. Boss: "Think the animations and graphics can be improved significantly"
+   Fix: the Boss gets an arc. Intro: a CSS gold medallion (no emoji), the single heart BEATS, a dark red vignette.
+   During: a 10-segment boss bar that loses a segment with a flash on every right answer; the heart beats faster
+   with progress; each question slides in with the cards cascading; on Check, right = a check stamp pops and the
+   chart RUNS ON bar by bar (forward bars appended one by one) to show the follow-through, wrong = screen shake,
+   the heart cracks and drops, red vignette, then the fail screen. Win: the medallion flips in 3D with confetti,
+   the chest lid opens, XP counts up. Fail: cracked heart, the missed answer, the review card.
+5. Hard: "same graphics complain as the previous one"
+   Fix: lights-out theme. Intro: three lit crowns and a dim fourth that ignites on a perfect run; the HARD tag
+   pulses. At start a STRIP transition: the full chart is shown and the averages/volume fade away (a crossfade
+   from the full look to the stripped look), which is the visual reason for "candles only". Questions share the
+   Boss polish (slide, cascade, run-on, stamp). The empty volume row goes (showVolume false).
+6. Hard: "for all of them I think the START BUTTON can be significantly better and cleaner"
+   Fix: one StartButton for every mode: a wide pill, metal gold gradient with a highlight edge, a breathing outer
+   glow, an icon at left (play / timer / crown / medallion), a caps label with a small subline ("60 seconds, no
+   hearts"), a shimmer sweep, a pressed state, Enter starts it. Sits inside the start card under the content.
+7. Draw-it: "SOme issues with the drawing tool and placing it properly in the right spot"
+   Measured (Playwright, 2026-11-03): TWO toolbars stacked at the same pixel position (the standard one from
+   showDrawingTools and the editable-annotations one). The top copy draws into the chart's SAVED-DRAWINGS layer
+   (localStorage per symbol), invisible to the grader, so "Your stop" stays at "draw it". Through the annotation
+   toolbar the placement is accurate (a click at 60% height recorded $10.42, matching the axis). Three more
+   defects read from the code: the controlled annotations loop copied the pointer drawings into the member's list
+   on every change; the pointer arrow/chip were selectable and movable in edit mode; the ray reverts the tool to
+   the cursor after one drawing, so a second click does nothing (reads as "it will not place"); and the ray is a
+   thin default line. The chip also dropped under the arrow over the candles (near-top rule).
+   Fix: one toolbar (showDrawingTools false + annotationsEditable); pointer drawings locked and filtered out of
+   the member's list; the member's ray restyled live (thick red dashed, "YOUR STOP $x.xx" label); only the newest
+   ray counts and older ones are dropped, so a new click always MOVES the stop; TAP TO PLACE as the primary path
+   (tap the chart where the stop goes; nudge with up/down by a cent or 0.1%; or type a price), which also works
+   on phones where the toolbar is off; the ray tool remains for desktop. The grade shows distance in $ and %.
+   Chip placement everywhere: the chip now sits to the LEFT of the arrow's tail at the arrow's own price, so it
+   can never clip at the top or bottom of the price range (the top/below rule is gone).
+8. Trap: "Very very buggy and should be much better. Should be able to be highlightede and have candles be
+   slightly animated to show which selections are choosable"
+   Measured: candidate A (2023-08-21) was OUTSIDE the visible window (defaultBars 70, the look-alike was ~85 bars
+   back), so it could not be seen or tapped; the Kicker's chip was pushed above the autoscaled range and clipped
+   (the near-top rule looked at a 60-bar window, not the visible one); a tap had to land within one bar with no
+   feedback until Check; the A/B/C chips were small and grey.
+   Fix: look-alikes are searched inside the window that WILL be visible (the last 55 bars) and the visible count is
+   derived from the earliest candidate; every candidate gets a BREATHING halo (the annotations are re-rendered on a
+   three-frame cycle, ~380 ms, so the ring pulses) and a letter chip to the left at the candle's price; a tap within
+   two bars snaps to the nearest candidate, its halo turns solid gold and the candle gets a gold box (selected),
+   the matching button below lights, the others keep breathing; on Check the wrong ones turn red with the reason,
+   the right one green, the chart runs on bar by bar. Nothing clips.
+
+ROUND 10 PIECES (batch 10 in the shell): 46 the logo (showcase), 47 Blitz V2 (tutorial, start card, logo),
+48 Boss V2, 49 Hard V2, 50 Draw-it V2, 51 Trap V2. Six pieces this once, so the logo can be judged on its own.
+Shared: lab/Logo.jsx, lab/StartCard.jsx (card + StartButton), lab/fx.js (useRunOn: forward bars appended one by
+one; useBreath: the three-frame halo cycle), lab/duo.module.css additions (start card, button, stamp, cascade,
+heartbeat, boss bar, medallion, chest, crack, vignette, strip crossfade, coin).
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
