@@ -962,6 +962,11 @@ export default function Breadth() {
     </div>
   ) : null
 
+  // ⭐ W2-C1: what UCT Agent may read of this page (read only: tab, window, newest session, rows, columns).
+  // Called BEFORE the tab branches below — a hook after an early return changes the hook count when the
+  // member switches tab (React: "Rendered fewer hooks than expected"; breadth/breadthTabHookOrder.test.jsx).
+  useBreadthAgentHost({ tab: activeTab, days: effectiveDays, topDate: monitorTopDate, rowCount: rows.length, columns: visibleCols.map(c => c.label || c.key || String(c)), live: !!liveBreadth?.data, loading: isLoading })
+
   if (activeTab === 'overview') {
     // 2026-10-07 completeness audit: this branch returned before the error banner, so a failed
     // read (or the first load still in flight) reached DailyOverview with no rows and read
@@ -1025,8 +1030,6 @@ export default function Breadth() {
     )
   }
 
-  // ⭐ W2-C1: what UCT Agent may read of this page (read only: tab, window, newest session, rows, columns)
-  useBreadthAgentHost({ tab: activeTab, days: effectiveDays, topDate: monitorTopDate, rowCount: rows.length, columns: visibleCols.map(c => c.label || c.key || String(c)), live: !!liveBreadth?.data, loading: isLoading })
   return (
     <div className={pageCls}>
       <SurfaceHeader
