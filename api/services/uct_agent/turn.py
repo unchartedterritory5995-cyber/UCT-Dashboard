@@ -1837,6 +1837,16 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             if news:
                 wants = False
                 usage["local_research_skipped"] = True
+        if wants:
+            from api.services.uct_agent.knowledge import frame as kn_frame      # KN-1 owner decision 5: separation
+            if kn_frame.seen(messages):
+                wants = False
+                usage["research_skipped"] = "knowledge_separation"
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
+                env = {**env, "reply": kn_frame.RESEARCH_BLOCKED, "research": None, "question": None}
+                if env.get("disposition") == "clarify":
+                    env["disposition"] = "answer"
         researched = None
         if wants and meter is not None:
             # ⭐ PHASE 0A/0B: research is followed by one more model call, so it runs only when the request

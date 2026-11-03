@@ -156,6 +156,9 @@ def _days_since(stamp: str) -> Optional[float]:
 
 def search(params: dict, ctx: dict) -> dict:
     kind = "knowledge.search"
+    if str((ctx or {}).get("purpose") or "answer") != "answer":
+        return _refused(kind, params, "UCT's trading knowledge is answered to the member only; it is never used for "
+                                      "research or scans")
     over = _over_reads(ctx)
     if over:
         return _refused(kind, params, over)
@@ -399,6 +402,9 @@ def _clean_value(v: Any) -> Any:
 
 def playbook(params: dict, ctx: dict) -> dict:
     kind = "setup.playbook"
+    if str((ctx or {}).get("purpose") or "answer") != "answer":
+        return _refused(kind, params, "UCT's trading knowledge is answered to the member only; it is never used for "
+                                      "research or scans")
     over = _over_reads(ctx)
     if over:
         return _refused(kind, params, over)
@@ -411,12 +417,14 @@ def playbook(params: dict, ctx: dict) -> dict:
         return _envelope(kind, params, status="unavailable",
                          notes=[str((t or {}).get("reason") or (t or {}).get("error") or "the playbook could not answer")])
     name = _clean_value(str(t.get("name") or res["name"])) or res["name"]
-    cls = policy.classify_template(t.get("origin_trader"))
+    cls = policy.classify_template(t.get("origin_trader"), name)
     if cls["state"] != "admitted":                # N3: presence in the Brain Pack is not approval
         return _refused(kind, params, f"UCT's approved knowledge does not include the {name} template: {cls['reason']}")
     data = {"name": name, "aliases": _clean_value(res["aliases"]),
             "resolved_by": res["matched"], "licence": cls["licence"],
             "source": cls["label"], "approved_by_policy": policy.version(),
+            **({"provenance_ref": cls["provenance_ref"], "rights_review_ref": cls["rights_review_ref"]}
+               if cls.get("rights_review_ref") else {}),
             "link": {"href": "/setup-library", "label": "Open the Setup Library"}}
     for f in _TEMPLATE_FIELDS:
         v = _clean_value(t.get(f))
@@ -455,6 +463,9 @@ def _stale(row: dict) -> bool:
 
 def record(params: dict, ctx: dict) -> dict:
     kind = "setup.record"
+    if str((ctx or {}).get("purpose") or "answer") != "answer":
+        return _refused(kind, params, "UCT's trading knowledge is answered to the member only; it is never used for "
+                                      "research or scans")
     over = _over_reads(ctx)
     if over:
         return _refused(kind, params, over)
@@ -465,7 +476,7 @@ def record(params: dict, ctx: dict) -> dict:
     name = res["name"]
     n_min = policy.stats_n_min()
     rec_cls = {k: policy.classify_record(k) for k in ("setup_performance", "trigger_performance", "team_archive")}
-    if not any(c["state"] == "admitted" for c in rec_cls.values()):
+    if not any(c["state"] in ("admitted", "conditional") for c in rec_cls.values()):
         return _refused(kind, params, "no setup-record source is approved for UCT Agent")
     from api.services import brain_service
     w = brain_service.setup_winrate(name, regime)
@@ -490,8 +501,11 @@ def record(params: dict, ctx: dict) -> dict:
     if trig_rows and _stale(trig_rows[0]) and triggers["label"] != "insufficient_sample":
         triggers = {"label": "stale_record", "label_text": "the record has not been refreshed recently; figure withheld",
                     "method": triggers["method"]}
-    engine = _with_source(engine, rec_cls["setup_performance"])
-    triggers = _with_source(triggers, rec_cls["trigger_performance"])
+    engine = _with_source(engine, rec_cls["setup_performance"], calc_date=(meta or {}).get("updated_at"),
+                          data_through=(meta or {}).get("sample_end"))
+    trig0 = trig_rows[0] if trig_rows else {}
+    triggers = _with_source(triggers, rec_cls["trigger_performance"], calc_date=trig0.get("updated_at"),
+                            data_through=trig0.get("sample_end"))
     data = {"setup": name, "regime": regime, "engine": engine, "triggers": triggers, "caution": stats.CAUTION}
     rec_a = w.get("team_archive") if isinstance(w.get("team_archive"), dict) else None
     # ONLY the computation's own date (docs/agent/knowledge/ARCHIVE-ASOF-REQUIREMENT.md); never imported_at / updated_at
@@ -509,13 +523,37 @@ def record(params: dict, ctx: dict) -> dict:
     return _envelope(kind, params, data=data, notes=notes, extra_coverage={"n_min": n_min})
 
 
-def _with_source(block: dict, cls: dict) -> dict:
-    """A record block from an approved source keeps its figures and gains its provenance; from any other source it is
-    replaced by a figure-free block that says why (N3: presence in the Brain Pack is not approval)."""
-    if cls["state"] != "admitted":
-        return {"label": "source_not_approved", "label_text": f"source not approved for UCT Agent ({cls['label']})",
-                "method": block.get("method"), "licence": cls["licence"]}
-    return {**block, "source": cls["label"], "licence": cls["licence"]}
+def _not_served(block: dict, cls: dict, why: str) -> dict:
+    return {"label": "source_not_approved", "label_text": f"not served: {why} ({cls['label']})",
+            "method": block.get("method"), "licence": cls["licence"]}
+
+
+def _with_source(block: dict, cls: dict, calc_date=None, data_through=None) -> dict:
+    """A record block from an ADMITTED source keeps its figures and gains its provenance. A CONDITIONAL source (owner
+    2026-11-03: the brain's own aggregate statistics) is served only when every condition holds — provenance, a
+    calculation date that is not stale, n >= the floor, a methodology id, an uncertainty interval — and otherwise
+    becomes a figure-free block naming the failed condition. Any other source: figure-free 'not approved'."""
+    if cls["state"] == "admitted":
+        return {**block, "source": cls["label"], "licence": cls["licence"]}
+    if cls["state"] != "conditional":
+        return _not_served(block, cls, "source not approved for UCT Agent")
+    label = block.get("label")
+    if label == "insufficient_sample":
+        return _not_served(block, cls, f"below the minimum sample (n < {block.get('n_min') or policy.stats_n_min()})")
+    if label == "stale_record" or not calc_date:
+        return _not_served(block, cls, "no calculation date" if not calc_date else "calculation older than the freshness limit")
+    if _stale({"updated_at": calc_date}):
+        return _not_served(block, cls, "calculation older than the freshness limit")
+    if label != "descriptive_uncontrolled" or not block.get("win_rate_ci95"):
+        return _not_served(block, cls, "no uncertainty interval")
+    if not cls.get("methodology_id"):
+        return _not_served(block, cls, "no methodology id")
+    out = {**block, "source": cls["label"], "licence": cls["licence"], "methodology_id": cls["methodology_id"],
+           "calculation_date": calc_date}
+    if data_through:
+        out["data_through"] = data_through
+    out.pop("updated_at", None)
+    return out
 
 
 def _int(v) -> Optional[int]:

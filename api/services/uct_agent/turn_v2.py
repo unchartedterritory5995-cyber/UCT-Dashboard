@@ -465,6 +465,10 @@ def _settle_step(state: dict, step: dict, cap: dict, res: dict) -> None:
 
 
 def _research_step(state: dict, inp: Any, uid: str, meter) -> dict:
+    from api.services.uct_agent.knowledge import frame as kn_frame          # KN-1 owner decision 5: separation
+    if kn_frame.seen(state.get("messages")) or kn_frame.seen(state.get("results")):
+        state["usage"]["research_skipped"] = "knowledge_separation"
+        return _tool_result(uid, kn_frame.RESEARCH_BLOCKED, True)
     if meter is None or state["researched"]:
         return _tool_result(uid, "research is not available in this turn", True)
     q = str((inp or {}).get("query") or "")[:400].strip()

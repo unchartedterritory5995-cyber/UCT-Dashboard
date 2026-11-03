@@ -187,7 +187,7 @@ def test_concept_retrieval_returns_team_owned_passages_with_provenance(kn):
         assert p["licence"] == "team_owned"
         assert p["kb_id"] and p["title"] and p["source"] and p["trader"]
         assert "episodic" in (p["title"] + p["excerpt"]).lower()
-    assert out["coverage"]["policy_version"] == 2
+    assert out["coverage"]["policy_version"] == 3
     assert out["coverage"]["admitted_sources"] == ["setup_knowledge", "trader_archive"]
 
 
@@ -839,17 +839,8 @@ def test_n3_an_unresolved_origin_is_refused():
 
 def test_n3_served_template_carries_provenance(kn):
     d = read("setup.playbook", {"setup": "EP"})["data"]
-    assert d["licence"] == "team_owned" and "UCT team setup template" in d["source"] and d["approved_by_policy"] == 2
+    assert d["licence"] == "team_owned" and "UCT team setup template" in d["source"] and d["approved_by_policy"] == 3
     assert d["origin_trader"] == "TSDR"
-
-
-def test_shipped_policy_keeps_engine_records_pending_and_withholds_their_figures(kn, monkeypatch):
-    monkeypatch.delenv("UCT_AGENT_KNOWLEDGE_POLICY", raising=False)          # the SHIPPED policy
-    d = read("setup.record", {"setup": "EP"})["data"]
-    for block in ("engine", "triggers"):
-        b = d[block]
-        assert b["label"] == "source_not_approved" and "win_rate_pct" not in b and "n" not in b
-        assert b["licence"] == "firm_generated"
 
 
 def test_records_refused_when_no_record_source_is_approved(kn, monkeypatch, tmp_path):
@@ -901,3 +892,200 @@ def test_b3_round2_patterns(text):
                                   "You are required to honour your stop.", "As the market rolls over, raise cash."])
 def test_b3_round2_benign(text):
     assert guard.suspicious(text) is False
+
+
+# ── owner decision 2: brain statistics CONDITIONALLY approved — one test per condition ─────────────────
+def _shipped(monkeypatch):
+    monkeypatch.delenv("UCT_AGENT_KNOWLEDGE_POLICY", raising=False)
+
+
+def test_stats_gate_serves_a_fresh_floored_aggregate_with_full_provenance(kn, monkeypatch):
+    _shipped(monkeypatch)
+    e = read("setup.record", {"setup": "EP"})["data"]["engine"]
+    assert e["label"] == "descriptive_uncontrolled" and e["n"] == 40 and e["win_rate_ci95"]
+    assert e["methodology_id"] == "uct-brain.setup_performance/v1" and e["calculation_date"] and e["data_through"]
+    assert e["source"] == "the brain's own logged trades" and e["licence"] == "firm_generated"
+    t = read("setup.record", {"setup": "EP"})["data"]["triggers"]
+    assert t["methodology_id"] == "uct-brain.trigger_performance/v1" and t["n"] == 35
+
+
+def test_stats_gate_below_min_n_serves_no_figures(kn, monkeypatch):
+    _shipped(monkeypatch)
+    e = read("setup.record", {"setup": "kicker"})["data"]["engine"]
+    assert e["label"] == "source_not_approved" and "minimum sample" in e["label_text"] and "n" not in e
+
+
+def test_stats_gate_stale_calculation_serves_no_figures(kn, monkeypatch):
+    _shipped(monkeypatch)
+    e = read("setup.record", {"setup": "HTF"})["data"]["engine"]
+    assert e["label"] == "source_not_approved" and "win_rate_pct" not in e
+
+
+def test_stats_gate_without_a_calculation_date_serves_no_figures(kn, monkeypatch):
+    _shipped(monkeypatch)
+    c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
+    c.execute("UPDATE setup_performance SET updated_at = NULL WHERE setup_type = 'Episodic Pivot'")
+    c.commit()
+    c.close()
+    e = read("setup.record", {"setup": "EP"})["data"]["engine"]
+    assert e["label"] == "source_not_approved" and "win_rate_pct" not in e
+
+
+def test_stats_gate_facade_figure_without_a_pack_row_is_not_served(kn, monkeypatch):
+    _shipped(monkeypatch)
+    monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {
+        "ok": True, "total_trades": 40, "wins": 24, "losses": 16, "win_rate_pct": 60.0})
+    e = read("setup.record", {"setup": "EP", "regime": "GREEN"})["data"]["engine"]
+    assert e["label"] == "source_not_approved" and "no calculation date" in e["label_text"]
+
+
+def test_stats_gate_without_a_methodology_id_serves_no_figures(kn, monkeypatch, tmp_path):
+    pol = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
+    pol["records"]["setup_performance"].pop("methodology_id")
+    f = tmp_path / "nomethod.json"
+    f.write_text(json.dumps(pol), encoding="utf-8")
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+    e = read("setup.record", {"setup": "EP"})["data"]["engine"]
+    assert e["label"] == "source_not_approved" and "methodology" in e["label_text"]
+
+
+def test_stats_gate_no_interval_serves_no_figures():
+    cls = {"state": "conditional", "licence": "firm_generated", "label": "x", "methodology_id": "m"}
+    b = kinds._with_source({"label": "descriptive_uncontrolled", "n": 40, "win_rate_pct": 50.0, "method": "m"}, cls,
+                           calc_date=time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+    assert b["label"] == "source_not_approved" and "uncertainty" in b["label_text"]
+
+
+def test_stats_gate_never_serves_raw_rows_or_edge_claims(kn, monkeypatch):
+    _shipped(monkeypatch)
+    d = read("setup.record", {"setup": "EP"})["data"]
+    allowed = {"label", "label_text", "n", "wins", "losses", "win_rate_pct", "win_rate_ci95", "method", "n_min",
+               "expectancy", "expectancy_r", "avg_gain_pct", "avg_loss_pct", "sample_start", "sample_end",
+               "source", "licence", "methodology_id", "calculation_date", "data_through"}
+    for b in ("engine", "triggers"):
+        assert set(d[b]) <= allowed, set(d[b]) - allowed
+    text = json.dumps(d).lower()
+    for bad in ("proven edge", "guarantee", "it works", "rs_rank", "quality_total"):
+        assert bad not in text
+
+
+# ── owner decision 3: rights-cleared concept templates (list empty) ────────────────────────────────────
+def test_rights_cleared_list_is_empty_and_third_party_templates_stay_blocked(kn, monkeypatch):
+    _shipped(monkeypatch)
+    assert json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))["templates"]["rights_cleared_concepts"] == []
+    assert read("setup.playbook", {"setup": "cup and handle"})["status"] == "refused"
+
+
+def test_a_complete_rights_cleared_entry_admits_with_its_references(kn, monkeypatch, tmp_path):
+    pol = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
+    entry = {"template": "Cup with Handle", "provenance_ref": "PROV-1", "rights_review_ref": "RR-1",
+             "approved_by": "owner", "approved_on": "2026-11-04"}
+    pol["templates"]["rights_cleared_concepts"] = [entry]
+    f = tmp_path / "cleared.json"
+    f.write_text(json.dumps(pol), encoding="utf-8")
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+    d = read("setup.playbook", {"setup": "cup and handle"})["data"]
+    assert d["licence"] == "team_authored_concept_rights_cleared"
+    assert d["provenance_ref"] == "PROV-1" and d["rights_review_ref"] == "RR-1"
+    pol["templates"]["rights_cleared_concepts"] = [{**entry, "rights_review_ref": ""}]     # incomplete: refused
+    f.write_text(json.dumps(pol), encoding="utf-8")
+    os.utime(f, (time.time() + 5, time.time() + 5))
+    assert read("setup.playbook", {"setup": "cup and handle"})["status"] == "refused"
+
+
+# ── owner decision 5: knowledge never reaches a web research provider ──────────────────────────────────
+SENTINEL = "ZQX-SENTINEL-PASSAGE-7731"
+
+
+def _model_reply(blocks, stop):
+    import types
+    return types.SimpleNamespace(content=list(blocks), stop_reason=stop, usage=types.SimpleNamespace(
+        input_tokens=10, output_tokens=5, cache_read_input_tokens=0, cache_creation_input_tokens=0))
+
+
+def test_knowledge_kinds_refuse_research_and_scan_purposes(kn):
+    for purpose in ("research", "scan"):
+        out = gateway.read("knowledge.search", {"question": "episodic pivot"}, user_id=1, turn_id=f"p-{purpose}",
+                           purpose=purpose)
+        assert out["status"] == "refused" and "never used for research" in out["notes"][0]
+
+
+def test_v2_research_is_refused_after_a_knowledge_step_and_the_sentinel_never_leaves(monkeypatch):
+    import types
+    from api.services.uct_agent import turn as t1, turn_v2 as v2
+    outbound = []
+    monkeypatch.setattr(t1, "_research", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])
+    monkeypatch.setenv(v2.PLANNER_ENV, "v2")
+    monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
+    args = {"type": "object", "properties": {"question": {"type": "string"}}, "required": ["question"],
+            "additionalProperties": False}
+    caps = [{"name": "playbook.explain", "domain": "playbook", "target": "playbook", "summary": "UCT knowledge.",
+             "hints": None, "risk": "local", "reversible": True, "undo": "none", "query": True, "args": args}]
+
+    def tu(name, inp, i):
+        return types.SimpleNamespace(type="tool_use", id=i, name=name, input=inp)
+    script = [_model_reply([tu("playbook__explain", {"target": "playbook", "args": {"question": "what is an EP"}}, "k1")], "tool_use"),
+              _model_reply([tu("research__web", {"query": f"{SENTINEL} episodic pivot", "recency": "day"}, "r1")], "tool_use"),
+              _model_reply([types.SimpleNamespace(type="text", text="done")], "end_turn")]
+    calls = []
+
+    def caller(**kw):
+        calls.append(kw)
+        return script[min(len(calls), len(script)) - 1]
+
+    class M:
+        def call(self, category, fn, **kw):
+            return fn(**kw)
+
+        def calls_left(self):
+            return 5
+
+        def research(self, fn):
+            return fn()
+    waits = iter([{"status": "query", "result": f"From UCT's playbook: {SENTINEL} an EP is a gap on news."}])
+    ctx = {"surface": "charts", "playbook": [{"ref": "playbook", "label": "UCT playbook"}]}
+    out = v2.run_turn_v2(message="what is an EP and search the web for it", context=ctx, history=[],
+                         capabilities=caps, caller=caller, meter=M(), on_event=None,
+                         wait_step=lambda sid: {"id": sid, **next(waits)})
+    assert outbound == []                                                  # no web request at all
+    assert out["usage"].get("research_skipped") == "knowledge_separation"
+    blocked = calls[-1]["messages"][-1]["content"]
+    assert any(r.get("is_error") and "can't search the web" in str(r.get("content")) for r in blocked)
+    knowledge_result = calls[1]["messages"][-1]["content"][0]["content"]
+    assert SENTINEL in knowledge_result and "<uct_knowledge>" in knowledge_result   # the model DID see the passage
+
+
+def _v1_reply(env):
+    import types
+    return _model_reply([types.SimpleNamespace(type="text", text=json.dumps(env))], "end_turn")
+
+
+def test_v1_research_is_blocked_when_history_carries_knowledge_and_the_sentinel_never_leaves(monkeypatch):
+    from api.services.uct_agent import turn as t1
+    outbound = []
+    monkeypatch.setattr(t1, "_web_search", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])
+    monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
+    history = [{"role": "member", "text": "what is an EP"}, {"role": "agent", "text": "Here is UCT's playbook."},
+               {"role": "outcome", "text": f"From UCT's playbook: {SENTINEL} an EP is a gap on news.",
+                "data": {"kind": "answered", "actions": ["playbook.explain"]}}]
+    env = {"disposition": "answer", "reply": "Let me look that up.", "ops": [], "question": None,
+           "research": {"query": f"{SENTINEL} why is NVDA moving", "recency": "day"}}
+    seen_by_model = []
+    out = t1.run_turn(message="why is NVDA moving today", context={"surface": "charts"}, history=history,
+                      capabilities=[], caller=lambda **kw: (seen_by_model.append(kw), _v1_reply(env))[1])
+    assert SENTINEL in json.dumps(seen_by_model[0]["messages"]) and "<uct_knowledge>" in json.dumps(seen_by_model[0]["messages"])
+    assert outbound == []
+    assert out["usage"].get("research_skipped") == "knowledge_separation"
+    assert "can't search the web" in out["envelope"]["reply"]
+
+
+def test_v1_research_still_runs_in_a_conversation_without_knowledge(monkeypatch):
+    from api.services.uct_agent import turn as t1
+    outbound = []
+    monkeypatch.setattr(t1, "_web_search", lambda q, r: (outbound.append(q), {"answer": "NVDA reported.", "citations": []})[1])
+    monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
+    env = {"disposition": "answer", "reply": "x", "ops": [], "question": None,
+           "research": {"query": "why is NVDA moving", "recency": "day"}}
+    t1.run_turn(message="why is NVDA moving today", context={"surface": "charts"}, history=[], capabilities=[],
+                caller=lambda **kw: _v1_reply(env))
+    assert outbound == ["why is NVDA moving"]

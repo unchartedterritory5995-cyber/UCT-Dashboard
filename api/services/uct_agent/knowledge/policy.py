@@ -72,11 +72,29 @@ def classify(source: Optional[str]) -> dict:
             "reason": "a source the policy does not list (default-deny)"}
 
 
-def classify_template(origin_trader: Optional[str]) -> dict:
+_CLEARED_FIELDS = ("template", "provenance_ref", "rights_review_ref", "approved_by", "approved_on")
+
+
+def rights_cleared(name: Optional[str]) -> Optional[dict]:
+    """The rights-cleared concept entry for this template, only when EVERY required field is present."""
+    for e in (load().get("templates") or {}).get("rights_cleared_concepts") or []:
+        if isinstance(e, dict) and str(e.get("template") or "") == str(name or "") \
+                and all(str(e.get(f) or "").strip() for f in _CLEARED_FIELDS):
+            return e
+    return None
+
+
+def classify_template(origin_trader: Optional[str], name: Optional[str] = None) -> dict:
     """A setup template's source is its origin_trader (the table has no source column). Default-deny: only an origin
-    listed in templates.team_origins is admitted; an unresolved origin and every other origin are excluded."""
+    listed in templates.team_origins is admitted, or a template on the rights-cleared concept list (empty until a
+    provenance + rights review clears one); an unresolved origin and every other origin are excluded."""
     t = load().get("templates") or {}
     o = str(origin_trader or "").strip()
+    cleared = rights_cleared(name) if name else None
+    if cleared:
+        return {"state": "admitted", "licence": "team_authored_concept_rights_cleared",
+                "label": f"a team-authored concept explanation (rights review {cleared['rights_review_ref']})",
+                "reason": "", "provenance_ref": cleared["provenance_ref"], "rights_review_ref": cleared["rights_review_ref"]}
     team = {str(x).strip().lower() for x in t.get("team_origins") or []}
     unresolved = {str(x).strip().lower() for x in t.get("unresolved_origins") or []}
     if team and o.lower() in team:
@@ -93,6 +111,9 @@ def classify_template(origin_trader: Optional[str]) -> dict:
 def classify_record(key: str) -> dict:
     """A setup-record source (team_archive, setup_performance, trigger_performance). Default-deny."""
     row = (load().get("records") or {}).get(key)
+    if isinstance(row, dict) and row.get("admit") == "conditional":
+        return {"state": "conditional", "licence": row.get("licence") or "unresolved", "label": row.get("label") or key,
+                "reason": "", "methodology_id": row.get("methodology_id"), "methodology": row.get("methodology")}
     if isinstance(row, dict) and row.get("admit") is True:
         return {"state": "admitted", "licence": row.get("licence") or "unresolved", "label": row.get("label") or key,
                 "reason": ""}

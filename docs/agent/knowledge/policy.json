@@ -1,5 +1,5 @@
 {
-  "policy_version": 2,
+  "policy_version": 3,
   "about": "UCT Agent knowledge source policy (KN-1). DEFAULT-DENY: a Brain Pack source the policy does not list as admitted is invisible to the Agent. Admitting a source is an owner decision recorded here as a reviewed diff. Read per request by api/services/uct_agent/knowledge/policy.py.",
   "approval": {
     "by": "owner",
@@ -128,7 +128,9 @@
     "unresolved_origins": [
       "various",
       ""
-    ]
+    ],
+    "rights_cleared_concepts": [],
+    "rights_cleared_about": "Team-authored explanations of GENERAL concepts that are not the team's own setups may be served only after a provenance and rights review. Entry shape: {template, provenance_ref, rights_review_ref, approved_by, approved_on}; every field required. Empty: nothing is cleared yet (owner 2026-11-03). EP, VCP, HTF and Stage 2 stay blocked."
   },
   "records": {
     "team_archive": {
@@ -137,16 +139,34 @@
       "label": "the UCT team's own posted calls, scored after the fact"
     },
     "setup_performance": {
-      "admit": false,
+      "admit": "conditional",
       "licence": "firm_generated",
       "label": "the brain's own logged trades",
-      "pending": "N3 (2026-11-03): only approved team-owned content may reach the model; the brain's own logged-trade statistics are firm-generated. Owner to confirm whether they count."
+      "methodology_id": "uct-brain.setup_performance/v1",
+      "methodology": "the brain's own EP-candidate trades for the setup x regime; win = latest follow-through > 0; outcome at each trade's own exit; no base-rate control",
+      "conditions": [
+        "provenance",
+        "calculation_date (stale after stats_stale_days -> withheld)",
+        "n >= stats.n_min (else no figures)",
+        "methodology_id",
+        "uncertainty (Wilson 95% interval)"
+      ],
+      "approval": "owner 2026-11-03: CONDITIONALLY APPROVED; anything failing a condition stays source_not_approved"
     },
     "trigger_performance": {
-      "admit": false,
+      "admit": "conditional",
       "licence": "firm_generated",
       "label": "UCT's published setup triggers, resolved after the fact",
-      "pending": "N3 (2026-11-03): same question as setup_performance."
+      "methodology_id": "uct-brain.trigger_performance/v1",
+      "methodology": "published leadership-list setup triggers, resolved win/loss after the fact; expectancy in R; never-triggered excluded; no base-rate control",
+      "conditions": [
+        "provenance",
+        "calculation_date (stale after stats_stale_days -> withheld)",
+        "n >= stats.n_min (else no figures)",
+        "methodology_id",
+        "uncertainty (Wilson 95% interval)"
+      ],
+      "approval": "owner 2026-11-03: CONDITIONALLY APPROVED; anything failing a condition stays source_not_approved"
     }
   }
 }
