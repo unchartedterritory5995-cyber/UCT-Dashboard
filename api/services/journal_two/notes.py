@@ -176,6 +176,13 @@ class NoteValidationError(ValueError):
     """Raised when note payload is malformed."""
 
 
+class DestinationFolderNotFound(NoteValidationError):
+    """`import_confirm`'s `destFolderId` names no folder of this member's. A subclass, so every
+    caller that maps a `NoteValidationError` (the file importer's 400) is unchanged, while the
+    connector engine can tell THIS failure, which no retry fixes, from one that a retry might
+    (live audit 2026-11-03: it was reported as "will be tried again" forever)."""
+
+
 class NoteConflictError(Exception):
     """Raised when a compare-and-set update loses: the note's updated_at no
     longer matches the baseline the client edited from (A15 — a server-side
@@ -1571,7 +1578,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
             ok = conn.execute("SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
                               (dest, user_id)).fetchone()
             if not ok:
-                raise NoteValidationError("destination folder not found")
+                raise DestinationFolderNotFound("destination folder not found")
         # A deep folderPath used to be truncated to MAX_FOLDER_DEPTH segments
         # and then created UNDER destFolderId — so a dest at depth >=1 plus a
         # path already at the cap raised "folder nesting too deep" and 400'd
@@ -5944,19 +5951,49 @@ def delete_folder(
         # longer be found by the folder they used to be in. Reading them after
         # would return an empty list and land nothing, which is exactly the
         # shape of a fix that looks present and does nothing.
-        moved = [r["id"] for r in conn.execute(
-            "SELECT id FROM j2_notes WHERE folder_id = ? AND user_id = ?",
-            (folder_id, user_id)).fetchall()]
+        moved_rows = conn.execute(
+            "SELECT id, import_key, updated_at, imported_at, import_remote_rev FROM j2_notes "
+            "WHERE folder_id = ? AND user_id = ?", (folder_id, user_id)).fetchall()
+        moved = [r["id"] for r in moved_rows]
+        # ⛔ A FOLDER MOVE IS NOT A CONTENT EDIT (review I2, `probe_conflict.py`). The note sync
+        # engine reads `updated_at > imported_at` as "the member edited this"
+        # (`import_provenance.edited_since_import`), so bumping `updated_at` alone made every
+        # later remote edit of an imported note a "(synced copy)" sibling. An imported note that
+        # was UNEDITED before the move has `imported_at` advanced to the same stamp, in the same
+        # UPDATE, so it stays unedited. ⛔ Never one the member had already edited (or whose stamps
+        # cannot be read): hiding a real edit would let a remote change overwrite their work.
+        # ⛔ Nor a LEGACY row (`import_remote_rev IS NULL`, re-review N1): the engine judges its
+        # remote by `remote revision > imported_at` (`engine._remote_changed` rule 4), so moving
+        # `imported_at` forward would swallow a remote edit made before this delete and not yet
+        # synced. Such a row keeps the old answer: a conflict copy, never a missed edit.
+        unedited_imports = [
+            r["id"] for r in moved_rows
+            if r["import_key"] and r["import_remote_rev"] is not None
+            and import_provenance.instant(r["updated_at"]) is not None
+            and import_provenance.instant(r["imported_at"]) is not None
+            and not import_provenance.edited_since_import(r["updated_at"], r["imported_at"])]
         # Delete the folder first to avoid UNIQUE constraint violations when re-parenting
         cur = conn.execute(
             "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?", (folder_id, user_id))
         # notes climb to the parent; at root ('' parent) they go Unfiled (NULL)
         conn.execute(
-            "UPDATE j2_notes SET folder_id = ?, updated_at = ? WHERE folder_id = ? AND user_id = ?",
-            (parent or None, now, folder_id, user_id))
+            "UPDATE j2_notes SET folder_id = ?, updated_at = ?, "
+            "imported_at = CASE WHEN id IN (SELECT value FROM json_each(?)) THEN ? ELSE imported_at END "
+            "WHERE folder_id = ? AND user_id = ?",
+            (parent or None, now, json.dumps(unedited_imports), now, folder_id, user_id))
         conn.execute(
             "UPDATE j2_note_folders SET parent_id = ? WHERE parent_id = ? AND user_id = ?",
             (parent, folder_id, user_id))
+        # ⛔ A note-connector source importing into this folder follows its notes to the parent
+        # (the root is None, which `import_confirm` accepts). ⚰️ Live audit 2026-11-03: this
+        # cascade never touched `j2_note_sources`, so a deleted destination left its source
+        # refusing every batch forever ("destination folder not found"). Only THIS folder is
+        # removed here: its children are re-parented, never deleted, so a source on a child
+        # stays where it is. A source left pointing at a missing folder some other way is
+        # repaired by the sync engine (`note_connectors/dest_folder.heal_missing_dest_folder`).
+        conn.execute(
+            "UPDATE j2_note_sources SET dest_folder_id = ? WHERE dest_folder_id = ? AND user_id = ?",
+            (parent or None, folder_id, user_id))
         if owned:
             conn.commit()
         # ⭐ ONE revision for all of them: the cascade is a single UPDATE, so every

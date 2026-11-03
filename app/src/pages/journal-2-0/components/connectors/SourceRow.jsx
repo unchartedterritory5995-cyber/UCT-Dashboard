@@ -129,6 +129,9 @@ export default function SourceRow({
   onDisconnect,
   onReconnect,
   onLoadLog,
+  // The server will not sync this provider for this member now: Sync now, pause and Reconnect would
+  // fail, so only Disconnect (and the log) are offered.
+  syncOff = false,
 }) {
   const [syncing, setSyncing] = useState(false)
   const [notice, setNotice] = useState(null)
@@ -351,23 +354,31 @@ export default function SourceRow({
       )}
 
       <div className={styles.sourceActions}>
-        {source.status === 'broken' && onReconnect && (
+        {!syncOff && source.status === 'broken' && onReconnect && (
           <button type="button" className="btn btn-primary" onClick={() => onReconnect(source)}>
             Reconnect
           </button>
         )}
-        <button type="button" className="btn btn-ghost" disabled={syncing} onClick={handleSync}>
-          {syncing ? 'Syncing…' : 'Sync now'}
-        </button>
-        <label className={styles.toggle} title="Pause background sync">
-          <input
-            type="checkbox"
-            checked={!!source.syncEnabled}
-            disabled={pauseBusy}
-            onChange={handleTogglePause}
-          />
-          <span>{source.syncEnabled ? 'On' : 'Paused'}</span>
-        </label>
+        {!syncOff && (
+          <button type="button" className="btn btn-ghost" disabled={syncing} onClick={handleSync}>
+            {syncing ? 'Syncing…' : 'Sync now'}
+          </button>
+        )}
+        {!syncOff && (
+          <label className={styles.toggle} title="Pause background sync">
+            {/* L1 (live audit 2026-11-03): the accessible name was just the visible "On", so a
+                member with two sources heard two identical checkboxes. The name says which
+                source and which app; the visible On/Paused stays, and `checked` carries the state. */}
+            <input
+              type="checkbox"
+              aria-label={`Sync ${source.displayName || source.remoteId} from ${providerLabel}`}
+              checked={!!source.syncEnabled}
+              disabled={pauseBusy}
+              onChange={handleTogglePause}
+            />
+            <span>{source.syncEnabled ? 'On' : 'Paused'}</span>
+          </label>
+        )}
         <button
           type="button"
           className={`${styles.dangerBtn} ${armed ? styles.dangerArmed : ''}`}

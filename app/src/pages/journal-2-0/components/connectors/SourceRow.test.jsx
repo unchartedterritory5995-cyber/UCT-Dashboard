@@ -434,3 +434,26 @@ describe('SourceRow — Obsidian plugin update hint', () => {
     expect(screen.queryByText(hint)).toBeNull()
   })
 })
+
+// L1 (live audit 2026-11-03): the per-source sync checkbox was named just "On" by a screen
+// reader, so a member with two sources could not tell which one it paused.
+describe('SourceRow — the sync checkbox names its source', () => {
+  it('is labelled with the source and its app, and keeps the visible On/Paused text', () => {
+    render(
+      <SourceRow source={makeSource({ displayName: 'Acme' })} providerLabel="Notion"
+        onSync={noop} onTogglePause={noop} onDisconnect={noop} />,
+    )
+    const box = screen.getByRole('checkbox', { name: 'Sync Acme from Notion' })
+    expect(box).toBeChecked()
+    expect(screen.getByText('On')).toBeInTheDocument()
+  })
+
+  it('falls back to the remote id when the source has no display name', () => {
+    render(
+      <SourceRow source={makeSource({ displayName: null, syncEnabled: false })} providerLabel="Obsidian"
+        onSync={noop} onTogglePause={noop} onDisconnect={noop} />,
+    )
+    expect(screen.getByRole('checkbox', { name: 'Sync vault-1 from Obsidian' })).not.toBeChecked()
+    expect(screen.getByText('Paused')).toBeInTheDocument()
+  })
+})
