@@ -13,6 +13,7 @@
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 import { formOf } from './marketDataPhrases'
+import { servedRoute } from './marketDataAssets'
 
 export const RESOLVE_KIND = 'instrument.resolve'
 const LIMIT = 'I can quote US-listed stocks and ETFs by ticker.'
@@ -60,13 +61,18 @@ export function decide(env, candidates) {
   const results = env && env.status === 'ok' && Array.isArray(env.data?.results) ? env.data.results : null
   if (!results || results.length !== (candidates || []).length) return { ok: false, text: NOT_READY }
   const byClass = (k) => results.find(r => r && r.class === k)
+  // W1-C C-03: an asset-class word ("gold", "s&p", "btc") whose dedicated kind THIS server serves rides along as
+  // `route` — the sentence below is unchanged (stock.dailyBars still uses it); stock.quote answers the route instead
+  // (marketDataAssets.js). With no served route (the default) nothing here differs.
+  const route = servedRoute(env, results)
+  const out = (text) => (route ? { ok: false, text, route } : { ok: false, text })
   const nonEquity = byClass('non_equity')
-  if (nonEquity) return { ok: false, text: `${LIMIT} ${shown(nonEquity)} isn't one I can price here.` }
+  if (nonEquity) return out(`${LIMIT} ${shown(nonEquity)} isn't one I can price here.`)
   const unknown = results.find(r => !r || !['symbol', 'symbol_typed_lowercase', 'name_match', 'non_equity'].includes(r.class))
-  if (unknown) return { ok: false, text: `${LIMIT} ${shown(unknown || {})} isn't one I can price here.` }
+  if (unknown) return out(`${LIMIT} ${shown(unknown || {})} isn't one I can price here.`)
   // a word that only MIGHT be a symbol: ask neutrally; the index's candidate is never named (owner ruling 1)
   const ask = byClass('name_match') || byClass('symbol_typed_lowercase')
-  if (ask) return { ok: false, text: clarifyText(shown(ask)) }
+  if (ask) return out(clarifyText(shown(ask)))
   const symbols = results.map(r => r.symbol)
   if (symbols.some(s => typeof s !== 'string' || !s)) return { ok: false, text: NOT_READY }
   return { ok: true, symbols, names: Object.fromEntries(results.map(r => [r.symbol, labelOf(r)])) }

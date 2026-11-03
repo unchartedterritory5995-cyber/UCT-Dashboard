@@ -15,8 +15,8 @@ Sprint 2: `instrument.resolve` (the canonical symbol index, ticker_search_index 
 """
 from __future__ import annotations
 
-from api.services.uct_agent.marketdata import (bars_daily, breadth, earnings, instruments, news_company, quotes,
-                                              ratings, statements, themes)
+from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadth, commodity_quote, crypto_quote, earnings,
+                                              index_quote, instruments, news_company, quotes, ratings, statements, themes)
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
 # in entitlements.TOOLKITS (tests/test_entitlements.py, "the NUMBERS live in exactly ONE place").
@@ -81,6 +81,30 @@ def register(registry) -> None:
         description="Equal-weight returns of UCT's curated themes (the Theme Tracker payload), read without "
                     "building it — 'theme data is warming' when no complete overlay exists. "
                     f"Params: {{period: {'|'.join(themes.PERIODS)}, order: leaders|laggards, limit (1-{themes.MAX_LIMIT})}}.",
+    ))
+    # W1-C C-03 (builder-c): one dedicated kind per asset class, licence-driven (asset_quotes.py). Params: {asset}
+    # (the class's own ids, asset_classes.py), never a ticker. While no (vendor, data_class) row is in force as A/LA
+    # every read is the honest decline — "I don't have a licensed source for …" — never a ticker guess.
+    registry.register(Kind(
+        name="index.quote", fn=index_quote.read_index_quote, validate=index_quote.validate, freshness="live",
+        owner="builder-c", max_symbols=NO_SYMBOL,
+        description="The level of a market index (S&P 500, Nasdaq, Dow, Russell 2000, VIX) from a LICENSED index "
+                    "source — today none is in force, so the read declines honestly rather than pricing an ETF as the "
+                    f"index. Params: {{asset: {'|'.join(sorted(asset_classes.assets_of('index.quote')))}}}.",
+    ))
+    registry.register(Kind(
+        name="commodity.quote", fn=commodity_quote.read_commodity_quote, validate=commodity_quote.validate,
+        freshness="live", owner="builder-c", max_symbols=NO_SYMBOL,
+        description="A commodity price (gold, silver, copper, crude oil, natural gas) from a LICENSED source — today "
+                    "none exists in the stack, so the read declines honestly; never a miner's or a fund's share price. "
+                    f"Params: {{asset: {'|'.join(sorted(asset_classes.assets_of('commodity.quote')))}}}.",
+    ))
+    registry.register(Kind(
+        name="crypto.quote", fn=crypto_quote.read_crypto_quote, validate=crypto_quote.validate, freshness="live",
+        owner="builder-c", max_symbols=NO_SYMBOL,
+        description="A cryptocurrency's own price (Bitcoin, Ether, Solana) from a LICENSED source — today none exists, "
+                    "so the read declines honestly; a crypto ETF's share price is never presented as the coin's. "
+                    f"Params: {{asset: {'|'.join(sorted(asset_classes.assets_of('crypto.quote')))}}}.",
     ))
     registry.register(Kind(
         name="breadth.current", fn=breadth.read_breadth_current, validate=breadth.validate, freshness="periodic",
