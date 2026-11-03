@@ -72,7 +72,7 @@ def test_a_structured_reply_passes_untouched_with_the_footer(on):
 
 @pytest.mark.parametrize("bad,codes", [
     # (usage["coach_guard"] is the SORTED set of codes)
-    ("A breakout is a move through a level. Buy now before it runs. What was the level?", ["order", "unsupported"]),
+    ("A breakout is a move through a level. Buy now before it runs. What was the level?", ["order", "uncertainty", "unsupported"]),
     ("A breakout is a move through a level. It will go up from here. What was the level?", ["uncertainty", "unsupported"]),
     ("A breakout is a move through a level. Most hold about 70% of the time. What was the level?", ["figure", "uncertainty"]),
     ("The breakout should follow through next week. What was the level?", ["uncertainty"]),
