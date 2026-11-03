@@ -923,7 +923,9 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     `resources` is `get_note`'s list; `None` (what `get_note` returns for a note without
     attachments) reads as `[]`. `media` holds one entry per unique resource,
     `{ref, kind, name, mime}`, plus any other image the walker registered."""
-    resources = resources or []
+    # The ONE null-resources guard (Task 9 fix round 1, concern 6): `null`, and any drifted
+    # non-list, read as no resources. The provider passes the measured value through.
+    resources = resources if isinstance(resources, list) else []
     builder = _Builder()
     builder.feed(_PROLOG_RE.sub("", enml or "", count=1))
     builder.close()

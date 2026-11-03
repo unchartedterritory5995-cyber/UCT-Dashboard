@@ -9,8 +9,8 @@ Measured facts (`docs/notebook-connectors/evernote-mcp-probe.md`, "Measured fiel
 provider reads ONLY the measured `get_note` keys (`_NOTE_KEYS`). A measured key missing from a
 payload is drift: the field reads as absent and the note carries
 `evernote note shape: missing <key>` once per key per instance (`drain_item_failures`). No other
-name is ever tried. `resources` is `null` on a note without attachments; every read is
-`sc.get("resources") or []`. `search_notebooks`/`search_tags` cannot page (no `startIndex`,
+name is ever tried. `resources` is `null` on a note without attachments; it reaches
+`enml.enml_to_tiptap` as measured, whose one guard reads `null` as `[]`. `search_notebooks`/`search_tags` cannot page (no `startIndex`,
 `maxResults` <= 100): one call each, and a full 100 is logged as a cap and the map treated as
 partial.
 
@@ -404,10 +404,12 @@ class EvernoteProvider(NoteProvider):
             self._record(title, "evernote note shape: missing title")
 
         content = self._note_field(sc, "content", title)
-        resources = self._note_field(sc, "resources", title) or []
+        # Task 9 fix round 1 (concern 6): passed through as measured (`null` on a note with no
+        # attachments); the converter holds the ONE null-resources guard.
+        resources = self._note_field(sc, "resources", title)
         attributes = self._note_field(sc, "attributes", title)
         converted = enml.enml_to_tiptap(
-            content if isinstance(content, str) else "", resources if isinstance(resources, list) else [],
+            content if isinstance(content, str) else "", resources,
             note_guid=guid, source_url=self._source_url(attributes))
         folder = await self._folder(credentials, self._note_field(sc, "notebook", title), title)
         tags = await self._tag_labels(credentials, self._note_field(sc, "tags", title), title)

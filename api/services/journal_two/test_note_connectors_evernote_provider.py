@@ -430,6 +430,22 @@ async def test_null_resources_is_an_empty_list_everywhere():
         "missing_resource"]
 
 
+async def test_null_resources_reach_the_converter_as_null(monkeypatch):
+    """Task 9 fix round 1 (concern 6): the ONE null-resources guard is the converter's
+    (`enml_to_tiptap(..., resources=None)`, T3's signature). The provider passes the measured
+    value through untouched, so removing that one guard turns the corpus rail red on its own."""
+    seen: list = []
+    real = ev.enml.enml_to_tiptap
+
+    def spy(content, resources, **kw):
+        seen.append(resources)
+        return real(content, resources, **kw)
+
+    monkeypatch.setattr(ev.enml, "enml_to_tiptap", spy)
+    await _fetch(_fetch_fake(resources=None, content="<en-note><div>x</div></en-note>"))
+    assert seen == [None]
+
+
 async def test_resources_become_media_refs():
     content = f'<en-note><en-media hash="{H1}" type="image/png"/></en-note>'
     res = [{"id": "r1", "hash": H1, "mime": "image/png", "name": "c.png", "sizeBytes": 5}]
