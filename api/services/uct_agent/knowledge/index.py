@@ -145,7 +145,11 @@ def ensure() -> dict:
 
 
 def on_pack_install() -> None:
-    """brain_sync.on_install callback: rebuild for the pack that just landed. Never raises."""
+    """brain_sync.on_install callback: rebuild for the pack that just landed. Never raises.
+    Dark: a no-op unless UCT_AGENT_KNOWLEDGE is on (read now, not at registration), so registering the kinds
+    changes nothing on a server where the feature is off — no file is written, no CPU spent."""
+    if str(os.environ.get("UCT_AGENT_KNOWLEDGE") or "").strip().lower() not in ("1", "true", "on", "yes"):
+        return
     try:
         with _LOCK:
             build()

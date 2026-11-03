@@ -51,6 +51,7 @@ _DOMAIN_OF = {
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "definition": "indicator",
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
+    "playbook": "data",                                   # KN-1 knowledge capabilities
 }
 _DOMAIN_TITLE = {
     "chart": "a chart's symbol, timeframe, type, scale, session, theme, colours, display settings, volume, templates, panes",

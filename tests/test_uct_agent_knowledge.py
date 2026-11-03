@@ -471,3 +471,24 @@ def test_health_report_counts_coverage_without_content(kn, monkeypatch, tmp_path
     index.build()
     r2 = json.loads((tmp_path / "h.json").read_text(encoding="utf-8"))
     assert r2["new_sources_since_last_report"] == ["brand_new_2"]
+
+
+# ── the gateway hook (KN-1 hook 1) ─────────────────────────────────────────────────────────────────────
+def test_the_real_registry_carries_the_knowledge_kinds_in_their_own_category():
+    gateway._reset_for_test(None)
+    try:
+        reg = gateway.registry()
+        for n in kinds.KIND_NAMES:
+            k = reg.get(n)
+            assert k is not None and k.category == "knowledge" and k.owner == "agent-kn" and k.model_isolated is False
+    finally:
+        gateway._reset_for_test(None)
+
+
+def test_registered_but_flag_off_is_inert(kn, monkeypatch, tmp_path):
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE", "0")
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_INDEX", str(tmp_path / "never.db"))
+    index.on_pack_install()                          # the pack-install hook does nothing with the feature off
+    assert not (tmp_path / "never.db").exists()
+    assert read("knowledge.search", {"question": "episodic pivot"})["status"] == "refused"
+    assert not (tmp_path / "never.db").exists()      # a refused read never builds the index

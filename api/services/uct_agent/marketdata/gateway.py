@@ -56,8 +56,9 @@ MAX_SYMBOLS_PER_READ = 50
 TURN_TTL_S = 600
 
 #: Modules whose `register(registry)` adds kinds. A missing module registers nothing.
-REGISTRARS = ("api.services.uct_agent.marketdata.kinds", "api.services.uct_agent.scan.kinds")
-CATEGORIES = ("market", "scan")
+REGISTRARS = ("api.services.uct_agent.marketdata.kinds", "api.services.uct_agent.scan.kinds",
+              "api.services.uct_agent.knowledge.kinds")   # KN-1: every read also needs UCT_AGENT_KNOWLEDGE=1
+CATEGORIES = ("market", "scan", "knowledge")
 
 
 def data_enabled() -> bool:
