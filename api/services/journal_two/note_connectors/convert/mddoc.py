@@ -52,6 +52,7 @@ from mdit_py_plugins.tasklists import tasklists_plugin
 from api.services.journal_two import import_notice
 
 from . import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX
+from .marks import exclusive_marks
 
 _MD: MarkdownIt | None = None
 
@@ -766,12 +767,14 @@ def _inline_nodes(
     marks: list[dict[str, Any]] = []
     raw_links: list[bool] = []  # one entry per open raw `<a>`: did it push a mark?
 
-    def push_text(text: str) -> None:
+    def push_text(text: str, extra: list[dict[str, Any]] | None = None) -> None:
         if text == "":
             return
         node: dict[str, Any] = {"type": "text", "text": text}
-        if marks:
-            node["marks"] = [dict(m) for m in marks]
+        # D3 item 2: only a mark set the editor's schema accepts (`marks.exclusive_marks`).
+        run_marks = exclusive_marks(marks + (extra or []))
+        if run_marks:
+            node["marks"] = [dict(m) for m in run_marks]
         if (
             items
             and items[-1].get("type") == "text"
@@ -798,10 +801,7 @@ def _inline_nodes(
             items.append({"type": "hardBreak"})
 
         elif child.type == "code_inline":
-            node_marks = [dict(m) for m in marks] + [{"type": "code"}]
-            text = child.content or ""
-            if text:
-                items.append({"type": "text", "text": text, "marks": node_marks})
+            push_text(child.content or "", [{"type": "code"}])
 
         elif child.type == "em_open":
             marks.append({"type": "italic"})
@@ -1072,8 +1072,9 @@ def _html_inline_walk(
         if text == "":
             return
         node: dict[str, Any] = {"type": "text", "text": text}
-        if marks:
-            node["marks"] = [dict(m) for m in marks]
+        run_marks = exclusive_marks(marks)  # D3 item 2, as `_inline_nodes`
+        if run_marks:
+            node["marks"] = [dict(m) for m in run_marks]
         if (
             items
             and items[-1].get("type") == "text"
@@ -1139,7 +1140,27 @@ def _html_inline_walk(
             # block-ness.
             items.extend(_html_inline_walk(n.children, ctx, marks))
 
-    return items
+    return _merge_text_runs(items)
+
+
+def _mark_key(node: dict[str, Any]) -> list[tuple[str, str]]:
+    return sorted((m.get("type") or "", repr(sorted((m.get("attrs") or {}).items())))
+                  for m in node.get("marks") or [])
+
+
+def _merge_text_runs(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Adjacent text runs with the same mark set become one run, as the editor's parser joins
+    them (D3 item 2: `<a>a <code>b</code> c</a>` is ONE link run once the code mark goes,
+    though each nested element was walked on its own)."""
+    out: list[dict[str, Any]] = []
+    for item in items:
+        prev = out[-1] if out else None
+        if (prev is not None and item.get("type") == "text" and prev.get("type") == "text"
+                and _mark_key(prev) == _mark_key(item)):
+            out[-1] = {**prev, "text": prev["text"] + item["text"]}
+        else:
+            out.append(item)
+    return out
 
 
 def _html_convert_pre(node: "_HtmlNode") -> dict[str, Any]:

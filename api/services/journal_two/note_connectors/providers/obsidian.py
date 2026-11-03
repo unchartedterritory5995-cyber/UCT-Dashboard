@@ -271,6 +271,7 @@ from api.services.journal_two.import_provenance import edited_since_import
 
 from .. import errors, obsidian_attachments, obsidian_link
 from ..convert import LINK_PREFIX, REF_PREFIX, md_to_tiptap
+from ..convert.marks import exclusive_marks
 from ..convert.mddoc import _get_md
 from ..convert.placeholders import map_image_nodes
 from ..link_keys import OBSIDIAN_NAME_KIND
@@ -1376,8 +1377,9 @@ def _callouts_in_doc(node: Any) -> Any:
     title_runs = ([{**runs[0], "text": rest}] if rest else []) + list(runs[1:])
     if not any((r.get("text") or "").strip() for r in title_runs if r.get("type") == "text"):
         title_runs = [{"type": "text", "text": kind[:1].upper() + kind[1:]}]
+    # A code run in the title stays code only (D3 item 2: `exclusive_marks`).
     bold = [
-        {**r, "marks": [*(r.get("marks") or []), {"type": "bold"}]}
+        {**r, "marks": exclusive_marks([*(r.get("marks") or []), {"type": "bold"}])}
         if r.get("type") == "text" and not any(mk.get("type") == "bold" for mk in r.get("marks") or [])
         else r
         for r in title_runs

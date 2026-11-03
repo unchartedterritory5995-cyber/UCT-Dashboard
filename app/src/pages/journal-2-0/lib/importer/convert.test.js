@@ -271,3 +271,28 @@ describe('htmlToNote — D2 fix round 1: an entity-encoded noncharacter is the m
     expect(shape(bodyJson)).toBe(`doc(paragraph("keep ${NC0}"), paragraph("${NC0}"), paragraph("Read "), image)`)
   })
 })
+
+// D3 item 2: the editor's code mark excludes every other mark. A LINK survives (the code mark
+// goes from that run); any other mark beside code goes (the parser's own rule). The server
+// lane writes the same runs (`test_note_convert_d3.py`, item 2).
+describe('htmlToNote — D3 item 2: a link survives a code run', () => {
+  it('keeps the link on a code run inside a link, and drops the code mark there', () => {
+    expect(shapeOf('<p>see <a href="https://e.com/p">the <code>x</code> plan</a> end</p>'))
+      .toBe('doc(paragraph("see ", "the x plan"[link], " end"))')
+    expect(shapeOf(mdToHtml('see [the `x` plan](https://e.com/p) end')))
+      .toBe('doc(paragraph("see ", "the x plan"[link], " end"))')
+    expect(shapeOf('<p><code><a href="https://e.com/p">x</a></code></p>'))
+      .toBe('doc(paragraph("x"[link]))')
+  })
+
+  it('a link inside part of a code element takes only its own run', () => {
+    expect(shapeOf('<p><code>a <a href="https://e.com/p">b</a> c</code></p>'))
+      .toBe('doc(paragraph("a "[code], "b"[link], " c"[code]))')
+  })
+
+  it('bold beside code keeps code only; an anchor the editor refuses leaves the code mark', () => {
+    expect(shapeOf(mdToHtml('**`x`** and *`y`*'))).toBe('doc(paragraph("x"[code], " and ", "y"[code]))')
+    expect(shapeOf('<p><a><code>x</code></a></p>')).toBe('doc(paragraph("x"[code]))')
+    expect(shapeOf('<p><a href="weird:x"><code>x</code></a></p>')).toBe('doc(paragraph("x"[code]))')
+  })
+})

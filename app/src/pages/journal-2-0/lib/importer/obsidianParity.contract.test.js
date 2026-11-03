@@ -219,16 +219,9 @@ const knownClientGap = {
   // Both lanes dropped the no-dot stem rule (`[[chart]]` names `chart.md` only), and
   // both check a `#`-holding target against the vault's full file names before
   // splitting an anchor (`![[my chart #1 (v2).png]]` keeps its image).
-  // 25-code-span-link-text (D2 fix round 4, N-I4): both lanes make the link to Plan from
-  // `[[Plan|the `x` plan]]` and from the callout title; what is left is the code RUN inside
-  // the link. The editor's code mark excludes every other mark, so the client's parse
-  // (`generateJSON`) drops the link from `x`, while the server's shared `mddoc` stores it as
-  // link+code (as it does for any `[`x`](url)`, every connector). Not an Obsidian pass:
-  // closed by D3 (shared-converter follow-up PR: a code run carries no other mark) --
-  // delete this entry then.
-  '25-code-span-link-text.json': {
-    missingLinks: [{ target: 'Plan.md', text: 'x' }, { target: 'Plan.md', text: 'x' }],
-  },
+  // ⚰️ 25-code-span-link-text: closed by D3 item 2. A code run inside a link keeps the LINK
+  // and loses the code mark on both lanes (`convert.js::liftLinksOutOfCode`,
+  // `convert/marks.py::exclusive_marks`), so `the x plan` is one link run on both.
   // 27-tilde-fence (D2 fix round 3, M-new-1): images, links and media agree -- the `~~~`
   // fence keeps its embed and wikilink as code on both lanes. What is left is a code BLOCK
   // difference no Obsidian pass makes: the shared client parse keeps the fence's final
@@ -244,11 +237,10 @@ const knownClientGap = {
   // a link or embed across a blank line or a fence is left as written on both lanes, and a
   // single-newline alias is the one link, in a quote too (follow-up: a `>`-only quote line
   // is a paragraph break, and a one-line ``` run is inline code a link may hold). What is
-  // left is two D3 differences, neither an Obsidian pass:
+  // left is D3 differences, neither an Obsidian pass:
   //   - 27's code BLOCK difference: the client keeps the fence's final newline in the
   //     codeBlock text, the server's `mddoc` drops it (D3: fenced code final newline);
-  //   - 25's code RUN difference: the client's code mark drops the link from `x`, the
-  //     server stores link+code (D3: a code run carries no other mark).
+  //   - ⚰️ 25's code RUN difference (the link on `x`) was closed by D3 item 2.
   //   - Round 5 (final), ruling A's `[[Plan|a\n<div>b]]` row: no link and no key on either
   //     lane, but the raw HTML block `<div>b]]` reads differently in the SHARED parses: the
   //     server's `mddoc` keeps the tag as text (`<div>b]]`), the client's parse renders it
@@ -256,7 +248,6 @@ const knownClientGap = {
   //     HTML blocks).
   // Delete this entry when D3 lands.
   '28-blank-line-and-fence-alias.json': {
-    missingLinks: [{ target: 'Plan.md', text: 'x' }],
     clientReads: {
       text: 'Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end '
         + 'x ![[chart.png|a b]] y [[Plan|a code\n b]] see one line still links '

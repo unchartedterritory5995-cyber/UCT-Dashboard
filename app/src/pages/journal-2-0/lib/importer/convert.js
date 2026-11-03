@@ -265,8 +265,58 @@ function dropMarker(node, marker, schema) {
   return [out, had]
 }
 
+// ── D3 item 2: a link survives a code run ──────────────────────────────────
+//
+// The editor's code mark excludes every other mark (`excludes: '_'`), so its parser dropped
+// the link from `<a href><code>x</code></a>` (a markdown `[`x`](url)`) and from
+// `<code><a href>x</a></code>`. Ruling: where a run is both a link and code, the LINK stays and
+// the code mark goes; a code run with any other mark (bold, italic...) stays code, as the
+// parser already does. Here the code element is taken off every run a link will cover, before
+// the parse. The server lane applies the same rule (`convert/marks.py::exclusive_marks`).
+// `isLink(a)` asks the schema's own link parse rule, so an `<a>` the editor refuses (no href,
+// a scheme off the allow-list) never costs its text the code mark.
+export function liftLinksOutOfCode(doc, isLink) {
+  for (const code of [...doc.body.querySelectorAll('code')]) {
+    if (!code.isConnected || code.closest('pre')) continue
+    const outer = code.parentElement?.closest('a[href]')
+    if (outer && isLink(outer)) {
+      code.replaceWith(...code.childNodes)
+      continue
+    }
+    const inner = [...code.querySelectorAll('a[href]')].filter(isLink)
+    if (!inner.length) continue
+    if (inner.some((a) => a.parentElement !== code)) {
+      // A link deeper inside (`<code><b><a>`): the whole run goes uncoded, never the link.
+      code.replaceWith(...code.childNodes)
+      continue
+    }
+    // `<code>a <a>b</a> c</code>`: `a ` and ` c` stay code, `b` is the link.
+    const parts = []
+    let run = null
+    for (const child of [...code.childNodes]) {
+      if (inner.includes(child)) {
+        parts.push(child)
+        run = null
+        continue
+      }
+      if (!run) {
+        run = code.cloneNode(false)
+        parts.push(run)
+      }
+      run.appendChild(child)
+    }
+    code.replaceWith(...parts)
+  }
+}
+
+function linkRuleFor(schema) {
+  const rules = (schema.marks.link?.spec.parseDOM || []).filter((r) => r.tag)
+  return (a) => rules.some((r) => a.matches(r.tag) && (!r.getAttrs || r.getAttrs(a) !== false))
+}
+
 let _ext
 let _schema
+let _isLink
 export function htmlToNote(html) {
   // A body the importer already holds (a note from our own JSON export) is answered with
   // that body, never re-derived from HTML it does not have (`uctJson.js::heldBody`).
@@ -274,6 +324,9 @@ export function htmlToNote(html) {
   if (held) return { bodyJson: held, bodyPlain: extractPlainText(held) }
   _ext = _ext || buildExtensions()
   const doc = sanitizeDoc(new DOMParser().parseFromString(html || '', 'text/html'))
+  _schema = _schema || getSchema(_ext)
+  _isLink = _isLink || linkRuleFor(_schema)
+  liftLinksOutOfCode(doc, _isLink)
   // ⛔ Picked against the DECODED document, never the raw string: a noncharacter written
   // as an entity (`&#xFDD0;`) is only a character once parsed (D2 fix round 1, M1). The
   // serializer writes every text and attribute character back as itself (it escapes only
@@ -282,7 +335,6 @@ export function htmlToNote(html) {
   const marked = marker ? markBlockAtomEdges(doc, marker) : 0
   let bodyJson = generateJSON(doc.body.innerHTML, _ext)
   if (marked) {
-    _schema = _schema || getSchema(_ext)
     bodyJson = dropMarker(bodyJson, marker, _schema)[0]
   }
   return { bodyJson, bodyPlain: extractPlainText(bodyJson) }
