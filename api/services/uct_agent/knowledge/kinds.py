@@ -367,6 +367,11 @@ def playbook(params: dict, ctx: dict) -> dict:
         v = _clean_value(t.get(f))
         if v not in (None, "", [], {}):
             data[f] = v
+    from api.services.uct_agent.knowledge import criteria
+    crit = criteria.reviewed_conditions(str(t.get("name") or res["name"]))
+    if crit:                                     # only owner-reviewed, validated criteria are ever served
+        data["criteria"] = crit
+        data["criteria_contract"] = "KN-1 measurables"
     return _envelope(kind, params, data=data, notes=[
         "A UCT setup template: rules, not market data and not advice. Cite it as UCT's playbook."])
 

@@ -651,3 +651,70 @@ def test_an_injection_beyond_the_excerpt_window_still_withholds_the_passage(kn):
     (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 6), encoding="utf-8")
     out = read("knowledge.search", {"question": "patience is a position", "k": 3})
     assert 32 not in {p["kb_id"] for p in out["data"]["passages"]}
+
+
+# ── derived setup criteria (pilot) ─────────────────────────────────────────────────────────────────────
+def test_the_criteria_file_validates_and_nothing_is_reviewed_yet():
+    from api.services.uct_agent.knowledge import criteria
+    data = criteria.load()
+    names = [t["template"] for t in data["templates"]]
+    assert names == ["Stage 2 Breakout", "EP", "VCP", "HTF", "U&R"]
+    for t in data["templates"]:
+        assert criteria.entry_errors(t) == [], criteria.entry_errors(t)
+        assert t["reviewed"] is False
+        assert criteria.reviewed_conditions(t["template"]) is None
+
+
+def test_measurable_list_matches_the_contract_table():
+    import re as _re
+    from api.services.uct_agent.knowledge import criteria
+    md = (Path(criteria.__file__).resolve().parents[4] / "docs/agent/program/contracts/KN-1-knowledge.md").read_text(encoding="utf-8")
+    table = md.split("## Measurables", 1)[1]
+    ids = set()
+    for line in table.splitlines():
+        m = _re.match(r"\|\s*((?:`[a-z0-9_]+`(?:\s*/\s*)?)+)\s*\|", line)
+        if m:
+            ids.update(_re.findall(r"`([a-z0-9_]+)`", m.group(1)))
+    assert ids == set(criteria.MEASURABLES)
+
+
+def test_stated_conditions_carry_literal_values_and_blocked_ones_carry_a_reason():
+    from api.services.uct_agent.knowledge import criteria
+    for t in criteria.load()["templates"]:
+        for c in t["conditions"]:
+            if c.get("blocked"):
+                assert c["measurable"] is None and "F-16" in c["blocked"]
+            elif c["basis"] == "stated":
+                assert c["value"] is not None
+            if c["basis"] == "interpreted" and c.get("value") is not None:
+                assert c["assumptions"], c["id"]          # every interpretation says what was assumed
+
+
+@pytest.mark.parametrize("bad", [
+    {"measurable": "rs_rank"}, {"locator": "secret_field.x"}, {"basis": "stated", "value": None},
+    {"unit": "bool", "value": 3}, {"op": "~"}, {"role": "advice"},
+])
+def test_invalid_conditions_are_rejected(bad):
+    from api.services.uct_agent.knowledge import criteria
+    good = {"id": "c", "role": "entry", "locator": "entry_triggers.primary", "measurable": "close_vs_sma50", "op": ">",
+            "value": 0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []}
+    assert criteria.condition_errors(good) == []
+    assert criteria.condition_errors({**good, **bad})
+
+
+def test_playbook_serves_criteria_only_when_reviewed_and_valid(kn, monkeypatch, tmp_path):
+    from api.services.uct_agent.knowledge import criteria
+    cond = {"id": "gap", "role": "entry", "locator": "entry_triggers.primary", "measurable": "gap_pct", "op": ">=",
+            "value": 10, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []}
+    f = tmp_path / "crit.json"
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_CRITERIA", str(f))
+    f.write_text(json.dumps({"templates": [{"template": "Episodic Pivot", "reviewed": False, "conditions": [cond]}]}), encoding="utf-8")
+    assert "criteria" not in read("setup.playbook", {"setup": "EP"})["data"]
+    f.write_text(json.dumps({"templates": [{"template": "Episodic Pivot", "reviewed": True, "conditions": [cond]}]}), encoding="utf-8")
+    os.utime(f, (time.time() + 5, time.time() + 5))
+    d = read("setup.playbook", {"setup": "EP"})["data"]
+    assert d["criteria"] == [{k: v for k, v in cond.items() if k != "locator" and v != []}]
+    f.write_text(json.dumps({"templates": [{"template": "Episodic Pivot", "reviewed": True,
+                                            "conditions": [{**cond, "measurable": "rs_rank"}]}]}), encoding="utf-8")
+    os.utime(f, (time.time() + 10, time.time() + 10))
+    assert "criteria" not in read("setup.playbook", {"setup": "EP"})["data"]     # invalid reviewed entry: not served
