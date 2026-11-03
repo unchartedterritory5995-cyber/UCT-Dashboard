@@ -963,8 +963,8 @@ export default function Breadth() {
   ) : null
 
   // ⭐ W2-C1: what UCT Agent may read of this page (read only: tab, window, newest session, rows, columns).
-  // W2-C2: called BEFORE the tab branches below — a hook after an early return changes the hook count when the
-  // member switches tab (React: "Rendered fewer hooks than expected").
+  // Called BEFORE the tab branches below — a hook after an early return changes the hook count when the
+  // member switches tab (React: "Rendered fewer hooks than expected"; breadth/breadthTabHookOrder.test.jsx).
   useBreadthAgentHost({ tab: activeTab, days: effectiveDays, topDate: monitorTopDate, rowCount: rows.length, columns: visibleCols.map(c => c.label || c.key || String(c)), live: !!liveBreadth?.data, loading: isLoading })
 
   if (activeTab === 'overview') {
