@@ -98,7 +98,9 @@ def default_folder_id(user_id: str, name: str, conn: sqlite3.Connection | None =
     answers `None` (the connect flow then lets notes land at the Notebook root; the heal leaves the
     source as it was). Handed a connection, it writes inside the caller's transaction and leaves
     the commit to it."""
-    trimmed = (name or "").strip()[:80] or FALLBACK_FOLDER_NAME
+    # Stripped again after the cut (re-review N4): `create_folder` stores the name stripped, so a
+    # cut that ends on a space must compare as it was stored or the reuse below never matches.
+    trimmed = (name or "").strip()[:80].strip() or FALLBACK_FOLDER_NAME
     try:
         folder = notes_svc.create_folder(user_id, trimmed, conn=conn)
         return folder["id"]

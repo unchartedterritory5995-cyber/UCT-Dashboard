@@ -5952,7 +5952,7 @@ def delete_folder(
         # would return an empty list and land nothing, which is exactly the
         # shape of a fix that looks present and does nothing.
         moved_rows = conn.execute(
-            "SELECT id, import_key, updated_at, imported_at FROM j2_notes "
+            "SELECT id, import_key, updated_at, imported_at, import_remote_rev FROM j2_notes "
             "WHERE folder_id = ? AND user_id = ?", (folder_id, user_id)).fetchall()
         moved = [r["id"] for r in moved_rows]
         # ⛔ A FOLDER MOVE IS NOT A CONTENT EDIT (review I2, `probe_conflict.py`). The note sync
@@ -5962,9 +5962,14 @@ def delete_folder(
         # was UNEDITED before the move has `imported_at` advanced to the same stamp, in the same
         # UPDATE, so it stays unedited. ⛔ Never one the member had already edited (or whose stamps
         # cannot be read): hiding a real edit would let a remote change overwrite their work.
+        # ⛔ Nor a LEGACY row (`import_remote_rev IS NULL`, re-review N1): the engine judges its
+        # remote by `remote revision > imported_at` (`engine._remote_changed` rule 4), so moving
+        # `imported_at` forward would swallow a remote edit made before this delete and not yet
+        # synced. Such a row keeps the old answer: a conflict copy, never a missed edit.
         unedited_imports = [
             r["id"] for r in moved_rows
-            if r["import_key"] and import_provenance.instant(r["updated_at"]) is not None
+            if r["import_key"] and r["import_remote_rev"] is not None
+            and import_provenance.instant(r["updated_at"]) is not None
             and import_provenance.instant(r["imported_at"]) is not None
             and not import_provenance.edited_since_import(r["updated_at"], r["imported_at"])]
         # Delete the folder first to avoid UNIQUE constraint violations when re-parenting

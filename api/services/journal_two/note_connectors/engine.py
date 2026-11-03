@@ -601,6 +601,28 @@ async def _do_sync(
             # Review M1: the row is the authority (re-pointed by the heal, or by a delete since
             # this dict was read), so every usable answer is applied, not only a repair.
             source = {**source, "destFolderId": heal.dest_folder_id}
+        elif heal is not None and heal.outcome in ("paused", "disabled", "failed"):
+            # Re-review N2: the folder is missing and this pass cannot repair it, so every batch
+            # would be refused (and each would take the write lock to try the repair again).
+            # Nothing is listed, fetched or confirmed; the cursor is untouched, so whatever is
+            # waiting is fetched the pass after the repair succeeds. One sentence, recorded once.
+            sentence = _heal_sentence(heal, source)
+            log.warning("[note-sync] source %s: destination folder missing (%s); pass skipped",
+                        source_id, heal.outcome)
+            connections.record_sync_result(user_id, source_id, ok=True, status="warning",
+                                           error=sentence)
+            _finish_log(log_id, status="warning", counts=counts,
+                        error=f"{DEST_MISSING_FAILURE_PREFIX} ({heal.outcome}): pass skipped",
+                        source_deleted=0, failures_json=[])
+            skipped: dict[str, Any] = {
+                "status": "warning", "sourceId": source_id, **counts, "sourceDeleted": 0,
+                "failures": [f"{DEST_MISSING_FAILURE_PREFIX} ({heal.outcome}): pass skipped"],
+                "deleteDetectionWarning": None,
+            }
+            if removal_check:
+                skipped["removalCheck"] = _removal_check_summary(
+                    user_id, source_id, ran=False, reason=None, severed=0)
+            return skipped
 
         # `list_present_refs` governs BOTH the cursor-reset decision right
         # below AND (further down, on a full pass) the complete-set input to
@@ -1331,10 +1353,16 @@ def _dest_folder_missing_reason(user_id: str, source: dict[str, Any]) -> str:
     trying the repair once more (the folder went while this pass ran). Each sentence is true of
     what the repair did: a usable answer re-points `source` (so later batches of this pass use it)
     and the notes are saved on the next pass; a paused or disabled source says what will fix it."""
-    label = dest_folder.provider_label(source.get("provider"))
     heal = dest_folder.heal_missing_dest_folder(user_id, source["id"])
     if heal.outcome in dest_folder.USABLE:
         source["destFolderId"] = heal.dest_folder_id
+    return _heal_sentence(heal, source)
+
+
+def _heal_sentence(heal: "dest_folder.HealResult", source: dict[str, Any]) -> str:
+    """The one mapping from what the repair did to what the member reads."""
+    label = dest_folder.provider_label(source.get("provider"))
+    if heal.outcome in dest_folder.USABLE:
         if heal.outcome == "remade":
             return dest_folder.dest_folder_remade_sentence(heal.folder_name or "")
         return dest_folder.DEST_FOLDER_MOVED_SENTENCE

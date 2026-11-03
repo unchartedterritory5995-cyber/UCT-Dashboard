@@ -287,7 +287,7 @@ async def test_a_disabled_or_paused_source_is_never_repaired(db, monkeypatch, st
     assert row["lastSyncError"] == expected
     if state == "disabled":  # review M3: a member cannot clear 'disabled'; never "turn sync on"
         assert "Turn sync back on" not in expected
-    assert {f["reason"] for f in _log_failures(src)} == {expected}
+    assert _log_failures(src) == []  # N2: the pass stored nothing and named no note; the row says it once
 
 
 def test_a_broken_source_is_repaired(db):
@@ -531,3 +531,78 @@ async def test_a_pass_that_stops_shows_a_sentence_and_logs_the_raw_text(db, monk
     expected = (engine.RECONNECT_REASON if auth else engine.SYNC_STOPPED_REASON).format(label="Notion")
     assert row["lastSyncError"] == expected and raw not in row["lastSyncError"]
     assert raw in caplog.text
+
+
+# ── fix round 2 (re-review N1-N4) ────────────────────────────────────────────
+
+async def test_a_pass_that_cannot_repair_lists_and_stores_nothing_and_keeps_the_cursor(db, monkeypatch):
+    """N2: a paused source's missing folder refuses every batch, so the pass does not list, fetch
+    or confirm at all (nor take the write lock per batch), and the cursor stays where it was so
+    nothing is skipped once the folder is repaired."""
+    src = _source()
+    connections.update_cursor(USER, src["id"], "2026-01-02T00:00:00.000+00:00")
+    _drop_folder_raw(src["destFolderId"])
+    connections.set_sync_enabled(USER, src["id"], False)
+    calls = {"list": 0, "confirm": 0}
+
+    class Counting(Fake):
+        async def list_changed(self, credentials, cursor=None):
+            calls["list"] += 1
+            return await super().list_changed(credentials, cursor)
+
+    def no_confirm(*_a, **_k):
+        calls["confirm"] += 1
+        raise AssertionError("confirm ran on a pass that cannot store")
+
+    monkeypatch.setattr(notes_svc, "import_confirm", no_confirm)
+    result = await _pass(monkeypatch, src, Counting({"a": (5, [])}))
+    assert calls == {"list": 0, "confirm": 0}
+    assert result["status"] == "warning" and result["created"] == 0
+    row = connections.get_source_by_id(src["id"])
+    assert row["cursor"] == "2026-01-02T00:00:00.000+00:00"
+    assert row["lastSyncError"] == dest_folder.dest_folder_gone_sentence("Notion")
+
+
+class Versioned(Fake):
+    """The body carries the revision, so a remote edit changes the payload hash."""
+
+    async def fetch(self, credentials, r):
+        rn = await super().fetch(credentials, r)
+        rn.doc = _doc(f"body {r.remote_id} {r.updated_at}")
+        return rn
+
+
+async def test_a_legacy_row_keeps_its_imported_at_through_a_folder_delete(db, monkeypatch):
+    """N1: a legacy row (no stored remote revision) is judged by `remote revision > imported_at`.
+    A remote edit R1 made before the delete and not yet synced, then a member edit: advancing
+    `imported_at` past R1 would make the engine read the remote as unchanged and miss R1 for
+    good. The row keeps its stamp, so the pass keeps both versions."""
+    src = _source()
+    await _pass(monkeypatch, src, Versioned({"a": (1, [])}))
+    _x("UPDATE j2_notes SET import_remote_rev = NULL, updated_at = '2026-01-01T00:00:00+00:00', "
+       "imported_at = '2026-01-02T00:00:00+00:00' WHERE import_key = ?", ("fake:ws1:a",))
+    notes_svc.delete_folder(USER, src["destFolderId"])  # T (now) > R1 (Jan 5) > imported_at
+    assert _stamps("a")["imported_at"] == "2026-01-02T00:00:00+00:00"
+    _x("UPDATE j2_notes SET updated_at = '2099-01-01T00:00:00+00:00' WHERE import_key = ?",
+       ("fake:ws1:a",))  # the member's edit
+    r = await _pass(monkeypatch, src, Versioned({"a": (5, [])}))
+    assert r["conflicts"] == 1, "remote edit R1 was missed"
+
+
+@pytest.mark.parametrize("stamp", [None, "not a date"])
+def test_an_unreadable_imported_at_survives_a_folder_delete(db, stamp):
+    """N3: an import-keyed note whose `imported_at` is NULL or unreadable is left as it is."""
+    folder = notes_svc.create_folder(USER, "Mine")
+    note = notes_svc.create_note(USER, {"title": "n", "folderId": folder["id"]})
+    _x("UPDATE j2_notes SET import_key = 'fake:ws1:z', import_remote_rev = 'r1', imported_at = ? "
+       "WHERE id = ?", (stamp, note["id"]))
+    notes_svc.delete_folder(USER, folder["id"])
+    assert _q("SELECT imported_at FROM j2_notes WHERE id = ?", (note["id"],))[0]["imported_at"] == stamp
+
+
+def test_a_cut_name_ending_on_a_space_reuses_the_folder_it_names(db):
+    """N4: `create_folder` stores the name stripped; the reuse must compare the same string."""
+    name = "x" * 79 + " tail"  # the 80-char cut ends on the space
+    existing = notes_svc.create_folder(USER, "x" * 79)
+    assert dest_folder.default_folder_id(USER, name) == existing["id"]
+    assert len(_folders_named("x" * 79)) == 1
