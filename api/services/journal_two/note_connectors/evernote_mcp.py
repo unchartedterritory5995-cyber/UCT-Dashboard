@@ -136,6 +136,53 @@ def _sse_messages(event: str) -> list[Any]:
 _NO_REPLY = object()
 
 
+class _SseSplitter:
+    """Splits a streamed SSE body into events (separated by a blank line once CRLF is normalised
+    to LF), in time LINEAR in the body (final review I1(a)).
+
+    `feed(text)` returns the events `text` completes. Only `text` is normalised and searched: a
+    trailing `\r` is held back to the next chunk (it may start a CRLF pair), and whether the pending
+    event ends in `\n` is remembered, so a blank line cut across two chunks is still found. The
+    pending event is a list of segments, joined once when it completes. `finish()` returns what is
+    left at EOF (an event with no blank line after it). Together they give exactly
+    `body.replace("\r\n", "\n").split("\n\n")`, the old whole-buffer split, minus empty events."""
+
+    def __init__(self) -> None:
+        self._segments: list[str] = []
+        self._ends_nl = False
+        self._carry_cr = False
+
+    def feed(self, text: str) -> list[str]:
+        if self._carry_cr:
+            text, self._carry_cr = "\r" + text, False
+        if text.endswith("\r"):
+            text, self._carry_cr = text[:-1], True
+        text = text.replace("\r\n", "\n")
+        events: list[str] = []
+        pos = 0
+        if self._ends_nl and text.startswith("\n"):
+            events.append("".join(self._segments)[:-1])  # the blank line straddled two chunks
+            self._segments, pos = [], 1
+        while True:
+            at = text.find("\n\n", pos)
+            if at < 0:
+                break
+            events.append("".join(self._segments) + text[pos:at])
+            self._segments, pos = [], at + 2
+        rest = text[pos:]
+        if rest:
+            self._segments.append(rest)
+            self._ends_nl = rest.endswith("\n")
+        elif pos:
+            self._ends_nl = False
+        return events
+
+    def finish(self) -> list[str]:
+        text = "".join(self._segments) + ("\r" if self._carry_cr else "")
+        self._segments, self._carry_cr, self._ends_nl = [], False, False
+        return [text] if text else []
+
+
 def _pick(messages: list[Any], rid: str, method: str) -> Any:
     """The `result` of the message whose JSON-RPC id is `rid`, `_NO_REPLY` when none matches.
     A JSON-RPC `error` reply raises `NoteConnUnsupported`."""
@@ -349,7 +396,13 @@ class EvernoteMcpClient:
                     f"evernote mcp: response of {declared} bytes is over the cap")
             is_sse = "text/event-stream" in resp.headers.get("content-type", "").lower()
             decoder = codecs.getincrementaldecoder("utf-8")()
-            buf = ""
+            # Final review I1(a): LINEAR in the reply. A `get_note` reply is one SSE event, so
+            # nothing is consumed until it ends; normalising and searching the whole buffer on every
+            # chunk was quadratic (a 16 MB reply cost ~20 s of CPU on the event loop). Each chunk's
+            # text is handled once: `_SseSplitter` normalises and searches only the new text (plus
+            # one carried character), and the JSON path joins its parts once, at the end.
+            splitter = _SseSplitter() if is_sse else None
+            parts: list[str] = []
             total = 0
             chunks = resp.aiter_bytes()
             try:
@@ -357,21 +410,20 @@ class EvernoteMcpClient:
                     total += len(chunk)
                     if total > MAX_RESPONSE_BYTES:
                         raise errors.NoteConnTooLarge("evernote mcp: response is over the cap")
-                    buf += decoder.decode(chunk)
-                    if not is_sse:
+                    text = decoder.decode(chunk)
+                    if splitter is None:
+                        parts.append(text)
                         continue
-                    buf = buf.replace("\r\n", "\n")
-                    while "\n\n" in buf:
-                        event, buf = buf.split("\n\n", 1)
+                    for event in splitter.feed(text):
                         found = _pick(_sse_messages(event), rid, method)
                         if found is not _NO_REPLY:
                             return status, resp, found
-                buf += decoder.decode(b"", final=True)
-                if is_sse:
-                    messages = [m for event in buf.replace("\r\n", "\n").split("\n\n")
+                tail = decoder.decode(b"", final=True)
+                if splitter is not None:
+                    messages = [m for event in [*splitter.feed(tail), *splitter.finish()]
                                 for m in _sse_messages(event)]
                 else:
-                    parsed = json.loads(buf)
+                    parsed = json.loads("".join(parts) + tail)
                     messages = parsed if isinstance(parsed, list) else [parsed]
             except (UnicodeDecodeError, ValueError):
                 raise errors.NoteConnTransient(

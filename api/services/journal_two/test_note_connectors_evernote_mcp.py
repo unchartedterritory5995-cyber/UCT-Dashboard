@@ -614,3 +614,101 @@ def test_sse_data_strips_exactly_one_leading_space():
     assert evernote_mcp._sse_event_data("data:none") == "none"
     assert evernote_mcp._sse_event_data("event: message\ndata: a\ndata:  b") == "a\n b"
     assert evernote_mcp._sse_event_data(": keep-alive") is None
+
+
+# --------------------------------------------------------------------------- final review I1(a)
+# The SSE reader must be LINEAR in the reply: a `get_note` reply is ONE event, so nothing is
+# consumed until it ends, and rescanning the whole buffer on every chunk made a 16 MB reply cost
+# seconds of CPU on the event loop.
+
+
+def _chunked(data: bytes, size: int):
+    async def stream():
+        for i in range(0, len(data), size):
+            yield data[i:i + size]
+    return stream()
+
+
+def _big_reply_client(n_bytes: int, chunk: int):
+    def on_call(req, body):
+        event = _sse_event({"jsonrpc": "2.0", "id": body["id"], "result": _ok({"blob": "x" * n_bytes})})
+        return httpx.Response(200, headers={"content-type": "text/event-stream"},
+                              content=_chunked(event, chunk))
+    return _client(server=Server(on_call))
+
+
+def _parse_seconds(n_bytes: int, runs: int = 3) -> float:
+    import time
+    best = float("inf")
+    for _ in range(runs):
+        client = _big_reply_client(n_bytes, 4096)
+        t0 = time.perf_counter()
+        out = asyncio.run(client.call_tool("get_note", {"noteId": "n"}))
+        best = min(best, time.perf_counter() - t0)
+        assert len(out["blob"]) == n_bytes
+    return best
+
+
+def test_a_large_sse_event_parses_in_linear_time(monkeypatch):
+    """4x the bytes must cost about 4x the time, never about 16x. A ratio, not a wall clock, so a
+    busy box does not decide it (best of three runs each)."""
+    monkeypatch.setattr(evernote_mcp, "MAX_RESPONSE_BYTES", 64 * 1024 * 1024)
+    small = _parse_seconds(4 * 1024 * 1024)
+    large = _parse_seconds(16 * 1024 * 1024)
+    assert large / small < 8.0, (small, large)
+
+
+def _events(rid: str) -> bytes:
+    """Keep-alives, an event for another id, then ours, CRLF throughout, with a multibyte payload."""
+    other = json.dumps({"jsonrpc": "2.0", "id": "other", "result": _ok({"x": 1})})
+    ours = json.dumps({"jsonrpc": "2.0", "id": rid, "result": _ok({"title": "Café ☕ plan"})},
+                      ensure_ascii=False)
+    return (": keep-alive\r\n\r\n"
+            f"event: message\r\ndata: {other}\r\n\r\n"
+            ": another\r\n\r\n"
+            f"event: message\r\ndata: {ours}\r\n\r\n").encode("utf-8")
+
+
+@pytest.mark.parametrize("chunk", range(1, 10))
+async def test_sse_events_split_at_every_boundary_parse_the_same(chunk):
+    """Every chunk size cuts a CRLF pair, a blank-line pair or a multibyte character somewhere."""
+    def on_call(req, body):
+        return httpx.Response(200, headers={"content-type": "text/event-stream"},
+                              content=_chunked(_events(body["id"]), chunk))
+    client = _client(server=Server(on_call))
+    assert await client.call_tool("get_note", {"noteId": "n"}) == {"title": "Café ☕ plan"}
+
+
+@pytest.mark.parametrize("chunk", [1, 2, 3, 5])
+async def test_a_chunked_json_reply_with_multibyte_text_parses(chunk):
+    def on_call(req, body):
+        data = json.dumps({"jsonrpc": "2.0", "id": body["id"], "result": _ok({"t": "Café ☕"})},
+                          ensure_ascii=False).encode("utf-8")
+        return httpx.Response(200, headers={"content-type": "application/json"}, content=_chunked(data, chunk))
+    client = _client(server=Server(on_call))
+    assert await client.call_tool("get_note", {"noteId": "n"}) == {"t": "Café ☕"}
+
+
+async def test_an_sse_reply_whose_last_event_has_no_blank_line_is_still_read():
+    def on_call(req, body):
+        data = f"event: message\ndata: {json.dumps({'jsonrpc': '2.0', 'id': body['id'], 'result': _ok({'k': 1})})}\r"
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=_chunked(data.encode(), 7))
+    client = _client(server=Server(on_call))
+    assert await client.call_tool("get_note", {"noteId": "n"}) == {"k": 1}
+
+
+def test_the_splitter_equals_the_whole_buffer_split_for_any_chunking():
+    """Property: for random bodies of `\r`, `\n` and text, cut at random places, the linear
+    splitter yields exactly the old whole-buffer split (`replace("\r\n", "\n").split("\n\n")`),
+    empty events aside (an empty event carries no message either way)."""
+    import random
+    rnd = random.Random(20261103)
+    for _ in range(2000):
+        body = "".join(rnd.choice(["\r\n", "\n", "a", "b", ":", " ", "\r\n\r\n", "\n\n"])
+                       for _ in range(rnd.randint(0, 40)))
+        cuts = sorted(rnd.sample(range(len(body) + 1), k=min(len(body) + 1, rnd.randint(0, 8))))
+        pieces = [body[i:j] for i, j in zip([0, *cuts], [*cuts, len(body)])]
+        splitter = evernote_mcp._SseSplitter()
+        got = [e for piece in pieces for e in splitter.feed(piece)] + splitter.finish()
+        want = body.replace("\r\n", "\n").split("\n\n")
+        assert [e for e in got if e] == [e for e in want if e], (body, pieces)
