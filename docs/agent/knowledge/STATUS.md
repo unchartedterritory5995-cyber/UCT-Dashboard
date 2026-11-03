@@ -178,6 +178,10 @@ filtering or ranking work would add complexity without a measurable gain; embedd
 ## Blocked / needs the owner
 - Admitting `self_review`, `manual`, `chart_intake:*` or any `intake:*` source (policy.json is the switch; default-deny until the owner rules).
 - Activation: `UCT_AGENT_KNOWLEDGE=1` and the three kinds in `UCT_AGENT_DATA_KINDS` — owner only, after merge.
+- Before activation (AUDIT, 2026-11-03): master hotfix #755 `turn.DATA_READ_ACTIONS` drops the model's reply for a v1 plan made
+  only of those reads. `playbook.*` are NOT in it today. Recommendation: add them for planner v1 (the v1 reply is written before the
+  passages are read, so it could state a definition the knowledge base never gave; the renderer text is the answer); v2 is
+  unaffected (it reads, then answers). Shared file: AUDIT's change, decided at activation, not before.
 - Paid real-model comparison — not authorised.
 - Partner: additive PACK_MANIFEST fields `schema_version`, `kb_sources`, `stats_updated_at` (compat behaviour in place; reported missing, never invented); fix the "high tight flag" alias attached to two templates.
 
@@ -190,6 +194,9 @@ filtering or ranking work would add complexity without a measurable gain; embedd
 - Retrieval is lexical (FTS5, porter stemming); no embeddings by design (no external calls).
 
 ## Next step to resume
+MERGED DARK (2026-11-03): #735 is on master via release train 2, PR #754, master 3d3d444d4f, after Wave 1.1 was verified live.
+Flags unset (AUDIT verifies production). #751 (this branch) is NOT on master; it needs its own independent review and a rebase
+onto master before merge. Activation HOLD unchanged.
 STANDBY (owner, end of phase 1): act only on a concrete defect or integration requirement in the knowledge package reported by AUDIT.
 
 Previous notes:
