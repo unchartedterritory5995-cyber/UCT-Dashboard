@@ -505,6 +505,36 @@ def update_cursor(
     return _update_source_fields(user_id, source_id, {"cursor": cursor}, conn)
 
 
+def note_removal_check(user_id: str, source_id: str, *, ran: bool) -> int:
+    """Plan E Task 6 review R2: record whether a full pass's removal check RAN (resets the count)
+    or was SKIPPED because the complete listing failed (adds one). Returns the new count of
+    consecutive skips. Atomic: one UPDATE, then a read on the same connection."""
+    conn = get_connection()
+    try:
+        if ran:
+            conn.execute("UPDATE j2_note_sources SET removal_skips = 0 WHERE id = ? AND user_id = ?",
+                         (source_id, user_id))
+        else:
+            conn.execute("UPDATE j2_note_sources SET removal_skips = removal_skips + 1 "
+                         "WHERE id = ? AND user_id = ?", (source_id, user_id))
+        row = conn.execute("SELECT removal_skips FROM j2_note_sources WHERE id = ? AND user_id = ?",
+                           (source_id, user_id)).fetchone()
+        conn.commit()
+        return int(row["removal_skips"]) if row else 0
+    finally:
+        conn.close()
+
+
+def removal_skips(user_id: str, source_id: str) -> int:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT removal_skips FROM j2_note_sources WHERE id = ? AND user_id = ?",
+                           (source_id, user_id)).fetchone()
+        return int(row["removal_skips"]) if row else 0
+    finally:
+        conn.close()
+
+
 def set_dest_folder_id(
     user_id: str, source_id: str, dest_folder_id: str | None,
     conn: sqlite3.Connection | None = None,

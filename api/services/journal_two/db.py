@@ -726,6 +726,7 @@ CREATE TABLE IF NOT EXISTS j2_note_sources (
     last_sync_error   TEXT,
     warming_until     TEXT,
     last_full_sync_at TEXT,
+    removal_skips     INTEGER NOT NULL DEFAULT 0,
     created_at        TEXT NOT NULL,
     UNIQUE(user_id, provider, remote_id)
 );
@@ -2635,6 +2636,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         # Plan D (Sync now): when the last FULL pass finished (NULL = never),
         # and the per-note failures of a pass (JSON array, written by plan A).
         "ALTER TABLE j2_note_sources ADD COLUMN last_full_sync_at TEXT",
+        # Plan E Task 6 review R2: consecutive full passes whose removal check was SKIPPED
+        # (the complete listing failed). 3+ keeps the source in a visible warning.
+        "ALTER TABLE j2_note_sources ADD COLUMN removal_skips INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE j2_note_sync_log ADD COLUMN failures_json TEXT",
         # Chart-parity round: capture-time drawings ride the inbox row.
         "ALTER TABLE j2_capture_inbox ADD COLUMN annotations_json TEXT",
@@ -3018,6 +3022,7 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             last_sync_error   TEXT,
             warming_until     TEXT,
             last_full_sync_at TEXT,
+            removal_skips     INTEGER NOT NULL DEFAULT 0,
             created_at        TEXT NOT NULL,
             UNIQUE(user_id, provider, remote_id)
         )

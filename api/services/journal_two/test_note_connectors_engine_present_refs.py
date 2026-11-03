@@ -289,6 +289,58 @@ async def test_raising_list_present_refs_falls_back_to_refs_with_named_failure(s
     assert idx["p2"]["miss_streak"] == 0
 
 
+def _source_row(source_id):
+    conn = auth_db.get_connection()
+    try:
+        return dict(conn.execute("SELECT * FROM j2_note_sources WHERE id = ?", (source_id,)).fetchone())
+    finally:
+        conn.close()
+
+
+async def test_three_skipped_removal_checks_raise_a_visible_warning_until_one_succeeds(source, provider):
+    """Plan E Task 6 review R2: a complete listing that fails EVERY night means real deletions never
+    propagate. After 3 consecutive skipped checks the source shows a warning in member words, an
+    ordinary incremental tick does not wipe it, and the first successful check clears it."""
+    ids = ["p1", "p2"]
+    provider.list_changed_refs = [RemoteRef(remote_id=i, updated_at=T1) for i in ids]
+    provider.notes_by_id = {i: _rn(i, f"Note {i}") for i in ids}
+
+    async def _ok(credentials):
+        return [RemoteRef(remote_id=i, updated_at=T1) for i in ids]
+
+    async def _boom(credentials):
+        raise errors.NoteConnTransient("the listing did not add up twice")
+
+    provider.list_present_refs = _ok
+    await engine.sync_source(source["id"], full=True, manual=True)
+    assert _source_row(source["id"])["removal_skips"] == 0
+
+    provider.list_present_refs = _boom
+    expected = "Couldn't check which notes were deleted in fake for 3 nights — retrying"
+    for night in (1, 2, 3):
+        _a_night_later(source["id"])
+        result = await engine.sync_source(source["id"], full=True, manual=True)
+        assert _source_row(source["id"])["removal_skips"] == night
+        if night < 3:
+            assert result["status"] == "ok"
+    assert result["status"] == "warning"
+    row = _source_row(source["id"])
+    assert row["last_sync_status"] == "warning" and expected in row["last_sync_error"]
+
+    # An incremental tick (no removal check at all) keeps the warning visible.
+    result = await engine.sync_source(source["id"], manual=True)
+    assert result["status"] == "warning"
+    assert expected in _source_row(source["id"])["last_sync_error"]
+
+    # The first full pass whose complete listing succeeds clears it.
+    provider.list_present_refs = _ok
+    _a_night_later(source["id"])
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["status"] == "ok"
+    row = _source_row(source["id"])
+    assert row["removal_skips"] == 0 and row["last_sync_status"] == "ok" and not row["last_sync_error"]
+
+
 async def test_two_failed_nights_with_a_big_delta_strike_nothing(source, provider):
     """Plan E Task 5 review I1: on a full pass whose complete listing FAILS, the changed-note delta
     must never stand in for it. Here the delta is 60% of the tracked notes (above the <50% guard),

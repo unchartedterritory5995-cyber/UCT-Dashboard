@@ -703,7 +703,10 @@ async def _do_sync(
             if enumeration_failed:
                 if removal_check:
                     removal_reason = "enumeration_failed"
+                # Review R2: a skipped check is counted; 3 in a row turn the source amber.
+                connections.note_removal_check(user_id, source_id, ran=False)
             else:
+                connections.note_removal_check(user_id, source_id, ran=True)
                 # Every full pass, scheduler or member, stamps
                 # `last_full_sync_at` in the detection transaction (refused
                 # included) — the member rate limit reads it.
@@ -809,8 +812,13 @@ async def _do_sync(
         lost_everything = bool(not_stored_refs) and not (
             counts["created"] or counts["updated"] or counts["skipped"]
         )
-        status = "warning" if (delete_guard_warning or lost_everything) else "ok"
-        error_parts = ([delete_guard_warning] if delete_guard_warning else []) + item_failures
+        # Plan E Task 6 review R2: deletions cannot propagate while every complete listing fails.
+        # From the 3rd consecutive skipped check, EVERY pass (incremental ones too, so a quiet
+        # tick never wipes it) is a warning carrying the member's sentence, until a check runs.
+        removal_warning = _removal_skip_warning(source, connections.removal_skips(user_id, source_id))
+        status = "warning" if (delete_guard_warning or lost_everything or removal_warning) else "ok"
+        error_parts = (([removal_warning] if removal_warning else [])
+                       + ([delete_guard_warning] if delete_guard_warning else []) + item_failures)
 
         # ⛔⛔ Recorded HERE, not before the block above, and from the SAME
         # `status`/`error_parts` the log and the return value use -- one
@@ -1232,6 +1240,20 @@ def _touch_remote_index(
 # ── Fetch (batched, with per-ref fallback) ───────────────────────────────────
 
 _HEAL_NAMED_CHUNK = 200  # named notes healed per call: bounds the bodies held at once
+
+#: Plan E Task 6 review R2: consecutive skipped removal checks before the source turns amber.
+REMOVAL_SKIP_WARN_AFTER = 3
+
+
+def _removal_skip_warning(source: dict[str, Any], skips: int) -> str | None:
+    """The member-facing sentence for a source whose removal check has been skipped
+    `REMOVAL_SKIP_WARN_AFTER`+ nights in a row; None below that."""
+    if skips < REMOVAL_SKIP_WARN_AFTER:
+        return None
+    from . import registry
+    name = source.get("provider") or "the app"
+    label = registry.get_entry(name).label if registry.is_known(name) else name
+    return f"Couldn't check which notes were deleted in {label} for {skips} nights — retrying"
 
 
 def _heal_after_pass(user_id: str, linked_note_ids: list[str]) -> list[str]:
