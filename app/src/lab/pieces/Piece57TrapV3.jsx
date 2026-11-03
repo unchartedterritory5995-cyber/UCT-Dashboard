@@ -21,20 +21,19 @@ function rules(bars, i) {
   const redChg = pct(rr.c, r.c)
   const closePos = (b.c - b.l) / ((b.h - b.l) || 1)
   return [
-    { k: 'red', label: 'A real red day before it', value: `${redChg.toFixed(1)}%`, ok: r.c < r.o && Math.abs(redChg) >= 1, rule: 'red, and down 1% or more' },
-    { k: 'open', label: 'Opens above the red body', value: `open ${b.o.toFixed(2)} vs body top ${Math.max(r.o, r.c).toFixed(2)}`, ok: b.o > Math.max(r.o, r.c), rule: 'the open clears the body' },
-    { k: 'close', label: 'Closes strong', value: `${Math.round(closePos * 100)}% up its range`, ok: b.c > b.o && closePos >= 0.5, rule: 'green, upper half of the range' },
+    { k: 'red', label: 'A real red day before it', value: `${redChg.toFixed(1)}%, closed ${Math.round(((r.c - r.l) / ((r.h - r.l) || 1)) * 100)}% up its range`, ok: r.c < r.o && Math.abs(redChg) >= 1, rule: 'red, down 1% or more, weak close' },
+    { k: 'gap', label: "Gaps over the red day's close", value: `open ${b.o.toFixed(2)} vs close ${r.c.toFixed(2)}`, ok: b.o > r.c, rule: 'the open clears yesterday\'s close' },
+    { k: 'close', label: "Closes strong, above the red day's high", value: `close ${b.c.toFixed(2)} vs high ${r.h.toFixed(2)}, ${Math.round(closePos * 100)}% up its range`, ok: b.c > b.o && b.c > r.h && closePos >= 0.5, rule: 'green, above yesterday\'s high, upper half' },
   ]
 }
 function findTraps(bars, n, view) {
   const out = []
   for (let i = n - 2; i >= Math.max(2, n - view) && out.length < 2; i--) {
-    const rs = rules(bars, i)
-    const [red, open, close] = rs
-    const b = bars[i], r = bars[i - 1]
-    if (!(r.c < r.o) || !open.ok) continue
-    if (!red.ok && close.ok && b.c > b.o && !out.some((x) => x.kind === 'baby')) out.push({ i, kind: 'baby', why: 'The red day before it was too small. Not a real red day.' })
-    else if (red.ok && !close.ok && !out.some((x) => x.kind === 'weak')) out.push({ i, kind: 'weak', why: 'It opened above the red body but did not close strong.' })
+    const [red, gap, close] = rules(bars, i)
+    const r = bars[i - 1]
+    if (!(r.c < r.o) || !gap.ok) continue
+    if (!red.ok && close.ok && !out.some((x) => x.kind === 'baby')) out.push({ i, kind: 'baby', why: 'The red day before it was too small. Not a real red day.' })
+    else if (red.ok && !close.ok && !out.some((x) => x.kind === 'weak')) out.push({ i, kind: 'weak', why: 'It gapped over the red close but did not finish strong above its high.' })
   }
   return out
 }
@@ -53,17 +52,18 @@ export default function Piece57TrapV3() {
   const view = useMemo(() => (cands.length ? Math.max(50, n - cands[0].i + 24) : 70), [cands, n])
   const all = useRunOn(vis, d?.forward, state !== 'ask', 200)
   const highlight = useMemo(() => (state === 'ask' && vis ? cands.map((c) => vis[c.i].t) : null), [cands, vis, state])
-  const extra = useMemo(() => ({ ...QUIET, ...(highlight ? { highlightBarTime: highlight, highlightColor: GOLD } : {}) }), [highlight])
+  const extra = useMemo(() => ({ ...QUIET, ...(phone ? { showVolume: false } : {}), ...(highlight ? { highlightBarTime: highlight, highlightColor: GOLD } : {}) }), [highlight, phone])
   const annotations = useMemo(() => {
     if (!n || !all) return null
     const a = []
     cands.forEach((c, k) => {
       const letter = String.fromCharCode(65 + k)
-      const b = all[c.i], first = Math.max(0, n - view), at = c.i - 3 >= first + 4 ? all[c.i - 3] : all[Math.min(all.length - 1, c.i + 2)]
+      const b = all[c.i], first = Math.max(0, n - view), left = c.i - 4 >= first + 3, at = left ? all[c.i - 4] : all[Math.min(all.length - 1, c.i + 2)]
       const sel = pick === c.i
       const real = c.kind === 'real'
       const color = state === 'ask' ? (sel ? '#fff1c2' : GOLD) : real ? '#2faf68' : '#df4646'
-      a.push({ id: `L${k}`, type: 'text', points: [{ time: at.t, price: b.h + (b.h - b.l) * 0.6 }], text: `  ${state === 'ask' ? letter : real ? 'KICKER' : c.kind === 'baby' ? 'BABY RED DAY' : 'WEAK CLOSE'}  `, color: '#111', fontSize: sel ? 16 : 14, bgEnabled: true, bgColor: color, locked: true })
+      // the chip sits beside the candle at its mid price (never above it, so it can never leave the range)
+      a.push({ id: `L${k}`, type: 'text', points: [{ time: at.t, price: (b.o + b.c) / 2 + (b.h - b.l) * 0.18 }], text: `  ${state === 'ask' ? letter : real ? 'KICKER' : c.kind === 'baby' ? 'BABY RED' : 'WEAK CLOSE'}  `, color: '#111', fontSize: sel ? 15 : 13, bgEnabled: true, bgColor: color, locked: true })
       if (sel || state !== 'ask') {
         if (c.i + 1 < all.length) a.push(...boxAt(all, c.i, { id: `x${k}`, color }))
         else a.push({ id: `v${k}`, type: 'vertical', points: [{ time: b.t, price: b.c }], color, lineWidth: 2, lineStyle: 'dashed', locked: true })
@@ -77,13 +77,13 @@ export default function Piece57TrapV3() {
   return (
     <div className={`${d5.lesson} ${state === 'bad' ? d5.shakeHard : ''}`}>
       <div className={d5.topbar}><button type="button" className={d5.close} aria-label="Close">✕</button><div className={d5.prog}>{Array.from({ length: 10 }, (_, k) => <i key={k} className={k < 7 ? d5.on : k === 7 ? d5.cur : ''} />)}</div><div className={d5.hearts}><span>♥</span><span>♥</span><span>♥</span></div></div>
-      <div className={d5.ask}><Logo mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : ok ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{state === 'ask' ? `${cands.length} gold candles. Each opened above a red day. Only one is a Kicker. Tap the real one.` : ok ? 'That is the Kicker. Read why the others fail.' : 'That one fails a rule. The Kicker is the green one. Read why.'}</div></div>
+      <div className={d5.ask}><Logo mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : ok ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{state === 'ask' ? `${cands.length} gold candles, each a gap up after a red day. Only one is a Kicker. Tap it.` : ok ? 'That is the Kicker. The cards say why the others fail.' : 'That one fails a rule. The Kicker is the green one.'}</div></div>
       <div className={s.chartBox}>
         {state === 'ask' && pick == null ? <span className={s.tapHint}>tap a gold candle</span> : null}
         {state !== 'ask' ? <Stamp ok={ok} /> : null}
-        <WidgetChart sym={d.sym} bars={all} annotations={annotations} height={480} phoneHeight={360} density="mini" defaultBars={view} exactBars hideTicker extra={extra} onBarTap={state === 'ask' ? ({ index }) => { if (index < 0) return; const near = cands.map((c) => ({ c, dd: Math.abs(c.i - index) })).sort((p, q) => p.dd - q.dd)[0]; if (near && near.dd <= 3) { setPick(near.c.i); sfx('tick') } } : null} />
+        <WidgetChart sym={d.sym} bars={all} annotations={annotations} height={480} phoneHeight={360} density="mini" defaultBars={view} exactBars hideTicker extra={extra} onBarTap={state === 'ask' ? ({ index }) => { if (index < 0) return; const near = cands.map((c) => ({ c, dd: Math.abs(c.i - index) })).sort((p, q) => p.dd - q.dd)[0]; if (near && near.dd <= (phone ? 5 : 3)) { setPick(near.c.i); sfx('tick') } } : null} />
       </div>
-      <div className={`${d5.candRow} ${d5.cascade}`} style={{ gridTemplateColumns: `repeat(${Math.max(1, cands.length)}, 1fr)` }}>{cands.map((c, k) => {
+      <div className={`${d5.candRow} ${d5.cascade}`} style={phone ? undefined : { gridTemplateColumns: `repeat(${Math.max(1, cands.length)}, 1fr)` }}>{cands.map((c, k) => {
         const rs = state !== 'ask' ? rules(vis, c.i) : null
         return (
           <button key={c.i} type="button" style={{ '--i': k }} className={`${d5.cand} ${pick === c.i ? d5.sel : ''} ${state !== 'ask' ? (c.kind === 'real' ? d5.right : d5.wrong) : ''}`} disabled={state !== 'ask'} onClick={() => { setPick(c.i); sfx('tick') }}>

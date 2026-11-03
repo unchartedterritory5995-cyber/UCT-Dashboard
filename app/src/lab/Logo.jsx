@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react'
 import d5 from './duo.module.css'
 
 const GREEN = [47, 175, 104], RED = [223, 70, 70]
-const DEPTH = 7
+const DEPTH = 9
 const SPEED = { idle: 9, think: 15, happy: 5, oops: 20, fire: 2.6 }   // seconds per turn
 
 function arc(cx, cy, r, a0, a1, n = 18) { const pts = []; for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]) } return pts }
@@ -64,16 +64,28 @@ function draw(ctx, W, H, theta, tilt) {
     }
   })
   faces.sort((a, b) => a.z - b.z)
-  faces.forEach(({ poly, fill, cap }) => {
-    ctx.beginPath(); poly.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath()
-    ctx.fillStyle = fill; ctx.fill()
-    if (cap) {
-      const g = ctx.createLinearGradient(W * (0.2 + 0.3 * Math.sin(theta)), 0, W * (0.8 + 0.3 * Math.sin(theta)), H)
-      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,.22)'); g.addColorStop(1, 'rgba(255,255,255,0)')
-      ctx.fillStyle = g; ctx.fill()
-    }
-    ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = Math.max(0.6, W / 420); ctx.stroke()
-  })
+  const paint = (yShift, alpha) => {
+    ctx.save(); ctx.globalAlpha = alpha
+    if (yShift) { ctx.translate(0, yShift); ctx.scale(1, -0.35) }   // the floor reflection: flipped, squashed, faint
+    faces.forEach(({ poly, fill, cap }) => {
+      ctx.beginPath(); poly.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath()
+      ctx.fillStyle = fill; ctx.fill()
+      if (cap) {
+        // a metallic sheen: a soft diagonal band that slides with the turn, plus a darker foot so the face reads as curved
+        const g = ctx.createLinearGradient(W * (0.15 + 0.3 * Math.sin(theta)), 0, W * (0.85 + 0.3 * Math.sin(theta)), H)
+        g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.45, 'rgba(255,255,255,.26)'); g.addColorStop(0.6, 'rgba(255,255,255,.08)'); g.addColorStop(1, 'rgba(0,0,0,.18)')
+        ctx.fillStyle = g; ctx.fill()
+        // the bevel: a thin bright line along the lit edge, a thin dark line along the shaded edge
+        ctx.save(); ctx.clip()
+        ctx.lineWidth = Math.max(1.2, W / 170); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.setLineDash([]); ctx.translate(-W / 300, -H / 300); ctx.stroke()
+        ctx.restore()
+      }
+      ctx.strokeStyle = cap ? 'rgba(0,0,0,.35)' : 'rgba(0,0,0,.22)'; ctx.lineWidth = Math.max(0.6, W / 420); ctx.stroke()
+    })
+    ctx.restore()
+  }
+  paint(H * 1.72, 0.16)   // reflection first, under the mark
+  paint(0, 1)
 }
 
 export default function Logo({ mood = 'idle', size = 72, className = '' }) {
@@ -86,14 +98,18 @@ export default function Logo({ mood = 'idle', size = 72, className = '' }) {
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
     const per = (SPEED[mood] || 9) * 1000
     const tilt = mood === 'think' ? 0.2 : 0.08
-    let raf = 0, t0 = performance.now()
+    let raf = 0, t0 = performance.now(), last = 0, visible = true
     const frame = (now) => {
+      if (!reduced) raf = requestAnimationFrame(frame)
+      if (!visible || now - last < 32) return            // ~30 fps, and nothing while off screen (the owner's PC is low on memory)
+      last = now
       const theta = reduced ? 0.45 : ((now - t0) / per) * Math.PI * 2 + 0.45
       draw(ctx, cv.width, cv.height, theta, tilt)
-      if (!reduced) raf = requestAnimationFrame(frame)
     }
+    const io = typeof IntersectionObserver === 'function' ? new IntersectionObserver((es) => { visible = es.some((x) => x.isIntersecting) }) : null
+    io?.observe(cv)
     raf = requestAnimationFrame(frame)
-    return () => cancelAnimationFrame(raf)
+    return () => { cancelAnimationFrame(raf); io?.disconnect() }
   }, [mood, size])
   const glow = mood === 'fire' ? d5.coinFire : mood === 'happy' ? d5.coinHappy : mood === 'oops' ? d5.coinOops : mood === 'think' ? d5.coinThink : ''
   return (

@@ -476,3 +476,55 @@
 .ruleOk b { color: #8fe3b1; } .ruleBad b { color: #ff9d9d; }
 @media (max-width: 640px) { .lesson .heroWord { font-size: 36px; } .lesson .bubble { font-size: 16px; } .runLog { max-height: 160px; } }
 .cards.two { grid-template-columns: 1fr 1fr; }
+
+/* ── round 12: craftsmanship (owner: "cheap and sloppy", "the yellow start bar could be better looking") ── */
+/* one primary button family: black glass with a gold rim and gold type; the yellow slab is gone */
+.lesson .btn.live { background: linear-gradient(180deg, #1c1709 0%, #0f0d06 100%); color: var(--gb); border: 1px solid #a8842c; border-bottom: 1px solid #a8842c; box-shadow: inset 0 1px 0 rgba(255,241,194,.25), 0 8px 24px rgba(0,0,0,.5), 0 0 0 1px rgba(220,187,94,.12), 0 0 24px rgba(220,187,94,.12); text-shadow: 0 1px 0 rgba(0,0,0,.4); }
+.lesson .btn.live:hover { box-shadow: inset 0 1px 0 rgba(255,241,194,.35), 0 8px 24px rgba(0,0,0,.5), 0 0 0 1px rgba(220,187,94,.25), 0 0 34px rgba(220,187,94,.22); }
+.lesson .btn.live:active { transform: translateY(1px); }
+.lesson .btn.red { background: linear-gradient(180deg, #2a1113, #170909); color: #ff9d9d; border: 1px solid #9a2e2e; border-bottom-color: #9a2e2e; box-shadow: inset 0 1px 0 rgba(255,157,157,.2), 0 8px 24px rgba(0,0,0,.5); }
+.lesson .btn { border-bottom-width: 1px; transform: none; }
+.lesson .startBtn { background: linear-gradient(180deg, #1c1709 0%, #0f0d06 100%); color: var(--gb); border: 1px solid #a8842c; box-shadow: inset 0 1px 0 rgba(255,241,194,.25), 0 10px 28px rgba(0,0,0,.55), 0 0 0 1px rgba(220,187,94,.12), 0 0 26px rgba(220,187,94,.14); animation: none; }
+.lesson .startBtn::after { display: none; }
+.lesson .startBtn:hover { filter: none; box-shadow: inset 0 1px 0 rgba(255,241,194,.35), 0 10px 28px rgba(0,0,0,.55), 0 0 0 1px rgba(220,187,94,.3), 0 0 40px rgba(220,187,94,.26); }
+.lesson .startIcon { background: linear-gradient(180deg, var(--gb), var(--g) 60%, #a8842c); color: #15120a; box-shadow: 0 0 0 1px rgba(255,241,194,.35) inset, 0 2px 8px rgba(0,0,0,.5); }
+.lesson .startText b { color: var(--gb); letter-spacing: .14em; }
+.lesson .startText small { color: #b9a56a; font-weight: 600; }
+.lesson .startKey { color: #8a7a4a; border-color: rgba(220,187,94,.35); }
+.lesson .startRed { background: linear-gradient(180deg, #2a1113, #170909); color: #ff9d9d; border-color: #9a2e2e; box-shadow: inset 0 1px 0 rgba(255,157,157,.2), 0 10px 28px rgba(0,0,0,.55), 0 0 26px rgba(223,70,70,.16); }
+.lesson .startRed .startIcon { background: linear-gradient(180deg, #ff9d9d, #df4646 60%, #9a2e2e); color: #1a0a0a; } .lesson .startRed .startText b { color: #ff9d9d; } .lesson .startRed .startText small { color: #c98585; } .lesson .startRed .startKey { color: #a06060; border-color: rgba(223,70,70,.4); }
+/* explanation lives in a card, not in the bubble (the bubble is two lines) */
+.whyCard { border: 1px solid var(--line); border-left: 2px solid var(--g); border-radius: 12px; background: var(--card); padding: 10px 14px; }
+.whyCard summary { cursor: pointer; list-style: none; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gb); font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.whyCard summary::-webkit-details-marker { display: none; }
+.whyCard summary::after { content: '+'; margin-left: auto; color: var(--mut); font-weight: 400; font-size: 16px; }
+.whyCard[open] summary::after { content: '–'; }
+.whyCard p { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: #d9d4c8; }
+.whyCard b { color: var(--ink); }
+.stepsCompact { flex: 1; display: flex; justify-content: center; }
+.stepsCompact .stepPill { font-size: 11px; }
+.gemIcon svg { display: block; }
+.liveStrip { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--card); overflow: hidden; }
+.liveStrip > div { flex: 1; padding: 9px 12px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line); min-width: 0; }
+.liveStrip > div:last-child { border-right: 0; }
+.liveStrip small { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--mut); white-space: nowrap; }
+.liveStrip b { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.liveStrip input { width: 100%; padding: 4px 0; border: 0; border-bottom: 1px solid var(--g); background: none; color: var(--ink); font: inherit; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.liveStrip input:focus { outline: none; border-bottom-color: var(--gb); }
+.liveStrip input::placeholder { color: #5e5a50; font-weight: 500; font-size: 13px; }
+@media (max-width: 640px) {
+  .lesson { padding: 10px 12px 150px; gap: 10px; }
+  .lesson .bubble { font-size: 15px; font-weight: 600; padding: 10px 12px; border-radius: 14px; }
+  .lesson .ask { gap: 10px; }
+  .lesson .qText { font-size: 14px; } .lesson .qSetup { font-size: 11px; padding: 3px 8px; }
+  .lesson .stamp { left: 10px; right: auto; width: 56px; height: 56px; }
+  .lesson .stamp svg { width: 36px; height: 36px; }
+  .lesson .topbar { gap: 8px; }
+  .stepsCompact .stepPill { font-size: 10px; padding: 3px 8px; }
+  .liveStrip { flex-wrap: wrap; } .liveStrip > div { flex: 1 1 45%; border-bottom: 1px solid var(--line); }
+  .lesson .card { padding: 12px 14px; font-size: 15px; }
+  .lesson .startCard { gap: 10px; }
+  .lesson .heroWord { font-size: 32px; }
+  .lesson .startLead { font-size: 14px; }
+  .nudge button { min-width: 44px; }
+}

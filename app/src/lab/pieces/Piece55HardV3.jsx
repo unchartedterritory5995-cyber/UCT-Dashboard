@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import WidgetChart from '../WidgetChart'
 import Logo from '../Logo'
+import UIcon from '../../components/ui/UIcon'
 import StartCard, { StartButton } from '../StartCard'
 import { Confetti, Stamp } from '../bits'
 import { useRunOn } from '../fx'
 import { useSample } from '../Lab'
+import { useIsPhone } from '../../hooks/useBreakpoint'
 import { spot, rayAt, pct } from '../pointers'
 import { studySettingsOverride } from '../../pages/study/studyChartLook'
 import { sfx, voice } from '../sfx'
@@ -30,6 +32,7 @@ const STEPS = ['name', 'enter', 'stop', 'run']
 
 function Lesson({ onDone }) {
   const d = useSample('JBI_2023-12-14')
+  const phone = useIsPhone()
   const [step, setStep] = useState('name')
   const [pick, setPick] = useState(null)
   const [verdict, setVerdict] = useState(null)      // per step: 'ok' | 'bad'
@@ -54,18 +57,18 @@ function Lesson({ onDone }) {
     if (!n || !all || !red) return null
     const a = []
     if (step === 'name') a.push(...spot(all, n - 1, { label: verdict ? 'the Kicker' : 'this candle', id: 'k', color: verdict === 'bad' ? '#df4646' : verdict === 'ok' ? '#2faf68' : '#dcbb5e' }))
-    else a.push(...spot(all, n - 1, { label: 'day 1 · the Kicker', id: 'k', color: '#2faf68', halo: step === 'run' }))
+    else a.push(...spot(all, n - 1, { label: phone ? 'day 1' : 'day 1 · the Kicker', id: 'k', color: '#2faf68', halo: step === 'run' }))
     if (step !== 'name') {
       a.push({ id: 'e', type: 'hray', points: [{ time: vis[Math.max(0, n - 38)].t, price: entry }], color: '#2faf68', lineWidth: 2, lineStyle: step === 'enter' && !verdict ? 'dashed' : 'solid' })
-      a.push({ id: 'e-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 38)].t, price: entry }], text: step === 'enter' && !verdict ? '  THE LINE  ' : `  ENTRY ${money(entry)} · over yesterday's high  `, color: '#ffffff', fontSize: 12, bgEnabled: true, bgColor: '#2faf68', locked: true })
-      if (step === 'enter' && !verdict) { a.push({ id: 'dc', type: 'hray', points: [{ time: vis[Math.max(0, n - 44)].t, price: red.c }], color: '#9a958a', lineWidth: 1, lineStyle: 'dotted' }); a.push({ id: 'dc-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 44)].t, price: red.c }], text: "  yesterday's close  ", color: '#111', fontSize: 11, bgEnabled: true, bgColor: '#9a958a', locked: true }); a.push({ id: 'ko', type: 'hray', points: [{ time: vis[Math.max(0, n - 36)].t, price: kick.o }], color: '#9a958a', lineWidth: 1, lineStyle: 'dotted' }); a.push({ id: 'ko-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 36)].t, price: kick.o }], text: "  today's open  ", color: '#111', fontSize: 11, bgEnabled: true, bgColor: '#9a958a', locked: true }) }
+      a.push({ id: 'e-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 38)].t, price: entry }], text: step === 'enter' && !verdict ? '  THE LINE  ' : (phone ? `  ENTRY ${money(entry)}  ` : `  ENTRY ${money(entry)} · over yesterday's high  `), color: '#ffffff', fontSize: 12, bgEnabled: true, bgColor: '#2faf68', locked: true })
+      if (step === 'enter' && !verdict && !phone) { a.push({ id: 'dc', type: 'hray', points: [{ time: vis[Math.max(0, n - 44)].t, price: red.c }], color: '#9a958a', lineWidth: 1, lineStyle: 'dotted' }); a.push({ id: 'dc-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 44)].t, price: red.c }], text: "  yesterday's close  ", color: '#111', fontSize: 11, bgEnabled: true, bgColor: '#9a958a', locked: true }); a.push({ id: 'ko', type: 'hray', points: [{ time: vis[Math.max(0, n - 36)].t, price: kick.o }], color: '#9a958a', lineWidth: 1, lineStyle: 'dotted' }); a.push({ id: 'ko-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 36)].t, price: kick.o }], text: "  today's open  ", color: '#111', fontSize: 11, bgEnabled: true, bgColor: '#9a958a', locked: true }) }
     }
     if (step === 'enter' && entryPick != null) a.push({ id: 'ep', type: 'hray', points: [{ time: vis[Math.max(0, n - 14)].t, price: entryPick }], color: verdict === 'ok' ? '#2faf68' : '#dcbb5e', lineWidth: 2.5, lineStyle: 'dashed' })
     if ((step === 'stop' || step === 'run') && stopPick != null) { a.push({ id: 'sp', type: 'hray', points: [{ time: vis[Math.max(0, n - 28)].t, price: stopPick }], color: '#ff6b6b', lineWidth: 2.5, lineStyle: 'dashed' }); a.push({ id: 'sp-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 28)].t, price: stopPick }], text: `  YOUR STOP ${money(stopPick)}  `, color: '#fff', fontSize: 12, bgEnabled: true, bgColor: '#df4646', locked: true }) }
-    if ((step === 'stop' && verdict) || step === 'run') { a.push({ id: 'hs', type: 'hray', points: [{ time: vis[Math.max(0, n - 18)].t, price: house }], color: '#2faf68', lineWidth: 2 }); a.push({ id: 'hs-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 18)].t, price: house }], text: `  HOUSE STOP ${money(house)} · the Kicker's low  `, color: '#fff', fontSize: 12, bgEnabled: true, bgColor: '#2faf68', locked: true }) }
+    if ((step === 'stop' && verdict) || step === 'run') { a.push({ id: 'hs', type: 'hray', points: [{ time: vis[Math.max(0, n - 18)].t, price: house }], color: '#2faf68', lineWidth: 2 }); a.push({ id: 'hs-chip', type: 'text', points: [{ time: vis[Math.max(0, n - 18)].t, price: house }], text: phone ? `  HOUSE ${money(house)}  ` : `  HOUSE STOP ${money(house)} · the Kicker's low  `, color: '#fff', fontSize: 12, bgEnabled: true, bgColor: '#2faf68', locked: true }) }
     if (step === 'run') a.push(...rayAt(vis[n - 1], 'l', { id: 'l', label: '' }))
     return a
-  }, [all, vis, n, red, kick, entry, house, step, verdict, entryPick, stopPick])
+  }, [all, vis, n, red, kick, entry, house, step, verdict, entryPick, stopPick, phone])
   const onTap = useCallback(({ price }) => {
     if (!Number.isFinite(price) || verdict) return
     if (step === 'enter') setEntryPick(r2(price))
@@ -86,22 +89,27 @@ function Lesson({ onDone }) {
   })
   if (!d) return <div className={s.col}><p className={s.hint}>Loading</p></div>
   const ready = step === 'name' ? pick != null : step === 'enter' ? entryPick != null : step === 'stop' ? stopPick != null : true
-  const bubble = step === 'name' ? (verdict == null ? (stripped ? 'Candles only. What setup, if any, just fired?' : 'Watch: the averages and the volume are about to go.') : verdict === 'ok' ? 'Kicker. Now the buy day.' : 'It was the Kicker: a real red day, then an open above its body and a strong close.')
-    : step === 'enter' ? (verdict == null ? `Day 1. Yesterday was a real red day and its high was ${money(red.h)}. Where does the house buy? Tap the line.` : verdict === 'ok' ? `Over ${money(entry)}: a stop-buy one cent over yesterday's high. The moment price trades there, yesterday's sellers are beaten.` : `Not there. The house buys over ${money(entry)}, one cent above yesterday's high, with a stop-buy. Never at the open, never at the close.`)
-      : step === 'stop' ? (verdict == null ? `You are in over ${money(entry)}. Where is your stop? Tap where it goes.` : verdict === 'ok' ? `Under the Kicker's low, ${money(house)}. If that breaks, the candle failed.` : `The house stop is the Kicker's low, ${money(house)}, or ${MAX_STOP_PCT}% under the entry when that low is further. Yours was ${Math.abs(pct(house, stopPick)).toFixed(1)}% off.`)
+  const bubble = step === 'name' ? (verdict == null ? (stripped ? 'Candles only. What setup, if any, just fired?' : 'Watch: the averages and the volume are about to go.') : verdict === 'ok' ? 'Kicker. Now the buy day.' : 'It was the Kicker. Now the buy day.')
+    : step === 'enter' ? (verdict == null ? `Day 1. Yesterday's high was ${money(red.h)}. Tap the line the house buys over.` : verdict === 'ok' ? `Over ${money(entry)}. A stop-buy, one cent above yesterday's high.` : `Not there. The house buys over ${money(entry)}, one cent above yesterday's high.`)
+      : step === 'stop' ? (verdict == null ? `You are in over ${money(entry)}. Tap where your stop goes.` : verdict === 'ok' ? `Under the Kicker's low, ${money(house)}.` : `The house stop is ${money(house)}, the Kicker's low. Yours was ${Math.abs(pct(house, stopPick)).toFixed(1)}% off.`)
         : 'Now watch it run, one day at a time. Did your stop hold?'
+  const why = step === 'name' ? (verdict ? 'A real red day closes weak near its low. The next day gaps over that close and finishes strong, above the red day\'s high. Yesterday\'s sellers are trapped.' : null)
+    : step === 'enter' ? (verdict ? 'Why there: the first trade over yesterday\'s high proves the sellers wrong. How: a stop-buy at that price, so it fills only if price gets there. Never at the open, never at the close.' : 'The dotted lines are yesterday\'s close and today\'s open. The dashed line is yesterday\'s high.')
+      : step === 'stop' ? (verdict ? `The stop is the house rule: under the Kicker's low, or ${MAX_STOP_PCT}% under the entry when that low is further away. If the low breaks, the candle failed.` : 'The house rule: under the Kicker\'s low, or 3.5% under the entry when that low is further away.')
+        : 'Each new day arrives on its own. Your stop is the red dashed line, the house stop the green one.'
   return (
     <div className={`${d5.lesson} ${d5.slideIn} ${verdict === 'bad' ? d5.shakeHard : ''}`}>
-      <div className={d5.topbar}><span className={`${d5.hardTag} ${d5.pulse}`}>HARD</span><div className={d5.stepRow}>{['Name it', 'Enter it', 'Stop it', 'Run'].map((t, k) => <span key={t} className={`${d5.stepPill} ${STEPS.indexOf(step) > k ? d5.done : STEPS.indexOf(step) === k ? d5.now : ''}`}>{t}</span>)}</div><span className={d5.legend}>♛♛♛<b>♛</b></span></div>
+      <div className={d5.topbar}><span className={`${d5.hardTag} ${d5.pulse}`}>HARD</span><div className={d5.stepsCompact}><span className={`${d5.stepPill} ${d5.now}`}>{STEPS.indexOf(step) + 1} of 4 · {['Name it', 'Enter it', 'Stop it', 'Watch it run'][STEPS.indexOf(step)]}</span></div><span className={d5.legend}>♛♛♛<b>♛</b></span></div>
       <div className={d5.ask}><Logo mood={verdict == null ? (ready ? 'think' : 'idle') : verdict === 'ok' ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{bubble}</div></div>
       <div className={s.chartBox}>
         {veil ? <><div className={d5.veil} /><div className={d5.stripNote}>candles only</div></> : null}
         {verdict ? <Stamp ok={verdict === 'ok'} /> : null}
         {(step === 'enter' || step === 'stop') && !verdict ? <span className={s.tapHint}>{step === 'enter' ? 'tap the line you buy over' : 'tap where the stop goes'}</span> : null}
-        <WidgetChart sym={d.sym} bars={all} annotations={ann} height={460} density="mini" defaultBars={60} hideTicker extra={stripped ? HARD : null} onBarTap={step === 'enter' || step === 'stop' ? onTap : null} />
+        <WidgetChart sym={d.sym} bars={all} annotations={ann} height={460} phoneHeight={320} density="mini" defaultBars={60} hideTicker extra={stripped ? HARD : null} onBarTap={step === 'enter' || step === 'stop' ? onTap : null} />
       </div>
+      {why ? <details className={d5.whyCard} open={!phone || !!verdict}><summary>Why</summary><p>{why}</p></details> : null}
       {step === 'name' ? <div className={`${d5.cards} ${d5.cascade}`}>{['Launchpad', 'Kicker', 'Slingshot', 'None of these'].map((c, k) => { let cls = d5.card; if (!verdict && pick === k) cls += ` ${d5.sel}`; if (verdict && k === 1) cls += ` ${d5.right}`; if (verdict === 'bad' && pick === k) cls += ` ${d5.wrong}`; return <button key={c} type="button" className={cls} style={{ '--i': k }} disabled={!!verdict} onClick={() => setPick(k)}><span className={d5.key}>{k + 1}</span>{c}</button> })}</div>
-        : <div className={`${d5.live} ${d5.four}`}><div><small>Yesterday's high</small><b>{money(red.h)}</b></div><div><small>Entry</small><b>{step === 'enter' && !verdict ? (entryPick != null ? money(entryPick) : 'tap the line') : money(entry)}</b></div><div><small>Your stop</small><b>{stopPick != null ? money(stopPick) : (step === 'stop' ? 'tap it' : '')}</b></div><div><small>House stop</small><b>{(step === 'stop' && verdict) || step === 'run' ? money(house) : ''}</b></div></div>}
+        : <div className={d5.liveStrip}><div><small>Yesterday's high</small><b>{money(red.h)}</b></div><div><small>Entry</small><b>{step === 'enter' && !verdict ? (entryPick != null ? money(entryPick) : '—') : money(entry)}</b></div><div><small>Your stop</small><b>{stopPick != null ? money(stopPick) : '—'}</b></div><div><small>House stop</small><b>{(step === 'stop' && verdict) || step === 'run' ? money(house) : '—'}</b></div></div>}
       <div className={`${d5.footer} ${verdict === 'ok' ? d5.good : verdict === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
         {step === 'run' ? <button type="button" className={`${d5.btn} ${d5.live}`} onClick={() => onDone(right)}>Finish</button>
           : verdict == null ? <button type="button" className={`${d5.btn} ${ready ? d5.live : ''}`} disabled={!ready} onClick={check}>Check</button>
@@ -122,7 +130,7 @@ export default function Piece55HardV3() {
         <StartCard tone="dark" eyebrow="Kicker · Learn 2" title="Hard mode" art={<Crowns />}
           lead="No averages. No volume. Just the candles. Name it, then enter it, then place the stop, on one chart. Three for three earns the legendary fourth crown."
           button={<StartButton icon="crown" label="Start hard mode" sub="candles only · name, enter, stop · x2 XP" onClick={start} />}>
-          <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>On a perfect run</small><b>Legendary</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>XP</small><b>x{XP.HARD_MULT}</b></div></div></div>
+          <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} gold /></span><small>On a perfect run</small><b>Legendary</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>XP</small><b>x{XP.HARD_MULT}</b></div></div></div>
         </StartCard>
       </div>
     )
@@ -134,7 +142,7 @@ export default function Piece55HardV3() {
         <StartCard tone="dark" eyebrow="Kicker · Learn 2" title={perfect ? 'Legendary' : `${right} of 3`} art={<Crowns lit={perfect} />}
           lead={perfect ? 'Named it, entered it, stopped it, with nothing to lean on. The fourth crown is yours.' : 'Three for three is needed for the fourth crown. Try again.'}
           button={<StartButton icon="crown" label="Again" sub="candles only" onClick={start} />}>
-          <div className={d5.gems}><div className={`${d5.gem} ${perfect ? '' : d5.dim}`}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>Kicker · Learn 2</small><b>{perfect ? '4 crowns' : '3 crowns'}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>XP</small><b>+{right * XP.RIGHT * XP.HARD_MULT}</b></div></div></div>
+          <div className={d5.gems}><div className={`${d5.gem} ${perfect ? '' : d5.dim}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} gold /></span><small>Kicker · Learn 2</small><b>{perfect ? '4 crowns' : '3 crowns'}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>XP</small><b>+{right * XP.RIGHT * XP.HARD_MULT}</b></div></div></div>
         </StartCard>
       </div>
     )

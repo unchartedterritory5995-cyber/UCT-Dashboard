@@ -31,7 +31,7 @@ function shuffle(a, seed = Date.now()) {
 
 /** Pool the chart (spot) items of several setups into one shuffled list. Each item: id, skill, name, q, choices,
  *  bars (normalized), sessionId (so the attempt lands in a real session). */
-export async function fetchSpotPool(skillIds = Object.keys(SETUP_SKILLS), size = 30) {
+export async function fetchSpotPool(skillIds = Object.keys(SETUP_SKILLS), size = 12) {
   const sets = await Promise.all(skillIds.map((skill_id) => post('/api/study/sessions', { kind: 'skill', skill_id, size }).catch(() => null)))
   const pool = []
   sets.forEach((set) => {
@@ -52,7 +52,7 @@ export async function scoreAttempt(item, answer, timeMs) {
 
 /** Quick-recognition items with a chart from the recall bank (candle names, chart words): the bank's own four-way
  *  question, scored on the server. */
-export async function fetchRecallPool(skillIds = ['vocab.candle', 'vocab.chart'], size = 30) {
+export async function fetchRecallPool(skillIds = ['vocab.candle', 'vocab.chart'], size = 12) {
   const sets = await Promise.all(skillIds.map((skill_id) => post('/api/study/sessions', { kind: 'skill', skill_id, size }).catch(() => null)))
   const pool = []
   sets.forEach((set) => {

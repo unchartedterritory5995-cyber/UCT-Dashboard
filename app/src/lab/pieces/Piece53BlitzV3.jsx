@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import WidgetChart from '../WidgetChart'
 import Logo from '../Logo'
+import UIcon from '../../components/ui/UIcon'
 import StartCard, { StartButton } from '../StartCard'
 import { Stamp } from '../bits'
 import { useSample } from '../Lab'
@@ -160,7 +161,7 @@ export default function Piece53BlitzV3() {
           lead="Sixty seconds. No hearts. Real charts from the firm's bank and a quick question on each: name the setup, does it fire, which candle name fits, green or red, over yesterday's high. The multiplier climbs with your combo and resets on a miss."
           button={<StartButton icon="timer" label="Start the clock" sub={`60 seconds · no hearts · ${bankLine}`} onClick={start} />}
           below={<><button type="button" className={d5.linkBtn} onClick={() => setPhase('tutorial')}>How it works</button>{kinds ? <span>{Object.entries(kinds).map(([k, v]) => `${v} ${k}`).join(' · ')}</span> : null}</>}>
-          <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>Your best</small><b>310</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>⚡</span><small>Multiplier up to</small><b>x5</b></div></div></div>
+          <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>Your best</small><b>310</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="bolt" size={20} /></span><small>Multiplier up to</small><b>x5</b></div></div></div>
         </StartCard>
       </div>
     )
@@ -172,7 +173,7 @@ export default function Piece53BlitzV3() {
           lead={score > 310 ? 'A new best.' : 'Your best stands at 310.'}
           button={<StartButton icon="timer" label="Again" sub="another sixty seconds" onClick={start} />}
           below={<button type="button" className={d5.linkBtn} onClick={() => setPhase('tutorial')}>How it works</button>}>
-          <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>Right</small><b>{right}/{answered}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>⚡</span><small>Best combo</small><b>{best}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>×</span><small>Top multiplier</small><b>x{mult(best)}</b></div></div></div>
+          <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>Right</small><b>{right}/{answered}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="bolt" size={20} /></span><small>Best combo</small><b>{best}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="sparkle" size={20} /></span><small>Top multiplier</small><b>x{mult(best)}</b></div></div></div>
           {log.length ? <div className={d5.runLog}>{log.map((r, k) => <div key={k} className={r.ok ? d5.runOk : d5.runBad}><b>{r.ok ? '✓' : '✕'}</b><span>{r.tag} · {r.q}</span><small>{r.ok ? `you said ${r.choice}` : `you said ${r.choice}${r.answer ? `, it was ${r.answer}` : ''}`}{r.ticker ? ` · ${r.ticker}` : ''}</small></div>)}</div> : null}
         </StartCard>
       </div>

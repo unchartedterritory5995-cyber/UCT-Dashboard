@@ -7,7 +7,7 @@
 // PHONE (≤640 px, the review of 2026-11-02): the full chrome collapsed onto the candles at 390 px, so on a phone the
 // pane runs chart-only (no identity row, no toolbar, no legend, no range bar, no watermark) with the candles given
 // the whole width, and the timeframe switch becomes a row of pills above the chart.
-import { Suspense, useCallback, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useMemo, useState } from 'react'
 import ChartPane from '../components/chart/pane/ChartPane'
 import { useIsPhone } from '../hooks/useBreakpoint'
 import d5 from './duo.module.css'
@@ -27,12 +27,11 @@ export default function WidgetChart({
   const setTfState = useCallback((v) => { setTf(v); onTfChange?.(v) }, [onTfChange])
   const data = barsByTf ? (barsByTf[tfState] || null) : bars
   const tfCodes = useMemo(() => (barsByTf ? TF_ORDER.filter((k) => Array.isArray(barsByTf[k]) && barsByTf[k].length) : null), [barsByTf])
-  const last = useRef(null)
-  const onCrosshairMove = useCallback((c) => { if (c && c.time != null) last.current = { time: c.time, price: c.cursorPrice ?? c.price } }, [])
-  const onClick = useCallback(() => {
-    if (!onBarTap || !last.current) return
-    const i = data ? data.findIndex((b) => String(b.t) === String(last.current.time)) : -1
-    onBarTap({ time: last.current.time, index: i, bar: i >= 0 ? data[i] : null, price: last.current.price })
+  // taps: the chart's own click (fires on a touch tap too), with the cursor's price; the bar is found by time
+  const onChartTap = useCallback(({ time, price }) => {
+    if (!onBarTap || time == null) return
+    const i = data ? data.findIndex((b) => String(b.t) === String(time)) : -1
+    onBarTap({ time, index: i, bar: i >= 0 ? data[i] : null, price })
   }, [onBarTap, data])
   const scp = useMemo(() => ({
     height: '100%',
@@ -48,12 +47,12 @@ export default function WidgetChart({
     annotations,
     annotationsVisible: !!annotations,
     annotationsTextVisible: !!annotations,
-    onCrosshairMove,
+    ...(onBarTap ? { onChartTap } : {}),
     ...(markers ? { markers } : {}),
     ...(hideTicker ? { hideWatermark: true } : {}),
     ...(phone ? PHONE : {}),
     ...(extra || {}),
-  }), [data, cutoff, defaultBars, rightPadBars, frozen, annotations, markers, hideTicker, extra, onCrosshairMove, phone, exactBars])
+  }), [data, cutoff, defaultBars, rightPadBars, frozen, annotations, markers, hideTicker, extra, onChartTap, onBarTap, phone, exactBars])
   const h = phone ? (phoneHeight || Math.min(height, 360)) : height
   const effDensity = phone ? 'mini' : density
   return (
@@ -61,7 +60,7 @@ export default function WidgetChart({
       {phone && tfCodes && tfCodes.length > 1 ? (
         <div className={d5.tfPills}>{tfCodes.map((k) => <button key={k} type="button" className={`${d5.tfPill} ${tfState === k ? d5.on : ''}`} onClick={() => setTfState(k)}>{TF_LABEL[k] || k}</button>)}</div>
       ) : null}
-      <div onClick={onClick} style={{ height: h, display: 'flex', flexDirection: 'column', cursor: onBarTap ? 'crosshair' : undefined }}>
+      <div style={{ height: h, display: 'flex', flexDirection: 'column', cursor: onBarTap ? 'crosshair' : undefined }}>
         <Suspense fallback={<div style={{ height: h, display: 'grid', placeItems: 'center', color: '#9a958a' }}>Loading the chart</div>}>
           <ChartPane sym={sym} tf={tfState} onTfChange={setTfState} tfCodes={tfCodes} density={effDensity} showTfBar={effDensity !== 'mini'} stored={null} stockChartProps={scp} />
         </Suspense>

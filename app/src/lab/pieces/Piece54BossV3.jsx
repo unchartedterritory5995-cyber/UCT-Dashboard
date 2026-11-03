@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import WidgetChart from '../WidgetChart'
 import Logo from '../Logo'
+import UIcon from '../../components/ui/UIcon'
 import StartCard, { StartButton } from '../StartCard'
 import { BossBar, Chest, Confetti, Heart, Medal, Stamp } from '../bits'
 import { useCountUp, useRunOn } from '../fx'
@@ -48,7 +49,7 @@ function Q({ idx, item, onDone }) {
       <div className={d5.qLine}><span className={d5.qSetup}>{item.name}</span><span className={d5.qText}>{item.q}</span></div>
       <div className={s.chartBox}>{state !== 'ask' ? <Stamp ok={state === 'ok'} /> : null}<WidgetChart sym={item.id} bars={all} annotations={ann} height={420} density="mini" defaultBars={90} hideTicker /></div>
       <div className={`${d5.cards} ${d5.cascade}`}>{item.choices.map((c, k) => { let cls = d5.card; if (state === 'ask' && pick === k) cls += ` ${d5.sel}`; if (state !== 'ask' && pick === k) cls += state === 'ok' ? ` ${d5.right}` : ` ${d5.wrong}`; return <button key={c} type="button" className={cls} style={{ '--i': k }} disabled={state !== 'ask'} onClick={() => setPick(k)}><span className={d5.key}>{k + 1}</span>{c}</button> })}</div>
-      {state !== 'ask' && why ? <p className={d5.whyLine}>{why}</p> : null}
+      {state !== 'ask' && why ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{why}</p></details> : null}
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
         {state === 'ask' ? <button type="button" className={`${d5.btn} ${pick != null ? d5.live : ''}`} disabled={pick == null} onClick={check}>Check</button>
           : <button type="button" className={`${d5.btn} ${state === 'ok' ? d5.live : d5.red}`} onClick={() => onDone(state === 'ok', item)}>{state === 'ok' ? (idx + 1 < TOTAL ? 'Next' : 'Claim the trophy') : 'See what to review'}</button>}
@@ -66,7 +67,7 @@ function Win({ onBack }) {
       <StartCard eyebrow="Unit 2 · Candles that trap" title="Unit cleared" art={<div className={d5.winRow}><Medal size={130} won label="2" /><Chest size={120} open={open} /></div>}
         lead="Ten for ten with one heart. That is a trader."
         button={<StartButton icon="play" label="Back to the path" sub="the next unit is open" onClick={onBack} />}>
-        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>Boss bonus</small><b>+{xp}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>▣</span><small>Chest</small><b>{open ? 'Open' : 'Opening'}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>♛</span><small>Unit 2</small><b>Trophy</b></div></div></div>
+        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>Boss bonus</small><b>+{xp}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="save" size={20} /></span><small>Chest</small><b>{open ? 'Open' : 'Opening'}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} gold /></span><small>Unit 2</small><b>Trophy</b></div></div></div>
       </StartCard>
     </div>
   )
@@ -87,7 +88,7 @@ export default function Piece54BossV3() {
         <StartCard tone="red" eyebrow="Unit 2 · Candles that trap" title="Boss lesson" art={<div className={d5.winRow}><Medal size={110} label="2" /><div className={d5.heartBig}><Heart size={64} bpm={64} /></div></div>}
           lead={`Ten charts from the bank. One heart. Miss once and it ends. Pass and the unit trophy and a chest are yours.${pool ? '' : ' Loading the bank.'}`}
           button={<StartButton tone="red" icon="medal" label="Face the boss" sub="ten charts · one heart · +150 XP" onClick={() => pool?.length && start()} />}>
-          <div className={d5.gems}><div className={`${d5.gem} ${d5.dim}`}><div className={d5.gemIn}><span className={d5.gemIcon} style={{ color: '#ff6b6b' }}>♥</span><small>Hearts</small><b>1</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}>◆</span><small>On a pass</small><b>+{XP.BOSS} XP</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}>▣</span><small>Plus</small><b>a chest</b></div></div></div>
+          <div className={d5.gems}><div className={`${d5.gem} ${d5.dim}`}><div className={d5.gemIn}><span className={d5.gemIcon} style={{ color: '#ff6b6b' }}>♥</span><small>Hearts</small><b>1</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>On a pass</small><b>+{XP.BOSS} XP</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="save" size={20} /></span><small>Plus</small><b>a chest</b></div></div></div>
         </StartCard>
       </div>
     )

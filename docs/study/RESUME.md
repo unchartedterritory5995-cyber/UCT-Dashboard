@@ -1185,6 +1185,31 @@ FOUND: every live candle item carried its answer in the member payload (prompt_j
 603 of 603), readable in the browser's network tab. FIXED in study_store.get_item_prompt (subject stripped) with the
 leak test extended (tests/test_study_no_sym_leak.py seeds subject=KEY_SENTINEL, FORBIDDEN_KEYS += subject); 17 + 32
 router tests pass. Ships with the next merge of this branch; until then production still carries it.
+## 2026-11-03 (evening): BATCH 11 VERDICTS -> ROUND 12, THE CRAFTSMANSHIP ROUND (pieces 52-57 rebuilt, batch 12)
+
+Batch 11 (all 2 except the logo 30 "34/100"): "the yellow start bar could be better looking ... feels very AI coded vs
+unique and skilled work"; Boss "major bugs"; Hard "so many bugs"; Draw-it "tons of bugs but getting much closer"; Trap
+"eh idk". Question form (verbatim in owner_verdicts.jsonl): both devices; Boss = stuck or slow; Hard = "Taps did nothing,
+Just sloppy design mostly"; Draw-it = "mostly cheap and sloppy design".
+MEASURED: in a real touch context chart taps did nothing (Draw-it, Hard, Trap): the chart moves its crosshair on mouse
+moves, never on a touch, so a tap had no bar under it. FIXED IN THE CHART: StockChart gains an additive `onChartTap`
+prop (the library's click, which a touch tap also raises, with the cursor's price via coordinateToPrice); WidgetChart
+uses it; the hover-crosshair tap path is gone. Lesson: the product's own TapDrill reads the crosshair the old way and
+will have the same phone bug; it should move to onChartTap before tap items go live. A StockChart test for the prop is
+owed. Boss "stuck or slow": the bank fetch was 1.6 MB (7 skills x 30 items with bars) -> 12 per skill; the logo draws
+at 30 fps and stops off screen.
+THE PHONE WAS THE SLOPPINESS: full-page phone states of every piece were captured (scratchpad local_study/phone/s*.png):
+walls of text in the bubble, labels cut off at the pane edge, the stop input hidden under the bottom bar, four step pills
+wrapping, a 3-up card grid at 390 px. Round 12: two-line bubbles with a collapsible WHY card (open on desktop), short chip
+labels on a phone, stamps on the left (never over the price axis), one step pill ("2 of 4 · Enter it"), a one-row number
+strip with the stop input and the risk inside it, shorter charts on a phone, no volume pane on a phone, one column of
+rule cards on a phone. The yellow start bar is gone: every primary button is black glass with a gold rim and gold type
+(.btn.live, .startBtn); gem glyphs are the app's UIcon set. Logo pass 2: thicker body, bevel light, metallic sheen, floor
+reflection. TEACHING BUG FOUND BY THE RULE CARDS: the Trap's second rule ("opens above the red body") failed the real
+Kicker (JBI opened 10.94 vs the red body top 10.98); the owner's rule (bank lesson) is a GAP OVER THE RED DAY'S CLOSE and
+a close ABOVE THE RED DAY'S HIGH; rules and the trap finder now use that; the Hard/Draw-it copy too.
+Known: on a phone the chart leaves ~30% blank right of the newest candle (the product chart's own LAST_CANDLE_POS /
+minimum right gap on a narrow plot), so the Trap's far-left candidate is small there.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
