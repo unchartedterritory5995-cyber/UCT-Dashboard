@@ -88,6 +88,13 @@
   "chart.closeTab": "charts",
   "chart.renameTab": "charts",
   "chart.linkTab": "charts",
+  "drawing.addTrendline": "drawingTools",
+  "drawing.addRay": "drawingTools",
+  "drawing.addRectangle": "drawingTools",
+  "drawing.addFib": "drawingTools",
+  "drawing.addHorizontalRay": "drawingTools",
+  "drawing.addText": "drawingTools",
+  "drawing.addAvwap": "drawingTools",
   "drawing.list": "drawings",
   "drawing.addLevel": "drawings",
   "drawing.style": "drawings",
@@ -165,6 +172,10 @@
   {
    "id": "definitions",
    "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+  },
+  {
+   "id": "drawingTools",
+   "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
   },
   {
    "id": "drawings",
@@ -293,6 +304,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "drawingTools",
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
      },
      {
       "id": "drawings",
@@ -439,6 +454,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "drawingTools",
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
      },
      {
       "id": "drawings",
@@ -592,6 +611,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "drawingTools",
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
      },
      {
       "id": "drawings",
@@ -756,6 +779,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingTools",
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+     },
+     {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
@@ -898,6 +925,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingTools",
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+     },
+     {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
@@ -955,6 +986,7 @@
     "indicators",
     "indicatorSetup",
     "definitions",
+    "drawingTools",
     "drawings",
     "lists",
     "screener",
@@ -1047,6 +1079,13 @@
     "chart.closeTab",
     "chart.renameTab",
     "chart.linkTab",
+    "drawing.addTrendline",
+    "drawing.addRay",
+    "drawing.addRectangle",
+    "drawing.addFib",
+    "drawing.addHorizontalRay",
+    "drawing.addText",
+    "drawing.addAvwap",
     "drawing.list",
     "drawing.addLevel",
     "drawing.style",
