@@ -366,8 +366,12 @@ export default function SourceRow({
         )}
         {!syncOff && (
           <label className={styles.toggle} title="Pause background sync">
+            {/* L1 (live audit 2026-11-03): the accessible name was just the visible "On", so a
+                member with two sources heard two identical checkboxes. The name says which
+                source and which app; the visible On/Paused stays, and `checked` carries the state. */}
             <input
               type="checkbox"
+              aria-label={`Sync ${source.displayName || source.remoteId} from ${providerLabel}`}
               checked={!!source.syncEnabled}
               disabled={pauseBusy}
               onChange={handleTogglePause}
