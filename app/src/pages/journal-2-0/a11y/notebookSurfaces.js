@@ -349,6 +349,9 @@ export const SURFACES = Object.freeze({
   // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
   // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
   'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },
+  // Plan F Task 10: the one-time notice above the list for imports that lost pictures. The tab's
+  // rails answer "no notice", so it has its own; rail a11y/importRepairNotice.a11y.test.jsx.
+  'components/notebook/ImportRepairNotice.jsx': { recipe: 'import-repair-notice' },
   // Notebook P2 Tier 2 part B: the earnings follow-up card a notice links to (dark behind
   // notebook_earnings_followup_enabled + Journal styles, so no tab recipe renders it); a11y/followupCard.a11y.test.jsx
   // reads it through its slot, with the failure sentence on screen. The slot is the card's eager half.

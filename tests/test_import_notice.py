@@ -118,6 +118,11 @@ def test_the_reason_union_covers_server_client_and_plugin_codes_and_every_one_ha
         "storage_full")
     assert import_notice.PLUGIN_REASONS == (
         "obsidian_plugin_outdated", "obsidian_attachments_unavailable", "not_found", "sync_off")
+    # Plan F Task 2: the repair's own marker, appended LAST so the client list keeps its order.
+    assert import_notice.REPAIR_REASONS == ("missing_from_import",)
+    assert import_notice.NOTICE_REASONS == (
+        import_notice.SERVER_REASONS + import_notice.CLIENT_REASONS + import_notice.PLUGIN_REASONS
+        + import_notice.REPAIR_REASONS)
     assert len(set(import_notice.NOTICE_REASONS)) == len(import_notice.NOTICE_REASONS)
     for reason in import_notice.NOTICE_REASONS:
         assert reason in import_notice.NOTICE_COPY, reason
@@ -148,6 +153,8 @@ def test_marker_text_retry_vs_final():
     ("storage_full", "Not copied: storage limit. Free up space and import again to bring a.png over"),
     ("not_found", "a.png wasn't found in the vault."),
     ("sync_off", "a.png wasn't synced because image and file sync is turned off in the plugin settings."),
+    ("missing_from_import", "a.png didn't come over in the original import. Import the same export "
+                            "again with Re-import to recover turned on to bring it back"),
 ])
 def test_each_reason_reads_its_sentence(reason, want):
     assert marker_text(reason, "a.png") == want
@@ -236,6 +243,15 @@ def test_media_pending_state_is_tri_state():
     assert state(json.dumps({"type": "doc", "content": [space]})) == 2
     for junk in (None, "not json", 5, {"type": "doc", "content": "x"}):
         assert state(junk) == 0, junk
+
+
+def test_missing_from_import_is_final():
+    """Plan F Task 2: the repair's marker is final. Nothing retries it; the way back is a
+    Re-import to recover, which the member starts."""
+    node = notice_node("missing_from_import", name="a.png", source_url=None, ref=None, attempts=0)
+    assert node["attrs"]["reason"] == "missing_from_import"  # not normalised to `unsupported`
+    assert import_notice.is_retryable(node["attrs"]) is False
+    assert import_notice.media_pending_state({"type": "doc", "content": [node]}) == 0
 
 
 def _doc(*blocks):
