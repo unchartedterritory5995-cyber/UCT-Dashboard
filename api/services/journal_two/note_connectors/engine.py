@@ -197,6 +197,11 @@ _LAST_FULL_FUTURE_SKEW_S = 60
 # the per-ref fallback kicks in), not provider-specific behavior.
 _FETCH_BATCH_SIZE = 40
 
+#: Plan E Task 5 review I3: a pass fetches, finalizes and IMPORTS this many refs at a time, so at
+#: most one chunk of converted notes is held at once (a 5000-note first sync held all 5000). A
+#: multiple of `_FETCH_BATCH_SIZE`, so each provider's `fetch_many` batches are unchanged.
+IMPORT_CHUNK_NOTES = _FETCH_BATCH_SIZE * 5
+
 # Server-side cap on notes_svc.import_confirm is 500/batch; the engine stays
 # well under it.
 _CONFIRM_BATCH_SIZE = 200
@@ -715,11 +720,6 @@ async def _do_sync(
 
         _touch_remote_index(user_id, source, provider, index_refs)
 
-        remote_notes, fetch_failures = await _fetch_remote_notes(provider, creds, refs)
-        item_failures.extend(fetch_failures)
-        # Plan A Task 10: links finalized here, before anything hashes or stores a doc.
-        remote_notes = await asyncio.to_thread(_finalize_remote_notes, remote_notes)
-
         # ⛔⛔ session-audit.md A1: every ref this pass fetched but never
         # actually got a stored note out of — a fetch failure (never made it
         # into `remote_notes`) or a per-note storage failure `import_confirm`
@@ -730,18 +730,32 @@ async def _do_sync(
         # and an oversized-but-otherwise-ordinary note is lost permanently:
         # a plain re-push of unchanged content is a no-op (no new hash, no
         # new timestamp), so nothing would ever ask for it again.
-        not_stored_refs: set[str] = {r.remote_id for r in refs} - {rn.remote_id for rn in remote_notes}
-
-        if remote_notes:
-            result = await _import_remote_notes(user_id, source, provider, creds, remote_notes)
-            counts["created"] += result["created"]
-            counts["updated"] += result["updated"]
-            counts["skipped"] += result["skipped"]
-            counts["mediaUploaded"] += result["mediaUploaded"]
-            counts["conflicts"] += result["conflicts"]
-            item_failures.extend(result["failures"])
-            notice_failures.extend(result.get("noticeFailures", []))
-            not_stored_refs.update(result.get("notStoredRefs", []))
+        #
+        # Plan E Task 5 review I3: fetched, finalized and imported one chunk at a time, so at
+        # most IMPORT_CHUNK_NOTES converted notes are alive at once. A link to a note in a later
+        # chunk is left pending and healed by that chunk's `_import_remote_notes` (its heal pass
+        # runs at the end of every call). The cursor rule below is unchanged: it still runs once,
+        # after every chunk, and only when nothing went unstored.
+        fetched_ids: set[str] = set()
+        not_stored_refs: set[str] = set()
+        for chunk_refs in _chunks(refs, IMPORT_CHUNK_NOTES):
+            chunk_notes, fetch_failures = await _fetch_remote_notes(provider, creds, chunk_refs)
+            item_failures.extend(fetch_failures)
+            # Plan A Task 10: links finalized here, before anything hashes or stores a doc.
+            chunk_notes = await asyncio.to_thread(_finalize_remote_notes, chunk_notes)
+            fetched_ids.update(rn.remote_id for rn in chunk_notes)
+            if chunk_notes:
+                result = await _import_remote_notes(user_id, source, provider, creds, chunk_notes)
+                counts["created"] += result["created"]
+                counts["updated"] += result["updated"]
+                counts["skipped"] += result["skipped"]
+                counts["mediaUploaded"] += result["mediaUploaded"]
+                counts["conflicts"] += result["conflicts"]
+                item_failures.extend(result["failures"])
+                notice_failures.extend(result.get("noticeFailures", []))
+                not_stored_refs.update(result.get("notStoredRefs", []))
+            del chunk_notes  # this chunk's docs are not held while the next is fetched
+        not_stored_refs.update({r.remote_id for r in refs} - fetched_ids)
 
         # Task 11 MUST-RESOLVE #1: an opaque cursor the provider published
         # on ITSELF (Dropbox — see base.py's `opaque_cursor` docstring)
