@@ -890,3 +890,23 @@ def test_source_url_line_only_for_http_urls(url, expected):
 def test_empty_and_prolog_only_inputs_do_not_crash():
     assert enml.enml_to_tiptap("", None, note_guid=GUID)["doc"]["type"] == "doc"
     assert enml.enml_to_tiptap(PROLOG + "<en-note/>", [], note_guid=GUID)["doc"]["content"] == []
+
+
+def test_lists_are_repaired_once_per_note(monkeypatch):
+    """Final review M4: `html_to_tiptap` already repairs lists (mddoc's one iterative
+    implementation); the ENML lane must not walk the tree a second time."""
+    from api.services.journal_two.note_connectors.convert import mddoc
+    calls = []
+    real = mddoc.repair_list_items
+
+    def counting(node, *args, **kwargs):
+        if isinstance(node, dict) and node.get("type") == "doc":  # a whole-doc walk, not its recursion
+            calls.append(1)
+        return real(node, *args, **kwargs)
+
+    monkeypatch.setattr(mddoc, "repair_list_items", counting)
+    if hasattr(enml, "repair_list_items"):
+        monkeypatch.setattr(enml, "repair_list_items", counting)
+    out = _convert('<ul><li><div><en-todo checked="true"/>a</div></li><li>b</li></ul>')
+    assert len(calls) == 1
+    assert _of_type(out, "taskItem")

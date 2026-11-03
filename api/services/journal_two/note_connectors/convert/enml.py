@@ -48,7 +48,7 @@ from api.services.journal_two import import_notice
 
 from . import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX
 from .linkify import resolve_href
-from .mddoc import html_to_tiptap, is_data_image_uri, repair_list_items
+from .mddoc import html_to_tiptap, is_data_image_uri
 
 EVERNOTE_RES_SCHEME = "evernote-res://"
 LIVE_KEY_PREFIX = "evernote:guid:"
@@ -1019,7 +1019,8 @@ def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
     result = html_to_tiptap("".join(_serialize(c) for c in root.children))
 
     names = {e["ref"]: e["name"] for e in res.unique if e["kind"] == "file"}
-    repair_list_items(result["doc"])  # before the post-pass: it reads each block's final place
+    # Lists were repaired once, inside `html_to_tiptap` (mddoc's one implementation), before the
+    # post-pass reads each block's final place; a second walk here was idempotent (final review M4).
     _post_pass(result["doc"], names, notices)
     if atom_marker is not None:
         _drop_atom_marker(result["doc"], atom_marker)  # after the trim it protected the space from
