@@ -174,6 +174,16 @@ _STRUCTURAL_CHILD = {"ul": ("li",), "ol": ("li",), "table": ("tr", "tbody", "the
                      "tbody": ("tr",), "thead": ("tr",), "tfoot": ("tr",), "tr": ("td", "th")}
 
 
+#: Attributes that carry meaning between this module's passes and `mddoc`. Written in a member's
+#: note they would forge it (a `data-uct-task` bullet read as a checked task, a `data-uct-chip`
+#: link skipping the link policy), so they are dropped as the ENML is parsed (round 2, R2).
+_OUR_ATTRS = frozenset({"data-uct-task", "data-uct-chip", "data-evernote-link"})
+
+
+def _member_attrs(attrs: list[tuple[str, str | None]]) -> dict[str, str | None]:
+    return {k.lower(): v for k, v in attrs if k.lower() not in _OUR_ATTRS}
+
+
 class _Builder(HTMLParser):
     """Every tag kept (ENML's own included). A self-closing `<x/>` is a leaf, as ENML means it;
     a void HTML tag never takes children. Entities arrive decoded (`convert_charrefs`). Nesting
@@ -191,13 +201,13 @@ class _Builder(HTMLParser):
                 and tag not in _STRUCTURAL_CHILD.get(self._stack[-1].tag, ())):
             self._flattened.append(tag)
             return
-        node = _Node(tag, {k.lower(): v for k, v in attrs})
+        node = _Node(tag, _member_attrs(attrs))
         self._stack[-1].children.append(node)
         if node.tag not in _VOID_TAGS:
             self._stack.append(node)
 
     def handle_startendtag(self, tag, attrs):
-        self._stack[-1].children.append(_Node(tag.lower(), {k.lower(): v for k, v in attrs}))
+        self._stack[-1].children.append(_Node(tag.lower(), _member_attrs(attrs)))
 
     def handle_endtag(self, tag):
         tag = tag.lower()

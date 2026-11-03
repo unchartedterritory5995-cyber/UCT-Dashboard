@@ -411,6 +411,29 @@ def test_mark_tag_with_only_inline_content_is_unchanged():
             for t in out["doc"]["content"][0]["content"]] == [("x ", []), ("y", ["bold"]), (" z", [])]
 
 
+# ---- R2 (round 2): our internal attributes written in the member's ENML mean nothing ----------
+
+
+def test_a_members_data_uct_task_li_stays_a_bullet():
+    out = _convert('<ul><li data-uct-task="1">x</li><li data-uct-task="0">y</li></ul>')
+    assert [b["type"] for b in _blocks(out)] == ["bulletList"]
+    assert not _of_type(out, "taskList")
+
+
+def test_a_members_data_uct_chip_link_still_goes_through_the_link_policy():
+    out = _convert('<div><a href="/chart" data-uct-chip="1">x</a></div>')
+    (text,) = _of_type(out, "text")
+    assert text["text"] == "x" and not text.get("marks")
+
+
+def test_a_members_data_evernote_link_on_a_web_link_is_ignored():
+    out = _convert(f'<div><a href="https://e.com/p" data-evernote-link="1">'
+                   f'<en-media hash="{IMG_HASH}" type="image/png"/></a></div>', [IMG])
+    # A web link emptied by the lift shows its href; a note link would have been unwrapped.
+    (text,) = _of_type(out, "text")
+    assert text["text"] == "https://e.com/p"
+
+
 # ---- n2: block-edge whitespace, as the client editor's parser trims it ------------------------
 
 
