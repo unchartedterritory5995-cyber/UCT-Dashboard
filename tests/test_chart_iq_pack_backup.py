@@ -112,3 +112,12 @@ def test_child_builds_into_the_given_file_with_the_build_gate_open_only_there(tm
     c = sqlite3.connect(out)
     assert dict(c.execute("SELECT k, v FROM meta").fetchall())["source"] == "worker"
     c.close()
+
+
+def test_dry_run_builds_at_any_hour_even_when_current_and_never_touches_the_live_keys(armed, monkeypatch):
+    monkeypatch.setenv("CHART_IQ_PACK_WORKER_DRYRUN", "1")
+    s3 = FakeS3({"chart_iq/latest_day.txt": b"2026-11-02"})     # current: a real run would skip
+    rep = B.run_once(s3=s3, run_child=lambda p: _pack(p, "2026-11-02"), now=TUE_1200)   # and it is session hours
+    assert rep["test"] is True and rep["rows"] == 1200
+    assert all(k.startswith("chart_iq_test/") for k in s3.puts) and len(s3.puts) == 3
+    assert s3.objects["chart_iq/latest_day.txt"] == b"2026-11-02"   # the live keys are untouched

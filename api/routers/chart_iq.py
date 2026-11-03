@@ -107,8 +107,10 @@ async def chart_iq_pack_status(user: dict = Depends(require_paid)):
     """Admin only: the nightly pack's day, rows, errors, seconds and whether a build is running."""
     if not _gate(user):
         raise HTTPException(status_code=404, detail="Not found")
-    from api.services.chart_iq import pack
-    return await run_in_threadpool(pack.status)
+    from api.services.chart_iq import pack, prewarm
+    st = await run_in_threadpool(pack.status)
+    st["asks_by_day"] = await run_in_threadpool(prewarm.ask_summary)   # pack / cache / live_latest / live_past, count + avg seconds
+    return st
 
 
 @router.post("/pack/build")
@@ -178,6 +180,8 @@ async def chart_iq(sym: str, date: str | None = Query(default=None, description=
     out = {k: res[k] for k in _MEMBER_FIELDS if k in res}
     from api.services.chart_iq import prewarm
     prewarm.record_view(sym)   # in-memory, batched to disk by a background thread: never blocks the read
+    # how this read was served, per ET day (admin pack status): a past date always computes live
+    prewarm.record_ask(served or ("live_past" if date else "live_latest"), time.perf_counter() - t_req)
     if not admin:   # members see no performance numbers yet (tracked privately, not displayed): drop each buy day's run since
         out["buydays"] = [{k: v for k, v in b.items() if k != "run"} for b in out.get("buydays") or []]
     from api.services.chart_iq import feedback

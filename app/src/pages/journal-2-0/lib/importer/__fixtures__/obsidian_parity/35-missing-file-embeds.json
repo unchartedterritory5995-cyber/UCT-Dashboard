@@ -1,0 +1,42 @@
+{
+  "id": "35-missing-file-embeds",
+  "input_markdown": "# Missing file embeds\n\nbefore ![[ov-gone.png]] after\n\n![[gone deck.pdf|300]]\n\n![[sub/old chart.png#crop]] then\n\n![[Some Note]] and ![[Ghost#Risk]] stay names.\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [],
+    "highlights": [],
+    "images": [],
+    "links": [],
+    "notices": [
+      {
+        "name": "ov-gone.png",
+        "reason": "not_found"
+      },
+      {
+        "name": "gone deck.pdf",
+        "reason": "not_found"
+      },
+      {
+        "name": "old chart.png",
+        "reason": "not_found"
+      }
+    ],
+    "pending": [
+      {
+        "key": "name:obsidian:vault-1/some note",
+        "text": "Some Note"
+      },
+      {
+        "key": "name:obsidian:vault-1/ghost",
+        "text": "Ghost"
+      }
+    ],
+    "task_checked": [],
+    "text": "Missing file embeds before   after  then Some Note and Ghost stay names."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md"
+  ]
+}
