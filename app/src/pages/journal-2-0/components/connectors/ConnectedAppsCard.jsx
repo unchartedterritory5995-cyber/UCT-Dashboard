@@ -8,6 +8,11 @@
  * Task 7):
  *   - !isPaid                                          -> upsell
  *   - provider.configured === false                    -> "Coming soon" tile (dark provider, no env creds yet)
+ *   - a MEMBER_GATED_PROVIDERS key (evernote) not configured -> NO tile at all (Plan E Task 10: /status lists it to
+ *     every member, `configured: false` while the flag is off or the member is not allowed; `isProviderShown`)
+ *   - `p.beta`                                          -> a "Beta" pill beside the label
+ *   - evernote's consent panel                          -> EVERNOTE_CONNECT_NOTES above the checkbox, the `.enex`
+ *     offer under the panel; a `reason=evernote_plan` return -> EVERNOTE_PLAN_RETURN + the `.enex` link
  *   - configured, !connected                           -> "Connect" (token modal for roam/craft, consent panel + OAuth redirect for oauth providers)
  *   - FOLDER_PICKER_PROVIDERS, connected, sources.length===0 -> "Choose folder" CTA (amber, NOT the green Connected badge) -> DropboxFolderPicker
  *   - connected, sources.length>0                       -> "Connected · N source(s)" + a SourceRow per source
@@ -43,9 +48,11 @@
  * (disabled until checked) fires `startOAuth`, which sends `consent: true`.
  */
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import TileCard from '../../../../components/TileCard'
 import { useAuth } from '../../../../context/AuthContext'
-import useNoteConnectors, { FOLDER_PICKER_PROVIDERS, NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
+import useNoteConnectors, { FOLDER_PICKER_PROVIDERS, NOTE_CONNECTOR_PROVIDERS, isProviderShown } from '../../hooks/useNoteConnectors'
+import { ENEX_IMPORT_HREF, EVERNOTE_ENEX_OFFER, EVERNOTE_PLAN_RETURN, PROVIDER_CONNECT_NOTES } from './evernoteCopy'
 import ConnectConsentPanel from './ConnectConsentPanel'
 import ConnectTokenModal from './ConnectTokenModal'
 import DropboxFolderPicker from './DropboxFolderPicker'
@@ -237,7 +244,16 @@ export default function ConnectedAppsCard() {
 
         {actionError && <div className={styles.error} role="alert">{actionError}</div>}
 
-        {returnNotice && (() => {
+        {returnNotice && returnNotice.reason === 'evernote_plan' && (
+          // Evernote refused a Free account (the callback maps that to `evernote_plan`): say what it
+          // means and offer the import a Free member CAN use, never the raw reason.
+          <p className={styles.pausedNotice} role="status" data-testid="oauth-return-notice">
+            {EVERNOTE_PLAN_RETURN}{' '}
+            <Link to={ENEX_IMPORT_HREF} className={styles.offerLink}>Import an .enex export</Link>
+          </p>
+        )}
+
+        {returnNotice && returnNotice.reason !== 'evernote_plan' && (() => {
           const label = NOTE_CONNECTOR_PROVIDERS.find((x) => x.key === returnNotice.connector)?.label || returnNotice.connector
           const text = returnNotice.reason === 'oauth_state'
             ? `Connecting ${label} didn't finish in this browser. Press Connect below to start again here.`
@@ -262,7 +278,7 @@ export default function ConnectedAppsCard() {
         )}
 
         <div className={styles.tiles}>
-          {NOTE_CONNECTOR_PROVIDERS.map((p) => {
+          {NOTE_CONNECTOR_PROVIDERS.filter((p) => isProviderShown(p.key, providers[p.key])).map((p) => {
             // Always fully-shaped — normalizeStatus guarantees every provider
             // key, so no `|| {}` fallback and no re-deriving `connected` here.
             const info = providers[p.key]
@@ -279,7 +295,10 @@ export default function ConnectedAppsCard() {
             return (
               <div key={p.key} className={styles.tile} data-provider={p.key} data-testid={`connector-tile-${p.key}`}>
                 <div className={styles.tileHead}>
-                  <span className={styles.tileName}>{p.label}</span>
+                  <span className={styles.tileName}>
+                    {p.label}
+                    {p.beta && <span className={styles.betaPill}>Beta</span>}
+                  </span>
                   {!configured ? (
                     <span className={styles.comingSoon}>Coming soon</span>
                   ) : needsFolder ? (
@@ -320,7 +339,14 @@ export default function ConnectedAppsCard() {
                     busy={busyProvider === p.key}
                     onConfirm={() => confirmOAuthConnect(p)}
                     onCancel={cancelOAuthConsent}
+                    notes={PROVIDER_CONNECT_NOTES[p.key]}
                   />
+                )}
+
+                {!connected && showingConsent && p.key === 'evernote' && (
+                  <p className={styles.muted}>
+                    <Link to={ENEX_IMPORT_HREF} className={styles.offerLink}>{EVERNOTE_ENEX_OFFER}</Link>
+                  </p>
                 )}
 
                 {connected && sources.length > 0 && (

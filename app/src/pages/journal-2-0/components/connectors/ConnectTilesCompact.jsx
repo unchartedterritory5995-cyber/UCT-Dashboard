@@ -44,6 +44,7 @@
 import { useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import useNoteConnectors, { FOLDER_PICKER_PROVIDERS, NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
+import { PROVIDER_CONNECT_NOTES } from './evernoteCopy'
 import ConnectConsentPanel from './ConnectConsentPanel'
 import ConnectTokenModal from './ConnectTokenModal'
 import DropboxFolderPicker from './DropboxFolderPicker'
@@ -156,6 +157,7 @@ export default function ConnectTilesCompact() {
           busy={busyProvider === activeConsentProvider.key}
           onConfirm={() => confirmOAuthConnect(activeConsentProvider)}
           onCancel={cancelOAuthConsent}
+          notes={PROVIDER_CONNECT_NOTES[activeConsentProvider.key]}
         />
       )}
 

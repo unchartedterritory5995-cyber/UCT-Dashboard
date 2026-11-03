@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import ConnectedAppsCard from './ConnectedAppsCard'
+import { ENEX_IMPORT_HREF, EVERNOTE_CONNECT_NOTES, EVERNOTE_ENEX_OFFER, EVERNOTE_PLAN_RETURN } from './evernoteCopy'
 
 let mockIsPaid = true
 vi.mock('../../../../context/AuthContext', () => ({
@@ -1071,5 +1073,110 @@ describe('ConnectedAppsCard — reconnecting a broken source (member-reachabilit
     const roamTile = await screen.findByTestId('connector-tile-roam')
     await screen.findByText(/Connected · 1 source/)
     expect(within(roamTile).queryByRole('button', { name: /^reconnect$/i })).not.toBeInTheDocument()
+  })
+})
+
+// Plan E Task 10: the honest Evernote tile. ⛔ /status lists evernote to EVERY member, with
+// `configured` false while the flag is off or the member is not allowed (the server makes those
+// two indistinguishable from "not set up" on purpose). So the gate is the status field, applied
+// here: no tile at all until the server says configured. The `.enex` offer and the plan notice
+// link out of Settings, so these cases render inside a router.
+describe('ConnectedAppsCard — Evernote (Plan E Task 10)', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/settings')
+    vi.restoreAllMocks()
+  })
+
+  const ALL = ['roam', 'craft', 'notion', 'dropbox', 'onenote', 'onedrive', 'obsidian', 'evernote']
+  const statusWith = (evernote, others = { configured: true, connected: false, sources: [] }) => ({
+    providers: Object.fromEntries(ALL.map((k) => [k, k === 'evernote' ? evernote : others])),
+  })
+  const renderCard = () => render(<MemoryRouter><ConnectedAppsCard /></MemoryRouter>)
+
+  it('the copy module carries the exact sentences, verbatim', () => {
+    expect(EVERNOTE_CONNECT_NOTES).toEqual([
+      'Live sync needs a paid Evernote plan (Personal or above). Evernote does not allow it on the Free plan.',
+      "Beta: Evernote's connection for apps is in beta, so things may change.",
+      'Notes you imported earlier from an .enex file are matched by title and created time and kept up to date, never duplicated. Notes you have edited here are never overwritten.',
+    ])
+    expect(EVERNOTE_ENEX_OFFER).toBe('On Evernote Free? Import an .enex export instead.')
+    expect(EVERNOTE_PLAN_RETURN).toBe('Evernote did not let us read this account. Live sync needs a paid Evernote plan. You can import an .enex export instead.')
+    expect(ENEX_IMPORT_HREF).toBe('/journal/notebook?import=evernote')
+  })
+
+  // Replaces the brief's "offers the .enex import instead of Coming soon when not configured":
+  // the controller ruled the tile never shows while the flag is off or the member is not allowed,
+  // and /status cannot tell those apart from "not set up". So Evernote never says Coming soon
+  // because it is not there at all; the `.enex` offer lives under the consent panel and on the
+  // plan return, where a member who CAN see the tile meets it.
+  it('evernote tile never shows to a member while /status says not configured (flag off or not allowed)', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: false, connected: false, sources: [] }) }]])
+    renderCard()
+    expect(await screen.findByTestId('connector-tile-notion')).toBeInTheDocument()   // control: tiles rendered
+    expect(screen.queryByTestId('connector-tile-evernote')).toBeNull()
+    expect(screen.queryByText('Evernote')).toBeNull()
+  })
+
+  it('evernote tile never shows when the server predates the provider (absent from /status)', async () => {
+    const body = statusWith({ configured: true, connected: false, sources: [] })
+    delete body.providers.evernote
+    mockFetch([['/api/j2/notes/connectors/status', { body }]])
+    renderCard()
+    expect(await screen.findByTestId('connector-tile-notion')).toBeInTheDocument()
+    expect(screen.queryByTestId('connector-tile-evernote')).toBeNull()
+  })
+
+  it('evernote consent panel lists the paid-plan, beta and adoption notes', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
+    renderCard()
+    const tile = await screen.findByTestId('connector-tile-evernote')
+    expect(within(tile).queryByText(EVERNOTE_ENEX_OFFER)).toBeNull()   // not before Connect
+    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
+
+    const panel = await within(tile).findByRole('group', { name: 'Consent to connect Evernote' })
+    const items = within(within(panel).getByRole('list')).getAllByRole('listitem').map((li) => li.textContent)
+    expect(items).toEqual(EVERNOTE_CONNECT_NOTES)
+    // The list sits above the checkbox.
+    const list = within(panel).getByRole('list')
+    const box = within(panel).getByRole('checkbox')
+    expect(list.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // The `.enex` offer sits under the panel, and links to the import.
+    const offer = within(tile).getByRole('link', { name: EVERNOTE_ENEX_OFFER })
+    expect(offer.getAttribute('href')).toBe(ENEX_IMPORT_HREF)
+    expect(panel.compareDocumentPosition(offer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('another provider\'s consent panel carries no notes list', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
+    renderCard()
+    const tile = await screen.findByTestId('connector-tile-notion')
+    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
+    const panel = await within(tile).findByRole('group', { name: 'Consent to connect Notion' })
+    expect(within(panel).queryByRole('list')).toBeNull()
+    expect(within(tile).queryByText(EVERNOTE_ENEX_OFFER)).toBeNull()
+  })
+
+  it('evernote_plan return reason shows the plan sentence and the .enex link', async () => {
+    window.history.replaceState({}, '', '/settings?section=connections&connector=evernote&connected=0&reason=evernote_plan')
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
+    renderCard()
+    const note = await screen.findByTestId('oauth-return-notice')
+    expect(note.getAttribute('role')).toBe('status')
+    expect(note.textContent).toContain(EVERNOTE_PLAN_RETURN)
+    expect(note.textContent).not.toContain('evernote_plan')
+    const link = within(note).getByRole('link')
+    expect(link.getAttribute('href')).toBe(ENEX_IMPORT_HREF)
+    expect(window.location.search).toBe('?section=connections')
+  })
+
+  it('evernote tile carries a Beta pill and no other tile does', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
+    renderCard()
+    const tile = await screen.findByTestId('connector-tile-evernote')
+    expect(within(tile).getByText('Beta')).toBeInTheDocument()
+    expect(screen.getAllByText('Beta')).toHaveLength(1)
+    for (const k of ALL.filter((x) => x !== 'evernote')) {
+      expect(within(screen.getByTestId(`connector-tile-${k}`)).queryByText('Beta')).toBeNull()
+    }
   })
 })
