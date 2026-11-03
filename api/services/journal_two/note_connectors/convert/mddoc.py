@@ -52,6 +52,7 @@ from mdit_py_plugins.tasklists import tasklists_plugin
 from api.services.journal_two import import_notice
 
 from . import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX
+from .emoji import is_extended_pictographic
 from .marks import exclusive_marks
 
 _MD: MarkdownIt | None = None
@@ -296,6 +297,10 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
         elif t.type == "hr":
             out.append({"type": "horizontalRule"})
             i += 1
+
+        elif t.type == "html_block" and (region := _html_region(tokens, i, end, ctx)) is not None:
+            nodes, i = region
+            out.extend(nodes)
 
         elif t.type == "html_block":
             converted = _raw_html_block(t.content or "", ctx)
@@ -837,6 +842,66 @@ def _raw_html_block(html: str, ctx: _Ctx) -> list[dict[str, Any]] | None:
     return _html_blocks_walk(_unwrap_unknown_html(builder.root.children), ctx)
 
 
+#: Elements whose markdown body spans blocks (`_html_region`).
+_HTML_REGION_TAGS = frozenset({"details", "aside"})
+
+
+def _html_region(
+    tokens: list[Token], start: int, end: int, ctx: _Ctx,
+) -> tuple[list[dict[str, Any]], int] | None:
+    """D3 follow-up (difference 2): a `<details>` or `<aside>` an HTML block OPENS and a later
+    one closes, with markdown between, as Obsidian and GitHub write a collapsible section:
+
+        <details>
+        <summary>Setup</summary>
+
+        body *markdown*
+
+        </details>
+
+    The client renders the whole note to HTML before parsing, so the markdown between is
+    INSIDE the toggle. Here the blocks are one HTML parse fed piece by piece: each HTML block
+    goes to the same builder, each markdown block in between is converted as usual and stands
+    in the builder's open element as a `_BlocksNode`, until the builder is back at the top
+    (or the note ends: an unclosed element holds the rest, as a browser's parse does).
+    `(nodes, next index)`, or None when the block leaves no such element open."""
+    first = tokens[start]
+    builder = _HtmlDomBuilder()
+    builder.feed(first.content or "")
+    if not any(n.tag in _HTML_REGION_TAGS for n in builder._stack[1:]):
+        return None
+    k = start + 1
+    while k < end and len(builder._stack) > 1:
+        tk = tokens[k]
+        if tk.nesting < 0:
+            break  # the parent block closes: the region ends with it
+        if tk.type == "html_block":
+            builder.feed(tk.content or "")
+            k += 1
+            continue
+        last = _find_close(tokens, k, tk.type[:-len("_open")] + "_close") if tk.nesting == 1 else k
+        if tk.type == "paragraph_open":
+            last = k + 2
+        placeholder = _BlocksNode(_blocks(tokens, k, last + 1, ctx))
+        builder._stack[-1].children.append(placeholder)
+        k = last + 1
+    builder.close()
+    seen: list[_HtmlNode] = []
+
+    def walk(nodes: list[Any]) -> None:
+        for n in nodes:
+            if isinstance(n, _HtmlNode) and not isinstance(n, _BlocksNode):
+                seen.append(n)
+                walk(n.children)
+
+    walk(builder.root.children)
+    for n in seen:
+        # A member's raw connector-private href never mints a chip: its text stays, unlinked.
+        if n.tag == "a" and (n.attrs.get("href") or "").strip().startswith(ATTACHMENT_REF_PREFIX):
+            n.tag = "span"
+    return _html_blocks_walk(_unwrap_unknown_html(builder.root.children), ctx), k
+
+
 #: Tag syntax: an element, a closing tag, a comment or declaration, or a processing
 #: instruction. A block with none is text and is kept as written.
 _HTML_TAG_SYNTAX_RE = re.compile(r"<[A-Za-z/!?]")
@@ -1028,6 +1093,9 @@ _HTML_KNOWN_TAGS = frozenset({
     "pre", "code",
     "blockquote", "hr", "br", "img", "a",
     "b", "strong", "i", "em", "s", "del", "strike",
+    # D3 follow-up (difference 2): the client's callout and toggle (`convert.js::
+    # mapCalloutsAndToggles`); `_html_aside_callout` / `_html_details_toggle` below.
+    "aside", "details", "summary",
 })
 
 # Tags whose content model never permits children (no close tag expected) —
@@ -1060,6 +1128,16 @@ class _HtmlNode:
         self.tag = tag
         self.attrs = attrs
         self.children: list[Any] = []
+
+
+class _BlocksNode(_HtmlNode):
+    """Converted markdown blocks standing inside an HTML region (`_html_region`)."""
+
+    __slots__ = ("blocks",)
+
+    def __init__(self, blocks: list[dict[str, Any]]) -> None:
+        super().__init__("x-uct-blocks", {})
+        self.blocks = blocks
 
 
 class _HtmlDomBuilder(HTMLParser):
@@ -1114,7 +1192,7 @@ class _HtmlDomBuilder(HTMLParser):
 #: is two paragraphs. ⚰️ They were unwrapped like a `<span>`, so Dropbox and OneNote HTML
 #: joined every div's line into one paragraph (`ab`).
 _HTML_BLOCK_WRAPPERS = frozenset({
-    "address", "article", "aside", "canvas", "dd", "div", "dl", "fieldset", "figcaption",
+    "address", "article", "canvas", "dd", "div", "dl", "fieldset", "figcaption",
     "figure", "footer", "form", "header", "hgroup", "noscript", "output", "section",
 })
 #: Parents whose children are items or rows, never blocks: a wrapper there still unwraps.
@@ -1130,7 +1208,7 @@ def _unwrap_unknown_html(nodes: list[Any], parent: str = "root") -> list[Any]:
     reads as a block boundary; inside a list or a table row it still unwraps."""
     out: list[Any] = []
     for n in nodes:
-        if isinstance(n, str):
+        if isinstance(n, (str, _BlocksNode)):
             out.append(n)
             continue
         if n.tag in _HTML_KNOWN_TAGS:
@@ -1460,6 +1538,62 @@ def _html_convert_table(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
     return {"type": "table", "content": rows}
 
 
+# ── D3 follow-up (difference 2): `<aside>` and `<details>`, as the client maps them ───────────
+#
+# `convert.js::mapCalloutsAndToggles` turns Notion's classic export shapes into the editor's
+# nodes before its parse: an `<aside>` is a `callout` (a leading emoji in its first text is
+# the callout's `emoji`), a `<details>` is an open `toggle` of `toggleSummary` (its first
+# `<summary>`, or an empty one) and `toggleContent` (everything after). The server writes the
+# same nodes with the attrs the client's parse writes: `{emoji, variant: None}` and
+# `{open: True}`. ⚰️ Both were unwrapped to plain paragraphs here.
+
+#: `calloutNode.js`'s `emoji` default (`test_note_convert_d3.py` reads that file and pins it).
+CALLOUT_DEFAULT_EMOJI = chr(0x1F4A1)
+#: JavaScript's `\s` (what the client's `replace(/^\s+/, '')` strips), code point by code
+#: point; built from numbers so this file holds none of them raw.
+_JS_SPACE = "".join(chr(c) for c in (
+    0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0xA0, 0x1680, *range(0x2000, 0x200B),
+    0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF))
+_VARIATION_SELECTOR_16 = chr(0xFE0F)
+
+
+def _leading_emoji(text: str) -> tuple[str, str] | None:
+    """`(emoji, rest)` when `text`, leading JS whitespace stripped, opens with one
+    Extended_Pictographic character (plus an optional U+FE0F) and then spaces or tabs, as the
+    client's `LEADING_EMOJI_RE`; else None."""
+    trimmed = text.lstrip(_JS_SPACE)
+    if not trimmed or not is_extended_pictographic(trimmed[0]):
+        return None
+    end = 2 if trimmed[1:2] == _VARIATION_SELECTOR_16 else 1
+    emoji = trimmed[:end]
+    return emoji, trimmed[end:].lstrip(" \t")
+
+
+def _html_aside_callout(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
+    children = list(node.children)
+    emoji = CALLOUT_DEFAULT_EMOJI
+    if children and isinstance(children[0], str):
+        found = _leading_emoji(children[0])
+        if found is not None:
+            emoji, children[0] = found
+    content = _html_blocks_walk(children, ctx) or [{"type": "paragraph", "content": []}]
+    return {"type": "callout", "attrs": {"emoji": emoji, "variant": None}, "content": content}
+
+
+def _html_details_toggle(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
+    summary = next((c for c in node.children if isinstance(c, _HtmlNode) and c.tag == "summary"), None)
+    rest = [c for c in node.children if c is not summary]
+    flat = _html_inline_walk(summary.children, ctx) if summary is not None else []
+    # toggleSummary is `inline*`: a block atom in it moves to the start of the content.
+    title = [x for x in flat if x.get("type") not in _HOISTABLE_BLOCK_TYPES]
+    hoisted = [x for x in flat if x.get("type") in _HOISTABLE_BLOCK_TYPES]
+    body = hoisted + _html_blocks_walk(rest, ctx)
+    return {"type": "toggle", "attrs": {"open": True}, "content": [
+        {"type": "toggleSummary", "content": title},
+        {"type": "toggleContent", "content": body or [{"type": "paragraph", "content": []}]},
+    ]}
+
+
 def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
     """Block-context walk, mirroring `_blocks` above. Stray inline content
     encountered directly (text, or an inline-vocabulary tag with no `<p>`
@@ -1483,6 +1617,10 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
             buf = []
 
     for n in nodes:
+        if isinstance(n, _BlocksNode):
+            flush()
+            out.extend(n.blocks)  # markdown blocks inside an HTML region, already converted
+            continue
         if isinstance(n, str):
             if n.strip() == "":
                 continue  # pure whitespace between block siblings -> noise
@@ -1526,6 +1664,16 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
             # D3 item 7: a block wrapper (`_unwrap_unknown_html`) closes the paragraph before
             # it and its own content is blocks; nothing of its own (an empty div is no
             # paragraph, as in the client's parse).
+            flush()
+            out.extend(_html_blocks_walk(n.children, ctx))
+        elif tag == "aside":
+            flush()
+            out.append(_html_aside_callout(n, ctx))
+        elif tag == "details":
+            flush()
+            out.append(_html_details_toggle(n, ctx))
+        elif tag == "summary":
+            # A summary outside a details: a block wrapper, as a div.
             flush()
             out.extend(_html_blocks_walk(n.children, ctx))
         else:

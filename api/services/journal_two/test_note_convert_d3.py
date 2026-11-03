@@ -371,3 +371,59 @@ def test_shared_unsafe_image_vectors(v):
     out = md_to_tiptap(v["md"], unsafe_image_notice=True)
     assert _notices(out["doc"]) == v["notices"]
     assert out["media"] == []
+
+
+# ── follow-up (difference 2): <aside> and <details> are a callout and a toggle ──
+
+_BLOCK_NODE_VECTORS = json.loads(_HTML_VECTORS_PATH.read_text(encoding="utf-8"))["block_node_vectors"]
+
+
+def _node_attrs(node: Any, out: list | None = None) -> list:
+    from api.services.journal_two.note_connectors.convert.mddoc import CALLOUT_DEFAULT_EMOJI
+    out = [] if out is None else out
+    if isinstance(node, dict):
+        a = node.get("attrs") or {}
+        if node.get("type") == "callout":
+            emoji = "default" if a.get("emoji") == CALLOUT_DEFAULT_EMOJI else "other"
+            out.append(f"callout emoji={emoji} variant={json.dumps(a.get('variant'))}")
+        elif node.get("type") == "toggle":
+            out.append(f"toggle open={json.dumps(a.get('open'))}")
+        for child in node.get("content") or []:
+            _node_attrs(child, out)
+    return out
+
+
+@pytest.mark.parametrize("v", _BLOCK_NODE_VECTORS, ids=[v["name"] for v in _BLOCK_NODE_VECTORS])
+def test_shared_block_node_vectors(v):
+    doc = html_to_tiptap(v["html"])["doc"]
+    assert _shape(doc) == v["shape"]
+    assert _node_attrs(doc) == v["attrs"]
+
+
+@pytest.mark.parametrize("lead, rest", [
+    ([0x1F4A1], " tip"), ([0x2600, 0xFE0F], "  sun"), ([0x1F4A1], "x"), ([0x20, 0xA0, 0x26A0], "\twarn"),
+])
+def test_an_aside_leading_emoji_is_the_callout_emoji(lead, rest):
+    """The client's LEADING_EMOJI_RE: JS whitespace stripped, one Extended_Pictographic (plus an
+    optional U+FE0F), then spaces or tabs. Emoji built from numbers, never written raw."""
+    text = "".join(chr(c) for c in lead) + rest
+    doc = html_to_tiptap(f"<aside>{text}</aside>")["doc"]
+    want = "".join(chr(c) for c in lead if c not in (0x20, 0xA0))
+    assert doc["content"][0]["attrs"]["emoji"] == want
+    assert _texts(doc)[0]["text"] == rest.lstrip(" \t")
+
+
+def test_a_letter_or_digit_is_no_callout_emoji():
+    from api.services.journal_two.note_connectors.convert.mddoc import CALLOUT_DEFAULT_EMOJI
+    doc = html_to_tiptap("<aside>1 first</aside>")["doc"]
+    assert doc["content"][0]["attrs"]["emoji"] == CALLOUT_DEFAULT_EMOJI
+    assert _texts(doc)[0]["text"] == "1 first"
+
+
+def test_the_default_emoji_is_the_callout_nodes_own():
+    """`calloutNode.js` declares the default; this file's constant must be it."""
+    import re
+    from api.services.journal_two.note_connectors.convert.mddoc import CALLOUT_DEFAULT_EMOJI
+    src = (_HTML_VECTORS_PATH.parents[2] / "calloutNode.js").read_text(encoding="utf-8")
+    m = re.search(r"emoji:\s*\{\s*default:\s*'([^']+)'", src)
+    assert m is not None and m.group(1) == CALLOUT_DEFAULT_EMOJI

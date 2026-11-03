@@ -389,3 +389,44 @@ describe('import pipeline — D3 follow-up: shared unsafe image vectors', () => 
     expect(notices).toEqual(v.notices)
   })
 })
+
+// D3 follow-up (difference 2): <aside> and <details> are a callout and a toggle on both lanes
+// (the server's `mddoc._html_aside_callout` / `_html_details_toggle` read the same vectors).
+describe('htmlToNote — D3 follow-up: shared callout and toggle vectors', () => {
+  const quoted = (n) => (n.type === 'text' ? `'${n.text}'`
+    : n.type + (n.content ? `(${n.content.map(quoted).join(', ')})` : ''))
+  const DEFAULT_EMOJI = String.fromCodePoint(0x1f4a1)
+  const nodeAttrs = (node, out = []) => {
+    if (node && typeof node === 'object') {
+      const a = node.attrs || {}
+      if (node.type === 'callout') out.push(`callout emoji=${a.emoji === DEFAULT_EMOJI ? 'default' : 'other'} variant=${JSON.stringify(a.variant)}`)
+      else if (node.type === 'toggle') out.push(`toggle open=${JSON.stringify(a.open)}`)
+      for (const c of node.content || []) nodeAttrs(c, out)
+    }
+    return out
+  }
+  it.each(HTML_BLOCK_VECTORS.block_node_vectors.map((v) => [v.name, v]))('%s', (_name, v) => {
+    const { bodyJson } = htmlToNote(v.html)
+    expect(quoted(bodyJson)).toBe(v.shape)
+    expect(nodeAttrs(bodyJson)).toEqual(v.attrs)
+  })
+
+  // The server's Extended_Pictographic table (`convert/emoji.py`) is DERIVED from this engine:
+  // regenerate it from `/\p{Extended_Pictographic}/u` over every code point when this goes red.
+  it('the server\'s Extended_Pictographic table is this engine\'s', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const file = path.resolve(__dirname, '../../../../../../api/services/journal_two/note_connectors/convert/emoji.py')
+    const table = [...fs.readFileSync(file, 'utf8').matchAll(/\((0x[0-9A-F]+), (0x[0-9A-F]+)\)/g)]
+      .map((m) => [Number(m[1]), Number(m[2])])
+    const re = /\p{Extended_Pictographic}/u
+    const mine = []
+    let s = -1
+    for (let c = 0; c <= 0x110000; c += 1) {
+      const ok = c < 0x110000 && !(c >= 0xd800 && c <= 0xdfff) && re.test(String.fromCodePoint(c))
+      if (ok && s < 0) s = c
+      if (!ok && s >= 0) { mine.push([s, c - 1]); s = -1 }
+    }
+    expect(table).toEqual(mine)
+  })
+})
