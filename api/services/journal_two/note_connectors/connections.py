@@ -478,6 +478,67 @@ def list_due_sources(
             conn.close()
 
 
+def set_follow_up(
+    user_id: str, source_id: str, until_iso: str | None,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    """Stamp (or clear, with None) when a quick follow-up pass is due for this source
+    (`warming_until`, live gate 2026-11-03): a pass a provider's rate limit cut short. Read by
+    `list_follow_up_due` for the `note_sync_follow_up` job."""
+    return _update_source_fields(user_id, source_id, {"warming_until": until_iso}, conn)
+
+
+def set_sync_state(
+    user_id: str, source_id: str, raw: str | None, conn: sqlite3.Connection | None = None,
+) -> bool:
+    """The source's small JSON engine state (`sync_state`, fix round 1): the learned pacing
+    interval (D3) and an import's progress record (I10). `None` clears it."""
+    return _update_source_fields(user_id, source_id, {"sync_state": raw}, conn)
+
+
+def list_follow_up_due(
+    now_iso: str, conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Every sync-enabled, active source whose follow-up stamp is at or before `now_iso`, oldest
+    stamp first. Same filters as `list_due_sources`: a paused, broken or disabled source never
+    gets a follow-up pass."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT * FROM j2_note_sources
+             WHERE sync_enabled = 1 AND status = 'active'
+               AND warming_until IS NOT NULL AND warming_until <= ?
+             ORDER BY warming_until ASC
+            """,
+            (now_iso,),
+        ).fetchall()
+        return [_row_to_source(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def count_passes_since(
+    user_id: str, source_id: str, since_iso: str, conn: sqlite3.Connection | None = None,
+) -> int:
+    """How many sync passes (log rows, any status) started for this source after `since_iso`:
+    the hourly bound on follow-up passes reads it, so no new counter column is needed."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM j2_note_sync_log "
+            "WHERE source_id = ? AND user_id = ? AND started_at > ?",
+            (source_id, user_id, since_iso),
+        ).fetchone()
+        return int(row["n"]) if row else 0
+    finally:
+        if owned:
+            conn.close()
+
+
 def set_source_status(
     user_id: str, source_id: str, status: str,
     conn: sqlite3.Connection | None = None, *, error: str | None = None,
@@ -672,6 +733,7 @@ def _row_to_source(row: sqlite3.Row | None) -> dict[str, Any] | None:
         "lastSyncStatus": row["last_sync_status"],
         "lastSyncError": row["last_sync_error"],
         "warmingUntil": row["warming_until"],
+        "syncState": row["sync_state"] if "sync_state" in row.keys() else None,
         "lastFullSyncAt": row["last_full_sync_at"],
         "createdAt": row["created_at"],
     }
