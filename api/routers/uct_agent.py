@@ -576,7 +576,9 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     # PLANNER v2 (UCT_AGENT_PLANNER=v2): only a STREAMED, ordinary turn (no headline, no reroute) takes the step loop;
     # its rounds are metered by the daily cap per call (request_id None: the 2-call ceiling is v1's), never by routing
     v2 = None
-    if on_event is not None and planner_v2() and headline is None and not body.reroute:
+    # (a COACH turn stays on v1: its prompt block and server guard live there -- W3 review C1)
+    from api.services.uct_agent import coach as agent_coach
+    if on_event is not None and planner_v2() and headline is None and not body.reroute and not agent_coach.is_coach_turn(body.context):
         token, v2 = _v2_register(uid)
     try:
         out = agent.run_turn(message=body.message, context=body.context, history=history,

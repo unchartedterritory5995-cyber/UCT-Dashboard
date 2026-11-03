@@ -1,7 +1,7 @@
 ---
 id: volume-relative-volume
 title: Volume and relative volume
-aliases: volume, relative volume, rvol, volume spike, unusual volume, volume dry-up, accumulation, distribution
+aliases: relative volume, rvol, volume spike, unusual volume, volume dry-up, accumulation, distribution
 observe: volume
 ---
 ## What it is

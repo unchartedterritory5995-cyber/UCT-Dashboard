@@ -1,7 +1,7 @@
 ---
 id: moving-averages-context
 title: Moving averages as context
-aliases: moving averages, moving average, ma, sma, ema, 20-day, 50-day, 200-day, 20 day average, 50 day average, 200 day average, above the 50, below the 200
+aliases: moving averages, moving average, sma, ema, 20-day, 50-day, 200-day, 20 day average, 50 day average, 200 day average, above the 50, below the 200
 observe: ma
 ---
 ## What it is

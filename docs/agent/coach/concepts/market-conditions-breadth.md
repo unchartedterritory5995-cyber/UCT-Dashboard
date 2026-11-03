@@ -1,11 +1,11 @@
 ---
 id: market-conditions-breadth
 title: Market conditions and breadth context
-aliases: market conditions, market context, market environment, breadth, breadth context, market health, risk on, risk off, tape, the general market
+aliases: market conditions, market context, market environment, breadth context, market health, risk on, risk off, the general market
 observe: ma
 ---
 ## What it is
-Market conditions describe the environment individual trades happen in: whether the major indexes are trending or chopping, and whether most stocks are participating. Breadth measures that participation, for example the share of stocks above a moving average, the count of new highs versus new lows, or advancing versus declining issues. Traders check conditions because most stocks move with the market more than against it.
+Market conditions describe the environment individual trades happen in: whether the major indexes are trending or chopping, and whether most stocks are participating. Breadth measures that participation, for example the share of stocks above a moving average, the count of new highs versus new lows, or advancing versus declining issues. Traders check conditions because many stocks tend to move with the market more than against it.
 
 ## What to look for
 Describe the index trend in the same terms used for a stock: the structure of highs and lows, and where it sits against its moving averages. Then ask whether breadth agrees: are many stocks above their averages, are new highs expanding or shrinking, and are individual setups following through or failing? UCT's breadth tools report these readings for the universes they track.

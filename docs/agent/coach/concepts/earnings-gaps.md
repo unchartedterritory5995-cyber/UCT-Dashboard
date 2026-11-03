@@ -1,7 +1,7 @@
 ---
 id: earnings-gaps
 title: Earnings gaps
-aliases: earnings gap, earnings gaps, gap up, gap down, earnings reaction, post-earnings move, gap and go, earnings risk
+aliases: earnings gap, earnings gaps, gap down, earnings reaction, post-earnings move, earnings risk
 observe: volume
 ---
 ## What it is

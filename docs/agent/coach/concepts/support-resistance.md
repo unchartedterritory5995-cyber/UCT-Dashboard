@@ -1,7 +1,7 @@
 ---
 id: support-resistance
 title: Support and resistance
-aliases: support, resistance, support and resistance, levels, key levels, price levels, support/resistance
+aliases: resistance, support and resistance, key levels, price levels, support/resistance
 observe: ma
 ---
 ## What it is

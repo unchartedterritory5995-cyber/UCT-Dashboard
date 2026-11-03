@@ -1644,6 +1644,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     model as data with news.RULES. `answer_only` (the News Ask box): no web research runs and any op the model
     writes is dropped -- the turn can only answer."""
     if v2 is not None:
+        # W3 review C1: a COACH turn never takes the v2 step loop (it has no coach block and no coach guard): it is
+        # served on this v1 path, where the coach prompt, the no-streaming rule and the server guard all apply.
+        from api.services.uct_agent import coach as _coach
+        if _coach.is_coach_turn(context):
+            v2 = None
+    if v2 is not None:
         from api.services.uct_agent import turn_v2
         return turn_v2.run_turn_v2(message=message, context=context, history=history, capabilities=capabilities,
                                    pending=pending, caller=caller, meter=meter, on_event=on_event, reference=reference,

@@ -1,7 +1,7 @@
 ---
 id: consolidation-tightness
 title: Consolidation and tightness
-aliases: consolidation, tightness, tight range, base, basing, tight base, flag, range contraction, coiling
+aliases: consolidation, tightness, tight range, basing, tight base, range contraction, coiling
 observe: volume
 ---
 ## What it is
