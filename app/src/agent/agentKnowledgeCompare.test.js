@@ -20,7 +20,7 @@ export const KNOWLEDGE_PROMPTS = [
   ['what is an EP setup', 'playbook.explain'],
   ['explain the VCP setup', 'playbook.explain'],
   ['how does the team think about patience', 'playbook.explain'],
-  ['teach me how to trade a flag breakout', 'playbook.explain'],
+  ['how does the team trade a flag breakout', 'playbook.explain'],
   ['according to UCT, when should I take profits?', 'playbook.explain'],
   ['what is a pullback setup in the playbook', 'playbook.explain'],
   ['define a high tight flag', 'playbook.explain'],
@@ -125,5 +125,18 @@ describe('fixed limitation: knowledge-only messages no longer narrow the routed 
   it('a message that names another group as well is still routed to both', () => {
     expect(selectGroups('explain the VCP setup and switch to weekly').matched).toBe(true)
     expect(routed('explain the VCP setup and switch to weekly')).toEqual(expect.arrayContaining(['playbook.explain', 'chart.setTimeframe']))
+  })
+})
+
+// N5 (owner, 2026-11-03): coaching phrasings belong to the coach group; concept/definition questions to the playbook
+describe('N5: coaching phrasings never match the playbook group (kinds served)', () => {
+  beforeAll(async () => { _resetAgentConfig(); _resetKnowledgeForTest(); wire(['quote', 'quotes', ...Object.values(KNOWLEDGE_CAPS)]); await loadAgentConfig(); registerKnowledgeCapabilities() })
+  afterAll(() => { _resetKnowledgeForTest(); _resetAgentConfig() })
+  it.each(['teach me how to trade a flag breakout', 'help me understand how to apply the VCP rules', 'quiz me on EP setups',
+    'coach me through a pullback setup', 'walk me through applying the U&R'])('"%s" → not the playbook group', (m) => {
+    expect(wordsSelect('playbook', m)).toBe(false)
+  })
+  it.each(['what is a VCP setup', 'define a high tight flag', 'rules for an episodic pivot'])('"%s" → still the playbook group', (m) => {
+    expect(wordsSelect('playbook', m)).toBe(true)
   })
 })

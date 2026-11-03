@@ -72,6 +72,36 @@ def classify(source: Optional[str]) -> dict:
             "reason": "a source the policy does not list (default-deny)"}
 
 
+def classify_template(origin_trader: Optional[str]) -> dict:
+    """A setup template's source is its origin_trader (the table has no source column). Default-deny: only an origin
+    listed in templates.team_origins is admitted; an unresolved origin and every other origin are excluded."""
+    t = load().get("templates") or {}
+    o = str(origin_trader or "").strip()
+    team = {str(x).strip().lower() for x in t.get("team_origins") or []}
+    unresolved = {str(x).strip().lower() for x in t.get("unresolved_origins") or []}
+    if team and o.lower() in team:
+        return {"state": "admitted", "licence": t.get("team_licence") or "team_owned",
+                "label": f"a UCT team setup template (origin: {o})", "reason": ""}
+    if o.lower() in unresolved:
+        return {"state": "excluded", "licence": "unresolved", "label": f"a setup template (origin: {o or 'unknown'})",
+                "reason": "its origin is not resolved to approved team-owned content"}
+    return {"state": "excluded", "licence": t.get("other_licence") or "third_party_methodology",
+            "label": f"a setup template from {o}'s published methodology",
+            "reason": "third-party methodology is not approved team-owned content"}
+
+
+def classify_record(key: str) -> dict:
+    """A setup-record source (team_archive, setup_performance, trigger_performance). Default-deny."""
+    row = (load().get("records") or {}).get(key)
+    if isinstance(row, dict) and row.get("admit") is True:
+        return {"state": "admitted", "licence": row.get("licence") or "unresolved", "label": row.get("label") or key,
+                "reason": ""}
+    if isinstance(row, dict):
+        return {"state": "pending", "licence": row.get("licence") or "unresolved", "label": row.get("label") or key,
+                "reason": row.get("pending") or "not approved"}
+    return {"state": "unknown", "licence": "unresolved", "label": key, "reason": "a record source the policy does not list"}
+
+
 def admitted_sources() -> list[str]:
     """Admitted keys, re-checked through classify() so a key under an excluded prefix can never be admitted."""
     return sorted(k for k, v in load().get("sources", {}).items()

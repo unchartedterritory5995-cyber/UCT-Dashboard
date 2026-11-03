@@ -78,7 +78,7 @@ function recordLine(b) {
   if (!b) return null
   const m = b.method || 'record'
   if (b.label === 'insufficient_sample') return `${m}: not enough sample${b.n ? ` (${b.n} outcomes; UCT states a figure from ${b.n_min})` : ''}, so no figure is stated.`
-  if (b.label === 'stale_record' || b.label === 'undated_record') return `${m}: ${b.label_text}.`
+  if (['stale_record', 'undated_record', 'source_not_approved'].includes(b.label)) return `${m}: ${b.label_text}.`
   const wr = b.win_rate_pct ?? b.win_rate_20d_pct
   const ci = b.win_rate_ci95 || b.win_rate_20d_ci95
   const fig = wr != null ? `win rate ${pct(wr)}${ci ? ` (95% interval ${ci[0]}–${ci[1]}%)` : ''}` : null
@@ -141,11 +141,15 @@ const SPECS = {
 }
 
 // the routing words, live only while a knowledge capability is registered (routing.js keeps the group's words empty)
+// N5 (owner, 2026-11-03): concept and setup-definition questions prefer the playbook; coaching phrasings ("teach me",
+// "help me understand how to apply", "quiz me", "coach me", "walk me through applying") belong to the coach group.
+export const COACHING = /\b(teach me|help me understand how to apply|quiz me|coach me|walk me through (applying|how to apply)|practice|drill me)\b/
+const notCoaching = (re) => new RegExp(`^(?!.*${COACHING.source}).*${re.source}`)
 export const PLAYBOOK_WORDS = [
   /\b(playbook|setup templates?|template for|rules? for|max(imum)? stop|invalidation|common mistakes|win ?rates?|hit rate|track record|how often does|sample size)\b/,
-  /\b(what (is|are|does)|define|definition of|explain|teach me|how does (uct|the team))\b.*\b(ep|eps|episodic pivots?|vcp|u&r|undercut|kicker|htf|high tight flag|tight flags?|flags?|bases?|pivots?|setups?|breakouts?|pullbacks?|patience|discipline)\b/,
+  /\b(what (is|are|does)|define|definition of|explain|how does (uct|the team))\b.*\b(ep|eps|episodic pivots?|vcp|u&r|undercut|kicker|htf|high tight flag|tight flags?|flags?|bases?|pivots?|setups?|breakouts?|pullbacks?|patience|discipline)\b/,
   /\b(according to|in) (uct|the team|the playbook)\b/,
-]
+].map(notCoaching)
 const playbookGroup = () => GROUPS.find(g => g.id === 'playbook')
 function armRouting(on) {
   const g = playbookGroup()
