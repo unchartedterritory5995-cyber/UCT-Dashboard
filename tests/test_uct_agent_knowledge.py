@@ -1332,3 +1332,66 @@ def test_n15_unresolved_setup_rows_are_withheld_and_other_rows_are_not(kn):
     assert 51 in ids                           # a principle row keeps its handling
     ep = {p["kb_id"] for p in read("knowledge.search", {"question": "episodic pivot catalyst gap trigger", "k": 3})["data"]["passages"]}
     assert 2 in ep                             # a SETUP row tied to an admitted team template is served
+
+
+# ── r4: R4-1, R4-2, R4-4, R4-6 ─────────────────────────────────────────────────────────────────────────
+def test_r4_1_used_knowledge_reads_action_fields_only():
+    from api.services.uct_agent.knowledge import frame
+    assert frame.used_knowledge({"actions": ["playbook.explain"]})
+    assert frame.used_knowledge({"envelope": {"steps": [{"action": "playbook.setup"}]}})
+    assert frame.used_knowledge({"envelope": {"ops": [{"action": "playbook.record", "args": {}}]}})
+    # a watchlist / layout / argument NAMED like a knowledge action is not one (the only flag-off divergence in r4)
+    assert not frame.used_knowledge({"envelope": {"ops": [{"action": "watchlist.create", "args": {"name": "playbook.longs"}}]}})
+    assert not frame.used_knowledge({"envelope": {"steps": [{"action": "layout.saveAs", "name": "playbook.explain"}]}})
+    assert not frame.used_knowledge({"note": {"action": "playbook.explain"}})          # not an action field of the row
+
+
+def test_r4_1_a_watchlist_named_playbook_does_not_block_research(monkeypatch):
+    from api.services.uct_agent import turn as t1
+    outbound = []
+    monkeypatch.setattr(t1, "_research", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])
+    monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
+    history = [{"role": "member", "text": "make a list called playbook.longs"},
+               {"role": "agent", "text": "Created the watchlist.", "data": {"envelope": {"ops": [
+                   {"action": "watchlist.create", "args": {"name": "playbook.longs"}}]}}}]
+    env = {"disposition": "answer", "reply": "x", "ops": [], "question": None, "research": {"query": UNIQ_Q, "recency": "day"}}
+    t1.run_turn(message="why is NVDA moving today", context={"surface": "charts"}, history=history, capabilities=[],
+                caller=lambda **kw: _v1_reply(env))
+    assert outbound == [UNIQ_Q]
+
+
+def test_r4_2_naming_model_never_sees_knowledge_turn_text():
+    from api.services.uct_agent import turn as t1
+    seen = []
+
+    def caller(**kw):
+        seen.append(kw)
+        return _model_reply([__import__("types").SimpleNamespace(type="text", text=json.dumps({"title": "EP questions"}))], "end_turn")
+    turns = [{"role": "member", "text": "what is an EP"},
+             {"role": "agent", "text": f"Per UCT's playbook: {SENTINEL} an EP is a gap.",
+              "data": {"envelope": {"steps": [{"action": "playbook.explain"}]}}}]
+    t1.name_conversation(turns, caller=caller)
+    assert seen and SENTINEL not in json.dumps(seen[0]["messages"])
+    assert "what is an EP" in json.dumps(seen[0]["messages"])
+
+
+def test_r4_4_no_interval_figures_are_dropped_on_the_admitted_path_too(kn):
+    # the kn fixture admits the engine sources outright (admit: true): the admitted path must drop them as well
+    e = read("setup.record", {"setup": "EP"})["data"]["engine"]
+    assert e["label"] == "descriptive_uncontrolled" and e["win_rate_ci95"]
+    assert not set(kinds.NO_INTERVAL_FIGURES) & set(e)
+
+
+def test_r4_6_exclusion_failure_withholds_every_setup_knowledge_setup_row(kn, monkeypatch):
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    monkeypatch.setattr(index, "excluded_by_template", lambda admitted: None)          # cannot tell
+    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "episodic pivot catalyst gap trigger", "k": 3})["data"]["passages"]}
+    assert 2 not in ids                                                    # the team SETUP row is withheld
+    assert ids                                                             # other admitted rows still answer
+    assert kinds._BLOCKED_CACHE["key"] is None                             # a "cannot tell" is never cached
+
+
+def test_r4_6_a_missing_index_file_is_a_cannot_tell(tmp_path, monkeypatch):
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_INDEX", str(tmp_path / "absent.db"))
+    assert index.excluded_by_template(lambda n: True) is None
+

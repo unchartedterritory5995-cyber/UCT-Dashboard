@@ -186,13 +186,16 @@ def excluded_by_template(template_admitted) -> list:
         admitted template may describe a blocked setup).
     Non-SETUP rows (principles, market reads, frameworks) are never excluded here."""
     if not os.path.isfile(index_path()):
-        return []
-    c = _connect()
+        return None
+    try:
+        c = _connect()
+    except sqlite3.Error:
+        return None
     try:
         rows = c.execute("SELECT kb_id, setup_templates FROM docs WHERE source = 'setup_knowledge' "
                          "AND category = 'SETUP'").fetchall()
     except sqlite3.Error:
-        return []
+        return None                                  # r4 R4-6: cannot tell -> the caller withholds them all
     finally:
         c.close()
     out = []
@@ -264,7 +267,7 @@ def match_expr(question: str, phrases=None) -> str:
 
 
 def query(question: str, *, sources: list[str], exclude_categories: set[str], category: Optional[str] = None,
-          limit: int = 40, phrases=None, exclude_ids=None) -> list[dict]:
+          limit: int = 40, phrases=None, exclude_ids=None, withhold_setup_knowledge_setups: bool = False) -> list[dict]:
     """Ranked candidate rows from ADMITTED sources only (policy applied in SQL, before ranking)."""
     expr = match_expr(question, phrases)
     if not expr or not sources:
@@ -280,6 +283,8 @@ def query(question: str, *, sources: list[str], exclude_categories: set[str], ca
     if exclude_ids:
         where.append(f"d.kb_id NOT IN ({','.join('?' * len(exclude_ids))})")
         args.extend(int(i) for i in exclude_ids)
+    if withhold_setup_knowledge_setups:
+        where.append("NOT (d.source = 'setup_knowledge' AND d.category = 'SETUP')")
     sql = (f"SELECT d.*, bm25(fts, 6.0, 1.0, 2.0) AS rank FROM fts JOIN docs d ON d.kb_id = fts.rowid "
            f"WHERE fts MATCH ? AND {' AND '.join(where)} ORDER BY rank LIMIT ?")
     c = _connect()

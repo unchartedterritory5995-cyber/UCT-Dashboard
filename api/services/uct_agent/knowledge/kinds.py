@@ -207,7 +207,8 @@ def search(params: dict, ctx: dict) -> dict:
     phrases = expansion_phrases(q)
     blocked_ids = _blocked_ids()
     cands = index.query(q, sources=admitted, exclude_categories=exclude, category=params.get("category"),
-                        limit=policy.search_setting("candidates", 40), phrases=phrases, exclude_ids=blocked_ids)
+                        limit=policy.search_setting("candidates", 40), phrases=phrases,
+                        exclude_ids=blocked_ids or [], withhold_setup_knowledge_setups=blocked_ids is None)
     max_age = policy.dated_max_age_days()
     excerpt_chars = policy.search_setting("excerpt_chars", 500)
     passages, withheld_injection, withheld_stale = [], 0, 0
@@ -567,6 +568,9 @@ def record(params: dict, ctx: dict) -> dict:
     return _envelope(kind, params, data=data, notes=notes, extra_coverage={"n_min": n_min})
 
 
+NO_INTERVAL_FIGURES = ("expectancy", "expectancy_r", "avg_gain_pct", "avg_loss_pct")
+
+
 def _not_served(block: dict, cls: dict, why: str) -> dict:
     return {"label": "source_not_approved", "label_text": f"not served: {why} ({cls['label']})",
             "method": block.get("method"), "licence": cls["licence"]}
@@ -578,7 +582,10 @@ def _with_source(block: dict, cls: dict, calc_date=None, data_through=None) -> d
     calculation date that is not stale, n >= the floor, a methodology id, an uncertainty interval — and otherwise
     becomes a figure-free block naming the failed condition. Any other source: figure-free 'not approved'."""
     if cls["state"] == "admitted":
-        return {**block, "source": cls["label"], "licence": cls["licence"]}
+        out = {**block, "source": cls["label"], "licence": cls["licence"]}
+        for k in NO_INTERVAL_FIGURES:                # r4 R4-4: the same rule on every served path
+            out.pop(k, None)
+        return out
     if cls["state"] != "conditional":
         return _not_served(block, cls, "source not approved for UCT Agent")
     label = block.get("label")
@@ -607,7 +614,7 @@ def _with_source(block: dict, cls: dict, calc_date=None, data_through=None) -> d
         out["data_through"] = data_through
     out.pop("updated_at", None)
     # r3 N-11: figures without an interval are not served (the owner asked for appropriate uncertainty on each)
-    for k in ("expectancy", "expectancy_r", "avg_gain_pct", "avg_loss_pct"):
+    for k in NO_INTERVAL_FIGURES:
         out.pop(k, None)
     return out
 
@@ -654,6 +661,8 @@ def _blocked_ids() -> list:
         origins = _template_origins()
         ids = index.excluded_by_template(
             lambda n: policy.classify_template(origins.get(n), n)["state"] == "admitted")
+        if ids is None:                              # r4 R4-6: never cache a "cannot tell"
+            return None
         _BLOCKED_CACHE.update(key=key, ids=ids)
     return _BLOCKED_CACHE["ids"]
 

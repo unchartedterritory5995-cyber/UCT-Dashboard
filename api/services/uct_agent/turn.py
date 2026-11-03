@@ -1276,6 +1276,8 @@ def name_conversation(turns: list[dict], caller: Callable | None = None, meter=N
             continue
         if t["role"] == "agent" and (is_local_row(t) or _strip_isolated(t.get("data"))[1]):
             continue                                       # QA F-18 / F-22: a local or isolated result never reaches the naming model
+        if t["role"] == "agent" and _kn_frame().used_knowledge(t.get("data")):
+            continue                                       # KN-1 r4: knowledge-derived text never reaches the naming model
         who = "Member" if t["role"] == "member" else "Agent"
         lines.append(f"{who}: {' '.join(str(t['text']).split())[:400]}")
     if not any(ln.startswith("Member:") for ln in lines):

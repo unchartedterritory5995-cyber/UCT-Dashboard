@@ -45,18 +45,17 @@ def is_knowledge_action(name) -> bool:
 
 
 def used_knowledge(data) -> bool:
-    """Did a stored row's data name a knowledge action anywhere (v1 ops / actions, v2 envelope steps)?"""
-    if isinstance(data, dict):
-        for k, v in data.items():
-            if k in ("action", "name") and is_knowledge_action(v):
-                return True
-            if k == "actions" and isinstance(v, list) and any(is_knowledge_action(a) for a in v):
-                return True
-            if used_knowledge(v):
-                return True
-    elif isinstance(data, list):
-        return any(used_knowledge(v) for v in data)
-    return False
+    """Did a stored row's ACTIONS include a knowledge action? Structural, never a search through arguments or names
+    (a watchlist named "playbook.longs" is not a knowledge action): the row's `actions` list, and the `action` of each
+    op / step at `ops`, `envelope.ops` and `envelope.steps` (v1 plans, v2 step lists)."""
+    if not isinstance(data, dict):
+        return False
+    acts = list(data.get("actions") or []) if isinstance(data.get("actions"), list) else []
+    env = data.get("envelope") if isinstance(data.get("envelope"), dict) else {}
+    for seq in (data.get("ops"), env.get("ops"), env.get("steps")):
+        if isinstance(seq, list):
+            acts.extend(o.get("action") for o in seq if isinstance(o, dict))
+    return any(is_knowledge_action(a) for a in acts)
 
 
 def frame(text: str) -> str:
