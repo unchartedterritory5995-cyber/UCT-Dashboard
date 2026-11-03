@@ -888,6 +888,13 @@ Round 6 (batch 6): duo.module.css rewritten to the brand (site gold, candle gree
 - 30 Piece30HomeV2: brand palette, SVG curved path (viewBox 100 units wide, non-scaling stroke), crowns, unit progress,
   sticky unit banner, XP instead of gems.
 NEXT: batch-6 scores -> ingest -> round 7. Still unruled: house STOP per entry; ticker shown on questions; unit order.
+## 2026-11-02 OWNER RULINGS (after round 6, verbatim in owner_verdicts.jsonl pass workbench-ruling)
+
+- KICKER STOP: "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop
+  usually" -> stop = the Kicker's low when that is within 3.5% of entry, else 3.5% under entry; a setup whose Kicker-low stop
+  is wider than 3.5% is flagged (prefer the tighter entry).
+- TICKER on a question card: "Show it".
+- HOME ORDER: "COmbo of all of it i think but progressing sensibly" (Foundations and setups mixed).
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
