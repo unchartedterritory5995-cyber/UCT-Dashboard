@@ -293,3 +293,52 @@ async def test_a_file_link_lands_as_a_chip_that_keeps_the_members_text(client):
     assert chip["attrs"]["label"] == "the report"
     assert _sha(_served(chip["attrs"]["href"])) == _sha(pdf)
     assert note["pending"] == 0
+
+
+def _latest_log_failures(source_id: str) -> list[dict]:
+    conn = auth_db.get_connection()
+    try:
+        row = conn.execute("SELECT failures_json FROM j2_note_sync_log WHERE source_id = ?"
+                           " ORDER BY id DESC LIMIT 1", (source_id,)).fetchone()
+    finally:
+        conn.close()
+    return json.loads(row["failures_json"]) if row and row["failures_json"] else []
+
+
+def _member_texts(result: dict, source_id: str) -> list[str]:
+    """Everything a member can read about this pass: the source row's error, the Recent
+    syncs rows (`failures_json`), and the pass's own failure strings (on master the source
+    row is built from them)."""
+    from api.services.journal_two.note_connectors import connections
+    source = connections.get_source("user-a", source_id)
+    return ([source.get("lastSyncError") or ""] + [f["reason"] for f in _latest_log_failures(source_id)]
+            + list(result.get("failures") or []))
+
+
+_STALE = ("does not transfer", "only note text", "public https link", "can't be shown here")
+
+
+async def test_audit_f1_a_markdown_image_alias_shows_the_blob_its_embed_uploaded(client):
+    """Live audit 2026-11-03, F1, the audit's own note and refs, through the real doors and
+    engine: plugin 0.2.0 sends `![[img.png]]` (att/img.png, blob uploaded) and the link
+    `[[q.pdf|![](att/img.png)]]`, no ref for the markdown image. Both images show that blob;
+    nothing reads "can't be shown here"."""
+    token, source_id = _connect(client)
+    png = (_BIN / "chart.png").read_bytes()
+    pdf = (_BIN / "report.pdf").read_bytes()
+    _upload(client, token, png, "img.png", "image/png")
+    _upload(client, token, pdf, "q.pdf", "application/pdf")
+    body = "x [[q.pdf|![[img.png]]]] y\nmd [[q.pdf|![](att/img.png)]] img\n"
+    _ingest(client, token, body, [_ref("![[img.png]]", "att/img.png", png),
+                                  _ref("[[q.pdf|![](att/img.png)]]", "att/q.pdf", pdf, embed=False)])
+    result = await _sync(source_id)
+
+    note = _stored_note()
+    images = _of_type(note["doc"], "image")
+    assert len(images) == 2
+    assert {_sha(_served(i["attrs"]["src"])) for i in images} == {_sha(png)}
+    [chip] = _of_type(note["doc"], "attachmentChip")
+    assert _sha(_served(chip["attrs"]["href"])) == _sha(pdf)
+    assert _of_type(note["doc"], "importNotice") == []
+    assert note["pending"] == 0
+    assert not any(s in t for t in _member_texts(result, source_id) for s in _STALE)

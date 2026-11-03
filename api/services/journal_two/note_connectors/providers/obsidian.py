@@ -942,6 +942,71 @@ def _unresolved_bare_target(target: str) -> str:
     return _strip_fragment(target)
 
 
+def _markdown_local_path(dest: str) -> str | None:
+    """The vault path a markdown link's or image's destination names, as written: the `<...>`
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE (the plugin's
+    `markdownTarget`). None for an empty destination, an anchor, a `//host` or any URL
+    scheme: those are never a vault file."""
+    if dest.startswith("<"):
+        dest = dest[1:-1]
+    dest = dest.strip()
+    if not dest or dest.startswith(("#", "//")) or _SCHEME_RE.match(dest):
+        return None
+    return unquote(re.split(r"[#?]", dest, maxsplit=1)[0]) or None
+
+
+def _same_note_blob(path: str, ok_by_path: dict[str, dict], from_path: str | None) -> dict | None:
+    """The ref, of the SAME note's list, that resolved the vault path a markdown image with no
+    ref of its own names, with a file that came over (`status` ok, a sha), else None (live
+    audit 2026-11-03, F1). A ref's `path` is the vault path Obsidian's resolver gave, from the
+    vault root. The image's path is read as Obsidian reads a markdown destination: beside the
+    note's folder first, then from the vault root. EXACT paths only: no case folding, no
+    name lookup."""
+    from_dir = _dir_of(from_path) if from_path else ""
+    beside = posixpath.normpath(posixpath.join(from_dir, path)) if from_dir else None
+    rooted = posixpath.normpath(path.lstrip("/"))
+    for candidate in (beside, rooted):
+        if candidate in ok_by_path:  # a ref path never climbs above the root
+            return ok_by_path[candidate]
+    return None
+
+
+#: A markdown IMAGE, `![alt](dest "title")`: `_MD_LINK_OR_IMAGE_RE`'s own `!` form.
+_MD_IMAGE_RE = re.compile(rf"!{_MD_LINK_TAIL}")
+
+
+def _same_note_image_rewrites(segment: str, refs: list[dict], table: dict[str, str],
+                              from_path: str | None) -> None:
+    """F1 (live audit 2026-11-03): each markdown image of `segment` that no ref names as its
+    `original` but whose destination is a vault path another ref of this note resolved (with
+    its file) is written as that file, into `table` beside the refs' own rewrites. Plugin 0.2.0
+    sends no ref for the image inside `[[q.pdf|![](att/img.png)]]`; the note's own
+    `![[img.png]]` ref names att/img.png with an uploaded blob. ⚰️ The image stayed a raw
+    vault path, `fetch_media` refused it, and the note read "img.png can't be shown here"."""
+    ok_by_path: dict[str, dict] = {}
+    listed: set[str] = set()
+    for ref in refs:
+        if not isinstance(ref, dict):
+            continue
+        if isinstance(ref.get("original"), str):
+            listed.add(ref["original"])
+        path, sha = ref.get("path"), ref.get("sha256")
+        if ref.get("status") == "ok" and isinstance(path, str) and path and isinstance(sha, str) and sha:
+            ok_by_path.setdefault(path, ref)
+    if not ok_by_path:
+        return
+    for m in _MD_IMAGE_RE.finditer(segment):
+        original = m.group(0)
+        if original in listed or original in table:  # a ref of its own decides it
+            continue
+        path = _markdown_local_path(m.group(2))
+        hit = _same_note_blob(path, ok_by_path, from_path) if path else None
+        if hit is not None:
+            written = _ref_markdown({**hit, "original": original, "embed": True})
+            if written is not None:
+                table[original] = written
+
+
 def _mark_unsent_attachments(
     segment: str, reason: str, *, paths: list[str] = (), basename_map: Any = None,
     from_path: str | None = None,
@@ -971,13 +1036,7 @@ def _mark_unsent_attachments(
         return _notice_markdown(reason, _basename(bare))
 
     def markdown(m: "re.Match[str]") -> str:
-        dest = m.group(3)
-        if dest.startswith("<"):
-            dest = dest[1:-1]
-        dest = dest.strip()
-        if (not dest or dest.startswith(("#", "//")) or _SCHEME_RE.match(dest)):
-            return m.group(0)
-        path = unquote(re.split(r"[#?]", dest, maxsplit=1)[0])
+        path = _markdown_local_path(m.group(3))
         if not path or not _is_attachment_path(path):
             return m.group(0)
         return _notice_markdown(reason, _basename(path))
@@ -1069,6 +1128,7 @@ def _apply_attachment_refs(
         written = _ref_markdown(ref)
         if written is not None:
             table[original] = written
+    _same_note_image_rewrites(segment, refs, table, from_path)
     # D2 fix round 2, N4: a file link whose alias is an embed (`[[q.pdf|![[img.png]]]]`) sent
     # as ONE ref is the embed (its own ref's rewrite, or the embed as written for the passes
     # after) and then the file's chip, as the client writes it and as `_ALIAS_EMBED_RE` reads

@@ -615,6 +615,7 @@ async def test_fetch_media_refuses_a_non_https_reference(db):
         await provider.fetch_media({}, "Notes/attachments/file.pdf")
 
 
+
 # ---------------------------------------------------------------------------
 # ⛔⛔ session-audit.md A1 — the honest markdown-side boundary. Nothing
 # anywhere previously synced/imported a note bigger than a few KB; note
@@ -2112,6 +2113,89 @@ def test_a_markdown_image_as_the_alias_splits_with_no_ref_for_the_link():
     # The image comes BEFORE the link: the link's paragraph follows the image.
     conv = _convert("[[Plan|![](att/img.png)]] y", paths, refs=[])
     assert [n["type"] for n in conv["doc"]["content"]] == ["image", "paragraph"]
+
+
+def _att(sha, name):
+    return f"import-ref://obsidian-att:{sha}/{name}"
+
+
+def test_a_markdown_image_with_no_ref_uses_the_blob_another_ref_resolved_to_its_path():
+    """Live audit 2026-11-03, F1. Plugin 0.2.0 sends `![[img.png]]` (resolved to att/img.png,
+    blob uploaded) and the link `[[q.pdf|![](att/img.png)]]`, and no ref for the markdown
+    image inside the alias. That image names the SAME vault path the embed's ref resolved,
+    in the same note, so it shows that blob. ⚰️ It stayed `att/img.png`, which `fetch_media`
+    refused: the member read "img.png can't be shown here" under a note that holds the
+    image."""
+    pdf_sha = "b" * 64
+    refs = [REF(original="![[img.png]]", path="att/img.png"),
+            REF(original="[[q.pdf|![](att/img.png)]]", embed=False, path="att/q.pdf",
+                sha256=pdf_sha)]
+    body = "x [[q.pdf|![[img.png]]]] y\n\nmd [[q.pdf|![](att/img.png)]] img\n"
+    conv = _convert(body, refs=refs, self_path="a.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [
+        _att(_SHA, "img.png"), _att(_SHA, "img.png")]
+    # The audit's refs name the second line's link only, so only it is a chip.
+    assert [c["attrs"]["name"] for c in _all(conv["doc"], "attachmentChip")] == ["q.pdf"]
+    assert all(m["ref"].startswith(("obsidian-att:", "obsidian-file:")) for m in conv["media"])
+    assert _all(conv["doc"], "importNotice") == []
+    # A bare markdown image elsewhere in the note, the same file: the same blob.
+    conv = _convert("![[img.png]]\n\nagain ![](att/img.png) here\n", refs=refs[:1], self_path="a.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [_att(_SHA, "img.png")] * 2
+    # Percent-encoded, in angle brackets, with a title, a query or an anchor: the plugin's
+    # `markdownTarget` (cut at ?/#, decoded once) names the same path.
+    spaced = [REF(original="![[my img.png]]", path="att/my img.png")]
+    for dest in ("att/my%20img.png", "<att/my img.png>", 'att/my%20img.png "t"',
+                 "att/my%20img.png?w=1", "att/my%20img.png#x"):
+        conv = _convert(f"![[my img.png]]\n\n![]({dest})\n", refs=spaced, self_path="a.md")
+        assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [
+            _att(_SHA, "my%20img.png")] * 2, dest
+
+
+def test_the_same_note_fallback_matches_the_exact_path_only():
+    """F1: same vault, same note, exact path. Beside the note's folder first (Obsidian's
+    relative rule), then from the vault root; never by name, never by case, never through a
+    ref whose file did not come over."""
+    here = REF(original="![[img.png]]", path="Notes/att/img.png", sha256="c" * 64)
+    root = REF(original="![[root.png]]", path="att/img.png")
+    body = "![[img.png]]\n\n![[root.png]]\n\n![](att/img.png)\n\n![](../att/img.png)\n"
+    conv = _convert(body, refs=[here, root], self_path="Notes/Src.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [
+        _att("c" * 64, "img.png"), _att(_SHA, "img.png"),
+        _att("c" * 64, "img.png"),   # beside the note wins over the root
+        _att(_SHA, "img.png")]       # `../` from Notes/ is the root's
+    conv = _convert("![[root.png]]\n\n![](att/img.png)\n", refs=[root], self_path="Notes/Src.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [_att(_SHA, "img.png")] * 2
+    # Not the same path: a bare name, another case, another folder, above the root.
+    for dest in ("img.png", "Att/img.png", "att/IMG.png", "other/img.png", "../../att/img.png"):
+        conv = _convert(f"![[root.png]]\n\n![]({dest})\n", refs=[root], self_path="Notes/Src.md")
+        srcs = [n["attrs"]["src"] for n in _all(conv["doc"], "image")]
+        assert srcs[0] == _att(_SHA, "img.png") and not srcs[1].startswith(
+            "import-ref://obsidian-att:"), dest
+    # A ref for that path whose file did not come over lends nothing.
+    for bad in (REF(original="![[root.png]]", path="att/img.png", status="missing", sha256=None),
+                REF(original="![[root.png]]", path="att/img.png", sha256=None),
+                REF(original="![[root.png]]", path="att/img.png", status="off")):
+        conv = _convert("![[root.png]]\n\n![](att/img.png)\n", refs=[bad], self_path="a.md")
+        # The markdown image is left exactly as written; only the embed's own ref speaks.
+        assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")
+                if "att/img.png" in n["attrs"]["src"]] == ["import-ref://att/img.png"], bad
+        assert len(_all(conv["doc"], "importNotice")) <= 1, bad
+    # ... and never hides one that did: the first ref for a path may have no file, a later one does.
+    hollow = REF(original="![[gone.png]]", path="att/img.png", sha256=None)
+    conv = _convert("![[root.png]]\n\n![](att/img.png)\n", refs=[hollow, root], self_path="a.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [_att(_SHA, "img.png")] * 2
+    # A web image, an anchor and code are never a vault path.
+    conv = _convert("![[root.png]]\n\n`![](att/img.png)`\n", refs=[root], self_path="a.md")
+    assert len(_all(conv["doc"], "image")) == 1 and "![](att/img.png)" in _plain(conv["doc"])
+    # A ref of its own still wins: a markdown image the plugin listed as missing is the notice.
+    own = REF(original="![](att/img.png)", path="att/img.png", status="missing", sha256=None)
+    conv = _convert("![[root.png]]\n\n![](att/img.png)\n", refs=[root, own], self_path="a.md")
+    assert _only(conv["doc"], "importNotice")["attrs"]["reason"] == "not-found"
+    # ... even one this pass cannot write (an unknown status): the image is left as written.
+    own = REF(original="![](att/img.png)", path="att/img.png", status="later")
+    conv = _convert("![[root.png]]\n\n![](att/img.png)\n", refs=[root, own], self_path="a.md")
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [
+        _att(_SHA, "img.png"), "import-ref://att/img.png"]
 
 
 def test_the_attachment_pass_is_near_linear_in_overlapping_originals():
