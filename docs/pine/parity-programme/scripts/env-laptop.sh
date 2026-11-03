@@ -30,5 +30,5 @@ smoke_creds() {
 hl() {
   local label=$1; shift; [ "${1:-}" = "--" ] && shift
   echo "[hl] $(date +%T) free RAM $(freeram) MB before '$label'"
-  "$UCT_PY" "$HEAVY_LOCK" run --label "$label" --timeout 14400 -- "$@"
+  "$UCT_PY" "$HEAVY_LOCK" run --label "$label" --timeout 43200 -- "$@"
 }
