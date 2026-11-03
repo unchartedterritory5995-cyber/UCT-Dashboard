@@ -9,7 +9,7 @@
 // ⭐ STRUCTURED: the answer carries `setup` so a later "analyze against UCT setup criteria" capability can test named
 // conditions. Its `measurables` are the KN-1 v1 ids, with the KN-1 formulas EXACTLY
 // (docs/agent/program/contracts/KN-1-knowledge.md "Measurables"; a copy of the v1 table is pinned by
-// __fixtures__/program/kn1-measurables-v1.json). All are over DAILY SESSIONS, whatever timeframe is described:
+// __fixtures__/kn1-measurables-v1.json). All are over DAILY SESSIONS, whatever timeframe is described:
 //   close_vs_sma20 / close_vs_sma50  (close − SMAn) / SMAn × 100                         pct
 //   pct_from_52w_high                (close − 52-week high) / 52-week high × 100 (≤ 0)    pct  (highest high of 252 sessions)
 //   range_pct_10                     (max high − min low) of the last 10 sessions / min low × 100   pct
