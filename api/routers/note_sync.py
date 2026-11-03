@@ -46,10 +46,9 @@ from api.middleware.auth_middleware import (
 from api.services import auth_service, crypto_box
 from api.services import request_body_cap as body_cap
 from api.services.auth_db import get_connection
-from api.services.journal_two import notes as notes_svc
 from api.services.journal_two import widget_request_body
 from api.services.journal_two.note_connectors import (
-    connections, engine, errors, obsidian_attachments, obsidian_link, obsidian_staging, oauth,
+    connections, dest_folder, engine, errors, obsidian_attachments, obsidian_link, obsidian_staging, oauth,
     registry,
 )
 from api.services.journal_two.note_connectors.providers.craft import parse_capability_url
@@ -282,25 +281,14 @@ def _dropbox_redirect_uri() -> str:
     return oauth._redirect_uri("dropbox")
 
 
-def _default_dest_folder_id(user_id: str, name: str) -> str | None:
-    """Best-effort default Notebook folder for a newly-connected source
-    (spec §5: "default: 'Roam — {graph}' root folder") — NEVER raises; a
-    failure here degrades to `None` (notes land at the Notebook root) rather
-    than blocking the connect flow."""
-    trimmed = (name or "").strip()[:80] or "Notebook Sync"
-    try:
-        folder = notes_svc.create_folder(user_id, trimmed)
-        return folder["id"]
-    except notes_svc.NoteValidationError:
-        try:
-            for f in notes_svc.list_folders(user_id):
-                if f["name"] == trimmed and not f.get("parentId"):
-                    return f["id"]
-        except Exception:  # noqa: BLE001
-            pass
-        return None
-    except Exception:  # noqa: BLE001
-        return None
+def _default_dest_folder_id(user_id: str, provider: str, display_name: str | None,
+                            remote_id: str | None) -> str | None:
+    """Best-effort default Notebook folder for a newly-connected source -- NEVER raises; a failure
+    degrades to `None` (notes land at the Notebook root) rather than blocking the connect flow.
+    The name and the make-or-reuse are `dest_folder`'s, the ONE authority the engine's self-heal
+    shares (a deleted destination folder is recreated under exactly this name)."""
+    return dest_folder.default_folder_id(
+        user_id, dest_folder.default_folder_name(provider, display_name, remote_id))
 
 
 # ── GET /status ───────────────────────────────────────────────────────────────
@@ -447,6 +435,9 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
             s["pluginSupportsAttachments"] = (
                 obsidian_link.plugin_version_supports_attachments(version) if attachments_on else None)
         s["counts"] = counts_by_source.get(s["id"], dict(_ZERO_COUNTS))
+        # Fix round 1 (I3): a pass for this source is running right now (this process's in-flight
+        # guard), so the row can read "syncing" after a background Sync now.
+        s["syncing"] = engine.is_source_busy(s["id"])
         s["pendingRemoval"] = int(pending.get(s["id"], 0))
         # None = the newest row's failures could not be read: the count is
         # unknown (null), and `lastFailuresUnreadable` keeps the card's path to
@@ -474,7 +465,6 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
 # ── POST /{provider}/connect ──────────────────────────────────────────────────
 
 async def _connect_token_provider(provider: str, body: ConnectBody, user_id: str) -> dict[str, Any]:
-    entry = registry.get_entry(provider)
     if provider == "roam":
         if not body.graphName or not body.token:
             raise HTTPException(status_code=400, detail="graphName and token are required")
@@ -504,7 +494,7 @@ async def _connect_token_provider(provider: str, body: ConnectBody, user_id: str
         await _aclose(provider_obj)
 
     _upsert_connector_or_503(user_id, provider, creds, account_label=info.label)
-    dest_folder_id = _default_dest_folder_id(user_id, f"{entry.label} — {info.label}")
+    dest_folder_id = _default_dest_folder_id(user_id, provider, info.label, remote_id)
     source = connections.create_source(
         user_id, provider, remote_id, display_name=info.label, dest_folder_id=dest_folder_id,
     )
@@ -844,10 +834,8 @@ async def oauth_callback(
             status_code=302,
         )
     if remote_id:
-        folder_name = f"{entry.label} — {account_label}"
-        if provider == "evernote":
-            folder_name = entry.label  # Task 7 review m1: "Evernote", never "Evernote — Evernote"
-        dest_folder_id = _default_dest_folder_id(user_id, folder_name)
+        # Evernote's folder is just "Evernote" (Task 7 review m1): `dest_folder.default_folder_name`.
+        dest_folder_id = _default_dest_folder_id(user_id, provider, account_label, remote_id)
         source = connections.create_source(
             user_id, provider, remote_id, display_name=account_label, dest_folder_id=dest_folder_id,
         )
@@ -932,10 +920,8 @@ async def add_source(provider: str, user: dict = Depends(_paid), body: AddSource
         # would sync the same notes under the same keys into a second folder.
         raise HTTPException(status_code=409, detail=EVERNOTE_ONE_SOURCE)
 
-    entry = registry.get_entry(provider)
-    label = body.displayName or remote_id
     dest_folder_id = body.destFolderId or _default_dest_folder_id(
-        user["id"], f"{entry.label} — {label}")
+        user["id"], provider, body.displayName, remote_id)
     source = connections.create_source(
         user["id"], provider, remote_id, display_name=body.displayName, dest_folder_id=dest_folder_id,
     )
@@ -960,6 +946,11 @@ async def sync_source_now(
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
     _require_provider_allowed(source["provider"], user)
+    # Evernote rate-limit fix round 1 (I3): a provider whose pass can wait out a rate limit
+    # (Evernote) always syncs in the background; the source row then reads "syncing", and the
+    # progress line when the pass records it.
+    if not background and registry.runs_sync_in_background(source["provider"]):
+        background = True
 
     if background:
         if engine.is_source_busy(source_id):
@@ -1260,8 +1251,7 @@ def obsidian_redeem(
     # encrypted the device secret with the same key.
     _upsert_connector_or_503(device["user_id"], "obsidian", {}, account_label=device["label"])
 
-    display_label = device["label"] or f"Vault ({vault_id})"
-    dest_folder_id = _default_dest_folder_id(device["user_id"], f"{entry.label} — {display_label}")
+    dest_folder_id = _default_dest_folder_id(device["user_id"], "obsidian", device["label"], vault_id)
     source = connections.create_source(
         device["user_id"], "obsidian", vault_id,
         display_name=device["label"], dest_folder_id=dest_folder_id,

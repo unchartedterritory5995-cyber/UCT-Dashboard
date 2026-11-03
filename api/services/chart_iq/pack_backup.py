@@ -38,6 +38,12 @@ BACKUP_WINDOWS_ET = (({1, 2, 3, 4, 5}, datetime.time(0, 40), datetime.time(2, 30
 CHECK_EVERY_S = 600
 
 
+def dry_run() -> bool:
+    """CHART_IQ_PACK_WORKER_DRYRUN=1: the SUPERVISED TEST. Build even when the pack is current and at any hour, and publish
+    under chart_iq_test/ (the web pod never reads it), logging the child's peak memory. Members are never affected."""
+    return os.environ.get("CHART_IQ_PACK_WORKER_DRYRUN", "0") == "1"
+
+
 def enabled() -> bool:
     return os.environ.get("CHART_IQ_PACK_WORKER_ENABLED", "0") == "1"
 
@@ -121,13 +127,13 @@ def _child(path: str) -> int:
     return 0 if rep.get("ok") else 1
 
 
-def publish(s3, bucket: str, path: str, day: str, clock=time.time) -> str:
+def publish(s3, bucket: str, path: str, day: str, clock=time.time, prefix: str = R2_PREFIX) -> str:
     ts = int(clock())
     with open(path, "rb") as fh:
         blob = gzip.compress(fh.read(), 6)
-    s3.put_object(Bucket=bucket, Key=R2_PREFIX + "%d.db.gz" % ts, Body=blob)
-    s3.put_object(Bucket=bucket, Key=R2_PREFIX + "latest_day.txt", Body=day.encode())
-    s3.put_object(Bucket=bucket, Key=R2_PREFIX + "latest.txt", Body=str(ts).encode())   # the pointer moves LAST
+    s3.put_object(Bucket=bucket, Key=prefix + "%d.db.gz" % ts, Body=blob)
+    s3.put_object(Bucket=bucket, Key=prefix + "latest_day.txt", Body=day.encode())
+    s3.put_object(Bucket=bucket, Key=prefix + "latest.txt", Body=str(ts).encode())   # the pointer moves LAST
     return "%d.db.gz" % ts
 
 
@@ -135,13 +141,14 @@ def run_once(s3=None, run_child=None, now=None) -> dict:
     """One check: build + publish only when enabled, in a window, and the published pack is behind. Never raises."""
     if not enabled():
         return {"skipped": "disabled"}
-    if not in_window(now):
+    test = dry_run()
+    if not test and not in_window(now):
         return {"skipped": "outside window"}
     try:
         bucket = os.environ["DATA_SYNC_BUCKET"]
         s3 = s3 or _s3()
         want, have = market_day(), published_day(s3, bucket)
-        if not want or (have and have >= want):
+        if not want or (have and have >= want and not test):
             return {"skipped": "current", "published": have, "market": want}
         fd, path = tempfile.mkstemp(prefix="chart_iq_backup-", suffix=".db", dir=os.environ.get("DATA_DIR") or None)
         os.close(fd)
@@ -156,8 +163,9 @@ def run_once(s3=None, run_child=None, now=None) -> dict:
             if rc != 0:
                 raise RuntimeError("child build exit %s" % rc)
             meta = check_pack(path, want)
-            key = publish(s3, bucket, path, want)
-            rep = {"published": key, "day": want, "rows": meta["rows"], "seconds": round(time.time() - t0, 1), "was": have}
+            key = publish(s3, bucket, path, want, prefix="chart_iq_test/" if test else R2_PREFIX)
+            rep = {"published": key, "day": want, "rows": meta["rows"], "seconds": round(time.time() - t0, 1), "was": have,
+                   "test": test, "child_peak_mb": _child_peak_mb()}
             log.warning("[chart_iq_backup] the PC's pack was behind (%s < %s): published %s", have, want, rep)
             return rep
         finally:
@@ -167,6 +175,14 @@ def run_once(s3=None, run_child=None, now=None) -> dict:
     except Exception as e:  # noqa: BLE001
         log.warning("[chart_iq_backup] failed: %s", e)
         return {"error": "%s: %s" % (type(e).__name__, str(e)[:200])}
+
+
+def _child_peak_mb():
+    try:
+        import resource
+        return round(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / 1024, 1)   # Linux: KB
+    except Exception:  # noqa: BLE001  (Windows)
+        return None
 
 
 def start_loop() -> bool:
@@ -180,6 +196,10 @@ def start_loop() -> bool:
                 rep = run_once()
                 if "published" in rep or "error" in rep:
                     log.warning("[chart_iq_backup] %s", rep)
+                if dry_run() and "published" in rep:
+                    log.warning("[chart_iq_backup] TEST DONE; unset CHART_IQ_PACK_WORKER_DRYRUN. Idle until then.")
+                    while dry_run():   # one test build per boot; the env var is fixed for the process, so this idles
+                        time.sleep(3600)
             except Exception as e:  # noqa: BLE001
                 log.warning("[chart_iq_backup] loop error: %s", e)
             time.sleep(CHECK_EVERY_S)

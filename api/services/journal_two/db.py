@@ -727,6 +727,7 @@ CREATE TABLE IF NOT EXISTS j2_note_sources (
     warming_until     TEXT,
     last_full_sync_at TEXT,
     removal_skips     INTEGER NOT NULL DEFAULT 0,
+    sync_state        TEXT,
     created_at        TEXT NOT NULL,
     UNIQUE(user_id, provider, remote_id)
 );
@@ -2733,6 +2734,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         # Plan E Task 6 review R2: consecutive full passes whose removal check was SKIPPED
         # (the complete listing failed). 3+ keeps the source in a visible warning.
         "ALTER TABLE j2_note_sources ADD COLUMN removal_skips INTEGER NOT NULL DEFAULT 0",
+        # Evernote rate-limit fix round 1: the engine's small JSON state per source (the learned
+        # pacing interval and an import's progress record). NULL = none.
+        "ALTER TABLE j2_note_sources ADD COLUMN sync_state TEXT",
         "ALTER TABLE j2_note_sync_log ADD COLUMN failures_json TEXT",
         # Plan E Task 8: file-imported notes adopted into live sync this pass (NULL in older rows = 0).
         "ALTER TABLE j2_note_sync_log ADD COLUMN adopted INTEGER",
@@ -3119,6 +3123,7 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             warming_until     TEXT,
             last_full_sync_at TEXT,
             removal_skips     INTEGER NOT NULL DEFAULT 0,
+            sync_state        TEXT,
             created_at        TEXT NOT NULL,
             UNIQUE(user_id, provider, remote_id)
         )

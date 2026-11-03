@@ -773,3 +773,99 @@ async def test_enml_conversion_runs_off_the_event_loop_thread(monkeypatch):
     _, note = await _fetch(_fetch_fake(resources=None, content="<en-note><div>x</div></en-note>"))
     assert seen and all(t != loop_thread for t in seen)
     assert note.doc["content"][0]["content"][0]["text"] == "x"
+
+
+# ── fix round 1: listing revisions (D1) and carried pacing (D3) ──────────────
+
+async def test_listing_revision_is_the_hits_updated_at_and_none_without_one():
+    fake = FakeMcp(active=[_hit(1, updated="2026-11-02T14:00:00Z"),
+                           _hit(2, updated=None, created="2026-01-01T00:00:00Z")])
+    p = _provider(fake)
+    refs = {r.remote_id: r for r in await p.list_changed(CREDS, None)}
+    assert p.listing_revision(refs[_guid(1)]) == "2026-11-02T14:00:00.000+00:00"
+    # Listed by createdAt: no real revision, so the engine always fetches it.
+    assert p.listing_revision(refs[_guid(2)]) is None
+
+
+async def test_the_listing_and_the_stored_revision_name_the_same_instant():
+    # D1's assumption, pinned: `search_notes.updatedAt` (an ISO string at whole seconds in the
+    # corpus mock) and `get_note.updated` (epoch milliseconds there) are the same field; they
+    # compare equal at whole seconds through `engine._same_revision`.
+    from datetime import datetime, timezone
+    from api.services.journal_two.note_connectors import engine
+    when = datetime(2026, 11, 2, 14, 0, 0, 123000, tzinfo=timezone.utc)
+    ms = int(when.timestamp() * 1000)
+    fake = FakeMcp(active=[_hit(1, updated="2026-11-02T14:00:00Z")],
+                   notes={_guid(1): _note(_guid(1), updated=ms)})
+    p = _provider(fake)
+    [ref] = await p.list_changed(CREDS, None)
+    rn = await p.fetch(CREDS, ref)
+    assert rn.updated_at == "2026-11-02T14:00:00.123+00:00"
+    assert engine._same_revision(rn.updated_at, p.listing_revision(ref))
+
+
+class _PacedFake(FakeMcp):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.seeds: list[float] = []
+
+    def seed_interval(self, s):
+        self.seeds.append(s)
+
+    def learned_interval(self):
+        return (2.5, True)
+
+
+async def test_seed_pacing_reaches_the_client_and_learned_pacing_reads_it():
+    fake = _PacedFake(active=[_hit(1)])
+    p = _provider(fake)
+    assert p.learned_pacing() == (None, False)  # no session yet
+    p.seed_pacing(3.0)
+    await p.list_changed(CREDS, None)  # the client is made on the first call
+    assert fake.seeds == [3.0]
+    assert p.learned_pacing() == (2.5, True)
+
+
+# ── fix round 2 (N2): each listing opens, sizes and closes its own allowance ─
+
+class _ListingFake(FakeMcp):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.events: list = []
+
+    def begin_listing(self):
+        self.events.append("begin")
+
+    def size_listing(self, pages):
+        self.events.append(("size", pages))
+
+    def end_listing(self):
+        self.events.append("end")
+
+
+async def test_every_listing_opens_sizes_and_closes_its_allowance():
+    fake = _ListingFake(active=[_hit(i) for i in range(250)], trash=[_hit(900 + i) for i in range(3)])
+    p = _provider(fake)
+    await p.list_changed(CREDS, None)
+    assert fake.events == ["begin", ("size", 3), "end"]
+    fake.events.clear()
+    await p.list_deleted(CREDS)  # a removal listing of a full pass: its own allowance
+    assert fake.events == ["begin", ("size", 1), "end"]
+
+
+async def test_a_listing_that_raises_still_closes_its_allowance():
+    fake = _ListingFake(active=[_hit(i) for i in range(150)])
+    p = _provider(fake)
+    real = fake.call_tool
+    n = {"calls": 0}
+
+    async def failing(name, arguments):
+        n["calls"] += 1
+        if name == "search_notes" and n["calls"] == 2:
+            raise errors.NoteConnRateLimited("limited")
+        return await real(name, arguments)
+
+    fake.call_tool = failing
+    with pytest.raises(errors.NoteConnRateLimited):
+        await p.list_changed(CREDS, None)
+    assert fake.events[0] == "begin" and fake.events[-1] == "end"

@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import SourceRow from './SourceRow'
+import SourceRow, { BACKGROUND_SYNC_NOTICE } from './SourceRow'
 
 const noop = () => {}
 
@@ -432,5 +432,79 @@ describe('SourceRow — Obsidian plugin update hint', () => {
     u2()
     renderRow(makeSource({ provider: 'obsidian', pluginSupportsAttachments: null }))
     expect(screen.queryByText(hint)).toBeNull()
+  })
+})
+
+// L1 (live audit 2026-11-03): the per-source sync checkbox was named just "On" by a screen
+// reader, so a member with two sources could not tell which one it paused.
+describe('SourceRow — the sync checkbox names its source', () => {
+  it('is labelled with the source and its app, and keeps the visible On/Paused text', () => {
+    render(
+      <SourceRow source={makeSource({ displayName: 'Acme' })} providerLabel="Notion"
+        onSync={noop} onTogglePause={noop} onDisconnect={noop} />,
+    )
+    const box = screen.getByRole('checkbox', { name: 'Sync Acme from Notion' })
+    expect(box).toBeChecked()
+    expect(screen.getByText('On')).toBeInTheDocument()
+  })
+
+  it('falls back to the remote id when the source has no display name', () => {
+    render(
+      <SourceRow source={makeSource({ displayName: null, syncEnabled: false })} providerLabel="Obsidian"
+        onSync={noop} onTogglePause={noop} onDisconnect={noop} />,
+    )
+    expect(screen.getByRole('checkbox', { name: 'Sync vault-1 from Obsidian' })).not.toBeChecked()
+    expect(screen.getByText('Paused')).toBeInTheDocument()
+  })
+})
+
+// ── A first import still catching up (live gate 2026-11-03) ──────────────────
+// Evernote's per-minute limit cut the owner's first import at 75 of 215 notes and the row read
+// "140 notes couldn't be read" under an amber "synced with problems". The engine now records
+// `lastSyncStatus: 'importing'` with a progress sentence and books a quick follow-up pass; the
+// row must read as in progress, not as a failure.
+describe('SourceRow — a first import still catching up', () => {
+  const PROGRESS = 'Still importing from Evernote: 75 of 215 notes so far. The rest will come in over the next few minutes.'
+
+  it('reads as in progress: label, dot and sentence', () => {
+    const { container } = renderRow(makeSource({
+      lastSyncStatus: 'importing', lastSyncError: PROGRESS,
+      warmingUntil: '2026-11-03T15:05:00+00:00',
+    }))
+    expect(screen.getByText(/still importing/i, { selector: 'span' })).toBeInTheDocument()
+    expect(screen.queryByText(/problems|failed/i)).not.toBeInTheDocument()
+    const dot = container.querySelector('[aria-hidden="true"]')
+    expect(dot.className).toMatch(/dot_progress/)
+    expect(dot.className).not.toMatch(/dot_amber|dot_red/)
+    const line = screen.getByText(PROGRESS)
+    expect(line.className).toMatch(/sourceProgress/)
+    expect(line.className).not.toMatch(/sourceErr/)
+  })
+
+  it('a genuine failure beside the progress keeps its failure look', () => {
+    const { container } = renderRow(makeSource({
+      lastSyncStatus: 'ok',
+      lastSyncError: `${PROGRESS} 1 note couldn't be read from Evernote this time. It will be tried again on the next sync.`,
+      warmingUntil: '2026-11-03T15:05:00+00:00',
+    }))
+    expect(screen.getByText(/synced with problems/i)).toBeInTheDocument()
+    expect(container.querySelector('[aria-hidden="true"]').className).toMatch(/dot_amber/)
+  })
+})
+
+// ── Sync now in the background (Evernote rate-limit fix round 1, I3) ─────────
+describe('SourceRow — a background sync', () => {
+  it('reads "syncing now" while the server says a pass is running', () => {
+    const { container } = renderRow(makeSource({ syncing: true }))
+    expect(screen.getByText(/syncing now/i, { selector: 'span' })).toBeInTheDocument()
+    expect(container.querySelector('[aria-hidden="true"]').className).toMatch(/dot_progress/)
+  })
+
+  it('a started background press says so, never an error', async () => {
+    const onSync = vi.fn().mockResolvedValue({ status: 'started', removalCheck: null })
+    render(<SourceRow source={makeSource()} onSync={onSync} onTogglePause={noop} onDisconnect={noop} />)
+    fireEvent.click(screen.getByRole('button', { name: /sync now/i }))
+    await waitFor(() => expect(screen.getByText(BACKGROUND_SYNC_NOTICE)).toBeInTheDocument())
+    expect(screen.queryByText(/failed|try again/i)).not.toBeInTheDocument()
   })
 })

@@ -70,6 +70,8 @@ import { obsidianAdapter } from './adapters/obsidian'
 import { parseImport } from './postParse'
 import { htmlToNote } from './convert'
 import { extractPlainText } from '../tiptap'
+import { storeMediaItem } from './commit'
+import { importNoticeNode } from './importNotice'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURES_DIR = path.join(__dirname, '__fixtures__', 'obsidian_parity')
@@ -140,6 +142,10 @@ function walkSemantic(node, out) {
     // order (the client lane writes it from `data-name`, the server from the ref), and
     // D2 item 6, its LABEL (the member's link text; null when absent).
     out.files.push({ name: attrs.name ?? null, label: attrs.label ?? null })
+  } else if (node.type === 'importNotice') {
+    // Live audit 2026-11-03 (F3): what did not come over, and why, in document order; the
+    // reason in the copy table's snake_case (`not-found` reads as `not_found`).
+    out.notices.push({ reason: String(attrs.reason || '').replace(/-/g, '_'), name: attrs.name ?? null })
   } else if (node.type === 'callout') {
     out.callouts.push(attrs.variant ?? null)
   } else if (node.type === 'taskItem') {
@@ -153,7 +159,7 @@ function walkSemantic(node, out) {
 // lockstep with the server's `notes.py::extract_plain_text` for the
 // notebook search index — rather than a third hand-rolled text walker.
 function semanticSummary(doc) {
-  const out = { links: [], images: [], task_checked: [], highlights: [], pending: [], callouts: [], files: [] }
+  const out = { links: [], images: [], task_checked: [], highlights: [], pending: [], callouts: [], files: [], notices: [] }
   walkSemantic(doc, out)
   return { text: extractPlainText(doc), ...out }
 }
@@ -171,13 +177,38 @@ function withoutServerOnly(summary) {
   return out
 }
 
+// Each image placeholder of a failed item -> the notice the commit writes in its place.
+function withFailedPlaced(node, results) {
+  if (!node || typeof node !== 'object') return node
+  const src = node.type === 'image' ? node.attrs?.src || '' : ''
+  const ref = src.startsWith('import-ref://') ? src.slice('import-ref://'.length) : null
+  if (ref && results[ref]) {
+    const r = results[ref]
+    return importNoticeNode({ reason: r.reason, name: r.name, sourceUrl: r.sourceUrl, ref })
+  }
+  if (!Array.isArray(node.content)) return node
+  return { ...node, content: node.content.map((c) => withFailedPlaced(c, results)) }
+}
+
 async function clientSummaryFor(fixture) {
   const vfiles = fixture.vault_paths.map((p) =>
     vf(p, p === fixture.self_path ? fixture.input_markdown : ''))
   // The wizard's own call (Plan B Task 3): adapter.parse + the one post-parse pass.
   const { docs } = await parseImport(obsidianAdapter, vfiles, {})
   const doc = docs.find((d) => d.importKey === `obsidian:${fixture.self_path}`)
-  const { bodyJson } = htmlToNote(doc.html)
+  // Live audit 2026-11-03 (F3): a media item that FAILED at parse (a missing file embed) is a
+  // notice in the stored note: the commit places `importNoticeNode` from the result
+  // `storeMediaItem` gives a failed item (no request). Only failed items are placed here (not
+  // the whole `rewriteBody`, which would also settle every link and upload): a file still
+  // waiting for its upload stays the image placeholder the rail compares.
+  const parsed = htmlToNote(doc.html).bodyJson
+  const failedResults = {}
+  for (const item of doc.media.filter((m) => m.failed)) {
+    failedResults[item.ref] = await storeMediaItem('parity', doc.importKey, item)
+  }
+  const bodyJson = Object.keys(failedResults).length
+    ? withFailedPlaced(parsed, failedResults)
+    : parsed
   const summary = semanticSummary(bodyJson)
   // Plan B Task 3: the client's post-parse pass turns a hotlinked `<img src="https://…">`
   // into a remote media item (`import-ref://remote-<md5>`, copied by the fetch door at
