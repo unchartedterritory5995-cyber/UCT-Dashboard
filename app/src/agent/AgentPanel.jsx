@@ -25,7 +25,7 @@ import GuideOverlay from './guide/GuideOverlay'
 import { receiptView } from './receiptView'
 import styles from './AgentPanel.module.css'
 // structured answers take the column's width (a single figure and prose stay as small as they are)
-const WIDE_VIEWS = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
+const WIDE_VIEWS = new Set(['comparison', 'metrics', 'range', 'table', 'headlines', 'research'])
 
 // Welcome: the Agent's first text — a moment of "typing", then a left-side bubble stamped with
 // the time the chat opened, and a few quick replies (a tap sends that text as-is).

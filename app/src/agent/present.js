@@ -22,7 +22,8 @@
 // restored on reload. It is never read into a model request — the server's history door replays only
 // a row's text (and, for a local-only row, a fixed note): api/services/uct_agent/turn.py.
 
-export const VIEW_KINDS = ['value', 'comparison', 'metrics', 'range', 'table', 'headlines', 'text', 'error']
+//   research    facts / interpretation / unknown + dated sources (RS-1)  { facts, interpretation, unknown, cited: [{title, url, when}], note }
+export const VIEW_KINDS = ['value', 'comparison', 'metrics', 'range', 'table', 'headlines', 'text', 'error', 'research']
 export const VIEW_VERSION = 1
 //: News shows this many headlines up front; the rest stay one tap away under Details.
 export const HEADLINES_SHOWN = 5
@@ -79,6 +80,7 @@ export function isView(v) {
     case 'comparison': case 'metrics': case 'range': return items(v.items).length > 0
     case 'table': return !!table(v.table)
     case 'headlines': return Array.isArray(v.headlines) && v.headlines.length > 0
+    case 'research': return ['facts', 'interpretation', 'unknown'].some(k => Array.isArray(v[k]) && v[k].length > 0)
     default: return !!str(v.text, 20000)
   }
 }
@@ -106,6 +108,12 @@ export function presentOf(answer, { message = '' } = {}) {
       const hs = (p.headlines || []).slice(0, 15).map(h => ({ title: str(h.title, 220), meta: str(h.meta, 120) }))
       const n = detail ? hs.length : HEADLINES_SHOWN
       Object.assign(view, { headlines: hs.slice(0, n), ...(hs.length > n ? { details: { headlines: hs.slice(n) } } : {}) })
+    } else if (p.kind === 'research') {
+      // RS-1: three bounded lists of sentences and the dated sources; the capability already separated them
+      const list = (xs, n, max) => (Array.isArray(xs) ? xs : []).filter(s => typeof s === 'string' && s.trim()).slice(0, n).map(s => str(s, max))
+      const cited = (Array.isArray(p.cited) ? p.cited : []).slice(0, 8).filter(c => c && (c.title || c.url))
+        .map(c => ({ title: str(c.title, 140) || str(c.url, 140), when: str(c.when, 60), ...(typeof c.url === 'string' && /^https?:\/\//.test(c.url) ? { url: c.url.slice(0, 500) } : {}) }))
+      Object.assign(view, { facts: list(p.facts, 12, 400), interpretation: list(p.interpretation, 6, 300), unknown: list(p.unknown, 8, 200), cited, ...(p.note ? { note: str(p.note, 300) } : {}) })
     }
     if (p.text) view.text = str(p.text, 4000)
     if (p.source) view.source = str(p.source, 160)
@@ -120,7 +128,8 @@ export function presentOf(answer, { message = '' } = {}) {
         view = { ...view, items: hit, details: { items: items(p.items) } }
       }
     }
-    if (detail && view.kind !== 'table' && view.kind !== 'text' && full) view.text = view.text || full
+    // (a research view's sections ARE the full answer: depth adds nothing, so the text is never doubled)
+    if (detail && !['table', 'text', 'research'].includes(view.kind) && full) view.text = view.text || full
   } else if (tbl) {
     const { lead, rest } = conciseText(full, detail)
     view = { kind: 'table', table: tbl, ...(lead ? { text: lead } : {}) }
@@ -133,7 +142,7 @@ export function presentOf(answer, { message = '' } = {}) {
   // Everything the full answer had stays one tap away (unless it IS what is shown).
   const det = { ...(view.details || {}) }
   // (an error view already says its specific reason; the long answer adds nothing but noise)
-  if (p && full && !det.text && view.text !== full && view.kind !== 'error') det.text = full
+  if (p && full && !det.text && view.text !== full && view.kind !== 'error' && view.kind !== 'research') det.text = full
   // (headlines: the rows already shown or listed under Details ARE the table — only the provenance text stays)
   if (p && tbl && view.kind !== 'table' && view.kind !== 'headlines' && !det.table) det.table = tbl
   if (Object.keys(det).length) view.details = det
