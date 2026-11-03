@@ -35,8 +35,10 @@ export const GROUPS = [
   // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
   { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)', domains: ['chartSetup'], fillLast: true,
     // W1-B B-06: Replay Mode is a chart control too — here by action name, so the NL-1 core (charts group) keeps its size
-    actions: ['chart.replay'],
-    words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
+    // W2-B3: chart.describeSetup here by action name too (a grounded setup description; the charts group keeps its size),
+    // named by "describe / summarise / walk me through … setup"
+    actions: ['chart.replay', 'chart.describeSetup'],
+    words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
@@ -147,8 +149,16 @@ export const GROUPS = [
       // an indicator or a plain length CROSSING ("the 9 ema crosses above the 20", "9/20 cross", "ema 9 crossover", "golden cross")
       /\b(?:rsi|macd|ema|sma|wma|hma|vwap|atr|adx|cci|mfi|stochastics?|bollinger|bands?|keltner|supertrend|moving averages?|signal line|\d{1,3}[- ]?(?:ema|sma|ma|dma|day|d))\b[^.]{0,40}\b(?:cross(?:es|ed|ing)?(?: (?:above|below|over|under|up|down))?|crossover)\b/,
       /\b(?:the )?\d{1,3} (?:cross(?:es|ed|ing)?) (?:above|below|over|under|the)\b/, /\b\d{1,3}\s*\/\s*\d{1,3} (?:cross(?:es|ed|ing)?|crossover)\b/, /\b(?:golden|death) cross\b/] },
-  { id: 'data', title: 'Stock information and news (profile, earnings, comparisons, news, catalysts)', domains: ['stock', 'news'],
-    words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do)\b/],
+  // KN-1 (agent-kn): UCT's own trading knowledge — concepts, setup templates, setup records. `words` stays EMPTY here:
+  // capabilities/knowledge.js fills it only when its capabilities register (the server serves the kinds), so with
+  // the knowledge kinds off this group never matches and routing is exactly what it was.
+  { id: 'playbook', title: 'UCT trading knowledge: what a setup or concept means at UCT, the rules of a UCT setup template, the historical record of a setup', domains: ['playbook'], fillLast: true, addOnly: true,
+    words: [] },
+  // W2-B1 (RS-1): `research.ask` rides in this group by domain ("why is X down", "what's driving …", catalysts);
+  // W2-B2: `history.afterEvent` too ("how has X behaved after …", "what happens after …")
+  { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
+    words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
+      /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/],
     // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"
     vocab: [/\b(reports?|reporting|valuation|stacks? up|anything new (on|with)|what'?s (going on|happening) with|why did .+ (gap|move|drop|fall|jump|rally|sell off))\b/] },
   // MARKET INTELLIGENCE breadth slice 1 (2026-10-11): historical breadth QUESTIONS. "breadth" alone is
@@ -172,6 +182,12 @@ export const GROUPS = [
   { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
     // (show-me words only: an explanation question is the model's to answer, as before — it may reroute to this group)
     words: [/\b(where (do|can|would|should) i|where(?:'s| is| are) the|show me (where|how)|how (do|can|would|should) i|walk me through|guide me|teach me|tutorial)\b/] },
+  // ⭐ Wave 3 (W3-1..W3-4, UCT_AGENT_COACH, default off): the trading coach — registered only while the server serves
+  // `coach`, so the group is empty (and never sent) on a dark server. Its own fillLast group: the NL-1 core keeps its size.
+  { id: 'coach', title: 'Trading coach (educational, not advice): explain a trading concept — price action, support/resistance, consolidation, breakouts, relative strength, volume, moving averages, risk per trade and sizing, stops, market conditions and breadth, earnings gaps, drawdown, expectancy — with one grounded observation from the open chart; consent to use the member’s own journal in this chat; a descriptive review of their recent trades; propose a review note', domains: ['coach', 'journal'], fillLast: true,
+    // review B1: EMPTY here — capabilities/coach.js arms COACH_ROUTE_WORDS only while the coach capabilities are
+    // registered, so on a dark server routing is byte-identical to the base (a coach word never narrows the catalog)
+    words: [] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
@@ -262,7 +278,10 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // line look in a message about indicators is the indicators' look (indicatorSetup), however the indicator is named
   if (hits.has('indicators') && texts.some(t => INDICATOR_LOOK.test(t))) hits.add('indicatorSetup')
   const followUps = [...new Set([...pendingActions, ...recentActions].map(groupOfAction).filter(Boolean))]
-  const matched = hits.size > 0
+  // KN-1: an add-only group (playbook) never counts as recognising the message on its own: a knowledge-only message
+  // routes like an unrecognised one (full manifest when it fits), with its add-only groups first.
+  const addOnlyHits = GROUPS.filter(g => g.addOnly && hits.has(g.id)).map(g => g.id)
+  const matched = [...hits].some(id => !addOnlyHits.includes(id))
   // ⭐ Gate B (0C) SOFT VOCABULARY: when no group's own words matched, trading vocabulary ("semis",
   // "pulling back", "when does nvda report") moves its groups to the FRONT of the catalog order — it
   // never narrows the request: nothing recognised still means every group is a candidate (and the
@@ -273,7 +292,7 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // recognised, every group is a candidate in catalog order (charts first — the page's own
   // controls), so a catalog bigger than one request still sends as much as fits, not just the
   // always-on group; the rest are named and the model can ask for them.
-  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...soft, ...GROUPS.map(g => g.id)]
+  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...GROUPS.map(g => g.id)]
   const priority = [...new Set([...always, ...followUps, ...own])]
   return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched, soft }
 }

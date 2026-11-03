@@ -118,3 +118,37 @@ def test_config_reports_the_active_kinds(monkeypatch):
     monkeypatch.setenv(gw.KINDS_ENV, "quote, quotes")
     cfg = router.agent_config(user={"id": 1})
     assert cfg["data"] is True and cfg["data_kinds"] == ["quote", "quotes"] and cfg["scan"] is False
+
+
+# W2 release gate (#734/#746): production's EXACT UCT_AGENT_DATA_KINDS (web, 2026-11-03). The W2 history kind stays
+# dark and no isolated kind is readable, for any purpose, with UCT_AGENT_ISOLATED unset (as in production).
+PROD_KINDS = ("instrument.resolve,quote,quotes,bars.daily,fundamentals,earnings,news.company,themes,"
+              "screen.run,screen.count,screen.saved")
+
+
+def test_production_kind_list_keeps_history_and_isolated_kinds_dark(monkeypatch, ran):
+    monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, PROD_KINDS)
+    assert gw.enabled_kinds() == frozenset(PROD_KINDS.split(","))
+    assert "history.eventStudy" in _all()                         # registered server-side (non-vacuity)…
+    assert _read("history.eventStudy")["status"] == "refused"     # …but not switched on
+    isolated = [n for n in _all() if gw.registry().get(n).model_isolated]
+    assert {"breadth.current", "ratings"} <= set(isolated)
+    for name in isolated:
+        for purpose in ("answer", "scan", "research"):
+            assert _read(name, purpose)["status"] == "refused", (name, purpose)
+    assert _read("bars.daily")["status"] == "ok"                  # the served kinds still serve
+    assert "history.eventStudy" not in ran and not set(isolated) & set(ran)
+
+
+def test_a_bars_args_shape_from_before_from_still_matches_after_the_server_fill():
+    """stock.dailyBars gained a nullable `from`: the model's old 4-key shape is filled to from=null, never refused."""
+    from api.services.uct_agent import turn as t
+    schema = {"type": "object", "properties": {"symbol": {"type": "string"},
+              "measure": {"type": "string", "enum": ["lastClose", "change", "range52w", "session", "range", "offHigh", "pullbacks"]},
+              "sessions": {"type": ["integer", "null"]}, "date": {"type": ["string", "null"]}, "from": {"type": ["string", "null"]}},
+              "required": ["symbol", "measure", "sessions", "date", "from"], "additionalProperties": False}
+    old = {"symbol": "NVDA", "measure": "change", "sessions": 5, "date": None}
+    assert not t.args_match(schema, old)
+    filled = t._fill_absent_nullables(schema, t._wrap_lone_argument(schema, old))
+    assert filled == {**old, "from": None} and t.args_match(schema, filled)

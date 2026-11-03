@@ -15,6 +15,8 @@ import { isDiscordLaunch } from './utils/discordLaunch'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { VoiceProvider } from './context/VoiceContext'
+// ⭐ W2-C1: UCT Agent's app-level host (admin + per-browser switch; dark otherwise) — the panel on pages that register a host
+import AgentProvider from './agent/AgentProvider'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
@@ -441,6 +443,7 @@ export default function App() {
         <LogoPrewarm />
         {/* Persistent Desk video player — one instance, survives all routing. */}
         <GlobalVideoLayer />
+        <AgentProvider>
         <RouteErrorBoundary>
           <Suspense fallback={
             <StalledLoadFallback label="Loading page" />
@@ -773,6 +776,7 @@ export default function App() {
           </Routes>
           </Suspense>
         </RouteErrorBoundary>
+        </AgentProvider>
         <GlobalVoiceGate />
         </VoiceProvider>
       </AuthProvider>

@@ -1325,6 +1325,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -2035,6 +2037,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -4515,6 +4519,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -4570,8 +4576,8 @@
     "name": "guide.show",
     "domain": "guide",
     "target": "guide",
-    "summary": "SHOW the member where a Charts control is: highlight the real control on their board with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
-    "hints": "target = the guide entry. feature = one of: canvas (chart background, grid, crosshair and watermark); link (linking charts and widgets); symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); hideDrawings (hiding and showing drawings); drawing (basic drawing tools); settings (finding chart settings). A request to DO it (\"change my chart to weekly\") is a command, not this.",
+    "summary": "SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
+    "hints": "target = the guide entry. feature = one of: canvas (chart background, grid, crosshair and watermark); link (linking charts and widgets); symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); hideDrawings (hiding and showing drawings); drawing (basic drawing tools); settings (finding chart settings). Other pages, only there: screenerScreens (screener), screenerColumns (screener), screenerFilters (screener), breadthViews (breadth), breadthTable (breadth), calendarNextReport (calendar), journalNewNote (journal). A request to DO it (\"change my chart to weekly\") is a command, not this.",
     "args": {
      "type": "object",
      "properties": {
@@ -4588,7 +4594,14 @@
         "layouts",
         "hideDrawings",
         "drawing",
-        "settings"
+        "settings",
+        "screenerScreens",
+        "screenerColumns",
+        "screenerFilters",
+        "breadthViews",
+        "breadthTable",
+        "calendarNextReport",
+        "journalNewNote"
        ]
       }
      },
@@ -5043,6 +5056,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -6432,6 +6447,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -8048,6 +8065,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -8734,6 +8753,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -9343,6 +9364,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -10125,6 +10148,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -10640,7 +10665,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -10897,7 +10922,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -11152,7 +11177,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -11414,7 +11439,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -11668,7 +11693,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -11923,7 +11948,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -12178,7 +12203,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -12701,7 +12726,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -12957,7 +12982,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -13211,7 +13236,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -13726,7 +13751,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -13981,7 +14006,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -14504,7 +14529,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -15020,7 +15045,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -15536,7 +15561,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -15791,7 +15816,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -16314,7 +16339,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -16569,7 +16594,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -16831,7 +16856,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -17093,7 +17118,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -17355,7 +17380,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -17610,7 +17635,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -18126,7 +18151,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -18381,7 +18406,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -18636,7 +18661,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -19151,7 +19176,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -19668,7 +19693,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -20184,7 +20209,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -20700,7 +20725,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -20954,7 +20979,7 @@
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",

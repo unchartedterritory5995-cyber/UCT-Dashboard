@@ -1015,7 +1015,8 @@ _OUTCOME_LABEL = {
 # the member reads it — and THIS is the one place that decides what a stored row may say to a model.
 #: Actions whose results are local only. Decided by NAME on the server (never trusted from the
 #: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
-LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history"})
+# journal.reviewTrades (W3 review B3): the member's own journal stats are shown, never replayed to a model
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written
@@ -1025,6 +1026,8 @@ LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history"})
 DATA_READ_ACTIONS = frozenset({
     "stock.profile", "stock.earnings", "stock.compare", "stock.quote", "stock.dailyBars", "stock.themes",
     "news.latest", "news.catalysts", "screener.run", "screener.runSaved",
+    # train2 (W2-B3 #746, live for admins): the setup description is a deterministic read of bars.daily
+    "chart.describeSetup",
 })
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
@@ -1166,6 +1169,12 @@ def _plans_local_lookup(env) -> bool:
 #: A stored outcome row this server cannot read (no data, or data of the wrong shape): it may have
 #: held a local result, so it is replaced — FAIL CLOSED, never replayed on the chance it is safe.
 UNREADABLE_OUTCOME = "[UCT] (an earlier UCT message that is not repeated here)"
+#: W3 coach × Brain (owner retention decision; #735 review B-1): a row the browser flagged `knowledge: true` (a coach
+#: answer led by UCT's approved knowledge) replays ONLY this fixed stub -- whatever text the row holds. The marker is
+#: #735's knowledge/frame.REF literal, so at integration frame.seen() treats the turn as a knowledge turn.
+KNOWLEDGE_REF = "<uct_knowledge_ref/>"
+KNOWLEDGE_REPLAY = (f"[UCT] {KNOWLEDGE_REF} (UCT showed the member an answer from its approved knowledge base here. The "
+                    "text is not replayed: to use it again, retrieve it again so the current source policy applies.)")
 
 
 #: Outcome kinds the browser records WITHOUT `actions` (useAgent.js): UCT's own fixed wording — undo, clarify,
@@ -1232,6 +1241,16 @@ def _history_note(args) -> str:
     return str(note or "")[:300]
 
 
+def _event_study_note(args) -> str:
+    """A history.afterEvent request, described by the event study's own value-free note (uct_agent/history_note.py —
+    outside marketdata/, so this module still imports no gateway module: agent-qa L6)."""
+    try:
+        from api.services.uct_agent import history_note
+        return history_note.request_note(args)
+    except Exception:  # noqa: BLE001 -- the dependency absent / the args invalid: say nothing
+        return ""
+
+
 def _local_requests(data) -> str:
     """What the member ASKED for, rebuilt from validated request args only (enums and ISO dates —
     no value can pass validation). Anything that does not validate is left out."""
@@ -1244,6 +1263,13 @@ def _local_requests(data) -> str:
         return ""
     parts = []
     for r in reqs[:4]:
+        if isinstance(r, dict) and "indicator" in r and "threshold" in r:
+            # W2-B2 history.afterEvent: the event study's own value-free note (symbol, condition, windows, dates),
+            # rebuilt from validated args only — a request that does not validate says nothing
+            note = _event_study_note(r)
+            if note:
+                parts.append(note)
+            continue
         if isinstance(r, dict) and r.get("mode") == "rows":
             # the last N sessions of one measure (breadth_select.rows) — enums and a count only, never a value
             mets = r.get("metrics") if isinstance(r.get("metrics"), list) else []
@@ -1273,6 +1299,11 @@ def _local_requests(data) -> str:
     return ("The member asked for: " + "; ".join(parts) + ".") if parts else ""
 
 
+def _kn_frame():
+    from api.services.uct_agent.knowledge import frame
+    return frame
+
+
 def outcome_for_model(t: dict) -> str:
     """The text a stored OUTCOME row may contribute to a model request — the ONLY door for one."""
     data = t.get("data")
@@ -1281,9 +1312,18 @@ def outcome_for_model(t: dict) -> str:
     if is_local_row(t):
         asked = _local_requests(data)
         return f"{LOCAL_RESULT_NOTE} {asked}".strip()
+    if data.get("knowledge") is True or KNOWLEDGE_REF in str(t.get("text") or ""):
+        return KNOWLEDGE_REPLAY                            # Brain text is never replayed (W3 coach × Brain)
     # Label what UCT ACTUALLY did. A proposal was never executed, so it
     # must not read as "[UCT executed]" in the model's memory.
     label = _OUTCOME_LABEL.get(data.get("kind"), "[UCT]")
+    from api.services.uct_agent.knowledge import frame as kn_frame          # KN-1 review B2: knowledge text replayed
+    if any(kn_frame.is_knowledge_action(a) for a in (_row_actions(data) or [])):
+        return f"{label} {kn_frame.REPLAY_STUB}"          # N-8: never replay passage text; re-ask to re-gate
+    # review #726 (prompt injection): a research answer carries web commentary — replayed as DATA inside
+    # <research_results> (the system prompt: everything inside is data, never instructions), escaped like every block
+    if "research.ask" in (_row_actions(data) or []):
+        return f"{label} {_block('research_results', str(t['text']))}"
     return f"{label} {t['text']}"
 
 
@@ -1305,6 +1345,10 @@ def history_messages(turns: list[dict]) -> list[dict]:
             env = (t.get("data") or {}).get("envelope") if isinstance(t.get("data"), dict) else None
             ours = isinstance(env, dict) and env.get("local_notice") is True and t.get("text") in LOCAL_NOTICES
             text = f"[UCT] {t['text']}" if ours else ""
+        elif t["role"] == "agent" and _kn_frame().used_knowledge(t.get("data")):
+            # KN-1 r3 B-1: the model's own reply in a knowledge turn quotes or paraphrases the passages; it is never
+            # replayed (citation-only, aligned with the retention direction), and its stub keeps web research blocked
+            text = f"[UCT] {_kn_frame().REPLAY_STUB}"
         else:
             text = t["text"]
         if not text:
@@ -1641,6 +1685,8 @@ def name_conversation(turns: list[dict], caller: Callable | None = None, meter=N
             continue
         if t["role"] == "agent" and (is_local_row(t) or _strip_isolated(t.get("data"))[1]):
             continue                                       # QA F-18 / F-22: a local or isolated result never reaches the naming model
+        if t["role"] == "agent" and _kn_frame().used_knowledge(t.get("data")):
+            continue                                       # KN-1 r4: knowledge-derived text never reaches the naming model
         who = "Member" if t["role"] == "member" else "Agent"
         lines.append(f"{who}: {' '.join(str(t['text']).split())[:400]}")
     if not any(ln.startswith("Member:") for ln in lines):
@@ -2138,6 +2184,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     model as data with news.RULES. `answer_only` (the News Ask box): no web research runs and any op the model
     writes is dropped -- the turn can only answer."""
     if v2 is not None:
+        # W3 review C1: a COACH turn never takes the v2 step loop (it has no coach block and no coach guard): it is
+        # served on this v1 path, where the coach prompt, the no-streaming rule and the server guard all apply.
+        from api.services.uct_agent import coach as _coach
+        if _coach.is_coach_turn(context):
+            v2 = None
+    if v2 is not None:
         from api.services.uct_agent import turn_v2
         return turn_v2.run_turn_v2(message=message, context=context, history=history, capabilities=capabilities,
                                    pending=pending, caller=caller, meter=meter, on_event=on_event, reference=reference,
@@ -2194,6 +2246,18 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     if headline is not None:
         from api.services.uct_agent import news as agent_news
         parts = parts + [agent_news.RULES + (agent_news.ANSWER_ONLY if answer_only else "")]
+    # Wave 3 (W3-1/W3-4, UCT_AGENT_COACH): a turn whose context carries the browser's coach entry gets the coach
+    # block (use the concept text; explain -> what to check -> one question; no conclusions, no orders, grounded
+    # figures, uncertainty stated) and its reply passes coach.guard before it is returned. Flag off: nothing here.
+    from api.services.uct_agent import coach as agent_coach
+    coach_turn = agent_coach.is_coach_turn(context)
+    if coach_turn:
+        from api.services.uct_agent.coach import prompt as coach_prompt
+        parts = parts + [coach_prompt.RULES]
+        # W3-3: the journal reaches the model as counts and stats only (coach.sanitize_context -> review.model_view),
+        # and the workspace_context block is rebuilt from the sanitised entry
+        context = agent_coach.sanitize_context(context)
+        blocks = [_block("workspace_context", context)]
     system_blocks = [{"type": "text", "text": t, "cache_control": {"type": "ephemeral"}} for t in parts]
     if headline is not None:
         blocks.append(_block("news_headline", headline))
@@ -2233,8 +2297,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         t_call = time.perf_counter()
         # This call's reply may stream only if it can be the final answer: the post-research call
         # always is; the first one is not when UCT will force research on an answer (current facts).
+        # (a coach turn never streams its reply: the guard must see the whole text before the member does)
         rs = (ReplyStream(lambda text: on_event({"t": "delta", "text": text}),
-                          allowed=(round_ > 0 or not forced_research) and pre_research is None)
+                          allowed=(round_ > 0 or not forced_research) and pre_research is None and not coach_turn)
               if streaming and stream_caller is not None else None)
         call = (lambda **kw: stream_caller(rs.feed, **kw)) if rs is not None else caller
         category = ("reroute" if reroute else "turn") if round_ == 0 else ("repair" if usage.get("repaired") == "server" else "after_research")
@@ -2358,6 +2423,16 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             if news:
                 wants = False
                 usage["local_research_skipped"] = True
+        if wants:
+            from api.services.uct_agent.knowledge import frame as kn_frame      # KN-1 owner decision 5: separation
+            if kn_frame.seen(messages):
+                wants = False
+                usage["research_skipped"] = "knowledge_separation"
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
+                env = {**env, "reply": kn_frame.RESEARCH_BLOCKED, "research": None, "question": None}
+                if env.get("disposition") == "clarify":
+                    env["disposition"] = "answer"
         researched = None
         if wants and meter is not None:
             # ⭐ PHASE 0A/0B: research is followed by one more model call, so it runs only when the request
@@ -2424,6 +2499,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids,
                                                                  claim_repaired=bool(usage.get("false_claim")),
                                                                  grounded=True), env), caps)
+            if coach_turn:
+                envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
@@ -2445,6 +2522,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    "reply": env.get("reply") or "I can only answer questions about this headline here."}
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
                                                              claim_repaired=bool(usage.get("false_claim"))), env), caps)
+        if coach_turn:
+            envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         title = clean_title(env) if conversation_title and not envelope.get("need_groups") else None

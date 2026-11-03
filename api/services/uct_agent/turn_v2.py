@@ -51,6 +51,7 @@ _DOMAIN_OF = {
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "definition": "indicator",
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
+    "playbook": "data",                                   # KN-1 knowledge capabilities
 }
 _DOMAIN_TITLE = {
     "chart": "a chart's symbol, timeframe, type, scale, session, theme, colours, display settings, volume, templates, panes",
@@ -212,6 +213,10 @@ def step_result_text(cap: dict | None, res: dict) -> tuple[str, bool]:
             return ISOLATED_NOTE, False
         r = res.get("result")
         body = _clean(r if isinstance(r, str) else json.dumps(r, separators=(",", ":"), ensure_ascii=False, default=str))
+        if body and cap is not None:
+            from api.services.uct_agent.knowledge import frame as kn_frame   # KN-1 review B2
+            if kn_frame.is_knowledge_action(cap.get("name")):
+                return f"result: {kn_frame.frame(body)}", False
         return f"result: {body}" if body else "result shown to the member", False
     if status == "proposed":
         return "proposed: waiting for the member's approval", False
@@ -464,6 +469,10 @@ def _settle_step(state: dict, step: dict, cap: dict, res: dict) -> None:
 
 
 def _research_step(state: dict, inp: Any, uid: str, meter) -> dict:
+    from api.services.uct_agent.knowledge import frame as kn_frame          # KN-1 owner decision 5: separation
+    if kn_frame.seen(state.get("messages")) or kn_frame.seen(state.get("results")):
+        state["usage"]["research_skipped"] = "knowledge_separation"
+        return _tool_result(uid, kn_frame.RESEARCH_BLOCKED, True)
     if meter is None or state["researched"]:
         return _tool_result(uid, "research is not available in this turn", True)
     q = str((inp or {}).get("query") or "")[:400].strip()

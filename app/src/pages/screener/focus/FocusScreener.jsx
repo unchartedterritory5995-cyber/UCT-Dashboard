@@ -77,6 +77,7 @@ import {
   saveFrozenList, saveStandingAlert, saveToNotebook,
 } from './focusActions'
 import styles from './FocusScreener.module.css'
+import { useScreenerAgentHost } from '../../../agent/hosts/usePageAgentHosts'
 
 // Every column the list, the chart header and the setup line read. Each must be a
 // real snapshot column: the scan refuses an unknown one with a 400. `bars_asof` (in
@@ -837,6 +838,8 @@ function FocusList({ mode, onMode }) {
     )
   }
 
+  // ⭐ W2-C1: what UCT Agent may read here and the door it opens a saved screen through (applyScreen — the Screen menu's own)
+  useScreenerAgentHost({ rows, total, current, edited: isEdited, filters: Object.keys(s.filters || {}), loading: isLoading, saved, starters, applyScreen, refresh })
   return (
     <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}
       onKeyDownCapture={markTouched} onPointerDownCapture={markTouched} onWheelCapture={markTouched} onScrollCapture={markTouched}>

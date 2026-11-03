@@ -29,6 +29,8 @@ member text ─► fastPath (capability phrases) ─┐
 | `capabilities/workspace.js` | the workspace target kind, widget context, `widget.add` | widgets only |
 | `builtins.js` | which capability modules load | one line per module |
 | `host.js` | the Charts workspace's binding (chart adapters + visible board) | workspace wiring |
+| `AgentProvider.jsx` / `agentApp.js` | the APP-LEVEL host (W2-C1): one provider in App.jsx (admin + switch, dark otherwise) owning the panel on pages other than /charts, the open state and the cross-page handoff; `useAgentPageHost(surface, host)` is how a page hands its host in (/charts hands its own as `owned`) | no |
+| `hosts/pageHosts.js` / `hosts/usePageAgentHosts.js` | each page's binding (screener, breadth, calendar, journal), built from the page's own hooks and doors; one hook call per page | page wiring |
 
 ## Adding a capability to an existing target kind
 
@@ -102,6 +104,15 @@ them); an alias that could change the meaning of a request is not an alias.
 `agentCore.test.js` → "EXTENSIBILITY: example.setSomething" is the executable
 proof of this path, and `tests/test_uct_agent.py` proves the server side needs
 no change.
+
+## Surfaces (W2-C1)
+
+A capability's `surfaces` names the pages it is offered on. `['*']` = every page the Agent is mounted on:
+QUERIES that read UCT's own data (stock.*, news.*, breadth.*, guide.*, agent.capabilities, screener.run / runSaved /
+state / listSaved, app.open). A WRITE names its page (`['charts']`, `['screener']`, `['journal']`, …): it is offered
+only where the page's own writer is on the host. `availableCapabilities(ctx)` filters on `ctx.surface` exactly as
+before (`onSurface`), and the fast path claims no phrase of a capability not offered on the host's surface. The
+golden manifest pins the Charts surface byte-for-byte.
 
 ## Rules that do not bend
 

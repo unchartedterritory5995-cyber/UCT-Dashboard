@@ -128,7 +128,10 @@ describe('agent-qa model isolation (1): exposure is nil and stays guarded', () =
     const rels = scanned.map(([f]) => path.relative(SRC, f).split(path.sep).join('/'))
     // non-vacuity: the known readers / the one route owner are still parsed, so the filter cannot empty the scan
     expect(rels).toEqual(expect.arrayContaining(['agent/agentClient.js', 'agent/marketdata/client.js',
-      'agent/capabilities/marketDataFacts.js', 'agent/capabilities/screener.js']))
+      'agent/capabilities/marketDataFacts.js', 'agent/capabilities/screener.js', 'agent/capabilities/knowledge.js',
+      'agent/capabilities/research.js',   // W2-B1 RS-1: research.ask reads research.company through the door
+      'agent/coach/observe.js',     // W3: the coach's one grounded observation reads bars.daily through the door
+      'agent/coach/brain.js']))     // W3-4b: the coach's Brain reads (knowledge.search / setup.playbook) through the door
     const bad = scanned.flatMap(([f, src]) => isolationViolations(src, f))
     expect(bad, bad.join('\n')).toEqual([])
   }, 60000)   // explicit: load-independent budget; the filtered scan itself runs in ~2 s

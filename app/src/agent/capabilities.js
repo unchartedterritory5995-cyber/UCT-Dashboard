@@ -50,6 +50,14 @@ export function registerCapability(cap) {
       || JSON.stringify([...(a.required || [])].sort()) !== JSON.stringify(Object.keys(a.properties || {}).sort())) {
     throw new Error(`${cap.name}: args must be a closed object whose properties are all required`)
   }
+  // `absentAsNull`: args ADDED to an existing capability. The manifest still lists them as required (the
+  // server's strict grammar needs a fully required object), but an arg shape from BEFORE they existed (the
+  // key left out) validates as if it were null, as the server's own _fill_absent_nullables does. Each must be
+  // a declared, nullable property.
+  for (const k of cap.absentAsNull || []) {
+    const t = a.properties[k]?.type
+    if (!(Array.isArray(t) ? t : [t]).includes('null')) throw new Error(`${cap.name}: absentAsNull “${k}” must be a nullable property`)
+  }
   // A QUERY capability only reads: `answer(snapshot, args, host)` returns the reply
   // (a string, or { text, table?, link? } for structured results; it may be async),
   // and nothing is planned or committed. The model may route to it (so the answer comes
@@ -337,11 +345,18 @@ export const getCapability = (name) => CAPS.get(name) || null
 export const getTargetKind = (name) => KINDS.get(name) || null
 export const allCapabilityNames = () => [...CAPS.keys()]
 
+// ⭐ W2-C1 (multi-page host): a capability's `surfaces` names the pages it is offered on. `['*']`
+// (ALL_SURFACES) = every page the Agent is mounted on — QUERIES that read UCT's own data (stock.*,
+// news.*, breadth.*, guide, about, app.open) and need nothing from the page. A WRITE names its page
+// ('charts', 'screener', 'journal' …): it is offered only where the page's own writer is on the host.
+export const ALL_SURFACES = ['*']
+export const onSurface = (cap, surface) => !cap?.surfaces || !surface || cap.surfaces.includes('*') || cap.surfaces.includes(surface)
+
 /** Capabilities this member may use on this surface now (gates, entitlements, flags). */
 export function availableCapabilities(ctx = {}) {
   return [...CAPS.values()].filter(c => {
     if (!KINDS.has(c.target)) return false
-    if (c.surfaces && ctx.surface && !c.surfaces.includes(ctx.surface)) return false
+    if (!onSurface(c, ctx.surface)) return false
     try { return c.available ? !!c.available(ctx) : true } catch { return false }
   })
 }
@@ -412,8 +427,10 @@ export function shapeError(name, args, ctx) {
   const sch = c.args
   if (!args || typeof args !== 'object' || Array.isArray(args)) return 'That action is missing its details.'
   for (const k of Object.keys(args)) if (!(k in sch.properties)) return `Unexpected detail “${k}”.`
-  for (const k of sch.required) if (!(k in args)) return `Missing “${k}”.`
+  const asNull = c.absentAsNull || []
+  for (const k of sch.required) if (!(k in args) && !asNull.includes(k)) return `Missing “${k}”.`
   for (const [k, p] of Object.entries(sch.properties)) {
+    if (!(k in args) && asNull.includes(k)) continue
     const v = args[k]
     // A typed-output input (capability.inputs) may hold a reference instead.
     if (c.inputs?.[k] && isRef(v)) continue
