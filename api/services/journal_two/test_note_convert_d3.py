@@ -144,3 +144,44 @@ def test_a_code_block_round_trips_through_the_markdown_export_without_drift():
                 "content": [{"type": "text", "text": code}]}
         md = notes_export._block(node, None)
         assert _code_text(md_to_tiptap(md)["doc"]) == [code], (code, md)
+
+
+# ── item 4: no whitespace-only paragraph beside a block atom ──────────────────
+
+
+def _shape(node: dict[str, Any]) -> str:
+    if node["type"] == "text":
+        return repr(node["text"])
+    kids = node.get("content") or []
+    return node["type"] + (f"({', '.join(_shape(k) for k in kids)})" if kids else "")
+
+
+@pytest.mark.parametrize("src, expected", [
+    ("x ![a](a.png) ![b](b.png) y",
+     "doc(paragraph('x '), image, image, paragraph(' y'))"),
+    ("![a](a.png) ![b](b.png)", "doc(image, image)"),
+    ("| c |\n|---|\n| ![a](a.png) ![b](b.png) |",
+     "doc(table(tableRow(tableHeader(paragraph('c'))), tableRow(tableCell(image, image))))"),
+    # Text between the images is a paragraph, its spaces kept, as before.
+    ("A ![a](a.png) between ![b](b.png) stays.",
+     "doc(paragraph('A '), image, paragraph(' between '), image, paragraph(' stays.'))"),
+    # A paragraph of nothing but a space, with no atom, is untouched.
+    ("&#32;", "doc(paragraph(' '))"),
+])
+def test_markdown_side_by_side_images_leave_no_space_paragraph(src, expected):
+    assert _shape(md_to_tiptap(src)["doc"]) == expected
+
+
+@pytest.mark.parametrize("html, expected", [
+    ('<p>x <img src="a.png"> <img src="b.png"> y</p>',
+     "doc(paragraph('x '), image, image, paragraph(' y'))"),
+    ('<p><img src="a.png"> </p>', "doc(image)"),
+    ('<p> <img src="a.png"></p>', "doc(image)"),
+    ('<p><img src="a.png"><b> </b><img src="b.png"></p>', "doc(image, image)"),
+    # A line break or a no-break space is the member's, as in the client's parse.
+    ('<p><img src="a.png"><br><img src="b.png"></p>', "doc(image, paragraph(hardBreak), image)"),
+    ('<p><img src="a.png">' + chr(0xA0) + '<img src="b.png"></p>',
+     "doc(image, paragraph(" + repr(chr(0xA0)) + "), image)"),
+])
+def test_html_side_by_side_images_leave_no_space_paragraph(html, expected):
+    assert _shape(html_to_tiptap(html)["doc"]) == expected

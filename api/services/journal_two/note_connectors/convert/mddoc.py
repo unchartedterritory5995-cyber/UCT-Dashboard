@@ -317,15 +317,31 @@ def _wrap_paragraph(flat: list[dict[str, Any]]) -> list[dict[str, Any]]:
     buf: list[dict[str, Any]] = []
     for item in flat:
         if item.get("type") in _HOISTABLE_BLOCK_TYPES:
-            if buf:
+            if buf and not _blank_run(buf):
                 out.append({"type": "paragraph", "content": buf})
-                buf = []
+            buf = []
             out.append(item)
         else:
             buf.append(item)
+    if buf and out and _blank_run(buf):
+        buf = []  # only whitespace after the last atom (D3 item 4)
     if buf or not out:
         out.append({"type": "paragraph", "content": buf})
     return out
+
+
+#: HTML's own whitespace, as the client's parse collapses and strips it (a no-break space is
+#: text, never stripped).
+_ASCII_SPACE_ONLY_RE = re.compile(r"[ \t\r\n\f]*")
+
+
+def _blank_run(buf: list[dict[str, Any]]) -> bool:
+    """D3 item 4: a run beside a block atom holding only whitespace text (`x ![a](a) ![b](b)`
+    leaves `" "` between the images) is no paragraph. The client's parse strips it as it closes
+    the block around the atom, so it never wrote the lone `paragraph(" ")` the server did. A
+    hard break, an atom-free paragraph, and a no-break space are kept, as there."""
+    return all(i.get("type") == "text" and _ASCII_SPACE_ONLY_RE.fullmatch(i.get("text") or "")
+               for i in buf)
 
 
 # ---------------------------------------------------------------------------
