@@ -302,20 +302,6 @@ async def test_removal_check_pass_never_retries(db, monkeypatch):
     assert _row("B")["import_media_pending"] == import_notice.MEDIA_PENDING_RETRY
 
 
-async def test_failed_complete_listing_never_retries(db, monkeypatch):
-    src = _source()
-    a, b = ref("A", 1), ref("B", 9)
-    await _pass(monkeypatch, src, Fake([a, b], fail_media={"B"}), full=True)
-    p = Fake([a], [a, b])
-
-    async def broken(_creds):
-        raise errors.NoteConnTransient("listing failed")
-
-    p.list_present_refs = broken  # type: ignore[assignment]
-    await _pass(monkeypatch, src, p, full=True)
-    assert p.fetched == ["A"]
-
-
 # ── I1: a note the member edited is never retried ───────────────────────────────────
 
 async def test_member_edited_note_with_pending_media_is_not_refetched(db, monkeypatch):

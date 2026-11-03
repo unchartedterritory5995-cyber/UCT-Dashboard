@@ -764,6 +764,8 @@ async def _do_sync(
         # through only when its payload hash equals the stored one (C1's
         # belt guard). They never feed the cursor (OneNote's is a drain
         # watermark a newer ref would jump) and never hold it.
+        # (`not enumeration_failed` is a belt: a failed listing leaves `index_refs is
+        # refs`, so there is no unlisted note to pick anyway.)
         fetch_refs = refs
         retry_ids: set[str] = set()
         if (full and present_fn is not None and not enumeration_failed
