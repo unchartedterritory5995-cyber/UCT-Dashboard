@@ -117,28 +117,61 @@ class _Ctx:
 # Tolerant of an optional `"title"`/'title' suffix (CommonMark allows `![alt](url "title")`)
 # and of balanced parentheses in a percent-encoded payload. An IMAGE MIME is left
 # byte-for-byte untouched (`re.Match.group(0)`) for the tokenizer.
+# D3 item 5: the type and its parameters hold no `(` (no real one does). With `(` allowed,
+# `[^;,\s)]*` ran from each `](data:` over every following `![a](data:` to the end of the run:
+# quadratic, 2.2 s at 40 KB.
 _DATA_IMAGE_MD_RE = re.compile(
     r"!\[(?P<alt>[^\]]*)\]\("
-    r"\s*data:(?P<mime>[^;,\s)]*)(?:;[^;,\s)]*)*,(?:[^\s()]|\([^\s()]*\))*"
+    r"\s*data:(?P<mime>[^;,\s()]*)(?:;[^;,\s()]*)*,(?:[^\s()]|\([^\s()]*\))*"
     r"\s*(?:\"[^\"]*\"|'[^']*')?\s*"
     r"\)",
     re.IGNORECASE,
 )
 
 
+#: The destination half of `_DATA_IMAGE_MD_RE`, from its `](`: what the pass below searches
+#: for. ⛔ Never the whole pattern: its `!\[[^\]]*` scans to the next `]` from EVERY `!`, so a
+#: run of `![[` (an Obsidian embed run) or `![` with no `]` was quadratic (D3 item 5: 1.1 s
+#: at 39 KB, 2.2 s at 40 KB of `![a](data:`, on the connector worker).
+_DATA_URI_DEST_RE = re.compile(_DATA_IMAGE_MD_RE.pattern[len(r"!\[(?P<alt>[^\]]*)"):],
+                               re.IGNORECASE)
+
+
 def _extract_data_uri_images(md: str) -> str:
     """The raw-markdown pass above: every `![alt](data:...)` whose MIME is an image is left
     for the tokenizer to extract as a media entry; every other one becomes a short visible
-    `[unsupported image: ...]` marker (never an image, never the payload as text)."""
-    def _replace(match: "re.Match[str]") -> str:
-        mime = match.group("mime").strip()
-        if _is_image_mime(mime):
-            return match.group(0)  # an image -- untouched, extracted downstream
-        alt = match.group("alt").strip()
-        shown = mime or "no type"
-        return f"[unsupported image: {alt}, {shown}]" if alt else f"[unsupported image: {shown}]"
+    `[unsupported image: ...]` marker (never an image, never the payload as text).
 
-    return _DATA_IMAGE_MD_RE.sub(_replace, md)
+    Linear (D3 item 5), and the SAME matches `_DATA_IMAGE_MD_RE.sub` makes: search the
+    destination half from its `]`, then take the alt's start as that regex would, the LEFTMOST
+    `![` after the previous `]` (an alt holds no `]`) and after the last match. Every `![`
+    between two `]`s reaches the same `]`, so they all match there or none does; each
+    character is searched forward once and backward once. A `]` with no `![` before it is no
+    match, and the search resumes one character on, as the regex would."""
+    out: list[str] = []
+    last = 0  # end of the previous match: a match never starts inside one
+    pos = 0
+    while True:
+        m = _DATA_URI_DEST_RE.search(md, pos)
+        if m is None:
+            break
+        close = m.start()
+        floor = max(last, md.rfind("]", last, close) + 1)
+        start = md.find("![", floor, close)
+        if start == -1:
+            pos = close + 1
+            continue
+        mime = m.group("mime").strip()
+        out.append(md[last:start])
+        if _is_image_mime(mime):
+            out.append(md[start:m.end()])  # an image -- untouched, extracted downstream
+        else:
+            alt = md[start + 2:close].strip()
+            shown = mime or "no type"
+            out.append(f"[unsupported image: {alt}, {shown}]" if alt else f"[unsupported image: {shown}]")
+        last = pos = m.end()
+    out.append(md[last:])
+    return "".join(out)
 
 
 def md_to_tiptap(

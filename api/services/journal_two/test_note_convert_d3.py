@@ -269,3 +269,50 @@ def test_markdown_list_item_repair(src, expected):
     schema refuses; the client's parse (same markdown, `mdToHtml` + `htmlToNote`) repairs them
     into these shapes (measured), so the server writes the same."""
     assert _shape(md_to_tiptap(src)["doc"]) == expected
+
+
+# ── item 5: the data-URI image pass is linear ────────────────────────────────
+
+
+def _reference_extract(md: str) -> str:
+    """The pass as one `re.sub` over the whole `_DATA_IMAGE_MD_RE` (what it was): correct but
+    quadratic. The linear pass must make exactly its replacements."""
+    from api.services.journal_two.note_connectors.convert import mddoc
+
+    def repl(m):
+        mime = m.group("mime").strip()
+        if mddoc._is_image_mime(mime):
+            return m.group(0)
+        alt = m.group("alt").strip()
+        shown = mime or "no type"
+        return f"[unsupported image: {alt}, {shown}]" if alt else f"[unsupported image: {shown}]"
+    return mddoc._DATA_IMAGE_MD_RE.sub(repl, md)
+
+
+def test_the_linear_data_uri_pass_makes_the_regex_replacements():
+    import random
+    from api.services.journal_two.note_connectors.convert import mddoc
+    pieces = ["![", "]", "(", ")", "](", "data:", "text/plain", "image/png", ";base64", ",",
+              "x", " ", '"t"', "a", "![a](data:text/plain,1)", "![](data:,z)", "[", "\n"]
+    rnd = random.Random(7)
+    for _ in range(4000):
+        md = "".join(rnd.choice(pieces) for _ in range(rnd.randrange(1, 18)))
+        assert mddoc._extract_data_uri_images(md) == _reference_extract(md), md
+
+
+@pytest.mark.parametrize("unit", ["![[", "![", "![a](data:", "](data:a,", "![a](data:;", '](data:a, "'])
+def test_the_data_uri_pass_is_linear_on_a_long_run(unit):
+    """D3 item 5: 1.1 s at 39 KB of `![[`, 2.2 s at 40 KB of `![a](data:` before."""
+    import time
+    from api.services.journal_two.note_connectors.convert import mddoc
+    md = unit * (160_000 // len(unit))
+    started = time.perf_counter()
+    mddoc._extract_data_uri_images(md)
+    assert time.perf_counter() - started < 0.25, unit
+
+
+def test_a_non_image_data_uri_still_becomes_its_marker():
+    out = md_to_tiptap("a ![pic](data:text/plain,hello) b ![](data:image/png;base64,AAAA)")
+    texts = "".join(r["text"] for r in _texts(out["doc"]))
+    assert "[unsupported image: pic, text/plain]" in texts
+    assert [m["ref"] for m in out["media"]] == ["md-img-1.png"]
