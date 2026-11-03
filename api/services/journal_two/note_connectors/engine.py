@@ -514,6 +514,12 @@ async def _resolve_credentials(user_id: str, provider_name: str) -> dict[str, An
     is itself a safe no-op for a registered provider whose stored token
     carries no `expiresAt` (Notion — tokens don't expire, so this makes
     ZERO extra network calls for it, same as before) or no `refreshToken`."""
+    # Plan E Task 6: a provider with its own refresh hook (Evernote: rotating refresh token,
+    # compare-and-swap, per-user threading lock) uses it; every other provider is unchanged.
+    from . import registry  # lazy, as `_default_provider_factory` imports it
+    entry = registry.get_entry(provider_name) if registry.is_known(provider_name) else None
+    if entry is not None and entry.refresh is not None:
+        return await entry.refresh(user_id)
     if oauth.is_registered(provider_name):
         return await oauth.refresh_if_needed(user_id, provider_name)
     return connections.get_token(user_id, provider_name)

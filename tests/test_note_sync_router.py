@@ -104,6 +104,7 @@ def test_status_open_to_logged_in_and_lists_all_seven_providers(client):
     body = r.json()
     assert set(body["providers"].keys()) == {
         "roam", "craft", "notion", "dropbox", "onenote", "onedrive", "obsidian",
+        "evernote",  # Plan E Task 6 (dark: configured is False with the flag unset)
     }
     # Obsidian's connect_kind is neither "token" nor "oauth" (registry.py's
     # own contract, extended honestly for the 2026-09-02 plan's push-transport
@@ -312,7 +313,8 @@ def test_connect_requires_consent(client):
 
 
 def test_connect_unknown_provider_404(client):
-    r = client.post("/api/j2/notes/connectors/evernote/connect", json={"consent": True})
+    # Plan E Task 6: "evernote" is a real provider now; an unknown name keeps the 404.
+    r = client.post("/api/j2/notes/connectors/evernote-legacy/connect", json={"consent": True})
     assert r.status_code == 404
 
 
