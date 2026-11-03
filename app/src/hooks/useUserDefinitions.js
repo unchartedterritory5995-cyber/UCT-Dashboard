@@ -32,6 +32,7 @@ import {
 } from '../components/chart/engine/nativeRegistry'
 import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
+import { withServedRowIdentities } from '../components/chart/engine/lineIdentity'
 import {
   SCRIPT_ENGINE_VERSION, withoutEngineStamp, withinPineSourceCap,
 } from '../components/chart/engine/scriptEngineVersion'
@@ -84,8 +85,11 @@ async function fetcher(url) {
   // ⭐ C2C: a row stored as a shared graph reads back as the ORDINARY document
   // every surface below already knows — trees, ast, and the source text
   // re-derived by the one lane that can print it. Inert for every other row.
+  // ⭐ LINE IDENTITY — the store serves each definition as stored and its lines'
+  // identities BESIDE it (`plot_identities`); the copy this browser holds wears them
+  // as `plots[].uid` (`lineIdentity.withServedRowIdentities`).
   return body.definitions.map((row) => (row && row.definition
-    ? { ...row, definition: hydrateGraphDocument(row.definition) }
+    ? withServedRowIdentities({ ...row, definition: hydrateGraphDocument(row.definition) })
     : row))
 }
 
@@ -320,7 +324,7 @@ export async function forkUserDefinition(defId) {
       const g = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(made.def_id)}`, { credentials: 'include' })
       if (g.ok) {
         const row = await g.json()
-        if (row && row.def_id && row.definition) return { ok: true, row }
+        if (row && row.def_id && row.definition) return { ok: true, row: withServedRowIdentities(row) }
       }
     } catch { /* fall through */ }
     return { ok: true, row: { def_id: made.def_id, version: made.version, definition: null } }
@@ -347,7 +351,7 @@ export async function readUserDefinition(defId, { withSource = false } = {}) {
   if (r.ok) {
     try {
       const row = await r.json()
-      if (row && row.def_id) return { ok: true, row }
+      if (row && row.def_id) return { ok: true, row: withServedRowIdentities(row) }
     } catch { /* fall through */ }
     return { ok: false, status: r.status, error: 'The server answered without the definition.' }
   }
@@ -826,7 +830,7 @@ export async function fetchDefinitionHistory(defId) {
   }
   let body = null
   try { body = await r.json() } catch { /* not JSON */ }
-  if (r.ok) return { ok: true, versions: (body && body.versions) || [] }
+  if (r.ok) return { ok: true, versions: ((body && body.versions) || []).map(withServedRowIdentities) }
   const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
   return { ok: false, error: detail || `The version history could not be read (${r.status}).` }
 }

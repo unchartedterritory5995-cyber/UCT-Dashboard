@@ -20,15 +20,6 @@
     "macdSignal": {
       "instead": "ema(macd(close, 12, 26), 9)"
     },
-    "bbUpper": {
-      "instead": "sma(close, 20) + 2 * stdev(close, 20)"
-    },
-    "bbMiddle": {
-      "instead": "sma(close, 20)"
-    },
-    "bbLower": {
-      "instead": "sma(close, 20) - 2 * stdev(close, 20)"
-    },
     "stochD": {
       "instead": "sma(stoch(high, low, close, 14), 3)"
     },

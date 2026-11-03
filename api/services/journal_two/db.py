@@ -773,6 +773,9 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_devices (
     label        TEXT,
     last_seen_at TEXT,
     created_at   TEXT NOT NULL,
+    -- Plan C: the plugin version last reported (X-UCT-Plugin-Version). Mirrored by
+    -- the ALTER in _OBSIDIAN_ALTERS.
+    plugin_version TEXT,
     UNIQUE(user_id, vault_id)
 );
 CREATE INDEX IF NOT EXISTS idx_j2_obsidian_devices_user
@@ -788,7 +791,25 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_staging (
     body_md      TEXT NOT NULL,
     updated_at   TEXT NOT NULL,
     received_at  TEXT NOT NULL,
+    -- Plan C: the note's attachment references as the plugin resolved them, a JSON
+    -- list of {sha256, ...}; NULL from a plugin that predates attachments. Mirrored
+    -- by the ALTER in _OBSIDIAN_ALTERS.
+    attachments_json TEXT,
     PRIMARY KEY (user_id, vault_id, vault_path)
+);
+
+-- Plan C: the vault's attachments, staged by content hash
+-- (note_connectors/obsidian_attachments.py). The bytes live under
+-- blob_root()/<user_id>/<vault_id>/<sha256>, OUTSIDE attachment_root().
+CREATE TABLE IF NOT EXISTS j2_obsidian_attachments (
+    user_id       TEXT NOT NULL,
+    vault_id      TEXT NOT NULL,
+    sha256        TEXT NOT NULL,
+    size          INTEGER NOT NULL,
+    declared_mime TEXT,
+    name          TEXT,
+    received_at   TEXT NOT NULL,
+    PRIMARY KEY (user_id, vault_id, sha256)
 );
 
 -- The vault's COMPLETE file list at the last full push. This is what feeds
@@ -2598,6 +2619,18 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v6] aborted: {e}")
 
+    # Connector fidelity Plan C Task 1: the Obsidian tables' additive columns. Their own
+    # pass AFTER v6, never in _PHASE_2_ALTERS: v6 is what creates these tables on a DB
+    # whose schema script predates them, and _PHASE_2_ALTERS runs before it. Same
+    # idempotent idiom (a duplicate column is ignored, anything else raises).
+    for stmt in _OBSIDIAN_ALTERS:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as e:
+            if "duplicate column" not in str(e).lower():
+                raise
+    conn.commit()
+
     # body_plain is DERIVED from body_json; v7 re-derives it under the
     # 2026-09-23 textBetween rule (see its docstring). After v6 because it only
     # reads/updates j2_notes + j2_note_versions, which every earlier step made.
@@ -3952,6 +3985,14 @@ def run_notebook_migration_v5(conn: sqlite3.Connection) -> None:
 # Literal DDL, duplicated (not shared/interpolated) with the matching block in
 # _J2_SCHEMA -- same convention as _NOTE_CONNECTOR_TABLE_DDL above, so this
 # migration reads standalone.
+# Plan C Task 1: see the columns' comments on the fresh CREATE TABLEs in _J2_SCHEMA.
+# Nullable, no backfill: NULL = a 0.1.x plugin that never sent attachments or a version.
+# Applied by ensure_schema right after run_notebook_migration_v6.
+_OBSIDIAN_ALTERS = (
+    "ALTER TABLE j2_obsidian_staging ADD COLUMN attachments_json TEXT",
+    "ALTER TABLE j2_obsidian_devices ADD COLUMN plugin_version TEXT",
+)
+
 _OBSIDIAN_TABLE_DDL = {
     "j2_obsidian_devices": """
         CREATE TABLE IF NOT EXISTS j2_obsidian_devices (
@@ -3962,6 +4003,7 @@ _OBSIDIAN_TABLE_DDL = {
             label        TEXT,
             last_seen_at TEXT,
             created_at   TEXT NOT NULL,
+            plugin_version TEXT,
             UNIQUE(user_id, vault_id)
         )
     """,
@@ -3974,6 +4016,7 @@ _OBSIDIAN_TABLE_DDL = {
             body_md      TEXT NOT NULL,
             updated_at   TEXT NOT NULL,
             received_at  TEXT NOT NULL,
+            attachments_json TEXT,
             PRIMARY KEY (user_id, vault_id, vault_path)
         )
     """,
@@ -3984,6 +4027,18 @@ _OBSIDIAN_TABLE_DDL = {
             vault_path  TEXT NOT NULL,
             recorded_at TEXT NOT NULL,
             PRIMARY KEY (user_id, vault_id, vault_path)
+        )
+    """,
+    "j2_obsidian_attachments": """
+        CREATE TABLE IF NOT EXISTS j2_obsidian_attachments (
+            user_id       TEXT NOT NULL,
+            vault_id      TEXT NOT NULL,
+            sha256        TEXT NOT NULL,
+            size          INTEGER NOT NULL,
+            declared_mime TEXT,
+            name          TEXT,
+            received_at   TEXT NOT NULL,
+            PRIMARY KEY (user_id, vault_id, sha256)
         )
     """,
 }

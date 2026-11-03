@@ -20,7 +20,8 @@ from api.services.journal_two.note_connectors import errors
 from api.services.journal_two.note_connectors.convert import md_to_tiptap
 from api.services.journal_two.note_connectors.providers.base import RemoteRef
 from api.services.journal_two.note_connectors.providers.obsidian import (
-    ObsidianProvider, _build_basename_map, _resolve_target,
+    NO_ATTACHMENT_PASS, ObsidianProvider, _apply_attachment_refs, _build_basename_map,
+    _resolve_target, resolve_pending_target,
 )
 from api.services.journal_two.notes import extract_plain_text
 
@@ -37,10 +38,14 @@ def db(tmp_path, monkeypatch):
     conn = auth_db.get_connection()
     ensure_schema(conn)
     conn.close()
+    # Final review I3: the attachment layer's master switch defaults OFF; this file's fetch
+    # tests run it ON for everyone, and the switch's own tests set it.
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1")
     return auth_db
 
 
-def _stage(user_id, vault_id, vault_path, body_md, updated_at, *, content_hash=None, received_at=None):
+def _stage(user_id, vault_id, vault_path, body_md, updated_at, *, content_hash=None, received_at=None,
+           attachments=None):
     """`received_at` defaults to `updated_at` (every pre-existing caller in
     this file relies on that -- it's how those tests can drive the cursor
     via a single timestamp) -- pass it explicitly to stage a row whose
@@ -48,17 +53,21 @@ def _stage(user_id, vault_id, vault_path, body_md, updated_at, *, content_hash=N
     which is exactly what the C1 cursor-poisoning test below needs: it
     writes straight to the table, bypassing `obsidian_staging.ingest_batch`'s
     own ingest-time clamp entirely, to prove the cursor fix holds even when
-    that OTHER layer is out of the picture."""
+    that OTHER layer is out of the picture.
+    `attachments` (Plan C Task 3): the row's attachment refs, stored as `attachments_json`;
+    None (the default) is a row from a plugin that sent no list."""
     conn = auth_db.get_connection()
     try:
         conn.execute(
             "INSERT OR REPLACE INTO j2_obsidian_staging "
-            "(user_id, vault_id, vault_path, content_hash, body_md, updated_at, received_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "(user_id, vault_id, vault_path, content_hash, body_md, updated_at, received_at,"
+            " attachments_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 user_id, vault_id, vault_path,
                 content_hash or f"h-{vault_path}-{updated_at}",
                 body_md, updated_at, received_at if received_at is not None else updated_at,
+                None if attachments is None else json.dumps(attachments),
             ),
         )
         conn.commit()
@@ -267,6 +276,68 @@ async def test_fetch_many_preserves_ref_order_and_batches_in_one_query(db):
     assert [n.title for n in notes] == ["B", "A"]
 
 
+async def test_fetch_and_fetch_many_convert_off_the_event_loop(db, monkeypatch):
+    """Final review I1: a staged note's conversion (and its database reads, and every safety
+    net round) runs in a worker thread, never on the web pod's one event loop, which an
+    authenticated member's crafted note could otherwise hold for minutes."""
+    import threading
+
+    from api.services.journal_two.note_connectors.providers import obsidian as provider_mod
+
+    loop_thread = threading.get_ident()
+    seen: list[int] = []
+    real = provider_mod.convert_obsidian_markdown
+
+    def spy(*args, **kwargs):
+        seen.append(threading.get_ident())
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(provider_mod, "convert_obsidian_markdown", spy)
+    _stage("user-a", "vault-1", "a.md", "# A", T1)
+    _stage("user-a", "vault-1", "b.md", "# B", T2)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
+    await provider.fetch_many({}, [RemoteRef(remote_id="a.md", updated_at=T1),
+                                   RemoteRef(remote_id="b.md", updated_at=T2)])
+    assert len(seen) == 3
+    assert loop_thread not in seen
+
+
+async def test_attachments_off_converts_every_row_exactly_as_before_plan_c(db, monkeypatch):
+    """Final review I3: with the master switch OFF for the member (`0`, or `admin` for a
+    non-admin), every staged row converts with NO attachment pass, exactly as before Plan C:
+    no "update the plugin" or "will be retried" notice, whatever the row carries. Proved
+    byte-identical on every parity input, staged with its refs and as a 0.1.x row (None)."""
+    import json as _json
+
+    from api.services.journal_two.note_connectors.convert import obsidian_parity_fixtures_gen as gen
+
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    inputs = sorted(gen.FIXTURES_IN_DIR.glob("*.md"))
+    for mode in ("0", "admin"):
+        monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", mode)
+        for md in inputs:
+            manifest = _json.loads((gen.FIXTURES_IN_DIR / f"{md.stem}.vault.json").read_text("utf-8"))
+            paths = [p for p in manifest["vault_paths"] if p.endswith(".md")]
+            body = md.read_text("utf-8")
+            expected = provider._convert_row(manifest["self_path"], body, sorted(paths),
+                                             _build_basename_map(sorted(paths)))
+            for refs in (manifest.get("attachments", []), None):
+                _stage("user-a", "vault-1", manifest["self_path"], body, T1, attachments=refs)
+                _manifest("user-a", "vault-1", paths)
+                note = await provider.fetch({}, RemoteRef(remote_id=manifest["self_path"], updated_at=T1))
+                assert note.doc == expected["doc"], (mode, md.name, refs is None)
+                assert note.media == expected["media"] and note.links == expected["links"], md.name
+    # Control: ON, the same 0.1.x row carries the outdated-plugin notice.
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1")
+    _stage("user-a", "vault-1", "Notes/old.md", "![[chart.png]]", T1, attachments=None)
+    note = await provider.fetch({}, RemoteRef(remote_id="Notes/old.md", updated_at=T1))
+    assert [n["attrs"]["reason"] for n in _all(note.doc, "importNotice")] == ["obsidian-plugin-outdated"]
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "0")
+    note = await provider.fetch({}, RemoteRef(remote_id="Notes/old.md", updated_at=T1))
+    assert _all(note.doc, "importNotice") == []
+
+
 async def test_fetch_many_raises_on_a_missing_row_so_the_engine_can_fall_back(db):
     _stage("user-a", "vault-1", "a.md", "# A", T1)
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
@@ -455,12 +526,15 @@ async def test_task_list_checkbox_state_survives_the_provider_pipeline(db):
 
 
 # ---------------------------------------------------------------------------
-# Embeds — a local image is registered as media but honestly unfetchable
+# Embeds — a local image the plugin sent no ref for is registered as media but
+# honestly unfetchable. Plan C Task 3: these rows carry an attachment LIST (`[]`, a
+# 0.2.0 plugin whose list does not name the file); a row with NO list is the
+# old-plugin case and gets a visible notice instead (tests further down).
 # ---------------------------------------------------------------------------
 
 async def test_a_local_image_embed_registers_media_but_is_not_a_broken_link(db):
     _stage("user-a", "vault-1", "files/chart.png", "", T1)
-    _stage("user-a", "vault-1", "a.md", "![[chart.png]]", T2)
+    _stage("user-a", "vault-1", "a.md", "![[chart.png]]", T2, attachments=[])
     _manifest("user-a", "vault-1", ["files/chart.png", "a.md"])
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
 
@@ -479,8 +553,20 @@ async def test_a_local_image_embed_registers_media_but_is_not_a_broken_link(db):
         await provider.fetch_media({}, "files/chart.png")
 
 
+async def test_a_local_image_embed_on_a_row_without_a_list_is_an_outdated_notice(db):
+    """The same note from a 0.1.x plugin (no attachment list, no recorded version): a
+    visible notice telling the member to update the plugin, never media."""
+    _stage("user-a", "vault-1", "a.md", "![[chart.png]]", T2)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    note = await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T2))
+    assert note.media == []
+    assert note.doc["content"][0]["type"] == "importNotice"
+    assert note.doc["content"][0]["attrs"]["reason"] == "obsidian-plugin-outdated"
+    assert note.doc["content"][0]["attrs"]["name"] == "chart.png"
+
+
 async def test_an_unresolvable_embed_renders_as_plain_text_not_a_broken_image(db):
-    _stage("user-a", "vault-1", "a.md", "before ![[missing.png]] after", T1)
+    _stage("user-a", "vault-1", "a.md", "before ![[missing.png]] after", T1, attachments=[])
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
     note = await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
     assert note.media == []
@@ -612,10 +698,10 @@ def test_the_worst_case_blowup_estimate_is_not_a_guarantee(db):
 # Names with spaces, escaped pipes, literal percent signs (O-1, O-8)
 # ---------------------------------------------------------------------------
 
-async def _fetch_a(body, paths):
+async def _fetch_a(body, paths, *, attachments=None):
     for path in paths:
         _stage("user-a", "vault-1", path, "", T1)
-    _stage("user-a", "vault-1", "a.md", body, T2)
+    _stage("user-a", "vault-1", "a.md", body, T2, attachments=attachments)
     _manifest("user-a", "vault-1", [*paths, "a.md"])
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
     return await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T2))
@@ -654,7 +740,8 @@ async def test_escaped_pipe_in_a_table_cell_resolves(db):
 
 
 async def test_embedded_image_with_space_registers_the_raw_vault_path(db):
-    note = await _fetch_a("![[My Img.png]]", ["attachments/My Img.png"])
+    # A list that does not name the file (Plan C Task 3): the pre-plan-C path, unchanged.
+    note = await _fetch_a("![[My Img.png]]", ["attachments/My Img.png"], attachments=[])
     assert [m["ref"] for m in note.media] == ["attachments/My Img.png"]
     assert note.doc["content"][0]["attrs"]["src"] == "import-ref://attachments/My Img.png"
 
@@ -673,11 +760,12 @@ async def test_a_literal_percent_twenty_in_a_name_survives(db):
 _V = "vault-1"
 
 
-def _convert(body, paths, *, self_path="Notes/Src.md", label=None):
+def _convert(body, paths=(), *, self_path="Notes/Src.md", label=None,
+             refs=NO_ATTACHMENT_PASS, supports=False):
     paths = sorted({*paths, self_path})
     provider = ObsidianProvider(user_id="user-a", vault_id=_V)
     return provider._convert_row(self_path, body, paths, _build_basename_map(paths),
-                                 vault_label=label)
+                                 vault_label=label, refs=refs, plugin_supports=supports)
 
 
 def _key(path):
@@ -859,3 +947,1335 @@ def test_a_pending_link_in_a_sub_folder_note_survives_a_table_cell():
     assert out["links"] == [ghost, later]
     assert _link_marks(out["doc"]) == [
         ("Ghost", f"import-link://{ghost}"), ("d", f"import-link://{later}")]
+
+
+# ---------------------------------------------------------------------------
+# Plan C Task 3: attachment refs become images, file chips and visible notices;
+# `fetch_media` serves the staged bytes.
+# ---------------------------------------------------------------------------
+
+_SHA = "a" * 64
+
+
+def REF(**k):
+    return {"original": "![[chart.png]]", "embed": True, "path": "attachments/chart.png",
+            "size": 10, "sha256": _SHA, "status": "ok", **k}
+
+
+def _nodes(node, out=None):
+    out = [] if out is None else out
+    if isinstance(node, dict):
+        out.append(node)
+        for c in node.get("content") or []:
+            _nodes(c, out)
+    return out
+
+
+def _all(doc, type_):
+    return [n for n in _nodes(doc) if n.get("type") == type_]
+
+
+def _only(doc, type_):
+    found = _all(doc, type_)
+    assert len(found) == 1, (type_, found)
+    return found[0]
+
+
+def _plain(doc):
+    return " ".join(n.get("text", "") for n in _nodes(doc) if n.get("type") == "text")
+
+
+def test_wiki_embed_with_ref_becomes_an_image_not_literal_text():
+    conv = _convert("Above\n\n![[chart.png]]\n", refs=[REF()])
+    img = _only(conv["doc"], "image")
+    assert img["attrs"]["src"] == "import-ref://obsidian-att:" + _SHA + "/chart.png"
+    assert "chart.png" not in _plain(conv["doc"])
+    assert conv["media"] == [{"ref": "obsidian-att:" + _SHA + "/chart.png", "kind": "image",
+                              "name": "chart.png"}]
+
+
+def test_width_suffix_and_markdown_image_relative_path_resolve_via_original():
+    sha2 = "b" * 64
+    refs = [REF(original="![[chart.png|300]]"),
+            REF(original="![](attachments/chart%20one.png)", path="attachments/chart one.png",
+                sha256=sha2)]
+    conv = _convert("![[chart.png|300]]\n\n![](attachments/chart%20one.png)\n", refs=refs)
+    srcs = [n["attrs"]["src"] for n in _all(conv["doc"], "image")]
+    assert srcs == ["import-ref://obsidian-att:" + _SHA + "/chart.png",
+                    "import-ref://obsidian-att:" + sha2 + "/chart%20one.png"]
+    assert [m["name"] for m in conv["media"]] == ["chart.png", "chart one.png"]
+    assert "300" not in _plain(conv["doc"])
+
+
+def test_pdf_embed_and_markdown_file_link_become_attachment_chips():
+    sha2 = "c" * 64
+    refs = [REF(original="![[report.pdf]]", path="docs/report.pdf"),
+            REF(original="[report](report.pdf)", embed=False, path="report.pdf", sha256=sha2)]
+    conv = _convert("![[report.pdf]]\n\nsee [report](report.pdf) here\n", refs=refs)
+    chips = _all(conv["doc"], "attachmentChip")
+    # D2 item 6: the link's own text `report` is kept as the chip's label (the embed has none).
+    assert [c["attrs"] for c in chips] == [
+        {"href": "import-ref://obsidian-file:" + _SHA + "/report.pdf", "name": "report.pdf"},
+        {"href": "import-ref://obsidian-file:" + sha2 + "/report.pdf", "name": "report.pdf",
+         "label": "report"},
+    ]
+    assert _all(conv["doc"], "image") == []
+    assert conv["media"] == [
+        {"ref": "obsidian-file:" + _SHA + "/report.pdf", "kind": "file", "name": "report.pdf"},
+        {"ref": "obsidian-file:" + sha2 + "/report.pdf", "kind": "file", "name": "report.pdf"},
+    ]
+    assert "see" in _plain(conv["doc"]) and "here" in _plain(conv["doc"])
+
+
+def test_an_image_linked_not_embedded_is_a_file_chip():
+    conv = _convert("[[chart.png]]", refs=[REF(original="[[chart.png]]", embed=False)])
+    assert _only(conv["doc"], "attachmentChip")["attrs"]["name"] == "chart.png"
+    assert conv["media"][0]["kind"] == "file"
+
+
+@pytest.mark.parametrize("status,size,reason,name", [
+    ("too-large", 32715571, "too-large", "big.mov (31.2 MB)"),
+    ("missing", 0, "not-found", "big.mov"),
+    ("off", 5, "sync-off", "big.mov"),
+    ("storage-limit", 5, "storage-limit", "big.mov"),
+])
+def test_each_non_ok_status_becomes_an_import_notice_with_the_right_reason(status, size, reason, name):
+    sha = _SHA if status == "storage-limit" else None
+    ref = REF(original="![[big.mov]]", path="att/big.mov", size=size, sha256=sha, status=status)
+    conv = _convert("Before\n\n![[big.mov]]\n\nAfter", refs=[ref])
+    notice = _only(conv["doc"], "importNotice")
+    assert notice["attrs"] == {"reason": reason, "name": name, "sourceUrl": None, "ref": None,
+                               "attempts": 0}
+    assert conv["media"] == []
+    assert _all(conv["doc"], "image") == []
+    assert "Before" in _plain(conv["doc"]) and "After" in _plain(conv["doc"])
+
+
+def test_old_plugin_row_marks_local_attachments_outdated_and_leaves_note_links_and_urls():
+    body = ("![[x.png]]\n\n![](a/x.png)\n\n[f](f.pdf)\n\n[[Other note]]\n\n"
+            "![](https://e.x/i.png)\n")
+    conv = _convert(body, ["Other note.md"], refs=None, supports=False)
+    notices = _all(conv["doc"], "importNotice")
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in notices] == [
+        ("obsidian-plugin-outdated", "x.png"), ("obsidian-plugin-outdated", "x.png"),
+        ("obsidian-plugin-outdated", "f.pdf")]
+    assert conv["links"] == [f"obsidian:{_V}/Other note.md"]
+    assert [m["ref"] for m in conv["media"]] == ["https://e.x/i.png"]
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == ["import-ref://https://e.x/i.png"]
+
+
+def test_old_plugin_row_leaves_note_names_with_dots_alone():
+    conv = _convert("[[Plan v1.2]] and [x](Call%202026.01.05)", refs=None)
+    assert _all(conv["doc"], "importNotice") == []
+
+
+def test_a_hash_in_an_attachment_name_is_the_file_not_a_note_in_the_fallbacks():
+    """Task 4 review M2: a `#`-holding target whose own extension is an attachment's is a
+    FILE name in the fallbacks too, as in `_resolve_in` (ruling 1). Old plugin: the update
+    notice for the whole name. New plugin, no ref: the name as text. Never a pending note
+    link reading `my chart`."""
+    body = "![[my chart #1 (v2).png]]\n\n[[report #2.pdf]]"
+    old = _convert(body, refs=None, supports=False)
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in _all(old["doc"], "importNotice")] == [
+        ("obsidian-plugin-outdated", "my chart #1 (v2).png"),
+        ("obsidian-plugin-outdated", "report #2.pdf")]
+    assert old["links"] == []
+    new = _convert("![[my chart #1 (v2).png]]", refs=[])
+    assert new["links"] == []
+    assert _all(new["doc"], "importNotice") == []
+    assert "my chart #1 (v2).png" in _plain(new["doc"])
+    # R3: the LINK form too (not only the embed), as the client shows it: the name as
+    # text, never a pending link `report > 2.pdf` to a note `report`.
+    link = _convert("see [[report #2.pdf]] and [[q3 #4.xlsx|the sheet]] now", refs=[])
+    assert link["links"] == []
+    assert _link_marks(link["doc"]) == []
+    assert _plain(link["doc"]) == "see report #2.pdf and the sheet now"
+    # An anchor on a NOTE still splits: `[[Ghost#Risk]]` waits for `Ghost`, both ways.
+    for refs in (None, []):
+        conv = _convert("[[Ghost#Risk]] ![[Ghost#Risk]]", refs=refs)
+        assert _all(conv["doc"], "importNotice") == []
+        assert conv["links"] == [f"name:obsidian:{_V}/ghost|notes"] * 2
+
+
+def test_new_plugin_row_without_list_says_unavailable_not_outdated():
+    conv = _convert("![[x.png]]", refs=None, supports=True)
+    assert _only(conv["doc"], "importNotice")["attrs"]["reason"] == "obsidian-attachments-unavailable"
+
+
+def test_original_inside_code_is_not_rewritten():
+    conv = _convert("`![[chart.png]]`\n\n```\n![[chart.png]]\n```\n", refs=[REF()])
+    assert _all(conv["doc"], "image") == []
+    assert conv["media"] == []
+    assert "![[chart.png]]" in _plain(conv["doc"])
+
+
+def test_attachment_names_round_trip_exactly():  # Review Focus 1
+    for name in ["my chart #1 (v2).png", "Ünïcode.png", "100% done.png"]:
+        conv = _convert(f"![[{name}]]", refs=[REF(original=f"![[{name}]]", path=f"att/{name}")])
+        assert conv["media"][0]["name"] == name
+        assert conv["media"][0]["ref"].startswith("obsidian-att:" + _SHA + "/")
+        assert _only(conv["doc"], "image")["attrs"]["src"] == "import-ref://" + conv["media"][0]["ref"]
+    for name in ["my chart #1 (v2).pdf", "100% done.pdf"]:
+        conv = _convert(f"![[{name}]]", refs=[REF(original=f"![[{name}]]", path=f"att/{name}")])
+        assert _only(conv["doc"], "attachmentChip")["attrs"]["name"] == name
+        assert conv["media"][0]["name"] == name
+    conv = _convert("![[my #1 (v2).mov]]", refs=[REF(original="![[my #1 (v2).mov]]",
+                                                    path="att/my #1 (v2).mov", status="missing",
+                                                    sha256=None, size=0)])
+    assert _only(conv["doc"], "importNotice")["attrs"]["name"] == "my #1 (v2).mov"
+
+
+def test_overlapping_originals_rewrite_longest_first():
+    """`[[a.png]]` (a link: a file chip) is a substring of `![[a.png]]` (an embed: an image).
+    Written shortest-first, the embed would become `!` plus a chip. The refs list puts the
+    short one FIRST on purpose: only the longest-first order gets this right."""
+    sha2 = "d" * 64
+    refs = [REF(original="[[a.png]]", embed=False, path="a.png", sha256=sha2),
+            REF(original="![[a.png]]", path="a.png"),
+            REF(original="![[a.png|300]]", path="a.png")]
+    conv = _convert("![[a.png]]\n\n[[a.png]]\n\n![[a.png|300]]\n", refs=refs)
+    assert [n["type"] for n in conv["doc"]["content"]] == ["image", "attachmentChip", "image"]
+    assert "!" not in _plain(conv["doc"])
+    assert conv["media"] == [
+        {"ref": "obsidian-att:" + _SHA + "/a.png", "kind": "image", "name": "a.png"},
+        {"ref": "obsidian-file:" + sha2 + "/a.png", "kind": "file", "name": "a.png"},
+    ]
+
+
+def test_every_occurrence_of_an_original_is_rewritten():
+    conv = _convert("![[chart.png]] and again ![[chart.png]]", refs=[REF()])
+    assert len(_all(conv["doc"], "image")) == 2
+    assert len(conv["media"]) == 1
+
+
+def test_an_empty_list_rewrites_nothing_and_raises_no_notice():
+    conv = _convert("![[x.png]]", ["att/x.png"], refs=[])
+    assert _all(conv["doc"], "importNotice") == []
+
+
+async def test_a_row_without_a_list_reads_the_device_plugin_version(db):
+    _stage("user-a", "vault-1", "a.md", "![[x.png]]", T1)
+    _device("user-a", "vault-1")
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+
+    async def reason():
+        note = await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
+        return _only(note.doc, "importNotice")["attrs"]["reason"]
+
+    assert await reason() == "obsidian-plugin-outdated"   # plugin_version NULL
+    conn = auth_db.get_connection()
+    conn.execute("UPDATE j2_obsidian_devices SET plugin_version = '0.2.0'")
+    conn.commit()
+    conn.close()
+    assert await reason() == "obsidian-attachments-unavailable"
+
+
+async def test_fetch_and_fetch_many_read_the_rows_attachment_list(db):
+    conn = auth_db.get_connection()
+    conn.execute(
+        "INSERT INTO j2_obsidian_staging (user_id, vault_id, vault_path, content_hash, body_md,"
+        " updated_at, received_at, attachments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("user-a", "vault-1", "a.md", "h", "![[chart.png]]", T1, T1, json.dumps([REF()])))
+    conn.commit()
+    conn.close()
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    one = await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
+    many = await provider.fetch_many({}, [RemoteRef(remote_id="a.md", updated_at=T1)])
+    for note in (one, many[0]):
+        assert note.media == [{"ref": "obsidian-att:" + _SHA + "/chart.png", "kind": "image",
+                               "name": "chart.png"}]
+
+
+@pytest.fixture
+def env(db, tmp_path, monkeypatch):
+    monkeypatch.setenv("J2_OBSIDIAN_BLOB_ROOT", str(tmp_path / "blobs"))
+    _device("user-a", "vault-1")
+    return tmp_path
+
+
+async def test_fetch_media_serves_staged_blob_and_transient_when_missing(env):
+    import hashlib
+
+    from api.services.journal_two.note_connectors import obsidian_attachments
+
+    data = b"\x89PNG staged bytes"
+    sha = hashlib.sha256(data).hexdigest()
+
+    async def chunks():
+        yield data
+
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    with pytest.raises(errors.NoteConnTransient) as exc:
+        await provider.fetch_media({}, f"obsidian-att:{sha}/chart.png")
+    assert exc.value.status == 404
+    assert await obsidian_attachments.stage_blob_stream(
+        user_id="user-a", vault_id="vault-1", sha256=sha, declared_mime="image/png",
+        name="chart.png", chunks=chunks(), declared_length=len(data))
+    assert await provider.fetch_media({}, f"obsidian-att:{sha}/chart.png") == (data, "image/png")
+    assert await provider.fetch_media({}, f"obsidian-file:{sha}/x.pdf") == (data, "image/png")
+    # Scoped to (member, vault): another vault of the same member cannot read it.
+    other = ObsidianProvider(user_id="user-a", vault_id="vault-2")
+    with pytest.raises(errors.NoteConnTransient):
+        await other.fetch_media({}, f"obsidian-file:{sha}/x.pdf")
+    # A blob staged with no declared type is served as octet-stream.
+    data2 = b"no type"
+    sha2 = hashlib.sha256(data2).hexdigest()
+
+    async def chunks2():
+        yield data2
+
+    await obsidian_attachments.stage_blob_stream(
+        user_id="user-a", vault_id="vault-1", sha256=sha2, declared_mime=None, name="x.bin",
+        chunks=chunks2(), declared_length=len(data2))
+    assert await provider.fetch_media({}, f"obsidian-file:{sha2}/x.bin") == (
+        data2, "application/octet-stream")
+    # Anything else is still today's honest refusal.
+    with pytest.raises(errors.NoteConnUnsupported):
+        await provider.fetch_media({}, "attachments/chart.png")
+
+
+def test_dropbox_attachment_promotion_unchanged():
+    """The Dropbox tree walk moved into `convert/placeholders.py::map_image_nodes`. Its output
+    must be byte-identical to the walk it replaced (copied here verbatim as the reference)
+    over the inputs the Dropbox md-attachment tests use: a relative file link, a relative
+    image, a nested list, a table cell and an external image."""
+    from api.services.journal_two.note_connectors.convert import REF_PREFIX
+    from api.services.journal_two.note_connectors.providers import dropbox as dbx
+
+    def reference(converted):
+        marker = f"{REF_PREFIX}{dbx._MD_ATTACH_SCHEME}"
+
+        def walk(node):
+            if not isinstance(node, dict):
+                return node
+            if node.get("type") == "image":
+                src = (node.get("attrs") or {}).get("src", "")
+                if src.startswith(marker):
+                    ref = src[len(REF_PREFIX):]
+                    return {"type": "attachmentChip",
+                            "attrs": {"href": src, "name": dbx._basename_of_ref(ref)}}
+                return node
+            if isinstance(node.get("content"), list):
+                new_node = dict(node)
+                new_node["content"] = [walk(c) for c in node["content"]]
+                return new_node
+            return node
+
+        doc = walk(converted["doc"])
+        media = [{**m, "kind": "file"} if m.get("ref", "").startswith(dbx._MD_ATTACH_SCHEME) else m
+                 for m in converted["media"]]
+        return {"doc": doc, "media": media, "links": converted["links"]}
+
+    inputs = [
+        "See ![q3 report](<dbx-md-attach:/notes/q3%20report.pdf>) for detail.\n",
+        "![chart](<dbx-md-media:/notes/chart.png>)\n\n![](https://example.com/x.png)\n",
+        "- item\n  - ![f](<dbx-md-attach:/notes/a.zip>)\n",
+        "| a | b |\n|---|---|\n| ![f](<dbx-md-attach:/x.pdf>) | y |\n",
+        "plain text only\n",
+    ]
+    provider = dbx.DropboxProvider.__new__(dbx.DropboxProvider)
+    for text in inputs:
+        converted = md_to_tiptap(text, unsafe_image_notice=True)
+        assert json.dumps(provider._promote_md_attachments(converted), sort_keys=False) == \
+            json.dumps(reference(converted), sort_keys=False), text
+
+
+_STAGED_SHA = "e" * 64
+_MISSING_SHA = "f" * 64
+
+
+def _retrying_body(sha=_STAGED_SHA, *, attempts=1):
+    """A stored body holding one "retrying" notice for an Obsidian blob ref (what the engine
+    writes when `fetch_media` raised Transient)."""
+    return {"type": "doc", "content": [{"type": "importNotice", "attrs": {
+        "reason": "fetch_failed", "name": "chart.png", "sourceUrl": None,
+        "ref": f"obsidian-att:{sha}/chart.png", "attempts": attempts}}]}
+
+
+def _staged_blob(sha=_STAGED_SHA, *, vault="vault-1", user="user-a"):
+    conn = auth_db.get_connection()
+    conn.execute("INSERT INTO j2_obsidian_attachments (user_id, vault_id, sha256, size,"
+                 " received_at) VALUES (?, ?, ?, 1, ?)", (user, vault, sha, T1))
+    conn.commit()
+    conn.close()
+
+
+def _synced_note(path, *, pending, updated_at=T1, imported_at=T1, vault="vault-1", user="user-a",
+                 body=None, key_suffix=""):
+    conn = auth_db.get_connection()
+    conn.execute(
+        "INSERT INTO j2_notes (id, user_id, title, import_key, import_media_pending, created_at,"
+        " updated_at, imported_at, body_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (f"n-{user}-{vault}-{path}{key_suffix}", user, path, f"obsidian:{vault}/{path}{key_suffix}",
+         pending, T1, updated_at, imported_at,
+         json.dumps(body if body is not None else _retrying_body())))
+    conn.commit()
+    conn.close()
+
+
+async def test_list_changed_relists_a_note_still_waiting_on_media_without_moving_the_cursor(db):
+    """Plan C Task 3: a note whose media retry can succeed NOW (its blob has been staged since)
+    comes back even though nothing new was pushed; the cursor still moves only on pushed rows."""
+    _stage("user-a", "vault-1", "waiting.md", "x", T1)
+    _stage("user-a", "vault-1", "done.md", "x", T1)
+    _stage("user-a", "vault-1", "edited.md", "x", T1)
+    _stage("user-a", "vault-1", "new.md", "x", T3)
+    _staged_blob()
+    _synced_note("waiting.md", pending=1)
+    _synced_note("done.md", pending=0)
+    _synced_note("edited.md", pending=1, updated_at=T3, imported_at=T1)   # the member's now
+    _synced_note("waiting.md", pending=1, vault="vault-2")                # another vault
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+
+    refs = await provider.list_changed({}, cursor=T2)
+    assert [r.remote_id for r in refs] == ["new.md", "waiting.md"]
+    assert provider.opaque_cursor == T3
+
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    refs = await provider.list_changed({}, cursor=T3)
+    assert [r.remote_id for r in refs] == ["waiting.md"]
+    assert provider.opaque_cursor == T3   # never regressed to the waiting row's received_at
+
+
+async def test_list_changed_and_present_refs_read_off_the_event_loop(db, monkeypatch):
+    """Final review re-review N1: `list_changed` (with its media-retry re-list) and
+    `list_present_refs` open their connections and parse stored bodies in a worker thread,
+    never on the web pod's one event loop."""
+    import asyncio as _asyncio
+
+    from api.services.journal_two.note_connectors.providers import obsidian as provider_mod
+
+    on_loop: list[str] = []
+    real_conn, real_refs = provider_mod.get_connection, provider_mod._retry_refs
+
+    def probe(name, fn):
+        def wrapped(*a, **k):
+            try:
+                _asyncio.get_running_loop()
+                on_loop.append(name)
+            except RuntimeError:
+                pass
+            return fn(*a, **k)
+        return wrapped
+
+    monkeypatch.setattr(provider_mod, "get_connection", probe("connection", real_conn))
+    monkeypatch.setattr(provider_mod, "_retry_refs", probe("retry_refs", real_refs))
+    _stage("user-a", "vault-1", "waiting.md", "x", T1)
+    _staged_blob()
+    _synced_note("waiting.md", pending=1)
+    _manifest("user-a", "vault-1", ["waiting.md"])
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert [r.remote_id for r in await provider.list_changed({}, cursor=T2)] == ["waiting.md"]
+    assert [r.remote_id for r in await provider.list_present_refs({})] == ["waiting.md"]
+    assert on_loop == []
+
+
+async def test_the_media_retry_relist_follows_the_master_switch(db, monkeypatch):
+    """Final review re-review N2: the pending-media re-list is part of Plan C. With the
+    attachment layer OFF for the member it does not run at all, so `list_changed` returns
+    exactly what was pushed since the cursor, as master's provider did, a hotlink retry
+    included. ON (and `admin` for an admin), today's re-list."""
+    hotlink = {"type": "doc", "content": [{"type": "importNotice", "attrs": {
+        "reason": "fetch_failed", "name": "x.png", "sourceUrl": "https://example.com/x.png",
+        "ref": "https://example.com/x.png", "attempts": 1}}]}
+    _stage("user-a", "vault-1", "blob.md", "x", T1)
+    _stage("user-a", "vault-1", "hot.md", "x", T1)
+    _staged_blob()
+    _synced_note("blob.md", pending=1)
+    _synced_note("hot.md", pending=1, body=hotlink)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    for mode in ("0", "admin"):
+        monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", mode)
+        assert await provider.list_changed({}, cursor=T2) == [], mode
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1")
+    assert sorted(r.remote_id for r in await provider.list_changed({}, cursor=T2)) == ["blob.md", "hot.md"]
+
+
+async def test_the_media_retry_relist_holds_one_stored_body_at_a_time(db):
+    """N1: the re-list reads each pending note's stored body ONE at a time and lets it go,
+    never all of them at once. 40 pending notes of ~1 MB each: the peak stays near one body
+    (it used to `fetchall()` every body, about 40 MB)."""
+    import tracemalloc
+
+    big = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "x" * 1_000_000}]},
+        _retrying_body()["content"][0]]}
+    _staged_blob()
+    for i in range(40):
+        _stage("user-a", "vault-1", f"n{i}.md", "x", T1)
+        _synced_note(f"n{i}.md", pending=1, body=big)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    tracemalloc.start()
+    try:
+        refs = await provider.list_changed({}, cursor=T2)
+        _cur, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert len(refs) == 40
+    assert peak < 8_000_000, peak
+
+
+def test_every_reason_this_provider_writes_has_its_own_sentence():
+    """The six reason codes are in plan A's closed notice vocabulary (an unknown code would
+    read as `unsupported`). The server table is pinned equal to the client's by
+    `tests/test_import_notice.py`, so this covers both renderers."""
+    from api.services.journal_two import import_notice
+    from api.services.journal_two.note_connectors.providers import obsidian as obs
+
+    written = {obs.OUTDATED_REASON, obs.UNAVAILABLE_REASON, *obs._STATUS_REASONS.values()}
+    assert written == {"obsidian-plugin-outdated", "obsidian-attachments-unavailable", "not-found",
+                       "too-large", "sync-off", "storage-limit"}
+    for reason in written:
+        assert import_notice._reason(reason) != "unsupported", reason
+    assert import_notice.marker_text("obsidian-plugin-outdated", "x.png") == (
+        "x.png wasn't synced. Update the UCT Notebook Sync plugin in Obsidian to bring images and files over.")
+    assert import_notice.marker_text("obsidian-attachments-unavailable", "x.png") == (
+        "x.png wasn't synced yet. It will be retried on the next sync.")
+    assert import_notice.marker_text("not-found", "x.png") == "x.png wasn't found in the vault."
+    assert import_notice.marker_text("sync-off", "x.png") == (
+        "x.png wasn't synced because image and file sync is turned off in the plugin settings.")
+
+
+# ── Plan C Task 3, fix round 1 ───────────────────────────────────────────────
+
+def test_old_plugin_row_keeps_links_to_dotted_note_names():
+    """I1: a row with no attachment list must not read a NOTE whose name has a dot as a file.
+    `[[Dr.Smith]]`, `[[Q3.Review|alias]]` and `[[Drawing.excalidraw]]` (with those notes
+    staged) stay note links, alias text and all."""
+    paths = ["People/Dr.Smith.md", "Q3.Review.md", "Drawing.excalidraw.md"]
+    body = "[[Dr.Smith]] then [[Q3.Review|alias]] then [[Drawing.excalidraw]]\n\n![[Drawing.excalidraw]]\n"
+    conv = _convert(body, paths, refs=None, supports=False)
+    without_pass = _convert(body, paths)
+    assert _all(conv["doc"], "importNotice") == []
+    # Exactly what the same note converts to with no attachment pass at all: the link keys
+    # and the member's text, alias included. D1: the dotted names now RESOLVE to their notes
+    # (they used to stay pending), and the note embed reads as a link to that note.
+    assert conv["links"] == without_pass["links"] == [
+        f"obsidian:{_V}/People/Dr.Smith.md", f"obsidian:{_V}/Q3.Review.md",
+        f"obsidian:{_V}/Drawing.excalidraw.md", f"obsidian:{_V}/Drawing.excalidraw.md"]
+    assert [t for t, _h in _link_marks(conv["doc"])] == [
+        "Dr.Smith", "alias", "Drawing.excalidraw", "Drawing.excalidraw"]
+    assert conv["doc"] == without_pass["doc"]
+
+
+def test_old_plugin_row_only_marks_known_attachment_extensions():
+    """I1: an unresolved dotted name that is not a known file type (`[[Mr.Jones]]`,
+    `[[notes.final]]`) is a pending note link, never an "update your plugin" notice."""
+    conv = _convert("[[Mr.Jones]] and [[notes.final]] and ![[clip.mp4]] and [d](deck.pptx)",
+                    refs=None)
+    assert [n["attrs"]["name"] for n in _all(conv["doc"], "importNotice")] == ["clip.mp4", "deck.pptx"]
+    assert [t for t, _h in _link_marks(conv["doc"])] == ["Mr.Jones", "notes.final"]
+
+
+def test_a_ref_whose_path_has_no_file_name_is_left_as_written():
+    """M4: `path` ending in `/` names no file. The ref is ignored (its original stays as the
+    member wrote it), never a chip with an empty name."""
+    ref = REF(original="[[att/]]", path="att/", embed=False)
+    conv = _convert("see [[att/]]", refs=[ref])
+    assert _all(conv["doc"], "attachmentChip") == [] and conv["media"] == []
+    assert all(m["name"] for m in conv["media"])
+
+
+def test_original_text_inside_a_replacement_is_never_rewritten_again():
+    """N4: an `original` (`chart.png`) that occurs inside another ref's written replacement
+    must not be re-matched: matching by position in the member's text (D2 item 2; a token
+    indirection before it) is what keeps the image intact."""
+    refs = [REF(), REF(original="chart.png", embed=False, sha256="b" * 64)]
+    conv = _convert("![[chart.png]]", refs=refs)
+    assert _only(conv["doc"], "image")["attrs"]["src"] == "import-ref://obsidian-att:" + _SHA + "/chart.png"
+
+
+def test_member_text_in_the_old_token_form_is_never_swapped_for_an_attachment():
+    """D2 item 2: the pass used to write `\\x00obsidian-ref-N\\x00` tokens and then replace
+    every occurrence, so a note that already held that text (NUL characters and all) got an
+    attachment where the member wrote words. Each `original` is now matched against the
+    member's text once, by position, and nothing else is ever replaced."""
+    member = "\x00obsidian-ref-0\x00 \x00obsidian-ref-1\x00 \x00\x00obsidian-ref-0\x00\x00"
+    sha2 = "b" * 64
+    refs = [REF(), REF(original="[[q.pdf]]", embed=False, path="q.pdf", sha256=sha2)]
+    seg = f"![[chart.png]] {member} [[q.pdf]] {member}"
+    out = _apply_attachment_refs(seg, refs, True)
+    image = f"![](<obsidian-att:{_SHA}/chart.png>)"
+    chip = f"![](<obsidian-file:{sha2}/q.pdf>)"
+    assert out == f"{image} {member} {chip} {member}"
+    conv = _convert(f"Above {member}\n\n![[chart.png]]\n\n{member} [[q.pdf]]\n", refs=refs)
+    assert len(_all(conv["doc"], "image")) == 1
+    assert len(_all(conv["doc"], "attachmentChip")) == 1
+    assert _plain(conv["doc"]).count("obsidian-ref-") == 6
+
+
+def test_overlapping_originals_still_rewrite_longest_first_by_position():
+    """D2 item 2: the positional pass keeps the old order. A longer original claims its text
+    first; a shorter one is matched only outside it, and never across it."""
+    sha2 = "d" * 64
+    refs = [REF(original="[[a.png]]", embed=False, path="a.png", sha256=sha2),
+            REF(original="![[a.png]]", path="a.png")]
+    out = _apply_attachment_refs("[[a.png]]![[a.png]][[a.png]]", refs, True)
+    chip = f"![](<obsidian-file:{sha2}/a.png>)"
+    assert out == f"{chip}![](<obsidian-att:{_SHA}/a.png>){chip}"
+
+
+def test_an_embed_nested_in_a_wikilink_keeps_its_image_and_media_entry():
+    """D2 item 3: `[[![[img.png]]]]` shows the image, as the client does. The wikilink
+    pattern used to read the target as `![[img.png` (a pending link `[![img.png]]`), and with
+    the plugin's ref the image sat between literal `[[` and `]]`."""
+    ref = REF(original="![[img.png]]", path="att/img.png")
+    src = "import-ref://obsidian-att:" + _SHA + "/img.png"
+    for refs in ([ref], [REF(original="![[img.png|300]]", path="att/img.png")]):
+        body = "[[![[img.png]]]] after" if refs[0]["original"] == "![[img.png]]" else "[[![[img.png|300]]]] after"
+        conv = _convert(body, refs=refs)
+        assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [src]
+        assert conv["media"] == [{"ref": src[len("import-ref://"):], "kind": "image", "name": "img.png"}]
+        assert conv["links"] == []
+        assert _plain(conv["doc"]).strip() == "after"
+    # A vault path (no plugin ref): the same image, by the embed rule.
+    conv = _convert("[[![[img.png]]]] after", ["att/img.png"], refs=[])
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == ["import-ref://att/img.png"]
+    assert [m["ref"] for m in conv["media"]] == ["att/img.png"]
+    assert conv["links"] == [] and _plain(conv["doc"]).strip() == "after"
+    # A nested NOTE embed reads as the link to the note, as the client's.
+    conv = _convert("[[![[Plan]]]] after", ["Plan.md"])
+    assert _link_marks(conv["doc"]) == [("Plan", _key("Plan.md"))]
+    assert extract_plain_text(conv["doc"]) == "Plan after"
+    # An old plugin row: the update notice names the file, never `![[img.png`.
+    conv = _convert("[[![[img.png]]]] after", refs=None, supports=False)
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in _all(conv["doc"], "importNotice")] == [
+        ("obsidian-plugin-outdated", "img.png")]
+    assert "[[" not in _plain(conv["doc"]) and conv["links"] == []
+
+
+def test_an_embed_nested_in_a_wikilink_with_an_alias_shows_the_alias_and_lists_nothing():
+    """D2 items 3 and 4: `[[![[img.png]]|al.ias]]` shows the alias (no link: an embed is not
+    a note name), so the image is not shown, and nothing uploads a file no node uses."""
+    for refs, paths in (([REF(original="![[img.png]]", path="att/img.png")], ()),
+                        ([], ("att/img.png",)), (None, ())):
+        conv = _convert("[[![[img.png]]|al.ias]] after", paths, refs=refs)
+        assert extract_plain_text(conv["doc"]) == "al.ias after"
+        assert conv["media"] == [] and conv["links"] == []
+        assert _all(conv["doc"], "image") == [] and _all(conv["doc"], "importNotice") == []
+    conv = _convert("[[![[Plan]]|the plan]] after", ["Plan.md"])
+    assert extract_plain_text(conv["doc"]) == "the plan after" and conv["links"] == []
+
+
+async def test_fetch_media_refuses_a_malformed_sha_at_once(db):
+    """N1: `obsidian-att:zzz/x` (only reachable by typing it) is a final refusal, never three
+    "retrying" passes."""
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    with pytest.raises(errors.NoteConnUnsupported):
+        await provider.fetch_media({}, "obsidian-att:zzz/x.png")
+
+
+async def test_a_note_waiting_on_a_blob_not_staged_yet_is_not_relisted(db):
+    """I2: re-listing a note whose blob is still absent would only spend a retry attempt on a
+    try that cannot succeed. It waits, untouched, until the blob is staged."""
+    _stage("user-a", "vault-1", "waiting.md", "x", T1)
+    _synced_note("waiting.md", pending=1, body=_retrying_body(_MISSING_SHA))
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert await provider.list_changed({}, cursor=T3) == []
+    _staged_blob(_MISSING_SHA)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert [r.remote_id for r in await provider.list_changed({}, cursor=T3)] == ["waiting.md"]
+
+
+async def test_a_staged_blob_of_another_vault_does_not_relist(db):
+    _stage("user-a", "vault-1", "waiting.md", "x", T1)
+    _synced_note("waiting.md", pending=1)
+    _staged_blob(vault="vault-2")
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert await provider.list_changed({}, cursor=T3) == []
+
+
+async def test_a_plugin_storage_limit_notice_is_never_relisted(db):
+    """M1: a `storage-limit` notice the PLUGIN decided carries no ref; only the plugin's own
+    re-push can clear it. Re-listing it after the engine's storage flip re-wrote the same
+    notice on every other pass."""
+    _stage("user-a", "vault-1", "full.md", "x", T1)
+    _staged_blob()
+    body = {"type": "doc", "content": [{"type": "importNotice", "attrs": {
+        "reason": "storage-limit", "name": "chart.png", "sourceUrl": None, "ref": None,
+        "attempts": 0}}]}
+    _synced_note("full.md", pending=1, body=body)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert await provider.list_changed({}, cursor=T3) == []
+
+
+async def test_an_engine_storage_wait_on_a_staged_blob_is_relisted_once_flipped(db):
+    """The other storage case: the ENGINE's own `storage_limit` notice (it carries the ref)
+    on a staged blob, flipped back to 1 once space freed, is retried."""
+    _stage("user-a", "vault-1", "full.md", "x", T1)
+    _staged_blob()
+    body = {"type": "doc", "content": [{"type": "importNotice", "attrs": {
+        "reason": "storage_limit", "name": "chart.png", "sourceUrl": None,
+        "ref": f"obsidian-att:{_STAGED_SHA}/chart.png", "attempts": 0}}]}
+    _synced_note("full.md", pending=1, body=body)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert [r.remote_id for r in await provider.list_changed({}, cursor=T3)] == ["full.md"]
+
+
+async def test_literal_import_ref_text_does_not_relist_a_note(db):
+    """M3: `import-ref://` typed as TEXT makes the stored body read as pending, but it is no
+    placeholder; nothing can be retried, so the note is not re-listed."""
+    _stage("user-a", "vault-1", "prose.md", "x", T1)
+    _staged_blob()
+    body = {"type": "doc", "content": [{"type": "paragraph", "content": [
+        {"type": "text", "text": f"I wrote import-ref://obsidian-att:{_STAGED_SHA}/chart.png here"}]}]}
+    _synced_note("prose.md", pending=1, body=body)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert await provider.list_changed({}, cursor=T3) == []
+
+
+async def test_a_conflict_sibling_does_not_relist_its_edited_original(db):
+    """M2: the `#remote` sibling of a member-edited note is never touched by the engine while
+    the remote is unchanged, so its pending media must not re-list the original's path."""
+    _stage("user-a", "vault-1", "plan.md", "x", T1)
+    _staged_blob()
+    _synced_note("plan.md", pending=0, updated_at=T3, imported_at=T1)       # edited original
+    _synced_note("plan.md", pending=1, key_suffix="#remote")                # its sibling
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert await provider.list_changed({}, cursor=T3) == []
+
+
+async def test_an_https_hotlink_retry_is_still_relisted(db):
+    _stage("user-a", "vault-1", "web.md", "x", T1)
+    body = {"type": "doc", "content": [{"type": "importNotice", "attrs": {
+        "reason": "fetch_failed", "name": "i.png", "sourceUrl": "https://e.x/i.png",
+        "ref": "https://e.x/i.png", "attempts": 1}}]}
+    _synced_note("web.md", pending=1, body=body)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert [r.remote_id for r in await provider.list_changed({}, cursor=T3)] == ["web.md"]
+
+
+def test_old_plugin_row_keeps_a_link_to_a_staged_note_named_like_a_file():
+    """I1: a NOTE whose name ends in a file extension (`Brief.txt.md`, linked as
+    `[[Brief.txt]]`) is a staged note, so the link stays a link; the same name with no such
+    note is a file and gets the notice."""
+    conv = _convert("[[Brief.txt|the brief]]", ["Brief.txt.md"], refs=None)
+    assert _all(conv["doc"], "importNotice") == []
+    assert [t for t, _h in _link_marks(conv["doc"])] == ["the brief"]
+    conv = _convert("[[Brief.txt|the brief]]", [], refs=None)
+    assert _only(conv["doc"], "importNotice")["attrs"]["name"] == "Brief.txt"
+
+
+# ---------------------------------------------------------------------------
+# D1: a dot in a note's NAME is not an extension. `[[Dr.Smith]]` names `Dr.Smith.md`
+# (Obsidian's rule); only a known attachment extension makes the target a file.
+# ---------------------------------------------------------------------------
+
+
+def test_a_wikilink_to_a_note_with_a_dot_in_its_name_resolves_to_the_note():
+    paths = ["People/Dr.Smith.md", "Notes/v1.2 notes.md"]
+    bmap = _build_basename_map(paths)
+    assert _resolve_target("Dr.Smith", paths, bmap) == "People/Dr.Smith.md"
+    assert _resolve_target("v1.2 notes", paths, bmap) == "Notes/v1.2 notes.md"
+    assert _resolve_target("Dr.Smith.md", paths, bmap) == "People/Dr.Smith.md"
+    out = _convert("[[Dr.Smith]] and [[v1.2 notes]]", paths)
+    assert _link_marks(out["doc"]) == [
+        ("Dr.Smith", _key("People/Dr.Smith.md")),
+        ("v1.2 notes", _key("Notes/v1.2 notes.md")),
+    ]
+    assert out["links"] == [f"obsidian:{_V}/People/Dr.Smith.md", f"obsidian:{_V}/Notes/v1.2 notes.md"]
+
+
+def test_a_dotted_note_name_with_an_alias_resolves_and_keeps_the_alias():
+    out = _convert("[[Q3.Review|the review]]", ["Reviews/Q3.Review.md"])
+    assert _link_marks(out["doc"]) == [("the review", _key("Reviews/Q3.Review.md"))]
+
+
+def test_a_dotted_note_name_with_a_heading_or_block_resolves_to_the_note():
+    out = _convert("[[Dr.Smith#Intro]] [[Dr.Smith#^abc123]]", ["People/Dr.Smith.md"])
+    assert _link_marks(out["doc"]) == [
+        ("Dr.Smith > Intro", _key("People/Dr.Smith.md")),
+        ("Dr.Smith", _key("People/Dr.Smith.md")),
+    ]
+
+
+def test_the_note_wins_over_a_file_sharing_its_dotted_stem():
+    # `Dr.Smith.csv` sorts before `Dr.Smith.md`: the note is what `[[Dr.Smith]]` names.
+    paths = ["People/Dr.Smith.csv", "People/Dr.Smith.md"]
+    bmap = _build_basename_map(paths)
+    assert _resolve_target("Dr.Smith", paths, bmap) == "People/Dr.Smith.md"
+    assert _resolve_target("People/Dr.Smith", paths, bmap) == "People/Dr.Smith.md"
+
+
+def test_the_exact_note_wins_even_when_the_target_ends_in_an_attachment_extension():
+    # Follow-up ruling 2: `<target>.md`, when staged, always wins; only without it does an
+    # attachment extension mean the file.
+    def resolve(target, paths):
+        return _resolve_target(target, paths, _build_basename_map(paths))
+    assert resolve("report.pdf", ["report.pdf.md"]) == "report.pdf.md"
+    assert resolve("report.pdf", ["Files/report.pdf", "report.pdf.md"]) == "report.pdf.md"
+    assert resolve("Files/report.pdf", ["Files/report.pdf", "Files/report.pdf.md"]) == "Files/report.pdf.md"
+    assert resolve("report.pdf", ["Files/report.pdf"]) == "Files/report.pdf"
+    assert resolve("Files/report.pdf", ["Files/report.pdf"]) == "Files/report.pdf"
+    out = _convert("[[Brief.txt|the brief]]", ["Brief.txt.md"], refs=None)
+    assert _link_marks(out["doc"]) == [("the brief", _key("Brief.txt.md"))]
+
+
+def test_an_unknown_dot_suffix_is_never_stripped_to_open_another_note():
+    # Follow-up ruling 1: a wrong note is worse than a visible pending link.
+    def resolve(target, paths):
+        return _resolve_target(target, paths, _build_basename_map(paths))
+    assert resolve("Dr.Smith", ["People/Dr.md"]) is None
+    assert resolve("People/Dr.Smith", ["People/Dr.md"]) is None
+    assert resolve("report.pdf", ["report.png"]) is None
+    # Plan C Task 4 fix round 1: no stem match at all. `[[chart]]` names `chart.md` only.
+    assert resolve("chart", ["Files/chart.png"]) is None
+    out = _convert("[[Dr.Smith]]", ["Dr.md"])
+    assert out["links"] == [f"name:obsidian:{_V}/dr.smith|notes"]
+
+
+def test_a_missing_dotted_note_stays_pending_and_heals_when_it_arrives():
+    out = _convert("[[Dr.Smith]]", [])
+    pending = f"name:obsidian:{_V}/dr.smith|notes"
+    assert _link_marks(out["doc"]) == [("Dr.Smith", f"import-link://{pending}")]
+    assert out["links"] == [pending]
+    assert resolve_pending_target("dr.smith|notes", _build_basename_map([])) is None
+    arrived = _build_basename_map(["Notes/Src.md", "People/Dr.Smith.md"])
+    assert resolve_pending_target("dr.smith|notes", arrived) == "People/Dr.Smith.md"
+
+
+# ── D1 fix round 2 ───────────────────────────────────────────────────────────
+
+
+def _r(target, paths, from_path=None):
+    return _resolve_target(target, paths, _build_basename_map(paths), from_path=from_path)
+
+
+def test_a_dotted_target_never_reaches_a_file_by_its_stem():
+    """I1: the stem match is for a dot-less name only. A dotted name opens its note or the
+    file of exactly that name, never `<name>.<ext>`."""
+    assert _r("Dr.Smith", ["People/Dr.Smith.csv"]) is None
+    assert _r("Dr.Smith", ["People/Dr.Smith.csv", "People/Dr.md"]) is None
+    assert _r("People/Dr.Smith", ["People/Dr.Smith.csv"]) is None
+    assert _r("Q3.Review", ["Q3.Review.xlsx", "Reviews/Q3.md"]) is None
+    assert _r("report.pdf", ["report.pdf.png"]) is None
+    assert _r("archive.tar", ["archive.tar.gz"]) is None
+    assert _r("v1.2 notes", ["v1.2 notes.pdf"]) is None
+    assert _r("Plan.md", ["Notes/Plan.md.bak"]) is None
+    # Plan C Task 4 fix round 1: a dot-less name has no stem match either. Obsidian
+    # assumes `.md` for a link with no extension: `[[chart]]` names `chart.md` only.
+    assert _r("chart", ["img/chart.png"]) is None
+    assert _r("img/chart", ["img/chart.png"]) is None
+    assert _r("v1.2/chart", ["v1.2/chart.png"]) is None
+    assert _r("chart", ["img/chart.png", "Notes/chart.md"]) == "Notes/chart.md"
+    assert _r("img/chart", ["img/chart.png", "img/chart.md"]) == "img/chart.md"
+
+
+def test_a_target_holding_a_hash_that_exactly_names_a_file_opens_that_file():
+    """Plan C Task 4 fix round 1: the FULL target, anchor text included, is checked
+    against the vault's file names first; only otherwise is the anchor split off."""
+    name = "attachments/my chart #1 (v2).png"
+    assert _r("my chart #1 (v2).png", [name]) == name
+    assert _r("attachments/my chart #1 (v2).png", [name]) == name
+    assert _r("MY CHART #1 (V2).PNG", [name]) == name
+    # No file of that full name: the anchor splits as before.
+    assert _r("Other note#Risk", ["Other note.md"]) == "Other note.md"
+    assert _r("Other note#^abc123", ["Other note.md"]) == "Other note.md"
+    assert _r("my chart #1 (v2).png", ["my chart.md"]) == "my chart.md"
+    out = _convert("![[my chart #1 (v2).png]]", [name])
+    assert out["media"] and out["media"][0]["ref"] == name
+
+
+def test_the_exact_note_step_takes_only_the_note_never_a_note_with_a_second_extension():
+    """I2: `<target>.md` exactly. A `Plan.md.bak` listed first never wins, and alone it is
+    not the note."""
+    for order in (["Notes/Plan.md.bak", "Notes/Plan.md"], ["Notes/Plan.md", "Notes/Plan.md.bak"]):
+        assert _r("Notes/Plan", order) == "Notes/Plan.md"
+        assert _r("Plan", order) == "Notes/Plan.md"
+    assert _r("Notes/Plan", ["Notes/Plan.md.bak"]) is None
+    assert _r("Files/report.pdf", ["Files/report.pdf.md.zip", "Files/report.pdf.md"]) == "Files/report.pdf.md"
+
+
+def test_same_named_candidates_break_ties_the_same_way_whatever_the_listing_order():
+    """M1: same folder as the linking note, then fewest folders, then sort order."""
+    paths = ["Z/Setup.md", "B/Setup.md", "A/Deep/Setup.md"]
+    assert _r("Setup", paths) == "B/Setup.md"
+    assert _r("Setup", list(reversed(paths))) == "B/Setup.md"
+    assert _r("Setup", paths, from_path="Z/Src.md") == "Z/Setup.md"
+    assert _r("Setup", paths, from_path="A/Deep/Src.md") == "A/Deep/Setup.md"
+    assert _r("Dr.Smith", ["A/B/Dr.Smith.md", "Dr.Smith.md"], from_path="Src.md") == "Dr.Smith.md"
+    assert _r("report.pdf", ["Y/report.pdf", "X/report.pdf"]) == "X/report.pdf"
+
+
+def test_a_leading_slash_wikilink_is_vault_root_relative():
+    """Post-merge fix 1: `[[/x]]` names `x` from the VAULT ROOT, as the client's resolver
+    (Plan B, `obsidianResolve.js`) reads it: the exact note first, then the path as written;
+    never a same-folder or by-name pick, and never above the root. ⚰️ The server read
+    `/plan` as a path-qualified suffix no path ends in, so the link stayed pending."""
+    paths = ["Plan.md", "Notes/Plan.md", "Notes/Src.md", "files/deck.pdf", "report.pdf",
+             "report.pdf.md"]
+    assert _r("/Plan", paths, from_path="Notes/Src.md") == "Plan.md"
+    assert _r("Plan", paths, from_path="Notes/Src.md") == "Notes/Plan.md"   # control
+    assert _r("/Notes/Plan", paths, from_path="Src.md") == "Notes/Plan.md"
+    assert _r("/notes/plan.md#Risk", paths) == "Notes/Plan.md"
+    assert _r("/files/deck.pdf", paths) == "files/deck.pdf"
+    assert _r("/report.pdf", paths) == "report.pdf.md"
+    assert _r("//Plan", paths) == "Plan.md"
+    assert _r("/Notes/../Plan", paths) == "Plan.md"
+    for miss in ("/Ghost", "/../Plan", "/deck.pdf", "/", "/Notes/Ghost"):
+        assert _r(miss, paths, from_path="Notes/Src.md") is None, miss
+    out = _convert("[[/Plan]] and [[/Notes/Plan|by path]]", paths, self_path="Notes/Src.md")
+    assert [h for _, h in _link_marks(out["doc"])] == [_key("Plan.md"), _key("Notes/Plan.md")]
+
+
+def test_the_named_lane_differences():
+    """Post-merge fix 2: the server half of `obsidianParity.contract.test.js::
+    DELIBERATE_LANE_DIFFERENCES`. attachment-folder: the server has no `.obsidian/app.json`
+    (the plugin stages notes and refs only), so a same-named file ties by fewest folders,
+    then sort order; the client's file import ties to the attachment folder it reads there.
+    A 0.2.0 plugin's refs carry Obsidian's own answer, so live sync is unaffected."""
+    paths = ["V/A/x.png", "V/Files/x.png", "V/C/m.md"]
+    assert _r("x.png", paths, from_path="V/C/m.md") == "V/A/x.png"
+
+
+def test_a_missing_dotted_note_embed_waits_like_a_wikilink_and_a_missing_file_is_text():
+    """M3: `![[Dr.Smith]]` before its note arrives is the same pending link `[[Dr.Smith]]` is,
+    so it heals; `![[report.pdf]]` (a known attachment extension) stays plain text."""
+    out = _convert("![[Dr.Smith]]\n\n![[report.pdf]]", [])
+    pending = f"name:obsidian:{_V}/dr.smith|notes"
+    assert _link_marks(out["doc"]) == [("Dr.Smith", f"import-link://{pending}")]
+    assert out["links"] == [pending]
+    assert extract_plain_text(out["doc"]) == "Dr.Smith report.pdf"
+
+
+# ── D1 fix round 3 ───────────────────────────────────────────────────────────
+
+
+def _runs(node, out=None):
+    out = [] if out is None else out
+    if isinstance(node, dict):
+        if node.get("type") == "text":
+            marks = node.get("marks") or []
+            href = next((m["attrs"]["href"] for m in marks if m.get("type") == "link"), None)
+            out.append((node.get("text"), "+".join(sorted(m["type"] for m in marks)), href))
+        for c in node.get("content") or []:
+            _runs(c, out)
+    return out
+
+
+def test_a_wikilink_inside_a_highlight_keeps_its_link_and_its_highlight():
+    """N2: `==[[Plan]]==` is a highlighted LINK. The highlight pass used to escape the
+    `<import-link://...>` destination, and the link was lost."""
+    out = _convert("a ==[[Plan]]== b and ==see [[Plan|the plan]] & <more>== c", ["Plan.md"])
+    assert _runs(out["doc"]) == [
+        ("a ", "", None),
+        ("Plan", "highlight+link", _key("Plan.md")),
+        (" b and ", "", None),
+        ("see ", "highlight", None),
+        ("the plan", "highlight+link", _key("Plan.md")),
+        (" & <more>", "highlight", None),
+        (" c", "", None),
+    ]
+    assert out["links"] == [f"obsidian:{_V}/Plan.md"] * 2
+
+
+def test_a_missing_dotted_note_inside_a_highlight_is_a_highlighted_pending_link():
+    out = _convert("a ==[[Ghost.Name]]== b", [])
+    pending = f"import-link://name:obsidian:{_V}/ghost.name|notes"
+    assert _runs(out["doc"]) == [("a ", "", None), ("Ghost.Name", "highlight+link", pending), (" b", "", None)]
+    assert extract_plain_text(out["doc"]) == "a Ghost.Name b"
+
+
+def test_a_wikilink_in_a_callout_title_stays_a_link_in_the_bold_title():
+    out = _convert("> [!note] See [[Plan]]\n> body", ["Plan.md"])
+    callout = out["doc"]["content"][0]
+    assert callout["type"] == "callout"
+    assert _runs(callout["content"][0]) == [("See ", "bold", None), ("Plan", "bold+link", _key("Plan.md"))]
+    assert extract_plain_text(out["doc"]) == "See Plan body"
+
+
+def test_the_client_attachment_extensions_are_the_servers():
+    """D2 item 8: the client adapter reads an unresolved `#`-holding target as a FILE name by
+    the same extension list as this provider (`_UNSENT_ATTACHMENT_EXTS`), so both lanes show
+    `[[report #2.pdf]]` the same way. Parses the client's string literals; one list, two
+    copies, pinned."""
+    import pathlib
+    import re as _re
+
+    from api.services.journal_two.note_connectors.providers.obsidian import _UNSENT_ATTACHMENT_EXTS
+
+    js = (pathlib.Path(__file__).resolve().parents[3] / "app" / "src" / "pages" / "journal-2-0"
+          / "lib" / "importer" / "adapters" / "obsidian.js").read_text(encoding="utf-8")
+    block = _re.search(r"const ATTACHMENT_EXTS = new Set\(\(([\s\S]*?)\)\.split\(' '\)\)", js)
+    assert block, "obsidian.js no longer declares ATTACHMENT_EXTS in the pinned shape"
+    words = " ".join(_re.findall(r"'([^']*)'", block.group(1))).split()
+    assert len(words) == len(set(words))
+    assert set(words) == set(_UNSENT_ATTACHMENT_EXTS)
+
+
+def test_a_file_link_keeps_the_members_text_as_the_chip_label():
+    """D2 item 6: `[the report](attachments/q3%20report.pdf)` keeps the member's words as the
+    chip's optional `label`; the download name stays `name`. Written only when the text
+    differs from the file name; an embed has no text and gets none. One file, one media
+    entry, whatever its labels."""
+    path = "attachments/q3 report.pdf"
+    refs = [REF(original="[the report](attachments/q3%20report.pdf)", embed=False, path=path),
+            REF(original="[q3 report.pdf](attachments/q3%20report.pdf)", embed=False, path=path),
+            REF(original="[[q3 report.pdf|the sheet]]", embed=False, path=path),
+            REF(original="![[q3 report.pdf]]", path=path)]
+    body = ("Read [the report](attachments/q3%20report.pdf) and "
+            "[q3 report.pdf](attachments/q3%20report.pdf), [[q3 report.pdf|the sheet]], "
+            "![[q3 report.pdf]].")
+    conv = _convert(body, refs=refs)
+    href = "import-ref://obsidian-file:" + _SHA + "/q3%20report.pdf"
+    assert [c["attrs"] for c in _all(conv["doc"], "attachmentChip")] == [
+        {"href": href, "name": "q3 report.pdf", "label": "the report"},
+        {"href": href, "name": "q3 report.pdf"},
+        {"href": href, "name": "q3 report.pdf", "label": "the sheet"},
+        {"href": href, "name": "q3 report.pdf"},
+    ]
+    assert conv["media"] == [{"ref": "obsidian-file:" + _SHA + "/q3%20report.pdf", "kind": "file",
+                              "name": "q3 report.pdf"}]
+    # A label holding the characters the placeholder is written with survives exactly.
+    odd = "50% / #2 (draft) > old"
+    conv = _convert(f"[{odd}](a.pdf)", refs=[REF(original=f"[{odd}](a.pdf)", embed=False, path="a.pdf")])
+    assert _only(conv["doc"], "attachmentChip")["attrs"]["label"] == odd
+    assert conv["media"][0]["ref"] == "obsidian-file:" + _SHA + "/a.pdf"
+
+
+def test_a_chip_label_is_the_rendered_text_of_the_link_never_its_markdown():
+    """D2 fix round 1, I2: the label is what the member READS, as the client takes it from
+    the rendered link: `[**the** report](...)` -> `the report`, `[the\\_x](...)` -> `the_x`,
+    emphasis and strikethrough read as their words, raw HTML tags add nothing. A wikilink
+    alias likewise."""
+    cases = [("**the** report", "the report"), (r"the\_x", "the_x"), ("*q3* ~~deck~~", "q3 deck"),
+             ("a <b>bold</b> one", "a bold one"), ("**q3 report.pdf**", None),
+             # D2 fix round 2, N3: an Obsidian highlight reads as its words, as on the client.
+             ("==hi== there", "hi there"), ("if rsi == 30", "if rsi == 30")]
+    for text, label in cases:
+        original = f"[{text}](attachments/q3%20report.pdf)"
+        conv = _convert(f"see {original} now",
+                        refs=[REF(original=original, embed=False, path="attachments/q3 report.pdf")])
+        assert _only(conv["doc"], "attachmentChip")["attrs"].get("label") == label, text
+    original = "[[q3 report.pdf|the **deck**]]"
+    conv = _convert(original, refs=[REF(original=original, embed=False, path="attachments/q3 report.pdf")])
+    assert _only(conv["doc"], "attachmentChip")["attrs"]["label"] == "the deck"
+
+
+def test_an_embed_in_alias_position_keeps_the_image_and_the_link():
+    """D2 fix round 1 (e): `[[Plan|![[img.png]]]]` is the embed, then the link to Plan reading
+    as Obsidian names it, with the text around it kept. ⚰️ The alias pattern read `![[img.png`
+    as the alias, so raw brackets showed around the image and the link was lost."""
+    ref = REF(original="![[img.png]]", path="att/img.png")
+    src = "import-ref://obsidian-att:" + _SHA + "/img.png"
+    for refs, paths in (([ref], ["Plan.md"]), ([], ["Plan.md", "att/img.png"])):
+        conv = _convert("x [[Plan|![[img.png]]]] y", paths, refs=refs)
+        images = [n["attrs"]["src"] for n in _all(conv["doc"], "image")]
+        assert images == ([src] if refs else ["import-ref://att/img.png"])
+        assert _link_marks(conv["doc"]) == [("Plan", _key("Plan.md"))]
+        assert extract_plain_text(conv["doc"]) == "x  Plan y"
+        assert "[" not in _plain(conv["doc"]) and "]" not in _plain(conv["doc"])
+    # A note not here yet: the image, then the pending link, as any wikilink waits.
+    conv = _convert("[[Ghost#Risk|![[img.png]]]]", refs=[ref])
+    assert len(_all(conv["doc"], "image")) == 1
+    assert conv["links"] == [f"name:obsidian:{_V}/ghost|notes"]
+    assert extract_plain_text(conv["doc"]) == "Ghost > Risk"
+    # An old plugin row: the update notice for the file, and still the link.
+    conv = _convert("[[Plan|![[img.png]]]]", ["Plan.md"], refs=None, supports=False)
+    assert [n["attrs"]["name"] for n in _all(conv["doc"], "importNotice")] == ["img.png"]
+    assert _link_marks(conv["doc"]) == [("Plan", _key("Plan.md"))]
+
+
+def test_a_file_link_whose_text_holds_a_code_span_is_a_chip_or_a_notice():
+    """D2 fix round 2, N-I1: the attachment pass runs over the WHOLE body with code spans
+    protected, so an original that CONTAINS a whole code span is still found. It used to run
+    per code-split segment, the original was cut at its code span and never found: no chip,
+    no upload, no notice -- silently, on both the new- and the old-plugin path."""
+    original = "[`q3` deck](attachments/q.pdf)"
+    conv = _convert(f"see {original} end",
+                    refs=[REF(original=original, embed=False, path="attachments/q.pdf")])
+    chip = _only(conv["doc"], "attachmentChip")
+    assert chip["attrs"]["name"] == "q.pdf" and chip["attrs"]["label"] == "q3 deck"
+    assert [m["ref"] for m in conv["media"]] == ["obsidian-file:" + _SHA + "/q.pdf"]
+    old = _convert(f"see {original} end", refs=None, supports=False)
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in _all(old["doc"], "importNotice")] == [
+        ("obsidian-plugin-outdated", "q.pdf")]
+    wiki = "[[q.pdf|the `q3` deck]]"
+    conv = _convert(f"a {wiki} b", refs=[REF(original=wiki, embed=False, path="attachments/q.pdf")])
+    assert _only(conv["doc"], "attachmentChip")["attrs"]["label"] == "the q3 deck"
+
+
+def test_an_original_inside_or_across_a_code_span_is_never_rewritten():
+    """D2 fix round 2, N-I1 guard: an original may contain a whole code span, never sit inside
+    one, start inside one or end inside one; fences are code too. Both branches."""
+    refs = [REF(), REF(original="[a](q.pdf)", embed=False, path="q.pdf"),
+            REF(original="[a `b](q.pdf)", embed=False, path="q.pdf")]
+    body = ("`![[chart.png]]` and `x [a](q.pdf) y`\n\n```\n[a](q.pdf) ![[chart.png]]\n```\n\n"
+            "~~~\n![[chart.png]]\n~~~\n\n[a `b](q.pdf) c` d\n")
+    for kwargs in ({"refs": refs}, {"refs": None, "supports": False}):
+        conv = _convert(body, **kwargs)
+        assert _all(conv["doc"], "image") == [] and _all(conv["doc"], "attachmentChip") == []
+        assert _all(conv["doc"], "importNotice") == [], kwargs
+        assert conv["media"] == []
+        assert "![[chart.png]]" in _plain(conv["doc"]) and "[a](q.pdf)" in _plain(conv["doc"])
+
+
+def test_an_embed_as_the_alias_of_a_file_link_keeps_the_image_and_the_chip():
+    """D2 fix round 2, N4: `[[q.pdf|![[img.png]]]]` arriving as one non-embed ref (with the
+    embed's own ref beside it) reads as the image, then the file chip, as on the client. The
+    whole link used to claim the text first, so the image vanished silently."""
+    pdf = REF(original="[[q.pdf|![[img.png]]]]", embed=False, path="att/q.pdf", sha256="b" * 64)
+    img = REF(original="![[img.png]]", path="att/img.png")
+    chip = {"href": "import-ref://obsidian-file:" + "b" * 64 + "/q.pdf", "name": "q.pdf"}
+    for refs in ([pdf, img], [img, pdf]):
+        conv = _convert("x [[q.pdf|![[img.png]]]] y", refs=refs)
+        kinds = [n["type"] for n in conv["doc"]["content"]]
+        assert kinds == ["paragraph", "image", "attachmentChip", "paragraph"], kinds
+        assert _only(conv["doc"], "attachmentChip")["attrs"] == chip
+        assert _only(conv["doc"], "image")["attrs"]["src"] == "import-ref://obsidian-att:" + _SHA + "/img.png"
+        assert [m["kind"] for m in conv["media"]] == ["image", "file"]
+        assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y"
+    # Only the link's ref: the embed stays for the passes after, which show its name.
+    conv = _convert("x [[q.pdf|![[img.png]]]] y", refs=[pdf])
+    assert _only(conv["doc"], "attachmentChip")["attrs"] == chip
+    assert "img.png" in _plain(conv["doc"])
+
+
+def test_a_file_link_original_cut_off_at_its_embeds_brackets_still_keeps_both():
+    """D2 fix round 3, N-I3: Obsidian's link cache may end the link's `original` at the embed's
+    own `]]` (`[[q.pdf|![[img.png]]`) while the note goes on with `]]`. That original is read
+    as the whole `[[q.pdf|![[img.png]]]]`: the image, then the chip, both listed, in either
+    ref order. It used to claim the text first, drop the image and leave a stray `]]`."""
+    pdf = REF(original="[[q.pdf|![[img.png]]", embed=False, path="att/q.pdf", sha256="b" * 64)
+    img = REF(original="![[img.png]]", path="att/img.png")
+    for refs in ([pdf, img], [img, pdf]):
+        conv = _convert("x [[q.pdf|![[img.png]]]] y", refs=refs)
+        assert [n["type"] for n in conv["doc"]["content"]] == [
+            "paragraph", "image", "attachmentChip", "paragraph"]
+        assert [m["kind"] for m in conv["media"]] == ["image", "file"]
+        assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y"
+        assert "]]" not in _plain(conv["doc"])
+
+
+def test_the_attachment_pass_is_near_linear_in_overlapping_originals():
+    """Final review I1: originals `a`, `aa`, ... over a 200 KB body of `a` took 15.8 s: each
+    original rescanned the body from `at + 1` inside the spans the longer ones claimed. A
+    search now resumes at the end of the claimed span it hit."""
+    import time
+
+    from api.services.journal_two.note_connectors.providers.obsidian import _apply_attachment_refs
+    refs = [REF(original="a" * n, embed=False, path=f"f{n}.pdf", sha256=_SHA) for n in range(1, 201)]
+    started = time.perf_counter()
+    out = _apply_attachment_refs("a" * 200_000, refs, True)
+    assert time.perf_counter() - started < 1.0
+    assert "obsidian-file:" in out and "a" not in out.replace("obsidian-file:", "").split("(")[0]
+    # The same originals all inside one code span: every occurrence is refused, and the
+    # search jumps past the span instead of stepping through it.
+    code = "`" + "a" * 200_000 + "`"
+    started = time.perf_counter()
+    assert _apply_attachment_refs(code, refs, True) == code
+    assert time.perf_counter() - started < 1.0
+
+
+def test_the_attachment_pass_is_bounded_at_the_ref_cap():
+    """Final review I1: 5000 refs (the ingest cap), none of them in a 1 MB body, still cost a
+    bounded time; past the pass's work budget the rest of the originals stay as written."""
+    import time
+
+    from api.services.journal_two.note_connectors.providers.obsidian import _apply_attachment_refs
+    refs = [REF(original=f"![[missing-{i}.png]]", path=f"m{i}.png") for i in range(5000)]
+    body = ("plain trading prose " * 50_000) + "![[missing-4999.png]]"
+    started = time.perf_counter()
+    out = _apply_attachment_refs(body, refs, True)
+    assert time.perf_counter() - started < 2.0
+    assert out.startswith("plain trading prose")
+
+
+@pytest.mark.parametrize("body", ["[" * 20000, "[" * 20000 + "]]", "![[" * 3400, ("x [" * 5000) + "]]"],
+                         ids=["brackets", "brackets-then-close", "embed-openers", "spaced-brackets"])
+def test_a_long_run_of_brackets_converts_in_linear_time(body):
+    """D2 fix round 3 (perf): the wikilink patterns used to retry their whole target at every
+    `[` of a run, so a 20 KB line of `[` took ~13 s to convert (~20 s on an old-plugin row),
+    on every sync. A target or alias can no longer run across `[[`, which bounds each try."""
+    import time
+    for refs in ([], None):
+        started = time.perf_counter()
+        _convert(body, refs=refs)
+        assert time.perf_counter() - started < 1.0, (len(body), refs)
+
+
+def test_every_wikilink_pattern_of_this_provider_is_linear_on_a_bracket_run():
+    """D2 fix round 3 (perf): each wikilink-shaped pattern, alone, over 40 KB of `[` and of
+    `![[`. A whole conversion of a long `![[` run still spends time in the SHARED converter
+    (`mddoc` and markdown-it's own image-opener scan, not this provider), so the provider's
+    own patterns are timed here, where a quadratic one shows by itself."""
+    import time
+
+    from api.services.journal_two.note_connectors.providers import obsidian as provider
+    patterns = ["_WIKI_RE", "_NESTED_EMBED_RE", "_ALIAS_EMBED_RE", "_CUT_ALIAS_EMBED_RE"]
+    # D2 fix round 5: the blank-line stop scans a whitespace run, so a run of them is timed too.
+    for body in ("[" * 40000, "![[" * 13400, "[[a|" * 10000, "[[a|\n" + " " * 40000,
+                 "[[a|" + "\n " * 20000, "![[" + "\n \t" * 13400,
+                 "[[a|\n" + "> " * 20000, "[[a|" + "\n   > >``" * 5000,
+                 # D2 fix round 5 (final), ruling A: the block-start stops.
+                 "[[a|\n" + "-" * 40000, "[[a|\n" + "* " * 20000, "[[a|\n" + "9" * 40000,
+                 "[[a|" + "\n   > > -x" * 4000):
+        for name in patterns:
+            started = time.perf_counter()
+            list(getattr(provider, name).finditer(body))
+            assert time.perf_counter() - started < 0.2, (name, body[:4], len(body))
+
+
+def test_the_deeper_quote_check_is_linear():
+    """D2 fix round 5 (final), ruling A: `_deepens_quote` reads each multi-line match's own
+    lines once, so thousands of multi-line wikilinks on long quoted lines stay fast."""
+    import time
+
+    from api.services.journal_two.note_connectors.providers import obsidian as provider
+    for body in (("> " * 50 + "x [[a|b\n> c]] ") * 4000, "[[a|b\nc]] " * 20000):
+        started = time.perf_counter()
+        provider._sub_clear_of_code(provider._WIKI_RE, lambda m: "L", body, wiki=True)
+        assert time.perf_counter() - started < 0.5, len(body)
+
+
+def test_a_note_wikilink_whose_alias_holds_a_code_span_is_a_link():
+    """D2 fix round 4, N-I4: the wikilink and deep-link passes run over the whole body with
+    code spans protected, as the attachment pass (round 2) and the client (round 3) do.
+    `[[Plan|the `x` plan]]` used to be cut at its code span: raw brackets, no link."""
+    out = _convert("see [[Plan|the `x` plan]] end", ["Plan.md"])
+    assert [h for _, h in _link_marks(out["doc"])] == [_key("Plan.md")] * 3
+    assert extract_plain_text(out["doc"]) == "see the x plan end"
+    callout = _convert("> [!tip] See [[Plan|the `x`]]\n> body", ["Plan.md"])["doc"]["content"][0]
+    assert callout["type"] == "callout"
+    assert [h for _, h in _link_marks(callout["content"][0])] == [_key("Plan.md")] * 2
+    assert extract_plain_text(callout) == "See the x body"
+
+
+@pytest.mark.parametrize("refs", [NO_ATTACHMENT_PASS, None], ids=["refs-branch", "old-plugin"])
+def test_a_wikilink_never_spans_a_blank_line_or_a_fence(refs):
+    """D2 fix round 5, M-r4-1: a wikilink or embed target or alias may not hold a blank line (a
+    newline, optional whitespace, a newline) or a fence. Obsidian does not link across a
+    paragraph break. ⚰️ The pass wrote `[first\\n\\nsecond](import-link://...)`; the paragraph
+    break cut that markdown link and the member read the INTERNAL import key as autolinked
+    text. Both lanes now leave such text exactly as written."""
+    paths = ["Plan.md", "attachments/chart.png"]
+    for body, plain in [
+        ("see [[Plan|first\n\nsecond]] end", "see [[Plan|first second]] end"),
+        ("see [[Plan|first\n \t\nsecond]] end", "see [[Plan|first second]] end"),
+        ("see [[Plan|first\r\n\r\nsecond]] end", "see [[Plan|first second]] end"),
+        ("see [[Pl\n\nan]] end", "see [[Pl an]] end"),
+        ("x ![[chart.png|a\n\nb]] y", "x ![[chart.png|a b]] y"),
+        ("x ![[chart\n\n.png]] y", "x ![[chart .png]] y"),
+    ]:
+        out = _convert(body, paths, refs=refs)
+        assert _link_marks(out["doc"]) == [] and out["links"] == [], body
+        assert _all(out["doc"], "image") == [] and out["media"] == [], body
+        assert "import-link" not in _plain(out["doc"]), body
+        assert _plain(out["doc"]) == plain, body
+    for fence in ("```", "~~~"):
+        body = f"[[Plan|a\n{fence}\ncode\n{fence}\nb]]"
+        out = _convert(body, paths, refs=refs)
+        assert _link_marks(out["doc"]) == [] and out["links"] == [], body
+        assert "import-link" not in _plain(out["doc"]), body
+        assert [n["type"] for n in out["doc"]["content"]] == ["paragraph", "codeBlock", "paragraph"]
+        assert _plain(out["doc"]) == "[[Plan|a code b]]", body
+    # A single newline inside an alias is still the one link it was, on both lanes.
+    out = _convert("see [[Plan|first\nsecond]] end", paths, refs=refs)
+    assert [h for _, h in _link_marks(out["doc"])] == [_key("Plan.md")]
+
+
+@pytest.mark.parametrize("refs", [NO_ATTACHMENT_PASS, None], ids=["refs-branch", "old-plugin"])
+def test_a_quote_paragraph_break_stops_a_wikilink_and_only_a_fence_line_is_a_fence(refs):
+    """D2 fix round 5 follow-up. (1) Inside a blockquote or callout a line holding only `>` is
+    a paragraph break, so a wikilink does not span it either: the key leaked there too.
+    (2) A fence is a fence LINE (a newline, up to 3 spaces, optional `>` prefixes, then ```` ``` ````
+    or `~~~`). A one-line ```` ``` ```` run is an inline code span, which a link may hold whole."""
+    paths = ["Plan.md"]
+    for body in ["> see [[Plan|a\n>\n> b]] end", "> see [[Plan|a\n> \t\n> b]] end",
+                 "> see [[Plan|a\r\n>\r\n> b]] end", "> > see [[Plan|a\n> >\n> > b]] end",
+                 "> [!tip] See [[Plan|a\n>\n> b]] end",
+                 "> [[Plan|a\n> ```\n> code\n> ```\n> b]]", "[[Plan|a\n   ~~~\ncode\n   ~~~\nb]]"]:
+        out = _convert(body, paths, refs=refs)
+        assert _link_marks(out["doc"]) == [] and out["links"] == [], body
+        text = _plain(out["doc"])
+        assert "import-link" not in text and "[[Plan|a" in text and "b]]" in text, (body, text)
+    for body in ["> see [[Plan|a\n> b]] end", "see [[Plan|a ```x``` b]] end",
+                 "see [[Plan|a ~~~x~~~ b]] end", "see [[Plan|a\n    ```x``` b]] end"]:
+        out = _convert(body, paths, refs=refs)
+        assert {h for _, h in _link_marks(out["doc"])} == {_key("Plan.md")}, body
+        assert "import-link" not in _plain(out["doc"]) and "[[" not in _plain(out["doc"]), body
+
+
+#: D2 fix round 5 (final), ruling A: a single newline whose next line starts a block.
+BLOCK_START_AS_WRITTEN = [
+    "see [[Plan|a\n> b]] end", "see [[Plan|a\n# b]] end", "see [[Plan|a\n### b]] end",
+    "see [[Plan|a\n- b]] end", "see [[Plan|a\n* b]] end", "see [[Plan|a\n+ b]] end",
+    "see [[Plan|a\n1. b]] end", "see [[Plan|a\n12) b]] end", "see [[Plan|a\n---\nb]] end",
+    "see [[Plan|a\n* * *\nb]] end", "see [[Plan|a\n___\nb]] end", "- see [[Plan|a\n- b]] end",
+    "> see [[Plan|a\n> > b]] end", "> see [[Plan|a\n> # b]] end", "see [[Plan|a\n   - b]] end",
+    "x ![[Plan|a\n# b]] y",
+]
+BLOCK_START_ONE_LINK = [
+    "> see [[Plan|a\n> b]] end", "> see [[Plan|a\nb]] end", "> > see [[Plan|a\n> b]] end",
+    "- see [[Plan|a\n  b]] end", "see [[Plan|a\nb # c]] end", "see [[Plan|a\n-b]] end",
+    "see [[Plan|a\n1.5 b]] end", "see [[Plan|a\n#b]] end",
+]
+
+
+@pytest.mark.parametrize("refs", [NO_ATTACHMENT_PASS, None], ids=["refs-branch", "old-plugin"])
+def test_a_wikilink_never_crosses_into_a_line_that_starts_a_block(refs):
+    """D2 fix round 5 (final), ruling A: a target or alias may not cross a newline whose next
+    line (after up to 3 spaces and optional `>` prefixes) starts a block: a heading, a list
+    item, a thematic break, an HTML block or a fence, or a `>` that opens a DEEPER quote than
+    the line the link starts on. ⚰️ Each of these leaked `import-link://...` as text: the
+    block cut the markdown link the pass wrote. Such text is left as written."""
+    for body in BLOCK_START_AS_WRITTEN + ["see [[Plan|a\n<div>b]] end"]:
+        out = _convert(body, ["Plan.md"], refs=refs)
+        assert _link_marks(out["doc"]) == [] and out["links"] == [], body
+        text = _plain(out["doc"])
+        assert "import-link" not in text, (body, text)
+        if "<div>" not in body:
+            assert "[[Plan|a" in text and "b]]" in text, (body, text)
+    for body in BLOCK_START_ONE_LINK:
+        out = _convert(body, ["Plan.md"], refs=refs)
+        assert {h for _, h in _link_marks(out["doc"])} == {_key("Plan.md")}, body
+        assert "import-link" not in _plain(out["doc"]) and "[[" not in _plain(out["doc"]), body
+
+
+@pytest.mark.parametrize("refs", [NO_ATTACHMENT_PASS, None], ids=["refs-branch", "old-plugin"])
+def test_the_safety_net_leaves_a_link_that_does_not_come_back_as_written(refs, caplog):
+    """D2 fix round 5 (final), ruling B: shapes no stop names (an empty heading or list
+    item, a table) still cut the markdown link the pass wrote. The net sees
+    the internal key in visible text, finds the one match that wrote it, and leaves that
+    match as written; every other link in the note stays. It logs one warning."""
+    import logging
+
+    for shape in ("#", "-", "| x |\n| --- |"):
+        body = f"see [[Plan]] ok\n\nsee [[Plan|a\n{shape}\nb]] end\n\nand [[Plan|c\nd]] too"
+        caplog.clear()
+        with caplog.at_level(logging.WARNING):
+            out = _convert(body, ["Plan.md"], refs=refs)
+        text = _plain(out["doc"])
+        assert "import-link" not in text, (shape, text)
+        assert "[[Plan|a" in text and "b]]" in text, (shape, text)
+        assert [t for t, _ in _link_marks(out["doc"])] == ["Plan", "c d"], shape
+        warned = [r for r in caplog.records if "safety net" in r.getMessage()]
+        assert len(warned) == 1, (shape, [r.getMessage() for r in caplog.records])
+
+
+def test_the_safety_net_never_fires_on_the_parity_fixtures(caplog):
+    """A clean note converts once, with no warning: every committed parity input."""
+    import json
+    import logging
+
+    from api.services.journal_two.note_connectors.convert import obsidian_parity_fixtures_gen as gen
+
+    with caplog.at_level(logging.WARNING):
+        for md in sorted(gen.FIXTURES_IN_DIR.glob("*.md")):
+            manifest = json.loads((gen.FIXTURES_IN_DIR / f"{md.stem}.vault.json").read_text("utf-8"))
+            paths = [p for p in manifest["vault_paths"] if p.endswith(".md")]
+            _convert(md.read_text("utf-8"), paths, self_path=manifest["self_path"],
+                     refs=manifest.get("attachments", []))
+    assert [r.getMessage() for r in caplog.records if "safety net" in r.getMessage()] == []
+
+
+def test_wikilinks_in_code_or_cut_by_code_stay_as_written():
+    """D2 fix round 4, N-I4 guard: a wikilink, embed or deep link inside code, or cut by a
+    code span, is never rewritten."""
+    body = ("`[[Plan]]` and `![[img.png]]` and [[Plan `x]] y` z\n\n```\n[[Plan]] [x](obsidian://open?file=Plan)\n```\n\n"
+            "~~~\n[[Plan]]\n~~~\n")
+    out = _convert(body, ["Plan.md", "att/img.png"], label="vault-1")
+    assert _link_marks(out["doc"]) == [] and out["links"] == []
+    assert _all(out["doc"], "image") == [] and out["media"] == []
+    text = _plain(out["doc"])
+    assert "[[Plan]]" in text and "![[img.png]]" in text and "obsidian://open" in text

@@ -53,6 +53,7 @@ Spec: .superpowers/sdd/2026-09-02-obsidian-ingest-server/task-3-brief.md
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -285,13 +286,19 @@ def ingest_batch(
                 skipped += 1
                 continue
             safe_updated_at = _sanitize_updated_at(note["updated_at"], received_at=received_at)
+            # Plan C Task 2: the note's attachment refs as the plugin resolved them. NULL is
+            # "this plugin sends no refs" (0.1.x, or 0.2.0 in legacy mode); `[]` is "a note
+            # with no attachments". The provider tells the two apart, so they never merge.
+            refs = note.get("attachments")
             conn.execute(
                 "INSERT OR REPLACE INTO j2_obsidian_staging "
-                "(user_id, vault_id, vault_path, content_hash, body_md, updated_at, received_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "(user_id, vault_id, vault_path, content_hash, body_md, updated_at, received_at,"
+                " attachments_json) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     user_id, vault_id, vault_path, content_hash,
                     note["body_md"], safe_updated_at, received_at,
+                    None if refs is None else json.dumps(refs),
                 ),
             )
             written += 1
