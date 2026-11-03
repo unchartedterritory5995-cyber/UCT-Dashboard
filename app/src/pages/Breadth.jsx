@@ -47,6 +47,8 @@ import SurfaceHeader from './SurfaceHeader'
 import { useInTerminalPanel, PanelState } from '../components/terminal'
 import jsonFetcher from '../utils/jsonFetcher'
 import { formatNumber, formatNumberMax, formatPercentAsSent } from '../lib/presentation/presentationPrimitives'
+import { AgentDockButton } from '../agent/AgentProvider'
+import { useBreadthAgentHost } from '../agent/hosts/usePageAgentHosts'
 
 // The SAME chart the /charts workspace renders — identity row, session
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
@@ -1023,6 +1025,8 @@ export default function Breadth() {
     )
   }
 
+  // ⭐ W2-C1: what UCT Agent may read of this page (read only: tab, window, newest session, rows, columns)
+  useBreadthAgentHost({ tab: activeTab, days: effectiveDays, topDate: monitorTopDate, rowCount: rows.length, columns: visibleCols.map(c => c.label || c.key || String(c)), live: !!liveBreadth?.data, loading: isLoading })
   return (
     <div className={pageCls}>
       <SurfaceHeader
@@ -1030,6 +1034,7 @@ export default function Breadth() {
         title="Breadth"
         right={activeTab !== 'heatmap' ? (
           <>
+            <AgentDockButton className={styles.hdrBtn} />
             {/* Share (branded snapshot) · CSV · Customize — Customize pinned to
                 the far right of the bar, next to the help "?". */}
             {activeTab === 'breadth' && (

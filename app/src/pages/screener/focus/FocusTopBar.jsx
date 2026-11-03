@@ -1,4 +1,5 @@
 import styles from './FocusScreener.module.css'
+import { AgentDockButton } from '../../../agent/AgentProvider'
 
 // List | Charts | Map | Table. Exported so Table mode, which renders today's page under a slim bar, shows the same control.
 // Charts is the screen's results on the /charts Multi-Chart grid (ScreenerChartGrid); Map is the
@@ -31,6 +32,7 @@ export default function FocusTopBar({ screenMenu, filterCount, onOpenFilters, da
       {saveMenu}
       {moreMenu}
       {helpMenu}
+      <AgentDockButton />
     </header>
   )
 }

@@ -29,6 +29,11 @@ import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
 import { registerGuideCapabilities } from './capabilities/guide'
 import { registerMarketDataCapabilities } from './capabilities/marketDataQuote'
 import { registerMarketFactsCapabilities } from './capabilities/marketDataFacts'
+// ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
+import { registerScreenerPageCapabilities } from './capabilities/screenerPage'
+import { registerBreadthPageCapabilities } from './capabilities/breadthPage'
+import { registerCalendarCapabilities } from './capabilities/calendar'
+import { registerJournalCapabilities } from './capabilities/journal'
 
 let done = false
 export function registerBuiltins() {
@@ -60,6 +65,10 @@ export function registerBuiltins() {
   registerDefinitionCapabilities()
   registerAboutCapabilities()
   registerGuideCapabilities()
+  registerScreenerPageCapabilities()
+  registerBreadthPageCapabilities()
+  registerCalendarCapabilities()
+  registerJournalCapabilities()
 }
 
 // SERVER-GATED capabilities: registered only once /api/agent/config has answered, and only when the server
