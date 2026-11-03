@@ -2,9 +2,9 @@
   "corpus_version": "1.0",
   "interpreter": "grammar-direct",
   "total": 31,
-  "passed": 5,
+  "passed": 10,
   "answerable": {
-    "passed": 0,
+    "passed": 5,
     "of": 26
   },
   "refusals": {
@@ -29,15 +29,15 @@
       "of": 5
     },
     "sector": {
-      "passed": 0,
+      "passed": 1,
       "of": 3
     },
     "setup": {
-      "passed": 0,
+      "passed": 1,
       "of": 5
     },
     "strength": {
-      "passed": 0,
+      "passed": 3,
       "of": 5
     },
     "volatility": {
@@ -51,15 +51,20 @@
   },
   "nl": {
     "nl": {
-      "passed": 2,
+      "passed": 4,
       "of": 13
     },
     "plain": {
-      "passed": 3,
+      "passed": 6,
       "of": 18
     }
   },
   "passing": [
+    "d01",
+    "d02",
+    "d03",
+    "d13",
+    "d25",
     "r01",
     "r02",
     "r03",

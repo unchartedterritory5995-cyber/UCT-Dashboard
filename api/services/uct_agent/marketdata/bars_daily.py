@@ -60,14 +60,14 @@ def _session_close_utc(ymd: int) -> str:
 
 def _last_completed_at_or_before(cutoff: Optional[int]) -> int:
     """The newest closed session; with a cutoff date, the newest closed session on or before it."""
-    from api.services import bars_fetch
-    latest = bars_fetch._last_closed_session_yyyymmdd()
+    from api.services.uct_agent.marketdata.sessions import last_completed_session
+    latest = last_completed_session()          # half days count from their own close (agent-qa F-23)
     if cutoff is None or cutoff >= latest:
         return latest
     s = str(cutoff)
     # the end of the cutoff day (ET) -> that day if it was a session, else the prior session
     end_of_day = datetime(int(s[:4]), int(s[4:6]), int(s[6:]), 23, 59, tzinfo=_ET)
-    return bars_fetch._last_closed_session_yyyymmdd(now=end_of_day)
+    return last_completed_session(now=end_of_day)
 
 
 def _num(v: Any) -> Optional[float]:

@@ -1,3 +1,7 @@
+# promotion-gate: no — MEASUREMENT ONLY, runs on one dedicated branch and never on master;
+#   it publishes timings so a gate change can be proposed with numbers. Classified "no" for
+#   tools/promotion_gate.py; must not reach master while the deploy-gate meta-rail forbids
+#   other workflows naming the Agent suites (see agent-ci.yml header).
 # UCT Agent CI shard BENCHMARK (Wave 1, 2026-11-02). Runs ONLY on pushes to the branch
 # `ci/agent-shard-benchmark`. Measures, on the same runner class the master deploy gate uses,
 # the unsharded Agent vitest run against a 4-way shard matrix, so a gate change can be proposed

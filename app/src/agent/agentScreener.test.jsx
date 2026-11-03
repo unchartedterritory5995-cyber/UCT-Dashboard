@@ -72,7 +72,8 @@ describe('Screener: the real engine, the real catalog', () => {
     const a = await run({ filters: [{ field: 'adr_pct', op: 'gt', value: 5, max: null }, { field: 'price', op: 'gt', value: 10, max: null }] })
     const [, , body] = scanCalls()[0]
     expect(body.filters).toEqual([{ key: 'adr_pct', op: 'gt', min: 5 }, { key: 'price', op: 'gt', min: 10 }])
-    expect(a.text).toBe('660 stocks match (ADR % > 5% · Price > $10). Showing the first 2. Data: 2026-10-05 snapshot, live prices.')
+    expect(body.sort).toEqual({ key: 'market_cap', dir: 'desc' })                         // SC-1 §2d: never UCT Composite
+    expect(a.text).toBe('660 stocks match (ADR % > 5% · Price > $10). Showing the first 2, ordered by market cap, largest first (no other order was asked for). Data: 2026-10-05 snapshot, live prices.')
     expect(a.table.rows.map(r => r.ticker)).toEqual(['AAA', 'BBB'])                       // exactly the server's rows
     const spec = decodeSpec(new URLSearchParams(a.link.href.split('?')[1]).get('s'))
     expect(spec.filters).toEqual({ adr_pct: { op: 'gt', min: 5 }, price: { op: 'gt', min: 10 } })   // the Screener's own door
