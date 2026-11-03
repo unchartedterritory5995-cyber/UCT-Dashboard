@@ -46,11 +46,12 @@ States: `todo` · `doing` · `pr` (PR open, number) · `int` (merged to agent/in
 |---|---|---|---|
 | I-01 | `agent/int` fast-forwarded to master `67a6dada10`; five worktrees provisioned | done | this file |
 | I-02 | PROGRAM.md / BOARD.md / EVAL.md seeded | done | |
-| I-03 | `agent-ci.yml` (server + 4-shard browser + union rail) on `agent/**` pushes and PRs | doing | first run: 4 shards green, union rail green (143 passed/5 skipped); server job red on 2 deploy-gate rails → promotion-gate:no headers added; `test_no_OTHER_workflow_is_an_agent_gate` deselected in agent-ci only, PENDING OWNER decision to amend the rail (exempt promotion-gate:no workflows); these workflows must not reach master before that |
+| I-03 | `agent-ci.yml` (server + 4-shard browser + union rail) on `agent/**` pushes and PRs | done (rail amended 3356d5a4b2, owner-approved) | first run: 4 shards green, union rail green (143 passed/5 skipped); server job red on 2 deploy-gate rails → promotion-gate:no headers added; `test_no_OTHER_workflow_is_an_agent_gate` deselected in agent-ci only, PENDING OWNER decision to amend the rail (exempt promotion-gate:no workflows); these workflows must not reach master before that |
 | I-04 | `agent-ci-benchmark.yml` on branch `ci/agent-shard-benchmark`: unsharded vs 4-shard wall time | done | run 41552662282 (ubuntu-latest): unsharded job 18 min 36 s wall; shards 4:58 / 4:58 / 5:41 / 5:52 (parallel) → slowest 5:52; same 143 passed / 5 skipped; equivalence rail green |
 | I-05 | #684 (already marked merged by GitHub once agent/int contained it) and #665 closed with containment evidence | done | rev-list 0 |
 | I-06 | Spending-controls report (owner's mandate) | done | appendix H; owner decision recorded in EVAL.md §0 |
 | I-07 | Production flag verification (owner runs the read-only command) | blocked (owner) | |
-| I-08 | RC1 (B + C + SEC if green) | todo | |
-| I-09 | RC2 (A) | todo | |
+| I-08 | ONE combined Wave 1 RC (SEC + A + B + C + Agent CI) — owner decision 2026-11-02; needs: all merges green on agent/int, combined integration run, independent QA, release manifest with GO/HOLD | todo | |
+| I-09 | (folded into I-08 by owner decision: no separate deploys) | done | |
+| I-11 | LIVE-TESTING.md (Phase 1 checklist) + OWNER-ACCEPTANCE.md (Phase 2 suite, ≥30 prompts, scorecard) ready before deployment | doing | |
 | I-10 | Notify Indicators/News/Charts sessions of Wave 1 branches and RC windows | done | blake-4c (News #629) and blake-ee (News widget) acked: no master RC pending, no Agent files touched |
