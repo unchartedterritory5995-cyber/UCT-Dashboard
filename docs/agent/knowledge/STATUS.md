@@ -41,6 +41,7 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `8f8bdd1605` | routing: playbook group add-only (review finding 8; AUDIT-approved shared-file change) |
 | `3852446f29` | setup-criteria pilot + KN-1 contract with the measurables table (K-16; AUDIT go) |
 | `668f9903ed` | independent review #735 fixes: B1 signed edge labels, B2 model-visible data frame (turn_v2 step result + v1 history replay, AUDIT-approved hunks), B3 guard shapes, N1, N2, N4, N8 (K-18) |
+| `4b144368ce` | owner decisions: N3 default-deny for templates (origin) and records, N5 coach split, B3 round 2, per-turn caps, archive date requirement (K-19) |
 
 ## Tasks
 | id | task | state | evidence |
@@ -74,6 +75,7 @@ Commits on `agent/kn/knowledge-poc`, oldest first:
 | `3852446f29` | 2,183 passed, 0 failed | 2,655 passed, 6 skipped, 1 timeout (qa/modelIsolation scan test hit 15 s under suite load; alone: 12/12 in 7.6 s) |
 
 | `668f9903ed` | 2,207 passed, 0 failed | 2,657 passed, 6 skipped, 1 timeout (same qa/modelIsolation scan test; alone 12/12 in 8.7 s) |
+| `4b144368ce` | 2,223 passed, 0 failed | 2,665 passed, 6 skipped, 1 timeout (same qa/modelIsolation scan test; passes alone) |
 
 Browser suite notes (head 3852446f29):
 - 1 timeout: qa/modelIsolation.test.jsx "no module reads an isolated kind outside a local-only capability…" exceeded its 15 s limit while the full suite loaded the machine; rerun alone it passes 12/12 in 7.6 s (9.5 s on the earlier full run). Not a regression; the test scans every Agent source file and sits close to its budget. File owned by agent-qa; reported to AUDIT.
@@ -86,6 +88,17 @@ N5 (coach vs playbook split). Notes for later: N6 (routing words never disarmed 
 against the real template names: EP, VCP, HTF, U&R, Stage 2 Breakout match), N9 (gateway owner: guard each registrar).
 Consequence of N4: the team archive record carries no refresh date, so its figures are withheld (undated = stale) until
 the archive exposes one — a requirement for the Wisdom archive owner.
+
+## Owner decisions after review (2026-11-03, via AUDIT), implemented in 4b144368ce
+- Archive freshness: fail-safe kept; date must be a computation date (`through`), never export/import time. Requirement:
+  docs/agent/knowledge/ARCHIVE-ASOF-REQUIREMENT.md. No named maintainer for wisdom/archive in the repo.
+- Model access: conditionally approved for admin-only design/testing; caps per read (k <= 3, 500 chars/passage,
+  1,900 chars/result) and per turn (4 knowledge reads, 3,000 excerpt chars); recorded in policy.json `model_access`.
+- Transcript retention: NOT approved; no storage change (design on agent/kn/retention-proposal by another agent).
+- N3: templates admitted only from UCT team origins (8 of 48 on the real snapshot, all TSDR; EP/VCP/HTF/Stage 2
+  Breakout excluded as third-party methodology). Engine setup_performance / trigger_performance PENDING (firm-generated);
+  team_archive admitted but undated, so setup.record currently serves n and reasons only. Owner to decide both.
+- N5: coaching phrasings never route to the playbook group.
 
 ## Quality work stopped (owner rule: stop when the measurable benefit is small)
 Admitted corpus on the real snapshot: 0 passages under 200 characters, 0 remaining duplicates, 0 near-duplicate titles,
