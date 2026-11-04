@@ -316,17 +316,19 @@ describe('AUDIT · live checks on #766', () => {
   it('A2: a board-only change (the grid, adding a chart) is acknowledged on the BOARD\'s own save — it never waits on other preference writes (the new charts\' chart_settings as they load); a chart-settings change still does', async () => {
     const asked = []
     const { board, h, say } = mount(...HALF(), { epoch: () => 1, persist: async (opts) => { asked.push(opts ?? 'default'); return { ok: true } } })
+    // (BROWSER-QA-1 #1: the add comes first — on the full 2×2 board there is no empty space for a fifth chart, and the
+    // Agent now says so instead of placing it off-screen)
+    await say('add a chart for AMD')
+    await waitFor(() => expect(receipts()).toHaveLength(1), { timeout: 8000 })
+    expect(asked).toEqual([{ settle: [] }])
+    await say('make the AMD chart weekly')
+    await waitFor(() => expect(receipts()).toHaveLength(2), { timeout: 8000 })
+    expect(asked[1]).toBe('default')
+    expect(h.charts.read(chartsOf(board).find(w => h.charts.read(w.id).symbol === 'AMD').id).tf).toBe('W')
     await say(GRID)
     await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
-    await waitFor(() => expect(receipts()).toHaveLength(1))
-    expect(asked).toEqual([{ settle: [] }])
-    await say('add a chart for AMD')
-    await waitFor(() => expect(receipts()).toHaveLength(2), { timeout: 8000 })
-    expect(asked[1]).toEqual({ settle: [] })
-    await say('make the AMD chart weekly')
-    await waitFor(() => expect(receipts()).toHaveLength(3), { timeout: 8000 })
-    expect(asked[2]).toBe('default')
-    expect(h.charts.read(chartsOf(board).find(w => h.charts.read(w.id).symbol === 'AMD').id).tf).toBe('W')
+    await waitFor(() => expect(receipts()).toHaveLength(3))
+    expect(asked[2]).toEqual({ settle: [] })
   }, 40000)
 })
 
@@ -1358,7 +1360,7 @@ describe('NLM1-G2 · an indicator added on a chart THIS request created is the n
     // target identity (owner requirement): the instance THIS turn added — never the new chart's default SMA 50
     const { own, defaults } = turnInstance(amd())
     await say('make it orange')
-    await waitFor(() => expect(transcript()).toMatch(/Changed SMA 50's colour on Chart w-chart-1 to #f59e0b/), { timeout: 8000 })
+    await waitFor(() => expect(transcript()).toMatch(/Changed SMA 50's colour on Chart w-chart-1 to orange/), { timeout: 8000 })
     const after = amd().opts.settings.indicatorInstances
     expect(after.filter(i => /#f59e0b/i.test(JSON.stringify(i))).map(i => i.instanceId)).toEqual([own.instanceId])
     for (const d of defaults) expect(JSON.stringify(after.find(i => i.instanceId === d.instanceId))).toBe(JSON.stringify(d))

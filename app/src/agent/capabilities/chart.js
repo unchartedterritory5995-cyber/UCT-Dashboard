@@ -66,6 +66,13 @@ const NAMED = {
   'light gray': '#e5e5e5', 'light grey': '#e5e5e5', charcoal: '#17181a', teal: '#26a69a',
   orange: '#f59e0b', yellow: '#facc15', purple: '#7c3aed', pink: '#ec4899',
 }
+// BROWSER-QA-1 #4: a receipt says a colour by its NAME where the Agent has one ("to orange", not "to #f59e0b");
+// any other value (a custom hex, a token, rgba) is said exactly as written.
+const NAME_OF = Object.entries(NAMED).reduce((m, [name, hex]) => (m[hex] ? m : { ...m, [hex]: name }), {})
+export function colorName(v) {
+  const s = typeof v === 'string' ? v.trim().toLowerCase() : null
+  return (s && NAME_OF[s]) || v
+}
 export function normalizeColor(raw) {
   if (typeof raw !== 'string') return null
   const s = raw.trim().toLowerCase()
@@ -575,7 +582,7 @@ const CAPABILITIES = [
       if (st.cs.background === c && st.cs.bgMode !== 'gradient') return st
       return { ...st, cs: set(st.cs, { background: c, bgMode: 'solid' }) }
     },
-    describe: (b, a) => (b.cs.background === a.cs.background && b.cs.bgMode === a.cs.bgMode ? null : `Changed background to ${a.cs.background}`),
+    describe: (b, a) => (b.cs.background === a.cs.background && b.cs.bgMode === a.cs.bgMode ? null : `Changed background to ${colorName(a.cs.background)}`),
     noop: (b, a) => `Background is already ${a.cs.background}`,
   },
   {

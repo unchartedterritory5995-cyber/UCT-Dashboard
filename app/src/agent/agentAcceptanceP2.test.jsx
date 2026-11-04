@@ -50,7 +50,7 @@ describe('D1 · two EMAs and their colours, in one message', () => {
     await waitFor(() => expect(emas(board)).toEqual([[9, GREEN], [20, YELLOW]]), { timeout: 8000 })
     expect(p.turns()).toBe(0)
     expect(out).toMatch(/Added EMA 9 on Chart \(CYPH\).*Added EMA 20 on Chart \(CYPH\)/)
-    expect(out).toMatch(/Changed EMA 9's colour on Chart \(CYPH\) to #2faf68.*Changed EMA 20's colour on Chart \(CYPH\) to #facc15/)
+    expect(out).toMatch(/Changed EMA 9's colour on Chart \(CYPH\) to green.*Changed EMA 20's colour on Chart \(CYPH\) to yellow/)
     expect(out).toMatch(/All 2 steps done/)
   }, 30000)
 

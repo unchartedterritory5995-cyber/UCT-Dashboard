@@ -12,7 +12,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | args | 94 / 154 |
 | execution | 94 / 154 |
 | receipt | 69 / 154 |
-| refusal | 27 / 154 |
+| refusal | 30 / 154 |
 | permission | 146 / 154 |
 | undo | 43 / 95 |
 | multiStep | 21 / 154 |
@@ -63,7 +63,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | chart.setScale | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | chart.setSession | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | chart.setSetting | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| chart.setSymbol | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
+| chart.setSymbol | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | chart.setTimeframe | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | chart.setType | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
 | chartGrid.set | chartGrid | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
@@ -101,7 +101,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | indicator.add | indicators | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | indicator.discardDraft | indicators | confirm | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | · | ✗ | ✗ |
 | indicator.draft | indicators | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| indicator.hide | indicators | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
+| indicator.hide | indicators | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ |
 | indicator.list | indicators | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
 | indicator.openCreate | indicators | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | indicator.previewDraft | indicators | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
@@ -171,7 +171,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | watchlist.reorder | lists | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | watchlist.setNote | lists | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
 | watchlist.show | lists | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
-| widget.add | workspace | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
+| widget.add | workspace | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | widget.addCharts | workspace | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | widget.addTab | workspace | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | widget.arrange | workspace | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ |
