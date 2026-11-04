@@ -147,16 +147,38 @@ export function touchesCharts(it) {
   if ((p.restore || []).some(w => w?.type === 'chart')) return true
   return [...(p.remove || []), ...Object.keys(p.set || {})].some(id => typeOfIn(raw, id) === 'chart')
 }
+// W2 audit (live 2026-11-04): members call a grid / an arrangement of their widgets their LAYOUT — "undo the change you
+// made to my layout" after a 2×2 grid was refused as "not a layout change". A board write that placed, re-tiled, added
+// or removed widgets (structurally: its patch) is a layout change; a widget's settings / link colour alone is not.
+const GEOM_KEYS = ['x', 'y', 'w', 'h']
+export function arrangesBoard(it) {
+  if (!it) return false
+  const p = it.patch || {}
+  if (it.kind === 'workspace') return (p.add || []).length > 0
+  if (it.kind !== 'board') return false
+  if (p.grid || (p.add || []).length || (p.remove || []).length || (p.restore || []).length) return true
+  return Object.values(p.set || {}).some(d => d && GEOM_KEYS.some(k => k in d))
+}
 const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it => UNDO_ABOUT[about].includes(it.kind))
   || (about === 'chart' && entry.items.some(touchesCharts))
+  || (about === 'layout' && entry.items.some(arrangesBoard))
   : UNDO_SAYS[about] ? UNDO_SAYS[about].test((entry.lines || []).join(' ')) : true)
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
-function rememberChange(memory, host, ops, undoId = null) {
+// ⭐ W2 (context across turns): `created` = the commit's alias → real ref map. A widget this change CREATED is what its ops
+// were about — "add a QQQ chart" then "change it to weekly" / "add the 20 EMA to that one" means the chart just created, so
+// the creating op and every op aimed at its alias are remembered on the REAL chart (never on 'workspace' or the alias)
+function rememberChange(memory, host, ops, undoId = null, created = null) {
   try {
+    const real = (o) => {
+      if (!created) return o
+      const made = getCapability(o.action)?.creates?.(o.args || {})
+      if (made?.alias && created[made.alias]) return { ...o, target: created[made.alias] }
+      return typeof o.target === 'string' && created[o.target] ? { ...o, target: created[o.target] } : o
+    }
     const asChart = (o) => { const k = getTargetKind(getCapability(o.action)?.target); return k?.groupOf ? (k.groupOf(o.target) ?? o.target) : o.target }
-    const clean = (ops || []).filter(o => o?.action && typeof o.target === 'string').map(o => ({ ...o, target: asChart(o) }))
+    const clean = (ops || []).filter(o => o?.action && typeof o.target === 'string').map(real).map(o => ({ ...o, target: asChart(o) }))
     const refs = [...new Set(clean.map(o => o.target))]
     const sym = refs.length === 1 ? host?.charts?.read?.(refs[0])?.symbol || null : null
     memory?.seeBoard(visitOf(host))       // refs from an earlier visit go first; this change is on THIS one
@@ -311,10 +333,18 @@ const selfSaved = (items) => {
   const changed = (items || []).filter(p => p && p.changed !== false)
   return changed.length > 0 && changed.every(p => getTargetKind(p.kind)?.persistsInCommit === true)
 }
+// W2 audit (live 2026-11-04): a change that touched ONLY the board's widgets (board / workspace kinds — a chart grid, adds,
+// arrangement) does not wait on unrelated preference writes (the new charts' own chart_settings writes as they load):
+// its receipt follows the board's own save. Any other kind waits exactly as before.
+const BOARD_ONLY = new Set(['board', 'workspace'])
 async function persistBoard(host, ops) {
   if (!host?.persist || boardEpoch(host, ops) == null) return { ok: true }
   try {
-    const r = await host.persist()
+    // ops aimed at a widget this same change creates (a new chart born on its ticker) are part of the board write
+    const made = new Set(ops.map(o => getCapability(o?.action)?.creates?.(o.args || {})?.alias).filter(Boolean).map(String))
+    const own = ops.filter(o => !made.has(String(o?.target)))
+    const boardOnly = kindsOf(own).length > 0 && kindsOf(own).every(k => BOARD_ONLY.has(k))
+    const r = await host.persist(boardOnly ? { settle: [] } : undefined)
     return r && r.ok ? { ok: true } : { ok: false, reason: (r && r.reason) || 'not-saved' }
   } catch {
     return { ok: false, reason: 'not-saved' }
@@ -940,7 +970,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         push({ role: 'receipt', lines, undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
         // it landed on this screen, so it IS the last change — with no Undo of its own (F1)
-        rememberChange(memoryRef.current, host, ops, null)
+        rememberChange(memoryRef.current, host, ops, null, res.created || null)
         return
       }
       const next =[...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
@@ -955,7 +985,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // right one", "put a 20 EMA on it" resolve from here (agent/references.js), re-validated on use
       // with ITS Undo entry (pushed above only when the save was confirmed): a correction reverses
       // exactly this change or nothing (nl1/interpreter.correctionPlan)
-      rememberChange(memoryRef.current, host, ops, res.undo?.id || null)
+      rememberChange(memoryRef.current, host, ops, res.undo?.id || null, res.created || null)
       if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}), ...(mixedDeferred ? { mixed: true } : {}) }
     } else {
       // a failure that carries its own complete sentence (`say`) is said as-is — never wrapped twice

@@ -12,7 +12,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import { registerBuiltins } from './builtins'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
-import { touchesCharts } from './useAgent'
+import { touchesCharts, arrangesBoard } from './useAgent'
 import { AuthContext } from '../context/AuthContext'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -249,4 +249,51 @@ describe('M3 · add + change existing: run in order, ONE grouped Undo, safe part
     await waitFor(() => expect(transcript()).toMatch(/I can’t add new widgets and change existing ones in the same request here — ask in two steps/))
     expect(JSON.stringify(board.state.widgets)).toBe(before)
   }, 30000)
+})
+
+// ═══ AUDIT (live production checks on edd353fc06) ═══════════════════════════════════════════════════════
+describe('AUDIT · live checks on #766', () => {
+  const GRID = 'Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.'
+  it('A1: "Undo the change you made to my layout" after a 2×2 grid takes the grid back (a grid IS a layout change)', async () => {
+    const { board, h, say } = mount(...HALF())
+    const before = shape(board, h)
+    await say(GRID)
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    await say('Undo the change you made to my layout')
+    await waitFor(() => expect(shape(board, h)).toBe(before), { timeout: 8000 })
+    expect(transcript()).not.toMatch(/wasn't a layout change/)
+    expect(turnBodies()).toHaveLength(0)
+  }, 30000)
+  it('A1: what counts as a layout change is structural — placing / re-tiling / adding / removing widgets, never a setting or a link colour', () => {
+    expect(arrangesBoard({ kind: 'board', patch: { grid: { reuse: [] } } })).toBe(true)
+    expect(arrangesBoard({ kind: 'board', patch: { set: { c1: { x: 0, w: 12 } } } })).toBe(true)
+    expect(arrangesBoard({ kind: 'board', patch: { remove: ['n1'] } })).toBe(true)
+    expect(arrangesBoard({ kind: 'workspace', patch: { add: [{ type: 'chart' }] } })).toBe(true)
+    expect(arrangesBoard({ kind: 'board', patch: { set: { c1: { color: 'N' } } } })).toBe(false)
+    expect(arrangesBoard({ kind: 'board', patch: { set: { c1: { opts: {} } } } })).toBe(false)
+    expect(arrangesBoard({ kind: 'chart', patch: { tf: 'W' } })).toBe(false)
+  })
+  it('A1: a TIMEFRAME change is still not a layout change (review F2 unchanged)', async () => {
+    const { h, say } = mount(...HALF())
+    await say('weekly')
+    await waitFor(() => expect(h.charts.read('c1').tf).toBe('W'))
+    await say('undo what you did to my layout')
+    await waitFor(() => expect(transcript()).toMatch(/My last change wasn't a layout change/))
+    expect(h.charts.read('c1').tf).toBe('W')
+  }, 30000)
+  it('A2: a board-only change (the grid, adding a chart) is acknowledged on the BOARD\'s own save — it never waits on other preference writes (the new charts\' chart_settings as they load); a chart-settings change still does', async () => {
+    const asked = []
+    const { board, h, say } = mount(...HALF(), { epoch: () => 1, persist: async (opts) => { asked.push(opts ?? 'default'); return { ok: true } } })
+    await say(GRID)
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    expect(asked).toEqual([{ settle: [] }])
+    await say('add a chart for AMD')
+    await waitFor(() => expect(receipts()).toHaveLength(2), { timeout: 8000 })
+    expect(asked[1]).toEqual({ settle: [] })
+    await say('make the AMD chart weekly')
+    await waitFor(() => expect(receipts()).toHaveLength(3), { timeout: 8000 })
+    expect(asked[2]).toBe('default')
+    expect(h.charts.read(chartsOf(board).find(w => h.charts.read(w.id).symbol === 'AMD').id).tf).toBe('W')
+  }, 40000)
 })
