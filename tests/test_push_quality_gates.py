@@ -198,6 +198,76 @@ def test_side_confirms_fill_bid_side(monkeypatch):
     assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=31.70), FILL_THR) is False
 
 
+# ── Dark-pool-paired BLOCK = hedge, not a directional bet (PINS 2026-11-04) ──
+DP_THR = {"block_darkpool_hedge_enabled": True, "block_dp_window_ms": 3000,
+          "block_dp_min_shares": 50000, "block_darkpool_hedge_suppress": False}
+
+
+def _block_alert(**kw):
+    # a PUT BLOCK with a fill timestamp -> dark-pool pairing path
+    base = {"ticker": "PINS", "cp": "P", "strike": 21, "exp": "02-19-2027",
+            "averageFillPrice": 2.11, "_direction": "Bear", "_side": "A",
+            "_type": "BLOCK", "timestamp": 1_700_000_000.0}
+    base.update(kw)
+    return base
+
+
+def test_darkpool_paired_block_true(monkeypatch):
+    # a 246k-share dark-pool (TRF exchange 9) print in the window => hedge
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 246000, "exchange": 9}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is True
+
+
+def test_darkpool_paired_block_small_print_false(monkeypatch):
+    # a dark-pool print, but below the share floor => not a block => no pairing
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 500, "exchange": 9}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is False
+
+
+def test_darkpool_paired_block_lit_only_false(monkeypatch):
+    # a large print but on a LIT exchange (not TRF 4/9, no trf_id) => not dark pool
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 246000, "exchange": 12}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is False
+
+
+def test_darkpool_paired_block_trf_id_true(monkeypatch):
+    # dark pool can also be marked by a trf_id rather than the exchange code
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 80000, "exchange": 11, "trf_id": 2}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is True
+
+
+def test_darkpool_paired_block_rest_outage_fails_closed(monkeypatch):
+    # REST returns nothing (outage) => False, so the normal directional path runs
+    monkeypatch.setattr(lmr, "_massive_rest", lambda path, params, **kw: None)
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is False
+
+
+def test_relabel_dp_hedge_neutralizes():
+    out = lmr._relabel_dp_hedge(_block_alert())
+    assert out["_direction"] is None
+    assert out["_dpHedge"] is True
+    assert "Hedge Block" in out["alertName"]
+    # original untouched
+    assert _block_alert()["_direction"] == "Bear"
+
+
+def test_block_darkpool_hedge_defaults_and_allowlisted():
+    import inspect
+    d = lmr.DEFAULT_THRESHOLDS
+    assert d.get("block_darkpool_hedge_enabled") is True
+    assert d.get("block_dp_window_ms") == 3000
+    assert d.get("block_dp_min_shares") == 50000
+    assert d.get("block_darkpool_hedge_suppress") is False
+    src = inspect.getsource(lmr)
+    for k in ("block_darkpool_hedge_enabled", "block_dp_window_ms",
+              "block_dp_min_shares", "block_darkpool_hedge_suppress"):
+        assert src.count(f'"{k}"') >= 2, k
+
+
 def test_side_unconfirmed_suppress_default_on_and_allowlisted():
     # Owner directive 2026-11-02: unconfirmable directional candidates are
     # SUPPRESSED, not relabeled-and-pushed. The default must be True, and the key
