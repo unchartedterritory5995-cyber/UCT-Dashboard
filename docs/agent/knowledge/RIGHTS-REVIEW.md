@@ -62,7 +62,7 @@ content permissible, and there is no bulk re-admission.
 - **Concurrency and a stale lock:** `apply` and `revoke` hold an exclusive lock file (`<policy>.lock`, recording the
   process id and time) for their whole read-check-write. If a run was killed and left the lock behind, the next run
   refuses (fail-closed) and names the file. Confirm no apply or revoke is running, delete the file, and run again.
-- **Owner signing:** `python tools/kn_rights_review.py sign-bulk --by NAME --on YYYY-MM-DD --max-rows N --reason TEXT`,
+- **Owner signing:** `python tools/kn_rights_review.py sign-bulk --by NAME --on YYYY-MM-DD --max-rows N --reason TEXT --expires YYYY-MM-DD`,
   run where the key is set. It prints the approval to put in the policy, which then goes through PR review.
 
 ## What the tool cannot do
