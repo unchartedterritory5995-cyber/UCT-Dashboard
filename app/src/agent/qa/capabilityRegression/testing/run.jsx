@@ -139,6 +139,8 @@ export function checkExpect(ctx, e, label) {
       for (const want of e.indicatorsEach.include || []) expect(got, `${label}: ${want} on chart ${w.id}`).toContain(want)
     }
   }
+  if ('replay' in e) expect(ctx.st.replay, `${label}: the Replay Mode cutoff`).toBe(e.replay)
+  if (e.viewRight) expect(new Date(ctx.st.views[chartsOf(board)[0]?.id]?.rightMs || 0).toISOString().slice(0, 10), `${label}: the chart's right edge`).toBe(e.viewRight)
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)
@@ -185,6 +187,13 @@ export async function replay({ board: boardName = 'ONE', steps, seed = {} }, lab
     const ctx = { ...m, start, before, since }
     const l = `${label} · step ${i + 1} "${s.say}"`
     if (s.expect) await waitFor(() => checkExpect(ctx, s.expect, l), { timeout: 6000 })
+    if (s.dismiss) {
+      // the member declines the card: nothing it proposed may happen, then or later
+      const since2 = { ...since, calls: p.st.calls.length, receipts: receiptsNow().length }
+      fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss' }).at(-1))
+      await m.p.idle()
+      if (s.afterDismiss) await waitFor(() => checkExpect({ ...ctx, since: since2 }, s.afterDismiss, `${l} → Dismiss`), { timeout: 6000 })
+    }
     if (s.approve) {
       const since2 = { ...since, calls: p.st.calls.length, receipts: receiptsNow().length }
       fireEvent.click(screen.getAllByRole('button', { name: 'Apply' }).at(-1))

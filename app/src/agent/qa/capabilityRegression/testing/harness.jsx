@@ -39,6 +39,10 @@ export const BOARDS = {
   DRAW: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { drawings: true }],
   IALERTS: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: { settings: { indicatorInstances: [
     { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }] } } }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
+  // + the TIME NAVIGATOR over the synthetic history (view, go-to-date, Replay Mode) and the chart's drawings
+  TIMED: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { timeNav: true, drawings: true }],
+  // a chart drawn with a GRADIENT background (live LT-3: "turn the gradient off on this chart")
+  GRADIENT: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), bgMode: 'gradient' } } }], { 'N:c1': 'NVDA' }],
   // one chart on its DEFAULT settings (EMA 9/20, SMA 50/200) with the indicator-alert library
   // + the Indicators AUTHORING interface (the real engine, draft store and canonical Save) with the builder's model and the
   //   definitions server as stand-ins (agentIndicatorCreate.test.jsx's construction)
@@ -72,6 +76,18 @@ const CLOSE = { type: 'series', name: 'close' }
 const ema = (n) => ({ type: 'call', name: 'ema', args: [CLOSE, { type: 'num', value: n }] })
 const opn = (name, ...args) => ({ type: 'op', name, args })
 const PCT = opn('*', opn('/', opn('-', ema(9), ema(20)), ema(20)), { type: 'num', value: 100 })
+// ── SYNTHETIC BAR HISTORY (deterministic; never a market value): a weekday calendar from 2025-01-02 to 2026-10-30 and a
+// smooth made-up price path. The chart's Time Navigator read-out (view.firstMs / lastMs / rightMs) and the `bars.daily`
+// gateway kind are both served from it, so time anchors, go-to-date and replay resolve against the same bars.
+const DAY = 86400000
+export const BAR_DAYS = (() => {
+  const out = []
+  for (let t = Date.UTC(2025, 0, 2); t <= Date.UTC(2026, 9, 30); t += DAY) { const d = new Date(t).getUTCDay(); if (d !== 0 && d !== 6) out.push(t) }
+  return out
+})()
+const synthBar = (t, i) => { const c = 100 + 20 * Math.sin(i / 17) + i * 0.05; return { t: new Date(t).toISOString().slice(0, 10), o: c - 0.5, h: c + 1.5, l: c - 1.5, c, v: 1000000 + (i % 7) * 50000 } }
+export const SYNTH_BARS = BAR_DAYS.map((t, i) => synthBar(t, i))
+const lastOnOrBefore = (ms) => { let r = BAR_DAYS[0]; for (const t of BAR_DAYS) { if (t <= ms) r = t; else break } return r }
 const LOWER_OK = new Set(['NVDA', 'TSLA', 'AMD', 'AAPL', 'QQQ'])
 const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25 }))
 
@@ -102,7 +118,7 @@ export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTa
 
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } = {}) {
   const p = setupPanel()
-  const st = { log: [], screens: seed.screens || [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
+  const st = { log: [], replay: null, views: {}, screens: seed.screens || [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url); const method = init.method || 'GET'
@@ -171,6 +187,11 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'eod', as_of: '2026-11-03', stale: false, notes: [], coverage: null,
         data: { rows: rows.slice(0, body.params?.limit || 25), total_matches: rows.length, count: rows.length } })
     }
+    if (u === '/api/agent/data' && body?.kind === 'bars.daily') {
+      const n = Math.min(Number(body.params?.bars) || 252, SYNTH_BARS.length)
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'historical', as_of: SYNTH_BARS.at(-1).t, stale: false, notes: [], coverage: null,
+        data: { symbol: String(body.params?.symbol || '').toUpperCase(), bars: SYNTH_BARS.slice(-n) } })
+    }
     if (u === '/api/agent/data') return json({ contract: 'MD-1.0', kind: body?.kind, params_echo: body?.params, status: 'unavailable', notes: [], data: null })
     return base(url, init)
   }
@@ -198,9 +219,22 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
     }
     setAuthoringSources({ extra: { converse, readBack: async (id) => st.defs.get(id) || null, store: (sv, o) => storeConversation(sv, { ...o, save: fakeSave }) } })
   }
+  if (extra.timeNav) {
+    // ChartsWorkspace's Time Navigator + Replay Mode, as host.buildChartSource exposes them: a per-chart VIEW read-out,
+    // goTo(ref, ms) puts the last bar on or before the date at the right edge, setReplay(iso|null) is ONE shared cutoff
+    const views = {}
+    const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true })
+    st.replay = null
+    const charts = mounted.h.charts
+    const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay } : x)
+    mounted.h.charts = { ...charts, list: () => charts.list().map(withTime), read: (r) => withTime(charts.read(r)),
+      goTo: (ref, ms) => { viewOf(ref).rightMs = ms >= BAR_DAYS.at(-1) ? BAR_DAYS.at(-1) : lastOnOrBefore(ms); return true },
+      setReplay: (iso) => { st.replay = iso ?? null; return true } }
+    st.views = views
+  }
   if (extra.drawings) {
     for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)      // the store is module-level: start empty
-    mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })
+    mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })      // (a TIMED board's charts carry their view: the loaded history)
   }
   return { p, st, ...mounted }
 }

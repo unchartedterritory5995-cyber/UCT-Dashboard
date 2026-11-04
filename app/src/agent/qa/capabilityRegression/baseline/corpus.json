@@ -5833,6 +5833,830 @@
         "set the right chart's link color to B",
         "move the right chart to the B link group"
       ]
+    },
+    {
+      "id": "drawing.trendline",
+      "source": "Batch F1 (11-04): time-anchored drawings over the synthetic bar history (live B-01b / B-03 / B-04 family; LT-2/5/6) (live B-01b, E)",
+      "capabilities": [
+        "drawing.addTrendline"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "drawing.addTrendline"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.addTrendline",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.addTrendline",
+            "target": "$drawings[0]",
+            "args": {
+              "from": {
+                "date": "2026-10-09",
+                "price": 150
+              },
+              "to": {
+                "date": "2026-10-28",
+                "price": 180
+              },
+              "color": null,
+              "style": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "type": "trendline"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 0
+          }
+        }
+      },
+      "phrasings": [
+        "draw a trendline on nvda from oct 9 at 150 to oct 28 at 180",
+        "trendline from 150 on oct 9 to 180 on oct 28",
+        {
+          "text": "connect oct 9 at 150 to oct 28 at 180 with a trend line",
+          "gaps": {
+            "a": {
+              "id": "CG-29",
+              "reason": "routing: the drawingTools words need a draw verb (draw/add/put/place/plot/anchor/drop/mark) or 'trendline … from/between/starting', so 'connect … with a trend line' never sends drawing.addTrendline",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ drawing.addTrendline"
+            }
+          }
+        },
+        {
+          "text": "draw a line from the oct 9 150 level to 180 on oct 28",
+          "gaps": {
+            "a": {
+              "id": "CG-29",
+              "reason": "routing: 'draw a line from <date> … to <date>' names the drawings group (levels) but not drawingTools, so drawing.addTrendline is not sent",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ drawing.addTrendline"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "drawing.ray",
+      "source": "Batch F1 (11-04): time-anchored drawings over the synthetic bar history (live B-01b / B-03 / B-04 family; LT-2/5/6)",
+      "capabilities": [
+        "drawing.addRay"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "drawing.addRay"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.addRay",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.addRay",
+            "target": "$drawings[0]",
+            "args": {
+              "from": {
+                "date": "2026-10-09",
+                "price": 150
+              },
+              "to": {
+                "date": "2026-10-28",
+                "price": 180
+              },
+              "color": null,
+              "style": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "type": "ray"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 0
+          }
+        }
+      },
+      "phrasings": [
+        "draw a ray from oct 9 at 150 through oct 28 at 180",
+        "ray on nvda from 150 on oct 9 through 180 on oct 28",
+        "extend a ray from oct 9 150 through oct 28 180",
+        "put a ray from oct 9 at 150 to oct 28 at 180"
+      ]
+    },
+    {
+      "id": "drawing.horizontalRay",
+      "source": "Batch F1 (11-04): time-anchored drawings over the synthetic bar history (live B-01b / B-03 / B-04 family; LT-2/5/6) (live B-03, E)",
+      "capabilities": [
+        "drawing.addHorizontalRay"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "drawing.addHorizontalRay"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.addHorizontalRay",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.addHorizontalRay",
+            "target": "$drawings[0]",
+            "args": {
+              "date": "2026-10-15",
+              "price": 100,
+              "color": null,
+              "style": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "type": "hray"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 0
+          }
+        }
+      },
+      "phrasings": [
+        "put a horizontal ray at 100 on nvda starting oct 15",
+        "horizontal ray at 100 from oct 15",
+        "draw a horizontal ray at $100 starting on oct 15",
+        "add a horizontal ray from oct 15 at 100"
+      ]
+    },
+    {
+      "id": "drawing.rectangle",
+      "source": "Batch F1 (11-04): time-anchored drawings over the synthetic bar history (live B-01b / B-03 / B-04 family; LT-2/5/6)",
+      "capabilities": [
+        "drawing.addRectangle"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "drawing.addRectangle"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.addRectangle",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.addRectangle",
+            "target": "$drawings[0]",
+            "args": {
+              "from": {
+                "date": "2026-10-01",
+                "price": 140
+              },
+              "to": {
+                "date": "2026-10-20",
+                "price": 160
+              },
+              "color": null,
+              "style": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "type": "rect"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 0
+          }
+        }
+      },
+      "phrasings": [
+        "draw a box from oct 1 at 140 to oct 20 at 160",
+        "rectangle from oct 1 140 to oct 20 160",
+        "put a rectangle between oct 1 at 140 and oct 20 at 160",
+        "mark a box from 140 on oct 1 to 160 on oct 20"
+      ]
+    },
+    {
+      "id": "drawing.fib",
+      "source": "Batch F1 (11-04): time-anchored drawings over the synthetic bar history (live B-01b / B-03 / B-04 family; LT-2/5/6)",
+      "capabilities": [
+        "drawing.addFib"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "drawing.addFib"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.addFib",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.addFib",
+            "target": "$drawings[0]",
+            "args": {
+              "from": {
+                "date": "2026-09-02",
+                "price": 100
+              },
+              "to": {
+                "date": "2026-10-28",
+                "price": 180
+              },
+              "color": null,
+              "style": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "type": "fib"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 0
+          }
+        }
+      },
+      "phrasings": [
+        "draw a fib from sep 2 at 100 to oct 28 at 180",
+        "fibonacci retracement from 100 on sep 2 to 180 on oct 28",
+        {
+          "text": "fib retracement sep 2 100 to oct 28 180",
+          "gaps": {
+            "a": {
+              "id": "CG-30",
+              "reason": "routing: 'fib retracement <date> <price> to …' has no draw verb and no from/between/starting word, so drawing.addFib is not sent",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ drawing.addFib"
+            }
+          }
+        },
+        "put a fib from the sep 2 100 low to the oct 28 180 high"
+      ]
+    },
+    {
+      "id": "drawing.text",
+      "source": "Batch F1 (11-04): time-anchored drawings over the synthetic bar history (live B-01b / B-03 / B-04 family; LT-2/5/6)",
+      "capabilities": [
+        "drawing.addText"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "drawing.addText"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.addText",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.addText",
+            "target": "$drawings[0]",
+            "args": {
+              "text": "breakout",
+              "date": "2026-10-15",
+              "price": 150,
+              "color": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "type": "text"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 0
+          }
+        }
+      },
+      "phrasings": [
+        "add a note that says breakout at 150 on oct 15",
+        "put the text breakout on oct 15 at 150",
+        {
+          "text": "write breakout on the chart at oct 15, 150",
+          "gaps": {
+            "a": {
+              "id": "CG-31",
+              "reason": "routing: 'write … on the chart' is not a drawingTools verb (draw/add/put/place/plot/anchor/drop/mark), so drawing.addText is not sent",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ drawing.addText"
+            }
+          }
+        },
+        "drop a text label breakout at 150 on oct 15"
+      ]
+    },
+    {
+      "id": "drawing.avwap",
+      "source": "Batch F1 (11-04): time-anchored drawings over the synthetic bar history (live B-01b / B-03 / B-04 family; LT-2/5/6) (live B-04 family: a weekday anchor)",
+      "capabilities": [
+        "drawing.addAvwap"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "drawing.addAvwap"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.addAvwap",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.addAvwap",
+            "target": "$drawings[0]",
+            "args": {
+              "date": "2026-10-01",
+              "price": 120,
+              "color": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "type": "avwap"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 0
+          }
+        }
+      },
+      "phrasings": [
+        "anchored vwap on nvda from oct 1",
+        "avwap from oct 1",
+        "add an anchored vwap starting oct 1",
+        {
+          "text": "anchor a vwap to oct 1",
+          "gaps": {
+            "a": {
+              "id": "CG-32",
+              "reason": "routing: the AVWAP words are 'anchored vwap' / 'avwap'; 'anchor a vwap' matches neither, so drawing.addAvwap is not sent",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ drawing.addAvwap"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "chart.setSetting.gradient",
+      "source": "Batch F2 (11-04): promoted chart settings, Replay Mode, go-to-date, custom timeframe (live B-10a LT-3, B-13a/b LT-7) — the exact LT-3 phrasing",
+      "capabilities": [
+        "chart.setSetting"
+      ],
+      "board": "GRADIENT",
+      "needs": [
+        "chart.setSetting"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setSetting",
+            "args": {
+              "setting": "bgMode"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setSetting",
+            "target": "$charts[0]",
+            "args": {
+              "setting": "bgMode",
+              "value": "solid"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "bgMode",
+          "value": "solid"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn the gradient off on this chart",
+        "turn off the gradient background",
+        "make the background solid instead of a gradient",
+        "no gradient on this chart"
+      ]
+    },
+    {
+      "id": "chart.setSetting.grid",
+      "source": "Batch F2 (11-04): promoted chart settings, Replay Mode, go-to-date, custom timeframe (live B-10a LT-3, B-13a/b LT-7)",
+      "capabilities": [
+        "chart.setSetting"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setSetting"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setSetting",
+            "args": {
+              "setting": "grid.visible"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setSetting",
+            "target": "$charts[0]",
+            "args": {
+              "setting": "grid.visible",
+              "value": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "grid.visible",
+          "value": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn off the grid",
+        "hide the grid lines",
+        "no grid on this chart",
+        "remove the gridlines"
+      ]
+    },
+    {
+      "id": "chart.replay",
+      "source": "Batch F2 (11-04): promoted chart settings, Replay Mode, go-to-date, custom timeframe (live B-10a LT-3, B-13a/b LT-7) — the LT-7 phrasing (it reached goToDate live)",
+      "capabilities": [
+        "chart.replay"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chart.replay"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.replay",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.replay",
+            "target": "$charts[0]",
+            "args": {
+              "date": "2026-03-02"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "replay": "2026-03-02",
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "show me this chart as of march 2 2026",
+          "gaps": {
+            "a": {
+              "id": "CG-33",
+              "reason": "routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ chart.replay"
+            }
+          }
+        },
+        {
+          "text": "replay the chart from march 2 2026",
+          "gaps": {
+            "a": {
+              "id": "CG-33",
+              "reason": "routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ chart.replay"
+            }
+          }
+        },
+        {
+          "text": "go back to march 2 2026 and hide what came after",
+          "gaps": {
+            "a": {
+              "id": "CG-33",
+              "reason": "routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ chart.replay"
+            }
+          }
+        },
+        {
+          "text": "start replay mode on 2026-03-02",
+          "gaps": {
+            "a": {
+              "id": "CG-33",
+              "reason": "routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ chart.replay"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "chart.replay.exit",
+      "source": "Batch F2 (11-04): promoted chart settings, Replay Mode, go-to-date, custom timeframe (live B-10a LT-3, B-13a/b LT-7) — live B-13b 'exit replay' (LT-3 family)",
+      "capabilities": [
+        "chart.replay"
+      ],
+      "board": "TIMED",
+      "before": [
+        {
+          "say": "show me this chart as of march 2 2026",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.replay",
+                "target": "$charts[0]",
+                "args": {
+                  "date": "2026-03-02"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "replay": "2026-03-02"
+          }
+        }
+      ],
+      "recentActions": [
+        "chart.replay"
+      ],
+      "needs": [
+        "chart.replay"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.replay",
+            "args": {
+              "date": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.replay",
+            "target": "$charts[0]",
+            "args": {
+              "date": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "replay": null,
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "exit replay",
+        "leave replay mode",
+        "stop the replay",
+        "turn replay off"
+      ]
+    },
+    {
+      "id": "chart.goToDate",
+      "source": "Batch F2 (11-04): promoted chart settings, Replay Mode, go-to-date, custom timeframe (live B-10a LT-3, B-13a/b LT-7)",
+      "capabilities": [
+        "chart.goToDate"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chart.goToDate"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.goToDate",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.goToDate",
+            "target": "$charts[0]",
+            "args": {
+              "date": "2026-03-02"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "viewRight": "2026-03-02",
+        "refusal": false
+      },
+      "phrasings": [
+        "go to march 2 2026",
+        "scroll the chart to march 2 2026",
+        "jump to 2026-03-02",
+        "take me to march 2nd 2026 on the chart"
+      ]
+    },
+    {
+      "id": "chart.addCustomTimeframe",
+      "source": "Batch F2 (11-04): promoted chart settings, Replay Mode, go-to-date, custom timeframe (live B-10a LT-3, B-13a/b LT-7)",
+      "capabilities": [
+        "chart.addCustomTimeframe"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.addCustomTimeframe"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.addCustomTimeframe",
+            "args": {
+              "unit": "hours",
+              "count": 2
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.addCustomTimeframe",
+            "target": "$charts[0]",
+            "args": {
+              "unit": "hours",
+              "count": 2,
+              "switch": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "tf": "120"
+        },
+        "setting": {
+          "key": "header.customTimeframes",
+          "value": [
+            "120"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "add a 2 hour timeframe",
+        "make a custom 2h timeframe and switch to it",
+        "create a 2-hour chart interval",
+        "add 2 hours as a timeframe"
+      ]
     }
   ],
   "refusals": [
