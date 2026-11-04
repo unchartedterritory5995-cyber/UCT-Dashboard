@@ -1842,6 +1842,10 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "styleId": row["style_id"] if "style_id" in row.keys() else None,
         "styleVersion": row["style_version"] if "style_version" in row.keys() else None,
         "kindId": row["kind_id"] if "kind_id" in row.keys() else None,
+        # L3 (2026-11-03): the app a synced note came from (`obsidian`, `evernote`, ...; the
+        # connector's provider name, `import_confirm`'s `source`), so the note view can name it
+        # in its "removed from <app>" notice. None for a note made in UCT.
+        "importSource": row["import_source"] if "import_source" in row.keys() else None,
     }
 
 

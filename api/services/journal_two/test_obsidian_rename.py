@@ -352,3 +352,14 @@ def test_disconnect_purges_the_recorded_renames(client):
     assert [(r["old_path"], r["new_path"]) for r in _renames()] == [("a.md", "b.md")]
     obsidian_link.revoke_devices(USER)
     assert _renames() == []
+
+
+async def test_a_synced_note_says_which_app_it_came_from(client):
+    """L3: the note view names the app in its "removed from <app>" notice from `importSource`."""
+    token, src = _connect(client)
+    _push(client, token, {"a.md": BODY}, ["a.md"])
+    await _sync(src)
+    note_id = _live_rows()[_key("a.md")]["id"]
+    assert notes_svc.get_note(USER, note_id)["importSource"] == "obsidian"
+    made_here = notes_svc.create_note(USER, {"title": "Mine"})
+    assert notes_svc.get_note(USER, made_here["id"])["importSource"] is None
