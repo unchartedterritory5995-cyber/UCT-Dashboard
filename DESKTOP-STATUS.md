@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 04:13 CT
+updated: 2026-11-04 04:14 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -37,7 +37,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
-- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3, pine-dsk-w5t6, pine-dsk-w4t0, pine-dsk-w2, pine-dsk-w4t14, pine-dsk-w5t7, pine-dsk-w5t8, pine-dsk-w4t15 (created by builders); pine-dsk-mpbase2 (second measure-pair base, created by this session)
+- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3, pine-dsk-w5t6, pine-dsk-w4t0, pine-dsk-w2, pine-dsk-w4t14, pine-dsk-w5t7, pine-dsk-w5t8, pine-dsk-w4t15, pine-dsk-w4t9, pine-dsk-w5t4 (created by builders); pine-dsk-mpbase2 (second measure-pair base, created by this session)
 
 ### Queue (in order, as builder slots free; cap 6 at >=8 GB)
 Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to unblock merges and engine numbering first, short lanes first:
@@ -201,3 +201,14 @@ state: BUILDING   round: r0   updated: 2026-11-04 03:45 CT
 branch: feat/pine-w4-t15-fn-forms   base: origin/master   worktree: pine-dsk-w4t15   model: Sonnet
 region: FE :9918-10230, :6047-6056, :9859 (no in-flight lane overlaps; T3's band starts at :10295)
 next: function and statement forms per W4-BREAKDOWN T15 (+ T16 folded in); keep master's answer at the object door unless proved; measure-pair on mp2, mutations on mut lane, final-tip on lane 3
+
+## W4-T9 (picked per 063fe2ba8e: "after T2"; STACKED on W4-T2, which is READY)
+state: BUILDING   round: r0   updated: 2026-11-04 04:14 CT
+branch: feat/pine-w4-t9-offsets   base: W4-T2 tip ac659bae66 (merge T2 first)   worktree: pine-dsk-w4t9   model: Sonnet
+region: FE frameBoundRefusal / forCounterRange ~:4588-4640 (shares T2's folding helpers)
+next: offsets bounded by simple values and frame parameters; measure-pair against the T2 tip on mp2; object door keeps master's answer unless proved
+
+## W5-T4 host-parity rail (picked per 063fe2ba8e: needs T1 + T3, both READY)
+state: BUILDING   round: r0   updated: 2026-11-04 04:14 CT
+branch: feat/pine-w5-t4-host-parity   base: W5-T1 tip 27e95ca34c + ONE local merge commit of origin/feat/pine-w5-t3-codec (409456ee36) on this branch (merge T1 and T3 first)   worktree: pine-dsk-w5t4   model: Opus
+next: HP-1..HP-7 (corpus, committed digests, Node half, Chromium half on the real runtimeWorker chunk via Playwright's own headless Chromium inside a heavy-lock job, never the owner's Chrome; HP-4 red on a perturbed bundle; mutation control)
