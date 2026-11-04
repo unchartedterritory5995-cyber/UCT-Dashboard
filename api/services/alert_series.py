@@ -235,8 +235,62 @@ def ma_cross_refusal(params: Optional[dict], condition: Optional[str] = None) ->
     return None
 
 
+#: ⭐ EMA CONVERGENCE. An EMA seeded `w` bars before the judged bar still carries
+#: `((p-1)/(p+1))^(w-p)` of its seed: ~1.1% for a 200 over a 620-bar window, ~13.5%
+#: for a 500 over 1,000 — enough to move a 50/200 cross days off the chart's bar
+#: (the chart seeds at deep history). 6×slow leaves ≈ e^-12 ≈ 6e-6 of the seed.
+MA_CROSS_EMA_PREFIX_MULT = 6
+
+
+def ma_cross_lookback(params: Optional[dict]) -> int:
+    """Bars of history this cross DECLARES it reads (before the evaluator's floor).
+
+    SMA: exact once `slow` bars exist, so `slow`. EMA: `MA_CROSS_EMA_PREFIX_MULT`
+    × slow, the convergence prefix. `bars_needed_for_alert` reads this as the
+    column function's own `lookback`, and `_series_ma_cross` computes over
+    exactly the window it implies — never over whatever wider window a NEIGHBOUR
+    alert on the same (sym, tf) made the cycle fetch.
+    """
+    r = _ma_cross_resolved(params)
+    try:
+        slow = int(float(r["slow"]))
+    except (TypeError, ValueError):
+        slow = _MA_CROSS_DEFAULTS["slow"]
+    slow = max(1, min(slow, MA_CROSS_PERIOD_MAX))
+    return slow * MA_CROSS_EMA_PREFIX_MULT if r["ma_type"] == "ema" else slow
+
+
+def ma_cross_window(params: Optional[dict]) -> int:
+    """The exact number of newest bars a cross is computed over (= its fetch)."""
+    from api.services import indicator_alert_evaluator as ev
+    return ev.bars_wanted(ma_cross_lookback(params))
+
+
+def normalize_ma_cross(params: Optional[dict]) -> dict:
+    """The stored form: whole-number periods as INTs, vocabularies lowercased.
+
+    Only called on params `ma_cross_refusal` accepted. `"200"` and `200.0` are
+    stored as `200`, so every reader (the lookback, the label, the Agent's
+    duplicate check) sees one spelling.
+    """
+    out = dict(params or {})
+    for key in ("fast", "slow"):
+        if out.get(key) is not None:
+            out[key] = int(float(out[key]))
+    for key in ("ma_type", "direction", "confirm"):
+        if out.get(key) is not None:
+            out[key] = str(out[key]).strip().lower()
+    return out
+
+
 def _series_ma_cross(bars: list[dict], params: dict) -> Series:
-    """`fast_MA − slow_MA`, aligned; `None` where either MA is, or params are invalid."""
+    """`fast_MA − slow_MA`, aligned; `None` where either MA is, or params are invalid.
+
+    ⛔ COMPUTED OVER THE ALERT'S OWN WINDOW (`ma_cross_window`), the newest bars of
+    whatever it is handed, with `None` in front. One fetch serves every alert on a
+    (sym, tf) and is sized by the WIDEST of them; an EMA seeded at the start of
+    that shared window would make this alert's cross depend on its neighbours.
+    """
     from api.services import indicator_compute
     n = len(bars)
     if ma_cross_refusal(params) is not None:
@@ -246,11 +300,13 @@ def _series_ma_cross(bars: list[dict], params: dict) -> Series:
     closes = [b["c"] for b in bars]
     if not closes:
         return []
+    start = max(0, n - ma_cross_window(params))
+    closes = closes[start:]
     compute = (indicator_compute.compute_ema if r["ma_type"] == "ema"
                else indicator_compute.compute_sma)
     fast_s, slow_s = compute(closes, fast), compute(closes, slow)
-    return [None if (f is None or s is None) else float(f) - float(s)
-            for f, s in zip(fast_s, slow_s)]
+    return [None] * start + [None if (f is None or s is None) else float(f) - float(s)
+                             for f, s in zip(fast_s, slow_s)]
 
 
 def _describe_ma_cross(params: Optional[dict]) -> str:
@@ -271,6 +327,8 @@ _series_ma_cross.input_options = {"ma_type": list(MA_CROSS_TYPES)}
 #: `movingAverage`, which the adopted `cs.overlays` averages also are).
 _series_ma_cross.instance_defs = ["movingAverage"]
 _series_ma_cross.validate = ma_cross_refusal
+_series_ma_cross.normalize = normalize_ma_cross
+_series_ma_cross.lookback = ma_cross_lookback
 _series_ma_cross.describe = _describe_ma_cross
 
 

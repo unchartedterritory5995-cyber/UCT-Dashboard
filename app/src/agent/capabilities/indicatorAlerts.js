@@ -367,7 +367,8 @@ const INVERT = { cross_above: 'cross_below', cross_below: 'cross_above' }
 const maOf = (inst) => {
   const i = inst?.inputs || {}
   const period = Number(i.period)
-  return { type: String(i.maType || 'sma').toLowerCase(), period, source: i.source == null ? 'close' : String(i.source) }
+  const off = Number(inst?.presentation?.offset ?? i.offset ?? 0)
+  return { type: String(i.maType || 'sma').toLowerCase(), period, source: i.source == null ? 'close' : String(i.source), offset: Number.isFinite(off) ? off : 0 }
 }
 /** The cross the two instances describe, or the sentence that says why they can't. */
 function resolveCross(found, crossWith, condition) {
@@ -385,6 +386,8 @@ function resolveCross(found, crossWith, condition) {
   if (b.defId !== a.defId) return `${b.name || crossWith} isn't a moving average — a crossover alert compares two moving averages.`
   const ma = maOf(a), mb = maOf(b)
   if (ma.source !== 'close' || mb.source !== 'close') return 'Crossover alerts watch averages of the close — one of these averages another series.'
+  // a line drawn SHIFTED (offset ≠ 0) crosses on a different bar than the alert would judge
+  if (ma.offset !== 0 || mb.offset !== 0) return `${ma.offset !== 0 ? a.name : b.name} is drawn with an offset, so its line crosses on a different bar than the alert would judge — set its offset to 0 first.`
   if (!CROSS_TYPES.has(ma.type) || !CROSS_TYPES.has(mb.type)) return 'Crossover alerts support EMA and SMA averages only.'
   if (ma.type !== mb.type) return `${a.name} and ${b.name} are different kinds of average — a crossover alert compares two EMAs or two SMAs.`
   if (!Number.isFinite(ma.period) || !Number.isFinite(mb.period)) return 'I couldn\'t read the periods of those averages — try again in a moment.'

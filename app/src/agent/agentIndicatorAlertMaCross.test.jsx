@@ -84,7 +84,7 @@ async function plan(h, args) {
   const env = await prepareOps([op(args)])
   return { p: planOps(collectTargets(h, ['indicatorAlertLibrary', 'indicatorAlert']), [op(args)], env, CTX), env }
 }
-const refusal = async (h, args) => (await plan(h, args)).p.refusals[0]?.reason || null
+const refusal = async (h, args) => (await plan(h, args)).p.refusals?.[0]?.reason || null
 const posts = () => srv.calls.filter(c => c[0] === 'POST' && c[1] === ROUTE).map(c => c[2])
 async function posted(h, args) {
   const { p, env } = await plan(h, args)
@@ -148,6 +148,13 @@ describe('MA cross — "alert me when the 9 ema crosses above the 20 on this cha
     const onRsi = { instanceId: 'inst:ma:r', defId: 'movingAverage', inputs: { period: 30, maType: 'ema', source: 'rsi:inst:rsi:1' } }
     expect(await refusal(host(NVDA(chartCs([onRsi]))), { instance: idOf('EMA 9'), plot: null, condition: 'cross_above', threshold: null, crossWith: 'inst:ma:r' }))
       .toMatch(/averages of the close/)
+    // a line drawn with an OFFSET crosses on a different bar than the alert judges: refused
+    const shifted = { instanceId: 'inst:ma:s', defId: 'movingAverage', inputs: { period: 30, maType: 'ema', source: 'close' }, presentation: { offset: 3 } }
+    expect(await refusal(host(NVDA(chartCs([shifted]))), { instance: idOf('EMA 9'), plot: null, condition: 'cross_above', threshold: null, crossWith: 'inst:ma:s' }))
+      .toMatch(/is drawn with an offset/)
+    const zero = { ...shifted, instanceId: 'inst:ma:z', presentation: { offset: 0 } }
+    expect(await refusal(host(NVDA(chartCs([zero]))), { instance: idOf('EMA 9'), plot: null, condition: 'cross_above', threshold: null, crossWith: 'inst:ma:z' }))
+      .toBeNull()
     // two charts: the averages must be on the SAME one
     const amd = { ref: 'b', label: 'Chart (AMD)', symbol: 'AMD', tf: 'D', cs: { overlays: [], indicatorInstances: [{ instanceId: 'inst:amd:ema50', defId: 'movingAverage', inputs: { period: 50, maType: 'ema', source: 'close' } }] } }
     expect(await refusal(host([...NVDA(), amd]), { instance: idOf('EMA 9'), plot: null, condition: 'cross_above', threshold: null, crossWith: 'inst:amd:ema50' }))

@@ -285,3 +285,97 @@ def test_the_routes_still_need_a_session(tmp_db):
 def test_other_addresses_are_untouched_by_the_params_gate():
     assert ev.params_refusal("rsi", "above", {"period": 99999}) is None
     assert ev.params_refusal("price_vs_ma", "above", {"period": 50, "type": "ema"}) is None
+
+
+# ─── review round 1 (PR #762) ───────────────────────────────────────────────
+
+import math
+
+
+def _long_bars(n=5200):
+    """A long tape with a big early regime the evaluator's window never sees,
+    then oscillation slow enough that 50/200 and 100/500 cross several times."""
+    closes = []
+    for i in range(n):
+        base = 400.0 if i < 1500 else 100.0          # the early regime
+        closes.append(base + 25.0 * math.sin(i / 160.0) + 12.0 * math.sin(i / 37.0) + 0.002 * i)
+    return _bars(closes)
+
+
+@pytest.mark.parametrize("fast, slow", [(50, 200), (100, 500)])
+def test_long_ema_crosses_land_on_the_FULL_HISTORY_bar(fast, slow):
+    """The cross bar matches an EMA seeded at the start of the whole tape (what the
+    chart draws), not one seeded at the start of a short window."""
+    bars = _long_bars()
+    closes = [b["c"] for b in bars]
+    params = {"ma_type": "ema", "fast": fast, "slow": slow}
+    alert = _alert("cross_above", params)
+    want = ev.bars_needed_for_alert(alert)
+    assert want == ev.bars_wanted(6 * slow)
+    up, down = _oracle_crosses(closes, "ema", fast, slow)
+    tail = [c for c in up + down if c >= want + 10]
+    assert len(tail) >= 2, "the fixture must cross inside the judged region"
+    for c in up + down:
+        if c < want + 10:
+            continue
+        cond = "cross_above" if c in up else "cross_below"
+        a = _alert(cond, params)
+        for j, expect in ((c, True), (c - 1, (c - 1) in (up if c in up else down))):
+            window = bars[max(0, j + 1 - want):j + 1]      # exactly what the store hands it
+            now = ev.bar_close_epoch(window[-1]["t"], "5")
+            assert ev._evaluate_for_cycle(a, window, now_epoch=now)[1] is expect, (fast, slow, c, j)
+
+
+def test_the_OLD_short_window_would_have_moved_a_cross_non_vacuity():
+    """Control: an EMA seeded 400+fast+slow bars back misses at least one 100/500
+    cross bar on this tape — the defect the convergence prefix closes."""
+    bars = _long_bars()
+    closes = [b["c"] for b in bars]
+    up, _ = _oracle_crosses(closes, "ema", 100, 500)
+    old_w = 400 + 100 + 500
+    moved = 0
+    for c in up:
+        if c < 3400 + 10:
+            continue
+        w = closes[c + 1 - old_w:c + 1]
+        f, s = ic.compute_ema(w, 100), ic.compute_ema(w, 500)
+        if not (f[-2] - s[-2] <= 0 < f[-1] - s[-1]):
+            moved += 1
+    assert moved >= 1
+
+
+def test_a_neighbours_wider_window_does_not_change_this_alerts_answer():
+    """One fetch per (sym, tf) is sized by the WIDEST alert; ours must not care."""
+    bars = _long_bars()
+    params = {"ma_type": "ema", "fast": 9, "slow": 20}
+    own = ev.bars_needed_for_alert(_alert("cross_above", params))
+    neighbour = ev.bars_needed_for_alert(_alert("cross_above", {"ma_type": "ema", "fast": 100, "slow": 500}))
+    assert neighbour > own
+    a = alert_series.series_for("ma_cross", bars[-own:], params)
+    b = alert_series.series_for("ma_cross", bars[-neighbour:], params)
+    assert b[-own:] == a and any(v is not None for v in a)
+
+
+def test_string_periods_are_stored_as_ints_and_size_the_same_window(client):
+    r = _post(client, params={"ma_type": "EMA", "fast": "50", "slow": "200.0",
+                              "direction": "Above", "confirm": "CLOSE"})
+    assert r.status_code == 200, r.text
+    row = ias.get(int(r.json()["id"]))
+    stored = row["params_json"] if isinstance(row["params_json"], dict) else json.loads(row["params_json"])
+    assert stored == {"ma_type": "ema", "fast": 50, "slow": 200, "direction": "above", "confirm": "close"}
+    as_str = ev.bars_needed_for_alert(_alert(params={"ma_type": "ema", "fast": "50", "slow": "200"}))
+    as_int = ev.bars_needed_for_alert(_alert(params={"ma_type": "ema", "fast": 50, "slow": 200}))
+    assert as_str == as_int == ev.bars_wanted(1200)
+
+
+def test_touch_at_zero_follows_the_frozen_oracle():
+    """Spread 1, 0, 1 (the lines touch and part) fires cross_above on the bar AFTER
+    the touch — `check_condition`'s `prev <= thr < cur`, unchanged; −1 → 0 does not."""
+    thr = ev.THRESHOLD_OPERAND[("ma_cross", "cross_above")]["value"]
+    assert thr == 0.0
+    from api.services.alert_conditions import check_condition
+    spread = [1.0, 0.0, 1.0]
+    fires = [i for i in range(1, 3) if check_condition("cross_above", spread[i], spread[i - 1], thr)]
+    assert fires == [2]
+    assert check_condition("cross_above", 0.0, -1.0, thr) is False
+    assert check_condition("cross_below", -1.0, 0.0, thr) is True

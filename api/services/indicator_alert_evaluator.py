@@ -992,6 +992,15 @@ def params_refusal(address: Optional[str], condition: Optional[str],
     return validate(params or {}, condition)
 
 
+def normalize_params(address: Optional[str], params: Optional[dict]) -> Optional[dict]:
+    """`params` in the column's stored spelling (`fn.normalize`), else unchanged."""
+    fn = alert_series.series_function(resolve_address(address))
+    normalize = getattr(fn, "normalize", None)
+    if params is None or not callable(normalize):
+        return params
+    return normalize(params)
+
+
 def _lane_for(address: Optional[str], mode: Optional[str]) -> str:
     """The lane an address is judged in: ``mode`` (or `eval_mode()`), except a
     CLOSED-ONLY address, which is always ``"closed"`` (`CLOSED_ONLY_ADDRESSES`)."""
@@ -1155,6 +1164,13 @@ def bars_needed_for_alert(alert: dict) -> int:
             lookback = declared_lookback
         else:
             from api.services import alert_series
+            # ⭐ 2026-11-04 — a column function may DECLARE its own lookback
+            # (`ma_cross`: an EMA needs a convergence prefix of ~6×slow, which
+            # summing the knobs cannot know). Absent everywhere else.
+            own = getattr(alert_series.series_function(
+                resolve_address(alert.get("indicator"))), "lookback", None)
+            if callable(own):
+                return bars_wanted(own(params))
             declared = alert_series.address_inputs(
                 resolve_address(alert.get("indicator")))
             resolved = dict(declared)
