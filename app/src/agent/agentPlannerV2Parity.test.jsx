@@ -19,7 +19,10 @@ import { waitFor, fireEvent, screen, cleanup } from '@testing-library/react'
 import fs from 'node:fs'
 import { registerCatalog } from './qa/capabilityRegression/testing/registry'
 import { corpus, phrasingsOf, failureMode, gapIt } from './qa/capabilityRegression/testing/corpus'
-import { mountCase, resolveTarget, boardState, receiptsNow, refusals, panelHost } from './qa/capabilityRegression/testing/harness'
+import { mountCase, resolveOps, boardState, receiptsNow, refusals, panelHost } from './qa/capabilityRegression/testing/harness'
+import { pinClock } from './qa/capabilityRegression/testing/clock'
+
+pinClock()                   // the corpus's pinned instant (#783 testing/clock.js): the market clock never depends on when CI runs
 import { replay, checkExpect } from './qa/capabilityRegression/testing/run'
 import { routedNames } from './qa/capabilityRegression/testing/route'
 import { groupOfAction } from './routing'
@@ -56,7 +59,8 @@ function v2Script(plan) {
   const stepFor = (op, c) => {
     const entry = offered(c).get(op.action)
     if (!entry) return null
-    return { action: op.action, target: resolveTarget(op.target, c.body), args: op.args || {}, mode: v2ModeOf(entry) }
+    const [r] = resolveOps([{ ...op, args: op.args || {} }], c.body)      // target AND "$ctx:" args, as the v1 replay resolves them
+    return { action: op.action, target: r.target, args: r.args, mode: v2ModeOf(entry) }
   }
   const responses = []
   for (const op of plan.ops) {
