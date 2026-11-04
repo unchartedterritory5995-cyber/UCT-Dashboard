@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 12:45 CT
+updated: 2026-11-04 13:11 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -296,11 +296,14 @@ capacity (LOCAL only, affinity-pinned process, no Docker, not Railway): 11-23 ms
 desktop check: PASS (local == origin, clean, base parents verified, only docs after the code tip, no leftover node service processes).
 open: the image (T10) must also ship tools/pine_runtime_host_parity.mjs, runtime/columnDigest.js and runtime/__fixtures__/hostParity/** for the canary (T10 builder told); at an engine bump re-record the smoke fixture and host-parity digests together; a signed 401 on the smoke is INCONCLUSIVE by design choice.
 ## W5-T10 image (needs T6 + T7, both READY)
-state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
-branch: feat/pine-w5-t10-image   base: W5-T7 5e6c63e24e (STACK: T1 -> T6 -> T7)   model: Sonnet
-locks: mut heavy-mut · final _resume-2026-11-01/dsk/heavy-final3.lock
-files only (Dockerfile, railway.json); no Railway service is created (T20 is the owner's).
-
+state: READY            round: r0            updated: 2026-11-04 13:11 CT
+branch: feat/pine-w5-t10-image   tip: a1523b3897 (docs-only EVIDENCE over code tip 4e35b16e91, which final-tip ran on)   base: W5-T7 5e6c63e24e (STACK: T1 -> T6 -> T7)   worktree: pine-dsk-w5t10   model: Sonnet
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t10/EVIDENCE.md
+files (DESKTOP-VERIFIED, only these vs base): services/pine_runtime/Dockerfile (root context; build stage reuses Dockerfile.web's Node pin, VITE_* ARG/ENV block and build line, then build-pine-runtime.mjs; runtime stage debian:bookworm-slim with only the node binary, the bundle and each services/pine_runtime/*.mjs copied one by one; USER 1000; no ENV; CMD carries the L4 flags --experimental-permission --allow-fs-read=/app --allow-worker --disallow-code-generation-from-strings), services/pine_runtime/railway.json (file only, no Railway action), tests/test_pine_runtime_dockerfile.py (12; parses both Dockerfiles, module list derived from the directory, ENV_ALLOWLIST read from server.mjs).
+checks: 12 green on tip, all 12 red with the two new files moved aside (base proxy). Mutations 20 + a temp-canary.mjs case, all killed, control green. final-tip (heavy-final3, 46.9 min): gate pytest 46, hygiene clean, vitest Tests 1 failed | 22366 passed | 118 skipped = pollingSites.rail (DESKTOP-VERIFIED in js.log).
+NOT PROVEN: Docker is not installed on the desktop, so the image was never built or run (libstdc++6 on bookworm-slim, non-root and read-only FS are unverified at runtime). Needs one local or CI docker build before T19/T20.
+open (coordinator): after T4 and T9 merge, the Dockerfile must also COPY tools/pine_runtime_host_parity.mjs, runtime/columnDigest.js and runtime/__fixtures__/hostParity/** for the canary, and the rail should check them (canary.mjs/metrics.mjs are covered by the directory-derived rail).
 ## W5-T11 client + lane adapter (needs T3, READY)
 state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
 branch: feat/pine-w5-t11-client   base: W5-T3 409456ee36 (STACK: merge T3 first)   model: Opus
