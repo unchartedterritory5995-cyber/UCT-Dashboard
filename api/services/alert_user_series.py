@@ -1700,8 +1700,12 @@ def admit_user_definition(user_id: Any, def_id: str,
     if is_runtime_document(definition):
         # ⭐ W5-T13 -- `sym`, `tf` and `params` are the alert's own: the arm-time run
         # (`_gate_runtime_service`) is taken on what the alert will evaluate.
-        return _admit_runtime_definition(user_id, row, def_id, definition, bars,
-                                         sym=sym, tf=tf, params=params)
+        admitted, fns = _admit_runtime_definition(user_id, row, def_id, definition, bars,
+                                                  sym=sym, tf=tf, params=params)
+        with _REGISTRY_LOCK:
+            for address, fn in fns:
+                USER_FUNCS[scoped_key(user_id, address)] = fn
+        return admitted
     _gate_budget(definition, def_id)
     report = _gate_cross_lane(definition, def_id, bars)
 
@@ -1729,30 +1733,31 @@ def admit_user_definition(user_id: Any, def_id: str,
 def _admit_runtime_definition(user_id: Any, row: Mapping[str, Any], def_id: str,
                               definition: Mapping[str, Any], bars: list, *,
                               sym: Optional[str], tf: Optional[str],
-                              params: Optional[Mapping]) -> dict:
-    """`admit_user_definition`'s runtime half: the one arm-time run, then one registered
-    function per plot the run answered. A plot the run refused (a per-output guard) is
-    kept under its address as a `server-run` refusal and not registered, so its siblings
-    still arm -- the C45 rule, by the run's own answer."""
+                              params: Optional[Mapping]) -> tuple:
+    """`admit_user_definition`'s runtime half: the one arm-time run, then one function per
+    plot the run answered, returned as ``(admitted, [(address, fn)])`` for
+    `admit_user_definition` -- the ONE writer of `USER_FUNCS` -- to register. A plot the
+    run refused (a per-output guard) is kept under its address as a `server-run` refusal
+    and not registered, so its siblings still arm -- the C45 rule, by the run's own answer."""
     report = _gate_runtime_service(row, definition, def_id, bars, sym=sym, tf=tf, params=params)
     addresses: list = []
+    fns: list = []
     withheld: dict = {}
-    with _REGISTRY_LOCK:
-        for plot_key, refusal in report["plots"].items():
-            address = f"{def_id}.{plot_key}"
-            if refusal is not None:
-                withheld[address] = _server_run_refusal(def_id, plot_key, refusal.guard, refusal.sentence)
-                continue
-            fn = _make_runtime_value_fn(row, def_id, plot_key, definition)
-            _with_line(fn, user_id, def_id, plot_key, row.get("version"))
-            USER_FUNCS[scoped_key(user_id, address)] = fn
-            addresses.append(address)
+    for plot_key, refusal in report["plots"].items():
+        address = f"{def_id}.{plot_key}"
+        if refusal is not None:
+            withheld[address] = _server_run_refusal(def_id, plot_key, refusal.guard, refusal.sentence)
+            continue
+        fn = _make_runtime_value_fn(row, def_id, plot_key, definition)
+        _with_line(fn, user_id, def_id, plot_key, row.get("version"))
+        fns.append((address, fn))
+        addresses.append(address)
     admitted = {"def_id": def_id, "version": row.get("version"), "rev": row.get("rev"),
                 "ast_hash": row.get("ast_hash"), "addresses": addresses,
                 "compared": report.get("compared"), "rel_tol": None, "digest": report.get("digest")}
     if withheld:
         admitted["withheld"] = withheld
-    return admitted
+    return admitted, fns
 
 
 def user_value_function(user_id: Any, address: str
