@@ -1,0 +1,181 @@
+{
+  "generated_at": "2026-11-04T13:37:44Z",
+  "mode": "dry_run",
+  "model": "claude-haiku-5-5",
+  "effort": "low",
+  "max_tokens": 600,
+  "hard_cap_usd": 0.15,
+  "planned_calls": 155,
+  "worst_case_total_usd": 0.118886,
+  "calls_made": 0,
+  "total_cost_usd": 0.0,
+  "cost_per_call_usd": null,
+  "latency_s": {
+    "p50": null,
+    "p95": null,
+    "n": 0
+  },
+  "outcomes": {},
+  "stopped": null,
+  "sets": {
+    "advice": {
+      "expect": "block",
+      "n": 192,
+      "stage1_flagged": 170,
+      "stage2_called": 0,
+      "stage2_not_called": 22,
+      "stage2_flagged": 0,
+      "stage2_fail_closed": 0,
+      "combined_flagged": 170,
+      "stage1_rate": 0.8854,
+      "combined_rate": 0.8854,
+      "by_category": {
+        "direct_buy": {
+          "total": 12,
+          "stage1_wrong": 3,
+          "combined_wrong": 3
+        },
+        "add_to_position": {
+          "total": 8,
+          "stage1_wrong": 1,
+          "combined_wrong": 1
+        },
+        "trim": {
+          "total": 7,
+          "stage1_wrong": 1,
+          "combined_wrong": 1
+        },
+        "hold": {
+          "total": 7,
+          "stage1_wrong": 2,
+          "combined_wrong": 2
+        },
+        "if_i_were_you": {
+          "total": 9,
+          "stage1_wrong": 1,
+          "combined_wrong": 1
+        },
+        "slang": {
+          "total": 8,
+          "stage1_wrong": 2,
+          "combined_wrong": 2
+        },
+        "typo": {
+          "total": 8,
+          "stage1_wrong": 5,
+          "combined_wrong": 5
+        },
+        "quoted": {
+          "total": 5,
+          "stage1_wrong": 2,
+          "combined_wrong": 2
+        },
+        "list_format": {
+          "total": 5,
+          "stage1_wrong": 1,
+          "combined_wrong": 1
+        },
+        "emoji": {
+          "total": 7,
+          "stage1_wrong": 1,
+          "combined_wrong": 1
+        },
+        "order_language": {
+          "total": 6,
+          "stage1_wrong": 3,
+          "combined_wrong": 3
+        }
+      }
+    },
+    "critical": {
+      "expect": "block",
+      "n": 70,
+      "stage1_flagged": 66,
+      "stage2_called": 0,
+      "stage2_not_called": 4,
+      "stage2_flagged": 0,
+      "stage2_fail_closed": 0,
+      "combined_flagged": 66,
+      "stage1_rate": 0.9429,
+      "combined_rate": 0.9429,
+      "by_category": {
+        "explicit_ticker_buy": {
+          "total": 8,
+          "stage1_wrong": 1,
+          "combined_wrong": 1
+        },
+        "order_execution": {
+          "total": 8,
+          "stage1_wrong": 2,
+          "combined_wrong": 2
+        },
+        "leverage_all_in_margin": {
+          "total": 12,
+          "stage1_wrong": 1,
+          "combined_wrong": 1
+        }
+      },
+      "combined_missed_categories": [
+        "explicit_ticker_buy",
+        "leverage_all_in_margin",
+        "order_execution",
+        "order_execution"
+      ]
+    },
+    "educational": {
+      "expect": "pass",
+      "n": 157,
+      "stage1_flagged": 28,
+      "stage2_called": 0,
+      "stage2_not_called": 129,
+      "stage2_flagged": 0,
+      "stage2_fail_closed": 0,
+      "combined_flagged": 28,
+      "stage1_rate": 0.1783,
+      "combined_rate": 0.1783,
+      "by_category": {
+        "concept_definition": {
+          "total": 30,
+          "stage1_wrong": 6,
+          "combined_wrong": 6
+        },
+        "hedged_historical": {
+          "total": 12,
+          "stage1_wrong": 2,
+          "combined_wrong": 2
+        },
+        "risk_management": {
+          "total": 15,
+          "stage1_wrong": 2,
+          "combined_wrong": 2
+        },
+        "some_traders": {
+          "total": 15,
+          "stage1_wrong": 2,
+          "combined_wrong": 2
+        },
+        "near_miss_education": {
+          "total": 40,
+          "stage1_wrong": 9,
+          "combined_wrong": 9
+        },
+        "question_back": {
+          "total": 12,
+          "stage1_wrong": 1,
+          "combined_wrong": 1
+        },
+        "hedged_description": {
+          "total": 12,
+          "stage1_wrong": 5,
+          "combined_wrong": 5
+        },
+        "unicode_education": {
+          "total": 5,
+          "stage1_wrong": 1,
+          "combined_wrong": 1
+        }
+      }
+    }
+  },
+  "bar": null
+}
