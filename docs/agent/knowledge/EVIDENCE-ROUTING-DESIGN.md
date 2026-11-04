@@ -28,7 +28,12 @@ is on:
 - It serves only that evidence, or an explicit unavailable-source response.
 
 On that path no free text exists, so there is nothing to scan. **Brain stays OFF until this step is built, evaluated
-and reviewed.** PR #768's gates stay as a second layer (defence in depth). They are not the guarantee.
+and reviewed.**
+
+**Single layer:** E-1 is the only layer on a misrouted turn. When a playbook question is misclassified as `chart` or
+`none`, E-1 removes `playbook.*` from the planner. That leaves #768's gates inert, because they only act while a
+knowledge capability is offered. The classifier's recall is therefore the guarantee, and the evaluation must prove it
+on its own (see Evaluation). #768 still protects the paths where knowledge is offered.
 
 ## The evidence step (E-1)
 
@@ -41,20 +46,24 @@ Input:
 - The member's message.
 - The last two turns' **action names** (never their text).
 - The names of the open charts.
-- The installed pack's setup names and aliases.
+- The names and aliases of the installed pack's **approved** setup templates (policy `classify_template` =
+  admitted) only.
 
 Output: a strict JSON schema, with grammar-constrained decoding, so only these values can come back:
 
 ```
 evidence:  "playbook" | "chart" | "mixed" | "ambiguous" | "none"
 topic:     "setup_definition" | "setup_rules" | "setup_record" | "trading_concept" | "chart_or_symbol" | "other"
-setups:    [ enum of the INSTALLED pack's template names ] (0..3)   # never free text
+setups:    [ enum of the installed pack's APPROVED template names ] (0..3)   # never free text
 concept:   string ≤ 60 chars, used ONLY as a search query, never shown
 chart_ask: boolean   # the member also asked for a chart change or a chart reading
 ```
 
-The `setups` enum is rebuilt from the installed pack, so the classifier can only name a setup UCT has. No reply is
-written in this call; there is no `reply` field to write one into.
+The `setups` enum is rebuilt from the installed pack's **approved** templates and re-read with the source policy, so
+the classifier can only name a setup UCT may serve. An excluded or third-party setup (VCP, Cup with Handle, ...) is
+never an enum value. A question about one is still classed `playbook` (topic `setup_definition`, `setups: []`, its
+name in `concept`). The deterministic reads then refuse it, and the member gets the explicit unavailable-source
+sentence. No reply is written in this call; there is no `reply` field to write one into.
 
 ### 2. Route by class
 
@@ -62,12 +71,18 @@ written in this call; there is no `reply` field to write one into.
 |---|---|---|
 | playbook | Deterministic reads from `setups` / `topic`: `setup.playbook` for definition / rules, `setup.record` for record, `knowledge.search(concept or message)` for a concept. **No planner call.** | UCT's cited card (as #768 renders it), or the explicit unavailable-source sentence when the policy refuses or nothing approved matches ("UCT has no approved playbook definition for X", "No approved UCT source covers this"). |
 | chart | The planner as today (v1 or v2), with the `playbook.*` capabilities **removed** from its manifest for this turn. | Chart reads and receipts as today. |
-| mixed | The planner with `playbook.*` removed, plus the playbook reads from row 1. The planner's `reply` is dropped (the #768 rule), so no methodology is invented. | The chart change's own receipt, plus UCT's cited card. Chart actions are never lost. |
+| mixed | The planner with `playbook.*` removed, plus the playbook reads from row 1. **The planner's `reply` is dropped because the turn's E-1 class is `mixed`** (a new class-keyed rule). #768's rule keys on `playbook.*` ops in the plan, which this planner can no longer emit, so it would never fire here. No methodology is invented. | The chart change's own receipt, plus UCT's cited card. Chart actions are never lost. |
 | ambiguous | Nothing is planned. | A fixed clarify: "Do you mean UCT's playbook definition of a setup, or a reading of your chart?", with fixed choices built from enums ("UCT's definition of <setup>" for each named setup, "Read my chart"). No model text. |
-| none | The planner as today, with `playbook.*` removed. #768's gates still apply as the second layer. | As today. |
+| none | The planner as today, with `playbook.*` removed (so #768's gates are inert on this turn; see Single layer). | As today. |
 
 **Conservative defaults (fail closed):**
 - A classifier error, timeout, refusal or unparsable output means `ambiguous`, never `none`.
+- **Availability cost, stated plainly:** during a classifier outage, every planner turn (chart commands included)
+  becomes the fixed clarify while Brain is on. Two exemptions bound this:
+  - The browser's deterministic fast paths (`fastParse` chart, symbol and timeframe commands, breadth and screen
+    lookups) never reach the planner or E-1, so they keep working.
+  - The classifier has a short timeout (target 2 s). Repeated failures raise the existing Agent health alert. Turning
+    Brain off restores today's behaviour at once.
 - `topic = trading_concept` with `evidence = none` is treated as `playbook`. A trading concept is the KB's ground, so
   it is never answered from model memory while Brain is on.
 - A `setups` value outside the enum is impossible by the schema. If one ever arrives, the turn is `ambiguous`.
@@ -102,8 +117,9 @@ free text. Chart and none turns stream as today.
 
 - **Model:** the planner model (`claude-haiku-4-5` today), short system prompt plus the pack enum (~1–2k tokens,
   cacheable), output ~30–60 tokens.
-- **Cost:** on the order of $0.001–0.002 per classified turn uncached (an estimate; confirm against current Haiku
-  4.5 pricing before the eval), and less with the prompt cached. That is within the existing per-turn caps.
+- **Cost:** about **$0.0023 per classified turn uncached**. At Haiku 4.5 list prices of $1 / $5 per M input / output
+  tokens (checked 2026-11-04), 2k input is about $0.0020 and 60 output is about $0.0003. A cached prompt prefix makes
+  it lower. That is within the existing per-turn caps.
 - **Latency:** about +0.3–0.8 s on chart, mixed and none turns, which still run their planner after it.
 - **Playbook turns get cheaper and faster:** the planner call (the expensive one) is replaced by local FTS reads of a
   few ms.
@@ -112,7 +128,8 @@ free text. Chart and none turns stream as today.
 
 ## Evaluation (before any activation; needs the owner's eval budget)
 
-1. **Labelled set, ≥ 300 prompts**, held out from the classifier's prompt. It includes:
+1. **Labelled set: ≥ 600 playbook-class prompts** (playbook + mixed), plus ≥ 300 chart / none / ambiguous prompts,
+   all held out from the classifier's prompt. It includes:
    - the three review rounds' phrasings ("what's a VCP?", "whats an EP", multi-line, "tell me about cup and handle");
    - chart and symbol questions ("the breakout level on NVDA", "the pivots on this chart");
    - mixed requests; coaching phrasings; typos; non-English;
@@ -120,8 +137,10 @@ free text. Chart and none turns stream as today.
    - every installed template and its aliases.
    Each prompt is labelled by class, and checked by a second reviewer.
 2. **Metrics and gates:**
-   - playbook/mixed → classified playbook/mixed/ambiguous: **≥ 99.5%** (a miss is the only path to free text, and the
-     second layer must also miss);
+   - playbook/mixed → classified playbook/mixed/ambiguous. **Gate: 0 misses in ≥ 600 playbook-class prompts.** That
+     shows recall ≥ 99.5% at 95% confidence (rule of three: 3/600). A miss is the ONLY path to a model-written
+     definition (see Single layer), so the bound is stated, not assumed. Each miss is fixed and the set re-run. With
+     a smaller set the claim is the bound it supports (n = 300 with 0 misses supports ≥ 99.0%, not 99.5%).
    - chart/none → wrongly classified playbook: **≤ 3%** (a cost to usefulness, not to safety);
    - ambiguous rate **≤ 8%**;
    - p50/p95 latency and cost per class.
@@ -142,14 +161,14 @@ free text. Chart and none turns stream as today.
   phrasing (which varies without limit) or text the model already wrote. E-1 classifies with a model built for
   language, and its only possible outputs are routing labels.
 - **The answer is never model text on the playbook path,** so nothing has to be detected afterwards. A
-  misclassification can only send a playbook question to the planner, and then:
-  - the planner has no `playbook.*` tools;
-  - its reply still passes #768's gates;
-  - a `trading_concept` topic is already forced to playbook.
-  Both layers would have to miss for a definition to reach the member, and the eval measures the first one.
-- **Closed vocabulary:** setups come from the installed pack's enum, so the step cannot invent a setup or a source.
-- **Fail closed:** any failure means a fixed clarify, never free text.
-- **Measured, not argued:** the ≥ 99.5% recall gate on a held-out set, re-run when the pack's vocabulary changes.
+  misclassification is the one way a playbook question reaches the planner. There it has no `playbook.*` tools and
+  #768's gates are inert, so the classifier is the single layer. A `trading_concept` topic is forced to playbook,
+  which narrows what a miss can be. That is why recall is gated on its own.
+- **Closed vocabulary:** setups come from the installed pack's **approved**-template enum, so the step cannot invent
+  a setup or a source.
+- **Fail closed:** any failure means a fixed clarify, never free text (deterministic fast paths exempt).
+- **Measured, not argued:** the zero-miss gate on ≥ 600 held-out playbook-class prompts (≥ 99.5% at 95% confidence),
+  re-run whenever the pack's approved vocabulary changes.
 
 **Residual risk, stated plainly:** a free-text answer on a `none` turn can still mention trading ideas in general. The
 requirement is about **UCT-specific playbook definitions**, which E-1 routes to retrieval, and the eval measures how
@@ -161,11 +180,12 @@ PR #768 is useful defence in depth, not the guarantee. It covers:
 - grounded cited cards;
 - dropping v1's pre-read reply on knowledge plans;
 - a talk reply holding a knowledge op becoming that read;
-- no streaming on playbook-worded turns;
+- no answer streams on any turn while a knowledge capability is offered;
 - short-label clarify choices;
 - flag-off identity.
 
-E-1 would reuse its renderers and its reply-dropping rule for mixed turns.
+E-1 would reuse its renderers. Mixed turns get E-1's own class-keyed reply drop, because #768's op-keyed rule would
+not fire once `playbook.*` is stripped.
 
 ## Owner decisions needed
 
