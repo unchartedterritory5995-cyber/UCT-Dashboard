@@ -513,6 +513,26 @@ export default function IndicatorAlertPopover({
         {inputKeys.map((key) => (
           <div className={styles.row} key={key}>
             <span className={styles.label}>{key}</span>
+            {/* ⭐ 2026-11-04 — a knob the served plot declares a CLOSED
+                vocabulary for (`input_options`, e.g. `ma_cross`'s ma_type:
+                ema | sma) is a choice, not a free-text box. Absent everywhere
+                else, so every existing knob renders exactly as before. */}
+            {Array.isArray(plotEntry.input_options?.[key]) ? (
+              <select
+                className={styles.select}
+                aria-label={`${key} input`}
+                value={params[key] ?? ''}
+                disabled={!catalogReady}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  setParams((prev) => ({ ...prev, [key]: raw }))
+                }}
+              >
+                {plotEntry.input_options[key].map((opt) => (
+                  <option key={opt} value={opt}>{String(opt).toUpperCase()}</option>
+                ))}
+              </select>
+            ) : (
             <input
               className={styles.input}
               type={typeof plotEntry.inputs[key] === 'number' ? 'number' : 'text'}
@@ -530,6 +550,7 @@ export default function IndicatorAlertPopover({
                 }))
               }}
             />
+            )}
           </div>
         ))}
 
