@@ -205,14 +205,8 @@ front-end file.
 ## Machine incident (recorded at the coordinator's request)
 
 A whole-tree `python -m pytest --collect-only -q -p no:cacheprovider tests/` (PIDs 24068/34744/20096)
-grew to 13 GB and took free RAM to 0.8 GB, and the desktop stopped it. It was attributed to this
-lane. I did not type that command, and every run I started names its files. It ran while my
-locked alert-suite jobs were running. Some of those jobs run pre-existing suite-meta tests, such
-as `test_gate_shards` and `test_shared_state_landmines`, which spawn whole-tree subprocesses, so
-that is the probable source. From now on:
-- only named rail files are run;
-- broad runs go through the lock;
-- the 16 pre-existing failures are not re-run.
+grew to 13 GB and took free RAM to 0.8 GB; the desktop stopped it. Not this lane; launched by
+another session (desktop-verified).
 
 ## Schema findings and open items
 
