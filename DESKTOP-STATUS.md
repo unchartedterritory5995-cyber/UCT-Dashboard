@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 06:07 CT
+updated: 2026-11-04 06:16 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -206,10 +206,14 @@ region: FE :9918-10230, :6047-6056, :9859 (no in-flight lane overlaps; T3's band
 next: function and statement forms per W4-BREAKDOWN T15 (+ T16 folded in); keep master's answer at the object door unless proved; measure-pair on mp2, mutations on mut lane, final-tip on lane 3
 
 ## W4-T9 (picked per 063fe2ba8e: "after T2"; STACKED on W4-T2, which is READY)
-state: BUILDING   round: r0   updated: 2026-11-04 04:14 CT
-branch: feat/pine-w4-t9-offsets   base: W4-T2 tip ac659bae66 (merge T2 first)   worktree: pine-dsk-w4t9   model: Sonnet
-region: FE frameBoundRefusal / forCounterRange ~:4588-4640 (shares T2's folding helpers)
-next: offsets bounded by simple values and frame parameters; measure-pair against the T2 tip on mp2; object door keeps master's answer unless proved
+state: READY            round: r0            updated: 2026-11-04 06:16 CT
+branch: feat/pine-w4-t9-offsets   tip: e1d180f163 (EVIDENCE over engine tip 133a4d217a)   base: W4-T2 tip ac659bae66 (merge T2 first)   merge-base with master: 5d95103c8a
+engine bump needed: YES (runtime-lane builds that refused now build; SCRIPT_ENGINE_VERSION not edited)
+evidence: docs/pine/evidence/2026-11-04-w4-t9/EVIDENCE.md (logs _resume-2026-11-01/runs/dsk-w4t9/)
+report: The spec's case (a bound written straight from the parameter, `for j = 0 to length - 1`, at two call sites) already worked on the T2 base. The real wall was a function-local bound (`periods = length - 1` then `for j = 0 to periods`): the refusal named the local, which no call site can fix. pineRuntimeFrontend.js only: new frameLocalDefs (slot -> binding expression + declaring scope) and frameSubstitute, now the single authority for frame names; it REPLACES two inline copies inside T2's constValueOf and foldConstNode (a named edit to T2's helpers). A recorded local expands to its expression, so the refusal carries the parameter's name. Off at the object door. Guards: no var, no reassigned local; / and % still refuse downstream (zxLag offset stays refused). forCounterRange, frameBoundRefusal, simpleValueOf and other lanes' bands untouched. Tests: w4OffsetFrameLocals.test.js (16) + shape t9_local in objectDoorGate.test.js.
+checks: rails red on the T2 base (FE swapped to T2 bytes, restored byte-checked): 8 failed (t9_local + 7 in w4OffsetFrameLocals); tip 89/89 across 4 files. Mutations M1-M3, M7-M11 killed; a first-cut division guard proved equivalent and was removed; M7 needed a stronger fixture. measure-pair (heavy-mp2, mpbase2 at ac659bae66): rt0 harness 93/103/140 and rt1 111/107/118 identical both sides; C18 out and probe identical modulo timing; OBJECT DOOR: no change on either lane. rt1 census 13 rows, all intended: linear-regression-channel (builtin) ATTACHES (wall @77 gone; partial loss: drawings withheld, 10 of 13 object ops dropped); range-filter-bs-signals ATTACHES (clean, 4 plots; NOT in the spec's list, same cause, confirm before arming); first wall moves on optimized-trend-tracker, most-screener, supertrend-cluster-zeiierman (as predicted); 9 rows change only in later peel steps (step 0 identical); anti-volume-stop-loss has no first-wall move on this sample. rt0 census 6 rows: a dark-pane runtime record for linear-regression-channel and peel noise (incl. one base pine:timeout); member-facing attached false both sides. final-tip: gate pytest 46, version-gate 6, hygiene clean, vitest 1 failed | 1335 passed (22414 tests) = pollingSites.rail (tree predates 96582cd549).
+open: a direct parameter offset src[length-1] at two call sites fails with a named runtime:statement refusal ("ring planned for depth 2"), also on the T2 base, so outside T9; a local-based version now hits that wall instead of history-dynamic-offset.
+desktop check: PASS (FE + 2 test files + evidence; T2-helper edit named; 133a4d217a..e1d180f163 is EVIDENCE only; local == origin; worktree clean)
 
 ## W5-T4 host-parity rail (picked per 063fe2ba8e: needs T1 + T3, both READY)
 state: READY (with a DESIGN DECISION for the coordinator/owner: HP-3 gating)   round: r0   updated: 2026-11-04 06:06 CT
