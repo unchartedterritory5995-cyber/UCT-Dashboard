@@ -140,6 +140,48 @@ Results, all three sets (85 cases: first 40, generalisation 23, robustness 22). 
 
 By AUDIT's categories, robustness set flag ON: A (in-plan) 8/8, B (cross-turn, varied boards / prior turns) 12/12, C (Undo after removal by "it") 2/2. NLM1-G2 is fixed by the style-last-added mechanism: D2-18 now passes and its gap marker is removed. The planner-mode measurement also produced one more routing fix: on overflow, the message's entities count as evidence, so charts is no longer cut from "put TSLA on the left and AMD on the right and add rsi to both". D1 gates and metrics are unchanged.
 
+#### D3.3: in-plan shapes by structure, after AUDIT's third sealed result (27/37 flag on, 14/37 off at `77542d5342`; cross-turn 19/19, in-plan 8/16)
+
+**How the D2/D3.2 "deterministic now" claims held.** They held for my probe wording, not for the shapes. On a NEW set written before any D3.3 code (`workflows4.json`: AUDIT's 7 failing shapes × 3–5 surface variants each, varying word order, synonyms, ticker / position swaps and 2- vs 4-chart boards), the D2/D3.2 head passed **8/29**:
+
+| Shape | D2/D3.2 claim held? |
+|---|---|
+| S1 swap + both | 1/5 |
+| S2 grid + all | 3/4 (the miss: a count of charts became *new* charts, one too many, the very failure AUDIT reported; my R-A4b case didn't check the count, so it hid this) |
+| S3 three-clause chain ending in styling | 4/4 |
+| S4 create + possessive | 0/4 |
+| S5 "same" aimed at a ticker | 0/4 |
+| S6 "same" aimed at a new chart | 0/3 |
+| S7 ticker-named chart + "give it" | 0/5 |
+
+D3.3 handles each shape by structure:
+
+| Mechanism | What it does |
+|---|---|
+| Clauses | A message of several requests is split only where a command verb starts the next clause (ticker and indicator lists are never split). Each clause is normalised on its own and run as a compound step. A later clause's "both of them / them" takes the set the clause before named. |
+| Swap over a referent set | Exactly two charts: their places (`board.swap`), or their tickers when the words say so. |
+| "give <target> <thing>" | Topicalised or not; an indicator becomes "add … to <target>", a timeframe becomes "make <target> <tf>". |
+| Possessives | "set its timeframe to weekly", "change its interval", "make their timeframe", "with its timeframe on weekly". |
+| A count of charts is a grid | "four charts: A, B, …", "A, B, … in four equal charts", "… on four charts": the grid reuses the charts already there, never one too many. |
+| In-message "same" | Aimed at a ticker or a chart ("<request> and the same to AMD", ", same for QQQ", "and do the same with TSLA", "and AMD the same"), or at a NEW chart ("…, then open a chart for AMD and do the same there", "… and give a new AMD chart the same", where the request is re-aimed at the new chart as "it"), run as explicit steps. |
+| "new chart for X" | Read as a creation. |
+| Plumbing | An explicit form counts as read when a reader OR an NLM-1 mechanism takes it; a rewritten form that only a mechanism takes is run by that mechanism (it used to go to the readers, and from there to the model). |
+
+Shape 8 (the timeframe landing on the existing chart instead of the new one) is left to created-binding-v2, as directed. The harness clears the browser key unless a case is seeded `nlm1`, so every flag-ON run now starts with a test that fails unless NLM-1 really is ON (and the flag-OFF run unless it really is OFF).
+
+Results, all four sets (114 cases: first 40, generalisation 23, robustness 22, shapes 29). Final workspace state plus Undo, no model. Each run starts with the flag-state check, and it passed in every mode:
+
+| Mode | Shapes (29) | All four sets (114) |
+|---|---|---|
+| Flag OFF (with Track A) | 4/29 | 32/114 |
+| D2/D3.2 head, flag ON | 8/29 | n/a |
+| **D3.3, flag ON** | **29/29** (S1 5/5, S2 4/4, S3 4/4, S4 4/4, S5 4/4, S6 3/3, S7 5/5) | **112/114 + 2 recorded gaps (both NLM1-G1)** |
+| Planner-assisted | n/a | 8/9 (G-a3 fails only at Undo: NLM1-G1) |
+
+Flag-off regression suites (capreg + goldens + conversation / undo / memory / deixis / routing + nlm1): 3073/3073, up from 3038 because the new test files are included. D1 gates and dev metrics are unchanged: corpus own-groups 99.8%, availability 100%, largest request = v1's.
+
+Caveat, said plainly: these shape cases are mine, written from AUDIT's abstract descriptions. Twice my own sets have overstated generalisation, so the sealed re-score is the measure that counts.
+
 Recorded gaps (capreg `gapIt`: each must fail exactly as recorded, so a fix is noticed):
 - **NLM1-G1** (D2-13, G-a3): after the new chart's later changes are undone exactly, the creation's own Undo is refused ("Workspace has changed since I made that change"). The new chart's stored settings aren't byte-identical after those undos, so the workspace fingerprint no longer matches. Same with the flag off. Runtime exact-undo area (#771), reported to AUDIT.
 - **NLM1-G2** (D2-18), FIXED in D2/D3.2 by the style-last-added mechanism (marker removed). It was: an indicator added on a chart the same request created (through its alias, the deferred step) isn't found by the conversation follow-up reader, so the next "make it orange" has no referent. Same in two separate turns with the flag off (it goes to the model). Conversation memory × CG-37, reported to AUDIT.
@@ -169,4 +211,5 @@ Unit coverage: `nlm1/nlm1FollowupOps.test.js` (referent sets, repeat / additive,
 | `344a9777b3` | D2/D3: referent tracker + rewriter, created-reference plans on `bindCreated`, request-level Undo grouping; D4 |
 | `799d3419a5` | D1.3: ticker + info-seeking / period-change entities, byte budget = v1 fallback size; cost analysis |
 | `c887318c81` | D2/D3.1: follow-ups as operations (referent sets, repeat / additive, inversion, removal by position, ordinals over created charts), same-request normalisation, planner-assisted mode, generalisation set; routing: evidence-ordered cut, multi-ticker charts entity |
-| (this commit) | D2/D3.2: command at a referent set (any turn), referent + value, repeat with a modification, style the indicator just added (+ runCompound fallback), honest not-there; in-plan structural normalisations; in-message repeat as steps; robustness set (22); routing: entities as evidence on overflow |
+| `77542d5342` | D2/D3.2: command at a referent set (any turn), referent + value, repeat with a modification, style the indicator just added (+ runCompound fallback), honest not-there; in-plan structural normalisations; in-message repeat as steps; robustness set (22); routing: entities as evidence on overflow |
+| (this commit) | D3.3: in-plan shapes by structure: verb-anchored clause steps (set anaphora between clauses), swap over a referent set, "give <target> <thing>", possessives, a count of charts is a grid (no extra chart), in-message "same" for a ticker / a new chart, "new chart for", NLM-1 mechanisms count as reading; shape set (29, written before the code); flag-state check in every run |

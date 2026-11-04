@@ -94,21 +94,21 @@ const withTf = (text, prevTf, tf) => (!tf ? text : prevTf ? text.replace(new Reg
  * → { text, rule } | null
  */
 export function rewriteSameRequest(text, depth = 0) {
-  const { s } = clean(text)
-  // D2.2 IN-MESSAGE REPEAT: "<request>, then do the same for QQQ" → the request, then the request again for QQQ — as two
-  // explicit STEPS (each run on its own, so "it" in each binds to the chart THAT step creates)
-  const rep = depth ? null : /^(.+?),?\s+(?:and\s+then\s+|and\s+|then\s+)?(?:do\s+)?(?:the\s+)?same(?:\s+thing)?\s+(?:for|on|with)\s+(.+)$/i.exec(s)
-  // the part before must itself be a request (a command verb and what it acts on) — "do the same on the right chart" is a
-  // follow-up to the LAST message, not an in-message repeat of "do"
-  if (rep && /^(?:add|open|create|make|put|switch|change|show|load|pull up|bring up|give me|throw|slap|set|draw|turn)\b/i.test(rep[1].trim()) && rep[1].trim().split(/\s+/).length >= 3) {
-    const first = rewriteSameRequest(rep[1], depth + 1)?.text || rep[1]
-    const again = rewriteFollowUp(`same for ${rep[2]}`, first)
-    if (again) return { text: `${first}, then ${again.text}`, rule: 'in-message-repeat', steps: [first, again.text] }
-  }
+  const raw = clean(text).s
+  // D3.3 clause STRUCTURE first (topicalised / plain "give", possessives, a count of charts with tickers) — so every later
+  // rule sees the canonical structure, whatever the surface order or verb
+  const s = preNormalise(raw)
+  const preChanged = s !== raw
+  // D2.2 / D3.3 IN-MESSAGE "SAME": "<request> and the same to AMD", "<request>, same for QQQ", "<request> and do the same with
+  // TSLA", "<request> and AMD the same", "<request>, then open a chart for AMD and do the same there", "<request> and give a
+  // new AMD chart the same" → explicit STEPS (each run on its own, so "it" in each binds to the chart THAT step creates)
+  const same = depth ? null : inMessageSame(s, depth)
+  if (same) return same
   // D2.1 MULTI-TICKER CREATION, canonical: "<verb> AMD and QQQ charts[, both with RSI | with the 21 ema on each | and …]"
   // → "open charts for AMD and QQQ[, each with … | , then …]" — the grid reader's and the each-with reader's own form
   // (D2.2: also "… SPY, QQQ, IWM and DIA in four equal charts …")
-  const mt = /^(?:(?:please|can you|could you|would you)\s+)?(?:add|open|give me|show me|show|display|pull up|bring up|throw up|put up|load|create|make|get me|set up|i want|i'd like|lemme see|put)\s+(?:(?:two|three|four|five|six|\d)\s+)?(?:new\s+|separate\s+)?(\$?[A-Z]{1,5}(?:\s*(?:,|and|&)\s*\$?[A-Z]{1,5})+)\s+(?:(?:in|as|on|into)\s+(?:(?:two|three|four|five|six|\d)\s+)?(?:equal\s+|separate\s+|individual\s+|their own\s+)?)?charts?\b\s*(.*)$/.exec(s)
+  const mt = /^(?:(?:please|can you|could you|would you)\s+)?(?:add|open|give me|show me|show|display|pull up|bring up|throw up|put up|load|create|make|get me|set up|i want|i'd like|lemme see|put)\s+(?:(?:two|three|four|five|six|\d)\s+)?(?:new\s+|separate\s+)?(\$?[A-Z]{1,5}(?:\s*(?:,|and|&)\s*\$?[A-Z]{1,5})+)\s+(?:(?:in|as|into)\s+(?:separate\s+|individual\s+|their own\s+)?)?charts?\b\s*(.*)$/.exec(s)
+  // (D3.3: a COUNT of charts — "in four equal charts", "on four charts" — is a grid, never new charts on top: preNormalise)
   if (mt) {
     const list = mt[1].replace(/\$/g, '').split(/\s*(?:,|and|&)\s*/).filter(Boolean)
     const tickers = list.length > 2 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list.join(' and ')
@@ -133,7 +133,124 @@ export function rewriteSameRequest(text, depth = 0) {
   stage('quantifier', quantifierCharts)          // "add rsi to both" → "add rsi to both charts"
   stage('add-to-it', ontoClauses)                // "add X to it / the new one" → "put X on …" (a clause never crosses into another)
   stage('distribute-indicators', distributeIndicators) // "put RSI and MACD on it" → "put RSI on it and put MACD on it"
+  if (preChanged) rules.unshift('structure')
   return rules.length ? { text: t, rule: rules.join('+') } : null
+}
+
+// ── D3.3 clause structure ──────────────────────────────────────────────────────────────────────────────────────────
+const VERBS = 'add|open|create|make|put|switch|change|show|load|pull up|bring up|give|throw|slap|set|draw|turn|swap|flip|exchange|color|colour|paint|remove|take|apply|copy|move|stick'
+const STARTS_REQUEST = new RegExp(`^(?:${VERBS})\\b`, 'i')
+const TF_PHRASE = /^(?:a |an |the )?(daily|weekly|monthly|hourly)(?: (?:timeframe|time frame|chart|view|interval))?$/i
+const TARGET_PHRASE = /^(?:it|them|both(?: of them| charts)?|all(?: of them| charts)?|that(?: one| chart)?|this(?: one| chart)?|the (?:\w+ ){0,2}(?:chart|charts|one)|(?:the )?\$?[A-Z]{1,5}(?: chart)?)$/
+
+/** Structure normalisation of ONE clause or message (each stage text → text). */
+function preNormalise(s0) {
+  let s = s0
+  // a count of charts with tickers ("four charts: SPY, QQQ, NVDA and TSLA, all with rsi") → the grid reader's form (a
+  // GRID reuses the charts there: never one chart too many)
+  const LIST = '(\\$?[A-Z]{1,5}(?:\\s*(?:,|and|&)\\s*\\$?[A-Z]{1,5})+)'
+  const NUMW = '(two|three|four|five|six|\\d)'
+  const VERB0 = '(?:(?:please\\s+)?(?:put|show|make|give me|set up|open|create|i want|load|get me|display|throw up|pull up)\\s+(?:me\\s+)?)?'
+  // "four charts: SPY, QQQ, …" / "SPY, QQQ, … in four equal charts" / "… on four charts"
+  const cg = new RegExp(`^${VERB0}${NUMW}\\s+(?:new\\s+|separate\\s+|equal\\s+)?charts?\\s*(?::|,|-|with|of|for)?\\s*${LIST}\\s*(.*)$`).exec(s)
+  const cg2 = cg ? null : new RegExp(`^${VERB0}${LIST}\\s+(?:in|on|as|into)\\s+(?:a\\s+)?${NUMW}\\s+(?:new\\s+|separate\\s+|equal\\s+|equally sized\\s+)?charts?\\b\\s*(.*)$`).exec(s)
+  const grid = cg ? { n: cg[1], list: cg[2], tail: cg[3] } : cg2 ? { n: cg2[2], list: cg2[1], tail: cg2[3] } : null
+  if (grid) {
+    const list = grid.list.replace(/\$/g, '').split(/\s*(?:,|and|&)\s*/).filter(Boolean)
+    const tickers = list.length > 2 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list.join(' and ')
+    const tail = grid.tail.trim().replace(/^,\s*/, '')
+    const allWith = /^(?:all|each|both|every one)(?: of them)?\s+(?:with|having|getting)\s+(.+)$/i.exec(tail)
+    const withOn = /^with\s+(.+?)(?:\s+(?:on|for|in)\s+(?:each|all|both|every one)(?: of them)?)?$/i.exec(tail)
+    let rest = ''
+    if (allWith) rest = `, each with ${allWith[1]}`
+    else if (withOn) rest = `, each with ${withOn[1]}`
+    else if (tail) rest = `, then ${tail.replace(/^(?:and|then|and then)\s+/i, '')}`
+    s = `put ${tickers} on ${grid.n} charts${rest}`
+  }
+  // a creation said without a verb: "new chart for META …" → "add a chart for META …"
+  s = s.replace(/^(?:a\s+)?new\s+chart\s+(for|of|with)\b/i, 'add a chart $1')
+  // a topic, then "give it …": "the QQQ chart, give it macd" → "give the QQQ chart macd"
+  s = s.replace(/^(.+?),\s*give\s+(?:it|them|that one|this one)\s+(.+)$/i, (m, topic, thing) => (TARGET_PHRASE.test(topic.trim()) ? `give ${topic.trim()} ${thing}` : m))
+  // possessives: "set its timeframe to weekly", "make their interval monthly", "with its timeframe on weekly"
+  s = s.replace(/\b(?:and\s+)?(?:with|set|change|make|switch|put|turn|have)\s+(its|their)\s+(?:time ?frame|interval|tf|resolution|period)\s+(?:to|on|into|as|at|be)?\s*(?:the\s+)?(daily|weekly|monthly|hourly)\b/gi,
+    (m, who, tf) => `${/^and\b/i.test(m) || /^with\b/i.test(m) ? 'and ' : ''}make ${who.toLowerCase() === 'its' ? 'it' : 'all of them'} ${tf.toLowerCase()}`).replace(/\s+and\s+and\s+/g, ' and ')
+  // "give <target> <thing>" — clause by clause: an indicator → "add <thing> to <target>" ("put … on it"); a timeframe →
+  // "make <target> <tf>"
+  s = s.split(/(\s*(?:,\s*(?:and\s+)?(?:then\s+)?|;\s*|\s+then\s+|\s+and\s+(?=give\b)))/i).map(part => giveClause(part)).join('')
+  return s
+}
+function giveClause(c) {
+  const m = /^give\s+(.+)$/i.exec(c.trim())
+  if (!m) return c
+  const words = m[1].split(/\s+/)
+  for (let i = 1; i < words.length; i++) {
+    const target = words.slice(0, i).join(' ')
+    const thing = words.slice(i).join(' ')
+    if (!TARGET_PHRASE.test(target)) continue
+    if (INDICATOR.test(thing)) {
+      if (/^(?:it|that(?: one)?|this(?: one)?)$/i.test(target)) return `put ${thing} on it`
+      if (/^(?:them|both|both of them|both charts)$/i.test(target)) return `add ${thing} to both charts`
+      if (/^all/i.test(target)) return `add ${thing} to all charts`
+      return `add ${thing} to ${target}`
+    }
+    const tf = TF_PHRASE.exec(thing)
+    if (tf) {
+      if (/^(?:them|both|both of them|both charts)$/i.test(target)) return `make both charts ${tf[1].toLowerCase()}`
+      return `make ${target.replace(/^that(?: one)?$|^this(?: one)?$/i, 'it')} ${tf[1].toLowerCase()}`
+    }
+  }
+  return c
+}
+/** The request with its chart reference replaced by "it" ("add rsi to NVDA" → "put rsi on it"; "make the chart weekly" → "make it weekly"). */
+function retargetToIt(p) {
+  let out = p
+  out = out.replace(/\b(?:to|on|onto|for)\s+(?:the\s+)?(?:\$?[A-Z]{1,5}|(?:\w+\s+){0,2}chart|(?:\w+\s+)?one)(?:\s+chart)?\s*$/, 'on it')
+  out = out.replace(/^(make|set|switch|change|turn|flip)\s+(?:the\s+)?(?:\$?[A-Z]{1,5}|(?:\w+\s+){0,2}chart)(?:\s+chart)?\b/i, '$1 it')
+  out = out.replace(/^(?:add|throw|slap|stick|load)\s+(.+?)\s+on it$/i, 'put $1 on it')
+  return out === p ? null : out
+}
+function inMessageSame(s, depth) {
+  const request = (p) => STARTS_REQUEST.test(p.trim()) && p.trim().split(/\s+/).length >= 3
+  const norm = (p) => rewriteSameRequest(p, depth + 1)?.text || p
+  let m
+  // the same on a NEW chart: "<P>, then open a chart for AMD and do the same there" / "<P> and give a new AMD chart the same"
+  m = /^(.+?)(?:,|\s+and)?\s+(?:then\s+)?(?:open|add|create|make|pull up|bring up|start)\s+(?:a\s+|another\s+)?(?:new\s+)?chart\s+(?:for|of|with)\s+\$?([A-Z]{1,5})\s+and\s+(?:do\s+)?(?:the\s+)?same(?:\s+thing)?(?:\s+(?:there|on it|to it|for it|on that one|to that one|on that chart))?$/.exec(s)
+    || /^(.+?)\s+and\s+give\s+(?:a\s+)?new\s+\$?([A-Z]{1,5})\s+chart\s+the\s+same$/.exec(s)
+  if (m && request(m[1])) {
+    const first = norm(m[1])
+    const onIt = retargetToIt(first)
+    if (onIt) return { text: `${first}, then add a chart for ${m[2]} and ${onIt}`, rule: 'same-on-new-chart', steps: [first, `add a chart for ${m[2]} and ${onIt}`] }
+  }
+  // the same for a ticker / chart: "<P> and the same to AMD", "<P>, same for QQQ", "<P> and do the same with TSLA",
+  // "<P>, then do the same for QQQ", "<P> and AMD the same"
+  m = /^(.+?)(?:,|\s+and)\s+(?:then\s+)?(?:do\s+)?(?:the\s+)?same(?:\s+thing)?\s+(?:for|to|with|on)\s+(.+)$/i.exec(s)
+    || (() => { const x = /^(.+?)\s+and\s+(\$?[A-Z]{1,5}|the (?:\w+ ){1,2}(?:chart|one))\s+the\s+same$/.exec(s); return x })()
+  if (m && request(m[1])) {
+    const first = norm(m[1])
+    const again = rewriteFollowUp(`same for ${m[2]}`, first)
+    if (again) return { text: `${first}, then ${again.text}`, rule: 'in-message-repeat', steps: [first, again.text] }
+  }
+  return null
+}
+/**
+ * D3.3 CLAUSES: a message of several requests, each clause starting with a command verb ("swap the two charts and add rsi
+ * to both", "add the 50 sma to both charts and swap them") → one STEP per clause, each normalised on its own. Lists of
+ * tickers or indicators are never split (a clause boundary needs a verb right after it). → { steps, text, rule } | null
+ */
+export function rewriteClauses(text) {
+  const s = clean(text).s
+  const parts = s.split(new RegExp(`\\s*(?:;|,\\s*(?:and\\s+)?then\\s+|\\s+and\\s+then\\s+|\\s+then\\s+|,\\s*(?:and\\s+)?(?=(?:${VERBS})\\b)|\\s+and\\s+(?=(?:${VERBS})\\b))\\s*`, 'i')).map(x => x.trim()).filter(Boolean)
+  if (parts.length < 2 || !parts.every(p => STARTS_REQUEST.test(p))) return null
+  // a later clause's "both of them / them / those" is the SET the clause before named ("swap the top two charts and add rsi
+  // to both of them" → "… add rsi to the top two charts")
+  const SET_IN = /\b(the (?:(?:top|bottom|left|right|upper|lower)\s+)?(?:two|three|four)(?:\s+(?:top|bottom|left|right))?\s+charts|the (?:(?:top|bottom)\s+)?(?:left|right)\s+and\s+(?:(?:top|bottom)\s+)?(?:left|right)\s+charts|\$?[A-Z]{1,5}(?:\s*(?:,|and)\s*\$?[A-Z]{1,5})+)\b/
+  const resolved = parts.map((p, i) => {
+    if (!i) return p
+    const prev = SET_IN.exec(parts[i - 1])
+    return prev ? p.replace(/\b(to|on|onto|for)\s+(?:both of them|both|them|those|these)\b/i, `$1 ${prev[1]}`) : p
+  })
+  const steps = resolved.map(p => rewriteSameRequest(p, 1)?.text || p)
+  return { text: steps.join(', then '), rule: 'clauses', steps }
 }
 
 // ── D2.2 normalisation stages (pure text → text) ─────────────────────────────────────────────────────────────────
@@ -240,13 +357,16 @@ export function nlm1Rewrite(text, { prev = null, claims = () => false, originalC
   try {
     // each reading in turn (same-request first, then the follow-up), the first one a reader takes; a reading no reader
     // takes never hides the next one
-    for (const r of [rewriteSameRequest(text), rewriteFollowUp(text, prev)]) {
+    // (D3.3: then the message as CLAUSES, each its own step) — a reading made of STEPS counts only when EVERY step is taken
+    for (const make of [() => rewriteSameRequest(text), () => rewriteFollowUp(text, prev), () => rewriteClauses(text)]) {
+      const r = make()
       if (!r || r.text === text) continue
       if (originalClaimed && !r.override) continue
+      if (r.steps) { if (r.steps.length > 1 && r.steps.every(st => claims(st))) return r; continue }
       // a follow-up's explicit form may itself carry a same-request reference ("… with RSI")
-      const again = r.steps ? null : rewriteSameRequest(r.text)
+      const again = rewriteSameRequest(r.text)
       const out = again ? { ...again, rule: `${r.rule}+${again.rule}` } : r
-      if (claims(out.text)) return out
+      if (out.steps ? out.steps.every(st => claims(st)) : claims(out.text)) return out
     }
     return null
   } catch { return null }

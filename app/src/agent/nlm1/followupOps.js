@@ -23,7 +23,7 @@
 // receipts, grouped Undo). Anything uncertain → null (the message goes on as typed) or { say }. Pure but for `host` reads.
 
 import { fastParse } from '../fastPath'
-import { getCapability } from '../capabilities'
+import { getCapability, getTargetKind } from '../capabilities'
 import { indicatorEditsRef, indicatorRowsOf } from '../capabilities/indicatorEdits'
 import { tickerWordsOf } from './capabilityIndex'
 
@@ -76,7 +76,7 @@ export function resolveCharts(phraseRaw, { host, last = [], created = [] } = {})
     return hit.every(h => h.length === 1) ? hit.map(h => h[0].ref) : null
   }
   if (!p || /^(?:it|that|this|them|those|these|same)$/.test(p)) return last.length ? [...last] : null
-  if (/^(?:both|both of them)$/.test(p)) return charts.length === 2 ? refs : null
+  if (/^(?:both|both of them|two|two of them)$/.test(p)) return charts.length === 2 ? refs : (last.length === 2 ? [...last] : null)
   if (/^(?:all|all of them|every|each|each of them|everything|every one)$/.test(p)) return refs
   // quantifiers over the REST: "other", "others", "rest", "other three", "other two on the bottom", "remaining"
   let m = /^(?:other|others|rest|remaining|everything else|the rest)(?: (one|two|three|four|five|six|\d))?(?: (?:on|at|in) (top|bottom|left|right))?$/.exec(p)
@@ -198,6 +198,27 @@ export function aimCommandAtSet(s, { host, sets }) {
   const m = INLINE_SET.exec(s)
   if (m) return tryRead(`${m[1]} it ${m[3]}`, m[2])
   return null
+}
+
+/** D3.3 swap → { ops, rule } | null (exactly two charts; their places, or their tickers when the words say tickers / symbols) */
+export function swapOps(s, { host, sets }) {
+  const m = /^(?:swap|switch|flip|exchange|trade|reverse)\s+(?:the\s+)?(?:(tickers?|symbols?|stocks?)\s+(?:on|of|between|in)\s+)?(.+?)(?:\s+(?:around|over|places|positions))?$/i.exec(String(s || '').trim())
+  if (!m) return null
+  const phrase = m[2].replace(/^(?:places|positions)\s+(?:of\s+)?/i, '').trim()
+  const charts = boardCharts(host)
+  // "the two charts", "them", "both": the board's two charts when it has exactly two; anything else through the set resolver
+  const pair = /^(?:them|those|these|both(?: of them| charts)?|(?:the\s+)?two(?:\s+charts)?|the\s+charts)$/i.test(phrase)
+  const refs = pair ? (charts.length === 2 ? charts.map(c => c.ref) : null) : sets(phrase)
+  if (!refs || refs.length !== 2) return null
+  if (m[1]) {
+    const [a, b] = refs.map(r => charts.find(c => c.ref === r))
+    if (!a?.symbol || !b?.symbol) return null
+    return { ops: [{ action: 'chart.setSymbol', target: a.ref, args: { symbol: b.symbol } }, { action: 'chart.setSymbol', target: b.ref, args: { symbol: a.symbol } }], rule: 'swap-tickers' }
+  }
+  const kind = getTargetKind(getCapability('board.swap')?.target)
+  const board = (() => { try { return kind?.list?.(host) || [] } catch { return [] } })()
+  if (board.length !== 1) return null
+  return { ops: [{ action: 'board.swap', target: board[0].ref, args: { a: refs[0], b: refs[1] } }], rule: 'swap-places' }
 }
 
 /** The last request's ops with a timeframe or an indicator REPLACED ("same but monthly", "same but macd") | null */
@@ -325,6 +346,11 @@ export function resolveFollowUpOps(text, { host, memory, epoch = null, created =
       const op = refs ? valueOp(m[2], host) : null
       if (refs && op) return { ops: refs.map(ref => ({ action: op.action, target: ref, args: op.args })), rule: 'referent-value' }
     }
+
+    // D3.3 SWAP over a referent set of exactly TWO charts: "swap the two charts", "swap them", "swap the top two charts",
+    // "swap the tickers on the two charts" — the charts' places (board.swap), or their tickers when the words say so
+    const swapped = swapOps(s, { host, sets })
+    if (swapped) return swapped
 
     // A CHART COMMAND AIMED AT A REFERENT SET (any turn, not only a follow-up): "add rsi to AMD", "add macd to SPY and QQQ",
     // "make the top two charts weekly", "put the 21 ema on the bottom two" — the set read by resolveCharts, the command by

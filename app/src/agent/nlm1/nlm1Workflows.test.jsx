@@ -3,6 +3,7 @@
 // golden-workflow format). No model call anywhere (modelTurns 0).
 //   nlm1/baseline/workflows.json   the first set (D2 18, D3 22)
 //   nlm1/baseline/workflows2.json  the GENERALISATION set (AUDIT's sealed-set categories a–f; written after them)
+//   nlm1/baseline/workflows4.json  the IN-PLAN SHAPE set (AUDIT's third report: 7 shapes × ≥3 surface variants, written before D3.3)
 //   nlm1/baseline/workflows3.json  the ROBUSTNESS set (AUDIT's second report: A in-plan, B cross-turn on varied boards / prior
 //                                  turns, C Undo after a by-ticker add removed by "it")
 // NLM1_WF_MODE=off      the same cases with NLM-1 OFF (the v1 baseline measurement; not a gate)
@@ -10,7 +11,7 @@
 //                       faithful) and its `routes` are checked against routing v2 — a pass means routing + binding +
 //                       executor are right and only a deterministic reader is missing; a fail means something is WRONG
 // NLM1_WF_SET=1 | 2 | 3 | 1,3 …  those sets only.
-import { describe, it, vi, afterEach } from 'vitest'
+import { describe, it, vi, afterEach, expect } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
 import { replay } from '../qa/capabilityRegression/testing/run'
@@ -19,6 +20,10 @@ import { gapIt } from '../qa/capabilityRegression/testing/corpus'
 import data from './baseline/workflows.json'
 import data2 from './baseline/workflows2.json'
 import data3 from './baseline/workflows3.json'
+import data4 from './baseline/workflows4.json'
+import { mountCase } from '../qa/capabilityRegression/testing/harness'
+import { loadAgentConfig } from '../agentClient'
+import { routingV2Active } from './flag'
 
 pinClock()
 vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -35,8 +40,15 @@ const plannerSteps = (steps) => steps.map(s => (s.canonical ? { ...s, model: { o
 
 describe(`NLM-1 workflows (${OFF ? 'flag OFF — baseline' : PLANNER ? 'flag ON, planner-assisted' : 'flag ON'})`, () => {
   const set = globalThis.process?.env?.NLM1_WF_SET || 'all'
-  const sets = { 1: data.workflows, 2: data2.workflows, 3: data3.workflows }
-  let all = set === 'all' ? [...data.workflows, ...data2.workflows, ...data3.workflows] : set.split(',').flatMap(k => sets[k] || [])
+  const sets = { 1: data.workflows, 2: data2.workflows, 3: data3.workflows, 4: data4.workflows }
+  let all = set === 'all' ? [...data.workflows, ...data2.workflows, ...data3.workflows, ...data4.workflows] : set.split(',').flatMap(k => sets[k] || [])
+  // the run is what it says it is: the harness clears the browser key unless a case is seeded nlm1 — so a flag-ON run that
+  // silently scored flag OFF (or the reverse) fails HERE, first
+  it(`the run really is flag ${OFF ? 'OFF' : 'ON'}`, async () => {
+    mountCase('ONE', { seed: { nlm1: !OFF } })
+    await loadAgentConfig()
+    expect(routingV2Active()).toBe(!OFF)
+  })
   if (PLANNER) all = all.filter(w => w.steps.some(s => s.canonical))
   for (const w of all) {
     if (only && !w.id.startsWith(only)) continue

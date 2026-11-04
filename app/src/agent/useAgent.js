@@ -1763,7 +1763,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           // read as the panel reads it: "the new one" is "it" bound to the chart just created (asSubjectWords)
           const reads = (t0) => { const t = asSubjectWords(t0, createdRef.current?.refs || null).text; try { return [fastParse(t, { host }), multiChartPlan(t, { host }), planCompound(t, { host })].some(r => r && r.kind !== 'say') } catch { return false } }
           const typed = reads(text)
-          const rw = nlm1Rewrite(text, { prev: last ? referentsRef.current.textOf(last.id) : null, claims: reads, originalClaimed: typed })
+          // D3.3: an explicit form counts as read when a reader OR an NLM-1 mechanism (a created-chart plan, a command at a
+          // referent set, a swap, a follow-up over the request so far) takes it — "already read as typed" stays the readers only
+          const nlmTakes = (t) => { try { return !!(planCreatedReference(t, host)?.ops || resolveFollowUpOps(t, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [], before: null })?.ops) } catch { return false } }
+          const rw = nlm1Rewrite(text, { prev: last ? referentsRef.current.textOf(last.id) : null, claims: (t) => reads(t) || nlmTakes(t), originalClaimed: typed })
           if (rw) { mark('nlm1:rewrite', rw.rule); text = rw.text }
           // D2.2: a request whose parts must each run on their own ("<request>, then do the same for QQQ": each part's "it" is
           // the chart THAT part creates) — the ordinary multi-step run (runCompound): each part read, executed, receipted,
@@ -1777,7 +1780,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           // ordinals, quantifiers), repeat / additive copies of the last request, "back to" inversion from the snapshot
           // taken before it, removal by position. Its ops go through the same execute (policy, runtime, receipts, Undo).
           const conv = (() => { try { return resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochOf(host) }) } catch { return null } })()
-          if (!rw && !typed && !conv) {
+          // (D3.3: also when the message WAS rewritten to a form only an NLM-1 mechanism takes — "give AMD rsi" → "add rsi to
+          // AMD" — the readers would hand that to the model)
+          if (!(rw ? reads(text) : typed) && !conv) {
             const fo = resolveFollowUpOps(text, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [],
               before: last ? referentsRef.current.stateBefore(last.id) : null })
             if (fo?.say) {

@@ -1,7 +1,39 @@
 // NLM-1 D2/D3 — the rewriter's units: an elliptical request → its explicit form, from the last committing message.
 // (End-to-end on the real panel, final state + Undo: nlm1Workflows.test.jsx.)
 import { describe, it, expect } from 'vitest'
-import { rewriteFollowUp, rewriteSameRequest, nlm1Rewrite, slotsOf, positionsOf, createReferents } from './followups'
+import { rewriteFollowUp, rewriteSameRequest, rewriteClauses, nlm1Rewrite, slotsOf, positionsOf, createReferents } from './followups'
+
+describe('D3.3 clause structure (shapes S1–S7, by structure not wording)', () => {
+  const t = (x) => rewriteSameRequest(x)?.text ?? null
+  it('S7 "give <target> <thing>", topicalised or not', () => {
+    expect(t('give AMD rsi')).toBe('add rsi to AMD')
+    expect(t('give the AMD chart a 50 sma')).toBe('add a 50 sma to the AMD chart')
+    expect(t('give the TSLA chart the weekly timeframe')).toBe('make the TSLA chart weekly')
+    expect(t('the QQQ chart, give it macd')).toBe('add macd to the QQQ chart')
+    expect(t('pull up TSLA on the right and give it a 21 ema')).toMatch(/and put a 21 ema on it$/)
+  })
+  it('S4 possessives', () => {
+    expect(t('add a chart for AMD and set its timeframe to weekly')).toBe('add a chart for AMD and make it weekly')
+    expect(t('open a TSLA chart and change its interval to monthly')).toBe('open a TSLA chart and make it monthly')
+    expect(t('new chart for META with its timeframe on weekly')).toBe('add a chart for META and make it weekly')
+  })
+  it('S2 a count of charts is a GRID (reuse), whatever the order', () => {
+    expect(t('four charts: SPY, QQQ, NVDA and TSLA, all with rsi')).toBe('put SPY, QQQ, NVDA and TSLA on four charts, each with rsi')
+    expect(t('show SPY, QQQ, IWM and DIA in four equal charts with macd on each')).toBe('put SPY, QQQ, IWM and DIA on four charts, each with macd')
+  })
+  it('S5 / S6 in-message "same" → steps (a ticker, or a NEW chart)', () => {
+    expect(rewriteSameRequest('add rsi to NVDA and the same to AMD')?.steps).toEqual(['add rsi to NVDA', 'add rsi to AMD'])
+    expect(rewriteSameRequest('give NVDA a 50 sma and AMD the same')?.steps).toEqual(['add a 50 sma to NVDA', 'add a 50 sma to AMD'])
+    expect(rewriteSameRequest('make NVDA weekly and do the same with TSLA')?.steps).toEqual(['make NVDA weekly', 'make TSLA weekly'])
+    expect(rewriteSameRequest('add rsi to NVDA, then open a chart for AMD and do the same there')?.steps).toEqual(['add rsi to NVDA', 'add a chart for AMD and put rsi on it'])
+    expect(rewriteSameRequest('make the chart weekly, then add a chart for QQQ and do the same on it')?.steps).toEqual(['make the chart weekly', 'add a chart for QQQ and make it weekly'])
+  })
+  it('S1 clauses split only before a verb; a later "both of them" takes the set the clause before named', () => {
+    expect(rewriteClauses('swap the two charts and add rsi to both')?.steps).toEqual(['swap the two charts', 'add rsi to the two charts'])
+    expect(rewriteClauses('swap the top two charts and add rsi to both of them')?.steps).toEqual(['swap the top two charts', 'add rsi to the top two charts'])
+    expect(rewriteClauses('add rsi to SPY and QQQ')).toBeNull()                       // a ticker list is never split
+  })
+})
 
 const fu = (text, prev) => rewriteFollowUp(text, prev)?.text ?? null
 
@@ -52,7 +84,7 @@ describe('D2.2 structural normalisations (in-plan, no planner)', () => {
     expect(r?.steps).toEqual(['add a chart for AMD and put RSI on it', 'add a chart for QQQ and put RSI on it'])
   })
   it('tickers "in four equal charts"', () => {
-    expect(rewriteSameRequest('show SPY, QQQ, IWM and DIA in four equal charts with macd on each')?.text).toBe('open charts for SPY, QQQ, IWM and DIA, each with macd')
+    expect(rewriteSameRequest('show SPY, QQQ, IWM and DIA in four equal charts with macd on each')?.text).toBe('put SPY, QQQ, IWM and DIA on four charts, each with macd')   // D3.3: a count is a grid (reuse)
   })
 })
 
