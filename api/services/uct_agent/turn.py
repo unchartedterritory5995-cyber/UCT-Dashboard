@@ -1555,6 +1555,21 @@ _CLAIMS_WITHOUT_ACTION = re.compile(
     rf"|(?:{_ACT})\w*(?:ing|ed)\s+(?:up\s+)?(?:\S+\s+){{0,2}}?(?:your|my)\b"
     rf"|here (?:are|is) your\b"
     r"|(?:done|all set)\b)", re.I)
+# ⛔ LT-15 (live 2026-11-03): "describe the setup on nvda" came back as an ANSWER whose reply ANNOUNCED a lookup
+# ("Checking NVDA's daily setup now.") and nothing ever followed — the claim rule above names CHANGES (open, add,
+# filter…), and a read announced as under way slipped past it. With no op nothing will be read, so the
+# announcement is replaced by an honest sentence. Matched: a first-person promise to look ("let me check…",
+# "I'll pull up…"), or a lookup verb in -ing that says it is happening NOW ("Checking NVDA's setup now.",
+# "Pulling that up…", "Looking into it, one moment."). NOT matched: an answer that only starts with such a word
+# ("Looking at the 50-day, a rising average…", "Reviewing a chart weekly helps…").
+_LOOKUP = r"check|look|pull|fetch|grab|analy[sz]|describ|review|load|calculat|comput|scan|examin|research|gather|crunch"
+_ANNOUNCES_LOOKUP = re.compile(
+    _LEAD + rf"(?:(?:i(?:'ll| will| am|'m| shall)|let me|i'm going to|i am going to)\s+(?:\w+\s+)?(?:{_LOOKUP}|get|read|run)\w*\b"
+    r"(?!\s+(?:you|how|what|why)\b)"
+    rf"|(?:(?:{_LOOKUP})\w*ing|getting|reading|running|working on)\b[^.!?\n]{{0,80}}?"
+    r"(?:\bnow\b|\bone (?:moment|sec(?:ond)?)\b|\bjust a (?:moment|sec(?:ond)?)\b|\bshortly\b|\bfor you\b|\.\.\.|…))", re.I)
+NOTHING_LOOKED_UP = ("I didn't look that up — no lookup was planned, so nothing was read and there is no result to show. "
+                     "Ask again a little more specifically.")
 NOTHING_DONE = ("I didn't do that — no action was planned, so nothing in UCT changed. "
                 "Ask again a little more specifically (for example, “screen for the highest RS Rank stocks”).")
 NOTHING_YET = "Nothing in UCT has changed yet."
@@ -1797,6 +1812,23 @@ def false_capability_claim(env: Any, cap_names: set[str] | None, unselected_ids:
     return None
 
 
+def promote_talk_reads(env: Any) -> Any:
+    """⛔ LT-15 (live 2026-11-03): "describe the setup on nvda" — the planner returned the right READ op
+    (chart.describeSetup) under disposition `answer`, with the reply "Checking NVDA's daily setup now.". TALK never
+    carries ops, so the op was dropped and the member saw the announcement and then nothing. An `answer` whose ops
+    are ALL data reads (DATA_READ_ACTIONS, decided by name: read-only, nothing written) is served as the `apply`
+    it plainly is: the read runs, its card leads, and the pre-read reply is dropped by the data-read rule in
+    sanitize_envelope. Anything else in the ops (a write, an unknown action) leaves TALK exactly as it was."""
+    if not isinstance(env, dict) or env.get("disposition") != "answer":
+        return env
+    ops = env.get("ops") if isinstance(env.get("ops"), list) else []
+    if not ops or not all(isinstance(o, dict) and o.get("action") in DATA_READ_ACTIONS for o in ops):
+        return env
+    log.info("uct_agent talk with data-read ops: served as apply (%s)",
+             ",".join(sorted({str(o.get("action")) for o in ops})))
+    return {**env, "disposition": "apply", "question": None}
+
+
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
                       unselected_ids: set[str] | None = None, local_notice: str | None = None,
                       claim_repaired: bool = False, grounded: bool = False) -> dict:
@@ -1887,6 +1919,11 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         # so the next turn's history does not believe it either. (Shape only in the log.)
         log.warning("uct_agent claim without action: replaced a %d-char answer", len(reply))
         reply = NOTHING_DONE
+    elif disp == "answer" and not ops and _ANNOUNCES_LOOKUP.match(reply):
+        # ⛔ LT-15: an announced lookup with nothing planned would leave the member waiting for a result that never
+        # comes ("Checking NVDA's daily setup now." and then nothing). Said plainly instead. (Shape only in the log.)
+        log.warning("uct_agent lookup announced without an op: replaced a %d-char answer", len(reply))
+        reply = NOTHING_LOOKED_UP
     if disp in MUTATING and ops and not grounded and all(o.get("action") in DATA_READ_ACTIONS for o in ops):
         # ⛔ DATA-READ ANSWERS: the card states the facts; the model's pre-read words never do (codes only in the log)
         if reply:
@@ -2514,6 +2551,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    "reply": ("I looked that up, but I don't make changes based on what I find online in the same "
                              "step. Tell me exactly what you'd like changed and I'll do it.") if mutated or not env.get("reply")
                    else env.get("reply")}
+        if not answer_only and not usage["research_calls"]:
+            env = promote_talk_reads(env)
         if isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
         if answer_only and isinstance(env, dict) and (env.get("ops") or env.get("disposition") in MUTATING):
