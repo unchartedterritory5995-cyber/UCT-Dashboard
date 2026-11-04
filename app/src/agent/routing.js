@@ -297,7 +297,6 @@ export function wordsSelect(id, message) {
   const g = GROUPS.find(x => x.id === id)
   return !!g && (g.words || []).some(re => re.test(q))
 }
-// a CONCEPT question ("what is a pullback?") is the coach's / the model's own answer, not one stock's history
 export function selectGroups(message, { pendingActions = [], recentActions = [], names = null, correct = null } = {}) {
   const raw = String(message || '')
   // W2 (CG-2): "2×2" typed with the multiplication sign reads as "2x2"
@@ -314,10 +313,6 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
     if (texts.some(t => g.words.some(re => re.test(t)))) hits.add(g.id)
   }
   for (const t of texts) for (const id of namedGroups(t, names)) hits.add(id)
-  // W2 audit (live 2026-11-04: "Show me NVDA's recent pullbacks." never reached stock.dailyBars): ONE stock's price history —
-  // its pullbacks, drawdowns, distance off its high, its range, its last N days — is the data group's, however the stock
-  // is named (a possessive ticker, a lower-case one, "it"). A question over a UNIVERSE of stocks ("stocks pulling back to
-  // the 20") stays the screener's: these words never add data there.
   // "put NVDA on the left", "Switch to AMD": a ticker-shaped word (case-sensitive, on the raw
   // text) after a show/switch verb is a chart symbol request.
   if (SYMBOL_VERB.test(q) && tickerWords(raw).length) hits.add('charts')

@@ -28,7 +28,6 @@ import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest } from './multiChart'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
-import { receiptView } from './receiptView'
 import { notDoneLines } from './notDone'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
@@ -169,17 +168,47 @@ const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it =
 // (references.IT_WORDS); "the new one", "the chart you just added" only right after a turn that CREATED a widget.
 const THAT_ONE = /\b(?:that one|that chart)\b/gi
 const NEW_ONE = /\b(?:the|that|this) new (?:one|chart)\b|\bthe (?:one|chart) (?:you )?just (?:added|made|created|opened)\b|\bthe (?:one|chart) (?:you )?(?:added|made|created|opened)\b/gi
-export function asSubjectWords(text, memory, epoch = null) {
+// → { text, subject }: `subject` = the chart "the new one" names (review #771: exactly ONE chart the latest committing request
+// created — `created`, never the conversation subject a later step of that request moved). Several or none → the words
+// are left alone (the instant path asks which chart; the model reads them).
+export function asSubjectWords(text, created = null) {
   const t = String(text || '')
   let out = t.replace(THAT_ONE, 'it')
+  let subject = null
+  NEW_ONE.lastIndex = 0
   if (NEW_ONE.test(t)) {
     NEW_ONE.lastIndex = 0
-    let created = false
-    try { created = !!memory?.lastTurn?.(epoch)?.ops?.some(o => getCapability(o?.action)?.creates?.(o.args || {})) } catch { created = false }
-    if (created) out = out.replace(NEW_ONE, 'it')
+    const refs = Array.isArray(created) ? created : []
+    if (refs.length === 1) { out = out.replace(NEW_ONE, 'it'); subject = refs[0] }
   }
   NEW_ONE.lastIndex = 0
-  return out
+  return { text: out, subject }
+}
+// the session memory with "it" bound to `subject` for this one message (the created chart)
+const withSubject = (memory, subject) => (subject && memory
+  ? { ...memory, subject: (kind, epoch) => (kind === 'chart' ? { ref: subject, symbol: null, at: Date.now(), epoch } : memory.subject(kind, epoch)) }
+  : memory)
+// review #771 (6): what a part of a split request IS, from its plan — "a new chart for QQQ", "the change to Chart (SPY)"
+export function partLabel(ops, host) {
+  const list = ops || []
+  const adds = list.filter(o => getCapability(o?.action)?.creates?.(o.args || {}))
+  if (adds.length) {
+    const aliases = new Set(adds.map(o => String(getCapability(o.action).creates(o.args || {}).alias)))
+    const syms = list.filter(o => o?.action === 'chart.setSymbol' && aliases.has(String(o.target))).map(o => String(o.args?.symbol || '').toUpperCase()).filter(Boolean)
+    const types = [...new Set(adds.map(o => String(o.args?.type || 'widget')))]
+    const n = adds.length
+    const noun = types.length === 1 ? `${types[0]}${n > 1 ? 's' : ''}` : 'widgets'
+    return `${n === 1 ? 'a new' : `${n} new`} ${noun}${syms.length ? ` for ${syms.join(', ')}` : ''}`
+  }
+  const labels = []
+  for (const o of list) {
+    const kind = getTargetKind(getCapability(o?.action)?.target)
+    let label = null
+    try { label = kind?.read?.(host, o.target)?.label || null } catch { label = null }
+    if (!label) { try { label = host?.charts?.read?.(String(o.target))?.label || null } catch { label = null } }
+    if (label && !labels.includes(label)) labels.push(label)
+  }
+  return labels.length ? `the change to ${labels.join(' and ')}` : 'the change to your existing widgets'
 }
 // ⭐ W2 (receipts): every chart a committed plan touched, read AFTER the commit — { label, symbol, tf, isNew } — so the
 // receipt's one-liner names each chart with its symbol and timeframe (receiptView). Display only; never throws.
@@ -502,6 +531,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const tapRef = useRef(null)               // ⭐ PHASE 2: outcome kinds recorded while one step of a multi-step request runs
   const undoAfterRef = useRef(null)         // hotfix 2026-11-03: a model plan "change …, then undo it" — the Undo waits for the change
   const undoneFirstRef = useRef(false)      // review F3: a planned Undo ran FIRST this turn — a later "didn't change anything" isn't true
+  const createdRef = useRef(null)           // review #771: { turn, refs } — the charts the latest committing request created
   const askedGroupsRef = useRef(null)       // W2 AUDIT: the routing groups the model's open question was asked with
   const lastRoutedRef = useRef(null)        // this turn's routed groups (legacy request), for a question it asks
   const notDoneRef = useRef(null)           // W2 audit: this turn's fixed "Not done: …" sentences (notDone.js)
@@ -1052,6 +1082,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
         // it landed on this screen, so it IS the last change — with no Undo of its own (F1)
         rememberChange(memoryRef.current, host, ops, null, res.created || null)
+        noteCreated(res.created)
         return
       }
       const next =[...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
@@ -1067,6 +1098,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // with ITS Undo entry (pushed above only when the save was confirmed): a correction reverses
       // exactly this change or nothing (nl1/interpreter.correctionPlan)
       rememberChange(memoryRef.current, host, ops, res.undo?.id || null, res.created || null)
+      noteCreated(res.created)
       if (next.length) return { followUps: next, ...(holdForAdd ? { held: { lines, used: false } } : {}), ...(mixedDeferred ? { mixed: true } : {}) }
     } else {
       // a failure that carries its own complete sentence (`say`) is said as-is — never wrapped twice
@@ -1173,7 +1205,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // success claim. The parts' Undo entries become ONE group: "undo" takes back the whole request (doUndo).
     if (out?.split) {
       const parts = out.split
-      const said = (p) => receiptView(p.lines).summary.replace(/^Done — /, '').replace(/[.]+$/, '').replace(/^[A-Z](?=[a-z])/, c => c.toLowerCase()) || 'that part'
+      // review #771 (6): each part is named from its PLAN (what it is), never its past-tense receipt line
+      const said = (p) => partLabel(p.ops, host)
       const outer = tapRef.current
       let done = 0
       for (let i = 0; i < parts.length; i++) {
@@ -1187,11 +1220,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
         const landed = kinds.includes('applied') || kinds.includes('noop')
         if (!landed || kinds.some(k => k !== 'applied' && k !== 'noop')) {
-          const notDone = parts.slice(i).map(said)
           const q = (xs) => xs.map(s => `“${s}”`).join(' and ')
-          const text = done
-            ? `I made the first part of your request (above), then stopped: ${q(notDone)} didn’t go through (see above), so ${notDone.length === 1 ? 'it isn’t' : 'they aren’t'} on your board. Say “undo” to take back the part I made.`
-            : `I stopped there: ${q(notDone.slice(0, 1))} didn’t go through (see above)${notDone.length > 1 ? `, so I didn’t start ${q(notDone.slice(1))}` : ''}. Nothing else was changed.`
+          const made = parts.slice(0, i).map(said)
+          const here = said(parts[i])
+          const later = parts.slice(i + 1).map(said)
+          const notStarted = later.length ? `, so I didn’t start ${q(later)}` : ''
+          // review #771 (2): a part that is ON SCREEN but not saved is said exactly so — it has no Undo of its own
+          const unsaved = kinds.includes('applied-unsaved')
+          const text = unsaved
+            ? `${made.length ? `I made ${q(made)} (above). ` : ''}${q([here])} is on your screen but wasn’t saved (see above)${notStarted}.${made.length ? ` Say “undo” to take back ${q(made)}.` : ''}`
+            : made.length
+              ? `I made ${q(made)} (above), then stopped: ${q([here])} didn’t go through (see above), so it isn’t on your board${notStarted}. Say “undo” to take back ${q(made)}.`
+              : `I stopped there: ${q([here])} didn’t go through (see above)${notStarted}. Nothing else was changed.`
           push({ role: 'agent', text })
           record({ member: null, outcome: text, outcomeData: { kind: 'split-stopped', step: i, of: parts.length }, telemetry: { path, refused: true, voice } })
           break
@@ -1228,6 +1268,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (held && !held.used) push({ role: 'receipt', lines: held.lines, undoId: null })
     }
   }, [executeInner, definitionListed, host, push, record])
+
+  // ⭐ W2 (review #771 HIGH): the charts the latest committing request CREATED — "the new one" / "the chart you just added"
+  // names exactly one of them (never the conversation's subject, which a later step of the same request may have moved)
+  function noteCreated(created) {
+    const turn = memoryRef.current?.currentTurn?.() ?? null
+    if (!createdRef.current || createdRef.current.turn !== turn) createdRef.current = { turn, refs: [] }
+    for (const r of Object.values(created || {})) {
+      try { if (host?.charts?.read?.(String(r)) && !createdRef.current.refs.includes(String(r))) createdRef.current.refs.push(String(r)) } catch { /* not a chart */ }
+    }
+  }
 
   // ⭐ MISSION 3: the Undo entries ONE request committed on a mix of new and existing widgets become one GROUP (doUndo
   // takes it back as a whole, newest first). → how many entries were grouped.
@@ -1698,8 +1748,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
       // ⭐ W2 (context across turns): "make that one weekly", "add the 50 SMA to the new one" right after a chart was CREATED
       // name that chart — read as "it" (the conversation's subject chart, which a creation now sets: rememberChange)
-      const refText = asSubjectWords(text, memoryRef.current, epochNow)
-      const fast0 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(refText, { host }), refText, { host, memory: memoryRef.current, epoch: epochNow }), { host, memory: memoryRef.current, epoch: epochNow })
+      const subj = asSubjectWords(text, createdRef.current?.refs || null)
+      const refText = subj.text
+      const memNow = withSubject(memoryRef.current, subj.subject)
+      const fast0 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(refText, { host }), refText, { host, memory: memNow, epoch: epochNow }), { host, memory: memNow, epoch: epochNow })
       const follow = followFirst || (followable && !fast0 && !FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null)
       if (follow?.kind === 'say') {
         push({ role: 'agent', text: follow.text })
@@ -2165,7 +2217,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       // ⭐ W2 audit (live 2026-11-04: "…to weekly and email me a screenshot of it" said only the weekly receipt): the parts
       // of THIS request no planned action covers are said after whatever runs — fixed sentences (notDone.js), never prose
-      notDoneRef.current = (env.ops || []).length ? notDoneLines(`${askedFor || ''} ${text}`, { category: env.unsupported_category, actions: env.ops.map(o => o?.action) }) : []
+      notDoneRef.current = (env.ops || []).length ? notDoneLines(`${askedFor || ''} ${text}`, { actions: env.ops.map(o => o?.action) }) : []
       // ⛔ hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts…" planned as four TABS of the one chart,
       // overwriting its ticker): a plan that adds chart tabs when the member never said "tab" is a stand-in for what was
       // asked — nothing runs, said plainly (the member can ask for tabs, or for the charts again)
@@ -2210,8 +2262,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const onSubject = (() => {
         try {
           if (host?.charts?.selected?.()) return false
-          if (asSubjectWords(text, memoryRef.current, epochOf(host)) === text && !/\bit\b/i.test(text)) return false
-          const s = memoryRef.current.subject('chart', epochOf(host))
+          const sw = asSubjectWords(text, createdRef.current?.refs || null)
+          if (sw.text === text && !/\bit\b/i.test(text)) return false
+          const s = sw.subject ? { ref: sw.subject } : memoryRef.current.subject('chart', epochOf(host))
           if (!s?.ref || !screened.ops.length) return false
           return screened.ops.every(o => {
             const k = getTargetKind(getCapability(o?.action)?.target)

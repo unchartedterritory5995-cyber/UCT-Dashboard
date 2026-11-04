@@ -214,7 +214,7 @@ describe('M3 · add + change existing: run in order, ONE grouped Undo, safe part
       { action: 'chart.setSymbol', target: 'new1', args: { symbol: 'QQQ' } },
     ]))
     await say('switch my SPY over to the weekly and also open up a QQQ chart for me')
-    await waitFor(() => expect(transcript()).toMatch(/I made the first part of your request \(above\), then stopped: “added a chart for QQQ” didn’t go through/), { timeout: 15000 })
+    await waitFor(() => expect(transcript()).toMatch(/I made “the change to Chart c1” \(above\), then stopped: “a new chart for QQQ” didn’t go through \(see above\), so it isn’t on your board\. Say “undo” to take back “the change to Chart c1”\./), { timeout: 15000 })
     expect(transcript()).not.toMatch(/Done in 2 steps/)
     expect(chartsOf(board)).toHaveLength(1)
     expect(h.charts.read('c1').tf).toBe('W')
@@ -229,9 +229,23 @@ describe('M3 · add + change existing: run in order, ONE grouped Undo, safe part
       { action: 'chart.setTimeframe', target: b.context.charts[0].ref, args: { timeframe: 'W' } },
     ]))
     await say('open up a QQQ chart for me and also switch my SPY over to the weekly')
-    await waitFor(() => expect(transcript()).toMatch(/I stopped there: “added a chart for QQQ” didn’t go through \(see above\), so I didn’t start “switched timeframe to Weekly”\. Nothing else was changed\./), { timeout: 15000 })
+    await waitFor(() => expect(transcript()).toMatch(/I stopped there: “a new chart for QQQ” didn’t go through \(see above\), so I didn’t start “the change to Chart c1”\. Nothing else was changed\./), { timeout: 15000 })
     expect(chartsOf(board)).toHaveLength(1)
     expect(h.charts.read('c1').tf).toBe('D')
+  }, 40000)
+  it('review #771 (2): a part that lands but is NOT SAVED is said exactly so — on screen, not saved; no Undo promised for it', async () => {
+    let n = 0
+    const { board, h, say } = mount(...HALF(), { epoch: () => 1, persist: async () => (++n === 2 ? { ok: false, reason: 'not-saved' } : { ok: true }) })
+    envelopes.push(b => env('apply', [
+      { action: 'chart.setTimeframe', target: b.context.charts[0].ref, args: { timeframe: 'W' } },
+      { action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: 'new1' } },
+      { action: 'chart.setSymbol', target: 'new1', args: { symbol: 'QQQ' } },
+    ]))
+    await say('switch my SPY over to the weekly and also open up a QQQ chart for me')
+    await waitFor(() => expect(transcript()).toMatch(/I made “the change to Chart c1” \(above\)\. “a new chart for QQQ” is on your screen but wasn’t saved \(see above\)\. Say “undo” to take back “the change to Chart c1”\./), { timeout: 15000 })
+    expect(transcript()).not.toMatch(/isn’t on your board|Done in 2 steps/)
+    expect(chartsOf(board)).toHaveLength(2)
+    expect(h.charts.read('c1').tf).toBe('W')
   }, 40000)
   it('KEPT REFUSED — a proposal (approval) cannot hold two steps: nothing runs, the two-step split is suggested', async () => {
     const { board, h, say } = mount(...HALF())
@@ -348,13 +362,18 @@ describe('AUDIT · "…to weekly and email me a screenshot of it" — the change
       expect(t.indexOf('Not done:')).toBeGreaterThan(t.indexOf('Switched timeframe to Weekly'))
     }, 30000)
   }
-  it('the server\'s category alone (words UCT does not recognise) → its fixed sentence, or the generic one — never the model\'s prose', async () => {
+  it('review #771 (4): a stray unsupported_category on a fully supported request adds NO line — only the member\'s words decide', async () => {
     const { h, say } = mount(...HALF())
-    envelopes.push(b => ({ ...env('apply', [{ action: 'chart.setTimeframe', target: b.context.charts[0].ref, args: { timeframe: 'W' } }]), unsupported_category: 'fax' }))
-    await say('weekly on spy and fax the thing over to my office')
+    envelopes.push(b => ({ ...env('apply', [{ action: 'chart.setTimeframe', target: b.context.charts[0].ref, args: { timeframe: 'W' } }]), unsupported_category: 'indicators' }))
+    await say('put spy over on the weekly view for me please')
     await waitFor(() => expect(h.charts.read('c1').tf).toBe('W'))
-    await waitFor(() => expect(transcript()).toMatch(/Not done: part of your request isn’t something UCT Agent can do/))
+    expect(transcript()).not.toMatch(/Not done/)
   }, 30000)
+  it('review #771 (4): "print the 52-week high" and "send alerts to my email" are not unsupported parts', () => {
+    expect(notDoneLines('print the 52-week high for NVDA')).toEqual([])
+    expect(notDoneLines('change SPY to weekly and send alerts to my email')).toEqual([])
+    expect(notDoneLines('make it weekly and print the chart')).toHaveLength(1)
+  })
   it('a fully supported request says nothing extra; a part a planned action covers (the email digest) is never "not done"', () => {
     expect(notDoneLines('change SPY to weekly')).toEqual([])
     expect(notDoneLines('email me my Momentum watchlist every morning', { actions: ['settings.setWatchlistDigest'] })).toEqual([])
@@ -402,13 +421,43 @@ describe('C · "change it to weekly" / "add the RSI to that one" right after cre
     await waitFor(() => expect(JSON.stringify(newChart(board).opts)).toMatch(/"defId":"rsi"/))
     expect(screen.queryAllByTestId('agent-question')).toHaveLength(0)
   }, 30000)
-  it('"the new one" with NO chart created last turn is not guessed (the subject words only follow a creation)', () => {
-    const mem = { lastTurn: () => ({ ops: [{ action: 'chart.setTimeframe', args: {}, target: 'c1' }] }) }
-    expect(asSubjectWords('make the new one weekly', mem)).toBe('make the new one weekly')
-    const made = { lastTurn: () => ({ ops: [{ action: 'widget.add', args: { type: 'chart', as: 'new1' }, target: 'w1' }] }) }
-    expect(asSubjectWords('make the new one weekly', made)).toBe('make it weekly')
-    expect(asSubjectWords('make that one weekly', mem)).toBe('make it weekly')
+  it('"the new one" names exactly ONE chart the last request created — none or several are never guessed', () => {
+    expect(asSubjectWords('make the new one weekly', null)).toEqual({ text: 'make the new one weekly', subject: null })
+    expect(asSubjectWords('make the new one weekly', ['w1', 'w2'])).toEqual({ text: 'make the new one weekly', subject: null })
+    expect(asSubjectWords('make the new one weekly', ['w1'])).toEqual({ text: 'make it weekly', subject: 'w1' })
+    expect(asSubjectWords('make that one weekly', null)).toEqual({ text: 'make it weekly', subject: null })
   })
+  for (const then of ['make the new one monthly', 'make the chart you just added monthly']) {
+    it(`review #771 HIGH: "add a QQQ chart and change the SPY chart to weekly" → "${then}" changes the NEW (QQQ) chart, never SPY`, async () => {
+      const { board, h, say } = mount(...HALF())
+      await say('add a QQQ chart and change the SPY chart to weekly')
+      await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+      await waitFor(() => expect(h.charts.read('c1').tf).toBe('W'))
+      await say(then)
+      await waitFor(() => expect(h.charts.read(newChart(board).id).tf).toBe('M'))
+      expect(h.charts.read('c1').tf).toBe('W')
+    }, 30000)
+  }
+  it('review #771 HIGH (deferred path): "add a chart for AAPL and put the RSI on my SPY chart" → "make the new one weekly" → the AAPL chart', async () => {
+    const { board, h, say } = mount(...HALF())
+    envelopes.push(b => env('apply', [
+      { action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: 'new1' } },
+      { action: 'chart.setSymbol', target: 'new1', args: { symbol: 'AAPL' } },
+      { action: 'indicator.add', target: b.context.indicatorEdits[0].ref, args: { defId: 'rsi', inputs: null } },
+    ]))
+    await say('add a chart for AAPL and put the RSI on my SPY chart')
+    await waitFor(() => expect(JSON.stringify(board.state.widgets.find(w => w.id === 'c1').opts)).toMatch(/"defId":"rsi"/), { timeout: 8000 })
+    await say('make the new one weekly')
+    await waitFor(() => expect(h.charts.read(newChart(board).id).tf).toBe('W'))
+    expect(h.charts.read('c1').tf).toBe('D')
+  }, 30000)
+  it('two charts created → "the new one" is asked about, never guessed', async () => {
+    const { board, h, say } = mount(...HALF())
+    await say('add a chart for QQQ and a chart for AMD')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(3), { timeout: 8000 })
+    await say('make the new one weekly')
+    expect(chartsOf(board).every(w => h.charts.read(w.id).tf === 'D')).toBe(true)
+  }, 30000)
 })
 
 // ═══ R · receipts name every chart (symbol + timeframe) and every setting ═══════════════════════════════

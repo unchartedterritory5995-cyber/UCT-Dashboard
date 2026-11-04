@@ -42,20 +42,31 @@ UNDO = {"action": "agent.undo", "target": "a1", "args": {"scope": "last", "about
 UNAMES = {"agent.capabilities", "agent.undo", "chart.setTimeframe"}
 
 
-def test_an_answer_carrying_exactly_agent_undo_becomes_an_apply_of_it_with_no_words():
-    out = turn.sanitize_envelope(turn.promote_talk_reads(_env("answer", [UNDO], None, "Undoing that now.")), {"a1", "c1"}, UNAMES)
-    assert out["disposition"] == "apply"
-    assert [o["action"] for o in out["ops"]] == ["agent.undo"]
-    assert out["reply"] == ""
+def _promote(reply, ops, msg, names=UNAMES, refs=("a1", "c1")):
+    return turn.sanitize_envelope(turn.promote_talk_reads(_env("answer", ops, None, reply), msg, names), set(refs), names)
+
+
+def test_an_answer_carrying_exactly_agent_undo_becomes_an_apply_when_the_member_said_undo():
+    for msg in ("undo that", "please undo", "Undo the last change you made to my charts.", "take that back", "put my layout back"):
+        out = _promote("Undoing that now.", [UNDO], msg)
+        assert out["disposition"] == "apply", msg
+        assert [o["action"] for o in out["ops"]] == ["agent.undo"]
+        assert out["reply"] == ""
+
+
+def test_a_question_about_undo_is_never_promoted():
+    # review #771 (3): the model's [agent.undo] on "how does undo work?" is dropped — the answer is served, nothing runs
+    for msg in ("how does undo work?", "can you undo a trade?", "what does undo do", "undo?", None):
+        out = _promote("Undo takes back the Agent's last change.", [UNDO], msg)
+        assert out["disposition"] == "answer" and out["ops"] == [], msg
 
 
 def test_nothing_else_is_ever_promoted():
     # a write on an answer stays talk (ops dropped); undo + a write on an answer stays talk too
-    out = turn.sanitize_envelope(turn.promote_talk_reads(_env("answer", [OP], None, "Switching to weekly.")), {"c1"}, NAMES)
+    out = _promote("Switching to weekly.", [OP], "switch to weekly", names=NAMES, refs=("c1",))
     assert out["disposition"] == "answer" and out["ops"] == []
-    out = turn.sanitize_envelope(turn.promote_talk_reads(_env("answer", [UNDO, OP], None, "Done.")), {"a1", "c1"}, UNAMES)
+    out = _promote("Done.", [UNDO, OP], "undo that")
     assert out["disposition"] == "answer" and out["ops"] == []
-    # agent.undo not in this request's manifest → nothing runs (the planned-action gate refuses it)
-    import pytest
-    with pytest.raises(turn.TurnError):
-        turn.sanitize_envelope(turn.promote_talk_reads(_env("answer", [UNDO], None, "Use Undo.")), {"a1"}, NAMES)
+    # agent.undo not in this request's manifest → the op is dropped and the answer served (no error)
+    out = _promote("Use Undo.", [UNDO], "undo that", names=NAMES, refs=("a1",))
+    assert out["disposition"] == "answer" and out["ops"] == []

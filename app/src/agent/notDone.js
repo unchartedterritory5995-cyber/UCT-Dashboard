@@ -3,16 +3,16 @@
 // "Change the SPY chart to weekly and email me a screenshot of it." applied the weekly change and said nothing about
 // the email: a partial result read as a complete one. A request that mixes what UCT Agent can do with what it can't
 // does the part it can AND says plainly, in a FIXED sentence (never model prose — F-16 / F-23), which part it did not do
-// and why. Two signals, either is enough:
-//   1. the member's own words (deterministic: emailing / texting / trading / printing / exporting), and
-//   2. the server's `unsupported_category` on a plan that also carries ops (the model's one-word area, sanitized).
+// and why — decided by the member's OWN words (emailing / texting / trading / printing / exporting), never by the model
+// (review #771: its unsupported_category is kept server-side for telemetry, never a line here).
 // A part a planned action DOES cover (the email digest) is never reported as not done. Pure.
 
 const PARTS = [
   {
     id: 'email',
     // "email me a screenshot", "send it to my email", "e-mail this chart" — not "my email digest" (a real setting)
-    test: (t) => /\b(?:e-?mail|mail) (?:me|it|this|that|them|a |an |the |my |over|out)\b|\bsend (?:it|this|that|them|me)?\s*(?:\w+ )?(?:to|by|via|over) (?:my )?e-?mail\b|\bto my (?:e-?mail|inbox)\b/i.test(t),
+    // review #771 (4): an ALERT delivered by email is the alert's own channel, never "not done" ("send alerts to my email")
+    test: (t) => !/\balerts?\b/i.test(t) && (/\b(?:e-?mail|mail) (?:me|it|this|that|them|a |an |the |my |over|out)\b|\bsend (?:it|this|that|them|me)?\s*(?:\w+ )?(?:to|by|via|over) (?:my )?e-?mail\b|\bto my (?:e-?mail|inbox)\b/i.test(t)),
     coveredBy: ['settings.setWatchlistDigest'],
     text: 'Not done: I can’t send email — UCT Agent can’t email screenshots, charts or anything else.',
   },
@@ -31,7 +31,8 @@ const PARTS = [
   },
   {
     id: 'print',
-    test: (t) => /\bprint (?:it|this|that|them|out|me|a copy|the|my)\b|\bprint(?:ed)? (?:it )?out\b/i.test(t),
+    // review #771 (4): only printing the page / chart itself — never "print the 52-week high" or "dark pool prints"
+    test: (t) => /\bprint (?:it|this|that|them)(?: out)?\b|\bprint(?:ed)? (?:it )?out\b|\bprint (?:me )?(?:a copy|a screenshot|the (?:chart|page|screen|layout|board)|my (?:chart|page|screen|layout|board))\b/i.test(t),
     coveredBy: [],
     text: 'Not done: I can’t print — use your browser’s Print (Ctrl+P or ⌘P).',
   },
@@ -43,26 +44,12 @@ const PARTS = [
   },
 ]
 
-// the server's one-word area (turn.py keeps it only beside ops) → the same fixed sentences; anything else → a generic one
-const CATEGORY = { email: 'email', mail: 'email', sms: 'sms', text: 'sms', texting: 'sms', trading: 'trading', trade: 'trading', trades: 'trading',
-  orders: 'trading', order: 'trading', broker: 'trading', print: 'print', printing: 'print', export: 'export', exporting: 'export', files: 'export' }
-export const GENERIC_NOT_DONE = 'Not done: part of your request isn’t something UCT Agent can do, so I didn’t do that part.'
 
-/** The fixed "Not done: …" sentences for the parts of `text` no planned action covers (in a stable order). */
-export function notDoneLines(text, { category = null, actions = [] } = {}) {
+/** The fixed "Not done: …" sentences for the parts of `text` no planned action covers (in a stable order).
+ *  review #771 (4): the MEMBER'S OWN WORDS decide — a part is said only when its words are in the request. The model's
+ *  `unsupported_category` never adds a line on its own (no generic line from a stray category); it is kept for telemetry. */
+export function notDoneLines(text, { actions = [] } = {}) {
   const raw = String(text || '')
   const planned = new Set(actions || [])
-  const out = []
-  for (const p of PARTS) {
-    if (p.coveredBy.some(a => planned.has(a))) continue
-    if (p.test(raw)) out.push(p)
-  }
-  const cat = typeof category === 'string' ? category.trim().toLowerCase() : ''
-  if (cat) {
-    const id = CATEGORY[cat]
-    const p = id ? PARTS.find(x => x.id === id) : null
-    if (p && !out.includes(p) && !p.coveredBy.some(a => planned.has(a))) out.push(p)
-    if (!p && !out.length) return [GENERIC_NOT_DONE]
-  }
-  return out.map(p => p.text)
+  return PARTS.filter(p => !p.coveredBy.some(a => planned.has(a)) && p.test(raw)).map(p => p.text)
 }

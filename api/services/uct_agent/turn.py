@@ -1848,7 +1848,20 @@ def false_capability_claim(env: Any, cap_names: set[str] | None, unselected_ids:
 UNDO_ACTION = "agent.undo"
 
 
-def promote_talk_reads(env: Any) -> Any:
+# review #771 (3): the member's words must BE an Undo command for an answer's [agent.undo] to run — the server half of the
+# browser's own Undo reader (fastPath.controlWord / undoWords): a sentence that starts with an Undo verb, never a question
+# about Undo ("how does undo work?", "can you undo a trade?")
+_UNDO_COMMAND = re.compile(
+    r"^\s*(?:(?:please|pls|can you|could you|would you|just|ok|okay|actually|oops|wait|sorry|hmm|no),?\s+)*"
+    r"(?:undo|revert|reverse|roll (?:it |that )?back|take (?:that|it|them|everything|all of (?:that|it)) (?:all )?back|put (?:it|that|my \w+|the \w+) back)\b"
+    r"(?!.*\?\s*$)", re.I)
+
+
+def is_undo_command(msg: str | None) -> bool:
+    return bool(msg) and bool(_UNDO_COMMAND.match(str(msg))) and not re.search(r"\b(?:how|why|what|when|does|do i|can i)\b.*\bundo\b", str(msg), re.I)
+
+
+def promote_talk_reads(env: Any, msg: str | None = None, cap_names: set[str] | None = None) -> Any:
     """⛔ LT-15 (live 2026-11-03): "describe the setup on nvda" — the planner returned the right READ op
     (chart.describeSetup) under disposition `answer`, with the reply "Checking NVDA's daily setup now.". TALK never
     carries ops, so the op was dropped and the member saw the announcement and then nothing. An `answer` whose ops
@@ -1858,7 +1871,8 @@ def promote_talk_reads(env: Any) -> Any:
     if not isinstance(env, dict) or env.get("disposition") != "answer":
         return env
     ops = env.get("ops") if isinstance(env.get("ops"), list) else []
-    if len(ops) == 1 and isinstance(ops[0], dict) and ops[0].get("action") == UNDO_ACTION:
+    if (len(ops) == 1 and isinstance(ops[0], dict) and ops[0].get("action") == UNDO_ACTION
+            and is_undo_command(msg) and (cap_names is None or UNDO_ACTION in cap_names)):
         # ⭐ W2 audit (train-3 review): an ANSWER carrying exactly [agent.undo] ("Undoing that now.") had its op dropped and
         # its words shown — a false claim. It is the member's Undo: served as an apply of agent.undo ALONE with the reply
         # blanked; the browser's own Undo (doUndo, every refusal) and its receipt are the only claim. sanitize_envelope
@@ -2598,7 +2612,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                              "step. Tell me exactly what you'd like changed and I'll do it.") if mutated or not env.get("reply")
                    else env.get("reply")}
         if not answer_only and not usage["research_calls"]:
-            env = promote_talk_reads(env)
+            env = promote_talk_reads(env, msg, cap_names)
         if isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
         if answer_only and isinstance(env, dict) and (env.get("ops") or env.get("disposition") in MUTATING):
