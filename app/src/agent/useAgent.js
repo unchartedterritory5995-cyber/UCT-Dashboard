@@ -215,6 +215,8 @@ const isDeferred = (o) => !!getCapability(o?.action)?.deferred
 // ⛔ LT-15: what a query that came back with NOTHING to show says (never an empty row after a reply that announced it)
 export const NO_RESULT = "I couldn't get a result for that, so there is nothing to show. Try asking again."
 /** True when a capability's answer carries nothing the member could see (no text, table, view, link or chart). */
+// (the keys are the ones present.js presentOf renders — text, table, present, link, chart — plus storedAs; a new visible
+// answer field added there must be added here too, or that answer would be replaced by NO_RESULT)
 export function emptyAnswer(a) {
   if (a == null) return true
   if (typeof a === 'string') return !a.trim()

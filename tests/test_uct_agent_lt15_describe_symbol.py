@@ -97,7 +97,7 @@ def test_promote_talk_reads_is_by_name_only():
 
 @pytest.mark.parametrize("reply", [
     LIVE_REPLY, "Let me check NVDA's setup.", "I'll pull up NVDA's daily bars.", "Sure, checking that now.",
-    "Pulling up the NVDA chart...", "Analyzing NVDA's daily setup for you.", "Looking into it, one moment.",
+    "Analyzing NVDA's daily setup for you.", "Looking into it, one moment.",
     "I'm going to review the setup on NVDA.", "OK — fetching NVDA's daily bars now.",
 ])
 def test_announced_lookups_with_no_op_are_replaced(reply):
@@ -119,3 +119,45 @@ def test_announced_lookups_with_no_op_are_replaced(reply):
 ])
 def test_ordinary_answers_still_pass(reply):
     assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"})["reply"] == reply
+
+
+# ── PR #763 review B1: only a reply that is NOTHING BUT the announcement is replaced ─────────────────────────────
+BASICS = ("Let me review the basics: a base is a period of sideways price action after an advance, where supply is "
+          "absorbed. A tight base shows contracting ranges and drying volume; a breakout on rising volume through the "
+          "pivot is the classic entry. The 50-day moving average often acts as support during the base, and a stock "
+          "that holds it while the market corrects is showing relative strength. Risk is set below the low of the "
+          "final contraction, so the position size follows from that distance.")
+REAL_ANSWERS = [
+    "I'll describe a VCP setup: a series of contractions, each tighter than the last, on drying volume.",
+    BASICS,
+    "I'll calculate it for you: 50 times 1.2 is 60.",
+    "Sure, I'll look at that from a risk angle: size the position from the stop, not the target.",
+    "I'm reading this headline as a supply-chain story: the supplier named is a chip packager.",
+    "I'll get straight to it: a pivot is the price that ends a base.",
+    "I am looking forward to helping.",
+    "Running a scan now and then helps you find new leaders early.",
+    "Checking for volume dry-up... is the key signal in the last contraction.",
+]
+
+
+def test_the_basics_answer_is_long():
+    assert len(BASICS) > 400
+
+
+@pytest.mark.parametrize("reply", REAL_ANSWERS)
+def test_a_real_answer_that_starts_like_an_announcement_is_never_replaced(reply):
+    assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"})["reply"] == reply
+    assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"}, grounded=True)["reply"] == reply
+
+
+@pytest.mark.parametrize("reply", REAL_ANSWERS)
+def test_the_news_ask_box_serves_real_answers_unchanged(reply):
+    out = _run(env("answer", [], reply=reply), message="what does this headline mean", answer_only=True)
+    assert out["disposition"] == "answer" and out["ops"] == [] and out["reply"] == reply
+
+
+def test_an_announcement_followed_by_anything_else_is_not_replaced():
+    for reply in ("Checking NVDA's daily setup now. The 50-day is the line to watch.",
+                  "Checking NVDA's daily setup now: it is above its 50-day.",
+                  "Checking " + "NVDA " * 30 + "now."):
+        assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"})["reply"] == reply

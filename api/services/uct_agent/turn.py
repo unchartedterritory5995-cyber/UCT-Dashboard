@@ -1557,17 +1557,26 @@ _CLAIMS_WITHOUT_ACTION = re.compile(
     r"|(?:done|all set)\b)", re.I)
 # ⛔ LT-15 (live 2026-11-03): "describe the setup on nvda" came back as an ANSWER whose reply ANNOUNCED a lookup
 # ("Checking NVDA's daily setup now.") and nothing ever followed — the claim rule above names CHANGES (open, add,
-# filter…), and a read announced as under way slipped past it. With no op nothing will be read, so the
-# announcement is replaced by an honest sentence. Matched: a first-person promise to look ("let me check…",
-# "I'll pull up…"), or a lookup verb in -ing that says it is happening NOW ("Checking NVDA's setup now.",
-# "Pulling that up…", "Looking into it, one moment."). NOT matched: an answer that only starts with such a word
-# ("Looking at the 50-day, a rising average…", "Reviewing a chart weekly helps…").
+# filter…), and a read announced as under way slipped past it. With no op nothing will be read, so a reply that is
+# NOTHING BUT the announcement is replaced by an honest sentence. PR #763 review B1: the WHOLE reply must be one
+# short sentence (≤ ANNOUNCE_MAX chars, no colon, end-anchored) — a first-person promise to look ("Let me check
+# NVDA's setup.") or a lookup verb in -ing that ENDS on now / one moment / for you ("Checking NVDA's setup now.").
+# A real answer that merely starts that way ("I'll describe a VCP setup: …", "Let me review the basics: a base is
+# …", "Running a scan now and then helps…", "I am looking forward to helping.") is never touched.
 _LOOKUP = r"check|look|pull|fetch|grab|analy[sz]|describ|review|load|calculat|comput|scan|examin|research|gather|crunch"
+ANNOUNCE_MAX = 120
 _ANNOUNCES_LOOKUP = re.compile(
-    _LEAD + rf"(?:(?:i(?:'ll| will| am|'m| shall)|let me|i'm going to|i am going to)\s+(?:\w+\s+)?(?:{_LOOKUP}|get|read|run)\w*\b"
-    r"(?!\s+(?:you|how|what|why)\b)"
-    rf"|(?:(?:{_LOOKUP})\w*ing|getting|reading|running|working on)\b[^.!?\n]{{0,80}}?"
-    r"(?:\bnow\b|\bone (?:moment|sec(?:ond)?)\b|\bjust a (?:moment|sec(?:ond)?)\b|\bshortly\b|\bfor you\b|\.\.\.|…))", re.I)
+    _LEAD + rf"(?:(?:i(?:'ll| will| am|'m| shall)|let me|i'm going to|i am going to)\s+(?:\w+\s+)?(?:{_LOOKUP})\w*\b"
+    r"(?!\s+(?:you|how|what|why|forward)\b)[^:;.!?…\n]{0,100}"
+    rf"|(?:(?:{_LOOKUP})\w*ing|getting|running|working on)\b[^:;.!?…\n]{{0,80}}?"
+    r"\b(?:right now|now|one (?:moment|sec(?:ond)?)|just a (?:moment|sec(?:ond)?)|shortly|for you))"
+    r"\s*[.!…]*\s*$", re.I)
+
+
+def _announces_lookup(reply: str) -> bool:
+    """True only when the reply is nothing but a lookup announced as under way (one short sentence)."""
+    s = str(reply or "").strip()
+    return bool(s) and len(s) <= ANNOUNCE_MAX and ":" not in s and bool(_ANNOUNCES_LOOKUP.match(s))
 NOTHING_LOOKED_UP = ("I didn't look that up — no lookup was planned, so nothing was read and there is no result to show. "
                      "Ask again a little more specifically.")
 NOTHING_DONE = ("I didn't do that — no action was planned, so nothing in UCT changed. "
@@ -1919,7 +1928,7 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         # so the next turn's history does not believe it either. (Shape only in the log.)
         log.warning("uct_agent claim without action: replaced a %d-char answer", len(reply))
         reply = NOTHING_DONE
-    elif disp == "answer" and not ops and _ANNOUNCES_LOOKUP.match(reply):
+    elif disp == "answer" and not ops and _announces_lookup(reply):
         # ⛔ LT-15: an announced lookup with nothing planned would leave the member waiting for a result that never
         # comes ("Checking NVDA's daily setup now." and then nothing). Said plainly instead. (Shape only in the log.)
         log.warning("uct_agent lookup announced without an op: replaced a %d-char answer", len(reply))
