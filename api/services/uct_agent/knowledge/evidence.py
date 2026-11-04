@@ -406,32 +406,112 @@ _CONTRACTIONS = ((re.compile(r"\bwhat\s*['\u2019]?\s*s\b"), "what is"), (re.comp
                  (re.compile(r"\btell me (about|what)\b"), "explain"), (re.compile(r"\bmeaning of\b"), "definition of"))
 
 
+_FILLER = {"and", "with", "the", "a", "an", "of"}
+_INITIALISM = re.compile(r"\b((?:[a-z]\.){2,})(?=\s|$|[^a-z])", re.I)
+
+
 def _fold(s: str) -> str:
+    """NFKC + casefold; "e.p." -> "ep"; & -> and; punctuation -> space."""
     import unicodedata
-    t = unicodedata.normalize("NFKC", str(s or "")).casefold().replace("&", " and ")
+    t = unicodedata.normalize("NFKC", str(s or "")).casefold()
+    t = _INITIALISM.sub(lambda m: m.group(1).replace(".", ""), t)
+    t = t.replace("&", " and ")
     return re.sub(r"[\W_]+", " ", t).strip()
 
 
+def _key(s: str) -> str:
+    """Alias tolerance (review #781 delta): filler words dropped ("undercut rally" == "undercut and rally")."""
+    return " ".join(w for w in _fold(s).split() if w not in _FILLER)
+
+
+#: a question / instruction about how something is defined or traded (review #781 delta: paraphrases)
+_ASKS = re.compile(r"\b(describe|explain|define|definition|meaning|what (is|are|makes|does|do)|how (does|do|to|should|would)|"
+                   r"walk me through|teach me|tell me about|show me how|entry|entries|criteria|rules?|"
+                   r"when (to|do you|does one) (buy|enter|sell|exit)|buy point|invalidat\w*|trigger|characteristics?)\b")
+#: setup / pattern vocabulary (generic terms included: a paraphrase rarely names UCT's template exactly)
+_TERMS = re.compile(r"\b(pivots?|pocket pivots?|bases?|flat bases?|flags?|pennants?|wedges?|wedge pops?|gaps?|earnings gaps?|"
+                    r"gap (ups?|and go)|parabolic\w*|short(s|ing)?|breakouts?|breakdowns?|pullbacks?|cups?|handles?|"
+                    r"undercuts?|rall(y|ies)|reversals?|squeezes?|consolidations?|coils?|tight (areas?|ranges?)|"
+                    r"double bottoms?|head and shoulders|ascending|descending|triangles?|kickers?|episodic|vcps?|ep|"
+                    r"htfs?|u ?and ?r|setups?|patterns?)\b")
+
+
+def named_setups(message: str, vocab: list[dict]) -> tuple[list[str], list[str]]:
+    """(approved template names the message names by name or alias, other known setup names it uses). Tolerant:
+    filler words, initialisms ("e.p.") and case are ignored."""
+    from api.services.uct_agent.knowledge import frame
+    k = f" {_key(message)} "
+    approved = []
+    for v in vocab:
+        for w in [v.get("name")] + list(v.get("aliases") or []):
+            f = _key(str(w or ""))
+            if len(f) >= 2 and f" {f} " in k:
+                approved.append(v["name"])
+                break
+    other = []
+    folded = f" {_fold(message)} "
+    for m in re.finditer(r"\b" + frame._NAMED + r"\b", folded.replace(" and ", " & ").replace("u & r", "u&r")):
+        if m.group(0).strip() != "eps":            # "eps" is earnings per share far more often than a setup
+            other.append(m.group(0).strip())
+    if re.search(r"\bundercut rally\b", k):
+        other.append("undercut and rally")
+    return list(dict.fromkeys(approved)), list(dict.fromkeys(other))
+
+
 def playbook_worded(message: str, vocab: list[dict], symbols: list[str]) -> bool:
-    """The deterministic backstop on a chart / none turn (review #781 finding 1): the member's words ask about a
-    setup or the playbook — #768's routing words after contractions are expanded ("what's", "whats", "tell me
-    about"), or any approved setup's name / alias, or a known setup name (approved or not) — and the message is not
-    about a specific stock or chart. Independent of the classifier."""
+    """The deterministic INPUT backstop on a chart / none turn (review #781 finding 1 and its delta): the member's
+    words ask about a setup or the playbook, independently of the classifier —
+      - a named setup (approved name / alias, or a known setup name), tolerant of filler words and initialisms;
+      - #768's routing words after contractions are expanded ("what's", "whats", "tell me about");
+      - a question / instruction word (_ASKS) together with setup / pattern vocabulary (_TERMS);
+    — unless the message is about a specific stock or chart (frame.about_a_symbol). A named setup beside a stock is
+    handled before this (serve: it becomes a mixed turn)."""
     from api.services.uct_agent.knowledge import frame
     if frame.about_a_symbol(message, symbols):
         return False
-    m = str(message or "").lower()
+    approved, other = named_setups(message, vocab)
+    if approved or other:
+        return True
+    m = _fold(message)
     for rx, to in _CONTRACTIONS:
         m = rx.sub(to, m)
-    if frame.wants_knowledge(m) or re.search(r"\b" + frame._NAMED + r"\b", m):
+    m = re.sub(r"\bwhat s\b", "what is", m)
+    if frame.wants_knowledge(m):
         return True
-    folded = f" {_fold(message)} "
-    for s in vocab:
-        for w in [s.get("name")] + list(s.get("aliases") or []):
-            f = _fold(str(w or "")).strip()
-            if len(f) >= 2 and f" {f} " in folded:
-                return True
-    return False
+    return bool(_ASKS.search(m) and _TERMS.search(m))
+
+
+#: review #781 delta (b): the OUTPUT backstop. A chart / none reply that presents UCT-owned methodology — it names UCT,
+#: the team or "our" rules / setups, or it names a setup together with entry / stop / criteria wording — is replaced
+#: by UCT's fixed sentence (ops are kept). It complements the classifier and the input check; it never adds text.
+_OWNED = re.compile(r"\b(uct|uncharted territory|the team|our)( s)? (\w+ ){0,2}(rules?|setups?|playbook|criteria|methods?|"
+                    r"methodology|approach|process|system|enters?|entry|entries|buys?|trades?|stops?|sells?|exits?|"
+                    r"definition|defines?)\b")
+_METHOD = re.compile(r"\b(entry|entries|enter|buy point|stops?|stop loss|max stop|criteria|rules?|trigger\w*|invalidat\w*|"
+                     r"position siz\w*|risk per trade|win rate|hit rate)\b")
+
+
+def presents_methodology(reply: str, vocab: list[dict]) -> bool:
+    f = _fold(reply)
+    if _OWNED.search(f):
+        return True
+    approved, other = named_setups(reply, vocab)
+    return bool((approved or other) and _METHOD.search(f))
+
+
+def output_backstop(res: dict, vocab: list[dict]) -> dict:
+    env = res.get("envelope") if isinstance(res, dict) else None
+    if not isinstance(env, dict) or env.get("need_groups"):
+        return res
+    reply = str(env.get("reply") or "")
+    if not reply.strip() or reply.strip() in fixed_sentences() or not presents_methodology(reply, vocab):
+        return res
+    log.info("uct_agent evidence: output backstop replaced a %d-char reply", len(reply))
+    res["envelope"] = {**env, "reply": NOT_RETRIEVED, "question": None}
+    if env.get("disposition") == "clarify":
+        res["envelope"] = {**res["envelope"], "disposition": "answer", "ops": []}
+    res.setdefault("usage", {})["output_backstop"] = True
+    return res
 
 
 def fixed_sentences() -> set:
@@ -507,6 +587,14 @@ def serve(run_turn: Callable[..., dict], args: dict) -> dict:
         return _merge_usage(_finish(env, caps, valid_refs, cap_names, started), decision, use, cached)
 
     if route in ("chart", "none"):
+        approved, other = named_setups(message, vocab)
+        if approved or other:
+            # review #781 delta (d): a NAMED setup on a chart / none turn (with or without a stock: "what's NVDA's EP
+            # setup look like") is a mixed turn — UCT's reads give the definition part, the planner the chart part
+            decision = {**decision, "route": "mixed", "topic": "setup_definition", "setups": approved[:MAX_SETUPS],
+                        "concept": "" if approved else other[0][:MAX_CONCEPT], "why": "words_named_setup"}
+            route = "mixed"
+    if route in ("chart", "none"):
         # review #781 finding 1: the classifier's recall is not the only layer. "gate" keeps #768's knowledge-first
         # backstop on this planner call (no streaming; a playbook-worded answer becomes UCT's fixed "can't retrieve"
         # sentence) although playbook.* is not offered. v2 has no such backstop, so a playbook-worded turn never
@@ -515,7 +603,7 @@ def serve(run_turn: Callable[..., dict], args: dict) -> dict:
         if args.get("v2") is not None and kn_words:
             return done(answer_envelope(NOT_RETRIEVED))
         res = run_turn(**{**stripped, "_e1": "gate_kn" if kn_words else "gate"})
-        return _merge_usage(label_general(res), decision, use, cached)
+        return _merge_usage(label_general(output_backstop(res, vocab)), decision, use, cached)
     if args.get("answer_only") or args.get("headline") is not None:
         return done(answer_envelope(NEWS_BOX))     # the News Ask box: playbook / mixed / ambiguous never planned there
     if args.get("v2") is not None:

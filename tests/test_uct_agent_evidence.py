@@ -262,15 +262,19 @@ MISROUTES = [cls(evidence="chart", topic="chart_or_symbol", setups=(), concept="
 @pytest.mark.parametrize("raw", MISROUTES)
 @pytest.mark.parametrize("msg", ["what's an EP", "whats an EP?", "what is an EP", "tell me about cup and handle",
                                  "Episodic Pivot?", "what\u2019s a VCP"])
-def test_a_misrouted_playbook_question_gets_ucts_fixed_sentence_not_the_models_definition(monkeypatch, raw, msg):
+def test_a_misrouted_playbook_question_gets_ucts_card_not_the_models_definition(monkeypatch, raw, msg):
+    # every one of these names a setup, so (review #781 delta d) the turn becomes MIXED: UCT's read answers, the
+    # planner's words are dropped, nothing streams
     use(monkeypatch, raw)
     events = []
 
     def stream(feed, **kw):
         feed(json.dumps(env("answer", reply=LONG)))
         return _resp(env("answer", reply=LONG))
-    out = run(msg, on_event=events.append, stream_caller=stream)
-    assert out["envelope"]["reply"] == turn.KNOWLEDGE_NOT_RETRIEVED
+    out = run(msg, on_event=events.append, stream_caller=stream, caller=caller_of(_resp(env("answer", reply=LONG))))
+    e = out["envelope"]
+    assert e["reply"] == "" and [o["action"] for o in e["ops"]] == ["playbook.setup"]
+    assert out["usage"]["evidence"]["class"] == "mixed"
     assert not any(x.get("t") == "delta" for x in events)
     for s_ in ("10%", "3%", "72%", "gap on earnings"):
         assert s_ not in json.dumps(out["envelope"])
@@ -288,10 +292,12 @@ def test_v2_never_gets_a_playbook_worded_chart_or_none_turn(monkeypatch):
     monkeypatch.setattr(turn_v2, "run_turn_v2", lambda **kw: (got.append(kw), {"envelope": env("answer", reply=INVENTED),
                                                                                "usage": {}, "title": None})[1])
     use(monkeypatch, MISROUTES[1])
-    out = run("what's an EP", v2={"wait_step": None, "turn_token": "t"})
+    out = run("what's an EP", v2={"wait_step": None, "turn_token": "t"})          # a named setup: mixed, never v2
+    assert got == [] and out["envelope"]["reply"] == ev.V2_NOT_YET
+    out = run("describe a pocket pivot", v2={"wait_step": None, "turn_token": "t"})  # playbook-worded: never v2
     assert got == [] and out["envelope"]["reply"] == ev.NOT_RETRIEVED
     out = run("tell me a joke", v2={"wait_step": None, "turn_token": "t"})
-    assert got and out["envelope"]["reply"].endswith(ev.GENERAL_LABEL)
+    assert got and out["envelope"]["reply"] == ev.NOT_RETRIEVED      # v2's reply presents UCT methodology: output backstop
 
 
 @pytest.mark.parametrize("evidence", ["chart", "none"])
@@ -554,3 +560,69 @@ def test_nonsense_gets_ucts_clarify_without_a_classifier_call(monkeypatch):
     c = use(monkeypatch, AssertionError("no call"))
     e = run("asdf qwer zxcv")["envelope"]
     assert c.calls == [] and e["disposition"] == "clarify"
+
+
+# ── review #781 delta: paraphrases, alias tolerance, a named setup beside a stock, the output backstop ───────────────
+NEUTRAL = "It is an up day whose volume beats every down day of the prior ten sessions, bought on the close."
+
+
+@pytest.mark.parametrize("raw", MISROUTES)
+@pytest.mark.parametrize("msg", ["describe a pocket pivot", "how does a flat base work", "what makes a good pivot",
+                                 "walk me through a wedge pop", "entry and stop for a parabolic short",
+                                 "what is a power earnings gap"])
+def test_delta_paraphrases_never_serve_the_models_definition(monkeypatch, raw, msg):
+    use(monkeypatch, raw)
+    out = run(msg, caller=caller_of(_resp(env("answer", reply=NEUTRAL))))
+    assert out["envelope"]["reply"] == turn.KNOWLEDGE_NOT_RETRIEVED
+    assert NEUTRAL not in json.dumps(out["envelope"])
+
+
+@pytest.mark.parametrize("raw", MISROUTES)
+@pytest.mark.parametrize("msg,setup", [("teach me the undercut rally", "Undercut & Rally"), ("e.p. setup?", "Episodic Pivot"),
+                                       ("what's SPY's EP setup look like", "Episodic Pivot"), ("EP", "Episodic Pivot")])
+def test_delta_a_named_setup_on_a_chart_or_none_turn_is_mixed_and_gets_ucts_card(monkeypatch, raw, msg, setup):
+    use(monkeypatch, raw)
+    out = run(msg, caller=caller_of(_resp(env("answer", reply=NEUTRAL))))
+    e = out["envelope"]
+    assert out["usage"]["evidence"]["class"] == "mixed" and out["usage"]["evidence"]["why"] == "words_named_setup"
+    assert e["reply"] == "" and [o["args"] for o in e["ops"]] == [{"setup": setup}]
+    assert NEUTRAL not in json.dumps(e)
+
+
+def test_delta_a_known_but_unapproved_setup_name_is_asked_by_name_and_refused_by_the_server(monkeypatch):
+    use(monkeypatch, MISROUTES[0])
+    e = run("vcp?", caller=caller_of(_resp(env("answer", reply=NEUTRAL))))["envelope"]
+    assert [o["args"] for o in e["ops"]] == [{"setup": "vcp"}] and e["reply"] == ""
+
+
+@pytest.mark.parametrize("reply", ["UCT enters at the open with a 3% stop.", "Our rules say buy the first pullback.",
+                                   "The team's entry is the opening range high.", "An EP's stop goes under the gap-day low.",
+                                   "Undercut and Rally entries trigger on the reclaim."])
+def test_delta_output_backstop_replaces_presented_ucts_methodology(monkeypatch, reply):
+    use(monkeypatch, MISROUTES[1])
+    out = run("tell me something interesting", caller=caller_of(_resp(env("answer", reply=reply))))
+    assert out["envelope"]["reply"] == ev.NOT_RETRIEVED and out["usage"]["output_backstop"] is True
+
+
+def test_delta_output_backstop_keeps_a_writes_ops(monkeypatch):
+    use(monkeypatch, cls(evidence="chart", topic="chart_or_symbol", setups=(), concept=""))
+    e = run("make it bars", caller=caller_of(_resp(env("apply", [OP], reply="Bars it is; UCT's rules say enter on the pivot."))))["envelope"]
+    assert e["ops"] == [OP] and e["reply"] == ev.NOT_RETRIEVED
+
+
+@pytest.mark.parametrize("msg,reply", [("how do I add RSI", "Open the indicator menu in UCT and pick RSI."),
+                                       ("tell me a joke", "Why did the candle blush? It saw the wick."),
+                                       ("what are eps estimates for SPY", "Analysts expect growth this quarter.")])
+def test_delta_ordinary_chart_and_general_turns_are_untouched_apart_from_the_label(monkeypatch, msg, reply):
+    use(monkeypatch, MISROUTES[1])
+    out = run(msg, caller=caller_of(_resp(env("answer", reply=reply))))
+    assert out["envelope"]["reply"] == reply + "\n\n" + ev.GENERAL_LABEL
+    assert out["usage"]["evidence"]["class"] == "none"
+
+
+def test_delta_alias_tolerance():
+    v = [{"name": "Undercut & Rally", "aliases": ["U&R", "undercut and rally"]}, {"name": "Episodic Pivot", "aliases": ["EP"]}]
+    for m, want in (("undercut rally?", "Undercut & Rally"), ("the U & R", "Undercut & Rally"), ("an E.P.", "Episodic Pivot"),
+                    ("UNDERCUT AND RALLY", "Undercut & Rally")):
+        assert want in ev.named_setups(m, v)[0], m
+    assert ev.named_setups("sleep and rally", v) == ([], [])
