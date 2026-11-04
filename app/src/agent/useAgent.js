@@ -27,6 +27,7 @@ import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
+import { bindCreated } from './createdBinding'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
 import { notDoneLines } from './notDone'
 import { decideMode } from './policy'
@@ -1928,8 +1929,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // Phase 2: ops of SEVERAL kinds ("add VWAP and switch to 5 minutes") — each kind must name
       // exactly one target (after a position hint); otherwise the model decides.
       if (fast?.kind === 'ops' && kindsOf(fast.ops).length > 1 && !fast.target?.all) {
+        // live train 4 (CG-37, binding v2): an UNTARGETED change after a create step in the same request goes on the chart
+        // that step creates (its alias → the committed widget's id) — decided before any default target is picked
+        // (createdBinding.js: plan structure; explicit existing references never re-targeted; ambiguous → asked)
+        const bound0 = fast.target ? null : bindCreated(fast.ops, text, host)
+        if (bound0?.ask) {
+          push({ role: 'agent', text: bound0.ask })
+          record({ member: text, outcome: bound0.ask, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+          return
+        }
+        const fastOps = bound0?.ops || fast.ops
         const pick = {}
-        for (const k of kindsOf(fast.ops)) {
+        for (const k of kindsOf(fastOps)) {
           let list = getTargetKind(k)?.list(host) || []
           if (fast.target?.position && list.length > 1) list = matchPosition(list, fast.target.position)
           // P1: "on the second chart" — the kind's entry for THAT chart (a kind that is not chart-backed drops out → the model)
@@ -1937,8 +1948,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           if (fast.target?.ask) list = []
           if (list.length === 1) pick[k] = list[0].ref
         }
-        if (fast.ops.every(o => o.target || pick[getCapability(o.action)?.target])) {
-          const ops = fast.ops.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))
+        if (fastOps.every(o => o.target || pick[getCapability(o.action)?.target])) {
+          const ops = fastOps.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))
           lastActionsRef.current = ops.map(o => o.action)
           return await execute(ops, { path: 'fast', mode: 'apply', member: text, voice })
         }
@@ -2350,7 +2361,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
-      const bound = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
+      const bound1 = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
+      // binding v2: the model's UNTARGETED / unresolvable chart ops after a create go on the created chart (explicitly
+      // targeted ones never re-targeted) — or asked about
+      const created1 = bindCreated(bound1, text, host)
+      if (created1?.ask) {
+        push({ role: 'agent', text: created1.ask })
+        record({ member: null, outcome: created1.ask, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      const bound = created1?.ops || bound1
       // ⛔ S6 F1–F3: the model's plan is checked against the member's own words before anything runs
       const screened = screenModelOps(host, scopeChartOps(bound, host, `${carryAsked ? askedFor || '' : ''} ${text}`), text, capCtx)
       if (screened.ask) {

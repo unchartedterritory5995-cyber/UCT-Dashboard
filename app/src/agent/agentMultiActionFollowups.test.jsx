@@ -19,6 +19,7 @@ import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { selectGroups, routeManifest, wordsSelect } from './routing'
 import { fastParse } from './fastPath'
 import { multiChartPlan } from './multiChart'
+import { bindCreated } from './createdBinding'
 import { buildIndicatorAlertSource } from './host'
 import { _resetIndicatorAlertCache } from './capabilities/indicatorAlerts'
 import { notDoneLines } from './notDone'
@@ -1164,5 +1165,128 @@ describe('review t4 M5 · "…charts, each with an RSI" — the per-chart steps 
     await say('do it')
     await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 10000 })
     await waitFor(() => expect(chartsOf(board).every(rsiOn)).toBe(true), { timeout: 10000 })
+  }, 45000)
+})
+
+// ═══ CG-37 · binding v2: plan structure + the create step's result reference ═══════════════════════════════════
+describe('CG-37 binding v2 · an UNTARGETED change after a create goes on the created chart; explicit targets never moved', () => {
+  const ONE = () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: settings() }], { A: 'NVDA' }]
+  const TWO2 = () => [[
+    { id: 'c1', type: 'chart', x: 0, y: 0, w: 8, h: 20, color: 'A', opts: settings() },
+    { id: 'c2', type: 'chart', x: 8, y: 0, w: 8, h: 20, color: 'B', opts: settings() },
+  ], { A: 'NVDA', B: 'AMD' }]
+  const raw = (board, id) => JSON.stringify(board.state.widgets.find(w => w.id === id))
+  const fresh = (board, olds) => chartsOf(board).find(w => !olds.includes(w.id))
+  const smas = (w) => (w?.opts?.settings?.indicatorInstances || []).filter(i => i.defId === 'movingAverage' && Number(i.inputs?.period) === 50 && i.inputs?.maType === 'sma' && !i.deleted).length
+  for (const [said, check] of [
+    ['open TSLA on a new chart and switch it to the weekly', (h, w) => { expect(h.charts.read(w.id).symbol).toBe('TSLA'); expect(h.charts.read(w.id).tf).toBe('W') }],
+    ['add a chart for META and make it a line chart', (h, w) => { expect(h.charts.read(w.id).symbol).toBe('META'); expect(w.opts.settings?.chartType).toBe('line') }],
+    ['add a chart for AMD and put the 50 SMA on it', (h, w) => { expect(h.charts.read(w.id).symbol).toBe('AMD'); expect(smas(w)).toBeGreaterThanOrEqual(1) }],
+  ]) {
+    it(`deterministic: "${said}" → the NEW chart; the existing chart byte-identical`, async () => {
+      const { board, h, say } = mount(...ONE())
+      const before = raw(board, 'c1')
+      await say(said)
+      await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+      await waitFor(() => check(h, fresh(board, ['c1'])), { timeout: 8000 })
+      expect(raw(board, 'c1')).toBe(before)
+    }, 30000)
+  }
+  it('H1: a model plan aimed EXPLICITLY at the existing chart is never re-targeted', () => {
+    const board = makeBoard(...ONE())
+    const ops = [
+      { action: 'widget.add', target: 'workspace', args: { type: 'chart', as: 'new1' } },
+      { action: 'chart.setSymbol', target: 'new1', args: { symbol: 'TSLA' } },
+      { action: 'chart.setTimeframe', target: 'c1', args: { timeframe: 'W' } },
+    ]
+    expect(bindCreated(ops, 'open TSLA in its own chart and switch it to the weekly', board.host)).toBeNull()
+  })
+  it('model plan with an UNRESOLVABLE target after the create → bound to the new chart (model path, NL-1 off)', async () => {
+    const { board, h, say } = mount(...ONE())
+    const before = raw(board, 'c1')
+    envelopes.push(b => env('apply', [
+      { action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: 'new1' } },
+      { action: 'chart.setSymbol', target: 'new1', args: { symbol: 'TSLA' } },
+      { action: 'chart.setTimeframe', target: 'zz_unknown', args: { timeframe: 'W' } },
+    ]))
+    await say('could you open up TSLA in its own chart and then flip it over to the weekly view')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+    await waitFor(() => expect(h.charts.read(fresh(board, ['c1']).id).tf).toBe('W'))
+    expect(raw(board, 'c1')).toBe(before)
+  }, 30000)
+  it('NL-1 on: the same unresolvable-target plan is bound to the new chart', async () => {
+    try { localStorage.setItem(NL1_KEY, '1') } catch { /* */ }
+    nl1Config = true
+    _resetAgentConfig(); await loadAgentConfig()
+    try {
+      const { board, h, say } = mount(...ONE())
+      const before = raw(board, 'c1')
+      envelopes.push(b => ({ ...env('apply', [
+        { action: 'widget.add', target: (Object.values(b.context || {}).flat().find(e => /workspace/i.test(String(e?.label || e?.ref)))?.ref) || 'workspace', args: { type: 'chart', as: 'new1' } },
+        { action: 'chart.setSymbol', target: 'new1', args: { symbol: 'META' } },
+        { action: 'chart.setType', target: 'zz_unknown', args: { type: 'line' } },
+      ]), correction: null }))
+      await say('could you open up META in its own chart and then make it a line chart for me')
+      await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+      expect(raw(board, 'c1')).toBe(before)
+      expect(h.charts.read(fresh(board, ['c1']).id).symbol).toBe('META')
+    } finally { nl1Config = false; try { localStorage.removeItem(NL1_KEY) } catch { /* */ }; _resetAgentConfig() }
+  }, 30000)
+  // the reviewer's adversarial cases: untouched charts byte-identical, or asked
+  it('"…and set my other chart to daily": the existing chart is named — the new chart is never the target', () => {
+    const board = makeBoard(...ONE())
+    const ops = [{ action: 'widget.addCharts', args: { symbols: ['TSLA'], timeframe: null, chart_type: null, exact: null } }, { action: 'chart.setTimeframe', args: { timeframe: 'D' } }]
+    expect(bindCreated(ops, 'open a chart for TSLA and set my other chart to daily', board.host)).toBeNull()
+  })
+  it('"open a chart for TSLA that is weekly and switch my main chart to weekly": not re-bound', () => {
+    const board = makeBoard(...ONE())
+    const ops = [{ action: 'widget.addCharts', args: { symbols: ['TSLA'], timeframe: 'W', chart_type: null, exact: null } }, { action: 'chart.setTimeframe', args: { timeframe: 'W' } }]
+    expect(bindCreated(ops, 'open a chart for TSLA that is weekly and switch my main chart to weekly', board.host)).toBeNull()
+  })
+  it('"make this chart weekly" (no create): never touched by the binder', () => {
+    const board = makeBoard(...ONE())
+    expect(bindCreated([{ action: 'chart.setTimeframe', args: { timeframe: 'W' } }], 'make this chart weekly', board.host)).toBeNull()
+  })
+  it('"add another NVDA chart and make the NVDA chart that was already there weekly": the ticker is on both → asked, nothing changes', async () => {
+    const { board, say } = mount(...ONE())
+    const before = JSON.stringify(board.state.widgets)
+    envelopes.push(env('answer', [], 'NO SCRIPTED MODEL TURN'))
+    await say('add another NVDA chart and make the NVDA chart that was already there weekly')
+    const b = bindCreated([{ action: 'widget.addCharts', args: { symbols: ['NVDA'], timeframe: null, chart_type: null, exact: null } }, { action: 'chart.setTimeframe', args: { timeframe: 'W' } }], 'add another NVDA chart and make the NVDA chart that was already there weekly', makeBoard(...ONE()).host)
+    expect(b?.ask || b === null).toBeTruthy()
+    expect(b?.ops).toBeUndefined()
+    expect(JSON.stringify(board.state.widgets.filter(w => w.id === 'c1'))).toBe(JSON.stringify(JSON.parse(before).filter(w => w.id === 'c1')))
+  }, 30000)
+  it('M4: "Open TSLA on a new chart and also make it weekly" → asked (the change is set apart from the create)', async () => {
+    const { board, say } = mount(...ONE())
+    const before = JSON.stringify(board.state.widgets)
+    await say('Open TSLA on a new chart and also make it weekly')
+    await waitFor(() => expect(transcript()).toMatch(/Should that change go on the new chart, or on a chart you already have/))
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 30000)
+  it('two charts on the board, the change untargeted after the create: the new chart; both others byte-identical', async () => {
+    const { board, h, say } = mount(...TWO2())
+    const b1 = raw(board, 'c1'), b2 = raw(board, 'c2')
+    await say('add a chart for META and make it a line chart')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(3), { timeout: 8000 })
+    await waitFor(() => expect(fresh(board, ['c1', 'c2']).opts.settings?.chartType).toBe('line'))
+    expect(raw(board, 'c1')).toBe(b1)
+    expect(raw(board, 'c2')).toBe(b2)
+    expect(h.charts.read(fresh(board, ['c1', 'c2']).id).symbol).toBe('META')
+  }, 30000)
+  it('grouped Undo restores the exact prior state; a failed create stops the rest (never on the existing chart)', async () => {
+    const { board, h, say } = mount(...ONE())
+    const before = shape(board, h)
+    await say('open TSLA on a new chart and switch it to the weekly')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+    await say('undo')
+    await waitFor(() => expect(shape(board, h)).toBe(before), { timeout: 8000 })
+    cleanup()
+    const r = mount(...ONE(), {}, { failAddAt: 1 })
+    const before2 = raw(r.board, 'c1')
+    await r.say('open TSLA on a new chart and switch it to the weekly')
+    await waitFor(() => expect(transcript()).toMatch(/didn't take effect|didn’t go through/), { timeout: 15000 })
+    expect(raw(r.board, 'c1')).toBe(before2)
+    expect(chartsOf(r.board)).toHaveLength(1)
   }, 45000)
 })
