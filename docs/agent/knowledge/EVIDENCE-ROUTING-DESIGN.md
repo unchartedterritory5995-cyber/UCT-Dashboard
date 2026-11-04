@@ -369,3 +369,17 @@ activation needs that separate authorization. Brain stays OFF.
 - **Clarify:** a clarify's question text and choices are judged too. If blocked, the turn becomes the fixed sentence
   with no ops. UCT's own fixed clarify is never judged.
 
+**QA #781 round 3 (owner-approved scope; this supersedes the round-2 notes on the call ceiling and v2):**
+- **Updated onto master 29830442d0 by a merge** (`budget.py` conflict resolved to master's #785 meter, which already
+  carries `counts_as_call`). There is no parallel cap: the classifier and the judge are reserved through the turn's
+  own `budget.Meter` (#785). Every reservation carries the request (`turn_request_id`) and counts toward the $0.25
+  per-turn cap (`UCT_AGENT_TURN_USD`); the judge also pre-checks `meter.affords()`.
+- **Both models pinned:** the classifier is `claude-haiku-4-5` (`CLASSIFIER_MODEL`; an Opus planner would have raised
+  its worst case from about $0.010 to $0.049), and so is the judge (`JUDGE_MODEL`). Both are priced as that model.
+- **Item 3, decided:** the judge has its OWN call allowance. It sits off the 2-call ceiling, but inside the per-turn
+  dollar cap, and runs at most once per turn by construction. So a rerouted, repaired or researched v1 turn is still
+  judged. A turn the dollar cap cannot cover gets the fixed sentence and no call.
+- **Item 4, decided:** E-1 refuses planner v2. v2's meter carries no request id, so neither cap can bound the
+  classifier or the judge there. A v2 request with E-1 on gets UCT's fixed sentence and no paid call. Brain + v2 is
+  unsupported; v2 is off in production. Separately, a meter without a request makes the judge refuse (fixed sentence).
+

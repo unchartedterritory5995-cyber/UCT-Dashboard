@@ -43,7 +43,9 @@ MAX_CONCEPT = 60
 MAX_TOKENS = 200
 TIMEOUT_ENV = "UCT_AGENT_EVIDENCE_TIMEOUT_S"
 DEFAULT_TIMEOUT_S = 2.0
-CATEGORY = "evidence"                      # budget.Meter category: counted toward the daily cap, shown in usage
+CATEGORY = "evidence"
+#: QA #781 round 3: pinned (never UCT_AGENT_MODEL): an Opus planner would raise its worst case from ~$0.010 to ~$0.049
+CLASSIFIER_MODEL = "claude-haiku-4-5"                      # budget.Meter category: counted toward the daily cap, shown in usage
 PLAYBOOK_GROUP = "playbook"
 _PREFIX = "playbook."
 
@@ -63,8 +65,8 @@ NEWS_BOX = "Ask about UCT's playbook in the main Agent chat, where I answer from
 #: the turn's E-1 class is chart or none, the final reply is non-empty, and it is not one of UCT's own fixed sentences
 #: (fixed_sentences()). Never a model's words; never on playbook / mixed / ambiguous turns (those have no model text).
 GENERAL_LABEL = "General information, not from UCT's approved playbook."
-V2_NOT_YET = ("UCT's approved playbook answers aren't available in this planner mode yet, so I didn't answer that part. "
-              "Ask chart questions as usual.")
+V2_NOT_YET = ("UCT's approved playbook answers aren't available in this planner mode yet, so I didn't answer that. "
+              "Switch back to the standard planner.")
 
 SYSTEM = """You route ONE message sent to UCT Agent, a charting and research assistant for stock traders. You never answer it. Output only the JSON object the schema allows.
 
@@ -209,10 +211,10 @@ def classify(message: str, context: Any, history: Any, setups: list[dict], meter
     data = {"member_message": message, "recent_actions": _recent_actions(history), "open_charts": _symbols(context),
             "approved_setups": setups}
     user = "<evidence_input>" + t1._esc(json.dumps(data, ensure_ascii=False)) + "</evidence_input>"
-    use = {"model": t1.model(), "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "ms": 0}
+    use = {"model": CLASSIFIER_MODEL, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "ms": 0}
     t0 = time.perf_counter()
     try:
-        kw = dict(model=t1.model(), max_tokens=MAX_TOKENS,
+        kw = dict(model=CLASSIFIER_MODEL, max_tokens=MAX_TOKENS,
                   system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
                   output_config={"format": {"type": "json_schema", "schema": schema(names)}},
                   messages=[{"role": "user", "content": user}])
@@ -228,7 +230,7 @@ def classify(message: str, context: Any, history: Any, setups: list[dict], meter
     u = getattr(resp, "usage", None)
     use["input_tokens"] = int(getattr(u, "input_tokens", 0) or 0)
     use["output_tokens"] = int(getattr(u, "output_tokens", 0) or 0)
-    use["cost_usd"] = t1._record_cost(resp)
+    use["cost_usd"] = _priced(resp, CLASSIFIER_MODEL)
     if getattr(resp, "stop_reason", None) not in ("end_turn", "stop_sequence"):
         raise Unclassified(f"stop:{getattr(resp, 'stop_reason', None)}")
     text = next((getattr(b, "text", "") for b in getattr(resp, "content", []) or [] if getattr(b, "type", None) == "text"), "")
@@ -674,25 +676,22 @@ def judge_schema() -> dict:
 JUDGE_CALL: Callable[..., Any] = default_call
 
 
-def turn_cap_usd() -> float:
-    """The per-turn dollar cap (planner v2's UCT_AGENT_TURN_USD, default $0.25), applied to the WHOLE turn here."""
-    from api.services.uct_agent import turn_v2
-    return turn_v2.turn_usd()
-
-
-def _judge_cost(resp) -> float:
+def _priced(resp, model_id: str) -> float:
     try:
         from api.services import narrative_cost_guard
         from api.services.uct_agent import turn as t1
-        return float(narrative_cost_guard.record_from_response(t1.COST_SURFACE, JUDGE_MODEL, resp) or 0.0)
+        return float(narrative_cost_guard.record_from_response(t1.COST_SURFACE, model_id, resp) or 0.0)
     except Exception:  # noqa: BLE001
         return 0.0
 
 
-def judge_reply(reply: str, message: str, meter=None, spent_usd: float = 0.0) -> tuple[bool, str, dict]:
+def judge_reply(reply: str, message: str, meter=None) -> tuple[bool, str, dict]:
     """(replace?, why, usage). Fails CLOSED: anything but a clean all-false verdict replaces the reply.
-    QA #781 round 2: the judge is a call OF THIS TURN — it uses one of the request's calls (counts_as_call) and must fit
-    the per-turn dollar cap with what the turn already spent; a turn that cannot afford it gets the fixed sentence."""
+    QA #781 round 3: the judge goes through the turn's own meter (#785): its worst case must fit the request's
+    per-turn dollar cap (meter.affords, then reserve() decides), so it counts toward $0.25 like every other call of
+    the turn. It has its OWN call allowance (off the 2-call ceiling, at most one judge call per turn by construction),
+    so a rerouted, repaired or researched v1 turn can still be judged. A turn that cannot afford it -> fixed sentence.
+    A meter without a request (planner v2, which E-1 refuses; scripts pass no meter) cannot cap the turn -> refused."""
     from api.services.uct_agent import budget
     from api.services.uct_agent import turn as t1
     data = {"member_message": str(message or "")[:2000], "reply": str(reply or "")[:4000]}
@@ -702,17 +701,18 @@ def judge_reply(reply: str, message: str, meter=None, spent_usd: float = 0.0) ->
               system=[{"type": "text", "text": JUDGE_SYSTEM, "cache_control": {"type": "ephemeral"}}],
               output_config={"format": {"type": "json_schema", "schema": judge_schema()}},
               messages=[{"role": "user", "content": user}])
-    if float(spent_usd or 0.0) + budget.worst_case_usd(kw) > turn_cap_usd():
+    if meter is not None and getattr(meter, "request_id", None) is None:
+        return True, "judge_unaffordable:no_turn_meter", use
+    if meter is not None and not meter.affords(budget.worst_case_usd(kw)):
         return True, "judge_unaffordable:turn_cap", use
-    if meter is not None and meter.calls_left() < 1:
-        return True, "judge_unaffordable:call_ceiling", use
     try:
-        resp = meter.call(JUDGE_CATEGORY, JUDGE_CALL, **kw) if meter is not None else JUDGE_CALL(**kw)
+        resp = (meter.call(JUDGE_CATEGORY, JUDGE_CALL, counts_as_call=False, **kw) if meter is not None
+                else JUDGE_CALL(**kw))
     except Exception as e:  # noqa: BLE001 — fail closed, a budget refusal included (the reply is not served)
         return True, f"judge_error:{type(e).__name__}", use
     u = getattr(resp, "usage", None)
     use = {"input_tokens": int(getattr(u, "input_tokens", 0) or 0),
-           "output_tokens": int(getattr(u, "output_tokens", 0) or 0), "cost_usd": _judge_cost(resp)}
+           "output_tokens": int(getattr(u, "output_tokens", 0) or 0), "cost_usd": _priced(resp, JUDGE_MODEL)}
     if getattr(resp, "stop_reason", None) not in ("end_turn", "stop_sequence"):
         return True, f"judge_stop:{getattr(resp, 'stop_reason', None)}", use
     text = next((getattr(b, "text", "") for b in getattr(resp, "content", []) or [] if getattr(b, "type", None) == "text"), "")
@@ -726,7 +726,7 @@ def judge_reply(reply: str, message: str, meter=None, spent_usd: float = 0.0) ->
     return (True, "judge:" + ",".join(hits), use) if hits else (False, "judge:clear", use)
 
 
-def judge_backstop(res: dict, message: str, meter=None, prior_usd: float = 0.0) -> dict:
+def judge_backstop(res: dict, message: str, meter=None) -> dict:
     """Run the output judge on a chart / none result whose model text the deterministic checks let through: the reply
     of an answer / apply / propose, and (QA #781 round 2) a clarify's question text and choices."""
     env = res.get("envelope") if isinstance(res, dict) else None
@@ -744,8 +744,7 @@ def judge_backstop(res: dict, message: str, meter=None, prior_usd: float = 0.0) 
     if not reply or reply in fixed_sentences() or (disp == "clarify" and all(
             x in fixed_sentences() or x in ("", "Which one do you mean?") for x in reply.split("\n"))):
         return res
-    spent = float((res.get("usage") or {}).get("cost_usd") or 0.0) + float(prior_usd or 0.0)
-    block, why, use = judge_reply(reply, message, meter, spent_usd=spent)
+    block, why, use = judge_reply(reply, message, meter)
     usage = res.setdefault("usage", {})
     usage["judge"] = why
     usage["model_calls"] = int(usage.get("model_calls") or 0) + (1 if use.get("input_tokens") else 0)
@@ -813,6 +812,15 @@ def serve(run_turn: Callable[..., dict], args: dict) -> dict:
                 "routing": strip_routing(args.get("routing"))}
     if not message or len(message) > t1.MAX_MESSAGE or (t1.looks_like_nonsense(message) and args.get("headline") is None):
         return run_turn(**stripped)                # UCT's own sentence or fixed clarify; no model text, no call
+    if args.get("v2") is not None:
+        # QA #781 round 3: planner v2's meter carries no request id, so neither the per-turn cap nor the call ceiling
+        # can bound the classifier and the judge there; Brain + v2 is unsupported (v2 is off in production). UCT's fixed
+        # sentence, no paid call.
+        from api.services.uct_agent import turn as t1
+        return {"envelope": answer_envelope(V2_NOT_YET), "usage": {"model": CLASSIFIER_MODEL, "input_tokens": 0,
+                "output_tokens": 0, "cost_usd": 0.0, "research_calls": 0, "model_calls": 0, "citations": [],
+                "evidence": {"class": "refused_v2", "topic": "other", "why": "e1_refuses_v2", "setups": 0,
+                             "cached": False}}, "title": None}
     context = args.get("context") or {}
     meter = args.get("meter")
     # review #781 finding 5: the manifest is validated BEFORE the paid classifier call (a bad one is refused for free),
@@ -871,8 +879,7 @@ def serve(run_turn: Callable[..., dict], args: dict) -> dict:
         if args.get("v2") is not None and kn_words:
             return done(answer_envelope(NOT_RETRIEVED))
         res = run_turn(**{**stripped, "_e1": "gate_kn" if kn_words else "gate"})
-        res = judge_backstop(output_backstop(res, vocab, message), message, meter,
-                             prior_usd=float((use or {}).get("cost_usd") or 0.0))
+        res = judge_backstop(output_backstop(res, vocab, message), message, meter)
         return _merge_usage(label_general(res), decision, use, cached)
     if args.get("answer_only") or args.get("headline") is not None:
         return done(answer_envelope(NEWS_BOX))     # the News Ask box: playbook / mixed / ambiguous never planned there

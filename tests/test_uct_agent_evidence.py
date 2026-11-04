@@ -59,6 +59,7 @@ def _brain(monkeypatch):
     monkeypatch.setattr(ev, "pack_present", lambda: True)
     monkeypatch.setattr(ev, "approved_setups", lambda: [dict(s) for s in VOCAB])
     monkeypatch.setattr(turn, "_record_cost", lambda resp: 0.001)
+    monkeypatch.setattr(ev, "_priced", lambda resp, model_id: 0.001)           # never the real cost ledger in tests
     monkeypatch.setattr(ev, "CALL", Classifier(cls()))
     monkeypatch.setattr(ev, "JUDGE_CALL", Classifier(JUDGE_CLEAR))     # the scripted output judge: all false by default
     ev._reset_for_test()
@@ -292,18 +293,6 @@ def test_a_misrouted_question_about_a_specific_chart_is_still_answered_with_the_
     assert out["envelope"]["reply"] == "Around the prior high.\n\n" + ev.GENERAL_LABEL
 
 
-def test_v2_never_gets_a_playbook_worded_chart_or_none_turn(monkeypatch):
-    from api.services.uct_agent import turn_v2
-    got = []
-    monkeypatch.setattr(turn_v2, "run_turn_v2", lambda **kw: (got.append(kw), {"envelope": env("answer", reply=INVENTED),
-                                                                               "usage": {}, "title": None})[1])
-    use(monkeypatch, MISROUTES[1])
-    out = run("what's an EP", v2={"wait_step": None, "turn_token": "t"})          # a named setup: mixed, never v2
-    assert got == [] and out["envelope"]["reply"] == ev.V2_NOT_YET
-    out = run("describe a pocket pivot", v2={"wait_step": None, "turn_token": "t"})  # playbook-worded: never v2
-    assert got == [] and out["envelope"]["reply"] == ev.NOT_RETRIEVED
-    out = run("tell me a joke", v2={"wait_step": None, "turn_token": "t"})
-    assert got and out["envelope"]["reply"] == ev.NOT_RETRIEVED      # v2's reply presents UCT methodology: output backstop
 
 
 @pytest.mark.parametrize("evidence", ["chart", "none"])
@@ -356,22 +345,6 @@ def test_an_invalid_manifest_is_refused_before_the_classifier_is_paid(monkeypatc
     assert c.calls == []
 
 
-def test_v2_receives_the_stripped_manifest_and_never_a_playbook_turn(monkeypatch):
-    from api.services.uct_agent import turn_v2
-    got = []
-    monkeypatch.setattr(turn_v2, "run_turn_v2", lambda **kw: (got.append(kw), {"envelope": env("answer", reply="ok"),
-                                                                               "usage": {}, "title": None})[1])
-    use(monkeypatch, cls(evidence="chart", topic="chart_or_symbol", setups=(), concept=""))
-    run("make it bars", v2={"wait_step": None, "turn_token": "t"})
-    assert got and not any(ev.is_playbook(c.get("name")) for c in got[0]["capabilities"])
-    # v2's browser runner shows a final reply only (it never runs a final envelope's ops or choices), so a playbook /
-    # mixed / ambiguous turn on v2 is UCT's fixed words, never the v2 planner
-    for c, want in ((cls(), ev.V2_NOT_YET), (cls(evidence="mixed", chart_ask=True), ev.V2_NOT_YET),
-                    (cls(evidence="ambiguous"), ev.CLARIFY_TEXT)):
-        got.clear()
-        use(monkeypatch, c)
-        out = run("what is an EP", v2={"wait_step": None, "turn_token": "t"})
-        assert got == [] and out["envelope"]["ops"] == [] and out["envelope"]["reply"] == want
 
 
 # ── mixed: chart actions kept, the planner's words dropped, UCT's reads appended ────────────────────────────────
@@ -843,34 +816,10 @@ def test_judge_never_runs_while_e1_is_off(monkeypatch):
     assert j.calls == []
 
 
-def test_judge_is_a_call_of_this_turn_on_the_call_ceiling(monkeypatch):
-    # QA #781 round 2: the judge uses one of the request's calls (the classifier stays off the ceiling)
-    use(monkeypatch, MISROUTES[1])
-    _judge(monkeypatch, JUDGE_CLEAR)
-    seen = []
-    meter = types.SimpleNamespace(user_id=1, request_id=None, calls_left=lambda: 2,
-                                  call=lambda category, fn, counts_as_call=True, **kw: (seen.append((category, counts_as_call)), fn(**kw))[1])
-    run("what is vwap", meter=meter, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
-    assert (ev.JUDGE_CATEGORY, True) in seen and (ev.CATEGORY, False) in seen
 
 
-def test_judge_unaffordable_on_the_call_ceiling_is_the_fixed_sentence_with_no_call(monkeypatch):
-    use(monkeypatch, MISROUTES[1])
-    j = _judge(monkeypatch, AssertionError("no judge call when the turn cannot afford it"))
-    meter = types.SimpleNamespace(user_id=1, request_id=None, calls_left=lambda: 0,
-                                  call=lambda category, fn, counts_as_call=True, **kw: fn(**kw))
-    out = run("what is vwap", meter=meter, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
-    assert out["envelope"]["reply"] == ev.NOT_RETRIEVED and out["usage"]["judge"] == "judge_unaffordable:call_ceiling"
-    assert j.calls == []
 
 
-def test_judge_unaffordable_on_the_per_turn_dollar_cap(monkeypatch):
-    use(monkeypatch, MISROUTES[1])
-    j = _judge(monkeypatch, AssertionError("no judge call over the per-turn cap"))
-    monkeypatch.setenv("UCT_AGENT_TURN_USD", "0.0011")                         # the planner + classifier spent 0.002 here
-    out = run("what is vwap", caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
-    assert out["envelope"]["reply"] == ev.NOT_RETRIEVED and out["usage"]["judge"] == "judge_unaffordable:turn_cap"
-    assert j.calls == []
 
 
 def test_judge_model_is_pinned_whatever_the_planner_model(monkeypatch):
@@ -899,4 +848,76 @@ def test_judge_covers_v2_resumes(monkeypatch):
     _judge(monkeypatch, {**JUDGE_CLEAR, "prescribes_trading_action": True})
     v2 = {"wait_step": None, "turn_token": "t", "resume": {"x": 1}, "resume_result": {"status": "done"}}
     assert run("ok", v2=v2)["envelope"]["reply"] == ev.NOT_RETRIEVED
+
+
+# ── QA #781 round 3: #785's per-turn meter, the judge's own allowance, pinned models, E-1 refuses v2 ────────────────
+class _Meter:
+    def __init__(self, request_id=7, calls=2, affords=True):
+        self.request_id, self.user_id, self._calls, self._affords, self.seen = request_id, 1, calls, affords, []
+
+    def calls_left(self):
+        return self._calls
+
+    def affords(self, *worst):
+        self.seen.append(("affords", round(sum(worst), 6)))
+        return self._affords
+
+    def call(self, category, fn, counts_as_call=True, **kw):
+        self.seen.append((category, counts_as_call, kw.get("model")))
+        return fn(**kw)
+
+
+def test_r3_the_judge_has_its_own_call_allowance_inside_the_dollar_cap(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    _judge(monkeypatch, JUDGE_CLEAR)
+    m = _Meter(calls=0)                     # a rerouted / repaired / researched turn: no call left on the ceiling
+    out = run("what is vwap", meter=m, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert out["usage"]["judge"] == "judge:clear"
+    assert (ev.JUDGE_CATEGORY, False, ev.JUDGE_MODEL) in m.seen and any(x[0] == "affords" for x in m.seen)
+
+
+def test_r3_a_turn_the_per_turn_cap_cannot_cover_gets_the_fixed_sentence_and_no_judge_call(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    j = _judge(monkeypatch, AssertionError("no judge call over the per-turn cap"))
+    out = run("what is vwap", meter=_Meter(affords=False), caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert out["envelope"]["reply"] == ev.NOT_RETRIEVED and out["usage"]["judge"] == "judge_unaffordable:turn_cap"
+    assert j.calls == []
+
+
+def test_r3_a_meter_without_a_request_cannot_cap_the_judge(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    j = _judge(monkeypatch, AssertionError("no judge call without a per-turn meter"))
+    out = run("what is vwap", meter=_Meter(request_id=None), caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert out["envelope"]["reply"] == ev.NOT_RETRIEVED and out["usage"]["judge"] == "judge_unaffordable:no_turn_meter"
+    assert j.calls == []
+
+
+def test_r3_the_classifier_is_pinned_and_goes_through_the_turn_meter(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    c = use(monkeypatch, MISROUTES[1])
+    monkeypatch.setenv("UCT_AGENT_MODEL", "claude-opus-5-5")
+    m = _Meter()
+    run("what is vwap", meter=m, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert c.calls[0]["model"] == ev.CLASSIFIER_MODEL == "claude-haiku-4-5"
+    assert (ev.CATEGORY, False, ev.CLASSIFIER_MODEL) in m.seen
+
+
+def test_r3_the_classifier_counts_toward_the_real_per_turn_cap(monkeypatch, clean):
+    from api.services.uct_agent import budget
+    use(monkeypatch, cls())
+    rid = budget.open_request("u", "c1", "what is an EP")
+    meter = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    run("what is an EP", meter=meter)
+    assert budget.turn_committed_usd(rid) > 0 and budget.calls_used(rid) == 0     # dollars yes, the call ceiling no
+
+
+def test_r3_e1_refuses_planner_v2_with_no_paid_call(monkeypatch):
+    from api.services.uct_agent import turn_v2
+    c = use(monkeypatch, AssertionError("no classifier call on v2"))
+    monkeypatch.setattr(turn_v2, "run_turn_v2", lambda **kw: (_ for _ in ()).throw(AssertionError("v2 never runs")))
+    for msg in ("make it bars", "what is an EP", "tell me a joke"):
+        out = run(msg, v2={"wait_step": None, "turn_token": "t"})
+        assert out["envelope"]["reply"] == ev.V2_NOT_YET and out["envelope"]["ops"] == []
+        assert out["usage"]["evidence"]["why"] == "e1_refuses_v2"
+    assert c.calls == []
 
