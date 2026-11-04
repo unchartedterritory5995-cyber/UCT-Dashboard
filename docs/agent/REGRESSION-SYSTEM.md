@@ -55,6 +55,31 @@ capability. Listing a name in `capabilities` is not enough. Inventory rail 1b fa
 none of its assertions run (this moved `layout.rename` in GW-07 to `refuses`, and dropped `indicatorStyle.set` from
 GW-12, whose deterministic plan does not run it).
 
+### Known limits of the enforcement (review #769)
+
+1. **Where the merge-base check runs.**
+   - It is STRICT only on pushes to `agent/**` branches (Agent CI): there, an unresolvable origin/master fails it.
+   - Everywhere else it is lenient: a PR merge ref, or a local run, prints a notice instead.
+   - On master itself it SKIPS with a printed notice: `GITHUB_REF=refs/heads/master`, or HEAD == origin/master. The
+     master deploy gate checks out master shallow with `CI` set, and comparing master with itself is meaningless, so
+     this rail can never turn the release gate red (`test_merge_base_check_never_blocks_the_master_gate` simulates it).
+   - A moved or renamed lock is refused wherever a merge base exists: master has the capreg corpus but no lock at the
+     expected path.
+2. **It is not a required check.** Branch protection is not available on this plan. A PR can be merged by hand with
+   the capability-regression job red. The backstop is that the master deploy gate runs `vitest run src/agent` and the
+   server job's `test_uct_agent*.py` before promotion.
+3. **`Decided by:` is free text.** The rail checks that a decider is named, not that the owner actually decided. An
+   agent could write the owner's name.
+   - **Recommendation (an owner decision):** add CODEOWNERS for
+     `app/src/agent/qa/capabilityRegression/baseline/` and `docs/agent/COMPATIBILITY-DECISIONS.md`, so a change to
+     the baseline or a decision needs the owner's review.
+   - CODEOWNERS only binds with branch protection, which this plan doesn't offer (limit 2). Until then it is
+     notification, not enforcement.
+4. **Gap modes are locked.** A known gap's recorded failure `mode` is part of the lock (format 3), so loosening what
+   "fails as expected" means needs a bound `BASELINE:` decision like any other weakening.
+5. **`refuses` is credited only for a refusal that names the capability.** The refusal case must assert
+   `expect.refusedAction`: the turn's own outcome row must say `refused…` with that action.
+
 ## 2. Protections (coverage today)
 
 `coverage/COVERAGE.md` has the per-capability table. Totals (154 capabilities with every gated kind on, 145 with

@@ -59,7 +59,9 @@ export function exercisedBy(entry) {
     for (const s of entry.before || []) for (const a of [...opsOf(s.model), ...readingActions(s.say, board)]) out.add(a)
     if (entry.undo) for (const a of readingActions(entry.undo.say, board)) out.add(a)
   } else {                                                      // a golden workflow / refusal case
-    for (const a of entry.refuses || []) out.add(a)                // credited for the refusal protection only
+    // `refuses` is credited only when a step ASSERTS that refusal by name (expect.refusedAction — the outcome row's actions)
+    const refusedAsserted = new Set(entry.steps.flatMap(s => [].concat(s.expect?.refusedAction || [])))
+    for (const a of entry.refuses || []) if (refusedAsserted.has(a)) out.add(a)
     for (const s of entry.steps) for (const a of [...opsOf(s.model), ...(s.routes || []), ...(s.model ? [] : readingActions(s.say, board))]) out.add(a)
   }
   EXERCISED.set(entry, out)
@@ -101,7 +103,8 @@ export function coverage(names, contract) {
     const board = w.board || 'ONE'
     const listed = new Set(w.capabilities)
     const ranIn = w.steps.map(s => new Set([...opsOf(s.model), ...(s.model ? [] : readingActions(s.say, board))].filter(n => listed.has(n))))
-    for (const n of w.refuses || []) add(n, 'refusal', `${w.id}: refused`)
+    const refusedAsserted = new Set(w.steps.flatMap(s => [].concat(s.expect?.refusedAction || [])))
+    for (const n of w.refuses || []) if (refusedAsserted.has(n)) add(n, 'refusal', `${w.id}: refused by name`)
     w.steps.forEach((s, k) => {
       for (const n of ranIn[k]) {
         if (s.model || s.expect) { add(n, 'execution', w.id); add(n, 'nl', w.id) }

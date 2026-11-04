@@ -82,6 +82,11 @@ export function checkExpect(ctx, e, label) {
   for (const r of e.reads || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical read matching /${r}/ ran (ran: ${calls.map(c => `${c[0]} ${c[1]}`).join(' | ')})`).toBe(true)
   for (const r of e.writes || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical write matching /${r}/ ran`).toBe(true)
   for (const r of e.noCalls || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: nothing matching /${r}/ ran`).toBe(false)
+  for (const a of [].concat(e.refusedAction || [])) {
+    // the refusal names the capability it refused: the turn's own outcome row (useAgent record → /api/agent/record)
+    const rows = p.st.calls.slice(since.calls).filter(c => c[1] === '/api/agent/record').map(c => c[2]?.outcomeData || {})
+    expect(rows.some(o => String(o.kind || '').startsWith('refused') && (o.actions || []).includes(a)), `${label}: a refusal of ${a} (outcomes: ${JSON.stringify(rows.map(o => [o.kind, o.actions]))})`).toBe(true)
+  }
   if (e.receipt != null) expect(receiptsNow().length - since.receipts > 0, `${label}: a receipt`).toBe(e.receipt)
   if (e.undoable) expect(receiptsNow().at(-1)?.getAttribute('data-undoable'), `${label}: the receipt is undoable`).toBe('true')
   if (e.proposal != null) expect(proposalsNow().length > 0, `${label}: a proposal waiting`).toBe(e.proposal)

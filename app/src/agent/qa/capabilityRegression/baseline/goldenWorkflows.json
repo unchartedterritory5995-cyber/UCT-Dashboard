@@ -304,7 +304,8 @@
             "unchanged": true,
             "modelTurns": 0,
             "refusal": true,
-            "receipt": false
+            "receipt": false,
+            "refusedAction": "layout.rename"
           }
         }
       ],

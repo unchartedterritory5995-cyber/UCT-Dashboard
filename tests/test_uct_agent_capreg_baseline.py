@@ -32,7 +32,7 @@ AGENT_CI = ROOT / ".github" / "workflows" / "agent-ci.yml"
 NOTE_KEYS = {"source", "about", "capabilities", "refuses"}
 #: the lock's digest format. 2 (2026-11-04, review #769): the credit fields joined NOTE_KEYS. A lock of another format is
 #: never compared silently: test_lock_format_is_current fails, and the re-lock is a reviewed change of its own.
-LOCK_FORMAT = 2
+LOCK_FORMAT = 3     # 3 (2026-11-04, review #769 delta): each gap's recorded failure `mode` is part of the lock
 
 
 def _load(p: Path):
@@ -55,12 +55,14 @@ def fingerprint(corpus: dict, golden: dict) -> dict:
         phr = {}
         for p in _phrasings(it):
             rest = {k: v for k, v in p.items() if k not in ("text", "gaps")}
-            phr[p["text"]] = {"digest": _digest(rest), "gaps": sorted((p.get("gaps") or {}).keys())}
+            # a gap's recorded failure MODE is locked too: loosening what "fails as expected" means needs a decision
+            phr[p["text"]] = {"digest": _digest(rest), "gaps": sorted((p.get("gaps") or {}).keys()),
+                              "modes": {lvl: g.get("mode") for lvl, g in sorted((p.get("gaps") or {}).items())}}
         out["intents"][it["id"]] = {"digest": _digest(body), "phrasings": phr}
     for r in corpus.get("refusals", []):
-        out["refusals"][r["id"]] = {"digest": _digest({k: v for k, v in r.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(r.get("gap"))}
+        out["refusals"][r["id"]] = {"digest": _digest({k: v for k, v in r.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(r.get("gap")), "mode": (r.get("gap") or {}).get("mode")}
     for w in golden["workflows"]:
-        out["workflows"][w["id"]] = {"digest": _digest({k: v for k, v in w.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(w.get("gap"))}
+        out["workflows"][w["id"]] = {"digest": _digest({k: v for k, v in w.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(w.get("gap")), "mode": (w.get("gap") or {}).get("mode")}
     return out
 
 
@@ -134,15 +136,59 @@ def _git(*args: str):
         return None
 
 
-def base_lock():
-    """The lock as it is at the merge base with origin/master: (lock | None, reason). None + 'absent' = not on master yet."""
-    mb = (_git("merge-base", "HEAD", "origin/master") or "").strip()
+def base_lock(git=None):
+    """The lock at the merge base with origin/master: (lock | None, reason).
+    reason: ok | no-ref (origin/master unresolvable) | absent (master has no capreg suite yet) |
+            lock-missing (master HAS the suite — its corpus exists — but no lock at the expected path: a moved lock)."""
+    git = git or _git
+    mb = (git("merge-base", "HEAD", "origin/master") or "").strip()
     if not mb:
         return None, "no-ref"
-    text = _git("show", f"{mb}:{LOCK.relative_to(ROOT).as_posix()}")
+    text = git("show", f"{mb}:{LOCK.relative_to(ROOT).as_posix()}")
     if text is None:
-        return None, "absent"
+        corpus_there = git("show", f"{mb}:{CORPUS.relative_to(ROOT).as_posix()}")
+        return None, ("lock-missing" if corpus_there is not None else "absent")
     return json.loads(text), "ok"
+
+
+def merge_base_mode(env=None, git=None) -> str:
+    """skip-master: running ON master (the master deploy gate: GITHUB_REF refs/heads/master, or HEAD == origin/master) —
+    comparing master with itself is meaningless, and this check must never turn the release gate red;
+    strict: a push to an agent/** branch (Agent CI) — an unresolvable base FAILS;
+    lenient: anything else (a PR merge ref, a local run) — an unresolvable base is a printed notice."""
+    env = os.environ if env is None else env
+    git = git or _git
+    ref = env.get("GITHUB_REF", "")
+    if ref == "refs/heads/master":
+        return "skip-master"
+    head, om = (git("rev-parse", "HEAD") or "").strip(), (git("rev-parse", "origin/master") or "").strip()
+    if head and om and head == om:
+        return "skip-master"
+    return "strict" if ref.startswith("refs/heads/agent/") else "lenient"
+
+
+def merge_base_check(env=None, git=None, state=None):
+    """(ok: bool, message) — the merge-base rail as a pure function of its environment (tested below)."""
+    mode = merge_base_mode(env, git)
+    if mode == "skip-master":
+        return True, "capreg merge-base check skipped: running on master itself"
+    base, why = base_lock(git)
+    if why == "no-ref":
+        if mode == "strict":
+            return False, "Agent CI must fetch origin/master for the merge-base baseline check"
+        return True, "capreg merge-base check skipped: origin/master is not available here"
+    if why == "absent":
+        return True, "capreg merge-base check: master has no capreg baseline yet"
+    if why == "lock-missing":
+        return False, ("master has the capreg corpus but no baseline.lock.json at the expected path at the merge base "
+                       "— a moved or renamed lock cannot be compared, so it is refused")
+    lock, now, decisions = state or _state()
+    if base.get("format") != LOCK_FORMAT:
+        b = f"{_digest(base)}->{_digest(lock)}"
+        ok = any(decision_valid(d) and d.get("binds") == b for d in decisions.get(f"LOCKFORMAT:{LOCK_FORMAT}", []))
+        return ok, ("" if ok else f"the lock format changed against master: needs `### LOCKFORMAT:{LOCK_FORMAT}` with Date, Decided by and `- Binds: {b}`")
+    bad = undecided(base, now, decisions)
+    return (not bad), ("" if not bad else "weakened against the baseline on master (merge base) without a bound decision:\n" + _explain(bad))
 
 
 def violations(lock: dict, now: dict) -> list[tuple[str, str]]:
@@ -165,6 +211,9 @@ def violations(lock: dict, now: dict) -> list[tuple[str, str]]:
             added = sorted(set(c["gaps"]) - set(p["gaps"]))
             if added:
                 v.append((iid, f'phrasing "{text}" gained a known gap at level(s) {added}'))
+            changed = sorted(lvl for lvl in set(c["gaps"]) & set(p["gaps"]) if (c.get("modes") or {}).get(lvl) != (p.get("modes") or {}).get(lvl))
+            if changed:
+                v.append((iid, f'phrasing "{text}": the recorded failure mode of its gap changed at level(s) {changed}'))
     for kind in ("refusals", "workflows"):
         for wid, was in lock[kind].items():
             cur = now[kind].get(wid)
@@ -175,6 +224,8 @@ def violations(lock: dict, now: dict) -> list[tuple[str, str]]:
                 v.append((wid, f"{kind[:-1]} assertions changed"))
             if cur["gap"] and not was["gap"]:
                 v.append((wid, f"{kind[:-1]} gained a known gap"))
+            elif cur["gap"] and was["gap"] and cur.get("mode") != was.get("mode"):
+                v.append((wid, f"{kind[:-1]}: the recorded failure mode of its gap changed"))
     return v
 
 
@@ -203,20 +254,27 @@ def test_no_baseline_entry_is_removed_or_weakened_without_a_decision():
 
 def test_no_weakening_against_the_merge_base():
     """A hand-edited lock cannot launder a weakening: the corpus is ALSO held to the lock as it is on master."""
-    base, why = base_lock()
-    if why == "no-ref":
-        assert not os.environ.get("CI"), "CI must fetch origin/master for the merge-base baseline check"
-        return
-    if base is None:
-        return                                    # the lock is not on master yet: nothing older to weaken
-    lock, now, decisions = _state()
-    if base.get("format") != LOCK_FORMAT:
-        # a digest-format change cannot be compared entry by entry: it is its own decision, bound to both locks
-        b = f"{_digest(base)}->{_digest(lock)}"
-        assert any(decision_valid(d) and d.get("binds") == b for d in decisions.get(f"LOCKFORMAT:{LOCK_FORMAT}", [])),             f"the lock format changed against master: needs `### LOCKFORMAT:{LOCK_FORMAT}` with Date, Decided by and `- Binds: {b}`"
-        return
-    bad = undecided(base, now, decisions)
-    assert not bad, "weakened against the baseline on master (merge base) without a bound decision:\n" + _explain(bad)
+    ok, msg = merge_base_check()
+    if ok and msg:
+        print(msg)
+    assert ok, msg
+
+
+def test_merge_base_check_never_blocks_the_master_gate():
+    """The master deploy gate checks out master shallow (depth 2) with CI set: on master the rail SKIPS, whatever git
+    can or cannot resolve; on an agent/** push an unresolvable base fails; a moved lock fails wherever a base exists."""
+    nothing = lambda *a: None                                   # a shallow checkout: no origin/master, no merge base
+    assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/master"}, nothing)[0] is True
+    same = lambda *a: "abc123\n" if a[0] == "rev-parse" else None   # HEAD == origin/master (a local run on master)
+    assert merge_base_check({"CI": "true"}, same)[0] is True
+    assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, nothing)[0] is False
+    assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/pull/1/merge"}, nothing)[0] is True
+    corpus_only = lambda *a: ("mb1\n" if a[0] == "merge-base" else ("x" if a[0] == "rev-parse" and a[1] == "HEAD" else
+                              ("y" if a[0] == "rev-parse" else ("{}" if a[1].endswith("corpus.json") else None))))
+    ok, msg = merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, corpus_only)
+    assert ok is False and "moved or renamed lock" in msg
+    neither = lambda *a: ("mb1\n" if a[0] == "merge-base" else ("x" if a == ("rev-parse", "HEAD") else ("y" if a[0] == "rev-parse" else None)))
+    assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, neither)[0] is True
 
 
 def test_lock_format_is_current():
@@ -335,7 +393,12 @@ def test_agent_ci_runs_the_capability_regression_suite():
 if __name__ == "__main__":
     if "--update" in sys.argv:
         lock_now = fingerprint(_load(CORPUS), _load(GOLDEN))
-        if LOCK.exists() and _load(LOCK).get("format") == LOCK_FORMAT:
+        # before the baseline exists on master (merge base: no capreg suite), the PR that introduces it DEFINES it — the
+        # lock is rewritten without comparison. From the first merge on, every change is compared (and CI compares
+        # against master's lock too, whatever the same-tree lock says).
+        if base_lock()[1] == "absent":
+            print("the baseline is not on master yet: this branch defines it (re-locked without comparison)")
+        elif LOCK.exists() and _load(LOCK).get("format") == LOCK_FORMAT:
             lock, _, decisions = _state()
             bad = undecided(lock, lock_now, decisions)
             if bad:
@@ -364,3 +427,22 @@ def test_no_control_characters_in_the_data():
     for f in sorted([*(CAPREG / "baseline").glob("*.json"), *(CAPREG / "coverage").glob("*.json")]):
         walk(_load(f), f.relative_to(CAPREG).as_posix())
     assert not bad, "control characters (write a regex \b as \\b in JSON):\n  " + "\n  ".join(bad)
+
+
+def test_rail_self_test_detects_a_loosened_gap_mode():
+    """Review #769 delta (3): the recorded failure mode is locked — loosening it (e.g. to "") is a change that needs a decision."""
+    corpus = _load(CORPUS)
+    lock = fingerprint(corpus, _load(GOLDEN))
+    c2 = copy.deepcopy(corpus)
+    hit = None
+    for it in c2["intents"]:
+        for p in it["phrasings"]:
+            if isinstance(p, dict) and p.get("gaps"):
+                lvl = sorted(p["gaps"])[0]
+                p["gaps"][lvl]["mode"] = ""
+                hit = it["id"]
+                break
+        if hit:
+            break
+    assert hit, "the corpus has no known gap to loosen"
+    assert any(i == hit and "failure mode" in w for i, w in violations(lock, fingerprint(c2, _load(GOLDEN))))
