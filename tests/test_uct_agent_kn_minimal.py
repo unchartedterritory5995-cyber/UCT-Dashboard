@@ -102,3 +102,55 @@ def test_minimal_the_brain_flag_off_serves_nothing(minimal, monkeypatch):
     monkeypatch.setenv("UCT_AGENT_KNOWLEDGE", "0")
     from api.services.uct_agent.marketdata import gateway
     assert "knowledge.search" not in gateway.enabled_kinds()
+
+
+# ── QA round 4: POSITIVE CONTROLS — the policy fields do change serving when set (so the negatives above mean
+# something), and the gate for them is PR review of policy.json (it carries no key; it is the reviewed source policy) ─
+from tests.test_uct_agent_knowledge import _with_policy  # noqa: E402
+
+CUP_Q = "cup and handle handle high entry rounded base"
+
+
+def _ids_for(q):
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    return {p["kb_id"] for p in read("knowledge.search", {"question": q, "k": 3})["data"]["passages"]}
+
+
+def _shipped():
+    return json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
+
+
+def test_control_admitting_a_source_serves_it_and_the_shipped_policy_does_not(minimal, monkeypatch, tmp_path):
+    q = "brain own review episodic pivot gap volume"
+    assert 6 not in _ids_for(q)                                                # self_review: not admitted (shipped)
+    pol = _shipped()
+    pol["sources"]["self_review"]["admit"] = True
+    _with_policy(monkeypatch, tmp_path, sources=pol["sources"])
+    assert 6 in _ids_for(q)                                                    # positive control
+
+
+def test_control_serve_flagged_serves_commentary_only_and_never_a_definition(minimal, monkeypatch, tmp_path):
+    assert not {60, 61} & _ids_for(CUP_Q)
+    _with_policy(monkeypatch, tmp_path, excluded_setup_mentions={"mode": "serve_flagged"})
+    got = _ids_for(CUP_Q)
+    assert 61 in got and 60 not in got                                         # commentary yes, definitional never
+
+
+def test_control_team_origins_admits_a_template_and_its_rows(minimal, monkeypatch, tmp_path):
+    assert 60 not in _ids_for(CUP_Q)
+    pol = _shipped()
+    pol["templates"]["team_origins"] = pol["templates"]["team_origins"] + ["O'Neil"]
+    _with_policy(monkeypatch, tmp_path, templates=pol["templates"])
+    assert 60 in _ids_for(CUP_Q)                                               # the template is no longer excluded
+
+
+def test_control_a_complete_rights_cleared_concept_admits_it_an_incomplete_one_does_not(minimal, monkeypatch, tmp_path):
+    pol = _shipped()
+    entry = {"template": "Cup with Handle", "provenance_ref": "PROV-1", "rights_review_ref": "RR-1",
+             "approved_by": "Owner Name", "approved_on": "2026-10-01"}
+    pol["templates"]["rights_cleared_concepts"] = [{**entry, "rights_review_ref": ""}]
+    _with_policy(monkeypatch, tmp_path, templates=pol["templates"])
+    assert 60 not in _ids_for(CUP_Q)                                           # incomplete: still excluded
+    pol["templates"]["rights_cleared_concepts"] = [entry]
+    _with_policy(monkeypatch, tmp_path, templates=pol["templates"])
+    assert 60 in _ids_for(CUP_Q)                                               # complete: admitted

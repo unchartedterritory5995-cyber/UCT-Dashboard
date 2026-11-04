@@ -5,8 +5,8 @@ Status: PROPOSAL, 2026-11-04 (owner: write the redesign only; no implementation 
 ## Problem
 Clearances live in `policy.json` and an audit log that ship through the repository, but the anchor that protects
 them lives on whichever machine ran `apply`. Production's `/data` has no anchor, so production would serve nothing,
-and the only fix (`reanchor`) trusts whatever files were deployed. Someone with volume access can also rewrite the
-anchor row with plain SQLite. Layering MACs over editable files keeps producing new holes.
+and the only fix (`reanchor`) trusts whatever files were deployed. Layering MACs over editable repository files keeps
+producing new holes. (Volume and database access is trusted; see the trust model below.)
 
 ## Proposal
 - **One store, on the production server:** `/data/kn_rights.db` (env `UCT_KN_RIGHTS_DB`). It has two tables:
@@ -16,8 +16,9 @@ anchor row with plain SQLite. Layering MACs over editable files keeps producing 
 - **That store is the source of truth.** The runtime (`kinds`) serves a cleared row only from it, and only while the
   row's current `content_sha` still matches. `policy.json` `cleared_rows` is ignored (removed). `bulk_clearance_approval`
   and the anchor, MAC chain and `reanchor` go away.
-- **Writes only through the keyed CLI, run against production:** `apply`, `revoke` and `approve-bulk`, run in a
-  production one-off shell. Each write needs `UCT_KN_RIGHTS_KEY` (set only on the production service) and `--by NAME`.
+- **Writes only through the keyed CLI, run against production:** `apply`, `revoke` and `approve-bulk`, run in a shell
+  INSIDE the production web container (`railway ssh` into the web service). Never `railway run`: that runs locally
+  with production variables and would create the store on the local machine. Each write needs `UCT_KN_RIGHTS_KEY` (set only on the production service) and `--by NAME`.
   Each write is a single `BEGIN IMMEDIATE` transaction that enforces the per-run limit (10), the daily limit (20,
   counted from the events table, which cannot be trimmed from the repository) and the total limit (25, or a bulk
   approval's `max_rows` ≤ 200 with an expiry ≤ 90 days, itself an event written by the owner).
@@ -49,7 +50,9 @@ anchor row with plain SQLite. Layering MACs over editable files keeps producing 
   - A failed write rolls back as one transaction, leaving no half-written state.
   - A broken chain is resolved by the owner with `verify` (it names the first bad event) and then
     `rebuild --by NAME --reason TEXT`. `rebuild` re-derives `kn_cleared_rows` from the verified events up to the
-    first break, records a `rebuilt` event, and never accepts state from the repository export.
+    first break. Any row that ANY event after the break touches is treated as REVOKED, because the events after a
+    break cannot be trusted to say it is still cleared, so a row revoked after the break is never restored. It records
+    a `rebuilt` event, and never accepts state from the repository export.
   - The store is covered by the platform's volume backups like `/data`; a restore is a rollback the owner chooses
     knowingly.
 
@@ -62,7 +65,7 @@ anchor row with plain SQLite. Layering MACs over editable files keeps producing 
   the 10 / 20 / 25 / 200 limits are unchanged.
 
 ## How the owner clears a row in practice
-1. In a production shell: `python tools/kn_rights_review.py worksheet --kb-id N --out /tmp/kbN.json`. This is the
+1. In a shell inside the production web container (`railway ssh`): `python tools/kn_rights_review.py worksheet --kb-id N --out /tmp/kbN.json`. This is the
    production pack, so the reviewed text and its sha are what will be served. Read the row's text there.
 2. Do the provenance and rights review (outside the tool). Fill the decision: `clear`, refs, name, date.
 3. `python tools/kn_rights_review.py apply /tmp/kbN.json --by "Owner Name"` validates, enforces the limits, and writes
@@ -90,6 +93,13 @@ anchor row with plain SQLite. Layering MACs over editable files keeps producing 
 - **Writes:** none. No rights code path writes in this configuration; no anchor or log is created (tested).
 - **Template and record kinds** are not served at all: they are not in the data kinds (tested). So no third-party
   template and no unattested statistic can appear.
+
+**Positive controls (QA round 4):** a legitimately edited policy DOES change serving, and the shipped one does not.
+This is tested for each of these fields: admitting a source (`self_review`), `excluded_setup_mentions.mode =
+serve_flagged` (commentary rows only; a definitional row never), adding an origin to `team_origins`, and a complete
+`rights_cleared_concepts` entry (an incomplete one changes nothing). So the negative tests are meaningful. **These
+fields carry no key: `policy.json` is the reviewed source policy, and PR review of every change to it is the gate.**
+Only `cleared_rows` moves to the authoritative store in this design.
 
 **What this does NOT show:**
 - Answer safety. With Brain on and E-1 off, the planner can still write a definition in its own words.
