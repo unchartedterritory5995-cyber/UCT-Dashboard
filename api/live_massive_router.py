@@ -346,7 +346,13 @@ DEFAULT_THRESHOLDS = {
     # slow-quoting LEAP then still confirms, while an inside-the-spread fill does
     # not (CBRS 2026-11-02: $32.20 inside $31.10/$32.30 => ambiguous => suppress).
     "side_confirm_use_fill_nbbo": True,
-    "side_confirm_fill_lookback_ms": 30000,  # pre-fill quote at most this old
+    # The pre-fill quote must be at most this fresh to be TRUSTED for a directional
+    # label. A stale book on a thin LEAP is unreliable for BOTH sides, so anything
+    # older abstains -> suppresses (DASH 2026-11-04: a 25s-stale 29.70/30.00 book
+    # confirmed a 29.50 below-bid print as "bear"; a 6.8s-stale 29.75/31.25 book hid
+    # a genuine 30.00 ask-lift). 2.5s keeps clean prints on slow-quoting names while
+    # dropping stale-book guesses. Was 30000 (too loose) until 2026-11-04.
+    "side_confirm_fill_lookback_ms": 2500,  # pre-fill quote must be this fresh to trust
     "side_confirm_ask_tol": 0.005,      # fill within this of ask(bid) = clean at-ask
     # When the side can't be confirmed: True = SUPPRESS the push entirely (only
     # directional flow goes out — owner directive 2026-11-02); False = fall back
