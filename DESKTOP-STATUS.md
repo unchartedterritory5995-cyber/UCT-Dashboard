@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 01:25 CT
+updated: 2026-11-04 01:45 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -129,10 +129,13 @@ engine bump needed: yes (engine 8 at merge, per ASSIGNMENTS)
 next: apply the r2 items per ASSIGNMENTS/reviews, measure-pair both lanes + final-tip, EVIDENCE.md, READY
 
 ## W5-T6
-state: BUILDING   round: r0   updated: 2026-11-03 23:55 CT
-branch: feat/pine-w5-t6-supervisor   base: W5-T1 tip caa9d246f4   worktree: pine-dsk-w5t6   model: Opus
-engine bump needed: decided at READY
-next: supervisor + protocol + auth per W5 design section 7; local only, HMAC keys from env in tests. Merge origin/master in once T1 merges.
+state: READY            round: r0            updated: 2026-11-04 01:45 CT
+branch: feat/pine-w5-t6-supervisor   tip: 94b46f55b1 (docs/evidence over code tip 318cf7c295)   base: W5-T1 tip caa9d246f4 (STACKED on T1: merge T1 first, then merge origin/master in)   tested on master: 5d95103c8a
+engine bump needed: NO (bundle sha256 changes from two new re-exports; no output changes)
+evidence: docs/pine/evidence/2026-11-03-w5-t6/EVIDENCE.md + muts.json, mutate_node.py, redbase.py
+report: New services/pine_runtime/{auth,protocol,server}.mjs with node --test rails services/pine_runtime/test/{auth,protocol,server,bundle}.test.mjs + helpers.mjs. T1 files touched: serverEntry.js also re-exports NATIVE_TFS and DEFAULT_LIMITS (the door reads the timeframe set and bars ceiling from the bundle); serverBundle.rail.test.js EXPORTS list updated. Rails: modules absent (as on base) -> every node rail red; serverEntry.js at base bytes -> T1 "exports the entry surface" + 2 bundle tests red; tip green 33/33 node rails, T1 rail 6/6, frontend gate 3/3. Mutations on heavy-mut.lock: 58/58 killed with killing test named, no-op control survives; mutate.py driven unchanged via mutate_node.py (vitest -> node --test); round-1 3 survivors: 1 duplicate base64 regex deleted, 2 got new rails. final-tip on heavy-final3.lock: gate pytest 46, version-gate 6, vitest 1 failed | 1334 passed | 27 skipped (Tests 1 failed | 22366 passed) = pollingSites.rail baseline. No secrets in repo (HMAC keys from env in tests).
+open for the reviewer / later lanes: (1) T11 must mirror wire decisions the design left open: doc sent as canonical JSON text hashed over its UTF-8 bytes; fixed bars-hash layout; statuses 400 schema / 401 auth / 409 engine mismatch or unknown doc / 422 integrity / 500 failed / 503 unavailable. (2) ENGINE_FIELDS restated in protocol.mjs until T3 (columnDigest.js) merges. (3) env allowlist names Railway variables one by one, unproved against a real Railway boot (T10/T20). (4) ledger row PINE_RUNTIME_SERVICE_SECRET read_at should add server.mjs (T12's file). (5) design section 8: `node --test services/pine_runtime/` fails under Node 24 (needs a file glob).
+desktop check of the definition of done: PASS (scope: new service files + 2 T1 lines + rail list + evidence; rails red/green; 58/58; final-tip at baseline; local == origin; worktree clean; grep found no hardcoded secret)
 
 ## W4-T0 census peel (re-homed)
 state: BUILDING   round: r0   updated: 2026-11-03 23:55 CT
@@ -158,3 +161,13 @@ branch: feat/pine-w4-t14   base: origin/master   worktree: pine-dsk-w4t14   mode
 why this one: Batch 3, no dependency (T9 waits on T2 merge, T8 on T7, T10 on T1, T15 on T0's re-count). Region FE :7810-8040, :8218-8225 overlaps no in-flight lane.
 engine bump needed: decided at READY
 next: built-in Volatility Stop per W4-BREAKDOWN T14; measure-pair on pine-dsk-mpbase2 (mp2 lane), final-tip on lane 2
+
+## W5-T7 (picked per 063fe2ba8e: needs T1 + T6, both READY; stacked on T6)
+state: BUILDING   round: r0   updated: 2026-11-04 01:45 CT
+branch: feat/pine-w5-t7-pool   base: W5-T6 tip 94b46f55b1   worktree: pine-dsk-w5t7   model: Opus
+next: pool + sandbox per SERVER-RUNTIME-DESIGN P1 T7 (services/pine_runtime/{pool,job,sandbox}.mjs)
+
+## W5-T8 (picked per 063fe2ba8e: needs T6, READY; stacked on T6)
+state: BUILDING   round: r0   updated: 2026-11-04 01:45 CT
+branch: feat/pine-w5-t8-cache   base: W5-T6 tip 94b46f55b1   worktree: pine-dsk-w5t8   model: Sonnet
+next: caches per SERVER-RUNTIME-DESIGN P1 T8 (services/pine_runtime/cache.mjs)
