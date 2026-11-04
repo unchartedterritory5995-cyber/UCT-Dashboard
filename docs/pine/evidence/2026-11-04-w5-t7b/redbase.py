@@ -30,7 +30,7 @@ try:
                 or ' passed' in l or ' failed' in l or 'Tests ' in l or ' \u00d7 ' in l][:40]
         print(f'BASE {label} rc={p.returncode}')
         for l in keep:
-            print('  ' + l.strip()[:200])
+            print('  ' + l.strip()[:200].encode('ascii', 'backslashreplace').decode('ascii'))
 finally:
     for f in FILES:
         with open(f + '.restore', 'wb') as fh:

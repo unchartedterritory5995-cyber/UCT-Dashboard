@@ -50,7 +50,7 @@ test('main() boots: one fingerprint line, and a signed run built for the bundle 
   const port = await freePort()
   const logs = []
   const calls = []
-  const runner = async (req) => { calls.push(req); return req.jobs.map((j) => ({ job: j.job, status: 'withheld', refusals: [] })) }
+  const runner = async (req) => { calls.push(req); return req.jobs.map((j) => ({ job: j.job, status: 'withheld', refusals: [{ key: '*', guard: 'runtime:stub', sentence: 'a stub runner.', bar: null }] })) }
   const server = await main({ env: { PINE_RUNTIME_SERVICE_SECRET: SECRET, PORT: String(port) }, bundle: outfile, runner, log: (l) => logs.push(l) })
   try {
     const { identity } = await loadBundle(outfile)
