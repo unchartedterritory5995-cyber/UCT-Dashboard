@@ -24,7 +24,7 @@ vi.mock('lightweight-charts', () => {
       applyOptions: () => {}, fitContent: () => {}, setVisibleLogicalRange: () => {}, getVisibleLogicalRange: () => null,
       setVisibleRange: () => {}, scrollToPosition: () => {}, subscribeVisibleLogicalRangeChange: () => {},
       unsubscribeVisibleLogicalRangeChange: () => {}, timeToCoordinate: () => 0, coordinateToTime: () => null,
-      resetTimeScale: () => {}, options: () => ({}), width: () => 600,
+      resetTimeScale: () => {}, options: () => ({}), width: () => 600, coordinateToLogical: (x) => x / 10,
       subscribeVisibleTimeRangeChange: () => {}, unsubscribeVisibleTimeRangeChange: () => {},
     }),
     subscribeCrosshairMove: () => {}, unsubscribeCrosshairMove: () => {},
@@ -88,7 +88,7 @@ describe('StockChart onChartTap', () => {
     await vi.waitFor(() => expect(clickHandlers.length).toBeGreaterThan(0), { timeout: 4000 })
     fireClick({ time: '2026-08-02', point: { x: 40, y: 20 } })
     expect(onChartTap).toHaveBeenCalledTimes(1)
-    expect(onChartTap).toHaveBeenCalledWith({ time: '2026-08-02', price: 120, point: { x: 40, y: 20 } })
+    expect(onChartTap).toHaveBeenCalledWith({ time: '2026-08-02', price: 120, point: { x: 40, y: 20 }, logical: 4 })
   })
 
   it('a tap off the bars (no time) still reports the point with a null time; no point gives a null price', async () => {
@@ -97,8 +97,9 @@ describe('StockChart onChartTap', () => {
     await vi.waitFor(() => expect(clickHandlers.length).toBeGreaterThan(0), { timeout: 4000 })
     fireClick({ point: { x: 5, y: 7 } })
     fireClick({ time: '2026-08-01' })
-    expect(onChartTap).toHaveBeenNthCalledWith(1, { time: null, price: 107, point: { x: 5, y: 7 } })
-    expect(onChartTap).toHaveBeenNthCalledWith(2, { time: '2026-08-01', price: null, point: null })
+    // off the bars: no time, but the logical index under the cursor still names a position
+    expect(onChartTap).toHaveBeenNthCalledWith(1, { time: null, price: 107, point: { x: 5, y: 7 }, logical: 0.5 })
+    expect(onChartTap).toHaveBeenNthCalledWith(2, { time: '2026-08-01', price: null, point: null, logical: null })
   })
 
   it('a changed callback is picked up, the old handler is unsubscribed, and unmount unsubscribes the last one', async () => {

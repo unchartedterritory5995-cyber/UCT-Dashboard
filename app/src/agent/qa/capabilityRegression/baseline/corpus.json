@@ -6280,6 +6280,176 @@
         "how are the moving averages looking for the market",
         "market averages breadth"
       ]
+    },
+    {
+      "id": "wrongtarget.new-chart-weekly",
+      "source": "AUDIT 11-04 (NLM-1 held-out P02 / P15): an in-plan reference to a chart created in the SAME request must land on the NEW chart, never on the existing one",
+      "capabilities": [
+        "widget.addCharts"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.addCharts"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "widget.addCharts",
+            "target": "$workspace",
+            "args": {
+              "symbols": [
+                "TSLA"
+              ],
+              "timeframe": "W",
+              "chart_type": null,
+              "exact": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbols": [
+            "NVDA",
+            "TSLA"
+          ],
+          "tfs": [
+            "D",
+            "W"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "open TSLA on a new chart and switch it to the weekly",
+          "gaps": {
+            "c": {
+              "id": "CG-37",
+              "reason": "WRONG TARGET: 'open TSLA on a new chart and switch it to the weekly' adds the TSLA chart but switches the EXISTING NVDA chart to weekly ('it' is read as the chart already on the board, not the one this request creates)",
+              "owner": "agent-core (the train-4 fixes branch: in-plan reference to a newly created chart)",
+              "mode": "the charts' timeframes"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "wrongtarget.new-chart-line",
+      "source": "AUDIT 11-04 (NLM-1 held-out P02 / P15): an in-plan reference to a chart created in the SAME request must land on the NEW chart, never on the existing one",
+      "capabilities": [
+        "widget.addCharts"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.addCharts"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "widget.addCharts",
+            "target": "$workspace",
+            "args": {
+              "symbols": [
+                "META"
+              ],
+              "timeframe": null,
+              "chart_type": "line",
+              "exact": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbols": [
+            "NVDA",
+            "META"
+          ],
+          "types": [
+            "candles",
+            "line"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "add a chart for META and make it a line chart",
+          "gaps": {
+            "c": {
+              "id": "CG-37",
+              "reason": "WRONG TARGET: 'add a chart for META and make it a line chart' adds the META chart but turns the EXISTING NVDA chart into a line chart",
+              "owner": "agent-core (the train-4 fixes branch: in-plan reference to a newly created chart)",
+              "mode": "chart types"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "wrongtarget.new-chart-50sma",
+      "source": "AUDIT 11-04 (NLM-1 held-out P02 / P15): an in-plan reference to a chart created in the SAME request must land on the NEW chart, never on the existing one (a new chart is born with the default overlays, SMA 50 among them: the assertion is that the EXISTING bare chart is NOT given one)",
+      "capabilities": [
+        "widget.addCharts"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.addCharts"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "widget.addCharts",
+            "target": "$workspace",
+            "args": {
+              "symbols": [
+                "AMD"
+              ],
+              "timeframe": null,
+              "chart_type": null,
+              "exact": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbols": [
+            "NVDA",
+            "AMD"
+          ]
+        },
+        "indicators": {
+          "chart": 0,
+          "exclude": [
+            "movingAverage(50 sma)"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "add a chart for AMD and put the 50 SMA on it",
+          "gaps": {
+            "c": {
+              "id": "CG-37",
+              "reason": "WRONG TARGET: 'add a chart for AMD and put the 50 SMA on it' adds the AMD chart but puts the 50 SMA on the EXISTING NVDA chart",
+              "owner": "agent-core (the train-4 fixes branch: in-plan reference to a newly created chart)",
+              "mode": "no movingAverage(50 sma)"
+            }
+          }
+        }
+      ]
     }
   ],
   "refusals": [
