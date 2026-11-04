@@ -1211,7 +1211,7 @@ export function registerBoardCapabilities() {
     ...common,
     name: 'chart.addTab',
     summary: 'Add a new chart TAB to a chart widget (the tab strip\'s "+"), on the same link colour as the tab showing now, and switch to it.',
-    hints: `target = the ref of the board entry; widget = the chart widget's id; timeframe = ${CHART_TIMEFRAMES.join('|')} or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).`,
+    hints: `target = the ref of the board entry; widget = the chart widget's id; timeframe = ${CHART_TIMEFRAMES.join('|')} or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS ("on four charts", "N charts for …") are chartGrid.set or widget.addCharts, never tabs of one chart.`,
     args: { type: 'object', properties: { widget: widgetArg, timeframe: { type: ['string', 'null'], enum: [...CHART_TIMEFRAMES, null] }, name: { type: ['string', 'null'] } }, required: ['widget', 'timeframe', 'name'], additionalProperties: false },
     check(st, { widget }) {
       const { t, why } = chartWidget(st, widget)

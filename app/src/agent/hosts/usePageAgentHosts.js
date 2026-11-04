@@ -39,7 +39,9 @@ export function useScreenerAgentHost(values) {
   const app = useAgentApp()
   // The saved library the page itself reads (ScreensManager / FocusScreener use the same SWR key, so this is
   // the same request, deduplicated) — for a layout that hands none in (ScannerShell).
-  const lib = useSavedScreens()
+  // Only while the Agent may show (a null SWR key fetches nothing): a member's page must not depend on SWR
+  // dedup with a sibling mount to avoid an extra request (review-728-741 #2).
+  const lib = useSavedScreens({ enabled: !!app?.allowed })
   const host = useLiveHost(app, { ...values, lib, app }, (live) => {
     // A layout without a "current screen" of its own (ScannerShell): the last screen the Agent opened is it.
     let applied = null

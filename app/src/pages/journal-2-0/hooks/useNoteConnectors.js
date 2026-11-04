@@ -58,7 +58,11 @@ export const NOTE_CONNECTOR_PROVIDERS = [
   { key: 'dropbox', label: 'Dropbox', tokenKind: 'oauth' },
   { key: 'onenote', label: 'OneNote', tokenKind: 'oauth' },
   { key: 'onedrive', label: 'OneDrive', tokenKind: 'oauth' },
-  { key: 'obsidian', label: 'Obsidian', tokenKind: 'device' },
+  // `authoritativeListing`: the provider's listing is its own complete walk, so a note missing
+  // from it was REMOVED there (the backend's `NoteProvider.enumeration_is_authoritative`; pinned
+  // against it by api/services/journal_two/test_note_connectors_authoritative_parity.py). The
+  // note view's "removed from" notice reads it; every other provider "no longer lists" the note.
+  { key: 'obsidian', label: 'Obsidian', tokenKind: 'device', authoritativeListing: true },
   // Plan E Task 10. `beta` shows a "Beta" pill on the Settings tile (Evernote's own connection is beta).
   { key: 'evernote', label: 'Evernote', tokenKind: 'oauth', beta: true },
 ]
@@ -142,6 +146,9 @@ export function normalizeSource(raw) {
     // Evernote rate-limit fix round 1 (I3): a pass for this source is running now on the server
     // (a background Sync now, a follow-up pass).
     syncing: !!pick(raw, 'syncing', 'syncing', false),
+    // D4-2: a pass for this source waits for one of the server's shared pass slots (not running
+    // yet). The server sends `syncing: false` while it does.
+    queued: !!pick(raw, 'queued', 'queued', false),
     pendingRemoval: pick(raw, 'pendingRemoval', 'pending_removal', 0) || 0,
     lastFailureCount: pick(raw, 'lastFailureCount', 'last_failure_count', 0) || 0,
     // The newest sync's failure details could not be read (the server sends a
@@ -327,7 +334,8 @@ export function connectorsRefreshInterval(raw) {
     const sources = (providers[key] && providers[key].sources) || []
     for (const s of sources) {
       if (!s) continue
-      if (s.syncing === true || pick(s, 'lastSyncStatus', 'last_sync_status', null) === 'importing') return 10000
+      if (s.syncing === true || s.queued === true
+        || pick(s, 'lastSyncStatus', 'last_sync_status', null) === 'importing') return 10000
     }
   }
   return 0

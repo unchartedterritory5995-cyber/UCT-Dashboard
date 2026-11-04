@@ -138,6 +138,7 @@
   "definition.duplicate": "definitions",
   "definition.delete": "definitions",
   "agent.capabilities": "agent",
+  "agent.undo": "undo",
   "guide.explain": "guide",
   "guide.show": "guide"
  },
@@ -217,6 +218,10 @@
   {
    "id": "agent",
    "title": "Questions about what UCT Agent can do"
+  },
+  {
+   "id": "undo",
+   "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
   },
   {
    "id": "guide",
@@ -353,6 +358,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -507,6 +516,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -668,6 +681,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -840,6 +857,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -990,6 +1011,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -1025,6 +1050,7 @@
     "breadth",
     "settings",
     "agent",
+    "undo",
     "guide"
    ],
    "names": [
@@ -1159,6 +1185,7 @@
     "definition.duplicate",
     "definition.delete",
     "agent.capabilities",
+    "agent.undo",
     "guide.explain",
     "guide.show"
    ],

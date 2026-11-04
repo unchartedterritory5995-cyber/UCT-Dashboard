@@ -486,11 +486,12 @@ def test_member_edited_note_is_never_refetched_once_the_cursor_moves(cursor_move
 
 def test_removal_check_pass_fetches_only_its_delta(cursor_moves_run):
     """Pass 4 is a member's removal check with no remote change: it fetches at most the delta
-    the scheduler pass before it fetched, never a media retry (C2). Rate-limit fix round 1 (D1):
-    a note of that delta whose stored revision equals the listing's is not fetched again (the
-    full pass before it still fetched it: a full pass never skips)."""
+    the scheduler pass before it fetched, never a media retry (C2). ⛔ Live bug 2026-11-03: D1's
+    stored-revision skip applies only while a first import catches up (cursor None), so this
+    incremental pass fetches its whole delta again (a lagging listing revision must never hide
+    an edit); `import_confirm`'s hash check makes the refetch a no-op write."""
     fetched = cursor_moves_run["getNoteByPass"]
     assert cursor_moves_run["members"][USER]["passes"][3]["removalCheckRan"] is True
-    assert set(fetched[3]) < set(fetched[2])
+    assert set(fetched[3]) <= set(fetched[2])
     assert len(fetched[3]) < 5
 

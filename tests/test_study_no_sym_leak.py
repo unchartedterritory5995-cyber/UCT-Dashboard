@@ -17,7 +17,7 @@ from api.services import study_store as ss
 
 REAL_TICKERS = ("NVDA", "AAPL")
 FORBIDDEN_KEYS = {"sym", "forward", "forward_json", "forward_bars", "answer_json", "answer",
-                  "reveal_json", "lesson_text", "source_ref", "sha256"}
+                  "reveal_json", "lesson_text", "source_ref", "sha256", "subject"}
 FORWARD_SENTINEL = 777777.5     # a price that exists ONLY in forward bars
 KEY_SENTINEL = "the-secret-key-string"
 
@@ -37,7 +37,7 @@ def store(tmp_path, monkeypatch):
                       "answer_json": {"answer": KEY_SENTINEL}, "reveal_json": {"why": KEY_SENTINEL},
                       "lesson_text": KEY_SENTINEL, "source_ref": KEY_SENTINEL})
         ss.upsert_bars(f"sb_{i}", "D", vis, fwd)
-    items.append({"id": "si_recall", "type": "recall", "skill_id": "f1", "prompt_json": {"q": "bid?"},
+    items.append({"id": "si_recall", "type": "recall", "skill_id": "f1", "prompt_json": {"q": "bid?", "subject": KEY_SENTINEL},
                   "answer_json": {"answer": KEY_SENTINEL}, "lesson_text": KEY_SENTINEL})
     ss.upsert_items(items)
     for it in items:

@@ -1911,8 +1911,8 @@
    "name": "indicatorAlert.create",
    "domain": "indicatorAlert",
    "target": "indicatorAlertLibrary",
-   "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band…), exactly as the chart's Indicator Alerts popover does: the alert watches that chart's symbol and timeframe with the instance's own settings. Undo deletes it.",
-   "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: \"crosses above 70\" = cross_above 70; \"is over 70\" = above 70); threshold = the level as a number when the condition has one, else null. A PRICE level alert (\"when NVDA hits 150\") is alert.create, not this. Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.",
+   "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band, the 9 EMA crossing above the 20 EMA…), as the chart's Indicator Alerts popover does: the alert watches that chart's symbol and timeframe with the instance's own settings. Undo deletes it.",
+   "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: \"crosses above 70\" = cross_above 70; \"is over 70\" = above 70); threshold = the level as a number when the condition has one, else null. A PRICE level alert (\"when NVDA hits 150\") is alert.create, not this. MA cross (\"the 9 ema crosses above the 20\"): instance = the 9, crossWith = the 20 (ids), condition cross_above|cross_below, threshold null; crossWith = null otherwise. chart = the ref of the chart the alert is for (one indicator id can be on several charts). Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.",
    "args": {
     "type": "object",
     "properties": {
@@ -1933,13 +1933,27 @@
        "number",
        "null"
       ]
+     },
+     "crossWith": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "chart": {
+      "type": [
+       "string",
+       "null"
+      ]
      }
     },
     "required": [
      "instance",
      "plot",
      "condition",
-     "threshold"
+     "threshold",
+     "crossWith",
+     "chart"
     ],
     "additionalProperties": false
    },
@@ -3528,7 +3542,7 @@
    "domain": "chart",
    "target": "board",
    "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
-   "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
    "args": {
     "type": "object",
     "properties": {
@@ -5486,6 +5500,7 @@
        "journal",
        "appSettings",
        "guide",
+       "undo",
        "similarity",
        "overview",
        "other"
@@ -5504,6 +5519,81 @@
    "argAliases": null,
    "coerce": null,
    "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "agent.undo",
+   "domain": "agent",
+   "target": "about",
+   "summary": "Undo YOUR OWN most recent change(s) in this conversation — exactly what the Undo on that change’s receipt does. UCT refuses it itself when that change can’t be undone (changed since, another board, a protected layout, a permanent action).",
+   "hints": "target = the ref of the agent entry. scope: \"last\" = the newest change (undo that / undo the last change / revert it); \"all\" = every change of the previous request (undo all of that). about = what the member says the change was (\"undo the timeframe change\" → timeframe), else null. In a request that makes a change AND undoes it (\"switch to weekly, then undo that\"), put the change first and agent.undo LAST. Never tell the member you cannot undo, or to use another Undo: plan this, and UCT reports what it actually undid.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "scope": {
+      "type": "string",
+      "enum": [
+       "last",
+       "all"
+      ]
+     },
+     "about": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "indicator",
+       "chart",
+       "widget",
+       "drawing",
+       "layout",
+       "colour",
+       "style",
+       "timeframe",
+       "symbol",
+       "pane",
+       "theme",
+       "resize",
+       "size",
+       "move",
+       "rename",
+       "link",
+       null
+      ]
+     }
+    },
+    "required": [
+     "scope",
+     "about"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": {
+    "scope": {
+     "latest": "last",
+     "newest": "last",
+     "previous": "last",
+     "one": "last",
+     "everything": "all",
+     "turn": "all"
+    },
+    "about": {
+     "color": "colour",
+     "time frame": "timeframe",
+     "ticker": "symbol",
+     "interval": "timeframe"
+    }
+   },
+   "defaults": {
+    "scope": "last"
+   },
    "defaultsWhen": null,
    "shape": null
   },

@@ -49,8 +49,8 @@ describe('coach guard (browser mirror) — the parts', () => {
     expect(hasHedge('no guarantee')).toBe(true)
   })
   it('order language catches commands, not descriptions', () => {
-    expect(orderLanguage('Buy 100 shares at the open.')).toEqual(['trade-now', 'shares'])
-    expect(orderLanguage('You should sell here.')).toEqual(['trade-now', 'you-should'])
+    expect(orderLanguage('Buy 100 shares at the open.')).toEqual(['trade-now', 'shares', 'imperative'])
+    expect(orderLanguage('You should sell here.')).toEqual(['trade-now', 'you-should', 'advisory-stance'])
     expect(orderLanguage("I can't tell you whether to buy or sell.")).toEqual([])
   })
   it('uncertainty is required only for outcome talk', () => {
@@ -64,5 +64,19 @@ describe('coach guard (browser mirror) — the parts', () => {
     expect(out.text).not.toContain('20-day')
     expect(ensureFooter('Hello.')).toBe(`Hello.\n\n${FOOTER}`)
     expect(ensureFooter('Hello. Educational, not advice.')).toBe('Hello. Educational, not advice.')
+  })
+})
+
+// ── pre-activation gate: the HELD-OUT paraphrase eval, same floors as the server suite (never tuned on) ─────────────
+const HELDOUT = JSON.parse(fs.readFileSync(path.join(HERE, '__fixtures__', 'coachGuardHeldout.json'), 'utf8'))
+describe('coach guard (browser mirror) — the held-out paraphrase eval', () => {
+  const rate = (viol, clean) => [viol.filter(c => check(c.text, HELDOUT.inputs).length).length, clean.filter(c => check(c.text, HELDOUT.inputs).length).length]
+  it('round 1: 55/55 recall, 0/32 false positives (as the server)', () => {
+    expect(rate(HELDOUT.violating, HELDOUT.clean)).toEqual([55, 0])
+  })
+  it('round 2 (the honest estimate): at least 18/30 recall, at most 1/20 false positives (as the server)', () => {
+    const [c, f] = rate(HELDOUT.round2_violating, HELDOUT.round2_clean)
+    expect(c).toBeGreaterThanOrEqual(18)
+    expect(f).toBeLessThanOrEqual(1)
   })
 })

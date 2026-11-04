@@ -36,6 +36,8 @@ export const BACKGROUND_SYNC_NOTICE = 'Syncing in the background. Progress shows
 function freshnessTone(source) {
   if (source.status === 'broken' || source.lastSyncStatus === 'error') return 'red'
   if (!source.syncEnabled) return 'amber'
+  // D4-2: waiting for one of the server's shared pass slots: neither running nor a problem.
+  if (source.queued) return 'neutral'
   if (source.syncing) return 'progress'
   // A first import a provider's rate limit cut short (live gate 2026-11-03): the engine records
   // `importing` ONLY when nothing but those leftovers remains, and books a quick follow-up pass.
@@ -55,6 +57,7 @@ function freshnessTone(source) {
 function freshnessLabel(source) {
   if (source.status === 'broken') return 'reconnect needed'
   if (!source.syncEnabled) return 'sync paused'
+  if (source.queued) return 'queued'
   if (source.syncing) return 'syncing now'
   if (source.lastSyncStatus === 'importing') {
     return source.lastSyncAt ? `still importing, last batch ${timeAgo(source.lastSyncAt)}` : 'still importing'

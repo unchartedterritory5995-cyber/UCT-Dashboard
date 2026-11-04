@@ -194,8 +194,10 @@ function Item({ it, agent, member, at, cont }) {
     case 'question':
       return (
         <AgentSays testId="agent-question" at={at} cont={cont}>
-          <div className={styles.bubble}><Paragraphs text={it.text} /></div>
-          {it.choices?.length > 0 && (
+          <div className={styles.bubble} data-status={it.status || undefined}><Paragraphs text={it.text} /></div>
+          {/* #766 nit 2: a question withdrawn with the change it was about keeps no live choices */}
+          {it.status === 'withdrawn' && <div className={styles.cardMeta}>Withdrawn — nothing was changed</div>}
+          {it.choices?.length > 0 && it.status !== 'withdrawn' && (
             <div className={styles.choices}>
               {it.choices.map((c, i) => (
                 <button key={i} type="button" className={styles.choice} disabled={agent.busy}
@@ -224,7 +226,7 @@ function Item({ it, agent, member, at, cont }) {
       )
     case 'receipt': {
       // live test 2026-10-28: ONE short line; the exact record (every line, word for word) one click away
-      const view = receiptView(it.lines, { isUndo: !!it.isUndo })
+      const view = receiptView(it.lines, { isUndo: !!it.isUndo, charts: it.charts || null, name: !!it.namePart })
       return (
         <AgentSays at={at} cont={cont}>
         {/* No Undo button: the member just says "undo" / "reverse that" (the newest change). The card

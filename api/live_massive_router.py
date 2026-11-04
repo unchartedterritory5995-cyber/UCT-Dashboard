@@ -340,7 +340,18 @@ DEFAULT_THRESHOLDS = {
     # a fresh quote still reads ask-side, else relabel neutral. Closes the stale/
     # per-exchange NBBO inversions (COIN sold-put->Bear, META sold-call->Bull).
     "side_confirm_enabled": True,
-    "side_confirm_max_age_ms": 2000,    # consolidated quote must be this fresh
+    "side_confirm_max_age_ms": 2000,    # LIVE-path quote must be this fresh
+    # Confirm against the NBBO as it stood AT THE FILL (the quote just before the
+    # trade), not a live quote now (2026-11-03). A clean at-ask print on a thin,
+    # slow-quoting LEAP then still confirms, while an inside-the-spread fill does
+    # not (CBRS 2026-11-02: $32.20 inside $31.10/$32.30 => ambiguous => suppress).
+    "side_confirm_use_fill_nbbo": True,
+    "side_confirm_fill_lookback_ms": 30000,  # pre-fill quote at most this old
+    "side_confirm_ask_tol": 0.005,      # fill within this of ask(bid) = clean at-ask
+    # When the side can't be confirmed: True = SUPPRESS the push entirely (only
+    # directional flow goes out — owner directive 2026-11-02); False = fall back
+    # to the old behavior of pushing a neutral "Large Ask Build (Unverified)".
+    "side_unconfirmed_suppress": True,
     # ── Flow bar (2026-10-31) — card DISPLAY only ──────────────────────────
     # Render the directional one-sidedness as a colored ANSI bar (green bull /
     # red bear fill, amber opposing side) on CONFIRMED directional cards. False
@@ -6033,31 +6044,79 @@ def _massive_rest(path: str, params: dict, timeout: float = 4.0):
         return None
 
 
-def _consolidated_nbbo(occ: str):
-    """(bid, ask, quote_age_ms) for the current consolidated NBBO, or None."""
-    now_ns = int(time.time() * 1e9)
-    r = _massive_rest(f"/v3/quotes/{occ}", {"timestamp.lte": now_ns, "order": "desc", "limit": 1})
+def _nbbo_le(occ: str, ts_ns: int):
+    """Raw (bid, ask, quote_sip_ns) for the latest consolidated quote at/before
+    ts_ns, or None. Shared by the live and fill-time confirm paths."""
+    r = _massive_rest(f"/v3/quotes/{occ}", {"timestamp.lte": ts_ns, "order": "desc", "limit": 1})
     res = (r or {}).get("results") or []
     if not res:
         return None
     q = res[0]
-    return (q.get("bid_price"), q.get("ask_price"),
-            (now_ns - (q.get("sip_timestamp") or now_ns)) / 1e6)
+    return (q.get("bid_price"), q.get("ask_price"), q.get("sip_timestamp"))
+
+
+def _consolidated_nbbo(occ: str):
+    """(bid, ask, quote_age_ms) for the CURRENT consolidated NBBO (age vs now)."""
+    now_ns = int(time.time() * 1e9)
+    nb = _nbbo_le(occ, now_ns)
+    if not nb:
+        return None
+    bid, ask, qts = nb
+    return (bid, ask, (now_ns - (qts or now_ns)) / 1e6)
+
+
+def _nbbo_at(occ: str, ts_ns: int):
+    """(bid, ask, age_before_fill_ms) for the NBBO as it stood AT the fill — the
+    last consolidated quote at/before ts_ns. age = fill_ts - quote_ts."""
+    nb = _nbbo_le(occ, ts_ns)
+    if not nb:
+        return None
+    bid, ask, qts = nb
+    return (bid, ask, (ts_ns - (qts or ts_ns)) / 1e6)
 
 
 def _side_confirms(a: dict, thr: dict) -> bool:
-    """True only if a FRESH consolidated NBBO still reads ask-side for the fill.
-    Abstains (False) on a missing / stale / unusable quote — the caller relabels."""
+    """True only if the NBBO confirms a CLEAN aggressive print in the claimed
+    direction. Default (side_confirm_use_fill_nbbo): classify the fill against the
+    consolidated NBBO as it stood AT THE FILL (the quote just before the trade),
+    not a live quote now — so a clean at-ask print on a thin, slow-quoting LEAP
+    still confirms, while an inside-the-spread fill does NOT (CBRS 2026-11-02:
+    $32.20 inside $31.10/$32.30). Clean = at or through the ask (ask-side, the push
+    population) / at or through the bid (bid-side), within side_confirm_ask_tol.
+    Abstains (False) on a missing / too-old / inside-the-spread quote — the caller
+    suppresses."""
     occ = _alert_occ(a)
     if not occ:
         return False
-    nb = _consolidated_nbbo(occ)
+    try:
+        fill = float(a.get("averageFillPrice"))
+    except (TypeError, ValueError):
+        return False
+    ts = a.get("timestamp") or a.get("last_ts")
+    if thr.get("side_confirm_use_fill_nbbo", True) and ts:
+        try:
+            nb = _nbbo_at(occ, int(float(ts) * 1e9))
+        except (TypeError, ValueError):
+            return False
+        max_age = float(thr.get("side_confirm_fill_lookback_ms", 30000) or 0)
+    else:
+        nb = _consolidated_nbbo(occ)
+        max_age = float(thr.get("side_confirm_max_age_ms", 2000) or 0)
     if not nb:
         return False
     bid, ask, age_ms = nb
-    if age_ms is None or age_ms > float(thr.get("side_confirm_max_age_ms", 2000) or 0):
+    if age_ms is None or age_ms > max_age:
         return False
-    return _classify_side_px(a.get("averageFillPrice"), bid, ask) in ("A", "AA")
+    try:
+        bid, ask = float(bid), float(ask)
+    except (TypeError, ValueError):
+        return False
+    if bid <= 0 or ask <= 0 or ask < bid:
+        return False
+    tol = float(thr.get("side_confirm_ask_tol", 0.005) or 0)
+    if (a.get("_side") or "").strip().upper() == "BB":   # bid-side (sold into bid)
+        return fill <= bid + tol
+    return fill >= ask - tol                              # ask-side (A/AA)
 
 
 def _next_ex_div(sym: str):
@@ -6567,6 +6626,14 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
                 if (_thr.get("side_confirm_enabled", True)
                         and a.get("_direction") in ("Bull", "Bear")
                         and not _side_confirms(a, _thr)):
+                    # Side can't be freshly confirmed. Owner directive 2026-11-02:
+                    # post directional flow ONLY — so SUPPRESS rather than push a
+                    # neutral "Unverified" copy. Not claimed, so a later scan that
+                    # DOES confirm the side can still push it directionally within
+                    # the push window. Flip side_unconfirmed_suppress=false to
+                    # restore the neutral relabel-and-push behavior.
+                    if _thr.get("side_unconfirmed_suppress", True):
+                        continue
                     push_alert = _relabel_unverified(a)   # neutral card; feed row `a` untouched
                 elif a.get("_direction") in ("Bull", "Bear"):
                     _stamp_flow_split(push_alert, a, _flow)   # confirmed dir -> Flow line
@@ -7082,7 +7149,8 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
                                      # without a 400; the code no longer reads it.
         # Push-quality gates (2026-10-29): ex-dividend exclusion + side fresh-confirm.
         "dividend_excl_enabled", "dividend_excl_days", "dividend_extrinsic_buffer",
-        "side_confirm_enabled", "side_confirm_max_age_ms",
+        "side_confirm_enabled", "side_confirm_max_age_ms", "side_unconfirmed_suppress",
+        "side_confirm_use_fill_nbbo", "side_confirm_fill_lookback_ms", "side_confirm_ask_tol",
         "flow_bar_enabled",          # colored ANSI flow bar on directional cards (display only)
     }
     bad_keys = set(body.keys()) - allowed_top
