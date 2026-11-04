@@ -67,7 +67,9 @@ headroom at a time (call 1 settles at its real cost, typically a few cents).
    real figure and logs it; it is never hidden or clamped. That one turn can then end above $0.25 (later calls of the
    turn see it and are refused).
 2. **Perplexity's per-request fee tiers.** The research bound uses the repo's lowest fee ($0.006); higher search-context
-   tiers bill up to $0.014, so a lookup can cost more than its reservation (case 1).
+   tiers bill up to $0.014, and the settle uses the $0.006 fee, so on a higher tier up to $0.008 per attempt would go
+   **unrecorded** (not caught by case 1). It cannot happen today: the request sends no `search_context_size`, so
+   Perplexity bills the default low tier. Setting that parameter requires raising the fee constant first.
 3. **Planner v2, v2 resume and scripts** carry no request id and are not capped here (v2 checks its own turn in the loop).
 
 Research retries and missing usage are no longer an unbounded path: `web_search` reports how many requests it sent
