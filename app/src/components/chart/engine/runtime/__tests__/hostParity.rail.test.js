@@ -38,6 +38,8 @@ describe('HP-1 / HP-4 / HP-7 end to end (the server bundle, built fresh)', () =>
     const p = run('--adapters')
     expect(p.stdout).toContain('HP-7 GREEN')
     expect(p.stdout).toMatch(/worker: args \(def, rows \|\| \[\], ctx \|\| \{\}\) opts \{budgetMs\}/)
+    // H6: the Node half runs with no session (`incremental: false`), as the service will
+    expect(p.stdout).toContain('node: args (c.def, rows, c.ctx) opts {incremental}')
     expect(p.status).toBe(0)
   }, 60000)
 })
@@ -89,7 +91,8 @@ describe('the checks', () => {
   })
 
   it('a corpus that cannot distinguish is rejected', () => {
-    expect(hp.distinguishes({ a: rec('x'), b: rec('x') })).toMatch(/one digest/)
+    const w = (d) => ({ status: 'withheld', digest: d, guards: ['g'] })
+    expect(hp.distinguishes({ a: w('x'), b: w('x') })).toMatch(/produces one digest for every case/)
     expect(hp.distinguishes({ a: rec('x'), b: rec('x'), c: rec('y') })).toMatch(/share one digest/)
     expect(hp.distinguishes({ a: rec('x'), b: { status: 'withheld', digest: 'x', guards: ['g'] }, c: rec('y') })).toBeNull()
   })
@@ -101,6 +104,10 @@ describe('the checks', () => {
 
   it('the committed file passes its own check; a moved digest is red, named, and says whether the engine was bumped', () => {
     expect(hp.checkAgainst(expected, got(), corpus)).toEqual({ code: 0, lines: [] })
+    const same = got()
+    const oks = Object.keys(same.records).filter((k) => same.records[k].status === 'ok')
+    for (const k of oks) same.records[k].digest = expected.cases[oks[0]].digest
+    expect(hp.checkAgainst({ ...expected, cases: same.records }, same, corpus).lines).toContain(`RED corpus: cases ${oks[0]} and ${oks[1]} share one digest`)
     const g = got()
     const name = Object.keys(g.records).find((k) => g.records[k].status === 'ok')
     g.records[name].digest = 'f'.repeat(64)
