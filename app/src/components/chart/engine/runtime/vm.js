@@ -1030,9 +1030,38 @@ export function execute(program, ctx, limits, opts) {
           // observation ring — the fourth time this addressing has been needed.
           const wi = windowBase + a
           const w = winPlan[wi]
-          const span = w.span
+          // ⭐⭐ W4-T8 — A `dynamic` WINDOW READS ITS LENGTH EVERY BAR (v6 `series int`). The length is
+          // on top of the stack (`lowerIr` pushes it after the source) and `w.span` is only the RING,
+          // sized to Pine's history ceiling; the span of THIS bar is the length it just read. A length
+          // that is `na`, fractional, below 1 or beyond the ring is stopped BY NAME, never clamped:
+          // clamping is how a bad length would answer a real number for a window nobody asked for.
+          let span = w.span
+          if (w.dynamic === true) {
+            const rawLen = stack[--sp]
+            if (!Number.isInteger(rawLen) || rawLen < 1 || rawLen > w.span) {
+              throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — the length of \`${w.name}\` was `
+                + `${Number.isNaN(rawLen) ? 'na' : rawLen} on this bar, and a window length must be a whole number `
+                + `from 1 to ${w.span} (Pine's history buffer)`)
+            }
+            span = rawLen
+          }
           const live = stack[--sp]
           const policy = winNa[wi]
+
+          if (policy === 'skip' && w.dynamic === true) {
+            // ⭐ THE SAME MEASURED RULE (the last `span` FINITE observations, answering even ON the
+            // `na` bar), over a ring that keeps the LAST `w.span` finite values RIGHT-ALIGNED, so the
+            // window of this bar's length is its tail: `[w.span - span, w.span - 1]`.
+            const obs = winObs[wi]
+            if (Number.isFinite(live)) {
+              obs.copyWithin(0, 1)
+              obs[w.span - 1] = live
+              if (winObsN[wi] < w.span) winObsN[wi] += 1
+            }
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
+            stack[sp++] = winObsN[wi] < span ? NaN : winReduce[wi](obs, w.span - span, w.span - 1)
+            break
+          }
 
           if (policy === 'skip') {
             // ⭐ THE MEASURED RULE: the last `span` FINITE observations, however

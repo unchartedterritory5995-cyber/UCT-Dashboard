@@ -508,6 +508,9 @@ export function lowerIrProgram(ir, opts = {}) {
         // bar is PART OF the window — `rolling` reduces bars `i-n+1 .. i` — so a
         // span of n needs n-1 committed bars plus this one, never n committed.
         expr(e.source)
+        // ⭐⭐ W4-T8 — A PER-BAR LENGTH IS PUSHED AFTER THE SOURCE (the opcode pops it first); the plan
+        // entry's `dynamic` flag, which `ir.js` proved agrees with this node, says whether it is there.
+        if (e.length !== undefined) expr(e.length)
         emit(OP.WINDOW, e.site)
         return
       }
