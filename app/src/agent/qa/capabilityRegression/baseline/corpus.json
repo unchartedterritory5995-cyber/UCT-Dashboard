@@ -6325,15 +6325,7 @@
       },
       "phrasings": [
         {
-          "text": "open TSLA on a new chart and switch it to the weekly",
-          "gaps": {
-            "c": {
-              "id": "CG-37",
-              "reason": "WRONG TARGET: 'open TSLA on a new chart and switch it to the weekly' adds the TSLA chart but switches the EXISTING NVDA chart to weekly ('it' is read as the chart already on the board, not the one this request creates)",
-              "owner": "agent-core (the train-4 fixes branch: in-plan reference to a newly created chart)",
-              "mode": "the charts' timeframes"
-            }
-          }
+          "text": "open TSLA on a new chart and switch it to the weekly"
         }
       ]
     },
@@ -6381,15 +6373,7 @@
       },
       "phrasings": [
         {
-          "text": "add a chart for META and make it a line chart",
-          "gaps": {
-            "c": {
-              "id": "CG-37",
-              "reason": "WRONG TARGET: 'add a chart for META and make it a line chart' adds the META chart but turns the EXISTING NVDA chart into a line chart",
-              "owner": "agent-core (the train-4 fixes branch: in-plan reference to a newly created chart)",
-              "mode": "chart types"
-            }
-          }
+          "text": "add a chart for META and make it a line chart"
         }
       ]
     },
@@ -6439,15 +6423,7 @@
       },
       "phrasings": [
         {
-          "text": "add a chart for AMD and put the 50 SMA on it",
-          "gaps": {
-            "c": {
-              "id": "CG-37",
-              "reason": "WRONG TARGET: 'add a chart for AMD and put the 50 SMA on it' adds the AMD chart but puts the 50 SMA on the EXISTING NVDA chart",
-              "owner": "agent-core (the train-4 fixes branch: in-plan reference to a newly created chart)",
-              "mode": "no movingAverage(50 sma)"
-            }
-          }
+          "text": "add a chart for AMD and put the 50 SMA on it"
         }
       ]
     }
