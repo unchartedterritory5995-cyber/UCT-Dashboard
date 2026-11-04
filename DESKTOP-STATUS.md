@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 07:02 CT
+updated: 2026-11-04 07:14 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -33,6 +33,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
    01:21 CT: RAM dipped to 7570 MB with 4 heavy jobs (recovered to 9.5 GB within minutes). Policy now: no NEW lane starts below 8 GB; the watch alerts below 6 GB (owner's PC-load floor), when running jobs would be paused. Also: never two heavy jobs at once in ONE worktree (measure-pair copies zzMP*.measure tests into the tip worktree and vitest does not exclude them); W4-T14 told to re-check its overlapping final-tip.
    At most 5 heavy jobs at once (24 cores; final-tip vitest uses --maxWorkers=2; ~16 GB RAM free with 2 running). Any non-baseline failure from a parallel run is re-run alone before it counts as new. Each EVIDENCE.md names its lanes. The RAM/disk watch (8 GB / 20 GB) still stops new lanes.
 7. Builder cap raised from 6 to 9 by the owner's instruction (max 2 Opus: W3, W5-T6). The coordinator's ruling a48cbe455f said 6; the owner outranks it.
+9. LOCK-PATH INCIDENT (found 2026-11-04 07:14 CT): the W4-T7 builder ran its round-d mutation, measure-pair and final-tip jobs on lock files under C:/Users/Patrick/.claude/ (heavy-mut.lock, heavy-mp2.lock, heavy-final2.lock) instead of _resume-2026-11-01/dsk/, because the desktop's message named the locks without full paths. So those jobs excluded nobody, and it switched the shared base pine-dsk-mpbase2 while others measured. Desktop audit from the mpbase2 reflog and each run's "== side" timestamps: W4-T7's own round-d measure-pairs are INVALID (re-running); W4-T15's affected first rt1 run was already discarded by its builder (its reported run, 05:35-06:20, has base 6990d63b02 on every side); W4-T9's run (04:26-05:35:53) saw base ac659bae66 throughout (the next switch was 05:35:54), so it stands; W4-T14 measured before the incident. No other script uses the wrong folder. From now on every measure-pair job asserts the base HEAD before and after each side, and every instruction carries full lock paths.
 8. Clock note: block times are local CT and correct. An earlier note here called them wrong; that was my mistake (the health log prints UTC under Git Bash). Withdrawn. SECOND clock note: blocks stamped 03:45, 04:20 and 04:35 CT on 2026-11-04 (W4-T15 start, W5-T7 READY, W5-T8 READY) were written ahead of the clock, at about 03:20-03:40 CT; from 2026-11-04 04:13 CT every stamp is read from the local clock.
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
@@ -69,11 +70,12 @@ desktop check of the definition of done: PASS (scope, rail 6/6, 8/8 mutations, f
 open: the bundle still carries the fetch-bearing modules and two build gates (T2's job); old esbuild duplicate-case warning at ir.js:518 (pre-existing).
 
 ## W4-T7
-state: BUILDING   round: r0   updated: 2026-11-04 03:30 CT
+state: BUILDING   round: r0   updated: 2026-11-04 07:14 CT
 branch: feat/pine-w4-t7-fn-series   tip: e39b8c0ef6 (EVIDENCE over engine/test tip 066b312f11)   tested on master: 5d95103c8a   worktree: pine-dsk-w4t7   model: Sonnet
 engine bump needed: YES (refusals become served values)
 built: pineRuntimeFrontend.js only: hoistCommittedSeries no longer refuses inside a frame; a UDF body's own statement list and its result are hoist sinks; the hoisted slot is frame-local with its ring from fnHistorySlotFor (per call site). Still refused by name: nested lists incl. block values (x = if..., switch; lowerBlockValue withdraws the sink in a frame) and a global's history through a UDF (function-global-state). 7 superseded pins updated in 6 test files + one census bucket list.
 checks: rail w4FrameHoist (12 tests, 5,000-bar differential vs a hand-bound root) red on master 7 failed / 5 passed, green on tip (29 with historyExpression). Mutations 7 killed (M1-M5, M7, M9); M6 (cosmetic slot name) and M8 (redundant sink-null at defineFunction) survive as equivalent. measure-pair rt0+rt1: harness identical (336 captures each, MATCH 93 / 111); C18 probes identical; audit: 2 scripts move to their next wall (logistic-regression-v3, volume-surge-radar); census 3 rows (rt0) / 16 rows (rt1) differ, none attach-flip. final-tip: gate pytest 46, version-gate 6, hygiene clean, vitest 22372 passed / 1 failed = pollingSites.rail baseline.
+MEASURE-PAIR INVALIDATED (deviation 9): its dsk-w4t7d round used lock files under C:/Users/Patrick/.claude/ (wrong folder, from the desktop's bare-name instruction), so its mp0 base side ran on 6990d63b02 instead of its merge-base 5d95103c8a and its mp0b base side was switched mid-side; mutations and final-tip stand. Re-running measure-pair on the real heavy-mp2 lock with base checks before and after each side.
 HOLD before READY: one script on the LIVE object door moved BUILD-REFUSED -> DREW-NOTHING-KEPT (now builds and draws nothing), unnamed in the log. The desktop asked the builder to name it and prove the blank correct, or else keep master's answer at the object door (as T2/T12 do), rail it and re-measure.
 open (later lanes): pre-existing root leak, an if-expression arm hoists above the if at root (T5); ta.pivot* in a UDF now stops at call-windowed-state (T10's wall); n/2 window lengths from a simple parameter still refuse (T8/T17).
 
@@ -200,10 +202,14 @@ open: T7 must call resultKey/cacheable and DocCache around its runner (the resul
 desktop check: PASS (scope = 2 new service files + evidence; 8de4c015d5..51e62a3c22 is EVIDENCE only; local == origin; worktree clean)
 
 ## W4-T15 (picked per 063fe2ba8e: "after T0's re-count", which is READY at 127a0f1e3c)
-state: BUILDING   round: r0   updated: 2026-11-04 03:45 CT
-branch: feat/pine-w4-t15-fn-forms   base: origin/master   worktree: pine-dsk-w4t15   model: Sonnet
-region: FE :9918-10230, :6047-6056, :9859 (no in-flight lane overlaps; T3's band starts at :10295)
-next: function and statement forms per W4-BREAKDOWN T15 (+ T16 folded in); keep master's answer at the object door unless proved; measure-pair on mp2, mutations on mut lane, final-tip on lane 3
+state: READY            round: r0            updated: 2026-11-04 07:14 CT
+branch: feat/pine-w4-t15-fn-forms   tip: 35e0b30745 (EVIDENCE over code tip 7106f71efd)   tested on master: 6990d63b02 (merge-base)
+engine bump needed: YES (new runtime answers; SCRIPT_ENGINE_VERSION not edited)
+evidence: docs/pine/evidence/2026-11-04-w4-t15/EVIDENCE.md (logs _resume-2026-11-01/runs/w4t15/)
+report: FE ast/pineRuntimeFrontend.js only (no other lane's band, no ast/pine.js or RT file). Named arguments on user functions (any-order binding, defaults for skipped parameters; bad forms refused by name: unknown name, duplicate, positional after named, skipped parameter with no default). A function ending in a for/while returns the last pass's value (na if no pass), served only for a loop without break/continue whose body ends in a plain value line (expression, binding, reassignment, or a nested loop of that kind); a body ending in a call, tuple or if chain keeps master's valueless answer. One-line bodies that are a binding or comma statements (ma(x)=>a=0.,a:=...). log.info/warning/error as statements: no chart effect, no stop, effectful arguments still run. All new forms gated !atObjectDoor. Parameter defaults already worked positionally on master. Three older rails (c18WhileAndLastBar, runtimeStatementShapes, p3WsaReviewFixes L2) re-pointed to a loop with break (still refused).
+checks: rail w4FunctionForms.test.js (29): master 21 failed / 8 passed (controls), tip 29/29. Mutations 25/25 (heavy-mut); 3 redundant guards removed in earlier rounds. measure-pair (heavy-mp2; FINAL run 05:35-06:20, base 6990d63b02 asserted on both sides of both lanes; an earlier rt1 run was DISCARDED because the shared base was switched mid-job, see deviation 9): C18 audit and probes 0 diffs both lanes; harness rt0 93/103/140, rt1 111/107/118 identical; OBJECT DOOR: no change; census rt0 1 row, rt1 3 rows, all intended: kaufman-adaptive-bands (one-line ma(x)=> now read; runtime lane attaches, production unchanged); ict-turtle-soup-flux-charts and open-interest-stochastic-money-flow-index (rt1: peel reaches the end sooner, attached/clean unchanged, same final refusal). final-tip (heavy-final3, 7106f71efd): gate 46, hygiene clean, version-gate 6, vitest 2 failed / 1333 passed / 27 skipped = the 2-file baseline (pollingSites.rail + settingsScope.rail; no src/lab file touched). A first final-tip showed c21DualView, runtimeWallsC23 and p3WsaReviewFixes red from the builder's own over-serving (drawing-call and value-arm loop tails); fixed by the plain-tail rule; re-run clean.
+open: 3 captures listed in EVIDENCE (loop value ended by break/continue; loop whose body ends in an if chain, call or tuple; the log format-string case); all stay refused or valueless by name.
+desktop check: PASS (FE + tests + evidence; 7106f71efd..35e0b30745 is EVIDENCE only; local == origin; worktree clean)
 
 ## W4-T9 (picked per 063fe2ba8e: "after T2"; STACKED on W4-T2, which is READY)
 state: READY            round: r0            updated: 2026-11-04 06:16 CT
