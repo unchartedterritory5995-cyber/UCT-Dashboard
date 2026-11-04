@@ -20,6 +20,8 @@ import { selectGroups, routeManifest, wordsSelect } from './routing'
 import { fastParse } from './fastPath'
 import { multiChartPlan } from './multiChart'
 import { bindCreated } from './createdBinding'
+import { workspaceKind } from './capabilities/workspace'
+import { optsSignature } from './host'
 import { buildIndicatorAlertSource } from './host'
 import { _resetIndicatorAlertCache } from './capabilities/indicatorAlerts'
 import { notDoneLines } from './notDone'
@@ -1289,4 +1291,193 @@ describe('CG-37 binding v2 · an UNTARGETED change after a create goes on the cr
     expect(raw(r.board, 'c1')).toBe(before2)
     expect(chartsOf(r.board)).toHaveLength(1)
   }, 45000)
+})
+
+// ═══ NLM1-G1 / G2 (agent/w2/undo-binding-gaps) ═══════════════════════════════════════════════════════════════
+describe('NLM1-G1 · the creation\'s Undo after its later changes were undone exactly', () => {
+  it('create → add an EMA → change timeframe → undo ×3: every Undo goes through, the board is exactly as before', async () => {
+    const { board, h, say } = mount([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: settings() }], { A: 'NVDA' })
+    const before = shape(board, h)
+    const raw0 = JSON.stringify(board.state.widgets)
+    await say('add a chart for AMD')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+    const amd = () => chartsOf(board).find(w => w.id !== 'c1')
+    const sig = () => JSON.stringify(amd().opts)
+    const afterCreate = sig()
+    await say('put the 50 EMA on it')
+    await waitFor(() => expect(JSON.stringify(amd().opts)).toMatch(/"period":50/))
+    await say('make it weekly')
+    await waitFor(() => expect(h.charts.read(amd().id).tf).toBe('W'))
+    await say('undo')
+    await waitFor(() => expect(h.charts.read(amd().id).tf).toBe('D'))
+    await say('undo')
+    await waitFor(() => expect(JSON.stringify(amd().opts)).not.toMatch(/"period":50,"maType":"ema"/))
+    if (process.env.DUMP) console.log('G1>>', afterCreate, '\n   >>', sig())
+    await say('undo')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(1), { timeout: 8000 })
+    expect(transcript()).not.toMatch(/has changed since I made that change/)
+    expect(shape(board, h)).toBe(before)
+    expect(JSON.stringify(board.state.widgets)).toBe(raw0)
+  }, 40000)
+})
+
+describe('NLM1-G1 · a REAL later edit still blocks the creation\'s Undo', () => {
+  it('create → the member changes the new chart by hand → "undo" refuses, nothing removed', async () => {
+    const { board, h, say } = mount([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: settings() }], { A: 'NVDA' })
+    await say('add a chart for AMD')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+    const amd = chartsOf(board).find(w => w.id !== 'c1')
+    h.charts.commit(amd.id, { tf: 'W' })
+    await say('undo')
+    await waitFor(() => expect(transcript()).toMatch(/has changed since I made that change/))
+    expect(chartsOf(board)).toHaveLength(2)
+  }, 30000)
+})
+
+// The indicator a G2 turn ADDED to the chart it created: every instance a fresh chart does not start with (the defaults —
+// EMA 9/20, SMA 50/200 — are adopted instances too). Read from the board, never a hard-coded id.
+function turnInstance(chart) {
+  const insts = chart?.opts?.settings?.indicatorInstances || []
+  const defIds = new Set((mergeChartSettings(null).indicatorInstances || []).map(i => i.instanceId))
+  const added = insts.filter(i => !defIds.has(i.instanceId) && !i.deleted)
+  expect(added).toHaveLength(1)
+  expect(added[0]).toMatchObject({ defId: 'movingAverage', inputs: { period: 50, maType: 'sma' } })
+  const defaults = insts.filter(i => defIds.has(i.instanceId))
+  expect(defaults.some(i => i.inputs?.period === 50 && i.inputs?.maType === 'sma')).toBe(true)   // the default SMA 50 is there too
+  return { own: added[0], defaults: JSON.parse(JSON.stringify(defaults)) }
+}
+describe('NLM1-G2 · an indicator added on a chart THIS request created is the next follow-up\'s referent', () => {
+  it('"add a chart for AMD and put the 50 SMA on it" → "make it orange" colours THAT SMA (no model turn); undo puts it back', async () => {
+    const { board, say } = mount([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: settings() }], { A: 'NVDA' })
+    await say('add a chart for AMD and put the 50 SMA on it')
+    const amd = () => chartsOf(board).find(w => w.id !== 'c1')
+    const sma = () => (amd()?.opts?.settings?.indicatorInstances || []).find(i => i.defId === 'movingAverage' && Number(i.inputs?.period) === 50 && i.inputs?.maType === 'sma' && !i.deleted)
+    await waitFor(() => expect(sma()).toBeTruthy(), { timeout: 8000 })
+    const c1Before = JSON.stringify(board.state.widgets.find(w => w.id === 'c1'))
+    const amdBefore = JSON.stringify(amd().opts)
+    // target identity (owner requirement): the instance THIS turn added — never the new chart's default SMA 50
+    const { own, defaults } = turnInstance(amd())
+    await say('make it orange')
+    await waitFor(() => expect(transcript()).toMatch(/Changed SMA 50's colour on Chart w-chart-1 to #f59e0b/), { timeout: 8000 })
+    const after = amd().opts.settings.indicatorInstances
+    expect(after.filter(i => /#f59e0b/i.test(JSON.stringify(i))).map(i => i.instanceId)).toEqual([own.instanceId])
+    for (const d of defaults) expect(JSON.stringify(after.find(i => i.instanceId === d.instanceId))).toBe(JSON.stringify(d))
+    expect(turnBodies()).toHaveLength(0)
+    expect(JSON.stringify(board.state.widgets.find(w => w.id === 'c1'))).toBe(c1Before)
+    await say('undo')
+    await waitFor(() => expect(JSON.stringify(amd().opts)).toBe(amdBefore))
+  }, 40000)
+})
+
+describe('NLM1-G1 · the timeframe equivalence is exactly the product\'s (a chart\'s absent tf IS \'D\'), nothing broader', () => {
+  const fp = (widget, cfgTf) => {
+    const host = { widgets: { configOf: () => ({ tf: cfgTf, symbol: 'AMD', color: 'N' }) }, charts: { read: () => null } }
+    const w = { id: 'n1', x: 0, y: 0, w: 8, h: 10, color: 'N', ...widget }
+    return workspaceKind.fingerprintFor(host, { widgets: [w] }, { patch: { beforeIds: [] }, after: { widgets: [w] } })
+  }
+  it('a chart: absent tf and "D" sign the same; "W" does not', () => {
+    const absent = fp({ type: 'chart', optsSig: optsSignature({}), optsSigNoTf: optsSignature({}) }, 'D')
+    const d = fp({ type: 'chart', optsSig: optsSignature({ tf: 'D' }), optsSigNoTf: optsSignature({}) }, 'D')
+    const w = fp({ type: 'chart', optsSig: optsSignature({ tf: 'W' }), optsSigNoTf: optsSignature({}) }, 'W')
+    expect(d).toBe(absent)
+    expect(w).not.toBe(absent)
+  })
+  it('any other widget compares its opts as stored (no equivalence)', () => {
+    const a = fp({ type: 'watchlist', optsSig: optsSignature({}), optsSigNoTf: optsSignature({}) }, 'D')
+    const b = fp({ type: 'watchlist', optsSig: optsSignature({ tf: 'D' }), optsSigNoTf: optsSignature({}) }, 'D')
+    expect(b).not.toBe(a)
+  })
+})
+
+// ═══ NLM1-G1 / G2 review gaps (agent/w2/undo-binding-gaps, review of 933fc63087..4bf56c0d94) ═══════════════════════
+describe('NLM1-G1 · review gaps: the equivalence is the effective timeframe, never anything broader', () => {
+  const one = () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: settings() }], { A: 'NVDA' }]
+  it('a chart CREATED weekly → "make it daily" → undo ×2: the board is byte-exact as before', async () => {
+    const { board, h, say } = mount(...one())
+    const raw0 = JSON.stringify(board.state.widgets)
+    await say('add a weekly chart for AMD')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+    const amd = () => chartsOf(board).find(w => w.id !== 'c1')
+    await waitFor(() => expect(h.charts.read(amd().id).tf).toBe('W'))
+    await say('make it daily')
+    await waitFor(() => expect(h.charts.read(amd().id).tf).toBe('D'))
+    await say('undo')
+    await waitFor(() => expect(h.charts.read(amd().id).tf).toBe('W'))
+    await say('undo')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(1), { timeout: 8000 })
+    expect(transcript()).not.toMatch(/has changed since I made that change/)
+    expect(JSON.stringify(board.state.widgets)).toBe(raw0)
+  }, 40000)
+  it('the member switches the new chart D → W → D by hand → "undo" takes back the creation (nothing really changed)', async () => {
+    const { board, h, say } = mount(...one())
+    const raw0 = JSON.stringify(board.state.widgets)
+    await say('add a chart for AMD')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+    const amd = chartsOf(board).find(w => w.id !== 'c1')
+    h.charts.commit(amd.id, { tf: 'W' })
+    h.charts.commit(amd.id, { tf: 'D' })
+    await say('undo')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(1), { timeout: 8000 })
+    expect(transcript()).not.toMatch(/has changed since I made that change/)
+    expect(JSON.stringify(board.state.widgets)).toBe(raw0)
+  }, 30000)
+  it('the new chart differs in a NON-timeframe option (timeframe back on D) → "undo" still refuses, nothing removed', async () => {
+    const { board, h, say } = mount(...one())
+    await say('add a chart for AMD')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+    const amd = chartsOf(board).find(w => w.id !== 'c1')
+    h.charts.commit(amd.id, { tf: 'D', settings: { ...(amd.opts.settings || {}), nlmG1Marker: 'by-hand' } })
+    await say('undo')
+    await waitFor(() => expect(transcript()).toMatch(/has changed since I made that change/))
+    expect(chartsOf(board)).toHaveLength(2)
+  }, 30000)
+})
+
+describe('NLM1-G2 · review gaps: only an indicator ON the created chart makes the turn about indicators', () => {
+  const amdOf = (board) => chartsOf(board).find(w => w.id !== 'c1')
+  const smaOf = (w) => (w?.opts?.settings?.indicatorInstances || []).find(i => i.defId === 'movingAverage' && Number(i.inputs?.period) === 50 && i.inputs?.maType === 'sma' && !i.deleted)
+  const g2 = async () => {
+    const r = mount([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: settings() }], { A: 'NVDA' })
+    await r.say('add a chart for AMD and put the 50 SMA on it')
+    await waitFor(() => expect(smaOf(amdOf(r.board))).toBeTruthy(), { timeout: 8000 })
+    return r
+  }
+  it('NEGATIVE: "add a chart for AMD and put RSI on my SPY chart" → "make it orange" never colours the RSI on SPY (not widened)', async () => {
+    const { board, say } = mount([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: settings() }], { A: 'SPY' })
+    envelopes.push(b => env('apply', [
+      { action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: 'new1' } },
+      { action: 'chart.setSymbol', target: 'new1', args: { symbol: 'AMD' } },
+      { action: 'indicator.add', target: b.context.indicatorEdits[0].ref, args: { defId: 'rsi', inputs: null } },
+    ]))
+    await say('add a chart for AMD and put RSI on my SPY chart')
+    const rsi = () => (board.state.widgets.find(w => w.id === 'c1').opts?.settings?.indicatorInstances || []).find(i => i.defId === 'rsi' && !i.deleted)
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+    await waitFor(() => expect(rsi()).toBeTruthy(), { timeout: 8000 })
+    const c1Before = JSON.stringify(board.state.widgets.find(w => w.id === 'c1'))
+    await say('make it orange')
+    expect(JSON.stringify(board.state.widgets.find(w => w.id === 'c1'))).toBe(c1Before)
+    expect(JSON.stringify(board.state.widgets)).not.toMatch(/#f59e0b/i)
+  }, 40000)
+  it('"make it weekly" after a G2 turn → the created chart goes weekly', async () => {
+    const { board, h, say } = await g2()
+    await say('make it weekly')
+    await waitFor(() => expect(h.charts.read(amdOf(board).id).tf).toBe('W'), { timeout: 8000 })
+    expect(h.charts.read('c1').tf).toBe('D')
+  }, 40000)
+  it('"remove it" after a G2 turn → proposes removing the SMA (needs approval); nothing changes before approval', async () => {
+    const { board, say } = await g2()
+    const raw = JSON.stringify(board.state.widgets)
+    const { own, defaults } = turnInstance(amdOf(board))
+    await say('remove it')
+    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal').length).toBeGreaterThan(0), { timeout: 8000 })
+    expect(screen.queryAllByTestId('agent-proposal').map(n => n.textContent).join(' ')).toMatch(/SMA 50/)
+    expect(JSON.stringify(board.state.widgets)).toBe(raw)
+    expect(chartsOf(board)).toHaveLength(2)
+    await say('do it')
+    await waitFor(() => expect(transcript()).toMatch(/Removed SMA 50 on Chart w-chart-1/), { timeout: 8000 })
+    const after = amdOf(board).opts.settings.indicatorInstances
+    expect(after.filter(i => i.instanceId === own.instanceId && !i.deleted)).toHaveLength(0)        // the turn's own SMA is gone
+    for (const d of defaults) expect(JSON.stringify(after.find(i => i.instanceId === d.instanceId))).toBe(JSON.stringify(d))   // ovl:2 untouched
+    expect(chartsOf(board)).toHaveLength(2)
+  }, 40000)
 })
