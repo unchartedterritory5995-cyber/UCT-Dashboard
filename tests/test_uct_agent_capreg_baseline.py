@@ -344,3 +344,23 @@ if __name__ == "__main__":
         LOCK.write_text(json.dumps({"about": "capreg baseline lock — tests/test_uct_agent_capreg_baseline.py --update", "format": LOCK_FORMAT, **lock_now},
                                    indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
         print(f"locked {len(lock_now['intents'])} intents, {len(lock_now['refusals'])} refusals, {len(lock_now['workflows'])} workflows")
+
+
+def test_no_control_characters_in_the_data():
+    """A JSON `\b` written for a regex word boundary decodes to a BACKSPACE byte (it happened in CG-7 / CG-12's reasons):
+    every string in the baseline and coverage files, once parsed, holds no control character but newline and tab."""
+    bad = []
+
+    def walk(o, where):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                walk(v, f"{where}/{k}")
+        elif isinstance(o, list):
+            for i, v in enumerate(o):
+                walk(v, f"{where}/{i}")
+        elif isinstance(o, str) and any(ord(ch) < 32 and ch not in "\n\t" for ch in o):
+            bad.append(where)
+
+    for f in sorted([*(CAPREG / "baseline").glob("*.json"), *(CAPREG / "coverage").glob("*.json")]):
+        walk(_load(f), f.relative_to(CAPREG).as_posix())
+    assert not bad, "control characters (write a regex \b as \\b in JSON):\n  " + "\n  ".join(bad)
