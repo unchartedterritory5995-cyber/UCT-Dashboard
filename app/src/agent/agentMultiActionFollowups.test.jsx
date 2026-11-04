@@ -1334,6 +1334,18 @@ describe('NLM1-G1 · a REAL later edit still blocks the creation\'s Undo', () =>
   }, 30000)
 })
 
+// The indicator a G2 turn ADDED to the chart it created: every instance a fresh chart does not start with (the defaults —
+// EMA 9/20, SMA 50/200 — are adopted instances too). Read from the board, never a hard-coded id.
+function turnInstance(chart) {
+  const insts = chart?.opts?.settings?.indicatorInstances || []
+  const defIds = new Set((mergeChartSettings(null).indicatorInstances || []).map(i => i.instanceId))
+  const added = insts.filter(i => !defIds.has(i.instanceId) && !i.deleted)
+  expect(added).toHaveLength(1)
+  expect(added[0]).toMatchObject({ defId: 'movingAverage', inputs: { period: 50, maType: 'sma' } })
+  const defaults = insts.filter(i => defIds.has(i.instanceId))
+  expect(defaults.some(i => i.inputs?.period === 50 && i.inputs?.maType === 'sma')).toBe(true)   // the default SMA 50 is there too
+  return { own: added[0], defaults: JSON.parse(JSON.stringify(defaults)) }
+}
 describe('NLM1-G2 · an indicator added on a chart THIS request created is the next follow-up\'s referent', () => {
   it('"add a chart for AMD and put the 50 SMA on it" → "make it orange" colours THAT SMA (no model turn); undo puts it back', async () => {
     const { board, say } = mount([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: settings() }], { A: 'NVDA' })
@@ -1343,9 +1355,13 @@ describe('NLM1-G2 · an indicator added on a chart THIS request created is the n
     await waitFor(() => expect(sma()).toBeTruthy(), { timeout: 8000 })
     const c1Before = JSON.stringify(board.state.widgets.find(w => w.id === 'c1'))
     const amdBefore = JSON.stringify(amd().opts)
+    // target identity (owner requirement): the instance THIS turn added — never the new chart's default SMA 50
+    const { own, defaults } = turnInstance(amd())
     await say('make it orange')
     await waitFor(() => expect(transcript()).toMatch(/Changed SMA 50's colour on Chart w-chart-1 to #f59e0b/), { timeout: 8000 })
-    expect(JSON.stringify(amd().opts)).toMatch(/#f59e0b/i)
+    const after = amd().opts.settings.indicatorInstances
+    expect(after.filter(i => /#f59e0b/i.test(JSON.stringify(i))).map(i => i.instanceId)).toEqual([own.instanceId])
+    for (const d of defaults) expect(JSON.stringify(after.find(i => i.instanceId === d.instanceId))).toBe(JSON.stringify(d))
     expect(turnBodies()).toHaveLength(0)
     expect(JSON.stringify(board.state.widgets.find(w => w.id === 'c1'))).toBe(c1Before)
     await say('undo')
@@ -1451,17 +1467,17 @@ describe('NLM1-G2 · review gaps: only an indicator ON the created chart makes t
   it('"remove it" after a G2 turn → proposes removing the SMA (needs approval); nothing changes before approval', async () => {
     const { board, say } = await g2()
     const raw = JSON.stringify(board.state.widgets)
+    const { own, defaults } = turnInstance(amdOf(board))
     await say('remove it')
     await waitFor(() => expect(screen.queryAllByTestId('agent-proposal').length).toBeGreaterThan(0), { timeout: 8000 })
     expect(screen.queryAllByTestId('agent-proposal').map(n => n.textContent).join(' ')).toMatch(/SMA 50/)
     expect(JSON.stringify(board.state.widgets)).toBe(raw)
     expect(chartsOf(board)).toHaveLength(2)
-    const smas = () => (amdOf(board)?.opts?.settings?.indicatorInstances || []).filter(i => i.defId === 'movingAverage' && Number(i.inputs?.period) === 50 && i.inputs?.maType === 'sma' && !i.deleted).length
-    const n = smas()
     await say('do it')
     await waitFor(() => expect(transcript()).toMatch(/Removed SMA 50 on Chart w-chart-1/), { timeout: 8000 })
-    if (process.env.DUMP) console.log('G2rm>>', n, smas(), JSON.stringify(amdOf(board).opts.settings?.indicatorInstances?.map(i => [i.instanceId, i.defId, i.inputs?.period, i.inputs?.maType])))
-    expect(smas()).toBe(n - 1)
+    const after = amdOf(board).opts.settings.indicatorInstances
+    expect(after.filter(i => i.instanceId === own.instanceId && !i.deleted)).toHaveLength(0)        // the turn's own SMA is gone
+    for (const d of defaults) expect(JSON.stringify(after.find(i => i.instanceId === d.instanceId))).toBe(JSON.stringify(d))   // ovl:2 untouched
     expect(chartsOf(board)).toHaveLength(2)
   }, 40000)
 })
