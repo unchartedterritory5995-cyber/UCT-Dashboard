@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 16:08 CT
+updated: 2026-11-04 16:21 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -339,10 +339,13 @@ branch: feat/pine-w5-t14-scans   base: W5-T11 86218da704 + local merge of origin
 locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
 
 ## W5-T15 backtest (needs T11 READY + T12 on master)
-state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
-branch: feat/pine-w5-t15-backtest   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Sonnet
-locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final2.lock
-
+state: READY            round: r0            updated: 2026-11-04 16:21 CT
+branch: feat/pine-w5-t15-backtest   tip: 96340d3186 (docs-only addendum over code tip 560d8e6958, the final-tip tree)   base: merge e710d36d6a = W5-T11 86218da704 + origin/master 9bfd567837 (STACK: T3 -> T11; DESKTOP-VERIFIED parents)   tested on master: 9bfd567837   worktree: pine-dsk-w5t15   model: Sonnet
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t15/EVIDENCE.md
+built (files: api/routers/screener_backtest.py, api/services/screener/backtest.py seam, tests/test_screener_backtest_runtime.py): a stored runtime document replays through T11's client (profile backtest) instead of the 400; the verdict and server_lane_refusal(lane="backtest") are asked at the door and again before every 50-symbol chunk; new optional body field plot (several outputs with none named = 409); refusals map 503 (unavailable/auth/busy), 500 (integrity), 409 (all else); daily bar time sent as unix seconds (railed); the engine takes a column_for column and runs the same tally; any refusal fails the whole request. Stage unset: railed through the real admission chain -> 409 runtime:server-stage, inline and background, no client built.
+checks: 26 new tests (base 23 fail / 1 pass, the job_id digest test already works there; tip 26 pass). Mutations 20 run, 18 killed; 2 equivalent survivors (engine and router column-length checks; the client already refuses a mismatched length). final-tip: gate 46, hygiene clean, 8 backtest pytest files 175 passed, vitest Tests 2 failed | 22512 passed | 118 skipped = settingsScope.rail + pollingSites.rail baselines (DESKTOP-VERIFIED by name).
+open: real runs refuse server-integrity until results carry a digest (W5-T7b building); the service reading daily t as UTC-midnight epoch seconds is an unconfirmed assumption (W5-T7b asked); warm-up is a fixed 500-bar fetch lead until runtimeWarmupOf is on the wire; reuses T11's private runtime_server_lane._verdict and _admission rather than editing T11 (coordinator may want them made public).
 ## W5-T16 rule record (needs T11 READY + T12 on master)
 state: READY            round: r0            updated: 2026-11-04 16:07 CT
 branch: feat/pine-w5-t16-rule-record   tip: 5a85b9b23f (docs-only EVIDENCE over code tip c2afcfb06c, the final-tip tree)   base: merge e5ed2f5c76 = W5-T11 86218da704 + origin/master 9bfd567837 (STACK: T3 -> T11; DESKTOP-VERIFIED parents)   tested on master: 9bfd567837   worktree: pine-dsk-w5t16   model: Sonnet
