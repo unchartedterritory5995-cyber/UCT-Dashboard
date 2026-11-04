@@ -7,6 +7,9 @@ import { corpus, phrasingsOf, gapIt } from './testing/corpus'
 import { routedNames } from './testing/route'
 import { wordsSelect, groupOfAction } from '../../routing'
 import { panelHost } from './testing/harness'
+import { pinClock } from './testing/clock'
+
+pinClock()                   // one fixed instant (testing/clock.js): the market clock never depends on when CI runs
 
 await registerCatalog()
 

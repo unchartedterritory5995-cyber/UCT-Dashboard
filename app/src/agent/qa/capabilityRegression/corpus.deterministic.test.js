@@ -6,6 +6,9 @@ import { describe, expect } from 'vitest'
 import { registerCatalog } from './testing/registry'
 import { corpus, phrasingsOf, gapIt, deterministicReading, equivalent } from './testing/corpus'
 import { panelHost } from './testing/harness'
+import { pinClock } from './testing/clock'
+
+pinClock()                   // one fixed instant (testing/clock.js): the market clock never depends on when CI runs
 
 await registerCatalog()
 

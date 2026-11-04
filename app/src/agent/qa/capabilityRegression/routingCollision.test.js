@@ -8,6 +8,9 @@ import { registerCatalog } from './testing/registry'
 import { gapIt } from './testing/corpus'
 import { GROUPS, wordsSelect } from '../../routing'
 import table from './baseline/routingCollisions.json'
+import { pinClock } from './testing/clock'
+
+pinClock()                   // one fixed instant (testing/clock.js): the market clock never depends on when CI runs
 
 await registerCatalog()
 const ids = GROUPS.map(g => g.id)
