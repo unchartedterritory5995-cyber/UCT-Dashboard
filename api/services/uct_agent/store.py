@@ -195,6 +195,8 @@ def _data_json(data: dict | None) -> str | None:
 def add_turn(user_id: int, conversation_id: str, role: str, text: str, data: dict | None = None) -> int:
     if role not in ("member", "agent", "outcome"):
         raise ValueError(f"bad role {role!r}")
+    from api.services.uct_agent import retention       # Track C (c): both switches default OFF = identity / no prune
+    text, data = retention.on_write(role, text, data)
     now = _now()
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute(
@@ -204,7 +206,9 @@ def add_turn(user_id: int, conversation_id: str, role: str, text: str, data: dic
         c.execute("UPDATE agent_conversations SET updated_at = ? WHERE id = ? AND user_id = ?",
                   (now, conversation_id, _uid(user_id)))
         c.commit()
-        return int(cur.lastrowid)
+        row_id = int(cur.lastrowid)
+    retention.maybe_prune(_connect)
+    return row_id
 
 
 def list_conversations(user_id: int, limit: int = 100) -> list[dict]:
