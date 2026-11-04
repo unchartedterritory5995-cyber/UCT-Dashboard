@@ -1,12 +1,12 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-03 23:50 CT
+updated: 2026-11-03 23:55 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (0 Opus, 6 Sonnet: W5-T1, W4-T7, W4-T12, W4-T3 r1, E lows, W5-T3). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
 baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
-poll on ops/pine-coord: ARMED (15 min). Read fd609214e4 (PAUSE banner).
+poll on ops/pine-coord: ARMED (15 min). Read 063fe2ba8e (KEEP BUILDING, pause cancelled for the desktop) at 23:55 CT: acknowledged; nothing was paused here. After the queue, the desktop picks further W4/W5 work whose dependencies are met, per that note.
 >>> PAUSE BANNER SUPERSEDED FOR THE DESKTOP BY THE OWNER'S DIRECT INSTRUCTION <<<
 After fd609214e4 was written, the owner told this desktop session directly: "pausing laptop work and saving it and resuming everything here".
 The desktop therefore did NOT pause: all 6 lanes keep BUILDING and the re-homed lanes stay queued here. Only the LAPTOP is paused.
