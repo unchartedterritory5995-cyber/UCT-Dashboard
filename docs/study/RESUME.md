@@ -1300,6 +1300,14 @@ Decision: ladder step 12 with the halo at 0.3 (the glow turned down a touch). Co
   pending; owner 2026-10-27: ...)" that members can read on the reveal card today. Not changed here.
 - Blitz pool sizes: 6 per setup skill + 12 per recall skill = up to 66 questions, 9 skill sessions per run. Skill
   sessions serve UNSEEN items only, so a member who plays a lot drains the pool: the bank must grow.
+- DEPLOY VERIFIED: the #559 merge (2ae460e994) is an ancestor of origin/production; the master deploy gate passed
+  (gate timeout is 60 min since #760, so a 35-minute gate is normal now); web SUCCESS 23:06 local with a fresh boot
+  (uptime 41 s) and /api/health 200. The answer-leak fix, the phone taps, the mark and the hourly Go Signal bars are
+  LIVE for members.
+- reachable.test.js: the Study workbench (src/lab/) is now a declared dev-only entry (WORKBENCH path rule + control,
+  lab/labAbsent.test.js mirrors econHarnessAbsent). The rail still carries three reds that are NOT this branch's:
+  the "DASHBOARD COCKPIT RETIREMENT" block expired 2026-10-31 (24 modules parked), doorNameCoverage.js unreachable,
+  doorCoverage.js wired but still listed. Other workstreams' decisions; recorded in PR #767.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
