@@ -346,12 +346,30 @@ DEFAULT_THRESHOLDS = {
     # slow-quoting LEAP then still confirms, while an inside-the-spread fill does
     # not (CBRS 2026-11-02: $32.20 inside $31.10/$32.30 => ambiguous => suppress).
     "side_confirm_use_fill_nbbo": True,
-    "side_confirm_fill_lookback_ms": 30000,  # pre-fill quote at most this old
+    # The pre-fill quote must be at most this fresh to be TRUSTED for a directional
+    # label. A stale book on a thin LEAP is unreliable for BOTH sides, so anything
+    # older abstains -> suppresses (DASH 2026-11-04: a 25s-stale 29.70/30.00 book
+    # confirmed a 29.50 below-bid print as "bear"; a 6.8s-stale 29.75/31.25 book hid
+    # a genuine 30.00 ask-lift). 2.5s keeps clean prints on slow-quoting names while
+    # dropping stale-book guesses. Was 30000 (too loose) until 2026-11-04.
+    "side_confirm_fill_lookback_ms": 2500,  # pre-fill quote must be this fresh to trust
     "side_confirm_ask_tol": 0.005,      # fill within this of ask(bid) = clean at-ask
     # When the side can't be confirmed: True = SUPPRESS the push entirely (only
     # directional flow goes out — owner directive 2026-11-02); False = fall back
     # to the old behavior of pushing a neutral "Large Ask Build (Unverified)".
     "side_unconfirmed_suppress": True,
+    # ── Dark-pool-paired BLOCK = hedge, not a directional bet (2026-11-04) ──
+    # An options BLOCK (not a sweep) that prints alongside a large dark-pool
+    # equity block on the SAME underlying within the pairing window is a hedge
+    # package, not conviction (PINS 2026-11-04: 6000 ATM puts @ ask + a 246k-share
+    # dark-pool block, same second). One Massive REST equity-trades call at push
+    # time; fail-closed. Default: neutralize to a "Hedge Block" card (matches the
+    # heavy_block_premium precedent). block_darkpool_hedge_suppress=True drops it
+    # entirely instead. Only BLOCK candidates reach the call (sweeps/ML skip it).
+    "block_darkpool_hedge_enabled": True,
+    "block_dp_window_ms": 3000,        # dark-pool print within +/- this of the block fill
+    "block_dp_min_shares": 50000,      # a single dark-pool print this big = a real block
+    "block_darkpool_hedge_suppress": False,  # False = neutral Hedge card; True = suppress
     # ── Flow bar (2026-10-31) — card DISPLAY only ──────────────────────────
     # Render the directional one-sidedness as a colored ANSI bar (green bull /
     # red bear fill, amber opposing side) on CONFIRMED directional cards. False
@@ -6189,6 +6207,51 @@ def _relabel_unverified(a: dict) -> dict:
     return out
 
 
+def _darkpool_paired_block(a: dict, thr: dict) -> bool:
+    """True if a large dark-pool equity block on the underlying printed within the
+    pairing window of this options BLOCK — i.e. a hedge package, not a directional
+    bet (PINS 2026-11-04: 6000 ATM puts bought @ ask + a 246k-share dark-pool block,
+    151ms apart). One Massive REST equity-trades call; dark pool = a FINRA TRF print
+    (exchange 4/9) at/above block_dp_min_shares. Fail-closed (False) on any gap, so
+    a REST outage just lets the normal directional path run."""
+    ticker = str(a.get("ticker") or "").upper().strip()
+    if not ticker:
+        return False
+    ts = a.get("timestamp") or a.get("last_ts")
+    try:
+        fill_ns = int(float(ts) * 1e9)
+    except (TypeError, ValueError):
+        return False
+    win_ms = float(thr.get("block_dp_window_ms", 3000) or 0)
+    min_sh = float(thr.get("block_dp_min_shares", 50000) or 0)
+    lo = fill_ns - int(win_ms * 1e6)
+    hi = fill_ns + int(win_ms * 1e6)
+    r = _massive_rest(f"/v3/trades/{ticker}",
+                      {"timestamp.gte": lo, "timestamp.lte": hi, "order": "asc", "limit": 500})
+    for t in (r or {}).get("results") or []:
+        try:
+            sz = float(t.get("size") or 0)
+        except (TypeError, ValueError):
+            sz = 0.0
+        is_dp = t.get("exchange") in (4, 9) or (t.get("trf_id") is not None)
+        if is_dp and sz >= min_sh:
+            return True
+    return False
+
+
+def _relabel_dp_hedge(a: dict) -> dict:
+    """COPY with direction stripped, labeled a neutral Hedge Block — a dark-pool-
+    paired block renders as size, not a bull/bear lean. Original feed row untouched."""
+    out = dict(a)
+    out["_direction"] = None
+    out["_directionUnconfirmed"] = True
+    out["_sideUnconfirmed"] = True
+    out["alertName"] = "UCT Size - Hedge Block"
+    out["_tierKey"] = "size"
+    out["_dpHedge"] = True
+    return out
+
+
 def _stamp_flow_split(push_alert: dict, src: dict, flow: dict) -> None:
     """Attach the contract's directional one-sidedness for the card's Flow line:
     dominant vs other directional premium this session + whether the dominant flow
@@ -6623,7 +6686,19 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
                 _thr = _load_thresholds()
                 if _is_dividend_play(a, _thr):
                     continue   # dividend-capture arbitrage — never push
-                if (_thr.get("side_confirm_enabled", True)
+                # Dark-pool-paired BLOCK = a hedge package, not a directional bet
+                # (PINS 2026-11-04). Compute once (it makes one REST call). Takes
+                # precedence over the side-confirm below: whatever the side reads,
+                # a block tied to a coincident dark-pool equity block is not a bet.
+                _dp_hedge = (_thr.get("block_darkpool_hedge_enabled", True)
+                             and a.get("_direction") in ("Bull", "Bear")
+                             and "BLOCK" in (a.get("_type") or "").upper()
+                             and _darkpool_paired_block(a, _thr))
+                if _dp_hedge and _thr.get("block_darkpool_hedge_suppress", False):
+                    continue   # hedge — drop entirely
+                if _dp_hedge:
+                    push_alert = _relabel_dp_hedge(a)   # neutral Hedge Block card
+                elif (_thr.get("side_confirm_enabled", True)
                         and a.get("_direction") in ("Bull", "Bear")
                         and not _side_confirms(a, _thr)):
                     # Side can't be freshly confirmed. Owner directive 2026-11-02:
@@ -7151,6 +7226,8 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "dividend_excl_enabled", "dividend_excl_days", "dividend_extrinsic_buffer",
         "side_confirm_enabled", "side_confirm_max_age_ms", "side_unconfirmed_suppress",
         "side_confirm_use_fill_nbbo", "side_confirm_fill_lookback_ms", "side_confirm_ask_tol",
+        "block_darkpool_hedge_enabled", "block_dp_window_ms", "block_dp_min_shares",
+        "block_darkpool_hedge_suppress",
         "flow_bar_enabled",          # colored ANSI flow bar on directional cards (display only)
     }
     bad_keys = set(body.keys()) - allowed_top
