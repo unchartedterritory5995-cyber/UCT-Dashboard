@@ -1,8 +1,8 @@
 {
-  "master_sha": "993ef96a2af7dd25a006a20573bb3927c6258990",
-  "gate_run_id": "41843698863",
-  "gate_conclusion": "success",
+  "master_sha": null,
+  "gate_run_id": "41849412718",
+  "gate_conclusion": "failure",
   "promoted": "no",
-  "production_head_after": "17108859f90931c145831c41edff45eb76731b8f",
-  "ts": "2026-11-04T14:14:22.935203Z"
+  "production_head_after": null,
+  "ts": "2026-11-04T14:56:02.148885Z"
 }
