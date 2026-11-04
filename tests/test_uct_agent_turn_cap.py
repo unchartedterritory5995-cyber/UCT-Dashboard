@@ -615,8 +615,15 @@ class _PplxResp:
         return self._payload
 
 
+#: the real lookup, captured at collection: tools/agent_eval_ledger.stub_research REPLACES turn._research for the rest of
+#: the process when an eval test runs first
+_REAL_RESEARCH = turn._research
+
+
 @pytest.fixture
 def pplx(monkeypatch):
+    assert not getattr(_REAL_RESEARCH, "_eval_stub", False)
+    monkeypatch.setattr(turn, "_research", _REAL_RESEARCH)
     # the module turn._research will import NOW (sys.modules), not a binding another test file may have purged
     import importlib
     p = importlib.import_module("api.services.perplexity_search")
