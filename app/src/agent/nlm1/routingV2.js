@@ -28,7 +28,7 @@
 
 import { GROUPS, ROUTING_VERSION, groupOfAction, selectGroups, wordsSelect } from '../routing'
 import { manifestFor } from '../capabilities'
-import { buildIndex, lexicalScores, tokens, entityTokens, vocabularyHits, ENTITY_W, RELATED } from './capabilityIndex'
+import { buildIndex, lexicalScores, tokens, stem, entityTokens, tickerWordsOf, vocabularyHits, ENTITY_W, RELATED } from './capabilityIndex'
 
 export const ROUTING_V2_VERSION = 1
 // tuned on the capreg corpus + nlm1 dev paraphrases (never on the held-out set); a frozen object — tests read it
@@ -41,6 +41,7 @@ export const TUNING = Object.freeze({
   CORRECTED_W: 0.5,     // a word only a typo correction produced
   SHORT_WORDS: 6,       // a follow-up this short carries the last change's related groups
   CONTEXT_W: 1.5,       // what being RELATED to the last change adds to a short follow-up's group
+  TICKER_WORDS: 3,      // D1.1: a ticker plus at most this many other content words, nothing else named → charts
 })
 // dev sweeps only (nlm1 tuning script): an override object; production never sets it
 const T = () => (globalThis.__NLM1_TUNING__ ? { ...TUNING, ...globalThis.__NLM1_TUNING__ } : TUNING)
@@ -54,7 +55,9 @@ export function scoreGroups(manifest, message, { correct = null } = {}) {
   let corrected = []
   try { if (typeof correct === 'function') corrected = (correct(raw) || []).map(String).filter(t => t.toLowerCase() !== raw.toLowerCase()) } catch { corrected = [] }
   const index = buildIndex(manifest)
-  const own = tokens(raw)
+  // D1.1: a TICKER is an entity (`symbol`), never a word — "SPY" must not match an indicator whose default symbol is SPY
+  const tick = new Set(tickerWordsOf(raw).map(w => stem(w.toLowerCase())))
+  const own = tokens(raw).filter(t => !tick.has(t))
   const ownSet = new Set(own)
   const weights = new Map()
   const qTokens = [...own]
@@ -73,7 +76,7 @@ export function scoreGroups(manifest, message, { correct = null } = {}) {
     const s = (lex[g] || 0) + k.VOCAB_W * (vocab[g] || 0)
     if (s > 0) scores[g] = s
   }
-  return { scores, vocabulary: [...terms] }
+  return { scores, vocabulary: [...terms], vocab, lex, tickers: tick.size, words: own.length }
 }
 
 /**
@@ -85,7 +88,8 @@ export function selectGroupsV2(message, opts = {}) {
   const k = T()
   const v1 = selectGroups(message, opts)
   const manifest = opts.manifest || defaultManifest()
-  const { scores, vocabulary } = scoreGroups(manifest, message, opts)
+  const sc = scoreGroups(manifest, message, opts)
+  const { scores, vocabulary } = sc
   const known = new Set(GROUPS.map(g => g.id))
   const always = GROUPS.filter(g => g.always).map(g => g.id)
   const followUps = [...new Set([...(opts.pendingActions || []), ...(opts.recentActions || [])].map(groupOfAction).filter(Boolean))]
@@ -96,16 +100,31 @@ export function selectGroupsV2(message, opts = {}) {
   const recent = [...new Set((opts.recentActions || []).map(groupOfAction).filter(Boolean))]
   const related = words <= k.SHORT_WORDS ? new Set(recent.flatMap(g => RELATED[g] || []).filter(g => known.has(g) && !followUps.includes(g))) : new Set()
   for (const g of related) if (scores[g]) scores[g] += k.CONTEXT_W
-  const ranked = Object.entries(scores).filter(([g]) => known.has(g) && !always.includes(g)).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
-  const top = ranked.length ? ranked[0][1] : 0
-  const strong = ranked.filter(([g, s]) => s >= k.STRONG || (s >= k.STRONG_FLOOR && (s >= k.REL_STRONG * top || related.has(g)))).map(([g]) => g)
+  const rank = (sc0) => Object.entries(sc0).filter(([g]) => known.has(g) && !always.includes(g)).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  const lexRanked = rank(scores)
+  const top = lexRanked.length ? lexRanked[0][1] : 0
+  // the BOOST layer made explicit: a group v1's regexes select ranks as if it scored STRONG more (selection below reads
+  // the unboosted scores, so a v1 hit never raises the bar another group must clear)
+  const boosted = { ...scores }
+  if (v1.matched) for (const g of v1.priority) if (known.has(g) && !always.includes(g) && !followUps.includes(g)) boosted[g] = (boosted[g] || 0) + k.STRONG
+  const ranked = rank(boosted)
+  const strong = lexRanked.filter(([g, s]) => s >= k.STRONG || (s >= k.STRONG_FLOOR && (s >= k.REL_STRONG * top || related.has(g)))).map(([g]) => g)
+  // D1.1: a short request LED by a ticker that names nothing else ("ARM", "lemme peek at UBER") is a chart symbol request
+  // — what typing a ticker on the chart does
+  if (!strong.length && sc.tickers > 0 && sc.words <= k.TICKER_WORDS && known.has('charts')) strong.push('charts')
   // an always-on group (agent: "what can you actually do") named by the message recognises it, too
   const alwaysNamed = always.some(g => (scores[g] || 0) >= k.STRONG_FLOOR)
   const v1Own = v1.matched ? v1.priority.filter(id => !always.includes(id) && !followUps.includes(id)) : []
   const matched = v1.matched || strong.length > 0 || alwaysNamed
-  const diag = { scores: Object.fromEntries(ranked.slice(0, 8).map(([g, s]) => [g, Math.round(s * 100) / 100])), ranked, vocabulary, strong, v1: v1.matched ? v1Own : null }
+  // D1.1 (held-out, AUDIT 11-04): v2 recognising a message v1 did not, on evidence short of decisive, is UNCERTAIN — the
+  // page's own controls (charts) stay in its selection, as v1's fallback puts them first
+  const uncertain = !v1.matched && matched && top < k.STRONG
+  // D1.1: ANY undo signal (its words, its vocabulary, its index) offers Undo — add-only, one action (#766's rule)
+  const undoSignal = known.has('undo') && ((sc.vocab.undo || 0) > 0 || (sc.lex.undo || 0) >= k.STRONG_FLOOR || wordsSelect('undo', message))
+  const diag = { scores: Object.fromEntries(ranked.slice(0, 8).map(([g, s]) => [g, Math.round(s * 100) / 100])), ranked, vocabulary, strong,
+    v1: v1.matched ? v1Own : null, v1Matched: v1.matched, v1Soft: v1.soft || [], uncertain, undoSignal }
   if (!matched) return { ...v1, ...diag }
-  const priority = [...new Set([...always, ...followUps, ...v1Own, ...strong])]
+  const priority = [...new Set([...always, ...followUps, ...(uncertain ? ['charts'] : []), ...v1Own, ...strong, ...(undoSignal ? ['undo'] : [])])]
   return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched: true, soft: [], ...diag }
 }
 
@@ -124,24 +143,45 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   const bySize = (a, b) => sizeOf(a) - sizeOf(b)
   const after = (opts.after || []).filter(id => known.has(id))
   // 1. pinned (= v1)
-  const riders = GROUPS.filter(g => g.ridesAlong && wordsSelect(g.id, message)).map(g => g.id)
+  const riders = [...GROUPS.filter(g => g.ridesAlong && wordsSelect(g.id, message)).map(g => g.id), ...(sel.undoSignal ? ['undo'] : [])]
   const pinned = [...new Set([...always, ...riders, ...extra, ...(opts.pendingActions || []), ...(opts.recentActions || [])]
     .map(x => (x.includes?.('.') ? groupOfAction(x) : x)).filter(Boolean))]
-  // 2. own: v1's hits smallest first (exactly v1's order), then the strong scored groups, best first
-  const own = sel.matched ? [...(sel.v1 || []).filter(id => !pinned.includes(id)).sort(bySize), ...sel.strong] : []
+  // 2. own: v1's hits smallest first (exactly v1's order), then the strong scored groups, best first (uncertain: charts first)
+  //    UNCERTAIN (v1 recognised nothing, v2's best is short of decisive): no v2 group is ranked ahead of another on that
+  //    evidence — charts first (as v1's fallback), then EVERY group with any v2 evidence, smallest first (v1's own packing
+  //    principle: the most distinct candidates that fit), then v1's fill (D1.1: weak evidence never buys a big group the
+  //    room v1's fallback gave several)
+  const evidenced = sel.ranked.filter(([, s]) => s > 0).map(([g]) => g).sort(bySize)
+  const own = !sel.matched ? [] : sel.uncertain ? ['charts']
+    : [...(sel.v1 || []).filter(id => !pinned.includes(id)).sort(bySize), ...sel.strong]
   // 4. weak
   const weak = sel.ranked.filter(([, s]) => s >= k.WEAK).map(([g]) => g)
   // 5. context
   const words = String(message || '').trim().split(/\s+/).filter(Boolean).length
   const recentGroups = [...new Set((opts.recentActions || []).map(groupOfAction).filter(Boolean))]
   const context = words <= k.SHORT_WORDS ? recentGroups.flatMap(g => RELATED[g] || []).filter(g => known.has(g)) : []
-  // 6. fill: nothing recognised → v1's own unrecognised order (fillLast groups last)
+  // 6. fill: whenever V1 did not recognise the message (whatever v2 made of it) → v1's own unrecognised order, after v2's
+  //    own groups (D1.1: v2's evidence never costs a message the groups v1's fallback would have sent it)
   const LAST = new Set(GROUPS.filter(g => g.fillLast).map(g => g.id))
   const fillOrder = (a, b) => (LAST.has(a) - LAST.has(b)) || bySize(a, b)
-  const fill = sel.matched ? [] : [...(sel.soft || []), 'charts', ...GROUPS.map(g => g.id).filter(id => id !== 'charts').sort(fillOrder)]
+  const v1Fill = sel.v1Matched === false || !sel.matched
+  const fill = v1Fill ? [...(sel.v1Soft || sel.soft || []), 'charts', ...GROUPS.map(g => g.id).filter(id => id !== 'charts').sort(fillOrder)] : []
 
-  const needed = [...new Set([...pinned, ...own, ...after])]
-  const order = [...new Set([...needed, ...weak, ...context, ...fill])]
+  // 3b. LIKELY (D1.1, context-aware candidate expansion — never an all-tool fallback): what the message's ENTITIES make
+  //     likely, packed right after its own groups — a ticker: its chart, its data, an alert on it; a price: an alert or a
+  //     level; a date: the chart's time controls. Only when v1 did not recognise the message or v2 is uncertain.
+  const ents = new Set(entityTokens(message))
+  const likely = (sel.uncertain || sel.v1Matched === false)
+    ? [...(ents.has('symbol') ? ['charts', 'data', 'alerts'] : []), ...(ents.has('price') ? ['alerts', 'drawings'] : []), ...(ents.has('date') ? ['charts', 'chartSetup'] : [])].filter(g => known.has(g))
+    : []
+  // 3c. CRITICAL (D1.1): whenever v1 would have fallen back, the groups that fallback always carried for the critical
+  //     capabilities — symbol switching (charts), Undo, price alerts, N-chart grids, news / data — stay in the request,
+  //     right after v2's own groups (34 of the 55-action budget): weak evidence can add, never take these away
+  const critical = v1Fill ? ['charts', 'undo', 'alerts', 'chartGrid', 'data'].filter(g => known.has(g)) : []
+  const needed = [...new Set([...pinned, ...own, ...critical, ...likely, ...after])]
+  // v1's fill goes BEFORE v2's weak / context tiers: on an unrecognised-by-v1 message v1's order is the safer one
+  const order = v1Fill ? [...new Set([...needed, ...(sel.uncertain || !sel.matched ? evidenced : []), ...fill, ...weak, ...context])]
+    : [...new Set([...needed, ...weak, ...context])]
   const want = new Set()
   let used = counts.get(null) || 0
   const over = []

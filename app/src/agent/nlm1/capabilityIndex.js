@@ -71,7 +71,36 @@ export function vocabularyHits(text) {
     // several terms naming one group add up (capped at VOCAB_CAP): "find stocks with …" is more screener than "stocks"
     for (const [g, w] of Object.entries(t.groups)) out[g] = Math.min(VOCAB_CAP, (out[g] || 0) + w)
   }
+  // D1.1 TYPO TOLERANCE: a word one edit (or one swap) away from a single-word term of 5+ letters reads as that term,
+  // at FUZZY_W of its weight — "swtich", "chnage", "bolinger", "rsii" — when no term matched the word exactly
+  const words = new Set(q.match(/[a-z]{5,}/g) || [])
+  for (const w of words) {
+    if (singleTerms().has(w)) continue
+    for (const [term, groups] of singleTerms()) {
+      if (Math.abs(term.length - w.length) > 1 || !oneEdit(w, term)) continue
+      matched.push(`~${term}`)
+      for (const [g, wt] of Object.entries(groups)) out[g] = Math.min(VOCAB_CAP, (out[g] || 0) + wt * FUZZY_W)
+      break
+    }
+  }
   return { groups: out, terms: matched }
+}
+export const FUZZY_W = 0.8
+let SINGLE = null
+function singleTerms() {
+  if (!SINGLE) SINGLE = new Map(Object.entries(vocabulary.terms).filter(([t]) => /^[a-z]{5,}\*?$/.test(t)).map(([t, g]) => [t.replace('*', ''), g]))
+  return SINGLE
+}
+/** At most one insertion, deletion, substitution or adjacent swap between a and b. */
+export function oneEdit(a, b) {
+  if (a === b) return true
+  if (a.length === b.length) {
+    const d = [...a].map((c, i) => (c !== b[i] ? i : -1)).filter(i => i >= 0)
+    return d.length === 1 || (d.length === 2 && d[1] === d[0] + 1 && a[d[0]] === b[d[1]] && a[d[1]] === b[d[0]])
+  }
+  const [s, l] = a.length < b.length ? [a, b] : [b, a]
+  for (let i = 0; i < l.length; i++) if (s === l.slice(0, i) + l.slice(i + 1)) return true
+  return false
 }
 
 // ── the index ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -148,7 +177,7 @@ const DATEISH = /\b(?:(?:19|20)\d\d-\d\d-\d\d|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|(?:
 const PRICEISH = /(?:\$\d|\b\d+\.\d{1,2}\b|\b(?:at|to|above|below|under|over|hits?|breaks?|gets? to) \$?\d{2,5}\b)/i
 const COLORISH = /\b(?:red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y|cyan|magenta|lime|gold|navy|maroon)\b/i
 const TFISH = /\b\d+ ?(?:m|min|mins|minute|minutes|h|hr|hour|hours|d|day|w|week)\b/i
-const NOT_TICKER = new Set(['I', 'A', 'UCT', 'ETF', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'ADR', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC', 'OHLC', 'VWAP', 'AVWAP', 'MA', 'MAS', 'VCP', 'EPS', 'COT', 'ADX', 'OBV', 'CCI', 'PE'])
+export const NOT_TICKER = new Set(['I', 'A', 'UCT', 'ETF', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'ADR', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC', 'OHLC', 'VWAP', 'AVWAP', 'MA', 'MAS', 'VCP', 'EPS', 'COT', 'ADX', 'OBV', 'CCI', 'PE'])
 export const ENTITY_W = 0.5
 export function entityTokens(raw) {
   const s = String(raw || '')
@@ -157,8 +186,14 @@ export function entityTokens(raw) {
   if (PRICEISH.test(s)) out.push('price')
   if (COLORISH.test(s)) out.push('color')
   if (TFISH.test(s)) out.push('timeframe')
-  if ((s.match(/(?:^|[\s$(,])([A-Z]{1,5})(?=['’]s\b|[\s,.!?)]|$)/g) || []).map(w => w.trim().replace(/^[$(,]/, '')).some(w => !NOT_TICKER.has(w))) out.push('symbol')
+  if (tickerWordsOf(s).length) out.push('symbol')
   return out
+}
+/** Ticker-shaped words (upper-case, 1–5 letters, not an indicator / market acronym) — none in a SHOUTED message. */
+export function tickerWordsOf(raw) {
+  const s = String(raw || '')
+  if (!/[a-z]/.test(s) && s.trim().split(/\s+/).length >= 3) return []      // "ADD RSI TO THIS CHART" is shouting, not tickers
+  return (s.match(/(?:^|[\s$(,:])\$?([A-Z]{1,5})(?=['’]s\b|[\s,.!?):]|$)/g) || []).map(w => w.trim().replace(/^[$(,:]+/, '').replace(/^\$/, '')).filter(w => !NOT_TICKER.has(w))
 }
 
 /** BM25 of each group for query tokens — `weights` (token → factor, default 1) discounts weak evidence. */
