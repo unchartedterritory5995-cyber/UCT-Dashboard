@@ -1,0 +1,9 @@
+# Code owners. Without branch protection (not available on this plan) this file only REQUESTS a review from the
+# owner; it does not block a merge. Deploy-gate enforcement still comes from the master gate's full Agent run.
+# See docs/agent/REGRESSION-SYSTEM.md section 1 (Baseline lock / CI).
+
+# Agent capability-regression baseline (corpus, golden workflows, backlog, lock) and its decisions log.
+/app/src/agent/qa/capabilityRegression/baseline/ @unchartedterritory5995-cyber
+/app/src/agent/qa/capabilityRegression/baseline/baseline.lock.json @unchartedterritory5995-cyber
+/docs/agent/COMPATIBILITY-DECISIONS.md @unchartedterritory5995-cyber
+/tests/test_uct_agent_capreg_baseline.py @unchartedterritory5995-cyber

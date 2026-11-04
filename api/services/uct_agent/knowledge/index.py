@@ -18,6 +18,7 @@ import os
 import re
 import sqlite3
 import threading
+import unicodedata
 import time
 from typing import Optional
 
@@ -25,7 +26,7 @@ from api.services.uct_agent.knowledge import pack
 
 log = logging.getLogger(__name__)
 ENV_PATH = "UCT_AGENT_KNOWLEDGE_INDEX"
-SCHEMA = 2
+SCHEMA = 5
 _LOCK = threading.Lock()
 FAIL_COOLDOWN_S = 60
 _FAILED: dict = {"at": 0.0, "ts": None}
@@ -60,6 +61,13 @@ def built_info() -> dict:
         return {}
 
 
+def build_id(info: dict):
+    """The identity of one index build (review #751 nit 1): a nanosecond stamp + process id written at build time, so
+    two builds in the same second never compare equal; an index from before SCHEMA 5 falls back to built_at."""
+    info = info or {}
+    return info.get("build_id") or info.get("built_at")
+
+
 def _norm_title(t: str) -> str:
     return re.sub(r"\s+", " ", str(t or "").strip().lower())
 
@@ -86,12 +94,14 @@ def build() -> dict:
             CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT);
             CREATE TABLE docs (kb_id INTEGER PRIMARY KEY, category TEXT, source TEXT, trader TEXT, source_ref TEXT,
                                epoch TEXT, created_at TEXT, updated_at TEXT, regime TEXT, title TEXT, content TEXT,
-                               content_sha TEXT, dup_of INTEGER, setup_templates TEXT);
+                               content_sha TEXT, dup_of INTEGER, setup_templates TEXT,
+                               mention_templates TEXT, definitional_templates TEXT, mention_error INTEGER);
             CREATE VIRTUAL TABLE fts USING fts5(title, content, tags, content='', tokenize='porter unicode61');
         """)
         seen: dict[str, int] = {}
         dups = 0
         alias_to_templates = _template_aliases(src)
+        mention_index = _mention_index(src)
         for r in rows:
             d = dict(r)
             title, content = str(d.get("title") or ""), str(d.get("content") or "")
@@ -103,18 +113,23 @@ def build() -> dict:
             else:
                 seen[sha] = seen[key] = int(d["id"])
             linked = _linked_templates(d, alias_to_templates)
-            dst.execute("INSERT INTO docs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            mentioned, definitional, m_err = _mentions(content, mention_index)
+            dst.execute("INSERT INTO docs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (int(d["id"]), str(d.get("category") or "").upper(), d.get("source") or "",
                          d.get("trader") or "", d.get("source_ref") or "", str(d.get("knowledge_epoch") or ""),
                          d.get("created_at") or "", d.get("updated_at") or "", d.get("regime_context") or "",
-                         title, content, sha, dup_of, "|".join(linked)))
+                         title, content, sha, dup_of, "|".join(linked), "|".join(mentioned), "|".join(definitional),
+                         1 if m_err else 0))
             dst.execute("INSERT INTO fts(rowid, title, content, tags) VALUES (?,?,?,?)",
                         (int(d["id"]), title, content, str(d.get("tags") or "")))
-        meta = {"schema": SCHEMA, "pack_ts": ts, "built_at": int(time.time()), "rows": len(rows), "duplicates": dups}
+        meta = {"schema": SCHEMA, "pack_ts": ts, "built_at": int(time.time()), "rows": len(rows), "duplicates": dups,
+                "build_id": f"{time.time_ns()}-{os.getpid()}"}
         dst.executemany("INSERT INTO meta VALUES (?,?)", [(k, str(v)) for k, v in meta.items()])
         dst.commit()
         dst.close()
         dst = None
+        with open(tmp, "rb+") as fh:                 # review #751 delta 5: durable before it becomes the index
+            os.fsync(fh.fileno())
         os.replace(tmp, target)
         tmp = None
         log.info("[uct-agent knowledge] index built rows=%s duplicates=%s pack_ts=%s", len(rows), dups, ts)
@@ -165,6 +180,135 @@ def _template_aliases(src) -> dict:
     return out
 
 
+# The definitional cue: a template name/alias as a whole term, then one of these words within 80 characters (across
+# sentence ends). Owner decision 2026-11-03 point 3 withheld the reviewed 40-char cue's 71 rows; owner directive
+# 2026-11-04 widens it to the review's looser cue (+122 served rows): an uncertain definition-like row is WITHHELD
+# until a complete provenance + rights-review entry clears it (policy.cleared_rows); a commentary label never admits it.
+# review #751 delta 2: definitional wording AFTER the term (+ refers to / known as / consists of / must / should /
+# called), or BEFORE it ("definition of a X", "we call this a X", "known as X"): either withholds the row.
+DEFINITIONAL_CUE = (r"[\s\S]{0,80}?\b(is|are|means|defined|definition|rules?|entry|stop|criteria|trigger|pivot|"
+                    r"buy point|setup|refers? to|known as|consists? of|must|should|called|characteri[sz]ed by|"
+                    r"forms? when|looks? like|requires?|needs?|wants?)\b")
+DEFINITIONAL_CUE_BEFORE = (r"\b(definition of|defines?|defined|defining|we call (?:this|it|that)|called|known as|"
+                           r"characteri[sz]ed by|criteria for|rules for|forms? when|looks? like|"
+                           r"refers? to|means|what (?:is|are) (?:an?|the))\b[\s\S]{0,40}?")
+MIN_TERM = 3
+# review #751 note 1: a whole term is bounded by NON-word characters (`\b` never fires after a term ending in ")")
+_WB, _WE = r"(?<!\w)", r"(?!\w)"
+_PLURAL = r"(?:e?s)?"
+
+
+def fold(s) -> str:
+    """review #751 delta 1: the one spelling every term and every row is compared in: NFKC (NBSP, full-width forms),
+    case-folded, "&" read as "and", and every run of punctuation / underscores / whitespace collapsed to one space,
+    so "Cup-and-Handle", "cup  and handle", "cup & handle" and "CUP AND HANDLE" are the same text."""
+    s = unicodedata.normalize("NFKC", str(s or "")).casefold().replace("&", " and ")
+    return re.sub(r"[\W_]+", " ", s).strip()
+
+
+def _variants(term: str) -> list:
+    """The folded term and, for a multi-word term, its unspaced form ("cupandhandle"); longest first."""
+    out = [term]
+    squashed = term.replace(" ", "")
+    if " " in term and len(squashed) >= 6:
+        out.append(squashed)
+    return out
+
+
+def _mention_index(src) -> Optional[dict]:
+    """{term: {template names}} for every template name/alias of >= 3 characters (folded: see fold()), plus one
+    combined whole-term regex as a prefilter. Each term also matches its plural and its unspaced form. None when
+    unreadable."""
+    terms: dict = {}
+    try:
+        for r in src.execute("SELECT name, aliases FROM setup_templates"):
+            name = str(r["name"] or "")
+            try:
+                al = json.loads(r["aliases"] or "[]")
+            except ValueError:
+                al = str(r["aliases"] or "").split(",")
+            for t in [name, *(al if isinstance(al, list) else [])]:
+                t = fold(t)
+                if len(t) >= MIN_TERM:
+                    terms.setdefault(t, set()).add(name)
+    except sqlite3.Error:
+        return None
+    if not terms:
+        return {"terms": {}, "any": None, "per": {}}
+    ordered = sorted(terms, key=len, reverse=True)
+    alt = lambda t: "(?:" + "|".join(re.escape(v) for v in _variants(t)) + ")"   # noqa: E731
+    anyre = re.compile(_WB + "(?:" + "|".join(alt(t) for t in ordered) + ")" + _PLURAL + _WE)
+    per = {}
+    for t in ordered:
+        e = _WB + alt(t) + _PLURAL + _WE
+        per[t] = (_variants(t), re.compile(e), re.compile(e + DEFINITIONAL_CUE), re.compile(DEFINITIONAL_CUE_BEFORE + e))
+    return {"terms": terms, "any": anyre, "per": per}
+
+
+def _mentions(content: str, mi: Optional[dict]) -> tuple:
+    """(templates mentioned, templates mentioned with definitional wording, error?) for one row's content, compared
+    in the folded spelling. Each term is tested on its own, so one term can never hide another's match. Any failure
+    is reported as an error (the caller withholds the row: fail closed)."""
+    if mi is None:
+        return [], [], True
+    try:
+        low = fold(content)
+        if not mi["any"] or not mi["any"].search(low):
+            return [], [], False
+        mentioned, definitional = set(), set()
+        for t, (variants, m_re, d_after, d_before) in mi["per"].items():
+            # review #751 perf: only a term present as a substring is scanned (same result, far fewer regex scans)
+            if any(v in low for v in variants) and m_re.search(low):
+                mentioned |= mi["terms"][t]
+                if d_after.search(low) or d_before.search(low):
+                    definitional |= mi["terms"][t]
+        return sorted(mentioned), sorted(definitional), False
+    except Exception:  # noqa: BLE001 — unparseable row: withheld by the caller
+        return [], [], True
+
+
+def mention_rows() -> Optional[list]:
+    """[(kb_id, source, category, mention_templates, definitional_templates, mention_error)] for every row that
+    mentions a template or failed to parse; None when the index cannot be read (the caller fails closed)."""
+    if not os.path.isfile(index_path()):
+        return None
+    try:
+        c = _connect()
+    except sqlite3.Error:
+        return None
+    try:
+        return [tuple(r) for r in c.execute(
+            "SELECT kb_id, source, category, mention_templates, definitional_templates, mention_error FROM docs "
+            "WHERE mention_templates != '' OR mention_error = 1")]
+    except sqlite3.Error:
+        return None
+    finally:
+        c.close()
+
+
+def content_shas(kb_ids) -> Optional[dict]:
+    """{kb_id: content_sha} for these rows (review #751 delta 3: a clearance is bound to the text it cleared);
+    None when the index cannot be read."""
+    ids = sorted({int(k) for k in kb_ids or []})
+    if not ids:
+        return {}
+    try:
+        c = _connect()
+    except sqlite3.Error:
+        return None
+    try:
+        out = {}
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            out.update({int(k): str(s or "") for k, s in c.execute(
+                f"SELECT kb_id, content_sha FROM docs WHERE kb_id IN ({','.join('?' * len(chunk))})", chunk)})
+        return out
+    except sqlite3.Error:
+        return None
+    finally:
+        c.close()
+
+
 def _linked_templates(d: dict, alias_to_templates: dict) -> list:
     """The setup templates a setup_knowledge row describes: its setup id and aliases are the leading tags (the sync
     writes setup id + aliases + family + 'setup_knowledge'); the last two tags are never used for linking."""
@@ -206,21 +350,30 @@ def excluded_by_template(template_admitted) -> list:
     return out
 
 
+REBUILDING = "the knowledge index is being rebuilt; try again shortly"
+
+
 def ensure() -> dict:
-    """The index is current for the installed pack (rebuilt if not). {ok, ...} or {ok: False, reason}."""
+    """The index is current for the installed pack (rebuilt if not). {ok, ...} or {ok: False, reason}.
+    Review #751 (perf): a request never WAITS for another thread's (re)build (a schema change, a pack install): it is
+    answered "being rebuilt" at once, and nothing is served from the old index meanwhile (fail closed)."""
     ts = pack.pack_ts()
     if not ts:
         return {"ok": False, "reason": "no Brain Pack installed"}
     info = built_info()
     if info.get("pack_ts") == str(ts) and info.get("schema") == str(SCHEMA):
         return {"ok": True, **info}
-    with _LOCK:
+    if not _LOCK.acquire(blocking=False):
+        return {"ok": False, "reason": REBUILDING}
+    try:
         info = built_info()
         if info.get("pack_ts") == str(ts) and info.get("schema") == str(SCHEMA):
             return {"ok": True, **info}
         if _FAILED.get("ts") == ts and time.time() - _FAILED["at"] < FAIL_COOLDOWN_S:   # a NEW pack is tried at once
-            return {"ok": False, "reason": "the knowledge index is being rebuilt; try again shortly"}
+            return {"ok": False, "reason": REBUILDING}
         return build()
+    finally:
+        _LOCK.release()
 
 
 def on_pack_install() -> None:
