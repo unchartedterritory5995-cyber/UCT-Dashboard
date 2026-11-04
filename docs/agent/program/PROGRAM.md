@@ -151,3 +151,18 @@ AUDIT is the integrator for PR #735 (agent/kn/knowledge-poc, Trading Brain knowl
 3. Brain activation: HOLD until (a) third-party setup commentary excluded unless independently established as original, authorized team-owned analysis; (b) Brain/ledger maintainer confirms calculation dates reflect data freshness, not import time; (c) transcript retention, provider handling and account-deletion behavior verified and separately approved. No blanket third-party source authorization.
 4. Wave 3 coach: HOLD — finish full suites + independent re-review; no merge/activation until its release package is approved.
 5. Continue Wave 2 and Wave 3 on integration branches. Keep the $0.25 per-turn cap, daily budget, admin-only, canonical Indicators/Wisdom boundaries, security restrictions. No paid evals, planner v2, or production model-routing change without separate approval.
+
+## Owner decision: Brain response handling before activation (2026-11-03, late)
+APPROVED: fix the Brain response handling before activation. The current planner must not present setup definitions or methodology generated before reading the approved knowledge source. Smallest safe shared-Agent fix:
+(1) suppress unsupported pre-retrieval wording for Brain lookups;
+(2) present only authorized, grounded knowledge content and citations when v1 can't safely generate a post-retrieval response;
+(3) clearly state when no approved definition or evidence exists;
+(4) preserve v2's retrieve-first behaviour;
+(5) never expose restricted passages, proprietary statistics or unapproved sources;
+(6) regression suites plus independent review for the shared-file change.
+The goal is no fabricated UCT methodology, without permanently reducing the Agent to raw excerpts.
+Both Brain production settings stay OFF (UCT_AGENT_KNOWLEDGE unset; knowledge kinds not in UCT_AGENT_DATA_KINDS).
+#751: finish independent review, bring it up to date with master, rerun full suites, then request a merge decision.
+Confirm the deployed master commit and both disabled Brain settings in production.
+Continue Wave 2/3; this follow-up must not block unrelated validated releases.
+No Brain activation and no new retention behaviour is authorized.
