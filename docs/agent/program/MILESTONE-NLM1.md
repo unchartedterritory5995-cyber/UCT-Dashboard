@@ -241,7 +241,6 @@ AUDIT's tally (no texts shared): the sealed passes used `created-ref`; followup-
 | `it-is-named-chart` | `followups.js` |
 | `multi-ticker-create` | `followups.js` |
 | `ordinal-of-created`, and the whole `nlm1:ordinal` path (main and `runCompound`) | `followupOps.rescopeOrdinal` |
-| `remove-on-charts` | `followupOps.js` |
 | `same-for-ticker` (as a follow-up of its own) | `followups.js` |
 | `same-on-new-chart` | `followups.js` |
 | `style-last-added` | `followupOps.js` |
@@ -277,7 +276,7 @@ Results (my 114 cases; final state plus Undo, no model; every run's flag and key
 | Flag ON, in-plan key OFF (as it would ship; after the second gating batch) | 34 | 13 | 16 | 9 | **72/114** (first batch only: 77) |
 | Flag OFF | 23 | 3 | 2 | 4 | 32/114 |
 
-By category with the key OFF: robustness B (cross-turn) 11/12 (R-B5b needs remove-on-charts), C 2/2, A 3/8. My shape set drops to 9/29: exactly the never-taken in-plan rules. Flag-off regression 3083/3083 (+ the gate tests); D1 gates and metrics unchanged. AUDIT's sealed confirmation with the key OFF is pending (prediction: B 19/19, A 9/16 or close).
+By category with the key OFF: robustness B (cross-turn) 11/12 before AUDIT ungated `remove-on-charts` (R-B5b needed it; 12/12 + R-B5c after, see above), C 2/2, A 3/8. My shape set drops to 9/29: exactly the never-taken in-plan rules. Flag-off regression 3083/3083 (+ the gate tests); D1 gates and metrics unchanged. AUDIT's sealed confirmation with the key OFF is pending (prediction: B 19/19, A 9/16 or close).
 
 Recorded gaps (capreg `gapIt`: each must fail exactly as recorded, so a fix is noticed):
 - **NLM1-G1** (D2-13, G-a3): after the new chart's later changes are undone exactly, the creation's own Undo is refused ("Workspace has changed since I made that change"). The new chart's stored settings aren't byte-identical after those undos, so the workspace fingerprint no longer matches. Same with the flag off. Runtime exact-undo area (#771), reported to AUDIT.
