@@ -109,18 +109,18 @@ production's kinds):
 
 | protection | covered / applicable | meaning |
 |---|---|---|
-| nl | 40 / 154 | a phrasing reaches it with no gap at (b) or (c) |
-| routing | 41 / 154 | the production routed request carries it, and it is not cut by the budget |
-| args | 41 / 154 | a canonical op passes shapeError |
-| execution | 39 / 154 | it runs through the real panel with its canonical API asserted |
-| receipt | 34 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
+| nl | 57 / 154 | a phrasing reaches it with no gap at (b) or (c) |
+| routing | 57 / 154 | the production routed request carries it, and it is not cut by the budget |
+| args | 57 / 154 | a canonical op passes shapeError |
+| execution | 56 / 154 | it runs through the real panel with its canonical API asserted |
+| receipt | 47 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
 | refusal | 8 / 154 | a refusal / must-not-change case |
-| permission | 130 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
-| undo | 17 / 95 | undo-exact capabilities with a restore assertion |
-| multiStep | 9 / 154 | inside a multi-op plan or a multi-step workflow |
-| phrasings | 39 / 154 | ≥ 3 gap-free phrasings |
+| permission | 133 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
+| undo | 28 / 95 | undo-exact capabilities with a restore assertion |
+| multiStep | 16 / 154 | inside a multi-op plan or a multi-step workflow |
+| phrasings | 55 / 154 | ≥ 3 gap-free phrasings |
 
-43 of 154 capabilities have a behavioural regression case (22 at PR open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists). The other 111 are in the backlog. Their contract is
+58 of 154 capabilities have a behavioural regression case (22 at #769's open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists; batches D1 to D6 on #774 added indicator alerts, drawings, chart tabs, chart look, definitions and the indicator draft flow). The other 96 are in the backlog. Their contract is
 pinned, but nothing tests their language or execution yet. That backlog is the honest size of the "silent loss"
 exposure.
 
@@ -159,6 +159,11 @@ exposure.
 | CG-14 | a | "get rid of the AMD chart": "get rid of" is not a workspace verb, so widget.remove is not sent. | nlfix |
 | CG-15 | b + c | **Wrong execution:** "trade places with the left and right charts" is claimed by the quote fast reader as a quote for PLACES / LEFT / CHARTS. | agent-md (marketDataQuote.js) |
 | CG-16 | a | "give me new charts for AAPL and MSFT" routes chartGrid but not widget.addCharts. The owner should rule which one is canonical. | nlfix |
+| CG-17 | c | MA-cross alert on four default charts (EMA 9/20 under the same ids on every chart) is refused "say which chart", although the member named the NVDA chart; no chart-qualified id exists. AUDIT live defect. | nlfix |
+| CG-18 to CG-21 | collision | Additive routing collisions, which only spend request budget: "momentum" in a screen name pulls in indicators; "50 day" in a breadth question pulls in indicators; a layout named "Swing" pulls in charts; "news widget" pulls in data. | nlfix |
+| CG-22 | b + c | **Wrong execution:** "move the 200 line up to 210" is claimed by the quote fast reader as a quote for LINE. | agent-md |
+| CG-23 | b + c | **Wrong execution:** "make the up candles blue and the down candles orange" and "blue up candles, orange down candles" are claimed as quotes. | agent-md |
+| CG-24 | a | "are there any volatility indicators" does not route definition.search. | nlfix |
 
 Observations that are not marked as gaps because they need an owner ruling:
 
