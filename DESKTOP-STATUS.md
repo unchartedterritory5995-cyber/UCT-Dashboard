@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 01:20 CT
+updated: 2026-11-04 01:25 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -30,6 +30,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
    - heavy-mp2.lock: measure-pair on the NEW base pine-dsk-mpbase2 (detached d8d4f0937d, node_modules junctioned to pine-base); first user W3
    - heavy-final2.lock and heavy-final3.lock: final-tip and other single-worktree jobs (W4-T3 r1, W5-T1, W4-T0 job.sh on lane 2; W5-T3, W3 final, W5-T6, W2 r3 on lane 3)
    - heavy-mut.lock (added 00:25 CT, owner: "ramp it up a little"): mutation runs, which touch only the builder's own worktree (W4-T14, W5-T6). The default lock is shared with other projects on this PC (it was held by "stylekit daily").
+   01:21 CT: RAM dipped to 7570 MB with 4 heavy jobs (recovered to 9.5 GB within minutes). Policy now: no NEW lane starts below 8 GB; the watch alerts below 6 GB (owner's PC-load floor), when running jobs would be paused. Also: never two heavy jobs at once in ONE worktree (measure-pair copies zzMP*.measure tests into the tip worktree and vitest does not exclude them); W4-T14 told to re-check its overlapping final-tip.
    At most 5 heavy jobs at once (24 cores; final-tip vitest uses --maxWorkers=2; ~16 GB RAM free with 2 running). Any non-baseline failure from a parallel run is re-run alone before it counts as new. Each EVIDENCE.md names its lanes. The RAM/disk watch (8 GB / 20 GB) still stops new lanes.
 7. Builder cap raised from 6 to 9 by the owner's instruction (max 2 Opus: W3, W5-T6). The coordinator's ruling a48cbe455f said 6; the owner outranks it.
 8. Clock note: block times are local CT and correct. An earlier note here called them wrong; that was my mistake (the health log prints UTC under Git Bash). Withdrawn.
