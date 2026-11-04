@@ -175,6 +175,35 @@ Admitted corpus on the real snapshot: 0 passages under 200 characters, 0 remaini
 0 guard false positives. Retrieval: 38/40 realistic questions answered relevantly, P@3 0.89, p95 < 20 ms. Further
 filtering or ranking work would add complexity without a measurable gain; embeddings stay out (no external calls).
 
+## Brain response handling (branch agent/kn/grounded-reply, owner-approved 2026-11-03, before activation)
+- Planner v1 writes `reply` before anything is read. A v1 plan holding ANY `playbook.*` op (decided by action name,
+  knowledge.frame.is_knowledge_action) never serves that reply (turn.sanitize_envelope); UCT's cited card is the answer.
+- Mixed write + playbook plan (decision): the reply is dropped too. Free text cannot be checked for a definition the
+  knowledge base never gave; the write's receipt confirms the change and the card gives the knowledge.
+- A v1 knowledge plan is never researched in the same turn; the fixed sentence turn.KNOWLEDGE_NO_WEB says so.
+- Cards (capabilities/knowledge.js): fixed leads "From UCT's knowledge base (...)" / "From UCT's playbook - <template>:",
+  a citation per passage (UCT KB #id, source, trader, date) or per template, and the pack + source-policy version.
+  Nothing approved: "No approved UCT source covers this" / "UCT has no approved playbook definition for <X>" /
+  "UCT has no approved evidence for <X>" (X echoed only when it is a short plain name). Server caps, N3, the stats
+  gate and the withheld rules are unchanged.
+- Planner v2 (reads, then answers from the framed result) is unchanged and never passes the v1 gate (tested).
+- Flags unchanged: UCT_AGENT_KNOWLEDGE unset; no knowledge kind in UCT_AGENT_DATA_KINDS.
+- Review #768 (2026-11-04), knowledge first (turn.knowledge_first, only while a playbook.* capability is offered):
+  a TALK disposition (answer/clarify) holding a knowledge op becomes an apply of those knowledge ops only (also in the
+  gate itself); a message that is a playbook question (knowledge.frame.wants_knowledge = the browser's PLAYBOOK_WORDS,
+  tested equal) never streams the reply; its answer without a knowledge op becomes UCT's playbook.explain read of the
+  member's question (no extra model call), or KNOWLEDGE_NOT_RETRIEVED if that read is not offered; a change + playbook
+  question keeps the change and adds the read; a clarify keeps its choices, never its model-written text. A local-only
+  lookup's notice still replaces KNOWLEDGE_NO_WEB (tested). Flag off: unchanged (tested, streaming included).
+- Review #768 delta (2026-11-04) and OWNER DIRECTIVE: v1's gates are DEFENCE IN DEPTH, not the guarantee. A word list
+  (or a scan of the model's answer) cannot enforce "playbook definitions only from approved retrieval": the reviewer's
+  phrasings ("what's a VCP?", "tell me about cup and handle") pass it. Brain stays OFF until a retrieval-first evidence
+  step exists: design docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md (owner decisions pending). Kept here, low risk:
+  the server's words match across line breaks (re.S); while a knowledge capability is offered an answer never streams;
+  a knowledge-turn clarify keeps only short plain choices (none left = the read); a message about a specific stock or
+  chart is not a knowledge turn; a proposal never gets a read added (its reply is dropped); flag off, a talk reply with
+  a stray playbook.* op is served exactly as before (the gate checks cap_names).
+
 ## Blocked / needs the owner
 - Admitting `self_review`, `manual`, `chart_intake:*` or any `intake:*` source (policy.json is the switch; default-deny until the owner rules).
 - Activation: `UCT_AGENT_KNOWLEDGE=1` and the three kinds in `UCT_AGENT_DATA_KINDS` — owner only, after merge.
