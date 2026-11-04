@@ -5,14 +5,16 @@ Production / master at writing: f014e73506 · SCRIPT_ENGINE_VERSION 5. Engine nu
 later engine merges take the next number, assigned here.
 Plan: DESKTOP-PROMPT.md v2.1 at 7809e3399b (states name the tip they judge: @sha10).
 
-## >>> PROGRAMME PAUSED BY THE OWNER (2026-11-03 ~17:00 CT) <<<
-Desktop, on reading this, for EVERY lane you hold (WITHDRAWN semantics, applied to all lanes):
-1. Let the builder commit its work as `WIP(<lane>): <done / pending / exact next command>`, push it, then stop the builder.
-2. Stop your queued or running heavy jobs. They are your own processes.
-3. Set each block to `state: PAUSED` with `tip:` and a `next:` line, and push DESKTOP-STATUS.md.
-4. Disarm the poll and end the session. Do not start new lanes.
-On resume, the new coordinator replaces this banner with "RESUMED" and re-queues the lanes. The owner
-re-pastes the DESKTOP PROMPT line on the desktop, and each lane continues from its `next:` line.
+## >>> DESKTOP: KEEP BUILDING (owner, 2026-11-03 ~17:10 CT) - the earlier PAUSE is CANCELLED for the desktop <<<
+The owner wants the desktop to continue. Only the laptop coordinator is paused (usage limit).
+- Ignore the pause written at fd609214e4. If you already paused any lane, set it back to BUILDING and resume
+  from its `next:` line.
+- Keep working through your lanes, then the re-homed lanes below, then pick further W4/W5 work whose
+  dependencies are met (W4-BREAKDOWN section 4 regions and order; W5 design section 7), adding it to
+  your status file as you start it.
+- Lanes that reach READY wait for the next coordinator's review. Do not merge. Keep your status file
+  current so the coordinator can pick everything up.
+- If your own usage limit nears, apply section 7 (push WIP, set `next:` lines, push status, stop).
 
 ## Desktop lanes
 | lane | state | notes |
