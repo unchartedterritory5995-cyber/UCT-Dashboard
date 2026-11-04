@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 04:20 CT
+updated: 2026-11-04 04:35 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -184,9 +184,14 @@ merge-order note: T7 and T8 are both stacked on T6 and both may touch server.mjs
 desktop check: PASS (scope = new service files + minimal T6/T1 wiring + rail list + evidence; cc76515bb6..5e6c63e24e is EVIDENCE only; local == origin; worktree clean)
 
 ## W5-T8 (picked per 063fe2ba8e: needs T6, READY; stacked on T6)
-state: BUILDING   round: r0   updated: 2026-11-04 01:45 CT
-branch: feat/pine-w5-t8-cache   base: W5-T6 tip 94b46f55b1   worktree: pine-dsk-w5t8   model: Sonnet
-next: caches per SERVER-RUNTIME-DESIGN P1 T8 (services/pine_runtime/cache.mjs)
+state: READY            round: r0            updated: 2026-11-04 04:35 CT
+branch: feat/pine-w5-t8-cache   tip: 51e62a3c22 (EVIDENCE over code tip 8de4c015d5)   base: W5-T6 tip 94b46f55b1 (STACK: T1 -> T6 -> T8)   tested on master: 5d95103c8a
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t8/EVIDENCE.md + muts.json, mutate_node.py, redbase.py
+report: New services/pine_runtime/cache.mjs + test/cache.test.mjs only; no T6 or T7 file touched (T7 has to wire the caches in). DocCache: 2000 docs / 256 MB LRU; put recomputes sha256 over the text's UTF-8 bytes and refuses a mismatch with 422 runtime:server-integrity. ResultCache: 512 MB LRU; resultKey(request, job) hashes length-prefixed fields: the 5 engine fields, doc_sha256, canonical ctx (inputs sorted and typed), bars.sha256, sorted want, profile, PLUS symbol.ticker, symbol.exchange and tf. cacheable() never stores runtime:time-budget, any runtime:server-*, a crashed or timed-out result, a status other than ok/withheld, or a withheld result naming no guard. Rails: node 43/43 (T6's 33 + 10 new); red on base (cache.mjs absent -> ERR_MODULE_NOT_FOUND, all 10 red), green on tip 10/10. Mutations (heavy-mut): 28/29 killed, the survivor is the comment-only control; round-1 real survivors key:want-dropped and key:no-length-prefix got rails (same-count want lists, field-boundary shifts) and are killed. final-tip (heavy-final2, 41.9 min): gate pytest 46, hygiene clean, vitest 1 failed | 1334 passed | 27 skipped (Tests 1 failed | 22366 passed) = pollingSites.rail baseline.
+deviation, desktop ACCEPTS it (the coordinator can overrule): the key adds symbol.ticker, symbol.exchange and tf beyond the design row. Scripts read syminfo/timeframe, so this can only lower the hit rate, never serve a wrong value.
+open: T7 must call resultKey/cacheable and DocCache around its runner (the result-shape check assumes status and guard strings; T7 owns the real reply shape; T7's rule "never cache any pool-made stop" matches cacheable()). A first git push printed an error and the retry succeeded (local == origin).
+desktop check: PASS (scope = 2 new service files + evidence; 8de4c015d5..51e62a3c22 is EVIDENCE only; local == origin; worktree clean)
 
 ## W4-T15 (picked per 063fe2ba8e: "after T0's re-count", which is READY at 127a0f1e3c)
 state: BUILDING   round: r0   updated: 2026-11-04 03:45 CT
