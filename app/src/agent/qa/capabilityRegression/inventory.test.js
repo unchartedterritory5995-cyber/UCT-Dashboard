@@ -16,6 +16,10 @@ import { coverageJson, coverageMd } from './testing/report'
 import { corpus, golden } from './testing/corpus'
 import backlog from './baseline/regressionEntries.json'
 import { parseDecisions, decidedFor, digest } from './testing/decisions'
+import { pinClock, CLOCK, CLOCKS } from './testing/clock'
+import clockExpectations from './baseline/clockExpectations.json'
+
+pinClock()                   // one fixed instant (testing/clock.js): the market clock never depends on when CI runs
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 const ROOT = path.resolve(HERE, '..', '..', '..', '..', '..')
@@ -142,4 +146,21 @@ describe('7 · decisions bind one change (review #769): fenced examples, missing
     ['no date', ok.replace('- Date: 2026-11-04\n', '')],
     ['bound to another change', ok.replace(b, `${'2'.repeat(16)}->removed`)],
   ])('%s does not count', (_w, text) => { expect(decidedFor(parseDecisions(text), 'CAP:x.y', b)).toBe(false) })
+})
+
+describe('8 · the suite never reads the wall clock (2026-11-04: the gate went red at the 09:30 ET open)', () => {
+  it('every capreg test file pins Date (testing/clock.js pinClock)', () => {
+    const files = fs.readdirSync(HERE).filter(f => /\.test\.jsx?$/.test(f))
+    expect(files.length).toBeGreaterThan(5)
+    for (const f of files) expect(fs.readFileSync(path.join(HERE, f), 'utf8'), `${f} calls pinClock()`).toMatch(/\npinClock\(\)/)
+  })
+  it('Date is the pinned instant here (it advances from it, never from the wall clock)', () => {
+    expect(Math.abs(Date.now() - Date.parse(CLOCKS[CLOCK]))).toBeLessThan(30 * 60 * 1000)
+  })
+  it('a clock-specific expectation names a known instant and an intent that exists', () => {
+    for (const [id, by] of Object.entries(clockExpectations.intents)) {
+      expect(corpus.intents.map(i => i.id), id).toContain(id)
+      for (const [clk, e] of Object.entries(by)) { expect(Object.keys(CLOCKS), `${id}@${clk}`).toContain(clk); expect(e.why, `${id}@${clk} says why`).toBeTruthy() }
+    }
+  })
 })
