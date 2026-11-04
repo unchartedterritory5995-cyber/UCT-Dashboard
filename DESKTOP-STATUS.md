@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 14:37 CT
+updated: 2026-11-04 15:11 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -345,7 +345,7 @@ branch: feat/pine-w5-t16-rule-record   base: W5-T11 86218da704 + local merge of 
 locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
 
 ## W5-T18 editor status (optional in the design; needs T17, READY)
-state: QUEUED (free RAM 8.5 GB at 2026-11-04 14:37, at the start floor; starts when RAM recovers or a builder finishes)
+state: BUILDING   round: r0   updated: 2026-11-04 15:11 CT (free RAM back to 9.4 GB)
 branch: feat/pine-w5-t18-editor-status   base: W5-T17 f777d2c427 (STACK)   model: Sonnet
 locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final2.lock
 
