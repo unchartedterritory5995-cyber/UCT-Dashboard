@@ -81,18 +81,65 @@ function plotsForInstance(catalog, inst) {
 const plotLabel = (p) => p.label || p.value
 const condLabel = (p, c) => (p.conditions || []).find(x => x.value === c)?.label || c
 
-/** The instance named by `instance` across the board's charts: { inst, chart } (the first chart), or null. */
+// ── LT-13 (live 2026-11-03): a HUMAN reference to an indicator on the chart ─────────────────────────────
+// "mark when the 9 ema crosses above the 20" → the model sent instance "EMA 9" (the name the indicators entry shows)
+// instead of its id, and create refused although EMA 9 was on the chart. An `instance` that is no id on any chart is
+// read as a reference to the chart's OWN instances, deterministically: its words and its first number against each
+// instance's name ("EMA 9", "RSI (7)") — "EMA 9", "9 ema", "ema9", "the 20". Exactly ONE instance must match;
+// several is an explicit question, none is the existing refusal. Nothing else about the alert changes: the id it
+// resolves to is the instance's own, so the payload is the one the id would have produced.
+const REF_STOP = new Set(['the', 'a', 'an', 'my', 'line', 'indicator', 'on', 'this', 'chart', 'period'])
+function refParts(text) {
+  const toks = String(text || '').toLowerCase().match(/[a-z]+|\d+(?:\.\d+)?/g) || []
+  const words = toks.filter(t => /^[a-z]/.test(t) && !REF_STOP.has(t))
+  const num = toks.find(t => /^\d/.test(t))
+  return { words, num: num == null ? null : Number(num) }
+}
+function refMatches(ref, inst) {
+  if (inst.setting) return false                        // Volume is a chart setting, never an alertable instance
+  const own = refParts(inst.name)
+  const num = inst.defId === 'movingAverage' && Number.isFinite(Number(inst.inputs?.period)) ? Number(inst.inputs.period) : own.num
+  if (!ref.words.length && ref.num == null) return false
+  if (ref.num != null && num !== ref.num) return false
+  // every word of the reference, in order, starts the instance's own words ("bollinger" → "Bollinger Bands")
+  return ref.words.every((w, i) => own.words[i] === w)
+}
+/** The single instance a human reference names across the board's charts: hits [{ inst, chart }], [] when none. */
+function resolveInstanceRef(charts, text) {
+  const ref = refParts(text)
+  const exact = String(text || '').trim().toLowerCase()
+  const hits = [], named = []
+  for (const c of charts) {
+    const insts = indicatorsOn(c.cs).filter(i => !i.setting)
+    // an exact (case-insensitive) name wins over the word/number reading on that chart
+    const byName = insts.filter(i => String(i.name || '').toLowerCase() === exact)
+    for (const inst of (byName.length ? byName : insts.filter(i => refMatches(ref, i)))) hits.push({ inst, chart: c })
+  }
+  for (const h of hits) if (!named.includes(h.inst.name)) named.push(h.inst.name)
+  return { hits, named }
+}
+
+/** The instance named by `instance` (its id, or LT-13 a human reference to it) across the board's charts:
+ * { inst, chart } (the first chart), { ambiguous } (several charts), { ambiguousRef } (several instances), or null. */
 function findInstance(host, instanceId) {
   const id = String(instanceId || '')
   if (!id) return null
   let charts = []
   try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
-  const hits = []
+  let hits = []
   for (const c of charts) {
     const inst = indicatorsOn(c.cs).find(i => i.instanceId === id)
     if (inst) hits.push({ inst, chart: c })
   }
-  if (!hits.length) return null
+  if (!hits.length) {
+    const r = resolveInstanceRef(charts, id)
+    if (!r.hits.length) return null
+    // two different instances on ONE chart (EMA 20 and SMA 20 for "the 20"), or two differently named ones: ask
+    const perChart = new Map()
+    for (const h of r.hits) perChart.set(h.chart, (perChart.get(h.chart) || 0) + 1)
+    if (r.named.length > 1 || [...perChart.values()].some(n => n > 1)) return { ambiguousRef: r.named }
+    hits = r.hits
+  }
   // the same instance id on two charts with different symbols is two different alerts: ask
   if (new Set(hits.map(h => `${h.chart.symbol}|${h.chart.tf}`)).size > 1) return { ambiguous: hits }
   return hits[0]
@@ -264,6 +311,7 @@ export function registerIndicatorAlertCapabilities() {
     check(st, { instance, plot, condition, threshold }, env) {
       const found = findInstance(hostRef, instance)
       if (!found) return `There's no indicator “${instance}” on your charts — use an id from the indicators entry, or add the indicator to a chart first.`
+      if (found.ambiguousRef) return `“${instance}” could be ${found.ambiguousRef.length > 1 ? found.ambiguousRef.join(' or ') : `more than one ${found.ambiguousRef[0]}`} on your chart — say which indicator the alert is for.`
       if (found.ambiguous) return `That indicator is on ${found.ambiguous.length} charts with different symbols — say which chart the alert is for.`
       if (!env?.iaCatalog) return 'I couldn\'t read which indicator alerts UCT offers right now, so nothing was created — try again in a moment.'
       if (!env?.iaBookFresh) return 'I couldn\'t read your indicator alerts just now, so nothing was created — try again in a moment.'
