@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CAPREG = ROOT / "app" / "src" / "agent" / "qa" / "capabilityRegression"
 CORPUS = CAPREG / "baseline" / "corpus.json"
 GOLDEN = CAPREG / "baseline" / "goldenWorkflows.json"
+COLLISIONS = CAPREG / "baseline" / "routingCollisions.json"
 LOCK = CAPREG / "baseline" / "baseline.lock.json"
 DECISIONS = ROOT / "docs" / "agent" / "COMPATIBILITY-DECISIONS.md"
 AGENT_CI = ROOT / ".github" / "workflows" / "agent-ci.yml"
@@ -49,7 +50,7 @@ def _phrasings(intent):
 
 def fingerprint(corpus: dict, golden: dict) -> dict:
     """The lock's view of the data: per entry, a digest of its ASSERTIONS and the gaps it carries."""
-    out = {"intents": {}, "refusals": {}, "workflows": {}}
+    out = {"intents": {}, "refusals": {}, "workflows": {}, "collisions": {}}
     for it in corpus["intents"]:
         body = {k: v for k, v in it.items() if k not in NOTE_KEYS and k != "phrasings"}
         phr = {}
@@ -63,6 +64,10 @@ def fingerprint(corpus: dict, golden: dict) -> dict:
         out["refusals"][r["id"]] = {"digest": _digest({k: v for k, v in r.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(r.get("gap")), "mode": (r.get("gap") or {}).get("mode")}
     for w in golden["workflows"]:
         out["workflows"][w["id"]] = {"digest": _digest({k: v for k, v in w.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(w.get("gap")), "mode": (w.get("gap") or {}).get("mode")}
+    # the routing-collision table (capreg-2): a row is keyed by its phrasing
+    for r in (_load(COLLISIONS)["rows"] if COLLISIONS.exists() else []):
+        out["collisions"][r["text"]] = {"digest": _digest({k: v for k, v in r.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(r.get("gap")),
+                                        "mode": (r.get("gap") or {}).get("mode")}
     return out
 
 
@@ -107,7 +112,7 @@ def decided_keys(text: str) -> set[str]:
 
 
 def _entry(fp: dict, eid: str):
-    for kind in ("intents", "refusals", "workflows"):
+    for kind in ("intents", "refusals", "workflows", "collisions"):
         if eid in fp.get(kind, {}):
             return fp[kind][eid]
     return None
@@ -136,6 +141,17 @@ def _git(*args: str):
         return None
 
 
+#: files whose presence at the merge base proves master HAS the capreg suite (this rail, and every corpus / lock path the
+#: suite has used — `data/` until 2026-11-04, then `baseline/`). Add a path here when the baseline moves.
+SUITE_MARKERS = (
+    "tests/test_uct_agent_capreg_baseline.py",
+    "app/src/agent/qa/capabilityRegression/baseline/corpus.json",
+    "app/src/agent/qa/capabilityRegression/baseline/baseline.lock.json",
+    "app/src/agent/qa/capabilityRegression/data/corpus.json",
+    "app/src/agent/qa/capabilityRegression/data/baseline.lock.json",
+)
+
+
 def base_lock(git=None):
     """The lock at the merge base with origin/master: (lock | None, reason).
     reason: ok | no-ref (origin/master unresolvable) | absent (master has no capreg suite yet) |
@@ -146,8 +162,10 @@ def base_lock(git=None):
         return None, "no-ref"
     text = git("show", f"{mb}:{LOCK.relative_to(ROOT).as_posix()}")
     if text is None:
-        corpus_there = git("show", f"{mb}:{CORPUS.relative_to(ROOT).as_posix()}")
-        return None, ("lock-missing" if corpus_there is not None else "absent")
+        # "absent" only when master has NO trace of the suite: this rail's own file, or the corpus / lock at any path the
+        # suite has ever used. A renamed baseline folder can then never pass itself off as "not on master yet".
+        there = any(git("show", f"{mb}:{path}") is not None for path in SUITE_MARKERS)
+        return None, ("lock-missing" if there else "absent")
     return json.loads(text), "ok"
 
 
@@ -214,8 +232,8 @@ def violations(lock: dict, now: dict) -> list[tuple[str, str]]:
             changed = sorted(lvl for lvl in set(c["gaps"]) & set(p["gaps"]) if (c.get("modes") or {}).get(lvl) != (p.get("modes") or {}).get(lvl))
             if changed:
                 v.append((iid, f'phrasing "{text}": the recorded failure mode of its gap changed at level(s) {changed}'))
-    for kind in ("refusals", "workflows"):
-        for wid, was in lock[kind].items():
+    for kind in ("refusals", "workflows", "collisions"):
+        for wid, was in lock.get(kind, {}).items():
             cur = now[kind].get(wid)
             if cur is None:
                 v.append((wid, f"{kind[:-1]} removed"))
@@ -232,7 +250,7 @@ def violations(lock: dict, now: dict) -> list[tuple[str, str]]:
 def unlocked(lock: dict, now: dict) -> list[str]:
     out = [i for i in now["intents"] if i not in lock["intents"]]
     out += [f"{i}: \"{t}\"" for i, e in now["intents"].items() if i in lock["intents"] for t in e["phrasings"] if t not in lock["intents"][i]["phrasings"]]
-    out += [w for k in ("refusals", "workflows") for w in now[k] if w not in lock[k]]
+    out += [w for k in ("refusals", "workflows", "collisions") for w in now[k] if w not in lock.get(k, {})]
     return out
 
 
@@ -273,6 +291,10 @@ def test_merge_base_check_never_blocks_the_master_gate():
                               ("y" if a[0] == "rev-parse" else ("{}" if a[1].endswith("corpus.json") else None))))
     ok, msg = merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, corpus_only)
     assert ok is False and "moved or renamed lock" in msg
+    rail_only = lambda *a: ("mb1\n" if a[0] == "merge-base" else ("x" if a == ("rev-parse", "HEAD") else ("y" if a[0] == "rev-parse" else
+                            ("pass" if a[1].endswith("tests/test_uct_agent_capreg_baseline.py") else None))))
+    ok, msg = merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, rail_only)
+    assert ok is False and "moved or renamed lock" in msg          # the folder renamed away: the rail file betrays the suite
     neither = lambda *a: ("mb1\n" if a[0] == "merge-base" else ("x" if a == ("rev-parse", "HEAD") else ("y" if a[0] == "rev-parse" else None)))
     assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, neither)[0] is True
 
@@ -290,7 +312,7 @@ def test_every_entry_is_locked():
 def test_every_known_gap_names_id_reason_owner():
     corpus, golden = _load(CORPUS), _load(GOLDEN)
     gaps = [g for it in corpus["intents"] for p in _phrasings(it) for g in (p.get("gaps") or {}).values()]
-    gaps += [w["gap"] for w in [*golden["workflows"], *corpus.get("refusals", [])] if w.get("gap")]
+    gaps += [w["gap"] for w in [*golden["workflows"], *corpus.get("refusals", []), *_load(COLLISIONS)["rows"]] if w.get("gap")]
     for g in gaps:
         for k in ("id", "reason", "owner", "mode"):
             assert str(g.get(k) or "").strip(), f"a known gap without {k} (mode = the recorded failure, see testing/corpus.js gapIt): {g}"
@@ -410,7 +432,7 @@ if __name__ == "__main__":
 
 
 def test_no_control_characters_in_the_data():
-    """A JSON `\b` written for a regex word boundary decodes to a BACKSPACE byte (it happened in CG-7 / CG-12's reasons):
+    r"""A JSON `\b` written for a regex word boundary decodes to a BACKSPACE byte (it happened in CG-7 / CG-12's reasons):
     every string in the baseline and coverage files, once parsed, holds no control character but newline and tab."""
     bad = []
 
@@ -426,7 +448,7 @@ def test_no_control_characters_in_the_data():
 
     for f in sorted([*(CAPREG / "baseline").glob("*.json"), *(CAPREG / "coverage").glob("*.json")]):
         walk(_load(f), f.relative_to(CAPREG).as_posix())
-    assert not bad, "control characters (write a regex \b as \\b in JSON):\n  " + "\n  ".join(bad)
+    assert not bad, r"control characters (write a regex \b as \\b in JSON):" + "\n  " + "\n  ".join(bad)
 
 
 def test_rail_self_test_detects_a_loosened_gap_mode():

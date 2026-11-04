@@ -7,51 +7,70 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 43,
+  "withAnyRegressionCase": 94,
   "perProtection": {
    "nl": {
-    "covered": 40,
+    "covered": 94,
     "applicable": 154
    },
    "routing": {
-    "covered": 41,
+    "covered": 94,
     "applicable": 154
    },
    "args": {
-    "covered": 41,
+    "covered": 94,
     "applicable": 154
    },
    "execution": {
-    "covered": 40,
+    "covered": 94,
     "applicable": 154
    },
    "receipt": {
-    "covered": 35,
+    "covered": 69,
     "applicable": 154
    },
    "refusal": {
-    "covered": 8,
+    "covered": 27,
     "applicable": 154
    },
    "permission": {
-    "covered": 130,
+    "covered": 146,
     "applicable": 154
    },
    "undo": {
-    "covered": 17,
+    "covered": 43,
     "applicable": 95
    },
    "multiStep": {
-    "covered": 10,
+    "covered": 21,
     "applicable": 154
    },
    "phrasings": {
-    "covered": 40,
+    "covered": 94,
     "applicable": 154
    }
   }
  },
- "knownGaps": [],
+ "knownGaps": [
+  {
+   "id": "CG-13",
+   "reason": "the charts compare words select 'against'",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by charts",
+   "level": "collision",
+   "intent": "routing data",
+   "phrasing": "how does NVDA stack up against AMD"
+  },
+  {
+   "id": "CG-4",
+   "reason": "'relative strength' is a screener strength word (SUBTRACTIVE: indicators not named)",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by screener",
+   "level": "collision",
+   "intent": "routing indicators",
+   "phrasing": "add the relative strength index"
+  }
+ ],
  "capabilities": {
   "agent.capabilities": {
    "domain": "agent",
@@ -215,7 +234,8 @@
     "args": [
      "corpus alert.price-above",
      "GW-14.price-alert-needs-approval",
-     "refuse.alert-needs-approval"
+     "refuse.alert-needs-approval",
+     "refuse.alert.price-above.dismissed"
     ],
     "execution": [
      "alert.price-above (c)",
@@ -226,7 +246,8 @@
      "GW-14.price-alert-needs-approval"
     ],
     "refusal": [
-     "refuse.alert-needs-approval"
+     "refuse.alert-needs-approval",
+     "refuse.alert.price-above.dismissed"
     ],
     "permission": [
      "alert.price-above: waits for Apply",
@@ -255,7 +276,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -276,13 +297,16 @@
      "alert.delete: \"get rid of the NVDA price alert\""
     ],
     "args": [
-     "corpus alert.delete"
+     "corpus alert.delete",
+     "refuse.alert.delete.dismissed"
     ],
     "execution": [
      "alert.delete (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.alert.delete.dismissed"
+    ],
     "permission": [
      "alert.delete: waits for Apply"
     ],
@@ -521,28 +545,35 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 4,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "breadth.history.nhnl: \"when did nh/nl last go negative\"",
      "breadth.history.nhnl: \"when was net new highs last below zero\"",
      "breadth.history.nhnl: \"last time new highs minus new lows went negative\"",
-     "breadth.history.nhnl: \"when did net new highs last turn negative\""
+     "breadth.history.nhnl: \"when did net new highs last turn negative\"",
+     "breadth.history.count: \"how many times has the percent above the 50 day gone below 20%\"",
+     "breadth.history.count: \"how often has breadth above the 50 day been under 20%\""
     ],
     "routing": [
      "breadth.history.nhnl: \"when did nh/nl last go negative\"",
      "breadth.history.nhnl: \"when was net new highs last below zero\"",
      "breadth.history.nhnl: \"last time new highs minus new lows went negative\"",
-     "breadth.history.nhnl: \"when did net new highs last turn negative\""
+     "breadth.history.nhnl: \"when did net new highs last turn negative\"",
+     "breadth.history.count: \"how many times has the percent above the 50 day gone below 20%\"",
+     "breadth.history.count: \"how often has breadth above the 50 day been under 20%\""
     ],
     "args": [
-     "corpus breadth.history.nhnl"
+     "corpus breadth.history.nhnl",
+     "corpus breadth.history.count"
     ],
     "execution": [
-     "breadth.history.nhnl (c)"
+     "breadth.history.nhnl (c)",
+     "breadth.history.count (c)"
     ],
     "receipt": [
-     "breadth.history.nhnl (c)"
+     "breadth.history.nhnl (c)",
+     "breadth.history.count (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -613,7 +644,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 7,
+   "phrasings": 18,
    "evidence": {
     "nl": [
      "breadth.now: \"what's the breadth like\"",
@@ -633,14 +664,23 @@
     ],
     "args": [
      "corpus breadth.now",
+     "corpus breadth.measure-now",
+     "corpus breadth.measure-nasdaq",
+     "corpus breadth.averages",
      "GW-03.breadth-member-side"
     ],
     "execution": [
      "breadth.now (c)",
+     "breadth.measure-now (c)",
+     "breadth.measure-nasdaq (c)",
+     "breadth.averages (c)",
      "GW-03.breadth-member-side"
     ],
     "receipt": [
      "breadth.now (c)",
+     "breadth.measure-now (c)",
+     "breadth.measure-nasdaq (c)",
+     "breadth.averages (c)",
      "GW-03.breadth-member-side"
     ],
     "refusal": [],
@@ -739,27 +779,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.addCustomTimeframe: \"add a 2 hour timeframe\"",
+     "chart.addCustomTimeframe: \"make a custom 2h timeframe and switch to it\"",
+     "chart.addCustomTimeframe: \"create a 2-hour chart interval\"",
+     "chart.addCustomTimeframe: \"add 2 hours as a timeframe\""
+    ],
+    "routing": [
+     "chart.addCustomTimeframe: \"add a 2 hour timeframe\"",
+     "chart.addCustomTimeframe: \"make a custom 2h timeframe and switch to it\"",
+     "chart.addCustomTimeframe: \"create a 2-hour chart interval\"",
+     "chart.addCustomTimeframe: \"add 2 hours as a timeframe\""
+    ],
+    "args": [
+     "corpus chart.addCustomTimeframe"
+    ],
+    "execution": [
+     "chart.addCustomTimeframe (c)"
+    ],
+    "receipt": [
+     "chart.addCustomTimeframe (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chart.addCustomTimeframe: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -777,31 +835,48 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
+    "nl": true,
+    "routing": true,
     "args": true,
-    "execution": false,
-    "receipt": false,
+    "execution": true,
+    "receipt": true,
     "refusal": true,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
+    "nl": [
+     "chart.addTab: \"add a tab called Swing to this chart\"",
+     "chart.addTab: \"give this chart another tab named Swing\"",
+     "chart.addTab: \"new chart tab called Swing\"",
+     "chart.addTab: \"open a Swing tab on this chart\""
+    ],
+    "routing": [
+     "chart.addTab: \"add a tab called Swing to this chart\"",
+     "chart.addTab: \"give this chart another tab named Swing\"",
+     "chart.addTab: \"new chart tab called Swing\"",
+     "chart.addTab: \"open a Swing tab on this chart\""
+    ],
     "args": [
+     "corpus chart.addTab",
      "refuse.tab-standin"
     ],
-    "execution": [],
-    "receipt": [],
+    "execution": [
+     "chart.addTab (c)"
+    ],
+    "receipt": [
+     "chart.addTab (c)"
+    ],
     "refusal": [
      "refuse.tab-standin"
     ],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chart.addTab: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -819,26 +894,47 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": true,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "nl": [
+     "chart.applyTemplate: \"apply my Clean template\"",
+     "chart.applyTemplate: \"use the Clean template on this chart\"",
+     "chart.applyTemplate: \"switch this chart to my Clean template\"",
+     "chart.applyTemplate: \"load the Clean chart template\""
+    ],
+    "routing": [
+     "chart.applyTemplate: \"apply my Clean template\"",
+     "chart.applyTemplate: \"use the Clean template on this chart\"",
+     "chart.applyTemplate: \"switch this chart to my Clean template\"",
+     "chart.applyTemplate: \"load the Clean chart template\""
+    ],
+    "args": [
+     "corpus chart.applyTemplate",
+     "refuse.chart.applyTemplate.dismissed"
+    ],
+    "execution": [
+     "chart.applyTemplate (c)"
+    ],
+    "receipt": [
+     "chart.applyTemplate (c)"
+    ],
+    "refusal": [
+     "refuse.chart.applyTemplate.dismissed"
+    ],
+    "permission": [
+     "chart.applyTemplate: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -857,27 +953,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.applyTheme: \"use the nord chart theme\"",
+     "chart.applyTheme: \"switch the chart to the Nord theme\"",
+     "chart.applyTheme: \"apply the nord theme to this chart\"",
+     "chart.applyTheme: \"make this chart nord\""
+    ],
+    "routing": [
+     "chart.applyTheme: \"use the nord chart theme\"",
+     "chart.applyTheme: \"switch the chart to the Nord theme\"",
+     "chart.applyTheme: \"apply the nord theme to this chart\"",
+     "chart.applyTheme: \"make this chart nord\""
+    ],
+    "args": [
+     "corpus chart.applyTheme"
+    ],
+    "execution": [
+     "chart.applyTheme (c)"
+    ],
+    "receipt": [
+     "chart.applyTheme (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chart.applyTheme: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -933,28 +1047,48 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.closeTab: \"close the Swing tab\"",
+     "chart.closeTab: \"remove the Swing tab\"",
+     "chart.closeTab: \"get rid of the Swing tab\"",
+     "chart.closeTab: \"close that tab\""
+    ],
+    "routing": [
+     "chart.closeTab: \"close the Swing tab\"",
+     "chart.closeTab: \"remove the Swing tab\"",
+     "chart.closeTab: \"get rid of the Swing tab\"",
+     "chart.closeTab: \"close that tab\""
+    ],
+    "args": [
+     "corpus chart.closeTab"
+    ],
+    "execution": [
+     "chart.closeTab (c)"
+    ],
+    "receipt": [
+     "chart.closeTab (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
-    "multiStep": [],
+    "undo": [
+     "chart.closeTab: undo restores"
+    ],
+    "multiStep": [
+     "chart.closeTab: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -1085,23 +1219,37 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "chart.goToDate: \"go to march 2 2026\"",
+     "chart.goToDate: \"scroll the chart to march 2 2026\"",
+     "chart.goToDate: \"jump to 2026-03-02\"",
+     "chart.goToDate: \"take me to march 2nd 2026 on the chart\""
+    ],
+    "routing": [
+     "chart.goToDate: \"go to march 2 2026\"",
+     "chart.goToDate: \"scroll the chart to march 2 2026\"",
+     "chart.goToDate: \"jump to 2026-03-02\"",
+     "chart.goToDate: \"take me to march 2nd 2026 on the chart\""
+    ],
+    "args": [
+     "corpus chart.goToDate"
+    ],
+    "execution": [
+     "chart.goToDate (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -1161,28 +1309,48 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.renameTab: \"rename the Swing tab to Position\"",
+     "chart.renameTab: \"call the Swing tab Position instead\"",
+     "chart.renameTab: \"change the Swing tab's name to Position\"",
+     "chart.renameTab: \"rename that tab to Position\""
+    ],
+    "routing": [
+     "chart.renameTab: \"rename the Swing tab to Position\"",
+     "chart.renameTab: \"call the Swing tab Position instead\"",
+     "chart.renameTab: \"change the Swing tab's name to Position\"",
+     "chart.renameTab: \"rename that tab to Position\""
+    ],
+    "args": [
+     "corpus chart.renameTab"
+    ],
+    "execution": [
+     "chart.renameTab (c)"
+    ],
+    "receipt": [
+     "chart.renameTab (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
-    "multiStep": [],
+    "undo": [
+     "chart.renameTab: undo restores"
+    ],
+    "multiStep": [
+     "chart.renameTab: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -1199,28 +1367,53 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 8,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.replay: \"show me this chart as of march 2 2026\"",
+     "chart.replay: \"replay the chart from march 2 2026\"",
+     "chart.replay: \"go back to march 2 2026 and hide what came after\"",
+     "chart.replay: \"start replay mode on 2026-03-02\"",
+     "chart.replay.exit: \"exit replay\"",
+     "chart.replay.exit: \"leave replay mode\""
+    ],
+    "routing": [
+     "chart.replay: \"show me this chart as of march 2 2026\"",
+     "chart.replay: \"replay the chart from march 2 2026\"",
+     "chart.replay: \"go back to march 2 2026 and hide what came after\"",
+     "chart.replay: \"start replay mode on 2026-03-02\"",
+     "chart.replay.exit: \"exit replay\"",
+     "chart.replay.exit: \"leave replay mode\""
+    ],
+    "args": [
+     "corpus chart.replay",
+     "corpus chart.replay.exit"
+    ],
+    "execution": [
+     "chart.replay (c)",
+     "chart.replay.exit (c)"
+    ],
+    "receipt": [
+     "chart.replay (c)",
+     "chart.replay.exit (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "chart.replay.exit: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -1313,27 +1506,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.setBackground: \"make the background black\"",
+     "chart.setBackground: \"set the chart background to black\"",
+     "chart.setBackground: \"black background please\"",
+     "chart.setBackground: \"change the chart's background colour to black\""
+    ],
+    "routing": [
+     "chart.setBackground: \"make the background black\"",
+     "chart.setBackground: \"set the chart background to black\"",
+     "chart.setBackground: \"black background please\"",
+     "chart.setBackground: \"change the chart's background colour to black\""
+    ],
+    "args": [
+     "corpus chart.setBackground"
+    ],
+    "execution": [
+     "chart.setBackground (c)"
+    ],
+    "receipt": [
+     "chart.setBackground (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chart.setBackground: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -1351,27 +1562,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.setCandleColors: \"make the up candles blue and the down candles orange\"",
+     "chart.setCandleColors: \"blue up candles, orange down candles\"",
+     "chart.setCandleColors: \"change my candle colors to blue and orange\"",
+     "chart.setCandleColors: \"color the green candles blue and the red ones orange\""
+    ],
+    "routing": [
+     "chart.setCandleColors: \"make the up candles blue and the down candles orange\"",
+     "chart.setCandleColors: \"blue up candles, orange down candles\"",
+     "chart.setCandleColors: \"change my candle colors to blue and orange\"",
+     "chart.setCandleColors: \"color the green candles blue and the red ones orange\""
+    ],
+    "args": [
+     "corpus chart.setCandleColors"
+    ],
+    "execution": [
+     "chart.setCandleColors (c)"
+    ],
+    "receipt": [
+     "chart.setCandleColors (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chart.setCandleColors: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -1510,27 +1739,53 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 8,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.setSetting.gradient: \"turn the gradient off on this chart\"",
+     "chart.setSetting.gradient: \"turn off the gradient background\"",
+     "chart.setSetting.gradient: \"make the background solid instead of a gradient\"",
+     "chart.setSetting.gradient: \"no gradient on this chart\"",
+     "chart.setSetting.grid: \"turn off the grid\"",
+     "chart.setSetting.grid: \"hide the grid lines\""
+    ],
+    "routing": [
+     "chart.setSetting.gradient: \"turn the gradient off on this chart\"",
+     "chart.setSetting.gradient: \"turn off the gradient background\"",
+     "chart.setSetting.gradient: \"make the background solid instead of a gradient\"",
+     "chart.setSetting.gradient: \"no gradient on this chart\"",
+     "chart.setSetting.grid: \"turn off the grid\"",
+     "chart.setSetting.grid: \"hide the grid lines\""
+    ],
+    "args": [
+     "corpus chart.setSetting.gradient",
+     "corpus chart.setSetting.grid"
+    ],
+    "execution": [
+     "chart.setSetting.gradient (c)",
+     "chart.setSetting.grid (c)"
+    ],
+    "receipt": [
+     "chart.setSetting.gradient (c)",
+     "chart.setSetting.grid (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chart.setSetting.gradient: undo restores",
+     "chart.setSetting.grid: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -1653,7 +1908,9 @@
      "corpus compound.change-then-undo",
      "corpus timeframe.weekly",
      "corpus timeframe.5m",
-     "GW-09.two-new-charts"
+     "GW-09.two-new-charts",
+     "GW-24.grid-then-all-weekly",
+     "refuse.missing-target"
     ],
     "execution": [
      "compound.change-then-undo (c)",
@@ -1667,9 +1924,12 @@
      "timeframe.weekly (c)",
      "timeframe.5m (c)",
      "GW-01.symbol-weekly-emas-log-undo",
-     "GW-09.two-new-charts"
+     "GW-09.two-new-charts",
+     "GW-24.grid-then-all-weekly"
     ],
     "refusal": [
+     "refuse.missing-target",
+     "refuse.empty-board-timeframe",
      "GW-02.empty-board-honest"
     ],
     "permission": [],
@@ -1793,31 +2053,39 @@
     "args": [
      "corpus grid.four.named",
      "corpus grid.four.named.daily",
-     "GW-16.live-grid-2x2-daily"
+     "GW-16.live-grid-2x2-daily",
+     "GW-21.two-charts-side-by-side"
     ],
     "execution": [
      "grid.four.named (c)",
      "grid.four.named.daily (c)",
      "undo.named-after-grid (c)",
      "GW-10.grid-then-undo-by-kind",
-     "GW-16.live-grid-2x2-daily"
+     "GW-16.live-grid-2x2-daily",
+     "GW-19.daily-charts-each-with-50sma"
     ],
     "receipt": [
      "grid.four.named (c)",
      "grid.four.named.daily (c)",
      "GW-10.grid-then-undo-by-kind",
-     "GW-16.live-grid-2x2-daily"
+     "GW-16.live-grid-2x2-daily",
+     "GW-21.two-charts-side-by-side"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "grid.four.named: undo restores",
      "undo.named-after-grid: undo restores",
-     "GW-10.grid-then-undo-by-kind"
+     "GW-10.grid-then-undo-by-kind",
+     "GW-19.daily-charts-each-with-50sma",
+     "GW-21.two-charts-side-by-side"
     ],
     "multiStep": [
      "undo.named-after-grid: after an earlier turn",
-     "GW-10.grid-then-undo-by-kind"
+     "GW-10.grid-then-undo-by-kind",
+     "GW-19.daily-charts-each-with-50sma",
+     "GW-21.two-charts-side-by-side",
+     "GW-24.grid-then-all-weekly"
     ],
     "phrasings": []
    }
@@ -1911,26 +2179,47 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": true,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "nl": [
+     "chartSetup.deleteTemplate: \"delete my Clean template\"",
+     "chartSetup.deleteTemplate: \"remove the Clean chart template\"",
+     "chartSetup.deleteTemplate: \"get rid of my Clean template\"",
+     "chartSetup.deleteTemplate: \"delete the chart template called Clean\""
+    ],
+    "routing": [
+     "chartSetup.deleteTemplate: \"delete my Clean template\"",
+     "chartSetup.deleteTemplate: \"remove the Clean chart template\"",
+     "chartSetup.deleteTemplate: \"get rid of my Clean template\"",
+     "chartSetup.deleteTemplate: \"delete the chart template called Clean\""
+    ],
+    "args": [
+     "corpus chartSetup.deleteTemplate",
+     "refuse.chartSetup.deleteTemplate.dismissed"
+    ],
+    "execution": [
+     "chartSetup.deleteTemplate (c)"
+    ],
+    "receipt": [
+     "chartSetup.deleteTemplate (c)"
+    ],
+    "refusal": [
+     "refuse.chartSetup.deleteTemplate.dismissed"
+    ],
+    "permission": [
+     "chartSetup.deleteTemplate: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -2025,27 +2314,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chartSetup.saveTemplate: \"save this chart as a template called Swing\"",
+     "chartSetup.saveTemplate: \"save this chart's look as a template named Swing\"",
+     "chartSetup.saveTemplate: \"make a chart template called Swing from this chart\"",
+     "chartSetup.saveTemplate: \"save these chart settings as my Swing template\""
+    ],
+    "routing": [
+     "chartSetup.saveTemplate: \"save this chart as a template called Swing\"",
+     "chartSetup.saveTemplate: \"save this chart's look as a template named Swing\"",
+     "chartSetup.saveTemplate: \"make a chart template called Swing from this chart\"",
+     "chartSetup.saveTemplate: \"save these chart settings as my Swing template\""
+    ],
+    "args": [
+     "corpus chartSetup.saveTemplate"
+    ],
+    "execution": [
+     "chartSetup.saveTemplate (c)"
+    ],
+    "receipt": [
+     "chartSetup.saveTemplate (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chartSetup.saveTemplate: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2253,23 +2560,37 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "definition.search: \"find me an indicator for volatility\"",
+     "definition.search: \"search the indicators for volatility\"",
+     "definition.search: \"what indicators measure volatility\"",
+     "definition.search: \"are there any volatility indicators\""
+    ],
+    "routing": [
+     "definition.search: \"find me an indicator for volatility\"",
+     "definition.search: \"search the indicators for volatility\"",
+     "definition.search: \"what indicators measure volatility\"",
+     "definition.search: \"are there any volatility indicators\""
+    ],
+    "args": [
+     "corpus definition.search"
+    ],
+    "execution": [
+     "definition.search (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -2291,27 +2612,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.avwap: \"anchored vwap on nvda from oct 1\"",
+     "drawing.avwap: \"avwap from oct 1\"",
+     "drawing.avwap: \"add an anchored vwap starting oct 1\"",
+     "drawing.avwap: \"anchor a vwap to oct 1\""
+    ],
+    "routing": [
+     "drawing.avwap: \"anchored vwap on nvda from oct 1\"",
+     "drawing.avwap: \"avwap from oct 1\"",
+     "drawing.avwap: \"add an anchored vwap starting oct 1\"",
+     "drawing.avwap: \"anchor a vwap to oct 1\""
+    ],
+    "args": [
+     "corpus drawing.avwap"
+    ],
+    "execution": [
+     "drawing.avwap (c)"
+    ],
+    "receipt": [
+     "drawing.avwap (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "drawing.avwap: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2329,27 +2668,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.fib: \"draw a fib from sep 2 at 100 to oct 28 at 180\"",
+     "drawing.fib: \"fibonacci retracement from 100 on sep 2 to 180 on oct 28\"",
+     "drawing.fib: \"fib retracement sep 2 100 to oct 28 180\"",
+     "drawing.fib: \"put a fib from the sep 2 100 low to the oct 28 180 high\""
+    ],
+    "routing": [
+     "drawing.fib: \"draw a fib from sep 2 at 100 to oct 28 at 180\"",
+     "drawing.fib: \"fibonacci retracement from 100 on sep 2 to 180 on oct 28\"",
+     "drawing.fib: \"fib retracement sep 2 100 to oct 28 180\"",
+     "drawing.fib: \"put a fib from the sep 2 100 low to the oct 28 180 high\""
+    ],
+    "args": [
+     "corpus drawing.fib"
+    ],
+    "execution": [
+     "drawing.fib (c)"
+    ],
+    "receipt": [
+     "drawing.fib (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "drawing.fib: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2367,27 +2724,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.horizontalRay: \"put a horizontal ray at 100 on nvda starting oct 15\"",
+     "drawing.horizontalRay: \"horizontal ray at 100 from oct 15\"",
+     "drawing.horizontalRay: \"draw a horizontal ray at $100 starting on oct 15\"",
+     "drawing.horizontalRay: \"add a horizontal ray from oct 15 at 100\""
+    ],
+    "routing": [
+     "drawing.horizontalRay: \"put a horizontal ray at 100 on nvda starting oct 15\"",
+     "drawing.horizontalRay: \"horizontal ray at 100 from oct 15\"",
+     "drawing.horizontalRay: \"draw a horizontal ray at $100 starting on oct 15\"",
+     "drawing.horizontalRay: \"add a horizontal ray from oct 15 at 100\""
+    ],
+    "args": [
+     "corpus drawing.horizontalRay"
+    ],
+    "execution": [
+     "drawing.horizontalRay (c)"
+    ],
+    "receipt": [
+     "drawing.horizontalRay (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "drawing.horizontalRay: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2405,27 +2780,48 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 5,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.addLevel: \"draw a horizontal line at 200\"",
+     "drawing.addLevel: \"put a line at $200\"",
+     "drawing.addLevel: \"add a horizontal level at 200\"",
+     "drawing.addLevel: \"draw a price line at 200 on this chart\"",
+     "drawing.addLevel: \"mark the 200 level with a line\""
+    ],
+    "routing": [
+     "drawing.addLevel: \"draw a horizontal line at 200\"",
+     "drawing.addLevel: \"put a line at $200\"",
+     "drawing.addLevel: \"add a horizontal level at 200\"",
+     "drawing.addLevel: \"draw a price line at 200 on this chart\"",
+     "drawing.addLevel: \"mark the 200 level with a line\""
+    ],
+    "args": [
+     "corpus drawing.addLevel",
+     "refuse.drawing.clear.dismissed"
+    ],
+    "execution": [
+     "drawing.addLevel (c)"
+    ],
+    "receipt": [
+     "drawing.addLevel (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "drawing.addLevel: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2443,27 +2839,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.ray: \"draw a ray from oct 9 at 150 through oct 28 at 180\"",
+     "drawing.ray: \"ray on nvda from 150 on oct 9 through 180 on oct 28\"",
+     "drawing.ray: \"extend a ray from oct 9 150 through oct 28 180\"",
+     "drawing.ray: \"put a ray from oct 9 at 150 to oct 28 at 180\""
+    ],
+    "routing": [
+     "drawing.ray: \"draw a ray from oct 9 at 150 through oct 28 at 180\"",
+     "drawing.ray: \"ray on nvda from 150 on oct 9 through 180 on oct 28\"",
+     "drawing.ray: \"extend a ray from oct 9 150 through oct 28 180\"",
+     "drawing.ray: \"put a ray from oct 9 at 150 to oct 28 at 180\""
+    ],
+    "args": [
+     "corpus drawing.ray"
+    ],
+    "execution": [
+     "drawing.ray (c)"
+    ],
+    "receipt": [
+     "drawing.ray (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "drawing.ray: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2481,27 +2895,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.rectangle: \"draw a box from oct 1 at 140 to oct 20 at 160\"",
+     "drawing.rectangle: \"rectangle from oct 1 140 to oct 20 160\"",
+     "drawing.rectangle: \"put a rectangle between oct 1 at 140 and oct 20 at 160\"",
+     "drawing.rectangle: \"mark a box from 140 on oct 1 to 160 on oct 20\""
+    ],
+    "routing": [
+     "drawing.rectangle: \"draw a box from oct 1 at 140 to oct 20 at 160\"",
+     "drawing.rectangle: \"rectangle from oct 1 140 to oct 20 160\"",
+     "drawing.rectangle: \"put a rectangle between oct 1 at 140 and oct 20 at 160\"",
+     "drawing.rectangle: \"mark a box from 140 on oct 1 to 160 on oct 20\""
+    ],
+    "args": [
+     "corpus drawing.rectangle"
+    ],
+    "execution": [
+     "drawing.rectangle (c)"
+    ],
+    "receipt": [
+     "drawing.rectangle (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "drawing.rectangle: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2519,27 +2951,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.text: \"add a note that says breakout at 150 on oct 15\"",
+     "drawing.text: \"put the text breakout on oct 15 at 150\"",
+     "drawing.text: \"write breakout on the chart at oct 15, 150\"",
+     "drawing.text: \"drop a text label breakout at 150 on oct 15\""
+    ],
+    "routing": [
+     "drawing.text: \"add a note that says breakout at 150 on oct 15\"",
+     "drawing.text: \"put the text breakout on oct 15 at 150\"",
+     "drawing.text: \"write breakout on the chart at oct 15, 150\"",
+     "drawing.text: \"drop a text label breakout at 150 on oct 15\""
+    ],
+    "args": [
+     "corpus drawing.text"
+    ],
+    "execution": [
+     "drawing.text (c)"
+    ],
+    "receipt": [
+     "drawing.text (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "drawing.text: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2557,27 +3007,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.trendline: \"draw a trendline on nvda from oct 9 at 150 to oct 28 at 180\"",
+     "drawing.trendline: \"trendline from 150 on oct 9 to 180 on oct 28\"",
+     "drawing.trendline: \"connect oct 9 at 150 to oct 28 at 180 with a trend line\"",
+     "drawing.trendline: \"draw a line from the oct 9 150 level to 180 on oct 28\""
+    ],
+    "routing": [
+     "drawing.trendline: \"draw a trendline on nvda from oct 9 at 150 to oct 28 at 180\"",
+     "drawing.trendline: \"trendline from 150 on oct 9 to 180 on oct 28\"",
+     "drawing.trendline: \"connect oct 9 at 150 to oct 28 at 180 with a trend line\"",
+     "drawing.trendline: \"draw a line from the oct 9 150 level to 180 on oct 28\""
+    ],
+    "args": [
+     "corpus drawing.trendline"
+    ],
+    "execution": [
+     "drawing.trendline (c)"
+    ],
+    "receipt": [
+     "drawing.trendline (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "drawing.trendline: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2595,28 +3063,49 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "drawing.clear: \"clear all my drawings\"",
+     "drawing.clear: \"clear every drawing on NVDA\"",
+     "drawing.clear: \"wipe the drawings off this chart\"",
+     "drawing.clear: \"remove all drawings\""
+    ],
+    "routing": [
+     "drawing.clear: \"clear all my drawings\"",
+     "drawing.clear: \"clear every drawing on NVDA\"",
+     "drawing.clear: \"wipe the drawings off this chart\"",
+     "drawing.clear: \"remove all drawings\""
+    ],
+    "args": [
+     "corpus drawing.clear",
+     "refuse.drawing.clear.dismissed"
+    ],
+    "execution": [
+     "drawing.clear (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.drawing.clear.dismissed"
+    ],
+    "permission": [
+     "drawing.clear: waits for Apply"
+    ],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "drawing.clear: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -2633,28 +3122,44 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "drawing.list: \"list my drawings\"",
+     "drawing.list: \"what drawings are on this chart\"",
+     "drawing.list: \"show me the drawings on NVDA\"",
+     "drawing.list: \"which lines have I drawn\""
+    ],
+    "routing": [
+     "drawing.list: \"list my drawings\"",
+     "drawing.list: \"what drawings are on this chart\"",
+     "drawing.list: \"show me the drawings on NVDA\"",
+     "drawing.list: \"which lines have I drawn\""
+    ],
+    "args": [
+     "corpus drawing.list"
+    ],
+    "execution": [
+     "drawing.list (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "drawing.list: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -2709,28 +3214,48 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.remove: \"delete that line\"",
+     "drawing.remove: \"remove the line at 200\"",
+     "drawing.remove: \"get rid of the horizontal line\"",
+     "drawing.remove: \"erase the 200 line\""
+    ],
+    "routing": [
+     "drawing.remove: \"delete that line\"",
+     "drawing.remove: \"remove the line at 200\"",
+     "drawing.remove: \"get rid of the horizontal line\"",
+     "drawing.remove: \"erase the 200 line\""
+    ],
+    "args": [
+     "corpus drawing.remove"
+    ],
+    "execution": [
+     "drawing.remove (c)"
+    ],
+    "receipt": [
+     "drawing.remove (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
-    "multiStep": [],
+    "undo": [
+     "drawing.remove: undo restores"
+    ],
+    "multiStep": [
+     "drawing.remove: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -2747,28 +3272,46 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.hideAll: \"hide all my drawings\"",
+     "drawing.hideAll: \"hide every drawing on this chart\"",
+     "drawing.hideAll: \"turn off all drawings\"",
+     "drawing.hideAll: \"hide the drawings\""
+    ],
+    "routing": [
+     "drawing.hideAll: \"hide all my drawings\"",
+     "drawing.hideAll: \"hide every drawing on this chart\"",
+     "drawing.hideAll: \"turn off all drawings\"",
+     "drawing.hideAll: \"hide the drawings\""
+    ],
+    "args": [
+     "corpus drawing.hideAll"
+    ],
+    "execution": [
+     "drawing.hideAll (c)"
+    ],
+    "receipt": [
+     "drawing.hideAll (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "drawing.hideAll: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -2785,28 +3328,48 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.setLevel: \"move the line to 210\"",
+     "drawing.setLevel: \"move the 200 line up to 210\"",
+     "drawing.setLevel: \"set that level to 210\"",
+     "drawing.setLevel: \"drag the line to 210\""
+    ],
+    "routing": [
+     "drawing.setLevel: \"move the line to 210\"",
+     "drawing.setLevel: \"move the 200 line up to 210\"",
+     "drawing.setLevel: \"set that level to 210\"",
+     "drawing.setLevel: \"drag the line to 210\""
+    ],
+    "args": [
+     "corpus drawing.setLevel"
+    ],
+    "execution": [
+     "drawing.setLevel (c)"
+    ],
+    "receipt": [
+     "drawing.setLevel (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
-    "multiStep": [],
+    "undo": [
+     "drawing.setLevel: undo restores"
+    ],
+    "multiStep": [
+     "drawing.setLevel: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -2861,28 +3424,46 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.style: \"make the line red\"",
+     "drawing.style: \"color that line red\"",
+     "drawing.style: \"change the 200 line to red\"",
+     "drawing.style: \"turn the horizontal line red\""
+    ],
+    "routing": [
+     "drawing.style: \"make the line red\"",
+     "drawing.style: \"color that line red\"",
+     "drawing.style: \"change the 200 line to red\"",
+     "drawing.style: \"turn the horizontal line red\""
+    ],
+    "args": [
+     "corpus drawing.style"
+    ],
+    "execution": [
+     "drawing.style (c)"
+    ],
+    "receipt": [
+     "drawing.style (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "drawing.style: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -3044,7 +3625,8 @@
     ],
     "args": [
      "corpus indicator.ema-9-20",
-     "corpus indicator.rsi"
+     "corpus indicator.rsi",
+     "GW-22.new-chart-then-rsi-on-it"
     ],
     "execution": [
      "indicator.ema-9-20 (c)",
@@ -3057,7 +3639,8 @@
     "receipt": [
      "indicator.ema-9-20 (c)",
      "indicator.rsi (c)",
-     "GW-01.symbol-weekly-emas-log-undo"
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-22.new-chart-then-rsi-on-it"
     ],
     "refusal": [
      "GW-02.empty-board-honest",
@@ -3067,13 +3650,16 @@
     "undo": [
      "indicator.ema-9-20: undo restores",
      "GW-01.symbol-weekly-emas-log-undo",
-     "GW-12.emas-coloured-exact-undo"
+     "GW-12.emas-coloured-exact-undo",
+     "GW-23.weekly-and-ema-then-undo-all"
     ],
     "multiStep": [
      "indicator.ema-9-20: 2-op plan",
      "GW-01.symbol-weekly-emas-log-undo",
      "GW-02.empty-board-honest",
-     "GW-12.emas-coloured-exact-undo"
+     "GW-12.emas-coloured-exact-undo",
+     "GW-22.new-chart-then-rsi-on-it",
+     "GW-23.weekly-and-ema-then-undo-all"
     ],
     "phrasings": []
    }
@@ -3129,27 +3715,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "indicator.draft-create: \"Create a custom indicator that shows the difference between the 9ema and 20ema as a percentage. Put it in a separate pane.\"",
+     "indicator.draft-create: \"build me an indicator that shows the 9 EMA vs 20 EMA spread as a percent, in its own pane\"",
+     "indicator.draft-create: \"create a custom indicator: (EMA 9 minus EMA 20) divided by EMA 20 times 100, in a separate pane\"",
+     "indicator.draft-create: \"make me a new indicator plotting the percentage difference between the 9 and 20 EMA in a separate pane\""
+    ],
+    "routing": [
+     "indicator.draft-create: \"Create a custom indicator that shows the difference between the 9ema and 20ema as a percentage. Put it in a separate pane.\"",
+     "indicator.draft-create: \"build me an indicator that shows the 9 EMA vs 20 EMA spread as a percent, in its own pane\"",
+     "indicator.draft-create: \"create a custom indicator: (EMA 9 minus EMA 20) divided by EMA 20 times 100, in a separate pane\"",
+     "indicator.draft-create: \"make me a new indicator plotting the percentage difference between the 9 and 20 EMA in a separate pane\""
+    ],
+    "args": [
+     "corpus indicator.draft-create"
+    ],
+    "execution": [
+     "indicator.draft-create (c)"
+    ],
+    "receipt": [
+     "indicator.draft-create (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "indicator.draft-create: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -3223,23 +3827,37 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "indicator.list: \"what indicators are on this chart\"",
+     "indicator.list: \"what's on this chart\"",
+     "indicator.list: \"list the indicators on my chart\"",
+     "indicator.list: \"which studies do I have on here\""
+    ],
+    "routing": [
+     "indicator.list: \"what indicators are on this chart\"",
+     "indicator.list: \"what's on this chart\"",
+     "indicator.list: \"list the indicators on my chart\"",
+     "indicator.list: \"which studies do I have on here\""
+    ],
+    "args": [
+     "corpus indicator.list"
+    ],
+    "execution": [
+     "indicator.list (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -3342,7 +3960,7 @@
     "args": true,
     "execution": true,
     "receipt": true,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": false,
     "multiStep": false,
@@ -3365,7 +3983,8 @@
      "indicator.remove-sma200: \"remove the 200 day\""
     ],
     "args": [
-     "corpus indicator.remove-sma200"
+     "corpus indicator.remove-sma200",
+     "refuse.indicator.remove-sma200.dismissed"
     ],
     "execution": [
      "indicator.remove-sma200 (c)"
@@ -3373,7 +3992,9 @@
     "receipt": [
      "indicator.remove-sma200 (c)"
     ],
-    "refusal": [],
+    "refusal": [
+     "refuse.indicator.remove-sma200.dismissed"
+    ],
     "permission": [
      "indicator.remove-sma200: waits for Apply"
     ],
@@ -3583,28 +4204,60 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
+    "nl": true,
     "routing": true,
-    "args": false,
-    "execution": false,
-    "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": true,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 13,
    "evidence": {
-    "nl": [],
-    "routing": [
-     "GW-08.indicator-alert-routed: \"mark when the 9 ema crosses above the 20 on this chart\""
+    "nl": [
+     "indicatorAlert.threshold: \"alert me when RSI goes above 70\"",
+     "indicatorAlert.threshold: \"ping me when the RSI is above 70\"",
+     "indicatorAlert.threshold: \"let me know when RSI gets over 70\"",
+     "indicatorAlert.threshold: \"set an RSI alert above 70\"",
+     "indicatorAlert.threshold: \"notify me if RSI rises above 70\"",
+     "indicatorAlert.ma-cross: \"mark when the 9 ema crosses above the 20 on this chart\""
     ],
-    "args": [],
-    "execution": [],
-    "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "routing": [
+     "indicatorAlert.threshold: \"alert me when RSI goes above 70\"",
+     "indicatorAlert.threshold: \"ping me when the RSI is above 70\"",
+     "indicatorAlert.threshold: \"let me know when RSI gets over 70\"",
+     "indicatorAlert.threshold: \"set an RSI alert above 70\"",
+     "indicatorAlert.threshold: \"notify me if RSI rises above 70\"",
+     "indicatorAlert.ma-cross: \"mark when the 9 ema crosses above the 20 on this chart\""
+    ],
+    "args": [
+     "corpus indicatorAlert.threshold",
+     "corpus indicatorAlert.ma-cross",
+     "corpus indicatorAlert.ma-cross-multichart",
+     "refuse.indicatorAlert.threshold.dismissed",
+     "refuse.indicatorAlert.ma-cross.dismissed"
+    ],
+    "execution": [
+     "indicatorAlert.threshold (c)",
+     "indicatorAlert.ma-cross (c)",
+     "indicatorAlert.ma-cross-multichart (c)"
+    ],
+    "receipt": [
+     "indicatorAlert.threshold (c)",
+     "indicatorAlert.ma-cross (c)"
+    ],
+    "refusal": [
+     "refuse.indicatorAlert.threshold.dismissed",
+     "refuse.indicatorAlert.ma-cross.dismissed"
+    ],
+    "permission": [
+     "indicatorAlert.threshold: waits for Apply",
+     "indicatorAlert.ma-cross: waits for Apply",
+     "indicatorAlert.ma-cross-multichart: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -3623,26 +4276,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "indicatorAlert.delete: \"delete my RSI alert\"",
+     "indicatorAlert.delete: \"remove the NVDA RSI alert\"",
+     "indicatorAlert.delete: \"get rid of my RSI indicator alert\"",
+     "indicatorAlert.delete: \"cancel the RSI alert\""
+    ],
+    "routing": [
+     "indicatorAlert.delete: \"delete my RSI alert\"",
+     "indicatorAlert.delete: \"remove the NVDA RSI alert\"",
+     "indicatorAlert.delete: \"get rid of my RSI indicator alert\"",
+     "indicatorAlert.delete: \"cancel the RSI alert\""
+    ],
+    "args": [
+     "corpus indicatorAlert.delete",
+     "refuse.indicatorAlert.delete.dismissed"
+    ],
+    "execution": [
+     "indicatorAlert.delete (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.indicatorAlert.delete.dismissed"
+    ],
+    "permission": [
+     "indicatorAlert.delete: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -3661,27 +4333,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "indicatorAlert.toggle: \"pause my RSI alert\"",
+     "indicatorAlert.toggle: \"pause the NVDA RSI alert\"",
+     "indicatorAlert.toggle: \"turn off my RSI alert for now\"",
+     "indicatorAlert.toggle: \"mute the RSI alert\""
+    ],
+    "routing": [
+     "indicatorAlert.toggle: \"pause my RSI alert\"",
+     "indicatorAlert.toggle: \"pause the NVDA RSI alert\"",
+     "indicatorAlert.toggle: \"turn off my RSI alert for now\"",
+     "indicatorAlert.toggle: \"mute the RSI alert\""
+    ],
+    "args": [
+     "corpus indicatorAlert.toggle"
+    ],
+    "execution": [
+     "indicatorAlert.toggle (c)"
+    ],
+    "receipt": [
+     "indicatorAlert.toggle (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "indicatorAlert.toggle: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -4023,26 +4713,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.create: \"create a new empty layout called Scalps\"",
+     "layout.create: \"make a new layout named Scalps\"",
+     "layout.create: \"start a fresh layout called Scalps\"",
+     "layout.create: \"new layout: Scalps\""
+    ],
+    "routing": [
+     "layout.create: \"create a new empty layout called Scalps\"",
+     "layout.create: \"make a new layout named Scalps\"",
+     "layout.create: \"start a fresh layout called Scalps\"",
+     "layout.create: \"new layout: Scalps\""
+    ],
+    "args": [
+     "corpus layout.create",
+     "refuse.layout.create.dismissed"
+    ],
+    "execution": [
+     "layout.create (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.layout.create.dismissed"
+    ],
+    "permission": [
+     "layout.create: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -4099,26 +4808,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.delete: \"delete my Momentum layout\"",
+     "layout.delete: \"remove the Momentum layout\"",
+     "layout.delete: \"get rid of the Momentum layout\"",
+     "layout.delete: \"delete the layout called Momentum\""
+    ],
+    "routing": [
+     "layout.delete: \"delete my Momentum layout\"",
+     "layout.delete: \"remove the Momentum layout\"",
+     "layout.delete: \"get rid of the Momentum layout\"",
+     "layout.delete: \"delete the layout called Momentum\""
+    ],
+    "args": [
+     "corpus layout.delete",
+     "refuse.layout.delete.dismissed"
+    ],
+    "execution": [
+     "layout.delete (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.layout.delete.dismissed"
+    ],
+    "permission": [
+     "layout.delete: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -4137,26 +4865,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.duplicate: \"make a copy of my Swing layout called Swing Copy\"",
+     "layout.duplicate: \"duplicate the Swing layout as Swing Copy\"",
+     "layout.duplicate: \"copy Swing into a new layout named Swing Copy\"",
+     "layout.duplicate: \"clone my Swing layout as Swing Copy\""
+    ],
+    "routing": [
+     "layout.duplicate: \"make a copy of my Swing layout called Swing Copy\"",
+     "layout.duplicate: \"duplicate the Swing layout as Swing Copy\"",
+     "layout.duplicate: \"copy Swing into a new layout named Swing Copy\"",
+     "layout.duplicate: \"clone my Swing layout as Swing Copy\""
+    ],
+    "args": [
+     "corpus layout.duplicate",
+     "refuse.layout.duplicate.dismissed"
+    ],
+    "execution": [
+     "layout.duplicate (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.layout.duplicate.dismissed"
+    ],
+    "permission": [
+     "layout.duplicate: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -4175,23 +4922,37 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.list: \"what layouts do I have\"",
+     "layout.list: \"list my layouts\"",
+     "layout.list: \"show me my saved layouts\"",
+     "layout.list: \"which layouts have I saved\""
+    ],
+    "routing": [
+     "layout.list: \"what layouts do I have\"",
+     "layout.list: \"list my layouts\"",
+     "layout.list: \"show me my saved layouts\"",
+     "layout.list: \"which layouts have I saved\""
+    ],
+    "args": [
+     "corpus layout.list"
+    ],
+    "execution": [
+     "layout.list (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -4269,28 +5030,46 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": true,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.rename: \"rename my Momentum layout to Momentum Trades\"",
+     "layout.rename: \"call the Momentum layout Momentum Trades\"",
+     "layout.rename: \"change the Momentum layout name to Momentum Trades\"",
+     "layout.rename: \"rename layout Momentum to Momentum Trades\""
+    ],
+    "routing": [
+     "layout.rename: \"rename my Momentum layout to Momentum Trades\"",
+     "layout.rename: \"call the Momentum layout Momentum Trades\"",
+     "layout.rename: \"change the Momentum layout name to Momentum Trades\"",
+     "layout.rename: \"rename layout Momentum to Momentum Trades\""
+    ],
+    "args": [
+     "corpus layout.rename",
+     "refuse.layout.rename.dismissed"
+    ],
+    "execution": [
+     "layout.rename (c)"
+    ],
     "receipt": [],
     "refusal": [
+     "refuse.layout.rename.dismissed",
      "GW-07.protected-layout-rename: refused by name"
     ],
-    "permission": [],
+    "permission": [
+     "layout.rename: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -4314,7 +5093,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -4335,13 +5114,16 @@
      "layout.saveAs: \"save a copy of this layout named Swing 2\""
     ],
     "args": [
-     "corpus layout.saveAs"
+     "corpus layout.saveAs",
+     "refuse.layout.saveAs.dismissed"
     ],
     "execution": [
      "layout.saveAs (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.layout.saveAs.dismissed"
+    ],
     "permission": [
      "layout.saveAs: waits for Apply"
     ],
@@ -4740,26 +5522,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "screener.deleteSaved: \"delete my Momentum Screen\"",
+     "screener.deleteSaved: \"remove the saved screen Momentum Screen\"",
+     "screener.deleteSaved: \"get rid of my Momentum Screen\"",
+     "screener.deleteSaved: \"delete the Momentum Screen scan\""
+    ],
+    "routing": [
+     "screener.deleteSaved: \"delete my Momentum Screen\"",
+     "screener.deleteSaved: \"remove the saved screen Momentum Screen\"",
+     "screener.deleteSaved: \"get rid of my Momentum Screen\"",
+     "screener.deleteSaved: \"delete the Momentum Screen scan\""
+    ],
+    "args": [
+     "corpus screener.deleteSaved",
+     "refuse.screener.deleteSaved.dismissed"
+    ],
+    "execution": [
+     "screener.deleteSaved (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.screener.deleteSaved.dismissed"
+    ],
+    "permission": [
+     "screener.deleteSaved: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -4779,26 +5580,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "screener.duplicateSaved: \"make a copy of my Momentum Screen called Momentum Copy\"",
+     "screener.duplicateSaved: \"duplicate the Momentum Screen as Momentum Copy\"",
+     "screener.duplicateSaved: \"copy my Momentum Screen and name it Momentum Copy\"",
+     "screener.duplicateSaved: \"clone the Momentum Screen into Momentum Copy\""
+    ],
+    "routing": [
+     "screener.duplicateSaved: \"make a copy of my Momentum Screen called Momentum Copy\"",
+     "screener.duplicateSaved: \"duplicate the Momentum Screen as Momentum Copy\"",
+     "screener.duplicateSaved: \"copy my Momentum Screen and name it Momentum Copy\"",
+     "screener.duplicateSaved: \"clone the Momentum Screen into Momentum Copy\""
+    ],
+    "args": [
+     "corpus screener.duplicateSaved",
+     "refuse.screener.duplicateSaved.dismissed"
+    ],
+    "execution": [
+     "screener.duplicateSaved (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.screener.duplicateSaved.dismissed"
+    ],
+    "permission": [
+     "screener.duplicateSaved: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -4817,23 +5637,37 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "screener.listSaved: \"what screens have I saved\"",
+     "screener.listSaved: \"list my saved screens\"",
+     "screener.listSaved: \"show me my saved scans\"",
+     "screener.listSaved: \"which screens do I have\""
+    ],
+    "routing": [
+     "screener.listSaved: \"what screens have I saved\"",
+     "screener.listSaved: \"list my saved screens\"",
+     "screener.listSaved: \"show me my saved scans\"",
+     "screener.listSaved: \"which screens do I have\""
+    ],
+    "args": [
+     "corpus screener.listSaved"
+    ],
+    "execution": [
+     "screener.listSaved (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -4932,26 +5766,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "screener.renameSaved: \"rename my Momentum Screen to Momentum Leaders\"",
+     "screener.renameSaved: \"call the Momentum Screen Momentum Leaders instead\"",
+     "screener.renameSaved: \"change the name of my Momentum Screen to Momentum Leaders\"",
+     "screener.renameSaved: \"rename the saved screen Momentum Screen to Momentum Leaders\""
+    ],
+    "routing": [
+     "screener.renameSaved: \"rename my Momentum Screen to Momentum Leaders\"",
+     "screener.renameSaved: \"call the Momentum Screen Momentum Leaders instead\"",
+     "screener.renameSaved: \"change the name of my Momentum Screen to Momentum Leaders\"",
+     "screener.renameSaved: \"rename the saved screen Momentum Screen to Momentum Leaders\""
+    ],
+    "args": [
+     "corpus screener.renameSaved",
+     "refuse.screener.renameSaved.dismissed"
+    ],
+    "execution": [
+     "screener.renameSaved (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.screener.renameSaved.dismissed"
+    ],
+    "permission": [
+     "screener.renameSaved: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -4981,7 +5834,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 5,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "screener.adr: \"find stocks with ADR above 5%\"",
@@ -4989,26 +5842,31 @@
      "screener.adr: \"show me names with ADR greater than 5 percent\"",
      "screener.adr: \"scan for ADR > 5%\"",
      "screener.adr: \"which stocks have an ADR above 5%\"",
-     "GW-05.screen-price-rvol"
+     "earnings.this-week: \"what's on the calendar this week\""
     ],
     "routing": [
      "screener.adr: \"find stocks with ADR above 5%\"",
      "screener.adr: \"screen for stocks with an ADR over 5%\"",
      "screener.adr: \"show me names with ADR greater than 5 percent\"",
      "screener.adr: \"scan for ADR > 5%\"",
-     "screener.adr: \"which stocks have an ADR above 5%\""
+     "screener.adr: \"which stocks have an ADR above 5%\"",
+     "earnings.this-week: \"what's on the calendar this week\""
     ],
     "args": [
      "corpus screener.adr",
-     "GW-05.screen-price-rvol"
+     "corpus earnings.this-week",
+     "GW-05.screen-price-rvol",
+     "refuse.screener.saveAs.dismissed"
     ],
     "execution": [
      "screener.adr (c)",
+     "earnings.this-week (c)",
      "GW-05.screen-price-rvol",
      "GW-06.hidden-field-refused"
     ],
     "receipt": [
      "screener.adr (c)",
+     "earnings.this-week (c)",
      "GW-05.screen-price-rvol"
     ],
     "refusal": [
@@ -5090,28 +5948,49 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "screener.saveAs: \"save this screen as ADR Leaders\"",
+     "screener.saveAs: \"save that scan as ADR Leaders\"",
+     "screener.saveAs: \"save these results as a screen called ADR Leaders\"",
+     "screener.saveAs: \"keep this screen, call it ADR Leaders\""
+    ],
+    "routing": [
+     "screener.saveAs: \"save this screen as ADR Leaders\"",
+     "screener.saveAs: \"save that scan as ADR Leaders\"",
+     "screener.saveAs: \"save these results as a screen called ADR Leaders\"",
+     "screener.saveAs: \"keep this screen, call it ADR Leaders\""
+    ],
+    "args": [
+     "corpus screener.saveAs",
+     "refuse.screener.saveAs.dismissed"
+    ],
+    "execution": [
+     "screener.saveAs (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.screener.saveAs.dismissed"
+    ],
+    "permission": [
+     "screener.saveAs: waits for Apply"
+    ],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "screener.saveAs: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -5166,27 +6045,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "settings.alertSound: \"turn off alert sounds\"",
+     "settings.alertSound: \"mute the alert sound\"",
+     "settings.alertSound: \"no sound for alerts please\"",
+     "settings.alertSound: \"disable the alert sound\""
+    ],
+    "routing": [
+     "settings.alertSound: \"turn off alert sounds\"",
+     "settings.alertSound: \"mute the alert sound\"",
+     "settings.alertSound: \"no sound for alerts please\"",
+     "settings.alertSound: \"disable the alert sound\""
+    ],
+    "args": [
+     "corpus settings.alertSound"
+    ],
+    "execution": [
+     "settings.alertSound (c)"
+    ],
+    "receipt": [
+     "settings.alertSound (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "settings.alertSound: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -5204,27 +6101,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "settings.appTheme: \"switch to light mode\"",
+     "settings.appTheme: \"change the app theme to light\"",
+     "settings.appTheme: \"use the light theme\"",
+     "settings.appTheme: \"turn on light mode\""
+    ],
+    "routing": [
+     "settings.appTheme: \"switch to light mode\"",
+     "settings.appTheme: \"change the app theme to light\"",
+     "settings.appTheme: \"use the light theme\"",
+     "settings.appTheme: \"turn on light mode\""
+    ],
+    "args": [
+     "corpus settings.appTheme"
+    ],
+    "execution": [
+     "settings.appTheme (c)"
+    ],
+    "receipt": [
+     "settings.appTheme (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "settings.appTheme: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -5242,27 +6157,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "settings.defaultTimeframe: \"make my default timeframe weekly\"",
+     "settings.defaultTimeframe: \"set the default chart timeframe to weekly\"",
+     "settings.defaultTimeframe: \"new charts should open on the weekly\"",
+     "settings.defaultTimeframe: \"change my default timeframe to W\""
+    ],
+    "routing": [
+     "settings.defaultTimeframe: \"make my default timeframe weekly\"",
+     "settings.defaultTimeframe: \"set the default chart timeframe to weekly\"",
+     "settings.defaultTimeframe: \"new charts should open on the weekly\"",
+     "settings.defaultTimeframe: \"change my default timeframe to W\""
+    ],
+    "args": [
+     "corpus settings.defaultTimeframe"
+    ],
+    "execution": [
+     "settings.defaultTimeframe (c)"
+    ],
+    "receipt": [
+     "settings.defaultTimeframe (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "settings.defaultTimeframe: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -5685,27 +6618,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "volume.hide: \"hide the volume\"",
+     "volume.hide: \"turn off volume on this chart\"",
+     "volume.hide: \"hide the volume pane\"",
+     "volume.hide: \"no volume please\""
+    ],
+    "routing": [
+     "volume.hide: \"hide the volume\"",
+     "volume.hide: \"turn off volume on this chart\"",
+     "volume.hide: \"hide the volume pane\"",
+     "volume.hide: \"no volume please\""
+    ],
+    "args": [
+     "corpus volume.hide"
+    ],
+    "execution": [
+     "volume.hide (c)"
+    ],
+    "receipt": [
+     "volume.hide (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "volume.hide: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -5779,26 +6730,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "watchlist.clear: \"clear my Momentum list\"",
+     "watchlist.clear: \"empty the Momentum watchlist\"",
+     "watchlist.clear: \"remove everything from my Momentum list\"",
+     "watchlist.clear: \"wipe the Momentum list\""
+    ],
+    "routing": [
+     "watchlist.clear: \"clear my Momentum list\"",
+     "watchlist.clear: \"empty the Momentum watchlist\"",
+     "watchlist.clear: \"remove everything from my Momentum list\"",
+     "watchlist.clear: \"wipe the Momentum list\""
+    ],
+    "args": [
+     "corpus watchlist.clear",
+     "refuse.watchlist.clear.dismissed"
+    ],
+    "execution": [
+     "watchlist.clear (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.watchlist.clear.dismissed"
+    ],
+    "permission": [
+     "watchlist.clear: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -5822,7 +6792,7 @@
     "args": true,
     "execution": true,
     "receipt": false,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": null,
     "multiStep": false,
@@ -5843,13 +6813,16 @@
      "watchlist.create: \"new watchlist: Semis\""
     ],
     "args": [
-     "corpus watchlist.create"
+     "corpus watchlist.create",
+     "refuse.watchlist.create.dismissed"
     ],
     "execution": [
      "watchlist.create (c)"
     ],
     "receipt": [],
-    "refusal": [],
+    "refusal": [
+     "refuse.watchlist.create.dismissed"
+    ],
     "permission": [
      "watchlist.create: waits for Apply"
     ],
@@ -5871,26 +6844,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "watchlist.delete: \"delete my Earnings watchlist\"",
+     "watchlist.delete: \"remove the Earnings list\"",
+     "watchlist.delete: \"get rid of my Earnings watchlist\"",
+     "watchlist.delete: \"delete the watchlist called Earnings\""
+    ],
+    "routing": [
+     "watchlist.delete: \"delete my Earnings watchlist\"",
+     "watchlist.delete: \"remove the Earnings list\"",
+     "watchlist.delete: \"get rid of my Earnings watchlist\"",
+     "watchlist.delete: \"delete the watchlist called Earnings\""
+    ],
+    "args": [
+     "corpus watchlist.delete",
+     "refuse.watchlist.delete.dismissed"
+    ],
+    "execution": [
+     "watchlist.delete (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.watchlist.delete.dismissed"
+    ],
+    "permission": [
+     "watchlist.delete: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -5909,23 +6901,37 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "watchlist.list: \"what watchlists do I have\"",
+     "watchlist.list: \"list my watchlists\"",
+     "watchlist.list: \"show me all my lists\"",
+     "watchlist.list: \"which watchlists have I made\""
+    ],
+    "routing": [
+     "watchlist.list: \"what watchlists do I have\"",
+     "watchlist.list: \"list my watchlists\"",
+     "watchlist.list: \"show me all my lists\"",
+     "watchlist.list: \"which watchlists have I made\""
+    ],
+    "args": [
+     "corpus watchlist.list"
+    ],
+    "execution": [
+     "watchlist.list (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
@@ -6041,26 +7047,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
-    "refusal": false,
-    "permission": false,
+    "refusal": true,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "watchlist.rename: \"rename my Momentum list to Leaders\"",
+     "watchlist.rename: \"call the Momentum watchlist Leaders\"",
+     "watchlist.rename: \"change the name of my Momentum list to Leaders\"",
+     "watchlist.rename: \"rename the Momentum watchlist Leaders\""
+    ],
+    "routing": [
+     "watchlist.rename: \"rename my Momentum list to Leaders\"",
+     "watchlist.rename: \"call the Momentum watchlist Leaders\"",
+     "watchlist.rename: \"change the name of my Momentum list to Leaders\"",
+     "watchlist.rename: \"rename the Momentum watchlist Leaders\""
+    ],
+    "args": [
+     "corpus watchlist.rename",
+     "refuse.watchlist.rename.dismissed"
+    ],
+    "execution": [
+     "watchlist.rename (c)"
+    ],
     "receipt": [],
-    "refusal": [],
-    "permission": [],
+    "refusal": [
+     "refuse.watchlist.rename.dismissed"
+    ],
+    "permission": [
+     "watchlist.rename: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -6079,27 +7104,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "watchlist.reorder: \"put TSLA at the top of my Momentum list\"",
+     "watchlist.reorder: \"move TSLA to the top of Momentum\"",
+     "watchlist.reorder: \"TSLA first on my Momentum watchlist\"",
+     "watchlist.reorder: \"bump TSLA to the top of the Momentum list\""
+    ],
+    "routing": [
+     "watchlist.reorder: \"put TSLA at the top of my Momentum list\"",
+     "watchlist.reorder: \"move TSLA to the top of Momentum\"",
+     "watchlist.reorder: \"TSLA first on my Momentum watchlist\"",
+     "watchlist.reorder: \"bump TSLA to the top of the Momentum list\""
+    ],
+    "args": [
+     "corpus watchlist.reorder"
+    ],
+    "execution": [
+     "watchlist.reorder (c)"
+    ],
+    "receipt": [
+     "watchlist.reorder (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "watchlist.reorder: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -6117,24 +7160,40 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "watchlist.setNote: \"add a note to NVDA on my Momentum list: earnings next week\"",
+     "watchlist.setNote: \"note on NVDA in Momentum: earnings next week\"",
+     "watchlist.setNote: \"put the note earnings next week on NVDA in my Momentum list\"",
+     "watchlist.setNote: \"set the NVDA note in Momentum to earnings next week\""
+    ],
+    "routing": [
+     "watchlist.setNote: \"add a note to NVDA on my Momentum list: earnings next week\"",
+     "watchlist.setNote: \"note on NVDA in Momentum: earnings next week\"",
+     "watchlist.setNote: \"put the note earnings next week on NVDA in my Momentum list\"",
+     "watchlist.setNote: \"set the NVDA note in Momentum to earnings next week\""
+    ],
+    "args": [
+     "corpus watchlist.setNote"
+    ],
+    "execution": [
+     "watchlist.setNote (c)"
+    ],
+    "receipt": [
+     "watchlist.setNote (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
@@ -6271,7 +7330,7 @@
     "refusal": false,
     "permission": true,
     "undo": true,
-    "multiStep": false,
+    "multiStep": true,
     "phrasings": true
    },
    "phrasings": 4,
@@ -6280,7 +7339,8 @@
      "widget.addCharts: \"open charts for AAPL and MSFT\"",
      "widget.addCharts: \"add charts for AAPL and MSFT\"",
      "widget.addCharts: \"open AAPL and MSFT in new charts\"",
-     "widget.addCharts: \"give me new charts for AAPL and MSFT\""
+     "widget.addCharts: \"give me new charts for AAPL and MSFT\"",
+     "GW-22.new-chart-then-rsi-on-it"
     ],
     "routing": [
      "widget.addCharts: \"open charts for AAPL and MSFT\"",
@@ -6289,20 +7349,25 @@
      "widget.addCharts: \"give me new charts for AAPL and MSFT\""
     ],
     "args": [
-     "corpus widget.addCharts"
+     "corpus widget.addCharts",
+     "GW-22.new-chart-then-rsi-on-it"
     ],
     "execution": [
-     "widget.addCharts (c)"
+     "widget.addCharts (c)",
+     "GW-22.new-chart-then-rsi-on-it"
     ],
     "receipt": [
-     "widget.addCharts (c)"
+     "widget.addCharts (c)",
+     "GW-22.new-chart-then-rsi-on-it"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "widget.addCharts: undo restores"
     ],
-    "multiStep": [],
+    "multiStep": [
+     "GW-22.new-chart-then-rsi-on-it"
+    ],
     "phrasings": []
    }
   },
@@ -6665,24 +7730,40 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "widget.unlink: \"link the right chart to group B\"",
+     "widget.unlink: \"put the AMD chart in link group B\"",
+     "widget.unlink: \"set the right chart's link color to B\"",
+     "widget.unlink: \"move the right chart to the B link group\""
+    ],
+    "routing": [
+     "widget.unlink: \"link the right chart to group B\"",
+     "widget.unlink: \"put the AMD chart in link group B\"",
+     "widget.unlink: \"set the right chart's link color to B\"",
+     "widget.unlink: \"move the right chart to the B link group\""
+    ],
+    "args": [
+     "corpus widget.unlink"
+    ],
+    "execution": [
+     "widget.unlink (c)"
+    ],
+    "receipt": [
+     "widget.unlink (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

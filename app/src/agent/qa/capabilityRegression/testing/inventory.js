@@ -18,6 +18,7 @@ import { manifestFor, getCapability } from '../../../capabilities'
 import { groupOfAction } from '../../../routing'
 import { corpus, golden, phrasingsOf, deterministicReading } from './corpus'
 import { panelHost } from './harness'
+import collisions from '../baseline/routingCollisions.json'
 
 export const PROTECTIONS = ['nl', 'routing', 'args', 'execution', 'receipt', 'refusal', 'permission', 'undo', 'multiStep', 'phrasings']
 
@@ -151,5 +152,6 @@ export function knownGaps() {
   const out = []
   for (const i of corpus.intents) for (const ph of phrasingsOf(i)) for (const [lvl, g] of Object.entries(ph.gaps || {})) out.push({ ...g, level: lvl, intent: i.id, phrasing: ph.text })
   for (const w of [...golden.workflows, ...corpus.refusals]) if (w.gap) out.push({ ...w.gap, level: 'workflow', intent: w.id, phrasing: null })
+  for (const r of collisions.rows) if (r.gap) out.push({ ...r.gap, level: 'collision', intent: `routing ${r.owner}`, phrasing: r.text })
   return out
 }

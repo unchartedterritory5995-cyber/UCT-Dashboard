@@ -1396,6 +1396,1581 @@
      "modes": {}
     }
    }
+  },
+  "indicatorAlert.threshold": {
+   "digest": "a4858348dd668b3a",
+   "phrasings": {
+    "alert me when RSI goes above 70": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "ping me when the RSI is above 70": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "let me know when RSI gets over 70": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set an RSI alert above 70": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "notify me if RSI rises above 70": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorAlert.ma-cross": {
+   "digest": "2c509458b6a43df1",
+   "phrasings": {
+    "mark when the 9 ema crosses above the 20 on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "alert me when the 9 ema crosses above the 20 ema": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "tell me when the 9 crosses over the 20": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "notify me on a 9/20 ema cross up": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set an alert for the 9 ema crossing above the 20": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorAlert.ma-cross-multichart": {
+   "digest": "6b0961df59c18208",
+   "phrasings": {
+    "mark when the 9 ema crosses above the 20 on the NVDA chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "alert me when NVDA's 9 ema crosses above its 20": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorAlert.toggle": {
+   "digest": "7aa9d7fc1e44cc25",
+   "phrasings": {
+    "pause my RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pause the NVDA RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off my RSI alert for now": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "mute the RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorAlert.delete": {
+   "digest": "9aa1d9a36e200eae",
+   "phrasings": {
+    "delete my RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the NVDA RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of my RSI indicator alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "cancel the RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.addLevel": {
+   "digest": "ebde312f317c63dd",
+   "phrasings": {
+    "draw a horizontal line at 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a line at $200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a horizontal level at 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "draw a price line at 200 on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "mark the 200 level with a line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.list": {
+   "digest": "d9387aeb0c13b257",
+   "phrasings": {
+    "list my drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what drawings are on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the drawings on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which lines have I drawn": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setLevel": {
+   "digest": "b535685bd935176a",
+   "phrasings": {
+    "move the line to 210": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the 200 line up to 210": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set that level to 210": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "drag the line to 210": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.style": {
+   "digest": "c62a9e4646d98d34",
+   "phrasings": {
+    "make the line red": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "color that line red": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the 200 line to red": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn the horizontal line red": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.remove": {
+   "digest": "df13dc4294fa82b8",
+   "phrasings": {
+    "delete that line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the line at 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the horizontal line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "erase the 200 line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.clear": {
+   "digest": "7923b2494125a6a1",
+   "phrasings": {
+    "clear all my drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clear every drawing on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "wipe the drawings off this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove all drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.addTab": {
+   "digest": "15acde52d77b3120",
+   "phrasings": {
+    "add a tab called Swing to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "give this chart another tab named Swing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "new chart tab called Swing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open a Swing tab on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.renameTab": {
+   "digest": "b3d8d6ff36d5d618",
+   "phrasings": {
+    "rename the Swing tab to Position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call the Swing tab Position instead": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the Swing tab's name to Position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename that tab to Position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.closeTab": {
+   "digest": "c66bfb643034f66c",
+   "phrasings": {
+    "close the Swing tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Swing tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the Swing tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "close that tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.applyTheme": {
+   "digest": "e38a5d2f0b32b148",
+   "phrasings": {
+    "use the nord chart theme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch the chart to the Nord theme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "apply the nord theme to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make this chart nord": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setBackground": {
+   "digest": "433a103584575fb7",
+   "phrasings": {
+    "make the background black": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the chart background to black": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "black background please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the chart's background colour to black": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setCandleColors": {
+   "digest": "ba4af33dbeced913",
+   "phrasings": {
+    "make the up candles blue and the down candles orange": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "blue up candles, orange down candles": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change my candle colors to blue and orange": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "color the green candles blue and the red ones orange": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "definition.search": {
+   "digest": "68c0b5cc45de656c",
+   "phrasings": {
+    "find me an indicator for volatility": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "search the indicators for volatility": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what indicators measure volatility": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "are there any volatility indicators": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.draft-create": {
+   "digest": "fa8e5e7e026edc48",
+   "phrasings": {
+    "Create a custom indicator that shows the difference between the 9ema and 20ema as a percentage. Put it in a separate pane.": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "build me an indicator that shows the 9 EMA vs 20 EMA spread as a percent, in its own pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "create a custom indicator: (EMA 9 minus EMA 20) divided by EMA 20 times 100, in a separate pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make me a new indicator plotting the percentage difference between the 9 and 20 EMA in a separate pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "settings.appTheme": {
+   "digest": "98ec7bc8d544ab5d",
+   "phrasings": {
+    "switch to light mode": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the app theme to light": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use the light theme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on light mode": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "settings.defaultTimeframe": {
+   "digest": "fa189fe383953f31",
+   "phrasings": {
+    "make my default timeframe weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the default chart timeframe to weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "new charts should open on the weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change my default timeframe to W": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "settings.alertSound": {
+   "digest": "fdcde1ada0c580e0",
+   "phrasings": {
+    "turn off alert sounds": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "mute the alert sound": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "no sound for alerts please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "disable the alert sound": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.saveTemplate": {
+   "digest": "98af66e463aead34",
+   "phrasings": {
+    "save this chart as a template called Swing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save this chart's look as a template named Swing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a chart template called Swing from this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save these chart settings as my Swing template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.applyTemplate": {
+   "digest": "a61c317e2a9bcbe0",
+   "phrasings": {
+    "apply my Clean template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use the Clean template on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch this chart to my Clean template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "load the Clean chart template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.deleteTemplate": {
+   "digest": "a857df85bc9a7a6a",
+   "phrasings": {
+    "delete my Clean template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Clean chart template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of my Clean template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the chart template called Clean": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "screener.saveAs": {
+   "digest": "4c87ebb8a6ccefd1",
+   "phrasings": {
+    "save this screen as ADR Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save that scan as ADR Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save these results as a screen called ADR Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "keep this screen, call it ADR Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "screener.renameSaved": {
+   "digest": "228a1f32667e0255",
+   "phrasings": {
+    "rename my Momentum Screen to Momentum Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call the Momentum Screen Momentum Leaders instead": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the name of my Momentum Screen to Momentum Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename the saved screen Momentum Screen to Momentum Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "screener.deleteSaved": {
+   "digest": "768a33af85379c24",
+   "phrasings": {
+    "delete my Momentum Screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the saved screen Momentum Screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of my Momentum Screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the Momentum Screen scan": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "screener.duplicateSaved": {
+   "digest": "d76e2a1155d2ea99",
+   "phrasings": {
+    "make a copy of my Momentum Screen called Momentum Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "duplicate the Momentum Screen as Momentum Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "copy my Momentum Screen and name it Momentum Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clone the Momentum Screen into Momentum Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "screener.listSaved": {
+   "digest": "c8efc703110d9491",
+   "phrasings": {
+    "what screens have I saved": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list my saved screens": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me my saved scans": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which screens do I have": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.reorder": {
+   "digest": "b13a556047bbcef6",
+   "phrasings": {
+    "put TSLA at the top of my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move TSLA to the top of Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "TSLA first on my Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "bump TSLA to the top of the Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.rename": {
+   "digest": "89a52c7af225c5e5",
+   "phrasings": {
+    "rename my Momentum list to Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call the Momentum watchlist Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the name of my Momentum list to Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename the Momentum watchlist Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.clear": {
+   "digest": "857ddb480e177749",
+   "phrasings": {
+    "clear my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "empty the Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove everything from my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "wipe the Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.delete": {
+   "digest": "35909d02f991abe8",
+   "phrasings": {
+    "delete my Earnings watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Earnings list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of my Earnings watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the watchlist called Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.setNote": {
+   "digest": "51d6f764c040545d",
+   "phrasings": {
+    "add a note to NVDA on my Momentum list: earnings next week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "note on NVDA in Momentum: earnings next week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the note earnings next week on NVDA in my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the NVDA note in Momentum to earnings next week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.list": {
+   "digest": "f4cd05c73eed8222",
+   "phrasings": {
+    "what watchlists do I have": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list my watchlists": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me all my lists": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which watchlists have I made": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.rename": {
+   "digest": "77d04097a502f477",
+   "phrasings": {
+    "rename my Momentum layout to Momentum Trades": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call the Momentum layout Momentum Trades": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the Momentum layout name to Momentum Trades": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename layout Momentum to Momentum Trades": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.delete": {
+   "digest": "673ea835b74a20ba",
+   "phrasings": {
+    "delete my Momentum layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Momentum layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the Momentum layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the layout called Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.duplicate": {
+   "digest": "b57cbb8ad820e8c1",
+   "phrasings": {
+    "make a copy of my Swing layout called Swing Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "duplicate the Swing layout as Swing Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "copy Swing into a new layout named Swing Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clone my Swing layout as Swing Copy": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.create": {
+   "digest": "bbc5fe615971a9f2",
+   "phrasings": {
+    "create a new empty layout called Scalps": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a new layout named Scalps": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "start a fresh layout called Scalps": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "new layout: Scalps": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.list": {
+   "digest": "b275e45727d024f9",
+   "phrasings": {
+    "what layouts do I have": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list my layouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me my saved layouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which layouts have I saved": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "breadth.measure-now": {
+   "digest": "92e1eebfaddf68ef",
+   "phrasings": {
+    "what percent of stocks are above the 50 day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how many stocks are above their 50 day moving average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "% of stocks above the 50dma": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what share of stocks are over the 50 day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "breadth.measure-nasdaq": {
+   "digest": "4907ad5a52c270b5",
+   "phrasings": {
+    "what percent of nasdaq stocks are above the 200 day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "nasdaq breadth above the 200 day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how many nasdaq names are over their 200 day moving average": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "% of nasdaq stocks above the 200dma": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "breadth.history.count": {
+   "digest": "ce0807d99ef81f3f",
+   "phrasings": {
+    "how many times has the percent above the 50 day gone below 20%": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how often has breadth above the 50 day been under 20%": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "count the times the % of stocks above the 50dma fell below 20%": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how many episodes below 20% above the 50 day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "volume.hide": {
+   "digest": "1e5892eaa7c4fac8",
+   "phrasings": {
+    "hide the volume": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off volume on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the volume pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "no volume please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicator.list": {
+   "digest": "0c3365f4f63776d9",
+   "phrasings": {
+    "what indicators are on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what's on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list the indicators on my chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which studies do I have on here": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.hideAll": {
+   "digest": "401084b66bf09fc1",
+   "phrasings": {
+    "hide all my drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide every drawing on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off all drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "widget.unlink": {
+   "digest": "45fc728841a12ebf",
+   "phrasings": {
+    "link the right chart to group B": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the AMD chart in link group B": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the right chart's link color to B": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the right chart to the B link group": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.trendline": {
+   "digest": "751494bd6aff0e2b",
+   "phrasings": {
+    "draw a trendline on nvda from oct 9 at 150 to oct 28 at 180": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "trendline from 150 on oct 9 to 180 on oct 28": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "connect oct 9 at 150 to oct 28 at 180 with a trend line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "draw a line from the oct 9 150 level to 180 on oct 28": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.ray": {
+   "digest": "8788085c111460d8",
+   "phrasings": {
+    "draw a ray from oct 9 at 150 through oct 28 at 180": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "ray on nvda from 150 on oct 9 through 180 on oct 28": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "extend a ray from oct 9 150 through oct 28 180": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a ray from oct 9 at 150 to oct 28 at 180": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.horizontalRay": {
+   "digest": "c2b2fb14fc8430e9",
+   "phrasings": {
+    "put a horizontal ray at 100 on nvda starting oct 15": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "horizontal ray at 100 from oct 15": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "draw a horizontal ray at $100 starting on oct 15": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a horizontal ray from oct 15 at 100": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.rectangle": {
+   "digest": "2d72fc184c32932d",
+   "phrasings": {
+    "draw a box from oct 1 at 140 to oct 20 at 160": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rectangle from oct 1 140 to oct 20 160": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a rectangle between oct 1 at 140 and oct 20 at 160": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "mark a box from 140 on oct 1 to 160 on oct 20": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.fib": {
+   "digest": "5c8344ce58150ca0",
+   "phrasings": {
+    "draw a fib from sep 2 at 100 to oct 28 at 180": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "fibonacci retracement from 100 on sep 2 to 180 on oct 28": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "fib retracement sep 2 100 to oct 28 180": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a fib from the sep 2 100 low to the oct 28 180 high": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.text": {
+   "digest": "09cc1f1384710f18",
+   "phrasings": {
+    "add a note that says breakout at 150 on oct 15": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the text breakout on oct 15 at 150": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "write breakout on the chart at oct 15, 150": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "drop a text label breakout at 150 on oct 15": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.avwap": {
+   "digest": "4508a9f0b9d26e72",
+   "phrasings": {
+    "anchored vwap on nvda from oct 1": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "avwap from oct 1": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add an anchored vwap starting oct 1": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "anchor a vwap to oct 1": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setSetting.gradient": {
+   "digest": "e28b4196951e1924",
+   "phrasings": {
+    "turn the gradient off on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off the gradient background": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make the background solid instead of a gradient": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "no gradient on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setSetting.grid": {
+   "digest": "c52c95f8ea4719fa",
+   "phrasings": {
+    "turn off the grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the grid lines": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "no grid on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the gridlines": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.replay": {
+   "digest": "e23b66fe5c9180f3",
+   "phrasings": {
+    "show me this chart as of march 2 2026": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "replay the chart from march 2 2026": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "go back to march 2 2026 and hide what came after": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "start replay mode on 2026-03-02": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.replay.exit": {
+   "digest": "3858cdefd5b544c3",
+   "phrasings": {
+    "exit replay": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "leave replay mode": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "stop the replay": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn replay off": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.goToDate": {
+   "digest": "473e755ceba65dd6",
+   "phrasings": {
+    "go to march 2 2026": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "scroll the chart to march 2 2026": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "jump to 2026-03-02": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "take me to march 2nd 2026 on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.addCustomTimeframe": {
+   "digest": "d918d71e86bdc1cc",
+   "phrasings": {
+    "add a 2 hour timeframe": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a custom 2h timeframe and switch to it": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "create a 2-hour chart interval": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add 2 hours as a timeframe": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "earnings.this-week": {
+   "digest": "d3abfbe740548ff4",
+   "phrasings": {
+    "what's on the calendar this week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks report earnings this week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "who's reporting this week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "breadth.averages": {
+   "digest": "2f13283795e30659",
+   "phrasings": {
+    "averages for the S&P": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how are the moving averages looking for the market": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "market averages breadth": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -1416,6 +2991,131 @@
   },
   "refuse.alert-needs-approval": {
    "digest": "85988acc9878d7d4",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.alert.price-above.dismissed": {
+   "digest": "1ed1c9d5a6ac2187",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.indicator.remove-sma200.dismissed": {
+   "digest": "d9c618fcbedadbf6",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.alert.delete.dismissed": {
+   "digest": "dcc3f777223bab9b",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.layout.saveAs.dismissed": {
+   "digest": "ed28eb52f4a81e1f",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.watchlist.create.dismissed": {
+   "digest": "fb41e5c488b53022",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.indicatorAlert.threshold.dismissed": {
+   "digest": "0a42b5c6fc9123c4",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.indicatorAlert.ma-cross.dismissed": {
+   "digest": "13158b6ba2852b3c",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.indicatorAlert.delete.dismissed": {
+   "digest": "a3eb66893181d946",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.drawing.clear.dismissed": {
+   "digest": "bff569bed5f27069",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.chart.applyTemplate.dismissed": {
+   "digest": "3428afa1ff39edb3",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.chartSetup.deleteTemplate.dismissed": {
+   "digest": "04ccb9c3e7f8384a",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.screener.saveAs.dismissed": {
+   "digest": "c39231b985711400",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.screener.renameSaved.dismissed": {
+   "digest": "9fe1e25a5e4c75a6",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.screener.deleteSaved.dismissed": {
+   "digest": "174907f291446123",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.screener.duplicateSaved.dismissed": {
+   "digest": "b3beafe1d0c5acf6",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.watchlist.rename.dismissed": {
+   "digest": "5ec84184ab3e61c5",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.watchlist.clear.dismissed": {
+   "digest": "87720631b02a56b3",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.watchlist.delete.dismissed": {
+   "digest": "92ec19a373735eea",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.layout.rename.dismissed": {
+   "digest": "89960d4b3e1c9026",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.layout.delete.dismissed": {
+   "digest": "e11340882282f539",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.layout.duplicate.dismissed": {
+   "digest": "9c061039763e31ee",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.layout.create.dismissed": {
+   "digest": "0adbc4a8159aa5ac",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.trading-unsupported": {
+   "digest": "b17079783f75d3ac",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.missing-target": {
+   "digest": "0403216486674095",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.empty-board-timeframe": {
+   "digest": "65ca9b19e3eafe27",
    "gap": false,
    "mode": null
   }
@@ -1508,6 +3208,213 @@
   },
   "GW-18.live-emas-already-present": {
    "digest": "33316af250b39fe2",
+   "gap": false,
+   "mode": null
+  },
+  "GW-19.daily-charts-each-with-50sma": {
+   "digest": "4f95da5faaa1a67a",
+   "gap": false,
+   "mode": null
+  },
+  "GW-20.weekly-then-20ema": {
+   "digest": "d208f88b913f2fa4",
+   "gap": false,
+   "mode": null
+  },
+  "GW-21.two-charts-side-by-side": {
+   "digest": "9d8d6ac2826f761a",
+   "gap": false,
+   "mode": null
+  },
+  "GW-22.new-chart-then-rsi-on-it": {
+   "digest": "d3c4362169decb7c",
+   "gap": false,
+   "mode": null
+  },
+  "GW-23.weekly-and-ema-then-undo-all": {
+   "digest": "13334bfd5fea50d4",
+   "gap": false,
+   "mode": null
+  },
+  "GW-24.grid-then-all-weekly": {
+   "digest": "abfe3827a04acb8c",
+   "gap": false,
+   "mode": null
+  }
+ },
+ "collisions": {
+  "tell me about TSM the company": {
+   "digest": "b44b566361c9e103",
+   "gap": false,
+   "mode": null
+  },
+  "how does NVDA stack up against AMD": {
+   "digest": "f4528e91192754ac",
+   "gap": true,
+   "mode": "stolen by charts"
+  },
+  "tell me about AAPL": {
+   "digest": "0a1d33fe44a7e911",
+   "gap": false,
+   "mode": null
+  },
+  "what does NVDA do": {
+   "digest": "897869a12a729a88",
+   "gap": false,
+   "mode": null
+  },
+  "any news on TSLA": {
+   "digest": "33d9fc10444a6480",
+   "gap": false,
+   "mode": null
+  },
+  "when does NVDA report earnings": {
+   "digest": "c41a0f507e580b4c",
+   "gap": false,
+   "mode": null
+  },
+  "what's driving AMD today": {
+   "digest": "6330a61907108023",
+   "gap": false,
+   "mode": null
+  },
+  "NVDA drawdowns this year": {
+   "digest": "be05f3848eb39f3d",
+   "gap": false,
+   "mode": null
+  },
+  "how far is NVDA off its high": {
+   "digest": "e5d6ac04b3bc1f04",
+   "gap": false,
+   "mode": null
+  },
+  "switch to weekly": {
+   "digest": "66c483164cb14621",
+   "gap": false,
+   "mode": null
+  },
+  "make it a line chart": {
+   "digest": "bcff3ce1716b0ee4",
+   "gap": false,
+   "mode": null
+  },
+  "use a log scale": {
+   "digest": "f7238e7ef5b3be42",
+   "gap": false,
+   "mode": null
+  },
+  "show extended hours": {
+   "digest": "418dd6c2ee5cfd1b",
+   "gap": false,
+   "mode": null
+  },
+  "add the 9 and 20 ema": {
+   "digest": "f629b18664b16840",
+   "gap": false,
+   "mode": null
+  },
+  "add the relative strength index": {
+   "digest": "59684eb7d86f9cfd",
+   "gap": true,
+   "mode": "stolen by screener"
+  },
+  "remove the 200 sma": {
+   "digest": "1b417735a6a6d5c3",
+   "gap": false,
+   "mode": null
+  },
+  "hide the 50 day moving average": {
+   "digest": "06af1fdc426404b5",
+   "gap": false,
+   "mode": null
+  },
+  "set a price alert on NVDA at 150": {
+   "digest": "baeb8ac5d878e721",
+   "gap": false,
+   "mode": null
+  },
+  "show my alerts": {
+   "digest": "44f112a4e45b51b6",
+   "gap": false,
+   "mode": null
+  },
+  "pause my RSI alert": {
+   "digest": "20d52a7df68b7d7b",
+   "gap": false,
+   "mode": null
+  },
+  "find stocks with ADR above 5%": {
+   "digest": "bd81b792ab1b9a7a",
+   "gap": false,
+   "mode": null
+  },
+  "run my Momentum screen": {
+   "digest": "c2f2cc3538cb9c7f",
+   "gap": false,
+   "mode": null
+  },
+  "how's breadth today": {
+   "digest": "b0e236c31e06336c",
+   "gap": false,
+   "mode": null
+  },
+  "what percent of stocks are above the 50 day": {
+   "digest": "d678e9aaf5cf10b5",
+   "gap": false,
+   "mode": null
+  },
+  "add AMD to my watchlist": {
+   "digest": "a2b4051593d0a4e4",
+   "gap": false,
+   "mode": null
+  },
+  "create a new watchlist called Semis": {
+   "digest": "f57f0d766c6ece4d",
+   "gap": false,
+   "mode": null
+  },
+  "open my Swing layout": {
+   "digest": "d97d05f0be1afc7f",
+   "gap": false,
+   "mode": null
+  },
+  "save this layout": {
+   "digest": "98573981f0ec6f89",
+   "gap": false,
+   "mode": null
+  },
+  "add a news widget": {
+   "digest": "00b7e9e43ccff272",
+   "gap": false,
+   "mode": null
+  },
+  "close the right chart": {
+   "digest": "b459e19c7169833f",
+   "gap": false,
+   "mode": null
+  },
+  "draw a horizontal line at 200": {
+   "digest": "28bee9b3ed961fd9",
+   "gap": false,
+   "mode": null
+  },
+  "clear all my drawings": {
+   "digest": "40c04ba266af198a",
+   "gap": false,
+   "mode": null
+  },
+  "switch to dark mode": {
+   "digest": "0447b605600c2754",
+   "gap": false,
+   "mode": null
+  },
+  "undo that": {
+   "digest": "60022dd8c211b270",
+   "gap": false,
+   "mode": null
+  },
+  "where is the indicator settings button": {
+   "digest": "22e7d4de10a73e3b",
    "gap": false,
    "mode": null
   }

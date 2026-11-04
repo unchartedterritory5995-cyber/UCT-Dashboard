@@ -736,6 +736,291 @@
           }
         }
       ]
+    },
+    {
+      "id": "GW-19.daily-charts-each-with-50sma",
+      "source": "Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — the owner's acceptance phrasing (agentFlagshipOperator: CYPH kept, three new daily charts, SMA 50 on each) (the SMA adds are asserted on the state; the static reading of this sentence names only chartGrid.set, so only that is credited)",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "open daily charts for AAPL, MSFT and NVDA, each with a 50 SMA",
+          "expect": {
+            "charts": {
+              "count": 4,
+              "symbolSet": [
+                "NVDA",
+                "AAPL",
+                "MSFT",
+                "NVDA"
+              ],
+              "sameSize": true,
+              "keepsIds": [
+                "c1"
+              ]
+            },
+            "indicatorsEach": {
+              "include": [
+                "movingAverage(50 sma)"
+              ],
+              "except": [
+                "c1"
+              ]
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo all of that",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-20.weekly-then-20ema",
+      "source": "Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — a compound: the timeframe, then the indicator, each its own receipt",
+      "capabilities": [
+        "chart.setTimeframe",
+        "indicator.add"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "switch to weekly and add the 20 ema",
+          "expect": {
+            "charts": {
+              "tf": "W"
+            },
+            "indicators": {
+              "chart": 0,
+              "include": [
+                "movingAverage(20 ema)"
+              ]
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-21.two-charts-side-by-side",
+      "source": "Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — two charts + grid (agentMultiActionRegression routing set)",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "HALF",
+      "steps": [
+        {
+          "say": "put NVDA and AMD side by side",
+          "model": {
+            "ops": [
+              {
+                "action": "chartGrid.set",
+                "target": "$board",
+                "args": {
+                  "symbols": [
+                    "NVDA",
+                    "AMD"
+                  ],
+                  "timeframe": null,
+                  "layout": "columns",
+                  "new_charts": null,
+                  "watchlist": null,
+                  "replace": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "count": 2,
+              "symbols": [
+                "NVDA",
+                "AMD"
+              ],
+              "sameSize": true
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-22.new-chart-then-rsi-on-it",
+      "source": "Batch F4 (11-04): multi-step combos across turns (the AUDIT list) — add a chart, then an indicator on 'it' (the chart the conversation just made). The new chart is born with the product's default overlays (EMA 9/20, SMA 50/200), so the follow-up adds RSI",
+      "capabilities": [
+        "widget.addCharts",
+        "indicator.add"
+      ],
+      "board": "HALF",
+      "steps": [
+        {
+          "say": "open a chart for AMD",
+          "model": {
+            "ops": [
+              {
+                "action": "widget.addCharts",
+                "target": "$workspace",
+                "args": {
+                  "symbols": [
+                    "AMD"
+                  ],
+                  "timeframe": null,
+                  "chart_type": null,
+                  "exact": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "count": 2,
+              "symbolSet": [
+                "NVDA",
+                "AMD"
+              ]
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "add rsi to it",
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.add",
+                "target": "$indicatorEdits[1]",
+                "args": {
+                  "defId": "rsi",
+                  "inputs": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "instance": {
+              "chart": 1,
+              "find": {
+                "defId": "rsi"
+              }
+            },
+            "receipt": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-23.weekly-and-ema-then-undo-all",
+      "source": "Batch F4 (11-04): multi-step combos across turns (the AUDIT list) — timeframe + indicator in one request, then ONE 'undo all of that'",
+      "capabilities": [
+        "chart.setTimeframe",
+        "indicator.add",
+        "agent.undo"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "switch to weekly and add the 20 ema",
+          "expect": {
+            "charts": {
+              "tf": "W"
+            },
+            "indicators": {
+              "chart": 0,
+              "include": [
+                "movingAverage(20 ema)"
+              ]
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo all of that",
+          "expect": {
+            "charts": {
+              "tf": "D"
+            },
+            "indicators": {
+              "chart": 0,
+              "count": 0
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-24.grid-then-all-weekly",
+      "source": "Batch F4 (11-04): multi-step combos across turns (the AUDIT list) — four charts, then one change on all of them",
+      "capabilities": [
+        "chartGrid.set",
+        "chart.setTimeframe"
+      ],
+      "board": "HALF",
+      "steps": [
+        {
+          "say": "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.",
+          "expect": {
+            "charts": {
+              "count": 4,
+              "sameSize": true
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "make them all weekly",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.setTimeframe",
+                "target": "$charts[0]",
+                "args": {
+                  "timeframe": "W"
+                }
+              },
+              {
+                "action": "chart.setTimeframe",
+                "target": "$charts[1]",
+                "args": {
+                  "timeframe": "W"
+                }
+              },
+              {
+                "action": "chart.setTimeframe",
+                "target": "$charts[2]",
+                "args": {
+                  "timeframe": "W"
+                }
+              },
+              {
+                "action": "chart.setTimeframe",
+                "target": "$charts[3]",
+                "args": {
+                  "timeframe": "W"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "count": 4,
+              "tf": "W"
+            },
+            "receipt": true
+          }
+        }
+      ]
     }
   ]
 }

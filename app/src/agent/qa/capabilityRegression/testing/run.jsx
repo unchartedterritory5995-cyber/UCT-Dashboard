@@ -5,6 +5,9 @@ import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow } from './harness'
 import { routedNames } from './route'
+import * as drawingsStore from '../../../../components/chart/drawingsStore'
+import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
+import { _resetScreenerCache } from '../../../capabilities/screener'
 
 /** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
 export function hueFamily(hex) {
@@ -41,7 +44,9 @@ export function checkExpect(ctx, e, label) {
   }
   if (e.setting) {
     const id = chartsOf(board)[e.setting.chart || 0]?.id
-    expect(h.charts.read(id)?.cs?.[e.setting.key], `${label}: chart setting ${e.setting.key}`).toEqual(e.setting.value)
+    const v = e.setting.key.split('.').reduce((a, k) => a?.[k], h.charts.read(id)?.cs)      // a dotted path ("candles.upColor")
+    if ('value' in e.setting) expect(v, `${label}: chart setting ${e.setting.key}`).toEqual(e.setting.value)
+    if (e.setting.colour) expect(hueFamily(v), `${label}: chart setting ${e.setting.key} is ${e.setting.colour}`).toBe(e.setting.colour)
   }
   if (e.settingSome) {
     const id = chartsOf(board)[e.settingSome.chart || 0]?.id
@@ -72,6 +77,70 @@ export function checkExpect(ctx, e, label) {
     for (const sym of e.watchlist.include || []) expect(wl.items.map(i => i.sym), `${label}: ${sym} on ${e.watchlist.name}`).toContain(sym)
     for (const sym of e.watchlist.exclude || []) expect(wl.items.map(i => i.sym), `${label}: ${sym} not on ${e.watchlist.name}`).not.toContain(sym)
   }
+  if (e.indicatorAlerts) {
+    // the fixture /api/indicator-alerts rows (the product's hook writers wrote them); `match` = dotted-path fields
+    const rows = ctx.st.ialerts
+    const get = (o, k) => k.split('.').reduce((a, x) => a?.[x], o)
+    if (e.indicatorAlerts.count != null) expect(rows.length, `${label}: indicator alerts`).toBe(e.indicatorAlerts.count)
+    if (e.indicatorAlerts.match) expect(rows.some(r => Object.entries(e.indicatorAlerts.match).every(([k, v]) => get(r, k) === v)), `${label}: an indicator alert ${JSON.stringify(e.indicatorAlerts.match)} (rows: ${JSON.stringify(rows.map(r => [r.sym, r.indicator, r.condition, r.threshold, r.active]))})`).toBe(true)
+  }
+  if (e.drawings) {
+    // the chart's drawings in the REAL drawings store (by the first chart's symbol); `has` = dotted-path fields of one
+    const sym = h.charts.read(chartsOf(board)[e.drawings.chart || 0]?.id)?.symbol
+    const ds = drawingsStore.peekDrawings(sym) || []
+    const get = (o, k) => k.split('.').reduce((a, x) => a?.[x], o)
+    if (e.drawings.count != null) expect(ds.length, `${label}: drawings on ${sym}`).toBe(e.drawings.count)
+    if (e.drawings.has) expect(ds.some(d => Object.entries(e.drawings.has).every(([k, v]) => get(d, k) === v)), `${label}: a drawing ${JSON.stringify(e.drawings.has)} (have ${JSON.stringify(ds.map(d => [d.type, d.points?.[0]?.price, d.color]))})`).toBe(true)
+    if (e.drawings.colour) expect(ds.some(d => hueFamily(d.color) === e.drawings.colour), `${label}: a ${e.drawings.colour} drawing`).toBe(true)
+  }
+  if (e.chartTabs) {
+    // a chart widget's own tabs (opts.chartTabs: [{ id, name, tf }]), by name
+    const w = board.state.widgets.find(x => x.id === (e.chartTabs.widget || 'c1'))
+    const names = (w?.opts?.chartTabs || []).map(t => t.name)
+    for (const n of e.chartTabs.include || []) expect(names, `${label}: a chart tab ${n}`).toContain(n)
+    for (const n of e.chartTabs.exclude || []) expect(names, `${label}: no chart tab ${n}`).not.toContain(n)
+  }
+  if (e.customIndicators) {
+    // the member's OWN indicators on a chart (saved definitions: defId u_…) and the definitions the server now holds
+    const id = chartsOf(board)[e.customIndicators.chart || 0]?.id
+    const mine = p.instancesOn(board, id).filter(i => /^u_/.test(String(i.defId)))
+    if (e.customIndicators.count != null) expect(mine.length, `${label}: own indicators on the chart`).toBe(e.customIndicators.count)
+    if (e.customIndicators.saved != null) expect(ctx.st.defs.size, `${label}: definitions saved`).toBe(e.customIndicators.saved)
+    if (e.customIndicators.placement) expect(mine.length && [...ctx.st.defs.values()].some(d => d.definition?.placement?.target === e.customIndicators.placement), `${label}: saved with placement ${e.customIndicators.placement}`).toBe(true)
+  }
+  if (e.prefs) for (const [k, v] of Object.entries(e.prefs)) expect(ctx.st.prefs[k], `${label}: preference ${k}`).toEqual(v)
+  if (e.templates) {
+    const names = (() => { try { return JSON.parse(ctx.st.prefs.chart_templates || '[]').map(t => t.name) } catch { return [] } })()
+    for (const n of e.templates.include || []) expect(names, `${label}: a chart template ${n}`).toContain(n)
+    for (const n of e.templates.exclude || []) expect(names, `${label}: no chart template ${n}`).not.toContain(n)
+  }
+  if (e.screens) {
+    const names = ctx.st.screens.map(x => x.name)
+    for (const n of e.screens.include || []) expect(names, `${label}: a saved screen ${n}`).toContain(n)
+    for (const n of e.screens.exclude || []) expect(names, `${label}: no saved screen ${n}`).not.toContain(n)
+  }
+  if (e.watchlistOrder) {
+    const wl = (board.state.server?.lists || []).find(l => l.name === e.watchlistOrder.name)
+    expect(wl?.items.map(i => i.sym), `${label}: ${e.watchlistOrder.name} order`).toEqual(e.watchlistOrder.symbols)
+  }
+  if (e.watchlistNote) {
+    const wl = (board.state.server?.lists || []).find(l => l.name === e.watchlistNote.name)
+    expect(wl?.items.find(i => i.sym === e.watchlistNote.symbol)?.notes, `${label}: the note on ${e.watchlistNote.symbol}`).toBe(e.watchlistNote.note)
+  }
+  if (e.watchlistNames) {
+    const names = (board.state.server?.lists || []).map(l => l.name)
+    for (const n of e.watchlistNames.include || []) expect(names, `${label}: a watchlist ${n}`).toContain(n)
+    for (const n of e.watchlistNames.exclude || []) expect(names, `${label}: no watchlist ${n}`).not.toContain(n)
+  }
+  if (e.indicatorsEach) {
+    // EVERY chart on the board (or every chart but the listed ones) carries these indicators
+    for (const w of chartsOf(board).filter(x => !(e.indicatorsEach.except || []).includes(x.id))) {
+      const got = p.brief(board, w.id)
+      for (const want of e.indicatorsEach.include || []) expect(got, `${label}: ${want} on chart ${w.id}`).toContain(want)
+    }
+  }
+  if ('replay' in e) expect(ctx.st.replay, `${label}: the Replay Mode cutoff`).toBe(e.replay)
+  if (e.viewRight) expect(new Date(ctx.st.views[chartsOf(board)[0]?.id]?.rightMs || 0).toISOString().slice(0, 10), `${label}: the chart's right edge`).toBe(e.viewRight)
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)
@@ -98,8 +167,12 @@ export function checkExpect(ctx, e, label) {
  * Each step's expectations are retried until they hold (UI work settles asynchronously) and then asserted.
  */
 export async function replay({ board: boardName = 'ONE', steps, seed = {} }, label) {
+  _resetScreenerCache()                               // before the panel mounts (it reads the saved screens on open)
   const m = mountCase(boardName, { seed })
   const { p, board, say } = m
+  _resetScreenerCache()                               // module-level: each case reads its own saved screens
+  // a member's panel has read their indicator alerts long before they ask (the cache is module-level: start clean)
+  if (m.h.indicatorAlerts) { _resetIndicatorAlertCache(); await loadIndicatorAlerts(m.h, { force: true }) }
   const start = boardState(board)
   for (const [i, s] of steps.entries()) {
     const before = boardState(board)
@@ -114,6 +187,13 @@ export async function replay({ board: boardName = 'ONE', steps, seed = {} }, lab
     const ctx = { ...m, start, before, since }
     const l = `${label} · step ${i + 1} "${s.say}"`
     if (s.expect) await waitFor(() => checkExpect(ctx, s.expect, l), { timeout: 6000 })
+    if (s.dismiss) {
+      // the member declines the card: nothing it proposed may happen, then or later
+      const since2 = { ...since, calls: p.st.calls.length, receipts: receiptsNow().length }
+      fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss' }).at(-1))
+      await m.p.idle()
+      if (s.afterDismiss) await waitFor(() => checkExpect({ ...ctx, since: since2 }, s.afterDismiss, `${l} → Dismiss`), { timeout: 6000 })
+    }
     if (s.approve) {
       const since2 = { ...since, calls: p.st.calls.length, receipts: receiptsNow().length }
       fireEvent.click(screen.getAllByRole('button', { name: 'Apply' }).at(-1))
