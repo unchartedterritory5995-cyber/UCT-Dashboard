@@ -11,7 +11,16 @@ export {
   resetRuntimeLedgers,
   RUNTIME_FRONTEND_LANGUAGE,
   RUNTIME_FRONTEND_VERSION,
+  // W5-T7: what the service's job adapter (services/pine_runtime/job.mjs) passes and reads, from
+  // the module that declares each: the worker's wall budget (HP-7), the run's incremental record
+  // (the H6 cold check) and the guards a pool-side stop is named by.
+  RUNTIME_PANE_TIME_BUDGET_MS,
+  RUNTIME_INCREMENTAL_KEY,
+  RUNTIME_TIME_BUDGET_GUARD,
+  RUNTIME_FAILED_GUARD,
 } from './runtimeColumns.js'
+// W5-T7: drawings are not served by the server lanes in v1; the adapter names them by this key.
+export { RUNTIME_OBJECTS_KEY } from './runtimeObjects.js'
 export { SCRIPT_ENGINE_VERSION } from '../scriptEngineVersion.js'
 export { RUNTIME_IR_VERSION } from './ir.js'
 // The chart's timeframe set, so the service's door (services/pine_runtime/protocol.mjs, W5-T6)

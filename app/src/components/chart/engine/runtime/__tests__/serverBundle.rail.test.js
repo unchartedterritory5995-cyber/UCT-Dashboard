@@ -18,13 +18,19 @@ import { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../../ast/p
 import { RUNTIME_IR_VERSION } from '../ir.js'
 import { NATIVE_TFS } from '../../../timeframes.js'
 import { DEFAULT_LIMITS } from '../limits.js'
+import {
+  RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_INCREMENTAL_KEY, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_FAILED_GUARD,
+} from '../runtimeColumns.js'
+import { RUNTIME_OBJECTS_KEY } from '../runtimeObjects.js'
 
 const APP = path.resolve(process.cwd())
 const REPO = path.resolve(APP, '..')
 const SERIES = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness', 'vw-deadband-ticks-aapl-1d-2026-09-28.json')
 const MEASURE = path.join(APP, 'scripts', 'measure-pine-runtime.mjs')
 const EXPORTS = [
-  'DEFAULT_LIMITS', 'NATIVE_TFS', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION', 'RUNTIME_IR_VERSION', 'SCRIPT_ENGINE_VERSION',
+  'DEFAULT_LIMITS', 'NATIVE_TFS', 'RUNTIME_FAILED_GUARD', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION',
+  'RUNTIME_INCREMENTAL_KEY', 'RUNTIME_IR_VERSION', 'RUNTIME_OBJECTS_KEY', 'RUNTIME_PANE_TIME_BUDGET_MS',
+  'RUNTIME_TIME_BUDGET_GUARD', 'SCRIPT_ENGINE_VERSION',
   'computeRuntimeColumns', 'resetRuntimeLedgers', 'resetRuntimeSessions', 'runtimeVersionRefusal',
 ]
 
@@ -59,6 +65,12 @@ describe('server bundle (W5-T1)', () => {
     expect(mod.RUNTIME_IR_VERSION).toBe(RUNTIME_IR_VERSION)
     expect(mod.NATIVE_TFS).toEqual(NATIVE_TFS)
     expect(mod.DEFAULT_LIMITS).toEqual(DEFAULT_LIMITS)
+    // W5-T7: the job adapter's reads, each the declaring module's own value
+    expect(mod.RUNTIME_PANE_TIME_BUDGET_MS).toBe(RUNTIME_PANE_TIME_BUDGET_MS)
+    expect(mod.RUNTIME_INCREMENTAL_KEY).toBe(RUNTIME_INCREMENTAL_KEY)
+    expect(mod.RUNTIME_TIME_BUDGET_GUARD).toBe(RUNTIME_TIME_BUDGET_GUARD)
+    expect(mod.RUNTIME_FAILED_GUARD).toBe(RUNTIME_FAILED_GUARD)
+    expect(mod.RUNTIME_OBJECTS_KEY).toBe(RUNTIME_OBJECTS_KEY)
   })
 
   it('bakes import.meta.env once: no live read remains, the VITE_* value moves the bundle', async () => {

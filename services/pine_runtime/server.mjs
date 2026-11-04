@@ -31,6 +31,7 @@ import {
   AUTH_GUARD, SIGNATURE_HEADER, ReplayGuard, parseSecrets, parseSignatureHeader, sha256Hex, verifyBody,
 } from './auth.mjs'
 import { MAX_BODY_BYTES, PROTOCOL, SCHEMA_GUARD, parseRunRequest } from './protocol.mjs'
+import { BUSY_GUARD, createPool } from './pool.mjs'
 
 export const UNAVAILABLE_GUARD = 'runtime:server-unavailable'
 export const FAILED_GUARD = 'runtime:server-failed'
@@ -165,7 +166,9 @@ export function createPineRuntimeServer({ secrets, door, runner = null, canary =
     let results
     try {
       results = await runner(checked.request)
-    } catch {
+    } catch (e) {
+      // W5-T7: a full queue refuses the whole request before any job of it is queued (design 3.4)
+      if (e && e.guard === BUSY_GUARD) return refuse(res, 429, BUSY_GUARD, e.message, log)
       return refuse(res, 500, FAILED_GUARD, 'the runtime pool failed, so no job in this request has a value.', log)
     }
     if (!wellFormedResults(checked.request.jobs, results)) {
@@ -225,25 +228,37 @@ export async function listenDualStack(server, port, { host = '::' } = {}) {
   return bound
 }
 
-/** Boot: env allowlist, secrets, bundle, dual-stack listener, one grep-able fingerprint line. */
-export async function main({ env = process.env, bundle = DEFAULT_BUNDLE, runner = null, log = console.log } = {}) {
+/** Boot: env allowlist, secrets, bundle, dual-stack listener, one grep-able fingerprint line.
+ *  `pool` (W5-T7): options for createPool; when given and no `runner` is, the job pool is started
+ *  on the same bundle, is the runner, and is stopped when the server closes. */
+export async function main({ env = process.env, bundle = DEFAULT_BUNDLE, runner = null, pool: poolOpts = null, log = console.log } = {}) {
   const refusal = envRefusal(env)
   if (refusal) throw new Error(refusal)
   const secrets = parseSecrets(env.PINE_RUNTIME_SERVICE_SECRET)
   const port = portOf(env)
   const door = await loadBundle(bundle)
-  const server = createPineRuntimeServer({ secrets, door, runner, log })
-  const bound = await listenDualStack(server, port)
+  const pool = !runner && poolOpts ? await createPool({ ...poolOpts, bundle }) : null
+  const server = createPineRuntimeServer({ secrets, door, runner: pool ? pool.run : runner, log,
+    ...(pool ? { canary: () => pool.ready() } : {}) })
+  if (pool) server.once('close', () => { pool.close().then(() => log('[pine-runtime] pool stopped')) })
+  let bound
+  try {
+    bound = await listenDualStack(server, port)
+  } catch (e) {
+    if (pool) await pool.close()
+    throw e
+  }
   const id = door.identity
   log(`[pine-runtime] boot engine=${id.script_engine}/${id.runtime_frontend}/${id.runtime_ir} `
-    + `bundle=${id.bundle_sha256.slice(0, 12)} node=${process.version} workers=${runner ? 'pool' : 0} port=${bound}`)
+    + `bundle=${id.bundle_sha256.slice(0, 12)} node=${process.version} workers=${pool ? pool.size : runner ? 'pool' : 0} port=${bound}`)
   return server
 }
 
 const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p)
 const isMain = Boolean(process.argv[1]) && fold(resolve(process.argv[1])) === fold(fileURLToPath(import.meta.url))
 if (isMain) {
-  main().catch((e) => {
+  // W5-T7: the service's own boot runs the pool and refuses to start unless the L4 self-test holds
+  main({ pool: { requireL4: true } }).catch((e) => {
     console.error(`[pine-runtime] BOOT REFUSED: ${e.message}`)
     process.exit(1)
   })
