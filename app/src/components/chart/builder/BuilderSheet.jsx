@@ -137,6 +137,7 @@ import ImageBox from './ImageBox'
 import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
 import EvidenceTab from './EvidenceTab'
 import SharePanel from './SharePanel'
+import RunsOnLine from './RunsOnLine'
 import {
   INTENTS, INTENT_LABELS, intentReadback, defaultIntentFor, signalPaintsFor, signalPaintsOf,
   presentationVerdict, SIGNAL_MARKER_DEFAULT, SIGNAL_PAINT_DEFAULTS, NO_PAINT,
@@ -2661,6 +2662,13 @@ export default function BuilderSheet({
                 {notice.sentence}
               </p>
             ) : null
+          })()}
+
+          {/* W5-T18 - the server's per-lane answer for the open definition (runtime rows
+              only; an ast row carries no `server_lanes`, so nothing renders). */}
+          {editing && (() => {
+            const openRow = (Array.isArray(rows) ? rows : []).find((r) => r && r.def_id === editing.defId)
+            return openRow ? <RunsOnLine serverLanes={openRow.server_lanes} /> : null
           })()}
 
           {buildMode === 'library' && (
