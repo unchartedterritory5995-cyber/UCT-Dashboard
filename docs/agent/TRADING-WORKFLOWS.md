@@ -20,7 +20,8 @@ A workflow registers (`capabilities/workflowGate.js` `workflowServed`) only when
 - its name is listed;
 - the server serves the data gateway and lists every kind it reads (`data_kinds`, fail-closed).
 
-While a workflow is registered, it adds its own routing words to its group (`armGroupWords`, the knowledge.js
+If a later config load switches a workflow off, its register function takes the capability out together with its
+routing words; the page does not need a reload. While a workflow is registered, it adds its own routing words to its group (`armGroupWords`, the knowledge.js
 pattern). Its reset removes exactly those words, so with the flag off routing is unchanged. `routing.js` is not edited.
 
 ## Isolation (F-16 / F-23)
@@ -48,8 +49,26 @@ Every card follows the same rules:
 **Why:** "Is it leading the market?" is the first question a momentum trader asks of a name. Today the member has to
 eyeball it with Compare Symbols.
 
-**Reads:** one `instrument.resolve` (both words), then two `bars.daily` reads (the stock and the benchmark), each of
-n+1 bars or 253 bars.
+**Reads:** one `instrument.resolve` (both words), then two `bars.daily` reads (the stock and the benchmark). Each read
+covers the window, plus the base session, plus a **5-bar cushion**, so one date missing from either series does not
+drop the 1-year window. The default read is 258 bars.
+
+**Windows and what each phrase means:**
+
+| member says | window |
+|---|---|
+| "N sessions" or "N trading days" | N sessions |
+| "N days" | N **calendar** days |
+| "N weeks" | 7N calendar days |
+| "N months" | N calendar months (month ends clamp, e.g. Mar 31 − 1 month = Feb 28) |
+| "a year" | 12 calendar months |
+
+A calendar window is based on the last common session on or before the cutoff. The card names both measures, for
+example "Over the last 30 calendar days (22 sessions), Sep 30 to Oct 30". The default windows are labelled
+"about 1 month" and so on, because they are session counts.
+
+The RS line is said to be "at its high" only when the highest point *is* the last session. A tie set earlier is
+stated as "0.00% below … set <date>".
 
 **Computation:** `relativeStrengthOf`, pure. The two series are aligned on the session dates both of them hold. For
 each window n:
