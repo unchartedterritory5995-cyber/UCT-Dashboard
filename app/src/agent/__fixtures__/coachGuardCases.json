@@ -610,6 +610,72 @@
       "text": "I'll walk you through what to check; the level may or may not hold.",
       "codes": [],
       "why": "clean: \"I'll\" alone is not a claim about outcomes"
+    },
+    {
+      "text": "If I had cash, I'd be adding some here.",
+      "codes": [
+        "order"
+      ],
+      "why": "pre-activation class advisory-stance (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "You must get positioned ahead of this.",
+      "codes": [
+        "order"
+      ],
+      "why": "pre-activation class advisory-stance (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "Trimming into this pop might be smart.",
+      "codes": [
+        "order"
+      ],
+      "why": "pre-activation class endorsed-trade (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "Grab some while it is quiet.",
+      "codes": [
+        "order"
+      ],
+      "why": "pre-activation class imperative (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "Your best bet is picking up shares on the dip.",
+      "codes": [
+        "order"
+      ],
+      "why": "pre-activation class trade-timing (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "This one is set to keep climbing.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "pre-activation class prediction (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "There is no question about it, this works.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "pre-activation class certainty (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "Pure free money on this setup.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "pre-activation class hype-noun (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "Neither method works every time; each has trade-offs.",
+      "codes": [],
+      "why": "clean: a negated universal / a description is a hedge, not a claim"
+    },
+    {
+      "text": "Traders often describe buying on the pullback as a patience test; it may or may not suit you.",
+      "codes": [],
+      "why": "clean: a negated universal / a description is a hedge, not a claim"
     }
   ]
 }

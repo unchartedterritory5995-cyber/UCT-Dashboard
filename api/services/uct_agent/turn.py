@@ -1556,6 +1556,40 @@ _CLAIMS_WITHOUT_ACTION = re.compile(
     rf"|(?:{_ACT})\w*(?:ing|ed)\s+(?:up\s+)?(?:\S+\s+){{0,2}}?(?:your|my)\b"
     rf"|here (?:are|is) your\b"
     r"|(?:done|all set)\b)", re.I)
+# ⛔ LT-15 (live 2026-11-03): "describe the setup on nvda" came back as an ANSWER whose reply ANNOUNCED a lookup
+# ("Checking NVDA's daily setup now.") and nothing ever followed — the claim rule above names CHANGES (open, add,
+# filter…), and a read announced as under way slipped past it. With no op nothing will be read, so a reply that is
+# NOTHING BUT the announcement is replaced by an honest sentence. PR #763 reviews: a STRICT TEMPLATE over the WHOLE
+# reply, never a prefix —
+#   [Sure|OK|Okay[,|—]]  (let me | I'll | I will) + check / look up / pull up / fetch / describe   [time word]
+#                     |  checking / pulling up / fetching / looking up / looking into               time word
+#   then an object of ≤ 6 plain word tokens (letters, apostrophes, an optional leading $ — no digits, commas or dashes)
+#   and an optional final . or !  (time word: now, right now, one moment, for you).
+# An object holding a main verb or copula (is, are, works, means, as, whether, "this way" …) is an answer, not an
+# announcement. Never applied on the News Ask box (answer_only) or a grounded post-research answer: those turns
+# cannot carry ops, so their short replies stand as written.
+_ANNOUNCE_TOKEN = r"\$?[a-z'’]+"
+_ANNOUNCE_TIME = r"(?:right now|now|one moment|for you)"
+_ANNOUNCES_LOOKUP = re.compile(
+    r"^\s*(?:(?:sure|ok|okay)\s*[,—–-]?\s+)?"
+    r"(?:(?:let me|i'll|i’ll|i will)\s+(?:check|look up|pull up|fetch|describe)"
+    rf"(?P<fobj>(?:\s+{_ANNOUNCE_TOKEN}){{0,6}}?)(?:\s+{_ANNOUNCE_TIME}){{0,2}}"
+    r"|(?:checking|pulling up|fetching|looking up|looking into)"
+    rf"(?P<iobj>(?:\s+{_ANNOUNCE_TOKEN}){{0,6}}?)(?:\s+{_ANNOUNCE_TIME}){{1,2}})"
+    r"\s*[.!]?\s*$", re.I)
+_ANNOUNCE_NOT_OBJECT = frozenset({"is", "are", "was", "were", "works", "helps", "makes", "means", "runs", "as", "whether",
+                                  "simply"})
+
+
+def _announces_lookup(reply: str) -> bool:
+    """True only when the WHOLE reply is a lookup announced as under way (the strict template above)."""
+    m = _ANNOUNCES_LOOKUP.match(str(reply or ""))
+    if not m:
+        return False
+    obj = (m.group("fobj") or m.group("iobj") or "").lower().split()
+    return not (set(obj) & _ANNOUNCE_NOT_OBJECT) and "this way" not in " ".join(obj)
+NOTHING_LOOKED_UP = ("I didn't look that up — no lookup was planned, so nothing was read and there is no result to show. "
+                     "Ask again a little more specifically.")
 NOTHING_DONE = ("I didn't do that — no action was planned, so nothing in UCT changed. "
                 "Ask again a little more specifically (for example, “screen for the highest RS Rank stocks”).")
 NOTHING_YET = "Nothing in UCT has changed yet."
@@ -1688,6 +1722,8 @@ def name_conversation(turns: list[dict], caller: Callable | None = None, meter=N
             continue                                       # QA F-18 / F-22: a local or isolated result never reaches the naming model
         if t["role"] == "agent" and _kn_frame().used_knowledge(t.get("data")):
             continue                                       # KN-1 r4: knowledge-derived text never reaches the naming model
+        if t["role"] == "agent" and isinstance(t.get("data"), dict) and t["data"].get("coach") is True:
+            continue                                       # Wave 3: a coach reply (concept / Brain text) never reaches the naming model
         who = "Member" if t["role"] == "member" else "Agent"
         lines.append(f"{who}: {' '.join(str(t['text']).split())[:400]}")
     if not any(ln.startswith("Member:") for ln in lines):
@@ -1805,9 +1841,27 @@ def false_capability_claim(env: Any, cap_names: set[str] | None, unselected_ids:
     return None
 
 
+def promote_talk_reads(env: Any) -> Any:
+    """⛔ LT-15 (live 2026-11-03): "describe the setup on nvda" — the planner returned the right READ op
+    (chart.describeSetup) under disposition `answer`, with the reply "Checking NVDA's daily setup now.". TALK never
+    carries ops, so the op was dropped and the member saw the announcement and then nothing. An `answer` whose ops
+    are ALL data reads (DATA_READ_ACTIONS, decided by name: read-only, nothing written) is served as the `apply`
+    it plainly is: the read runs, its card leads, and the pre-read reply is dropped by the data-read rule in
+    sanitize_envelope. Anything else in the ops (a write, an unknown action) leaves TALK exactly as it was."""
+    if not isinstance(env, dict) or env.get("disposition") != "answer":
+        return env
+    ops = env.get("ops") if isinstance(env.get("ops"), list) else []
+    if not ops or not all(isinstance(o, dict) and o.get("action") in DATA_READ_ACTIONS for o in ops):
+        return env
+    log.info("uct_agent talk with data-read ops: served as apply (%s)",
+             ",".join(sorted({str(o.get("action")) for o in ops})))
+    return {**env, "disposition": "apply", "question": None}
+
+
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
                       unselected_ids: set[str] | None = None, local_notice: str | None = None,
-                      claim_repaired: bool = False, grounded: bool = False) -> dict:
+                      claim_repaired: bool = False, grounded: bool = False,
+                      answer_only: bool = False) -> dict:
     """The server-side gate between the model and the browser. `grounded`: the reply was written from research
     results (the post-research call of a mixed request), not before any data was read."""
     need = env.get("need_groups") if unselected_ids else None
@@ -1895,6 +1949,11 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         # so the next turn's history does not believe it either. (Shape only in the log.)
         log.warning("uct_agent claim without action: replaced a %d-char answer", len(reply))
         reply = NOTHING_DONE
+    elif disp == "answer" and not ops and not grounded and not answer_only and _announces_lookup(reply):
+        # ⛔ LT-15: an announced lookup with nothing planned would leave the member waiting for a result that never
+        # comes ("Checking NVDA's daily setup now." and then nothing). Said plainly instead. (Shape only in the log.)
+        log.warning("uct_agent lookup announced without an op: replaced a %d-char answer", len(reply))
+        reply = NOTHING_LOOKED_UP
     if disp in MUTATING and ops and not grounded and all(o.get("action") in DATA_READ_ACTIONS for o in ops):
         # ⛔ DATA-READ ANSWERS: the card states the facts; the model's pre-read words never do (codes only in the log)
         if reply:
@@ -2508,7 +2567,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                                                                  claim_repaired=bool(usage.get("false_claim")),
                                                                  grounded=True), env), caps)
             if coach_turn:
-                envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
+                envelope = agent_coach.guard_envelope(envelope, context, msg, usage, history)
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
@@ -2522,6 +2581,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    "reply": ("I looked that up, but I don't make changes based on what I find online in the same "
                              "step. Tell me exactly what you'd like changed and I'll do it.") if mutated or not env.get("reply")
                    else env.get("reply")}
+        if not answer_only and not usage["research_calls"]:
+            env = promote_talk_reads(env)
         if isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
         if answer_only and isinstance(env, dict) and (env.get("ops") or env.get("disposition") in MUTATING):
@@ -2529,9 +2590,10 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             env = {**env, "disposition": "answer", "ops": [], "question": None,
                    "reply": env.get("reply") or "I can only answer questions about this headline here."}
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
-                                                             claim_repaired=bool(usage.get("false_claim"))), env), caps)
+                                                             claim_repaired=bool(usage.get("false_claim")),
+                                                             answer_only=answer_only), env), caps)
         if coach_turn:
-            envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
+            envelope = agent_coach.guard_envelope(envelope, context, msg, usage, history)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         title = clean_title(env) if conversation_title and not envelope.get("need_groups") else None
