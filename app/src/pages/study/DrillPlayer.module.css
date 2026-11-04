@@ -80,6 +80,7 @@
   -webkit-overflow-scrolling: touch;
   padding: var(--space-lg);
   position: relative;
+  background: radial-gradient(90% 60% at 50% 0%, rgba(58, 49, 21, .35) 0%, rgba(11, 11, 11, 0) 60%), var(--bg);
 }
 
 .loading {
@@ -92,15 +93,15 @@
 .question {
   margin: 0;
   color: #f7f3e8;
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 27px;
+  font-weight: 900;
   letter-spacing: -.01em;
   line-height: 1.28;
   text-wrap: balance;
   text-shadow: 0 2px 12px rgba(0, 0, 0, .5);
 }
-.ask.ask { gap: 18px; align-items: center; margin-bottom: 4px; }
-.bubble.bubble { flex: 1 1 auto; min-width: 0; padding: 16px 20px; border-color: #5a4a1c; background: linear-gradient(180deg, #1f1a09, #141210); box-shadow: 0 10px 30px rgba(0, 0, 0, .5), 0 0 0 1px rgba(220, 187, 94, .08) inset; }
+.ask.ask { gap: 22px; align-items: center; margin: 4px 0 10px; }
+.bubble.bubble { flex: 1 1 auto; min-width: 0; padding: 20px 26px; border-color: #5a4a1c; background: linear-gradient(180deg, #1f1a09, #141210); box-shadow: 0 10px 30px rgba(0, 0, 0, .5), 0 0 0 1px rgba(220, 187, 94, .08) inset; }
 /* the setup chip beside the chart facts (round 17: the facts replace the framing line) */
 .qLine { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 10px; }
 .framingSm { flex: 1 1 100%; order: 3; font-size: 13px; color: #9a958a; }
@@ -273,3 +274,21 @@
 
 /* the verdict stamp sits inside the plot, clear of the price scale */
 .chartBox > [class*="stamp"] { right: 84px; }
+
+/* round 17b: the chart beside the facts TABLE on a wide screen, stacked on a phone */
+.chartRow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (min-width: 1025px) { .chartRowFacts { grid-template-columns: minmax(0, 1fr) 268px; } }
+.facts { border: 1px solid #3a3115; border-radius: 16px; background: linear-gradient(180deg, #171409, #0f0f0f); box-shadow: 0 10px 30px rgba(0, 0, 0, .45); padding: 14px 16px 12px; }
+.factsHead { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--ut-gold-bright); margin-bottom: 8px; }
+.factsTable { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.factsTable th { text-align: left; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #9a958a; padding: 9px 8px 9px 0; border-top: 1px solid #262626; white-space: nowrap; }
+.factsTable tr:first-child th, .factsTable tr:first-child td { border-top: 0; }
+.factsTable td { padding: 9px 0 9px 8px; border-top: 1px solid #262626; }
+.factVal { font-size: 19px; font-weight: 900; color: #e6e1d6; text-align: right; white-space: nowrap; }
+.row_up .factVal { color: #4ad98a; } .row_down .factVal { color: #ff6b6b; }
+.gauge { width: 38%; }
+.gaugeBar { display: block; height: 10px; border-radius: 999px; background: linear-gradient(90deg, #b8942e, #fff1c2); box-shadow: 0 0 12px rgba(220, 187, 94, .4); transition: width .6s cubic-bezier(.2, .9, .3, 1); }
+.row_up .gaugeBar { background: linear-gradient(90deg, #1d7a45, #8fe3b1); box-shadow: 0 0 12px rgba(47, 175, 104, .45); }
+.row_down .gaugeBar { background: linear-gradient(90deg, #9a2e2e, #ffb3b3); box-shadow: 0 0 12px rgba(223, 70, 70, .45); }
+.primaryBtn.primaryBtn { max-width: 600px; padding: 16px 22px 16px 16px; }
+@media (max-width: 640px) { .question { font-size: 21px; } .factVal { font-size: 17px; } }

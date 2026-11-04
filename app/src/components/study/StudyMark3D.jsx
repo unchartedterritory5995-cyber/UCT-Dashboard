@@ -13,7 +13,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import m from './StudyMark.module.css'
 
-const SPEED = { idle: 12, live: 7, think: 18, happy: 6, oops: 22, fire: 3.2 }   // seconds per turn ('live': the drill, visibly turning)
+const SPEED = { idle: 12, live: 4.5, think: 18, happy: 6, oops: 22, fire: 3.2 }   // seconds per turn ('live': the drill, visibly turning)
 const GREEN = 0x34be70, RED = 0xe84c46, GOLD = 0xdcbb5e
 const D = Math.PI / 180
 function arcPts(r, a0, a1, n) { const o = []; for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; o.push([r * Math.cos(a), -r * Math.sin(a)]) } return o }
@@ -104,7 +104,7 @@ export default function StudyMark3D({ mood = 'idle', size = 72, variant = 12, st
     raf = requestAnimationFrame(frame)
     return () => { cancelAnimationFrame(raf); io?.disconnect(); document.removeEventListener('visibilitychange', onVis); scene.traverse((o) => { o.geometry?.dispose?.(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((x) => x.dispose?.()) }); renderer.dispose(); renderer.domElement?.remove() }
   }, [mood, size, variant])
-  const glow = still ? '' : mood === 'fire' ? m.fire : mood === 'happy' ? m.happy : mood === 'oops' ? m.oops : mood === 'think' || mood === 'live' ? m.think : ''
+  const glow = still ? '' : mood === 'fire' ? m.fire : mood === 'happy' ? m.happy : mood === 'oops' ? m.oops : mood === 'live' ? m.live : mood === 'think' ? m.think : ''
   return (
     <div key={mood} className={`${still || variant < 11 ? '' : m.wrap} ${glow} ${className}`} style={{ width: size, height: size, flex: 'none', position: 'relative' }} aria-hidden="true">
       <div ref={ref} style={{ width: size, height: size }} />

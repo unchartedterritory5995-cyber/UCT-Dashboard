@@ -366,3 +366,11 @@
 .choices > li:nth-child(5), .choicesGrid > li:nth-child(5) { animation-delay: 240ms; }
 @keyframes choiceIn { from { transform: translateY(10px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
 @media (prefers-reduced-motion: reduce) { .choices > li, .choicesGrid > li { animation: none; } .choice:hover:not(:disabled) { transform: none; } }
+
+/* round 17b: bigger cards, a gold coin for the key, a gold fill when picked */
+.choice.choice { min-height: 74px; padding: 18px 22px; font-size: 20px; font-weight: 700; gap: 16px; border-radius: 18px; }
+.choice .choiceKey.choiceKey { width: 40px; height: 40px; border-radius: 50%; font-size: 15px; background: linear-gradient(180deg, #fff1c2, #d9b84a 55%, #a8842c); color: #15120a; border-color: transparent; box-shadow: 0 2px 0 rgba(0, 0, 0, .35), 0 0 14px rgba(220, 187, 94, .3); }
+.choice.choice[aria-checked="true"] { background: linear-gradient(180deg, #3a3014, #1c1810); color: #fff6dc; transform: translateY(-1px) scale(1.01); }
+.choice.choice:hover:not(:disabled) { transform: translateY(-2px); }
+.choiceLabel.choiceLabel { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 640px) { .choice.choice { min-height: 66px; padding: 15px 18px; font-size: 18px; } .choice .choiceKey.choiceKey { width: 36px; height: 36px; } }

@@ -33,3 +33,9 @@
 @media (prefers-reduced-motion: reduce) {
   .wrap, .happy, .oops, .fire, .spark { animation: none !important; }
 }
+
+/* 'live': the drill's mark, alive on screen: it breathes, bobs and glows while it turns (owner, batch 16: "I want the logo
+   to be moving in our animation work that we did") */
+.live { animation: liveMove 3.2s ease-in-out infinite; filter: drop-shadow(0 8px 18px rgba(0, 0, 0, .6)) drop-shadow(0 0 28px rgba(220, 187, 94, .55)); }
+@keyframes liveMove { 0%, 100% { transform: translateY(0) scale(1) } 35% { transform: translateY(-6%) scale(1.045) } 70% { transform: translateY(2%) scale(.985) } }
+@media (prefers-reduced-motion: reduce) { .live { animation: none !important; } }

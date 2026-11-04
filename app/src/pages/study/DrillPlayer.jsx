@@ -57,7 +57,7 @@ import { registerShortcuts } from '../command/shortcutRegistry'
 export const LEAVE_COPY = 'Leave? Your answers so far are saved.'
 export const CHART_SLOW_MS = 2000
 export const CHART_SKIP_MS = 6000
-export const CHART_HEIGHT = 240
+export const CHART_HEIGHT = 380
 export const SET_SIZE = 10
 
 /** The chip over the chart: the skill in the member's words (the workbench's question chip). */
@@ -334,24 +334,16 @@ export default function DrillPlayer({
     body = (
       <>
         <div className={`${d5.ask} ${styles.ask}`}>
-          <StudyMark mood={phase === 'reveal' && result ? (result.correct ? 'happy' : 'oops') : 'live'} size={88} />
+          <StudyMark mood={phase === 'reveal' && result ? (result.correct ? 'happy' : 'oops') : 'live'} size={112} />
           <div className={`${d5.bubble} ${styles.bubble}`}><h2 className={styles.question} id="study-question">{questionOf(item)}</h2></div>
         </div>
         {needsChart ? (
           <div className={styles.qLine}>
             {skillChip(item.skill_id) && <span className={d5.qSetup}>{skillChip(item.skill_id)}</span>}
             {framingShort && <span className={styles.framingSm}>{framingShort}</span>}
-            {stats.length > 0 && (
-              <dl className={styles.stats} aria-label="Chart facts" data-testid="chart-stats">
-                {stats.map((st) => (
-                  <div key={st.id} className={`${styles.stat} ${styles[`stat_${st.tone}`] || ''}`}>
-                    <dt>{st.label}</dt><dd>{st.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
           </div>
         ) : (framing && <p className={styles.framing}>{framing}</p>)}
+        <div className={`${styles.chartRow} ${needsChart && stats.length > 0 ? styles.chartRowFacts : ''}`}>
         <div
           className={`${styles.chartBox} ${needsChart ? '' : styles.chartHidden}`}
           aria-hidden={!needsChart}
@@ -400,6 +392,23 @@ export default function DrillPlayer({
           {chartVisible && Overlay && (
             <Overlay item={item} state={state} setState={setState} locked={locked} reveal={reveal} bars={chartBars} />
           )}
+        </div>
+        {needsChart && stats.length > 0 && (
+          <div className={styles.facts} data-testid="chart-stats">
+            <div className={styles.factsHead}>The read on this chart</div>
+            <table className={styles.factsTable}>
+              <tbody>
+                {stats.map((st) => (
+                  <tr key={st.id} className={styles[`row_${st.tone}`] || ''}>
+                    <th scope="row">{st.label}</th>
+                    <td className={styles.factVal}>{st.value}</td>
+                    <td className={styles.gauge}><span className={styles.gaugeBar} style={{ width: `${Math.min(100, (Math.abs(st.num || 0) / 30) * 100)}%` }} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         </div>
         <div className={styles.body}>
           <mod.Body item={item} state={state} setState={setState} locked={locked} reveal={reveal} />

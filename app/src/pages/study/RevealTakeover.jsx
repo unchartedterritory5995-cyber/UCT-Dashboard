@@ -20,10 +20,15 @@ export default function RevealTakeover({ correct, reveal, item, profile, attempt
   const key = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : ''
   return (
     <div className={`${styles.wrap} ${correct ? styles.good : styles.bad}`} role="dialog" aria-modal="true" aria-label={correct ? CORRECT_WORD : WRONG_WORD} data-testid="reveal-takeover" data-correct={correct ? '1' : '0'}>
-      {correct && <Confetti n={70} />}
+      {correct && <Confetti n={90} />}
+      <div className={styles.slam} aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="120" height="120" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+          {correct ? <path d="M4 12.5l5 5L20 7" /> : <path d="M6 6l12 12M18 6L6 18" />}
+        </svg>
+      </div>
       <div className={styles.panel}>
         <div className={styles.art}>
-          <StudyMark mood={correct ? 'happy' : 'oops'} size={120} />
+          <StudyMark mood={correct ? 'happy' : 'oops'} size={140} />
           <div className={styles.stamp} aria-hidden="true">
             <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
               {correct ? <path d="M4 12.5l5 5L20 7" /> : <path d="M6 6l12 12M18 6L6 18" />}

@@ -23,11 +23,11 @@ export default function JourneyStrip({ index = 0, total = 10, results = {}, item
         <div className={styles.fill} style={{ width: `${fill}%` }} />
         <ol className={styles.stops}>
           {stops.map((s) => (
-            <li key={s.i} className={`${styles.stop} ${styles[s.state]}`} aria-hidden="true" />
+            <li key={s.i} className={`${styles.stop} ${styles[s.state]}`} aria-hidden="true">{s.i + 1}</li>
           ))}
         </ol>
         <div className={styles.walker} style={{ left: `${fill}%` }} aria-hidden="true">
-          <div className={styles.walkerIn}><StudyMark mood="live" size={34} /></div>
+          <div className={styles.walkerIn}><StudyMark mood="live" size={46} /></div>
         </div>
       </div>
     </div>

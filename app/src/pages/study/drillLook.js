@@ -17,7 +17,7 @@ function sma(closes, n) {
 const pct = (a, b) => (b == null || !b ? null : ((a - b) / b) * 100)
 const fmt = (v, digits = 1) => (v == null || !Number.isFinite(v) ? '' : `${v > 0 ? '+' : ''}${v.toFixed(digits)}%`)
 
-/** @returns {{ id: string, label: string, value: string, tone: 'up'|'down'|'flat' }[]} */
+/** @returns {{ id: string, label: string, value: string, tone: 'up'|'down'|'flat', num: number }[]} */
 export function barStats(bars) {
   const list = Array.isArray(bars) ? bars.filter((b) => b && Number.isFinite(b.c)) : []
   if (list.length < 5) return []
@@ -30,9 +30,9 @@ export function barStats(bars) {
   const tail = list.slice(-20).filter((b) => Number.isFinite(b.h) && Number.isFinite(b.l) && b.l > 0)
   const adr = tail.length ? tail.reduce((s, b) => s + ((b.h - b.l) / b.l) * 100, 0) / tail.length : null
   const tone = (v) => (v == null ? 'flat' : v > 0 ? 'up' : v < 0 ? 'down' : 'flat')
-  const out = [{ id: 'high', label: 'Off high', value: fmt(offHigh), tone: tone(offHigh) }]
-  if (m20 != null) out.push({ id: 'ma20', label: 'vs 20 MA', value: fmt(m20), tone: tone(m20) })
-  if (m50 != null) out.push({ id: 'ma50', label: 'vs 50 MA', value: fmt(m50), tone: tone(m50) })
-  if (adr != null) out.push({ id: 'adr', label: 'ADR 20', value: `${adr.toFixed(1)}%`, tone: 'flat' })
+  const out = [{ id: 'high', label: 'Off high', value: fmt(offHigh), tone: tone(offHigh), num: offHigh }]
+  if (m20 != null) out.push({ id: 'ma20', label: 'vs 20 MA', value: fmt(m20), tone: tone(m20), num: m20 })
+  if (m50 != null) out.push({ id: 'ma50', label: 'vs 50 MA', value: fmt(m50), tone: tone(m50), num: m50 })
+  if (adr != null) out.push({ id: 'adr', label: 'ADR 20', value: `${adr.toFixed(1)}%`, tone: 'flat', num: adr })
   return out.filter((s) => s.value)
 }
