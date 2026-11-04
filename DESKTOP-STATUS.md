@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 11:27 CT
+updated: 2026-11-04 11:28 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -270,12 +270,14 @@ state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
 branch: feat/pine-w4-t8-series-length   base: W4-T7 8f420e0043 + local merge of W4-T2 ac659bae66 (STACK: merge T7 and T2 first)   model: Sonnet
 locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · mp _resume-2026-11-01/dsk/heavy-mp2.lock (pine-dsk-mpbase2, base set in-job to the stacked parent) · final _resume-2026-11-01/dsk/heavy-final2.lock
 
-## W4-T13 spike (spike only, docs/probes; the build is capture-gated on P1)
-state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
-branch: spike/pine-w4-t13-candle   base: origin/master 09453ca1a3   model: Sonnet
-locks: none (docs only)
-scope: answer whether the member pane can draw an OHLC row; no engine edit.
-
+## W4-T13 spike (docs/probes only; the build is capture-gated on P1)
+state: READY            round: r0            updated: 2026-11-04 11:28 CT
+branch: spike/pine-w4-t13-candle   tip: a561fc12ba (local == origin, clean; DESKTOP-VERIFIED diff vs master = docs/pine/evidence/2026-11-04-w4-t13-spike/{SPIKE.md, probe.mjs} only)   base: origin/master 09453ca1a3   worktree: pine-dsk-w4t13   model: Sonnet
+engine bump needed: NO (no engine edit)
+answer: NO today; YES after a bounded renderer extension, so T13 is re-scoped renderer-first. The chart already has candlestick/bar series (pool.js:78-82, :143-149; binder.js:170 LWC CandlestickSeries/BarSeries), but the OHLC feed is symbol-only (binder.js:1855-1872 ohlcBarsForPlot, :1941 ohlcCapableFor; ohlcCapability.js:205-237 needs a declared symbol source + passthrough; toOhlcPoints :248 emits o/h/l/c with no per-point colour/wick/border). Runtime rows carry source '0' and no symbol source (memberPaneDefinition.js:1406-1429), so a candles request clamps to a line (probe.mjs shows it).
+proposed scope: (1) renderer task: binder.js payload from four computed columns with per-point colour/wick/border and whitespace for a non-finite open; ohlcCapability.js, presentation.js/defSchema.js, pool.js. (2) W4 side: four-column row shape, FE refusals :7019-7021 and :9710, memberPaneDefinition.js :956, :1016, :1340-1395. Engine bump yes for the build.
+T12 note: corrects the plan: T12 (f8ddebfa76) does not touch memberPaneDefinition.js; its FE hunks do not overlap T13's sites, but :9710 shifts ~+84 lines, so build T13 on top of T12.
+open (coordinator): who owns the renderer task (outside W4 per the breakdown); LWC per-point wick/border unmeasured (needs a browser); plotbar colour unverified; acceptance needs capture W4-P1.
 ## W5-T2 host-neutral closure (needs T1, READY)
 state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
 branch: feat/pine-w5-t2-host-neutral   base: W5-T1 27e95ca34c (STACK: merge T1 first)   model: Opus
