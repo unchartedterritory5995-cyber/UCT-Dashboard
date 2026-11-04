@@ -20,6 +20,8 @@ import { selectGroups, routeManifest, wordsSelect } from './routing'
 import { fastParse } from './fastPath'
 import { multiChartPlan } from './multiChart'
 import { bindCreated } from './createdBinding'
+import { workspaceKind } from './capabilities/workspace'
+import { optsSignature } from './host'
 import { buildIndicatorAlertSource } from './host'
 import { _resetIndicatorAlertCache } from './capabilities/indicatorAlerts'
 import { notDoneLines } from './notDone'
@@ -1349,4 +1351,24 @@ describe('NLM1-G2 · an indicator added on a chart THIS request created is the n
     await say('undo')
     await waitFor(() => expect(JSON.stringify(amd().opts)).toBe(amdBefore))
   }, 40000)
+})
+
+describe('NLM1-G1 · the timeframe equivalence is exactly the product\'s (a chart\'s absent tf IS \'D\'), nothing broader', () => {
+  const fp = (widget, cfgTf) => {
+    const host = { widgets: { configOf: () => ({ tf: cfgTf, symbol: 'AMD', color: 'N' }) }, charts: { read: () => null } }
+    const w = { id: 'n1', x: 0, y: 0, w: 8, h: 10, color: 'N', ...widget }
+    return workspaceKind.fingerprintFor(host, { widgets: [w] }, { patch: { beforeIds: [] }, after: { widgets: [w] } })
+  }
+  it('a chart: absent tf and "D" sign the same; "W" does not', () => {
+    const absent = fp({ type: 'chart', optsSig: optsSignature({}), optsSigNoTf: optsSignature({}) }, 'D')
+    const d = fp({ type: 'chart', optsSig: optsSignature({ tf: 'D' }), optsSigNoTf: optsSignature({}) }, 'D')
+    const w = fp({ type: 'chart', optsSig: optsSignature({ tf: 'W' }), optsSigNoTf: optsSignature({}) }, 'W')
+    expect(d).toBe(absent)
+    expect(w).not.toBe(absent)
+  })
+  it('any other widget compares its opts as stored (no equivalence)', () => {
+    const a = fp({ type: 'watchlist', optsSig: optsSignature({}), optsSigNoTf: optsSignature({}) }, 'D')
+    const b = fp({ type: 'watchlist', optsSig: optsSignature({ tf: 'D' }), optsSigNoTf: optsSignature({}) }, 'D')
+    expect(b).not.toBe(a)
+  })
 })
