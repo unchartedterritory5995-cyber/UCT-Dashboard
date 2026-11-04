@@ -154,15 +154,24 @@ can only remove served shapes relative to round 1 (a shadowed constant `var`, a 
 
 ## Fix-round final-tip
 
-**PENDING (not run).** The queued job was stopped at the usage limit; it never held the lock.
-Run on the laptop or the next machine, from `pine-handoff`, as ONE heavy job:
+Ran on the desktop, heavy lane 2, in parallel with one other heavy job. Tip `572376edf6`
+(tested-on-master `d8d4f0937d`, `git merge-base HEAD origin/master`). Worktree `pine-dsk-w4t3`, label `w4t3-r1-final`.
+
+Command (one heavy job):
 
 ```
-source docs/pine/parity-programme/scripts/env-laptop.sh
-hl w4-t3-fix-final -- bash -c 'UCT_RESUME=$UCT_RESUME bash $UCT_WORKTREES/pine-handoff/docs/pine/parity-programme/scripts/final-tip.sh pine-w4-t3 w4-t3-fix-final tests/test_script_engine_version_gate.py'
+"$UCT_PY" "$HEAVY_LOCK" run --path C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/dsk/heavy-final2.lock --label w4t3-r1-final --timeout 43200 -- bash <run.sh>
+# run.sh: bash docs/pine/parity-programme/scripts/final-tip.sh pine-dsk-w4t3 w4t3-r1-final tests/test_script_engine_version_gate.py
 ```
 
-Expected: gate pytest 46 passed, hygiene clean, version-gate pytest 6 passed, chart+hooks vitest with only
-the 2 known baseline failures. Passed so far on the fix tree: `w4TextConstants` + `objectDoorGate` 81/81,
-`runtimeInputKinds` + `runtimeInputs` 88/88, `runtimeClockCalls` + `textInputs` 38/38; all fix-round
-mutations run (`runs/w4-t3-fix/mutate3-5.out`).
+Results:
+
+- gate pytest: `46 passed` (rc 0)
+- hygiene: clean, 34672 tracked files
+- version-gate pytest: `6 passed`
+- chart+hooks vitest (`--maxWorkers=2`): `Test Files  1 failed | 1334 passed | 27 skipped (1362)`, `Tests  1 failed | 22418 passed | 118 skipped (22537)`
+- the 1 failed file is `src/hooks/pollingSites.rail.test.js`, the known desktop baseline failure; nothing else fails.
+
+Logs: `$UCT_RESUME/runs/w4t3-r1-final/` (`job.out`, `gate.log`, `hyg.log`, `py.log`, `js.log`).
+Passed earlier on the fix tree: `w4TextConstants` + `objectDoorGate` 81/81, `runtimeInputKinds` + `runtimeInputs` 88/88,
+`runtimeClockCalls` + `textInputs` 38/38; fix-round mutations in `runs/w4t3-fix/mutate3-5.out`.
