@@ -52,6 +52,8 @@ def no_planner(**kw):
 @pytest.fixture(autouse=True)
 def _brain(monkeypatch):
     monkeypatch.setenv("UCT_AGENT_KNOWLEDGE", "1")
+    monkeypatch.setenv(ev.E1_FLAG, "1")
+    monkeypatch.setattr(ev, "pack_present", lambda: True)
     monkeypatch.setattr(ev, "approved_setups", lambda: [dict(s) for s in VOCAB])
     monkeypatch.setattr(turn, "_record_cost", lambda resp: 0.001)
     monkeypatch.setattr(ev, "CALL", Classifier(cls()))
@@ -744,3 +746,27 @@ def test_delta3_every_reply_seed_meets_its_expectation_in_the_best_effort_output
     for x in _seeds()["reply"]:
         got = ev.presents_methodology(x["text"], VOCAB, x["after"])
         assert got is (x["expect"] == "replace"), x["text"]
+
+
+# ── Brain-OFF QA: the single-switch rule ──────────────────────────────────────────────────────────────────────────
+@pytest.mark.parametrize("knowledge,e1,pack", [("1", "", True), ("1", "0", True), ("", "1", True), ("1", "1", False),
+                                               ("1", "yes please", True)])
+def test_e1_needs_the_knowledge_flag_its_own_key_and_a_pack(monkeypatch, knowledge, e1, pack):
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE", knowledge)
+    monkeypatch.setenv(ev.E1_FLAG, e1)
+    monkeypatch.setattr(ev, "pack_present", lambda: pack)
+    assert ev.active(KCTX, None) is False
+
+
+def test_the_knowledge_flag_alone_changes_nothing_and_costs_nothing(monkeypatch):
+    monkeypatch.delenv(ev.E1_FLAG)
+    c = use(monkeypatch, AssertionError("no classifier call: E-1 is not switched on"))
+    e = env("answer", reply="A bar chart shows open, high, low and close for each period, drawn as ticks.")
+    a = run("tell me about bar charts", caller=caller_of(_resp(e)))
+    monkeypatch.setattr(ev, "active", lambda *x, **k: False)
+    b = run("tell me about bar charts", caller=caller_of(_resp(e)))
+    assert c.calls == [] and "evidence" not in a["usage"] and a["usage"]["model_calls"] == 1
+    for r in (a, b):
+        r["usage"].pop("latency_ms"); r["usage"]["stages"] = None
+    assert a == b
+    assert ev.GENERAL_LABEL not in a["envelope"]["reply"]

@@ -304,3 +304,38 @@ planner argument nor the classifier's `concept` is ever shown.
 **Still required before any activation:** the labelled-set eval (≥ 600 playbook-class prompts, 0 misses; separate
 owner approval and budget), an independent review, and live admin acceptance on a dark admin flag.
 
+## Review #781 QA (2026-11-04): the deterministic reply check does not generalise — proposal
+
+**Switch (Brain-OFF QA, single-switch rule):** E-1 now needs three things: `UCT_AGENT_KNOWLEDGE`, its own explicit key
+`UCT_AGENT_KN_E1=1`, and an installed pack. `UCT_AGENT_KNOWLEDGE` alone changes nothing in a turn and makes no
+classifier call (tested).
+
+**Finding:** on the reviewer's sealed held-out set, the reply check catches 7/16 prescribed methods, the same as
+before the last two rounds. Rounds of added verbs and list rules caught only the probes that were shown. The builder's
+own test agrees (`e1-structural-variants.json`, written before coding):
+
+| check | fresh batch 1 (before coding) | fresh batch 2 (after coding, untuned) |
+|---|---|---|
+| lexical reply check (6b72f32476) | block 0/20, keep 20/20 | not scored |
+| structural lexicon prototype (act + market reference + prescriptive frame) | block 20/20, keep 20/20 | **block 1/10**, keep 9/10 |
+
+Even a "structural" rule that combines a position-taking act, a market reference and a prescriptive frame still needs
+a vocabulary of acts, and new trading slang ("load up", "grab some", "lighten up", "jump in", "put on half size")
+falls outside it. The prototype was not committed.
+
+**Proposal (owner decision; needs approval because it is a paid call):** judge the reply's MEANING with an output
+judge, not with patterns.
+- On a chart / none turn with a non-empty model reply, one small closed-schema call (the classifier's model, the
+  reply as DATA, no reply field):
+  `{prescribes_trading_action: bool, presents_uct_methodology: bool, defines_a_setup: bool}`.
+  Any true → UCT's fixed sentence (ops kept).
+- **Fail closed:** an error, timeout, refusal or unreadable output → the fixed sentence.
+- Cost: about one more ~0.5–1k-token call on answer turns only; within the per-turn caps. It never streams (already
+  true while Brain is on).
+- The deterministic checks stay as a free pre-filter. The judge is the generalising layer.
+- **Verdict:** the reviewer's sealed held-out set plus the paid labelled eval. Both need the owner's approval; scripted
+  tests alone prove only the plumbing.
+
+**Alternative (no new cost):** accept that the reply check is best-effort, and that the guarantee for chart / none
+turns is the input classifier's recall alone (measured by the eval). The owner decides which.
+

@@ -88,9 +88,23 @@ class Unclassified(Exception):
 
 
 # ── switch ────────────────────────────────────────────────────────────────────────────────────────────────
+E1_FLAG = "UCT_AGENT_KN_E1"
+
+
+def pack_present() -> bool:
+    from api.services.uct_agent.knowledge import pack
+    return os.path.isfile(pack.db_path())
+
+
 def brain_on() -> bool:
+    """E-1's switch (Brain-OFF QA, single-switch rule): Brain's knowledge flag AND its own explicit key
+    UCT_AGENT_KN_E1=1 AND an installed pack. UCT_AGENT_KNOWLEDGE alone changes nothing here and costs nothing."""
     from api.services.uct_agent.knowledge import kinds
-    return kinds.enabled()
+    if not kinds.enabled():
+        return False
+    if str(os.environ.get(E1_FLAG) or "").strip().lower() not in ("1", "true", "on", "yes"):
+        return False
+    return pack_present()
 
 
 def active(context: Any, v2: Optional[dict]) -> bool:
