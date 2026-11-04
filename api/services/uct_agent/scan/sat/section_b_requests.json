@@ -1329,6 +1329,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -2041,6 +2042,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -4069,7 +4071,7 @@
     "domain": "chart",
     "target": "board",
     "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
-    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).",
+    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
     "args": {
      "type": "object",
      "properties": {
@@ -4523,6 +4525,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -5060,6 +5063,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -6224,7 +6228,7 @@
     "domain": "chart",
     "target": "board",
     "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
-    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).",
+    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
     "args": {
      "type": "object",
      "properties": {
@@ -6451,6 +6455,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -7615,7 +7620,7 @@
     "domain": "chart",
     "target": "board",
     "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
-    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).",
+    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
     "args": {
      "type": "object",
      "properties": {
@@ -8069,6 +8074,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -8757,6 +8763,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -9368,6 +9375,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -10152,6 +10160,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -10680,6 +10689,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -10937,6 +10950,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -11190,6 +11207,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -11454,6 +11475,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -11706,6 +11731,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -11963,6 +11992,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -12216,6 +12249,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -12741,6 +12778,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -12997,6 +13038,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -13249,6 +13294,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -13766,6 +13815,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -14019,6 +14072,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -14544,6 +14601,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -15058,6 +15119,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -15576,6 +15641,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -15829,6 +15898,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -16354,6 +16427,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -16607,6 +16684,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -16871,6 +16952,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -17131,6 +17216,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -17395,6 +17484,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -17648,6 +17741,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -18166,6 +18263,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -18421,6 +18522,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -18674,6 +18779,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -19189,6 +19298,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -19708,6 +19821,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -20222,6 +20339,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -20740,6 +20861,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -20992,6 +21117,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",

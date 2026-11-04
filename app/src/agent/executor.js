@@ -107,7 +107,10 @@ export function planOps(targets, opsIn, env = {}, ctx = null) {
       if (why) { refusals.push({ index, action: op.action, target: ref, reason: why }); continue }
       if (cap.confirmIf && cap.confirmIf(st, op.args, oenv)) confirm = true
       const next = cap.apply(st, op.args, oenv)
-      if (next === st && cap.noop) noops.push(cap.noop(st, st, op.args, oenv))
+      // hotfix 2026-11-03 (live T1: "Already Daily · Already Daily" for two charts that did not exist yet): a NEW target's
+      // defaults are only the planner's stand-in — an op that matches them is still carried into its creation
+      // (createFlags), so it is never reported as "already" so
+      if (next === st && cap.noop && !tgt.virtual) noops.push(cap.noop(st, st, op.args, oenv))
       st = next
     }
     // ⭐ PHASE 3 (receipts): how many targets of this kind the board has — one chart's change on a board of several

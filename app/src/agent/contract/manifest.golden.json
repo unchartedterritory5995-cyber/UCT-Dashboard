@@ -3528,7 +3528,7 @@
    "domain": "chart",
    "target": "board",
    "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
-   "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
    "args": {
     "type": "object",
     "properties": {
@@ -5486,6 +5486,7 @@
        "journal",
        "appSettings",
        "guide",
+       "undo",
        "similarity",
        "overview",
        "other"
@@ -5504,6 +5505,81 @@
    "argAliases": null,
    "coerce": null,
    "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "agent.undo",
+   "domain": "agent",
+   "target": "about",
+   "summary": "Undo YOUR OWN most recent change(s) in this conversation — exactly what the Undo on that change’s receipt does. UCT refuses it itself when that change can’t be undone (changed since, another board, a protected layout, a permanent action).",
+   "hints": "target = the ref of the agent entry. scope: \"last\" = the newest change (undo that / undo the last change / revert it); \"all\" = every change of the previous request (undo all of that). about = what the member says the change was (\"undo the timeframe change\" → timeframe), else null. In a request that makes a change AND undoes it (\"switch to weekly, then undo that\"), put the change first and agent.undo LAST. Never tell the member you cannot undo, or to use another Undo: plan this, and UCT reports what it actually undid.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "scope": {
+      "type": "string",
+      "enum": [
+       "last",
+       "all"
+      ]
+     },
+     "about": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "indicator",
+       "chart",
+       "widget",
+       "drawing",
+       "layout",
+       "colour",
+       "style",
+       "timeframe",
+       "symbol",
+       "pane",
+       "theme",
+       "resize",
+       "size",
+       "move",
+       "rename",
+       "link",
+       null
+      ]
+     }
+    },
+    "required": [
+     "scope",
+     "about"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": {
+    "scope": {
+     "latest": "last",
+     "newest": "last",
+     "previous": "last",
+     "one": "last",
+     "everything": "all",
+     "turn": "all"
+    },
+    "about": {
+     "color": "colour",
+     "time frame": "timeframe",
+     "ticker": "symbol",
+     "interval": "timeframe"
+    }
+   },
+   "defaults": {
+    "scope": "last"
+   },
    "defaultsWhen": null,
    "shape": null
   },

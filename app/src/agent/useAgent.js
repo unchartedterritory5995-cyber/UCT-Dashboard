@@ -33,7 +33,8 @@ import { commitPlan, undoEntry, undoEntryFor } from './runtime'
 import { pendingLines as pendingWording } from './proposalWording'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnEnd } from './trace'
-import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
+import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT, normalizeArgs } from './capabilities'
+import { UNDO_ACTION } from './capabilities/about'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
 import { routeManifest, routingEnabled, routingNames } from './routing'
 import { doItForMe } from './capabilities/guide'
@@ -117,6 +118,10 @@ export function translateRefs(ops, refMap) {
     return out
   })
 }
+// hotfix 2026-11-03: tab-adding actions — only when the member's own words say "tab"
+const TAB_ADDS = new Set(['chart.addTab', 'widget.addTab'])
+// hotfix 2026-11-03: a planned "change …, then undo it" whose change committed nothing undoable
+const UNDO_AFTER_NOTHING = 'I didn’t undo anything: the change before the Undo didn’t make a change I could take back (see above), so nothing was undone.'
 // "undo that <noun> …" — the target kinds each noun names (F14)
 const UNDO_ABOUT = { indicator: ['indicatorEdits', 'indicatorDrafts'], chart: ['chart'], widget: ['board', 'workspace'], drawing: ['drawing'], layout: ['layouts'] }
 // ⭐ PHASE 3: "undo just the colour change" — a DESCRIPTION of the newest change, checked against what its receipt says
@@ -368,6 +373,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const saidRef = useRef('')                // the member's words this turn (how much an answer shows)
   const memoryRef = useRef(null)            // GATE C session memory (agent/memory.js) — this chat only
   const tapRef = useRef(null)               // ⭐ PHASE 2: outcome kinds recorded while one step of a multi-step request runs
+  const undoAfterRef = useRef(null)         // hotfix 2026-11-03: a model plan "change …, then undo it" — the Undo waits for the change
   const runCompoundRef = useRef(null)       // ⭐ PHASE 3 acceptance: approve() resumes a whole workspace (defined after it)
   // PLANNER v2 (Wave 1 A-05, agent/steps.js): null unless /api/agent/config says planner 'v2' — then every model
   // turn is the server's step loop, each step through the same `execute`. v2TapRef collects the record bodies of
@@ -1085,6 +1091,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       : `Took back ${done} of the ${ids.length} changes from your last request, then stopped (above) — the other ${ids.length - done} ${ids.length - done === 1 ? 'is' : 'are'} still in place.`
     push({ role: 'agent', text })
     record({ member: null, outcome: text, outcomeData: { kind: 'undo-turn', done, of: ids.length }, telemetry: { path: 'fast', undo: true, voice } })
+    return done === ids.length
   }, [host, doUndo, push, record])
 
   const approve = useCallback(async (count = null, { member, voice } = {}) => {
@@ -1224,10 +1231,25 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       push({ role: 'agent', text })
       record({ member, outcome: text, outcomeData: { kind: 'compound-stopped', step: i, of: steps.length }, telemetry: { path: 'fast', refused: true, voice } })
     }
+    let prevIds = null                        // the Undo entries the step before committed (null = no step yet)
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]
+      // hotfix 2026-11-03: "change NVDA to weekly, then undo that" — the Undo of exactly what the step before committed,
+      // through doUndo (its refusals and receipt); a first-step Undo is the ordinary Undo of the newest change
+      if (step.kind === 'undo') {
+        const about = fastParse(step.text, { host })?.about || null
+        if (prevIds && !prevIds.length) { stop(i, 'the step before it didn’t make a change I could take back, so nothing was undone'); return }
+        let ok = true
+        if (!prevIds) ok = await doUndo(null, { member: null, voice, about })
+        else for (const id of [...prevIds].reverse()) { ok = await doUndo(id, { member: null, voice, about }); if (!ok) break }
+        if (!ok) { stop(i, 'that Undo didn’t go through (see above)'); return }
+        done += 1
+        prevIds = []
+        continue
+      }
+      const idsBefore = undoRef.current.map(e => e.id)
       const r = resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
-      if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; continue }
+      if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; prevIds = []; continue }
       if (r.note) push({ role: 'outcome', text: r.note })
       if (r.say || !r.ops?.length) { stop(i, String(r.say || 'there was nothing to do there').replace(/[.]+$/, '')); return }
       if (r.ops.length > MAX_STEP_OPS) { stop(i, `that step would make ${r.ops.length} changes, and UCT makes at most ${MAX_STEP_OPS} in one step`); return }
@@ -1256,11 +1278,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return
       }
       done += 1
+      prevIds = undoRef.current.map(e => e.id).filter(id => !idsBefore.includes(id))
       if (r.grid) working = chartsShowing(host, r.grid)
     }
     // one step ("put rsi underneath"): its own receipt says it all
     if (steps.length > 1) push({ role: 'agent', text: `All ${steps.length} steps done.` })
-  }, [host, execute, push, record])
+  }, [host, execute, push, record, doUndo])
   runCompoundRef.current = runCompound
   // PLANNER v2: the runner reads the CURRENT closures on every call (never captured when the panel opened)
   v2DepsRef.current = () => ({ host, push, record, execute, memoryRef, conversationRef, setConversationId, capCtx, tapRef: v2TapRef, mark, patchItem, pendingRef })
@@ -1794,6 +1817,52 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: null, outcome: TOO_MANY_OPS, outcomeData: { kind: 'refused', actions: (env.ops || []).map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
         return
       }
+      // ⭐ agent.undo (hotfix 2026-11-03): the planner asked for UCT's OWN Undo — the receipt's Undo (doUndo / undoTurn, with
+      // every one of its refusals). The model's words never say what was undone (only doUndo's receipt does). Alone → the
+      // Undo; FIRST in a plan → the Undo, then the rest only if it went through; LAST → the rest, then the Undo of exactly
+      // what the rest committed (nothing older); anywhere else → nothing runs, said plainly.
+      const undoOps = (env.ops || []).filter(o => o?.action === UNDO_ACTION)
+      if (undoOps.length) {
+        const all = env.ops
+        const rest = all.filter(o => o?.action !== UNDO_ACTION)
+        const at = all.findIndex(o => o?.action === UNDO_ACTION)
+        const u = normalizeArgs(UNDO_ACTION, undoOps[0].args && typeof undoOps[0].args === 'object' ? undoOps[0].args : {}).args || {}
+        const about = typeof u.about === 'string' ? u.about : null
+        mark('undo', rest.length ? (at === 0 ? 'first' : 'last') : 'alone')
+        lastActionsRef.current = all.map(o => o?.action)
+        if (undoOps.length > 1 || (rest.length && at !== 0 && at !== all.length - 1)) {
+          const t = 'I didn’t change or undo anything: I can undo before or after the other changes in one request, not in the middle of them. Ask for the change, then say “undo”.'
+          push({ role: 'refusal', text: t })
+          record({ member: null, outcome: t, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'model', undo: true, refused: true, voice } })
+          return
+        }
+        if (!rest.length) {
+          if (u.scope === 'all') await undoTurn({ member: null, voice })
+          else await doUndo(null, { member: null, voice, about })
+          return
+        }
+        if (at === 0) {
+          const ok = u.scope === 'all' ? await undoTurn({ member: null, voice }) : await doUndo(null, { member: null, voice, about })
+          if (!ok) {
+            const t = 'Because that Undo didn’t go through, I didn’t make the rest of the change either.'
+            push({ role: 'agent', text: t })
+            record({ member: null, outcome: t, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'model', undo: true, refused: true, voice } })
+            return
+          }
+        } else {
+          undoAfterRef.current = { about, before: undoRef.current.map(e => e.id) }
+        }
+        env = { ...env, ops: rest, reply: '' }
+      }
+      // ⛔ hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts…" planned as four TABS of the one chart,
+      // overwriting its ticker): a plan that adds chart tabs when the member never said "tab" is a stand-in for what was
+      // asked — nothing runs, said plainly (the member can ask for tabs, or for the charts again)
+      if ((env.ops || []).some(o => TAB_ADDS.has(o?.action)) && !/tabs?/i.test(`${askedFor || ''} ${text}`)) {
+        const t = 'I didn’t change anything: my plan would have put those on TABS of one chart, not on separate charts. Ask again for the charts (for example “four charts for SPY, QQQ, NVDA and TSLA in a grid”), or say “tabs” if tabs are what you want.'
+        push({ role: 'refusal', text: t })
+        record({ member: null, outcome: t, outcomeData: { kind: 'refused', actions: (env.ops || []).map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
+        return
+      }
       // apply / propose: translate the context refs back to real target refs
       // ⛔ LOCAL-RESULT BOUNDARY: a plan holding a local-only lookup shows UCT's answer, never the
       // model's own words about it (the server blanks that reply too). The one exception is the
@@ -1896,7 +1965,25 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         }
       }
       await execute(ops, { path: 'model', mode: disposition, member: null, voice })
+      // agent.undo LAST: exactly what THIS plan committed (its new Undo entries, newest first) — through doUndo
+      const after = undoAfterRef.current
+      undoAfterRef.current = null
+      if (after) {
+        const fresh = undoRef.current.filter(e => !after.before.includes(e.id))
+        if (!fresh.length) {
+          const t = UNDO_AFTER_NOTHING
+          push({ role: 'agent', text: t })
+          record({ member: null, outcome: t, outcomeData: { kind: 'undo-none' }, telemetry: { path: 'model', undo: true, voice } })
+        } else {
+          for (const e of [...fresh].reverse()) { if (!(await doUndo(e.id, { member: null, voice, about: after.about }))) break }
+        }
+      }
     } finally {
+      // a planned "…, then undo it" whose change never ran (a question, a card, a refusal): nothing was undone — said
+      if (undoAfterRef.current) {
+        undoAfterRef.current = null
+        push({ role: 'agent', text: UNDO_AFTER_NOTHING })
+      }
       lockRef.current = false
       setBusy(false)
       setActivity(null)

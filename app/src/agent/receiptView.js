@@ -35,6 +35,17 @@ export function receiptView(lines, { isUndo = false } = {}) {
   }
   // ONE line already IS one short sentence ("Added EMA 20 on Left chart (NVDA)") — said as it is, once
   if (ls.length === 1) return { summary: ls[0], details: '' }
+  // hotfix 2026-11-03 (live T1: "Done — added 2 Charts (and 2 more changes)." — the tickers only in Details): new charts
+  // each given a ticker are said WITH their tickers, when every new chart's ticker is in the receipt
+  const addedN = /^Added (a|\d+) Charts?\b/.exec(ls[0])
+  const born = ls.slice(1).map(l => /^New chart \d+: (?:Changed|Switched) symbol to ([^\s.]+)\.?$/.exec(l)).filter(Boolean)
+  if (addedN && born.length && born.length === (addedN[1] === 'a' ? 1 : Number(addedN[1]))) {
+    const rest = ls.slice(1).filter(l => !born.some(m => m.input === l))
+    const syms = born.map(m => m[1])
+    const names = syms.length === 1 ? syms[0] : `${syms.slice(0, -1).join(', ')} and ${syms[syms.length - 1]}`
+    const head = `Done — added ${syms.length === 1 ? 'a chart' : `${syms.length} charts`} for ${names}`
+    return { summary: rest.length ? `${head} (and ${rest.length} more change${rest.length === 1 ? '' : 's'}).` : `${head}.`, details: all }
+  }
   const more = ls.length - 1
   return { summary: `${done(brief(ls[0]))} (and ${more} more change${more === 1 ? '' : 's'}).`, details: all }
 }
