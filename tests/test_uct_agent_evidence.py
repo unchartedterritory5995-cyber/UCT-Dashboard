@@ -843,14 +843,54 @@ def test_judge_never_runs_while_e1_is_off(monkeypatch):
     assert j.calls == []
 
 
-def test_judge_is_metered_off_the_call_ceiling(monkeypatch):
+def test_judge_is_a_call_of_this_turn_on_the_call_ceiling(monkeypatch):
+    # QA #781 round 2: the judge uses one of the request's calls (the classifier stays off the ceiling)
     use(monkeypatch, MISROUTES[1])
     _judge(monkeypatch, JUDGE_CLEAR)
     seen = []
     meter = types.SimpleNamespace(user_id=1, request_id=None, calls_left=lambda: 2,
                                   call=lambda category, fn, counts_as_call=True, **kw: (seen.append((category, counts_as_call)), fn(**kw))[1])
     run("what is vwap", meter=meter, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
-    assert (ev.JUDGE_CATEGORY, False) in seen and (ev.CATEGORY, False) in seen
+    assert (ev.JUDGE_CATEGORY, True) in seen and (ev.CATEGORY, False) in seen
+
+
+def test_judge_unaffordable_on_the_call_ceiling_is_the_fixed_sentence_with_no_call(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    j = _judge(monkeypatch, AssertionError("no judge call when the turn cannot afford it"))
+    meter = types.SimpleNamespace(user_id=1, request_id=None, calls_left=lambda: 0,
+                                  call=lambda category, fn, counts_as_call=True, **kw: fn(**kw))
+    out = run("what is vwap", meter=meter, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert out["envelope"]["reply"] == ev.NOT_RETRIEVED and out["usage"]["judge"] == "judge_unaffordable:call_ceiling"
+    assert j.calls == []
+
+
+def test_judge_unaffordable_on_the_per_turn_dollar_cap(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    j = _judge(monkeypatch, AssertionError("no judge call over the per-turn cap"))
+    monkeypatch.setenv("UCT_AGENT_TURN_USD", "0.0011")                         # the planner + classifier spent 0.002 here
+    out = run("what is vwap", caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert out["envelope"]["reply"] == ev.NOT_RETRIEVED and out["usage"]["judge"] == "judge_unaffordable:turn_cap"
+    assert j.calls == []
+
+
+def test_judge_model_is_pinned_whatever_the_planner_model(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    j = _judge(monkeypatch, JUDGE_CLEAR)
+    monkeypatch.setenv("UCT_AGENT_MODEL", "claude-opus-5-5")
+    run("what is vwap", caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert j.calls[0]["model"] == ev.JUDGE_MODEL == "claude-haiku-4-5"
+
+
+def test_judge_covers_a_clarifys_question_and_choices(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    j = _judge(monkeypatch, {**JUDGE_CLEAR, "prescribes_trading_action": True})
+    q = {"text": "Want me to load up on the break, or wait?", "choices": ["Load up on the break", "Wait"]}
+    e = run("hmm", caller=caller_of(_resp(env("clarify", question=q))))["envelope"]
+    assert e["disposition"] == "answer" and e["reply"] == ev.NOT_RETRIEVED and e["question"] is None
+    assert "load up on the break" in json.dumps(j.calls[0]["messages"]).lower()
+    j2 = _judge(monkeypatch, AssertionError("UCT's own fixed clarify is never judged"))
+    e = run("hmm", caller=caller_of(_resp(env("clarify", question={"text": "Which one do you mean?", "choices": []}))))["envelope"]
+    assert j2.calls == [] and e["disposition"] == "clarify"
 
 
 def test_judge_covers_v2_resumes(monkeypatch):

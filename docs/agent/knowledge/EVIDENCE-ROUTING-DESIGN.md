@@ -358,3 +358,14 @@ the reply and the message go in as DATA, and the output has no reply field.
 not established here. The verdict is the reviewer's sealed held-out set and the owner-approved paid eval, and
 activation needs that separate authorization. Brain stays OFF.
 
+**QA #781 round 2 (cost and scope of the judge):**
+- **It is a call OF THE TURN.** It uses one of the request's 2 calls (`counts_as_call`) and must fit the per-turn dollar
+  cap (`UCT_AGENT_TURN_USD`, default $0.25, applied to the whole turn: classifier + planner + judge) at its worst case.
+  A turn that cannot afford it gets the fixed sentence and no judge call.
+- **Consequence while E-1 is on:** a chart / none answer that used web research (planner + research round = 2 calls)
+  cannot afford the judge, so it is served as the fixed sentence. Research is effectively off on judged turns.
+- **Model:** pinned to `claude-haiku-4-5` (`JUDGE_MODEL`), whatever `UCT_AGENT_MODEL` is, and its cost is priced as
+  that model. The classifier still uses the planner model, as designed.
+- **Clarify:** a clarify's question text and choices are judged too. If blocked, the turn becomes the fixed sentence
+  with no ops. UCT's own fixed clarify is never judged.
+

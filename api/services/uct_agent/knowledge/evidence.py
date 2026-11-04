@@ -652,6 +652,8 @@ def output_backstop(res: dict, vocab: list[dict], message: str = "") -> dict:
 #: Its accuracy is NOT established by these scripted tests: the verdict is the reviewer's sealed held-out set and the
 #: owner-approved paid eval.
 JUDGE_CATEGORY = "evidence_judge"
+#: QA #781 round 2: a FIXED small model (never UCT_AGENT_MODEL, so a planner upgrade does not raise the judge's cost)
+JUDGE_MODEL = "claude-haiku-4-5"
 JUDGE_MAX_TOKENS = 60
 JUDGE_KEYS = ("prescribes_trading_action", "presents_uct_methodology", "defines_a_setup")
 JUDGE_SYSTEM = """You check ONE reply that UCT Agent, a charting and research assistant for stock traders, is about to show. You never rewrite it. Output only the JSON object the schema allows.
@@ -672,23 +674,45 @@ def judge_schema() -> dict:
 JUDGE_CALL: Callable[..., Any] = default_call
 
 
-def judge_reply(reply: str, message: str, meter=None) -> tuple[bool, str, dict]:
-    """(replace?, why, usage). Fails CLOSED: anything but a clean all-false verdict replaces the reply."""
+def turn_cap_usd() -> float:
+    """The per-turn dollar cap (planner v2's UCT_AGENT_TURN_USD, default $0.25), applied to the WHOLE turn here."""
+    from api.services.uct_agent import turn_v2
+    return turn_v2.turn_usd()
+
+
+def _judge_cost(resp) -> float:
+    try:
+        from api.services import narrative_cost_guard
+        from api.services.uct_agent import turn as t1
+        return float(narrative_cost_guard.record_from_response(t1.COST_SURFACE, JUDGE_MODEL, resp) or 0.0)
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
+def judge_reply(reply: str, message: str, meter=None, spent_usd: float = 0.0) -> tuple[bool, str, dict]:
+    """(replace?, why, usage). Fails CLOSED: anything but a clean all-false verdict replaces the reply.
+    QA #781 round 2: the judge is a call OF THIS TURN — it uses one of the request's calls (counts_as_call) and must fit
+    the per-turn dollar cap with what the turn already spent; a turn that cannot afford it gets the fixed sentence."""
+    from api.services.uct_agent import budget
     from api.services.uct_agent import turn as t1
     data = {"member_message": str(message or "")[:2000], "reply": str(reply or "")[:4000]}
     user = "<judge_input>" + t1._esc(json.dumps(data, ensure_ascii=False)) + "</judge_input>"
     use = {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
-    kw = dict(model=t1.model(), max_tokens=JUDGE_MAX_TOKENS,
+    kw = dict(model=JUDGE_MODEL, max_tokens=JUDGE_MAX_TOKENS,
               system=[{"type": "text", "text": JUDGE_SYSTEM, "cache_control": {"type": "ephemeral"}}],
               output_config={"format": {"type": "json_schema", "schema": judge_schema()}},
               messages=[{"role": "user", "content": user}])
+    if float(spent_usd or 0.0) + budget.worst_case_usd(kw) > turn_cap_usd():
+        return True, "judge_unaffordable:turn_cap", use
+    if meter is not None and meter.calls_left() < 1:
+        return True, "judge_unaffordable:call_ceiling", use
     try:
-        resp = meter.call(JUDGE_CATEGORY, JUDGE_CALL, counts_as_call=False, **kw) if meter is not None else JUDGE_CALL(**kw)
+        resp = meter.call(JUDGE_CATEGORY, JUDGE_CALL, **kw) if meter is not None else JUDGE_CALL(**kw)
     except Exception as e:  # noqa: BLE001 — fail closed, a budget refusal included (the reply is not served)
         return True, f"judge_error:{type(e).__name__}", use
     u = getattr(resp, "usage", None)
     use = {"input_tokens": int(getattr(u, "input_tokens", 0) or 0),
-           "output_tokens": int(getattr(u, "output_tokens", 0) or 0), "cost_usd": t1._record_cost(resp)}
+           "output_tokens": int(getattr(u, "output_tokens", 0) or 0), "cost_usd": _judge_cost(resp)}
     if getattr(resp, "stop_reason", None) not in ("end_turn", "stop_sequence"):
         return True, f"judge_stop:{getattr(resp, 'stop_reason', None)}", use
     text = next((getattr(b, "text", "") for b in getattr(resp, "content", []) or [] if getattr(b, "type", None) == "text"), "")
@@ -702,15 +726,26 @@ def judge_reply(reply: str, message: str, meter=None) -> tuple[bool, str, dict]:
     return (True, "judge:" + ",".join(hits), use) if hits else (False, "judge:clear", use)
 
 
-def judge_backstop(res: dict, message: str, meter=None) -> dict:
-    """Run the output judge on a chart / none result whose reply is model text the deterministic checks let through."""
+def judge_backstop(res: dict, message: str, meter=None, prior_usd: float = 0.0) -> dict:
+    """Run the output judge on a chart / none result whose model text the deterministic checks let through: the reply
+    of an answer / apply / propose, and (QA #781 round 2) a clarify's question text and choices."""
     env = res.get("envelope") if isinstance(res, dict) else None
-    if not isinstance(env, dict) or env.get("need_groups") or env.get("disposition") not in ("answer", "apply", "propose"):
+    if not isinstance(env, dict) or env.get("need_groups"):
         return res
-    reply = str(env.get("reply") or "").strip()
-    if not reply or reply in fixed_sentences():
+    disp = env.get("disposition")
+    if disp == "clarify":
+        q = env.get("question") if isinstance(env.get("question"), dict) else {}
+        choices = [str(c) for c in (q.get("choices") or []) if isinstance(c, str)]
+        reply = "\n".join(x for x in [str(env.get("reply") or "").strip(), str(q.get("text") or "").strip(), *choices] if x)
+    elif disp in ("answer", "apply", "propose"):
+        reply = str(env.get("reply") or "").strip()
+    else:
         return res
-    block, why, use = judge_reply(reply, message, meter)
+    if not reply or reply in fixed_sentences() or (disp == "clarify" and all(
+            x in fixed_sentences() or x in ("", "Which one do you mean?") for x in reply.split("\n"))):
+        return res
+    spent = float((res.get("usage") or {}).get("cost_usd") or 0.0) + float(prior_usd or 0.0)
+    block, why, use = judge_reply(reply, message, meter, spent_usd=spent)
     usage = res.setdefault("usage", {})
     usage["judge"] = why
     usage["model_calls"] = int(usage.get("model_calls") or 0) + (1 if use.get("input_tokens") else 0)
@@ -719,7 +754,10 @@ def judge_backstop(res: dict, message: str, meter=None) -> dict:
     usage["cost_usd"] = float(usage.get("cost_usd") or 0.0) + float(use.get("cost_usd") or 0.0)
     if block:
         log.info("uct_agent evidence: output judge replaced a %d-char reply (%s)", len(reply), why)
-        res["envelope"] = {**env, "reply": NOT_RETRIEVED, "question": None}
+        if disp == "clarify":
+            res["envelope"] = {**env, "disposition": "answer", "reply": NOT_RETRIEVED, "question": None, "ops": []}
+        else:
+            res["envelope"] = {**env, "reply": NOT_RETRIEVED, "question": None}
     return res
 
 
@@ -833,7 +871,8 @@ def serve(run_turn: Callable[..., dict], args: dict) -> dict:
         if args.get("v2") is not None and kn_words:
             return done(answer_envelope(NOT_RETRIEVED))
         res = run_turn(**{**stripped, "_e1": "gate_kn" if kn_words else "gate"})
-        res = judge_backstop(output_backstop(res, vocab, message), message, meter)
+        res = judge_backstop(output_backstop(res, vocab, message), message, meter,
+                             prior_usd=float((use or {}).get("cost_usd") or 0.0))
         return _merge_usage(label_general(res), decision, use, cached)
     if args.get("answer_only") or args.get("headline") is not None:
         return done(answer_envelope(NEWS_BOX))     # the News Ask box: playbook / mixed / ambiguous never planned there
