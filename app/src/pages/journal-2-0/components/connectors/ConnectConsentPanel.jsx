@@ -1,6 +1,6 @@
 /**
  * ConnectConsentPanel — shared consent gate for the OAuth connect flows
- * (notion/dropbox), used by both ConnectedAppsCard (Settings) and
+ * (notion/evernote), used by both ConnectedAppsCard (Settings) and
  * ConnectTilesCompact (ImportWizard drop step) so there is one copy of the
  * consent copy + checkbox + Continue/Cancel controls, not two.
  *

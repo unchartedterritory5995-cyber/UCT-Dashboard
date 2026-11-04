@@ -482,6 +482,20 @@ def _pooled_provider(provider_name: str) -> bool:
     from . import registry  # lazy, as `_default_provider_factory` imports it
     return registry.runs_sync_in_background(provider_name)
 
+def _skip_archived_provider(source: dict[str, Any]) -> bool:
+    """True (and one log line) for a source of an ARCHIVED provider (`registry.ARCHIVED_PROVIDERS`:
+    Dropbox, OneNote, OneDrive, removed 2026-11-04). The scheduler loops skip it WITHOUT touching
+    the row (no error stamped, no log row, never deleted): nothing can build its provider, so a
+    pass could only fail the same way every tick. Any OTHER name the registry does not know keeps
+    its old path: the pass fails, the row reads "error", the loop logs it and moves on."""
+    from . import registry  # lazy, as `_default_provider_factory` imports it
+    provider_name = source.get("provider") or ""
+    if provider_name not in registry.ARCHIVED_PROVIDERS:
+        return False
+    log.warning("[note-sync] source %s skipped: provider %r was archived", source.get("id"), provider_name)
+    return True
+
+
 # Server-side cap on notes_svc.import_confirm is 500/batch; the engine stays
 # well under it.
 _CONFIRM_BATCH_SIZE = 200
@@ -1185,6 +1199,8 @@ async def sync_due_sources() -> None:
     due = connections.list_due_sources(interval)
     beside: list[asyncio.Task] = []
     for source in due:
+        if _skip_archived_provider(source):
+            continue
         if _pooled_provider(source.get("provider") or ""):
             beside.append(asyncio.create_task(_pass_beside_the_loop(source, full=False)))
             await asyncio.sleep(0)  # let it take its slot in due order
@@ -1216,6 +1232,8 @@ async def sync_all_active_sources_full() -> None:
     sources = connections.list_all_sources()
     beside: list[asyncio.Task] = []
     for source in sources:
+        if _skip_archived_provider(source):
+            continue
         if _pooled_provider(source.get("provider") or ""):
             beside.append(asyncio.create_task(_pass_beside_the_loop(source, full=True)))
             await asyncio.sleep(0)

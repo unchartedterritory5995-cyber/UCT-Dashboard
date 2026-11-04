@@ -1003,7 +1003,7 @@ def test_configured_true_once_both_env_vars_are_set(monkeypatch):
     monkeypatch.setenv("NOTION_CLIENT_SECRET", "y")
     from api.services.journal_two.note_connectors import oauth as oauth_mod
     assert oauth_mod.configured("notion") is True
-    assert oauth_mod.configured("dropbox") is False  # not registered by this task
+    assert oauth_mod.configured("dropbox") is False  # archived 2026-11-04, never registered here
     assert oauth_mod.configured("unknown-provider") is False
 
 

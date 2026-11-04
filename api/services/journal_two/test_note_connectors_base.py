@@ -850,17 +850,13 @@ async def test_the_media_client_never_trusts_proxy_env_vars(proxy_env):
 async def test_every_provider_and_the_fetch_door_build_their_client_without_proxy_env(proxy_env):
     from api.routers import journal_two as jt
     from api.services.journal_two.note_connectors.providers.craft import CraftProvider
-    from api.services.journal_two.note_connectors.providers.dropbox import DropboxProvider
-    from api.services.journal_two.note_connectors.providers.msgraph_base import MSGraphClient
     from api.services.journal_two.note_connectors.providers.notion import NotionProvider
     from api.services.journal_two.note_connectors.providers.obsidian import ObsidianProvider
     from api.services.journal_two.note_connectors.providers.roam import RoamProvider
 
-    owners = [CraftProvider(), DropboxProvider(), NotionProvider(), RoamProvider(),
+    owners = [CraftProvider(), NotionProvider(), RoamProvider(),
               ObsidianProvider(user_id="u1", vault_id="v1")]
     clients = [await p._get_client() for p in owners]
-    graph = MSGraphClient()
-    clients.append(await graph.get_client())
     door = jt._media_fetch_client()
     clients.append(door)
     try:
@@ -869,5 +865,4 @@ async def test_every_provider_and_the_fetch_door_build_their_client_without_prox
     finally:
         for p in owners:
             await p.aclose()
-        await graph.aclose()
         await door.aclose()

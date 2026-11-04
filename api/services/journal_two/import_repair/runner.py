@@ -122,7 +122,9 @@ def classify(row: NoteRow, active: set[str]) -> str | None:
     """The note's class, or None for the sample notebook (C6: the stored-row check)."""
     if sample_marker.is_sample(row.import_source):
         return None
-    if row.import_source in registry._REGISTRY:
+    # An archived provider (`registry.ARCHIVED_PROVIDERS`) is still a connector id, never a file
+    # importer label: its notes stay CONNECTOR_ORPHANED (it can have no active source), as before.
+    if row.import_source in registry._REGISTRY or row.import_source in registry.ARCHIVED_PROVIDERS:
         if row.import_source in active:
             return RELIST if row.import_source == _RELIST_PROVIDER else LIVE
         return ORPHANED

@@ -285,7 +285,7 @@ const SITE_EXCEPTIONS = {
     + 'member\'s notes, after the sample notes are trashed, so it moves only already-trashed sample notes. To close it '
     + 'the route would have to report each revision the folder cascade moved.',
   'app/src/pages/journal-2-0/hooks/useNoteConnectors.js:POST /api/j2/notes/connectors/*/connect':
-    'connecting a Roam/Craft/Notion/Dropbox/Obsidian source starts a background sync (note_connectors engine.sync_source) '
+    'connecting a Roam/Craft/Notion/Evernote/Obsidian source starts a background sync (note_connectors engine.sync_source) '
     + 'that writes notes as a GENUINE second writer: a fork against it is the correct answer (rail ② and ⑥\'s engine row), '
     + 'and the answer carries no per-note revisions. To close it the sync would have to stream every revision it wrote '
     + 'back to the tab that asked, which would make a background writer pretend to be this tab.',
