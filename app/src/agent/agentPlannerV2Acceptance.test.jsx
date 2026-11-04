@@ -29,13 +29,7 @@ const SCAN = { total: 3, rows: [{ ticker: 'AAA', adr_pct: 9, price: 60 }, { tick
 const SAVED = [{ id: 901, name: 'ADR Movers', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }]   // the Screener's stored shape (filters is a list)
 
 // Known gaps: each must fail in exactly its recorded way (a fix turns the case red until the marker is removed).
-const GAPS = {
-  // review #775: #733's host.js optsSig change (a null opts key reads as absent) is NOT in #775 — it changes v1's stale-undo
-  // and approval fingerprints, so it goes on its own branch (agent/w2/optssig-null) with a v1 regression test. Without
-  // it, "undo all" after an EMA add on a NEW chart reads the chart as changed since (the indicator Undo wrote
-  // settings: null) and keeps the new charts.
-  F01: { id: 'OPTSSIG-NULL', mode: 'to have a length of 1 but got 3' },
-}
+const GAPS = {}
 
 let p, srv
 beforeEach(() => { _resetAgentConfig(); _resetScreenerCache(); p = setupPanel() })
