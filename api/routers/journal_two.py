@@ -2022,23 +2022,21 @@ def list_notes_endpoint(
                             or deleted or date_from or date_to or symbol_in is not None
                             or savedViewId or property_filter),
         )
-    # Wave 11 (lane 11B), DARK behind NOTEBOOK_FORMULAS_ENABLED: each live row of
-    # THIS page carries its formula/rollup values (`computed`), so every view can
-    # show them. Off -- or a member with no computed property -- the payload is
-    # untouched and no extra SQL runs beyond one flag read.
+    # Wave 11 (lane 11B): each live row of THIS page carries its formula/rollup values
+    # (`computed`), so every view can show them. A member with no computed property
+    # leaves the payload untouched.
     if not deleted and rows:
         from api.services.journal_two import note_computed
-        if note_computed.formulas_enabled():
-            conn = notes_service.get_connection()
-            try:
-                vals = note_computed.values_for_notes(
-                    conn, user["id"], [r["id"] for r in rows],
-                    {r["id"]: r.get("propertiesJson") or {} for r in rows})
-            finally:
-                conn.close()
-            if vals:
-                for r in rows:
-                    r["computed"] = vals.get(r["id"], {})
+        conn = notes_service.get_connection()
+        try:
+            vals = note_computed.values_for_notes(
+                conn, user["id"], [r["id"] for r in rows],
+                {r["id"]: r.get("propertiesJson") or {} for r in rows})
+        finally:
+            conn.close()
+        if vals:
+            for r in rows:
+                r["computed"] = vals.get(r["id"], {})
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 

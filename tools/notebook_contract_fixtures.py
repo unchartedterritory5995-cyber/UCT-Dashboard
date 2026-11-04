@@ -1830,9 +1830,8 @@ def sample_notebook(w: World) -> None:
     words: which folders went, which stayed because a member's note is in one, and why."""
     from api.services.journal_two import notes as notes_service
     base = "/api/j2/onboarding"
-    # The capability examples (and their folder) exist only while wave 14 is armed. Set for this
-    # surface only, and put back, so no other surface's answer depends on it.
-    w.p.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", "1")
+    # The capability examples (and their folder) exist only while wave 14 is armed: onboarding is in
+    # FLAGS, and the checklist's own switch was retired as always on (2026-11-04).
     try:
         clean = w.member("sample")
         w.as_user(clean)
@@ -1871,7 +1870,6 @@ def sample_notebook(w: World) -> None:
         w.as_user(clean, FREE)
         w.record("sample-notebook.add.free-plan", "POST", f"{base}/sample-notebook", case="error", expect=402)
     finally:
-        w.p.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", None)
         w.as_user(MEMBER)
 
 

@@ -167,14 +167,6 @@ NOTEBOOK_FLAGS = {
     # Payload key `notebook_ai_actions_enabled`; the router's gate reads the same
     # variable per request through `flag_on`.
     "NOTEBOOK_AI_ACTIONS_ENABLED": False,    # enablement  — unset means OFF (AI changes across notes, lane 11C)
-    # Wave 11 lane 11B: formula and rollup properties. The route side reads the same
-    # variable through `note_computed.formulas_enabled()` -> `flag_on`, per request.
-    "NOTEBOOK_FORMULAS_ENABLED": False,      # enablement  — unset means OFF (formulas + rollups, lane 11B)
-    # Wave 11 lane 11D: the trade-plan canvas. Client-only (no route of its own:
-    # a canvas is a note, written through the note's own door); the payload key is
-    # `notebook_trade_canvas_enabled` and every create door + the board's editing
-    # controls read it (lib/tradeCanvas.js `tradeCanvasEnabled`).
-    "NOTEBOOK_TRADE_CANVAS_ENABLED": False,  # enablement  — unset means OFF (trade-plan canvas, lane 11D)
     # Wave 12 lane 12A: the community template gallery. The router's gate
     # (journal_two/template_gallery.enabled) reads the same variable through
     # flag_on, per request; the payload key is `notebook_template_gallery_enabled`.
@@ -185,26 +177,17 @@ NOTEBOOK_FLAGS = {
     # variable through flag_on; the payload key `awareness_note_resurface_enabled` gates the
     # note door's "what you wrote then" sheet. AWARENESS_ENGINE_ENABLED must also be on.
     "AWARENESS_NOTE_RESURFACE_ENABLED": False,  # enablement — unset means OFF (resurfacing, lane 13D)
-    # Wave 14 lane W14-D: the "get started" checklist on Research Home. Client-only (no route
-    # of its own: it reads the member's preferences and Research Home's own read); the payload
-    # key is `notebook_getting_started_enabled`, and the checklist shows only while BOTH it and
-    # `notebook_onboarding_enabled` are on (GettingStartedChecklist.jsx).
-    "NOTEBOOK_GETTING_STARTED_ENABLED": False,  # enablement — unset means OFF (get started checklist, lane W14-D)
-    # Wave 14 lane W14-C1: three capabilities whose gate lived ONLY on the server, so their
+    # Wave 14 lane W14-C1: capabilities whose gate lived ONLY on the server, so their
     # walkthroughs (onboarding/tours/b1Core.js) could never open. Each row mirrors the
     # capability's OWN read -- same variable, same polarity -- and `flag_on`'s parse agrees
     # with each own parse on every spelling (tests/test_notebook_flags.py proves it). The
     # payload key only lets the client see the state; the capability's own server read is
     # unchanged and remains the authority over what the capability does.
-    #   image/docx documents: document_extraction.image_docx_documents_enabled (on: 1/true/yes/on)
-    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": False,  # enablement — unset means OFF (image/docx documents, wave 7 G)
+    #   (image/docx documents was the third; retired as always on 2026-11-04)
     #   task reminders: note_tasks.reminders_enabled, a KILL SWITCH (off: 0/false/no/off); on in prod
     "NOTEBOOK_TASK_REMINDERS_ENABLED": True,  # kill switch — unset means ON (daily task reminder, wave 6 F)
     #   meaning search: note_semantic.semantic_enabled (on: 1/true/yes/on)
     "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": False,  # enablement — unset means OFF (search by meaning, wave 7 H3)
-    # TERM-056 (lane N, 2026-10-10): a terminal command pasted into a note becomes a link that
-    # opens the terminal at it. Client-only; payload key `notebook_terminal_links_enabled`.
-    "NOTEBOOK_TERMINAL_LINKS_ENABLED": False,  # enablement — unset means OFF (terminal command links)
     # Task 14b (ruling R16, 2026-10-11): Compass's text-chat tool `search_my_notes` (wave 7 lane H)
     # had a server gate only, so the Notebook could not say it exists. The payload key
     # `compass_notes_tool_enabled` lets the client name it ONLY while it is on. The tool's own gate
@@ -255,13 +238,18 @@ NOTEBOOK_ALWAYS_ON_KEYS: tuple[str, ...] = (
     "notebook_earnings_prep_enabled",
     "notebook_entry_context_enabled",
     "notebook_find_similar_enabled",
+    "notebook_formulas_enabled",
+    "notebook_getting_started_enabled",
+    "notebook_image_docx_documents_enabled",
     "notebook_passed_setups_enabled",
     "notebook_plan_grading_enabled",
     "notebook_playbook_enabled",
     "notebook_review_drafts_enabled",
     "notebook_setups_board_enabled",
     "notebook_ta_fingerprint_enabled",
+    "notebook_terminal_links_enabled",
     "notebook_thesis_chips_enabled",
+    "notebook_trade_canvas_enabled",
     "notebook_transcript_capture_enabled",
     "notebook_visual_playbook_enabled",
 )

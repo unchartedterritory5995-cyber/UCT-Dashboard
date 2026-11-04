@@ -231,16 +231,15 @@ _SPELLINGS = [None, "", "1", "0", "true", "false", "TRUE", " yes ", "no", "on", 
 
 
 def _own_reads():
-    from api.services.journal_two import document_extraction, note_semantic, note_tasks
+    from api.services.journal_two import note_semantic, note_tasks
     return {
-        "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": document_extraction.image_docx_documents_enabled,
         "NOTEBOOK_TASK_REMINDERS_ENABLED": note_tasks.reminders_enabled,
         "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": note_semantic.semantic_enabled,
     }
 
 
 @pytest.mark.parametrize("env_name", sorted([
-    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "NOTEBOOK_TASK_REMINDERS_ENABLED", "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED", "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
 ]))
 @pytest.mark.parametrize("raw", _SPELLINGS)
 def test_W14_C1_the_payload_key_agrees_with_the_capabilitys_own_read(env_name, raw):

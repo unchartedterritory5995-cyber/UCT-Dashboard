@@ -185,11 +185,8 @@ DOOR_OFF = 404
 NOT_REHEARSED = {
     "NOTEBOOK_ASK_INSERT_ON": ("armed on web 2026-09-26 (docs/feature_flags.json): payload only: its surface needs an"
                                " Ask answer (a model call)"),
-    # Wave 14 W14-C1: these two (and semantic search below) now ride the auth payload, so the
+    # Wave 14 W14-C1: this one (and semantic search below) now ride the auth payload, so the
     # window switches and verifies them by their payload key; no RENDERED probe is written.
-    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": ("armed on web 2026-09-26 (docs/feature_flags.json): payload key only "
-                                              "(W14-C1, its tour's gate): the capability itself acts only on an "
-                                              "upload"),
     "NOTEBOOK_TASK_REMINDERS_ENABLED": ("armed on web (docs/feature_flags.json: a kill switch, on by default): "
                                         "payload key only (W14-C1, its tour's gate): the kill switch is read per "
                                         "scheduled run, so its only other evidence is a reminder members would not "
@@ -226,14 +223,9 @@ NOT_REHEARSED = {
     "NOTEBOOK_VOICE_NOTES_ENABLED": ("armed on web 2026-10-09 (docs/feature_flags.json) (wave 11 11A): voice and "
                                      "meeting notes -- Whisper transcription against the 60-minute monthly dictation "
                                      "allowance and one summary call on the shared $25/day cap"),
-    "NOTEBOOK_FORMULAS_ENABLED": ("armed on web 2026-10-07 (docs/feature_flags.json) (wave 11 11B): formula and "
-                                  "rollup properties, computed in memory on read"),
     "NOTEBOOK_AI_ACTIONS_ENABLED": ("armed on web 2026-10-03 (docs/feature_flags.json) (wave 11 11C): Or tell "
                                     "Notebook what to change -- one model call per plan on the shared $25/day cap, "
                                     "then reviewed changes written through the member's own write path, undoable"),
-    "NOTEBOOK_TRADE_CANVAS_ENABLED": ("armed on web 2026-10-03 (docs/feature_flags.json) (wave 11 11D): the "
-                                      "trade-plan canvas note (schema level 3, NEVER-REVERT); no route of its own, "
-                                      "only the doors that make a canvas"),
     # Wave 13 lane 13D. Its evidence is a scan cycle (an insight row), not a page read.
     "AWARENESS_NOTE_RESURFACE_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13D): the "
                                          "awareness scan's resurfacing pass; its evidence is an insight row from a "
@@ -278,10 +270,6 @@ NOT_REHEARSED = {
                                       "server-only, NOT on the auth payload (so no payload key to verify), and "
                                       "every example route answers 404 while off (tests/test_example_notes.py, "
                                       "the ..._switch_off_... tests); needs the library switch",
-    # Wave 14 lane W14-D.
-    "NOTEBOOK_GETTING_STARTED_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 14 W14-D): the get "
-                                         "started checklist on Research Home (shows only with "
-                                         "NOTEBOOK_ONBOARDING_ENABLED also on); client-only, no route"),
     # P5. Gates the How do you trade? offer, the starter-pack install endpoint and the firm style
     # rows in the gallery (listed only while the library switch is on too, P5-AUD-1); installing a
     # pack writes the member's own styles, which this read-only rehearsal does not do. Its evidence
@@ -297,15 +285,6 @@ NOT_REHEARSED = {
                                        "installing a pack writes the member's own styles, so there is no rendered "
                                        "on/off probe in this tool"),
     "NOTEBOOK_LAYOUT_SHARING_ENABLED": "dark (P4b): sharing and adopting page layouts; server-only, rehearsed by the P4b walk (tools/notebook_layout_library_walk.py)",
-    # Terminal command links (TERM-056, Notebook half). Client-only, no route: the payload key is its only gate.
-    "NOTEBOOK_TERMINAL_LINKS_ENABLED": ("armed on web 2026-10-11 (docs/feature_flags.json): a pasted terminal command"
-                                        " becomes a /terminal?cmd= link; client-only, no route; payload key only: the"
-                                        " window switches it with the armed set and verifies "
-                                        "notebook_terminal_links_enabled; its rendered surface needs a paste, so no "
-                                        "rendered probe in this tool; its off evidence is "
-                                        "app/src/pages/journal-2-0/lib/terminalCommandPaste.test.js ('opens only "
-                                        "while the gate is on; off it is inert like any internal path'); the paste "
-                                        "half loads the terminal grammar only while the gate is on"),
     # Notebook widgets, waves 1-6 and 8-10 (wave 7 has no flag). Each is an enablement gate over its own / menu
     # entries and (waves 1-3, 6, 8-10) its server reads; a widget already stored in a note renders whatever it says.
     # All nine are armed on web (docs/feature_flags.json carries the flip times), so the window's armed set carries

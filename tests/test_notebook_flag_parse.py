@@ -51,7 +51,7 @@ from api.services.journal_two import note_shares
 from api.services.journal_two import ai_actions
 from api.services.journal_two import writing_help
 from api.services.journal_two import note_levels
-from api.services.journal_two import document_extraction, note_semantic, note_tasks
+from api.services.journal_two import note_semantic, note_tasks
 from api.services.journal_two import coach_chat_tools
 from api.services.journal_two import journal_styles
 from api.services.journal_two import earnings_followup
@@ -129,7 +129,6 @@ def _server_gates() -> dict:
         # Wave 13 lane 13D: the resurfacing scan's own gate function.
         "AWARENESS_NOTE_RESURFACE_ENABLED": note_levels.enabled,
         # Wave 14 lane W14-C1: three capabilities' own gate functions, now on the payload.
-        "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": document_extraction.image_docx_documents_enabled,
         "NOTEBOOK_TASK_REMINDERS_ENABLED": note_tasks.reminders_enabled,
         "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": note_semantic.semantic_enabled,
         # Task 14b: Compass's search_my_notes tool gate, now on the payload.

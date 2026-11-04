@@ -38,7 +38,6 @@ def db_path(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
     monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
-    monkeypatch.setenv("NOTEBOOK_FORMULAS_ENABLED", "1")
     from api.services import auth_db
     importlib.reload(auth_db)
     auth_db.init_db()
@@ -353,33 +352,9 @@ def test_an_edit_recomputes_the_formula_on_the_next_read(client, trade_plan):
     assert rows[0]["computed"][trade_plan["R"]]["value"] == 3.0
 
 
-# ── ⛔ flag off ──────────────────────────────────────────────────────────────
+# ── an ordinary definition keeps its shape ─────────────────────────────────────
 
-def test_flag_off_the_type_is_refused(client, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_FORMULAS_ENABLED", "0")
-    _number(client, "Entry")
-    r = _formula(client, "R", "{Entry} * 2")
-    assert r.status_code == 400 and "Unsupported property type" in r.json()["detail"]
-
-
-def test_flag_off_an_existing_formula_is_invisible_everywhere(client, trade_plan, monkeypatch):
-    n = _note(client, "n")
-    _set(client, n, {trade_plan["Entry"]: 100, trade_plan["Stop"]: 95, trade_plan["Exit"]: 110})
-    assert "computed" in next(r for r in client.get("/api/j2/notes").json()["notes"] if r["id"] == n)
-    monkeypatch.setenv("NOTEBOOK_FORMULAS_ENABLED", "0")
-    names = [d["name"] for d in client.get("/api/j2/property-defs").json()["propertyDefs"]]
-    assert "R" not in names and "Entry" in names
-    assert "R" not in _props(client, n)
-    row = next(r for r in client.get("/api/j2/notes").json()["notes"] if r["id"] == n)
-    assert "computed" not in row
-    sort = json.dumps({"propertyId": trade_plan["R"], "direction": "desc"})
-    assert client.get("/api/j2/notes", params={"propertySort": sort}).status_code == 400
-    # ...and the ordinary property types are untouched.
-    _set(client, n, {trade_plan["Entry"]: 101})
-    assert _props(client, n)["Entry"]["value"] == 101
-
-
-def test_flag_off_a_def_payload_is_byte_for_byte_the_old_shape(client):
+def test_an_ordinary_def_payload_is_byte_for_byte_the_old_shape(client):
     pid = _number(client, "Entry")
     d = next(x for x in client.get("/api/j2/property-defs").json()["propertyDefs"] if x["id"] == pid)
     assert set(d) == {"id", "name", "type", "options", "sortOrder", "source", "createdAt", "updatedAt"}

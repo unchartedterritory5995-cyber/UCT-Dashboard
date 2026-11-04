@@ -360,7 +360,6 @@ def test_a_calculated_property_is_never_listed(conn, monkeypatch):
     """m-3: the picker lists what the notes scan can read, so a formula property (visible only while
     the computed flag is on) is not offered. The control: the same member's plain property is."""
     _on(monkeypatch)
-    monkeypatch.setenv("NOTEBOOK_FORMULAS_ENABLED", "1")
     plain = add_prop(conn, UID, "Conviction", "number")
     calc = note_properties.create_property_def(UID, "Double", "formula",
                                                config={"expression": "1 + 1"}, conn=conn)

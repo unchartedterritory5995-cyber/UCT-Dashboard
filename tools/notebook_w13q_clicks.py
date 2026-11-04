@@ -109,10 +109,7 @@ FLAGS = [
     "AWARENESS_NOTE_RESURFACE_ENABLED",    # Q16 (lane 13D)
     "NOTEBOOK_VOICE_NOTES_ENABLED",        # wave 11
     "NOTEBOOK_AI_ACTIONS_ENABLED",
-    "NOTEBOOK_FORMULAS_ENABLED",
-    "NOTEBOOK_TRADE_CANVAS_ENABLED",
     "NOTEBOOK_ONBOARDING_ENABLED",         # wave 14's tours and checklist stand on this gate
-    "NOTEBOOK_GETTING_STARTED_ENABLED",    # wave 14
 ]
 # The environment the sandbox child inherits (kept under its old name: the wave-13 evidence
 # scripts import it).
