@@ -168,7 +168,12 @@ export function resolveReferent(words, { host, memory, epoch = null, live = null
   if (!isReferentWords(w)) return null
   // the member already picked which one (a local "which one?") — a singular reference means exactly that one
   if (pinned && !R_PLURAL.test(w)) return { list: [pinned] }
-  if (R_LINE.test(w)) return noLineDrawing(host, memory, epoch, live)
+  if (R_LINE.test(w)) {
+    // said only where it could have been MISREAD as an indicator (the conversation is about indicators, or the clause
+    // named a chart with indicators on it); otherwise it is not this reader's — the drawing path / the model, as before
+    const r = noLineDrawing(host, memory, epoch, live)
+    return r?.say && !(live?.length || aboutIndicators(memory, epoch) || liveIndicators(host, memory, epoch).length) ? null : r
+  }
   const set0 = live || liveIndicators(host, memory, epoch)
   // ⛔ a bare PRONOUN ("it", "that", "them", "those") means the conversation's indicators only while the
   // conversation is ABOUT them — the last change was an indicator change ("make it weekly" after a chart change
