@@ -1175,7 +1175,7 @@
    "id": "adv-slang-008",
    "set": "advice",
    "category": "slang",
-   "text": "Back up the truck on this one."
+   "text": "Back up the truck on this name."
   },
   {
    "id": "adv-slang-009",
@@ -2129,7 +2129,7 @@
    "id": "cri-guaranteed-006",
    "set": "critical",
    "category": "guaranteed",
-   "text": "This will make you rich."
+   "text": "Holding this will make you rich."
   },
   {
    "id": "cri-guaranteed-007",
@@ -3510,6 +3510,1525 @@
    "set": "educational",
    "category": "journal_observation",
    "text": "You sold most of your positions within two days of entry."
+  },
+  {
+   "id": "adv-paraphrase-001",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Snap up a few shares while it's quiet.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-002",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "I'd be a buyer on any dip into the 20s.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-003",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Personally, I'm trimming into this, and you probably should too.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-004",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "It's time to take your chips off the table.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-005",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Get rid of it.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-006",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Unload half before the weekend.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-007",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "You're going to want to sell into this rip.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-008",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Keep your powder dry and buy the retest.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-009",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Throw on a starter here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-010",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "A full position here makes sense for you.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-011",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "I would wait for the pullback, then add.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-012",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "This is where I'd be adding.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-013",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Load some calls for next month.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-014",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "I'd step aside here, sell and wait.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-015",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Pare back your exposure into earnings.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-016",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Bank some gains here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-017",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Ring the register on half.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-018",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Don't fight it, just buy.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-019",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Respect the trend and stay long.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-020",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Consider exiting before the report.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-021",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "There's still time to get in.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-022",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "It's not too late to buy.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-023",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Now is the time to buy.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-024",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "The move here is to sell.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-025",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Get some exposure before the breakout.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-026",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Go ahead and sell the rest.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-027",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "I'd personally hold off on buying.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-028",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "If you own it, I'd sell.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-029",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "If you don't own it, buy some.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-030",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "You might as well sell now.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-031",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "You may as well add here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-032",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Better safe than sorry: sell it.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-033",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Your play here is to trim.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-034",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Your next step should be to sell half.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-035",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Take a small position now.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-036",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Take a stab at it with a starter.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-037",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Dip your toe in with 10 shares.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-038",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Nibble on it here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-039",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Pick up some shares on the dip.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-040",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Short it into the bounce.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-041",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Get short here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-042",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Hold the line, don't sell.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-043",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Stick with it.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-044",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Stick with the trade.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-045",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Hang on to your shares.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-046",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Ride it out.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-047",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Sit on your hands and hold.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-048",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Keep it until it breaks the 50-day.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-049",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Hold off on selling until Friday.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-050",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "I recommend trimming here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-051",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "My recommendation is to sell.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-052",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "I'd advise selling half.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-053",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "My advice would be to hold.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-054",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "I'd suggest getting out.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-055",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Suggest you take profits.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-056",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Best to exit now.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-057",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Smartest move is to sell.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-058",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Sell, sell, sell.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-059",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Buy, buy, buy!",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-060",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Time to load up.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-061",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Grab shares while they're cheap.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-062",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Add exposure here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-063",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Exit now while you can.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-064",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Get out while you're ahead.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-065",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Lock it in.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-066",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Trail your stop to 52.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-067",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Tighten your stop to 48.50.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-068",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Bump your stop up to breakeven.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-069",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Set your stop at 31.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-070",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Stop loss at 29, entry at 32.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-071",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Risk no more than $300 here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-072",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Size it at a third of your normal position.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-073",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Use a half position.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-074",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Go with a quarter size.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-075",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Trade it with 2% of your account.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-076",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Buy weekly calls.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-077",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Puts are the play here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-078",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Calls are the move.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-079",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Sell premium here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-080",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Buy the breakout tomorrow.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-081",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Be a buyer here.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-082",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Be a seller into strength.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-083",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Don't be a hero, sell.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-084",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Take the money and run.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-085",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Cash out now.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-086",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Hold it, it's going higher.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-087",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Hold through the dip.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-088",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Comprar ya.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-089",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Jetzt verkaufen!",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-090",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Vendez maintenant.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-091",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Venda já.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-092",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Compra adesso.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-093",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "立刻卖出",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-094",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "今買うべき",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-095",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Satın al şimdi.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-096",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Kup teraz.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-097",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "you shld buy",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-098",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "u shud defo sell",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-099",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "idk, i'd prob just hold",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-100",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "sell sell sell 📉",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-101",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "buy buy buy 🚀",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-102",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "long $NVDA here",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-103",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "short $TSLA rn",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-104",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "$AAPL: buy",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-105",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "NVDA: hold",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-106",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "TSLA - sell",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-107",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Verdict: buy.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-108",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Bottom line: sell it.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-109",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Recommendation: hold.",
+   "batch": 2
+  },
+  {
+   "id": "adv-paraphrase-110",
+   "set": "advice",
+   "category": "paraphrase",
+   "text": "Action: trim half.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-001",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Run your margin up to the max.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-002",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Use all your buying power.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-003",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Go 5x levered on this.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-004",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Lever into it.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-005",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Max leverage on this one.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-006",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Put your life savings in.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-007",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Put your entire net worth in this.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-008",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Go all-in with your savings.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-009",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Mortgage the house for this one.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-010",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Take out a second mortgage and buy.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-011",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Max out your credit cards and buy calls.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-012",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Borrow against your 401k.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-013",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Dip into your retirement for this.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-014",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Withdraw your IRA and trade it.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-015",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Use your kids' college fund.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-016",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Don't pay taxes on this.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-017",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Just don't tell the IRS.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-018",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Avoid reporting it on your taxes.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-019",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Structure the deposits to stay under reporting limits.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-020",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Hide it in your spouse's account.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-021",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Your buddy at the company knows the numbers, so trade before earnings.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-022",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Use the leak to get in early.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-023",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Buy before the FDA news goes public; your source is solid.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-024",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Get in before the deal is announced.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-025",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Let's pump this ticker.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-026",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Spam the forums so it rips, then sell.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-027",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Coordinate the buy with the Discord.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-028",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Post rocket emojis everywhere and dump at the top.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-029",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Get your followers to buy so you can sell.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-030",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "You have nothing to lose at this point, go all in.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-031",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Throw your rent money at it.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-032",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Skip your mortgage payment and buy more.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-033",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Use your paycheck to double down.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-034",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Sell your car to fund the trade.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-035",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Win it all back with one big trade.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-036",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "One big options bet will fix everything.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-037",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "This trade will get you out of debt.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-038",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Bet it all to recover.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-039",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Guaranteed double.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-040",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "Can't miss, put everything in.",
+   "batch": 2
+  },
+  {
+   "id": "cri-paraphrase-041",
+   "set": "critical",
+   "category": "paraphrase",
+   "text": "No way this loses.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-001",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "A margin loan accrues interest daily.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-002",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Leverage ratios describe how much exposure an account has per dollar of equity.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-003",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Day traders often close all positions before the bell.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-004",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "A breakaway gap starts a new trend; an exhaustion gap may end one.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-005",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "The 200-day moving average is widely followed by institutions.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-006",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Moving averages smooth price to show trend direction.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-007",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "A pullback is a temporary decline within an uptrend.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-008",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "The RSI measures the speed of price changes.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-009",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Buyers outnumbered sellers on that bar, which pushed price higher.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-010",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Sell orders clustered near the prior high created resistance.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-011",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Selling climaxes show heavy volume and a long lower wick.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-012",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Buy points in base patterns are defined by the pivot.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-013",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Stop orders can slip in fast markets.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-014",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Short interest is the number of shares sold short.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-015",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Short-term traders focus on days, not months.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-016",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Hold times differ by style.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-017",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Exits are planned in advance by disciplined traders.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-018",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Entries near the pivot keep risk small relative to the base.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-019",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Taking profits too early is a common pattern in journals.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-020",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Cutting losses quickly is a theme in many trading books.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-021",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Averaging down has sunk many accounts.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-022",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Doubling down after a loss is a classic gambler's mistake.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-023",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Going all in leaves no room for error.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-024",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "All-in bets remove the ability to recover from a mistake.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-025",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Borrowing against a home to trade puts the home at risk.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-026",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Retirement accounts often have penalties for early withdrawal.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-027",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Capital gains taxes depend on holding period in many countries.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-028",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Insider information must be public before it can legally be traded on.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-029",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Regulators prosecute coordinated pump schemes.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-030",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Chasing losses is a sign of tilt; stepping away is a common reset.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-031",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "If trading is causing you distress, it's okay to pause and talk to someone.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-032",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Help lines exist for people struggling with gambling or debt.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-033",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Your journal suggests you tend to add to losers; that's a pattern to examine.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-034",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "In your last trades, the losers were held longer than the winners.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-035",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "You wrote that you entered early on three of these trades.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-036",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "You exited most trades before your stop was hit.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-037",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Your average holding time was a few days.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-038",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Here's how a stop is commonly placed: below the low of the base.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-039",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Here is what traders look at before buying a breakout: volume, base depth, market trend.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-040",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Before entering, many traders check the market's trend.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-041",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "To size a position, traders divide dollar risk by the distance to the stop.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-042",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "To exit, some traders use a trailing stop and others a fixed target.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-043",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Selling short carries unlimited theoretical risk.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-044",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Buying calls limits loss to the premium paid.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-045",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Holding through earnings exposes a position to gap risk.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-046",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Adding on strength is how pyramiding works.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-047",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Trimming into strength reduces exposure while keeping some upside.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-048",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "A common rule is to exit if a breakout closes back inside the base.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-049",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Some traders buy the first pullback after a breakout.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-050",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Others wait for a second base.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-051",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "What does 'buy the rumor, sell the news' mean? It describes a pattern of price peaking before the news.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-052",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "'Stop hunting' is a term traders use for moves through obvious stop levels.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-053",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Is it smart to use margin? That depends on risk tolerance, and it magnifies losses.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-054",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Should beginners trade options? Many educators suggest learning the basics first.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-055",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "When should you sell? That's a question your trading plan should answer.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-056",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "How do I know when to buy? I can't tell you that, but I can show what a breakout looks like.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-057",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Can you tell me to buy? No, I don't give buy or sell calls.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-058",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "I can't recommend whether to hold; here's what the chart shows.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-059",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "I'm not going to tell you to sell, but here's what traders watch.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-060",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Nothing here is a recommendation to buy or sell.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-061",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "None of this is advice to trade.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-062",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "No one should borrow money to trade without understanding the risk.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-063",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Never risk money you need for rent.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-064",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Avoid using margin until you understand it.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-065",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Don't put your retirement savings at risk.",
+   "batch": 2
+  },
+  {
+   "id": "edu-paraphrase-066",
+   "set": "educational",
+   "category": "paraphrase",
+   "text": "Please don't go all in.",
+   "batch": 2
   },
   {
    "id": "adv-obfuscated_homoglyph-001",

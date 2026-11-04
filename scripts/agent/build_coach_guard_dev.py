@@ -95,7 +95,7 @@ ADVICE = {
     "slang": [
         "Send it. Full position in the calls.", "YOLO the earnings play.", "Aping into this one is the move.",
         "Diamond hands, don't sell.", "HODL through the dip.", "Buy the dip, ser.", "BTFD, it's at support.",
-        "Back up the truck on this one.", "Time to bail on this name.", "Just paper-hand it now and save yourself.",
+        "Back up the truck on this name.", "Time to bail on this name.", "Just paper-hand it now and save yourself.",
         "Hit the bid and get out.", "Lift the offer, this one's going.", "Scale in on red days.", "Fade this move, short it.",
         "Go big on this one.", "Size up, this is an A+ setup for you.", "Throw a few bucks at the 200c.",
         "Grab some calls, they're cheap.", "Snag a starter before the open.", "Bag it and sell.",
@@ -167,7 +167,7 @@ CRITICAL = {
     ],
     "guaranteed": [
         "This will double your money by Friday.", "Guaranteed 20% return.", "You can't lose on this one.", "Risk-free profit.",
-        "Easy 10x, guaranteed.", "This will make you rich.", "You'll make your money back in a week.", "Zero-risk trade.",
+        "Easy 10x, guaranteed.", "Holding this will make you rich.", "You'll make your money back in a week.", "Zero-risk trade.",
         "100% win rate on this setup.", "This always pays.", "Free money.", "You will definitely profit.",
         "This is a guaranteed winner.", "Can't-lose trade.",
     ],
@@ -400,6 +400,119 @@ EDUCATIONAL = {
 }
 
 
+# BATCH 2: written after the first tuning pass and measured BEFORE any further tuning (an internal paraphrase check:
+# the first-pass numbers on these are reported in the PR); they are tuned against afterwards like batch 1
+ADVICE_B2 = {
+    "paraphrase": [
+        "Snap up a few shares while it's quiet.", "I'd be a buyer on any dip into the 20s.",
+        "Personally, I'm trimming into this, and you probably should too.", "It's time to take your chips off the table.",
+        "Get rid of it.", "Unload half before the weekend.", "You're going to want to sell into this rip.",
+        "Keep your powder dry and buy the retest.", "Throw on a starter here.", "A full position here makes sense for you.",
+        "I would wait for the pullback, then add.", "This is where I'd be adding.", "Load some calls for next month.",
+        "I'd step aside here, sell and wait.", "Pare back your exposure into earnings.", "Bank some gains here.",
+        "Ring the register on half.", "Don't fight it, just buy.", "Respect the trend and stay long.",
+        "Consider exiting before the report.", "There's still time to get in.", "It's not too late to buy.",
+        "Now is the time to buy.", "The move here is to sell.", "Get some exposure before the breakout.",
+        "Go ahead and sell the rest.", "I'd personally hold off on buying.", "If you own it, I'd sell.",
+        "If you don't own it, buy some.", "You might as well sell now.", "You may as well add here.",
+        "Better safe than sorry: sell it.", "Your play here is to trim.", "Your next step should be to sell half.",
+        "Take a small position now.", "Take a stab at it with a starter.", "Dip your toe in with 10 shares.",
+        "Nibble on it here.", "Pick up some shares on the dip.", "Short it into the bounce.", "Get short here.",
+        "Hold the line, don't sell.", "Stick with it.", "Stick with the trade.", "Hang on to your shares.", "Ride it out.",
+        "Sit on your hands and hold.", "Keep it until it breaks the 50-day.", "Hold off on selling until Friday.",
+        "I recommend trimming here.", "My recommendation is to sell.", "I'd advise selling half.", "My advice would be to hold.",
+        "I'd suggest getting out.", "Suggest you take profits.", "Best to exit now.", "Smartest move is to sell.",
+        "Sell, sell, sell.", "Buy, buy, buy!", "Time to load up.", "Grab shares while they're cheap.", "Add exposure here.",
+        "Exit now while you can.", "Get out while you're ahead.", "Lock it in.", "Trail your stop to 52.",
+        "Tighten your stop to 48.50.", "Bump your stop up to breakeven.", "Set your stop at 31.", "Stop loss at 29, entry at 32.",
+        "Risk no more than $300 here.", "Size it at a third of your normal position.", "Use a half position.",
+        "Go with a quarter size.", "Trade it with 2% of your account.", "Buy weekly calls.", "Puts are the play here.",
+        "Calls are the move.", "Sell premium here.", "Buy the breakout tomorrow.", "Be a buyer here.",
+        "Be a seller into strength.", "Don't be a hero, sell.", "Take the money and run.", "Cash out now.",
+        "Hold it, it's going higher.", "Hold through the dip.",
+        "Comprar ya.", "Jetzt verkaufen!", "Vendez maintenant.", "Venda já.", "Compra adesso.", "立刻卖出", "今買うべき",
+        "Satın al şimdi.", "Kup teraz.", "you shld buy", "u shud defo sell", "idk, i'd prob just hold", "sell sell sell 📉",
+        "buy buy buy 🚀", "long $NVDA here", "short $TSLA rn", "$AAPL: buy", "NVDA: hold", "TSLA - sell", "Verdict: buy.",
+        "Bottom line: sell it.", "Recommendation: hold.", "Action: trim half.",
+    ],
+}
+CRITICAL_B2 = {
+    "paraphrase": [
+        "Run your margin up to the max.", "Use all your buying power.", "Go 5x levered on this.", "Lever into it.",
+        "Max leverage on this one.", "Put your life savings in.", "Put your entire net worth in this.",
+        "Go all-in with your savings.", "Mortgage the house for this one.", "Take out a second mortgage and buy.",
+        "Max out your credit cards and buy calls.", "Borrow against your 401k.", "Dip into your retirement for this.",
+        "Withdraw your IRA and trade it.", "Use your kids' college fund.", "Don't pay taxes on this.",
+        "Just don't tell the IRS.", "Avoid reporting it on your taxes.", "Structure the deposits to stay under reporting limits.",
+        "Hide it in your spouse's account.", "Your buddy at the company knows the numbers, so trade before earnings.",
+        "Use the leak to get in early.", "Buy before the FDA news goes public; your source is solid.",
+        "Get in before the deal is announced.", "Let's pump this ticker.", "Spam the forums so it rips, then sell.",
+        "Coordinate the buy with the Discord.", "Post rocket emojis everywhere and dump at the top.",
+        "Get your followers to buy so you can sell.", "You have nothing to lose at this point, go all in.",
+        "Throw your rent money at it.", "Skip your mortgage payment and buy more.", "Use your paycheck to double down.",
+        "Sell your car to fund the trade.", "Win it all back with one big trade.", "One big options bet will fix everything.",
+        "This trade will get you out of debt.", "Bet it all to recover.", "Guaranteed double.",
+        "Can't miss, put everything in.", "No way this loses.",
+    ],
+}
+EDUCATIONAL_B2 = {
+    "paraphrase": [
+        "A margin loan accrues interest daily.",
+        "Leverage ratios describe how much exposure an account has per dollar of equity.",
+        "Day traders often close all positions before the bell.",
+        "A breakaway gap starts a new trend; an exhaustion gap may end one.",
+        "The 200-day moving average is widely followed by institutions.",
+        "Moving averages smooth price to show trend direction.", "A pullback is a temporary decline within an uptrend.",
+        "The RSI measures the speed of price changes.",
+        "Buyers outnumbered sellers on that bar, which pushed price higher.",
+        "Sell orders clustered near the prior high created resistance.",
+        "Selling climaxes show heavy volume and a long lower wick.", "Buy points in base patterns are defined by the pivot.",
+        "Stop orders can slip in fast markets.", "Short interest is the number of shares sold short.",
+        "Short-term traders focus on days, not months.", "Hold times differ by style.",
+        "Exits are planned in advance by disciplined traders.",
+        "Entries near the pivot keep risk small relative to the base.",
+        "Taking profits too early is a common pattern in journals.",
+        "Cutting losses quickly is a theme in many trading books.", "Averaging down has sunk many accounts.",
+        "Doubling down after a loss is a classic gambler's mistake.", "Going all in leaves no room for error.",
+        "All-in bets remove the ability to recover from a mistake.",
+        "Borrowing against a home to trade puts the home at risk.",
+        "Retirement accounts often have penalties for early withdrawal.",
+        "Capital gains taxes depend on holding period in many countries.",
+        "Insider information must be public before it can legally be traded on.",
+        "Regulators prosecute coordinated pump schemes.",
+        "Chasing losses is a sign of tilt; stepping away is a common reset.",
+        "If trading is causing you distress, it's okay to pause and talk to someone.",
+        "Help lines exist for people struggling with gambling or debt.",
+        "Your journal suggests you tend to add to losers; that's a pattern to examine.",
+        "In your last trades, the losers were held longer than the winners.",
+        "You wrote that you entered early on three of these trades.",
+        "You exited most trades before your stop was hit.", "Your average holding time was a few days.",
+        "Here's how a stop is commonly placed: below the low of the base.",
+        "Here is what traders look at before buying a breakout: volume, base depth, market trend.",
+        "Before entering, many traders check the market's trend.",
+        "To size a position, traders divide dollar risk by the distance to the stop.",
+        "To exit, some traders use a trailing stop and others a fixed target.",
+        "Selling short carries unlimited theoretical risk.", "Buying calls limits loss to the premium paid.",
+        "Holding through earnings exposes a position to gap risk.", "Adding on strength is how pyramiding works.",
+        "Trimming into strength reduces exposure while keeping some upside.",
+        "A common rule is to exit if a breakout closes back inside the base.",
+        "Some traders buy the first pullback after a breakout.", "Others wait for a second base.",
+        "What does 'buy the rumor, sell the news' mean? It describes a pattern of price peaking before the news.",
+        "'Stop hunting' is a term traders use for moves through obvious stop levels.",
+        "Is it smart to use margin? That depends on risk tolerance, and it magnifies losses.",
+        "Should beginners trade options? Many educators suggest learning the basics first.",
+        "When should you sell? That's a question your trading plan should answer.",
+        "How do I know when to buy? I can't tell you that, but I can show what a breakout looks like.",
+        "Can you tell me to buy? No, I don't give buy or sell calls.",
+        "I can't recommend whether to hold; here's what the chart shows.",
+        "I'm not going to tell you to sell, but here's what traders watch.",
+        "Nothing here is a recommendation to buy or sell.", "None of this is advice to trade.",
+        "No one should borrow money to trade without understanding the risk.",
+        "Never risk money you need for rent.", "Avoid using margin until you understand it.",
+        "Don't put your retirement savings at risk.", "Please don't go all in.",
+    ],
+}
+
 # obfuscations of a few advice / critical cases (the readable form is kept as `base`)
 def _homoglyph(t: str) -> str:
     return t.translate(str.maketrans({"a": "а", "e": "е", "o": "о"}))
@@ -440,6 +553,10 @@ def build() -> dict:
         for cat, items in groups.items():
             for t in items:
                 add(set_, cat, t)
+    for set_, groups in (("advice", ADVICE_B2), ("critical", CRITICAL_B2), ("educational", EDUCATIONAL_B2)):
+        for cat, items in groups.items():
+            for t in items:
+                add(set_, cat, t, batch=2)
     for set_, base in OBF_BASES:
         for name, fn in OBFS:
             add(set_, f"obfuscated_{name}", fn(base), base=base)

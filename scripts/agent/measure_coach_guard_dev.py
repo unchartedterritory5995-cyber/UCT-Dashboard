@@ -1,6 +1,9 @@
 """Measure the coach guard (server, guard.py) against the DEVELOPMENT set, coachGuardDev.json.
 
-    python scripts/agent/measure_coach_guard_dev.py [--misses] [--mode noInputs|selfInputs]
+    python scripts/agent/measure_coach_guard_dev.py [--misses] [--mode noInputs|selfInputs] [--write-parity]
+
+--write-parity rewrites app/src/agent/__fixtures__/coachGuardDevParity.json (the server's codes for every dev case, both
+modes); the server suite checks it is current and the browser suite checks guard.js returns the same codes.
 
 noInputs:   check(text)          -- the 'figure' code can fire on any number
 selfInputs: check(text, [text])  -- every figure is traceable; isolates the language rules (the honest mode)
@@ -46,7 +49,18 @@ def run(mode: str, show: bool) -> dict:
     return out
 
 
+PARITY = ROOT / "app" / "src" / "agent" / "__fixtures__" / "coachGuardDevParity.json"
+
+
+def parity() -> dict:
+    return {mode: {c["id"]: check(c["text"], [c["text"]] if mode == "selfInputs" else None) for c in DEV["cases"]}
+            for mode in ("noInputs", "selfInputs")}
+
+
 if __name__ == "__main__":
+    if "--write-parity" in sys.argv:
+        PARITY.write_text(json.dumps(parity(), indent=0, sort_keys=True) + "\n", encoding="utf-8")
+        print("wrote", PARITY.name)
     show = "--misses" in sys.argv
     modes = [sys.argv[sys.argv.index("--mode") + 1]] if "--mode" in sys.argv else ["noInputs", "selfInputs"]
     for m in modes:
