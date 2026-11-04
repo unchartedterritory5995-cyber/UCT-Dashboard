@@ -31,6 +31,7 @@ import {
 import { buildObjectLane, runObjectLane } from '../runtime/objectLane.js'
 import { OBJECT_STATUS } from '../objectRuntime'
 import { toRenderState } from '../objectRenderState'
+import { probeObjectRuntime } from '../runtime/runtimeColumns'
 
 const LF = String.fromCharCode(10)
 const HEAD = ['//@version=6', 'indicator("t", overlay = true)']
@@ -301,3 +302,36 @@ describe('C — controls: what drew before draws unchanged', () => {
     expect(formatMessageNumber(1000)).toBeNull()
   })
 })
+
+describe("D — the text reader's refusal never takes the place of an admitting one (C18 door)", () => {
+  // A text bound below a stepped-over loop (`bias`) writes the admitting `pine:block` refusal; the
+  // label's text then BUILDS (with a runtime placeholder for `bias`) but nests past
+  // TEXT_NODE_MAX_NEST, so `fitTextNest` refuses it BY NAME (`pine:text-value`) and `valueRef` asks
+  // the runtime lane for the WHOLE text. That ask reads `lastCanonRefusal`: a text refusal written
+  // there would close the lane and drop a label the door carries (muts2.json M19).
+  const chain = (n, tail) => {
+    let e = tail
+    for (let k = n; k >= 1; k--) e = `close > open + ${k} ? "L${k}" : (${e})`
+    return e
+  }
+  const LOOPNET = ['if barstate.islast', '    int i = 0', '    float net = 0.0', '    while i < 3', '        net -= close[i]', '        i += 1',
+    '    bias = net > 0 ? "LONG" : "SHORT"']
+  const door = (src) => translatePine(src, { strict: true, objects: true, objectRuntimeCheck: probeObjectRuntime })
+
+  it('⛔ a too-deep text after an admitting refusal is still read whole from the runtime lane', () => {
+    const t = door(script(...LOOPNET, `    label.new(bar_index, close, ${chain(18, 'bias')})`, 'plot(close)'))
+    const d = t.objectDiagnostics || {}
+    expect(d.dropReasons || {}).toEqual({})
+    expect(((t.objects && t.objects.ops) || []).filter((o) => o.k === 'create' && o.family === 'label')).toHaveLength(1)
+    const at = (t.objects && t.objects.runtime && t.objects.runtime.at) || []
+    expect(at.filter((a) => a.kind === 'text').map((a) => a.node && a.node.type)).toContain('ternary')
+  })
+
+  it('⛔ CONTROL — with no admitting refusal the same depth is dropped, named `pine:text-value`', () => {
+    const t = door(script('if barstate.islast', `    label.new(bar_index, close, ${chain(18, '"x"')})`, 'plot(close)'))
+    const d = t.objectDiagnostics || {}
+    expect(d.dropReasons).toEqual({ 'create:label': 1 })
+    expect((d.createDropWhy || []).join(' | ')).toMatch(/text: pine:text-value this text's node nests deeper than the runtime reads/)
+  })
+})
+
