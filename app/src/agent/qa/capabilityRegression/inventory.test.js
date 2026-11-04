@@ -14,7 +14,7 @@ import { shapeError, getCapability } from '../../capabilities'
 import { contractOf, coverage, canonicalOps, knownGaps } from './testing/inventory'
 import { coverageJson, coverageMd } from './testing/report'
 import { corpus, golden } from './testing/corpus'
-import backlog from './data/regressionEntries.json'
+import backlog from './baseline/regressionEntries.json'
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 const ROOT = path.resolve(HERE, '..', '..', '..', '..', '..')
@@ -35,7 +35,7 @@ const exercised = new Set([...corpus.intents.flatMap(i => [...i.capabilities, ..
 describe('1 · a new capability ships with a regression entry', () => {
   it('every registered capability is exercised by the corpus / golden workflows, or listed in the backlog with an owner', () => {
     const missing = catalog.all.filter(n => !exercised.has(n) && !backlog.entries[n])
-    expect(missing, `capabilities with NO regression entry — add a corpus intent (data/corpus.json) or a golden workflow, or (with a decision "### BACKLOG:<name>" in docs/agent/COMPATIBILITY-DECISIONS.md) a backlog entry: ${missing.join(', ')}`).toEqual([])
+    expect(missing, `capabilities with NO regression entry — add a corpus intent (baseline/corpus.json) or a golden workflow, or (with a decision "### BACKLOG:<name>" in docs/agent/COMPATIBILITY-DECISIONS.md) a backlog entry: ${missing.join(', ')}`).toEqual([])
   })
   it('every backlog entry names an owner, and one added after the initial inventory has a recorded decision', () => {
     for (const [n, e] of Object.entries(backlog.entries)) {
@@ -46,7 +46,7 @@ describe('1 · a new capability ships with a regression entry', () => {
   it('the backlog lists only registered, not-yet-exercised capabilities (a covered one leaves the backlog)', () => {
     for (const n of Object.keys(backlog.entries)) {
       expect(catalog.all, `backlog entry ${n} is not a registered capability`).toContain(n)
-      expect(exercised.has(n), `${n} is exercised now — remove it from data/regressionEntries.json`).toBe(false)
+      expect(exercised.has(n), `${n} is exercised now — remove it from baseline/regressionEntries.json`).toBe(false)
     }
   })
 })

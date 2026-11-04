@@ -1,4 +1,4 @@
-// CAPABILITY REGRESSION · the GOLDEN WORKFLOWS (data/goldenWorkflows.json: previously verified successful workflows)
+// CAPABILITY REGRESSION · the GOLDEN WORKFLOWS (baseline/goldenWorkflows.json: previously verified successful workflows)
 // and the corpus REFUSAL cases, replayed through the REAL panel. A baseline: removing or weakening one needs a
 // recorded decision (docs/agent/COMPATIBILITY-DECISIONS.md; baseline.lock.json).
 import { describe, vi, afterEach } from 'vitest'

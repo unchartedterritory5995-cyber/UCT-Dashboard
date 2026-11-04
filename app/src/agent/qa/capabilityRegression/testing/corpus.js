@@ -1,7 +1,7 @@
 // CAPABILITY REGRESSION (Mission 2) — the corpus / golden data, normalised, and the deterministic-path reader.
 import { it } from 'vitest'
-import corpus from '../data/corpus.json'
-import golden from '../data/goldenWorkflows.json'
+import corpus from '../baseline/corpus.json'
+import golden from '../baseline/goldenWorkflows.json'
 import { multiChartPlan } from '../../../multiChart'
 import { fastParse } from '../../../fastPath'
 import { planCompound } from '../../../compound'
