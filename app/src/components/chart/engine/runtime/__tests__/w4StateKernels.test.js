@@ -188,7 +188,9 @@ describe('⭐⭐ W4 T10 — ta.pivothigh / ta.pivotlow over a value the run comp
   })
 
   it('the two-argument form reads high for a pivot high and low for a pivot low', () => {
-    const [hi, lo] = run(5, `${state('z', 'close')}plot(ta.pivothigh(3, 3) + 0 * z)\nplot(ta.pivotlow(3, 3) + 0 * z)\n`)
+    const [hi, lo] = run(5, `${state('z', 'close')}f(s) => ta.pivothigh(3, 3) + 0 * s
+plot(f(z))\ng(s) => ta.pivotlow(3, 3) + 0 * s
+plot(g(z))\n`)
     same(hi, PH(3, 3), 'pivothigh(3,3)')
     same(lo, PL(3, 3), 'pivotlow(3,3)')
     expect(hi.some((v) => !Number.isNaN(v))).toBe(true)
