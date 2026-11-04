@@ -123,7 +123,10 @@ def classify(row: NoteRow, active: set[str]) -> str | None:
     if sample_marker.is_sample(row.import_source):
         return None
     # An archived provider (`registry.ARCHIVED_PROVIDERS`) is still a connector id, never a file
-    # importer label: its notes stay CONNECTOR_ORPHANED (it can have no active source), as before.
+    # importer label, so its notes keep the class they had before the archive: CONNECTOR_ORPHANED,
+    # or CONNECTOR_LIVE if a stored source row is still active (counted, never planned). The engine
+    # now skips such a source, so "the engine owns it" is not literally true for one; leaving it
+    # unplanned is what keeps the repair from writing to it.
     if row.import_source in registry._REGISTRY or row.import_source in registry.ARCHIVED_PROVIDERS:
         if row.import_source in active:
             return RELIST if row.import_source == _RELIST_PROVIDER else LIVE

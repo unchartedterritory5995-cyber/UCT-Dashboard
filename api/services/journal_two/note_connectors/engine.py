@@ -486,8 +486,9 @@ def _skip_archived_provider(source: dict[str, Any]) -> bool:
     """True (and one log line) for a source of an ARCHIVED provider (`registry.ARCHIVED_PROVIDERS`:
     Dropbox, OneNote, OneDrive, removed 2026-11-04). The scheduler loops skip it WITHOUT touching
     the row (no error stamped, no log row, never deleted): nothing can build its provider, so a
-    pass could only fail the same way every tick. Any OTHER name the registry does not know keeps
-    its old path: the pass fails, the row reads "error", the loop logs it and moves on."""
+    pass could only fail the same way every tick. Only archived names are skipped quietly: any
+    OTHER name the registry does not know keeps its old path (the pass fails, the row reads "error",
+    the loop logs it and moves on)."""
     from . import registry  # lazy, as `_default_provider_factory` imports it
     provider_name = source.get("provider") or ""
     if provider_name not in registry.ARCHIVED_PROVIDERS:
@@ -588,11 +589,12 @@ def _default_provider_factory(
 
     `source` (Task 11 MUST-RESOLVE #3) is the full `j2_note_sources` row
     being synced — threaded through so a provider that needs SOURCE-level
-    info beyond just the connector's credentials (Dropbox: which folder —
-    stored on `source["remoteId"]` per spec §5's `remote_id` column comment,
-    "folder id" for Dropbox) can be constructed correctly. Roam/Craft/Notion
-    ignore it entirely (their credentials dict alone already identifies the
-    one graph/space/workspace they sync).
+    info beyond just the connector's credentials can be constructed
+    correctly: Obsidian reads `userId`/`remoteId` (its vault), Evernote reads
+    `userId`. (Dropbox's folder, on `remoteId`, was the first such use; it
+    was archived 2026-11-04.) Roam/Craft/Notion ignore it entirely (their
+    credentials dict alone already identifies the one graph/space/workspace
+    they sync).
 
     Delegates to `registry.py` — mirrors `providers/base.py`'s own
     documented contract ("the engine ... never imports a concrete provider
@@ -606,7 +608,7 @@ def _default_provider_factory(
 # to inject a fake provider without touching real provider modules. The call
 # site (`_do_sync` below) now always passes BOTH positional args
 # (`provider_name, source`) — Task 11 widened the signature for MUST-RESOLVE
-# #3 (Dropbox folder-path threading), so a test fake must accept a second
+# #3 (source-level threading, first for Dropbox, archived 2026-11-04), so a test fake must accept a second
 # param too (`lambda name, source: p`, or `lambda name, source=None: p` if it
 # doesn't care about `source`).
 _provider_factory = _default_provider_factory
@@ -1274,9 +1276,12 @@ async def _resolve_credentials(user_id: str, provider_name: str) -> dict[str, An
     for every provider `oauth.py` knows about — closes that gap for Notion,
     OneNote, and OneDrive at once, with no per-provider code.
 
-    Providers `oauth.py` does NOT register (Dropbox — its own app key/secret
-    and refresh mechanics live entirely in `providers/dropbox.py` by
-    design) fall back to the plain `connections.get_token` read, BYTE-
+    (Written for Microsoft Graph's rotating tokens; OneNote and OneDrive
+    were archived 2026-11-04, and the same path now serves Notion.)
+
+    Providers with their own `refresh` hook in the registry (Evernote) use
+    it. Providers `oauth.py` does NOT register (Roam/Craft pasted tokens,
+    Obsidian) fall back to the plain `connections.get_token` read, BYTE-
     IDENTICAL to this function's pre-fix-round-1 behavior. `refresh_if_needed`
     is itself a safe no-op for a registered provider whose stored token
     carries no `expiresAt` (Notion — tokens don't expire, so this makes

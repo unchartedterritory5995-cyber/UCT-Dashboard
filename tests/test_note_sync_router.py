@@ -1152,6 +1152,7 @@ def test_disconnect_of_an_archived_provider_is_a_404_and_deletes_nothing(client)
     src = _stored_archived_source()
     assert client.delete("/api/j2/notes/connectors/dropbox").status_code == 404
     assert connections.get_source("u1", src["id"]) is not None
+    assert connections.get_connector("u1", "dropbox") is not None
 
 
 def test_manual_sync_of_an_archived_provider_source_is_a_clean_error_not_a_500(client):
@@ -1161,14 +1162,53 @@ def test_manual_sync_of_an_archived_provider_source_is_a_clean_error_not_a_500(c
     assert connections.get_source("u1", src["id"]) is not None
 
 
-async def test_the_due_and_nightly_loops_skip_an_archived_provider_source_untouched(client, monkeypatch):
-    """The hourly and nightly loops: an archived provider's source is skipped with a log line,
-    never raised into the scheduler, never stamped with an error, never deleted; the next source
-    in the same tick still syncs."""
+def _sync_log_rows(source_id):
+    conn = auth_db.get_connection()
+    try:
+        return conn.execute("SELECT COUNT(*) FROM j2_note_sync_log WHERE source_id = ?",
+                            (source_id,)).fetchone()[0]
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize("loop", ["due", "nightly"])
+async def test_a_loop_skips_an_archived_provider_source_through_the_real_pass(client, monkeypatch, caplog, loop):
+    """The hourly and nightly loops run the REAL `sync_source` here. An archived provider's
+    source is skipped before any pass: the provider factory is never asked for it, no
+    `j2_note_sync_log` row is written, no error is stamped on the row, the row is not deleted,
+    nothing is raised into the scheduler, and one warning names it."""
+    archived = _stored_archived_source("onedrive")
+    before = connections.get_source("u1", archived["id"])
+    built = []
+
+    def spy_factory(name, source=None):
+        built.append(name)
+        raise errors.NoteConnNotConfigured(f"unknown provider {name!r}")
+
+    monkeypatch.setattr(engine, "_provider_factory", spy_factory)
+    row = connections.get_source("u1", archived["id"])
+    monkeypatch.setattr(connections, "list_due_sources", lambda _interval: [row])
+    monkeypatch.setattr(connections, "list_all_sources", lambda: [row])
+    caplog.set_level("WARNING", logger="note_connectors.engine")
+
+    if loop == "due":
+        await engine.sync_due_sources()
+    else:
+        await engine.sync_all_active_sources_full()
+
+    assert built == []
+    assert _sync_log_rows(archived["id"]) == 0
+    assert connections.get_source("u1", archived["id"]) == before
+    assert any("was archived" in r.getMessage() and archived["id"] in r.getMessage()
+               for r in caplog.records)
+
+
+async def test_the_due_and_nightly_loops_still_sync_the_next_source(client, monkeypatch):
+    """The skip is a `continue`, not a stop: the live source after the archived one still syncs
+    in both loops."""
     archived = _stored_archived_source("onedrive")
     connections.upsert_connector("u1", "roam", {"graphName": "g", "graphToken": "t"})
     live = connections.create_source("u1", "roam", "g", display_name="g")
-    before = connections.get_source("u1", archived["id"])
 
     synced = []
 
@@ -1184,25 +1224,6 @@ async def test_the_due_and_nightly_loops_skip_an_archived_provider_source_untouc
     await engine.sync_all_active_sources_full()
 
     assert synced == [live["id"], live["id"]]
-    assert connections.get_source("u1", archived["id"]) == before
-
-
-async def test_the_due_loop_control_an_unskipped_archived_source_would_reach_sync_source(client, monkeypatch):
-    """CONTROL for the test above: with the skip disabled, the same row DOES reach `sync_source`,
-    so the test above is measuring the skip and not a fixture that never lists the row."""
-    archived = _stored_archived_source("onedrive")
-    synced = []
-
-    async def fake_sync_source(source_id, **kw):
-        synced.append(source_id)
-        return {"status": "ok"}
-
-    monkeypatch.setattr(engine, "sync_source", fake_sync_source)
-    monkeypatch.setattr(engine, "_skip_archived_provider", lambda _source: False)
-    row = connections.get_source("u1", archived["id"])
-    monkeypatch.setattr(connections, "list_due_sources", lambda _interval: [row])
-    await engine.sync_due_sources()
-    assert synced == [archived["id"]]
 
 
 async def test_a_direct_pass_of_an_archived_provider_source_raises_in_the_taxonomy_and_keeps_the_row(client):
