@@ -48,6 +48,8 @@ export const BOARDS = {
   // + the Indicators AUTHORING interface (the real engine, draft store and canonical Save) with the builder's model and the
   //   definitions server as stand-ins (agentIndicatorCreate.test.jsx's construction)
   AUTHOR: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'QQQ' }, { authoring: true }],
+  // AUTHOR on a board of TWO charts (a new draft with no chart must ask which one: agentPlannerV2Screens.test.jsx)
+  AUTHOR_TWO: () => [[chart('c1', 0, 0, 12, 20), chart('c2', 12, 0, 12, 20)], { 'N:c1': 'QQQ', 'N:c2': 'SPY' }, { authoring: true }],
   // + the member's PREFERENCES (host.prefs: setPref's contract — write resolves true once the server accepted it): app
   //   settings, and a saved chart template "Clean" (black background) in chart_templates
   PREFS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { prefs: true }],

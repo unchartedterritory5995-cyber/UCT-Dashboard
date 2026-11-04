@@ -20,7 +20,8 @@ import { manifestFor, refreshContext, buildContext, getCapability, normalizeArgs
 import { UNDO_ACTION } from './capabilities/about'
 import { agentTurnV2, agentResumeV2, agentStepResult } from './agentClient'
 import { bindSourceRefs } from './compose'
-import { translateRefs, withModelRefs, BARE_ACK } from './useAgent'
+import { translateRefs, withModelRefs, BARE_ACK, scopeChartOps } from './useAgent'
+import { screenModelOps, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 
 const STEP_STATUS = {
   applied: 'done', noop: 'done', 'applied-unsaved': 'done', answered: 'query', proposed: 'proposed', failed: 'failed',
@@ -254,17 +255,35 @@ export function createStepRunner() {
     }
     if (run.length) {
       const ops = run.map(r => r.op)
-      const bound = translateRefs(bindSourceRefs(ops, active.refMap, { host, message: '' }), active.refMap)
-      const mode = run.some(r => r.ev.mode === 'propose') ? 'propose' : 'apply'
-      tapRef.current = []
-      let bodies
-      try {
-        await execute(bound, { path: 'model', mode, member: null, voice: active.voice })
-      } catch (e) {
-        bodies = [{ outcome: `That didn't work: ${e?.message || 'error'}`, outcomeData: { kind: 'failed', actions: ops.map(o => o.action) } }]
-      } finally {
-        bodies = bodies || tapRef.current
-        tapRef.current = null
+      // ⭐ v1 parity (dark train #786): the SAME screens v1 runs on every model plan, against the member's own words
+      // (useAgent model path): scopeChartOps resolves WHICH chart a chart-scoped op is for when the step names none (the
+      // selected chart, a chart named by label / symbol / position — #771), and screenModelOps applies the authoring rules
+      // (an explicit "create a custom indicator …" is built, SAVED and added to the chart — R1; a draft with no chart on a
+      // board of several asks which chart; F1–F5). A screen that must ASK puts the question to the member and refuses the
+      // step (the member's answer is a new message); nothing runs before the answer.
+      const words = active.text || ''
+      const screened = screenModelOps(host, scopeChartOps(translateRefs(bindSourceRefs(ops, active.refMap, { host, message: words }), active.refMap), host, words), words, deps.capCtx || {})
+      let bodies = null
+      let bound = screened.ops || []
+      if (screened.ask) {
+        deps.push?.({ role: 'question', text: screened.ask.text, choices: (screened.ask.choices || []).map(c => ({ label: c.label })), local: true })
+        bodies = [{ outcome: `UCT asked the member first: ${screened.ask.text}`, outcomeData: { kind: 'clarify-save-target', actions: ops.map(o => o.action) } }]
+        bound = []
+      } else {
+        for (const n of screened.notes || []) deps.push?.({ role: 'agent', text: n })
+      }
+      const mode = run.some(r => r.ev.mode === 'propose') && !explicitIndicatorCreate(bound) ? 'propose' : 'apply'
+      if (!bodies && !bound.length) bodies = [{ outcome: 'UCT dropped that step before it ran (see above)', outcomeData: { kind: 'refused', actions: ops.map(o => o.action) } }]
+      if (!bodies) {
+        tapRef.current = []
+        try {
+          await execute(bound, { path: 'model', mode, member: null, voice: active.voice })
+        } catch (e) {
+          bodies = [{ outcome: `That didn't work: ${e?.message || 'error'}`, outcomeData: { kind: 'failed', actions: ops.map(o => o.action) } }]
+        } finally {
+          bodies = bodies || tapRef.current
+          tapRef.current = null
+        }
       }
       const set = deps.memoryRef?.current?.latestResults?.()
       const last = run[run.length - 1]
@@ -351,7 +370,7 @@ export function createStepRunner() {
         // V2-G2: this browser runs a plan group as ONE plan (runGroup); the server groups steps only when told so
         stepGroups: true,
       }
-      active = { turnId: null, refMap, sources: {}, voice, chain: Promise.resolve(), changeSteps: 0,
+      active = { turnId: null, refMap, sources: {}, voice, text, chain: Promise.resolve(), changeSteps: 0,
         undoBefore: (deps.undoRef?.current || []).map(e => e.id) }
       mark?.('turn:sent')
       const res = await agentTurnV2(body, onEvent(deps))
