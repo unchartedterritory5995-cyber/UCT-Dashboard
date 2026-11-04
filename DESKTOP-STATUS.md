@@ -1,9 +1,9 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-03 23:07 CT
+updated: 2026-11-03 23:40 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
-free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (1 Opus, 5 Sonnet). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
+free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (1 Opus, 5 Sonnet: W4-T2 Opus; W5-T1, W4-T7, W4-T12, W4-T3 r1, E lows). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
 baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
 poll on ops/pine-coord: ARMED (15 min). Read fd609214e4 (PAUSE banner).
@@ -28,13 +28,13 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
-- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12 (created by builders)
+- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows (created by builders)
 
 ### Queue (in order, as builder slots free; cap 6 at >=8 GB)
 Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to unblock merges and engine numbering first, short lanes first:
 1. W5-T6 (desktop's own; starts the moment W5-T1 is READY, branched from T1's tip)
-2. W4-T3 fix round @ 572376edf6 (final-tip only; engine 7)
-3. E evidence-engine lows @ e58edcbeaf (gate pytest + hygiene + rails + EVIDENCE.md)
+2. W4-T3 fix round @ 572376edf6: STARTED 23:07 CT
+3. E evidence-engine lows @ e58edcbeaf: STARTED 23:40 CT (slot freed by W4-T11 READY)
 4. W5-T3 codec @ cd61d6741d (final-tip + EVIDENCE.md; no engine bump)
 5. W3 S1 round 2 @ 7eaca7777f (measure-pair both lanes + final-tip; engine 8)
 6. W4-T0 census peel @ 75c4c400c2 (job.sh + coverage map docs)
@@ -61,10 +61,12 @@ engine bump needed: expected yes (engine change), confirmed at READY
 next: builder implementing W4-BREAKDOWN T7; T8 merges after this
 
 ## W4-T11
-state: BUILDING   round: r0   updated: 2026-11-03 21:11 CT
-branch: feat/pine-w4-t11-runtime-text   worktree: pine-dsk-w4t11   model: Sonnet
-engine bump needed: expected yes (engine change), confirmed at READY
-next: builder implementing W4-BREAKDOWN T11 in RT/text.js and FE ~6120-6160; will set BLOCKED if it needs ast/pineTextFormat.js
+state: READY            round: r0            updated: 2026-11-03 23:40 CT
+branch: feat/pine-w4-t11-runtime-text   tip: a944bd68c2 (docs-only evidence over code tip 7c88e80844)   tested on master: 5d95103c8a
+engine bump needed: YES (new runtime answers; SCRIPT_ENGINE_VERSION NOT edited)
+evidence: docs/pine/evidence/2026-11-03-w4-t11/EVIDENCE.md (on the branch)
+report: runtime/text.js adds str.substring (2/3 args), str.replace (3/4 args, Nth occurrence from 0), str.tonumber, str.pos, and str.format_time for America/New_York only with literal patterns from yyyy yy MM M dd d HH H mm m ss s. FE (pineRuntimeFrontend.js) changes only the text lowering arm: a str.format_time arm plus optional trailing args via variants. Substring positions are 0-based with an exclusive end; a bad or fractional position, or an empty replace target, raises a runtime error rather than clamping (the spec said na; the builder chose a refusal so we never draw where TradingView stops; unproven, capture W4-T11-a). tonumber/pos return na on failure; other zones/letters and str.tostring formats stay refused by name. engine/pineTextFormat.js, ast/pine.js and ast/objectProgram.js untouched. The str.substring CONTROLs in strBuiltins/strings tests moved to str.match. Checks: rail w4TextFns.test.js 23 pass on tip; on master bytes 17 of 21 fail (the 4 passing are refusal-by-name controls). Mutations 20/20 killed (1 survivor in the first pass, killed after added tests). measure-pair rt0+rt1: C18 audit and probes 0 diffs, harness byte-identical; census diffs 3 rows rt0 / 12 rows rt1, all classified, 0 unintended (2 example rows newly reach the runtime lane, 4 scripts move their first wall and still refuse, 6 timing noise); no script's attached/clean state changed. final-tip: gate pytest 46 passed, hygiene clean, version-gate 6 passed, vitest 1 failed | 1334 passed | 27 skipped, the 1 failure is pollingSites.rail (desktop baseline): 0 new failures. Open captures W4-T11-a/b/c listed in EVIDENCE.md, not yet in a capture-queue doc.
+desktop check of the definition of done: PASS (6 files in scope, rail red on master / green on tip, mutations, measure-pair both lanes, final-tip at baseline, EVIDENCE committed, local == origin a944bd68c2, worktree clean)
 
 ## W4-T17
 state: READY            round: r0            updated: 2026-11-03 23:07 CT
@@ -85,3 +87,9 @@ state: BUILDING   round: r1   updated: 2026-11-03 23:07 CT
 branch: feat/pine-w4-t3-session-text   start tip: 572376edf6   worktree: pine-dsk-w4t3   model: Sonnet
 engine bump needed: yes (engine 7 at merge, per ASSIGNMENTS)
 next: run ONLY the final-tip named at the end of its EVIDENCE.md, record it, READY for delta review
+
+## E evidence-engine lows (re-homed)
+state: BUILDING   round: r0   updated: 2026-11-03 23:40 CT
+branch: fix/pine-evidence-engine-lows   start tip: e58edcbeaf   worktree: pine-dsk-elows   model: Sonnet
+engine bump needed: decided at READY
+next: all 5 lows already coded; run deploy-gate pytest + hygiene + rails, write EVIDENCE.md, READY
