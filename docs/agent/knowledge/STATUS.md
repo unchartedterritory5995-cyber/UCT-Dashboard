@@ -32,6 +32,35 @@ Status vs code at be4c127a41: (1) and (4) already hold. (3) does NOT hold yet �
 inconsistent dates withhold). Refinement proposal for (2)/(3) sent to AUDIT; no code change until AUDIT confirms it is
 necessary (owner point 5).
 
+## Source-policy refinement: mentions of excluded setups (branch agent/kn/mention-refine, stacked on #735)
+Owner wording (relayed to this session, 2026-11-03): do not exclude original team commentary merely for mentioning EP,
+VCP, HTF or another excluded setup; do not admit all 380 either; eligibility requires verified team ownership or
+authorization, original commentary, and no reproduced or closely paraphrased restricted third-party material; keep the
+71 definition-like posts withheld pending provenance and rights review.
+Owner wording (relayed to AUDIT): "third-party setup commentary remains excluded unless independently established as
+original, authorized team-owned analysis". AUDIT: consistent with the above, given ownership verified by construction
+plus the definitional proxy. Activation stays on HOLD.
+
+What the code does (AUDIT-approved design (a)-(d), its conditions 1-3):
+- At index build every row records the templates it names (each template name/alias of >= 3 characters, whole word,
+  case-insensitive) and those named with DEFINITIONAL wording nearby: within 40 non-full-stop characters one of
+  is|are|means|defined|definition|rule(s)|entry|stop|criteria (the review r4 pattern, probe_n15.py:35).
+- An admitted row with a definitional mention of an EXCLUDED template is withheld unless it is on policy.cleared_rows
+  with a complete {kb_id, provenance_ref, rights_review_ref, approved_by, approved_on} entry (list EMPTY).
+- Every other admitted row that mentions an excluded setup is served as team commentary: the passage carries
+  mentions_excluded_setup + commentary_only, the browser text says "team commentary that mentions X; not UCT's
+  definition of it", and the model frame rule says commentary is never a definition. Coach: read commentary_only.
+- Fail closed: a row whose check failed (mention_error) is withheld; if the exclusion data cannot be read at all, the
+  search answers "unavailable" and serves nothing.
+Real snapshot (counts only): of 2,837 rows servable before the refinement, 71 are withheld (exactly the review's 71)
+and 309 are served flagged as commentary; 0 parse errors. Across all admitted rows including dated categories: 100
+withheld. Index build 9.2 s (was 0.7 s; once per Brain Pack); search unchanged (~15 ms).
+
+DETECTION LIMIT (stated plainly): team ownership is verified by construction (the ledger stores only the six team
+authors' posts). Reproduced or closely paraphrased third-party material is NOT detected beyond the definitional-wording
+proxy above: a post that paraphrases a third-party definition without those cue words near the setup name would be
+served as commentary. Provenance and rights review (cleared_rows) is the only way to establish more.
+
 ## Branches, commits, PRs
 | Branch | Worktree | Base | Head | PR |
 |---|---|---|---|---|
@@ -146,9 +175,42 @@ Admitted corpus on the real snapshot: 0 passages under 200 characters, 0 remaini
 0 guard false positives. Retrieval: 38/40 realistic questions answered relevantly, P@3 0.89, p95 < 20 ms. Further
 filtering or ranking work would add complexity without a measurable gain; embeddings stay out (no external calls).
 
+## Brain response handling (branch agent/kn/grounded-reply, owner-approved 2026-11-03, before activation)
+- Planner v1 writes `reply` before anything is read. A v1 plan holding ANY `playbook.*` op (decided by action name,
+  knowledge.frame.is_knowledge_action) never serves that reply (turn.sanitize_envelope); UCT's cited card is the answer.
+- Mixed write + playbook plan (decision): the reply is dropped too. Free text cannot be checked for a definition the
+  knowledge base never gave; the write's receipt confirms the change and the card gives the knowledge.
+- A v1 knowledge plan is never researched in the same turn; the fixed sentence turn.KNOWLEDGE_NO_WEB says so.
+- Cards (capabilities/knowledge.js): fixed leads "From UCT's knowledge base (...)" / "From UCT's playbook - <template>:",
+  a citation per passage (UCT KB #id, source, trader, date) or per template, and the pack + source-policy version.
+  Nothing approved: "No approved UCT source covers this" / "UCT has no approved playbook definition for <X>" /
+  "UCT has no approved evidence for <X>" (X echoed only when it is a short plain name). Server caps, N3, the stats
+  gate and the withheld rules are unchanged.
+- Planner v2 (reads, then answers from the framed result) is unchanged and never passes the v1 gate (tested).
+- Flags unchanged: UCT_AGENT_KNOWLEDGE unset; no knowledge kind in UCT_AGENT_DATA_KINDS.
+- Review #768 (2026-11-04), knowledge first (turn.knowledge_first, only while a playbook.* capability is offered):
+  a TALK disposition (answer/clarify) holding a knowledge op becomes an apply of those knowledge ops only (also in the
+  gate itself); a message that is a playbook question (knowledge.frame.wants_knowledge = the browser's PLAYBOOK_WORDS,
+  tested equal) never streams the reply; its answer without a knowledge op becomes UCT's playbook.explain read of the
+  member's question (no extra model call), or KNOWLEDGE_NOT_RETRIEVED if that read is not offered; a change + playbook
+  question keeps the change and adds the read; a clarify keeps its choices, never its model-written text. A local-only
+  lookup's notice still replaces KNOWLEDGE_NO_WEB (tested). Flag off: unchanged (tested, streaming included).
+- Review #768 delta (2026-11-04) and OWNER DIRECTIVE: v1's gates are DEFENCE IN DEPTH, not the guarantee. A word list
+  (or a scan of the model's answer) cannot enforce "playbook definitions only from approved retrieval": the reviewer's
+  phrasings ("what's a VCP?", "tell me about cup and handle") pass it. Brain stays OFF until a retrieval-first evidence
+  step exists: design docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md (owner decisions pending). Kept here, low risk:
+  the server's words match across line breaks (re.S); while a knowledge capability is offered an answer never streams;
+  a knowledge-turn clarify keeps only short plain choices (none left = the read); a message about a specific stock or
+  chart is not a knowledge turn; a proposal never gets a read added (its reply is dropped); flag off, a talk reply with
+  a stray playbook.* op is served exactly as before (the gate checks cap_names).
+
 ## Blocked / needs the owner
 - Admitting `self_review`, `manual`, `chart_intake:*` or any `intake:*` source (policy.json is the switch; default-deny until the owner rules).
 - Activation: `UCT_AGENT_KNOWLEDGE=1` and the three kinds in `UCT_AGENT_DATA_KINDS` — owner only, after merge.
+- Before activation (AUDIT, 2026-11-03): master hotfix #755 `turn.DATA_READ_ACTIONS` drops the model's reply for a v1 plan made
+  only of those reads. `playbook.*` are NOT in it today. Recommendation: add them for planner v1 (the v1 reply is written before the
+  passages are read, so it could state a definition the knowledge base never gave; the renderer text is the answer); v2 is
+  unaffected (it reads, then answers). Shared file: AUDIT's change, decided at activation, not before.
 - Paid real-model comparison — not authorised.
 - Partner: additive PACK_MANIFEST fields `schema_version`, `kb_sources`, `stats_updated_at` (compat behaviour in place; reported missing, never invented); fix the "high tight flag" alias attached to two templates.
 
@@ -160,7 +222,41 @@ filtering or ranking work would add complexity without a measurable gain; embedd
 - A facade row with a win rate but no win count is withheld (fails closed).
 - Retrieval is lexical (FTS5, porter stemming); no embeddings by design (no external calls).
 
+## #751 review queue (independent review: approved except coach B-1, fixed in #757 8ba90b43ab, merged into this branch)
+- (1) Rebuild: a request never waits for another thread's rebuild (`index.ensure` answers "being rebuilt" at once, nothing
+  served from the old index); the mention scan checks only terms present in the row. Real snapshot build 4.6 s (was
+  9.2-12.9 s). The first request after a schema change still builds once synchronously (startup hooks are shared code).
+- (2) Template terms are bounded by non-word characters (a term ending in ")" now matches).
+- (3) `cleared_rows`: approved_by must be a name (2-80 chars, a letter), approved_on an ISO date not in the future,
+  kb_id a positive integer; anything else is ignored (row stays withheld).
+- (4) 122 served, flagged rows matching a looser cue -> PROVENANCE-REVIEW-LOOSER-CUE.md (ids only) for the rights review.
+- Real snapshot after the changes: 71 withheld, 309 served and flagged, 0 mention errors (unchanged).
+- 2026-11-04 (owner directive via AUDIT): the 122 looser-cue rows are WITHHELD, not served as commentary: the index's
+  definitional cue is now the looser cue (SCHEMA 4). None has a rights clearance; all are trader_archive (admitted
+  source, 5 traders). Real snapshot: 122/122 + 71/71 withheld, 0 escaped; non-dated 150 withheld, 230 served flagged.
+- Rebuild safety: a build writes a temporary file and swaps it in with one os.replace; a failed build leaves the old
+  file untouched and no temporary file; a stale index (pack_ts or schema mismatch) is never served, and a request during
+  another thread's rebuild gets "being rebuilt" (tests r751_a_search_never_waits..., r751_a_failed_rebuild...).
+- Delta review of 8dbf655fb7 (2026-11-04), fixed:
+  1. Spelling variants: rows and terms are compared folded (NFKC, case-folded, "&" = "and", punctuation/space runs
+     collapsed); a term also matches its plural and its unspaced form.
+  2. Definitional wording BEFORE the term ("definition of", "we call this", "known as", "characterised by", "rules
+     for"...) and more after it (refers to, consists of, must, should, requires...) withholds the row.
+  3. A clearance names the reviewed text: cleared_rows entries need `content_sha` (the index's sha256); changed text
+     under the same kb_id loses its clearance.
+  4. If the index is swapped between the withheld list and the query, nothing is served ("being rebuilt").
+  5. The temp index file is fsynced before os.replace.
+  6. OWNER DEFAULT (directive 2026-11-04, withhold uncertain): policy `excluded_setup_mentions.mode = "withhold"`:
+     every admitted row that NAMES an excluded setup is withheld unless cleared. `serve_flagged` (owner only) re-admits
+     the non-definitional ones as a block, flagged commentary_only. policy_version 5, index SCHEMA 5.
+  Real snapshot (counts only): non-dated 2,837 servable BEFORE the mention rule, 430 of them withheld by it, 2,407 served, 0 served flagged; the 71 and
+  the 122 all withheld; 0 served rows match any cue, a variant or a pre-term cue. If the owner chose serve_flagged:
+  201 non-dated withheld, 229 served flagged.
+
 ## Next step to resume
+MERGED DARK (2026-11-03): #735 is on master via release train 2, PR #754, master 3d3d444d4f, after Wave 1.1 was verified live.
+Flags unset (AUDIT verifies production). #751 (this branch) is NOT on master; it needs its own independent review and a rebase
+onto master before merge. Activation HOLD unchanged.
 STANDBY (owner, end of phase 1): act only on a concrete defect or integration requirement in the knowledge package reported by AUDIT.
 
 Previous notes:
@@ -168,3 +264,8 @@ The PoC is complete and reviewed; it is waiting on the owner. Release candidate 
 1. Owner: review PR #735; decide sources beyond team-owned; when merges reopen, the integrator merges into `agent/int-w2` and regenerates the golden manifest.
 2. Optional free work within scope: an FTS synonym table for UCT slang (EP, U&R, HTF) to raise recall; health card on the Admin page (needs a page-owner OK).
 3. Do not merge anything; merges are frozen until the owner returns.
+- Second delta review (95db830922): APPROVE WITH NITS for merge-dark. Nit 1 fixed: the search takes the withheld ids,
+  flags and the build they belong to from ONE snapshot (kinds._blocked_snapshot); a rebuild during the computation
+  returns "cannot tell" (nothing served or cached); builds carry a nanosecond build_id (index.build_id). Follow-ups
+  (not blocking): short aliases (peg/coil/bob) and the broad after-cues matter only if the owner ever chooses
+  serve_flagged; a directory fsync after os.replace on Linux.
