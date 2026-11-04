@@ -20,7 +20,7 @@ changes that only work together, and stays honest. That gap is the only thing th
 |---|---|---|---|---|
 | A | v1 (production path: routed manifest, one call) | claude-haiku-4-5 | — | the baseline v2 must match |
 | B | v2 | claude-haiku-4-5 | index (plan groups, V2-G2) | the candidate |
-| C (optional, owner) | v2 | claude-haiku-5-5 | index | price/quality option; only if the owner wants a model-change data point |
+| C (optional, owner) | v2 | claude-haiku-5-5 | index | price/quality option; only if the owner wants a model-change data point. Pricing: $0.10 / $0.50 per MTok for prompts up to 100K tokens ($0.50 / $2.50 above), from the claude-api skill's model table (cached 2026-10-06). Haiku 4.5 is $1.00 / $5.00 from the same source. |
 
 The Wave 1 "search" layout is NOT evaluated: it cannot finish a turn under $0.25 on Haiku 4.5 (0/46 in the
 deterministic estimate).
@@ -34,6 +34,8 @@ deterministic estimate).
 | v2 acceptance set (`__fixtures__/program/v2-acceptance.json`) | 38 | multi-step, cards mid-turn, Undo across a pause, partial failure, research |
 | The owner's flagship sentence + 4 paraphrases | 5 | the 9-step workflow, the tightest cost case |
 | Held-out set (new, written by someone who has not read the corpus; never used for tuning) | 52 | generalisation: 2 new phrasings for 26 of the 46 intents |
+
+**Frozen expectations.** Every prompt's expected plan (actions + key args) and its `must_group` label are committed in `tests/fixtures/agent_v2_eval_expectations.json` BEFORE any run: 237 corpus + refusal rows now, and the 52 held-out rows added by their author, with labels, before the run starts. Changing the fixture after the run starts invalidates the run.
 
 Every prompt runs on its fixture board (`BOARDS` in `testing/harness.jsx`) with the same synthetic data. **No real
 market value enters any request or log** (synthetic screener rows and empty data reads, as in the deterministic suite).
@@ -64,10 +66,10 @@ market value enters any request or log** (synthetic screener rows and empty data
 | Arm B (v2), 332 prompts × 2 runs (stability) | 664 | $0.021 (cache off; ~$0.014 with the prefix cache) | $13.94 |
 | Flagship ×5 per arm (v2 worst-case-heavy turns) | 10 | ≤ $0.10 | ≤ $1.00 |
 | **Total, arms A + B** | **1,006** | | **≈ $20.25** |
-| Arm C (optional, Haiku 5.5, 332 × 1) | 332 | ≈ $0.003 | ≈ $1.00 |
+| Arm C (optional, Haiku 5.5, 332 × 1) | 332 | ≈ $0.003 (1/10 of the Haiku 4.5 rates; every v2 turn is under 100K tokens) | ≈ $1.00 |
 
 **Hard ceilings (enforced by the runner and the ledger, not by intent):**
-- **Total ceiling $25.00** for arms A + B; arm C, if approved, adds a separate $2.00.
+- **Total ceiling $25.00** for arms A + B. That is **$4.75 (≈ 23%) of headroom** over the $20.25 expected, which covers the gap between the deterministic token estimate and real usage. Arm C, if approved, adds a separate $2.00 (100% headroom over its ≈ $1.00).
 - The runner reserves `budget.worst_case_usd` before every call and stops cleanly when the next reservation would
   cross the ceiling. The report then marks the run as partial.
 - **The per-turn cap stays $0.25** (`UCT_AGENT_TURN_USD` unchanged). A turn that hits it is scored as a failure, not retried.
@@ -82,14 +84,14 @@ market value enters any request or log** (synthetic screener rows and empty data
 
 | # | Criterion | Bar |
 |---|---|---|
-| S1 | Action selection, corpus phrasings v1 gets right | v2 ≥ v1 − 2 pts, and v2 ≥ 92% |
-| S2 | Action selection, held-out set | v2 ≥ 85% and not below v1 by more than 3 pts |
+| S1 | Action selection over ALL 233 corpus phrasings (the same denominator for both arms) | v2 ≥ 92% **and** v2 ≥ v1 − 2 pts |
+| S2 | Action selection, held-out set, scored against the expected plans frozen in the fixture | v2 ≥ 85% and not below v1 by more than 3 pts |
 | S3 | Args correctness on correct-action turns | ≥ 95% |
-| S4 | Plan grouping where changes only work together (grid / add + re-tile cases) | ≥ 90% |
+| S4 | Plan grouping on the rows labelled `must_group` in the frozen fixture (6 corpus phrasings today, plus held-out rows labelled before the run) | ≥ 90% |
 | S5 | False claims (claims a change or an Undo with no receipt) | **0** (any one is a NO-GO) |
 | S6 | Refusal cases (4) and honest "can't do that" | 4/4 and 0 invented actions |
 | S7 | Turns finishing (no turn_cap / round_limit) | ≥ 98% overall; the flagship ≥ 4/5 |
-| S8 | Cost | mean ≤ $0.03 / turn on arm B; no turn above $0.25 |
+| S8 | Cost | **zero `turn_cap` stops** on arm B, and mean ≤ $0.03 per turn |
 | S9 | Stability (arm B run 1 vs run 2) | the same pass/fail on ≥ 90% of prompts |
 
 A miss on S1–S4 or S7–S9 gives a list of failure modes for deterministic fixes and a re-run, which is a new budget

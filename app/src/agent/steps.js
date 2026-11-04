@@ -172,6 +172,29 @@ export function resumedTurn(p, deps) {
     changeSteps: Math.max(1, Number(p?.changeSteps) || 0), undoBefore }
 }
 
+/** review #782 (1): the outcome of EACH op of a plan group. The executor may commit only part of a plan — a deferred op
+ *  it drops before running ("I'll do the rest, but not this part"), or a part it splits off — so the group's final
+ *  outcome is NOT every member's. A done outcome is credited op by op from the actions the commit records named
+ *  (`outcomeData.actions`, a multiset); an op no committed record names did not run and is told so. When the final
+ *  outcome is not done (a card, a refusal, a failure), it is every member's — nothing of the plan ran. */
+const DONE_KINDS = new Set(['applied', 'noop', 'applied-unsaved'])
+export const NOT_RUN = 'UCT did not run this part of the plan (the reply above says why); the rest of the plan ran'
+export function groupOutcomes(bodies, ops, final) {
+  if (ops.length <= 1 || final.status !== 'done') return ops.map(() => final)
+  const done = (bodies || []).filter(b => DONE_KINDS.has(String(b?.outcomeData?.kind || '')))
+  if (!done.length || done.some(b => !Array.isArray(b.outcomeData.actions))) return ops.map(() => final)
+  const pool = new Map()
+  for (const b of done) for (const a of b.outcomeData.actions) pool.set(a, (pool.get(a) || 0) + 1)
+  // the records name none of the group's actions (the executor ran them under other names): no per-op evidence
+  if (!ops.some(op => pool.has(op.action))) return ops.map(() => final)
+  return ops.map(op => {
+    const n = pool.get(op.action) || 0
+    if (!n) return { status: 'refused', refusal: NOT_RUN }
+    pool.set(op.action, n - 1)
+    return final
+  })
+}
+
 export function createStepRunner() {
   let paused = null              // { turnId, id, memoryTurn, alias } while a card waits
   let active = null              // the turn being served: { turnId, refMap, sources, voice, chain }
@@ -262,7 +285,12 @@ export function createStepRunner() {
           undoBefore: active.undoBefore, changeSteps: active.changeSteps }
         tapRef.current = []
       }
-      run.forEach((r, i) => out.set(r.ev.id, i === 0 || !res.added ? res : { ...res, added: undefined }))
+      const each = groupOutcomes(bodies, ops, res)
+      let addedSent = false
+      run.forEach((r, i) => {
+        const o = each[i]
+        if (o.status === 'done' && res.added && !addedSent) { out.set(r.ev.id, o); addedSent = true } else out.set(r.ev.id, o === res && res.added ? { ...res, added: undefined } : o)
+      })
     }
     for (const ev of evs) await agentStepResult({ turnId: ev.turnId, id: ev.id, ...out.get(ev.id) })
   }
@@ -320,6 +348,8 @@ export function createStepRunner() {
         pending: pending ? { ops: pending.ops.map(o => ({ ...o, target: back[o.target] || o.target })) } : null,
         context: mem ? { ...context, conversation_memory: withModelRefs(mem, back) } : context,
         capabilities: full, manifestVersion: MANIFEST_VERSION, routing: null, planner: 'v2',
+        // V2-G2: this browser runs a plan group as ONE plan (runGroup); the server groups steps only when told so
+        stepGroups: true,
       }
       active = { turnId: null, refMap, sources: {}, voice, chain: Promise.resolve(), changeSteps: 0,
         undoBefore: (deps.undoRef?.current || []).map(e => e.id) }

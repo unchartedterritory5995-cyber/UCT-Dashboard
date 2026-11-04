@@ -458,7 +458,7 @@ def run_turn_v2(*, message: str, context: dict, history: list[dict], capabilitie
                 pending: dict | None = None, caller: Callable[..., Any] | None = None, meter=None,
                 on_event: Callable[[dict], None] | None = None, wait_step: Callable[[str], dict | None] | None = None,
                 turn_token: str | None = None, resume: dict | None = None, resume_result: dict | None = None,
-                reference: dict | None = None, repair: dict | None = None, **_ignored) -> dict:
+                reference: dict | None = None, repair: dict | None = None, step_groups: bool = False, **_ignored) -> dict:
     """One v2 turn, or the continuation of a paused one (`resume` = the parked state, `resume_result` = the
     browser's outcome for the step it paused on). Returns {envelope, usage, title, paused, turn_token[, state]}.
     `on_event` receives {"t":"step", …} per step; `wait_step(step_id)` blocks for the browser's step_result
@@ -466,6 +466,9 @@ def run_turn_v2(*, message: str, context: dict, history: list[dict], capabilitie
     caller = caller or t1._default_caller
     if resume is None:
         state = _start(message, context, history, capabilities, pending, reference, repair, meter, turn_token)
+        # V2-G2 (review #782): plan groups only for a browser that DECLARED it runs them as one plan (TurnIn.stepGroups);
+        # an older browser gets the old one-step-at-a-time stream, where a card holds back the steps after it
+        state["step_groups"] = step_groups is True
     else:
         state = resume
         state["started"] = time.monotonic()
@@ -657,14 +660,15 @@ def _run_pending_steps(state: dict, on_event, wait_step, meter=None) -> dict | N
     response form a PLAN GROUP that the browser executes as ONE plan - exactly what one v1 envelope's ops are (planOps
     places new widgets together with a re-tile of the board, decides the mode once, commits once: one receipt, one
     Undo). Every step keeps its own id and tool_result (each carries the group's outcome). A group of one is the
-    ordinary single step; a browser that ignores `group` runs the steps one by one, exactly as before."""
+    ordinary single step. Grouping happens ONLY when the browser declared support (`step_groups`, TurnIn.stepGroups):
+    any other client gets one step at a time, exactly as before (review #782)."""
     while state["pending_uses"]:
         item = _prepare(state, state["pending_uses"].pop(0), meter)
         if item[0] == "result":
             state["results"].append(item[1])
             continue
         group = [item[1:]]
-        if _plannable(item[3]):
+        if state.get("step_groups") and _plannable(item[3]):
             aliases = _alias_of(item[3])
             while state["pending_uses"] and len(state["steps"]) + len(group) < MAX_STEPS_PER_TURN:
                 nxt = str(state["pending_uses"][0].get("name") or "")

@@ -41,9 +41,9 @@ def browser(*statuses):
     return wait_step
 
 
-def go(c, w, ev=None, message="put four charts on my screen"):
+def go(c, w, ev=None, message="put four charts on my screen", step_groups=True):
     return v2.run_turn_v2(message=message, context=CTX_G, history=[], capabilities=CAPS_G, caller=c,
-                          on_event=(ev.append if ev is not None else None), wait_step=w)
+                          on_event=(ev.append if ev is not None else None), wait_step=w, step_groups=step_groups)
 
 
 def four():
@@ -130,3 +130,20 @@ def test_GROUP_that_became_ONE_card_pauses_once_and_its_outcome_settles_every_st
 def test_GROUP_the_index_prompt_tells_the_model_changes_that_only_work_together_go_in_one_response():
     system = v2._start("x", CTX_G, [], CAPS_G, None, None, None, None, None)["system"][0]["text"]
     assert "run as ONE plan" in system and "re-arranging the board to make room" in system
+
+
+def test_GROUP_only_for_a_browser_that_declared_support_otherwise_one_step_at_a_time_and_a_card_holds_the_rest():
+    """review #782: an older browser (no stepGroups) gets the old stream: no `group`, and a card on step 1 pauses the
+    turn BEFORE step 2 is ever sent."""
+    ev, c = [], scripted(resp(*four()), resp(text("")))
+    w = browser({"status": "proposed"})
+    out = go(c, w, ev, step_groups=False)
+    steps = [e for e in ev if e["t"] == "step"]
+    assert len(steps) == 1 and "group" not in steps[0] and w.seen == ["s1"] and out["paused"] is True
+    assert out["state"]["awaiting"].get("others") == []
+
+
+def test_GROUP_the_router_passes_the_declared_capability_and_nothing_else():
+    from api.routers import uct_agent as rx
+    assert rx.TurnIn(message="x").stepGroups is False
+    assert rx.TurnIn(message="x", stepGroups=True).stepGroups is True

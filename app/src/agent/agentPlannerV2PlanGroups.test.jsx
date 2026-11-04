@@ -11,6 +11,7 @@ import { registerBuiltins } from './builtins'
 import { setupPanel, bareSettings } from './testing/panelHarness'
 import { installStepServer } from './testing/stepServer'
 import { _resetAgentConfig } from './agentClient'
+import { groupOutcomes, NOT_RUN } from './steps'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -64,4 +65,22 @@ describe('V2-G2 — plan groups', () => {
     expect(srv.results.map(r => [r.status, (r.refusal || '').slice(0, 12)])).toEqual([['done', ''], ['refused', 'from "c9" is'], ['done', '']])
     expect(charts(board)).toHaveLength(2)
   }, 30000)
+
+  it('review #782: each member gets ITS outcome — an op the executor dropped is not reported as done', () => {
+    const done = { status: 'done', receipt: 'Added 2 Charts · Arranged' }
+    const ops = [{ action: 'widget.add' }, { action: 'indicator.update' }, { action: 'widget.add' }, { action: 'widget.arrange' }]
+    // the commit records name the two adds and the arrange; the deferred indicator.update was dropped before it ran
+    const bodies = [{ outcome: 'Added 2 Charts', outcomeData: { kind: 'applied', actions: ['widget.add', 'widget.add'] } },
+      { outcome: 'Arranged', outcomeData: { kind: 'applied', actions: ['widget.arrange'] } }]
+    expect(groupOutcomes(bodies, ops, done).map(o => o.status)).toEqual(['done', 'refused', 'done', 'done'])
+    expect(groupOutcomes(bodies, ops, done)[1].refusal).toBe(NOT_RUN)
+    // a THIRD add with only two recorded: the multiset runs out for it
+    expect(groupOutcomes(bodies, [...ops, { action: 'widget.add' }], done).map(o => o.status).at(-1)).toBe('refused')
+    // not done (a card / a refusal): nothing of the plan ran — every member gets it
+    expect(groupOutcomes(bodies, ops, { status: 'proposed' }).map(o => o.status)).toEqual(['proposed', 'proposed', 'proposed', 'proposed'])
+    // a single step, or records without per-action evidence: the final outcome as before
+    expect(groupOutcomes(bodies, [ops[1]], done)).toEqual([done])
+    expect(groupOutcomes([{ outcome: 'x', outcomeData: { kind: 'applied' } }], ops, done).every(o => o === done)).toBe(true)
+    expect(groupOutcomes([{ outcome: 'x', outcomeData: { kind: 'applied', actions: ['chart.setTheme'] } }], ops, done).every(o => o === done)).toBe(true)
+  })
 })
