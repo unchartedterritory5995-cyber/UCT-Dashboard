@@ -1,0 +1,23 @@
+{
+ "version": 1,
+ "about": "UCT Agent DARK corpus (Track D trading workflows, UCT_AGENT_WORKFLOWS default off). Same schema and levels as corpus.json, run by corpus.dark.test.jsx under the WHOLE catalog (testing/registry.js ALL_KINDS: every gated kind and every workflow on), never under production's config, where these capabilities do not register. Every figure the fixtures serve is synthetic.",
+ "intents": [
+  {
+   "id": "workflow.relativeStrength",
+   "capabilities": ["stock.relativeStrength"],
+   "board": "ONE",
+   "needs": ["stock.relativeStrength"],
+   "source": "Track D workflow (a): relative strength vs SPY or a named benchmark from two bars.daily reads",
+   "deterministic": {"plan": [{"action": "stock.relativeStrength", "args": {"symbol": "NVDA"}}]},
+   "model": {"ops": [{"action": "stock.relativeStrength", "target": "$stockData", "args": {"symbol": "NVDA", "benchmark": "SPY", "sessions": null}}]},
+   "expect": {"reads": ["^POST /api/agent/data .*bars\\.daily.*NVDA", "^POST /api/agent/data .*bars\\.daily.*SPY"], "unchanged": true},
+   "phrasings": [
+    {"text": "NVDA relative strength vs SPY", "det": "required"},
+    {"text": "what's the relative strength of NVDA against SPY over the last 3 months?", "det": "required"},
+    {"text": "is NVDA outperforming the market?", "det": "required"},
+    {"text": "show me NVDA's RS line versus SPY", "det": "required"}
+   ],
+   "ownWords": ["data"]
+  }
+ ]
+}

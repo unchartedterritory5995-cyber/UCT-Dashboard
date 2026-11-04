@@ -195,12 +195,14 @@ def agent_config(user: dict = Depends(require_admin_dark)):
     NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on."""
     from api.services.uct_agent import news, turn, turn_v2
     from api.services.uct_agent.marketdata import gateway
-    from api.services.uct_agent import coach
+    from api.services.uct_agent import coach, workflows
     return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled(), "news": news.enabled(),
             "data": gateway.data_enabled(), "scan": gateway.scan_enabled(),
             "data_kinds": sorted(gateway.enabled_kinds()), "planner": turn_v2.planner(),
             # Wave 3 (W3-1): the coach, UCT_AGENT_COACH (default off) -- the browser registers coach.* only on true
-            "coach": coach.enabled()}
+            "coach": coach.enabled(),
+            # Track D: the trading workflows, UCT_AGENT_WORKFLOWS (default off) -- [] unless switched on
+            "workflows": workflows.enabled()}
 
 
 # ── COACH (Wave 3, UCT_AGENT_COACH, default off): the curated concept knowledge base the browser explains from ──

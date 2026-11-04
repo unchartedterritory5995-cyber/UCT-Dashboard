@@ -33,6 +33,8 @@ import { registerKnowledgeCapabilities } from './capabilities/knowledge'
 import { registerResearchCapability } from './capabilities/research'
 import { registerHistoryCapability } from './capabilities/history'
 import { registerChartDescribeCapability } from './capabilities/chartDescribe'
+// Track D (dark, UCT_AGENT_WORKFLOWS): the trading workflows — each registers only when its name is switched on
+import { registerRelativeStrengthCapability } from './capabilities/relativeStrength'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
 import { registerScreenerPageCapabilities } from './capabilities/screenerPage'
 import { registerBreadthPageCapabilities } from './capabilities/breadthPage'
@@ -86,5 +88,6 @@ export function registerServerGatedBuiltins() {
   registerResearchCapability()           // W2-B1 RS-1: research.ask while the server serves `research.company`
   registerHistoryCapability()            // W2-B2: history.afterEvent while the server serves `history.eventStudy`
   registerChartDescribeCapability()      // W2-B3: chart.describeSetup while the server serves `bars.daily`
+  registerRelativeStrengthCapability()   // Track D: stock.relativeStrength while UCT_AGENT_WORKFLOWS lists relativeStrength
   registerCoachCapabilities()            // Wave 3 (W3-1..4): coach.* / journal.* while the server serves `coach` (UCT_AGENT_COACH)
 }

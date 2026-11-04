@@ -2,6 +2,7 @@
 import { it } from 'vitest'
 import corpus from '../baseline/corpus.json'
 import golden from '../baseline/goldenWorkflows.json'
+import dark from '../baseline/corpus.dark.json'
 import { multiChartPlan } from '../../../multiChart'
 import { fastParse } from '../../../fastPath'
 import { planCompound } from '../../../compound'
@@ -12,6 +13,11 @@ import { createMemory } from '../../../memory'
 const FOLLOW_CUES = /\b(?:it|that|this|them|those|these|both|first|second|third|last|other|others|rest|fast|faster|fastest|slow|slower|slowest|short|long|same|match|look like|next to|just added|i added|new one|everywhere|all of them|all my|every)\b/i
 
 export { corpus, golden }
+// The DARK corpus (baseline/corpus.dark.json): intents of capabilities that ship dark behind a server flag (Track D
+// UCT_AGENT_WORKFLOWS). They run at all three levels under the WHOLE catalog (corpus.dark.test.jsx, ALL_KINDS), never
+// under production's config; the inventory counts them with the main corpus (`catalogCorpus`).
+export const darkCorpus = dark
+export const catalogCorpus = { ...corpus, intents: [...corpus.intents, ...dark.intents] }
 export const phrasingsOf = (intent) => intent.phrasings.map(p => (typeof p === 'string' ? { text: p } : p))
 /** Every (intent, phrasing) pair. */
 export const allPhrasings = () => corpus.intents.flatMap(intent => phrasingsOf(intent).map(ph => ({ intent, ph })))

@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 154,
+  "all": 155,
   "withProductionKinds": 145,
-  "darkGated": 9
+  "darkGated": 10
  },
  "totals": {
-  "capabilities": 154,
-  "withAnyRegressionCase": 94,
+  "capabilities": 155,
+  "withAnyRegressionCase": 95,
   "perProtection": {
    "nl": {
-    "covered": 94,
-    "applicable": 154
+    "covered": 95,
+    "applicable": 155
    },
    "routing": {
-    "covered": 94,
-    "applicable": 154
+    "covered": 95,
+    "applicable": 155
    },
    "args": {
-    "covered": 94,
-    "applicable": 154
+    "covered": 95,
+    "applicable": 155
    },
    "execution": {
-    "covered": 94,
-    "applicable": 154
+    "covered": 95,
+    "applicable": 155
    },
    "receipt": {
-    "covered": 69,
-    "applicable": 154
+    "covered": 70,
+    "applicable": 155
    },
    "refusal": {
     "covered": 27,
-    "applicable": 154
+    "applicable": 155
    },
    "permission": {
-    "covered": 146,
-    "applicable": 154
+    "covered": 147,
+    "applicable": 155
    },
    "undo": {
     "covered": 43,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 21,
-    "applicable": 154
+    "applicable": 155
    },
    "phrasings": {
-    "covered": 94,
-    "applicable": 154
+    "covered": 95,
+    "applicable": 155
    }
   }
  },
@@ -6559,6 +6559,60 @@
     ],
     "receipt": [
      "stock.quote (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.relativeStrength": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "workflow.relativeStrength: \"NVDA relative strength vs SPY\"",
+     "workflow.relativeStrength: \"what's the relative strength of NVDA against SPY over the last 3 months?\"",
+     "workflow.relativeStrength: \"is NVDA outperforming the market?\"",
+     "workflow.relativeStrength: \"show me NVDA's RS line versus SPY\""
+    ],
+    "routing": [
+     "workflow.relativeStrength: \"NVDA relative strength vs SPY\"",
+     "workflow.relativeStrength: \"what's the relative strength of NVDA against SPY over the last 3 months?\"",
+     "workflow.relativeStrength: \"is NVDA outperforming the market?\"",
+     "workflow.relativeStrength: \"show me NVDA's RS line versus SPY\""
+    ],
+    "args": [
+     "corpus workflow.relativeStrength"
+    ],
+    "execution": [
+     "workflow.relativeStrength (c)"
+    ],
+    "receipt": [
+     "workflow.relativeStrength (c)"
     ],
     "refusal": [],
     "permission": [],

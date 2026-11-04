@@ -10,6 +10,7 @@ import { vi } from 'vitest'
 import { registerBuiltins, registerServerGatedBuiltins } from '../../../builtins'
 import { allCapabilityNames } from '../../../capabilities'
 import { loadAgentConfig, _resetAgentConfig } from '../../../agentClient'
+import { WORKFLOWS } from '../../../capabilities/workflowGate'
 
 // ⚠ keep equal to agentProdKinds.test.js PROD_KINDS (inventory.test.js pins the two by reading that file's text)
 export const PROD_KINDS = ['instrument.resolve', 'quote', 'quotes', 'bars.daily', 'fundamentals', 'earnings', 'news.company', 'themes',
@@ -17,9 +18,9 @@ export const PROD_KINDS = ['instrument.resolve', 'quote', 'quotes', 'bars.daily'
 export const ALL_KINDS = [...PROD_KINDS, 'history.eventStudy', 'research.company', 'knowledge.search', 'setup.playbook', 'setup.record',
   'index.quote', 'commodity.quote', 'crypto.quote']
 
-/** The /api/agent/config answer for a kinds list (coach on only for the whole catalog). */
+/** The /api/agent/config answer for a kinds list (coach and the Track D workflows on only for the whole catalog). */
 export const configFor = (kinds) => ({ stream: false, nl1: false, data: true, scan: kinds.includes('screen.run'), data_kinds: kinds, news: true,
-  planner: 'v1', coach: kinds === ALL_KINDS })
+  planner: 'v1', coach: kinds === ALL_KINDS, workflows: kinds === ALL_KINDS ? [...WORKFLOWS] : [] })
 
 /** Registers the built-ins and the server-gated capabilities a server serving `kinds` would activate. */
 export async function registerCatalog(kinds = PROD_KINDS) {

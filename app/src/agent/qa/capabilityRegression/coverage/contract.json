@@ -1656,6 +1656,19 @@
    ],
    "fast": true
   },
+  "stock.relativeStrength": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true
+  },
   "stock.themes": {
    "domain": "stock",
    "group": "data",
