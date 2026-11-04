@@ -312,13 +312,13 @@ export function registerIndicatorAlertCapabilities() {
     target: 'indicatorAlertLibrary',
     risk: 'confirm',
     createsResource: true,
-    summary: 'Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band, the 9 EMA crossing above the 20 EMA…), exactly as the chart\'s Indicator Alerts popover does: the alert watches that chart\'s symbol and timeframe with the instance\'s own settings. Undo deletes it.',
+    summary: 'Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band, the 9 EMA crossing above the 20 EMA…), as the chart\'s Indicator Alerts popover does: the alert watches that chart\'s symbol and timeframe with the instance\'s own settings. Undo deletes it.',
     hints: 'target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); '
       + 'plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; '
       + 'condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: "crosses above 70" = cross_above 70; "is over 70" = above 70); '
       + 'threshold = the level as a number when the condition has one, else null. A PRICE level alert ("when NVDA hits 150") is alert.create, not this. '
       + 'MA cross ("the 9 ema crosses above the 20"): instance = the 9, crossWith = the 20 (ids), condition cross_above|cross_below, threshold null; crossWith = null otherwise. '
-      + 'chart = the ref of the chart (charts entry) the alert is for — the same indicator id is on several charts, so name the chart the member means; null only when one chart has it. '
+      + 'chart = the ref of the chart the alert is for (one indicator id can be on several charts). '
       + 'Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.',
     args: { type: 'object', properties: {
       instance: { type: 'string' }, plot: { type: ['string', 'null'] }, condition: { type: 'string' }, threshold: { type: ['number', 'null'] },
@@ -434,7 +434,13 @@ const maOf = (inst) => {
 function resolveCross(found, crossWith, condition) {
   const a = found.inst
   if (!crossWith || !String(crossWith).trim()) return `Which average should ${a.name || 'it'} cross — say the other moving average on the chart (e.g. the 20).`
-  const other = findInstance(hostRef, crossWith, found.chart?.ref ?? null)
+  let other = findInstance(hostRef, crossWith, found.chart?.ref ?? null)
+  // not on that chart but on ANOTHER one: say so (two charts' lines are never one crossover), as before scoping
+  if (!other || other.noChart) {
+    const any = findInstance(hostRef, crossWith)
+    if (any?.inst || any?.ambiguous) return 'Both averages must be on the same chart (symbol and timeframe) for a crossover alert.'
+    other = any
+  }
   if (!other) return `There's no indicator “${crossWith}” on your charts — use an id from the indicators entry, or add that moving average first.`
   if (other.ambiguousRef) return `“${crossWith}” could be ${other.ambiguousRef.length > 1 ? other.ambiguousRef.join(' or ') : `more than one ${other.ambiguousRef[0]}`} on your chart — say which average.`
   if (other.ambiguous) return `That average is on ${other.ambiguous.length} charts with different symbols — say which chart the alert is for.`

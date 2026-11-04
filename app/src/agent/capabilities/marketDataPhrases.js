@@ -122,8 +122,7 @@ export function parsePriceSentence(text) {
     return candidates.length === 1 && !SESSION_RE.test(low) && !/\btoday\b/.test(low)
       ? { intent: 'bars.lastClose', candidates } : null
   }
-  // CG-11 (corpus #769): "how much is NVDA right now"
-  const PRICE_CTX = /\b(price|prices|pricing|quote|quotes|trading|trade|traded|at|doing|up|down)\b|\bhow much is\b/
+  const PRICE_CTX = /\b(price|prices|pricing|quote|quotes|trading|trade|traded|at|doing|up|down)\b/
   const onlyCashtags = allCash && s.split(/[\s,]+/).filter(Boolean).every(w => /^\$/.test(w) || /^and$/i.test(w))
   if (!PRICE_CTX.test(low) && !SESSION_RE.test(low) && !onlyCashtags) return null
   if (/\b(high|low|range)\b/.test(low) && !candidates.some(c => /^(HIGH|LOW)$/.test(c.text))) return null
