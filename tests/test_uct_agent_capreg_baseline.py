@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CAPREG = ROOT / "app" / "src" / "agent" / "qa" / "capabilityRegression"
 CORPUS = CAPREG / "baseline" / "corpus.json"
 GOLDEN = CAPREG / "baseline" / "goldenWorkflows.json"
+COLLISIONS = CAPREG / "baseline" / "routingCollisions.json"
 LOCK = CAPREG / "baseline" / "baseline.lock.json"
 DECISIONS = ROOT / "docs" / "agent" / "COMPATIBILITY-DECISIONS.md"
 AGENT_CI = ROOT / ".github" / "workflows" / "agent-ci.yml"
@@ -49,7 +50,7 @@ def _phrasings(intent):
 
 def fingerprint(corpus: dict, golden: dict) -> dict:
     """The lock's view of the data: per entry, a digest of its ASSERTIONS and the gaps it carries."""
-    out = {"intents": {}, "refusals": {}, "workflows": {}}
+    out = {"intents": {}, "refusals": {}, "workflows": {}, "collisions": {}}
     for it in corpus["intents"]:
         body = {k: v for k, v in it.items() if k not in NOTE_KEYS and k != "phrasings"}
         phr = {}
@@ -63,6 +64,10 @@ def fingerprint(corpus: dict, golden: dict) -> dict:
         out["refusals"][r["id"]] = {"digest": _digest({k: v for k, v in r.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(r.get("gap")), "mode": (r.get("gap") or {}).get("mode")}
     for w in golden["workflows"]:
         out["workflows"][w["id"]] = {"digest": _digest({k: v for k, v in w.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(w.get("gap")), "mode": (w.get("gap") or {}).get("mode")}
+    # the routing-collision table (capreg-2): a row is keyed by its phrasing
+    for r in (_load(COLLISIONS)["rows"] if COLLISIONS.exists() else []):
+        out["collisions"][r["text"]] = {"digest": _digest({k: v for k, v in r.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(r.get("gap")),
+                                        "mode": (r.get("gap") or {}).get("mode")}
     return out
 
 
@@ -107,7 +112,7 @@ def decided_keys(text: str) -> set[str]:
 
 
 def _entry(fp: dict, eid: str):
-    for kind in ("intents", "refusals", "workflows"):
+    for kind in ("intents", "refusals", "workflows", "collisions"):
         if eid in fp.get(kind, {}):
             return fp[kind][eid]
     return None
@@ -214,8 +219,8 @@ def violations(lock: dict, now: dict) -> list[tuple[str, str]]:
             changed = sorted(lvl for lvl in set(c["gaps"]) & set(p["gaps"]) if (c.get("modes") or {}).get(lvl) != (p.get("modes") or {}).get(lvl))
             if changed:
                 v.append((iid, f'phrasing "{text}": the recorded failure mode of its gap changed at level(s) {changed}'))
-    for kind in ("refusals", "workflows"):
-        for wid, was in lock[kind].items():
+    for kind in ("refusals", "workflows", "collisions"):
+        for wid, was in lock.get(kind, {}).items():
             cur = now[kind].get(wid)
             if cur is None:
                 v.append((wid, f"{kind[:-1]} removed"))
@@ -232,7 +237,7 @@ def violations(lock: dict, now: dict) -> list[tuple[str, str]]:
 def unlocked(lock: dict, now: dict) -> list[str]:
     out = [i for i in now["intents"] if i not in lock["intents"]]
     out += [f"{i}: \"{t}\"" for i, e in now["intents"].items() if i in lock["intents"] for t in e["phrasings"] if t not in lock["intents"][i]["phrasings"]]
-    out += [w for k in ("refusals", "workflows") for w in now[k] if w not in lock[k]]
+    out += [w for k in ("refusals", "workflows", "collisions") for w in now[k] if w not in lock.get(k, {})]
     return out
 
 
@@ -290,7 +295,7 @@ def test_every_entry_is_locked():
 def test_every_known_gap_names_id_reason_owner():
     corpus, golden = _load(CORPUS), _load(GOLDEN)
     gaps = [g for it in corpus["intents"] for p in _phrasings(it) for g in (p.get("gaps") or {}).values()]
-    gaps += [w["gap"] for w in [*golden["workflows"], *corpus.get("refusals", [])] if w.get("gap")]
+    gaps += [w["gap"] for w in [*golden["workflows"], *corpus.get("refusals", []), *_load(COLLISIONS)["rows"]] if w.get("gap")]
     for g in gaps:
         for k in ("id", "reason", "owner", "mode"):
             assert str(g.get(k) or "").strip(), f"a known gap without {k} (mode = the recorded failure, see testing/corpus.js gapIt): {g}"

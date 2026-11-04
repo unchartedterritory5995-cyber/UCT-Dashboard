@@ -348,6 +348,87 @@
    "level": "c",
    "intent": "indicatorAlert.ma-cross-multichart",
    "phrasing": "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside"
+  },
+  {
+   "id": "CG-12",
+   "reason": "the alerts words /\\b(notify|ping|tell) me\\b/ select 'tell me about …'",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by alerts",
+   "level": "collision",
+   "intent": "routing data",
+   "phrasing": "tell me about TSM the company"
+  },
+  {
+   "id": "CG-13",
+   "reason": "the charts compare words select 'against'",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by charts",
+   "level": "collision",
+   "intent": "routing data",
+   "phrasing": "how does NVDA stack up against AMD"
+  },
+  {
+   "id": "CG-12",
+   "reason": "the alerts words /\\b(notify|ping|tell) me\\b/ select 'tell me about …' — and nothing else names data, so the owner group is never sent (SUBTRACTIVE)",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by alerts",
+   "level": "collision",
+   "intent": "routing data",
+   "phrasing": "tell me about AAPL"
+  },
+  {
+   "id": "CG-7",
+   "reason": "the drawings word /\\bdraw\\w*\\b/ selects 'drawdowns' (SUBTRACTIVE: data is not named)",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by drawings",
+   "level": "collision",
+   "intent": "routing data",
+   "phrasing": "NVDA drawdowns this year"
+  },
+  {
+   "id": "CG-4",
+   "reason": "'relative strength' is a screener strength word (SUBTRACTIVE: indicators not named)",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by screener",
+   "level": "collision",
+   "intent": "routing indicators",
+   "phrasing": "add the relative strength index"
+  },
+  {
+   "id": "CG-18",
+   "reason": "'momentum' is an indicators word, so a saved screen's name pulls the indicators group in (ADDITIVE: budget only)",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by indicators",
+   "level": "collision",
+   "intent": "routing screener",
+   "phrasing": "run my Momentum screen"
+  },
+  {
+   "id": "CG-19",
+   "reason": "the indicators length word /\\d{1,3}[- ]?day/ selects '50 day' in a breadth question (ADDITIVE: budget only)",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by indicators",
+   "level": "collision",
+   "intent": "routing breadth",
+   "phrasing": "what percent of stocks are above the 50 day"
+  },
+  {
+   "id": "CG-20",
+   "reason": "'swing' is a charts setting word (swing markers), so a layout NAME pulls the charts group in (ADDITIVE: budget only)",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by charts",
+   "level": "collision",
+   "intent": "routing layouts",
+   "phrasing": "open my Swing layout"
+  },
+  {
+   "id": "CG-21",
+   "reason": "'news' is a data word, so a news WIDGET request also routes the data group (ADDITIVE: budget only)",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "stolen by data",
+   "level": "collision",
+   "intent": "routing workspace",
+   "phrasing": "add a news widget"
   }
  ],
  "capabilities": {

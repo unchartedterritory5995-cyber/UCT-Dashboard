@@ -1510,23 +1510,28 @@
    "phrasings": {
     "alert me when RSI goes above 70": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "ping me when the RSI is above 70": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "let me know when RSI gets over 70": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "set an RSI alert above 70": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "notify me if RSI rises above 70": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -1535,23 +1540,28 @@
    "phrasings": {
     "mark when the 9 ema crosses above the 20 on this chart": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "alert me when the 9 ema crosses above the 20 ema": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "tell me when the 9 crosses over the 20": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "notify me on a 9/20 ema cross up": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "set an alert for the 9 ema crossing above the 20": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -1562,19 +1572,28 @@
      "digest": "44136fa355b3678a",
      "gaps": [
       "c"
-     ]
+     ],
+     "modes": {
+      "c": "a proposal waiting"
+     }
     },
     "alert me when NVDA's 9 ema crosses above its 20": {
      "digest": "44136fa355b3678a",
      "gaps": [
       "c"
-     ]
+     ],
+     "modes": {
+      "c": "a proposal waiting"
+     }
     },
     "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside": {
      "digest": "44136fa355b3678a",
      "gaps": [
       "c"
-     ]
+     ],
+     "modes": {
+      "c": "a proposal waiting"
+     }
     }
    }
   },
@@ -1583,19 +1602,23 @@
    "phrasings": {
     "pause my RSI alert": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "pause the NVDA RSI alert": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "turn off my RSI alert for now": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "mute the RSI alert": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -1604,19 +1627,23 @@
    "phrasings": {
     "delete my RSI alert": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "remove the NVDA RSI alert": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "get rid of my RSI indicator alert": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     },
     "cancel the RSI alert": {
      "digest": "44136fa355b3678a",
-     "gaps": []
+     "gaps": [],
+     "modes": {}
     }
    }
   }
@@ -1731,6 +1758,183 @@
   },
   "GW-18.live-emas-already-present": {
    "digest": "33316af250b39fe2",
+   "gap": false,
+   "mode": null
+  }
+ },
+ "collisions": {
+  "tell me about TSM the company": {
+   "digest": "b44b566361c9e103",
+   "gap": true,
+   "mode": "stolen by alerts"
+  },
+  "how does NVDA stack up against AMD": {
+   "digest": "f4528e91192754ac",
+   "gap": true,
+   "mode": "stolen by charts"
+  },
+  "tell me about AAPL": {
+   "digest": "0a1d33fe44a7e911",
+   "gap": true,
+   "mode": "stolen by alerts"
+  },
+  "what does NVDA do": {
+   "digest": "897869a12a729a88",
+   "gap": false,
+   "mode": null
+  },
+  "any news on TSLA": {
+   "digest": "33d9fc10444a6480",
+   "gap": false,
+   "mode": null
+  },
+  "when does NVDA report earnings": {
+   "digest": "c41a0f507e580b4c",
+   "gap": false,
+   "mode": null
+  },
+  "what's driving AMD today": {
+   "digest": "6330a61907108023",
+   "gap": false,
+   "mode": null
+  },
+  "NVDA drawdowns this year": {
+   "digest": "be05f3848eb39f3d",
+   "gap": true,
+   "mode": "stolen by drawings"
+  },
+  "how far is NVDA off its high": {
+   "digest": "e5d6ac04b3bc1f04",
+   "gap": false,
+   "mode": null
+  },
+  "switch to weekly": {
+   "digest": "66c483164cb14621",
+   "gap": false,
+   "mode": null
+  },
+  "make it a line chart": {
+   "digest": "bcff3ce1716b0ee4",
+   "gap": false,
+   "mode": null
+  },
+  "use a log scale": {
+   "digest": "f7238e7ef5b3be42",
+   "gap": false,
+   "mode": null
+  },
+  "show extended hours": {
+   "digest": "418dd6c2ee5cfd1b",
+   "gap": false,
+   "mode": null
+  },
+  "add the 9 and 20 ema": {
+   "digest": "f629b18664b16840",
+   "gap": false,
+   "mode": null
+  },
+  "add the relative strength index": {
+   "digest": "59684eb7d86f9cfd",
+   "gap": true,
+   "mode": "stolen by screener"
+  },
+  "remove the 200 sma": {
+   "digest": "1b417735a6a6d5c3",
+   "gap": false,
+   "mode": null
+  },
+  "hide the 50 day moving average": {
+   "digest": "06af1fdc426404b5",
+   "gap": false,
+   "mode": null
+  },
+  "set a price alert on NVDA at 150": {
+   "digest": "baeb8ac5d878e721",
+   "gap": false,
+   "mode": null
+  },
+  "show my alerts": {
+   "digest": "44f112a4e45b51b6",
+   "gap": false,
+   "mode": null
+  },
+  "pause my RSI alert": {
+   "digest": "20d52a7df68b7d7b",
+   "gap": false,
+   "mode": null
+  },
+  "find stocks with ADR above 5%": {
+   "digest": "bd81b792ab1b9a7a",
+   "gap": false,
+   "mode": null
+  },
+  "run my Momentum screen": {
+   "digest": "c2f2cc3538cb9c7f",
+   "gap": true,
+   "mode": "stolen by indicators"
+  },
+  "how's breadth today": {
+   "digest": "b0e236c31e06336c",
+   "gap": false,
+   "mode": null
+  },
+  "what percent of stocks are above the 50 day": {
+   "digest": "d678e9aaf5cf10b5",
+   "gap": true,
+   "mode": "stolen by indicators"
+  },
+  "add AMD to my watchlist": {
+   "digest": "a2b4051593d0a4e4",
+   "gap": false,
+   "mode": null
+  },
+  "create a new watchlist called Semis": {
+   "digest": "f57f0d766c6ece4d",
+   "gap": false,
+   "mode": null
+  },
+  "open my Swing layout": {
+   "digest": "d97d05f0be1afc7f",
+   "gap": true,
+   "mode": "stolen by charts"
+  },
+  "save this layout": {
+   "digest": "98573981f0ec6f89",
+   "gap": false,
+   "mode": null
+  },
+  "add a news widget": {
+   "digest": "00b7e9e43ccff272",
+   "gap": true,
+   "mode": "stolen by data"
+  },
+  "close the right chart": {
+   "digest": "b459e19c7169833f",
+   "gap": false,
+   "mode": null
+  },
+  "draw a horizontal line at 200": {
+   "digest": "28bee9b3ed961fd9",
+   "gap": false,
+   "mode": null
+  },
+  "clear all my drawings": {
+   "digest": "40c04ba266af198a",
+   "gap": false,
+   "mode": null
+  },
+  "switch to dark mode": {
+   "digest": "0447b605600c2754",
+   "gap": false,
+   "mode": null
+  },
+  "undo that": {
+   "digest": "60022dd8c211b270",
+   "gap": false,
+   "mode": null
+  },
+  "where is the indicator settings button": {
+   "digest": "22e7d4de10a73e3b",
    "gap": false,
    "mode": null
   }

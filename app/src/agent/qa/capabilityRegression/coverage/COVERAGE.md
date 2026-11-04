@@ -18,7 +18,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | multiStep | 9 / 154 |
 | phrasings | 42 / 154 |
 
-## Known gaps (33)
+## Known gaps (42)
 
 | id | level | intent | phrasing | owner | reason |
 |---|---|---|---|---|---|
@@ -55,6 +55,15 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | CG-17 | c | indicatorAlert.ma-cross-multichart | "mark when the 9 ema crosses above the 20 on the NVDA chart" | nlfix builder | four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect) |
 | CG-17 | c | indicatorAlert.ma-cross-multichart | "alert me when NVDA's 9 ema crosses above its 20" | nlfix builder | four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect) |
 | CG-17 | c | indicatorAlert.ma-cross-multichart | "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside" | nlfix builder | four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect) |
+| CG-12 | collision | routing data | "tell me about TSM the company" | nlfix builder (routing.js) | the alerts words /\b(notify/ping/tell) me\b/ select 'tell me about …' |
+| CG-13 | collision | routing data | "how does NVDA stack up against AMD" | nlfix builder (routing.js) | the charts compare words select 'against' |
+| CG-12 | collision | routing data | "tell me about AAPL" | nlfix builder (routing.js) | the alerts words /\b(notify/ping/tell) me\b/ select 'tell me about …' — and nothing else names data, so the owner group is never sent (SUBTRACTIVE) |
+| CG-7 | collision | routing data | "NVDA drawdowns this year" | nlfix builder (routing.js) | the drawings word /\bdraw\w*\b/ selects 'drawdowns' (SUBTRACTIVE: data is not named) |
+| CG-4 | collision | routing indicators | "add the relative strength index" | nlfix builder (routing.js) | 'relative strength' is a screener strength word (SUBTRACTIVE: indicators not named) |
+| CG-18 | collision | routing screener | "run my Momentum screen" | nlfix builder (routing.js) | 'momentum' is an indicators word, so a saved screen's name pulls the indicators group in (ADDITIVE: budget only) |
+| CG-19 | collision | routing breadth | "what percent of stocks are above the 50 day" | nlfix builder (routing.js) | the indicators length word /\d{1,3}[- ]?day/ selects '50 day' in a breadth question (ADDITIVE: budget only) |
+| CG-20 | collision | routing layouts | "open my Swing layout" | nlfix builder (routing.js) | 'swing' is a charts setting word (swing markers), so a layout NAME pulls the charts group in (ADDITIVE: budget only) |
+| CG-21 | collision | routing workspace | "add a news widget" | nlfix builder (routing.js) | 'news' is a data word, so a news WIDGET request also routes the data group (ADDITIVE: budget only) |
 
 ## Per capability
 
