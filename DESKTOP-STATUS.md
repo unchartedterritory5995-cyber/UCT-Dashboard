@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 13:11 CT
+updated: 2026-11-04 13:39 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -305,10 +305,13 @@ checks: 12 green on tip, all 12 red with the two new files moved aside (base pro
 NOT PROVEN: Docker is not installed on the desktop, so the image was never built or run (libstdc++6 on bookworm-slim, non-root and read-only FS are unverified at runtime). Needs one local or CI docker build before T19/T20.
 open (coordinator): after T4 and T9 merge, the Dockerfile must also COPY tools/pine_runtime_host_parity.mjs, runtime/columnDigest.js and runtime/__fixtures__/hostParity/** for the canary, and the rail should check them (canary.mjs/metrics.mjs are covered by the directory-derived rail).
 ## W5-T11 client + lane adapter (needs T3, READY)
-state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
-branch: feat/pine-w5-t11-client   base: W5-T3 409456ee36 (STACK: merge T3 first)   model: Opus
-locks: mut heavy-mut · final _resume-2026-11-01/dsk/heavy-final2.lock
-
+state: READY            round: r0            updated: 2026-11-04 13:39 CT
+branch: feat/pine-w5-t11-client   tip: 86218da704 (docs-only evidence over code tip 7b55c7d344)   base: W5-T3 409456ee36 (STACK: merge T3 first)   tested on master: 0afa7645dd (T3's merge-base; DESKTOP-VERIFIED it merges clean with origin/master 9bfd567837)   worktree: pine-dsk-w5t11   model: Opus
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t11/EVIDENCE.md
+built (Python only; DESKTOP-VERIFIED file list): api/services/pine_runtime_client.py (the one door: signs the T6 way, sends T6's closed schema, decodes with the T3 codec, checks column length, finiteness and the T3 digest, maps every failure to a 3.7 guard; batch API with sweep chunks of 50, one result per job; RunCache keyed on the bars hash; 429 retries per profile inside the deadline); api/services/runtime_server_lane.py (runtime_column_fn asks engine_withheld_reason then server_lane_refusal on EVERY call, before the cache; server_lane_refusal through a getattr seam, faked in tests; refusal raises ServerLaneWithheld); tests/fakes/pine_runtime_fake.py (in-process, no network, fixture secrets).
+checks: 126 tests, red on base (ImportError), green on tip; named rails for every 3.7 row 1-10 plus never-stale, never-partial, lane rails; a client request also passes T6's real auth.mjs/protocol.mjs (t6_door_check.py). Mutations 62/62 killed, only the no-op control survives (3 round-1 survivors were masked by a second check, fixed). final-tip: gate 46, hygiene clean, rails 343, vitest Tests 1 failed | 22505 passed | 118 skipped = pollingSites.rail (DESKTOP-VERIFIED in js.log).
+SCHEMA FINDINGS (coordinator rulings needed): (1) T7 results carry NO digest but the client requires one, so every T7 ok answer is withheld as integrity until T7 (or T8) adds it - this blocks a working end-to-end path; (2) design 3.7 says non-finite = integrity, but the T3 codec carries Infinity as a value; (3) T6's replay set: the client re-signs a repeated body with a later second, but two web replicas sending identical bodies in the same second can still collide; (4) design 3.2 differs from T6 (engine block has 5 fields, doc sent as JSON text); the client follows T6; (5) server lanes need the T1 bundle in the web image or caller_identity() returns None; (6) bar time units (daily ts is YYYYMMDD) left to T13/T14; (7) T12 is on master but not on this base (merges clean).
 ## W5-T12 admission + flags
 state: ALREADY ON MASTER (no build)   updated: 2026-11-04 11:27 CT
 finding: origin/feat/pine-w5-t12-admission (b901fcbbbf) is an ancestor of origin/master, merged as PR #737 (e055b21e7f; commits 51dd352603, a223d56a99). DESKTOP-VERIFIED with git merge-base --is-ancestor. Master has server_stage/effective_server_stage/server_permitted/service_missing/server_lane_refusal(row, *, lane), the three ledger rows, tests/test_runtime_server_stage.py (49). Builder stopped before any change; worktree pine-dsk-w5t12 removed (junction unlinked first), local branch deleted, remote untouched. Unchecked: whether the PINE_RUNTIME_ALLOWLIST row carries the pane-only note (coordinator may want a one-line follow-up).
@@ -316,4 +319,24 @@ finding: origin/feat/pine-w5-t12-admission (b901fcbbbf) is an ancestor of origin
 ## W5-T17 composition + stamps (needs T12, which is ON MASTER)
 state: BUILDING   round: r0   updated: 2026-11-04 11:27 CT
 branch: feat/pine-w5-t17-stamps   base: origin/master   model: Sonnet
+locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
+
+## W5-T13 alerts (needs T11 READY + T12 on master)
+state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
+branch: feat/pine-w5-t13-alerts   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Opus
+locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final2.lock
+
+## W5-T14 scans (needs T11 READY + T12 on master)
+state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
+branch: feat/pine-w5-t14-scans   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Sonnet
+locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
+
+## W5-T15 backtest (needs T11 READY + T12 on master)
+state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
+branch: feat/pine-w5-t15-backtest   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Sonnet
+locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final2.lock
+
+## W5-T16 rule record (needs T11 READY + T12 on master)
+state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
+branch: feat/pine-w5-t16-rule-record   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Sonnet
 locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
