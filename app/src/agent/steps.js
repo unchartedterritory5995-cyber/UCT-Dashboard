@@ -139,6 +139,28 @@ export function undoOutcomeOf(bodies) {
   return { status: UNDO_REFUSED.has(stop?.outcomeData?.kind) ? 'refused' : 'failed', refusal: String(stop?.outcome || 'nothing was undone') }
 }
 
+// ⭐ v2-readiness-2: a REF CARRIED IN ARGS (a capability's `argRefs`: indicatorAlert.create `chart` once #771 lands — the
+// chart a chart-scoped alert is for —, chartSetup.saveTemplate `chart`, screener `within`, …). v1 and v2 translate them the
+// same way (useAgent translateRefs → argRefsBack over the turn's refMap, which in v2 also holds the refs earlier steps
+// created and their `as` aliases). In v2 the model can only correct what it is told, so a short ref the turn never offered
+// (or one of the wrong kind) is refused HERE with the arg's name — before any capability reads a raw short ref as a real
+// one — instead of a capability-specific sentence. Values that are not short refs pass through untouched.
+const SHORT_REF = /^[a-z]{1,3}\d{1,3}$/
+export function argRefProblem(op, refMap) {
+  const decl = getCapability(op?.action)?.argRefs
+  if (!decl || !op?.args || typeof op.args !== 'object') return null
+  for (const [arg, kind] of Object.entries(decl)) {
+    const kinds = [].concat(kind)
+    for (const v of [].concat(op.args[arg] ?? [])) {
+      if (typeof v !== 'string' || !SHORT_REF.test(v)) continue
+      const hit = refMap?.[v]
+      if (!hit) return `${arg} "${v}" is not a ref on this board: use a ${kinds.join(' / ')} ref from <workspace_context> (or one an earlier step of this turn reported)`
+      if (!kinds.includes(hit.kind)) return `${arg} "${v}" is a ${hit.kind} ref; ${arg} needs a ${kinds.join(' / ')} ref from <workspace_context>`
+    }
+  }
+  return null
+}
+
 export function createStepRunner() {
   let paused = null              // { turnId, id, memoryTurn, alias } while a card waits
   let active = null              // the turn being served: { turnId, refMap, sources, voice, chain }
@@ -180,6 +202,11 @@ export function createStepRunner() {
       return
     }
     if (!getCapability(ev.action)?.query) active.changeSteps += 1
+    const argProblem = argRefProblem(withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources), active.refMap)
+    if (argProblem) {
+      await agentStepResult({ turnId: ev.turnId, id: ev.id, status: 'refused', refusal: argProblem })
+      return
+    }
     const op = withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources)
     const al = aliasOf(op)
     const bound = translateRefs(bindSourceRefs([op], active.refMap, { host, message: '' }), active.refMap)
