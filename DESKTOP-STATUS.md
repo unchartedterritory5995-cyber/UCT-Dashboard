@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 16:01 CT
+updated: 2026-11-04 16:07 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -344,10 +344,13 @@ branch: feat/pine-w5-t15-backtest   base: W5-T11 86218da704 + local merge of ori
 locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final2.lock
 
 ## W5-T16 rule record (needs T11 READY + T12 on master)
-state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
-branch: feat/pine-w5-t16-rule-record   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Sonnet
-locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
-
+state: READY            round: r0            updated: 2026-11-04 16:07 CT
+branch: feat/pine-w5-t16-rule-record   tip: 5a85b9b23f (docs-only EVIDENCE over code tip c2afcfb06c, the final-tip tree)   base: merge e5ed2f5c76 = W5-T11 86218da704 + origin/master 9bfd567837 (STACK: T3 -> T11; DESKTOP-VERIFIED parents)   tested on master: 9bfd567837   worktree: pine-dsk-w5t16   model: Sonnet
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t16/EVIDENCE.md
+built (files: api/services/definition_record.py, tests/test_definition_record_runtime.py): record_runtime_pass beside record_pass; def_hash DERIVED from runtime_definitions.handle minus its runtime: prefix (no def_hash parameter); the run goes through T11's runtime_column_fn(row, plot_key, "record"); the warm-up pad is read from column.warmup["withheldBars"], and a missing or malformed warm-up is refused as runtime:warmup-unreported, never guessed; the forward-only origin is unchanged; a withheld lane returns skipped; a shared _tally serves both passes.
+checks: 25 new tests, red on base (no record_runtime_pass), green on tip; mutations 12/12 killed. final-tip (heavy-final3): gate 46, hygiene clean, rails pytest 139 (new + existing test_definition_record + test_runtime_server_lane, no difference from base), vitest Tests 2 failed | 22512 passed | 118 skipped = pollingSites.rail + settingsScope.rail baselines (DESKTOP-VERIFIED by name).
+SCHEMA GAP (coordinator): JobResult and the wire schema carry no warm-up, so EVERY real run is refused (runtime:warmup-unreported) until T6/T7 report the run's warm-up; together with T11's finding (T7 results carry no digest) the protocol needs one fix round to carry digest + warm-up.
 ## W5-T18 editor status (optional in the design; needs T17, READY)
 state: BUILDING   round: r0   updated: 2026-11-04 15:11 CT (free RAM back to 9.4 GB)
 branch: feat/pine-w5-t18-editor-status   base: W5-T17 f777d2c427 (STACK)   model: Sonnet
