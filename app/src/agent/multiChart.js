@@ -29,6 +29,7 @@
 import { matchPosition } from './fastPath'
 import { ordinalChart, selectedChart } from './deixis'
 import { plainSymbolWord, SHORT_FIXES } from './nl/lexicon'
+import { getTargetKind } from './capabilities'
 
 // ── tickers as typed (capitals, or $-prefixed) — never a lowercase word ──
 const NOT_TICKERS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'VWAP', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC', 'OHLC', 'MA', 'D', 'W', 'M', 'AND', 'VS'])
@@ -152,17 +153,9 @@ function gridRequest(raw0, lower0, charts, host) {
   // charts ADDED four — 10 charts): more charts on the board than tickers, and the member's words neither ask for new
   // ones nor build a whole workspace — never guessed, never a silent removal: ONE question, replace the charts (the ones
   // showing a named ticker kept; the removal approval-gated) or add these beside them
-  if (!lead && !ASKS_NEW.test(raw) && syms.length < charts.length) {
-    const n = charts.length, k = syms.length
-    return {
-      kind: 'ask',
-      text: `You have ${n} charts here. Replace them with these ${k} (${syms.join(', ')}), or add ${k} more beside them?`,
-      choices: [{ ref: 'grid:replace', label: `Replace my ${n} charts with these ${k}` }, { ref: 'grid:add', label: `Add ${k} more charts` }],
-      options: {
-        replace: [{ ...chartGrid(syms, tf, layoutHit ? layoutHit[1] : null, false, rail), args: { ...chartGrid(syms, tf, layoutHit ? layoutHit[1] : null, false, rail).args, replace: 'charts' } }],
-        add: [chartGrid(syms, tf, layoutHit ? layoutHit[1] : null, true, rail)],
-      },
-    }
+  if (!lead && !explicitGridIntent(raw)) {
+    const q = gridQuestion(syms, tf, layoutHit ? layoutHit[1] : null, rail, gridChartCount(host, charts.length))
+    if (q) return q
   }
   const fresh = wantsNew(raw, syms.length, charts.length)
   // least disruptive: NEW charts (no layout asked for) that fit in the empty space go there — nothing re-tiled
@@ -177,6 +170,39 @@ function gridRequest(raw0, lower0, charts, host) {
 // asks for new ones, or when the board already has more charts than tickers (their tickers are never overwritten).
 // ⭐ acceptance 2026-10-29: "open daily charts for AAPL MSFT NVDA" on a one-chart board keeps that chart and adds three
 const ASKS_NEW = /\b(?:new|add|another|more|additional|extra|open)\b/i
+// review t4 M1: an explicit intent for the board's charts — new / add / more, or replace — is never asked about
+const REPLACE_INTENT = /\b(?:replace|instead of (?:my|the|these|those)|swap out|get rid of)\b/i
+const explicitGridIntent = (text) => ASKS_NEW.test(String(text || '')) || REPLACE_INTENT.test(String(text || ''))
+// review t4 L2: the charts on the GRID — the set Replace acts on (a detached / floating chart or an extra chart tab never counts)
+export function gridChartCount(host, fallback = 0) {
+  try {
+    const b = getTargetKind('board')?.list?.(host)?.[0]
+    if (b?.charts) { const away = new Set((b.detached || []).map(String)); return [...b.charts.keys()].filter(id => !away.has(String(id))).length }
+  } catch { /* the board is not readable */ }
+  return fallback
+}
+/** LIVE TRAIN 4: more charts on the grid than tickers, nothing said about new / replace → ONE question (never a guess,
+ *  never a silent removal): replace the charts (approval-gated; those showing a named ticker kept) or add these beside them. */
+export function gridQuestion(syms, tf, layout, rail, onBoard) {
+  const k = (syms || []).length
+  if (k < 2 || !(k < onBoard)) return null
+  const grid = (fresh) => chartGrid(syms, tf, layout, fresh, rail)
+  return {
+    kind: 'ask',
+    text: `You have ${onBoard} charts here. Replace them with these ${k} (${syms.join(', ')}), or add ${k} more beside them?`,
+    choices: [{ ref: 'grid:replace', label: `Replace my ${onBoard} charts with these ${k}` }, { ref: 'grid:add', label: `Add ${k} more charts` }],
+    options: { replace: [{ ...grid(false), args: { ...grid(false).args, replace: 'charts' } }], add: [grid(true)] },
+  }
+}
+/** review t4 M1: the SAME question for a plan from ANY path (the model, NL-1, a rewritten grid shape): one chartGrid.set
+ *  that does not replace, on a grid holding more charts than its tickers, with no explicit new / add / replace in the words. */
+export function gridChoiceFor(ops, text, host) {
+  if (!Array.isArray(ops) || ops.length !== 1 || ops[0]?.action !== 'chartGrid.set') return null
+  const a = ops[0].args || {}
+  if (a.replace === true || a.replace === 'charts') return null
+  if (explicitGridIntent(text) || isWorkspaceRequest(text)) return null
+  return gridQuestion((a.symbols || []).map(s => String(s || '').toUpperCase()), a.timeframe || null, a.layout || null, a.watchlist === true, gridChartCount(host, 0))
+}
 const wantsNew = (text, n, onBoard) => ASKS_NEW.test(String(text || '')) || n < onBoard
 // n new charts land in EMPTY space as the product places them (nothing resized or moved)
 function fitsEmpty(host, n) {

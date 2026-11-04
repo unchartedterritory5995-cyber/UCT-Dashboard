@@ -26,7 +26,7 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
-import { multiChartPlan, screenChartGrid, isWorkspaceRequest } from './multiChart'
+import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
 import { notDoneLines } from './notDone'
 import { decideMode } from './policy'
@@ -2410,6 +2410,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // the board's charts, re-tiles to make room) — never "there isn't enough open space"
       // W1.1 R-02 (LT-1): on an EMPTY board, chart ops the planner put on a target that is not a chart = one new chart on that symbol
       const gridded = screenChartGrid(screenEmptyBoardChart(screenNewChart(canonicalIndicatorAdds(screened.ops), text).ops, host).ops, text, host)
+      // review t4 M1: the SAME replace-or-add question as the instant reader, for the model's plan on every path (NL-1 too) —
+      // a grid of fewer tickers than the board's charts, with no new / add / replace in the member's words, is never guessed
+      const gridAsk = gridChoiceFor(gridded.ops, `${askedFor || ''} ${text}`, host)
+      if (gridAsk) {
+        pendingRef.current = { kind: 'target', ops: [], path: 'model', member: text, voice, epoch: epochOf(host), gridChoice: gridAsk.options }
+        push({ role: 'question', text: gridAsk.text, choices: [...gridAsk.choices, { label: 'Cancel', cancel: true }], local: true })
+        record({ member: null, outcome: gridAsk.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
       // ⭐ acceptance 2026-10-29: the plan also changes the charts the grid makes ("…, each with a 50sma") — the grid runs,
       // then those changes, on the charts that now show their tickers: two steps of one request (runCompound — each step
       // the same execute, policy, receipts and Undo; a step that does not land stops the rest, said plainly)

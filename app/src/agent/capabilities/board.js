@@ -116,6 +116,8 @@ function chartsOf(host) {
   }
   return m
 }
+const TF_WORDS = { D: 'Daily', W: 'Weekly', M: 'Monthly', 1: '1 minute', 5: '5 minutes', 15: '15 minutes', 30: '30 minutes', 60: '1 hour' }
+const tfWordOf = (tf) => TF_WORDS[tf] || (tf ? String(tf) : 'Daily')
 const nameOf = (w, all) => {
   const pos = positionWord(w, all)
   return `${label(w.type)}${pos ? ` (${pos})` : ''}`
@@ -715,13 +717,13 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'chartGrid.set',
-    summary: 'Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts\' area is re-tiled as an even grid. Other widgets stay where they are; nothing is removed. One change, one Undo.',
+    summary: 'Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts\' area is re-tiled as an even grid. Other widgets stay; nothing is removed unless replace is set. One change, one Undo.',
     hints: 'Use for "create/open/show N charts for A, B, C…", "put SPY, QQQ, NVDA and TSLA in a 2x2 grid", "show NVDA and AMD side by side" — whenever the member names the tickers for several charts. '
       + 'target = the ref of the board entry. symbols = the tickers in the member\'s order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. '
       + 'layout = "columns" for side by side, "rows" for stacked, "grid" for a grid, else null. '
       + 'new_charts = true only when they ask for NEW charts ("in new charts", "add four new charts") — the charts already there then keep their tickers; else null. '
       + 'watchlist = true when they also ask for a watchlist beside the charts ("…, and a watchlist") and the board has none: a Watchlist widget is added in a cleared right column; else null. '
-      + 'replace = true when they chose to replace the board with this workspace, "charts" to replace only their charts, else null. Never widget.add + chart.setSymbol for this.',
+      + 'replace = true only when they chose to replace the board with this workspace, "charts" to replace only their charts, else null. Never widget.add + chart.setSymbol for this.',
     args: { type: 'object', properties: {
       symbols: { type: 'array', items: { type: 'string' } },
       timeframe: { type: ['string', 'null'], enum: [...CHART_TIMEFRAMES, null] },
@@ -754,7 +756,21 @@ export function registerBoardCapabilities() {
       const s = env.target
       const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false })
       if (!plan.ok) return st
-      if (plan.remove.length) plan.removedNames = st.board.filter(w => plan.remove.includes(String(w.id))).map(w => nameOf(w, st.board))
+      // review t4 M2: a chart to remove is named by its TICKER and timeframe (its position only when that still leaves two
+      // alike) — never two entries that read the same
+      if (plan.remove.length) {
+        const gone = st.board.filter(w => plan.remove.includes(String(w.id)))
+        const info = (w) => (w.type === 'chart' ? s.charts?.get?.(String(w.id)) || null : null)
+        const base = (w) => { const c = info(w); return c?.symbol ? `${c.symbol} chart (${tfWordOf(c.tf)})` : nameOf(w, st.board) }
+        const counts = new Map()
+        for (const w of gone) counts.set(base(w), (counts.get(base(w)) || 0) + 1)
+        plan.removedNames = gone.map(w => {
+          const b = base(w)
+          if (counts.get(b) === 1) return b
+          const pos = positionWord(w, st.board)
+          return pos ? b.replace(/\)$/, `, ${pos})`) : b
+        })
+      }
       const board = st.board.filter(w => !plan.remove.includes(String(w.id))).map(w => (plan.set[String(w.id)] ? { ...w, ...plan.set[String(w.id)] } : (plan.unlink.includes(String(w.id)) ? { ...w, color: 'N' } : w)))
       return { ...st, board, grid: plan }
     },
@@ -765,7 +781,7 @@ export function registerBoardCapabilities() {
         : g.tiled && g.shape?.rows === 1 && g.symbols.length > 1 ? ' side by side' : g.tiled && g.shape?.cols === 1 && g.symbols.length > 1 ? ' stacked' : ''
       const rail = g.rail ? `, with a new ${label(g.rail)} on the right` : g.railMoved ? ', with your Watchlist on the right' : ''
       // ⭐ PHASE 3 acceptance: a replaced board says exactly what went (and that Undo brings it back)
-      const gone = g.remove?.length ? ` — replacing your ${(g.removedNames || []).every(x => /^chart/i.test(String(x))) ? 'charts' : 'board'}: removed ${andList((g.removedNames || []).map(x => `the ${x}`))} (Undo puts ${g.remove.length === 1 ? 'it' : 'them'} back)` : ''
+      const gone = g.remove?.length ? ` — replacing your ${(g.removedNames || []).every(x => /\bchart\b/i.test(String(x))) ? 'charts' : 'board'}: removed ${andList((g.removedNames || []).map(x => `the ${x}`))} (Undo puts ${g.remove.length === 1 ? 'it' : 'them'} back)` : ''
       if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}, re-tiled evenly` : ''}${rail}`
       const nNew = g.add.filter(a => !a.type || a.type === 'chart').length
       const parts = [g.reuse.length && nNew ? `${g.reuse.length} reused, ${nNew} new` : nNew ? `${nNew} new` : null,

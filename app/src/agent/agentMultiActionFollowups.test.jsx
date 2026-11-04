@@ -14,6 +14,8 @@ import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { touchesCharts, arrangesBoard, asSubjectWords, isShortAnswer, isNewRequest } from './useAgent'
 import { AuthContext } from '../context/AuthContext'
+import { NL1_KEY } from './nl1/interpreter'
+import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { selectGroups, routeManifest, wordsSelect } from './routing'
 import { fastParse } from './fastPath'
 import { multiChartPlan } from './multiChart'
@@ -32,6 +34,7 @@ import AgentPanel from './AgentPanel'
 registerBuiltins()
 
 let envelopes, calls, saveFails
+let nl1Config = false
 const env = (disposition, ops, reply = '') => ({ disposition, reply, question: null, ops, unsupported_category: null })
 beforeEach(() => {
   envelopes = []; calls = []; saveFails = false
@@ -45,6 +48,7 @@ beforeEach(() => {
       return json({ conversationId: 'ac_1', envelope: typeof e === 'function' ? e(body) : (e || env('answer', [], 'NO SCRIPTED MODEL TURN')), usage: { research_calls: 0, citations: [] } })
     }
     if (url === '/api/agent/record') return json({ conversationId: 'ac_1' })
+    if (url === '/api/agent/config') return nl1Config ? json({ stream: false, nl1: true }) : json({ conversations: [] })
     const q = /ticker-search\?q=([^&]+)/.exec(String(url))
     if (q) return json({ results: [{ ticker: decodeURIComponent(q[1]).toUpperCase() }] })
     if (String(url).startsWith('/api/live-prices')) return json({})
@@ -1079,4 +1083,51 @@ describe('live train 4 · NO receipt claims a change the save did not confirm (o
     await waitFor(() => expect(transcript()).toMatch(/is on your screen but wasn’t saved/), { timeout: 8000 })
     expect(transcript()).not.toMatch(/Done in 2 steps/)
   }, 30000)
+})
+
+describe('review t4 · the replace-or-add question on EVERY path (model, NL-1) — reworded requests never make 10 charts', () => {
+  const SIX = () => [[0, 1, 2, 3, 4, 5].map(i => ({ id: `c${i}`, type: 'chart', x: (i % 3) * 8, y: Math.floor(i / 3) * 10, w: 8, h: 10, color: 'ABCDEF'[i], opts: settings() })),
+    { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA', E: 'NVDA', F: 'QQQ' }]
+  const boardRef = (b) => (b.context?.board || b.context?.boards || [])[0]?.ref || 'board'
+  for (const [said, plan] of [
+    ["I'd like SPY, QQQ, NVDA and TSLA on four charts, all the same size, thanks", (b) => [{ action: 'chartGrid.set', target: boardRef(b), args: { symbols: ['SPY', 'QQQ', 'NVDA', 'TSLA'], timeframe: null, layout: 'grid', new_charts: true, watchlist: null, replace: null } }]],
+    ['could you put SPY QQQ NVDA TSLA on equal charts for me please', (b) => [
+      ...[1, 2, 3, 4].map(n => ({ action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: `n${n}` } })),
+      ...['SPY', 'QQQ', 'NVDA', 'TSLA'].map((s, i) => ({ action: 'chart.setSymbol', target: `n${i + 1}`, args: { symbol: s } })),
+      { action: 'widget.arrange', target: boardRef(b), args: { widgets: null, pattern: 'grid' } }]],
+  ]) {
+    it(`model path: "${said}" → the question, no charts added`, async () => {
+      const { board, say } = mount(...SIX())
+      envelopes.push(b => env('apply', plan(b)))
+      await say(said)
+      expect(turnBodies().length).toBeLessThanOrEqual(1)                                       // the instant reader may take it first
+      expect(chartsOf(board)).toHaveLength(6)
+      expect(screen.queryAllByTestId('agent-question')[0]?.textContent || '').toMatch(/You have 6 charts here\. Replace them with these 4/)
+    }, 30000)
+  }
+  it('NL-1 path: the same question (the check is not inside the legacy-only branch)', async () => {
+    try { localStorage.setItem(NL1_KEY, '1') } catch { /* */ }
+    nl1Config = true
+    _resetAgentConfig(); await loadAgentConfig()
+    try {
+      const { board, say } = mount(...SIX())
+      envelopes.push(b => ({ ...env('apply', [{ action: 'chartGrid.set', target: Object.values(b.context || {}).flat().find(e => e?.ref && /board/i.test(String(e.label || e.ref)))?.ref || 'board', args: { symbols: ['SPY', 'QQQ', 'NVDA', 'TSLA'], timeframe: null, layout: 'grid', new_charts: true, watchlist: null, replace: null } }]), correction: null }))
+      await say("I'd like SPY, QQQ, NVDA and TSLA on four charts, all the same size, thanks")
+      expect(chartsOf(board)).toHaveLength(6)
+      expect(screen.queryAllByTestId('agent-question')[0]?.textContent || '').toMatch(/You have 6 charts here/)
+    } finally { nl1Config = false; try { localStorage.removeItem(NL1_KEY) } catch { /* */ }; _resetAgentConfig() }
+  }, 30000)
+  it('the replace CARD names each chart to remove by ticker + timeframe and says "will remove"; the receipt says "removed"', async () => {
+    const { board, say } = mount(...SIX())
+    await say('Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace my 6 charts with these 4' }))
+    await idle()
+    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal').length).toBeGreaterThan(0))
+    const card = screen.queryAllByTestId('agent-proposal')[0].textContent
+    expect(card).toMatch(/replacing your charts: will remove the NVDA chart \(Daily\) and the QQQ chart \(Daily\)/)
+    expect(card).not.toMatch(/: removed /)
+    await say('do it')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    expect(transcript()).toMatch(/replacing your charts: removed the NVDA chart \(Daily\) and the QQQ chart \(Daily\)/)
+  }, 40000)
 })

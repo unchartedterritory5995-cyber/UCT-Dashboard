@@ -23,6 +23,8 @@ export const PAST_TO_PENDING = Object.freeze({
 // phrases that state a RESULT as already true
 const PHRASES = [
   [/\(now open\)/g, '(it becomes the open layout)'],
+  // review t4 M2: a replace says what it WILL remove — the receipt (after approval) keeps "removed"
+  [/ — replacing your (charts|board): removed /g, ' — replacing your $1: will remove '],
 ]
 const VERB = new RegExp(`^(${Object.keys(PAST_TO_PENDING).join('|')})\\b`)
 
