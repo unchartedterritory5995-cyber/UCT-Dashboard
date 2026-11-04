@@ -54,7 +54,7 @@ describe('watchlist.changes: the computation and the card (pure)', () => {
     const a = answerFromChanges(quotesEnv(), { name: 'Momentum', symbols: Object.keys(PCT), total: 7, news })
     const lines = a.text.split('\n')
     expect(lines[0]).toBe("“Momentum” — change vs each stock's previous session close, from UCT's quote snapshot as of Tue, Nov 3, 2:30 PM ET (regular session):")
-    expect(lines[1]).toBe('7 with a change: 3 up, 3 down, 1 unchanged.')
+    expect(lines[1]).toBe('7 with a price change figure: 3 up, 3 down, 1 unchanged.')
     expect(lines[2]).toBe('Biggest gainers: T01 +4.20%, T06 +1.75%, T03 +0.50%.')
     expect(lines[3]).toBe('Biggest decliners: T07 −6.00%, T02 −3.10%, T05 −0.25%.')
     expect(lines[4]).toBe('Stored news items in the 24 hours to Tue, Nov 3, 2:30 PM ET (largest movers): T07 2, T01 0, T06 1, T03 0.')
@@ -153,6 +153,16 @@ describe('watchlist.changes: served panel, dark, isolation', () => {
     }
     expect(GROUPS.find(g => g.id === 'lists').words).not.toContain(CHANGE_WORDS[0])          // routing exactly as before
     expect(reads).toEqual([])
+  })
+
+  it('review #788 f: a LATER config load that switches the workflow off takes the capability and its routing words out', async () => {
+    await loadAgentConfig()
+    expect(registerWatchlistChangesCapability()).toBe(true)
+    _resetAgentConfig(); config = { ...SERVED, workflows: [] }
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    expect(allCapabilityNames()).not.toContain(CAPABILITY)
+    expect(GROUPS.find(g => g.id === 'lists').words).not.toContain(CHANGE_WORDS[0])
   })
 
   it('isolation and shape: a served NON-local query on the watchlist target in the lists group', async () => {

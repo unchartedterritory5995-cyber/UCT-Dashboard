@@ -94,7 +94,7 @@ export function answerFromChanges(env, { name, symbols, total = null, news = {} 
   const when = stampET(c.asOf || c.fetchedAt, null)
   const session = SESSION_WORDS[c.session] || null
   const lines = [`${list} — change vs each stock's previous session close, from UCT's quote snapshot as of ${when || 'an unstated time'}${session ? ` (${session})` : ''}:`]
-  lines.push(`${c.rows.length} with a change: ${c.up} up, ${c.down} down, ${c.flat} unchanged.`)
+  lines.push(`${c.rows.length} with a price change figure: ${c.up} up, ${c.down} down, ${c.flat} unchanged.`)
   if (c.gainers.length) lines.push(`Biggest gainers: ${c.gainers.map(r => `${r.symbol} ${sp(r.pct)}`).join(', ')}.`)
   if (c.decliners.length) lines.push(`Biggest decliners: ${c.decliners.map(r => `${r.symbol} ${sp(r.pct)}`).join(', ')}.`)
   // news counts for the largest movers, in the 24 hours to the snapshot
@@ -165,7 +165,9 @@ let registered = false
 let unregister = null
 /** Idempotent; registers nothing unless the workflow is switched on and `quotes` + `news.company` are served. */
 export function registerWatchlistChangesCapability() {
-  if (registered || !watchlistChangesServed()) return false
+  // a later config load that switches the workflow off takes the capability AND its routing words out (review #788 f)
+  if (registered) { if (!watchlistChangesServed()) _resetWatchlistChangesForTest(); return false }
+  if (!watchlistChangesServed()) return false
   registered = true
   unregister = registerCapability({
     name: 'watchlist.changes',        // a LITERAL: turn.DATA_READ_ACTIONS names it (the server blanks a pre-read reply)

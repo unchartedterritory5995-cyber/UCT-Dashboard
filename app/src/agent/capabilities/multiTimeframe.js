@@ -42,7 +42,7 @@ export function answerFromMultiTimeframe(env, { symbol, name = null }) {
   const d = (ymd) => sessionDate(ymd, o.through)
   const lastWeek = w.weeks[w.weeks.length - 1]
   const lines = [`${sym} — daily and weekly setup side by side, from ${setup.sessions} completed sessions (${w.weeks.length} calendar weeks) ending ${d(o.through)}:`]
-  lines.push(`Close: ${money(o.lastClose.value)} on ${d(o.lastClose.date)} — also the close of the week ending ${d(lastWeek.date)}${lastWeek.sessions < 5 ? ` (that week holds ${lastWeek.sessions} completed session${lastWeek.sessions === 1 ? '' : 's'} so far)` : ''}.`)
+  lines.push(`Close: ${money(o.lastClose.value)} on ${d(o.lastClose.date)} — also the close of the week ending ${d(lastWeek.date)}${lastWeek.sessions < 5 ? ` (that week holds ${lastWeek.sessions} completed session${lastWeek.sessions === 1 ? '' : 's'})` : ''}.`)
   const cmp = (n) => {
     const dt = o[`sma${n}`]; const wt = w[`w${n}`]
     const dayPart = dt ? `daily ${rel(dt, 'session', d)}` : `daily not measured (${setup.missing[`close_vs_sma${n}`]})`
@@ -161,7 +161,9 @@ let registered = false
 let unregister = null
 /** Idempotent; registers nothing unless the workflow is switched on and `bars.daily` + `instrument.resolve` are served. */
 export function registerMultiTimeframeCapability() {
-  if (registered || !multiTimeframeServed()) return false
+  // a later config load that switches the workflow off takes the capability AND its routing words out (review #788 f)
+  if (registered) { if (!multiTimeframeServed()) _resetMultiTimeframeForTest(); return false }
+  if (!multiTimeframeServed()) return false
   registered = true
   unregister = registerCapability({
     name: 'chartSetup.multiTimeframe',   // a LITERAL: turn.DATA_READ_ACTIONS names it (the server blanks a pre-read reply)

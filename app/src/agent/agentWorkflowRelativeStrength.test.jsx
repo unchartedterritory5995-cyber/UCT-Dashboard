@@ -16,7 +16,7 @@ import { _resetTurns } from './trace'
 import { resolveEnvelope } from './marketdata/__fixtures__/fakeResolve'
 import {
   relativeStrengthOf, answerFromRelativeStrength, match, relativeStrengthServed, registerRelativeStrengthCapability,
-  _resetRelativeStrengthForTest, CAPABILITY, DEFAULT_WINDOWS,
+  _resetRelativeStrengthForTest, calendarCutoff, CAPABILITY, DEFAULT_WINDOWS,
 } from './capabilities/relativeStrength'
 import { DESCRIPTIVE } from './capabilities/workflowGate'
 
@@ -33,8 +33,8 @@ function sessions(n, end = '2026-10-30') {
   return out
 }
 const path = (n, end, f) => sessions(n, end).map((date, i) => ({ date, open: f(i), high: f(i) + 1, low: f(i) - 1, close: Math.round(f(i) * 100) / 100, volume: 1000 }))
-const STOCK = path(253, '2026-10-30', i => 40 + i * 0.25 + (i % 5) * 0.4 - (i > 240 ? (i - 240) * 0.3 : 0))
-const BENCH = path(253, '2026-10-30', i => 100 + i * 0.1 + (i % 3) * 0.2)
+const STOCK = path(258, '2026-10-30', i => 40 + i * 0.25 + (i % 5) * 0.4 - (i > 240 ? (i - 240) * 0.3 : 0))
+const BENCH = path(258, '2026-10-30', i => 100 + i * 0.1 + (i % 3) * 0.2)
 function barsEnv(sym, bars, o = {}) {
   const through = bars.length ? bars[bars.length - 1].date : null
   return { contract: 'MD-1.0', kind: 'bars.daily', params_echo: { symbol: sym }, status: 'ok', freshness: 'historical', as_of: through ? `${through}T20:00:00Z` : null,
@@ -66,7 +66,7 @@ describe('stock.relativeStrength: the computation and the card (pure)', () => {
     const a = answerFromRelativeStrength(barsEnv('NVDA', STOCK), barsEnv('SPY', BENCH), { symbol: 'nvda', benchmark: 'spy', names: { NVDA: 'NVIDIA Corp', SPY: 'SPDR S&P 500 ETF Trust, an ETF' } })
     const lines = a.text.split('\n')
     expect(lines[0]).toBe('NVDA (NVIDIA Corp) vs SPY (SPDR S&P 500 ETF Trust, an ETF) — relative strength from completed daily closes through Fri, Oct 30:')
-    expect(lines[2]).toMatch(/^Over 21 sessions \(1 month\), .* to Fri, Oct 30: NVDA [+−][\d.]+%, SPY [+−][\d.]+% — [\d.]+ points? (ahead of|behind) SPY; the NVDA\/SPY ratio (rose|fell) [\d.]+%\.$/)
+    expect(lines[2]).toMatch(/^Over 21 sessions \(about 1 month\), .* to Fri, Oct 30: NVDA [+−][\d.]+%, SPY [+−][\d.]+% — [\d.]+ points? (ahead of|behind) SPY; the NVDA\/SPY ratio (rose|fell) [\d.]+%\.$/)
     for (const r of a.rs.rows) expect(a.text).toContain(`${Math.abs(r.ratioPct).toFixed(2)}%`)
     expect(a.text).toMatch(/RS line \(NVDA close ÷ SPY close\): [\d.]+% below its highest of the 252 sessions/)
     expect(a.text).toContain('say "compare SPY on this chart" (Compare Symbols)')
@@ -89,6 +89,26 @@ describe('stock.relativeStrength: the computation and the card (pure)', () => {
     const tooShort = answerFromRelativeStrength(barsEnv('NVDA', STOCK.slice(-30)), barsEnv('SPY', BENCH), { symbol: 'NVDA', benchmark: 'SPY', sessions: 60 })
     expect(tooShort.text).toContain('Not measured: the two share only 30 completed sessions')
     expect(tooShort.table).toBeUndefined()
+  })
+
+  it('review #788: a missing date keeps the 1-year window (cushion); calendar windows; "at its high" only when the high IS the last point', () => {
+    // (a) the 258-bar read with ONE benchmark date missing still covers 252 common sessions
+    const holed = BENCH.filter((_, i) => i !== 100)
+    expect(relativeStrengthOf(barsEnv('NVDA', STOCK), barsEnv('SPY', holed)).rows.map(r => r.sessions)).toEqual(DEFAULT_WINDOWS)
+    // (b) "30 days" are CALENDAR days: the base is the last session on or before Oct 30 − 30 days (Wed, Sep 30)
+    expect(calendarCutoff('2026-10-30', { days: 30 })).toBe('2026-09-30')
+    expect(calendarCutoff('2026-03-31', { months: 1 })).toBe('2026-02-28')
+    const cal = answerFromRelativeStrength(barsEnv('NVDA', STOCK), barsEnv('SPY', BENCH), { symbol: 'NVDA', benchmark: 'SPY', days: 30 })
+    expect(cal.rs.rows).toHaveLength(1)
+    expect(cal.rs.rows[0]).toMatchObject({ from: '2026-09-30', to: '2026-10-30', sessions: 22, calendar: { days: 30 } })
+    expect(cal.text).toMatch(/^Over the last 30 calendar days \(22 sessions\), Wed, Sep 30 to Fri, Oct 30:/m)
+    const mo = answerFromRelativeStrength(barsEnv('NVDA', STOCK), barsEnv('SPY', BENCH), { symbol: 'NVDA', benchmark: 'SPY', months: 3 })
+    expect(mo.text).toMatch(/^Over the last 3 months \(\d+ sessions\), Thu, Jul 30 to Fri, Oct 30:/m)
+    // (c) a flat ratio whose high was set EARLIER (a tie rounding to 0.00%) is not "at its high"
+    const flat = path(30, '2026-10-30', i => (i === 10 ? 101 : 100))
+    const tie = relativeStrengthOf(barsEnv('NVDA', flat.map(b => ({ ...b, close: b.close === 101 ? 100.001 : b.close }))), barsEnv('SPY', path(30, '2026-10-30', () => 100)), { windows: [21] })
+    expect(tie.rsLine.offHighPct).toBe(-0)
+    expect(tie.rsLine.atHigh).toBe(false)
   })
 
   it('refusals: either series unavailable / refused, or no common sessions → fixed words, no figure', () => {
@@ -148,8 +168,8 @@ describe('stock.relativeStrength: served panel, model path, dark, isolation', ()
     expect(p.turns()).toBe(0)
     expect(reads.map(r => r.kind)).toEqual(['instrument.resolve', 'bars.daily', 'bars.daily'])
     expect(reads[0].params.symbols.map(s => s.text)).toEqual(['NVDA', 'SPY'])
-    expect(reads[1]).toMatchObject({ params: { symbol: 'NVDA', bars: 253 }, purpose: 'answer' })
-    expect(reads[2]).toMatchObject({ params: { symbol: 'SPY', bars: 253 }, purpose: 'answer' })
+    expect(reads[1]).toMatchObject({ params: { symbol: 'NVDA', bars: 258 }, purpose: 'answer' })      // 252 + 1 + a 5-bar cushion
+    expect(reads[2]).toMatchObject({ params: { symbol: 'SPY', bars: 258 }, purpose: 'answer' })
     expect(typeof reads[1].turn_id).toBe('string')
     expect(out).toMatch(/NVDA( \(.*?\))? vs SPY( \(.*?\))? — relative strength from completed daily closes through Fri, Oct 30/)
     expect(out).toContain(DESCRIPTIVE)
@@ -157,7 +177,7 @@ describe('stock.relativeStrength: served panel, model path, dark, isolation', ()
     // "the market" = SPY; a window in days
     await say('is AMD outperforming the market over the last 20 days?')
     expect(reads.slice(3).map(r => r.kind)).toEqual(['instrument.resolve', 'bars.daily', 'bars.daily'])
-    expect(reads[4].params).toEqual({ symbol: 'AMD', bars: 21 })
+    expect(reads[4].params).toEqual({ symbol: 'AMD', bars: 22 })      // 20 CALENDAR days: ≤ 15 sessions + base + cushion
   })
 
   it('benchmark bars unavailable → the fixed sentence, no figure', async () => {
@@ -169,13 +189,13 @@ describe('stock.relativeStrength: served panel, model path, dark, isolation', ()
 
   it('model path (scripted): an apply of the action runs the same reads; "vs its sector" with no fund is never guessed', async () => {
     const { say } = p.mount(...ONE('QQQ'))
-    p.st.envelopes.push(p.env('apply', [{ action: CAPABILITY, target: 'm', args: { symbol: 'TSLA', benchmark: 'DIA', sessions: 63 } }], ''))   // (the server blanks a data-read plan's reply: tests/test_uct_agent_workflows.py)
+    p.st.envelopes.push(p.env('apply', [{ action: CAPABILITY, target: 'm', args: { symbol: 'TSLA', benchmark: 'DIA', sessions: 63, days: null, months: null } }], ''))   // (the server blanks a data-read plan's reply: tests/test_uct_agent_workflows.py)
     const out = await say('how is tesla doing versus the dow fund, last three months')
     expect(p.turns()).toBe(1)
     expect(JSON.stringify(p.lastTurnBody())).toContain(CAPABILITY)
-    expect(reads.filter(r => r.kind === 'bars.daily').map(r => r.params)).toEqual([{ symbol: 'TSLA', bars: 64 }, { symbol: 'DIA', bars: 64 }])
+    expect(reads.filter(r => r.kind === 'bars.daily').map(r => r.params)).toEqual([{ symbol: 'TSLA', bars: 69 }, { symbol: 'DIA', bars: 69 }])
     expect(out).toMatch(/TSLA.* vs DIA.* — relative strength/)
-    p.st.envelopes.push(p.env('apply', [{ action: CAPABILITY, target: 'm', args: { symbol: 'NVDA', benchmark: 'sector', sessions: null } }], ''))
+    p.st.envelopes.push(p.env('apply', [{ action: CAPABILITY, target: 'm', args: { symbol: 'NVDA', benchmark: 'sector', sessions: null, days: null, months: null } }], ''))
     const sector = await say('nvda relative strength vs its sector')
     expect(sector).toContain("UCT doesn't pick a sector for a stock")
   })
@@ -195,6 +215,17 @@ describe('stock.relativeStrength: served panel, model path, dark, isolation', ()
     expect(wordsSelect('data', 'is NVDA outperforming the market')).toBe(false)    // routing exactly as before
   })
 
+  it('review #788 f: a LATER config load that switches the workflow off takes the capability and its routing words out', async () => {
+    await loadAgentConfig()
+    expect(registerRelativeStrengthCapability()).toBe(true)
+    expect(wordsSelect('data', 'is NVDA outperforming the market')).toBe(true)
+    _resetAgentConfig(); config = { ...SERVED, workflows: [] }
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    expect(allCapabilityNames()).not.toContain(CAPABILITY)
+    expect(wordsSelect('data', 'is NVDA outperforming the market')).toBe(false)
+  })
+
   it('isolation and shape: a served NON-local market query in the data group; fast-path phrasings', async () => {
     await loadAgentConfig()
     expect(serverWorkflows()).toEqual(['relativeStrength'])
@@ -205,12 +236,14 @@ describe('stock.relativeStrength: served panel, model path, dark, isolation', ()
     expect(handshake.local_only_actions).not.toContain(CAPABILITY)
     expect(groupOfAction(CAPABILITY)).toBe('data')
     expect(wordsSelect('data', 'is NVDA outperforming the market')).toBe(true)     // its own words, only while registered
-    const P = (symbol, benchmark, sessions) => ({ action: CAPABILITY, params: { symbol, benchmark, sessions } })
+    const P = (symbol, benchmark, sessions, days = null, months = null) => ({ action: CAPABILITY, params: { symbol, benchmark, sessions, days, months } })
     expect(match('NVDA relative strength vs SPY')).toEqual(P('NVDA', 'SPY', null))
-    expect(match("what's the relative strength of amd against qqq over the last 3 months?")).toEqual(P('amd', 'qqq', 63))
-    expect(match('is TSLA underperforming the S&P over the past 2 weeks')).toEqual(P('TSLA', 'SPY', 10))
+    expect(match("what's the relative strength of amd against qqq over the last 3 months?")).toEqual(P('amd', 'qqq', null, null, 3))
+    expect(match('is TSLA underperforming the S&P over the past 2 weeks')).toEqual(P('TSLA', 'SPY', null, 14))
     expect(match("show me NVDA's RS line")).toEqual(P('NVDA', null, null))
-    expect(match('relative strength of NVDA over the last year')).toEqual(P('NVDA', null, 252))
+    expect(match('relative strength of NVDA over the last year')).toEqual(P('NVDA', null, null, null, 12))
+    expect(match('NVDA relative strength vs SPY over the last 30 trading days')).toEqual(P('NVDA', 'SPY', 30))
+    expect(match('NVDA relative strength vs SPY over the last 30 days')).toEqual(P('NVDA', 'SPY', null, 30))
     for (const t of ['relative strength of it vs SPY', 'NVDA relative strength vs its sector', 'NVDA vs AMD', 'compare NVDA to AMD', 'NVDA rs over the last 400 days']) expect(match(t), t).toBeNull()
     expect(fastParse('NVDA relative strength vs SPY', {})).toBeTruthy()
   })

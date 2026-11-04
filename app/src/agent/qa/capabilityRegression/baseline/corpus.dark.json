@@ -30,7 +30,9 @@
       "args": {
        "symbol": "NVDA",
        "benchmark": "SPY",
-       "sessions": null
+       "sessions": null,
+       "days": null,
+       "months": null
       }
      }
     ]

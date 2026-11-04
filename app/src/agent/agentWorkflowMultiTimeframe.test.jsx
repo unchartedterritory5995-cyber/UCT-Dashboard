@@ -74,7 +74,7 @@ describe('chartSetup.multiTimeframe: the card (pure)', () => {
 
   it('a partial last week is said; stale bars are said; no bars → the fixed sentence, no figure', () => {
     const mid = makeBars(252, '2026-10-28')          // a Wednesday: that week holds 3 sessions
-    expect(answerFromMultiTimeframe(barsEnv(mid), { symbol: 'QQQ' }).text).toContain('(that week holds 3 completed sessions so far)')
+    expect(answerFromMultiTimeframe(barsEnv(mid), { symbol: 'QQQ' }).text).toContain('(that week holds 3 completed sessions)')
     const stale = answerFromMultiTimeframe(barsEnv(FULL, { stale: true, data: { symbol: 'QQQ', bars: FULL, through: '2026-10-30', latest_completed_session: '2026-11-02' } }), { symbol: 'QQQ' })
     expect(stale.text).toContain("Note: UCT's bars end Fri, Oct 30, but the most recent completed session was Mon, Nov 2")
     const none = answerFromMultiTimeframe(barsEnv([], { status: 'unavailable', data: null }), { symbol: 'QQQ' }).text
@@ -160,6 +160,16 @@ describe('chartSetup.multiTimeframe: served panel, dark, isolation', () => {
     }
     expect(wordsSelect('chartSetup', 'daily and weekly setup for NVDA')).toBe(false)
     expect(reads).toEqual([])
+  })
+
+  it('review #788 f: a LATER config load that switches the workflow off takes the capability and its routing words out', async () => {
+    await loadAgentConfig()
+    expect(registerMultiTimeframeCapability()).toBe(true)
+    _resetAgentConfig(); config = { ...SERVED, workflows: [] }
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    expect(allCapabilityNames()).not.toContain(CAPABILITY)
+    expect(wordsSelect('chartSetup', 'daily and weekly setup for NVDA')).toBe(false)
   })
 
   it('isolation and shape: a served NON-local chart query in the chartSetup group; phrasings', async () => {
