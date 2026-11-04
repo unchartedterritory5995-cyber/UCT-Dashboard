@@ -1452,7 +1452,8 @@ def _research(query: str, recency: str) -> dict:
     if res.get("error"):
         return {"answer": "research unavailable right now", "citations": []}
     return {"answer": str(res.get("answer") or "")[:2400], "citations": list(res.get("citations") or [])[:6],
-            "cached": bool(res.get("cached")), "cost_usd": res.get("cost_usd")}
+            "cached": bool(res.get("cached")), "cost_usd": res.get("cost_usd"),
+            "attempts": res.get("attempts"), "usage_reported": res.get("usage_reported")}
 
 
 def _default_caller(**kwargs):
@@ -1470,11 +1471,28 @@ def _default_stream_caller(on_text: Callable[[str], None], **kwargs):
     from api.services import llm_timeouts
     client = _get_anthropic_client().with_options(
         max_retries=0, timeout=llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH))
-    with client.messages.stream(**kwargs) as stream:
-        for event in stream:
-            if getattr(event, "type", None) == "text":
-                on_text(event.text)
-        return stream.get_final_message()
+    seen: dict | None = None
+    try:
+        with client.messages.stream(**kwargs) as stream:
+            for event in stream:
+                kind = getattr(event, "type", None)
+                if kind == "text":
+                    on_text(event.text)
+                elif kind == "message_start":
+                    u = getattr(getattr(event, "message", None), "usage", None)
+                    if u is not None:
+                        seen = {"input": int(getattr(u, "input_tokens", 0) or 0),
+                                "cache_read": int(getattr(u, "cache_read_input_tokens", 0) or 0),
+                                "cache_write": int(getattr(u, "cache_creation_input_tokens", 0) or 0)}
+            return stream.get_final_message()
+    except Exception as e:
+        if seen is not None:
+            # budget.Meter settles a mid-stream failure at this input + the output ceiling, not the byte bound
+            try:
+                e.uct_usage = seen
+            except Exception:  # noqa: BLE001 -- an exception that takes no attributes keeps the worst case
+                pass
+        raise
 
 
 # ── STREAMING THE REPLY (2026-10-12, latency) ───────────────────────────────────────────────────────
@@ -1571,6 +1589,24 @@ RESEARCH_STEP_LIMIT = ("I'd need to look that up, but this request has used its 
                        "Ask it again on its own and I'll check current information.")
 RESEARCH_NOT_RUN = ("I couldn't look that up right now, so I haven't answered from memory. "
                     "Please ask again later.")
+RESEARCH_TURN_CAP = ("I'd need to look that up, but this request has reached one turn's AI budget, so I haven't. "
+                     "Ask it again on its own and I'll check current information.")
+RESEARCH_UNREAD_TURN_CAP = ("I looked that up, but reading the results would go past one turn's AI budget, so I haven't "
+                            "answered from them. Ask it again on its own and I'll check current information.")
+#: The pre-check's allowance for the research block the post-research call carries (answer <= 2400 characters,
+#: <= 6 citations). An allowance, not a bound: that call's own reservation is exact.
+RESEARCH_RESULT_BYTES = 12000
+
+
+def _next_call_worst(kw: dict, extra: list[dict]) -> float:
+    """The worst case of the follow-up call that re-sends this call's request with `extra` messages appended."""
+    from api.services.uct_agent import budget
+    return budget.worst_case_usd({**kw, "messages": list(kw.get("messages") or []) + extra})
+
+
+def _affords_next(meter, kw: dict, extra: list[dict], *also: float) -> bool:
+    """Does the per-turn cap leave room for a follow-up call (plus `also`)? No meter or no request: yes."""
+    return meter is None or meter.affords(*also, _next_call_worst(kw, extra))
 
 
 def _budget_refusal(e: BaseException) -> bool:
@@ -2501,14 +2537,10 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
               if streaming and stream_caller is not None else None)
         call = (lambda **kw: stream_caller(rs.feed, **kw)) if rs is not None else caller
         category = ("reroute" if reroute else "turn") if round_ == 0 else ("repair" if usage.get("repaired") == "server" else "after_research")
+        call_kw = dict(model=model(), max_tokens=output_ceiling(model()), system=system_blocks,
+                       output_config=output_config_for(model(), schema), messages=messages)
         try:
-            resp = _paid(
-                meter, category, call,
-                model=model(), max_tokens=output_ceiling(model()),
-                system=system_blocks,
-                output_config=output_config_for(model(), schema),
-                messages=messages,
-            )
+            resp = _paid(meter, category, call, **call_kw)
         except Exception as e:  # noqa: BLE001 — anything but a schema refusal is re-raised unchanged
             if compact or round_ != 0 or not _schema_refused(e) or _budget_refusal(e):
                 raise
@@ -2518,13 +2550,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             schema = envelope_schema(caps, unselected, compact)
             sysprompt = system_prompt(caps, unselected, compact)
             system_blocks = [{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}]
-            resp = _paid(
-                meter, "schema_retry", call,
-                model=model(), max_tokens=output_ceiling(model()),
-                system=system_blocks,
-                output_config=output_config_for(model(), schema),
-                messages=messages,
-            )
+            call_kw = dict(model=model(), max_tokens=output_ceiling(model()), system=system_blocks,
+                           output_config=output_config_for(model(), schema), messages=messages)
+            resp = _paid(meter, "schema_retry", call, **call_kw)
         usage["model_calls"] += 1
         usage["stages"]["model"].append(_ms(t_call))
         u = getattr(resp, "usage", None)
@@ -2564,23 +2592,31 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # checked like a first answer (sanitize_envelope converts a repeated claim into a clarify, never the claim).
         if round_ == 0 and not repaired and not asks_groups and isinstance(env, dict):
             claim = false_capability_claim(env, cap_names, unselected_ids)
+            extra = [{"role": "assistant", "content": text},
+                     {"role": "user", "content": _block("validation_error", {"errors": [claim["error"]]})}] if claim else []
             if claim and claim["where"] == "caps" and (meter is None or meter.calls_left() >= 1):
-                repaired = True
-                usage["repaired"] = "server"
-                usage["false_claim"] = claim["family"]
-                messages = messages + [{"role": "assistant", "content": text},
-                                       {"role": "user", "content": _block("validation_error", {"errors": [claim["error"]]})}]
-                continue
+                if not _affords_next(meter, call_kw, extra):
+                    usage["repair_skipped"] = "turn_cap"      # the plan is served as it came (sanitized as usual)
+                else:
+                    repaired = True
+                    usage["repaired"] = "server"
+                    usage["false_claim"] = claim["family"]
+                    messages = messages + extra
+                    continue
         if nl1 and round_ == 0 and not repaired and not asks_groups:
             problems = nl1_plan_problems(env, caps, valid_refs)
+            extra = [{"role": "assistant", "content": text},
+                     {"role": "user", "content": _block("validation_error", {"errors": problems})}] if problems else []
             if problems and (meter is None or meter.calls_left() >= 1):
-                # NL-1's ONE repair: the plan goes back with the server's reasons; whatever comes back is
-                # checked exactly like a first answer (sanitize, the browser's planner, policy, approval)
-                repaired = True
-                usage["repaired"] = "server"
-                messages = messages + [{"role": "assistant", "content": text},
-                                       {"role": "user", "content": _block("validation_error", {"errors": problems})}]
-                continue
+                if not _affords_next(meter, call_kw, extra):
+                    usage["repair_skipped"] = "turn_cap"      # the browser's planner refuses what it must, as usual
+                else:
+                    # NL-1's ONE repair: the plan goes back with the server's reasons; whatever comes back is
+                    # checked exactly like a first answer (sanitize, the browser's planner, policy, approval)
+                    repaired = True
+                    usage["repaired"] = "server"
+                    messages = messages + extra
+                    continue
         if kn_on and not asks_groups and not usage.get("hidden_phrase") and isinstance(env, dict):
             env, kn_why = knowledge_first(env, msg, cap_names, kn_ref, kn_turn, compact)
             if kn_why:
@@ -2653,8 +2689,14 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # has a call left and the budget admits the search itself. Otherwise NOTHING is looked up and the
             # member is told so in UCT's words — never an answer from memory presented as current.
             skip = None
+            from api.services.uct_agent import budget as _budget
             if meter.calls_left() < 1:
                 skip = ("call_limit", RESEARCH_STEP_LIMIT)
+            elif not _affords_next(meter, call_kw, [{"role": "assistant", "content": text},
+                                                    {"role": "user", "content": "r" * RESEARCH_RESULT_BYTES}],
+                                   _budget.research_worst_case_usd()):
+                # the lookup AND the call that reads it must fit this turn's budget, or nothing is looked up
+                skip = ("turn_cap", RESEARCH_TURN_CAP)
             else:
                 if streaming:
                     if rs is not None and rs.streamed:
@@ -2668,7 +2710,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                 except Exception as e:  # noqa: BLE001 — only a budget refusal is handled here
                     if not _budget_refusal(e):
                         raise
-                    skip = (e.reason, RESEARCH_NOT_RUN)
+                    skip = (e.reason, RESEARCH_TURN_CAP if e.reason == "turn_cap" else RESEARCH_NOT_RUN)
                 usage["stages"]["research"] = _ms(t_research)
             if skip:
                 wants = False
@@ -2697,15 +2739,29 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                 r = _research(str(req["query"]), str(req.get("recency") or "any"))
                 usage["stages"]["research"] = _ms(t_research)
             r = {"answer": r.get("answer", ""), "citations": list(r.get("citations") or [])}   # ledger fields never reach the model
-            usage["citations"].extend(r["citations"])
-            messages = messages + [
+            follow = [
                 {"role": "assistant", "content": text},
                 {"role": "user", "content": _block("research_results", r)
                  + "\nAnswer the member's request from these results. Set research to null (and `title` as instructed). If the results "
                    "say research is unavailable or do not cover the question, say plainly that you could not "
                    "retrieve current information; never present facts from memory as current."},
             ]
-            continue
+            if not _affords_next(meter, call_kw, follow):
+                # the pre-check used an allowance for the results; the REAL results (measured here, before the call is
+                # reserved) do not fit: the turn ends honestly instead of being refused half-way. A planned change stays.
+                usage["research_unread"] = "turn_cap"
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
+                env = {**env, "reply": RESEARCH_UNREAD_TURN_CAP, "research": None, "question": None}
+                if env.get("disposition") == "clarify":
+                    env["disposition"] = "answer"
+                if env.get("disposition") not in MUTATING:
+                    env = {**env, "disposition": "answer", "ops": []}
+                pre_research = None                 # the lookup ran and is counted; nothing it returned is read
+            else:
+                usage["citations"].extend(r["citations"])
+                messages = messages + follow
+                continue
         if pre_research is not None and isinstance(env, dict):
             # The change planned before the research, with the researched answer as its reply.
             env = {**env, "disposition": pre_research["disposition"], "ops": pre_research["ops"],
@@ -2718,7 +2774,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
-        if usage["research_calls"] and isinstance(env, dict) and (env.get("disposition") != "answer" or env.get("ops")):
+        research_read = usage["research_calls"] and not usage.get("research_unread")
+        if research_read and isinstance(env, dict) and (env.get("disposition") != "answer" or env.get("ops")):
             # ⛔ Text retrieved from the web is DATA: it may inform an answer, never
             # drive a change in the same turn. A turn that researched is an answer;
             # the member asks for any change themselves afterwards.
@@ -2728,7 +2785,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    "reply": ("I looked that up, but I don't make changes based on what I find online in the same "
                              "step. Tell me exactly what you'd like changed and I'll do it.") if mutated or not env.get("reply")
                    else env.get("reply")}
-        if not answer_only and not usage["research_calls"]:
+        if not answer_only and not research_read:
             env = promote_talk_reads(env, msg, cap_names)
         if isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)

@@ -2977,12 +2977,8 @@
    "phrasings": {
     "open TSLA on a new chart and switch it to the weekly": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "c"
-     ],
-     "modes": {
-      "c": "the charts' timeframes"
-     }
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -2991,12 +2987,8 @@
    "phrasings": {
     "add a chart for META and make it a line chart": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "c"
-     ],
-     "modes": {
-      "c": "chart types"
-     }
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -3005,12 +2997,8 @@
    "phrasings": {
     "add a chart for AMD and put the 50 SMA on it": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "c"
-     ],
-     "modes": {
-      "c": "no movingAverage(50 sma)"
-     }
+     "gaps": [],
+     "modes": {}
     }
    }
   }

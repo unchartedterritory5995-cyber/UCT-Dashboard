@@ -207,8 +207,15 @@ export const workspaceKind = {
       const w = snap.widgets.find(x => x.id === id)
       // The ticker as the workspace holds it (same value a mounted chart shows), so a
       // chart that mounts after this fingerprint was taken never reads as edited.
-      const sym = host?.widgets?.configOf?.(id)?.symbol ?? host?.charts?.read(id)?.symbol ?? null
-      return w ? [w.id, w.x, w.y, w.w, w.h, w.color, w.optsSig, sym] : [id, 'gone']
+      const cfg = host?.widgets?.configOf?.(id) || null
+      const sym = cfg?.symbol ?? host?.charts?.read(id)?.symbol ?? null
+      // NLM1-G1: the timeframe compared as the workspace means it (an absent tf IS 'D' — configOf), never as stored: the
+      // exact Undo of a timeframe change writes 'D' back where nothing was, and that is no later edit. Everything else
+      // in the opts is still compared (optsSignature: null-valued keys are absent)
+      // ONLY a chart widget's main timeframe: ChartWidget loads `opts.tf || 'D'`, so an absent tf and 'D' are the SAME chart
+      // (a true no-op equivalence); any other value — and every other key, and every other widget type — is compared as stored
+      const opts = w && w.type === 'chart' && cfg && w.optsSigNoTf != null ? `${w.optsSigNoTf}|tf:${cfg.tf || 'D'}` : w?.optsSig
+      return w ? [w.id, w.x, w.y, w.w, w.h, w.color, opts, sym] : [id, 'gone']
     }))
   },
 }

@@ -26,7 +26,8 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
-import { multiChartPlan, screenChartGrid, isWorkspaceRequest } from './multiChart'
+import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
+import { bindCreated } from './createdBinding'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
 import { notDoneLines } from './notDone'
 import { decideMode } from './policy'
@@ -1566,6 +1567,21 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
       return
     }
+    if (p.gridChoice) {
+      // live train 4: the member's pick — replace the charts (a card: it removes charts) or add these beside them
+      const ops = ref === 'grid:replace' ? p.gridChoice.replace : ref === 'grid:add' ? p.gridChoice.add : null
+      if (!ops) return
+      lastActionsRef.current = ops.map(o => o.action)
+      if (p.gridThen?.length) {
+        // review t4 M5: the grid, then the per-chart changes — one request (runCompound; a card holds the rest until approved)
+        const grid = ops[0]?.args?.symbols || []
+        return await runCompoundRef.current?.([
+          { text: `set up the ${grid.join(', ')} charts`, kind: 'planned', ops, grid, resume: true, fresh: ref === 'grid:add' },
+          { text: 'the rest on those charts', kind: 'planned', each: p.gridThen },
+        ], { member: `${p.member || ''} → ${label}`, voice: p.voice })
+      }
+      return await execute(ops, { path: 'fast', mode: 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
+    }
     if (p.workspace) {
       // ⭐ PHASE 3 acceptance: replace the board, or build the whole workspace in a new layout — then the WHOLE request runs
       if (ref === 'workspace:new' && !host?.layouts) {
@@ -1634,6 +1650,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         continue
       }
       const idsBefore = undoRef.current.map(e => e.id)
+      const chartRefsBefore = (() => { try { return (host?.charts?.list?.() || []).map(c => c.ref) } catch { return [] } })()
       const r = resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
       if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; prevIds = []; continue }
       if (r.note) push({ role: 'outcome', text: r.note })
@@ -1665,7 +1682,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       done += 1
       prevIds = undoRef.current.map(e => e.id).filter(id => !idsBefore.includes(id))
-      if (r.grid) working = chartsShowing(host, r.grid)
+      // review t4 M5: a grid that ADDED the charts beside others showing the same tickers ("Add 4 more") — the rest goes on the
+      // NEW charts only (the charts that were already there are never the target)
+      if (r.grid) {
+        const showing = chartsShowing(host, r.grid)
+        const added = showing.filter(ref => !(chartRefsBefore || []).includes(ref))
+        working = step.fresh && added.length ? added : showing
+      }
     }
     // one step ("put rsi underneath"): its own receipt says it all
     if (steps.length > 1) push({ role: 'agent', text: `All ${steps.length} steps done.` })
@@ -1795,6 +1818,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: multi.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
         return
       }
+      if (multi?.kind === 'ask') {
+        // live train 4: replace the board's charts, or add these beside them — the member decides (chooseTarget gridChoice)
+        pendingRef.current = { kind: 'target', ops: [], path: 'fast', member: text, voice, epoch: epochOf(host), gridChoice: multi.options }
+        push({ role: 'question', text: multi.text, choices: [...multi.choices, { label: 'Cancel', cancel: true }], local: true })
+        record({ member: text, outcome: multi.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
       if (multi?.kind === 'ops') {
         lastActionsRef.current = multi.ops.map(o => o.action)
         return await execute(multi.ops, { path: 'fast', mode: multi.mode, member: text, voice, onTarget: multi.note || null })
@@ -1901,8 +1931,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // Phase 2: ops of SEVERAL kinds ("add VWAP and switch to 5 minutes") — each kind must name
       // exactly one target (after a position hint); otherwise the model decides.
       if (fast?.kind === 'ops' && kindsOf(fast.ops).length > 1 && !fast.target?.all) {
+        // live train 4 (CG-37, binding v2): an UNTARGETED change after a create step in the same request goes on the chart
+        // that step creates (its alias → the committed widget's id) — decided before any default target is picked
+        // (createdBinding.js: plan structure; explicit existing references never re-targeted; ambiguous → asked)
+        const bound0 = fast.target ? null : bindCreated(fast.ops, text, host)
+        if (bound0?.ask) {
+          push({ role: 'agent', text: bound0.ask })
+          record({ member: text, outcome: bound0.ask, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+          return
+        }
+        const fastOps = bound0?.ops || fast.ops
         const pick = {}
-        for (const k of kindsOf(fast.ops)) {
+        for (const k of kindsOf(fastOps)) {
           let list = getTargetKind(k)?.list(host) || []
           if (fast.target?.position && list.length > 1) list = matchPosition(list, fast.target.position)
           // P1: "on the second chart" — the kind's entry for THAT chart (a kind that is not chart-backed drops out → the model)
@@ -1910,8 +1950,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           if (fast.target?.ask) list = []
           if (list.length === 1) pick[k] = list[0].ref
         }
-        if (fast.ops.every(o => o.target || pick[getCapability(o.action)?.target])) {
-          const ops = fast.ops.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))
+        if (fastOps.every(o => o.target || pick[getCapability(o.action)?.target])) {
+          const ops = fastOps.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))
           lastActionsRef.current = ops.map(o => o.action)
           return await execute(ops, { path: 'fast', mode: 'apply', member: text, voice })
         }
@@ -2323,7 +2363,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
-      const bound = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
+      const bound1 = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
+      // binding v2: the model's UNTARGETED / unresolvable chart ops after a create go on the created chart (explicitly
+      // targeted ones never re-targeted) — or asked about
+      const created1 = bindCreated(bound1, text, host)
+      if (created1?.ask) {
+        push({ role: 'agent', text: created1.ask })
+        record({ member: null, outcome: created1.ask, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      const bound = created1?.ops || bound1
       // ⛔ S6 F1–F3: the model's plan is checked against the member's own words before anything runs
       const screened = screenModelOps(host, scopeChartOps(bound, host, `${carryAsked ? askedFor || '' : ''} ${text}`), text, capCtx)
       if (screened.ask) {
@@ -2398,6 +2447,22 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // the board's charts, re-tiles to make room) — never "there isn't enough open space"
       // W1.1 R-02 (LT-1): on an EMPTY board, chart ops the planner put on a target that is not a chart = one new chart on that symbol
       const gridded = screenChartGrid(screenEmptyBoardChart(screenNewChart(canonicalIndicatorAdds(screened.ops), text).ops, host).ops, text, host)
+      // review t4 M1: the SAME replace-or-add question as the instant reader, for the model's plan on every path (NL-1 too) —
+      // a grid of fewer tickers than the board's charts, with no new / add / replace in the member's words, is never guessed
+      const gridAsk0 = gridChoiceFor(gridded.ops, `${askedFor || ''} ${text}`, host)
+      // a grid that could not run either way (an unknown ticker, no room) is never asked about — its refusal is said as before
+      const gridAsk = gridAsk0 && await (async () => {
+        try { const a = gridAsk0.options.add; return planOps(collectTargets(host, kindsOf(a)), a, await prepareOps(a), capCtx).ok } catch { return false }
+      })() ? gridAsk0 : null
+      if (gridAsk) {
+        // review t4 M5: "…charts, each with a 50 SMA" — the per-chart steps ride with BOTH choices (they run on the charts the
+        // picked grid leaves showing those tickers; behind the replace card, once it is approved)
+        pendingRef.current = { kind: 'target', ops: [], path: 'model', member: text, voice, epoch: epochOf(host), gridChoice: gridAsk.options,
+          ...(gridded.then?.length && !env.correction ? { gridThen: gridded.then } : {}) }
+        push({ role: 'question', text: gridAsk.text, choices: [...gridAsk.choices, { label: 'Cancel', cancel: true }], local: true })
+        record({ member: null, outcome: gridAsk.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
       // ⭐ acceptance 2026-10-29: the plan also changes the charts the grid makes ("…, each with a 50sma") — the grid runs,
       // then those changes, on the charts that now show their tickers: two steps of one request (runCompound — each step
       // the same execute, policy, receipts and Undo; a step that does not land stops the rest, said plainly)
