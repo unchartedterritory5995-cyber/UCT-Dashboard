@@ -50,7 +50,18 @@ content permissible, and there is no bulk re-admission.
 - **The limits survive log tampering:** the policy records the log's head, so a trimmed, deleted, rotated or replaced
   log no longer matches. `apply` then refuses, and the rows that log backed stop being served. Wiping the policy's
   clearances, the head and the log all together only un-clears everything.
-- **Concurrency:** `apply` holds an exclusive lock file beside the policy for its whole read-check-write.
+- **Revocation (QA #793):** `revoke --kb-id N --by NAME --reason TEXT` writes a SIGNED, chained `revoked` record and
+  removes the row. At runtime the policy's cleared rows must EQUAL the signed log's active set. A row removed by hand,
+  a revoked row re-added by hand, or a changed sha means nothing is served, and `apply` refuses, until the two agree.
+  Revocations do not count toward the daily cap.
+- **Bulk approvals expire and are bound:** `sign-bulk ... --expires YYYY-MM-DD` (at most 90 days after the approval
+  date) binds the approval to the policy file's `rights_policy_id`. It counts as nothing once expired, or when copied
+  into a policy file with another id.
+- **Key strength:** at least 32 characters and at least 12 distinct characters. A long run of one character or a short
+  repeated pattern is no key.
+- **Concurrency and a stale lock:** `apply` and `revoke` hold an exclusive lock file (`<policy>.lock`, recording the
+  process id and time) for their whole read-check-write. If a run was killed and left the lock behind, the next run
+  refuses (fail-closed) and names the file. Confirm no apply or revoke is running, delete the file, and run again.
 - **Owner signing:** `python tools/kn_rights_review.py sign-bulk --by NAME --on YYYY-MM-DD --max-rows N --reason TEXT`,
   run where the key is set. It prints the approval to put in the policy, which then goes through PR review.
 
@@ -85,3 +96,4 @@ remains the human gate.
   (an incomplete one does not count), `--by` required, the hash-chained audit log, and an edited log blocking every
   later apply.
 - authorization: no key means nothing cleared or served (a short key counts as none); an approval with any name, edited after signing, signed with another key or above the bound counts as nothing; a hand-edited clearance is never served and blocks apply; trimming, deleting or rotating the log never resets the daily cap; concurrent applies (8 threads) never exceed the cap and keep the chain; the policy cap holds on later days.
+- QA #793: signed revocation, and a hand re-add of a revoked row never served; a hand removal serves nothing until fixed; revoke needs the key, a name, a reason and a cleared row; revocations do not count toward the cap; bulk approvals expire and are bound to their policy file; a weak key is no key; a stale lock fails closed with recovery steps.

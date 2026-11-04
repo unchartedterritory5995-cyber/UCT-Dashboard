@@ -195,8 +195,10 @@ def _clock() -> float:
 
 
 def _key() -> Optional[bytes]:
+    """The server key, or None. QA #793: at least 32 characters AND at least 12 distinct characters (so "aaaa...",
+    "abababab..." or a short repeated word never counts as a key)."""
     k = str(os.environ.get(KEY_ENV) or "")
-    return k.encode("utf-8") if len(k) >= 32 else None
+    return k.encode("utf-8") if len(k) >= 32 and len(set(k)) >= 12 else None
 
 
 def _mac(key: bytes, text: str) -> str:
@@ -238,13 +240,33 @@ def read_audit(path: Path, key: Optional[bytes] = None) -> list[dict]:
     return out
 
 
+BULK_MAX_DAYS = 90
+
+
 def _bulk_fields(b: dict) -> str:
-    return json.dumps({k: b.get(k) for k in ("approved_by", "approved_on", "max_rows", "reason")},
-                      sort_keys=True, separators=(",", ":"))
+    return json.dumps({k: b.get(k) for k in ("approved_by", "approved_on", "max_rows", "reason", "expires_on",
+                                             "policy_id")}, sort_keys=True, separators=(",", ":"))
 
 
-def sign_bulk(approved_by: str, approved_on: str, max_rows: int, reason: str) -> dict:
-    """A bulk_clearance_approval signed with the server key (the owner runs this where the key lives)."""
+def policy_id(policy_path: Path, create: bool = False) -> Optional[str]:
+    """The policy file's rights id (`rights_policy_id`), which a bulk approval is bound to. Created only on request."""
+    p = Path(policy_path)
+    pol = json.loads(p.read_text(encoding="utf-8"))
+    pid = pol.get("rights_policy_id")
+    if isinstance(pid, str) and len(pid) == 32:
+        return pid
+    if not create:
+        return None
+    import secrets
+    pol["rights_policy_id"] = secrets.token_hex(16)
+    p.write_text(json.dumps(pol, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return pol["rights_policy_id"]
+
+
+def sign_bulk(approved_by: str, approved_on: str, max_rows: int, reason: str, expires_on: str,
+              policy_path: Path) -> dict:
+    """A bulk_clearance_approval signed with the server key, EXPIRING (at most BULK_MAX_DAYS after approved_on) and
+    BOUND to this policy file's rights id, so it cannot be replayed after expiry or copied into another policy."""
     key = _key()
     if key is None:
         raise ValueError(f"no rights key on this server ({KEY_ENV})")
@@ -254,13 +276,20 @@ def sign_bulk(approved_by: str, approved_on: str, max_rows: int, reason: str) ->
         raise ValueError("a reason is required")
     if isinstance(max_rows, bool) or not isinstance(max_rows, int) or not POLICY_CAP < max_rows <= BULK_MAX:
         raise ValueError(f"max_rows must be an integer above {POLICY_CAP} and at most {BULK_MAX}")
+    try:
+        a, e = datetime.date.fromisoformat(str(approved_on)), datetime.date.fromisoformat(str(expires_on))
+    except ValueError:
+        raise ValueError("expires_on must be an ISO date") from None
+    if not 0 < (e - a).days <= BULK_MAX_DAYS:
+        raise ValueError(f"expires_on must be after approved_on and at most {BULK_MAX_DAYS} days later")
     b = {"approved_by": str(approved_by).strip(), "approved_on": str(approved_on).strip(), "max_rows": max_rows,
-         "reason": str(reason).strip()}
+         "reason": str(reason).strip(), "expires_on": str(expires_on), "policy_id": policy_id(policy_path, create=True)}
     return {**b, "signature": _mac(key, "bulk|" + _bulk_fields(b))}
 
 
-def bulk_cap(pol: dict, key: Optional[bytes] = None) -> int:
-    """POLICY_CAP, or a SIGNED bulk approval's max_rows (never above BULK_MAX). An unsigned or forged one is ignored."""
+def bulk_cap(pol: dict, key: Optional[bytes] = None, today: Optional[datetime.date] = None) -> int:
+    """POLICY_CAP, or a SIGNED, UNEXPIRED bulk approval bound to THIS policy (its rights_policy_id): its max_rows,
+    never above BULK_MAX. Unsigned, forged, edited, expired or copied from another policy -> POLICY_CAP."""
     key = key or _key()
     b = pol.get("bulk_clearance_approval")
     if key is None or not isinstance(b, dict):
@@ -274,6 +303,15 @@ def bulk_cap(pol: dict, key: Optional[bytes] = None) -> int:
     if not policy._APPROVER.match(str(b.get("approved_by") or "").strip()) or not policy._approved_on_ok(b.get("approved_on")) \
             or not str(b.get("reason") or "").strip():
         return POLICY_CAP
+    if not b.get("policy_id") or b.get("policy_id") != pol.get("rights_policy_id"):
+        return POLICY_CAP                                      # copied from another policy file
+    try:
+        a, e = datetime.date.fromisoformat(str(b.get("approved_on"))), datetime.date.fromisoformat(str(b.get("expires_on")))
+    except ValueError:
+        return POLICY_CAP
+    d = today or datetime.datetime.fromtimestamp(_clock(), datetime.timezone.utc).date()
+    if not 0 < (e - a).days <= BULK_MAX_DAYS or d > e:
+        return POLICY_CAP                                      # expired (or an over-long validity)
     return n
 
 
@@ -284,11 +322,17 @@ def _latest(recs: list[dict]) -> dict:
     return out
 
 
-def _backed(rows: list[dict], recs: list[dict]) -> list:
-    """kb_ids of policy cleared_rows WITHOUT a matching signed audit record (latest record for the row, same sha)."""
-    last = _latest(recs)
-    return [e.get("kb_id") for e in rows
-            if not (e.get("kb_id") in last and last[e["kb_id"]].get("content_sha") == str(e.get("content_sha") or "").lower())]
+def active_from_log(recs: list[dict]) -> dict:
+    """{kb_id: content_sha} the signed log says is cleared now: the latest record per row is added / replaced, not
+    revoked (QA #793: a revocation is a signed, chained record)."""
+    return {k: r.get("content_sha") for k, r in _latest(recs).items() if r.get("action") in ("added", "replaced")}
+
+
+def _mismatch(rows: list[dict], recs: list[dict]) -> list:
+    """kb_ids where the policy's cleared_rows and the signed log's active set disagree (either direction)."""
+    active = active_from_log(recs)
+    pol = {e.get("kb_id"): str(e.get("content_sha") or "").lower() for e in rows}
+    return sorted({k for k in set(active) | set(pol) if active.get(k) != pol.get(k)}, key=str)
 
 
 class _FileLock:
@@ -302,10 +346,16 @@ class _FileLock:
         while True:
             try:
                 self.fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(self.fd, json.dumps({"pid": os.getpid(), "at": int(time.time())}).encode("utf-8"))
                 return self
             except FileExistsError:
                 if time.monotonic() > deadline:
-                    raise ValueError("another rights apply is running (lock held); try again") from None
+                    try:
+                        held = self.path.read_text(encoding="utf-8")[:200]
+                    except OSError:
+                        held = "?"
+                    raise ValueError(f"another rights apply/revoke holds {self.path.name} ({held}). If no apply is "
+                                     "running (it was killed), delete that file and run again; see RIGHTS-REVIEW.md") from None
                 time.sleep(0.05)
 
     def __exit__(self, *a):
@@ -338,11 +388,11 @@ def apply(new: list[dict], policy_path: Path, applied_by: str, audit_path: Optio
             raise ValueError("the audit log does not end where the policy says it does (trimmed, deleted, rotated or "
                              "replaced); nothing applied")
         rows = [e for e in pol.get("cleared_rows") or [] if isinstance(e, dict)]
-        unbacked = _backed(rows, log_recs)
+        unbacked = _mismatch(rows, log_recs)
         if unbacked:
-            raise ValueError(f"cleared_rows without a signed audit record ({len(unbacked)}): the policy was edited by "
-                             "hand; nothing applied")
-        today = sum(1 for r in log_recs if str(r.get("applied_at", ""))[:10] == day)
+            raise ValueError(f"cleared_rows and the signed audit log disagree on {len(unbacked)} row(s): the policy was "
+                             "edited by hand (remove a clearance with `revoke`); nothing applied")
+        today = sum(1 for r in log_recs if str(r.get("applied_at", ""))[:10] == day and r.get("action") != "revoked")
         if today + len(new) > DAILY_CAP:
             raise ValueError(f"daily cap: {today} row(s) already cleared today (UTC); {len(new)} more would exceed "
                              f"{DAILY_CAP}. No bulk re-admission")
@@ -379,6 +429,54 @@ def apply(new: list[dict], policy_path: Path, applied_by: str, audit_path: Optio
     return {"added": added, "replaced": replaced, "policy_version": version}
 
 
+def revoke(kb_ids: list, policy_path: Path, revoked_by: str, reason: str, audit_path: Optional[Path] = None,
+           now: Optional[float] = None) -> dict:
+    """Remove clearances: one SIGNED, chained `revoked` audit record per row, and the rows leave cleared_rows. A row
+    revoked this way is never served again by re-adding its old entry (the log's latest record says revoked)."""
+    key = _key()
+    if key is None:
+        raise ValueError(f"no rights key on this server ({KEY_ENV}): clearances can only be revoked where it is set")
+    if not policy._APPROVER.match(str(revoked_by or "").strip()):
+        raise ValueError("revoked_by must name the person revoking")
+    if not str(reason or "").strip():
+        raise ValueError("a reason is required")
+    ids = list(dict.fromkeys(kb_ids or []))
+    if not ids:
+        raise ValueError("no rows to revoke")
+    t = float(now if now is not None else _clock())
+    p = Path(policy_path)
+    ap = Path(audit_path) if audit_path else audit_path_for(p)
+    with _FileLock(p):
+        log_recs = read_audit(ap, key)
+        pol = json.loads(p.read_text(encoding="utf-8"))
+        head = log_recs[-1]["sha"] if log_recs else _GENESIS
+        if str(pol.get("audit_head") or _GENESIS) != head:
+            raise ValueError("the audit log does not end where the policy says it does; nothing revoked")
+        rows = [e for e in pol.get("cleared_rows") or [] if isinstance(e, dict)]
+        if _mismatch(rows, log_recs):
+            raise ValueError("cleared_rows and the signed audit log disagree; nothing revoked")
+        active = active_from_log(log_recs)
+        missing = [k for k in ids if k not in active]
+        if missing:
+            raise ValueError(f"not cleared now: {missing}; nothing revoked")
+        version = int(pol.get("policy_version") or 0) + 1
+        stamp = datetime.datetime.fromtimestamp(t, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        prev, lines = head, []
+        for k in ids:
+            rec = {"applied_at": stamp, "applied_by": str(revoked_by).strip(), "kb_id": k, "content_sha": active[k],
+                   "action": "revoked", "reason": str(reason).strip()[:200], "policy_version": version, "prev": prev}
+            rec["sha"] = _line_sha(key, prev, rec)
+            prev = rec["sha"]
+            lines.append(json.dumps(rec, ensure_ascii=False, separators=(",", ":")))
+        with ap.open("a", encoding="utf-8") as f:
+            f.write("".join(line + "\n" for line in lines))
+        pol["cleared_rows"] = [e for e in rows if e.get("kb_id") not in set(ids)]
+        pol["policy_version"] = version
+        pol["audit_head"] = prev
+        p.write_text(json.dumps(pol, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return {"revoked": len(ids), "policy_version": version}
+
+
 _AUTH_CACHE: dict = {"key": None, "ids": {}}
 
 
@@ -403,8 +501,10 @@ def authorized() -> dict:
         pol = policy.load()
         head = recs[-1]["sha"] if recs else _GENESIS
         if str(pol.get("audit_head") or _GENESIS) == head and len(want) <= bulk_cap(pol, key):
-            last = _latest(recs)
-            out = {k: sha for k, sha in want.items() if k in last and last[k].get("content_sha") == sha}
+            # QA #793: the policy's cleared rows must EQUAL the log's active set; any hand edit (a removal, a re-add of
+            # a revoked row, a changed sha) means nothing is served until the policy and the log agree again
+            if not _mismatch([{"kb_id": k, "content_sha": v} for k, v in want.items()], recs):
+                out = dict(want)
     except ValueError:
         out = {}
     _AUTH_CACHE.update(key=ck, ids=dict(out))

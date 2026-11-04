@@ -52,11 +52,26 @@ def main(argv=None) -> int:
     b.add_argument("--on", required=True, help="YYYY-MM-DD")
     b.add_argument("--max-rows", type=int, required=True)
     b.add_argument("--reason", required=True)
+    b.add_argument("--expires", required=True, help="YYYY-MM-DD, at most 90 days after --on")
+    b.add_argument("--policy", default=str(policy.DEFAULT_PATH))
+    r = sub.add_parser("revoke", help="where UCT_KN_RIGHTS_KEY is set: remove clearances with signed audit records")
+    r.add_argument("--kb-id", type=int, action="append", required=True)
+    r.add_argument("--by", required=True)
+    r.add_argument("--reason", required=True)
+    r.add_argument("--policy", default=str(policy.DEFAULT_PATH))
     a = ap.parse_args(argv)
 
     if a.cmd == "sign-bulk":
         try:
-            print(json.dumps({"bulk_clearance_approval": rights.sign_bulk(a.by, a.on, a.max_rows, a.reason)}, indent=2))
+            print(json.dumps({"bulk_clearance_approval": rights.sign_bulk(a.by, a.on, a.max_rows, a.reason, a.expires,
+                                                                                Path(a.policy))}, indent=2))
+        except ValueError as err:
+            print(f"refused: {err}", file=sys.stderr)
+            return 1
+        return 0
+    if a.cmd == "revoke":
+        try:
+            print(f"revoked: {rights.revoke(a.kb_id, Path(a.policy), revoked_by=a.by, reason=a.reason)}")
         except ValueError as err:
             print(f"refused: {err}", file=sys.stderr)
             return 1

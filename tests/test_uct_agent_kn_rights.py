@@ -3,6 +3,7 @@ tools/kn_rights_review.py). Fixture pack only; no network; Brain stays OFF in pr
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -234,12 +235,12 @@ def test_policy_cap_needs_a_bulk_approval_signed_with_the_server_key(kn, monkeyp
     _set_bulk(kn, {"approved_by": "x x", "approved_on": "2026-10-01", "max_rows": 30, "reason": "trust me"})
     with pytest.raises(ValueError, match="policy cap"):
         rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
-    good = rights.sign_bulk("Owner Name", "2026-10-01", 30, "reviewed batch of team posts")
+    good = rights.sign_bulk("Owner Name", "2026-10-01", 30, "reviewed batch of team posts", "2026-11-30", kn["policy"])
     _set_bulk(kn, {**good, "max_rows": 31})                                   # a signed approval, edited
     with pytest.raises(ValueError, match="policy cap"):
         rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
     monkeypatch.setenv(rights.KEY_ENV, "another-key-0123456789abcdef0123456789")
-    other = rights.sign_bulk("Owner Name", "2026-10-01", 30, "signed with a different key")
+    other = rights.sign_bulk("Owner Name", "2026-10-01", 30, "signed with a different key", "2026-11-30", kn["policy"])
     monkeypatch.setenv(rights.KEY_ENV, KEY)
     _set_bulk(kn, other)
     with pytest.raises(ValueError, match="policy cap"):
@@ -251,7 +252,7 @@ def test_policy_cap_needs_a_bulk_approval_signed_with_the_server_key(kn, monkeyp
 @pytest.mark.parametrize("n", [25, 201, 10 ** 9, True, "30", 0, -5])
 def test_bulk_approvals_have_a_hard_upper_bound(kn, n):
     with pytest.raises(ValueError, match="max_rows"):
-        rights.sign_bulk("Owner Name", "2026-10-01", n, "r")
+        rights.sign_bulk("Owner Name", "2026-10-01", n, "r", "2026-11-30", kn["policy"])
     import hashlib
     import hmac
     b = {"approved_by": "Owner Name", "approved_on": "2026-10-01", "max_rows": n, "reason": "r"}
@@ -269,7 +270,7 @@ def test_without_the_server_key_nothing_is_cleared_or_served(kn, monkeypatch):
     with pytest.raises(ValueError, match="no rights key"):
         rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
     with pytest.raises(ValueError, match="no rights key"):
-        rights.sign_bulk("Owner Name", "2026-10-01", 30, "r")
+        rights.sign_bulk("Owner Name", "2026-10-01", 30, "r", "2026-11-30", kn["policy"])
     monkeypatch.setenv(rights.KEY_ENV, "short")                                # a key under 32 characters is no key
     assert rights.authorized() == {}
 
@@ -284,7 +285,7 @@ def test_a_hand_edited_clearance_is_never_served_and_blocks_apply(kn):
     kn["policy"].write_text(json.dumps(pol), encoding="utf-8")
     assert rights.authorized() == {}
     assert 14 not in _ids(read("knowledge.search", {"question": "cup and handle handle weeks", "k": 3}))
-    with pytest.raises(ValueError, match="without a signed audit record"):
+    with pytest.raises(ValueError, match="disagree"):
         rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
 
 
@@ -336,3 +337,85 @@ def test_replacing_a_row_does_not_grow_the_policy_count_but_counts_toward_the_da
     rights.apply(_synthetic(20), kn["policy"], applied_by="Reviewer One", now=FIXED)
     with pytest.raises(ValueError, match="daily cap"):
         rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
+
+
+# ── QA #793: signed revocations, expiring / bound bulk approvals, key strength, stale lock ─────────────────────────
+TODAY_FIXED = __import__("datetime").date(2026, 11, 4)
+
+
+def test_a_revocation_is_signed_and_a_hand_readd_is_never_served(kn):
+    ws = _filled(rights.worksheet(14))
+    rights.apply(rights.entries([ws]), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    entry = json.loads(kn["policy"].read_text(encoding="utf-8"))["cleared_rows"][0]
+    q = {"question": "cup and handle handle weeks", "k": 3}
+    assert 14 in _ids(read("knowledge.search", q))
+    assert rights.revoke([14], kn["policy"], revoked_by="Owner Name", reason="rights withdrawn", now=FIXED + 60)["revoked"] == 1
+    log = rights.read_audit(rights.audit_path_for(kn["policy"]))
+    assert log[-1]["action"] == "revoked" and log[-1]["applied_by"] == "Owner Name"
+    assert 14 not in _ids(read("knowledge.search", q)) and rights.authorized() == {}
+    pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
+    pol["cleared_rows"] = [entry]                                              # someone re-adds the old entry by hand
+    kn["policy"].write_text(json.dumps(pol), encoding="utf-8")
+    assert rights.authorized() == {} and 14 not in _ids(read("knowledge.search", q))
+    with pytest.raises(ValueError, match="disagree"):
+        rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED + 120)
+
+
+def test_a_hand_removal_without_revoke_serves_nothing_until_fixed(kn):
+    rights.apply(_synthetic(3), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    assert len(rights.authorized()) == 3
+    pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
+    pol["cleared_rows"] = pol["cleared_rows"][:2]
+    kn["policy"].write_text(json.dumps(pol), encoding="utf-8")
+    assert rights.authorized() == {}                                           # the log and the policy disagree: nothing
+
+
+def test_revoke_needs_the_key_a_name_a_reason_and_a_cleared_row(kn, monkeypatch):
+    rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    with pytest.raises(ValueError, match="reason"):
+        rights.revoke([1001], kn["policy"], revoked_by="Owner Name", reason=" ", now=FIXED)
+    with pytest.raises(ValueError, match="not cleared"):
+        rights.revoke([4242], kn["policy"], revoked_by="Owner Name", reason="x", now=FIXED)
+    monkeypatch.delenv(rights.KEY_ENV)
+    with pytest.raises(ValueError, match="no rights key"):
+        rights.revoke([1001], kn["policy"], revoked_by="Owner Name", reason="x", now=FIXED)
+
+
+def test_a_revocation_does_not_count_toward_the_daily_cap(kn):
+    rights.apply(_synthetic(20), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    rights.revoke([1001, 1002], kn["policy"], revoked_by="Owner Name", reason="x", now=FIXED + 10)
+    with pytest.raises(ValueError, match="daily cap"):
+        rights.apply(_synthetic(1, start=7001), kn["policy"], applied_by="Reviewer One", now=FIXED + 20)
+
+
+def test_a_bulk_approval_expires_and_is_bound_to_its_policy_file(kn, tmp_path):
+    b = rights.sign_bulk("Owner Name", "2026-10-01", 30, "batch", "2026-11-30", kn["policy"])
+    pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
+    pol["bulk_clearance_approval"] = b
+    assert rights.bulk_cap(pol, today=TODAY_FIXED) == 30
+    assert rights.bulk_cap(pol, today=__import__("datetime").date(2026, 12, 1)) == rights.POLICY_CAP     # expired
+    other = {**pol, "rights_policy_id": "f" * 32}                              # copied into another policy file
+    assert rights.bulk_cap(other, today=TODAY_FIXED) == rights.POLICY_CAP
+    assert rights.bulk_cap({**pol, "bulk_clearance_approval": {**b, "expires_on": "2026-12-30"}},
+                           today=TODAY_FIXED) == rights.POLICY_CAP                  # edited after signing
+    with pytest.raises(ValueError, match="at most 90 days"):
+        rights.sign_bulk("Owner Name", "2026-10-01", 30, "batch", "2027-03-01", kn["policy"])
+    with pytest.raises(ValueError, match="expires_on"):
+        rights.sign_bulk("Owner Name", "2026-10-01", 30, "batch", "2026-09-01", kn["policy"])
+
+
+@pytest.mark.parametrize("weak", ["a" * 40, "ab" * 20, "0123456789" * 4, "short-but-varied-key"])
+def test_a_weak_key_is_no_key(monkeypatch, weak):
+    monkeypatch.setenv(rights.KEY_ENV, weak)
+    assert rights._key() is None
+
+
+def test_a_stale_lock_fails_closed_and_says_how_to_recover(kn, monkeypatch):
+    monkeypatch.setattr(rights, "LOCK_WAIT_S", 0.2)
+    lock = Path(str(kn["policy"]) + ".lock")
+    lock.write_text('{"pid": 1, "at": 0}', encoding="utf-8")
+    with pytest.raises(ValueError, match="delete that file"):
+        rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    lock.unlink()
+    assert rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)["added"] == 1
+

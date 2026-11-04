@@ -1481,7 +1481,8 @@ def test_refine_a_complete_clearance_serves_the_row_only_for_the_text_reviewed(k
     _with_policy(monkeypatch, tmp_path, cleared_rows=[entry])
     assert 60 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}   # unsigned: withheld
     pol = _with_policy(monkeypatch, tmp_path, cleared_rows=[])
-    rights.apply([entry], Path(os.environ["UCT_AGENT_KNOWLEDGE_POLICY"]), applied_by="Owner Name", now=time.time())
+    applied = os.environ["UCT_AGENT_KNOWLEDGE_POLICY"]
+    rights.apply([entry], Path(applied), applied_by="Owner Name", now=time.time())
     kinds._BLOCKED_CACHE.update(key=None, ids=[])
     p = next(p for p in read("knowledge.search", q)["data"]["passages"] if p["kb_id"] == 60)
     assert p["commentary_only"] is True                                   # still flagged: cleared is not a definition
@@ -1490,8 +1491,7 @@ def test_refine_a_complete_clearance_serves_the_row_only_for_the_text_reviewed(k
     _with_policy(monkeypatch, tmp_path, cleared_rows=[{k: v for k, v in entry.items() if k != "content_sha"}])
     assert 60 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}   # no sha: withheld
     # review #751 delta 3: the text changes under the same kb_id (a later pack): the clearance no longer holds
-    _with_policy(monkeypatch, tmp_path, cleared_rows=[])
-    rights.apply([entry], Path(os.environ["UCT_AGENT_KNOWLEDGE_POLICY"]), applied_by="Owner Name", now=time.time())
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", applied)                 # back to the applied, signed policy
     kinds._BLOCKED_CACHE.update(key=None, ids=[])
     assert 60 in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}
     c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
