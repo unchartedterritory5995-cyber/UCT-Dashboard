@@ -353,44 +353,6 @@ def test_removal_clears_every_capability_surface(db, seeded):
 
 # ── flag-off harmlessness: the data exists; the gated surface does not ──────────────────
 
-def test_flag_off_routes_answer_404_even_though_the_example_exists(db, seeded, monkeypatch):
-    out, examples = seeded
-    for env in ("NOTEBOOK_PLAN_GRADING_ENABLED", "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
-               "NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED",
-               "NOTEBOOK_THESIS_CHIPS_ENABLED", "NOTEBOOK_PASSED_SETUPS_ENABLED"):
-        monkeypatch.delenv(env, raising=False)
-
-    from api.routers import (
-        notebook_entry_context, notebook_fingerprint, notebook_plan_grades,
-        notebook_setups_board, notebook_thesis_chips,
-    )
-    from api.routers import notebook_research_capture
-    from api.middleware.auth_middleware import get_current_user
-
-    fa = FastAPI()
-    for router in (notebook_plan_grades.router, notebook_entry_context.router,
-                  notebook_fingerprint.router, notebook_setups_board.router,
-                  notebook_thesis_chips.router, notebook_research_capture.passed_router):
-        fa.include_router(router)
-    fa.dependency_overrides[get_current_user] = lambda: {"id": U1, "role": "admin"}
-    client = TestClient(fa)
-
-    assert client.get("/api/j2/plan-grades/trades/any-trade-id").status_code == 404
-    assert client.get("/api/j2/setups-board").status_code == 404
-    r = client.post("/api/j2/thesis-chips", json={"symbols": [sample_examples.SYM_THESIS]})
-    assert r.status_code == 404
-    assert client.get("/api/j2/research-capture/passed-setups").status_code == 404
-
-    # the underlying data is untouched by the flags being off -- it is the SURFACE that is
-    # dark, never the row.
-    c = _conn()
-    try:
-        assert c.execute("SELECT COUNT(*) FROM j2_passed_setups WHERE user_id = ?",
-                         (U1,)).fetchone()[0] == 1
-    finally:
-        c.close()
-
-
 # ── one member's sample never touches another's data ─────────────────────────────────────
 
 def test_a_members_examples_never_touch_another_members(db, seeded):

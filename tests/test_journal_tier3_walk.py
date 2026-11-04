@@ -46,7 +46,7 @@ def test_the_switches_are_real_gates_and_an_invented_one_is_refused():
     import journal_tier3_walk as t3
 
     gates = _gates()
-    assert "NOTEBOOK_PLAYBOOK_ENABLED" in gates               # non-vacuity: the parse found the block
+    assert "NOTEBOOK_ONBOARDING_ENABLED" in gates             # non-vacuity: the parse found the block
     assert set(t3.TIER3_FLAGS) == {"JOURNAL_TIER3_ENABLED", "NOTEBOOK_JOURNAL_STYLES_ENABLED"}
     assert set(t3.TIER3_FLAGS) <= gates
     assert "JOURNAL_STYLES_ENABLED" not in gates              # the plan's spelling is not a flag

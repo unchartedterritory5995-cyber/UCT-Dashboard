@@ -143,6 +143,8 @@ def test_every_route_has_a_pinned_answer_and_both_sweeps():
     committed = gen.committed()
     signed_out = json.loads(committed["sweep.signed-out"])["body"]
     flags_off = json.loads(committed["sweep.flags-off"])["body"]
+    gated = gen.gated_routes(app)
+    assert gated, "non-vacuity: some routes are still behind a flag gate"
     missing = []
     for route in app.routes:
         for method in sorted(getattr(route, "methods", None) or ()):
@@ -155,8 +157,9 @@ def test_every_route_has_a_pinned_answer_and_both_sweeps():
             label = f"{method} {route.path}"
             if signed_out.get(label, {}).get("status") != 401:
                 missing.append(f"{label}: not in the signed-out sweep as a 401")
-            if flags_off.get(label, {}).get("status") != 404:
-                missing.append(f"{label}: not in the flags-off sweep as a 404")
+            want = 404 if key in gated else 401          # a retired (always on) gate has no 404 to give
+            if flags_off.get(label, {}).get("status") != want:
+                missing.append(f"{label}: not in the flags-off sweep as a {want}")
     assert not missing, "\n".join(missing)
     stale = sorted(k for k in NO_SUCCESS_RECORDED if k not in table)
     assert not stale, f"NO_SUCCESS_RECORDED names routes that no longer exist: {stale}"
@@ -215,7 +218,6 @@ def test_D1_thesis_chips_answer_before_the_level_table_exists(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
     monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
-    monkeypatch.setenv("NOTEBOOK_THESIS_CHIPS_ENABLED", "1")
     from api.services import auth_db
     importlib.reload(auth_db)
     try:

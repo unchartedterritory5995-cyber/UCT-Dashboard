@@ -8,8 +8,6 @@ at a drawn level. A THIN ADAPTER over engines that already exist.
   GET  /api/j2/chart-plan/benchmarks?symbol=   (13H-2) the `/vs` choices: SPY, QQQ, the
                                    stock's sector ETF and theme ETF -- a read
 
-  * THE GATE IS A ROUTER DEPENDENCY: `NOTEBOOK_CHART_PLAN_ENABLED` off answers the one 404 for
-    every route before the session or the body is read.
   * ⛔ NEVER A SECOND ALERT PIPELINE. The alert is created by calling the existing
     `POST /api/watchlist-alerts` handler (`api/routers/watchlist_alerts.create_alert`) with the
     same `AlertCreate` body the chart's own alert button sends, `drawing_id` set to the drawing's
@@ -35,7 +33,6 @@ from pydantic import ValidationError
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.routers import watchlist_alerts
 from api.services.journal_two import chart_plan
-from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import widget_request_body as wbody
 
 _MAX_BODY_BYTES = 256 * 1024
@@ -43,17 +40,9 @@ BAD_BODY_SENTENCE = "That request could not be read."
 NO_CHART_SENTENCE = "That chart was not found in this note."
 
 
-def _require_enabled() -> None:
-    """Router-level, so it runs BEFORE any route's own dependencies: an off gate reads no
-    session, parses no body, and answers the one not-found."""
-    if not chart_plan.enabled():
-        raise public.not_found()
-
-
 router = APIRouter(
     prefix="/api/j2/chart-plan",
     tags=["journal-2-0", "chart-plan"],
-    dependencies=[Depends(_require_enabled)],
 )
 
 

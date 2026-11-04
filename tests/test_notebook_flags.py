@@ -143,8 +143,23 @@ def test_K_R6_the_env_var_and_the_payload_key_are_DERIVED_from_one_function():
     for env_name in auth_router.NOTEBOOK_FLAGS:
         key = auth_router._notebook_flag_key(env_name)
         assert key in _payload(), f"{env_name} derives {key}, which is not on the payload"
-    # …and the roster is exactly the capabilities, no more and no fewer.
-    assert sorted(auth_router._notebook_flag_key(e) for e in auth_router.NOTEBOOK_FLAGS) == sorted(NOTEBOOK_KEYS)
+    # …and the roster is exactly the capabilities, no more and no fewer: the table's rows plus the
+    # capabilities retired as always on (2026-11-04), which keep their key with no variable.
+    assert sorted(auth_router._notebook_flag_key(e) for e in auth_router.NOTEBOOK_FLAGS) == sorted(
+        k for k in NOTEBOOK_KEYS if k not in auth_router.NOTEBOOK_ALWAYS_ON_KEYS)
+    assert set(auth_router.NOTEBOOK_ALWAYS_ON_KEYS) <= set(NOTEBOOK_KEYS)
+
+
+def test_a_retired_capability_is_ALWAYS_ON_whatever_its_old_variable_says():
+    """The retired flags' payload keys are hard-coded True: no variable can turn one off, so the
+    client can never render the off state of a capability that is always on."""
+    assert auth_router.NOTEBOOK_ALWAYS_ON_KEYS, "non-vacuity: at least one capability is retired"
+    for raw in (None, "0", "false", "off", "1"):
+        p = _payload(**{k.upper(): raw for k in auth_router.NOTEBOOK_ALWAYS_ON_KEYS})
+        for k in auth_router.NOTEBOOK_ALWAYS_ON_KEYS:
+            assert p[k] is True, (k, raw)
+        assert not set(auth_router.NOTEBOOK_ALWAYS_ON_KEYS) & {
+            auth_router._notebook_flag_key(e) for e in auth_router.NOTEBOOK_FLAGS}
 
 
 def test_the_kill_switch_defaults_ON_and_the_enablement_gates_default_OFF():
@@ -155,7 +170,7 @@ def test_the_kill_switch_defaults_ON_and_the_enablement_gates_default_OFF():
     for k in KILL_SWITCH_KEYS:
         assert p[k] is True, f"{k}: a forgotten variable must not kill a shipped capability"
     for k in NOTEBOOK_KEYS:
-        if k not in KILL_SWITCH_KEYS:
+        if k not in KILL_SWITCH_KEYS and k not in auth_router.NOTEBOOK_ALWAYS_ON_KEYS:
             assert p[k] is False, f"{k} is an enablement gate — unset means not turned on yet"
 
 

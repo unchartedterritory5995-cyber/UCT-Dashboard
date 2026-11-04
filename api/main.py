@@ -126,41 +126,39 @@ from api.routers import notebook_journal_styles as notebook_journal_styles_route
 from api.routers import notebook_smart_chips as notebook_smart_chips_router
 
 # Wave 13 lane 13I-1: the technical fingerprint + chart-block index
-# (/api/j2/notebook-fingerprint/*), dark behind NOTEBOOK_TA_FINGERPRINT_ENABLED.
+# (/api/j2/notebook-fingerprint/*), always on (its flag was retired 2026-11-04).
 from api.routers import notebook_fingerprint as notebook_fingerprint_router
 
-# Wave 13 lane 13C: earnings prep (/api/j2/earnings-prep/*), dark behind
-# NOTEBOOK_EARNINGS_PREP_ENABLED (router-level 404); mounted with the other Notebook routers.
+# Wave 13 lane 13C: earnings prep (/api/j2/earnings-prep/*), always on (its flag was retired
+# 2026-11-04); mounted with the other Notebook routers.
 from api.routers import notebook_earnings_prep as notebook_earnings_prep_router
 # Wave 13 lane 13H-1: the chart plan -- sizing from drawn levels, alerts at drawn levels
-# (/api/j2/chart-plan/*), dark behind NOTEBOOK_CHART_PLAN_ENABLED.
+# (/api/j2/chart-plan/*), always on (its flag was retired 2026-11-04).
 from api.routers import notebook_chart_alerts as notebook_chart_alerts_router
 
-# Wave 13 lane 13A: plan vs execution grading (/api/j2/plan-grades/*), dark behind
-# NOTEBOOK_PLAN_GRADING_ENABLED (router-level 404).
+# Wave 13 lane 13A: plan vs execution grading (/api/j2/plan-grades/*), always on (its flag was retired 2026-11-04).
 from api.routers import notebook_plan_grades as notebook_plan_grades_router
 
-# Wave 13 lane 13E-1: the market context frozen at the fill (/api/j2/entry-context/*), dark
-# behind NOTEBOOK_ENTRY_CONTEXT_ENABLED (router-level 404).
+# Wave 13 lane 13E-1: the market context frozen at the fill (/api/j2/entry-context/*), always on
+# (its flag was retired 2026-11-04).
 from api.routers import notebook_entry_context as notebook_entry_context_router
 # Wave 13 lane 13G-1: research capture -- a transcript passage into a note as a cited
-# excerpt, and the passed-setups journal (/api/j2/research-capture/*), dark behind
-# NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED and NOTEBOOK_PASSED_SETUPS_ENABLED (one gate per router).
+# excerpt, and the passed-setups journal (/api/j2/research-capture/*), both always on (their
+# flags were retired 2026-11-04).
 from api.routers import notebook_research_capture as notebook_research_capture_router
 
 # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (/api/j2/thesis-chips),
-# dark behind NOTEBOOK_THESIS_CHIPS_ENABLED (router-level 404).
+# always on (its flag was retired 2026-11-04).
 from api.routers import notebook_thesis_chips as notebook_thesis_chips_router
 
 # Wave 13 lane 13I-2: the visual playbook + before/after (/api/j2/notebook-visual-playbook/*),
-# dark behind NOTEBOOK_VISUAL_PLAYBOOK_ENABLED (router-level 404).
+# always on (its flag was retired 2026-11-04).
 from api.routers import notebook_visual_playbook as notebook_visual_playbook_router
 
 # Wave 13 lane 13J: the active setups board (/api/j2/setups-board) and find more like this
-# (/api/j2/similar-names/*), each dark behind its own gate (router-level 404).
+# (/api/j2/similar-names/*), both always on (their flags were retired 2026-11-04).
 from api.routers import notebook_setups_board as notebook_setups_board_router
-# Wave 13 lane 13B: My Playbook (/api/j2/my-playbook), dark behind
-# NOTEBOOK_PLAYBOOK_ENABLED (router-level 404).
+# Wave 13 lane 13B: My Playbook (/api/j2/my-playbook), always on (its flag was retired 2026-11-04).
 from api.routers import notebook_playbook as notebook_playbook_router
 # P2 Tier 3 Task 6: Checklist from my winners (/api/j2/insights/checklist-suggestions), dark
 # behind JOURNAL_TIER3_ENABLED (router-level 404), with its own paid gate.
@@ -168,8 +166,7 @@ from api.routers import notebook_winners_checklist as notebook_winners_checklist
 # P2 Tier 3 Task 7: Your trading year (/api/j2/wrapped/{year}), dark behind JOURNAL_TIER3_ENABLED
 # (router-level 404), with its own paid gate.
 from api.routers import notebook_wrapped as notebook_wrapped_router
-# Wave 13 lane 13F: reviews that write themselves (/api/j2/review-drafts/...), dark behind
-# NOTEBOOK_REVIEW_DRAFTS_ENABLED (router-level 404).
+# Wave 13 lane 13F: reviews that write themselves (/api/j2/review-drafts/...), always on (its flag was retired 2026-11-04).
 from api.routers import notebook_review_drafts as notebook_review_drafts_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
@@ -7339,19 +7336,17 @@ async def lifespan(app: FastAPI):
         # Wave 13 lane 13E-1: freeze the market context at the fill. A sweep every 10 minutes
         # in market hours, plus a listener that queues one capture AFTER each broker-sync job
         # finishes (no broker code is edited; the hook only reads j2_positions / j2_trades and
-        # never raises). Both read NOTEBOOK_ENTRY_CONTEXT_ENABLED per run: inert while dark.
+        # never raises).
         from api.services.journal_two import entry_context as _entry_context
         if _entry_context.install_scheduler_hooks(_scheduler, CronTrigger, _ET):
-            print("[startup] Entry-context capture hooks registered (inert unless "
-                  "NOTEBOOK_ENTRY_CONTEXT_ENABLED)")
+            print("[startup] Entry-context capture hooks registered")
 
         # Wave 13 lane 13J: find more like this, precomputed NIGHTLY (mon-fri 05:45 ET, after the
-        # 03:00 snapshot and the 05:00 scan sweep) on a worker thread, off the event loop. Reads
-        # NOTEBOOK_FIND_SIMILAR_ENABLED per run: inert while dark. The request path only reads.
+        # 03:00 snapshot and the 05:00 scan sweep) on a worker thread, off the event loop. The
+        # request path only reads.
         from api.services.journal_two import similar_matches as _similar_matches
         if _similar_matches.install_scheduler_hook(_scheduler, CronTrigger, _ET):
-            print("[startup] Similar-matches nightly job registered (inert unless "
-                  "NOTEBOOK_FIND_SIMILAR_ENABLED)")
+            print("[startup] Similar-matches nightly job registered")
 
         def _cot_daily_catchup():
             try:
@@ -9622,7 +9617,7 @@ async def lifespan(app: FastAPI):
             print(f"[startup] notebook SLO registration failed (non-fatal): {e}")
         # Wave 13 lane 13G-1 -- the passed-setups nightly refresh: every member with a row has
         # new saves collected and open rows scored from the stored daily bars (no vendor call).
-        # A no-op while NOTEBOOK_PASSED_SETUPS_ENABLED is off; never raises. 17:40 ET weekdays,
+        # Never raises. 17:40 ET weekdays,
         # after the EOD bars; grace 3600 s like the digest above.
         try:
             from api.services.journal_two import passed_setups as _j2_passed_setups
@@ -9630,7 +9625,7 @@ async def lifespan(app: FastAPI):
                                trigger=CronTrigger(day_of_week="mon-fri", hour=17, minute=40, timezone=_ET),
                                id="notebook_passed_setups_nightly", max_instances=1, coalesce=True,
                                misfire_grace_time=3600, replace_existing=True)
-            print("[startup] notebook passed-setups nightly registered (17:40 ET weekdays; dark unless NOTEBOOK_PASSED_SETUPS_ENABLED)")
+            print("[startup] notebook passed-setups nightly registered (17:40 ET weekdays)")
         except Exception as e:
             print(f"[startup] notebook passed-setups registration failed (non-fatal): {e}")
     else:
@@ -10298,12 +10293,12 @@ app.include_router(notebook_journal_styles_router.router)
 # /api/j2/smart-chips prefix; no journal_two route can shadow it).
 app.include_router(notebook_smart_chips_router.router)
 
-# Wave 13 lane 13I-1 (router-level 404 while NOTEBOOK_TA_FINGERPRINT_ENABLED is off).
+# Wave 13 lane 13I-1: the technical fingerprint.
 app.include_router(notebook_fingerprint_router.router)
 
 # Wave 13 lane 13C: outside /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_earnings_prep_router.router)
-# Wave 13 lane 13H-1 (router-level 404 while NOTEBOOK_CHART_PLAN_ENABLED is off). Outside
+# Wave 13 lane 13H-1: the chart plan. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_chart_alerts_router.router)
 
@@ -10318,11 +10313,11 @@ app.include_router(notebook_entry_context_router.router)
 app.include_router(notebook_research_capture_router.transcripts_router)
 app.include_router(notebook_research_capture_router.passed_router)
 
-# Wave 13 lane 13G-2 (router-level 404 while NOTEBOOK_THESIS_CHIPS_ENABLED is off). Outside
+# Wave 13 lane 13G-2: thesis chips. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_thesis_chips_router.router)
 
-# Wave 13 lane 13I-2 (router-level 404 while NOTEBOOK_VISUAL_PLAYBOOK_ENABLED is off). Outside
+# Wave 13 lane 13I-2: the visual playbook. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_visual_playbook_router.router)
 

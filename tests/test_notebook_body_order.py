@@ -366,11 +366,11 @@ def _unknown_sibling(path: str) -> str:
 
 
 def test_the_four_routes_the_review_named_are_dark_here_and_take_a_body(real_app):
-    """Non-vacuity for the dark-route tests below: I-5's four are among them."""
+    """Non-vacuity for the dark-route tests below. Of I-5's four, the onboarding tours door is the
+    one still behind a flag: thesis chips and research capture are always on since their flags
+    were retired (2026-11-04), so they are no longer dark anywhere."""
     dark = set(_dark_body_routes(real_app))
-    named = {("POST", "/api/j2/thesis-chips"),
-             ("POST", "/api/j2/research-capture/transcripts/save"),
-             ("POST", "/api/j2/research-capture/passed-setups")}
+    named = {("PUT", "/api/j2/onboarding/tours/{tour_id}")}
     assert named <= dark, sorted(named - dark)
     assert len(dark) >= 10, sorted(dark)
 
@@ -504,7 +504,7 @@ def test_every_dark_404_that_differs_from_an_unknown_routes_comes_from_the_share
                 continue
         own_and_different.append(f"{method} {path} ({module}): {dark.payload!r}")
     assert not own_and_different, "a router words its own dark 404 differently:\n  " + "\n  ".join(own_and_different)
-    assert {"notebook_thesis_chips", "notebook_research_capture"} <= shared, sorted(shared)
+    assert {"notebook_publish", "notebook_shares"} <= shared, sorted(shared)
 
 
 # ── the admin API docs still describe these routes' bodies ───────────────────

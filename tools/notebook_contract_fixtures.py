@@ -68,12 +68,11 @@ ADMIN = "contract-admin"
 PAID = {"plan": "pro"}
 FREE = {"plan": "free"}
 
+#: The gates the world arms. The wave 13 lanes' gates (chart plan, earnings prep, entry context, the fingerprint,
+#: plan grading, My Playbook, research capture, review drafts, the setups board, find similar, thesis chips and the
+#: visual playbook) were retired as ALWAYS ON (2026-11-04), so they are no longer here: there is nothing to arm.
 FLAGS = (
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_CHART_PLAN_ENABLED", "NOTEBOOK_EARNINGS_PREP_ENABLED",
-    "NOTEBOOK_ENTRY_CONTEXT_ENABLED", "NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED",
-    "NOTEBOOK_PLAYBOOK_ENABLED", "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED", "NOTEBOOK_PASSED_SETUPS_ENABLED",
-    "NOTEBOOK_REVIEW_DRAFTS_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED", "NOTEBOOK_FIND_SIMILAR_ENABLED",
-    "NOTEBOOK_THESIS_CHIPS_ENABLED", "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
     # The onboarding router (the sample notebook's add / status / remove, and the tour rows).
     # Here since fin-data2 round 2: lane FE2 words the removal's kept-folder sentence.
     "NOTEBOOK_ONBOARDING_ENABLED",
@@ -978,10 +977,6 @@ def visual_playbook(w: World) -> None:
              expect=200, note="One setup, RS rank 90 and up: the slice and what the filter left out.")
     w.record("visual-playbook.cards.range-only", "GET", f"{base}/cards?range=rs_rank:90:", case="success",
              expect=200, note="A range alone: charts with no value for it are left out, and counted.")
-    w.p.setenv("NOTEBOOK_ENTRY_CONTEXT_ENABLED", "0")
-    w.record("visual-playbook.cards.regime-unavailable", "GET", f"{base}/cards", case="success", expect=200,
-             note="With the entry-context switch off there is no frozen regime to filter by.")
-    w.p.setenv("NOTEBOOK_ENTRY_CONTEXT_ENABLED", "1")
     w.record("visual-playbook.cards.bad-range", "GET", f"{base}/cards?range=bogus:1:", case="error", expect=422)
     w.record("visual-playbook.cards.bad-outcome", "GET", f"{base}/cards?outcome=maybe", case="error", expect=422)
     w.record("visual-playbook.before-after", "GET", f"{base}/trades/vp-win/before-after", case="success", expect=200)
@@ -1778,6 +1773,26 @@ def route_table(app: Any) -> list[tuple[str, str]]:
     return sorted(out)
 
 
+def gated_routes(app: Any) -> set[tuple[str, str]]:
+    """`(METHOD, path)` for every route behind a flag gate: a dependency named `_require_enabled` or another
+    `_require_<switch>` (never `require_paid`, the plan check). DERIVED from the routers, like `route_table`."""
+    out = set()
+    for r in app.routes:
+        dependant = getattr(r, "dependant", None)
+        if dependant is None or not getattr(r, "path", "").startswith("/api/"):
+            continue
+        stack, names = list(dependant.dependencies), set()
+        while stack:
+            d = stack.pop()
+            names.add(getattr(d.call, "__name__", ""))
+            stack.extend(d.dependencies)
+        if any(n.startswith("_require_") for n in names):
+            for m in r.methods or ():
+                if m not in ("HEAD", "OPTIONS"):
+                    out.add((m, r.path))
+    return out
+
+
 def _concrete(path: str) -> str:
     return re.sub(r"\{[^}]+\}", "x", path)
 
@@ -2117,13 +2132,17 @@ def trader_rules(w: World) -> None:
 @builder
 def sweeps(w: World) -> None:
     """Two answers every route gives, in one file each: signed out with the flags on (401), and
-    signed out with every flag off (the one 404, BEFORE the session is read)."""
-    def sweep(expect: int) -> dict[str, Any]:
+    signed out with every flag off (the one 404, BEFORE the session is read, for a route behind a flag gate;
+    a route whose flag was retired as always on has no gate, so it answers the session's 401 there too)."""
+    gated = gated_routes(w.app)
+
+    def sweep(expect: int | None) -> dict[str, Any]:
         rows: dict[str, Any] = {}
         for method, path in route_table(w.app):
             res = w.client.request(method, _concrete(path), **({} if method in ("GET", "DELETE") else {"json": {}}))
-            if res.status_code != expect:
-                raise AssertionError(f"sweep: {method} {path} answered {res.status_code}, wanted {expect}: "
+            want = expect if expect is not None else (404 if (method, path) in gated else 401)
+            if res.status_code != want:
+                raise AssertionError(f"sweep: {method} {path} answered {res.status_code}, wanted {want}: "
                                      f"{res.text[:200]}")
             rows[f"{method} {path}"] = {"status": res.status_code, "body": res.json()}
         return rows
@@ -2138,8 +2157,9 @@ def sweeps(w: World) -> None:
         w.p.setenv(flag, "0")
     w.out["sweep.flags-off"] = {
         "_contract": {"endpoint": "every route", "case": "error", "status": 404, "path": "",
-                      "note": "Every flag off, no session: the gate answers before the session is read."},
-        "body": sweep(404)}
+                      "note": "Every flag off, no session: the gate answers before the session is read (404); a "
+                              "route with no flag gate answers the session's 401."},
+        "body": sweep(None)}
     for flag in FLAGS:
         w.p.setenv(flag, "1")
     w.p.setenv(W11_FLAG, None)                    # back to the world's wave 11: dark
@@ -2186,10 +2206,6 @@ def trader_prep_review(w: World) -> None:
     for part in ("wire", "earnings", "movers", "levels"):
         w.record(f"trader-blocks.prep.{part}", "GET", f"{prep}/{part}", case="empty", expect=200,
                  note="Nothing held yet: the part names its gap (`missing`) and says it (`detail`).")
-    w.p.setenv("NOTEBOOK_SETUPS_BOARD_ENABLED", "0")
-    w.record("trader-blocks.prep.levels.off", "GET", f"{prep}/levels", case="success", expect=200,
-             note="The setups board is off: the part says what it needs.")
-    w.p.setenv("NOTEBOOK_SETUPS_BOARD_ENABLED", "1")
     w.record("trader-blocks.prep.unknown", "GET", f"{prep}/nope", case="error", expect=404)
     # Held sources: the wire's narrative, the regime and exposure; three of the member's names report
     # today; four names, three with a cached price (one with no provable change) and one with none.
@@ -2240,10 +2256,6 @@ def trader_prep_review(w: World) -> None:
              note="The trade, its tags, the rules ticked before entry (Log Trade's pos: record), the plan grade.")
     w.record("trader-blocks.review.by-ref", "GET", f"{review}/ext:FP-REVIEW-2", case="success", expect=200,
              note="A broker trade by its stable ref, which survives the resync that reissues its row id.")
-    w.p.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "0")
-    w.record("trader-blocks.review.no-grading", "GET", f"{review}/review-1", case="success", expect=200,
-             note="Plan grading is off: the grade says what it needs.")
-    w.p.setenv("NOTEBOOK_PLAN_GRADING_ENABLED", "1")
     w.record("trader-blocks.review.not-found", "GET", f"{review}/review-other", case="error", expect=404,
              note="Another member's trade: the same 404 as one that does not exist.")
     w.as_user(MEMBER)

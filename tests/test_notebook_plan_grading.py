@@ -29,7 +29,6 @@ from fastapi.testclient import TestClient
 
 from api.middleware import auth_middleware as authmw
 
-FLAG = "NOTEBOOK_PLAN_GRADING_ENABLED"
 U, OTHER = "user-plan-a", "user-plan-b"
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -453,7 +452,6 @@ def test_STABLE_KEYS_a_broker_purge_and_reinsert_keeps_the_frozen_plan(conn, pg)
 
 
 def test_another_members_trade_is_not_visible(conn, pg, client, monkeypatch):
-    monkeypatch.setenv(FLAG, "1")
     theirs = add_trade(conn, user=OTHER)
     assert client.get(f"/api/j2/plan-grades/trades/{theirs}").status_code == 404
     assert client.get(f"/api/j2/plan-grades/status?ids={theirs}").json() == {"statuses": {}}
@@ -489,22 +487,9 @@ def test_the_discipline_record_counts_options_without_grading_them(conn, pg):
     assert w["planRate"]["wording"] == "too few to judge"
 
 
-# ── the gate, the routes ───────────────────────────────────────────────────────────────────
-
-def test_the_gate_is_off_by_default_and_answers_404_before_the_session(app, client, monkeypatch, pg):
-    monkeypatch.delenv(FLAG, raising=False)
-    assert pg.enabled() is False
-    app.dependency_overrides.clear()     # signed out: an ON gate would answer 401
-    for path in ("/api/j2/plan-grades/trades/x", "/api/j2/plan-grades/status?ids=a",
-                 "/api/j2/plan-grades/discipline"):
-        assert client.get(path).status_code == 404
-    assert client.post("/api/j2/plan-grades/trades/x/relink", content=b"not json").status_code == 404
-    monkeypatch.setenv(FLAG, "1")
-    assert client.get("/api/j2/plan-grades/discipline").status_code == 401
-
+# ── the routes ───────────────────────────────────────────────────────────────────
 
 def test_the_routes_round_trip(conn, client, monkeypatch):
-    monkeypatch.setenv(FLAG, "1")
     a = add_note(conn, body=plan_body(entry=100), title="A")
     tid = add_trade(conn)
     r = client.get(f"/api/j2/plan-grades/trades/{tid}")
@@ -762,7 +747,6 @@ def _as(app, uid, plan="pro"):
 def test_the_read_routes_answer_429_past_the_members_rate_and_another_member_is_untouched(
         conn, app, client, monkeypatch, fresh_limiter):
     from api.routers import notebook_plan_grades as r
-    monkeypatch.setenv(FLAG, "1")
     monkeypatch.setattr(r, "READ_RATE", "3/minute")
     tid = add_trade(conn)
     paths = [f"/api/j2/plan-grades/trades/{tid}", f"/api/j2/plan-grades/status?ids={tid}",
@@ -777,7 +761,6 @@ def test_the_read_routes_answer_429_past_the_members_rate_and_another_member_is_
 
 def test_the_relink_route_has_its_own_rate(conn, app, client, monkeypatch, fresh_limiter):
     from api.routers import notebook_plan_grades as r
-    monkeypatch.setenv(FLAG, "1")
     monkeypatch.setattr(r, "WRITE_RATE", "2/minute")
     tid = add_trade(conn)
     url = f"/api/j2/plan-grades/trades/{tid}/relink"
@@ -785,14 +768,10 @@ def test_the_relink_route_has_its_own_rate(conn, app, client, monkeypatch, fresh
     assert client.get("/api/j2/plan-grades/discipline").status_code == 200    # reads are a separate bucket
 
 
-def test_the_limit_is_charged_after_the_gate_and_the_session_never_before(app, client, monkeypatch, fresh_limiter):
-    """An off gate still answers its one 404, and a signed-out caller its 401: neither spends
-    a member's budget or reveals the limiter."""
+def test_the_limit_is_charged_after_the_session_never_before(app, client, monkeypatch, fresh_limiter):
+    """A signed-out caller answers its 401 and spends no member's budget or reveals the limiter."""
     from api.routers import notebook_plan_grades as r
     monkeypatch.setattr(r, "READ_RATE", "1/minute")
-    monkeypatch.delenv(FLAG, raising=False)
-    assert [client.get("/api/j2/plan-grades/discipline").status_code for _ in range(3)] == [404, 404, 404]
-    monkeypatch.setenv(FLAG, "1")
     app.dependency_overrides.clear()
     assert [client.get("/api/j2/plan-grades/discipline").status_code for _ in range(3)] == [401, 401, 401]
     # Landing 12-15: the paid check sits between the session and the rate. A member with no paid

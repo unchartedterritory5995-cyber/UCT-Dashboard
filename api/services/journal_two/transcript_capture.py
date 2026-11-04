@@ -53,11 +53,8 @@ import sqlite3
 import uuid
 from typing import Any
 
-from api.services.notebook_flags import flag_on
 
 _log = logging.getLogger(__name__)
-
-FLAG = "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED"
 
 #: Names the provider in the document title. Both held copies are FMP's text.
 SOURCE_LABEL = "FMP transcript"
@@ -78,11 +75,6 @@ class TranscriptCaptureError(ValueError):
     def __init__(self, message: str, status: int = 400):
         super().__init__(message)
         self.status = status
-
-
-def enabled() -> bool:
-    """The gate, read PER CALL through the one Notebook flag parse."""
-    return flag_on(FLAG, False)
 
 
 def clean_symbol(raw: Any) -> str:

@@ -221,8 +221,6 @@ NOT_REHEARSED = {
                             "test_the_mode_is_read_PER_REQUEST_not_captured_at_import)"),
     "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 12 12A): the "
                                           "community template gallery; no rendered on/off probe in this tool"),
-    "NOTEBOOK_PLAN_GRADING_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13A): plan vs "
-                                      "execution grading"),
     # Wave 11 (#263). Each reason names what the gate protects, from the PR body; a numbered
     # "owner decision" is that body's "Decisions for you" list.
     "NOTEBOOK_VOICE_NOTES_ENABLED": ("armed on web 2026-10-09 (docs/feature_flags.json) (wave 11 11A): voice and "
@@ -236,63 +234,10 @@ NOT_REHEARSED = {
     "NOTEBOOK_TRADE_CANVAS_ENABLED": ("armed on web 2026-10-03 (docs/feature_flags.json) (wave 11 11D): the "
                                       "trade-plan canvas note (schema level 3, NEVER-REVERT); no route of its own, "
                                       "only the doors that make a canvas"),
-    # Wave 13 lane 13I-1, and the member surface 13I-2 built on it (FingerprintPanel).
-    "NOTEBOOK_TA_FINGERPRINT_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13I-1): the "
-                                        "technical fingerprint and the chart-block index API, and the member surface "
-                                        "13I-2 built on it (FingerprintPanel on a chart block); payload key only: the"
-                                        " window switches it with the armed set and verifies "
-                                        "notebook_ta_fingerprint_enabled; no rendered on/off probe in this tool; its "
-                                        "off evidence is "
-                                        "app/src/pages/journal-2-0/components/notebook/FingerprintPanel.test.jsx "
-                                        "('renders nothing and fetches nothing while the fingerprint gate is off')"),
-    # Wave 13 lane 13C.
-    "NOTEBOOK_EARNINGS_PREP_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13C): Reporting "
-                                       "soon on Research Home and a one-click earnings prep note"),
-    # Wave 13 lane 13H-1, and the member surfaces 13H-2..13H-4 built on its routes (ChartPlanPanel).
-    "NOTEBOOK_CHART_PLAN_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13H-1): chart-plan "
-                                    "sizing and alerts at drawn levels, and the member surfaces 13H-2..13H-4 built on"
-                                    " them (the chart block's Plan door, ChartPlanPanel and its level controls); "
-                                    "payload key only: the window switches it with the armed set and verifies "
-                                    "notebook_chart_plan_enabled; no rendered on/off probe in this tool; its off "
-                                    "evidence is "
-                                    "app/src/pages/journal-2-0/components/notebook/WidgetEmbedView.chartPlan.test.jsx"
-                                    " ('gate OFF: no Plan, no Replay, and the panel is never mounted')"),
-    # Wave 13 lane 13E-1, and the member surface 13E-2 built on it (EntryContextCard, WhyPrompt).
-    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13E-1): the market"
-                                       " context frozen at the fill (API + capture hooks), and the member surface "
-                                       "13E-2 built on it (EntryContextCard on the trade page, which holds "
-                                       "WhyPrompt); payload key only: the window switches it with the armed set and "
-                                       "verifies notebook_entry_context_enabled; no rendered on/off probe in this "
-                                       "tool; its off evidence is "
-                                       "app/src/pages/journal-2-0/components/EntryContextCard.test.jsx ('renders "
-                                       "nothing while notebook_entry_context_enabled is off (no fetch, no card)')"),
-    # Wave 13 lane 13G-1.
-    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13G-1): save "
-                                            "a call-transcript passage into a note as a cited excerpt"),
-    "NOTEBOOK_PASSED_SETUPS_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13G-1): the "
-                                       "passed-setups journal on Research Home"),
-    "NOTEBOOK_THESIS_CHIPS_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13G-2): thesis "
-                                      "status + distance-to-stop chips on Positions/Holdings rows"),
-    # Wave 13 lane 13I-2.
-    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13I-2): the "
-                                         "visual playbook grid, the setup-tag suggestion at insert and the trade "
-                                         "page's before/after"),
     # Wave 13 lane 13D. Its evidence is a scan cycle (an insight row), not a page read.
     "AWARENESS_NOTE_RESURFACE_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13D): the "
                                          "awareness scan's resurfacing pass; its evidence is an insight row from a "
                                          "scan cycle"),
-    # Wave 13 lane 13J. Two dark pages behind their own gates; walked by the lane, not rehearsed.
-    "NOTEBOOK_SETUPS_BOARD_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13J): the active "
-                                      "setups board page"),
-    "NOTEBOOK_FIND_SIMILAR_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13J): find more "
-                                      "like this (nightly precompute + read-only routes)"),
-    # Wave 13 lane 13B.
-    "NOTEBOOK_PLAYBOOK_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13B): My Playbook -- "
-                                  "per-setup stats with R3 ranges and the before-losses-vs-wins patterns"),
-    # Wave 13 lane 13F.
-    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": ("armed on web 2026-10-09 (docs/feature_flags.json) (wave 13 13F): reviews that"
-                                       " write themselves -- one click drafts a daily/weekly/monthly review's data, "
-                                       "the leak finder's findings"),
     # Journal styles programme (P1 / P2 Tier 2 part A). Both ARMED on web (docs/feature_flags.json carries the flip
     # times); walked by notebook_fin_walk (c2: the styles groups and `smart`), no rendered on/off probe written here.
     "NOTEBOOK_JOURNAL_STYLES_ENABLED": "armed (journal styles P1, 2026-10-14): note kinds, styles and trader blocks; "

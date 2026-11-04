@@ -50,7 +50,7 @@ a second open, a re-sync, a later sweep or a changed source leaves the row exact
 was. The member's "why did you take it" note (`set_why`) is the one thing that changes, and
 it writes only its own two columns.
 
-WHEN IT FREEZES (and only while `NOTEBOOK_ENTRY_CONTEXT_ENABLED` is on):
+WHEN IT FREEZES (always on; `NOTEBOOK_ENTRY_CONTEXT_ENABLED` was retired 2026-11-04):
   * a manual position add (`on_position_added`, called by the add route AFTER the position
     is written, off the request);
   * a broker sync (`after_broker_sync`), a hook that runs AFTER the sync job finishes,
@@ -94,17 +94,8 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Iterable
 
 from api.services.journal_two.timeutil import compute_trading_day_et
-from api.services.notebook_flags import flag_on
 
 log = logging.getLogger(__name__)
-
-#: The enablement gate (unset = OFF; plan section 3.6).
-FLAG = "NOTEBOOK_ENTRY_CONTEXT_ENABLED"
-
-
-def enabled() -> bool:
-    """The gate, read PER CALL through the one Notebook flag parse (default OFF)."""
-    return flag_on(FLAG, False)
 
 
 #: Bumped only if a field's MEANING changes; a frozen row keeps the version it was built under.
@@ -925,7 +916,7 @@ def on_position_added(user_id: str, position: Any) -> dict:
     a context row -- a paid surface's data -- for them. Every READ of a context is behind
     `require_paid`; the write now asks the same question."""
     try:
-        if not enabled() or not isinstance(position, dict):
+        if not isinstance(position, dict):
             return {"status": "skipped"}
         if not member_is_paid(user_id):
             return {"status": "skipped", "reason": "not_paid"}
@@ -991,13 +982,13 @@ def schedule_position_capture(user_id: str, position: Any) -> str:
     """Queue the capture for a position just added, and return at once.
 
     Does no I/O itself (not even the paid check: that reads the database, so it runs on the
-    capture thread). Answers ``queued``, or why not: ``skipped`` (flag off, nothing to key),
+    capture thread). Answers ``queued``, or why not: ``skipped`` (nothing to key),
     ``member_busy`` (this member already has their share queued), ``queue_full``, ``error``.
     Never raises: the add has already succeeded and nothing here can change that."""
     uid = str(user_id)
     claimed = False
     try:
-        if not enabled() or not isinstance(position, dict):
+        if not isinstance(position, dict):
             return "skipped"
         with _capture_lock:
             if _capture_pending.get(uid, 0) >= CAPTURE_PER_MEMBER_MAX:
@@ -1092,11 +1083,9 @@ def capture_todays_entries(*, trigger: str = "sweep", budget: int = SWEEP_BUDGET
 
 def after_broker_sync(*, trigger: str = "broker_sync", conn: sqlite3.Connection | None = None,
                       today: str | None = None) -> dict:
-    """THE HOOK after a broker sync wrote. Inert while the flag is off; NEVER raises, so a
-    failure here can never fail (or retry, or alter) the sync that ran before it."""
+    """THE HOOK after a broker sync wrote. NEVER raises, so a failure here can never fail (or
+    retry, or alter) the sync that ran before it."""
     try:
-        if not enabled():
-            return {"ok": True, "skipped": "flag off"}
         return {"ok": True, **capture_todays_entries(trigger=trigger, conn=conn, today=today)}
     except Exception as e:  # noqa: BLE001
         log.warning("[entry_context] after-sync capture failed", exc_info=True)
@@ -1169,7 +1158,7 @@ def make_after_sync_listener(scheduler: Any):
     does no I/O and never raises, so it cannot slow or fail the scheduler or the sync."""
     def _listener(event: Any) -> None:
         try:
-            if getattr(event, "job_id", None) not in BROKER_SYNC_JOB_IDS or not enabled():
+            if getattr(event, "job_id", None) not in BROKER_SYNC_JOB_IDS:
                 return
             scheduler.add_job(run_after_broker_sync_blocking, id=AFTER_SYNC_JOB_ID,
                               replace_existing=True, max_instances=1, coalesce=True,
@@ -1180,8 +1169,7 @@ def make_after_sync_listener(scheduler: Any):
 
 
 def install_scheduler_hooks(scheduler: Any, cron_trigger: Any, tz: Any) -> bool:
-    """Register the market-hours sweep and the after-broker-sync listener. Both are inert
-    while the flag is off (read per run), so a flip needs no restart. Never raises."""
+    """Register the market-hours sweep and the after-broker-sync listener. Never raises."""
     try:
         from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
         scheduler.add_job(run_sweep_blocking,
