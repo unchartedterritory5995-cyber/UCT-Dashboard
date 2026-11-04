@@ -130,6 +130,7 @@ def main(argv=None) -> int:
     t_all = time.time()
     with sync_playwright() as p:
         browser = p.chromium.launch()
+        browser_version = browser.version
         try:
             page = browser.new_page()
             page.route(f"{ORIGIN}/**", serve)
@@ -153,7 +154,8 @@ def main(argv=None) -> int:
     print(f"chromium: {len(results)} cases in {time.time() - t_all:.1f} s")
 
     raw_file = out / "chromium-raw.json"
-    raw_file.write_text(json.dumps({"host": "chromium", "worker": chunk.name, "identity": identity,
+    print(f"chromium {browser_version}")
+    raw_file.write_text(json.dumps({"host": "chromium", "browser": browser_version, "worker": chunk.name, "identity": identity,
                                     "results": results}), encoding="utf-8")
     chromium_file = out / "chromium.json"
     print(node("--digest-raw", str(raw_file), "--out", str(chromium_file)).strip())
@@ -178,7 +180,7 @@ def main(argv=None) -> int:
             print(text_e)
     codes = [code_n, code_e, 1 if py_bad else 0]
     verdict = 1 if 1 in codes else 2 if 2 in codes else 0
-    (out / "verdict.json").write_text(json.dumps({"node_vs_chromium": text_n.splitlines()[-1] if text_n else "",
+    (out / "verdict.json").write_text(json.dumps({"browser": browser_version, "node_vs_chromium": text_n.splitlines()[-1] if text_n else "",
                                                   "committed_vs_chromium": text_e.splitlines()[-1] if text_e else "",
                                                   "python_codec_red": py_bad, "exit": verdict}, indent=1), encoding="utf-8")
     print({0: "HP-2/HP-3 GREEN", 1: "HP-2/HP-3 RED", 2: "HP-2/HP-3 INCONCLUSIVE"}[verdict])

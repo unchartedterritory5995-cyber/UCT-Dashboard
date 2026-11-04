@@ -108,6 +108,8 @@ describe('the checks', () => {
     expect(r.code).toBe(1)
     expect(r.lines[0]).toMatch(/WITHOUT an engine bump/)
     expect(r.lines).toContain(`RED ${name}: digest "${'f'.repeat(64)}" != committed "${expected.cases[name].digest}"`)
+    g.recordedOn = { node: 'vX', v8: 'not-' + expected.recordedOn.v8 }
+    expect(hp.checkAgainst(expected, g, corpus).lines.some((l) => l.startsWith(`NOTE committed on V8 ${expected.recordedOn.v8}`))).toBe(true)
     g.identity.script_engine = Number(g.identity.script_engine) + 1
     expect(hp.checkAgainst(expected, g, corpus).lines[0]).toMatch(/identity moved/)
   })

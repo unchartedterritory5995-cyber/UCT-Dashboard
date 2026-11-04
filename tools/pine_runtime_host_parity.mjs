@@ -307,8 +307,13 @@ export async function runNode({ bundle, corpus = loadCorpus(), only = null, log 
     records[c.case] = recordOf(nodeRaw(rt, c, rows), identity)
     log(`${c.case.padEnd(40)} ${records[c.case].status.padEnd(9)} ${(performance.now() - t0).toFixed(0).padStart(6)} ms ${records[c.case].guards.join(',')}`)
   }
-  return { host: 'node', identity, barsSha256: barsSha, records }
+  return { host: 'node', identity, barsSha256: barsSha, records, recordedOn: hostVersions() }
 }
+
+/** The host's JS engine. NOT part of the digest: two V8 builds can disagree in the last ulp of
+ *  Math.sin / Math.cos (measured 2026-11-04: V8 13.6 vs 14.5), and naming both sides is what
+ *  turns such a red into a diagnosis. */
+export const hostVersions = () => ({ node: process.version, v8: process.versions.v8 })
 
 // ─── checks ────────────────────────────────────────────────────────────────────
 
@@ -376,6 +381,8 @@ export function checkAgainst(expected, got, corpus) {
       ? 'RED the engine identity moved: the coordinator regenerates expected-digests.json with --write at the bump'
       : 'RED a digest changed WITHOUT an engine bump (SCRIPT_ENGINE_VERSION): output-changing engine work')
     for (const d of diffs) lines.push(`RED ${d.case}: ${d.field} ${JSON.stringify(d.b)} != committed ${JSON.stringify(d.a)}`)
+    const was = expected.recordedOn && expected.recordedOn.v8, now = got.recordedOn && got.recordedOn.v8
+    if (was && now && was !== now) lines.push(`NOTE committed on V8 ${was}, this run is V8 ${now}: a last-ulp Math difference between V8 builds reads as this red`)
   }
   const nd = distinguishes(got.records)
   if (nd) { code = 1; lines.push(`RED corpus: ${nd}`) }
@@ -407,7 +414,7 @@ export function writeExpected(prev, got, corpus) {
     const r = got.records[name]
     cases[name] = { status: r.status, digest: r.digest, guards: r.guards, warmup: r.warmup }
   }
-  return { codec: codec.CODEC_TAG, identity: got.identity, barsSha256: got.barsSha256, cases }
+  return { codec: codec.CODEC_TAG, identity: got.identity, recordedOn: got.recordedOn || null, barsSha256: got.barsSha256, cases }
 }
 
 // ─── HP-4: the mutation control ────────────────────────────────────────────────
