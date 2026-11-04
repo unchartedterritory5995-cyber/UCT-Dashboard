@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 155,
+  "all": 156,
   "withProductionKinds": 145,
-  "darkGated": 10
+  "darkGated": 11
  },
  "totals": {
-  "capabilities": 155,
-  "withAnyRegressionCase": 95,
+  "capabilities": 156,
+  "withAnyRegressionCase": 96,
   "perProtection": {
    "nl": {
-    "covered": 95,
-    "applicable": 155
+    "covered": 96,
+    "applicable": 156
    },
    "routing": {
-    "covered": 95,
-    "applicable": 155
+    "covered": 96,
+    "applicable": 156
    },
    "args": {
-    "covered": 95,
-    "applicable": 155
+    "covered": 96,
+    "applicable": 156
    },
    "execution": {
-    "covered": 95,
-    "applicable": 155
+    "covered": 96,
+    "applicable": 156
    },
    "receipt": {
-    "covered": 70,
-    "applicable": 155
+    "covered": 71,
+    "applicable": 156
    },
    "refusal": {
     "covered": 27,
-    "applicable": 155
+    "applicable": 156
    },
    "permission": {
-    "covered": 147,
-    "applicable": 155
+    "covered": 148,
+    "applicable": 156
    },
    "undo": {
     "covered": 43,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 21,
-    "applicable": 155
+    "applicable": 156
    },
    "phrasings": {
-    "covered": 95,
-    "applicable": 155
+    "covered": 96,
+    "applicable": 156
    }
   }
  },
@@ -6767,6 +6767,60 @@
     "undo": [
      "watchlist.add: undo restores"
     ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.changes": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "workflow.watchlistChanges: \"what changed in my Momentum watchlist since yesterday?\"",
+     "workflow.watchlistChanges: \"how is my Momentum watchlist doing today\"",
+     "workflow.watchlistChanges: \"movers in my Momentum list\"",
+     "workflow.watchlistChanges: \"show me the biggest movers in the Momentum watchlist\""
+    ],
+    "routing": [
+     "workflow.watchlistChanges: \"what changed in my Momentum watchlist since yesterday?\"",
+     "workflow.watchlistChanges: \"how is my Momentum watchlist doing today\"",
+     "workflow.watchlistChanges: \"movers in my Momentum list\"",
+     "workflow.watchlistChanges: \"show me the biggest movers in the Momentum watchlist\""
+    ],
+    "args": [
+     "corpus workflow.watchlistChanges"
+    ],
+    "execution": [
+     "workflow.watchlistChanges (c)"
+    ],
+    "receipt": [
+     "workflow.watchlistChanges (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
     "multiStep": [],
     "phrasings": []
    }

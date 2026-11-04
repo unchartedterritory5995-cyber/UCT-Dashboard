@@ -4,20 +4,120 @@
  "intents": [
   {
    "id": "workflow.relativeStrength",
-   "capabilities": ["stock.relativeStrength"],
-   "board": "ONE",
-   "needs": ["stock.relativeStrength"],
-   "source": "Track D workflow (a): relative strength vs SPY or a named benchmark from two bars.daily reads",
-   "deterministic": {"plan": [{"action": "stock.relativeStrength", "args": {"symbol": "NVDA"}}]},
-   "model": {"ops": [{"action": "stock.relativeStrength", "target": "$stockData", "args": {"symbol": "NVDA", "benchmark": "SPY", "sessions": null}}]},
-   "expect": {"reads": ["^POST /api/agent/data .*bars\\.daily.*NVDA", "^POST /api/agent/data .*bars\\.daily.*SPY"], "unchanged": true},
-   "phrasings": [
-    {"text": "NVDA relative strength vs SPY", "det": "required"},
-    {"text": "what's the relative strength of NVDA against SPY over the last 3 months?", "det": "required"},
-    {"text": "is NVDA outperforming the market?", "det": "required"},
-    {"text": "show me NVDA's RS line versus SPY", "det": "required"}
+   "capabilities": [
+    "stock.relativeStrength"
    ],
-   "ownWords": ["data"]
+   "board": "ONE",
+   "needs": [
+    "stock.relativeStrength"
+   ],
+   "source": "Track D workflow (a): relative strength vs SPY or a named benchmark from two bars.daily reads",
+   "deterministic": {
+    "plan": [
+     {
+      "action": "stock.relativeStrength",
+      "args": {
+       "symbol": "NVDA"
+      }
+     }
+    ]
+   },
+   "model": {
+    "ops": [
+     {
+      "action": "stock.relativeStrength",
+      "target": "$stockData",
+      "args": {
+       "symbol": "NVDA",
+       "benchmark": "SPY",
+       "sessions": null
+      }
+     }
+    ]
+   },
+   "expect": {
+    "reads": [
+     "^POST /api/agent/data .*bars\\.daily.*NVDA",
+     "^POST /api/agent/data .*bars\\.daily.*SPY"
+    ],
+    "unchanged": true
+   },
+   "phrasings": [
+    {
+     "text": "NVDA relative strength vs SPY",
+     "det": "required"
+    },
+    {
+     "text": "what's the relative strength of NVDA against SPY over the last 3 months?",
+     "det": "required"
+    },
+    {
+     "text": "is NVDA outperforming the market?",
+     "det": "required"
+    },
+    {
+     "text": "show me NVDA's RS line versus SPY",
+     "det": "required"
+    }
+   ],
+   "ownWords": [
+    "data"
+   ]
+  },
+  {
+   "id": "workflow.watchlistChanges",
+   "capabilities": [
+    "watchlist.changes"
+   ],
+   "board": "WATCH",
+   "needs": [
+    "watchlist.changes"
+   ],
+   "source": "Track D workflow (e): what changed in a saved watchlist since the previous close (one quotes read + news counts for the largest movers)",
+   "deterministic": {
+    "plan": [
+     {
+      "action": "watchlist.changes",
+      "args": {}
+     }
+    ]
+   },
+   "model": {
+    "ops": [
+     {
+      "action": "watchlist.changes",
+      "target": "$watchlists[0]",
+      "args": {}
+     }
+    ]
+   },
+   "expect": {
+    "reads": [
+     "^POST /api/agent/data .*quotes.*NVDA.*TSLA"
+    ],
+    "unchanged": true
+   },
+   "phrasings": [
+    {
+     "text": "what changed in my Momentum watchlist since yesterday?",
+     "det": "required"
+    },
+    {
+     "text": "how is my Momentum watchlist doing today",
+     "det": "required"
+    },
+    {
+     "text": "movers in my Momentum list",
+     "det": "required"
+    },
+    {
+     "text": "show me the biggest movers in the Momentum watchlist",
+     "det": "required"
+    }
+   ],
+   "ownWords": [
+    "lists"
+   ]
   }
  ]
 }

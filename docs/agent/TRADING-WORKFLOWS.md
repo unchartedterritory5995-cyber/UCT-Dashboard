@@ -80,6 +80,42 @@ is stale.
   and uneven data; the real panel on the fast path and the model path; dark-by-default; isolation; routing words.
 - Capreg dark corpus `workflow.relativeStrength`: 4 phrasings at levels (a), (b) and (c).
 
+### 2. What changed in my watchlist — `watchlist.changes` (workflow `watchlistChanges`)
+
+**Why:** this is the daily habit question: "what moved in my list, and is there news behind it?" Today it takes a
+scan of the Watchlist widget plus a News search per symbol.
+
+**Target:** one of the member's saved watchlists. The fast path resolves a named list. With several lists and no
+name, the model asks which.
+
+**Reads:**
+- one `quotes` read covering the list's first 50 symbols (the kind's own cap);
+- at most five `news.company` reads (`limit: 25`), one per largest absolute mover.
+
+That is 6 reads or fewer, inside the turn's 8.
+
+**Computation:** `changesOf` and `newsCountOf`, both pure. It reports:
+- counts of up, down and unchanged;
+- the top three gainers and the top three decliners, using each quote row's own `change_pct` against the previous
+  session close (never recomputed);
+- news counts, only for items published in the 24 hours up to the snapshot's own `as_of`. When the page is full and
+  the store has more, the count is a floor ("25+").
+
+**Dating and wording:** the header names the snapshot instant in ET (always dated) and the session label. The card
+never says "live" or "now". It shows counts only, never headline text (the News widget and `news.latest` show items).
+
+**Refusals and notes:**
+- quotes are unavailable or refused, or no symbol has a change: fixed words, no figure;
+- the list is empty: nothing is read;
+- per-symbol notes: no quote; no change figure; the list is longer than one read; quotes are stale; news ingest is
+  behind; no news count is available.
+
+**Tests:**
+- `app/src/agent/agentWorkflowWatchlistChanges.test.jsx`: counts and movers, the news window and floor, the card,
+  refusals; the real panel on the fast path (exact read list), the 50-symbol cap, the empty list and the model path;
+  dark by default; isolation.
+- Dark corpus `workflow.watchlistChanges`: 4 phrasings at levels (a), (b) and (c) on the WATCH board.
+
 ## Capability-regression (capreg) integration
 
 The dark corpus lives in `app/src/agent/qa/capabilityRegression/baseline/corpus.dark.json`. It uses the main corpus's
