@@ -18,6 +18,7 @@ import { storeConversation } from '../../../../components/chart/builder/conversa
 import { CREATE_INDICATOR_FLAG_KEY } from '../../../../components/chart/builder/studio/createIndicatorFlag'
 import { groupOfAction } from '../../../routing'
 import { configFor, PROD_KINDS } from './registry'
+import { installStepServer } from '../../../testing/stepServer'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -116,8 +117,12 @@ const resolveArg = (v, body) => (typeof v === 'string' && v.startsWith('$ctx:')
   : Array.isArray(v) ? v.map(x => resolveArg(x, body)) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolveArg(x, body)])) : v)
 export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTarget(o.target, body), args: resolveArg(o.args, body) }))
 
-export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } = {}) {
+// v2-readiness-2: `stepScript` (planner v2 parity, agentPlannerV2Parity.test.jsx) — the case's model turns are served by the
+// scripted STEP-1 server (testing/stepServer.js) instead of the v1 envelope queue, and the config says planner 'v2'.
+// Absent (every capability-regression suite), mountCase is exactly as before.
+export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, stepScript = null } = {}) {
   const p = setupPanel()
+  const srv = stepScript ? installStepServer(p, stepScript, { planner: 'v2' }) : null
   const st = { log: [], replay: null, views: {}, screens: seed.screens || [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
@@ -126,7 +131,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
     if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search')) return base(url, init)
     p.st.calls.push([method, u, body])
-    if (u === '/api/agent/config') return json(configFor(kinds))
+    if (u === '/api/agent/config') return json(srv ? { ...configFor(kinds), planner: 'v2' } : configFor(kinds))
     if (u.startsWith('/api/user-definitions')) return st.defs.size ? json({ definitions: [...st.defs.values()] }) : base(url, init)
     // the drawings SYNC as the server holds it (useTracingsSync: prefs.tracings_doc = { updatedAt, doc }) — the account
     // copy mirrors this tab's store, as it does once the sync has run (host.confirmDrawingsSynced reads it back)
@@ -236,7 +241,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
     for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)      // the store is module-level: start empty
     mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })      // (a TIMED board's charts carry their view: the loaded history)
   }
-  return { p, st, ...mounted }
+  return { p, st, srv, ...mounted }
 }
 
 /** The faithful scripted model for one turn's canonical plan (see the header). */

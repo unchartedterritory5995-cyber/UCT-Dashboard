@@ -1020,6 +1020,9 @@ def test_v2_research_is_refused_after_a_knowledge_step_and_the_sentinel_never_le
     outbound = []
     monkeypatch.setattr(t1, "_research", lambda q, r: (outbound.append(q), {"answer": "", "citations": []})[1])
     monkeypatch.setenv(v2.PLANNER_ENV, "v2")
+    # a knowledge step can only RETURN passage text with the flag on (the kinds refuse otherwise); v2-readiness-2's
+    # flag-off identity (turn_v2.knowledge_gate) never offers playbook.* while it is off — tests/test_uct_agent_v2_readiness2.py
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE", "1")
     monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
     args = {"type": "object", "properties": {"question": {"type": "string"}}, "required": ["question"],
             "additionalProperties": False}

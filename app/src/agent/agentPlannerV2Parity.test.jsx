@@ -1,0 +1,156 @@
+// ── v2-readiness-2 (Mission 3): PLANNER v1 vs v2 PARITY over the capability-regression corpus ───────────────────────
+//
+// The corpus (qa/capabilityRegression/baseline/corpus.json: 46 intents, 233 owner-style phrasings) replayed through the
+// REAL panel twice, with no model and no paid call:
+//   v1 — exactly the capability-regression level (c): the FAITHFUL scripted model answers the intent's canonical plan
+//        only with the actions the production ROUTED request carried (testing/harness.jsx faithful()).
+//   v2 — the same phrasing with the config saying planner 'v2': the deterministic layers run first exactly as in v1 (they
+//        sit before the planner branch in useAgent), and a message that reaches the model is served by the scripted STEP-1
+//        server (testing/stepServer.js) playing the canonical plan ONE STEP PER OP, each step's mode from the manifest
+//        entry the way turn_v2 decides it (query → query, agent.undo → apply, confirm / irreversible → propose, else
+//        apply) — FAITHFUL too: a canonical action that is not in the v2 request's manifest is never played.
+// Both are judged by the SAME checkExpect (board, indicators, reads / writes, receipt / proposal / refusal structure).
+//
+// Default (CI): the first phrasing of every intent through v2 only, asserted to pass — the v2 parity RAIL (one panel run
+// per intent). V2_PARITY=full runs every phrasing through v1 AND v2 and writes the table to V2_PARITY_OUT (JSON).
+// Planner v2 stays OFF in production: only these tests' scripted config says 'v2'.
+import { describe, it, expect, afterEach, afterAll, vi } from 'vitest'
+import { waitFor, fireEvent, screen, cleanup } from '@testing-library/react'
+import fs from 'node:fs'
+import { registerCatalog } from './qa/capabilityRegression/testing/registry'
+import { corpus, phrasingsOf, failureMode, gapIt } from './qa/capabilityRegression/testing/corpus'
+import { mountCase, resolveTarget, boardState, receiptsNow, refusals, panelHost } from './qa/capabilityRegression/testing/harness'
+import { replay, checkExpect } from './qa/capabilityRegression/testing/run'
+import { routedNames } from './qa/capabilityRegression/testing/route'
+import { groupOfAction } from './routing'
+import { _resetAgentConfig, loadAgentConfig } from './agentClient'
+
+vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
+await registerCatalog()
+afterEach(() => { vi.restoreAllMocks(); cleanup() })
+
+const FULL = globalThis.process?.env?.V2_PARITY === 'full'
+const OUT = globalThis.process?.env?.V2_PARITY_OUT || null
+const rows = []
+
+/** Known v2-ONLY gaps (the case passes on v1): each must fail in exactly its recorded way (corpus.js gapIt), so a fix
+ *  turns it red until the marker is removed, and an unrelated break is never hidden. */
+const V2_GAPS = {
+  'grid.four.unnamed': { id: 'V2-G1', owner: 'planner v2 (turn_v2 prompt / steps.js)', mode: 'chart count',
+    reason: 'the canonical plan is 3 × widget.add + widget.arrange. On master v1 fails it too (capreg CG-3: add + change-existing '
+      + 'refused); #771 fixes v1 by running the adds then ONE re-tile in a single plan (splitMixedOps arrangeAfter). v2 runs one '
+      + 'step at a time, so the third add finds no empty space and is refused before the arrange runs — #771 does not fix v2. A '
+      + 'real model can recover from the refusal (arrange first), but v2 needs a "make room first" prompt rule or a multi-op '
+      + 're-tile step to match.' },
+}
+
+/** turn_v2's mode for one step, from the manifest entry the v2 request carried (STEP-1 + v2-readiness-2 agent.undo). */
+export function v2ModeOf(entry) {
+  if (entry.name === 'agent.undo') return 'apply'
+  if (entry.query) return 'query'
+  if (entry.name !== 'indicator.saveDraft' && (entry.risk === 'confirm' || entry.reversible === false)) return 'propose'
+  return 'apply'
+}
+
+/** The scripted v2 model for one canonical plan: one step per op, faithful to the v2 request's manifest. */
+function v2Script(plan) {
+  const offered = (c) => new Map((c.body?.capabilities || []).map(e => [e.name, e]))
+  const steps = plan.ops.map(op => (c) => {
+    const entry = offered(c).get(op.action)
+    if (!entry) return { reply: `«v2 was not offered ${op.action}»` }
+    return { action: op.action, target: resolveTarget(op.target, c.body), args: op.args || {}, mode: v2ModeOf(entry) }
+  })
+  return [...steps, { reply: '' }]
+}
+
+const turnCount = (p) => p.st.calls.filter(c => c[1] === '/api/agent/turn').length
+
+/** run.jsx replay(), with the model turns served by the v2 step server. Returns { modelTurns } (v2 streams opened). */
+async function replayV2({ board: boardName = 'ONE', steps, seed = {} }, label) {
+  // keyed by the MEMBER'S MESSAGE: a step with no canonical plan (a prelude, a deterministic follow-up) that still reaches
+  // the model gets a bare reply, never the next step's plan (the step server's script is consumed per stream)
+  const plans = new Map(steps.filter(s => s.model).map(s => [s.say, v2Script(s.model)]))
+  const queues = new Map()
+  const dispatch = (c) => {
+    const msg = c.body?.message
+    if (!queues.has(msg) || queues.get(msg).done) queues.set(msg, { items: [...(plans.get(msg) || [{ reply: '' }])], done: false })
+    const q = queues.get(msg)
+    const item = q.items.shift()
+    if (!q.items.length) q.done = true
+    return typeof item === 'function' ? item(c) : item
+  }
+  const script = Array.from({ length: 64 }, () => dispatch)
+  const m = mountCase(boardName, { seed, stepScript: script })
+  // the catalog was registered under a v1 config (registerCatalog): re-read it from this case's server, which says v2
+  _resetAgentConfig()
+  await loadAgentConfig()
+  const { p, board, say, srv } = m
+  const start = boardState(board)
+  for (const [i, s] of steps.entries()) {
+    const before = boardState(board)
+    const since = { calls: p.st.calls.length, turns: turnCount(p), receipts: receiptsNow().length, refusals: refusals().length }
+    await say(s.say)
+    await waitFor(() => { if (screen.queryByTestId('agent-typing') || srv.stream) throw new Error('busy') }, { timeout: 15000 })
+    const ctx = { ...m, start, before, since }
+    const l = `${label} · step ${i + 1} "${s.say}"`
+    if (s.expect) {
+      try { await waitFor(() => checkExpect(ctx, s.expect, l), { timeout: 6000 }) } catch (e) {
+        if (globalThis.process?.env?.V2_PARITY_DEBUG) e.message += `
+  v2 steps: ${JSON.stringify(srv.events.filter(x => x.t === 'step').map(x => [x.action, x.target, x.mode]))} results: ${JSON.stringify(srv.results.map(r => [r.status, (r.refusal || r.receipt || '').slice(0, 140)]))} streams: ${srv.bodies.length}`
+        throw e
+      }
+    }
+    if (s.approve) {
+      const since2 = { ...since, calls: p.st.calls.length, receipts: receiptsNow().length }
+      fireEvent.click(screen.getAllByRole('button', { name: 'Apply' }).at(-1))
+      await m.p.idle()
+      await waitFor(() => { if (screen.queryByTestId('agent-typing') || srv.stream) throw new Error('busy') }, { timeout: 15000 })
+      if (s.afterApprove) await waitFor(() => checkExpect({ ...ctx, since: since2 }, s.afterApprove, `${l} → Apply`), { timeout: 6000 })
+    }
+  }
+  return { modelTurns: srv.bodies.length, steps: srv.results.map(r => r.status) }
+}
+
+const stepsOf = (intent, ph) => [...(intent.before || []), ...(ph.prelude || []).map(say => ({ say })),
+  { say: ph.text, model: intent.model, expect: intent.expect, approve: intent.approve, afterApprove: intent.afterApprove }]
+
+async function outcome(fn) {
+  try { const r = await fn(); return { ok: true, ...(r || {}) } } catch (e) { return { ok: false, mode: failureMode(e).slice(0, 160) } }
+}
+
+/** Level (a): v1 = the production routed request carries every needed action (capability-regression rule); v2 = the
+ *  v2 request's manifest (the whole catalog, ≤ turn_v2.MAX_CAPABILITIES_V2) carries it, so the action index lists it. */
+function routing(intent, ph) {
+  const host = panelHost(intent.board)
+  const { names, overBudget } = routedNames(ph.text, { host, recentActions: intent.recentActions || [] })
+  const v1 = intent.needs.every(a => names.includes(a) && !overBudget.includes(groupOfAction(a)))
+  return { v1, needs: intent.needs }
+}
+
+describe('planner v2 parity — capability-regression corpus', () => {
+  if (!FULL) {
+    // the RAIL: the first phrasing of every intent reaches the same final state under v2
+    for (const intent of corpus.intents) {
+      const ph = phrasingsOf(intent)[0]
+      const { run, tag } = gapIt(V2_GAPS[intent.id])
+      run(`v2 · ${intent.id} · "${ph.text}"${tag}`, async () => {
+        await replayV2({ board: intent.board, seed: intent.seed, steps: stepsOf(intent, ph) }, `v2 ${intent.id}`)
+      }, 60000)
+    }
+    return
+  }
+  for (const intent of corpus.intents) {
+    for (const ph of phrasingsOf(intent)) {
+      it(`${intent.id} · "${ph.text}"`, async () => {
+        const r = routing(intent, ph)
+        _resetAgentConfig()                              // the v1 case re-reads its own (v1) config
+        const v1 = await outcome(() => replay({ board: intent.board, seed: intent.seed, steps: stepsOf(intent, ph) }, `v1 ${intent.id}`))
+        cleanup()
+        const v2 = await outcome(() => replayV2({ board: intent.board, seed: intent.seed, steps: stepsOf(intent, ph) }, `v2 ${intent.id}`))
+        rows.push({ intent: intent.id, text: ph.text, gaps: Object.fromEntries(Object.entries(ph.gaps || {}).map(([k, g]) => [k, g.id])),
+          ops: intent.model.ops.map(o => o.action), route_v1: r.v1, v1, v2 })
+      }, 90000)
+    }
+  }
+  afterAll(() => { if (OUT) fs.writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), rows }, null, 1)) })
+})
