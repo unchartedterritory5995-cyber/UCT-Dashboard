@@ -178,6 +178,18 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
       lines: [`Renamed to “${out.readback.name || name}”.`] }] }
 }
 
+/** PACKAGE 3: `envelope` with its `create` name kept as a custom name (see modelTurn), else the SAME envelope. */
+function withCreateName(envelope, words, accept) {
+  if (!envelope || !Array.isArray(envelope.ops)) return envelope
+  if (soleCueName(words) || memberCueNames(words).length) return envelope
+  if (envelope.ops.some((o) => o && o.op === 'rename_definition')) return envelope
+  const created = envelope.ops.find((o) => o && o.op === 'create')
+  const name = created && typeof created.name === 'string' ? created.name.replace(/\s+/g, ' ').trim() : ''
+  let ok = false
+  try { ok = !!name && accept(name) === true } catch { ok = false }
+  return ok ? { ...envelope, ops: [...envelope.ops, { op: 'rename_definition', name }] } : envelope
+}
+
 /**
  * THE MODEL HALF OF A TURN — one `/converse` call; the server declares what the turn is
  * (`classifyTurn`). ANSWER / UNSUPPORTED / REFUSED are the assistant's words and nothing
@@ -188,7 +200,7 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
  * @returns `{ok, entries, state: next|null, changed}` — `changed`: a new revision of the
  *          definition (the preview acknowledgement resets, the "updated" cue fires).
  */
-export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn } = {}) {
+export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null } = {}) {
   const res = await converse({ message: words, state: before, gateCtx, snippets })
   const unclear = distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`)
   const gaps = [...unclear, ...unavailableLines(res)]
@@ -208,7 +220,13 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
       lines: [memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] }, { gate: turn.gate, reason: turn.reason })
   }
   // ⭐ BATCH 1 — a name the member gave in the same message rides in this envelope.
-  const envelope = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
+  const named = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
+  // ⭐ PACKAGE 3 seam (Agent, 2026-11-04 — AGENT-M3-CONTRACT §17): a caller that asks for it (`keepCreateName`, a
+  // predicate — only UCT Agent passes one) keeps the model's `create` name as the definition's CUSTOM name, in the SAME
+  // patch (an appended `rename_definition`: one revision, one Undo step). Only for the turn that CREATES the definition,
+  // only when the member named nothing, and only for a name the predicate accepts. The dock never passes it: there,
+  // `create` still takes the derived name (derivedName.js).
+  const envelope = typeof keepCreateName === 'function' && !before.working ? withCreateName(named, words, keepCreateName) : named
   const now = current()
   const out = applyTurn(now, envelope, { gateCtx, memberWords: words })
   const { result } = out
@@ -223,17 +241,8 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
         lines: [...(turn.reply ? [turn.reply] : []), ...gaps, ...out.state.questions.map((q) => q.text)] }] }
   }
   logStudioAction(out.state.lineage, 'preview', { surface: 'studio' })
-  // ⭐ PACKAGE 3 seam (Agent, 2026-11-04 — docs/indicators/AGENT-M3-CONTRACT.md §17): the name the model's `create`
-  // op PROPOSED, handed back as a SUGGESTION only. The engine still names the definition from its maths (derivedName:
-  // `create` takes the derived name); nothing here writes it. A caller that wants a human name applies it through the
-  // ONE name-only door (`renameTurn` / `agentAuthoring.renameDraft`) — its own undoable step. Only for the turn that
-  // CREATED the definition, and only when the member named nothing themselves (their name is already kept).
-  const created = !before.working ? (envelope && Array.isArray(envelope.ops) ? envelope.ops : []).find((o) => o && o.op === 'create') : null
-  const suggested = created && typeof created.name === 'string' ? created.name.replace(/\s+/g, ' ').trim() : ''
-  const named = !!soleCueName(words) || memberCueNames(words).length > 0
-  const suggestedName = suggested && !named && suggested !== ((out.state.working && out.state.working.meta && out.state.working.meta.name) || '') ? suggested : null
   // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the model wrote.
-  return { ok: true, state: out.state, changed: true, outcome: turn.outcome, changes: result.changes || [], ...(suggestedName ? { suggestedName } : {}),
+  return { ok: true, state: out.state, changed: true, outcome: turn.outcome, changes: result.changes || [],
     entries: [{ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
       lines: [...replyLines(out.readback, out.state, result.changes), ...unclear] }] }
 }

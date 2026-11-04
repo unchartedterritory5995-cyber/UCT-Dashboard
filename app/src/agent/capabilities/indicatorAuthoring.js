@@ -68,7 +68,7 @@ function setActive(draftRef) {
     else store()?.removeItem(ACTIVE_KEY)
   } catch { /* storage is a convenience: the specialist is the authority */ }
 }
-export function _resetAuthoring() { active = null; savedDrafts.clear(); try { store()?.removeItem(ACTIVE_KEY); store()?.removeItem(LAST_KEY) } catch { /* */ } }
+export function _resetAuthoring() { active = null; savedDrafts.clear(); savedChart = null; try { store()?.removeItem(ACTIVE_KEY); store()?.removeItem(LAST_KEY) } catch { /* */ } }
 
 // ── refinement A: the chart a draft belongs to is the SPECIALIST's association (`status.chartRef`,
 // recorded by openDraft). Used while that chart is on the board; otherwise the member names one. ──
@@ -210,7 +210,7 @@ export const looksLikeFormula = (name) => FORMULA_NAME.test(String(name || ''))
 /** “Name” for chat, or the fallback when the name is missing or reads like a formula. */
 export const shownName = (name, fallback) => (name && !looksLikeFormula(name) ? `“${name}”` : fallback)
 // ⭐ PACKAGE 3 (owner 2026-11-04: created indicators get HUMAN names): the name the builder's model proposed for a
-// definition it created (`suggestedName`, Indicators' seam) is used only when it IS a name — short words, never a
+// definition it created (Indicators' `keepCreateName` seam) is kept only when it IS a name — short words, never a
 // formula, never a sentence. Anything else keeps the engine's own derived name.
 const NOT_A_NAME = /[<>=+*^/\\[\]{}()·−×÷%$#@|;:!?"“”]|&&|\bhttps?\b|\b(?:when|where|if|that|which|above|below|crosses?|greater|less|than|times|minus|plus|divided)\b/i
 export function humanName(raw) {
@@ -646,6 +646,7 @@ function snapshots(host) {
 // ── PACKAGE 3: drafts that were SAVED in this tab (ref → {name, defId}), so an Undo reaching one of their draft steps
 // says what happened instead of "no longer on the workspace" (a Save is permanent — D7, owner 2026-10-28) ──
 const savedDrafts = new Map()
+let savedChart = null           // the chart the last SAVED draft was built on (for "apply it")
 const savedByKey = (draftRef) => (draftRef && typeof draftRef.key === 'string' ? [...savedDrafts.values()].find(v => v.key === draftRef.key && v.lineage === draftRef.lineage) || null : null)
 function savedSentence(sv) {
   const nm = shownName(sv.name, 'it')
@@ -661,7 +662,8 @@ export function savedReferent(host, raw) {
   const ls = lastSaved()
   if (!ls || typeof ls.defId !== 'string') return null
   const charts = boardCharts(host)
-  const chart = (ls.chartRef && charts.some(c => c.ref === ls.chartRef)) ? ls.chartRef
+  const own = savedChart && savedChart.defId === ls.defId ? savedChart.chartRef : null
+  const chart = (own && charts.some(c => c.ref === own)) ? own
     : charts.length === 1 ? charts[0].ref : (charts.some(c => c.ref === clickedChart(host)) ? clickedChart(host) : null)
   if (!chart || showsDefinition(host, ls.defId).includes(chart)) return null
   return { defId: ls.defId, chart }
@@ -688,14 +690,7 @@ export const indicatorDraftsKind = {
       const st = st0
       const out = draftUndo(patch.undo.draftRef, { expectedStepId: patch.undo.stepId }, ctx)
       if (!out.ok) throw fail(refusalSentence(out))
-      // PACKAGE 3: a build that was also NAMED is one step to the member — its earlier step(s) are undone too, exactly
-      let last = out
-      for (const stepId of Array.isArray(patch.undo.then) ? patch.undo.then : []) {
-        const more = draftUndo(patch.undo.draftRef, { expectedStepId: stepId }, ctx)
-        if (!more.ok) throw fail(`${refusalSentence(more)} (Its name was already put back.)`)
-        last = more
-      }
-      return { lines: [`Undid the last change to ${shownName(st?.name, 'the draft')} (draft — not saved).`, ...(last.lines || [])] }
+      return { lines: [`Undid the last change to ${shownName(st?.name, 'the draft')} (draft — not saved).`, ...(out.lines || [])] }
     }
     const snap = snapshots(host).find(s => s.ref === ref)
     if (!snap) throw fail('that draft is no longer available')
@@ -736,22 +731,14 @@ export const indicatorDraftsKind = {
           name = o.status.name || name
         }
         setActive(draftRef)
-        const out = await draftTurn(draftRef, op.message, { expectedRevision: op.pinRevision ?? revision }, ctx)
+        // ⭐ PACKAGE 3: a NEW indicator keeps the builder's proposed name when it is a human one (and not one the member
+        // already has) — applied by the engine in the same patch (AGENT-M3-CONTRACT §17)
+        const keepCreateName = opened && !op.edit ? (n) => !!humanName(n) && !ownNames().includes(humanName(n).toLowerCase()) : null
+        const out = await draftTurn(draftRef, op.message, { expectedRevision: op.pinRevision ?? revision, ...(keepCreateName ? { keepCreateName } : {}) }, ctx)
         if (!out.ok) throw turnRefused(out, lines.length ? { unreverted: true } : {})
         revision = out.revision
         op.outcome = out.kind
         op.renameOnly = out.ok && out.kind === 'applied' && out.renameOnly === true
-        // ⭐ PACKAGE 3: a NEW indicator gets a human name — the builder's proposed one (Indicators' `suggestedName`),
-        // through the ONE name-only door (`renameDraft`: no model call, its own exact draft step). Never over a name the
-        // member gave, never a name they already have; a refusal just keeps the engine's derived name.
-        let namedStep = null
-        if (opened && !op.edit && out.kind === 'applied' && humanName(out.suggestedName)) {
-          const human = humanName(out.suggestedName)
-          if (!ownNames().includes(human.toLowerCase())) {
-            const r = renameDraft(draftRef, human, { expectedRevision: out.revision }, ctx)
-            if (r.ok && r.renameOnly === true) { revision = r.revision; namedStep = r.stepId || null }
-          }
-        }
         const st = draftStatus(draftRef, authoringCtx(host))
         name = st?.name || name
         if (out.kind === 'applied') {
@@ -760,8 +747,7 @@ export const indicatorDraftsKind = {
           // parts are never collapsed. A Save riding in this request (R1) answers the "apply it?" itself.
           const rides = patch.ops.some(o => o.type === 'save')
           lines.push(`${opened ? 'Draft ready' : 'Draft updated'} (not saved yet): ${sentence(oneLineOf(st))}.${rides ? '' : ' Want me to apply it or change anything?'}`, ...mustShow(out.lines))
-          // the naming step rides with the build: one Undo takes back both, newest first
-          undoData = namedStep ? { draftRef, stepId: namedStep, then: [out.stepId] } : { draftRef, stepId: out.stepId }
+          undoData = { draftRef, stepId: out.stepId }
         } else if (out.kind === 'question') {
           lines.push(...(out.reply ? [out.reply] : []), ...(out.questions || []), 'No change was made to the draft.')
         } else {
@@ -843,7 +829,8 @@ export const indicatorDraftsKind = {
           throw notSaved(refusalSentence(out))
         }
         setActive(null)
-        rememberSaved({ defId: out.defId, version: out.version, name: out.name || name || null, chartRef: originOf(st) })
+        rememberSaved({ defId: out.defId, version: out.version, name: out.name || name || null })
+        savedChart = { defId: out.defId, chartRef: originOf(st) }
         savedDrafts.set(ref === NEW ? `${NEW}#${draftRef.key}` : ref, { name: out.name || name || null, defId: out.defId, key: draftRef.key, lineage: draftRef.lineage })
         // OWNER 2026-10-12: ONE short, honest line (Indicators (c)): saved = permanent; R1 also says WHAT
         // was saved (its line + the builder's assumptions). With chart adds, the add's receipt follows

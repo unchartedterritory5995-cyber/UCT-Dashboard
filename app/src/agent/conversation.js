@@ -65,9 +65,8 @@ const CHART_SETUP = new Set(['widget.add', 'widget.addCharts', 'chart.setSymbol'
 export function aboutIndicators(memory, epoch) {
   const last = memory?.lastTurn?.(epoch)
   if (!last || !last.ops.length) return false
-  // ⭐ PACKAGE 3: building an indicator in chat (its draft / Save) and putting it on a chart is ONE turn about that indicator
-  const isInd = (o) => ['indicatorEdits', 'indicatorDrafts'].includes(getCapability(o.action)?.target)
-  if (!last.ops.some(o => getCapability(o.action)?.target === 'indicatorEdits')) return false
+  const isInd = (o) => getCapability(o.action)?.target === 'indicatorEdits'
+  if (!last.ops.some(isInd)) return false
   const created = new Set(last.ops.filter(o => o.action === 'widget.add' || o.action === 'widget.addCharts').map(o => String(o.target)))
   if (!created.size) return last.ops.every(isInd)
   // ...and only when its indicators went ON a chart it created: an indicator op targets `ixe:<chart id>`. An indicator put on

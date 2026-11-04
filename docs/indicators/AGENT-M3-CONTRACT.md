@@ -485,14 +485,13 @@ name ("Close above EMA 21 and Volume above 1.5 times SMA 50 (Volume)", chip-cut 
 chat. §P2 naming is unchanged: `create` still takes the DERIVED name (`derivedName.js`), and nothing in the engine
 writes the model's create-name.
 
-- `authoringSession.modelTurn` returns `suggestedName` — the `create` op's `name`, whitespace-collapsed — only for
-  the turn that CREATED the definition, only when the member named nothing (no naming cue in their words), and only
-  when it differs from the name the engine gave. `agentAuthoring.draftTurn` passes it through on an `applied`
-  outcome. It is a suggestion; it is never applied there.
-- The Agent (`indicatorAuthoring.js`) applies it, when `humanName()` accepts it (3–40 characters, ≤ 6 words, no
-  formula symbols or sentence words) and the member has no indicator of that name, through the ONE name-only door:
-  `renameDraft(draftRef, name, {expectedRevision})` — no model call, its own exact draft step. The Agent's Undo of
-  that build takes back both steps (rename, then the build), newest first.
+- `agentAuthoring.draftTurn(draftRef, message, {expectedRevision, keepCreateName})` → `authoringSession.modelTurn`:
+  `keepCreateName` is an optional predicate. Only for the turn that CREATES the definition, only when the member named
+  nothing (no naming cue), and only when the predicate accepts the model's `create` name, the engine appends a
+  `rename_definition` to the SAME patch — one revision, one Undo step, the name CUSTOM by the existing rule. The dock
+  never passes it, so the dock's behaviour is unchanged.
+- The Agent (`indicatorAuthoring.js`) passes `humanName()` (3–40 characters, ≤ 6 words, no formula symbols or
+  sentence words such as "above" / "minus") and "not a name the member already has".
 - Receipts name the member's own indicators by their saved `meta.name` (`indicatorEdits.ownIndicatorName`), not the
   12-character legend chip (`labelText.chipName`), which can read as a built-in ("Volume Thrust Days" → "Volume").
 

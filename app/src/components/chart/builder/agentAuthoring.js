@@ -281,10 +281,7 @@ function outcomeOf(out, snapBefore, snapAfter) {
       changes: (out.changes || []).map((c) => ({ ...c })),
       // ⭐ M3 typed rename — ONLY the deterministic name-only path sets these (`renameTurn`);
       // a model-applied turn never does, even when its changes include a 'renamed' entry
-      ...(out.renameOnly ? { renameOnly: true, rename: out.rename ? { ...out.rename } : null } : {}),
-      // ⭐ PACKAGE 3 seam: the model's proposed name for a definition this turn CREATED (a suggestion — never applied
-      // here; `renameDraft` is the door). Absent when the member named it, or the turn edited an existing one.
-      ...(typeof out.suggestedName === 'string' && out.suggestedName ? { suggestedName: out.suggestedName } : {}) }
+      ...(out.renameOnly ? { renameOnly: true, rename: out.rename ? { ...out.rename } : null } : {}) }
   }
   if (out.ok && kind === 'question') return { ok: true, kind: 'question', ...base, reply: entry.reply || null, questions: (st.questions || []).map((q) => q.text), changes: [] }
   if (out.ok && kind === 'answer') return { ok: true, kind: 'answer', ...base, reply: entry.reply || null, questions: [], changes: [] }
@@ -325,7 +322,9 @@ export async function draftTurn(draftRef, message, opts = {}, ctx = {}) {
     out = await modelTurn(before, () => {
       const now = readSession(key)
       return now && now.state ? now.state : before
-    }, words, { snippets, gateCtx, converse: ctx.converse || converseTurn })
+    }, words, { snippets, gateCtx, converse: ctx.converse || converseTurn,
+      // PACKAGE 3 (§17): the caller may keep the model's create-name as a custom name, in the same patch
+      ...(typeof opts.keepCreateName === 'function' ? { keepCreateName: opts.keepCreateName } : {}) })
     // ⛔ the dock may have opened, or the draft moved, while the model answered — nothing written then
     const now = readSession(key)
     if (isHeldInDock(key)) return refuse(R.DRAFT_OPEN_IN_DOCK)
