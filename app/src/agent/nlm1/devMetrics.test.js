@@ -25,7 +25,7 @@ const bytesOf = (names) => {
   return names.reduce((a, n) => a + (BYTES.get(n) || 0), 0)
 }
 export function metrics(cases) {
-  const z = () => ({ own: 0, fallback: 0, avail: 0, caps: 0, bytes: 0, groups: 0 })
+  const z = () => ({ own: 0, fallback: 0, avail: 0, caps: 0, bytes: 0, maxBytes: 0, groups: 0 })
   const out = { n: cases.length, v1: z(), nlm1: z(), perCap: {}, regress: [] }
   for (const k of cases) {
     const host = k.board ? panelHost(k.board) : null
@@ -38,7 +38,9 @@ export function metrics(cases) {
       out[name].fallback += !s.matched
       const p = routedNames(k.text, { host, recentActions: k.recentActions || [], after: k.after || null, v2: name === 'nlm1' })
       out[name].caps += p.names.length
-      out[name].bytes += bytesOf(p.names)
+      const by = bytesOf(p.names)
+      out[name].bytes += by
+      out[name].maxBytes = Math.max(out[name].maxBytes, by)
       out[name].groups += new Set(p.names.map(groupOfAction)).size
       got[name] = new Set(p.names)
       out[name].avail += k.needs.every(a => p.names.includes(a))
@@ -55,7 +57,7 @@ const pct = (x, n) => `${(100 * x / Math.max(1, n)).toFixed(1)}%`
 function report(label, m) {
   if (!SHOW) return
   console.log(`METRICS ${label} n=${m.n}`)
-  for (const r of ['v1', 'nlm1']) console.log(`METRICS ${label} ${r.padEnd(5)} own ${pct(m[r].own, m.n)}  fallback ${pct(m[r].fallback, m.n)}  availability ${pct(m[r].avail, m.n)}  avgCaps ${(m[r].caps / m.n).toFixed(1)}  avgGroups ${(m[r].groups / m.n).toFixed(1)}  avgManifestBytes ${Math.round(m[r].bytes / m.n)}`)
+  for (const r of ['v1', 'nlm1']) console.log(`METRICS ${label} ${r.padEnd(5)} own ${pct(m[r].own, m.n)}  fallback ${pct(m[r].fallback, m.n)}  availability ${pct(m[r].avail, m.n)}  avgCaps ${(m[r].caps / m.n).toFixed(1)}  avgGroups ${(m[r].groups / m.n).toFixed(1)}  avgManifestBytes ${Math.round(m[r].bytes / m.n)}  maxManifestBytes ${m[r].maxBytes}`)
   for (const [a, c] of Object.entries(m.perCap).sort()) if (c.v1 !== c.nlm1) console.log(`METRICS ${label} cap ${a.padEnd(28)} v1 ${pct(c.v1, c.n)} → nlm1 ${pct(c.nlm1, c.n)} (n=${c.n})`)
   for (const t of m.regress) console.log(`METRICS ${label} REGRESS ${JSON.stringify(t)}`)
 }

@@ -186,10 +186,18 @@ export function entityTokens(raw) {
   if (PRICEISH.test(s)) out.push('price')
   if (COLORISH.test(s)) out.push('color')
   if (TFISH.test(s)) out.push('timeframe')
-  if (tickerWordsOf(s).length) out.push('symbol')
+  const ticker = tickerWordsOf(s).length > 0
+  if (ticker) out.push('symbol')
   if (PCTMOVE.test(s)) out.push('pctmove')
+  // D1.3 composite shapes (a ticker AND …): an information-seeking ask about it ("what's out on X", "what's being said
+  // about X", "anything happening with X", "want to read up on X") and a period change ("X 5 day change", "X over the
+  // last month", "how has X done this week") — both the stock's data / news, however casually said
+  if (ticker && INFO_SEEK.test(s)) out.push('tickerinfo')
+  if (ticker && PERIOD_CHANGE.test(s)) out.push('periodchange')
   return out
 }
+const INFO_SEEK = /\b(?:what(?:'s|’s| is| are)? (?:out|new|up|happening|going on)|(?:being |people )?(?:said|saying|say|talking|chatter|buzz)|happening|going on|hear(?:d|ing)?|read(?:ing)?(?: up)?|latest|update[sd]?|any word|scoop|story|stories|tell me (?:about|what)|know about|catch up|why (?:is|did|was))\b/i
+const PERIOD_CHANGE = /\b\d+[- ]?(?:d|day|days|wk|week|weeks|mo|month|months|yr|year|years)\b|\b(?:this|last|past) (?:week|month|quarter|year)\b|\bytd\b|\byear to date\b|\b(?:change|performance|perf|return|returns)\b|\bhow (?:has|did|is) \S+ (?:done|doing|performed)\b/i
 // D1.2: a PERCENT MOVE ("up 5% today", "gained over 3 percent", "movers up 10%", "8%+ gainers") — the shape of a screen
 // over today's change (vocabulary.json `entities.pctmove`); never a chart's percent SCALE ("percent scale" has no number)
 const MOVE_VERB = '(?:up|down|gain(?:ed|ing|s)?|mov(?:ed|ing|es|ers)?|higher|lower|rall(?:y|ied|ying)|drop(?:ped|ping|s)?|fell|fall(?:ing|en|s)?|jump(?:ed|ing|s)?|surg(?:ed|ing|es)|rip(?:ped|ping|s)?|gainers|losers|runners|decliners|advancers)'

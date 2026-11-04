@@ -26,7 +26,7 @@
 // registry in the browser and against the sent manifest on the server; approvals and protected layouts apply as
 // before. The `routing` object sent to the server has v1's exact shape.
 
-import { GROUPS, ROUTING_VERSION, groupOfAction, selectGroups, wordsSelect } from '../routing'
+import { GROUPS, ROUTING_VERSION, groupOfAction, selectGroups, wordsSelect, routeManifest } from '../routing'
 import { manifestFor } from '../capabilities'
 import { buildIndex, lexicalScores, tokens, stem, entityTokens, tickerWordsOf, vocabularyHits, ENTITY_W, ENTITY_GROUPS, RELATED } from './capabilityIndex'
 
@@ -49,6 +49,8 @@ export const TUNING = Object.freeze({
   CRITICAL: ['charts', 'undo', 'chartGrid'],
   EVID_FLOOR: 0.0001,   // the least score that makes a group "evidenced" (packed smallest-first under uncertainty)
   LIKELY_FLOOR: 1,      // the least own score an entity-expanded group needs to be packed (charts exempt)
+  MATCHED_ADD: 0,       // D1.3: the evidence a v2 group needs to be ADDED to a request v1's words already recognised
+  DOUBT_FILL: 1,        // D1.3: under doubt, v1's fill stops at this share of the byte budget (v1's own fallback request size)
 })
 // dev sweeps only (nlm1 tuning script): an override object; production never sets it
 const T = () => (globalThis.__NLM1_TUNING__ ? { ...TUNING, ...globalThis.__NLM1_TUNING__ } : TUNING)
@@ -137,6 +139,22 @@ export function selectGroupsV2(message, opts = {}) {
   return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched: true, soft: [], ...diag }
 }
 
+// D1.3: each group's manifest JSON bytes, and v1's own fallback request size for this manifest (memoised per manifest)
+let BYTES_MEMO = { key: null, val: null }
+function bytesFor(manifest, opts) {
+  const key = `${manifest.map(c => c.name).join('|')}#${opts.limit ?? ''}#${opts.budget ?? ''}`
+  if (BYTES_MEMO.key === key) return BYTES_MEMO.val
+  const groupBytes = new Map()
+  for (const c of manifest) { const g = groupOfAction(c.name); groupBytes.set(g, (groupBytes.get(g) || 0) + JSON.stringify(c).length) }
+  let byteBudget = Infinity
+  try {
+    const fb = routeManifest(manifest, '', { enabled: true, limit: opts.limit, budget: opts.budget })
+    if (fb.routing) byteBudget = fb.manifest.reduce((a, c) => a + JSON.stringify(c).length, 0)
+  } catch { byteBudget = Infinity }
+  BYTES_MEMO = { key, val: { groupBytes, byteBudget } }
+  return BYTES_MEMO.val
+}
+
 /** Route a manifest — routeManifest's contract (manifest, routing, overBudget, refresh), plus `v2` diagnostics. */
 export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   const k = T()
@@ -167,7 +185,9 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   const best = sel.ranked.find(([g]) => g !== 'charts')
   const lead = sel.uncertain && best && best[1] >= k.STRONG_FLOOR ? [best[0]] : []
   const own = !sel.matched ? [] : sel.uncertain ? ['charts', ...lead]
-    : [...(sel.v1 || []).filter(id => !pinned.includes(id)).sort(bySize), ...sel.strong]
+    : [...(sel.v1 || []).filter(id => !pinned.includes(id)).sort(bySize),
+      // D1.3 (bytes): on a message v1's words recognised, v2 ADDS a group to the request only on evidence ≥ MATCHED_ADD
+      ...(sel.v1Matched ? sel.strong.filter(g => (scoreOf.get(g) || 0) >= k.MATCHED_ADD) : sel.strong)]
   // 4. weak
   const weak = sel.ranked.filter(([, s]) => s >= k.WEAK).map(([g]) => g)
   // 5. context
@@ -192,7 +212,7 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   //     D1.2: an expanded group (charts aside) is packed only when the message gave it some evidence of its own (≥ LIKELY_FLOOR)
   const likely = (sel.uncertain || sel.v1Matched === false)
     ? [...(ents.has('symbol') ? ['charts', 'data', 'alerts'] : []), ...(ents.has('price') ? ['alerts', 'drawings'] : []), ...(ents.has('date') ? ['charts', 'chartSetup'] : []),
-      ...(ents.has('pctmove') ? ['screener'] : [])]
+      ...(ents.has('pctmove') ? ['screener'] : []), ...(ents.has('tickerinfo') || ents.has('periodchange') ? ['data'] : [])]
       .filter(g => known.has(g) && (g === 'charts' || (scoreOf.get(g) || 0) >= k.LIKELY_FLOOR))
     : []
   // 3c. CRITICAL (D1.1): whenever v1 would have fallen back, the groups that fallback always carried for the critical
@@ -204,14 +224,22 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   // v1's fill goes BEFORE v2's weak / context tiers: on an unrecognised-by-v1 message v1's order is the safer one
   const order = fillOn ? [...new Set([...needed, ...(doubt ? evidenced : []), ...fill, ...weak, ...context])]
     : [...new Set([...needed, ...weak, ...context])]
+  // D1.3 BYTE BUDGET (#785 reserves the per-turn cap on bytes): a request is never larger than v1's own fallback request
+  // for this manifest (v1's largest), and under doubt the fill stops at DOUBT_FILL of it — v2's own, critical, likely and
+  // evidenced groups are packed first, so what the fill leaves out is what nothing in the message pointed at
+  const { groupBytes, byteBudget } = bytesFor(manifest, opts)
   const want = new Set()
   let used = counts.get(null) || 0
+  let usedBytes = groupBytes.get(null) || 0
   const over = []
+  const fillOnly = new Set(fill.filter(id => !needed.includes(id) && !(doubt && evidenced.includes(id))))
   for (const id of order) {
     const n = sizeOf(id)
     if (!n) continue
-    if (used + n > budget && want.size >= always.length) { if (needed.includes(id)) over.push(id); continue }
-    want.add(id); used += n
+    const b = groupBytes.get(id) || 0
+    const cap = fillOnly.has(id) && doubt ? byteBudget * k.DOUBT_FILL : byteBudget
+    if ((used + n > budget || usedBytes + b > cap) && want.size >= always.length) { if (needed.includes(id)) over.push(id); continue }
+    want.add(id); used += n; usedBytes += b
   }
   const present = GROUPS.filter(g => counts.has(g.id))
   const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)

@@ -1527,6 +1527,12 @@
  "entities": {
   "pctmove": {
    "screener": 0.9
+  },
+  "tickerinfo": {
+   "data": 1
+  },
+  "periodchange": {
+   "data": 0.9
   }
  }
 }

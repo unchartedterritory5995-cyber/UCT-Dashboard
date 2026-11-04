@@ -40,22 +40,27 @@ Hooks in production files, all gated: `useAgent.js` (`pickRouter` at the two rou
 
 Held-out (sealed set, scored independently by AUDIT; aggregates only):
 
-| Metric | v1 | D1 `9a912420cc` | D1.1 `09512d5def` | D1.2 `92893dca0f` |
-|---|---|---|---|---|
-| Raw availability (needed actions sent) | 95.3% | 93.7% | **97.2%** | pending AUDIT re-score |
-| Own-groups recall (router's own selection) | 78.2% | 90.9% | **94.3%** | pending |
-| Broad fallback | 18.0% | 3.2% | **0.6%** | pending |
-| Avg actions per request (budget 55) | 24.9 | 31.5 | 36.8 | pending (dev: see below) |
-| Capabilities below v1 | (none) | 5 | 1 (screener.run percent-move) | pending; dev shows none |
+| Metric | v1 | D1 `9a912420cc` | D1.1 `09512d5def` | D1.2 `92893dca0f` | D1.3 (this head) |
+|---|---|---|---|---|---|
+| Raw availability (needed actions sent) | 95.3% | 93.7% | 97.2% | **96.8%** | pending AUDIT re-score |
+| Own-groups recall (router's own selection) | 78.2% | 90.9% | 94.3% | **95.0%** | pending |
+| Broad fallback | 18.0% | 3.2% | 0.6% | **0.6%** | pending |
+| Avg actions per request (budget 55) | 24.9 | 31.5 | 36.8 | 28.9 | pending |
+| Avg / largest manifest bytes | 24.5 / 55.4 KB | n/a | n/a | 28.2 / 59.3 KB | pending (largest is now capped at v1's own fallback request) |
+| Capabilities below v1 | (none) | 5 | 1 (screener.run) | 1 (news.latest, ticker asks without "news") | pending; dev shows none |
+
+D1.3 fixes, all structural: composite entities (a ticker plus an information-seeking ask points at data/news; a ticker plus a period-change shape points at data), and a byte budget so no request exceeds v1's own fallback request for the manifest.
+
+Per-turn cost of the larger routed set, at #785's byte bound (`budget.worst_case_usd`: every request byte counted as an input token billed as a cache write, priced by `narrative_cost_guard.estimate_cost` on `claude-haiku-4-5`, the default `UCT_AGENT_MODEL`): $0.00128 per extra KB. That is +$0.0047 per turn for the held-out D1.2 average delta (+3.7 KB, 1.9% of the $0.25 per-turn cap), +$0.0064 for the corpus D1.3 delta (+5.0 KB, 2.5%) and +$0.0024 for the dev delta (+1.9 KB, 0.95%). The largest request can no longer exceed v1's. Getting the average to ≤ v1 + 5% (packing v2's extra groups on v1-recognised messages only at score ≥ 6) cost about 4 points of dev availability (99.4% to 95.1%), so it is not taken. The knob (`TUNING.MATCHED_ADD`) is there if the owner prefers bytes.
 
 Dev metrics harness (`nlm1/devMetrics.test.js`, `NLM1_METRICS=1` prints the tables). Its gates: own ≥ 90%, availability ≥ v1, no capability below v1, no single message v1 routes fully that nlm1 does not:
 
 | Set | Router | Own-groups | Fallback | Availability | Avg actions | Avg groups | Avg manifest bytes |
 |---|---|---|---|---|---|---|---|
 | capreg corpus (488) | v1 | 94.9% | 5.1% | 100.0% | 21.5 | 3.1 | 20,395 |
-| | nlm1 (D1.2) | **99.8%** | **0.0%** | 100.0% | 26.8 | 3.7 | 25,477 |
-| dev tuning set (155, this track's) | v1 | 65.2% | 25.8% | 87.7% | 28.4 | 4.5 | 28,251 |
-| | nlm1 (D1.2) | **98.7%** | **0.0%** | **99.4%** | 31.5 | 5.0 | 31,019 |
+| | nlm1 (D1.3) | **99.8%** | **0.0%** | 100.0% | 26.8 | 3.7 | 25,473 (largest 55,357 = v1) |
+| dev tuning set (162, this track's) | v1 | 63.0% | 27.8% | 87.7% | 29.1 | 4.6 | 28,987 (largest 56,319) |
+| | nlm1 (D1.3) | **98.1%** | **0.0%** | **99.4%** | 31.5 | 5.0 | 30,884 (largest 55,357) |
 
 Prompt-size delta (D1.2): +5.1 KB of manifest JSON per turn on the corpus (+25%), +2.8 KB on the dev set (+10%). D1.1 was +13.8 KB on the corpus. The per-turn cost cap (#785) reserves on bytes, so this is the activation input for the paid eval's cost check.
 
@@ -97,4 +102,5 @@ Unit coverage: `nlm1/nlm1Followups.test.js` (rewriter rules, never-guess cases, 
 | `393ab08fd8` | D1(d): fingerprint frozen per base |
 | `09512d5def` | D1.1: weak evidence, critical groups, expansion, undo signal, typos, dev metrics |
 | `92893dca0f` | D1.2: percent-move screens, best group leads under doubt, size trimmed |
-| (this commit) | D2/D3: referent tracker + rewriter, created-reference plans on `bindCreated`, request-level Undo grouping, D4 |
+| `344a9777b3` | D2/D3: referent tracker + rewriter, created-reference plans on `bindCreated`, request-level Undo grouping; D4 |
+| (this commit) | D1.3: ticker + info-seeking / period-change entities, byte budget = v1 fallback size; cost analysis |

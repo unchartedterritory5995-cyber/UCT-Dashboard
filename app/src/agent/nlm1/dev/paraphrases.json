@@ -960,6 +960,48 @@
    "needs": [
     "chart.setScale"
    ]
+  },
+  {
+   "text": "whats out on SOFI today",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "what are people saying about HOOD",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "anything happening with RKLB",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "i want to read up on CRWV",
+   "needs": [
+    "news.latest"
+   ]
+  },
+  {
+   "text": "AMD 5 day change",
+   "needs": [
+    "stock.dailyBars"
+   ]
+  },
+  {
+   "text": "how has NVDA done this month",
+   "needs": [
+    "stock.dailyBars"
+   ]
+  },
+  {
+   "text": "MSFT performance over the last 20 days",
+   "needs": [
+    "stock.dailyBars"
+   ]
   }
  ]
 }
