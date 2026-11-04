@@ -158,6 +158,122 @@ def _series_price_vs_ma(bars: list[dict], params: dict) -> Series:
 _series_price_vs_ma.inputs = {"period": 50, "type": "sma"}
 
 
+# ─── 2026-11-04: MOVING-AVERAGE CROSSOVER (`ma_cross`) ───────────────────────
+#
+# ⭐ THE SPREAD, NOT A NEW CONDITION. `fast_MA − slow_MA` crosses zero exactly
+# when the fast line crosses the slow one, so "EMA 9 crosses above EMA 20" is
+# `check_condition("cross_above", spread[i], spread[i-1], 0.0)` with the 0.0
+# DECLARED in `THRESHOLD_OPERAND` — `check_condition` (frozen by two oracles)
+# gains no branch.
+#
+# ⛔ NO SECOND MA FORMULA. Both lines are `indicator_compute.compute_ema` /
+# `compute_sma` — the functions `price_vs_ma` reads — so the alert and every
+# other consumer of an "EMA 20" cannot disagree about its value.
+MA_CROSS_TYPES: tuple[str, ...] = ("ema", "sma")
+MA_CROSS_PERIOD_MAX = 500          # the chart's own MA bound (nativeRegistry `movingAverage`)
+MA_CROSS_DIRECTIONS: dict[str, str] = {"above": "cross_above", "below": "cross_below"}
+MA_CROSS_CONFIRM: tuple[str, ...] = ("close",)
+_MA_CROSS_DEFAULTS = {"ma_type": "ema", "fast": 9, "slow": 20}
+
+
+def _ma_cross_resolved(params: Optional[dict]) -> dict:
+    """The params with defaults filled in; NO validation (see `ma_cross_refusal`)."""
+    p = params or {}
+    out = dict(_MA_CROSS_DEFAULTS)
+    if p.get("ma_type") is not None:
+        out["ma_type"] = str(p["ma_type"]).strip().lower()
+    for key in ("fast", "slow"):
+        if p.get(key) is not None:
+            out[key] = p[key]
+    return out
+
+
+def ma_cross_refusal(params: Optional[dict], condition: Optional[str] = None) -> Optional[str]:
+    """Why these `ma_cross` params could never describe a crossover, or None.
+
+    Read by `indicator_alert_evaluator.params_refusal` at the create door. The
+    series ALSO answers "no value" for anything this refuses, so a row written
+    around the door (an operator tool) is a silent no-fire that `diagnose`
+    reports — never a fire on nonsense.
+    """
+    p = params or {}
+    r = _ma_cross_resolved(p)
+    if r["ma_type"] not in MA_CROSS_TYPES:
+        return (f"MA cross ma_type must be one of {', '.join(MA_CROSS_TYPES)} "
+                f"— got {p.get('ma_type')!r}.")
+    periods = {}
+    for key in ("fast", "slow"):
+        v = r[key]
+        bad = (f"MA cross {key} period must be a whole number from 1 to "
+               f"{MA_CROSS_PERIOD_MAX} — got {v!r}.")
+        if isinstance(v, bool):
+            return bad
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return bad
+        if f != f or f in (float("inf"), float("-inf")) or f != int(f) \
+                or not 1 <= int(f) <= MA_CROSS_PERIOD_MAX:
+            return bad
+        periods[key] = int(f)
+    if periods["fast"] >= periods["slow"]:
+        return (f"MA cross needs the fast period below the slow one — got fast "
+                f"{periods['fast']}, slow {periods['slow']}. Swap them and the "
+                f"direction (a 20 crossing above a 9 is the 9 crossing below the 20).")
+    direction = p.get("direction")
+    if direction is not None:
+        d = str(direction).strip().lower()
+        if d not in MA_CROSS_DIRECTIONS:
+            return f"MA cross direction must be 'above' or 'below' — got {direction!r}."
+        if condition and MA_CROSS_DIRECTIONS[d] != condition:
+            return (f"MA cross direction {d!r} disagrees with the condition "
+                    f"{condition!r} — send one rule.")
+    confirm = p.get("confirm")
+    if confirm is not None and str(confirm).strip().lower() not in MA_CROSS_CONFIRM:
+        return (f"MA cross alerts are confirmed on the completed candle only "
+                f"(confirm 'close') — got {confirm!r}. Intrabar evaluation is not offered.")
+    return None
+
+
+def _series_ma_cross(bars: list[dict], params: dict) -> Series:
+    """`fast_MA − slow_MA`, aligned; `None` where either MA is, or params are invalid."""
+    from api.services import indicator_compute
+    n = len(bars)
+    if ma_cross_refusal(params) is not None:
+        return [None] * n
+    r = _ma_cross_resolved(params)
+    fast, slow = int(float(r["fast"])), int(float(r["slow"]))
+    closes = [b["c"] for b in bars]
+    if not closes:
+        return []
+    compute = (indicator_compute.compute_ema if r["ma_type"] == "ema"
+               else indicator_compute.compute_sma)
+    fast_s, slow_s = compute(closes, fast), compute(closes, slow)
+    return [None if (f is None or s is None) else float(f) - float(s)
+            for f, s in zip(fast_s, slow_s)]
+
+
+def _describe_ma_cross(params: Optional[dict]) -> str:
+    """`EMA(9) vs EMA(20)` — the instance label, notification and alert row."""
+    r = _ma_cross_resolved(params)
+    t = str(r["ma_type"]).upper()
+    try:
+        fast, slow = int(float(r["fast"])), int(float(r["slow"]))
+    except (TypeError, ValueError):
+        fast, slow = r["fast"], r["slow"]
+    return f"{t}({fast}) vs {t}({slow})"
+
+
+_series_ma_cross.inputs = dict(_MA_CROSS_DEFAULTS)
+#: The knobs with a closed vocabulary — served on the catalog plot so a UI renders a choice.
+_series_ma_cross.input_options = {"ma_type": list(MA_CROSS_TYPES)}
+#: The chart definition(s) whose instances this address reads (`nativeRegistry`'s
+#: `movingAverage`, which the adopted `cs.overlays` averages also are).
+_series_ma_cross.instance_defs = ["movingAverage"]
+_series_ma_cross.validate = ma_cross_refusal
+_series_ma_cross.describe = _describe_ma_cross
+
+
 # ⭐⭐ THE TABLE — AND SINCE PHASE C TASK 10 ITS KEY ORDER IS LOAD-BEARING.
 #
 # It used to mirror `INDICATOR_FUNCS`' order for a reader's convenience and
@@ -209,6 +325,9 @@ SERIES_FUNCS: dict[str, Callable[[list[dict], dict], Series]] = {
     "sar.trendFlipped": _column("compute_sar_events", 1, step=0.02, max_step=0.2),
     # ── PHASE C TASK 10: the one PRICE address ──
     "close": _series_close,
+    # ── 2026-11-04: the one CROSS address (its own partition — NOT a level in
+    # `INDICATOR_FUNCS`, so the frozen replay grid does not move) ──
+    "ma_cross": _series_ma_cross,
 }
 
 
