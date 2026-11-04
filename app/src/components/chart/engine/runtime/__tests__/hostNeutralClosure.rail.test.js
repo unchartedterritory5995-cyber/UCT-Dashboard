@@ -208,6 +208,23 @@ describe('every wall clock a run reads is injectable (opts.now)', () => {
       expect(r.error).toBeUndefined()
       expect(r.reads).toBe(0)
     } finally { endTranslateBudget() }
+    // ...and a handed clock that does NOT advance never expires, and no host clock is read
+    // (a leaping clock alone cannot tell its own clock from the host's: both are past the deadline)
+    const still = () => 0
+    beginTranslateBudget(10000, null, still)
+    try {
+      const w = clocksForbidden(() => {
+        for (let i = 0; i < 5000; i += 1) tickTranslateBudget()
+        return translateBudgetExpired()
+      })
+      expect(w.error).toBeUndefined()
+      expect(w.reads).toBe(0)
+      expect(w.value).toBe(false)
+    } finally { endTranslateBudget() }
+    const stillResolver = new Resolver(new Map(), TABLE, new Map(), { now: still })
+    const sr = clocksForbidden(() => stillResolver.checkClock(null))
+    expect(sr.error).toBeUndefined()
+    expect(sr.reads).toBe(0)
     // CONTROL — with nothing handed in, a Resolver reads the host clock
     const control = clocksForbidden(() => new Resolver(new Map(), TABLE, new Map(), {}))
     expect(control.reads).toBeGreaterThan(0)
