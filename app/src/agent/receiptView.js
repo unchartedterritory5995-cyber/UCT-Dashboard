@@ -48,7 +48,8 @@ export function receiptView(lines, { isUndo = false, charts = null, name = false
   const meta = Array.isArray(charts) ? charts.filter(c => c && typeof c === 'object') : []
   const old = meta.filter(c => !c.isNew)
   const solo = name && old.length === 1 && old[0].label ? old[0] : null
-  const ls = meta.length ? raw.map(l => withTimeframes(solo && !l.includes(solo.label) && !l.includes(`(${solo.symbol}`) ? `${solo.label}: ${l}` : l, old)) : raw
+  // a ONE-line receipt already names its one chart as the product does; the timeframe is added where several changes are said together
+  const ls = meta.length && (raw.length > 1 || solo) ? raw.map(l => withTimeframes(solo && !l.includes(solo.label) && !l.includes(`(${solo.symbol}`) ? `${solo.label}: ${l}` : l, old)) : raw
   const done = (s) => (DONE_VERB.test(s) ? `Done — ${lcFirst(s)}` : s)
   // an indicator the member asked to CREATE: its chart add + its Save are ONE thing to them
   const saved = raw.find(l => /^Saved to your indicators\b/.test(l))
