@@ -3,7 +3,7 @@
 // receipt / proposal / refusal by its structure. Never an exact string of prose.
 import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
-import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow } from './harness'
+import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow, nlm1Of } from './harness'
 import { routedNames } from './route'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
@@ -197,7 +197,7 @@ export async function replay({ board: boardName = 'ONE', steps, seed = {} }, lab
     const since = { calls: p.st.calls.length, turns: turnCount(p), receipts: receiptsNow().length, refusals: refusals().length }
     p.st.envelopes.length = 0
     if (s.routes) {
-      const got = routedNames(s.say, { host: m.h, v2: !!seed.nlm1 }).names   // NLM-1: the router the case runs with
+      const got = routedNames(s.say, { host: m.h, v2: nlm1Of(seed) }).names   // NLM-1: the router the case runs with
       for (const a of s.routes) expect(got, `${label} · step ${i + 1}: "${s.say}" routes ${a}`).toContain(a)
     }
     if (s.model) p.st.envelopes.push(faithful(p, s.model))

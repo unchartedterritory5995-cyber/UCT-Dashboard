@@ -1,7 +1,8 @@
-"""NLM-1 D1: UCT_AGENT_ROUTING_V2 (default off) is reported by /api/agent/config as `routing_v2`.
+"""NLM-1: UCT_AGENT_ROUTING_V2 (default ON, owner policy 11-04; 0/false/off/no = kill switch) is reported by
+/api/agent/config as `routing_v2`.
 
-The browser routes with v2 only when this AND its own switch (localStorage uct.agent.routingV2) are on; the
-server validates every op against the manifest it was sent either way.
+The browser has its own kill switch (localStorage uct.agent.routingV2 = '0'); the server validates every op against
+the manifest it was sent either way. The config endpoint stays admin-only (require_admin_dark).
 """
 from __future__ import annotations
 
@@ -25,13 +26,13 @@ def client():
     return build
 
 
-def test_routing_v2_off_by_default(monkeypatch, client):
+def test_routing_v2_on_by_default(monkeypatch, client):
     monkeypatch.delenv("UCT_AGENT_ROUTING_V2", raising=False)
-    assert rx.routing_v2_enabled() is False
-    assert client(ME).get("/api/agent/config").json()["routing_v2"] is False
+    assert rx.routing_v2_enabled() is True
+    assert client(ME).get("/api/agent/config").json()["routing_v2"] is True
 
 
-@pytest.mark.parametrize("value,on", [("1", True), ("true", True), ("ON", True), ("0", False), ("", False), ("no", False)])
+@pytest.mark.parametrize("value,on", [("1", True), ("true", True), ("ON", True), ("", True), ("0", False), ("false", False), (" OFF ", False), ("no", False)])
 def test_routing_v2_env_values(monkeypatch, client, value, on):
     monkeypatch.setenv("UCT_AGENT_ROUTING_V2", value)
     assert rx.routing_v2_enabled() is on

@@ -120,14 +120,18 @@ const resolveArg = (v, body) => (typeof v === 'string' && v.startsWith('$ctx:')
   : Array.isArray(v) ? v.map(x => resolveArg(x, body)) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolveArg(x, body)])) : v)
 export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTarget(o.target, body), args: resolveArg(o.args, body) }))
 
+// NLM-1: whether a case runs with NLM-1 on — its own seed when it says (true / false), else CAPREG_NLM1=on|off. Default
+// ON, as production is (owner policy 11-04); CAPREG_NLM1=off runs the kill-switch path (v1, master's behaviour)
+export const nlm1Of = (seed = {}) => (seed.nlm1 != null ? !!seed.nlm1 : (globalThis.process?.env?.CAPREG_NLM1 || '').trim() !== 'off')
 // v2-readiness-2: `stepScript` (planner v2 parity, agentPlannerV2Parity.test.jsx) — the case's model turns are served by the
 // scripted STEP-1 server (testing/stepServer.js) instead of the v1 envelope queue, and the config says planner 'v2'.
 // Absent (every capability-regression suite), mountCase is exactly as before.
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, stepScript = null } = {}) {
-  // NLM-1 (dark): seed.nlm1 turns BOTH keys on for this case (server config routing_v2 + the browser switch); every other
-  // case has the browser key cleared, so NLM-1 stays off whatever an earlier case left cached
+  // NLM-1 on (nlm1Of): BOTH switches on for this case (server config routing_v2 + the browser key); off: the browser kill
+  // switch set to '0', so NLM-1 stays off whatever an earlier case left cached
   const p = setupPanel()
-  try { if (seed.nlm1) { localStorage.setItem('uct.agent.routingV2', '1'); _resetAgentConfig() } else localStorage.removeItem('uct.agent.routingV2') } catch { /* */ }
+  const nlm1 = nlm1Of(seed)
+  try { if (nlm1) { localStorage.setItem('uct.agent.routingV2', '1'); _resetAgentConfig() } else localStorage.setItem('uct.agent.routingV2', '0') } catch { /* */ }
   // NLM-1's third key (in-plan rules, nlm1/inplan.js): ON only for a case seeded nlm1Inplan, cleared otherwise
   try { if (seed.nlm1Inplan) localStorage.setItem('uct.agent.nlm1.inplan', '1'); else localStorage.removeItem('uct.agent.nlm1.inplan') } catch { /* */ }
   const srv = stepScript ? installStepServer(p, stepScript, { planner: 'v2' }) : null
@@ -139,7 +143,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
     if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search')) return base(url, init)
     p.st.calls.push([method, u, body])
-    if (u === '/api/agent/config') { const cfg = srv ? { ...configFor(kinds), planner: 'v2' } : configFor(kinds); return json(seed.nlm1 ? { ...cfg, routing_v2: true } : cfg) }
+    if (u === '/api/agent/config') { const cfg = srv ? { ...configFor(kinds), planner: 'v2' } : configFor(kinds); return json(nlm1 ? { ...cfg, routing_v2: true } : cfg) }
     if (u.startsWith('/api/user-definitions')) return st.defs.size ? json({ definitions: [...st.defs.values()] }) : base(url, init)
     // the drawings SYNC as the server holds it (useTracingsSync: prefs.tracings_doc = { updatedAt, doc }) — the account
     // copy mirrors this tab's store, as it does once the sync has run (host.confirmDrawingsSynced reads it back)
@@ -209,7 +213,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     return base(url, init)
   }
   // NLM-1: the config cleared above is read again through THIS case's config route (routing_v2: true) before any turn
-  if (seed.nlm1) loadAgentConfig()
+  if (nlm1) loadAgentConfig()
   const spec = BOARDS[boardName]()
   let mounted = null
   mounted = p.mount(...spec)

@@ -16,12 +16,21 @@ No production behaviour change: with the flag off, v1 routing is byte-identical 
 
 No competing action engine: D2/D3 only rewrite text, or bind a plan's own alias. Everything then goes through the same readers (fastPath / multiChart / compound / conversation), planner, approval policy, protected-layout checks, runtime, receipts and grouped Undo (#771). A rewrite that no reader claims is dropped, and the message goes on exactly as typed.
 
-## 2. Flag (two keys, both default OFF)
+## 2. Switches: ON by default since PACKAGE 1 (owner policy 11-04); the two keys are KILL SWITCHES
 
-| Key | Where | Default |
+Owner policy (11-04): UCT has no members, so tested features go live for admins (the Agent is admin-only server-side). No dark flags or activation steps without a concrete reason. NLM-1 routing, the follow-up mechanisms and the step-plan executor are therefore ON by default. The in-plan rules stay default OFF for a concrete reason: they measurably do not generalise, and one costs a sealed pass.
+
+| Kill switch | Where | Default |
 |---|---|---|
-| `UCT_AGENT_ROUTING_V2=1` | server env, reported as `routing_v2` by `GET /api/agent/config` (`api/routers/uct_agent.py`) | off |
-| `localStorage uct.agent.routingV2 = '1'` (`window.__uctAgentRoutingV2(true)`) | the admin's browser | off |
+| `UCT_AGENT_ROUTING_V2=0` (or false / off / no) | server env, reported as `routing_v2` by `GET /api/agent/config` (`api/routers/uct_agent.py`): off for everyone | ON (unset) |
+| `localStorage uct.agent.routingV2 = '0'` (`window.__uctAgentRoutingV2(false)`) | one browser | ON (unset) |
+
+The config not answered (or failed) means v1. With either switch off, the panel is v1, byte-identical to master (fingerprint below; capreg with `CAPREG_NLM1=off`). The rest of this section describes the original two-key dark gate (D1–step plans, before PACKAGE 1).
+
+| Key (before PACKAGE 1) | Where | Default |
+|---|---|---|
+| `UCT_AGENT_ROUTING_V2=1` | server env | off |
+| `localStorage uct.agent.routingV2 = '1'` | the admin's browser | off |
 
 Only both keys on enable NLM-1 (`nlm1/flag.js routingV2Active`): routing v2 (`pickRouter`), the D2/D3 rewriter and created-reference plans, and request-level Undo grouping. Anything else, including a config that hasn't answered, errored, or has unavailable storage, means v1.
 
@@ -350,15 +359,30 @@ Dark behind the same two NLM-1 keys (the in-plan key is not involved). No prompt
   - P9: an approval dismissed mid-plan. No alert is created and "nothing changed".
   - P10: a reference to a refused step. The board is unchanged; step 2 is reported as not run because step 1 did not take effect.
 
-## 4. Activation checklist (needs the OWNER's approval plus a PAID eval; nothing here is authorised yet)
+## 4. PACKAGE 1: multi-step and follow-up conversations (live for admins after review; owner policy 11-04)
 
-1. AUDIT's held-out re-score of the frozen D1.x head: raw availability ≥ 95.3% (v1), own-groups ≥ 90%, no capability below v1.
-2. Track A's created-binding-v2 (the rework of `7be34d2dd9`, which failed review) final and merged; NLM-1 re-merged on it (`plans.js` takes the binder as a parameter); gates re-run (identity fingerprint re-frozen for the new base, only if routing inputs changed).
-3. Owner/peer review of `nlm1/vocabulary.json` (marked draft) and of the rewrite rules in `nlm1/followups.js`.
-4. Gap NLM1-G1 triaged by its owner (it also affects the flag-off product); NLM1-G2 is fixed.
-5. Paid eval (separate owner authorisation, `EVAL.md`): the real planner model with routing v2. Measure task success on the capreg corpus and live phrasings, need_groups reroute rate, input tokens and $ per turn against the #785 per-turn cap (expected +10–25% manifest bytes), and confirm the model handles the larger mean routed set.
-6. Full Agent suite plus CI green on the RC; the master deploy gate; normal release approvals (guard → gate → promote). Builders never merge.
-7. Staged activation, admin only: set `UCT_AGENT_ROUTING_V2=1` on web, opt in one admin browser (`window.__uctAgentRoutingV2(true)`), live smoke of the D2/D3 workflows on the owner's board, then decide. Kill switch: unset the env var or clear the browser key (each alone returns v1).
+Branch `agent/nlm1/package1` on master `29830442d0`: #790 (D1 routing, D2/D3 follow-ups, in-plan key) + step plans (a)–(c) (§3c), merged as one package.
+- **ON by default for admins** (§2). Kill switches: `UCT_AGENT_ROUTING_V2=0` (server) and `localStorage uct.agent.routingV2='0'` (browser). The in-plan key stays default OFF.
+- **created-binding-v2 overlap (#797):** `planCreatedReference` sits on the v2 binder unchanged. One fix: when NLM-1 rewrote the member's words ("same but weekly" → "add a chart for TSLA and make it weekly"), the binder now reads the member's typed words when deciding whether they named an existing chart. A ticker carried over from the rewrite no longer triggers a question. A member who types the ticker of an existing chart is still asked, as on master.
+- **NLM1-G1** is fixed on master (#798): its two gap markers are removed, and both cases pass with the in-plan key on.
+- **Unchanged:** spending caps, server auth (`/api/agent/config` admin-only), approvals, Undo and receipts.
+- **Step plans:** the executor is live, but no real request reaches it until the planner emits step ids. That is the prompt/schema change (d), a later package.
+
+**Proof.**
+- Flag-off fingerprint: base `29830442d0` equals the frozen hash.
+- capreg passes at both clocks with NLM-1 ON (now the harness default, as in production), and with `CAPREG_NLM1=off` (the kill-switch path).
+- Full Agent vitest and `pytest tests/test_uct_agent*.py` pass.
+- Workflow sets with NLM-1 ON and the in-plan key OFF: 78/116. The 38 misses are in-plan shapes; they pass only with the in-plan key on, which stays off.
+
+**DEMO (admin browser; nothing to set; a 2-chart board).** Undo after any line restores the board.
+1. "add a chart for AMD and put RSI on it" → "undo"
+2. "add the 21 ema to the left chart" → "same for the right one"
+3. "make both charts weekly" → "put the right one back to daily"
+4. "make the left chart weekly" → "same on the right but monthly"
+5. "add rsi to the left chart" → "put that on <the right chart's ticker> as well"
+6. "add a chart for TSLA" → "same but weekly" (a second TSLA chart, weekly) → "undo" → "undo"
+7. "add rsi to both charts" → "remove it from the right one" (an approval card; nothing is removed until you approve) → "undo"
+8. Kill switch: in the console, `__uctAgentRoutingV2(false)` → the panel is v1 again; `__uctAgentRoutingV2(null)` → back on.
 
 ## 5. Commits
 

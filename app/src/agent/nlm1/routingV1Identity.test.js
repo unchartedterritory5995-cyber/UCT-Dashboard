@@ -3,8 +3,8 @@
 // with and without follow-up context — frozen from PRISTINE code before any NLM-1 code existed, once per BASE this
 // branch sits on (baseline/routingV1.hash.json `bases`: master c87ab6d578; Track A 7be34d2dd9, whose own production
 // changes alter v1 inputs). Re-freeze an entry only when the base changes, never because NLM-1 code changed.
-// The flag-off path must reproduce it exactly: with `v2` absent, `v2: false`, and with the browser switch set but
-// the server flag off (the two-key gate).
+// The kill-switch path must reproduce it exactly: with `v2` absent, `v2: false`, the server switch off, and the
+// browser kill switch '0' (PACKAGE 1: NLM-1 is ON by default; the two keys are kill switches).
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { configFor, PROD_KINDS } from '../qa/capabilityRegression/testing/registry'
 import { loadAgentConfig, _resetAgentConfig } from '../agentClient'
@@ -77,11 +77,15 @@ describe('NLM-1 two-key gate — anything but BOTH keys on is v1, byte-identical
     expect(routingV2Active()).toBe(false)
     expect(fingerprint(pickRouter()).sha256).toBe(base().sha256)
   })
-  it('server on: browser unset / off → v1, same fingerprint', async () => {
+  // PACKAGE 1 (owner policy 11-04): ON by default — the browser key is a KILL SWITCH ('0' → v1, byte-identical)
+  it('server on: browser kill switch "0" → v1, same fingerprint; browser unset → v2 (default on)', async () => {
     await serverSays(true)
-    expect(pickRouter()).toBe(routeManifest)
     localStorage.setItem('uct.agent.routingV2', '0')
+    expect(pickRouter()).toBe(routeManifest)
     expect(fingerprint(pickRouter()).sha256).toBe(base().sha256)
+    localStorage.removeItem('uct.agent.routingV2')
+    expect(pickRouter()).toBe(routeManifestV2)
+    await serverSays(false)
   })
   it('both on → routing v2 (which does route differently)', async () => {
     await serverSays(true)
