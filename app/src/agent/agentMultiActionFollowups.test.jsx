@@ -517,3 +517,38 @@ describe('OWNER RULING · a plain "undo" after a multi-change request takes back
     expect(transcript()).toMatch(/Took back all 2 changes from that request/)
   }, 30000)
 })
+
+describe('CG-3 · a COUNT of charts with no tickers: new charts, then ONE even re-tile — one grouped Undo', () => {
+  it('routing: the count names the workspace group (widget.add + widget.arrange)', () => {
+    for (const m of ['Put four charts on my screen.', 'Create four charts.', 'Make a 2×2 chart layout.'])
+      expect(selectGroups(m).selected, m).toContain('workspace')
+  })
+  for (const order of ['adds-first', 'arrange-first']) {
+    it(`model plan (${order}): 3 adds + widget.arrange(grid) → four equal charts; "undo" restores the board`, async () => {
+      const { board, h, say } = mount(...HALF())
+      const before = shape(board, h)
+      envelopes.push(b => {
+        const adds = [1, 2, 3].map(n => ({ action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: `new${n}` } }))
+        const arrange = { action: 'widget.arrange', target: ref(b, 'board'), args: { widgets: null, pattern: 'grid' } }
+        return env('apply', order === 'adds-first' ? [...adds, arrange] : [arrange, ...adds])
+      })
+      await say('Put four charts on my screen.')
+      await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 10000 })
+      await waitFor(() => expect(new Set(chartsOf(board).map(w => `${w.w}x${w.h}`)).size).toBe(1), { timeout: 10000 })
+      expect(transcript()).not.toMatch(/same request/)
+      await say('undo')
+      await waitFor(() => expect(shape(board, h)).toBe(before), { timeout: 10000 })
+    }, 40000)
+  }
+  it('KEPT REFUSED: new charts + re-tiling only SOME widgets (a board change the adds depend on)', async () => {
+    const { board, h, say } = mount(...HALF())
+    const before = shape(board, h)
+    envelopes.push(b => env('apply', [
+      { action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: 'new1' } },
+      { action: 'widget.arrange', target: ref(b, 'board'), args: { widgets: ['c1'], pattern: 'grid' } },
+    ]))
+    await say('add a chart and tidy the first one up')
+    await waitFor(() => expect(transcript()).toMatch(/ask in two steps|didn't change anything/))
+    expect(shape(board, h)).toBe(before)
+  }, 30000)
+})

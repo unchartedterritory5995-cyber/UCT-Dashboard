@@ -73,7 +73,10 @@ export const GROUPS = [
     words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) chart\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
-      /\b(link|unlink|colou?r group)\b/, /\btabs?\b/, EQUAL_SIZE] },
+      /\b(link|unlink|colou?r group)\b/, /\btabs?\b/, EQUAL_SIZE,
+      // CG-3a (corpus #769): a COUNT of charts with no tickers ("put four charts on my screen", "create four charts") is
+      // new charts + an even re-tile — the widget adds and the arrange live here (chartGrid needs tickers)
+      MULTI_CHARTS, GRID_CELLS, /\b(2 ?x ?2|[2-4] by [2-4])\b/] },
   // Split from 'workspace' (2026-10-09): a whole-group packer packs better with smaller groups, and
   // saved layouts are their own concept ("open my Swing layout", "save this").
   { id: 'layouts', title: 'Saved layouts (open, save, create, copy, rename, delete)', domains: ['layout'],

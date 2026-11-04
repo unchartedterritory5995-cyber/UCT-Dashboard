@@ -55,14 +55,20 @@ export function splitMixedOps(opsIn) {
     if (creating) { create.push(op); if (firstCreate < 0) firstCreate = i } else { change.push(op); if (firstChange < 0) firstChange = i }
   })
   if (!create.length || !change.length) return null
+  // ⭐ CG-3 (corpus #769): new widgets + exactly ONE re-tile of the WHOLE board (widget.arrange, widgets null) is the one
+  // board change allowed beside creation — run after the adds, so it arranges them too; one grouped Undo reverses both
+  const arrangeAfter = change.length === 1 && change[0]?.action === 'widget.arrange' && change[0]?.args?.widgets == null
+    && create.every(o => o?.action === 'widget.add' || o?.action === 'widget.addCharts' || aliases.has(String(o?.target)))
   for (const op of opsIn) if (getCapability(op?.action)?.exclusive && !getCapability(op?.action)?.sequential) return null
   for (const op of change) {
     const cap = getCapability(op?.action)
-    if (!cap || cap.query || SPLIT_DENY_KINDS.has(cap.target)) return null
+    if (!cap || cap.query || (SPLIT_DENY_KINDS.has(cap.target) && !arrangeAfter)) return null
     const args = JSON.stringify(op?.args ?? null)
     for (const a of aliases) if (args.includes(`"${a}"`)) return null
   }
-  const parts = [{ side: 'create', ops: create, at: firstCreate }, { side: 'change', ops: change, at: firstChange }]
+  // CG-3: "put four charts on my screen" planned as new charts + ONE even re-tile of the whole board — the adds first, THEN
+  // the re-tile of what is on the board then (its own plan, of the real widgets), whatever order the model wrote them in
+  const parts = [{ side: 'create', ops: create, at: arrangeAfter ? -1 : firstCreate }, { side: 'change', ops: change, at: firstChange }]
     .sort((a, b) => a.at - b.at).map(({ side, ops }) => ({ side, ops }))
   return { parts }
 }
