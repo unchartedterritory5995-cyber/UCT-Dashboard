@@ -1807,6 +1807,197 @@
      "modes": {}
     }
    }
+  },
+  "chart.addTab": {
+   "digest": "15acde52d77b3120",
+   "phrasings": {
+    "add a tab called Swing to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "give this chart another tab named Swing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "new chart tab called Swing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open a Swing tab on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.renameTab": {
+   "digest": "b3d8d6ff36d5d618",
+   "phrasings": {
+    "rename the Swing tab to Position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call the Swing tab Position instead": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the Swing tab's name to Position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename that tab to Position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.closeTab": {
+   "digest": "c66bfb643034f66c",
+   "phrasings": {
+    "close the Swing tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Swing tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the Swing tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "close that tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.applyTheme": {
+   "digest": "e38a5d2f0b32b148",
+   "phrasings": {
+    "use the nord chart theme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch the chart to the Nord theme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "apply the nord theme to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make this chart nord": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setBackground": {
+   "digest": "433a103584575fb7",
+   "phrasings": {
+    "make the background black": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the chart background to black": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "black background please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the chart's background colour to black": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setCandleColors": {
+   "digest": "ba4af33dbeced913",
+   "phrasings": {
+    "make the up candles blue and the down candles orange": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "b",
+      "c"
+     ],
+     "modes": {
+      "b": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"make\",\"candles\",\"blue\",\"orange\"]}}],\"via\":\"fastPath\"}",
+      "c": "chart setting candles.upColor is blue"
+     }
+    },
+    "blue up candles, orange down candles": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "b",
+      "c"
+     ],
+     "modes": {
+      "b": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"blue\",\"candles\",\"orange\"]}}],\"via\":\"fastPath\"}",
+      "c": "chart setting candles.upColor is blue"
+     }
+    },
+    "change my candle colors to blue and orange": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "color the green candles blue and the red ones orange": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "definition.search": {
+   "digest": "68c0b5cc45de656c",
+   "phrasings": {
+    "find me an indicator for volatility": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "search the indicators for volatility": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what indicators measure volatility": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "are there any volatility indicators": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "→ definition.search"
+     }
+    }
+   }
   }
  },
  "refusals": {

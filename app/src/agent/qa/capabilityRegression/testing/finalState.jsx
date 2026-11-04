@@ -19,7 +19,7 @@ export function finalStateSuite(slice) {
         }, 40000)
       }
       if (intent.undo) {
-        const first = phrasingsOf(intent)[0]
+        const first = phrasingsOf(intent).find(ph => !ph.gaps?.c) || phrasingsOf(intent)[0]      // the undo runs on a phrasing that works
         it(`undo: "${first.text}" then "${intent.undo.say}" puts it back`, async () => {
           await replay({ board: intent.board, seed: intent.seed, steps: [...(intent.before || []), { say: first.text, model: intent.model, expect: intent.expect }, intent.undo] }, `${intent.id} undo`)
         }, 40000)

@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 51,
+  "withAnyRegressionCase": 57,
   "perProtection": {
    "nl": {
-    "covered": 49,
+    "covered": 56,
     "applicable": 154
    },
    "routing": {
-    "covered": 49,
+    "covered": 56,
     "applicable": 154
    },
    "args": {
-    "covered": 50,
+    "covered": 56,
     "applicable": 154
    },
    "execution": {
-    "covered": 48,
+    "covered": 55,
     "applicable": 154
    },
    "receipt": {
-    "covered": 40,
+    "covered": 46,
     "applicable": 154
    },
    "refusal": {
@@ -38,15 +38,15 @@
     "applicable": 154
    },
    "undo": {
-    "covered": 21,
+    "covered": 27,
     "applicable": 95
    },
    "multiStep": {
-    "covered": 14,
+    "covered": 16,
     "applicable": 154
    },
    "phrasings": {
-    "covered": 48,
+    "covered": 54,
     "applicable": 154
    }
   }
@@ -366,6 +366,51 @@
    "level": "c",
    "intent": "drawing.setLevel",
    "phrasing": "move the 200 line up to 210"
+  },
+  {
+   "id": "CG-23",
+   "reason": "WRONG deterministic reading (CG-15 family): the quote fast reader claims the candle-colour request as a quote for MAKE, CANDLES, BLUE, ORANGE",
+   "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"make\",\"candles\",\"blue\",\"orange\"]}}],\"via\":\"fastPath\"}",
+   "level": "b",
+   "intent": "chart.setCandleColors",
+   "phrasing": "make the up candles blue and the down candles orange"
+  },
+  {
+   "id": "CG-23",
+   "reason": "through the panel the candle colours are not changed (a quote read instead)",
+   "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "mode": "chart setting candles.upColor is blue",
+   "level": "c",
+   "intent": "chart.setCandleColors",
+   "phrasing": "make the up candles blue and the down candles orange"
+  },
+  {
+   "id": "CG-23",
+   "reason": "WRONG deterministic reading (CG-15 family): quote for BLUE, CANDLES, ORANGE",
+   "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"blue\",\"candles\",\"orange\"]}}],\"via\":\"fastPath\"}",
+   "level": "b",
+   "intent": "chart.setCandleColors",
+   "phrasing": "blue up candles, orange down candles"
+  },
+  {
+   "id": "CG-23",
+   "reason": "through the panel the candle colours are not changed",
+   "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "mode": "chart setting candles.upColor is blue",
+   "level": "c",
+   "intent": "chart.setCandleColors",
+   "phrasing": "blue up candles, orange down candles"
+  },
+  {
+   "id": "CG-24",
+   "reason": "routing: 'are there any … indicators' names the indicators group but not the definitions group (its words need my/saved/custom, 'indicators for/that', find/search/what … indicators)",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ definition.search",
+   "level": "a",
+   "intent": "definition.search",
+   "phrasing": "are there any volatility indicators"
   },
   {
    "id": "CG-12",
@@ -1173,31 +1218,48 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
+    "nl": true,
+    "routing": true,
     "args": true,
-    "execution": false,
-    "receipt": false,
+    "execution": true,
+    "receipt": true,
     "refusal": true,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
+    "nl": [
+     "chart.addTab: \"add a tab called Swing to this chart\"",
+     "chart.addTab: \"give this chart another tab named Swing\"",
+     "chart.addTab: \"new chart tab called Swing\"",
+     "chart.addTab: \"open a Swing tab on this chart\""
+    ],
+    "routing": [
+     "chart.addTab: \"add a tab called Swing to this chart\"",
+     "chart.addTab: \"give this chart another tab named Swing\"",
+     "chart.addTab: \"new chart tab called Swing\"",
+     "chart.addTab: \"open a Swing tab on this chart\""
+    ],
     "args": [
+     "corpus chart.addTab",
      "refuse.tab-standin"
     ],
-    "execution": [],
-    "receipt": [],
+    "execution": [
+     "chart.addTab (c)"
+    ],
+    "receipt": [
+     "chart.addTab (c)"
+    ],
     "refusal": [
      "refuse.tab-standin"
     ],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chart.addTab: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -1253,27 +1315,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.applyTheme: \"use the nord chart theme\"",
+     "chart.applyTheme: \"switch the chart to the Nord theme\"",
+     "chart.applyTheme: \"apply the nord theme to this chart\"",
+     "chart.applyTheme: \"make this chart nord\""
+    ],
+    "routing": [
+     "chart.applyTheme: \"use the nord chart theme\"",
+     "chart.applyTheme: \"switch the chart to the Nord theme\"",
+     "chart.applyTheme: \"apply the nord theme to this chart\"",
+     "chart.applyTheme: \"make this chart nord\""
+    ],
+    "args": [
+     "corpus chart.applyTheme"
+    ],
+    "execution": [
+     "chart.applyTheme (c)"
+    ],
+    "receipt": [
+     "chart.applyTheme (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chart.applyTheme: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -1329,28 +1409,48 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.closeTab: \"close the Swing tab\"",
+     "chart.closeTab: \"remove the Swing tab\"",
+     "chart.closeTab: \"get rid of the Swing tab\"",
+     "chart.closeTab: \"close that tab\""
+    ],
+    "routing": [
+     "chart.closeTab: \"close the Swing tab\"",
+     "chart.closeTab: \"remove the Swing tab\"",
+     "chart.closeTab: \"get rid of the Swing tab\"",
+     "chart.closeTab: \"close that tab\""
+    ],
+    "args": [
+     "corpus chart.closeTab"
+    ],
+    "execution": [
+     "chart.closeTab (c)"
+    ],
+    "receipt": [
+     "chart.closeTab (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
-    "multiStep": [],
+    "undo": [
+     "chart.closeTab: undo restores"
+    ],
+    "multiStep": [
+     "chart.closeTab: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -1556,28 +1656,48 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.renameTab: \"rename the Swing tab to Position\"",
+     "chart.renameTab: \"call the Swing tab Position instead\"",
+     "chart.renameTab: \"change the Swing tab's name to Position\"",
+     "chart.renameTab: \"rename that tab to Position\""
+    ],
+    "routing": [
+     "chart.renameTab: \"rename the Swing tab to Position\"",
+     "chart.renameTab: \"call the Swing tab Position instead\"",
+     "chart.renameTab: \"change the Swing tab's name to Position\"",
+     "chart.renameTab: \"rename that tab to Position\""
+    ],
+    "args": [
+     "corpus chart.renameTab"
+    ],
+    "execution": [
+     "chart.renameTab (c)"
+    ],
+    "receipt": [
+     "chart.renameTab (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
-    "multiStep": [],
+    "undo": [
+     "chart.renameTab: undo restores"
+    ],
+    "multiStep": [
+     "chart.renameTab: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -1708,27 +1828,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.setBackground: \"make the background black\"",
+     "chart.setBackground: \"set the chart background to black\"",
+     "chart.setBackground: \"black background please\"",
+     "chart.setBackground: \"change the chart's background colour to black\""
+    ],
+    "routing": [
+     "chart.setBackground: \"make the background black\"",
+     "chart.setBackground: \"set the chart background to black\"",
+     "chart.setBackground: \"black background please\"",
+     "chart.setBackground: \"change the chart's background colour to black\""
+    ],
+    "args": [
+     "corpus chart.setBackground"
+    ],
+    "execution": [
+     "chart.setBackground (c)"
+    ],
+    "receipt": [
+     "chart.setBackground (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chart.setBackground: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -1746,27 +1884,43 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
     "phrasings": false
    },
-   "phrasings": 0,
+   "phrasings": 2,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.setCandleColors: \"change my candle colors to blue and orange\"",
+     "chart.setCandleColors: \"color the green candles blue and the red ones orange\""
+    ],
+    "routing": [
+     "chart.setCandleColors: \"make the up candles blue and the down candles orange\"",
+     "chart.setCandleColors: \"blue up candles, orange down candles\"",
+     "chart.setCandleColors: \"change my candle colors to blue and orange\"",
+     "chart.setCandleColors: \"color the green candles blue and the red ones orange\""
+    ],
+    "args": [
+     "corpus chart.setCandleColors"
+    ],
+    "execution": [
+     "chart.setCandleColors (c)"
+    ],
+    "receipt": [
+     "chart.setCandleColors (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chart.setCandleColors: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2648,23 +2802,36 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "definition.search: \"find me an indicator for volatility\"",
+     "definition.search: \"search the indicators for volatility\"",
+     "definition.search: \"what indicators measure volatility\"",
+     "definition.search: \"are there any volatility indicators\""
+    ],
+    "routing": [
+     "definition.search: \"find me an indicator for volatility\"",
+     "definition.search: \"search the indicators for volatility\"",
+     "definition.search: \"what indicators measure volatility\""
+    ],
+    "args": [
+     "corpus definition.search"
+    ],
+    "execution": [
+     "definition.search (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],

@@ -43,7 +43,9 @@ export function checkExpect(ctx, e, label) {
   }
   if (e.setting) {
     const id = chartsOf(board)[e.setting.chart || 0]?.id
-    expect(h.charts.read(id)?.cs?.[e.setting.key], `${label}: chart setting ${e.setting.key}`).toEqual(e.setting.value)
+    const v = e.setting.key.split('.').reduce((a, k) => a?.[k], h.charts.read(id)?.cs)      // a dotted path ("candles.upColor")
+    if ('value' in e.setting) expect(v, `${label}: chart setting ${e.setting.key}`).toEqual(e.setting.value)
+    if (e.setting.colour) expect(hueFamily(v), `${label}: chart setting ${e.setting.key} is ${e.setting.colour}`).toBe(e.setting.colour)
   }
   if (e.settingSome) {
     const id = chartsOf(board)[e.settingSome.chart || 0]?.id
@@ -89,6 +91,13 @@ export function checkExpect(ctx, e, label) {
     if (e.drawings.count != null) expect(ds.length, `${label}: drawings on ${sym}`).toBe(e.drawings.count)
     if (e.drawings.has) expect(ds.some(d => Object.entries(e.drawings.has).every(([k, v]) => get(d, k) === v)), `${label}: a drawing ${JSON.stringify(e.drawings.has)} (have ${JSON.stringify(ds.map(d => [d.type, d.points?.[0]?.price, d.color]))})`).toBe(true)
     if (e.drawings.colour) expect(ds.some(d => hueFamily(d.color) === e.drawings.colour), `${label}: a ${e.drawings.colour} drawing`).toBe(true)
+  }
+  if (e.chartTabs) {
+    // a chart widget's own tabs (opts.chartTabs: [{ id, name, tf }]), by name
+    const w = board.state.widgets.find(x => x.id === (e.chartTabs.widget || 'c1'))
+    const names = (w?.opts?.chartTabs || []).map(t => t.name)
+    for (const n of e.chartTabs.include || []) expect(names, `${label}: a chart tab ${n}`).toContain(n)
+    for (const n of e.chartTabs.exclude || []) expect(names, `${label}: no chart tab ${n}`).not.toContain(n)
   }
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id

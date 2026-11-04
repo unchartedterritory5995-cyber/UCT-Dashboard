@@ -3729,6 +3729,478 @@
       "recentActions": [
         "drawing.addLevel"
       ]
+    },
+    {
+      "id": "chart.addTab",
+      "source": "Batch D3 (11-04): chart tabs on the chart widget (opts.chartTabs) (#766 'a tab the member DID ask for')",
+      "capabilities": [
+        "chart.addTab"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.addTab"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.addTab",
+            "args": {
+              "name": "Swing"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.addTab",
+            "target": "$board",
+            "args": {
+              "widget": "c1",
+              "timeframe": null,
+              "name": "Swing"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "chartTabs": {
+          "include": [
+            "Swing"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "chartTabs": {
+            "exclude": [
+              "Swing"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "add a tab called Swing to this chart",
+        "give this chart another tab named Swing",
+        "new chart tab called Swing",
+        "open a Swing tab on this chart"
+      ]
+    },
+    {
+      "id": "chart.renameTab",
+      "source": "Batch D3 (11-04): chart tabs on the chart widget (opts.chartTabs)",
+      "capabilities": [
+        "chart.renameTab"
+      ],
+      "board": "ONE",
+      "before": [
+        {
+          "say": "add a tab called Swing to this chart",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.addTab",
+                "target": "$board",
+                "args": {
+                  "widget": "c1",
+                  "timeframe": null,
+                  "name": "Swing"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "chartTabs": {
+              "include": [
+                "Swing"
+              ]
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "chart.addTab"
+      ],
+      "needs": [
+        "chart.renameTab"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.renameTab",
+            "args": {
+              "name": "Position"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.renameTab",
+            "target": "$board",
+            "args": {
+              "widget": "c1",
+              "tab": "$ctx:board.0.widgets.0.chartTabs.1.tab",
+              "name": "Position"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "chartTabs": {
+          "include": [
+            "Position"
+          ],
+          "exclude": [
+            "Swing"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "chartTabs": {
+            "include": [
+              "Swing"
+            ],
+            "exclude": [
+              "Position"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "rename the Swing tab to Position",
+        "call the Swing tab Position instead",
+        "change the Swing tab's name to Position",
+        "rename that tab to Position"
+      ]
+    },
+    {
+      "id": "chart.closeTab",
+      "source": "Batch D3 (11-04): chart tabs on the chart widget (opts.chartTabs)",
+      "capabilities": [
+        "chart.closeTab"
+      ],
+      "board": "ONE",
+      "before": [
+        {
+          "say": "add a tab called Swing to this chart",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.addTab",
+                "target": "$board",
+                "args": {
+                  "widget": "c1",
+                  "timeframe": null,
+                  "name": "Swing"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "chartTabs": {
+              "include": [
+                "Swing"
+              ]
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "chart.addTab"
+      ],
+      "needs": [
+        "chart.closeTab"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.closeTab",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.closeTab",
+            "target": "$board",
+            "args": {
+              "widget": "c1",
+              "tab": "$ctx:board.0.widgets.0.chartTabs.1.tab"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "chartTabs": {
+          "exclude": [
+            "Swing"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "chartTabs": {
+            "include": [
+              "Swing"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "close the Swing tab",
+        "remove the Swing tab",
+        "get rid of the Swing tab",
+        "close that tab"
+      ]
+    },
+    {
+      "id": "chart.applyTheme",
+      "source": "Batch D4 (11-04): chart look — theme, background, candle colours",
+      "capabilities": [
+        "chart.applyTheme"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.applyTheme"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.applyTheme",
+            "args": {
+              "theme": "nord"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.applyTheme",
+            "target": "$charts[0]",
+            "args": {
+              "theme": "nord"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "background",
+          "value": "#1a1f27"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "use the nord chart theme",
+        "switch the chart to the Nord theme",
+        "apply the nord theme to this chart",
+        "make this chart nord"
+      ]
+    },
+    {
+      "id": "chart.setBackground",
+      "source": "Batch D4 (11-04): chart look — theme, background, candle colours",
+      "capabilities": [
+        "chart.setBackground"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setBackground"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setBackground",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setBackground",
+            "target": "$charts[0]",
+            "args": {
+              "color": "#000000"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "background",
+          "value": "#000000"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "make the background black",
+        "set the chart background to black",
+        "black background please",
+        "change the chart's background colour to black"
+      ]
+    },
+    {
+      "id": "chart.setCandleColors",
+      "source": "Batch D4 (11-04): chart look — theme, background, candle colours",
+      "capabilities": [
+        "chart.setCandleColors"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setCandleColors"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setCandleColors",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setCandleColors",
+            "target": "$charts[0]",
+            "args": {
+              "up": "#3b82f6",
+              "down": "#f97316"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "candles.upColor",
+          "colour": "blue"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "make the up candles blue and the down candles orange",
+          "gaps": {
+            "b": {
+              "id": "CG-23",
+              "reason": "WRONG deterministic reading (CG-15 family): the quote fast reader claims the candle-colour request as a quote for MAKE, CANDLES, BLUE, ORANGE",
+              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+              "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"make\",\"candles\",\"blue\",\"orange\"]}}],\"via\":\"fastPath\"}"
+            },
+            "c": {
+              "id": "CG-23",
+              "reason": "through the panel the candle colours are not changed (a quote read instead)",
+              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+              "mode": "chart setting candles.upColor is blue"
+            }
+          }
+        },
+        {
+          "text": "blue up candles, orange down candles",
+          "gaps": {
+            "b": {
+              "id": "CG-23",
+              "reason": "WRONG deterministic reading (CG-15 family): quote for BLUE, CANDLES, ORANGE",
+              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+              "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"blue\",\"candles\",\"orange\"]}}],\"via\":\"fastPath\"}"
+            },
+            "c": {
+              "id": "CG-23",
+              "reason": "through the panel the candle colours are not changed",
+              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+              "mode": "chart setting candles.upColor is blue"
+            }
+          }
+        },
+        "change my candle colors to blue and orange",
+        "color the green candles blue and the red ones orange"
+      ]
+    },
+    {
+      "id": "definition.search",
+      "source": "Batch D5 (11-04): indicator definitions (search, describe)",
+      "capabilities": [
+        "definition.search"
+      ],
+      "board": "ONE",
+      "needs": [
+        "definition.search"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "definition.search",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "definition.search",
+            "target": "$definitionLibrary",
+            "args": {
+              "query": "volatility",
+              "kind": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "find me an indicator for volatility",
+        "search the indicators for volatility",
+        "what indicators measure volatility",
+        {
+          "text": "are there any volatility indicators",
+          "gaps": {
+            "a": {
+              "id": "CG-24",
+              "reason": "routing: 'are there any … indicators' names the indicators group but not the definitions group (its words need my/saved/custom, 'indicators for/that', find/search/what … indicators)",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ definition.search"
+            }
+          }
+        }
+      ]
     }
   ],
   "refusals": [

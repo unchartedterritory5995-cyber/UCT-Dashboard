@@ -37,17 +37,7 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "chart.applyTheme": {
-   "owner": "agent-qa (capreg) — group charts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "chart.applyThemeAll": {
-   "owner": "agent-qa (capreg) — group charts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "chart.closeTab": {
    "owner": "agent-qa (capreg) — group charts",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
@@ -58,11 +48,6 @@
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
   "chart.linkTab": {
-   "owner": "agent-qa (capreg) — group charts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "chart.renameTab": {
    "owner": "agent-qa (capreg) — group charts",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
@@ -78,16 +63,6 @@
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
   "chart.selectTab": {
-   "owner": "agent-qa (capreg) — group charts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "chart.setBackground": {
-   "owner": "agent-qa (capreg) — group charts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "chart.setCandleColors": {
    "owner": "agent-qa (capreg) — group charts",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
@@ -148,11 +123,6 @@
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
   "definition.duplicate": {
-   "owner": "agent-qa (capreg) — group definitions",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "definition.search": {
    "owner": "agent-qa (capreg) — group definitions",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
