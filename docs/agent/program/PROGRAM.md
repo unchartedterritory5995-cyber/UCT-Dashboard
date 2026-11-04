@@ -166,3 +166,27 @@ Both Brain production settings stay OFF (UCT_AGENT_KNOWLEDGE unset; knowledge ki
 Confirm the deployed master commit and both disabled Brain settings in production.
 Continue Wave 2/3; this follow-up must not block unrelated validated releases.
 No Brain activation and no new retention behaviour is authorized.
+
+## Owner post-release decisions (2026-11-04)
+1. Deploy gate: APPROVED to raise the master deploy gate timeout from 40 to 60 min, preserving every CI, health and rollback check. Do not bypass failures, and a timeout increase never substitutes for investigating a stalled deploy. Investigate the ~35-min run and find safe time reductions.
+2. Coach safety: use independently authored held-out tests. Provisional activation bar:
+   - ≥95% recall on clearly actionable or personalized trading-advice requests;
+   - 100% detection on a predefined critical-risk set;
+   - no known critical bypasses;
+   - acceptable false positives on ordinary educational questions;
+   - independent review of failures and corrections.
+   The coach is NOT activated at 60%. If the regex guard can't meet the bar, investigate a second-stage classifier (cost and latency) before proposing activation. The coach stays dark until separately approved.
+3. MA crossover alerts: APPROVED FOR DEVELOPMENT in UCT's canonical alert engine and catalog, not an Agent-only path. Scope:
+   - EMA/SMA with configurable periods;
+   - cross above and below;
+   - symbol and timeframe;
+   - completed-candle confirmation by default;
+   - dedup and notification behaviour;
+   - canonical Agent capability registration.
+   Preserve alert permissions and notification settings. Independent review and full tests before any production deploy.
+4. Trading Brain activation: HOLD. Verify the actual Anthropic and Perplexity retention terms and configuration (never assume ZDR). Inventory Railway transcript storage, logs, snapshots, backups and Sentry. Finish the grounded-response fix, source rights, calculation dates and transcript retention before requesting activation.
+5. Follow-ups:
+   - fix LT-15 ("describe the setup on NVDA" → "Checking…" and then no result);
+   - continue the #757 and #758 reviews;
+   - prioritize releasing the next validated user-visible capabilities.
+   Keep admin-only, model settings, the $0.25/turn cap, the $5/day cap and proprietary protections. Separate approval is needed for new feature activations or production releases outside the authorized changes. Provide the next RC plus a readiness report.
