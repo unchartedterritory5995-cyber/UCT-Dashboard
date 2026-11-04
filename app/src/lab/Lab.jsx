@@ -61,8 +61,14 @@ import Piece57TrapV3 from './pieces/Piece57TrapV3'
 import Piece58LogoLadder from './pieces/Piece58LogoLadder'
 import Piece59LogoExport from './pieces/Piece59LogoExport'
 import Piece60LandingPreview from './pieces/Piece60LandingPreview'
+import Piece61ChallengeBlitz from './pieces/Piece61ChallengeBlitz'
+import Piece62ChallengeBoss from './pieces/Piece62ChallengeBoss'
+import Piece63ChallengeKicker from './pieces/Piece63ChallengeKicker'
 
 const PIECES = {
+  63: Piece63ChallengeKicker,
+  62: Piece62ChallengeBoss,
+  61: Piece61ChallengeBlitz,
   60: Piece60LandingPreview,
   59: Piece59LogoExport,
   58: Piece58LogoLadder,

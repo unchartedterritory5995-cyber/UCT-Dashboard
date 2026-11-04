@@ -12,6 +12,7 @@
 // motion is off under prefers-reduced-motion (CSS).
 import UIcon from '../../components/ui/UIcon'
 import StudyMark from '../../components/study/StudyMark'
+import { CHALLENGES } from './challenges/ChallengeSheet'
 import ProgressRing from './ProgressRing'
 import { trackSummary, recommendUnit, RUNGS } from './studyMap'
 import {
@@ -102,7 +103,7 @@ function firstUnitId(track) {
   return track?.units?.[0]?.id || null
 }
 
-export default function StudyLanding({ curricula = [], byId = {}, badges = [], onOpenUnit, onOpenTrail }) {
+export default function StudyLanding({ curricula = [], byId = {}, badges = [], onOpenUnit, onOpenTrail, onOpenChallenge }) {
   const method = curricula.find((c) => c.id === METHOD_ID) || null
   const foundations = curricula.find((c) => c.id === FOUNDATIONS_ID) || null
   const rec = method ? recommendUnit(method, byId) : null
@@ -166,6 +167,28 @@ export default function StudyLanding({ curricula = [], byId = {}, badges = [], o
           <ul className={`${s.tiles} ${s.strip}`} aria-label="Foundations tracks">
             {(foundations.tracks || []).map((t) => (
               <StationTile key={t.id} track={t} byId={byId} recommended={false} onOpen={() => openTrack(foundations, t.id)} />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {onOpenChallenge && (
+        <div className={s.deck}>
+          <div className={s.deckHead}>
+            <h3 className={s.deckTitle}>Challenges</h3>
+            <span className={s.deckSub}>Real charts from the bank, a clock or a heart. Every answer counts toward your XP.</span>
+          </div>
+          <ul className={`${s.tiles} ${s.strip}`} aria-label="Challenges">
+            {CHALLENGES.map((c) => (
+              <li key={c.kind} className={s.tileItem}>
+                <button type="button" className={`${s.tile} ${s.tileChallenge}`} onClick={() => onOpenChallenge(c.kind)} aria-label={`${c.title}: ${c.sub}`}>
+                  <span className={s.challengeIcon}><UIcon name={c.icon} size={22} /></span>
+                  <span className={s.tileText}>
+                    <span className={s.tileTitle}>{c.title}</span>
+                    <span className={s.tileSub}>{c.sub}</span>
+                  </span>
+                </button>
+              </li>
             ))}
           </ul>
         </div>
