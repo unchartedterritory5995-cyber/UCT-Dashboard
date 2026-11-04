@@ -13,6 +13,9 @@ import { setupPanel, bareSettings } from '../../../testing/panelHarness'
 import { makeBoard } from '../../../__fixtures__/board'
 import { buildDrawingSource, buildIndicatorAlertSource } from '../../../host'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
+import { setAuthoringSources } from '../../../capabilities/indicatorAuthoring'
+import { storeConversation } from '../../../../components/chart/builder/conversationSave'
+import { CREATE_INDICATOR_FLAG_KEY } from '../../../../components/chart/builder/studio/createIndicatorFlag'
 import { groupOfAction } from '../../../routing'
 import { configFor, PROD_KINDS } from './registry'
 
@@ -37,6 +40,9 @@ export const BOARDS = {
   IALERTS: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: { settings: { indicatorInstances: [
     { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }] } } }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
   // one chart on its DEFAULT settings (EMA 9/20, SMA 50/200) with the indicator-alert library
+  // + the Indicators AUTHORING interface (the real engine, draft store and canonical Save) with the builder's model and the
+  //   definitions server as stand-ins (agentIndicatorCreate.test.jsx's construction)
+  AUTHOR: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'QQQ' }, { authoring: true }],
   ONE_DEFAULT_IA: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: {} }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
   // four charts on their DEFAULT settings: every chart carries its own EMA 9 / EMA 20 (the same names, ids ovl:0 / ovl:1)
   FOUR_DEFAULT: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => ({ id, type: 'chart', x: (i % 2) * 12, y: Math.floor(i / 2) * 10, w: 12, h: 10, color: 'N', opts: {} })),
@@ -57,6 +63,12 @@ const IA_CATALOG = [
   { indicator: 'ma_cross', label: 'MA Cross', conditions: XC, default_threshold: null, plots: [{ value: 'ma_cross', label: 'MA Cross', conditions: XC, default_threshold: null,
     inputs: { ma_type: 'ema', fast: 9, slow: 20 }, instance_defs: ['movingAverage'], instance_label: 'EMA(9) vs EMA(20)' }] },
 ]
+// ── the indicator BUILDER's model (/converse), as agentIndicatorCreate.test.jsx: the EMA 9/20 % request → its formula ──
+const PATCH = 'uct.authoring.patch/1'
+const CLOSE = { type: 'series', name: 'close' }
+const ema = (n) => ({ type: 'call', name: 'ema', args: [CLOSE, { type: 'num', value: n }] })
+const opn = (name, ...args) => ({ type: 'op', name, args })
+const PCT = opn('*', opn('/', opn('-', ema(9), ema(20)), ema(20)), { type: 'num', value: 100 })
 const LOWER_OK = new Set(['NVDA', 'TSLA', 'AMD', 'AAPL', 'QQQ'])
 const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25 }))
 
@@ -72,6 +84,8 @@ export const chartsOf = (board) => board.state.widgets.filter(w => w.type === 'c
 
 /** Resolve a canonical op's symbolic target ("$charts[0]", "$workspace", "$board", "$indicatorEdits[0]", "new1") from the request context. */
 export function resolveTarget(t, body) {
+  const f = /^\$([A-Za-z]+)\{([A-Za-z]+)\}$/.exec(String(t || ''))           // "$indicatorDrafts{new}": the entry flagged `new`
+  if (f) return (body?.context?.[f[1]] || []).find(e => e[f[2]])?.ref || `missing:${t}`
   const m = /^\$([A-Za-z]+)(?:\[(\d+)\])?$/.exec(String(t || ''))
   if (!m) return t
   const list = body?.context?.[m[1]]
@@ -85,15 +99,16 @@ export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTa
 
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } = {}) {
   const p = setupPanel()
-  const st = { log: [], ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
+  const st = { log: [], builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url); const method = init.method || 'GET'
     const body = init.body ? JSON.parse(init.body) : null
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
-    if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search') || u.startsWith('/api/user-definitions')) return base(url, init)
+    if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search')) return base(url, init)
     p.st.calls.push([method, u, body])
     if (u === '/api/agent/config') return json(configFor(kinds))
+    if (u.startsWith('/api/user-definitions')) return st.defs.size ? json({ definitions: [...st.defs.values()] }) : base(url, init)
     // the drawings SYNC as the server holds it (useTracingsSync: prefs.tracings_doc = { updatedAt, doc }) — the account
     // copy mirrors this tab's store, as it does once the sync has run (host.confirmDrawingsSynced reads it back)
     if (u === '/api/auth/preferences' && method === 'GET') {
@@ -149,6 +164,21 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
   mounted = p.mount(...spec)
   const extra = spec[2] || {}
   if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
+  if (extra.authoring) {
+    try { localStorage.setItem(CREATE_INDICATOR_FLAG_KEY, '1') } catch { /* */ }
+    const converse = ({ message, state }) => {
+      st.builderCalls.push(message)
+      return { ok: true, disposition: 'change', turn: 'patch', reply: '', envelope: { contract: PATCH, baseRevision: state.revision, assumptions: [], disposition: 'change',
+        ops: [{ op: 'create', name: 'EMA 9/20 % Diff', placement: 'pane', outputs: [{ key: 'diff', label: 'EMA 9/20 % Diff', tree: PCT }] }] } }
+    }
+    const fakeSave = async (doc, defId, _x, opts) => {
+      const id = defId || `u_aaaaaaaaae${String(st.defs.size + 10).padStart(2, '0')}`
+      const version = defId ? (opts?.baseVersion || 0) + 1 : 1
+      st.defs.set(id, { def_id: id, version, rev: 1, definition: { ...doc, id, version } })
+      return { ok: true, row: { def_id: id, version, rev: 1 } }
+    }
+    setAuthoringSources({ extra: { converse, readBack: async (id) => st.defs.get(id) || null, store: (sv, o) => storeConversation(sv, { ...o, save: fakeSave }) } })
+  }
   if (extra.drawings) {
     for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)      // the store is module-level: start empty
     mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })

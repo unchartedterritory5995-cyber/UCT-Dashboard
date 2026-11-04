@@ -1998,6 +1998,31 @@
      }
     }
    }
+  },
+  "indicator.draft-create": {
+   "digest": "fa8e5e7e026edc48",
+   "phrasings": {
+    "Create a custom indicator that shows the difference between the 9ema and 20ema as a percentage. Put it in a separate pane.": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "build me an indicator that shows the 9 EMA vs 20 EMA spread as a percent, in its own pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "create a custom indicator: (EMA 9 minus EMA 20) divided by EMA 20 times 100, in a separate pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make me a new indicator plotting the percentage difference between the 9 and 20 EMA in a separate pane": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

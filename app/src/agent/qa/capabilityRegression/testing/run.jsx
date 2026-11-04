@@ -99,6 +99,14 @@ export function checkExpect(ctx, e, label) {
     for (const n of e.chartTabs.include || []) expect(names, `${label}: a chart tab ${n}`).toContain(n)
     for (const n of e.chartTabs.exclude || []) expect(names, `${label}: no chart tab ${n}`).not.toContain(n)
   }
+  if (e.customIndicators) {
+    // the member's OWN indicators on a chart (saved definitions: defId u_…) and the definitions the server now holds
+    const id = chartsOf(board)[e.customIndicators.chart || 0]?.id
+    const mine = p.instancesOn(board, id).filter(i => /^u_/.test(String(i.defId)))
+    if (e.customIndicators.count != null) expect(mine.length, `${label}: own indicators on the chart`).toBe(e.customIndicators.count)
+    if (e.customIndicators.saved != null) expect(ctx.st.defs.size, `${label}: definitions saved`).toBe(e.customIndicators.saved)
+    if (e.customIndicators.placement) expect(mine.length && [...ctx.st.defs.values()].some(d => d.definition?.placement?.target === e.customIndicators.placement), `${label}: saved with placement ${e.customIndicators.placement}`).toBe(true)
+  }
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)
