@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 16:21 CT
+updated: 2026-11-04 17:01 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -269,10 +269,13 @@ open: HP-3 sin/cos decision (T4's a/b/c) stays the coordinator's; new data point
 desktop check: PASS (report + tools, final-tip at baseline, local == origin, worktree clean)
 
 ## W4-T8 series int window lengths (after T7 READY; T2 READY for simple lengths)
-state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
-branch: feat/pine-w4-t8-series-length   base: W4-T7 8f420e0043 + local merge of W4-T2 ac659bae66 (STACK: merge T7 and T2 first)   model: Sonnet
-locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · mp _resume-2026-11-01/dsk/heavy-mp2.lock (pine-dsk-mpbase2, base set in-job to the stacked parent) · final _resume-2026-11-01/dsk/heavy-final2.lock
-
+state: READY            round: r0            updated: 2026-11-04 17:01 CT
+branch: feat/pine-w4-t8-series-length   tip: d518a1d46b (docs-only evidence over code tip 9fb199904a)   base: merge b8e8698406 = W4-T7 8f420e0043 + W4-T2 ac659bae66 (STACK: merge T7 and T2 first)   tested on master: 5d95103c8a   worktree: pine-dsk-w4t8   model: Sonnet
+engine bump needed: YES (SCRIPT_ENGINE_VERSION NOT edited)
+evidence: docs/pine/evidence/2026-11-04-w4-t8/EVIDENCE.md
+built: a v6 `series int` window length is read per bar; the qualifier comes from a generated ast/windowLengthQualifiers.json (emitter tools/pine_survey/emit_length_qualifiers.js over the extracted v6 reference, never hand-typed); a length that is na, fractional, below 1 or past the ring stops the run by name (runtime:history-dynamic-offset); object door keeps master's answer; limits.js comments only; frame-parameter calls with a per-bar argument still refuse (T9's lane).
+checks: w4SeriesLength.test.js 27 (base 20 red / 7 controls pass; tip 27/27); wider rails 138. Mutations 14 run, 13 killed; M6 first survived, fixed with a fractional case; M11 (qualifier check dropped) equivalent. measure-pair both lanes on heavy-mp2 (mpbase2 asserted at base b8e8698406 before/after every base side; measured tip 0cd956745f): C18 audit, C18 probes and vendor harness 0 diffs on both lanes; rt1 first-wall movers ict-institutional-order-flow-fadi, auto-length-moving-average-trend-signals-zeiierman, triangular-hull-moving-average-volatility-bigbeluga, luxy-super-duper-supertrend-predictor-engine; rt0 census diffs are timeout noise (multi-timeframe-trend-indicator reproduces on base alone); OBJECT DOOR: no change. Table identity: the qualifier table at 0cd956745f and the final tree compared DEEP-EQUAL True (41 functions); only whitespace and the generator --check/indent line changed, so measure-pair stands. final-tip r2 on the final code tree (desktop sent it back; the first run predated 9fb199904a): gate pytest 46, engine-version gate 6, hygiene clean, vitest Tests 1 failed | 22438 passed | 118 skipped = pollingSites.rail (DESKTOP-VERIFIED in dsk-w4t8-final2/js.log).
+OPEN DECISION (coordinator): the spec's attach script heatmap-volume-xdecow is //@version=5, so it does not attach under the spec's v6-only rule; the extracted v5 reference also declares `series int` for these lengths. Widening to v5 is a ruling, not done. smarter-snr, market-structure-break-order-block and zigzag-multi-time-frame-with-fibonacci-retracement keep their first wall. Capture W4-S1 still to run.
 ## W4-T13 spike (docs/probes only; the build is capture-gated on P1)
 state: READY            round: r0            updated: 2026-11-04 11:28 CT
 branch: spike/pine-w4-t13-candle   tip: a561fc12ba (local == origin, clean; DESKTOP-VERIFIED diff vs master = docs/pine/evidence/2026-11-04-w4-t13-spike/{SPIKE.md, probe.mjs} only)   base: origin/master 09453ca1a3   worktree: pine-dsk-w4t13   model: Sonnet
