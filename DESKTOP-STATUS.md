@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 04:45 CT
+updated: 2026-11-04 06:06 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -212,9 +212,17 @@ region: FE frameBoundRefusal / forCounterRange ~:4588-4640 (shares T2's folding 
 next: offsets bounded by simple values and frame parameters; measure-pair against the T2 tip on mp2; object door keeps master's answer unless proved
 
 ## W5-T4 host-parity rail (picked per 063fe2ba8e: needs T1 + T3, both READY)
-state: BUILDING   round: r0   updated: 2026-11-04 04:14 CT
-branch: feat/pine-w5-t4-host-parity   base: W5-T1 tip 27e95ca34c + ONE local merge commit of origin/feat/pine-w5-t3-codec (409456ee36) on this branch (merge T1 and T3 first)   worktree: pine-dsk-w5t4   model: Opus
-next: HP-1..HP-7 (corpus, committed digests, Node half, Chromium half on the real runtimeWorker chunk via Playwright's own headless Chromium inside a heavy-lock job, never the owner's Chrome; HP-4 red on a perturbed bundle; mutation control)
+state: READY (with a DESIGN DECISION for the coordinator/owner: HP-3 gating)   round: r0   updated: 2026-11-04 06:06 CT
+branch: feat/pine-w5-t4-host-parity   tip: eb922686fe (EVIDENCE over code tip 56279a879e)   base: W5-T1 27e95ca34c + one local merge of W5-T3 409456ee36 (e5f7ea0e0b, no conflict); merge T1 and T3 first   tested on master: 5d95103c8a
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t4/EVIDENCE.md + muts.json, muts-r2.json
+files: tools/pine_runtime_host_parity.mjs (Node half), tools/pine_runtime_host_parity.py (Chromium half); runtime/__fixtures__/hostParity/ (corpus.json, 41 .pine files, expected-digests.json, 166 cases); runtime/__tests__/hostParity.rail.test.js (19); tests/test_pine_runtime_engine_identity.py (5). Corpus: 34 original scripts, 10 hostile cases, 5 generated bar sets; no census/allowlist/test-file scripts (licence rule).
+HP status: HP-1 GREEN (166/166 match committed digests). HP-2 ran on the real chunk runtimeWorker-DsQlJvrF.js (Playwright Chromium 145 headless, not the owner's Chrome; no leftover browser process). HP-3 RED on 2 cases: transcendental@listing and @forming differ from Node by 1 ulp in sin/cos (72/1,500 and 78/2,000 rows); run 2: 163/166 equal + 1 INCONCLUSIVE (slope_loop@m5_32768 hit the 1,000 ms pane budget); Python codec matches JS codec on all 134 ok digests. HP-4 GREEN (perturbed bundle red on 35 cases by name; restored byte-exact, sha a27a389e3b78, then 166/166). HP-5 GREEN (inside HP-1/HP-3). HP-6 GREEN (4 tests). HP-7 GREEN (job.mjs absent until T7 merges).
+FINDING (falsifies design H8/Q6 "V8 ships one fdlibm port"): a direct probe shows Math.sin (801 of 25,000 inputs) and Math.cos (856) differ by 1 ulp between V8 13.6 (Node 24) and V8 14.5 (Chrome 145). Digests were recorded on Node 24 and the gate runs Node 20, so HP-1 may go red there on trig.
+DECISION NEEDED (options in EVIDENCE.md): (a) ship a JS sin/cos in the runtime so every host agrees; (b) report trig cases, do not gate them; (c) pin V8 (cannot hold). The desktop does not choose this.
+checks: mutations (heavy-mut) 29/29 killed in 2 rounds, control survives, no equivalents. final-tip (heavy-final3): gate pytest 46, extra rails 222, hygiene clean, vitest 1 failed | 1336 passed | 27 skipped (Tests 1 failed | 22536 passed) = pollingSites.rail (96582cd549 not in this tree). app/dist and dist-server removed after the run.
+open: HP-3 gating decision; verify HP-1 under Node 20 before T19; extract runtime __tests__ sources with a licence filter; HP-8/T5 can reuse the .py with webkit/firefox, scope now includes other V8 builds.
+desktop check: PASS for the build (scope, rails, 29/29, final-tip at baseline, local == origin, worktree clean). HP-3 red is a real cross-host finding, reported, not hidden.
 
 ## W4-T10 (picked per 063fe2ba8e: "after T1"; STACKED on the laptop's W4-T1, reviewed GO, in the merge queue)
 state: BUILDING   round: r0   updated: 2026-11-04 04:45 CT
