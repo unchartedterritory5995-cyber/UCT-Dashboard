@@ -298,10 +298,13 @@ export async function answerDescribeSetup(snap, args) {
   if (!snap) return 'That chart is not available.'
   const chartSym = String(snap.symbol || '').toUpperCase()
   const chartTf = snap.tf == null ? null : String(snap.tf)
-  const tf = timeframe || (chartTf === 'W' ? 'W' : 'D')
+  const other = !!(symbol && symbol.toUpperCase().replace(/^\$/, '') !== chartSym)
+  // LT-15: a symbol this chart does NOT show is described from its own daily bars — the chart's timeframe, label and
+  // indicators are this chart's, not that symbol's, so none of them is borrowed (daily unless a timeframe is asked)
+  const tf = timeframe || (!other && chartTf === 'W' ? 'W' : 'D')
   let resolved = chartSym
   let name = null
-  if (symbol && symbol.toUpperCase().replace(/^\$/, '') !== chartSym) {
+  if (other) {
     // a named symbol ("same for AMD") goes through UCT's symbol index first (MD-1 §4.7); the chart's own symbol does not
     const candidates = toCandidates([symbol])
     if (candidates.length !== 1) return "Which ticker? I couldn't find a symbol in that."
@@ -317,7 +320,8 @@ export async function answerDescribeSetup(snap, args) {
   const env = await readData('bars.daily', { symbol: resolved, bars: BARS }, { purpose: 'answer', turnId })
   // the chart's indicators belong to the chart's own symbol only ("same for AMD" describes AMD's bars, not this chart)
   const indicators = resolved === chartSym ? indicatorRowsOf(snap.cs) : null
-  return answerFromSetup(env, { symbol: resolved, name, timeframe: tf, indicators, label: snap.label || null, chartTf: timeframe ? null : chartTf })
+  const own = resolved === chartSym
+  return answerFromSetup(env, { symbol: resolved, name, timeframe: tf, indicators, label: own ? snap.label || null : null, chartTf: timeframe || !own ? null : chartTf })
 }
 
 // ── fast path (pure, fail-closed): "describe this setup", "what's the setup on this chart", "describe the weekly setup"
@@ -331,6 +335,59 @@ export function match(text) {
   if (/^what/i.test(s) && !/set-?up/i.test(s)) return null       // "what's the chart" alone is not a setup question
   const tf = m[1] ? (m[1].toLowerCase() === 'weekly' ? 'W' : 'D') : null
   return { action: CAPABILITY, params: { symbol: null, timeframe: tf } }
+}
+
+// ── LT-15 fast path: "describe the setup on nvda", "what's the setup on $NVDA", "describe NVDA's weekly setup" ───────
+// bars.daily is per SYMBOL, so a named ticker is described whether or not a chart shows it. The op still needs a chart
+// target (the capability's kind): the chart showing that ticker (the selected one when several do, else the first in
+// reading order), or — when none shows it — the selected chart, else the first; the answer then borrows nothing from
+// that chart (answerDescribeSetup). The word goes through UCT's symbol index unless a live chart shows it, so a word
+// that only MIGHT be a ticker ("meta", "gold") gets the neutral §4.7.3 question — never a guess.
+const TICKER = '\\$?([a-z][a-z0-9]{0,5}(?:[.-][a-z]{1,2})?)'
+const VERB = "(?:describe|what(?:'s| is)|summari[sz]e|walk me through)"
+const ON_SYMBOL = new RegExp(`^${VERB} (?:the |a )?(?:(daily|weekly) )?set-?up (?:on|of|for|in) (?:the )?${TICKER}(?:'s)?(?: (?:chart|stock|ticker))?(?: (?:on the )?(daily|weekly))?$`, 'i')
+const SYMBOL_S = new RegExp(`^${VERB} (?:the )?${TICKER}(?:'s)? (?:(daily|weekly) )?(?:chart )?set-?up(?: (?:on the )?(daily|weekly))?$`, 'i')
+// words that are not tickers here ("on it", "on this", "on the weekly"): left to the chart phrase or to the model
+const NOT_TICKER = new Set(['it', 'this', 'that', 'these', 'those', 'them', 'here', 'there', 'me', 'my', 'the', 'a', 'chart', 'charts',
+  'stock', 'ticker', 'symbol', 'one', 'daily', 'weekly', 'monthly', 'intraday', 'hourly', 'left', 'right', 'top', 'bottom', 'first',
+  'second', 'third', 'fourth', 'last', 'middle', 'selected', 'current', 'active', 'same', 'other'])
+/** Pure: "describe the setup on nvda" → { symbol (as typed, `$` dropped), timeframe } | null. */
+export function matchSymbol(text) {
+  if (!describeServed()) return null
+  const s = String(text || '').replace(/[’`]/g, "'").trim().replace(/[?!.]+$/, '').replace(/\s+/g, ' ').trim()
+  if (!s || s.length > 80) return null
+  let sym = null
+  let tfw = null
+  let m = ON_SYMBOL.exec(s)
+  if (m) { sym = m[2]; tfw = m[1] || m[3] || null } else if ((m = SYMBOL_S.exec(s))) { sym = m[1]; tfw = m[2] || m[3] || null }
+  if (!sym || NOT_TICKER.has(sym.toLowerCase())) return null
+  if (/^what/i.test(s) && !/set-?up/i.test(s)) return null
+  return { symbol: sym, timeframe: tfw ? (tfw.toLowerCase() === 'weekly' ? 'W' : 'D') : null }
+}
+/** The chart an op for `symbol` targets (see above), from the live charts; null when the board has none. */
+export function chartForSymbol(symbol, charts = [], selected = null) {
+  const list = Array.isArray(charts) ? charts.filter(c => c && c.ref) : []
+  if (!list.length) return null
+  const want = String(symbol || '').toUpperCase().replace(/^\$/, '')
+  const showing = list.filter(c => String(c.symbol || '').toUpperCase() === want)
+  const pool = showing.length ? showing : list
+  return (pool.find(c => c.selected || (selected != null && c.ref === selected)) || pool[0]).ref
+}
+function fastDescribe({ raw, host }) {
+  const plain = match(raw)
+  if (plain) return plain.params
+  const named = matchSymbol(raw)
+  if (!named) return null
+  let charts = []
+  let selected = null
+  try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
+  try { selected = host?.charts?.selected?.() || null } catch { selected = null }
+  const ref = chartForSymbol(named.symbol, charts, selected)
+  if (!ref) return null                                      // no chart at all: the model (and its refusal) decide
+  const shown = charts.find(c => c.ref === ref)
+  // the ticker a live chart shows is that chart's own (no index read); any other word is checked as typed
+  const symbol = String(shown?.symbol || '').toUpperCase() === named.symbol.toUpperCase() ? null : named.symbol
+  return { symbol, timeframe: named.timeframe, __target: ref }
 }
 
 let registered = false
@@ -354,7 +411,7 @@ export function registerChartDescribeCapability() {
       required: ['symbol', 'timeframe'],
       additionalProperties: false,
     },
-    fast: ({ raw }) => { const m = match(raw); return m ? m.params : null },
+    fast: (ctx) => fastDescribe(ctx || {}),
     answer: (snap, args) => answerDescribeSetup(snap, args || {}),
   })
   return true
