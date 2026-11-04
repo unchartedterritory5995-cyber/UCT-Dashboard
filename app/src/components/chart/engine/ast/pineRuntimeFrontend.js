@@ -2665,7 +2665,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⛔ NOT AT THE OBJECT DOOR: master's lane never proved these, and the door builds what master builds.
     if (!atObjectDoor && node.type === 'call' && typeof node.name === 'string' && fnByName.has(node.name)) {
       const rec = functions[fnByName.get(node.name)]
-      return !!(rec && rec.colour === true && !rec.valueless)
+      // ⛔ THE RECORD MUST BE THIS FUNCTION'S. A definition this lane refused is POPPED while its name
+      // stays in `fnByName` (the deferred refusal), and the next definition reuses that index - so the
+      // index alone can name ANOTHER function's record (measured: a refused `ta.*` selector read a
+      // colour helper's verdict and every plot of its result was refused as a colour).
+      return !!(rec && rec.name === node.name && rec.colour === true && !rec.valueless)
     }
     // W4-T12 - AN ELEMENT OF A COLOUR ARRAY IS A COLOUR (the text rule's twin).
     if (!atObjectDoor && node.type === 'call' && ARRAY_READS_ELEMENT.has(node.name)) {

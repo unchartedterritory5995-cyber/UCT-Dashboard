@@ -148,6 +148,18 @@ describe('a user function that returns a colour is a colour', () => {
   })
 })
 
+describe('a refused definition never lends its index to a colour helper', () => {
+  it('CONTROL - a selector refused at its call site stays refused by its OWN name, beside a colour helper', () => {
+    // `bad` is held (conditional history) and its record is dropped while its NAME stays routed; `g`
+    // is the next definition and reuses that index. Reading the index alone gave `bad(close)` the
+    // colour verdict of `g`, and `plot(bad(close))` was refused as a colour. Measured on the
+    // runtime-on census (bollinger-band-width-percentile): a script master served.
+    const src = ['bad(float v) =>', '    v > 1 ? ta.sma(v, 3) :', '     v > 2 ? ta.ema(v, 3) :', '     na',
+      'g(x) => x > 101 ? color.red : na', 'bgcolor(g(close))', 'plot(bad(close))', ''].join('\n')
+    expect(refusal(src).guard).toBe('runtime:conditional-history')
+  })
+})
+
 describe('an element of a colour array is a colour', () => {
   it('array.from of colours, read by a per-bar index', () => {
     const out = run('a = array.from(color.red, color.green)\nbgcolor(array.get(a, close > 101 ? 1 : 0))\nplot(close)\n').outputs[0]
