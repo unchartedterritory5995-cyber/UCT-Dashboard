@@ -803,3 +803,18 @@ describe('CG-23/24 · corpus gaps (#774)', () => {
     expect(wordsSelect('definitions', 'which momentum indicators do you have')).toBe(true)
   })
 })
+
+describe('nl-gaps-2 review notes', () => {
+  it('an everyday word is DROPPED as a candidate, never the whole read: "price of nvda and set" still prices NVDA', () => {
+    expect(parsePriceSentence('price of nvda and set')?.candidates?.map(c => c.text)).toEqual(['nvda'])
+    expect(parsePriceSentence('move the 200 line up to 210')).toBeNull()
+  })
+  it('CG-24\'s search words never claim a question about the chart\'s OWN indicators, or a removal', () => {
+    for (const [m, own] of [['which indicators are on my chart', 'indicators'], ['remove any indicators', 'indicators']]) {
+      expect(wordsSelect('definitions', m), m).toBe(false)
+      expect(selectGroups(m).selected, m).toContain(own)
+    }
+    expect(wordsSelect('definitions', 'are there any volatility indicators')).toBe(true)
+    expect(wordsSelect('definitions', 'what indicators do you have')).toBe(true)
+  })
+})

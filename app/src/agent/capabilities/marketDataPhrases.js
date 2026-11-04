@@ -112,9 +112,10 @@ export function parsePriceSentence(text) {
   const low = s.toLowerCase()
   if (/&/.test(s)) return null
   if (VETO.some(re => re.test(low)) || TIME_VETO.some(re => re.test(low))) return null
-  const candidates = candidatesOf(s)
+  // CG-15/22/23: an everyday word typed in lower case is DROPPED as a candidate (never a ticker) — the rest still read
+  // ("price of nvda and set" prices NVDA); a sentence left with none is not a price question at all
+  const candidates = (candidatesOf(s) || null)?.filter(c => !(c.form === 'lower' && NOT_A_TICKER.has(c.text))) || null
   if (!candidates || !candidates.length || candidates.length > MAX_TICKERS) return null
-  if (candidates.some(c => c.form === 'lower' && NOT_A_TICKER.has(c.text))) return null
   const allCash = candidates.every(c => c.form === 'cashtag')
   if (candidates.length > 1 && !allCash && !/(\band\b|,)/i.test(s)) return null
   // a list ("X and Y", "X, Y") must have a candidate in EVERY item: "nvda and on price" names two things, one of which
