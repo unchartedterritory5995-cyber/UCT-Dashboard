@@ -12,12 +12,8 @@
     },
     "Show SPY, QQQ, NVDA and TSLA in four equal panels.": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ chartGrid.set"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "Give me four equally sized charts with those tickers.": {
      "digest": "f633b37ec6c7f9b7",
@@ -26,12 +22,8 @@
     },
     "Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA.": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ chartGrid.set"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "Create four charts for SPY, QQQ, NVDA and TSLA": {
      "digest": "44136fa355b3678a",
@@ -95,63 +87,33 @@
    "phrasings": {
     "Put four charts on my screen.": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a",
-      "c"
-     ],
-     "modes": {
-      "a": "→ widget.add",
-      "c": "chart count"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "Create four charts.": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a",
-      "c"
-     ],
-     "modes": {
-      "a": "→ widget.add",
-      "c": "chart count"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "Make a 2×2 chart layout.": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a",
-      "c"
-     ],
-     "modes": {
-      "a": "→ widget.add",
-      "c": "chart count"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "give me a 2x2 grid of charts": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "c"
-     ],
-     "modes": {
-      "c": "chart count"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "I want four equal charts on the board": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "c"
-     ],
-     "modes": {
-      "c": "chart count"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "four charts, same size, please": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "c"
-     ],
-     "modes": {
-      "c": "chart count"
-     }
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -390,12 +352,8 @@
     },
     "add the relative strength index": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ indicator.add"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "show me RSI on this chart": {
      "digest": "44136fa355b3678a",
@@ -459,12 +417,8 @@
     },
     "what's the setup here": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ chart.describeSetup"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "walk me through the setup on NVDA": {
      "digest": "44136fa355b3678a",
@@ -688,39 +642,23 @@
    "phrasings": {
     "show me NVDA's recent pullbacks": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "names the data group by its own words"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "nvda pullbacks": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "names the data group by its own words"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "how far has NVDA pulled back": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "names the data group by its own words"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "NVDA drawdowns this year": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ stock.dailyBars"
-     }
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -739,12 +677,8 @@
     },
     "NVDA distance from the 52-week high": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ stock.dailyBars"
-     }
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -758,12 +692,8 @@
     },
     "undo the change you made to my layout": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "c"
-     ],
-     "modes": {
-      "c": "the board is back as it started"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "undo that": {
      "digest": "44136fa355b3678a",
@@ -772,14 +702,8 @@
     },
     "put my layout back": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a",
-      "c"
-     ],
-     "modes": {
-      "a": "→ agent.undo",
-      "c": "the board is back as it started"
-     }
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -983,14 +907,8 @@
     },
     "unhide the 50 sma": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "b",
-      "c"
-     ],
-     "modes": {
-      "b": "read as {\"plan\":[{\"action\":\"indicator.hide\",\"args\":{\"instance\":\"ovl:2\"}}],\"via\":\"followUp\"}",
-      "c": "hidden"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "turn the 50 day back on": {
      "digest": "44136fa355b3678a",
@@ -1109,12 +1027,8 @@
     },
     "how much is NVDA right now": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ stock.quote"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "quote NVDA": {
      "digest": "44136fa355b3678a",
@@ -1143,12 +1057,8 @@
     },
     "tell me about TSM the company": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ stock.profile"
-     }
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -1162,12 +1072,8 @@
     },
     "how does NVDA stack up against AMD": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ stock.compare"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "NVDA vs AMD on valuation": {
      "digest": "44136fa355b3678a",
@@ -1221,12 +1127,8 @@
     },
     "get rid of the AMD chart": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ widget.remove"
-     }
+     "gaps": [],
+     "modes": {}
     },
     "close the AMD chart": {
      "digest": "44136fa355b3678a",
@@ -1390,12 +1292,8 @@
     },
     "give me new charts for AAPL and MSFT": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "a"
-     ],
-     "modes": {
-      "a": "→ widget.addCharts"
-     }
+     "gaps": [],
+     "modes": {}
     }
    }
   },
@@ -1419,14 +1317,8 @@
     },
     "trade places with the left and right charts": {
      "digest": "44136fa355b3678a",
-     "gaps": [
-      "b",
-      "c"
-     ],
-     "modes": {
-      "b": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"places\",\"left\",\"charts\"]}}],\"via\":\"fastPath\"}",
-      "c": "chart symbols (board order)"
-     }
+     "gaps": [],
+     "modes": {}
     }
    }
   },
