@@ -7597,7 +7597,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
     vstate.valueless = true
     if (!vstate.end) vstate.end = end
   }
+  /** ⭐⭐ W4-T7 - A BLOCK'S ARMS RUN ON SOME BARS ONLY (H9), so INSIDE A FRAME no
+   *  arm may hoist a committed series into the enclosing statement list: that
+   *  declare would run on EVERY bar while the arm runs only when taken. The
+   *  sink is withdrawn for the whole block and restored after.
+   *  ⚠ At the ROOT this is unchanged on purpose: the same leak exists there
+   *  (`x = if c ... ta.sma(k * 2, 5)` hoists above the `if`), predates T7, and
+   *  belongs to T5's conditional-history work - recorded in EVIDENCE.md. */
   const lowerBlockValue = (lines0, scope, sink, label, atTok, vstate) => {
+    if (owner === null) return lowerBlockValueIn(lines0, scope, sink, label, atTok, vstate)
+    const prevSink = stmtHoistSink
+    stmtHoistSink = null
+    try {
+      return lowerBlockValueIn(lines0, scope, sink, label, atTok, vstate)
+    } finally { stmtHoistSink = prevSink }
+  }
+  const lowerBlockValueIn = (lines0, scope, sink, label, atTok, vstate) => {
     const lines = splitStatementCommas(lines0)
     if (!lines || !lines.length) {
       throw new RuntimeRefusal('runtime:block-value',

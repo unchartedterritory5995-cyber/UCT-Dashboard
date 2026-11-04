@@ -128,3 +128,14 @@ describe('W4-T7 what STILL refuses by name', () => {
     same(fn.out, root.out, 'root hoist')
   })
 })
+
+describe('W4-T7 a block VALUE inside a function body is a nested list (H9)', () => {
+  it('an `if` expression arm over an expression refuses - the hoist would run every bar', () => {
+    const r = refusalOf('f(v) =>\n    x = if v > 0\n        ta.sma(v * 2, 5)\n    else\n        v\n    x\nplot(f(close))\n')
+    expect(r.guard).toBe('runtime:history-expression')
+  })
+  it('a `switch` arm over an expression refuses too', () => {
+    const r = refusalOf('f(v, simple string m) =>\n    switch m\n        "a" => ta.sma(v * 2, 5)\n        => v\nplot(f(close, "a"))\n')
+    expect(r.guard).toBe('runtime:history-expression')
+  })
+})
