@@ -347,3 +347,32 @@ describe('#751 B-1 — commentary_only / mentions_excluded_setup passages are la
     expect((await explainConcept('failed breakout', host())).text).toBe(`${LEAD}\n\n${CURATED}`)
   })
 })
+
+// ── pre-activation: under planner v2 a coach message takes the v1 path, so the coach's ACTIONS are shown ────────────
+import { isCoachMessage } from './capabilities/coach'
+
+describe('planner v2 browser: coach messages are served on the v1 path (their actions shown, not only the reply)', () => {
+  it('🔴 PANEL: a model-planned coach.explain under a v2 server shows the coach answer (the v1 request, the action run)', async () => {
+    reset()
+    const p = setupPanel()
+    const base = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = String(url)
+      if (u === '/api/agent/config') return json({ stream: false, data: false, data_kinds: [], coach: true, planner: 'v2' })
+      if (u === '/api/agent/coach/concepts') return json({ concepts: CONCEPTS, footer: FOOTER })
+      return base(url, init)
+    })
+    const { say } = p.mount(...ONE('NVDA'))
+    await loadConcepts()
+    expect(isCoachMessage('coach, I keep cutting my winners early')).toBe(true)
+    expect(isCoachMessage('switch to weekly')).toBe(false)
+    p.st.envelopes.push((body) => p.env('apply', [{ action: 'coach.explain', target: body.context.coach[0].ref, args: { topic: 'failed breakout' } }]))
+    await say('coach, I keep cutting my winners early')
+    expect(p.st.calls.some(c => c[1] === '/api/agent/turn')).toBe(true)          // the v1 request, not the v2 step loop
+    expect(p.transcript()).toContain('A move through a level.')                     // the coach's action ran and is shown
+  })
+  it('isCoachMessage is false while the coach is not registered (dark)', () => {
+    reset()
+    expect(isCoachMessage('coach me on failed breakouts')).toBe(false)
+  })
+})

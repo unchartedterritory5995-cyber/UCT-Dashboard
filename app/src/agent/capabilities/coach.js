@@ -189,6 +189,15 @@ export async function explainConcept(topic, host) {
   return { text: g.text, title: c.title, next }
 }
 
+/** Is this message for the coach (the coach context entry rides with it)? Exactly the context provider's condition —
+ *  the server then serves the turn on planner v1 (C1), so under a v2 browser useAgent sends it down the v1 path, where the
+ *  coach's actions (explain, consent, review, a note card) are shown, not just the reply. False while not registered. */
+export function isCoachMessage(message) {
+  if (!registered) return false
+  const topic = coachTopic(message)
+  return !!(topic && conceptFor(topic)) || COACH_WORDS.test(String(message || ''))
+}
+
 export function registerCoachCapabilities() {
   if (registered || !agentClient.serverServesCoach()) return
   registered = true
