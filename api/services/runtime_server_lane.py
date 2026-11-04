@@ -32,6 +32,15 @@ log = logging.getLogger(__name__)
 VERDICT_GUARD = "withheld"
 
 
+class RuntimeColumn(list):
+    """The plot's column (a list, one float per bar) carrying the run's warm-up as ``.warmup``
+    (``{"withheldBars": k}``, W5-T7b), which W5-T16's ``record_runtime_pass`` reads."""
+
+    def __init__(self, values: Any, warmup: Mapping[str, int]):
+        super().__init__(values)
+        self.warmup = dict(warmup)
+
+
 class ServerLaneWithheld(RuntimeError):
     """This lane has no value for this plot on this call, and says why. Never a falsey return."""
 
@@ -78,7 +87,8 @@ def runtime_column_fn(row: Mapping[str, Any], plot_key: str, lane: str, *,
     profile: ``alert``, ``on-demand``, ``backtest``, ``sweep``, ``record``).
 
     ``fn(bars, params, *, tf, ticker, exchange="", history_from_listing=False)`` returns the
-    plot's full column (one float per bar, NaN for na) or raises ``ServerLaneWithheld``.
+    plot's full column (a ``RuntimeColumn``: one float per bar, NaN for na, with ``.warmup``) or
+    raises ``ServerLaneWithheld``.
     ``params`` are the script's input values (``ctx.runtimeInputs``)."""
     if lane not in client_mod.PROFILES:
         raise ValueError(f"lane {lane!r} is not one of {client_mod.PROFILES}")
@@ -101,7 +111,7 @@ def runtime_column_fn(row: Mapping[str, Any], plot_key: str, lane: str, *,
         why = res.refusal_for(plot_key)
         if why is not None:
             raise ServerLaneWithheld(why.guard, why.sentence)
-        return list(res.columns[plot_key])
+        return RuntimeColumn(res.columns[plot_key], res.warmup)
 
     fn.__name__ = f"_runtime_{plot_key}_{lane}"
     return fn

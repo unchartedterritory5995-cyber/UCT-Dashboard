@@ -248,3 +248,11 @@ def test_the_default_client_is_read_per_call(world, monkeypatch):
             call(fn)
         assert e.value.guard == prc.UNAVAILABLE
     assert made == [1, 1]
+
+
+def test_r1_the_lane_column_carries_the_runs_warmup(world):
+    sw, fake, make = world
+    fake.withheld_bars = 2
+    col = call(lane_mod.runtime_column_fn(ROW, "value", "record", client_factory=make))
+    assert isinstance(col, list) and len(col) == 5 and col.warmup == {"withheldBars": 2}
+    assert col.warmup["withheldBars"] == 2  # the read W5-T16's record_runtime_pass makes

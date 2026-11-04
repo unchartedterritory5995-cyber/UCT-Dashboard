@@ -100,7 +100,11 @@ _DEF_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 _JOB_ID = re.compile(r"^[\x20-\x7e]{1,128}$")
 _TICKER = re.compile(r"^[\x21-\x7e]{1,32}$")
 _EXCHANGE = re.compile(r"^[\x20-\x7e]{0,32}$")
-_RESULT_KEYS = frozenset({"job", "status", "columns", "refusals", "digest", "cache", "ms", "instructions"})
+_RESULT_KEYS = frozenset({"job", "status", "columns", "refusals", "digest", "cache", "ms", "instructions",
+                          "warmup"})
+#: W5-T7b `WARMUP_FIELDS`: an ok result's run-wide warm-up, the bars [0, withheldBars) a run off the
+#: listing withheld. Required on ok, refused on withheld (T7b `RESULT_FIELDS`).
+_WARMUP_KEYS = frozenset({"withheldBars"})
 _REFUSAL_KEYS = frozenset({"key", "guard", "sentence", "bar"})
 
 
@@ -134,6 +138,9 @@ class JobResult:
     refusals: Tuple[Refusal, ...] = ()
     digest: Optional[str] = None
     cache: Optional[str] = None
+    #: ``{"withheldBars": k}`` on an ok result (W5-T7b); None on a withheld one. Not in the digest
+    #: (the T3 preimage has no field for it), so it is checked by shape and range here.
+    warmup: Optional[Mapping[str, int]] = None
 
     def run_refusal(self) -> Optional[Refusal]:
         return next((r for r in self.refusals if r.key == "*"), None)
@@ -602,6 +609,8 @@ class PineRuntimeClient:
         run_wide = [x for x in refusals if x.key == "*"]
 
         if r["status"] == "withheld":
+            if "warmup" in r:
+                raise bad("withholds the job and reports a warm-up")
             if r.get("columns") or not run_wide:
                 raise bad("withholds the job without a run-wide reason, or with values")
             if digest is not None and digest != self._digest({}, wire_refusals):
@@ -610,6 +619,12 @@ class PineRuntimeClient:
 
         if run_wide:
             raise bad("is ok and withheld at once")
+        w = r.get("warmup")
+        if not isinstance(w, dict) or set(w) != _WARMUP_KEYS:
+            raise bad("carries no warm-up of exactly {withheldBars}")
+        wb = w["withheldBars"]
+        if isinstance(wb, bool) or not isinstance(wb, int) or wb < 0 or wb > n:
+            raise bad(f"reports a warm-up that is not a bar count from 0 to {n}")
         cols_in = r.get("columns", {})
         if not isinstance(cols_in, dict):
             raise bad("carries no column map")
@@ -634,7 +649,7 @@ class PineRuntimeClient:
                 or digest != self._digest(columns, wire_refusals):
             raise bad("does not match its digest")
         return JobResult(job=job.job, status="ok", columns=columns, refusals=tuple(refusals),
-                         digest=digest, cache=cache)
+                         digest=digest, cache=cache, warmup={"withheldBars": wb})
 
     def _digest(self, columns: Mapping[str, Sequence[float]], refusals: List[Dict[str, Any]]) -> str:
         """The T3 digest of what was RECEIVED. The row count is not re-checked here: the decode above

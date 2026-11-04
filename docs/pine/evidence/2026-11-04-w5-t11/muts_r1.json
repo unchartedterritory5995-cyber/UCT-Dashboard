@@ -1,0 +1,68 @@
+[
+ [
+  "CONTROL r1 no-op comment",
+  "api/services/pine_runtime_client.py",
+  "# --- the client ---",
+  "# --- the client (control) ---"
+ ],
+ [
+  "W01 warmup not a result key",
+  "api/services/pine_runtime_client.py",
+  "\"instructions\",\n                          \"warmup\"})",
+  "\"instructions\"})"
+ ],
+ [
+  "W02 warmup extra/other keys admitted",
+  "api/services/pine_runtime_client.py",
+  "if not isinstance(w, dict) or set(w) != _WARMUP_KEYS:",
+  "if not isinstance(w, dict):"
+ ],
+ [
+  "W03 warmup not required",
+  "api/services/pine_runtime_client.py",
+  "if not isinstance(w, dict) or set(w) != _WARMUP_KEYS:",
+  "if w is not None and set(w) != _WARMUP_KEYS:"
+ ],
+ [
+  "W04 bool bar count admitted",
+  "api/services/pine_runtime_client.py",
+  "if isinstance(wb, bool) or not isinstance(wb, int) or wb < 0 or wb > n:",
+  "if not isinstance(wb, int) or wb < 0 or wb > n:"
+ ],
+ [
+  "W05 non-int bar count admitted",
+  "api/services/pine_runtime_client.py",
+  "if isinstance(wb, bool) or not isinstance(wb, int) or wb < 0 or wb > n:",
+  "if isinstance(wb, bool) or (isinstance(wb, (int, float)) and (wb < 0 or wb > n)):"
+ ],
+ [
+  "W06 negative bar count admitted",
+  "api/services/pine_runtime_client.py",
+  "if isinstance(wb, bool) or not isinstance(wb, int) or wb < 0 or wb > n:",
+  "if isinstance(wb, bool) or not isinstance(wb, int) or wb > n:"
+ ],
+ [
+  "W07 bar count past n admitted",
+  "api/services/pine_runtime_client.py",
+  "if isinstance(wb, bool) or not isinstance(wb, int) or wb < 0 or wb > n:",
+  "if isinstance(wb, bool) or not isinstance(wb, int) or wb < 0:"
+ ],
+ [
+  "W08 withheld may report a warmup",
+  "api/services/pine_runtime_client.py",
+  "if \"warmup\" in r:\n                raise bad",
+  "if False:\n                raise bad"
+ ],
+ [
+  "W09 warmup not carried to JobResult",
+  "api/services/pine_runtime_client.py",
+  "digest=digest, cache=cache, warmup={\"withheldBars\": wb})",
+  "digest=digest, cache=cache, warmup=None)"
+ ],
+ [
+  "W10 lane column without the run's warmup",
+  "api/services/runtime_server_lane.py",
+  "return RuntimeColumn(res.columns[plot_key], res.warmup)",
+  "return RuntimeColumn(res.columns[plot_key], {})"
+ ]
+]

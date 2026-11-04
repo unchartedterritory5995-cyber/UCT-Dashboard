@@ -703,3 +703,96 @@ def test_two_identical_runs_in_one_second_are_both_served():
     a = run(c, [job()])
     b = run(c, [job()])
     assert a[0].status == b[0].status == "ok" and len(fake.seen) == 2
+
+
+# --- r1: the run's warm-up (W5-T7b `warmup: {withheldBars}`) --------------------------------------
+
+def test_r1_an_ok_result_carries_its_warmup():
+    c, fake, _ = client()
+    fake.withheld_bars = 2
+    [res] = run(c, [job()])
+    assert res.status == "ok" and res.warmup == {"withheldBars": 2}
+
+
+@pytest.mark.parametrize("warmup", ["absent", None, [], {}, {"withheldBars": -1}, {"withheldBars": 1.5},
+                                    {"withheldBars": True}, {"withheldBars": "3"}, {"withheldBars": 6},
+                                    {"withheldBars": 1, "shift": 2}, {"bars": 1}])
+def test_r1_a_warmup_that_is_not_exactly_a_bar_count_is_integrity(warmup):
+    c, fake, _ = client()
+
+    def m(reply):
+        r = reply["results"][0]
+        if warmup == "absent":
+            r.pop("warmup")
+        else:
+            r["warmup"] = warmup
+        return reply
+    fake.tamper = m
+    [res] = run(c, [job(n=5)])
+    assert guard_of(res) == prc.INTEGRITY and res.warmup is None
+
+
+def test_r1_warmup_bounds_are_inclusive():
+    for k in (0, 5):
+        c, fake, _ = client()
+        fake.withheld_bars = k
+        [res] = run(c, [job(n=5)])
+        assert res.warmup == {"withheldBars": k}
+
+
+def test_r1_a_withheld_result_reporting_a_warmup_is_integrity():
+    c, fake, _ = client()
+    fake.withhold["AAPL|D"] = ("runtime:limit", "limit")
+    fake.tamper = lambda reply: (reply["results"][0].update(warmup={"withheldBars": 0}), reply)[1]
+    [res] = run(c, [job()])
+    assert guard_of(res) == prc.INTEGRITY
+
+
+def test_r1_still_closed_an_unknown_key_beside_warmup_is_integrity():
+    c, fake, _ = client()
+    fake.tamper = lambda reply: (reply["results"][0].update(withheldBars=3), reply)[1]
+    [res] = run(c, [job()])
+    assert guard_of(res) == prc.INTEGRITY
+
+
+# --- r1 conformance: a REAL W5-T7b response (captured by docs/pine/evidence/2026-11-04-w5-t11/t7b_capture.py)
+
+def _t7b():
+    import os
+    p = os.path.join(os.path.dirname(__file__), "fixtures", "pine_runtime", "t7b_response.json")
+    return json.load(open(p, encoding="utf-8"))
+
+
+def _t7b_run(cap, payload):
+    seen = {}
+
+    def tr(url, body, headers, timeout):
+        seen["sha"] = hashlib.sha256(body).hexdigest()
+        return cap["status"], payload
+    c = prc.PineRuntimeClient(url="http://127.0.0.1", secret=FIXTURE_SECRET, identity=cap["identity"], transport=tr,
+                              clock=lambda: T0)
+    jobs = [prc.Job(job=j["job"], ticker=j["ticker"], exchange=j["exchange"], tf="D", bars=cap["bars"],
+                    want=("value",), history_from_listing=True) for j in cap["jobs"]]
+    return c.run(def_id="u_0123456789ab", version=1, doc=cap["doc"], owner_id="owner-1", profile="alert",
+                 jobs=jobs), seen
+
+
+def test_r1_conformance_a_real_t7b_response_decodes_and_verifies():
+    cap = _t7b()
+    res, seen = _t7b_run(cap, cap["response"].encode("utf-8"))
+    assert seen["sha"] == cap["request_sha256"], "the capture answers exactly the request this client builds"
+    assert [r.status for r in res] == ["ok", "ok"], [r.refusals for r in res]
+    closes = [b["c"] for b in cap["bars"]]
+    for r in res:
+        assert list(r.columns["value"]) == closes and r.warmup == {"withheldBars": 3}
+        assert r.digest == json.loads(cap["response"])["results"][0]["digest"]
+
+
+def test_r1_conformance_one_flipped_byte_of_the_real_response_is_integrity():
+    cap = _t7b()
+    reply = json.loads(cap["response"])
+    raw = bytearray(base64.b64decode(reply["results"][1]["columns"]["value"]))
+    raw[8] ^= 0x01
+    reply["results"][1]["columns"]["value"] = base64.b64encode(bytes(raw)).decode()
+    res, _ = _t7b_run(cap, json.dumps(reply).encode())
+    assert res[0].status == "ok" and guard_of(res[1]) == prc.INTEGRITY
