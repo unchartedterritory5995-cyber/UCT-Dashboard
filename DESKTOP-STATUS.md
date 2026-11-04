@@ -1,9 +1,9 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-03 23:55 CT
+updated: 2026-11-04 00:05 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
-free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (0 Opus, 6 Sonnet: W5-T1, W4-T7, W4-T12, W4-T3 r1, E lows, W5-T3). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
+free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (1 Opus, 5 Sonnet: W3 S1 r2 Opus; W5-T1, W4-T7, W4-T3 r1, E lows, W5-T3). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
 baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
 poll on ops/pine-coord: ARMED (15 min). Read 063fe2ba8e (KEEP BUILDING, pause cancelled for the desktop) at 23:55 CT: acknowledged; nothing was paused here. After the queue, the desktop picks further W4/W5 work whose dependencies are met, per that note.
@@ -28,7 +28,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
-- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3 (created by builders)
+- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3 (created by builders)
 
 ### Queue (in order, as builder slots free; cap 6 at >=8 GB)
 Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to unblock merges and engine numbering first, short lanes first:
@@ -36,7 +36,7 @@ Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to 
 2. W4-T3 fix round @ 572376edf6: STARTED 23:07 CT
 3. E evidence-engine lows @ e58edcbeaf: STARTED 23:40 CT (slot freed by W4-T11 READY)
 4. W5-T3 codec @ cd61d6741d: STARTED 23:50 CT (slot freed by W4-T2 READY)
-5. W3 S1 round 2 @ 7eaca7777f (measure-pair both lanes + final-tip; engine 8)
+5. W3 S1 round 2 @ 7eaca7777f: STARTED 00:05 CT (slot freed by W4-T12 READY)
 6. W4-T0 census peel @ 75c4c400c2 (job.sh + coverage map docs)
 7. W2 round 3 @ 1a8dddb408 (classify P11, edit packet; NEVER arm or touch flags)
 8. W5-T2 (after W5-T1 MERGED)
@@ -78,11 +78,12 @@ evidence: docs/pine/evidence/2026-11-03-w4-t17-t13/EVIDENCE.md (on the branch)
 report: Tip 950b4736ff adds EVIDENCE.md over tested tree b8715ef592. Probes in tools/visual_conformance/probes/: vw-w4-int-div-window (+v5, v4) for D1; vw-w4-max-bars-back (M1) and -m2..-m5, one row per file. Test engine/__tests__/w4T17T13Probes.test.js, 19 tests. T17: v4/v5 already truncate a literal/const int quotient as a window length (9/2 -> 4) and fold a const offset (21/2+1 -> 11) with no capture behind either; the literal offset refuses in v4/v5; every input.int operand refuses; v6 refuses all division by name; M1/M4/M5 refuse runtime:directive; M2 builds and the VM stops on the read past the declared 20-bar buffer; M3 builds and serves the 250-bar offset. T13 spike: the renderer exists (candlestick and bar series) and the run can compute the four columns (an na open is NaN on that bar only), but plotcandle/plotbar refuse runtime:presentation and binder.js's only OHLC feed reads the symbol's own bars and refuses a computed row as NOT_PASSTHROUGH. T13 stays an M task: a second payload source in binder.js plus per-point colour/wick/border (candles all three, bars colour only). It touches binder.js beyond the breakdown's file list, so T12 must merge first. Checks: new test 19 passed; mutation pool.js candles->line killed (1 red); final-tip gate pytest 46 passed, version-gate 6 passed, hygiene clean (34685 files); chart+hooks vitest Test Files 1 failed | 1334 passed | 27 skipped, Tests 22379 passed | 1 failed (pollingSites.rail, the desktop baseline): 0 new failures. Open: D1, M1-M5 and W4-P1 captures (owner's rig); the D1 capture-queue row text is in EVIDENCE.md.
 desktop check of the definition of done: PASS (files scoped, rail plus mutation shown, final-tip at baseline, EVIDENCE committed, worktree clean and pushed)
 ## W4-T12
-state: BUILDING   round: r0   updated: 2026-11-03 22:02 CT
-branch: feat/pine-w4-t12-paint   worktree: pine-dsk-w4t12   model: Sonnet
-engine bump needed: decided at READY
-overlap check (2026-11-03): origin/feat/pine-w3-drawings touches neither memberPaneDefinition.js nor RT/colours.js, so not BLOCKED. Builder re-checks before its first commit.
-next: builder implementing W4-BREAKDOWN T12
+state: READY            round: r0            updated: 2026-11-04 00:05 CT
+branch: feat/pine-w4-t12-paint   tip: f8ddebfa76 (docs-only evidence over code tip 24604edea2)   tested on master: d8d4f0937d (merge-base; origin/master now e26130c7f6, not rebased)
+engine bump needed: YES (SCRIPT_ENGINE_VERSION NOT edited)
+evidence: docs/pine/evidence/2026-11-03-w4-t12/EVIDENCE.md; capture rows in docs/pine/capture-queue-2026-11-03-w4-t12.md (on the branch)
+report: Only ast/pineRuntimeFrontend.js changed in source (+ tests, capture-queue doc). holdsColour now proves a colour through c = switch/if blocks, user functions and colour arrays when every leaf is a colour or na; fill() accepts a plot id chosen by ?: over a literal true/false; all of it is off at the object door. Member pane needed no edit: shapes that declined with runtime:colour / runtime:withheld-all now carry. HONEST RESULT: none of the six spec scripts moved; they hit other walls (color.new over a color-typed function parameter, fill(p1,p2) with no colour, box.new, output-map, withheld-all). Rails: 34 new tests (w4PaintTyping.test.js, w4PaintTypingPane.test.js); on master 22 fail (12 controls pass); all pass on tip. rt6ColourCarriage.test.js re-pointed at a numeric helper (old shape is now served). Mutations 17 killed, 2 equivalent survivors named in EVIDENCE. measure-pair rt0+rt1: C18 audit (395 keys) and probes (69) 0 diff both lanes; harness byte-identical (93/103/140 rt0, 111/107/118 rt1); census 0 unintended (supertrend-mtf-heatmap gains an attach, intended; 2 rows run-to-run noise). measure-pair caught a first-cut regression on bollinger-band-width-percentile (a refused function definition's reused slot leaked a colour helper's verdict); fixed by reading the record's own name, railed. final-tip: gate pytest 46 passed, version-gate 6 passed, hygiene clean, vitest 1 failed file = pollingSites.rail (baseline), 22394 tests passed: 0 new failures. W3 overlap re-checked at the end: origin/feat/pine-w3-drawings does not touch pineRuntimeFrontend.js. Open: input/series-chosen fill plot id stays refused (capture P2-F1).
+desktop check of the definition of done: PASS (scope, rail red/green, mutations, measure-pair both lanes, final-tip at baseline, 24604edea2..f8ddebfa76 is EVIDENCE.md only, local == origin, worktree clean). Coordinator note: the lane delivers the typing machinery but no named spec script yet; judge scope on that.
 
 ## W4-T3 (re-homed fix round)
 state: BUILDING   round: r1   updated: 2026-11-03 23:07 CT
@@ -101,3 +102,9 @@ state: BUILDING   round: r0   updated: 2026-11-03 23:50 CT
 branch: per ASSIGNMENTS row (existing branch)   start tip: cd61d6741d   worktree: pine-dsk-w5t3   model: Sonnet
 engine bump needed: no (per ASSIGNMENTS)
 next: final-tip + EVIDENCE.md, READY
+
+## W3 S1 round 2 (re-homed)
+state: BUILDING   round: r2   updated: 2026-11-04 00:05 CT
+branch: feat/pine-w3-drawings   start tip: 7eaca7777f   worktree: pine-dsk-w3   model: Opus
+engine bump needed: yes (engine 8 at merge, per ASSIGNMENTS)
+next: apply the r2 items per ASSIGNMENTS/reviews, measure-pair both lanes + final-tip, EVIDENCE.md, READY
