@@ -39,3 +39,9 @@ No: no engine code touched; SCRIPT_ENGINE_VERSION untouched.
 ## Open items
 - Image never built (no Docker here); `libstdc++6` on `debian:bookworm-slim` for the copied node binary is by analogy with `Dockerfile.web`, unproven.
 - The image sets no read-only flag; Railway has no such field, so L4 rests on the permission model and the boot self-test (T7).
+- OPEN ITEM FOR THE COORDINATOR (W5-T9 canary): `canary.mjs` and `metrics.mjs` need, inside the image at boot, `tools/pine_runtime_host_parity.mjs`, `runtime/columnDigest.js` and `runtime/__fixtures__/hostParity/**` (expected-digests.json + corpus). They are not on this branch (base T7, no T4/T9), so they are not copied here and no rail can verify them. After T4 and T9 merge, the Dockerfile must add explicit COPY lines for those three and the rail should check them. The `*.mjs` copy rail is derived from the directory, so canary.mjs and metrics.mjs are covered the moment they land (mutation: a temp canary.mjs on disk turns it red).
+
+## Final-tip (tip 4e35b16e91, tested on the T7 base 5e6c63e24e; the later commit only appends this section)
+- gate pytest 46 passed; hygiene clean (34701 files); rails pytest 12 passed.
+- full chart+hooks vitest: Test Files 1 failed | 1334 passed | 27 skipped; Tests 1 failed | 22366 passed | 118 skipped. The one failure is the baseline `pollingSites.rail`.
+- Logs: C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/runs/dsk-w5t10-final/ and runs/dsk-w5t10-final.out (job held the lock 46.9 min).
