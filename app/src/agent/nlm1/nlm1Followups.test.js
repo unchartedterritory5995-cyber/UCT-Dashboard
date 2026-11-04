@@ -1,6 +1,12 @@
 // NLM-1 D2/D3 — the rewriter's units: an elliptical request → its explicit form, from the last committing message.
 // (End-to-end on the real panel, final state + Undo: nlm1Workflows.test.jsx.)
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { INPLAN_KEY } from './inplan'
+
+// these units exercise EVERY rule, the in-plan ones included: the in-plan key (nlm1/inplan.js) is ON here — its OFF state
+// is nlm1InplanGate.test.js
+beforeAll(() => { localStorage.setItem(INPLAN_KEY, '1') })
+afterAll(() => { localStorage.removeItem(INPLAN_KEY) })
 import { rewriteFollowUp, rewriteSameRequest, rewriteClauses, nlm1Rewrite, slotsOf, positionsOf, createReferents } from './followups'
 
 describe('D3.3 clause structure (shapes S1–S7, by structure not wording)', () => {

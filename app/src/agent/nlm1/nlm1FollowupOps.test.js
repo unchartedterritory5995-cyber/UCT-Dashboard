@@ -1,7 +1,13 @@
 // NLM-1 D2/D3.1 — the follow-up MECHANISMS on a fake 2×2 board: chart referent sets (positions, quantifiers, ordinals,
 // tickers), repeat / additive copies of the last request, "back to" inversion from the pre-request snapshot, removal by
 // position, ordinals over just-created charts. (End-to-end on the real panel: nlm1Workflows.test.jsx, workflows2.json.)
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { INPLAN_KEY } from './inplan'
+
+// these units exercise EVERY rule, the in-plan ones included: the in-plan key (nlm1/inplan.js) is ON here — its OFF state
+// is nlm1InplanGate.test.js
+beforeAll(() => { localStorage.setItem(INPLAN_KEY, '1') })
+afterAll(() => { localStorage.removeItem(INPLAN_KEY) })
 import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
 import { resolveCharts, resolveFollowUpOps, rescopeOrdinal, snapshotOf } from './followupOps'
 import { indicatorEditsRef } from '../capabilities/indicatorEdits'

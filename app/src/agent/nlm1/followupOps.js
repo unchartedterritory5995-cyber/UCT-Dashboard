@@ -26,6 +26,7 @@ import { fastParse } from '../fastPath'
 import { getCapability, getTargetKind } from '../capabilities'
 import { indicatorEditsRef, indicatorRowsOf } from '../capabilities/indicatorEdits'
 import { tickerWordsOf } from './capabilityIndex'
+import { inplanOn } from './inplan'
 
 const NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6 }
 const ORD = { first: 0, second: 1, third: 2, fourth: 3 }
@@ -137,7 +138,8 @@ const STYLE_WORDS = /\b(?:red|green|blue|white|black|orange|yellow|purple|pink|t
  * request (or the step before, inside one request) ADDED, named by what it is, styled on the chart it was added to.
  */
 function styleLastAdded(s, last, host) {
-  const m = /^(?:make|turn|color|colour|paint|change|set)\s+(?:it|that|that one|this|this one|the new one|the (?:new )?(?:line|indicator|study))\s+(?:to\s+|into\s+)?(.+)$/i.exec(s)
+  if (!inplanOn()) return null                    // style-last-added: dark behind the in-plan key (no sealed pass took it)
+  const m =/^(?:make|turn|color|colour|paint|change|set)\s+(?:it|that|that one|this|this one|the new one|the (?:new )?(?:line|indicator|study))\s+(?:to\s+|into\s+)?(.+)$/i.exec(s)
   if (!m || !STYLE_WORDS.test(m[1])) return null
   const adds = (last?.ops || []).filter(o => o.action === 'indicator.add')
   const add = adds[adds.length - 1]
@@ -202,7 +204,8 @@ export function aimCommandAtSet(s, { host, sets }) {
 
 /** D3.3 swap → { ops, rule } | null (exactly two charts; their places, or their tickers when the words say tickers / symbols) */
 export function swapOps(s, { host, sets }) {
-  const m = /^(?:swap|switch|flip|exchange|trade|reverse)\s+(?:the\s+)?(?:(tickers?|symbols?|stocks?)\s+(?:on|of|between|in)\s+)?(.+?)(?:\s+(?:around|over|places|positions))?$/i.exec(String(s || '').trim())
+  if (!inplanOn()) return null                    // swap-places / swap-tickers: dark behind the in-plan key (no sealed pass took them)
+  const m =/^(?:swap|switch|flip|exchange|trade|reverse)\s+(?:the\s+)?(?:(tickers?|symbols?|stocks?)\s+(?:on|of|between|in)\s+)?(.+?)(?:\s+(?:around|over|places|positions))?$/i.exec(String(s || '').trim())
   if (!m) return null
   const phrase = m[2].replace(/^(?:places|positions)\s+(?:of\s+)?/i, '').trim()
   const charts = boardCharts(host)
@@ -243,6 +246,7 @@ const ORD_PHRASE = /\bthe (first|second|third|fourth|last) (?:one|chart|new one|
  */
 export function rescopeOrdinal(text, { host, order = [] } = {}) {
   try {
+    if (!inplanOn()) return null                  // ordinal-of-created / the nlm1:ordinal path: dark behind the in-plan key
     const m = ORD_PHRASE.exec(String(text || ''))
     const alive = (order || []).map(String).filter(r => boardCharts(host).some(c => c.ref === r))
     if (!m || alive.length < 2) return null
@@ -310,7 +314,8 @@ export function resolveFollowUpOps(text, { host, memory, epoch = null, created =
         }
         ops.push({ action: 'indicator.remove', target: indicatorEditsRef(ref), args: { instance: hits[0].instanceId } })
       }
-      return { ops, rule: 'remove-on-charts' }
+      // (remove-on-charts is dark behind the in-plan key: no sealed pass took it; the refusal / question above stay on)
+      return inplanOn() ? { ops, rule: 'remove-on-charts' } : null
     }
 
     // INVERSION: "[go|put|switch|set] [<charts>] back [to <value>]"
@@ -325,7 +330,8 @@ export function resolveFollowUpOps(text, { host, memory, epoch = null, created =
         return { ops: refs.map(ref => ({ action: op.action, target: ref, args: op.args })), rule: 'back-to-value' }
       }
       // the value each chart had BEFORE the last request — only the attributes that request changed
-      if (!before) return null
+      // (back-to-before is dark behind the in-plan key: no sealed pass took it)
+      if (!before || !inplanOn()) return null
       const attr = /\b(time ?frame|interval)\b/i.test(value) ? 'tf' : /\b(symbol|ticker|stock)\b/i.test(value) ? 'symbol' : null
       const changed = new Set((last.ops || []).map(o => (o.action === 'chart.setTimeframe' ? 'tf' : o.action === 'chart.setSymbol' ? 'symbol' : null)).filter(Boolean))
       const ops = []

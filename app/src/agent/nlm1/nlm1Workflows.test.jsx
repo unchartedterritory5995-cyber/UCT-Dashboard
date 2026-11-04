@@ -24,6 +24,7 @@ import data4 from './baseline/workflows4.json'
 import { mountCase } from '../qa/capabilityRegression/testing/harness'
 import { loadAgentConfig } from '../agentClient'
 import { routingV2Active } from './flag'
+import { inplanOn } from './inplan'
 
 pinClock()
 vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -34,20 +35,24 @@ const MODE = globalThis.process?.env?.NLM1_WF_MODE || 'on'
 const OFF = MODE === 'off'
 const PLANNER = MODE === 'planner'
 const only = globalThis.process?.env?.NLM1_WF_ONLY || ''
+// the IN-PLAN key (nlm1/inplan.js, default OFF in the product): ON here unless NLM1_WF_INPLAN=0 — ON reproduces the head the
+// sets were measured on (36957ddf7a); NLM1_WF_INPLAN=0 measures NLM-1 as it ships (D1 + the cross-turn mechanisms)
+const INPLAN = !OFF && globalThis.process?.env?.NLM1_WF_INPLAN !== '0'
 
 /** planner mode: the canonical plan answers the step; the model-turn bound no longer applies to that step */
 const plannerSteps = (steps) => steps.map(s => (s.canonical ? { ...s, model: { ops: s.canonical.ops }, routes: s.canonical.routes, expect: { ...s.expect, modelTurns: undefined } } : s))
 
-describe(`NLM-1 workflows (${OFF ? 'flag OFF — baseline' : PLANNER ? 'flag ON, planner-assisted' : 'flag ON'})`, () => {
+describe(`NLM-1 workflows (${OFF ? 'flag OFF — baseline' : PLANNER ? 'flag ON, planner-assisted' : 'flag ON'}, in-plan key ${INPLAN ? 'ON' : 'OFF'})`, () => {
   const set = globalThis.process?.env?.NLM1_WF_SET || 'all'
   const sets = { 1: data.workflows, 2: data2.workflows, 3: data3.workflows, 4: data4.workflows }
   let all = set === 'all' ? [...data.workflows, ...data2.workflows, ...data3.workflows, ...data4.workflows] : set.split(',').flatMap(k => sets[k] || [])
   // the run is what it says it is: the harness clears the browser key unless a case is seeded nlm1 — so a flag-ON run that
   // silently scored flag OFF (or the reverse) fails HERE, first
-  it(`the run really is flag ${OFF ? 'OFF' : 'ON'}`, async () => {
-    mountCase('ONE', { seed: { nlm1: !OFF } })
+  it(`the run really is flag ${OFF ? 'OFF' : 'ON'}, in-plan key ${INPLAN ? 'ON' : 'OFF'}`, async () => {
+    mountCase('ONE', { seed: { nlm1: !OFF, nlm1Inplan: INPLAN } })
     await loadAgentConfig()
     expect(routingV2Active()).toBe(!OFF)
+    expect(inplanOn()).toBe(INPLAN)
   })
   if (PLANNER) all = all.filter(w => w.steps.some(s => s.canonical))
   for (const w of all) {
@@ -55,6 +60,6 @@ describe(`NLM-1 workflows (${OFF ? 'flag OFF — baseline' : PLANNER ? 'flag ON,
     // a recorded gap must fail exactly as recorded (capreg gapIt) — with NLM-1 on; flag-off baseline runs every case plainly
     const { run, tag } = OFF || PLANNER ? { run: it, tag: '' } : gapIt(w.gap)
     const steps = PLANNER ? plannerSteps(w.steps) : w.steps
-    run(`${w.id}${tag}`, async () => { await replay({ ...w, steps, seed: { ...(w.seed || {}), nlm1: !OFF } }, w.id) }, 60000)
+    run(`${w.id}${tag}`, async () => { await replay({ ...w, steps, seed: { ...(w.seed || {}), nlm1: !OFF, nlm1Inplan: INPLAN } }, w.id) }, 60000)
   }
 })

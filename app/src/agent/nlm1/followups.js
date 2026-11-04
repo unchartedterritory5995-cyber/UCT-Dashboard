@@ -20,6 +20,7 @@
 // Pure: no state but the tracker object the caller owns; never throws (any surprise → null).
 
 import { NOT_TICKER } from './capabilityIndex'
+import { inplanOn } from './inplan'
 
 const POS = ['top left', 'top right', 'bottom left', 'bottom right', 'upper left', 'upper right', 'lower left', 'lower right',
   'left', 'right', 'top', 'bottom', 'first', 'second', 'third', 'fourth', 'last', 'middle']
@@ -97,7 +98,8 @@ export function rewriteSameRequest(text, depth = 0) {
   const raw = clean(text).s
   // D3.3 clause STRUCTURE first (topicalised / plain "give", possessives, a count of charts with tickers) — so every later
   // rule sees the canonical structure, whatever the surface order or verb
-  const s = preNormalise(raw)
+  // (the `structure` rewrite is dark behind the in-plan key: no sealed pass took it — nlm1/inplan.js)
+  const s = inplanOn() ? preNormalise(raw) : raw
   const preChanged = s !== raw
   // D2.2 / D3.3 IN-MESSAGE "SAME": "<request> and the same to AMD", "<request>, same for QQQ", "<request> and do the same with
   // TSLA", "<request> and AMD the same", "<request>, then open a chart for AMD and do the same there", "<request> and give a
@@ -107,7 +109,8 @@ export function rewriteSameRequest(text, depth = 0) {
   // D2.1 MULTI-TICKER CREATION, canonical: "<verb> AMD and QQQ charts[, both with RSI | with the 21 ema on each | and …]"
   // → "open charts for AMD and QQQ[, each with … | , then …]" — the grid reader's and the each-with reader's own form
   // (D2.2: also "… SPY, QQQ, IWM and DIA in four equal charts …")
-  const mt = /^(?:(?:please|can you|could you|would you)\s+)?(?:add|open|give me|show me|show|display|pull up|bring up|throw up|put up|load|create|make|get me|set up|i want|i'd like|lemme see|put)\s+(?:(?:two|three|four|five|six|\d)\s+)?(?:new\s+|separate\s+)?(\$?[A-Z]{1,5}(?:\s*(?:,|and|&)\s*\$?[A-Z]{1,5})+)\s+(?:(?:in|as|into)\s+(?:separate\s+|individual\s+|their own\s+)?)?charts?\b\s*(.*)$/.exec(s)
+  // (dark behind the in-plan key: no sealed pass took multi-ticker-create)
+  const mt = !inplanOn() ? null : /^(?:(?:please|can you|could you|would you)\s+)?(?:add|open|give me|show me|show|display|pull up|bring up|throw up|put up|load|create|make|get me|set up|i want|i'd like|lemme see|put)\s+(?:(?:two|three|four|five|six|\d)\s+)?(?:new\s+|separate\s+)?(\$?[A-Z]{1,5}(?:\s*(?:,|and|&)\s*\$?[A-Z]{1,5})+)\s+(?:(?:in|as|into)\s+(?:separate\s+|individual\s+|their own\s+)?)?charts?\b\s*(.*)$/.exec(s)
   // (D3.3: a COUNT of charts — "in four equal charts", "on four charts" — is a grid, never new charts on top: preNormalise)
   if (mt) {
     const list = mt[1].replace(/\$/g, '').split(/\s*(?:,|and|&)\s*/).filter(Boolean)
@@ -216,7 +219,8 @@ function inMessageSame(s, depth) {
   // the same on a NEW chart: "<P>, then open a chart for AMD and do the same there" / "<P> and give a new AMD chart the same"
   m = /^(.+?)(?:,|\s+and)?\s+(?:then\s+)?(?:open|add|create|make|pull up|bring up|start)\s+(?:a\s+|another\s+)?(?:new\s+)?chart\s+(?:for|of|with)\s+\$?([A-Z]{1,5})\s+and\s+(?:do\s+)?(?:the\s+)?same(?:\s+thing)?(?:\s+(?:there|on it|to it|for it|on that one|to that one|on that chart))?$/.exec(s)
     || /^(.+?)\s+and\s+give\s+(?:a\s+)?new\s+\$?([A-Z]{1,5})\s+chart\s+the\s+same$/.exec(s)
-  if (m && request(m[1])) {
+  // (same-on-new-chart is dark behind the in-plan key: no sealed pass took it)
+  if (m && inplanOn() && request(m[1])) {
     const first = norm(m[1])
     const onIt = retargetToIt(first)
     if (onIt) return { text: `${first}, then add a chart for ${m[2]} and ${onIt}`, rule: 'same-on-new-chart', steps: [first, `add a chart for ${m[2]} and ${onIt}`] }
@@ -227,7 +231,8 @@ function inMessageSame(s, depth) {
     || (() => { const x = /^(.+?)\s+and\s+(\$?[A-Z]{1,5}|the (?:\w+ ){1,2}(?:chart|one))\s+the\s+same$/.exec(s); return x })()
   if (m && request(m[1])) {
     const first = norm(m[1])
-    const again = rewriteFollowUp(`same for ${m[2]}`, first)
+    // in-message-repeat (sealed passes used it) reads its "same for <ticker>" internally — not the gated follow-up rule
+    const again = rewriteFollowUp(`same for ${m[2]}`, first, { internal: true })
     if (again) return { text: `${first}, then ${again.text}`, rule: 'in-message-repeat', steps: [first, again.text] }
   }
   return null
@@ -297,7 +302,7 @@ function distributeIndicators(t) {
  * D3 (across turns): the elliptical follow-up, made explicit from the last committing message `prev` (its text).
  * → { text, rule } | null
  */
-export function rewriteFollowUp(text, prev) {
+export function rewriteFollowUp(text, prev, { internal = false } = {}) {
   if (!prev) return null
   const P = slotsOf(prev)
   const raw = String(text || '')
@@ -318,12 +323,14 @@ export function rewriteFollowUp(text, prev) {
   else if ((m = /^one (?:for|of|with) (\$?[A-Za-z]{1,5})$/i.exec(s))) target = { phrase: m[1], create: true }
   else if ((tail || tf) && (m = /^(?:the |on the |for the )?((?:\w+ ){0,3}(?:one|chart|charts))$/i.exec(s))) target = { phrase: m[1] }
   // "and QQQ on the right one" — a ticker on a chart, no verb: borrow the last request's verb
-  else if ((m = /^(\$?[A-Z]{1,5}) (?:on|to|in) (the (?:\w+ ){1,2}(?:one|chart))$/.exec(s)) && /^(?:put|switch|change|show|load)\b/i.test(P.text)) {
+  // (borrow-verb is dark behind the in-plan key: no sealed pass took it)
+  else if (inplanOn() && (m = /^(\$?[A-Z]{1,5}) (?:on|to|in) (the (?:\w+ ){1,2}(?:one|chart))$/.exec(s)) && /^(?:put|switch|change|show|load)\b/i.test(P.text)) {
     const verb = /^(\w+)/.exec(P.text)[1].toLowerCase()
     return { text: `${verb === 'switch' || verb === 'change' ? 'put' : verb} ${m[1].replace('$', '')} on ${m[2].replace(/ one$/, ' chart')}`, rule: 'borrow-verb' }
   }
   // "make it weekly and add rsi" right after a request that named a chart by position — "it" is that chart
-  else if (/\bit\b/i.test(s) && P.pos && !P.creates && !COLOUR.test(s) && (TF_RE.test(s) || /\b(?:add|put)\b/i.test(s))) {
+  // (it-is-named-chart is dark behind the in-plan key: no sealed pass took it)
+  else if (inplanOn() && /\bit\b/i.test(s) && P.pos && !P.creates && !COLOUR.test(s) && (TF_RE.test(s) || /\b(?:add|put)\b/i.test(s))) {
     return { text: s.replace(/\b(?:on |to )?it\b/i, (w) => (/^(?:on|to) /i.test(w) ? `${w.split(' ')[0]} the ${P.pos} chart` : `the ${P.pos} chart`)), rule: 'it-is-named-chart', override: true }
   }
   if (!target) return null
@@ -337,6 +344,8 @@ export function rewriteFollowUp(text, prev) {
   const tick = /^\$?([A-Za-z]{1,5})$/.exec(phrase)
   if (tick && (/^[A-Z$]/.test(phrase) || target.create) && !POS.includes(phrase.toLowerCase()) && !/^(?:it|that|this|them|those|both|all|one)$/i.test(phrase)) {
     if (P.tickers.length !== 1) return null
+    // (same-for-ticker as a follow-up of its own is dark behind the in-plan key; in-message-repeat reads it internally)
+    if (!internal && !inplanOn()) return null
     return { text: withTf(replaceWord(P.text, P.tickers[0], tick[1].toUpperCase()), P.tf, tf), rule: 'same-for-ticker' }
   }
   // chart positions: the last request again on each chart named

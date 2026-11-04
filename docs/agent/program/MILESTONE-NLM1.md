@@ -25,6 +25,14 @@ No competing action engine: D2/D3 only rewrite text, or bind a plan's own alias.
 
 Only both keys on enable NLM-1 (`nlm1/flag.js routingV2Active`): routing v2 (`pickRouter`), the D2/D3 rewriter and created-reference plans, and request-level Undo grouping. Anything else, including a config that hasn't answered, errored, or has unavailable storage, means v1.
 
+**Third key, the IN-PLAN rules (default OFF; AUDIT-approved risk reduction):**
+
+| Key | Where | Default |
+|---|---|---|
+| `localStorage uct.agent.nlm1.inplan = '1'` (`window.__uctAgentNlm1Inplan(true)`) | the admin's browser, on top of the two keys above | off |
+
+Behind it are the rules no sealed pass ever took (`nlm1/inplan.js`); see "In-plan key" below.
+
 Hooks in production files, all gated: `useAgent.js` (`pickRouter` at the two routing calls; the rewrite before the readers; `planCreatedReference` in the fast path and in `runCompound`; Undo grouping after `execute` and `runCompound`), `agentClient.js` (`routing_v2` read), `memory.js` (`lastTurn().id`, additive). `routing.js` is untouched.
 
 ## 3. Acceptance results
@@ -219,6 +227,53 @@ Almost all of the lift came from D2/D3.2, whose main mechanism (a command aimed 
 3. Re-run the sealed set with the in-plan key OFF. The prediction is (B) 19/19 kept, and (A) back near the flag-off figure. That shows exactly what the in-plan rules were buying.
 
 **Measurement caveat.** No-model scoring (all of my sets, and the sealed set as scored) measures only **deterministic coverage**: whether a request is handled without the model. In production, an in-plan request no deterministic reader takes goes to the **planner** (the model), so "does nothing without a planner" is the expected v1 behaviour, not a failure of the product. The real in-plan measure is planner-assisted or a model eval. My scripted-canonical-plan mode (`NLM1_WF_MODE=planner`, 8/9: routing plus binding plus executor right whenever the plan is right) is a proxy for the routing and binding half only. A real model eval needs the owner's paid-eval approval (`EVAL.md`), and it is the right way to decide whether any in-plan determinism is worth keeping.
+
+#### In-plan key: implemented (AUDIT-approved after the sealed trace tally; dark code, rules not deleted)
+
+AUDIT's tally (no texts shared): the sealed passes used `created-ref`; followup-ops `command-at-set`, `back-to-value`, `repeat-on-set`, `additive`, `referent-value`, `repeat-modified`; and rewrites `same-on-chart`, `add-to-it`, `in-message-repeat`, `same-but-tf`, `tf-modifier+add-to-it`, `clauses` (1 pass, 1 fail). No mark fired on any of the scorer's fresh 12.
+
+**Gated behind `uct.agent.nlm1.inplan` (default OFF), exactly the never-taken list:**
+
+| Rule | Where |
+|---|---|
+| `back-to-before` | `followupOps.js` |
+| `borrow-verb` | `followups.js` |
+| `it-is-named-chart` | `followups.js` |
+| `multi-ticker-create` | `followups.js` |
+| `ordinal-of-created`, and the whole `nlm1:ordinal` path (main and `runCompound`) | `followupOps.rescopeOrdinal` |
+| `remove-on-charts` | `followupOps.js` |
+| `same-for-ticker` (as a follow-up of its own) | `followups.js` |
+| `same-on-new-chart` | `followups.js` |
+| `style-last-added` | `followupOps.js` |
+| `swap-places`, `swap-tickers` | `followupOps.swapOps` |
+| the `structure` rewrite (`preNormalise`: count-of-charts grid, give, possessives, "new chart for") | `followups.js` |
+
+Kept ungated:
+- The rules sealed passes used.
+- `remove-not-there` and `remove-ambiguous`: safety behaviours (an honest refusal, a question; never a guess).
+- `in-message-repeat`, which a sealed pass used, still reads its "same for <ticker>" internally (`rewriteFollowUp(…, { internal: true })`), so gating `same-for-ticker` as a follow-up does not break it.
+
+**Rule names built at runtime that appear in NEITHER of AUDIT's lists** (left ungated, as instructed; for AUDIT to classify):
+- `same-on-charts`: the plural branch of a ternary next to `same-on-chart`.
+- The same-request pipeline's composite names, `rules.join('+')`: `verbless-assign`, `with-indicator`, `quantifier`, `distribute-indicators`, alone or combined (only `add-to-it` and `tf-modifier+add-to-it` are on the used list).
+- `nlm1Rewrite`'s `<follow-up rule>+<same-request rule>` composites.
+
+**NLM1-G2.** Its fix depended on `style-last-added`, which is now gated. D2-18 passes with the in-plan key ON (the default of `nlm1Workflows.test.jsx`, which reproduces `36957ddf7a`). With the key OFF, D2-18 fails as before: **G2 is a gated gap**, fixed only behind the in-plan key.
+
+Tests:
+- `nlm1/nlm1InplanGate.test.js`: key OFF, each gated rule does not fire; the used rules and the two safety behaviours still do.
+- `nlm1Followups` / `nlm1FollowupOps` units run with the key ON.
+- `nlm1Workflows.test.jsx`: in-plan key ON by default (`NLM1_WF_INPLAN=0` turns it off). Every run first asserts BOTH the flag state and the in-plan key state.
+
+Results (my 114 cases; final state plus Undo, no model; every run's flag and key state asserted first):
+
+| Mode | First (40) | Gen. (23) | Robust. (22) | Shapes (29) | Total |
+|---|---|---|---|---|---|
+| Flag ON, in-plan key ON (= `36957ddf7a`) | 40 | 23 | 22 | 29 | **114/114** (incl. 2 NLM1-G1 gap cases failing as recorded) |
+| Flag ON, in-plan key OFF (as it would ship) | 36 | 14 | 19 | 8 | **77/114** |
+| Flag OFF | 23 | 3 | 2 | 4 | 32/114 |
+
+By category with the key OFF: robustness B (cross-turn) 11/12, C 2/2, A 6/8. My shape set drops to 8/29: exactly the never-taken in-plan rules. Flag-off regression 3079/3079 (+ the gate test); D1 gates and metrics unchanged. AUDIT's sealed confirmation with the key OFF is pending (prediction: B 19/19, A 9/16 or close).
 
 Recorded gaps (capreg `gapIt`: each must fail exactly as recorded, so a fix is noticed):
 - **NLM1-G1** (D2-13, G-a3): after the new chart's later changes are undone exactly, the creation's own Undo is refused ("Workspace has changed since I made that change"). The new chart's stored settings aren't byte-identical after those undos, so the workspace fingerprint no longer matches. Same with the flag off. Runtime exact-undo area (#771), reported to AUDIT.
