@@ -372,10 +372,13 @@ class Meter:
             return max_calls()
         return max(0, max_calls() - calls_used(self.request_id))
 
-    def call(self, category: str, fn: Callable[..., Any], **kwargs) -> Any:
+    def call(self, category: str, fn: Callable[..., Any], *, counts_as_call: bool = True, **kwargs) -> Any:
+        """`counts_as_call=False` (only E-1's evidence classifier, knowledge/evidence.py): the call is admitted and
+        settled against the daily and site caps exactly like any other, but does not use one of the request's calls,
+        so a classified turn keeps its planner call, its reroute and its research round."""
         model = str(kwargs.get("model") or "")
         rid = reserve(user_id=self.user_id, request_id=self.request_id, category=category, model=model,
-                      worst_usd=worst_case_usd(kwargs), site_reader=self.site_reader)
+                      worst_usd=worst_case_usd(kwargs), site_reader=self.site_reader, counts_as_call=counts_as_call)
         try:
             resp = fn(**kwargs)
         except Exception as e:

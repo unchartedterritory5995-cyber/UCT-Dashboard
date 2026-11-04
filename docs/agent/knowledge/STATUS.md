@@ -179,9 +179,11 @@ filtering or ranking work would add complexity without a measurable gain; embedd
 - Built as release 1 of docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md ("Release 1 as built"): knowledge/evidence.py,
   one hook at the top of turn.run_turn. Stacked on #768 (agent/kn/grounded-reply); rebase onto master after train 4.
 - Runs only while UCT_AGENT_KNOWLEDGE is on (OFF everywhere). Scripted tests only: no paid call, no eval run.
+- Review #781 (AUDIT, 69c17cde6d): safe to merge dark, not activation-ready; findings 1-6 fixed or decided on this branch
+  (word backstop + #768 gate on chart/none, general-information label, classifier off the call ceiling, no echoed
+  names in refusals, manifest checked before the paid call, mixed-turn note text decided). Delta review pending.
 - Owner decisions before activation: the labelled-set eval and its budget (>= 600 playbook-class prompts, 0 misses);
-  the 2-call ceiling (with Brain on the classifier takes one, so research / server repair are effectively off unless
-  it is raised to 3); Brain + planner v2 needs the v2 runner to render UCT's reads first.
+  Brain + planner v2 needs the v2 runner to render UCT's reads first; no streaming while Brain is on.
 
 ## Blocked / needs the owner
 - Admitting `self_review`, `manual`, `chart_intake:*` or any `intake:*` source (policy.json is the switch; default-deny until the owner rules).

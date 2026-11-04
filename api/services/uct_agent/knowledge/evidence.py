@@ -58,6 +58,11 @@ MIXED_PROPOSE = ("Confirm the change first. Then ask about UCT's playbook on its
 MIXED_TOO_MANY = ("I planned the chart changes only. Ask about UCT's playbook on its own and I'll answer from UCT's "
                   "approved knowledge.")
 NEWS_BOX = "Ask about UCT's playbook in the main Agent chat, where I answer from UCT's approved knowledge."
+#: review #781 finding 2 (owner: general education and chart analysis stay clearly distinguished from UCT's playbook).
+#: While Brain is on, a chart / none turn's MODEL-WRITTEN reply carries this fixed line, decided deterministically:
+#: the turn's E-1 class is chart or none, the final reply is non-empty, and it is not one of UCT's own fixed sentences
+#: (fixed_sentences()). Never a model's words; never on playbook / mixed / ambiguous turns (those have no model text).
+GENERAL_LABEL = "General information, not from UCT's approved playbook."
 V2_NOT_YET = ("UCT's approved playbook answers aren't available in this planner mode yet, so I didn't answer that part. "
               "Ask chart questions as usual.")
 
@@ -193,10 +198,13 @@ def classify(message: str, context: Any, history: Any, setups: list[dict], meter
     use = {"model": t1.model(), "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "ms": 0}
     t0 = time.perf_counter()
     try:
-        resp = t1._paid(meter, CATEGORY, CALL, model=t1.model(), max_tokens=MAX_TOKENS,
-                        system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
-                        output_config={"format": {"type": "json_schema", "schema": schema(names)}},
-                        messages=[{"role": "user", "content": user}])
+        kw = dict(model=t1.model(), max_tokens=MAX_TOKENS,
+                  system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
+                  output_config={"format": {"type": "json_schema", "schema": schema(names)}},
+                  messages=[{"role": "user", "content": user}])
+        # review #781 finding 3: metered (daily + site caps, category `evidence`) but OFF the request's call ceiling,
+        # so the planner keeps its calls (reroute, research, repair) exactly as with Brain off
+        resp = meter.call(CATEGORY, CALL, counts_as_call=False, **kw) if meter is not None else CALL(**kw)
     except Exception as e:  # noqa: BLE001 — fail closed; only a budget refusal passes through
         if t1._budget_refusal(e):
             raise
@@ -239,8 +247,9 @@ def decide(raw: Any, names: list[str]) -> dict:
     if ev in ("chart", "none") and (topic in SETUP_TOPICS or setups):
         # a setup is in play: UCT's definition comes from the playbook, the chart part from the planner
         route, why = ("mixed", "setup_with_chart") if (ev == "chart" or chart_ask) else ("playbook", "setup_forced")
-    elif ev == "none" and topic == "trading_concept":
-        route, why = ("mixed", "concept_with_chart") if chart_ask else ("playbook", "concept_forced")
+    elif ev in ("chart", "none") and topic == "trading_concept":
+        # review #781 finding 1: a trading concept is the KB's ground whatever the primary class
+        route, why = ("mixed", "concept_with_chart") if (ev == "chart" or chart_ask) else ("playbook", "concept_forced")
     elif ev == "playbook" and chart_ask:
         route, why = "mixed", "playbook_with_chart"
     return {"route": route, "topic": topic, "setups": setups, "concept": concept, "chart_ask": chart_ask, "why": why}
@@ -393,6 +402,59 @@ def _finish(envelope: dict, caps: list, valid_refs: set, cap_names: set, started
             "title": None}
 
 
+_CONTRACTIONS = ((re.compile(r"\bwhat\s*['\u2019]?\s*s\b"), "what is"), (re.compile(r"\bwhat\s*['\u2019]?\s*re\b"), "what are"),
+                 (re.compile(r"\btell me (about|what)\b"), "explain"), (re.compile(r"\bmeaning of\b"), "definition of"))
+
+
+def _fold(s: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFKC", str(s or "")).casefold().replace("&", " and ")
+    return re.sub(r"[\W_]+", " ", t).strip()
+
+
+def playbook_worded(message: str, vocab: list[dict], symbols: list[str]) -> bool:
+    """The deterministic backstop on a chart / none turn (review #781 finding 1): the member's words ask about a
+    setup or the playbook — #768's routing words after contractions are expanded ("what's", "whats", "tell me
+    about"), or any approved setup's name / alias, or a known setup name (approved or not) — and the message is not
+    about a specific stock or chart. Independent of the classifier."""
+    from api.services.uct_agent.knowledge import frame
+    if frame.about_a_symbol(message, symbols):
+        return False
+    m = str(message or "").lower()
+    for rx, to in _CONTRACTIONS:
+        m = rx.sub(to, m)
+    if frame.wants_knowledge(m) or re.search(r"\b" + frame._NAMED + r"\b", m):
+        return True
+    folded = f" {_fold(message)} "
+    for s in vocab:
+        for w in [s.get("name")] + list(s.get("aliases") or []):
+            f = _fold(str(w or "")).strip()
+            if len(f) >= 2 and f" {f} " in folded:
+                return True
+    return False
+
+
+def fixed_sentences() -> set:
+    """UCT's own member sentences (never labelled as general information)."""
+    from api.services.uct_agent import turn as t1
+    from api.services.uct_agent.knowledge import frame
+    out = {v for k, v in vars(t1).items() if k.isupper() and isinstance(v, str) and len(v) >= 20}
+    out |= {frame.RESEARCH_BLOCKED, NOT_RETRIEVED, MIXED_PROPOSE, MIXED_TOO_MANY, NEWS_BOX, V2_NOT_YET, CLARIFY_TEXT}
+    return out
+
+
+def label_general(res: dict) -> dict:
+    env = res.get("envelope") if isinstance(res, dict) else None
+    if not isinstance(env, dict) or env.get("need_groups") or env.get("disposition") not in ("answer", "apply", "propose"):
+        return res
+    reply = str(env.get("reply") or "").strip()
+    if not reply or reply in fixed_sentences() or reply.endswith(GENERAL_LABEL):
+        return res
+    res["envelope"] = {**env, "reply": f"{reply}\n\n{GENERAL_LABEL}"}
+    res.setdefault("usage", {})["general_label"] = True
+    return res
+
+
 def serve(run_turn: Callable[..., dict], args: dict) -> dict:
     """Serve one run_turn request through E-1. `args` = run_turn's own keyword arguments; the planner is reached
     by calling run_turn again with `_e1=True` (and a stripped manifest)."""
@@ -405,6 +467,12 @@ def serve(run_turn: Callable[..., dict], args: dict) -> dict:
         return run_turn(**stripped)                # UCT's own sentence or fixed clarify; no model text, no call
     context = args.get("context") or {}
     meter = args.get("meter")
+    # review #781 finding 5: the manifest is validated BEFORE the paid classifier call (a bad one is refused for free),
+    # on the stripped manifest (the one the planner gets) plus the playbook capabilities on their own
+    limit = t1.MAX_CAPABILITIES_NL1 if args.get("interpreter") == "nl1" else t1.MAX_CAPABILITIES
+    raw_caps = args.get("capabilities") if isinstance(args.get("capabilities"), list) else []
+    caps = t1.validate_manifest(strip_caps(raw_caps), limit) + t1.validate_manifest(
+        [c for c in raw_caps if isinstance(c, dict) and is_playbook(c.get("name"))], limit)
     try:
         vocab = approved_setups()
     except Exception:  # noqa: BLE001 — an unreadable pack names no setup; every setup is then asked by name (fail closed)
@@ -425,8 +493,6 @@ def serve(run_turn: Callable[..., dict], args: dict) -> dict:
     route = decision["route"]
     log.info("uct_agent evidence: %s (%s, %s)", route, decision["topic"], decision["why"])
 
-    caps = t1.validate_manifest(args.get("capabilities") or [], t1.MAX_CAPABILITIES_NL1 if args.get("interpreter") == "nl1"
-                                else t1.MAX_CAPABILITIES)
     cap_names = {c["name"] for c in caps}
     offered = {n for n in cap_names if is_playbook(n)}
     valid_refs = t1._context_refs(context)
@@ -441,7 +507,15 @@ def serve(run_turn: Callable[..., dict], args: dict) -> dict:
         return _merge_usage(_finish(env, caps, valid_refs, cap_names, started), decision, use, cached)
 
     if route in ("chart", "none"):
-        return _merge_usage(run_turn(**stripped), decision, use, cached)
+        # review #781 finding 1: the classifier's recall is not the only layer. "gate" keeps #768's knowledge-first
+        # backstop on this planner call (no streaming; a playbook-worded answer becomes UCT's fixed "can't retrieve"
+        # sentence) although playbook.* is not offered. v2 has no such backstop, so a playbook-worded turn never
+        # reaches it while Brain is on.
+        kn_words = playbook_worded(message, vocab, _symbols(context))
+        if args.get("v2") is not None and kn_words:
+            return done(answer_envelope(NOT_RETRIEVED))
+        res = run_turn(**{**stripped, "_e1": "gate_kn" if kn_words else "gate"})
+        return _merge_usage(label_general(res), decision, use, cached)
     if args.get("answer_only") or args.get("headline") is not None:
         return done(answer_envelope(NEWS_BOX))     # the News Ask box: playbook / mixed / ambiguous never planned there
     if args.get("v2") is not None:

@@ -103,7 +103,8 @@ sentence. No reply is written in this call; there is no `reply` field to write o
   If any check fails, the card is served. This is not needed to meet the requirement.
 
 **Streaming:** while Brain is on, nothing streams before the class is known. Playbook and mixed turns never stream
-free text. Chart and none turns stream as today.
+free text. Chart and none turns stream as today. (Release 1, after review #781: nothing streams at all while Brain
+is on; see "Release 1 as built".)
 
 ## How it relates to planner v2
 
@@ -214,8 +215,8 @@ Where: `knowledge/evidence.py`, entered from the top of `turn.run_turn` (one hoo
   action names, open chart symbols, and the approved setups (policy-admitted, active templates) with aliases. The
   schema has no free-text answer field; `concept` is cut to 60 characters and used only as a read's argument.
 - **Decision rules on top of the class:** a setup topic or a named setup classed `chart` / `none` is `mixed` (chart
-  ask) or `playbook`; `trading_concept` + `none` is `playbook` (or `mixed` with a chart ask); `playbook` + chart ask
-  is `mixed`. Any off-schema value, error, timeout, refusal or truncated output is `ambiguous`. A budget refusal is
+  class or chart ask) or `playbook`; `trading_concept` classed `chart` / `none` likewise (review #781 finding 1: a
+  concept is forced whatever the primary class); `playbook` + chart ask is `mixed`. Any off-schema value, error, timeout, refusal or truncated output is `ambiguous`. A budget refusal is
   re-raised (the member gets the budget sentence, never a planner answer).
 - **playbook:** `playbook.setup` per named setup (definition / rules, or any topic naming a setup), `playbook.record`
   for a record, else `playbook.explain(concept or the message)`. An excluded setup is asked by name, so the server
@@ -226,8 +227,25 @@ Where: `knowledge/evidence.py`, entered from the top of `turn.run_turn` (one hoo
   playbook routing group removed. Its reply is dropped whatever it says. apply → chart ops kept as planned + UCT's
   reads; propose → the proposal card + a fixed sentence (a read never rides behind a proposal); answer / clarify /
   unsupported → UCT's reads only; over the op limit → chart ops + a fixed sentence.
-- **chart / none:** the requested planner (v1 or v2) without `playbook.*` and without the playbook group; streams as
-  today.
+- **chart / none:** the requested planner without `playbook.*` and without the playbook group, **with a second,
+  deterministic layer** (review #781 finding 1; this corrects "Single layer" above for release 1):
+  - `evidence.playbook_worded` checks the member's words independently of the classifier: #768's routing words after
+    contractions are expanded ("what's", "whats", "tell me about"), any approved setup name / alias, or a known setup
+    name (approved or not), unless the message is about a specific stock or chart (`frame.about_a_symbol`).
+  - v1 runs with `_e1="gate"` / `"gate_kn"`: #768's knowledge-first backstop stays on although no `playbook.*` is
+    offered, so nothing streams while Brain is on, and on a playbook-worded turn an answer becomes UCT's fixed "can't
+    retrieve an approved playbook definition" sentence (an apply keeps its ops and loses its reply).
+  - v2 has no such backstop: a playbook-worded chart / none turn never reaches v2 (fixed sentence instead).
+  - The classifier's recall is still the main guarantee; the word layer narrows what a miss can be.
+- **General-information label (review #781 finding 2, owner: general education and chart analysis stay clearly
+  distinguished):** while Brain is on, a chart / none turn's model-written reply ends with the fixed line "General
+  information, not from UCT's approved playbook." Decided deterministically (`evidence.label_general`): E-1 class chart /
+  none, disposition answer / apply / propose, a non-empty final reply that is not one of UCT's own fixed sentences
+  (`fixed_sentences()`: turn.py's sentence constants and E-1's). Playbook / mixed / ambiguous turns carry no model text
+  and are never labelled. Brain off: no label.
+- **Text arguments on chart ops in mixed turns (review #781 nit 6, decision):** not sanitised. A note or label is
+  written onto the member's own chart as the change they asked for and is confirmed by its receipt, exactly as with
+  Brain off; it is never served as UCT knowledge. Revisit if notes ever become a knowledge surface.
 - **Planner v2 (off in production):** v2's browser runner shows a final reply only and never runs a final envelope's
   ops or choices. So with v2 on, only chart / none turns use v2; playbook / mixed get a fixed "not available in this
   planner mode yet" sentence and ambiguous gets UCT's clarify text as the reply. Brain + v2 together needs the v2
@@ -236,11 +254,16 @@ Where: `knowledge/evidence.py`, entered from the top of `turn.run_turn` (one hoo
 - **Reroute:** a reroute continues its request, so the decision is cached per (user, request, message) for 5 minutes
   (in-process; a failed classification is never cached). A cache miss on another worker classifies again.
 
-**Call ceiling (owner decision before activation):** the per-request ceiling is 2 paid calls
-(`UCT_AGENT_MAX_CALLS_PER_REQUEST`). With Brain on, the classifier takes one, so a chart / none / mixed turn has one
-planner call and **no** research round or server repair left: those already degrade to UCT's existing fixed sentences
-(`RESEARCH_STEP_LIMIT`, the R-04 clarify). Nothing unsafe follows, but web research is effectively off while Brain is
-on unless the ceiling is raised to 3. Not changed here.
+**Call ceiling (review #781 finding 3, fixed):** the classifier is metered through `budget.Meter.call(...,
+counts_as_call=False)`: it is reserved and settled against the daily and site caps like any call (category
+`evidence`) but does not use one of the request's 2 calls, so the planner keeps its reroute, research round and repair
+exactly as with Brain off (a real-ledger test covers classifier + planner + reroute). The ceiling itself is unchanged.
+The v2 per-turn $0.25 cap (`UCT_AGENT_TURN_USD`) covers v2's own rounds only; the classifier's worst case (≤ 200 output
+tokens, one per request, cached across a reroute) is bounded by its own limits and counted in the daily cap.
+
+**Refusal sentences never echo a requested name (review #781 finding 4):** `kinds.resolve_setup` and the browser's
+refusal lines use fixed wording ("UCT has no approved setup template by that name", "... for that setup"), so neither a
+planner argument nor the classifier's `concept` is ever shown.
 
 **Still required before any activation:** the labelled-set eval (≥ 600 playbook-class prompts, 0 misses; separate
 owner approval and budget), an independent review, and live admin acceptance on a dark admin flag.

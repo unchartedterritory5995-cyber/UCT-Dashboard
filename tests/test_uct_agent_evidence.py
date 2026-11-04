@@ -14,6 +14,7 @@ from api.services.uct_agent import turn
 from api.services.uct_agent.knowledge import evidence as ev
 from tests.test_uct_agent import CAPS, CTX, OP, _resp, caller_of, env
 from tests.test_uct_agent_knowledge_reply import ALL, INVENTED, KCAPS, KCTX, LONG
+from tests.test_uct_agent_spend_limits import ZERO_SITE, clean  # noqa: F401  (the real budget ledger fixture)
 
 VOCAB = [{"name": "Episodic Pivot", "aliases": ["EP"]}, {"name": "Undercut & Rally", "aliases": ["U&R"]}]
 NAMES = [s["name"] for s in VOCAB]
@@ -172,7 +173,7 @@ def test_playbook_with_no_knowledge_offered_and_no_group_is_the_fixed_sentence(m
 def test_playbook_with_the_group_unselected_asks_the_browser_to_reroute_once(monkeypatch):
     c = use(monkeypatch, cls())
     meter = types.SimpleNamespace(user_id=7, request_id=41, calls_left=lambda: 1,
-                                  call=lambda category, fn, **kw: fn(**kw))
+                                  call=lambda category, fn, counts_as_call=True, **kw: fn(**kw))
     routing = {"groups": [{"id": "chart", "title": "c"}, {"id": "playbook", "title": "p"}], "selected": ["chart"]}
     e = run("what is an EP", caps=CAPS, ctx=CTX, routing=routing, meter=meter)["envelope"]
     assert e.get("need_groups") == ["playbook"] and e["reply"] == ""
@@ -214,16 +215,133 @@ def test_a_chart_turn_planner_cannot_emit_a_playbook_read(monkeypatch):
                                                                        "args": {"setup": "EP"}}]))))
 
 
-def test_chart_turns_stream_as_today(monkeypatch):
+def test_chart_and_none_turns_never_stream_while_brain_is_on_and_carry_the_general_label(monkeypatch):
+    # review #781 findings 1-2: #768's backstop stays on (no stream) and model-written prose is labelled, deterministically
     use(monkeypatch, cls(evidence="none", topic="other", setups=(), concept=""))
+    events = []
+    text = "A bar chart draws open, high, low and close for each period. " * 4
+
+    def stream(feed, **kw):
+        r = _resp(env("answer", reply=text))
+        feed(r.content[0].text)
+        return r
+    out = run("tell me a joke about bar charts", on_event=events.append, stream_caller=stream)
+    assert not any(x.get("t") == "delta" for x in events)
+    assert out["envelope"]["reply"] == text.strip() + "\n\n" + ev.GENERAL_LABEL
+    assert out["usage"]["general_label"] is True
+
+
+@pytest.mark.parametrize("disp,ops,reply,labelled", [
+    ("apply", [OP], "Bar charts show the open and close as small ticks on each bar.", True),
+    ("apply", [OP], "", False),
+    ("answer", [], turn.NOTHING_DONE, False),
+    ("answer", [], ev.NOT_RETRIEVED, False),
+])
+def test_the_general_label_is_decided_deterministically(monkeypatch, disp, ops, reply, labelled):
+    use(monkeypatch, cls(evidence="chart", topic="chart_or_symbol", setups=(), concept=""))
+    out = run("make it bars", caller=caller_of(_resp(env(disp, ops, reply=reply))))
+    assert out["envelope"]["reply"].endswith(ev.GENERAL_LABEL) is labelled
+    if not labelled:
+        assert ev.GENERAL_LABEL not in out["envelope"]["reply"]
+
+
+def test_playbook_mixed_and_ambiguous_turns_are_never_labelled(monkeypatch):
+    for c in (cls(), cls(evidence="ambiguous")):
+        use(monkeypatch, c)
+        assert ev.GENERAL_LABEL not in json.dumps(run("what is an EP")["envelope"])
+    use(monkeypatch, cls(evidence="mixed", chart_ask=True))
+    e = run("make it bars and what is an EP", caller=caller_of(_resp(env("apply", [OP], reply="Bars it is."))))["envelope"]
+    assert ev.GENERAL_LABEL not in json.dumps(e)
+
+
+# ── review #781 finding 1: a misroute never serves a model-written playbook definition ────────────────────────────
+MISROUTES = [cls(evidence="chart", topic="chart_or_symbol", setups=(), concept=""),
+             cls(evidence="none", topic="other", setups=(), concept="")]
+
+
+@pytest.mark.parametrize("raw", MISROUTES)
+@pytest.mark.parametrize("msg", ["what's an EP", "whats an EP?", "what is an EP", "tell me about cup and handle",
+                                 "Episodic Pivot?", "what\u2019s a VCP"])
+def test_a_misrouted_playbook_question_gets_ucts_fixed_sentence_not_the_models_definition(monkeypatch, raw, msg):
+    use(monkeypatch, raw)
     events = []
 
     def stream(feed, **kw):
-        r = _resp(env("answer", reply=LONG.replace("EP", "bar chart")))
-        feed(r.content[0].text)
-        return r
-    run("tell me a joke about bar charts", on_event=events.append, stream_caller=stream)
-    assert any(x.get("t") == "delta" for x in events)
+        feed(json.dumps(env("answer", reply=LONG)))
+        return _resp(env("answer", reply=LONG))
+    out = run(msg, on_event=events.append, stream_caller=stream)
+    assert out["envelope"]["reply"] == turn.KNOWLEDGE_NOT_RETRIEVED
+    assert not any(x.get("t") == "delta" for x in events)
+    for s_ in ("10%", "3%", "72%", "gap on earnings"):
+        assert s_ not in json.dumps(out["envelope"])
+
+
+def test_a_misrouted_question_about_a_specific_chart_is_still_answered_with_the_label(monkeypatch):
+    use(monkeypatch, cls(evidence="chart", topic="chart_or_symbol", setups=(), concept=""))
+    out = run("what's the breakout level on this chart", caller=caller_of(_resp(env("answer", reply="Around the prior high."))))
+    assert out["envelope"]["reply"] == "Around the prior high.\n\n" + ev.GENERAL_LABEL
+
+
+def test_v2_never_gets_a_playbook_worded_chart_or_none_turn(monkeypatch):
+    from api.services.uct_agent import turn_v2
+    got = []
+    monkeypatch.setattr(turn_v2, "run_turn_v2", lambda **kw: (got.append(kw), {"envelope": env("answer", reply=INVENTED),
+                                                                               "usage": {}, "title": None})[1])
+    use(monkeypatch, MISROUTES[1])
+    out = run("what's an EP", v2={"wait_step": None, "turn_token": "t"})
+    assert got == [] and out["envelope"]["reply"] == ev.NOT_RETRIEVED
+    out = run("tell me a joke", v2={"wait_step": None, "turn_token": "t"})
+    assert got and out["envelope"]["reply"].endswith(ev.GENERAL_LABEL)
+
+
+@pytest.mark.parametrize("evidence", ["chart", "none"])
+def test_a_trading_concept_is_forced_to_the_playbook_whatever_the_primary_class(evidence):
+    d = ev.decide(cls(evidence=evidence, topic="trading_concept", setups=(), concept="risk"), NAMES)
+    assert d["route"] == ("mixed" if evidence == "chart" else "playbook")
+
+
+# ── review #781 finding 3: the classifier is off the request's call ceiling (real budget ledger) ──────────────────
+def test_a_reroute_and_research_still_fit_the_two_call_ceiling_with_brain_on(monkeypatch, clean):
+    from api.services.uct_agent import budget
+    c = use(monkeypatch, cls(evidence="chart", topic="chart_or_symbol", setups=(), concept=""))
+    rid = budget.open_request("u", "c1", "hide volume")
+    meter = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    routing = {"groups": [{"id": "chart", "title": "c"}, {"id": "volume", "title": "v"}], "selected": ["chart"]}
+    first = run("hide volume", routing=routing, meter=meter,
+                caller=caller_of(_resp({**env("answer", reply=""), "need_groups": ["volume"]})))
+    assert first["envelope"]["need_groups"] == ["volume"]
+    assert budget.open_request("u", "c1", "hide volume", reroute=True) == rid
+    vop = {"action": "volume.setState", "target": "c1", "args": {"state": "hidden"}}
+    out = run("hide volume", routing={**routing, "selected": ["chart", "volume"]}, meter=meter, reroute=True,
+              caller=caller_of(_resp(env("apply", [vop]))))
+    assert [o["action"] for o in out["envelope"]["ops"]] == ["volume.setState"]
+    assert len(c.calls) == 1 and budget.calls_used(rid) == 2        # planner + reroute; the classifier is not counted
+    assert budget.state()["calls"]["settled"] == 3                  # but all three are metered against the daily cap
+
+
+def test_the_classifier_still_counts_against_the_daily_cap(monkeypatch, clean):
+    from api.services.uct_agent import budget
+    monkeypatch.setenv("UCT_AGENT_BUDGET_USD", "0.000001")
+    use(monkeypatch, cls())
+    meter = budget.Meter(user_id="u", request_id=budget.open_request("u", "c", "what is an EP"), site_reader=ZERO_SITE)
+    with pytest.raises(budget.BudgetRefused):
+        run("what is an EP", meter=meter)
+
+
+# ── review #781 finding 5: the manifest is checked before the paid call, on the stripped manifest ────────────────
+def test_a_full_manifest_plus_playbook_capabilities_is_accepted(monkeypatch):
+    use(monkeypatch, cls())
+    fill = [{**CAPS[0], "name": f"chart.fill{i}"} for i in range(turn.MAX_CAPABILITIES - len(CAPS))]
+    assert len(CAPS + fill + KCAPS) > turn.MAX_CAPABILITIES
+    assert run("what is an EP", caps=CAPS + fill + KCAPS)["envelope"]["ops"][0]["action"] == "playbook.setup"
+
+
+def test_an_invalid_manifest_is_refused_before_the_classifier_is_paid(monkeypatch):
+    c = use(monkeypatch, cls())
+    fill = [{**CAPS[0], "name": f"chart.fill{i}"} for i in range(turn.MAX_CAPABILITIES + 1)]
+    with pytest.raises(turn.TurnError):
+        run("what is an EP", caps=fill + KCAPS)
+    assert c.calls == []
 
 
 def test_v2_receives_the_stripped_manifest_and_never_a_playbook_turn(monkeypatch):
@@ -350,7 +468,7 @@ def test_every_classifier_failure_is_the_fixed_clarify_and_no_planner_runs(monke
 
 def test_a_failed_classification_is_never_cached(monkeypatch):
     c = use(monkeypatch, RuntimeError("down"), cls())
-    meter = types.SimpleNamespace(user_id=1, request_id=9, calls_left=lambda: 2, call=lambda category, fn, **kw: fn(**kw))
+    meter = types.SimpleNamespace(user_id=1, request_id=9, calls_left=lambda: 2, call=lambda category, fn, counts_as_call=True, **kw: fn(**kw))
     assert run("what is an EP", meter=meter)["envelope"]["disposition"] == "clarify"
     assert run("what is an EP", meter=meter, reroute=True)["envelope"]["ops"][0]["action"] == "playbook.setup"
     assert len(c.calls) == 2

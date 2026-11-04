@@ -2334,7 +2334,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              on_event: Callable[[dict], None] | None = None, stream_caller: Callable[..., Any] | None = None,
              meter=None, reroute: bool = False, interpreter: str | None = None, repair: dict | None = None,
              reference: dict | None = None, headline: dict | None = None, answer_only: bool = False,
-             v2: dict | None = None, _e1: bool = False) -> dict:
+             v2: dict | None = None, _e1: bool | str = False) -> dict:
     """Returns {envelope, usage, title}. Raises TurnError with a member sentence.
     `v2` (Wave 1 A-04; the router passes it ONLY when UCT_AGENT_PLANNER=v2 and the turn streams): the planner v2
     arguments {wait_step, turn_token[, resume, resume_result]} — the turn is served by turn_v2.run_turn_v2, the
@@ -2359,7 +2359,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     model as data with news.RULES. `answer_only` (the News Ask box): no web research runs and any op the model
     writes is dropped -- the turn can only answer.
     `_e1` (internal): this call is E-1's own planner call (knowledge/evidence.py). While Brain is on, every other
-    request is classified there FIRST and reaches the planner only through it, with playbook.* removed."""
+    request is classified there FIRST and reaches the planner only through it, with playbook.* removed. "gate" (a
+    chart / none turn): #768's knowledge-first backstop stays on although no playbook.* capability is offered;
+    "gate_kn": and E-1's own word check (evidence.playbook_worded) found the message playbook-worded."""
     if not _e1:
         _args = dict(locals())
         from api.services.uct_agent.knowledge import evidence as _evidence
@@ -2476,8 +2478,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     # review #768: knowledge first (see KNOWLEDGE_NOT_RETRIEVED). Only when a playbook.* capability is in the validated
     # manifest (the knowledge flag is on); a coach turn has its own guard (agent_coach.guard_envelope).
     kn_caps = {n for n in cap_names if _kn_frame().is_knowledge_action(n)}
-    kn_on = bool(kn_caps) and not coach_turn          # a knowledge capability is offered (the flag is on)
-    kn_turn = kn_on and _kn_frame().wants_knowledge(msg) and not _kn_frame().about_a_symbol(
+    kn_on = (bool(kn_caps) or _e1 in ("gate", "gate_kn")) and not coach_turn   # knowledge offered, or E-1 chart / none
+    kn_turn = kn_on and (_e1 == "gate_kn" or _kn_frame().wants_knowledge(msg)) and not _kn_frame().about_a_symbol(
         msg, [str(c.get("symbol") or "") for c in ((context or {}).get("charts") or []) if isinstance(c, dict)])
     kn_ref = next((str(r.get("ref")) for r in ((context or {}).get("playbook") or [])
                    if isinstance(r, dict) and str(r.get("ref") or "") in valid_refs), None) if kn_caps else None
