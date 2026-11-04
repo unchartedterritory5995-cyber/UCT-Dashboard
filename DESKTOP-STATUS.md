@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 16:07 CT
+updated: 2026-11-04 16:08 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -361,3 +361,9 @@ state: BUILDING   round: r0   updated: 2026-11-04 14:37 CT
 branch: feat/pine-w5-t19-gate   base: W5-T10 a1523b3897 + local merges of W5-T4 09753c9426 and W5-T11 86218da704 (STACK)   model: Sonnet
 locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
 note: workflow file edited on the branch only; never pushed to master; HP-1 under Node 20 is red on the two trig cases (W5-T4 r1), so the builder proposes the gate's handling for the coordinator.
+
+## W5-T7b result digest + warm-up on the wire (desktop-opened fix lane for the T11 + T16 schema gaps)
+state: BUILDING   round: r0   updated: 2026-11-04 16:08 CT
+branch: feat/pine-w5-t7b-result-integrity   base: f526d609e4 (= W5-T7 5e6c63e24e + W5-T4 eb922686fe, the same base as W5-T9; STACK: T1 -> T6 -> T7, T3 -> T4)   model: Opus
+why: T7 results carry no column digest (the T11 client withholds every ok answer as integrity) and no warm-up (T16 refuses every real run as runtime:warmup-unreported). Service side adds the T3 canonical digest and the run's warm-up per ok column, extends T6's closed response schema explicitly, and proves end-to-end with T11's decoder on real T7 job bytes. Coordinator may prefer to fold this into a T7 fix round instead; the branch is separate so either works.
+locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
