@@ -1,0 +1,14 @@
+//@version=5
+indicator("hp nested if", overlay=false)
+float r = na
+if close > open
+    if volume > ta.sma(volume, 20)
+        r := 2
+    else
+        r := 1
+else if close < open
+    r := -1
+else
+    r := 0
+plot(r, "regime")
+plot(ta.sma(r, 10), "avg")
