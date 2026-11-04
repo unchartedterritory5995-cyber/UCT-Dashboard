@@ -505,10 +505,16 @@ def _stats_rows(table: str, names: list[str], regime: str) -> list[dict]:
         c.close()
 
 
+#: review #789 item 1: a calculation date may be at most 15 minutes ahead of this server's clock (producer clock skew);
+#: anything further in the future is not a calculation date (undated). Staleness is strict: older than
+#: stats_stale_days (14.0 days) by any amount is stale; exactly 14.0 days is served.
+MAX_CLOCK_SKEW_DAYS = 15 / 1440
+
+
 def _stale(row: dict) -> bool:
     """Fails CLOSED: a record with no readable refresh date, or one dated in the FUTURE, is treated as stale."""
     age = _days_since(row.get("updated_at"))
-    return age is None or age < -1 or age > policy.pack_setting("stats_stale_days", 14)
+    return age is None or age < -MAX_CLOCK_SKEW_DAYS or age > policy.pack_setting("stats_stale_days", 14)
 
 
 def _calc_date(row: dict, key: str):
@@ -537,9 +543,9 @@ def _dated(block: dict, key: str, row: dict) -> dict:
 
 
 def _valid_date(s) -> Optional[str]:
-    """A calculation date we can trust: readable and not in the future (one day of clock slack)."""
+    """A calculation date we can trust: readable and not in the future (MAX_CLOCK_SKEW_DAYS of clock skew)."""
     age = _days_since(s) if s else None
-    return str(s) if age is not None and age >= -1 else None
+    return str(s) if age is not None and age >= -MAX_CLOCK_SKEW_DAYS else None
 
 
 def record(params: dict, ctx: dict) -> dict:
@@ -591,8 +597,9 @@ def record(params: dict, ctx: dict) -> dict:
                                   "note": "UCT's approved knowledge does not include this setup's template; these "
                                           "figures describe UCT's own outcomes under the name, not a definition of it"}
     rec_a = w.get("team_archive") if isinstance(w.get("team_archive"), dict) else None
-    # ONLY the computation's own date (docs/agent/knowledge/ARCHIVE-ASOF-REQUIREMENT.md); never imported_at / updated_at
-    a_as_of = _valid_date(next((str(rec_a[k]) for k in ("through", "as_of") if rec_a and rec_a.get(k)), None))
+    # review #789 item 3: ONLY the payload's ATTESTED calculation field (policy calc_date_field; none is attested yet, so
+    # archive figures are withheld). `through` is a data-through date, never a calculation date; never imported_at.
+    a_as_of = _valid_date(_calc_date(rec_a or {}, "team_archive"))
     arch = stats.archive_block(rec_a, n_min, as_of=a_as_of)
     if arch and a_as_of and _stale({"updated_at": a_as_of}) and arch["label"] not in ("insufficient_sample", "undated_record"):
         arch = {"label": "stale_record", "label_text": "the record has not been refreshed recently; figure withheld",

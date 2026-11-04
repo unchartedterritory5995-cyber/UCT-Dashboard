@@ -157,6 +157,8 @@ def kn(tmp_path, monkeypatch):
         # (test_calc_date_* pin the shipped behaviour)
         pol["records"][k]["calc_date_field"] = "updated_at"
         pol["records"][k]["calc_date_attestation"] = "test fixture: the fixture writes updated_at as the computation time"
+    pol["records"]["team_archive"]["calc_date_field"] = "computed_at"
+    pol["records"]["team_archive"]["calc_date_attestation"] = "test fixture: the archive payload's scoring-run finish time"
     pf = tmp_path / "policy_records_admitted.json"
     pf.write_text(json.dumps(pol), encoding="utf-8")
     monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(pf))
@@ -753,11 +755,11 @@ def test_n4_undated_archive_figure_is_withheld():
 
 def test_n4_archive_in_record_scope_staleness_and_sign(kn, monkeypatch):
     real = brain_service.setup_winrate
-    rec = {**_arch(n=120, z=-3.4, verdict="measured edge"), "as_of": time.strftime("%Y-%m-%d", time.gmtime())}
+    rec = {**_arch(n=120, z=-3.4, verdict="measured edge"), "computed_at": time.strftime("%Y-%m-%d", time.gmtime())}
     monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {**real(*a, **k), "team_archive": rec})
     a = read("setup.record", {"setup": "EP", "regime": "RED"})["data"]["team_archive"]
     assert a["label"] == "measured_underperformance_controlled" and "not filtered by the regime asked" in a["scope"]
-    old = {**rec, "as_of": "2025-01-01"}
+    old = {**rec, "computed_at": "2025-01-01"}
     monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {**real(*a, **k), "team_archive": old})
     a2 = read("setup.record", {"setup": "EP"})["data"]["team_archive"]
     assert a2["label"] == "stale_record" and "edge_z" not in a2
@@ -1710,7 +1712,10 @@ def test_calc_date_shipped_policy_attests_setup_performance_only():
 
 
 @pytest.mark.parametrize("field", ["imported_at", "exported_at", "synced_at", "pack_ts", "install_time", "file_mtime",
-                                   "loaded_at", "copied_at", "Updated At", "", None])
+                                   "loaded_at", "copied_at", "Updated At", "", None,
+                                   # review #789 item 2: the allow-list refuses names a deny-list would miss
+                                   "packed_at", "importedat", "synchronized_at", "restored_at", "downloaded_at",
+                                   "backup_at", "snapshot_at", "modified_at", "through", "as_of"])
 def test_calc_date_a_transport_stamp_or_bad_field_is_never_accepted(monkeypatch, tmp_path, field):
     _policy_with(monkeypatch, tmp_path, setup_performance={"calc_date_field": field, "calc_date_attestation": "said so"})
     assert policy.calc_date_field("setup_performance") is None
@@ -1761,4 +1766,51 @@ def test_calc_date_every_served_figure_carries_its_calculation_date(kn, monkeypa
                     served += 1
                     assert blk.get("as_of"), (setup, regime, b, blk)
     assert served >= 1
+
+
+# ── review #789: a fixed clock at the boundaries; the archive's data-through date is never a calculation date ──────
+FIXED_NOW = 1_800_000_000.0                    # a fixed instant; every age below is relative to it
+
+
+def _at(seconds_before_now: float) -> str:
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(FIXED_NOW - seconds_before_now))
+
+
+@pytest.mark.parametrize("age_s,served", [
+    (14 * 86400, True),                         # exactly 14.0 days: served
+    (14 * 86400 + 1, False),                    # 14 days + 1 s: stale
+    (-10 * 60, True),                           # 10 minutes ahead: within the 15-minute clock skew
+    (-3600, False),                             # 1 hour in the future: undated
+    (-36 * 3600, False),                        # 36 hours in the future: undated
+])
+def test_review789_calculation_date_boundaries_on_a_fixed_clock(monkeypatch, age_s, served):
+    monkeypatch.setattr(kinds.time, "time", lambda: FIXED_NOW)
+    d = _at(age_s)
+    block = kinds._dated({"label": "descriptive_uncontrolled", "n": 40, "win_rate_pct": 55.0, "method": "m"},
+                         "setup_performance", {"updated_at": d})
+    assert ("win_rate_pct" in block) is served, (age_s, block)
+    if served:
+        assert block["as_of"] == d
+    else:
+        assert block["label"] == ("stale_record" if age_s > 0 else "undated_record")
+
+
+def test_review789_archive_through_alone_is_not_a_calculation_date(kn, monkeypatch):
+    real = brain_service.setup_winrate
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    rec = {**_arch(n=120, z=3.4, verdict="measured edge"), "through": today, "as_of": today}
+    monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {**real(*a, **k), "team_archive": rec})
+    a = read("setup.record", {"setup": "EP"})["data"]["team_archive"]
+    assert a["label"] == "undated_record" and "edge_z" not in a and "win_rate_20d_pct" not in a
+
+
+def test_review789_shipped_policy_withholds_archive_figures(kn, monkeypatch):
+    _shipped(monkeypatch)
+    real = brain_service.setup_winrate
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    rec = {**_arch(n=120, z=3.4, verdict="measured edge"), "through": today, "as_of": today, "computed_at": today}
+    monkeypatch.setattr(brain_service, "setup_winrate", lambda *a, **k: {**real(*a, **k), "team_archive": rec})
+    a = read("setup.record", {"setup": "EP"})["data"]["team_archive"]
+    assert a["label"] == "undated_record" and "edge_z" not in a
+    assert policy.calc_date_field("team_archive") is None
 

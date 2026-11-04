@@ -113,10 +113,12 @@ def classify_template(origin_trader: Optional[str], name: Optional[str] = None) 
 #: Calculation-date integrity (owner: never an export / import / sync timestamp as a calculation date). A record
 #: source's figures are served only with a date its PRODUCER writes when it computes them, named per source in
 #: policy.json (`calc_date_field`) together with the evidence for that claim (`calc_date_attestation`). A field whose
-#: name says it is a transport stamp is never accepted, whatever the policy says.
-_TRANSPORT_STAMP = re.compile(r"(^|_)(import|imported|export|exported|sync|synced|copied|copy|loaded|load|install|"
-                              r"installed|pack|uploaded|upload|mtime|fetched|ingested)(_|$)", re.I)
-_FIELD = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
+#: review #789 item 2: an ALLOW-LIST, not a deny-list of transport names. Only these names can ever be a calculation
+#: date, and each still needs the producer's attestation for that source (updated_at only where the producer was
+#: verified to write it in the computation itself). Anything else (packed_at, synchronized_at, restored_at,
+#: snapshot_at, modified_at, imported_at, ...) is refused whatever the policy says.
+CALC_DATE_FIELDS = frozenset({"computed_at", "calculated_at", "calc_date", "calculation_date", "computation_date",
+                              "updated_at"})
 
 
 def calc_date_field(key: str) -> Optional[str]:
@@ -125,7 +127,7 @@ def calc_date_field(key: str) -> Optional[str]:
     if not isinstance(row, dict):
         return None
     f = str(row.get("calc_date_field") or "").strip()
-    if not _FIELD.match(f) or _TRANSPORT_STAMP.search(f) or not str(row.get("calc_date_attestation") or "").strip():
+    if f not in CALC_DATE_FIELDS or not str(row.get("calc_date_attestation") or "").strip():
         return None
     return f
 
