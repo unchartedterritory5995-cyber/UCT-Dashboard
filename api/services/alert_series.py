@@ -407,6 +407,17 @@ def address_inputs(address: str) -> dict:
     return dict(getattr(fn, "inputs", {}) or {})
 
 
+def address_lookback(address: str, params: Optional[dict]) -> Optional[int]:
+    """The history this address DECLARES it reads for these params, or None.
+
+    Metadata, like `address_inputs` — read off the column function (`fn.lookback`,
+    today only `ma_cross`). `None` means "nothing declared", and the caller keeps
+    its knob-sum rule.
+    """
+    own = getattr(SERIES_FUNCS.get(address), "lookback", None)
+    return int(own(params or {})) if callable(own) else None
+
+
 def series_function(address: str) -> Optional[Callable[[list[dict], dict], Series]]:
     """The series function for a canonical address, or ``None``.
 

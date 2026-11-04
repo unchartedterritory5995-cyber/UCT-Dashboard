@@ -1167,10 +1167,10 @@ def bars_needed_for_alert(alert: dict) -> int:
             # ⭐ 2026-11-04 — a column function may DECLARE its own lookback
             # (`ma_cross`: an EMA needs a convergence prefix of ~6×slow, which
             # summing the knobs cannot know). Absent everywhere else.
-            own = getattr(alert_series.series_function(
-                resolve_address(alert.get("indicator"))), "lookback", None)
-            if callable(own):
-                return bars_wanted(own(params))
+            own = alert_series.address_lookback(
+                resolve_address(alert.get("indicator")), params)
+            if own is not None:
+                return bars_wanted(own)
             declared = alert_series.address_inputs(
                 resolve_address(alert.get("indicator")))
             resolved = dict(declared)
