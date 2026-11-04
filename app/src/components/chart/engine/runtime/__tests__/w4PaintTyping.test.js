@@ -189,6 +189,13 @@ describe('fill() accepts a plot id chosen by a literal ?:', () => {
     const f = built.ir.outputs.find((o) => o.call === 'fill')
     expect([f.upper, f.lower]).toEqual([2, 1])
   })
+  it('the fill choice is off at the object door (master built no such fill there)', () => {
+    const src = `${head}${PLOTS}fill(true ? p1 : p2, p3, color.new(color.red, 80))
+`
+    expect(buildRuntimeIr(src, { bars: BARS, inputs: {} }).ok).toBe(true)
+    const door = buildRuntimeIr(src, { bars: BARS, inputs: {}, objectDoor: true })
+    expect(door.ok).toBe(false)
+  })
   it('CONTROL - a series condition keeps the fill-target refusal', () => {
     expect(refusal(`${PLOTS}fill(close > 101 ? p1 : p2, p3, color.new(color.red, 80))\n`).guard).toBe('runtime:fill-target')
   })
