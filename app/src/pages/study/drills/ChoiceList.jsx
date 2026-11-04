@@ -9,6 +9,7 @@
 import { useCallback, useRef } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './drills.module.css'
+import { answerWord } from '../revealCardHelpers'
 
 export const GRID_MAX_CHARS = 12
 
@@ -16,7 +17,22 @@ export function useGridLayout(choices) {
   return choices.length >= 2 && choices.length <= 4 && choices.every((c) => String(c).length <= GRID_MAX_CHARS)
 }
 
-export default function ChoiceList({ choices, value, onChange, disabled = false, label = 'Choices', showKeys = true }) {
+/** After the verdict: the bank's answer and, when the pick missed, the pick, so the cards can show green and red. */
+/** A choice label and an answer are the same when they read the same: case, spacing and yes/true aside. */
+export function sameAnswer(a, b) {
+  if (a == null || b == null) return false
+  const norm = (v) => String(v).trim().toLowerCase().replace(/\s+/g, ' ').replace(/^true$/, 'yes').replace(/^false$/, 'no')
+  return norm(a) === norm(b)
+}
+
+export function revealLabels(reveal, state) {
+  if (!reveal) return {}
+  const right = answerWord(reveal) || null
+  const pick = state?.choice ?? null
+  return { rightLabel: right, wrongLabel: right != null && pick != null && !sameAnswer(pick, right) ? pick : null }
+}
+
+export default function ChoiceList({ choices, value, onChange, disabled = false, label = 'Choices', showKeys = true, rightLabel = null, wrongLabel = null }) {
   const grid = useGridLayout(choices)
   const refs = useRef([])
 
@@ -45,7 +61,7 @@ export default function ChoiceList({ choices, value, onChange, disabled = false,
               type="button"
               role="radio"
               aria-checked={selected}
-              className={styles.choice}
+              className={`${styles.choice} ${sameAnswer(choice, rightLabel) ? styles.choiceRight : ''} ${sameAnswer(choice, wrongLabel) ? styles.choiceWrong : ''}`}
               disabled={disabled}
               ref={(el) => { refs.current[i] = el }}
               tabIndex={selected || (value == null && i === 0) ? 0 : -1}
