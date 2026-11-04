@@ -1,5 +1,15 @@
 {
-  "base": "c87ab6d578",
-  "sha256": "0828ccc7940290d7325ecbe49624e0ba9fe65ed034f3cf45bf8ec51a2b5c49e1",
-  "cases": 2256
+  "about": "NLM-1 D1 (d): sha256 of v1 routeManifest answers (routingV1Identity.test.js), frozen from PRISTINE code per base. An entry is added only when this branch moves onto a new base, computed with routing / capability / corpus inputs identical to that base.",
+  "bases": [
+    {
+      "base": "c87ab6d578 (origin/master, pristine)",
+      "sha256": "0828ccc7940290d7325ecbe49624e0ba9fe65ed034f3cf45bf8ec51a2b5c49e1",
+      "cases": 2256
+    },
+    {
+      "base": "7be34d2dd9 (origin/agent/w2/live-train4-fixes, Track A CG-37; inputs byte-identical: git diff 7be34d2dd9 -- routing.js capabilities* builtins.js contract qa/capabilityRegression/baseline is empty)",
+      "sha256": "4979c3772137af707a8e94fe4b8bc0c0d063e6cd96fb69f9b5a6c7eee627ff43",
+      "cases": 2268
+    }
+  ]
 }
