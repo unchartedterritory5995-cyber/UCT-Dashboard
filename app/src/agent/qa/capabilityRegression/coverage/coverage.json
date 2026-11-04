@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 58,
+  "withAnyRegressionCase": 64,
   "perProtection": {
    "nl": {
-    "covered": 57,
+    "covered": 63,
     "applicable": 154
    },
    "routing": {
-    "covered": 57,
+    "covered": 63,
     "applicable": 154
    },
    "args": {
-    "covered": 57,
+    "covered": 63,
     "applicable": 154
    },
    "execution": {
-    "covered": 56,
+    "covered": 62,
     "applicable": 154
    },
    "receipt": {
-    "covered": 47,
+    "covered": 53,
     "applicable": 154
    },
    "refusal": {
@@ -34,11 +34,11 @@
     "applicable": 154
    },
    "permission": {
-    "covered": 133,
+    "covered": 135,
     "applicable": 154
    },
    "undo": {
-    "covered": 28,
+    "covered": 32,
     "applicable": 95
    },
    "multiStep": {
@@ -46,7 +46,7 @@
     "applicable": 154
    },
    "phrasings": {
-    "covered": 55,
+    "covered": 61,
     "applicable": 154
    }
   }
@@ -411,6 +411,33 @@
    "level": "a",
    "intent": "definition.search",
    "phrasing": "are there any volatility indicators"
+  },
+  {
+   "id": "CG-25",
+   "reason": "routing: 'theme' alone is a CHARTS word (chart themes); the settings words need 'app theme' or 'dark/light mode', so 'use the light theme' never sends settings.setAppTheme",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ settings.setAppTheme",
+   "level": "a",
+   "intent": "settings.appTheme",
+   "phrasing": "use the light theme"
+  },
+  {
+   "id": "CG-26",
+   "reason": "routing: a default stated as 'new charts should open on …' names no settings word (they need 'default (chart) timeframe'); routed as a chart timeframe change",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ settings.setDefaultTimeframe",
+   "level": "a",
+   "intent": "settings.defaultTimeframe",
+   "phrasing": "new charts should open on the weekly"
+  },
+  {
+   "id": "CG-27",
+   "reason": "routing: the settings word is /\b(alert )?sound\b/ — the plural 'sounds' does not match, so 'turn off alert sounds' routes [alerts] only",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ settings.setAlertSound",
+   "level": "a",
+   "intent": "settings.alertSound",
+   "phrasing": "turn off alert sounds"
   },
   {
    "id": "CG-12",
@@ -1277,26 +1304,44 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chart.applyTemplate: \"apply my Clean template\"",
+     "chart.applyTemplate: \"use the Clean template on this chart\"",
+     "chart.applyTemplate: \"switch this chart to my Clean template\"",
+     "chart.applyTemplate: \"load the Clean chart template\""
+    ],
+    "routing": [
+     "chart.applyTemplate: \"apply my Clean template\"",
+     "chart.applyTemplate: \"use the Clean template on this chart\"",
+     "chart.applyTemplate: \"switch this chart to my Clean template\"",
+     "chart.applyTemplate: \"load the Clean chart template\""
+    ],
+    "args": [
+     "corpus chart.applyTemplate"
+    ],
+    "execution": [
+     "chart.applyTemplate (c)"
+    ],
+    "receipt": [
+     "chart.applyTemplate (c)"
+    ],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "chart.applyTemplate: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -2460,26 +2505,44 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chartSetup.deleteTemplate: \"delete my Clean template\"",
+     "chartSetup.deleteTemplate: \"remove the Clean chart template\"",
+     "chartSetup.deleteTemplate: \"get rid of my Clean template\"",
+     "chartSetup.deleteTemplate: \"delete the chart template called Clean\""
+    ],
+    "routing": [
+     "chartSetup.deleteTemplate: \"delete my Clean template\"",
+     "chartSetup.deleteTemplate: \"remove the Clean chart template\"",
+     "chartSetup.deleteTemplate: \"get rid of my Clean template\"",
+     "chartSetup.deleteTemplate: \"delete the chart template called Clean\""
+    ],
+    "args": [
+     "corpus chartSetup.deleteTemplate"
+    ],
+    "execution": [
+     "chartSetup.deleteTemplate (c)"
+    ],
+    "receipt": [
+     "chartSetup.deleteTemplate (c)"
+    ],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "chartSetup.deleteTemplate: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -2574,27 +2637,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "chartSetup.saveTemplate: \"save this chart as a template called Swing\"",
+     "chartSetup.saveTemplate: \"save this chart's look as a template named Swing\"",
+     "chartSetup.saveTemplate: \"make a chart template called Swing from this chart\"",
+     "chartSetup.saveTemplate: \"save these chart settings as my Swing template\""
+    ],
+    "routing": [
+     "chartSetup.saveTemplate: \"save this chart as a template called Swing\"",
+     "chartSetup.saveTemplate: \"save this chart's look as a template named Swing\"",
+     "chartSetup.saveTemplate: \"make a chart template called Swing from this chart\"",
+     "chartSetup.saveTemplate: \"save these chart settings as my Swing template\""
+    ],
+    "args": [
+     "corpus chartSetup.saveTemplate"
+    ],
+    "execution": [
+     "chartSetup.saveTemplate (c)"
+    ],
+    "receipt": [
+     "chartSetup.saveTemplate (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "chartSetup.saveTemplate: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -5915,27 +5996,44 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "settings.alertSound: \"turn off alert sounds\"",
+     "settings.alertSound: \"mute the alert sound\"",
+     "settings.alertSound: \"no sound for alerts please\"",
+     "settings.alertSound: \"disable the alert sound\""
+    ],
+    "routing": [
+     "settings.alertSound: \"mute the alert sound\"",
+     "settings.alertSound: \"no sound for alerts please\"",
+     "settings.alertSound: \"disable the alert sound\""
+    ],
+    "args": [
+     "corpus settings.alertSound"
+    ],
+    "execution": [
+     "settings.alertSound (c)"
+    ],
+    "receipt": [
+     "settings.alertSound (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "settings.alertSound: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -5953,27 +6051,44 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "settings.appTheme: \"switch to light mode\"",
+     "settings.appTheme: \"change the app theme to light\"",
+     "settings.appTheme: \"use the light theme\"",
+     "settings.appTheme: \"turn on light mode\""
+    ],
+    "routing": [
+     "settings.appTheme: \"switch to light mode\"",
+     "settings.appTheme: \"change the app theme to light\"",
+     "settings.appTheme: \"turn on light mode\""
+    ],
+    "args": [
+     "corpus settings.appTheme"
+    ],
+    "execution": [
+     "settings.appTheme (c)"
+    ],
+    "receipt": [
+     "settings.appTheme (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "settings.appTheme: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -5991,27 +6106,44 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "settings.defaultTimeframe: \"make my default timeframe weekly\"",
+     "settings.defaultTimeframe: \"set the default chart timeframe to weekly\"",
+     "settings.defaultTimeframe: \"new charts should open on the weekly\"",
+     "settings.defaultTimeframe: \"change my default timeframe to W\""
+    ],
+    "routing": [
+     "settings.defaultTimeframe: \"make my default timeframe weekly\"",
+     "settings.defaultTimeframe: \"set the default chart timeframe to weekly\"",
+     "settings.defaultTimeframe: \"change my default timeframe to W\""
+    ],
+    "args": [
+     "corpus settings.defaultTimeframe"
+    ],
+    "execution": [
+     "settings.defaultTimeframe (c)"
+    ],
+    "receipt": [
+     "settings.defaultTimeframe (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "settings.defaultTimeframe: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

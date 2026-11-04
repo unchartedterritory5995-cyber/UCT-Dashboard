@@ -43,6 +43,9 @@ export const BOARDS = {
   // + the Indicators AUTHORING interface (the real engine, draft store and canonical Save) with the builder's model and the
   //   definitions server as stand-ins (agentIndicatorCreate.test.jsx's construction)
   AUTHOR: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'QQQ' }, { authoring: true }],
+  // + the member's PREFERENCES (host.prefs: setPref's contract — write resolves true once the server accepted it): app
+  //   settings, and a saved chart template "Clean" (black background) in chart_templates
+  PREFS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { prefs: true }],
   ONE_DEFAULT_IA: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: {} }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
   // four charts on their DEFAULT settings: every chart carries its own EMA 9 / EMA 20 (the same names, ids ovl:0 / ovl:1)
   FOUR_DEFAULT: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => ({ id, type: 'chart', x: (i % 2) * 12, y: Math.floor(i / 2) * 10, w: 12, h: 10, color: 'N', opts: {} })),
@@ -99,7 +102,7 @@ export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTa
 
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } = {}) {
   const p = setupPanel()
-  const st = { log: [], builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
+  const st = { log: [], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url); const method = init.method || 'GET'
@@ -164,6 +167,10 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
   mounted = p.mount(...spec)
   const extra = spec[2] || {}
   if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
+  if (extra.prefs) {
+    if (!('chart_templates' in st.prefs)) st.prefs.chart_templates = JSON.stringify([{ name: 'Clean', settings: { ...bareSettings(), background: '#000000' } }])
+    mounted.h.prefs = { read: () => ({ ...st.prefs }), write: async (k, v) => { st.prefs = { ...st.prefs, [k]: v }; return true } }
+  }
   if (extra.authoring) {
     try { localStorage.setItem(CREATE_INDICATOR_FLAG_KEY, '1') } catch { /* */ }
     const converse = ({ message, state }) => {

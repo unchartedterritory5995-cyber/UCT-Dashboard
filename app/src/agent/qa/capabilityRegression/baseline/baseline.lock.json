@@ -2023,6 +2023,168 @@
      "modes": {}
     }
    }
+  },
+  "settings.appTheme": {
+   "digest": "98ec7bc8d544ab5d",
+   "phrasings": {
+    "switch to light mode": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the app theme to light": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use the light theme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "→ settings.setAppTheme"
+     }
+    },
+    "turn on light mode": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "settings.defaultTimeframe": {
+   "digest": "fa189fe383953f31",
+   "phrasings": {
+    "make my default timeframe weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the default chart timeframe to weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "new charts should open on the weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "→ settings.setDefaultTimeframe"
+     }
+    },
+    "change my default timeframe to W": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "settings.alertSound": {
+   "digest": "fdcde1ada0c580e0",
+   "phrasings": {
+    "turn off alert sounds": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "→ settings.setAlertSound"
+     }
+    },
+    "mute the alert sound": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "no sound for alerts please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "disable the alert sound": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.saveTemplate": {
+   "digest": "98af66e463aead34",
+   "phrasings": {
+    "save this chart as a template called Swing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save this chart's look as a template named Swing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a chart template called Swing from this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save these chart settings as my Swing template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.applyTemplate": {
+   "digest": "a61c317e2a9bcbe0",
+   "phrasings": {
+    "apply my Clean template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use the Clean template on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch this chart to my Clean template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "load the Clean chart template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.deleteTemplate": {
+   "digest": "a857df85bc9a7a6a",
+   "phrasings": {
+    "delete my Clean template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Clean chart template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of my Clean template": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the chart template called Clean": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

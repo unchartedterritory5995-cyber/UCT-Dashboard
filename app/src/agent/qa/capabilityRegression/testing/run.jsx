@@ -107,6 +107,12 @@ export function checkExpect(ctx, e, label) {
     if (e.customIndicators.saved != null) expect(ctx.st.defs.size, `${label}: definitions saved`).toBe(e.customIndicators.saved)
     if (e.customIndicators.placement) expect(mine.length && [...ctx.st.defs.values()].some(d => d.definition?.placement?.target === e.customIndicators.placement), `${label}: saved with placement ${e.customIndicators.placement}`).toBe(true)
   }
+  if (e.prefs) for (const [k, v] of Object.entries(e.prefs)) expect(ctx.st.prefs[k], `${label}: preference ${k}`).toEqual(v)
+  if (e.templates) {
+    const names = (() => { try { return JSON.parse(ctx.st.prefs.chart_templates || '[]').map(t => t.name) } catch { return [] } })()
+    for (const n of e.templates.include || []) expect(names, `${label}: a chart template ${n}`).toContain(n)
+    for (const n of e.templates.exclude || []) expect(names, `${label}: no chart template ${n}`).not.toContain(n)
+  }
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)

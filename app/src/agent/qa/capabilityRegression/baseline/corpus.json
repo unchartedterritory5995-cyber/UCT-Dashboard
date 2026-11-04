@@ -4261,6 +4261,363 @@
         "create a custom indicator: (EMA 9 minus EMA 20) divided by EMA 20 times 100, in a separate pane",
         "make me a new indicator plotting the percentage difference between the 9 and 20 EMA in a separate pane"
       ]
+    },
+    {
+      "id": "settings.appTheme",
+      "source": "Batch D7 (11-04): app settings through the member's preference writer (host.prefs)",
+      "capabilities": [
+        "settings.setAppTheme"
+      ],
+      "board": "PREFS",
+      "needs": [
+        "settings.setAppTheme"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "settings.setAppTheme",
+            "args": {
+              "theme": "light"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "settings.setAppTheme",
+            "target": "$settings",
+            "args": {
+              "theme": "light"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "theme": "light"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "theme": "dark"
+          }
+        }
+      },
+      "phrasings": [
+        "switch to light mode",
+        "change the app theme to light",
+        {
+          "text": "use the light theme",
+          "gaps": {
+            "a": {
+              "id": "CG-25",
+              "reason": "routing: 'theme' alone is a CHARTS word (chart themes); the settings words need 'app theme' or 'dark/light mode', so 'use the light theme' never sends settings.setAppTheme",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ settings.setAppTheme"
+            }
+          }
+        },
+        "turn on light mode"
+      ]
+    },
+    {
+      "id": "settings.defaultTimeframe",
+      "source": "Batch D7 (11-04): app settings through the member's preference writer (host.prefs)",
+      "capabilities": [
+        "settings.setDefaultTimeframe"
+      ],
+      "board": "PREFS",
+      "needs": [
+        "settings.setDefaultTimeframe"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "settings.setDefaultTimeframe",
+            "args": {
+              "timeframe": "W"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "settings.setDefaultTimeframe",
+            "target": "$settings",
+            "args": {
+              "timeframe": "W"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "default_chart_tf": "W"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "default_chart_tf": "D"
+          }
+        }
+      },
+      "phrasings": [
+        "make my default timeframe weekly",
+        "set the default chart timeframe to weekly",
+        {
+          "text": "new charts should open on the weekly",
+          "gaps": {
+            "a": {
+              "id": "CG-26",
+              "reason": "routing: a default stated as 'new charts should open on …' names no settings word (they need 'default (chart) timeframe'); routed as a chart timeframe change",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ settings.setDefaultTimeframe"
+            }
+          }
+        },
+        "change my default timeframe to W"
+      ]
+    },
+    {
+      "id": "settings.alertSound",
+      "source": "Batch D7 (11-04): app settings through the member's preference writer (host.prefs)",
+      "capabilities": [
+        "settings.setAlertSound"
+      ],
+      "board": "PREFS",
+      "needs": [
+        "settings.setAlertSound"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "settings.setAlertSound",
+            "args": {
+              "enabled": false
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "settings.setAlertSound",
+            "target": "$settings",
+            "args": {
+              "enabled": false,
+              "sound": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "alert_sound": "off"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "alert_sound": "on"
+          }
+        }
+      },
+      "phrasings": [
+        {
+          "text": "turn off alert sounds",
+          "gaps": {
+            "a": {
+              "id": "CG-27",
+              "reason": "routing: the settings word is /\b(alert )?sound\b/ — the plural 'sounds' does not match, so 'turn off alert sounds' routes [alerts] only",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ settings.setAlertSound"
+            }
+          }
+        },
+        "mute the alert sound",
+        "no sound for alerts please",
+        "disable the alert sound"
+      ]
+    },
+    {
+      "id": "chartSetup.saveTemplate",
+      "source": "Batch D8 (11-04): chart templates (prefs.chart_templates): save, apply, delete",
+      "capabilities": [
+        "chartSetup.saveTemplate"
+      ],
+      "board": "PREFS",
+      "needs": [
+        "chartSetup.saveTemplate"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartSetup.saveTemplate",
+            "args": {
+              "name": "Swing"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.saveTemplate",
+            "target": "$chartTemplateLibrary",
+            "args": {
+              "name": "Swing",
+              "chart": "$ctx:charts.0.ref"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "templates": {
+          "include": [
+            "Swing",
+            "Clean"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "templates": {
+            "include": [
+              "Clean"
+            ],
+            "exclude": [
+              "Swing"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "save this chart as a template called Swing",
+        "save this chart's look as a template named Swing",
+        "make a chart template called Swing from this chart",
+        "save these chart settings as my Swing template"
+      ]
+    },
+    {
+      "id": "chart.applyTemplate",
+      "source": "Batch D8 (11-04): chart templates (prefs.chart_templates): save, apply, delete",
+      "capabilities": [
+        "chart.applyTemplate"
+      ],
+      "board": "PREFS",
+      "needs": [
+        "chart.applyTemplate"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.applyTemplate",
+            "args": {
+              "template": "Clean"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.applyTemplate",
+            "target": "$charts[0]",
+            "args": {
+              "template": "Clean"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "setting": {
+          "key": "background",
+          "value": "#000000"
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "apply my Clean template",
+        "use the Clean template on this chart",
+        "switch this chart to my Clean template",
+        "load the Clean chart template"
+      ]
+    },
+    {
+      "id": "chartSetup.deleteTemplate",
+      "source": "Batch D8 (11-04): chart templates (prefs.chart_templates): save, apply, delete",
+      "capabilities": [
+        "chartSetup.deleteTemplate"
+      ],
+      "board": "PREFS",
+      "needs": [
+        "chartSetup.deleteTemplate"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartSetup.deleteTemplate",
+            "args": {
+              "name": "Clean"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.deleteTemplate",
+            "target": "$chartTemplateLibrary",
+            "args": {
+              "name": "Clean"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "templates": {
+          "include": [
+            "Clean"
+          ]
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "templates": {
+          "exclude": [
+            "Clean"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "delete my Clean template",
+        "remove the Clean chart template",
+        "get rid of my Clean template",
+        "delete the chart template called Clean"
+      ]
     }
   ],
   "refusals": [

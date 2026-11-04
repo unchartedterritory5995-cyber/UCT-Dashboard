@@ -32,11 +32,6 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "chart.applyTemplate": {
-   "owner": "agent-qa (capreg) — group charts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "chart.applyThemeAll": {
    "owner": "agent-qa (capreg) — group charts",
    "since": "2026-11-04",
@@ -82,22 +77,12 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "chartSetup.deleteTemplate": {
-   "owner": "agent-qa (capreg) — group chartSetup",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "chartSetup.favoriteTimeframe": {
    "owner": "agent-qa (capreg) — group chartSetup",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
   "chartSetup.removeTimeframe": {
-   "owner": "agent-qa (capreg) — group chartSetup",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "chartSetup.saveTemplate": {
    "owner": "agent-qa (capreg) — group chartSetup",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
@@ -354,21 +339,6 @@
   },
   "screener.state": {
    "owner": "agent-qa (capreg) — group screener",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "settings.setAlertSound": {
-   "owner": "agent-qa (capreg) — group settings",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "settings.setAppTheme": {
-   "owner": "agent-qa (capreg) — group settings",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "settings.setDefaultTimeframe": {
-   "owner": "agent-qa (capreg) — group settings",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
