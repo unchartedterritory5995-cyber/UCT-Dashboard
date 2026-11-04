@@ -12,7 +12,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import { registerBuiltins } from './builtins'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
-import { touchesCharts, arrangesBoard, asSubjectWords, isShortAnswer } from './useAgent'
+import { touchesCharts, arrangesBoard, asSubjectWords, isShortAnswer, isNewRequest } from './useAgent'
 import { AuthContext } from '../context/AuthContext'
 import { selectGroups, routeManifest, wordsSelect } from './routing'
 import { fastParse } from './fastPath'
@@ -880,7 +880,7 @@ describe('nl-gaps-5 · LT-5 / LT-6: a new request typed while a question is open
     await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
     envelopes.push(env('answer', [], 'ok'))
     await say('the close')
-    expect(turnBodies()[1].context.conversation_memory?.question_set_aside).toBeUndefined()
+    expect(turnBodies()[1]?.context?.conversation_memory?.question_set_aside).toBeUndefined()   // (the instant path may read it — then no model turn at all)
     expect(screen.queryAllByTestId('agent-question')[0].querySelectorAll('button').length).toBe(4)
   }, 30000)
   it('a LOCAL "which chart?" question is set aside by a new request — the held plan never runs, the new one does', async () => {
@@ -924,5 +924,40 @@ describe('nl-gaps-5 · CG-29..36 (#774 21ec4fb410)', () => {
     expect(wordsSelect('breadth', 'how are the moving averages looking for the market')).toBe(true)
     expect(wordsSelect('indicators', 'how are the moving averages looking for the market')).toBe(false)
     expect(wordsSelect('indicators', 'add the 50 day moving average')).toBe(true)
+  })
+})
+
+describe('review gaps-5 · a reply sets the question aside ONLY when it is a complete request of its own', () => {
+  const octQ = { text: 'Which October low do you mean — Oct 10 or Oct 24?', choices: [{ label: 'Oct 10' }, { label: 'Oct 24' }] }
+  const chartQ = { text: 'Which chart?', choices: [{ label: 'Left chart (SPY)' }, { label: 'Right chart (TSLA)' }] }
+  const maQ = { text: 'Which average — the 20 day or the 50 day?', choices: [{ label: '20 day' }, { label: '50 day' }] }
+  it('answers (never set aside): positions, symbols, timeframes, lengths, "instead / go with", a bare word', () => {
+    expect(isNewRequest('the one on the left please, thanks a lot', chartQ)).toBe(false)
+    expect(isNewRequest('make it the daily one', chartQ)).toBe(false)
+    expect(isNewRequest('the left one, the SPY chart, not the TSLA one', chartQ)).toBe(false)
+    expect(isNewRequest('go with the 20 day instead of the 50 please', maQ)).toBe(false)
+    expect(isNewRequest('close', { text: 'Anchor at which price?', choices: [] })).toBe(false)
+    expect(isNewRequest('the close', { text: 'Anchor at which price — open, close, high or low?', choices: [] })).toBe(false)
+  })
+  it('new requests (set aside): an action with its own object the question never named', () => {
+    expect(isNewRequest('trendline nvda 2031-01-01 to today', octQ)).toBe(true)
+    expect(isNewRequest('trendline on nvda from 2031-01-01 to today', octQ)).toBe(true)
+    expect(isNewRequest('add a QQQ chart', chartQ)).toBe(true)
+    expect(isNewRequest('add the RSI to my chart', { text: 'Which part should look cleaner?', choices: [{ label: 'The left chart' }, { label: 'The whole board' }] })).toBe(true)
+  })
+  it('panel: "make it the daily one" answers the open question — never set aside, the original request carried', async () => {
+    const { say } = mount(...TWO())
+    envelopes.push(() => ({ ...env('clarify', [], ''), question: { text: 'Which chart should switch?', choices: [{ label: 'Chart c1' }, { label: 'Chart c2' }] } }))
+    await say('switch one of my charts over please')
+    await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
+    envelopes.push(env('answer', [], 'ok'))
+    await say('make it the daily one')
+    expect(turnBodies()[1]?.context?.conversation_memory?.question_set_aside).toBeUndefined()   // (the instant path may read it — then no model turn at all)
+    expect(screen.queryAllByTestId('agent-question')[0].textContent).not.toMatch(/Withdrawn/)
+  }, 30000)
+  it('the market-averages trigger never takes ONE symbol\'s averages', () => {
+    for (const m of ['moving average on the SPY chart', 'what are the moving averages on SPY', 'show the 50 day moving average of SPY'])
+      expect(wordsSelect('breadth', m), m).toBe(false)
+    expect(wordsSelect('breadth', 'averages for the S&P')).toBe(true)
   })
 })

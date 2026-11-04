@@ -233,7 +233,9 @@ export const GROUPS = [
     // above their averages); UCT's data group has no moving-average reading for an index (stock.dailyBars: closes, ranges,
     // off-high, pullbacks), so breadth is the canonical capability (breadth.show; the US universe stands for the S&P)
     words: [/^(?!.*\b(open|go to|take me to|navigate to|bring up|pull up|switch to)\b.*\bbreadth\b.*\b(page|monitor|dashboard|tab|screen)\b).*\bbreadth\b/,
-      /\b(?:moving )?averages?\b.*\b(?:for|on|of|across|in) (?:the )?(?:s ?& ?p|s and p|spx|spy|market|nasdaq|nyse|us market)\b/,
+      // review gaps-5 (2): never ONE symbol's averages ("the 50 day moving average of SPY", "…on the SPY chart"): no SPY, no "on",
+      // no chart, no add / put / show
+      /^(?!.*\b(?:charts?|add|put|show|plot|draw)\b).*\b(?:moving )?averages?\b.*\b(?:for|of|across|in) (?:the )?(?:s ?& ?p|s and p|spx|market|nasdaq|nyse|us market)\b/,
       /\b(percent|pct|share|portion|how many|what %|what percent)\b.*\b(above|below|over|under)\b.*\b\d+[- ]?(day|d|dma|sma|ema|week)\b/,
       /% (of )?(all )?(us |nyse |nasdaq |uct )?(stocks|names|issues)\b/,
       /\b(us|nyse|nasdaq|uct) (stocks|names|issues) (are |were )?above\b/,

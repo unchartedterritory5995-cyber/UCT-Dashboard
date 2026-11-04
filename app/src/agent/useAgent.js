@@ -272,6 +272,32 @@ export function isShortAnswer(text, choices = [], answering = false) {
   if ((choices || []).some(c => c?.label && t.includes(String(c.label).toLowerCase()))) return true
   return t.split(/\s+/).length <= 6 && !ANSWER_VERB.test(t)
 }
+// review gaps-5 (1): a message SETS ASIDE the open question only when it reads as a complete request of its OWN — an action
+// verb or a tool / indicator noun, WITH its own object (a ticker, a date, a level, an indicator, a widget) — that names
+// nothing the question offered or asked about. Anything that picks among the choices or the question's subject (a
+// position, a symbol, a timeframe, a length, "instead / rather / go with / use / not the …") ANSWERS it. When unclear: an answer.
+const REQUEST_VERB = /\b(?:add|remove|delete|open|draw|put|create|show|hide|move|alert|save|run|find|scan|swap|rename|sort|copy|duplicate|plot|load|apply|set up|build)\b/i
+const REQUEST_NOUN = /\b(?:trend ?lines?|avwap|anchored vwap|fib\w*|rays?|rectangles?|alerts?|watch ?lists?|screens?|scans?|layouts?|widgets?|rsi|macd|vwap|bollinger|ema|sma)\b/i
+const ANSWER_WORDS = /\b(?:instead|rather|go with|use|the (?:\w+ )?one|not the|left|right|top|bottom|middle|first|second|third|last|other|daily|weekly|monthly|hourly|intraday|\d+[- ]?(?:day|min|minute|hour|week)s?)\b/i
+const DATE_OR_LEVEL = /\b\d{4}-\d{2}-\d{2}\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]* \d{1,2}\b|\$\d|\b\d{2,5}(?:\.\d+)?\b/i
+const sigTokens = (s) => new Set((String(s || '').toLowerCase().match(/[a-z0-9$.-]+/g) || [])
+  .filter(w => w.length > 1 && !/^(?:the|a|an|my|on|in|to|of|for|and|or|chart|charts|one|this|that|it|do|you|mean|which|what|from|at|with|please)$/.test(w)))
+export function isNewRequest(text, question = null) {
+  const t = String(text || '').trim()
+  if (!t) return false
+  const raw = t.replace(/[.,!?]+/g, ' ')
+  const tickers = (raw.match(/(?:^|\s)\$?([A-Z]{1,5})(?=\s|$)/g) || []).map(w => w.trim().replace('$', ''))
+    .filter(w => !['I', 'A', 'UCT', 'OK'].includes(w))
+  const lowerTicker = /\b(?:nvda|tsla|aapl|amd|msft|amzn|meta|goog|googl|spy|qqq|iwm|nflx|avgo|mu|smci|pltr)\b/i.test(raw)
+  const action = REQUEST_VERB.test(raw) || REQUEST_NOUN.test(raw)
+  const object = tickers.length > 0 || lowerTicker || DATE_OR_LEVEL.test(raw) || REQUEST_NOUN.test(raw)
+  if (!action || !object) return false
+  if (ANSWER_WORDS.test(raw)) return false
+  // anything it names that the question offered or asked about → it is answering
+  const asked = sigTokens([question?.text || '', ...((question?.choices || []).map(c => c?.label || ''))].join(' '))
+  for (const w of sigTokens(raw)) if (asked.has(w)) return false
+  return true
+}
 // the groups a question is ABOUT: those its request's own words named (never the always-on / budget fill)
 const questionGroups = (words) => ROUTE_GROUPS.filter(g => !g.always && wordsSelect(g.id, words)).map(g => g.id)
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
@@ -1644,14 +1670,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     saidRef.current = text
     const askedFor0 = askedForRef.current
     // review #771 delta H1/L3: this message ANSWERS the model's open question (a choice, or a short reply) — else it is routed fresh
-    const carryAsked = !!askedFor0 && isShortAnswer(text, lastQuestionRef.current?.choices || [], answering)
+    // review gaps-5: an unclear reply is an ANSWER — it keeps carrying the original request (only a set-aside one is fresh)
+    const carryAsked = !!askedFor0 && (answering || !isNewRequest(text, lastQuestionRef.current))
     // ⭐ LT-5 / LT-6 (live 2026-11-03: "trendline on nvda from 2031-01-01 to today" typed while UCT still waited on its
     // October-lows question was answered ABOUT October): a message that is not an answer to the open question is a NEW
     // request. The question is WITHDRAWN (its choices go), nothing of it is carried (words, groups, a held plan), and the
     // model is told it was set aside — never merged into the new request.
     const qOpen = lastQuestionRef.current
     const localOpen = pendingRef.current?.kind === 'target'
-    const setAside = !answering && (!!askedFor0 || localOpen) && !isShortAnswer(text, qOpen?.choices || [], false)
+    const setAside = !answering && (!!askedFor0 || localOpen) && isNewRequest(text, qOpen)
     const askedFor = setAside ? null : askedFor0
     askedForRef.current = null
     if (setAside) {
