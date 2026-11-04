@@ -110,15 +110,36 @@ def classify_template(origin_trader: Optional[str], name: Optional[str] = None) 
             "reason": "third-party methodology is not approved team-owned content"}
 
 
+#: Calculation-date integrity (owner: never an export / import / sync timestamp as a calculation date). A record
+#: source's figures are served only with a date its PRODUCER writes when it computes them, named per source in
+#: policy.json (`calc_date_field`) together with the evidence for that claim (`calc_date_attestation`). A field whose
+#: name says it is a transport stamp is never accepted, whatever the policy says.
+_TRANSPORT_STAMP = re.compile(r"(^|_)(import|imported|export|exported|sync|synced|copied|copy|loaded|load|install|"
+                              r"installed|pack|uploaded|upload|mtime|fetched|ingested)(_|$)", re.I)
+_FIELD = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
+
+
+def calc_date_field(key: str) -> Optional[str]:
+    """The attested calculation-date column of a record source, or None (its figures are then withheld)."""
+    row = (load().get("records") or {}).get(key)
+    if not isinstance(row, dict):
+        return None
+    f = str(row.get("calc_date_field") or "").strip()
+    if not _FIELD.match(f) or _TRANSPORT_STAMP.search(f) or not str(row.get("calc_date_attestation") or "").strip():
+        return None
+    return f
+
+
 def classify_record(key: str) -> dict:
     """A setup-record source (team_archive, setup_performance, trigger_performance). Default-deny."""
     row = (load().get("records") or {}).get(key)
     if isinstance(row, dict) and row.get("admit") == "conditional":
         return {"state": "conditional", "licence": row.get("licence") or "unresolved", "label": row.get("label") or key,
-                "reason": "", "methodology_id": row.get("methodology_id"), "methodology": row.get("methodology")}
+                "reason": "", "methodology_id": row.get("methodology_id"), "methodology": row.get("methodology"),
+                "calc_date_field": calc_date_field(key)}
     if isinstance(row, dict) and row.get("admit") is True:
         return {"state": "admitted", "licence": row.get("licence") or "unresolved", "label": row.get("label") or key,
-                "reason": ""}
+                "reason": "", "calc_date_field": calc_date_field(key)}
     if isinstance(row, dict):
         return {"state": "pending", "licence": row.get("licence") or "unresolved", "label": row.get("label") or key,
                 "reason": row.get("pending") or "not approved"}
