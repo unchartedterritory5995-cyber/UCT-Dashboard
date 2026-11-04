@@ -31,7 +31,11 @@ const GRAMMAR = new Set([...ALWAYS_GRAMMAR, ...('a an get got give show tell tra
 const NOT_A_TICKER = new Set(('line lines places place left charts chart level levels drawing drawings top bottom middle side sides '
   + 'board widget widgets panel panels screen screens layout layouts window windows grid label labels colour color colors colours '
   + 'average averages one ones each every other those these them that this thing things alert alerts tab tabs pane panes '
-  + 'indicator indicators study studies box boxes ray rays fib trendline trendlines arrow arrows note notes').split(/\s+/))
+  + 'indicator indicators study studies box boxes ray rays fib trendline trendlines arrow arrows note notes '
+  // CG-23 (corpus #774): a chart's look — "make the up candles blue and the down candles orange"
+  + 'candle candles bar bars wick wicks body bodies background theme blue orange red green yellow purple pink white black '
+  + 'gray grey brown teal cyan magenta make set turn paint colour color recolor recolour add remove draw hide '
+  + 'thick thin dashed dotted solid bold').split(/\s+/))
 
 // intent words only (never a symbol): the parser's own fixed typo list (MD-1-phrasings §1.6)
 const TYPOS = { wats: "what's", whats: "what's", wat: 'what', tradin: 'trading', tradeing: 'trading', pirce: 'price',

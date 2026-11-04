@@ -791,3 +791,15 @@ describe('review #771 delta · a clarify carries ONLY its own groups, only into 
     expect(isShortAnswer('anything at all', [], true)).toBe(true)
   })
 })
+
+describe('CG-23/24 · corpus gaps (#774)', () => {
+  it('CG-23: a chart\'s look ("make the up candles blue and the down candles orange") is never a quote', () => {
+    for (const t of ['make the up candles blue and the down candles orange', 'blue up candles, orange down candles', 'Make the up candles blue and the down candles orange.'])
+      expect(parsePriceSentence(t), t).toBeNull()
+    expect(parsePriceSentence('nvda up today')?.candidates?.map(c => c.text)).toEqual(['nvda'])
+  })
+  it('CG-24: "are there any volatility indicators" routes the definitions search', () => {
+    expect(wordsSelect('definitions', 'are there any volatility indicators')).toBe(true)
+    expect(wordsSelect('definitions', 'which momentum indicators do you have')).toBe(true)
+  })
+})
