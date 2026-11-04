@@ -1,9 +1,9 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 00:20 CT
+updated: 2026-11-04 00:25 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
-free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 8 after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
+free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
 baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
 poll on ops/pine-coord: ARMED (15 min). Read 063fe2ba8e (KEEP BUILDING, pause cancelled for the desktop) at 23:55 CT: acknowledged; nothing was paused here. After the queue, the desktop picks further W4/W5 work whose dependencies are met, per that note.
@@ -35,7 +35,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
-- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3, pine-dsk-w5t6, pine-dsk-w4t0, pine-dsk-w2 (created by builders); pine-dsk-mpbase2 (second measure-pair base, created by this session)
+- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3, pine-dsk-w5t6, pine-dsk-w4t0, pine-dsk-w2, pine-dsk-w4t14 (created by builders); pine-dsk-mpbase2 (second measure-pair base, created by this session)
 
 ### Queue (in order, as builder slots free; cap 6 at >=8 GB)
 Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to unblock merges and engine numbering first, short lanes first:
@@ -136,3 +136,10 @@ next: run docs/pine/evidence/2026-11-03-w0-peel/job.sh with desktop paths (lane 
 state: BUILDING   round: r3   updated: 2026-11-03 23:55 CT
 branch: feat/pine-w2-arming   start tip: 1a8dddb408   worktree: pine-dsk-w2   model: Sonnet
 next: per round2/WIP-STATE.md + round3-job.sh: classify P11, edit the packet, READY. NEVER arm or touch flags; any flag/Railway step is skipped and reported.
+
+## W4-T14 (picked per coord note 063fe2ba8e: dependencies met)
+state: BUILDING   round: r0   updated: 2026-11-04 00:25 CT
+branch: feat/pine-w4-t14   base: origin/master   worktree: pine-dsk-w4t14   model: Sonnet
+why this one: Batch 3, no dependency (T9 waits on T2 merge, T8 on T7, T10 on T1, T15 on T0's re-count). Region FE :7810-8040, :8218-8225 overlaps no in-flight lane.
+engine bump needed: decided at READY
+next: built-in Volatility Stop per W4-BREAKDOWN T14; measure-pair on pine-dsk-mpbase2 (mp2 lane), final-tip on lane 2
