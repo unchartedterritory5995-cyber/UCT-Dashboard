@@ -1,8 +1,9 @@
 {
  "about": "capreg baseline lock — tests/test_uct_agent_capreg_baseline.py --update",
+ "format": 2,
  "intents": {
   "grid.four.named": {
-   "digest": "6b4f12a21d6e3e2e",
+   "digest": "de8117020a53c149",
    "phrasings": {
     "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.": {
      "digest": "dcd51037b21b1b84",
@@ -51,7 +52,7 @@
    }
   },
   "grid.four.named.daily": {
-   "digest": "570c8d00eb526663",
+   "digest": "b9b3ead7445e6a45",
    "phrasings": {
     "Create four charts in a 2×2 grid: SPY, QQQ, NVDA, and TSLA, all on the daily timeframe.": {
      "digest": "44136fa355b3678a",
@@ -72,7 +73,7 @@
    }
   },
   "grid.four.unnamed": {
-   "digest": "fc84346ffa1c4c59",
+   "digest": "3db5d430dd43557d",
    "phrasings": {
     "Put four charts on my screen.": {
      "digest": "44136fa355b3678a",
@@ -116,7 +117,7 @@
    }
   },
   "undo.last": {
-   "digest": "a2b8367138a2b613",
+   "digest": "60fb98a76693bb26",
    "phrasings": {
     "undo": {
      "digest": "dcd51037b21b1b84",
@@ -169,7 +170,7 @@
    }
   },
   "compound.change-then-undo": {
-   "digest": "a0a7ef1f14fb5078",
+   "digest": "957c23ec53a4f0fd",
    "phrasings": {
     "Change the NVDA chart to the weekly timeframe, then undo that change.": {
      "digest": "dcd51037b21b1b84",
@@ -194,7 +195,7 @@
    }
   },
   "timeframe.weekly": {
-   "digest": "c77083f7b2d07138",
+   "digest": "3a717fc2cb63f0f2",
    "phrasings": {
     "switch to weekly": {
      "digest": "dcd51037b21b1b84",
@@ -235,7 +236,7 @@
    }
   },
   "timeframe.5m": {
-   "digest": "d23aa50411ff48a2",
+   "digest": "4a2c30e0b4e2bcd4",
    "phrasings": {
     "5 minute chart": {
      "digest": "44136fa355b3678a",
@@ -260,7 +261,7 @@
    }
   },
   "indicator.ema-9-20": {
-   "digest": "ed2c115fc7cf1b0d",
+   "digest": "b5d19272e2d4c9d9",
    "phrasings": {
     "add the 9 and 20 EMAs": {
      "digest": "dcd51037b21b1b84",
@@ -297,7 +298,7 @@
    }
   },
   "indicator.rsi": {
-   "digest": "96af8dde0d1e5c1e",
+   "digest": "384e51352bcfbec1",
    "phrasings": {
     "add rsi": {
      "digest": "dcd51037b21b1b84",
@@ -324,7 +325,7 @@
    }
   },
   "alert.price-above": {
-   "digest": "8ea89b7a1e084640",
+   "digest": "b38c025f565eca23",
    "phrasings": {
     "alert me if nvda goes above 150": {
      "digest": "44136fa355b3678a",
@@ -353,7 +354,7 @@
    }
   },
   "describe.setup": {
-   "digest": "2d5fbb8deb9dbdd1",
+   "digest": "dcc7a12e4dd34d58",
    "phrasings": {
     "describe the setup on nvda": {
      "digest": "44136fa355b3678a",
@@ -384,7 +385,7 @@
    }
   },
   "breadth.now": {
-   "digest": "3a373ac3d79ffaf1",
+   "digest": "9663ca0d9af17781",
    "phrasings": {
     "what's the breadth like": {
      "digest": "dcd51037b21b1b84",
@@ -417,7 +418,7 @@
    }
   },
   "earnings.date": {
-   "digest": "720ba04b994a3438",
+   "digest": "f011a8fc0269d264",
    "phrasings": {
     "when does nvda report earnings": {
      "digest": "44136fa355b3678a",
@@ -446,7 +447,7 @@
    }
   },
   "screener.adr": {
-   "digest": "f74fba7afb297ee3",
+   "digest": "e82d3717c1cc8063",
    "phrasings": {
     "find stocks with ADR above 5%": {
      "digest": "44136fa355b3678a",
@@ -471,7 +472,7 @@
    }
   },
   "news.latest": {
-   "digest": "1ca4014fbbd2e213",
+   "digest": "f468030581c0b97d",
    "phrasings": {
     "any news on tsla": {
      "digest": "44136fa355b3678a",
@@ -496,7 +497,7 @@
    }
   },
   "symbol.switch": {
-   "digest": "462e59dc3e9ee848",
+   "digest": "deea547336f29de4",
    "phrasings": {
     "switch to AMD": {
      "digest": "dcd51037b21b1b84",
@@ -525,7 +526,7 @@
    }
   },
   "charttype.line": {
-   "digest": "1b4fedec93e8f5b7",
+   "digest": "e50ac96b761d1507",
    "phrasings": {
     "make it a line chart": {
      "digest": "dcd51037b21b1b84",
@@ -550,7 +551,7 @@
    }
   },
   "stock.pullbacks": {
-   "digest": "90d874cc5a991b62",
+   "digest": "39932a4b33fcdf1b",
    "phrasings": {
     "show me NVDA's recent pullbacks": {
      "digest": "44136fa355b3678a",
@@ -579,7 +580,7 @@
    }
   },
   "stock.offHigh": {
-   "digest": "03908e607c61dcf3",
+   "digest": "d32adecbc7162748",
    "phrasings": {
     "how far off its high is NVDA": {
      "digest": "44136fa355b3678a",
@@ -598,7 +599,7 @@
    }
   },
   "undo.named-after-grid": {
-   "digest": "97b198c1b2be24ab",
+   "digest": "64a10e4b7a960006",
    "phrasings": {
     "undo the last change you made to my charts": {
      "digest": "44136fa355b3678a",
@@ -624,7 +625,7 @@
    }
   },
   "scale.log": {
-   "digest": "0ac3de114d2bd155",
+   "digest": "9d867a9d72385d6e",
    "phrasings": {
     "log scale": {
      "digest": "44136fa355b3678a",
@@ -649,7 +650,7 @@
    }
   },
   "session.extended": {
-   "digest": "857c354da1b54c05",
+   "digest": "56d8596b5cf8437b",
    "phrasings": {
     "show extended hours": {
      "digest": "44136fa355b3678a",
@@ -670,7 +671,7 @@
    }
   },
   "compare.amd": {
-   "digest": "d56705c2b60423c5",
+   "digest": "02700040bcc6fa75",
    "phrasings": {
     "compare with AMD": {
      "digest": "44136fa355b3678a",
@@ -691,7 +692,7 @@
    }
   },
   "widget.news": {
-   "digest": "e61c11b0be44a1d1",
+   "digest": "3ed95be08c5b166b",
    "phrasings": {
     "add a news widget": {
      "digest": "44136fa355b3678a",
@@ -712,7 +713,7 @@
    }
   },
   "indicator.remove-sma200": {
-   "digest": "52a990c3ee4d430e",
+   "digest": "a5630e89df945088",
    "phrasings": {
     "remove the 200 sma": {
      "digest": "44136fa355b3678a",
@@ -737,7 +738,7 @@
    }
   },
   "indicator.update-period": {
-   "digest": "3da8536a43dc6378",
+   "digest": "7d2aaa21f29eff78",
    "phrasings": {
     "change the 9 ema to a 10": {
      "digest": "44136fa355b3678a",
@@ -762,7 +763,7 @@
    }
   },
   "indicator.hide": {
-   "digest": "55280c218c3ca4db",
+   "digest": "901ffe2e020d4f7c",
    "phrasings": {
     "hide the 50 sma": {
      "digest": "44136fa355b3678a",
@@ -783,7 +784,7 @@
    }
   },
   "indicator.show": {
-   "digest": "0f9392f0fc7254d4",
+   "digest": "4fb38b4f5776918d",
    "phrasings": {
     "show the 50 sma again": {
      "digest": "44136fa355b3678a",
@@ -807,7 +808,7 @@
    }
   },
   "indicatorStyle.colour": {
-   "digest": "3295b34ace124d8f",
+   "digest": "681edda52b7f1865",
    "phrasings": {
     "make the 9 ema red": {
      "digest": "44136fa355b3678a",
@@ -832,7 +833,7 @@
    }
   },
   "alert.list": {
-   "digest": "aec3a7a56dcf6a52",
+   "digest": "5fd65180f0dc44af",
    "phrasings": {
     "show my alerts": {
      "digest": "44136fa355b3678a",
@@ -857,7 +858,7 @@
    }
   },
   "alert.delete": {
-   "digest": "67cb1507877b1f87",
+   "digest": "7930c3f9fd7a8ceb",
    "phrasings": {
     "delete my NVDA alert": {
      "digest": "44136fa355b3678a",
@@ -878,7 +879,7 @@
    }
   },
   "stock.quote": {
-   "digest": "73550106c12fdb26",
+   "digest": "7e39b72ca0720fb9",
    "phrasings": {
     "whats nvda at": {
      "digest": "44136fa355b3678a",
@@ -905,7 +906,7 @@
    }
   },
   "stock.profile": {
-   "digest": "e995f5beb0c62661",
+   "digest": "8a4023998cca856c",
    "phrasings": {
     "give me a quick profile on TSM": {
      "digest": "44136fa355b3678a",
@@ -928,7 +929,7 @@
    }
   },
   "stock.compare": {
-   "digest": "962a0d7c4e14e03b",
+   "digest": "7f38e6ad88a8e698",
    "phrasings": {
     "compare NVDA and AMD fundamentals": {
      "digest": "44136fa355b3678a",
@@ -951,7 +952,7 @@
    }
   },
   "news.catalysts": {
-   "digest": "806a5464708274db",
+   "digest": "021c6ce306aa4766",
    "phrasings": {
     "what are the catalysts for NVDA": {
      "digest": "44136fa355b3678a",
@@ -972,7 +973,7 @@
    }
   },
   "widget.remove": {
-   "digest": "30a0f48c44fca4ba",
+   "digest": "144569ec5b57726b",
    "phrasings": {
     "close the right chart": {
      "digest": "44136fa355b3678a",
@@ -999,7 +1000,7 @@
    }
   },
   "screener.runSaved": {
-   "digest": "fc1a17124e7c8c4e",
+   "digest": "7d1e4352ae242d74",
    "phrasings": {
     "run my Momentum Screen": {
      "digest": "44136fa355b3678a",
@@ -1020,7 +1021,7 @@
    }
   },
   "breadth.history.nhnl": {
-   "digest": "aaf39c1c212e65d6",
+   "digest": "4483d516d04490da",
    "phrasings": {
     "when did nh/nl last go negative": {
      "digest": "44136fa355b3678a",
@@ -1041,7 +1042,7 @@
    }
   },
   "layout.open": {
-   "digest": "b0249ca6647841eb",
+   "digest": "f8a03ebcaa431644",
    "phrasings": {
     "open my Momentum layout": {
      "digest": "44136fa355b3678a",
@@ -1066,7 +1067,7 @@
    }
   },
   "layout.saveAs": {
-   "digest": "9278d4007074d629",
+   "digest": "a99f4968f1911077",
    "phrasings": {
     "save this layout as Swing 2": {
      "digest": "44136fa355b3678a",
@@ -1087,7 +1088,7 @@
    }
   },
   "watchlist.add": {
-   "digest": "36b44e8bb7d541b2",
+   "digest": "39ff41d516ab2838",
    "phrasings": {
     "add AMD to my Momentum list": {
      "digest": "44136fa355b3678a",
@@ -1108,7 +1109,7 @@
    }
   },
   "widget.addCharts": {
-   "digest": "0dd8b5dbc76536b9",
+   "digest": "54b74787b2f3ab77",
    "phrasings": {
     "open charts for AAPL and MSFT": {
      "digest": "44136fa355b3678a",
@@ -1131,7 +1132,7 @@
    }
   },
   "board.swap": {
-   "digest": "b389bace02f03ed4",
+   "digest": "3f1ddf67e5cb4b9b",
    "phrasings": {
     "swap the two charts": {
      "digest": "44136fa355b3678a",
@@ -1155,7 +1156,7 @@
    }
   },
   "board.duplicateChart": {
-   "digest": "10dff86b360678fb",
+   "digest": "69002d18809bae13",
    "phrasings": {
     "duplicate this chart": {
      "digest": "44136fa355b3678a",
@@ -1176,7 +1177,7 @@
    }
   },
   "watchlist.remove": {
-   "digest": "41bae2c08be7162e",
+   "digest": "32bb7f4220ed770e",
    "phrasings": {
     "remove TSLA from my Momentum list": {
      "digest": "44136fa355b3678a",
@@ -1197,7 +1198,7 @@
    }
   },
   "watchlist.create": {
-   "digest": "35e1c1f2bbf098f8",
+   "digest": "214140aea298ebb2",
    "phrasings": {
     "create a new watchlist called Semis": {
      "digest": "44136fa355b3678a",
@@ -1220,93 +1221,93 @@
  },
  "refusals": {
   "refuse.undo-nothing": {
-   "digest": "482a16d1b95e9f98",
+   "digest": "c4ac79408ca94a75",
    "gap": false
   },
   "refuse.rs-rank-hidden": {
-   "digest": "12a474d0351b8205",
+   "digest": "86854305abf85908",
    "gap": false
   },
   "refuse.tab-standin": {
-   "digest": "612b74eef5ba3ca0",
+   "digest": "6b203260e35acd60",
    "gap": false
   },
   "refuse.alert-needs-approval": {
-   "digest": "d76951745ea491e8",
+   "digest": "85988acc9878d7d4",
    "gap": false
   }
  },
  "workflows": {
   "GW-01.symbol-weekly-emas-log-undo": {
-   "digest": "acb202b529b62232",
+   "digest": "536a1618215ac0ca",
    "gap": false
   },
   "GW-02.empty-board-honest": {
-   "digest": "76d0cc97b6bca8e2",
+   "digest": "d086e2ed060e4104",
    "gap": false
   },
   "GW-03.breadth-member-side": {
-   "digest": "df522088faa3abdb",
+   "digest": "35cd940b4345467f",
    "gap": false
   },
   "GW-04.earnings-when": {
-   "digest": "f9efa65d7f4d0443",
+   "digest": "0195267d52308bfa",
    "gap": false
   },
   "GW-05.screen-price-rvol": {
-   "digest": "abdc208ec13221d5",
+   "digest": "318938d115f2ec38",
    "gap": false
   },
   "GW-06.hidden-field-refused": {
-   "digest": "41d92302803ebae8",
+   "digest": "9cf4bb451c30c75a",
    "gap": false
   },
   "GW-07.protected-layout-rename": {
-   "digest": "aad17f3ae9106eb2",
+   "digest": "137ed635b0cd8a18",
    "gap": false
   },
   "GW-08.indicator-alert-routed": {
-   "digest": "c96df7bf0e7b3521",
+   "digest": "960d63e330a491aa",
    "gap": false
   },
   "GW-09.two-new-charts": {
-   "digest": "05eff94aff2092e8",
+   "digest": "8223687c30de2341",
    "gap": false
   },
   "GW-10.grid-then-undo-by-kind": {
-   "digest": "1f30472fa0dfd928",
+   "digest": "a3db0829d02050aa",
    "gap": false
   },
   "GW-11.change-then-undo-compound": {
-   "digest": "dca12d78cc8f7c6f",
+   "digest": "79175b1d30c2bf77",
    "gap": false
   },
   "GW-12.emas-coloured-exact-undo": {
-   "digest": "6d5cfd1a4836d4cb",
+   "digest": "e41dc195c068bc99",
    "gap": false
   },
   "GW-13.model-undo-is-the-receipt-undo": {
-   "digest": "60451427b272e901",
+   "digest": "21983f0fbc56ef1f",
    "gap": false
   },
   "GW-14.price-alert-needs-approval": {
-   "digest": "dcc9fbb5bb24a534",
+   "digest": "8ce3a7cc0e7bc22a",
    "gap": false
   },
   "GW-15.live-undo-last-change-charts": {
-   "digest": "bc87d4bdb2424874",
+   "digest": "dc94e8983016b5d7",
    "gap": false
   },
   "GW-16.live-grid-2x2-daily": {
-   "digest": "b55194466b1d061e",
+   "digest": "d90997db79f69dc6",
    "gap": false
   },
   "GW-17.live-earnings-next": {
-   "digest": "0f65fd0640759ecf",
+   "digest": "b036673d700fe881",
    "gap": false
   },
   "GW-18.live-emas-already-present": {
-   "digest": "38a8f2bb3827a30b",
+   "digest": "33316af250b39fe2",
    "gap": false
   }
  }

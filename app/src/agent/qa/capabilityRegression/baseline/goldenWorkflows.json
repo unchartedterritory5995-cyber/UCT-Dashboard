@@ -307,6 +307,9 @@
             "receipt": false
           }
         }
+      ],
+      "refuses": [
+        "layout.rename"
       ]
     },
     {
@@ -473,7 +476,6 @@
       "source": "agentExactUndo test 1 / owner acceptance 2026-10-29 (Indicators #517)",
       "capabilities": [
         "indicator.add",
-        "indicatorStyle.set",
         "agent.undo"
       ],
       "board": "ONE",

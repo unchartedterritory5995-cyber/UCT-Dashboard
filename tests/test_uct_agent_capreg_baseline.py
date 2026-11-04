@@ -13,7 +13,9 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -25,8 +27,12 @@ LOCK = CAPREG / "baseline" / "baseline.lock.json"
 DECISIONS = ROOT / "docs" / "agent" / "COMPATIBILITY-DECISIONS.md"
 AGENT_CI = ROOT / ".github" / "workflows" / "agent-ci.yml"
 
-#: keys that document an entry without asserting anything (editing them is never a weakening)
-NOTE_KEYS = {"source", "about"}
+#: keys that document an entry without asserting anything (editing them is never a weakening). `capabilities` and
+#: `refuses` only CREDIT coverage; inventory.test.js rail 1b proves every credited name is really run by the assertions.
+NOTE_KEYS = {"source", "about", "capabilities", "refuses"}
+#: the lock's digest format. 2 (2026-11-04, review #769): the credit fields joined NOTE_KEYS. A lock of another format is
+#: never compared silently: test_lock_format_is_current fails, and the re-lock is a reviewed change of its own.
+LOCK_FORMAT = 2
 
 
 def _load(p: Path):
@@ -58,8 +64,85 @@ def fingerprint(corpus: dict, golden: dict) -> dict:
     return out
 
 
+FIELD = re.compile(r"^\s*[-*]\s*(Date|Decided by|Binds|Why|Replacement protection):\s*(.*?)\s*$", re.I)
+
+
+def parse_decisions(text: str) -> dict[str, list[dict]]:
+    """`### KEY — title` sections with their `- Field: value` lines. Fenced code blocks (the format example) and
+    anything outside a `###` section are ignored."""
+    out: dict[str, list[dict]] = {}
+    cur = None
+    fence = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            fence = not fence
+            continue
+        if fence:
+            continue
+        m = re.match(r"^###\s+(\S+)", line)
+        if m:
+            cur = {"key": m.group(1)}
+            out.setdefault(cur["key"], []).append(cur)
+            continue
+        if line.startswith("#"):
+            cur = None
+            continue
+        f = FIELD.match(line)
+        if cur is not None and f:
+            cur[f.group(1).lower()] = f.group(2)
+    return out
+
+
+def decision_valid(d: dict) -> bool:
+    """A decision counts only with a real date, a named decider (not a template placeholder) and a Binds line."""
+    who = d.get("decided by", "")
+    return (bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", d.get("date", ""))) and bool(who) and "<" not in who
+            and bool(re.fullmatch(r"[0-9a-f]{16}->([0-9a-f]{16}|removed)", d.get("binds", ""))))
+
+
 def decided_keys(text: str) -> set[str]:
-    return {m.group(1) for m in re.finditer(r"^###\s+(\S+)", text, re.M)}
+    return set(parse_decisions(text))
+
+
+def _entry(fp: dict, eid: str):
+    for kind in ("intents", "refusals", "workflows"):
+        if eid in fp.get(kind, {}):
+            return fp[kind][eid]
+    return None
+
+
+def binds_for(lock: dict, now: dict, eid: str) -> str:
+    """What a decision for `eid` must bind: the locked entry's digest -> the current entry's digest (or `removed`), so a
+    decision covers EXACTLY this change; the next weakening of the same id needs its own decision."""
+    old, new = _entry(lock, eid), _entry(now, eid)
+    return f"{_digest(old)}->{_digest(new) if new is not None else 'removed'}"
+
+
+def undecided(lock: dict, now: dict, decisions: dict) -> list[tuple[str, str, str]]:
+    out = []
+    for eid, what in violations(lock, now):
+        b = binds_for(lock, now, eid)
+        if not any(decision_valid(d) and d.get("binds") == b for d in decisions.get(f"BASELINE:{eid}", [])):
+            out.append((eid, what, b))
+    return out
+
+
+def _git(*args: str):
+    try:
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True).stdout
+    except Exception:
+        return None
+
+
+def base_lock():
+    """The lock as it is at the merge base with origin/master: (lock | None, reason). None + 'absent' = not on master yet."""
+    mb = (_git("merge-base", "HEAD", "origin/master") or "").strip()
+    if not mb:
+        return None, "no-ref"
+    text = _git("show", f"{mb}:{LOCK.relative_to(ROOT).as_posix()}")
+    if text is None:
+        return None, "absent"
+    return json.loads(text), "ok"
 
 
 def violations(lock: dict, now: dict) -> list[tuple[str, str]]:
@@ -103,15 +186,41 @@ def unlocked(lock: dict, now: dict) -> list[str]:
 
 
 def _state():
-    return _load(LOCK), fingerprint(_load(CORPUS), _load(GOLDEN)), decided_keys(DECISIONS.read_text(encoding="utf-8"))
+    return _load(LOCK), fingerprint(_load(CORPUS), _load(GOLDEN)), parse_decisions(DECISIONS.read_text(encoding="utf-8"))
+
+
+def _explain(rows) -> str:
+    return "\n".join(f"  {i}: {w}\n    needs a decision `### BASELINE:{i} — …` with `- Date:`, `- Decided by:` and `- Binds: {b}`"
+                     for i, w, b in rows)
 
 
 # ── the rail ──────────────────────────────────────────────────────────────────────────────────────────────────────
 def test_no_baseline_entry_is_removed_or_weakened_without_a_decision():
-    lock, now, keys = _state()
-    undecided = [(i, w) for i, w in violations(lock, now) if f"BASELINE:{i}" not in keys]
-    assert not undecided, ("baseline entries removed or weakened with no `### BASELINE:<id>` decision in "
-                           "docs/agent/COMPATIBILITY-DECISIONS.md:\n" + "\n".join(f"  {i}: {w}" for i, w in undecided))
+    lock, now, decisions = _state()
+    bad = undecided(lock, now, decisions)
+    assert not bad, "baseline entries removed or weakened without a bound decision in docs/agent/COMPATIBILITY-DECISIONS.md:\n" + _explain(bad)
+
+
+def test_no_weakening_against_the_merge_base():
+    """A hand-edited lock cannot launder a weakening: the corpus is ALSO held to the lock as it is on master."""
+    base, why = base_lock()
+    if why == "no-ref":
+        assert not os.environ.get("CI"), "CI must fetch origin/master for the merge-base baseline check"
+        return
+    if base is None:
+        return                                    # the lock is not on master yet: nothing older to weaken
+    lock, now, decisions = _state()
+    if base.get("format") != LOCK_FORMAT:
+        # a digest-format change cannot be compared entry by entry: it is its own decision, bound to both locks
+        b = f"{_digest(base)}->{_digest(lock)}"
+        assert any(decision_valid(d) and d.get("binds") == b for d in decisions.get(f"LOCKFORMAT:{LOCK_FORMAT}", [])),             f"the lock format changed against master: needs `### LOCKFORMAT:{LOCK_FORMAT}` with Date, Decided by and `- Binds: {b}`"
+        return
+    bad = undecided(base, now, decisions)
+    assert not bad, "weakened against the baseline on master (merge base) without a bound decision:\n" + _explain(bad)
+
+
+def test_lock_format_is_current():
+    assert _load(LOCK).get("format") == LOCK_FORMAT, "baseline.lock.json was written by another digest format"
 
 
 def test_every_entry_is_locked():
@@ -125,8 +234,8 @@ def test_every_known_gap_names_id_reason_owner():
     gaps = [g for it in corpus["intents"] for p in _phrasings(it) for g in (p.get("gaps") or {}).values()]
     gaps += [w["gap"] for w in [*golden["workflows"], *corpus.get("refusals", [])] if w.get("gap")]
     for g in gaps:
-        for k in ("id", "reason", "owner"):
-            assert str(g.get(k) or "").strip(), f"a known gap without {k}: {g}"
+        for k in ("id", "reason", "owner", "mode"):
+            assert str(g.get(k) or "").strip(), f"a known gap without {k} (mode = the recorded failure, see testing/corpus.js gapIt): {g}"
 
 
 def test_entries_are_unique_and_well_formed():
@@ -188,6 +297,32 @@ def test_rail_self_test_detects_removal_weakening_and_gap():
     assert decided_keys("### BASELINE:a — x\n### CAP:b.c\n") == {"BASELINE:a", "CAP:b.c"}
 
 
+def test_decisions_need_date_decider_and_a_binding_and_fences_do_not_count():
+    lock = fingerprint(_load(CORPUS), _load(GOLDEN))
+    g2 = copy.deepcopy(_load(GOLDEN))
+    gone = g2["workflows"].pop(0)["id"]
+    now = fingerprint(_load(CORPUS), g2)
+    b = binds_for(lock, now, gone)
+    ok = f"### BASELINE:{gone} — retired\n- Date: 2026-11-04\n- Decided by: the owner\n- Binds: {b}\n"
+    assert undecided(lock, now, parse_decisions(ok)) == []
+    for bad in (f"```\n{ok}```\n",                                   # inside a fenced block
+                ok.replace("- Decided by: the owner\n", ""),         # no decider
+                ok.replace("the owner", "<the owner>"),              # a template placeholder
+                ok.replace("- Date: 2026-11-04\n", ""),              # no date
+                ok.replace(b, "0" * 16 + "->removed")):               # bound to another change
+        assert [i for i, _, _ in undecided(lock, now, parse_decisions(bad))] == [gone], bad
+    # one decision never unlocks the id for a LATER, different weakening
+    c2 = copy.deepcopy(_load(CORPUS))
+    c2["intents"][0]["expect"] = {}
+    later = fingerprint(c2, _load(GOLDEN))
+    iid = c2["intents"][0]["id"]
+    once = f"### BASELINE:{iid} — x\n- Date: 2026-11-04\n- Decided by: the owner\n- Binds: {binds_for(lock, later, iid)}\n"
+    assert undecided(lock, later, parse_decisions(once)) == []
+    c3 = copy.deepcopy(c2)
+    c3["intents"][0]["needs"] = []
+    assert [i for i, _, _ in undecided(lock, fingerprint(c3, _load(GOLDEN)), parse_decisions(once))] == [iid]
+
+
 def test_agent_ci_runs_the_capability_regression_suite():
     """The deterministic suite is part of the Agent CI (its own job, besides the sharded union) — never a paid eval."""
     y = AGENT_CI.read_text(encoding="utf-8")
@@ -200,12 +335,12 @@ def test_agent_ci_runs_the_capability_regression_suite():
 if __name__ == "__main__":
     if "--update" in sys.argv:
         lock_now = fingerprint(_load(CORPUS), _load(GOLDEN))
-        if LOCK.exists():
-            lock, _, keys = _state()
-            bad = [(i, w) for i, w in violations(lock, lock_now) if f"BASELINE:{i}" not in keys]
+        if LOCK.exists() and _load(LOCK).get("format") == LOCK_FORMAT:
+            lock, _, decisions = _state()
+            bad = undecided(lock, lock_now, decisions)
             if bad:
-                print("refused: undecided weakenings —\n" + "\n".join(f"  {i}: {w}" for i, w in bad))
+                print("refused: undecided weakenings —\n" + _explain(bad))
                 sys.exit(1)
-        LOCK.write_text(json.dumps({"about": "capreg baseline lock — tests/test_uct_agent_capreg_baseline.py --update", **lock_now},
+        LOCK.write_text(json.dumps({"about": "capreg baseline lock — tests/test_uct_agent_capreg_baseline.py --update", "format": LOCK_FORMAT, **lock_now},
                                    indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
         print(f"locked {len(lock_now['intents'])} intents, {len(lock_now['refusals'])} refusals, {len(lock_now['workflows'])} workflows")

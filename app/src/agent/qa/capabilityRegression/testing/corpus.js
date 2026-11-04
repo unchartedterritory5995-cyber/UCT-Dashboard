@@ -16,11 +16,29 @@ export const phrasingsOf = (intent) => intent.phrasings.map(p => (typeof p === '
 /** Every (intent, phrasing) pair. */
 export const allPhrasings = () => corpus.intents.flatMap(intent => phrasingsOf(intent).map(ph => ({ intent, ph })))
 
-/** vitest `it`, or `it.fails` for a recorded known gap (the title carries its id, so the report and the run agree). */
+/** The assertion LABEL of a failure: its first line up to ": expected" — which check failed, not the volatile values. */
+export const failureMode = (err) => String(err?.message ?? err).split('\n')[0].split(': expected')[0].trim()
+
+/**
+ * vitest `it`, or — for a recorded known gap — a test that must fail IN THE RECORDED WAY (review #769 nit 3):
+ *   • it passes only when the body throws AND the failure's assertion label contains `gap.mode`;
+ *   • it fails loudly when the body passes (the fix landed: remove the marker), or fails for any OTHER reason (a harness
+ *     crash, a different assertion, a changed failure) — never the silent pass `it.fails` gives on any throw.
+ * CAPREG_CAPTURE_GAPS=<file> appends each gap's actual failure mode (to record `mode` for a new gap).
+ */
 export function gapIt(gap) {
   if (!gap) return { run: it, tag: '' }
   if (!gap.id || !gap.reason || !gap.owner) throw new Error(`a known gap needs {id, reason, owner}: ${JSON.stringify(gap)}`)
-  return { run: it.fails, tag: ` [KNOWN GAP ${gap.id}]` }
+  const run = (title, fn, timeout) => it(title, async () => {
+    let err = null
+    try { await fn() } catch (e) { err = e }
+    const capture = globalThis.process?.env?.CAPREG_CAPTURE_GAPS
+    if (capture && err) { const fs = await import('node:fs'); fs.appendFileSync(capture, JSON.stringify({ id: gap.id, reason: gap.reason, title, mode: failureMode(err) }) + '\n') }
+    if (!err) throw new Error(`KNOWN GAP ${gap.id} no longer fails — the fix landed: remove the gap marker (no decision needed)`)
+    if (!gap.mode) throw new Error(`KNOWN GAP ${gap.id} records no failure \`mode\` (actual: ${failureMode(err)})`)
+    if (!failureMode(err).includes(gap.mode)) throw new Error(`KNOWN GAP ${gap.id} failed for an UNRELATED reason — expected the mode "${gap.mode}", got: ${String(err?.message ?? err).split('\n')[0]}`)
+  }, timeout)
+  return { run, tag: ` [KNOWN GAP ${gap.id}]` }
 }
 
 /**
@@ -47,7 +65,7 @@ export function deterministicReading(text, host) {
   if (fp) return { kind: fp.kind, via: 'fastPath' }
   if (!cued) { const f = follow(); if (f) return f }
   const cp = planCompound(text, { host })
-  if (cp?.steps) return { steps: cp.steps.map(s => s.kind), via: 'compound' }
+  if (cp?.steps) return { steps: cp.steps.map(s => s.kind), stepTexts: cp.steps.map(s => s.text), via: 'compound' }
   return null
 }
 

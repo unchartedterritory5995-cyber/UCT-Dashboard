@@ -16,10 +16,22 @@ Adding intents, phrasings or workflows, and REMOVING a known gap (the fix landed
 
 ## Format
 
+A decision counts only when it is OUTSIDE a fenced code block and has:
+- a `Date:` (YYYY-MM-DD);
+- a named `Decided by:` (not a `<placeholder>`);
+- a `Binds:` line naming exactly the change it allows. The failing rail prints the value to paste:
+  - BASELINE: the locked entry's digest -> the current one;
+  - CAP: the pinned contract entry -> the live one;
+  - BACKLOG: `0000000000000000->` the backlog entry.
+
+A decision allows that one change. The next weakening of the same id needs its own decision. The baseline is checked
+against the lock in this tree AND against the lock on master (merge base), so editing the lock by hand does not help.
+
 ```
 ### BASELINE:<id> — <one line: what is removed / weakened>
 - Date: YYYY-MM-DD
 - Decided by: <the owner, or the owner's delegate named in the session> (an agent can draft, never decide)
+- Binds: <the digest pair the failing test prints, e.g. 1a2b3c4d5e6f7a8b->9c8d7e6f5a4b3c2d, or …->removed>
 - Why: <the product reason>
 - Replacement protection: <what now protects the behaviour, or "none — the behaviour is intentionally retired">
 ```

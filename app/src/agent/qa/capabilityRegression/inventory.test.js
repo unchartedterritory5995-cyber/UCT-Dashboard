@@ -11,15 +11,19 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { registerCatalog, PROD_KINDS, ALL_KINDS } from './testing/registry'
 import { shapeError, getCapability } from '../../capabilities'
-import { contractOf, coverage, canonicalOps, knownGaps } from './testing/inventory'
+import { contractOf, coverage, canonicalOps, knownGaps, exercisedBy } from './testing/inventory'
 import { coverageJson, coverageMd } from './testing/report'
 import { corpus, golden } from './testing/corpus'
 import backlog from './baseline/regressionEntries.json'
+import { parseDecisions, decidedFor, digest } from './testing/decisions'
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 const ROOT = path.resolve(HERE, '..', '..', '..', '..', '..')
 const DECISIONS = path.join(ROOT, 'docs', 'agent', 'COMPATIBILITY-DECISIONS.md')
-const decided = (key) => { try { return fs.readFileSync(DECISIONS, 'utf8').split(/\r?\n/).some(l => l.trim() === `### ${key}` || l.trim().startsWith(`### ${key} `)) } catch { return false } }
+const DECIDED = (() => { try { return parseDecisions(fs.readFileSync(DECISIONS, 'utf8')) } catch { return {} } })()
+// CAP: the pinned contract entry -> the live one (or removed); BACKLOG: nothing -> the backlog entry
+const capBinds = (was, now) => `${digest(was)}->${now ? digest(now) : 'removed'}`
+const backlogBinds = (entry) => `${'0'.repeat(16)}->${digest(entry)}`
 const UPDATE = process.env.UPDATE_CAPREG === '1'
 const write = (f, s) => fs.writeFileSync(path.join(HERE, f), s.replace(/\r\n/g, '\n'))
 const readJson = (f) => JSON.parse(fs.readFileSync(path.join(HERE, f), 'utf8'))
@@ -29,18 +33,22 @@ const catalog = await registerCatalog(ALL_KINDS)
 const PROD_GATED = new Set(['chart.describeSetup', 'stock.dailyBars', 'stock.quote', 'stock.themes'])
 catalog.prod = catalog.all.filter(n => catalog.ungated.includes(n) || PROD_GATED.has(n))
 const contract = contractOf(catalog.all)
-const exercised = new Set([...corpus.intents.flatMap(i => [...i.capabilities, ...i.needs]), ...corpus.refusals.flatMap(r => r.capabilities),
-  ...golden.workflows.flatMap(w => w.capabilities)])
+const ENTRIES = [...corpus.intents, ...corpus.refusals, ...golden.workflows]
+// review #769 nit 2: a capability counts as exercised only when an assertion actually runs it (testing/inventory.exercisedBy)
+const exercised = new Set(ENTRIES.flatMap(e => [...exercisedBy(e)]))
 
 describe('1 · a new capability ships with a regression entry', () => {
   it('every registered capability is exercised by the corpus / golden workflows, or listed in the backlog with an owner', () => {
     const missing = catalog.all.filter(n => !exercised.has(n) && !backlog.entries[n])
     expect(missing, `capabilities with NO regression entry — add a corpus intent (baseline/corpus.json) or a golden workflow, or (with a decision "### BACKLOG:<name>" in docs/agent/COMPATIBILITY-DECISIONS.md) a backlog entry: ${missing.join(', ')}`).toEqual([])
   })
+  it.each(ENTRIES.map(e => [e.id, e]))('%s: every capability it LISTS is actually exercised by its assertions', (_id, e) => {
+    expect(e.capabilities.filter(n => !exercisedBy(e).has(n)), `${e.id} lists capabilities no assertion of it runs`).toEqual([])
+  })
   it('every backlog entry names an owner, and one added after the initial inventory has a recorded decision', () => {
     for (const [n, e] of Object.entries(backlog.entries)) {
       expect(e.owner, n).toBeTruthy()
-      if (e.since !== backlog.initial) expect(decided(`BACKLOG:${n}`), `backlog entry ${n} (since ${e.since}) needs "### BACKLOG:${n}" in COMPATIBILITY-DECISIONS.md`).toBe(true)
+      if (e.since !== backlog.initial) expect(decidedFor(DECIDED, `BACKLOG:${n}`, backlogBinds(e)), `backlog entry ${n} (since ${e.since}) needs "### BACKLOG:${n}" with Date, Decided by and "- Binds: ${backlogBinds(e)}" in COMPATIBILITY-DECISIONS.md`).toBe(true)
     }
   })
   it('the backlog lists only registered, not-yet-exercised capabilities (a covered one leaves the backlog)', () => {
@@ -57,19 +65,19 @@ describe('2 · the approval / undo contract is never weakened silently', () => {
     const weakenings = []
     for (const [n, was] of Object.entries(pinned)) {
       const now = contract[n]
-      if (!now) { weakenings.push([n, 'removed']); continue }
-      if (was.risk === 'confirm' && now.risk !== 'confirm') weakenings.push([n, `risk ${was.risk} → ${now.risk}`])
-      if (was.undo === 'exact' && now.undo !== 'exact') weakenings.push([n, `undo ${was.undo} → ${now.undo}`])
-      if (was.reversible === false && now.reversible !== false) weakenings.push([n, 'irreversible → reversible (it would auto-apply)'])
-      if (was.query && !now.query) weakenings.push([n, 'a read became a change'])
+      if (!now) { weakenings.push([n, 'removed', capBinds(was, null)]); continue }
+      if (was.risk === 'confirm' && now.risk !== 'confirm') weakenings.push([n, `risk ${was.risk} → ${now.risk}`, capBinds(was, now)])
+      if (was.undo === 'exact' && now.undo !== 'exact') weakenings.push([n, `undo ${was.undo} → ${now.undo}`, capBinds(was, now)])
+      if (was.reversible === false && now.reversible !== false) weakenings.push([n, 'irreversible → reversible (it would auto-apply)', capBinds(was, now)])
+      if (was.query && !now.query) weakenings.push([n, 'a read became a change', capBinds(was, now)])
     }
-    expect(weakenings.filter(([n]) => !decided(`CAP:${n}`)).map(([n, w]) => `${n}: ${w}`)).toEqual([])
+    expect(weakenings.filter(([n, , b]) => !decidedFor(DECIDED, `CAP:${n}`, b)).map(([n, w, b]) => `${n}: ${w} — needs "### CAP:${n}" with Date, Decided by and "- Binds: ${b}"`)).toEqual([])
   })
   it('the pinned contract covers every registered capability (UPDATE_CAPREG=1 pins a new one)', () => {
     if (UPDATE) {
       const pinned = (() => { try { return readJson('coverage/contract.json').capabilities } catch { return {} } })()
       // a pinned entry is only ever REPLACED by the live one; a removed capability stays pinned until its decision exists
-      const merged = { ...Object.fromEntries(Object.entries(pinned).filter(([n]) => !contract[n] && !decided(`CAP:${n}`))), ...contract }
+      const merged = { ...Object.fromEntries(Object.entries(pinned).filter(([n, was]) => !contract[n] && !decidedFor(DECIDED, `CAP:${n}`, capBinds(was, null)))), ...contract }
       write('coverage/contract.json', JSON.stringify({ about: 'Pinned approval / undo contract per capability (capreg inventory.test.js rail 2). UPDATE_CAPREG=1 re-pins; a weakening still needs a decision.', capabilities: merged }, null, 1) + '\n')
     }
     const now = readJson('coverage/contract.json').capabilities
@@ -121,4 +129,17 @@ describe('6 · capability descriptions never name an action that does not exist 
       .filter(m => domains.has(m[1]) && verbs.has(m[2].split(/(?=[A-Z])/)[0])).map(m => `${m[1]}.${m[2]}`)
     expect(named.filter(a => !catalog.all.includes(a)), `${n} names actions that are not registered`).toEqual([])
   })
+})
+
+describe('7 · decisions bind one change (review #769): fenced examples, missing fields and other bindings never count', () => {
+  const b = `${'1'.repeat(16)}->removed`
+  const ok = `### CAP:x.y — retired\n- Date: 2026-11-04\n- Decided by: the owner\n- Binds: ${b}\n`
+  it('a complete decision counts', () => { expect(decidedFor(parseDecisions(ok), 'CAP:x.y', b)).toBe(true) })
+  it.each([
+    ['fenced', '```\n' + ok + '```\n'],
+    ['no decider', ok.replace('- Decided by: the owner\n', '')],
+    ['a placeholder decider', ok.replace('the owner', '<the owner>')],
+    ['no date', ok.replace('- Date: 2026-11-04\n', '')],
+    ['bound to another change', ok.replace(b, `${'2'.repeat(16)}->removed`)],
+  ])('%s does not count', (_w, text) => { expect(decidedFor(parseDecisions(text), 'CAP:x.y', b)).toBe(false) })
 })

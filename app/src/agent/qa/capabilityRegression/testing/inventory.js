@@ -16,7 +16,8 @@
 //   phrasings   ≥ 3 distinct owner-style phrasings with no known gap
 import { manifestFor, getCapability } from '../../../capabilities'
 import { groupOfAction } from '../../../routing'
-import { corpus, golden, phrasingsOf } from './corpus'
+import { corpus, golden, phrasingsOf, deterministicReading } from './corpus'
+import { panelHost } from './harness'
 
 export const PROTECTIONS = ['nl', 'routing', 'args', 'execution', 'receipt', 'refusal', 'permission', 'undo', 'multiStep', 'phrasings']
 
@@ -31,6 +32,40 @@ export function contractOf(names) {
 }
 
 const opsOf = (m) => (m?.ops || []).map(o => o.action)
+
+/** The actions the DETERMINISTIC layers would run for a message on a board (a compound read step by step). */
+export function readingActions(text, boardName) {
+  const r = deterministicReading(text, panelHost(boardName))
+  if (!r) return []
+  if (r.plan) return r.plan.map(o => o.action)
+  if (r.stepTexts) return r.stepTexts.flatMap((t, k) => (r.steps[k] === 'undo' ? ['agent.undo'] : readingActions(t, boardName)))
+  return []
+}
+const EXERCISED = new Map()
+/**
+ * The capabilities an entry ACTUALLY exercises — in a plan its assertions run (the faithful model's canonical ops, the
+ * intent's deterministic plan, what the deterministic layers read for a scripted step) or in a routing assertion. A name
+ * merely LISTED in `capabilities` counts for nothing (inventory.test.js rail 1b fails a listed-but-unexercised name).
+ */
+export function exercisedBy(entry) {
+  if (EXERCISED.has(entry)) return EXERCISED.get(entry)
+  const out = new Set()
+  const board = entry.board || 'ONE'
+  if (entry.phrasings) {                                         // a corpus intent
+    for (const a of opsOf(entry.model)) out.add(a)
+    for (const o of entry.deterministic?.plan || []) out.add(o.action)
+    for (const a of entry.needs || []) out.add(a)                // asserted at level (a) for every phrasing
+    if (entry.deterministic?.steps) for (const ph of phrasingsOf(entry)) for (const a of readingActions(ph.text, board)) out.add(a)
+    for (const s of entry.before || []) for (const a of [...opsOf(s.model), ...readingActions(s.say, board)]) out.add(a)
+    if (entry.undo) for (const a of readingActions(entry.undo.say, board)) out.add(a)
+  } else {                                                      // a golden workflow / refusal case
+    for (const a of entry.refuses || []) out.add(a)                // credited for the refusal protection only
+    for (const s of entry.steps) for (const a of [...opsOf(s.model), ...(s.routes || []), ...(s.model ? [] : readingActions(s.say, board))]) out.add(a)
+  }
+  EXERCISED.set(entry, out)
+  return out
+}
+const asserted = (entry) => entry.capabilities.filter(n => exercisedBy(entry).has(n))
 /** Every canonical op in the data (corpus models, golden / refusal steps), with where it came from. */
 export function canonicalOps() {
   const out = []
@@ -47,7 +82,7 @@ export function coverage(names, contract) {
   for (const i of corpus.intents) {
     for (const ph of phrasingsOf(i)) {
       const g = ph.gaps || {}
-      for (const n of i.capabilities) {
+      for (const n of asserted(i)) {
         if (!g.b || !g.c) add(n, 'nl', `${i.id}: "${ph.text}"`)
         if (!g.b && !g.c) phr[n]?.add(ph.text)
         if (!g.c) { add(n, 'execution', `${i.id} (c)`); if (i.expect?.receipt || i.expect?.reads || i.afterApprove?.receipt) add(n, 'receipt', `${i.id} (c)`) }
@@ -56,23 +91,31 @@ export function coverage(names, contract) {
       }
       if (!g.a) for (const n of i.needs) add(n, 'routing', `${i.id}: "${ph.text}"`)
     }
-    if (i.undo || i.capabilities.includes('agent.undo')) for (const n of i.capabilities) add(n, 'undo', `${i.id}: undo restores`)
-    if ((i.before || []).length) for (const n of i.capabilities) add(n, 'multiStep', `${i.id}: after an earlier turn`)
+    if (i.undo || asserted(i).includes('agent.undo')) for (const n of asserted(i)) add(n, 'undo', `${i.id}: undo restores`)
+    if ((i.before || []).length) for (const n of asserted(i)) add(n, 'multiStep', `${i.id}: after an earlier turn`)
   }
-  for (const r of corpus.refusals) for (const n of r.capabilities) add(n, 'refusal', r.id)
+  for (const r of corpus.refusals) for (const n of asserted(r)) add(n, 'refusal', r.id)
   for (const w of golden.workflows) {
     if (w.gap) continue
-    const undoes = w.steps.some(s => /\bundo\b|take .*back|revert/i.test(s.say) && (s.expect?.restored || s.expect?.setting || s.expect?.indicators || s.expect?.charts))
-    for (const n of w.capabilities) {
-      if (w.steps.some(s => s.model || s.expect)) { add(n, 'execution', w.id); add(n, 'nl', w.id) }
-      if (w.steps.some(s => s.expect?.receipt || s.expect?.reads || s.afterApprove)) add(n, 'receipt', w.id)
-      if (w.steps.some(s => s.expect?.refusal || (s.expect?.unchanged && s.expect?.receipt === false))) add(n, 'refusal', w.id)
-      if (w.steps.length > 1 || w.steps.some(s => opsOf(s.model).length > 1)) add(n, 'multiStep', w.id)
-      if (undoes) add(n, 'undo', w.id)
-      if (w.steps.some(s => s.approve) && contract[n]?.risk === 'confirm') add(n, 'permission', `${w.id}: waits for Apply`)
-    }
-    for (const s of w.steps) for (const n of s.routes || []) add(n, 'routing', `${w.id}: "${s.say}"`)
+    // PER STEP: a capability gets a protection only from a step whose own plan runs it (review #769 nit 2)
+    const board = w.board || 'ONE'
+    const listed = new Set(w.capabilities)
+    const ranIn = w.steps.map(s => new Set([...opsOf(s.model), ...(s.model ? [] : readingActions(s.say, board))].filter(n => listed.has(n))))
+    for (const n of w.refuses || []) add(n, 'refusal', `${w.id}: refused`)
+    w.steps.forEach((s, k) => {
+      for (const n of ranIn[k]) {
+        if (s.model || s.expect) { add(n, 'execution', w.id); add(n, 'nl', w.id) }
+        if (s.expect?.receipt || s.expect?.reads || s.afterApprove) add(n, 'receipt', w.id)
+        if (s.expect?.refusal || (s.expect?.unchanged && s.expect?.receipt === false)) add(n, 'refusal', w.id)
+        if (w.steps.length > 1 || opsOf(s.model).length > 1) add(n, 'multiStep', w.id)
+        if (s.approve && contract[n]?.risk === 'confirm') add(n, 'permission', `${w.id}: waits for Apply`)
+        // undone LATER in this workflow, with the state asserted back
+        if (w.steps.slice(k + 1).some(u => /\bundo\b|take .*back|revert/i.test(u.say) && (u.expect?.restored || u.expect?.setting || u.expect?.indicators || u.expect?.charts))) add(n, 'undo', w.id)
+      }
+      for (const n of s.routes || []) add(n, 'routing', `${w.id}: "${s.say}"`)
+    })
   }
+
   for (const { where, op } of canonicalOps()) add(op.action, 'args', where)
   const out = {}
   for (const n of names) {

@@ -16,8 +16,8 @@ file is changed. Suite: `app/src/agent/qa/capabilityRegression/` + `tests/test_u
 | Stale descriptions | rail 6 | No summary / hint / shape names an action that is not registered. |
 | NL equivalence corpus | `baseline/corpus.json` (46 intent groups, 233 phrasings, 4 refusal cases) | Each phrasing is checked at three levels (§3). The owner's own sentences are pinned by a Python test so they can't be paraphrased away. |
 | Golden workflows | `baseline/goldenWorkflows.json` (18) | Previously verified workflows: live production acceptance 11-03 (E-01, E-01′, P-07, A-10a, A-13, C-08, P-09, B-07), hotfix #766 T1–T3, owner acceptance (exact Undo), and the AUDIT live passes of 11-04. Each is replayed through the real panel. |
-| Baseline lock | `baseline/baseline.lock.json`, `tests/test_uct_agent_capreg_baseline.py` | Removing an entry or phrasing, adding a known gap, or changing an entry's assertions needs `### BASELINE:<id>`. Adding entries and removing gaps is free (`--update` re-locks, and refuses while an undecided weakening exists). Self-tested on in-memory mutations. |
-| CI | `.github/workflows/agent-ci.yml` job `capability-regression` | A named, separately requirable check: pytest baseline + `vitest run src/agent/qa/capabilityRegression`, about 2 minutes, no model or key. The same files also run in the four shards (union rail) and in the master deploy gate's `npx vitest run src/agent`. Paid live-model evals (`tools/agent_eval_*`) stay separate and are never run here. |
+| Baseline lock | `baseline/baseline.lock.json`, `tests/test_uct_agent_capreg_baseline.py` | Removing an entry or phrasing, adding a known gap, or changing an entry's assertions needs a `### BASELINE:<id>` decision **bound to that exact change** (`- Binds: <old digest>-><new digest or removed>`, plus a real `Date:` and a named `Decided by:`; fenced examples never count). The corpus is held both to the lock in the same tree AND to the lock at the merge base with origin/master, so a hand-edited lock in the same PR cannot hide a weakening. A change of the lock's digest format (`LOCK_FORMAT`) against master needs its own `### LOCKFORMAT:<n>` decision. Adding entries and removing gaps is free (`--update` re-locks, and refuses while an undecided weakening exists). Self-tested on in-memory mutations. |
+| CI | `.github/workflows/agent-ci.yml` job `capability-regression` | A named check: pytest baseline (with master fetched for the merge-base comparison) + `vitest run src/agent/qa/capabilityRegression`, about 7 minutes, no model or key. **It cannot be made a required check: branch protection is not available on this plan (the API answers 403).** The enforcement that does exist: the master deploy gate runs `npx vitest run src/agent` (every file of this suite) before promotion, and the server job runs `tests/test_uct_agent*.py` (the baseline rail). The files also run in the four Agent CI shards (union rail). Paid live-model evals (`tools/agent_eval_*`) stay separate and are never run here. |
 
 ### The faithful scripted model
 
@@ -31,8 +31,29 @@ reads recorded but not answered. No real market value is ever produced.
 
 ### Known gaps are tests that are expected to fail
 
-A failing case is never weakened. It carries `gaps.<a|b|c> = {id, reason, owner}` and runs as `it.fails`, so it
-turns red the day the fix lands and the marker has to be removed (which needs no decision).
+A failing case is never weakened. It carries `gaps.<a|b|c> = {id, reason, owner, mode}` and runs through
+`testing/corpus.js gapIt`. It passes only when the case fails with the RECORDED failure: the label of the failing
+assertion must contain `mode`. Examples are `→ chartGrid.set` (that action missing from the routed request), `chart count`,
+or for CG-10 the exact wrong reading `read as {"plan":[{"action":"indicator.hide",…`. It fails loudly when:
+- the case passes (the fix landed, so remove the marker; no decision is needed), or
+- the case fails for any other reason (a harness crash, a different assertion, a changed failure).
+
+So a gap can never hide an unrelated break, the way a bare `it.fails` could. `CAPREG_CAPTURE_GAPS=<file>` records the
+actual failure of a new gap.
+
+### What counts as covered
+
+A capability counts as exercised only when an assertion actually runs it (`testing/inventory.js exercisedBy`):
+- the faithful model's canonical ops;
+- the intent's deterministic plan;
+- what the deterministic layers read for a scripted step (a compound read step by step);
+- a routing assertion;
+- or an explicit `refuses`.
+
+Each golden workflow is credited step by step: a protection comes only from the step whose own plan runs the
+capability. Listing a name in `capabilities` is not enough. Inventory rail 1b fails an entry that lists a capability
+none of its assertions run (this moved `layout.rename` in GW-07 to `refuses`, and dropped `indicatorStyle.set` from
+GW-12, whose deterministic plan does not run it).
 
 ## 2. Protections (coverage today)
 
@@ -41,15 +62,15 @@ production's kinds):
 
 | protection | covered / applicable | meaning |
 |---|---|---|
-| nl | 41 / 154 | a phrasing reaches it with no gap at (b) or (c) |
+| nl | 40 / 154 | a phrasing reaches it with no gap at (b) or (c) |
 | routing | 41 / 154 | the production routed request carries it, and it is not cut by the budget |
 | args | 41 / 154 | a canonical op passes shapeError |
-| execution | 40 / 154 | it runs through the real panel with its canonical API asserted |
-| receipt | 35 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
+| execution | 39 / 154 | it runs through the real panel with its canonical API asserted |
+| receipt | 34 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
 | refusal | 8 / 154 | a refusal / must-not-change case |
 | permission | 130 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
 | undo | 17 / 95 | undo-exact capabilities with a restore assertion |
-| multiStep | 10 / 154 | inside a multi-op plan or a multi-step workflow |
+| multiStep | 9 / 154 | inside a multi-op plan or a multi-step workflow |
 | phrasings | 39 / 154 | ≥ 3 gap-free phrasings |
 
 43 of 154 capabilities have a behavioural regression case (22 at PR open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists). The other 111 are in the backlog. Their contract is

@@ -103,9 +103,10 @@ jobs:
   # Mission 2 (2026-11-04): the deterministic CAPABILITY REGRESSION suite, as its own named check — the NL equivalence
   # corpus (routing / deterministic plan / final state), the golden workflows, the capability inventory + coverage
   # rails, and the baseline lock (docs/agent/REGRESSION-SYSTEM.md). Scripted model only: it never calls a paid model,
-  # needs no key, and is ~2 min. The same files ALSO run inside the shards (they live under src/agent), so the union
+  # needs no key, and takes about 7 min. The same files ALSO run inside the shards (they live under src/agent), so the union
   # rail and the master deploy gate's `npx vitest run src/agent` keep covering them; this job makes a regression a
-  # named, separately-requirable failure. Paid live-model evals (tools/agent_eval_*) are separate and never run here.
+  # NAMED failure (branch protection is not available on this plan, so it cannot be made a required check; the
+  # enforcement is the master deploy gate's `vitest run src/agent` and the server job's tests/test_uct_agent*.py). Paid live-model evals (tools/agent_eval_*) are separate and never run here.
   capability-regression:
     name: UCT Agent capability regression (deterministic, no model)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
@@ -113,6 +114,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # the baseline rail also holds the corpus to the lock AS IT IS ON MASTER (merge base), so a hand-edited lock in
+      # the same PR cannot launder a weakening (review #769)
+      - name: Fetch master for the merge-base baseline check
+        run: git fetch --no-tags --quiet origin +refs/heads/master:refs/remotes/origin/master
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

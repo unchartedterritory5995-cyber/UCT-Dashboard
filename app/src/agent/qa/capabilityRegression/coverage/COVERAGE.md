@@ -7,15 +7,15 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 
 | protection | covered / applicable |
 |---|---|
-| nl | 41 / 154 |
+| nl | 40 / 154 |
 | routing | 41 / 154 |
 | args | 41 / 154 |
-| execution | 40 / 154 |
-| receipt | 35 / 154 |
+| execution | 39 / 154 |
+| receipt | 34 / 154 |
 | refusal | 8 / 154 |
 | permission | 130 / 154 |
 | undo | 17 / 95 |
-| multiStep | 10 / 154 |
+| multiStep | 9 / 154 |
 | phrasings | 39 / 154 |
 
 ## Known gaps (30)
@@ -46,7 +46,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | CG-10 | b | indicator.show | "unhide the 50 sma" | agent-core builder (conversation.js follow-up reader / NL) | WRONG deterministic reading: the follow-up reader (conversation.js resolveFollowUp) matches the word 'hide' inside 'unhide' and plans indicator.hide — the opposite action — with no model call |
 | CG-10 | c | indicator.show | "unhide the 50 sma" | agent-core builder (conversation.js follow-up reader / NL) | through the panel 'unhide the 50 sma' on a hidden SMA 50 answers 'already hidden' and leaves it hidden (on a visible one it would HIDE it) |
 | CG-11 | a | stock.quote | "how much is NVDA right now" | nlfix builder (routing.js) | routing: 'how much is X' names no data-group word (quote words: price / trading at), so the request is routed without stock.quote |
-| CG-12 | a | stock.profile | "tell me about TSM the company" | nlfix builder (routing.js) | routing: 'tell me' is an ALERTS word (/(notify/ping/tell) me/), so the request is routed [alerts, agent] — stock.profile is not sent |
+| CG-12 | a | stock.profile | "tell me about TSM the company" | nlfix builder (routing.js) | routing: 'tell me' is an ALERTS word (/\b(notify/ping/tell) me\b/), so the request is routed [alerts, agent] — stock.profile is not sent |
 | CG-13 | a | stock.compare | "how does NVDA stack up against AMD" | nlfix builder (routing.js) | routing: 'against' is a charts COMPARE word and 'stack up' only data SOFT vocabulary, so the request routes [charts, agent] — stock.compare (data) is not sent |
 | CG-14 | a | widget.remove | "get rid of the AMD chart" | nlfix builder (routing.js) | routing: the workspace words name add/open/close/remove/delete … chart but not 'get rid of', so widget.remove is not sent (routed [charts, agent]) |
 | CG-16 | a | widget.addCharts | "give me new charts for AAPL and MSFT" | nlfix builder (routing.js) | routing: 'new charts for …' routes chartGrid (re-tile) but not the workspace group, so widget.addCharts is not sent; chartGrid.set with new_charts may serve it — owner to rule which is canonical |
@@ -60,7 +60,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | capability | group | risk | undo | nl | routing | args | execution | receipt | refusal | permission | undo | multiStep | phrasings |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | agent.capabilities | agent | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
-| agent.undo | undo | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | ✓ | ✓ |
+| agent.undo | undo | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✓ | ✓ |
 | alert.create | alerts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | alert.delete | alerts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
 | alert.list | alerts | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
@@ -144,7 +144,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | indicatorCopy.copyTo | indicatorSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | indicatorCopy.duplicate | indicatorSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | indicatorStyle.placeIn | indicatorSetup | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
-| indicatorStyle.set | indicatorSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
+| indicatorStyle.set | indicatorSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | journal.createNote | coach | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | journal.listNotes | coach | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | journal.proposeNote | coach | confirm | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | · | ✗ | ✗ |
@@ -155,7 +155,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | layout.duplicate | layouts | confirm | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | · | ✗ | ✗ |
 | layout.list | layouts | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | layout.open | layouts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
-| layout.rename | layouts | confirm | exact | ✓ | ✗ | ✗ | ✓ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| layout.rename | layouts | confirm | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
 | layout.saveAs | layouts | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
 | layout.saveCurrent | layouts | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | news.catalysts | data | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |

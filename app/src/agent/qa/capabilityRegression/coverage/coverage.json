@@ -10,7 +10,7 @@
   "withAnyRegressionCase": 43,
   "perProtection": {
    "nl": {
-    "covered": 41,
+    "covered": 40,
     "applicable": 154
    },
    "routing": {
@@ -22,11 +22,11 @@
     "applicable": 154
    },
    "execution": {
-    "covered": 40,
+    "covered": 39,
     "applicable": 154
    },
    "receipt": {
-    "covered": 35,
+    "covered": 34,
     "applicable": 154
    },
    "refusal": {
@@ -42,7 +42,7 @@
     "applicable": 95
    },
    "multiStep": {
-    "covered": 10,
+    "covered": 9,
     "applicable": 154
    },
    "phrasings": {
@@ -56,6 +56,7 @@
    "id": "CG-1",
    "reason": "routing: 'panels' / 'four equal panels' is not a chartGrid word (EQUAL_SIZE needs size/width/height after equal; MULTI_CHARTS needs 'charts'), so the request is routed [charts, agent] only — the model is never shown chartGrid.set (it needs a need_groups reroute the live planner did not ask for on 11-03)",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ chartGrid.set",
    "level": "a",
    "intent": "grid.four.named",
    "phrasing": "Show SPY, QQQ, NVDA and TSLA in four equal panels."
@@ -64,6 +65,7 @@
    "id": "CG-2",
    "reason": "routing: the chartGrid words match '2x2' / '2 x 2' / '2 by 2' but not the multiplication sign '2×2' (U+00D7) the owner typed; routed [charts, layouts] — no chartGrid.set",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ chartGrid.set",
    "level": "a",
    "intent": "grid.four.named",
    "phrasing": "Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA."
@@ -72,6 +74,7 @@
    "id": "CG-3a",
    "reason": "routing: a COUNT of charts with no tickers routes chartGrid (which needs tickers) but not the workspace group (widget.add / widget.arrange) — the model has no action that can add the charts",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ widget.add",
    "level": "a",
    "intent": "grid.four.unnamed",
    "phrasing": "Put four charts on my screen."
@@ -80,6 +83,7 @@
    "id": "CG-3",
    "reason": "no single plan makes N equal charts without tickers: add ×3 + widget.arrange(grid) on a board with a chart is refused ('Adding widgets and changing existing ones in one request isn’t supported yet'); chartGrid.set requires tickers; screenChartGrid only converts adds that carry tickers",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
    "level": "c",
    "intent": "grid.four.unnamed",
    "phrasing": "Put four charts on my screen."
@@ -88,6 +92,7 @@
    "id": "CG-3a",
    "reason": "routing: as 'Put four charts on my screen.' — no workspace group for a count of charts without tickers",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ widget.add",
    "level": "a",
    "intent": "grid.four.unnamed",
    "phrasing": "Create four charts."
@@ -96,6 +101,7 @@
    "id": "CG-3",
    "reason": "as 'Put four charts on my screen.' — add + re-arrange of an existing chart is refused as a mixed request",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
    "level": "c",
    "intent": "grid.four.unnamed",
    "phrasing": "Create four charts."
@@ -104,6 +110,7 @@
    "id": "CG-3a",
    "reason": "routing: '2×2' (U+00D7) and 'chart layout' route [charts, layouts] only — no workspace, no chartGrid",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ widget.add",
    "level": "a",
    "intent": "grid.four.unnamed",
    "phrasing": "Make a 2×2 chart layout."
@@ -112,6 +119,7 @@
    "id": "CG-3",
    "reason": "as 'Put four charts on my screen.'",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
    "level": "c",
    "intent": "grid.four.unnamed",
    "phrasing": "Make a 2×2 chart layout."
@@ -120,6 +128,7 @@
    "id": "CG-3",
    "reason": "routes the grid and the workspace, but the only plans are refused (add + arrange existing = mixed request) or impossible (chartGrid.set needs tickers)",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
    "level": "c",
    "intent": "grid.four.unnamed",
    "phrasing": "give me a 2x2 grid of charts"
@@ -128,6 +137,7 @@
    "id": "CG-3",
    "reason": "as 'give me a 2x2 grid of charts'",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
    "level": "c",
    "intent": "grid.four.unnamed",
    "phrasing": "I want four equal charts on the board"
@@ -136,6 +146,7 @@
    "id": "CG-3",
    "reason": "as 'give me a 2x2 grid of charts'",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
    "level": "c",
    "intent": "grid.four.unnamed",
    "phrasing": "four charts, same size, please"
@@ -144,6 +155,7 @@
    "id": "CG-4",
    "reason": "routing: 'relative strength' is a SCREENER strength word (routing.js screener group) and no indicators word matches the spelled-out 'relative strength index', so indicator.add is never sent (routed [screener, agent])",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ indicator.add",
    "level": "a",
    "intent": "indicator.rsi",
    "phrasing": "add the relative strength index"
@@ -152,6 +164,7 @@
    "id": "CG-5",
    "reason": "routing: the chartSetup group's describe words need describe/summarise/walk me through, so 'what's the setup here' does not route chart.describeSetup. MASKED today by the capability's own fast matcher (it claims this exact phrasing with no model call); it bites when the fast reader misses (a typo, a longer sentence)",
    "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ chart.describeSetup",
    "level": "a",
    "intent": "describe.setup",
    "phrasing": "what's the setup here"
@@ -160,6 +173,7 @@
    "id": "CG-6",
    "reason": "routing: no data-group word names 'pullbacks' (it is only screener SOFT vocabulary), so the message is unrecognised and stock.dailyBars arrives only through the budget fill — production edd353fc06 omitted the data group for this possessive form (AUDIT 11-04 live)",
    "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "names the data group by its own words",
    "level": "a",
    "intent": "stock.pullbacks",
    "phrasing": "show me NVDA's recent pullbacks"
@@ -168,6 +182,7 @@
    "id": "CG-6",
    "reason": "routing: as \"show me NVDA's recent pullbacks\" — data reached only by the fill (the fast reader claims this exact phrasing today)",
    "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "names the data group by its own words",
    "level": "a",
    "intent": "stock.pullbacks",
    "phrasing": "nvda pullbacks"
@@ -176,6 +191,7 @@
    "id": "CG-6",
    "reason": "routing: 'pulled back' names no data-group word; stock.dailyBars only via the fill",
    "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "names the data group by its own words",
    "level": "a",
    "intent": "stock.pullbacks",
    "phrasing": "how far has NVDA pulled back"
@@ -184,6 +200,7 @@
    "id": "CG-7",
    "reason": "routing: 'drawdowns' matches the DRAWINGS group (/\\bdraw\\w*\\b/) — routed [drawings, agent]: stock.dailyBars is not sent",
    "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "→ stock.dailyBars",
    "level": "a",
    "intent": "stock.pullbacks",
    "phrasing": "NVDA drawdowns this year"
@@ -192,6 +209,7 @@
    "id": "CG-7b",
    "reason": "routing: '52-week' is a screener word; nothing names the data group, so stock.dailyBars is not sent",
    "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "→ stock.dailyBars",
    "level": "a",
    "intent": "stock.offHigh",
    "phrasing": "NVDA distance from the 52-week high"
@@ -200,6 +218,7 @@
    "id": "CG-8",
    "reason": "a named Undo ('my layout') right after chartGrid.set is refused as 'not a layout change' — the grid (a board re-tile) is not matched as a layout change (AUDIT 11-04 live; nlfix fixing)",
    "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "the board is back as it started",
    "level": "c",
    "intent": "undo.named-after-grid",
    "phrasing": "undo the change you made to my layout"
@@ -208,6 +227,7 @@
    "id": "CG-9",
    "reason": "routing: 'put my layout back' is not an Undo phrase (only 'put it/that/them back the way it was'), so agent.undo is not sent",
    "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "→ agent.undo",
    "level": "a",
    "intent": "undo.named-after-grid",
    "phrasing": "put my layout back"
@@ -216,6 +236,7 @@
    "id": "CG-9",
    "reason": "neither the fast Undo words nor the routing read 'put my layout back' as an Undo; with the grid just made the board is not restored",
    "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "the board is back as it started",
    "level": "c",
    "intent": "undo.named-after-grid",
    "phrasing": "put my layout back"
@@ -224,6 +245,7 @@
    "id": "CG-10",
    "reason": "WRONG deterministic reading: the follow-up reader (conversation.js resolveFollowUp) matches the word 'hide' inside 'unhide' and plans indicator.hide — the opposite action — with no model call",
    "owner": "agent-core builder (conversation.js follow-up reader / NL)",
+   "mode": "read as {\"plan\":[{\"action\":\"indicator.hide\",\"args\":{\"instance\":\"ovl:2\"}}],\"via\":\"followUp\"}",
    "level": "b",
    "intent": "indicator.show",
    "phrasing": "unhide the 50 sma"
@@ -232,6 +254,7 @@
    "id": "CG-10",
    "reason": "through the panel 'unhide the 50 sma' on a hidden SMA 50 answers 'already hidden' and leaves it hidden (on a visible one it would HIDE it)",
    "owner": "agent-core builder (conversation.js follow-up reader / NL)",
+   "mode": "hidden",
    "level": "c",
    "intent": "indicator.show",
    "phrasing": "unhide the 50 sma"
@@ -240,14 +263,16 @@
    "id": "CG-11",
    "reason": "routing: 'how much is X' names no data-group word (quote words: price / trading at), so the request is routed without stock.quote",
    "owner": "nlfix builder (routing.js)",
+   "mode": "→ stock.quote",
    "level": "a",
    "intent": "stock.quote",
    "phrasing": "how much is NVDA right now"
   },
   {
    "id": "CG-12",
-   "reason": "routing: 'tell me' is an ALERTS word (/\b(notify|ping|tell) me\b/), so the request is routed [alerts, agent] — stock.profile is not sent",
+   "reason": "routing: 'tell me' is an ALERTS word (/\\b(notify|ping|tell) me\\b/), so the request is routed [alerts, agent] — stock.profile is not sent",
    "owner": "nlfix builder (routing.js)",
+   "mode": "→ stock.profile",
    "level": "a",
    "intent": "stock.profile",
    "phrasing": "tell me about TSM the company"
@@ -256,6 +281,7 @@
    "id": "CG-13",
    "reason": "routing: 'against' is a charts COMPARE word and 'stack up' only data SOFT vocabulary, so the request routes [charts, agent] — stock.compare (data) is not sent",
    "owner": "nlfix builder (routing.js)",
+   "mode": "→ stock.compare",
    "level": "a",
    "intent": "stock.compare",
    "phrasing": "how does NVDA stack up against AMD"
@@ -264,6 +290,7 @@
    "id": "CG-14",
    "reason": "routing: the workspace words name add/open/close/remove/delete … chart but not 'get rid of', so widget.remove is not sent (routed [charts, agent])",
    "owner": "nlfix builder (routing.js)",
+   "mode": "→ widget.remove",
    "level": "a",
    "intent": "widget.remove",
    "phrasing": "get rid of the AMD chart"
@@ -272,6 +299,7 @@
    "id": "CG-16",
    "reason": "routing: 'new charts for …' routes chartGrid (re-tile) but not the workspace group, so widget.addCharts is not sent; chartGrid.set with new_charts may serve it — owner to rule which is canonical",
    "owner": "nlfix builder (routing.js)",
+   "mode": "→ widget.addCharts",
    "level": "a",
    "intent": "widget.addCharts",
    "phrasing": "give me new charts for AAPL and MSFT"
@@ -280,6 +308,7 @@
    "id": "CG-15",
    "reason": "WRONG deterministic reading: the quote fast reader (stock.quote) claims 'trade places with the left and right charts' as a price quote for the 'symbols' PLACES, LEFT, CHARTS — no model call, the swap never happens",
    "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"places\",\"left\",\"charts\"]}}],\"via\":\"fastPath\"}",
    "level": "b",
    "intent": "board.swap",
    "phrasing": "trade places with the left and right charts"
@@ -288,6 +317,7 @@
    "id": "CG-15",
    "reason": "through the panel the swap phrasing becomes a quote read; the board is unchanged",
    "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "mode": "chart symbols (board order)",
    "level": "c",
    "intent": "board.swap",
    "phrasing": "trade places with the left and right charts"
@@ -349,7 +379,7 @@
     "routing": true,
     "args": true,
     "execution": true,
-    "receipt": true,
+    "receipt": false,
     "refusal": true,
     "permission": true,
     "undo": null,
@@ -388,10 +418,7 @@
      "GW-02.empty-board-honest",
      "GW-10.grid-then-undo-by-kind"
     ],
-    "receipt": [
-     "GW-01.symbol-weekly-emas-log-undo",
-     "GW-10.grid-then-undo-by-kind"
-    ],
+    "receipt": [],
     "refusal": [
      "refuse.undo-nothing",
      "GW-02.empty-board-honest"
@@ -401,9 +428,7 @@
      "undo.last: undo restores",
      "compound.change-then-undo: undo restores",
      "undo.named-after-grid: undo restores",
-     "GW-01.symbol-weekly-emas-log-undo",
-     "GW-10.grid-then-undo-by-kind",
-     "GW-11.change-then-undo-compound"
+     "GW-12.emas-coloured-exact-undo"
     ],
     "multiStep": [
      "undo.last: after an earlier turn",
@@ -1922,8 +1947,8 @@
      "timeframe.weekly: undo restores",
      "GW-01.symbol-weekly-emas-log-undo",
      "GW-09.two-new-charts",
-     "GW-11.change-then-undo-compound",
-     "GW-13.model-undo-is-the-receipt-undo"
+     "GW-13.model-undo-is-the-receipt-undo",
+     "GW-15.live-undo-last-change-charts"
     ],
     "multiStep": [
      "compound.change-then-undo: 2-op plan",
@@ -4064,7 +4089,7 @@
     "refusal": false,
     "permission": true,
     "undo": true,
-    "multiStep": true,
+    "multiStep": false,
     "phrasings": true
    },
    "phrasings": 5,
@@ -4074,8 +4099,7 @@
      "indicatorStyle.colour: \"color the 9 ema red\"",
      "indicatorStyle.colour: \"change the 9 ema's colour to red\"",
      "indicatorStyle.colour: \"turn the 9 ema red\"",
-     "indicatorStyle.colour: \"paint the 9 ema red\"",
-     "GW-12.emas-coloured-exact-undo"
+     "indicatorStyle.colour: \"paint the 9 ema red\""
     ],
     "routing": [
      "indicatorStyle.colour: \"make the 9 ema red\"",
@@ -4088,8 +4112,7 @@
      "corpus indicatorStyle.colour"
     ],
     "execution": [
-     "indicatorStyle.colour (c)",
-     "GW-12.emas-coloured-exact-undo"
+     "indicatorStyle.colour (c)"
     ],
     "receipt": [
      "indicatorStyle.colour (c)"
@@ -4097,12 +4120,9 @@
     "refusal": [],
     "permission": [],
     "undo": [
-     "indicatorStyle.colour: undo restores",
-     "GW-12.emas-coloured-exact-undo"
+     "indicatorStyle.colour: undo restores"
     ],
-    "multiStep": [
-     "GW-12.emas-coloured-exact-undo"
-    ],
+    "multiStep": [],
     "phrasings": []
    }
   },
@@ -4517,10 +4537,10 @@
    ],
    "fast": true,
    "protections": {
-    "nl": true,
+    "nl": false,
     "routing": false,
     "args": false,
-    "execution": true,
+    "execution": false,
     "receipt": false,
     "refusal": true,
     "permission": false,
@@ -4530,17 +4550,13 @@
    },
    "phrasings": 0,
    "evidence": {
-    "nl": [
-     "GW-07.protected-layout-rename"
-    ],
+    "nl": [],
     "routing": [],
     "args": [],
-    "execution": [
-     "GW-07.protected-layout-rename"
-    ],
+    "execution": [],
     "receipt": [],
     "refusal": [
-     "GW-07.protected-layout-rename"
+     "GW-07.protected-layout-rename: refused"
     ],
     "permission": [],
     "undo": [],
