@@ -247,3 +247,10 @@ and a measure-pair on both lanes, with its own accuracy risk against TradingView
 and HP-3 bit-identical across every V8 build with no report-only list, and would end the dependence on
 V8's libm. Not taken: engine-wide and irreversible compared with b. Recorded here as an open
 candidate; the report-only list is the reversible stopgap and is deleted when (a) lands.
+
+### r1 final-tip
+Command: `bash $S/final-tip.sh pine-dsk-w5t4 dsk-w5t4r1-final tests/test_pine_runtime_engine_identity.py tests/test_script_engine_version_gate.py tests/test_pine_runtime_codec.py`,
+lock `dsk/heavy-final3.lock`, code tip `5397a30c6a`, tested on master `5d95103c8a`. Logs `_resume-2026-11-01/runs/w5t4r1/final.log`.
+- gate pytest (4 files): 46 passed. Hygiene: clean (34727 tracked files). Rails pytest: 222 passed.
+- full chart+hooks vitest: Test Files 1 failed | 1336 passed | 27 skipped (1364); the only failure is
+  `src/hooks/pollingSites.rail.test.js`, the desktop baseline. `hostParity.rail.test.js` (25 tests) passed in the run.
