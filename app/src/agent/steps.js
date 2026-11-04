@@ -16,7 +16,8 @@
 // (undoTurn) reverts every applied step of the last v2 turn, newest first, through the existing group Undo.
 // ISOLATION: a local-only / isolated result is never sent back as a value (`isolated: true`, result null) — the
 // server strips again (L6). The v1 path is untouched: useAgent takes this module only when the config says so.
-import { manifestFor, refreshContext, buildContext, getCapability, MANIFEST_VERSION } from './capabilities'
+import { manifestFor, refreshContext, buildContext, getCapability, normalizeArgs, MANIFEST_VERSION } from './capabilities'
+import { UNDO_ACTION } from './capabilities/about'
 import { agentTurnV2, agentResumeV2, agentStepResult } from './agentClient'
 import { bindSourceRefs } from './compose'
 import { translateRefs, withModelRefs, BARE_ACK } from './useAgent'
@@ -108,12 +109,77 @@ export function withSources(op, sources) {
   return changed ? { ...op, args } : op
 }
 
+// ⭐ v2-readiness-2 (review #768: v2 ANSWERED an Undo honestly but never ran one). agent.undo is a query-shaped manifest
+// entry that nothing may answer for (its `answer` says "Nothing was undone."): v1 intercepts the op in useAgent and runs
+// the receipt's own Undo. A v2 step does the same here — doUndo / undoTurn with every refusal they have (protected
+// layout, another board, changed since, the `about` check) — and only THEIR outcome rows say what happened:
+//   • first change-step of the turn (nothing of this turn ran yet) → the member's newest change (scope last) or the
+//     whole previous request (scope all), exactly as v1's "agent.undo alone / first";
+//   • after change-steps of THIS turn ("switch to weekly, then undo that") → only what this turn committed: its newest
+//     Undo entry (last) or all of them newest first (all); nothing committed → nothing is undone (said), never an older
+//     change of an earlier request (v1's UNDO_AFTER_NOTHING rule).
+export const UNDO_AFTER_NOTHING_V2 = 'I didn’t undo anything: the steps before the Undo didn’t make a change I could take back, so nothing was undone.'
+const UNDO_DONE = new Set(['undo'])
+const UNDO_REFUSED = new Set(['undo-none', 'undo-refused', 'undo-refused-mismatch', 'undo-refused-protected'])
+
+/** The step_result of a v2 agent.undo step, from the outcome rows doUndo / undoTurn recorded. */
+export function undoOutcomeOf(bodies) {
+  const rows = (bodies || []).filter(b => /^undo/.test(String(b?.outcomeData?.kind || '')))
+  if (!rows.length) return { status: 'refused', refusal: 'nothing was undone' }
+  const turn = rows.find(b => b.outcomeData.kind === 'undo-turn')
+  if (turn) {
+    const { done = 0, of = 0 } = turn.outcomeData
+    return done > 0 && done === of ? { status: 'done', receipt: String(turn.outcome || '') }
+      : { status: done > 0 ? 'failed' : 'refused', refusal: String(turn.outcome || 'nothing was undone') }
+  }
+  const undone = rows.filter(b => UNDO_DONE.has(b.outcomeData.kind))
+  const stop = rows.find(b => !UNDO_DONE.has(b.outcomeData.kind))
+  if (undone.length && !stop) return { status: 'done', receipt: undone.map(b => String(b.outcome || '')).join(' · ') }
+  if (undone.length) return { status: 'failed', refusal: `undid ${undone.length}, then stopped: ${String(stop.outcome || '')}` }
+  return { status: UNDO_REFUSED.has(stop?.outcomeData?.kind) ? 'refused' : 'failed', refusal: String(stop?.outcome || 'nothing was undone') }
+}
+
 export function createStepRunner() {
   let paused = null              // { turnId, id, memoryTurn, alias } while a card waits
   let active = null              // the turn being served: { turnId, refMap, sources, voice, chain }
 
+  async function runUndoStep(ev, deps) {
+    const { tapRef, push } = deps
+    const u = normalizeArgs(UNDO_ACTION, ev.args && typeof ev.args === 'object' ? ev.args : {}).args || {}
+    const about = typeof u.about === 'string' ? u.about : null
+    const opts = { member: null, voice: active.voice, about }
+    tapRef.current = []
+    try {
+      if (active.changeSteps > 0) {
+        const before = active.undoBefore || []
+        const fresh = (deps.undoRef?.current || []).filter(e => !before.includes(e.id))
+        if (!fresh.length) {
+          push?.({ role: 'agent', text: UNDO_AFTER_NOTHING_V2 })
+          return { status: 'refused', refusal: 'the earlier steps of this turn made no change that can be undone; nothing was undone' }
+        }
+        const ids = u.scope === 'all' ? [...fresh].reverse().map(e => e.id) : [fresh[fresh.length - 1].id]
+        for (const id of ids) { if (!(await deps.doUndo(id, opts))) break }
+      } else if (u.scope === 'all') {
+        await deps.undoTurn({ member: null, voice: active.voice })
+      } else {
+        await deps.doUndo(null, opts)
+      }
+      return undoOutcomeOf(tapRef.current)
+    } catch (e) {
+      return { status: 'failed', refusal: `the Undo did not complete: ${e?.message || 'error'}` }
+    } finally {
+      tapRef.current = null
+    }
+  }
+
   async function runStep(ev, deps) {
     const { host, execute, tapRef } = deps
+    if (ev.action === UNDO_ACTION && typeof deps.doUndo === 'function') {
+      const res = await runUndoStep(ev, deps)
+      await agentStepResult({ turnId: ev.turnId, id: ev.id, ...res })
+      return
+    }
+    if (!getCapability(ev.action)?.query) active.changeSteps += 1
     const op = withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources)
     const al = aliasOf(op)
     const bound = translateRefs(bindSourceRefs([op], active.refMap, { host, message: '' }), active.refMap)
@@ -190,7 +256,8 @@ export function createStepRunner() {
         context: mem ? { ...context, conversation_memory: withModelRefs(mem, back) } : context,
         capabilities: full, manifestVersion: MANIFEST_VERSION, routing: null, planner: 'v2',
       }
-      active = { turnId: null, refMap, sources: {}, voice, chain: Promise.resolve() }
+      active = { turnId: null, refMap, sources: {}, voice, chain: Promise.resolve(), changeSteps: 0,
+        undoBefore: (deps.undoRef?.current || []).map(e => e.id) }
       mark?.('turn:sent')
       const res = await agentTurnV2(body, onEvent(deps))
       mark?.('turn:received', res.ok ? 'ok' : res.status || 'error')
@@ -205,7 +272,7 @@ export function createStepRunner() {
       deps.tapRef.current = null
       const res = outcomeOf(bodies.length ? bodies : [{ outcome: 'the member dismissed the card', outcomeData: { kind: 'dismissed' } }], null)
       const status = res.status === 'done' ? 'done' : (res.status === 'failed' ? 'failed' : 'refused')
-      if (!active) active = { turnId: p.turnId, refMap: {}, sources: {}, voice: false, chain: Promise.resolve() }
+      if (!active) active = { turnId: p.turnId, refMap: {}, sources: {}, voice: false, chain: Promise.resolve(), changeSteps: 1, undoBefore: null }
       active.chain = Promise.resolve()
       const added = status === 'done' ? await newRefs(deps.host, deps.capCtx, active.refMap) : []
       if (status === 'done') bindAlias(active, p.alias, added)      // the approved creator's alias names what it made

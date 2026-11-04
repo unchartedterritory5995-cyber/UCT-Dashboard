@@ -41,6 +41,15 @@ PAUSE_TTL_S = 600
 STEP_TIMEOUT_S = 120
 TOOL_SEARCH = {"type": "tool_search_tool_regex_20251119", "name": "tool_search_tool_regex"}
 RESEARCH_TOOL = "research__web"
+#: the browser's own Undo (the receipt's Undo), as a planner action (hotfix #766). A query-shaped manifest entry that is
+#: a CHANGE: a v2 step of it is sent as `apply` (never answered as a query; blocked after research like any change),
+#: and the browser runs doUndo / undoTurn for it (steps.js runUndoStep) — only their outcome says what was undone.
+UNDO_ACTION = "agent.undo"
+V2_UNDO_RULE = ("UNDO. Undoing YOUR OWN earlier change (\"undo that\", \"undo the last change you made\", \"revert the timeframe "
+                "change\", \"…, then undo it\") is the agent.undo action (agent__undo): call it — after the change it undoes when "
+                "both are asked for. Never say you cannot undo, and never send the member to another Undo, while it is available; "
+                "its tool result says what UCT actually undid. An action marked \"permanent -- no Undo\" or \"no Undo\" cannot be "
+                "undone: never say or imply it can.")
 # ⭐ W2-A2 COST (owner 2026-11-03: keep the $0.25 per-turn cap; make the planner cheaper). Which tool layout v2 sends:
 #   "index"  (default) — the system prompt carries a compact INDEX of every action (exact tool name + a short summary);
 #            the request's tools are only `load_actions` (+ research); the model loads the actions it needs by name and
@@ -82,6 +91,10 @@ _DOMAIN_TITLE = {
     "history": "market breadth history and everything else",
 }
 
+UNDO_NOT_DONE = "Nothing was undone (see above)."
+#: an Undo claim in the model's own words ("Undone.", "I reverted…", "took that back", "restored …")
+_UNDO_CLAIM = re.compile(r"\b(?:undone|undid|undoing|reverted|reverting|reversed|took (?:it|that|them|those) back|taken back|"
+                         r"put (?:it|that|them) back|restored|rolled back)\b", re.I)
 ROUND_LIMIT = "I stopped there: that request needed more steps than one turn allows. What is done is shown above; ask for the rest on its own."
 TURN_CAP = "I stopped there: that request reached one turn's AI budget. What is done is shown above; ask for the rest on its own."
 STEP_TIMEOUT = "I stopped there: a step did not report back in time. What is done is shown above."
@@ -124,6 +137,16 @@ def max_tokens_for(model_id: str) -> int:
     """v2's output reservation per round: V2_MAX_TOKENS, unless the model thinks (effort set) — thinking is billed as
     output inside max_tokens, so those rounds keep v1's ceiling."""
     return t1.output_ceiling(model_id) if t1.effort_for(model_id) else min(V2_MAX_TOKENS, t1.output_ceiling(model_id))
+
+
+def knowledge_gate(caps: list[dict]) -> list[dict]:
+    """KN-1 flag-off identity (v2-readiness-2): with UCT_AGENT_KNOWLEDGE off the server serves no knowledge kind, so a
+    playbook.* entry (a stale or forged manifest) is never offered — the v2 request is byte-identical to one built
+    from a manifest without them. With the flag on, nothing changes here (the frame / separation rules apply)."""
+    from api.services.uct_agent.knowledge import frame as kn_frame, kinds as kn_kinds
+    if kn_kinds.enabled():
+        return caps
+    return [a for a in caps if not kn_frame.is_knowledge_action(a.get("name"))]
 
 
 def new_turn_token() -> str:
@@ -409,6 +432,9 @@ def _final(state: dict, reply: str, usage_note: str | None = None) -> dict:
     text = _clean(reply, 6000)
     if not applied and t1._CLAIMS_WITHOUT_ACTION.match(text):
         text = t1.NOTHING_DONE                          # nothing ran: a claim never reaches the member
+    undos = [s for s in state["steps"] if s["action"] == UNDO_ACTION]
+    if undos and not any(s["status"] == "done" for s in undos) and _UNDO_CLAIM.search(text):
+        text = UNDO_NOT_DONE                            # v2-readiness-2: only doUndo's receipt may say something was undone
     envelope = {"disposition": "answer", "reply": text, "question": None, "ops": [],
                 "unsupported_category": None, "planner": "v2",
                 "steps": [{k: s[k] for k in ("id", "action", "target", "mode", "status")} for s in state["steps"]]}
@@ -464,6 +490,7 @@ def _start(message, context, history, capabilities, pending, reference, repair, 
         r = raw.get(a["name"]) or {}
         a["query"] = r.get("query") is True
         a["isolated"] = r.get("isolated") is True or r.get("localOnly") is True
+    caps = knowledge_gate(caps)
     research = meter is not None
     mode = tools_mode()
     if mode == "index":
@@ -475,6 +502,8 @@ def _start(message, context, history, capabilities, pending, reference, repair, 
         parts = [V2_SYSTEM]
     if any(a["name"] == "breadth.show" for a in caps):
         parts.append(t1.BREADTH_RULE)
+    if UNDO_ACTION in {a["name"] for a in caps}:
+        parts.append(V2_UNDO_RULE)                    # v2-readiness-2: only when the browser offers its Undo
     system = [{"type": "text", "text": "\n\n".join(parts), "cache_control": {"type": "ephemeral"}}]
     blocks = [t1._block("workspace_context", context)]
     if pending:
@@ -588,7 +617,8 @@ def _run_pending_steps(state: dict, on_event, wait_step, meter=None) -> dict | N
         if not isinstance(target, str) or target not in state["valid_refs"] | state["aliases"]:
             state["results"].append(_tool_result(uid, "unknown target: use a ref from <workspace_context> (or an `as` name declared earlier in this turn)", True))
             continue
-        mode = "query" if cap.get("query") else ("propose" if cap["name"] in state["guarded"] else "apply")
+        mode = ("apply" if cap["name"] == UNDO_ACTION
+                else "query" if cap.get("query") else ("propose" if cap["name"] in state["guarded"] else "apply"))
         if state["researched"] and mode != "query":
             state["results"].append(_tool_result(uid, NO_CHANGE_AFTER_RESEARCH, True))
             continue
