@@ -134,6 +134,11 @@ const ELIGIBLE = [
   // the toolbar), written here with the same `withSetting` shape. Not promoted: `header.show*` (the Info row now
   // stores `header.fields`; the legacy flags are migration inputs — a `header.fields` list writer is the honest
   // capability), `volume.plotStyle` (declared, not yet honoured by StockChart), `watermark.lines.*` (already rows). ──
+  // W1.1 R-01 (LT-3, live 2026-11-03 "turn the gradient off"): the Background control's Solid / Gradient switch itself —
+  // ChartSettingsModal setBgMode writes `setSetting({ bgMode })`, a plain field — so gradient on/off is a setting the Agent
+  // can name (bgMode gradient|solid) instead of an id the model invents. Its solid COLOR stays chart.setBackground's.
+  E('bgMode', 'canvas', 'Gradient background', 'enum', { options: ['solid', 'gradient'], ui: 'Chart Settings → Canvas → Background → Solid / Gradient',
+    words: ['gradient', 'gradient background', 'background gradient', 'the gradient', 'gradient bg'], boolMap: { true: 'gradient', false: 'solid' } }),
   E('bgGradient.top', 'canvas', 'Gradient background top color', 'color', { ui: 'Chart Settings → Canvas → Background → Gradient', requires: WHEN_GRADIENT }),
   E('bgGradient.bottom', 'canvas', 'Gradient background bottom color', 'color', { ui: 'Chart Settings → Canvas → Background → Gradient', requires: WHEN_GRADIENT }),
   E('volume.upColor', 'volume', 'Volume up color', 'color', { ui: 'Chart Settings → Indicators → Volume' }),
@@ -168,7 +173,7 @@ const SPECIALIZED = [
   S('chartType', 'chart.setType'), S('breadthChartType', 'chart.setType'),
   S('logScale', 'chart.setScale'), S('percentScale', 'chart.setScale'),
   S('extendedHoursShading', 'chart.setSession'), S('sessionView', 'chart.setSession'),
-  S('background', 'chart.setBackground'), S('bgMode', 'chart.setBackground'),
+  S('background', 'chart.setBackground'),
   ...['upColor', 'downColor', 'upBorder', 'downBorder', 'upWick', 'downWick', 'oneColor'].map(k => S(`candles.${k}`, 'chart.setCandleColors')),
   S('volume.visible', 'volume.setState'), S('volume.removed', 'volume.setState'),
   S('comparisonSymbols', 'chart.setSymbol'), S('compareHideBase', 'chart.setSymbol'),

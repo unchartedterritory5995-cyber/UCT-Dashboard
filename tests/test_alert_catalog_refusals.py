@@ -337,9 +337,9 @@ def test_the_CATALOG_half_of_the_response_is_BYTE_UNMOVED(client):
     save(USER_A, defn(), repaint={"value": "repaints"})
     body = served(client)
     assert body["catalog"] == ev.alert_catalog()
-    assert len(ev.alert_catalog()) == 16
-    assert len(ev.all_addresses()) == 31
-    assert len(ev.ADDRESS_PARTITIONS) == 3
+    assert len(ev.alert_catalog()) == 17  # 2026-11-04: +ma_cross
+    assert len(ev.all_addresses()) == 32  # 2026-11-04: +ma_cross
+    assert len(ev.ADDRESS_PARTITIONS) == 4  # 2026-11-04: +CROSS_FUNCS
 
 
 def test_with_NO_account_the_read_out_is_empty_and_reaches_no_store(monkeypatch):

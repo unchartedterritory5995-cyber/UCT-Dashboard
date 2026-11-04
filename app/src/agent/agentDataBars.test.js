@@ -244,7 +244,7 @@ describe('stock.dailyBars on the real fast path, served and dark', () => {
     const m = match(r.phrase)
     const f = fastParse(r.phrase, {})
     const text = r.cand.slice(0, r.cand.lastIndexOf(':'))
-    expect(m).toEqual({ action: CAPABILITY, params: { symbol: text, measure: MEASURE[r.intent], sessions: r.n, date: null } })
+    expect(m).toEqual({ action: CAPABILITY, params: { symbol: text, measure: MEASURE[r.intent], sessions: r.n, date: null, from: null } })   // W2-B2: `from`
     expect(f?.ops?.map(o => o.action)).toEqual([CAPABILITY])                 // the sole claimant among every builtin
   })
 

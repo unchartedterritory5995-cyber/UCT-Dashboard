@@ -12,13 +12,21 @@
  */
 import styles from './ConnectConsentPanel.module.css'
 
-export default function ConnectConsentPanel({ providerLabel, checked, onCheck, onConfirm, onCancel, busy }) {
+// `notes` (optional, string[]): provider facts the member must read before consenting (Evernote's
+// paid-plan rule, beta, `.enex` adoption), rendered as a list above the checkbox. Absent or empty: no list.
+export default function ConnectConsentPanel({ providerLabel, checked, onCheck, onConfirm, onCancel, busy, notes }) {
   return (
     <div className={styles.consent} role="group" aria-label={`Consent to connect ${providerLabel}`}>
       <p className={styles.consentLead}>
         We pull your {providerLabel} notes (and attachments where supported) into the Notebook —
         one-way, nothing is ever written back to {providerLabel}. Disconnect anytime; imported notes stay.
       </p>
+      {Array.isArray(notes) && notes.length > 0 && (
+        <ul className={styles.notes}>
+          {/* Keyed by position (review M6): the list is static per render, and two equal notes must both show. */}
+          {notes.map((n, i) => <li key={i}>{n}</li>)}
+        </ul>
+      )}
       <label className={styles.consentCheck}>
         <input type="checkbox" checked={checked} onChange={(e) => onCheck(e.target.checked)} />
         I authorize UCT Intelligence to access my {providerLabel} account to import my notes.

@@ -58,8 +58,27 @@ export const NOTE_CONNECTOR_PROVIDERS = [
   { key: 'dropbox', label: 'Dropbox', tokenKind: 'oauth' },
   { key: 'onenote', label: 'OneNote', tokenKind: 'oauth' },
   { key: 'onedrive', label: 'OneDrive', tokenKind: 'oauth' },
-  { key: 'obsidian', label: 'Obsidian', tokenKind: 'device' },
+  // `authoritativeListing`: the provider's listing is its own complete walk, so a note missing
+  // from it was REMOVED there (the backend's `NoteProvider.enumeration_is_authoritative`; pinned
+  // against it by api/services/journal_two/test_note_connectors_authoritative_parity.py). The
+  // note view's "removed from" notice reads it; every other provider "no longer lists" the note.
+  { key: 'obsidian', label: 'Obsidian', tokenKind: 'device', authoritativeListing: true },
+  // Plan E Task 10. `beta` shows a "Beta" pill on the Settings tile (Evernote's own connection is beta).
+  { key: 'evernote', label: 'Evernote', tokenKind: 'oauth', beta: true },
 ]
+
+// Providers the server gates PER MEMBER (`registry.provider_allowed_for`; only Evernote). `/status`
+// lists them to every member, with `configured: false` while the flag is off or the member is not
+// allowed -- deliberately the same answer as "not set up", so a member cannot tell the modes apart.
+// So a gated provider shows NO tile at all (not "Coming soon") until the server says configured.
+// EXCEPT while the member is already connected (coordinator ruling): a connection must never be
+// invisible or unremovable, so the tile stays, in its sync-off state (Disconnect and the log are
+// ungated on the server; Sync now and pause are not). Every surface asks `isProviderShown`.
+export const MEMBER_GATED_PROVIDERS = new Set(['evernote'])
+
+export function isProviderShown(key, info) {
+  return !MEMBER_GATED_PROVIDERS.has(key) || !!(info && (info.configured || info.connected))
+}
 
 // Providers whose sync unit is a PICKED FOLDER, not a whole account —
 // mirrors the backend's `_FOLDER_PICKER_PROVIDERS` frozenset
@@ -124,6 +143,12 @@ export function normalizeSource(raw) {
     lastSyncStatus: pick(raw, 'lastSyncStatus', 'last_sync_status', null),
     lastSyncError: pick(raw, 'lastSyncError', 'last_sync_error', null),
     warmingUntil: pick(raw, 'warmingUntil', 'warming_until', null),
+    // Evernote rate-limit fix round 1 (I3): a pass for this source is running now on the server
+    // (a background Sync now, a follow-up pass).
+    syncing: !!pick(raw, 'syncing', 'syncing', false),
+    // D4-2: a pass for this source waits for one of the server's shared pass slots (not running
+    // yet). The server sends `syncing: false` while it does.
+    queued: !!pick(raw, 'queued', 'queued', false),
     pendingRemoval: pick(raw, 'pendingRemoval', 'pending_removal', 0) || 0,
     lastFailureCount: pick(raw, 'lastFailureCount', 'last_failure_count', 0) || 0,
     // The newest sync's failure details could not be read (the server sends a
@@ -300,11 +325,32 @@ export function normalizeFolders(raw) {
 // instead of accepting an unverified sentinel.
 export const FOLDER_PICKER_ROOT_REMOTE_ID = { dropbox: '/' }
 
+// Evernote rate-limit fix round 1 (I3): while any source is syncing or still importing, the
+// page re-reads /status every 10 s, so a background Sync now and the follow-up passes show their
+// progress line without a reload. A settled page (or one still loading) never polls.
+export function connectorsRefreshInterval(raw) {
+  const providers = (raw && raw.providers) || {}
+  for (const key of Object.keys(providers)) {
+    const sources = (providers[key] && providers[key].sources) || []
+    for (const s of sources) {
+      if (!s) continue
+      if (s.syncing === true || s.queued === true
+        || pick(s, 'lastSyncStatus', 'last_sync_status', null) === 'importing') return 10000
+    }
+  }
+  return 0
+}
+
+// The /status SWR options, exported so the poll's wiring has a rail of its own.
+export const STATUS_SWR_OPTIONS = {
+  revalidateOnFocus: false, shouldRetryOnError: false, refreshInterval: connectorsRefreshInterval,
+}
+
 export default function useNoteConnectors() {
   const { data, error, isLoading, mutate } = useSWR(
     '/api/j2/notes/connectors/status',
     fetcher,
-    { revalidateOnFocus: false, shouldRetryOnError: false }
+    STATUS_SWR_OPTIONS
   )
 
   const { providers, enabled, obsidianAttachments } = normalizeStatus(data)

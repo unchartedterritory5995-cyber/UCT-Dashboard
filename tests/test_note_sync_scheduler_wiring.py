@@ -181,3 +181,39 @@ def test_job_body_never_raises_on_an_engine_exception(monkeypatch):
 
     monkeypatch.setattr(engine, "sync_due_sources", lambda: boom())
     ns_sched.run_due_sync_blocking()  # must not raise into the scheduler
+
+
+# ── quick follow-up passes (live gate 2026-11-03) ────────────────────────────
+
+JOB_ID_FOLLOW_UP = "note_sync_follow_up"
+
+
+def test_the_follow_up_job_is_registered_in_main():
+    ids = _add_job_ids(ast.parse(MAIN.read_text(encoding="utf-8")))
+    assert JOB_ID_DUE in ids  # non-vacuity: the probe sees its sibling
+    assert JOB_ID_FOLLOW_UP in ids, (
+        f"engine.sync_follow_up_sources is defined but never scheduled: a rate-limited first "
+        f"import would wait for the hourly tick. Registered ids: {ids}")
+
+
+def test_run_follow_up_sync_blocking_noop_when_flag_off(monkeypatch):
+    from api.services.journal_two.note_connectors import scheduler as ns_sched, engine
+    monkeypatch.delenv("NOTE_SYNC_ENABLED", raising=False)
+    calls = []
+    monkeypatch.setattr(engine, "sync_follow_up_sources", lambda: calls.append(1))
+    ns_sched.run_follow_up_sync_blocking()
+    assert calls == []
+
+
+def test_run_follow_up_sync_blocking_runs_when_flag_on_and_never_raises(monkeypatch):
+    from api.services.journal_two.note_connectors import scheduler as ns_sched, engine
+    monkeypatch.setenv("NOTE_SYNC_ENABLED", "1")
+    calls = []
+
+    async def boom():
+        calls.append(1)
+        raise RuntimeError("db is on fire")
+
+    monkeypatch.setattr(engine, "sync_follow_up_sources", lambda: boom())
+    ns_sched.run_follow_up_sync_blocking()  # must not raise into the scheduler
+    assert calls == [1]

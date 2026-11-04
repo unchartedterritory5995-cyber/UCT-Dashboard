@@ -48,7 +48,7 @@ export const TOPICS = [
   {
     id: 'breadth', title: 'Market breadth (now and history)',
     words: [/\bbreadth\b/, /\b(advance[- /]decline|new highs|new lows|% of stocks above)\b/],
-    caps: ['breadth.show', 'breadth.history'], productHas: true,
+    caps: ['breadth.show', 'breadth.history', 'breadth.page'], productHas: true,
     canDo: 'look up and search UCT’s market breadth for US, NYSE or Nasdaq stocks — when a measure was last below or above a level, crossings, how many times, episodes and how long they lasted; the current reading during the session (labelled with its time, when UCT’s live feed has one; otherwise the latest finalized close, dated), a finalized value on a date, two dates compared, or a date range summarised (% of stocks above their moving averages, new highs and lows, advance/decline, Stage 2/4 counts). UCT shows the figures to you directly; they are not sent to the AI model',
     known: () => ['breadth for UCT’s own universe (it is on the Breadth page) or other indexes', 'live new highs / new lows (finalized closes only for now)', 'live-versus-historical comparisons', 'cross-asset conditions (“when was breadth this low while QQQ was at a high?”)', 'weekly-close searches (daily finalized sessions for now)'],
     planned: { when: 'Stage 3', what: 'conditional questions across UCT’s historical data, with explicit definitions and no look-ahead' },
@@ -136,8 +136,8 @@ export const TOPICS = [
   {
     id: 'screener', title: 'Screener',
     words: [/\bscreen\w*\b/, /\bscan\w*\b/, /\bfilters?\b/, /\bfind (me )?stocks\b/, /\bsort (by|on)\b/],
-    caps: ['screener.run', 'screener.state'], productHas: true,
-    canDo: 'run screens on UCT’s numeric, yes/no and category fields (sector, industry, theme…) and the latest session’s close, volume and dollar volume, with one sort, refine the last screen, and send all the results to a watchlist or open them as charts',
+    caps: ['screener.run', 'screener.state', 'screener.page', 'screener.openSaved'], productHas: true,
+    canDo: 'run screens on UCT’s numeric, yes/no and category fields (sector, industry, theme…) and the latest session’s close, volume and dollar volume, with one sort, refine the last screen, and send all the results to a watchlist or open them as charts; on the Screener page, say what screen is on it and open one of your saved screens there',
     known: () => ['field-vs-field comparisons', 'formula logic and ranking in new screens', 'custom-date (period) sorting', 'preset scans'],
     planned: { when: 'Batch 9', what: 'advanced conditions, ranking and custom-date sorting' },
   },
@@ -166,6 +166,22 @@ export const TOPICS = [
     planned: { when: 'Batch 10', what: 'more read-only data questions' },
   },
   {
+    id: 'calendar', title: 'Earnings calendar',
+    words: [/\b(calendar|report(s|ing)? (date|day|week)|next report|who reports|reports? (today|tomorrow|this week|on))\b/],
+    caps: ['calendar.nextReport', 'calendar.day'], productHas: true,
+    canDo: 'say when a stock next reports (date and session) and list the reports on a day or on the week the Calendar page has loaded — tickers and session only, on the Calendar page',
+    known: () => ['estimates, implied moves and reactions (read them on the Calendar page)', 'my-stocks sets and calendar filters (the page’s own controls)'],
+    planned: null,
+  },
+  {
+    id: 'journal', title: 'Journal notes',
+    words: [/\b(journal|notebook|notes?|note it|write (it|that) down|jot)\b/],
+    caps: ['journal.listNotes', 'journal.createNote'], productHas: true,
+    canDo: 'list your recent Notebook notes and create a new note (title, text, optional ticker) through the Notebook’s own New-note path — Undo moves it to Trash — on the Journal pages',
+    known: () => ['logging trades, positions or accounts (personal records — not operated by the Agent)', 'editing or deleting an existing note', 'templates and journal styles'],
+    planned: null,
+  },
+  {
     id: 'appSettings', title: 'App settings and pages',
     words: [/\b(app theme|dark mode|light mode|default timeframe|alert sound|digest|email)\b/, /\b(open|go to) (the )?\w+ page\b/],
     caps: ['settings.show', 'settings.setAppTheme', 'settings.setDefaultTimeframe', 'settings.setAlertSound', 'settings.setWatchlistDigest', 'app.open'], productHas: true,
@@ -177,6 +193,15 @@ export const TOPICS = [
     words: [/\b(show me (where|how)|walk me through|tutorial|teach me|guide me|explain|what does .+ mean)\b/],
     caps: ['guide.explain', 'guide.show'], productHas: true,
     canDo: 'explain what a UCT term, indicator or feature is (from UCT’s own catalog), show you where a Charts control is by highlighting it on your board step by step (symbol, timeframe, indicators, several charts, watchlists, layouts, drawing tools, chart settings) — without changing anything — and then do it for you when you ask',
+    known: () => [],
+    planned: null,
+  },
+  {
+    // hotfix 2026-11-03: the Agent's own Undo, asked for in words (agent.undo → the receipt's Undo)
+    id: 'undo', title: 'Undoing my changes',
+    words: [/\b(undo|revert|take (it|that|them) back)\b/],
+    caps: ['agent.undo'], productHas: true,
+    canDo: 'undo my own changes when you ask (“undo that”, “undo the last change you made”, “revert the timeframe change”, “undo all of that”) — exactly what the Undo on that change’s receipt does — and tell you plainly when a change can’t be undone (changed since, on another board, a protected layout, or a permanent action)',
     known: () => [],
     planned: null,
   },

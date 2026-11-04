@@ -1,4 +1,5 @@
 import styles from './FocusScreener.module.css'
+import { AgentDockButton } from '../../../agent/AgentProvider'
 
 // List | Charts | Map | Table. Exported so Table mode, which renders today's page under a slim bar, shows the same control.
 // Charts is the screen's results on the /charts Multi-Chart grid (ScreenerChartGrid); Map is the
@@ -22,7 +23,7 @@ export default function FocusTopBar({ screenMenu, filterCount, onOpenFilters, da
     <header className={styles.topBar}>
       {optionsTab}
       {screenMenu}
-      <button type="button" className={styles.btn} onClick={onOpenFilters} aria-label={`Filters, ${filterCount} active`}>
+      <button type="button" className={styles.btn} onClick={onOpenFilters} data-guide="screener.filters" aria-label={`Filters, ${filterCount} active`}>
         Filters {filterCount > 0 && <span className={styles.badge}>{filterCount}</span>}
       </button>
       <span className={styles.spacer} />
@@ -31,6 +32,7 @@ export default function FocusTopBar({ screenMenu, filterCount, onOpenFilters, da
       {saveMenu}
       {moreMenu}
       {helpMenu}
+      <AgentDockButton />
     </header>
   )
 }

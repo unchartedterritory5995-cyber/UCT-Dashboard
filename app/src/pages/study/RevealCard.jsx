@@ -21,9 +21,10 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
+import StudyMark from '../../components/study/StudyMark'
 import { appendForwardBars, studyFetch } from './useStudySession'
 import { feedbackPrefs, revealFeedback } from './studyFeedback'
-import { FEEDBACK_KINDS, VERDICTS, feedbackUrl, lessonParts } from './revealCardHelpers'
+import { FEEDBACK_KINDS, VERDICTS, answerWord, feedbackUrl, lessonParts } from './revealCardHelpers'
 import styles from './RevealCard.module.css'
 
 export { appendForwardBars }
@@ -37,16 +38,6 @@ export function lessonHrefFor(reveal) {
   return `/desk?section=courses&lesson=${encodeURIComponent(key)}`
 }
 
-function answerWord(reveal) {
-  const a = reveal?.answer
-  if (a == null) return null
-  if (typeof a === 'string' || typeof a === 'number') return String(a)
-  if (typeof a === 'object') {
-    if (a.answer != null && typeof a.answer !== 'object') return String(a.answer)
-    if (a.shares != null) return `${a.shares} shares${a.dollars != null ? `, $${Math.round(a.dollars)} at risk` : ''}`
-  }
-  return null
-}
 
 function dateRange(reveal) {
   const from = reveal?.start || reveal?.from
@@ -150,6 +141,7 @@ export default function RevealCard({
 
   return (
     <section className={`${styles.card} ${className}`.trim()} data-testid="reveal-card" data-correct={correct ? '1' : '0'}>
+      <StudyMark mood={correct ? 'happy' : 'oops'} size={44} className={styles.mark} />
       <p className={`${styles.verdict} ${correct ? styles.verdictCorrect : styles.verdictWrong}`} role="status" aria-live="polite">
         <span className={styles.verdictIcon} aria-hidden="true">
           <UIcon name={correct ? 'check' : 'x'} size={20} gold={!!correct} />

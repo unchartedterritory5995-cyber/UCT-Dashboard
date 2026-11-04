@@ -317,6 +317,17 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
     refusal = ias.refusal_for(body.indicator, condition, body.tf, threshold)
     if refusal:
         raise HTTPException(status_code=400, detail=refusal)
+    # ⭐ 2026-11-04 — THE PARAMS' OWN SHAPE, for an address whose column declares
+    # a validator (today only `ma_cross`: fast < slow, ema|sma, confirm 'close',
+    # one of its two offered rules). `None` for every other address, so their
+    # create path is unchanged.
+    params = body.params
+    if not alert_user_series.is_user_address(raw):
+        refusal = indicator_alert_evaluator.params_refusal(raw, condition, body.params)
+        if refusal:
+            raise HTTPException(status_code=400, detail=refusal)
+        # …and stored in ONE spelling (`"200"` → `200`) where the column declares one.
+        params = indicator_alert_evaluator.normalize_params(raw, body.params)
     try:
         alert_id = ias.create(
             user_id=user["id"],
@@ -325,7 +336,7 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
             condition=condition,
             threshold=threshold,
             tf=body.tf,
-            params_json=body.params,
+            params_json=params,
             instance_id=body.instance_id,
             scope=body.scope,
             # ⭐ P1 — THE PER-MEMBER COUNT CAP, ENFORCED INSIDE THE INSERT'S OWN

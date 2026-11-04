@@ -43,6 +43,8 @@ import MemberInterestNotice from '../../../components/memberInterest/MemberInter
 import { buildScreenerCapture } from './notebookCapture'
 import { SkipLinkPortal } from '../../../components/skipLinks'
 import styles from './ScannerShell.module.css'
+import { AgentDockButton } from '../../../agent/AgentProvider'
+import { useScreenerAgentHost } from '../../../agent/hosts/usePageAgentHosts'
 
 const densityKey = 'uct.screener.density'
 
@@ -350,6 +352,8 @@ export default function ScannerShell({ embedded = false, toolbarLead = null }) {
       criteriaSlot={<CriteriaBox logic={s.logic} onApply={s.setLogic} />} />
   )
 
+  // ⭐ W2-C1: what UCT Agent may read here and the door it opens a saved screen through (the page's own applySpec)
+  useScreenerAgentHost({ rows, total, filters: Object.keys(s.filters || {}), loading: isLoading, applyScreen: (spec) => s.applySpec(spec) })
   return (
     <div className={`${styles.shell} ${embedded ? styles.shellEmbedded : ''}`}>
       {!embedded && (
@@ -384,6 +388,7 @@ export default function ScannerShell({ embedded = false, toolbarLead = null }) {
           {/* One-click preset scans, right in the scan bar — each runs within the
               pool chosen to its left. */}
           <PresetChips currentSpec={s.baseSpec} onApply={s.applySpec} />
+          {toolbarLead == null && !embedded && <AgentDockButton style={{ marginLeft: 'auto' }} />}
         </div>
         <ShellToolbar meta={meta} view={s.view} onView={s.setView} leadSlot={toolbarLead}
           visibleColumns={visibleColumns} allColumns={allColumns}

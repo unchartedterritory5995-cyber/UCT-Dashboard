@@ -21,14 +21,14 @@ describe('one pattern engine at a time', () => {
   })
 
   it('chartIqActive means Chart IQ is on, allowed and on the daily timeframe', () => {
-    expect(src).toMatch(/const chartIqActive = chartIqOn && resolvedTf === 'D'/)
+    expect(src).toMatch(/const chartIqActive = chartIqOn && CHART_IQ_TFS\.includes\(resolvedTf\)/)
     expect(src).toMatch(/const chartIqOn = showChartIq && chartIqAllowed && !disablePatterns/)
   })
 })
 
 describe('Chart IQ on a non-daily chart', () => {
   it('mounts the not-daily notice (with the timeframe switch) when Chart IQ is on and the chart is not 1D', () => {
-    expect(src).toMatch(/\{chartIqOn && resolvedTf !== 'D' && bars\?\.length > 0 && \(\s*<ChartIqPanel\s+notDaily/)
+    expect(src).toMatch(/\{chartIqOn && !CHART_IQ_TFS\.includes\(resolvedTf\) && bars\?\.length > 0 && \(\s*<ChartIqPanel\s+notDaily/)
     expect(src).toMatch(/onShowDaily=\{typeof onTfChange === 'function' \? \(\) => onTfChange\('D'\) : null\}/)
   })
 })

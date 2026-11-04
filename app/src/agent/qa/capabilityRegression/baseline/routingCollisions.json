@@ -1,0 +1,168 @@
+{
+  "about": "ROUTING-COLLISION table (capreg-2): common owner-style phrasings with the ONE routing group that owns them (plus any group that may legitimately ride along). routingCollision.test.js asserts that no OTHER group's trigger words select the phrase — a group's words stealing another group's everyday language is how CG-12 ('tell me about …' → alerts) and CG-13 ('stack up against' → charts) happened. A known collision carries a gap {id, reason, owner, mode} and must fail in exactly that way.",
+  "rows": [
+    {
+      "text": "tell me about TSM the company",
+      "owner": "data"
+    },
+    {
+      "text": "how does NVDA stack up against AMD",
+      "owner": "data",
+      "gap": {
+        "id": "CG-13",
+        "reason": "the charts compare words select 'against'",
+        "owner": "nlfix builder (routing.js)",
+        "mode": "stolen by charts"
+      }
+    },
+    {
+      "text": "tell me about AAPL",
+      "owner": "data"
+    },
+    {
+      "text": "what does NVDA do",
+      "owner": "data"
+    },
+    {
+      "text": "any news on TSLA",
+      "owner": "data"
+    },
+    {
+      "text": "when does NVDA report earnings",
+      "owner": "data"
+    },
+    {
+      "text": "what's driving AMD today",
+      "owner": "data"
+    },
+    {
+      "text": "NVDA drawdowns this year",
+      "owner": "data"
+    },
+    {
+      "text": "how far is NVDA off its high",
+      "owner": "data"
+    },
+    {
+      "text": "switch to weekly",
+      "owner": "charts"
+    },
+    {
+      "text": "make it a line chart",
+      "owner": "charts"
+    },
+    {
+      "text": "use a log scale",
+      "owner": "charts"
+    },
+    {
+      "text": "show extended hours",
+      "owner": "charts"
+    },
+    {
+      "text": "add the 9 and 20 ema",
+      "owner": "indicators"
+    },
+    {
+      "text": "add the relative strength index",
+      "owner": "indicators",
+      "gap": {
+        "id": "CG-4",
+        "reason": "'relative strength' is a screener strength word (SUBTRACTIVE: indicators not named)",
+        "owner": "nlfix builder (routing.js)",
+        "mode": "stolen by screener"
+      }
+    },
+    {
+      "text": "remove the 200 sma",
+      "owner": "indicators"
+    },
+    {
+      "text": "hide the 50 day moving average",
+      "owner": "indicators"
+    },
+    {
+      "text": "set a price alert on NVDA at 150",
+      "owner": "alerts"
+    },
+    {
+      "text": "show my alerts",
+      "owner": "alerts"
+    },
+    {
+      "text": "pause my RSI alert",
+      "owner": "indicatorAlerts",
+      "also": [
+        "alerts",
+        "indicators"
+      ]
+    },
+    {
+      "text": "find stocks with ADR above 5%",
+      "owner": "screener"
+    },
+    {
+      "text": "run my Momentum screen",
+      "owner": "screener"
+    },
+    {
+      "text": "how's breadth today",
+      "owner": "breadth"
+    },
+    {
+      "text": "what percent of stocks are above the 50 day",
+      "owner": "breadth"
+    },
+    {
+      "text": "add AMD to my watchlist",
+      "owner": "lists"
+    },
+    {
+      "text": "create a new watchlist called Semis",
+      "owner": "lists"
+    },
+    {
+      "text": "open my Swing layout",
+      "owner": "layouts"
+    },
+    {
+      "text": "save this layout",
+      "owner": "layouts"
+    },
+    {
+      "text": "add a news widget",
+      "owner": "workspace"
+    },
+    {
+      "text": "close the right chart",
+      "owner": "workspace",
+      "also": [
+        "charts"
+      ]
+    },
+    {
+      "text": "draw a horizontal line at 200",
+      "owner": "drawings"
+    },
+    {
+      "text": "clear all my drawings",
+      "owner": "drawings"
+    },
+    {
+      "text": "switch to dark mode",
+      "owner": "settings"
+    },
+    {
+      "text": "undo that",
+      "owner": "undo"
+    },
+    {
+      "text": "where is the indicator settings button",
+      "owner": "guide",
+      "also": [
+        "indicators",
+        "settings"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "See ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "import-link://evernote:guid:22222222-0000-4000-8000-00000000000a"
+                },
+                "type": "link"
+              },
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Target Note",
+            "type": "text"
+          },
+          {
+            "text": " first.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Then ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "import-link://evernote:guid:22222222-0000-4000-8000-00000000000b"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "Other Note",
+            "type": "text"
+          },
+          {
+            "text": ".",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Shared: ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "import-link://evernote-title:Third Note"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "Third Note",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Web: ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://example.com/page"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "site",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [
+    "evernote:guid:22222222-0000-4000-8000-00000000000a",
+    "evernote:guid:22222222-0000-4000-8000-00000000000b",
+    "evernote-title:Third Note"
+  ],
+  "media": []
+}

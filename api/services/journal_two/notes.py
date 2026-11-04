@@ -176,6 +176,13 @@ class NoteValidationError(ValueError):
     """Raised when note payload is malformed."""
 
 
+class DestinationFolderNotFound(NoteValidationError):
+    """`import_confirm`'s `destFolderId` names no folder of this member's. A subclass, so every
+    caller that maps a `NoteValidationError` (the file importer's 400) is unchanged, while the
+    connector engine can tell THIS failure, which no retry fixes, from one that a retry might
+    (live audit 2026-11-03: it was reported as "will be tried again" forever)."""
+
+
 class NoteConflictError(Exception):
     """Raised when a compare-and-set update loses: the note's updated_at no
     longer matches the baseline the client edited from (A15 — a server-side
@@ -1125,9 +1132,7 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
         # name, with no idea what to do about it. One raise site fixes
         # both surfaces; a per-surface translation would fix neither for
         # the other and would be a second authority over this sentence.
-        raise NoteValidationError(
-            "This note is too long to save as one page. "
-            "Split it into two or more notes and try again.")
+        raise NoteValidationError(TOO_LONG_BODY_DETAIL)
     # ⛔ Wave 10 (10C): never STORE a note no door can serve back -- see MAX_BODY_DEPTH.
     if _json_depth_exceeds(raw, MAX_BODY_DEPTH):
         raise NoteValidationError(TOO_DEEP_BODY_DETAIL)
@@ -1148,6 +1153,13 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
 # goes red rather than notes going unreadable. Notes already stored deeper than this
 # still 500 on read -- that half is the router's (the 10C report names it).
 MAX_BODY_DEPTH = 97
+
+#: The sentence a body over MAX_BODY_JSON_BYTES is refused with; it reaches a member verbatim (see
+#: its raise site in `_validate_body_json`). Named so the sync engine can recognise it (Plan E Task 9
+#: fix round 2, m1) without restating it.
+TOO_LONG_BODY_DETAIL = (
+    "This note is too long to save as one page. "
+    "Split it into two or more notes and try again.")
 
 TOO_DEEP_BODY_DETAIL = (
     "This note has too many lists, quotes or toggles nested inside each other to "
@@ -1330,6 +1342,13 @@ def validate_title(raw: Any) -> str:
 
 
 # ── Import support ───────────────────────────────────────────────────────────
+
+def import_title(raw: Any) -> str:
+    """The title `import_confirm` stores: stripped, "Untitled" when empty, cut to
+    `MAX_TITLE_CHARS`. Public for the connectors' `.enex` adoption (Plan E Task 8), which compares a
+    live title through this same rule."""
+    return (raw or "Untitled").strip()[:MAX_TITLE_CHARS]
+
 
 def _import_payload_hash(note: dict) -> str:
     """Compute a SHA256 hash of the note's immutable content for fingerprinting."""
@@ -1559,7 +1578,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
             ok = conn.execute("SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
                               (dest, user_id)).fetchone()
             if not ok:
-                raise NoteValidationError("destination folder not found")
+                raise DestinationFolderNotFound("destination folder not found")
         # A deep folderPath used to be truncated to MAX_FOLDER_DEPTH segments
         # and then created UNDER destFolderId — so a dest at depth >=1 plus a
         # path already at the cap raised "folder nesting too deep" and 400'd
@@ -1575,6 +1594,12 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
         # One import operation = one imported_at timestamp, deliberate
         now = _now_iso()
         path_cache: dict[tuple, str] = {}
+        # Slot scheduling fix round 1 (concern 3): every note's CPU work (validation, the
+        # plain-text extraction, the payload hash, the pending flags) is done FIRST, before
+        # this call writes anything, so the write transaction below spans only the writes and a
+        # member's own save waits on it for as short a time as possible. Pure functions of the
+        # payload; a note that fails here is reported in `failed` exactly as before, in order.
+        prepared: list[tuple[dict, str | None, Exception | None, tuple | None]] = []
         for n in notes:
             raw_key = n.get("importKey")
             key = raw_key if isinstance(raw_key, str) and raw_key else None
@@ -1585,12 +1610,22 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # ⛔ Wave 10 (10C): an imported note the editor cannot build lands in
                 # "Needs attention" with the sentence, never as a locked note.
                 _refuse_unbuildable(body_json)
-                body_plain = extract_plain_text(body_json)
-                first_image = _extract_first_image(body_json)
-                title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]
-                tags = _validate_tags(n.get("tags"))
-                ticker = _validate_ticker(n.get("ticker"))
-                h = _import_payload_hash(n)
+                prepared.append((n, key, None, (
+                    body_json, extract_plain_text(body_json), _extract_first_image(body_json),
+                    import_title(n.get("title")), _validate_tags(n.get("tags")),
+                    _validate_ticker(n.get("ticker")), _import_payload_hash(n),
+                    _import_date(n.get("createdAt"), now), _import_date(n.get("updatedAt"), now),
+                    media_pending_state(body_json),  # Plan A Task 6: 0 / 1 / 2
+                    1 if _body_has_import_link(body_json) else 0,  # Plan A Task 4
+                )))
+            except Exception as e:  # noqa: BLE001 -- isolated per note, as below
+                prepared.append((n, key, e, None))
+        for n, key, prep_error, derived in prepared:
+            try:
+                if prep_error is not None:
+                    raise prep_error
+                (body_json, body_plain, first_image, title, tags, ticker, h, created_at,
+                 updated_at, media_pending, links_pending) = derived
                 # Folder resolution is shared across notes (path_cache) and
                 # deliberately sits OUTSIDE the per-note SAVEPOINT below: a
                 # folder a healthy note needs must survive even when a LATER
@@ -1640,10 +1675,6 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         or _edited_since_file_import(conn, user_id, row)):
                     kept_edited.append(item)
                     continue
-                created_at = _import_date(n.get("createdAt"), now)
-                updated_at = _import_date(n.get("updatedAt"), now)
-                media_pending = media_pending_state(body_json)  # Plan A Task 6: 0 / 1 / 2
-                links_pending = 1 if _body_has_import_link(body_json) else 0  # Plan A Task 4
 
                 # This note's write is isolated in its own SAVEPOINT: a note
                 # that cannot be stored must not discard any sibling note
@@ -1811,6 +1842,10 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "styleId": row["style_id"] if "style_id" in row.keys() else None,
         "styleVersion": row["style_version"] if "style_version" in row.keys() else None,
         "kindId": row["kind_id"] if "kind_id" in row.keys() else None,
+        # L3 (2026-11-03): the app a synced note came from (`obsidian`, `evernote`, ...; the
+        # connector's provider name, `import_confirm`'s `source`), so the note view can name it
+        # in its "removed from <app>" notice. None for a note made in UCT.
+        "importSource": row["import_source"] if "import_source" in row.keys() else None,
     }
 
 
@@ -4797,6 +4832,8 @@ def purge_expired_deleted_notes(
             conn.execute("DELETE FROM j2_notes WHERE id = ?", (note_id,))
             conn.execute("DELETE FROM j2_note_embeds WHERE note_id = ?", (note_id,))
             conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
+            # L4 fix round 1: the sync engine's record of what this note's media is stored as.
+            conn.execute("DELETE FROM j2_note_import_media WHERE note_id = ?", (note_id,))
             # P2 Tier 3: no trigger cleans the check-ins either (R-T3-V3).
             conn.execute("DELETE FROM j2_note_checkins WHERE note_id = ?", (note_id,))
             # Notebook widgets phase 2 (Task 8.9): nor the "used in" projection.
@@ -5932,19 +5969,49 @@ def delete_folder(
         # longer be found by the folder they used to be in. Reading them after
         # would return an empty list and land nothing, which is exactly the
         # shape of a fix that looks present and does nothing.
-        moved = [r["id"] for r in conn.execute(
-            "SELECT id FROM j2_notes WHERE folder_id = ? AND user_id = ?",
-            (folder_id, user_id)).fetchall()]
+        moved_rows = conn.execute(
+            "SELECT id, import_key, updated_at, imported_at, import_remote_rev FROM j2_notes "
+            "WHERE folder_id = ? AND user_id = ?", (folder_id, user_id)).fetchall()
+        moved = [r["id"] for r in moved_rows]
+        # ⛔ A FOLDER MOVE IS NOT A CONTENT EDIT (review I2, `probe_conflict.py`). The note sync
+        # engine reads `updated_at > imported_at` as "the member edited this"
+        # (`import_provenance.edited_since_import`), so bumping `updated_at` alone made every
+        # later remote edit of an imported note a "(synced copy)" sibling. An imported note that
+        # was UNEDITED before the move has `imported_at` advanced to the same stamp, in the same
+        # UPDATE, so it stays unedited. ⛔ Never one the member had already edited (or whose stamps
+        # cannot be read): hiding a real edit would let a remote change overwrite their work.
+        # ⛔ Nor a LEGACY row (`import_remote_rev IS NULL`, re-review N1): the engine judges its
+        # remote by `remote revision > imported_at` (`engine._remote_changed` rule 4), so moving
+        # `imported_at` forward would swallow a remote edit made before this delete and not yet
+        # synced. Such a row keeps the old answer: a conflict copy, never a missed edit.
+        unedited_imports = [
+            r["id"] for r in moved_rows
+            if r["import_key"] and r["import_remote_rev"] is not None
+            and import_provenance.instant(r["updated_at"]) is not None
+            and import_provenance.instant(r["imported_at"]) is not None
+            and not import_provenance.edited_since_import(r["updated_at"], r["imported_at"])]
         # Delete the folder first to avoid UNIQUE constraint violations when re-parenting
         cur = conn.execute(
             "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?", (folder_id, user_id))
         # notes climb to the parent; at root ('' parent) they go Unfiled (NULL)
         conn.execute(
-            "UPDATE j2_notes SET folder_id = ?, updated_at = ? WHERE folder_id = ? AND user_id = ?",
-            (parent or None, now, folder_id, user_id))
+            "UPDATE j2_notes SET folder_id = ?, updated_at = ?, "
+            "imported_at = CASE WHEN id IN (SELECT value FROM json_each(?)) THEN ? ELSE imported_at END "
+            "WHERE folder_id = ? AND user_id = ?",
+            (parent or None, now, json.dumps(unedited_imports), now, folder_id, user_id))
         conn.execute(
             "UPDATE j2_note_folders SET parent_id = ? WHERE parent_id = ? AND user_id = ?",
             (parent, folder_id, user_id))
+        # ⛔ A note-connector source importing into this folder follows its notes to the parent
+        # (the root is None, which `import_confirm` accepts). ⚰️ Live audit 2026-11-03: this
+        # cascade never touched `j2_note_sources`, so a deleted destination left its source
+        # refusing every batch forever ("destination folder not found"). Only THIS folder is
+        # removed here: its children are re-parented, never deleted, so a source on a child
+        # stays where it is. A source left pointing at a missing folder some other way is
+        # repaired by the sync engine (`note_connectors/dest_folder.heal_missing_dest_folder`).
+        conn.execute(
+            "UPDATE j2_note_sources SET dest_folder_id = ? WHERE dest_folder_id = ? AND user_id = ?",
+            (parent or None, folder_id, user_id))
         if owned:
             conn.commit()
         # ⭐ ONE revision for all of them: the cascade is a single UPDATE, so every
