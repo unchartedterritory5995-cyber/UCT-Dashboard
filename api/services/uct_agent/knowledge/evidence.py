@@ -312,7 +312,7 @@ def _judge_key(meter, reply: str, message: str = "") -> Optional[tuple]:
         return None
     # QA round 5: the member's message is part of the judged input, so it is part of the key
     return ("judge", str(getattr(meter, "user_id", "")), int(rid),
-            hashlib.sha256(("%s %s" % (message or "", reply)).encode("utf-8")).hexdigest())
+            hashlib.sha256(("%s\x00%s" % (message or "", reply)).encode("utf-8")).hexdigest())
 
 
 def _reset_for_test() -> None:
