@@ -274,3 +274,70 @@ def test_review794_the_prune_runs_off_the_request_path(db, monkeypatch):
     store.add_turn("u1", cid, "member", "x")                     # returns without running the prune
     assert len(spawned) == 1
 
+
+
+def test_review794_concurrent_writes_during_a_prune_all_succeed(db):
+    import threading
+    old = store.create_conversation("u1", "old")
+    real_now = time.time()                       # writers stamp the real clock, so the prune uses it too
+    for i in range(60):
+        _turn_at(old, real_now - 40 * 86400, f"old {i}")
+    live = store.create_conversation("u1", "live")
+    errors, ids = [], []
+
+    def writer(k):
+        for i in range(15):
+            try:
+                ids.append(store.add_turn("u1", live, "member", f"w{k}-{i}"))
+            except Exception as e:  # noqa: BLE001
+                errors.append(repr(e))
+    ts = [threading.Thread(target=writer, args=(k,)) for k in range(4)]
+    pr = threading.Thread(target=lambda: retention.prune(store._connect, 30, now=real_now, lock=store._WRITE_LOCK, batch=5))
+    [t.start() for t in ts]
+    pr.start()
+    [t.join() for t in ts]
+    pr.join()
+    assert errors == [] and len(ids) == 60
+    assert _rows(old) == [] and len(_rows(live)) == 60
+
+
+def test_review794_index_and_checkpoint_run_under_the_write_lock(db):
+    events = []
+
+    class Lock:
+        def __enter__(self):
+            events.append("in")
+
+        def __exit__(self, *a):
+            events.append("out")
+            return False
+    import contextlib
+    real = store._connect
+
+    def spy():
+        c = real()
+
+        class Wrapped:
+            def __getattr__(self, n):
+                return getattr(c, n)
+
+            def execute(self, sql, *a):
+                if "CREATE INDEX" in sql or "wal_checkpoint" in sql:
+                    events.append(("inside" if events and events[-1] == "in" else "OUTSIDE", sql.split()[0] + " " + sql.split()[1]))
+                return c.execute(sql, *a)
+
+            def close(self):
+                c.close()
+        return Wrapped()
+    retention.prune(spy, 30, now=NOW, lock=Lock())
+    assert [e for e in events if isinstance(e, tuple)] == [("inside", "CREATE INDEX"), ("inside", "PRAGMA wal_checkpoint(TRUNCATE)")]
+    del contextlib
+
+
+def test_review794_switch_off_changes_no_schema(db):
+    import contextlib
+    cid = store.create_conversation("u1", "x")
+    store.add_turn("u1", cid, "member", "x")
+    with contextlib.closing(store._connect()) as c:
+        idx = {r[1] for r in c.execute("PRAGMA index_list(agent_turns)")}
+    assert "ix_agent_turns_created" not in idx

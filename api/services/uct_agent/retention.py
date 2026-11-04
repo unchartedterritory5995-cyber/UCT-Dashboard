@@ -11,7 +11,9 @@ CODE READY FOR THE OWNER'S DECISION; BOTH SWITCHES DEFAULT OFF, so nothing chang
   UCT_AGENT_TRANSCRIPT_DAYS=N (P7) every Agent transcript row older than N days (MIN_DAYS=30 .. 3650) is deleted:
                               at most once an hour, started by a write but run on a BACKGROUND thread, in batches of
                               BATCH rows (each batch under the store's write lock, committed on its own), with
-                              secure_delete on, an index on created_at, and a WAL checkpoint(TRUNCATE) afterwards so
+                              secure_delete on, an index on created_at and a WAL checkpoint(TRUNCATE) afterwards (both
+                              under the write lock; the index is created by the prune, never by the store schema, so
+                              nothing changes while the switch is off) so
                               deleted text does not linger in the -wal file. PINNED chats are exempt (owner decision
                               B3 pending; the default keeps them). Empty unpinned conversations older than N days and
                               their state go too. A value below MIN_DAYS is refused (the switch stays off, logged).
@@ -125,8 +127,9 @@ def prune(connect: Callable[[], sqlite3.Connection], days: int, now: Optional[fl
     turns = 0
     with contextlib.closing(connect()) as c:
         c.execute("PRAGMA secure_delete=ON")
-        c.execute("CREATE INDEX IF NOT EXISTS ix_agent_turns_created ON agent_turns(created_at)")
-        c.commit()
+        with guard:                             # review #794: schema change under the store's write lock
+            c.execute("CREATE INDEX IF NOT EXISTS ix_agent_turns_created ON agent_turns(created_at)")
+            c.commit()
         while True:
             with guard:
                 n = c.execute(
@@ -147,7 +150,8 @@ def prune(connect: Callable[[], sqlite3.Connection], days: int, now: Optional[fl
                 c.execute(f"DELETE FROM agent_conversation_state WHERE conversation_id IN ({q})", chunk)
                 c.execute(f"DELETE FROM agent_conversations WHERE id IN ({q})", chunk)
             c.commit()
-        c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        with guard:                             # review #794: the checkpoint under the write lock too
+            c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     log.info("[uct-agent retention] pruned %d turns and %d empty conversations older than %d days", turns, len(empty), days)
     return {"turns": turns, "conversations": len(empty), "days": days}
 
