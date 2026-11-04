@@ -164,6 +164,22 @@ const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it =
   || (about === 'chart' && entry.items.some(touchesCharts))
   || (about === 'layout' && entry.items.some(arrangesBoard))
   : UNDO_SAYS[about] ? UNDO_SAYS[about].test((entry.lines || []).join(' ')) : true)
+// ⭐ W2: words for the chart the conversation just made / last changed. "that one" / "that chart" always mean the subject
+// (references.IT_WORDS); "the new one", "the chart you just added" only right after a turn that CREATED a widget.
+const THAT_ONE = /\b(?:that one|that chart)\b/gi
+const NEW_ONE = /\b(?:the|that|this) new (?:one|chart)\b|\bthe (?:one|chart) (?:you )?just (?:added|made|created|opened)\b|\bthe (?:one|chart) (?:you )?(?:added|made|created|opened)\b/gi
+export function asSubjectWords(text, memory, epoch = null) {
+  const t = String(text || '')
+  let out = t.replace(THAT_ONE, 'it')
+  if (NEW_ONE.test(t)) {
+    NEW_ONE.lastIndex = 0
+    let created = false
+    try { created = !!memory?.lastTurn?.(epoch)?.ops?.some(o => getCapability(o?.action)?.creates?.(o.args || {})) } catch { created = false }
+    if (created) out = out.replace(NEW_ONE, 'it')
+  }
+  NEW_ONE.lastIndex = 0
+  return out
+}
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
@@ -1609,7 +1625,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const followable = !answering && !memRef && !pendingRef.current && !peekAuthoringIntent()
       const followFirst = followable && FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
-      const fast0 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow }), { host, memory: memoryRef.current, epoch: epochNow })
+      // ⭐ W2 (context across turns): "make that one weekly", "add the 50 SMA to the new one" right after a chart was CREATED
+      // name that chart — read as "it" (the conversation's subject chart, which a creation now sets: rememberChange)
+      const refText = asSubjectWords(text, memoryRef.current, epochNow)
+      const fast0 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(refText, { host }), refText, { host, memory: memoryRef.current, epoch: epochNow }), { host, memory: memoryRef.current, epoch: epochNow })
       const follow = followFirst || (followable && !fast0 && !FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null)
       if (follow?.kind === 'say') {
         push({ role: 'agent', text: follow.text })
@@ -2100,7 +2119,24 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // Context & Awareness 1B: a deictic request ("this chart", "this stock", "make it weekly") runs
       // only on the chart the member selected — never on a chart the model picked by itself. Nothing
       // executes before the member answers; their pick resumes THIS plan (no second model call).
-      const deictic = screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability })
+      // ⭐ W2 (context across turns): "add the RSI to that one" / "make it weekly" right after a chart was made or changed —
+      // the conversation's SUBJECT chart (memory, the same referent the instant path uses) identifies the chart, so a plan
+      // whose every op is on exactly that chart is not asked about again. A clicked chart still outranks memory (S6).
+      const onSubject = (() => {
+        try {
+          if (host?.charts?.selected?.()) return false
+          if (asSubjectWords(text, memoryRef.current, epochOf(host)) === text && !/\bit\b/i.test(text)) return false
+          const s = memoryRef.current.subject('chart', epochOf(host))
+          if (!s?.ref || !screened.ops.length) return false
+          return screened.ops.every(o => {
+            const k = getTargetKind(getCapability(o?.action)?.target)
+            const snap = k?.list(host)?.find(x => x.ref === o.target)
+            return !!snap && chartRefOf(k, snap) === s.ref
+          })
+        } catch { return false }
+      })()
+      if (onSubject) mark('subject', 'memory')
+      const deictic = onSubject ? null : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability })
       if (deictic?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {
@@ -2121,7 +2157,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // (indicatorAuthoring.explicitIndicatorCreate: decided from their words, never by the model) is applied; its Save
       // still stops at a ready draft when an R1 condition fails after the build (an acknowledgement, a name they already use)
       if (!nl1 && disposition === 'propose' && explicitIndicatorCreate(screened.ops)) { mark('deescalate', 'explicit-create'); disposition = 'apply' }
-      const unnamed = screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
       if (unnamed?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {

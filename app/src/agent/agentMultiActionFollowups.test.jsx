@@ -12,7 +12,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import { registerBuiltins } from './builtins'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
-import { touchesCharts, arrangesBoard } from './useAgent'
+import { touchesCharts, arrangesBoard, asSubjectWords } from './useAgent'
 import { AuthContext } from '../context/AuthContext'
 import { selectGroups, routeManifest } from './routing'
 import { notDoneLines } from './notDone'
@@ -356,5 +356,52 @@ describe('AUDIT · "…to weekly and email me a screenshot of it" — the change
     expect(notDoneLines('dark pool prints over $10M')).toEqual([])
     expect(notDoneLines('is NVDA near a buy point')).toEqual([])
     expect(notDoneLines('show me the sell-off')).toEqual([])
+  })
+})
+
+// ═══ C · context across turns: the chart just created ═══════════════════════════════════════════════════
+describe('C · "change it to weekly" / "add the RSI to that one" right after creating a chart → the chart just created', () => {
+  const newChart = (board) => chartsOf(board).find(w => w.id !== 'c1')
+  for (const then of ['change it to weekly', 'make that one weekly', 'make the new chart weekly', 'switch the new one to weekly', 'make the chart you just added weekly']) {
+    it(`"add a QQQ chart" → "${then}": the QQQ chart, no question, no model call`, async () => {
+      const { board, h, say } = mount(...HALF())
+      await say('add a QQQ chart')
+      await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+      await say(then)
+      await waitFor(() => expect(h.charts.read(newChart(board).id).tf).toBe('W'))
+      expect(h.charts.read('c1').tf).toBe('D')
+      expect(screen.queryAllByTestId('agent-question')).toHaveLength(0)
+      expect(turnBodies()).toHaveLength(0)
+    }, 30000)
+  }
+  it('"put the RSI on it" after creating a chart → the new chart', async () => {
+    const { board, say } = mount(...HALF())
+    await say('add a QQQ chart')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+    await say('put the RSI on it')
+    await waitFor(() => expect(JSON.stringify(newChart(board).opts)).toMatch(/"defId":"rsi"/))
+    expect(JSON.stringify(board.state.widgets.find(w => w.id === 'c1').opts)).not.toMatch(/"defId":"rsi"/)
+  }, 30000)
+  it('model path: the model is told the NEW chart is the subject (never the workspace), and its plan on it runs without "which chart?"', async () => {
+    const { board, say } = mount(...HALF())
+    await say('add a QQQ chart')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(2), { timeout: 8000 })
+    envelopes.push(b => {
+      const subj = b.context.conversation_memory?.subject_chart
+      const ixe = (b.context.indicatorEdits || []).find(e => e.symbol === 'QQQ')?.ref
+      return env('apply', subj && ixe ? [{ action: 'indicator.add', target: ixe, args: { defId: 'rsi', inputs: null } }] : [])
+    })
+    await say('add the RSI study to that one too')
+    const body = turnBodies()[0]
+    expect(body.context.charts.find(c => c.ref === body.context.conversation_memory.subject_chart)?.symbol).toBe('QQQ')
+    await waitFor(() => expect(JSON.stringify(newChart(board).opts)).toMatch(/"defId":"rsi"/))
+    expect(screen.queryAllByTestId('agent-question')).toHaveLength(0)
+  }, 30000)
+  it('"the new one" with NO chart created last turn is not guessed (the subject words only follow a creation)', () => {
+    const mem = { lastTurn: () => ({ ops: [{ action: 'chart.setTimeframe', args: {}, target: 'c1' }] }) }
+    expect(asSubjectWords('make the new one weekly', mem)).toBe('make the new one weekly')
+    const made = { lastTurn: () => ({ ops: [{ action: 'widget.add', args: { type: 'chart', as: 'new1' }, target: 'w1' }] }) }
+    expect(asSubjectWords('make the new one weekly', made)).toBe('make it weekly')
+    expect(asSubjectWords('make that one weekly', mem)).toBe('make it weekly')
   })
 })
