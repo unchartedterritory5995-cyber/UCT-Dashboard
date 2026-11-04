@@ -30,7 +30,7 @@ const GRAMMAR = new Set([...ALWAYS_GRAMMAR, ...('a an get got give show tell tra
 // ticker is still read when typed $-prefixed or in capitals ("$LINE", "LINE").
 const NOT_A_TICKER = new Set(('line lines places place left charts chart level levels drawing drawings top bottom middle side sides '
   + 'board widget widgets panel panels screen screens layout layouts window windows grid label labels colour color colors colours '
-  + 'average averages one ones each every other those these them that this thing things all alert alerts tab tabs pane panes '
+  + 'average averages one ones each every other those these them that this thing things alert alerts tab tabs pane panes '
   + 'indicator indicators study studies box boxes ray rays fib trendline trendlines arrow arrows note notes').split(/\s+/))
 
 // intent words only (never a symbol): the parser's own fixed typo list (MD-1-phrasings §1.6)
