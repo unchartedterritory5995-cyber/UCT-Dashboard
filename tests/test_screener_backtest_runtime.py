@@ -13,7 +13,6 @@ run-wide or per-output refusal). NONE of them is a 400, and none is a 200 receip
 from __future__ import annotations
 
 import base64
-import calendar
 import datetime
 
 import pytest
@@ -151,16 +150,23 @@ def test_the_daily_bar_time_reaches_the_service_as_unix_seconds_not_a_date_key(m
     _post(_app(monkeypatch, w))
     job = w.fake.calls[0]["jobs"][0]
     t = codec.decode_column(base64.b64decode(job["bars"]["t"]))
-    want = float(calendar.timegm(datetime.date(2024, 1, 2).timetuple()))
-    assert t[0] == want and t[1] == want + 86400.0, t[:3]
+    # 2024-01-02 09:30 EST = 14:30 UTC; NOT UTC midnight (1704153600), NOT the date key
+    assert t[0] == 1704205800.0 and t[1] == 1704205800.0 + 86400.0, t[:3]
     assert t[0] != 20240102.0
 
 
-def test_every_spelling_of_a_daily_session_is_one_epoch_and_an_unknown_one_is_left_alone():
-    want = float(calendar.timegm(datetime.date(2024, 1, 2).timetuple()))
-    assert bt._epoch_seconds("2024-01-02") == want
-    assert bt._epoch_seconds(20240102) == want
-    assert bt._epoch_seconds("2024-01-02T00:00:00Z") == want
+def test_every_spelling_of_a_daily_session_is_the_0930_ET_open_across_dst_and_winter():
+    # (date, unix seconds of 09:30 America/New_York): winter, the day before the 2024-03-10
+    # spring-forward, the day after it, and the day after the 2024-11-03 fall-back
+    cases = [("2024-01-02", 1704205800.0), ("2024-03-08", 1709908200.0),
+             ("2024-03-11", 1710163800.0), ("2024-11-04", 1730730600.0)]
+    for iso, want in cases:
+        key = int(iso.replace("-", ""))
+        assert bt._epoch_seconds(iso) == want, iso
+        assert bt._epoch_seconds(key) == want, key
+        assert bt._epoch_seconds(iso + "T00:00:00Z") == want, iso
+    # the 09:30 open moves 1h in UTC across the change, so one fixed offset cannot pass both
+    assert (1710163800.0 - 1709908200.0) == 3 * 86400 - 3600
     # not guessed: already epoch seconds, a float, a bool and rubbish pass through unchanged
     for raw in (1_704_153_600, 1_704_153_600.0, True, "soon", None, "2024-13-45"):
         assert bt._epoch_seconds(raw) is raw

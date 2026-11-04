@@ -53,7 +53,6 @@ is impossible by construction rather than by review.
 """
 from __future__ import annotations
 
-import calendar
 import datetime
 import hashlib
 import json
@@ -527,25 +526,26 @@ def _runtime_descriptor(row: dict, doc: dict, compute: dict, def_id: str,
 
 
 def _epoch_seconds(t: Any) -> Any:
-    """A daily bar's ``t`` as the service takes it: unix seconds of 00:00 UTC.
+    """A daily bar's ``t`` as the service takes it: unix seconds of the session's 09:30
+    America/New_York open, the ONE rule for a daily bar's time (W5-T7b;
+    ``indicators.js::barOpenInstant``). It is ``indicator_compute.bar_open_instant`` that
+    answers; this only names the date, it never computes an instant.
 
     THE THREE SPELLINGS OF ONE SESSION (`ledger._normalize_bar_time`): ``20240102``
     (the store's YYYYMMDD int), ``"2024-01-02"`` (what `_fmt_sqlite_bars` serves and the
     engine reads) and epoch seconds. Handed raw, the ISO string is not a number (the client
     refuses the whole job, `server-integrity`), and a YYYYMMDD int IS a number, which is
-    worse: finite, strictly increasing, and 1,000 times too small to be a date. Anything not
-    recognised is returned UNCHANGED so the client refuses it by name rather than this door
-    inventing a time."""
-    try:
-        if isinstance(t, str) and len(t) >= 10 and t[4] == "-" and t[7] == "-":
-            d = datetime.date(int(t[0:4]), int(t[5:7]), int(t[8:10]))
-        elif isinstance(t, int) and not isinstance(t, bool) and MIN_SESSION <= t <= MAX_SESSION:
-            d = _as_date(t)
-        else:
-            return t
-    except (ValueError, TypeError):
+    worse: finite, strictly increasing, and 1,000 times too small to be a date. UTC midnight
+    (the first draft) made every clock read one day early. Anything not recognised is
+    returned UNCHANGED so the client refuses it by name rather than this door inventing a
+    time."""
+    from api.services import indicator_compute
+    if isinstance(t, int) and not isinstance(t, bool) and MIN_SESSION <= t <= MAX_SESSION:
+        t = f"{t // 10_000:04d}-{(t // 100) % 100:02d}-{t % 100:02d}"
+    if not (isinstance(t, str) and len(t) >= 10 and t[4] == "-" and t[7] == "-"):
         return t
-    return float(calendar.timegm(d.timetuple()))
+    instant = indicator_compute.bar_open_instant(t[:10], "D")
+    return t if instant is None else instant
 
 
 def _service_bars(bars: list) -> list:
