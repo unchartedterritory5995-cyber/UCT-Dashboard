@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 17:43 CT
+updated: 2026-11-04 17:44 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -337,10 +337,13 @@ built (DESKTOP-VERIFIED file list: api/routers/user_definitions.py, api/services
 checks: composition rail 39 tests (31 failed / 8 passed against base files, the 8 cover existing behaviour; 39/39 on tip). Mutations 15/15 killed. Stub at tests/test_runtime_definitions.py:75 now accepts graded_only (the real server_lane_refusal passes it once the stamp reaches it); intent unchanged, explained in EVIDENCE.md. final-tip r2 on c1cb5d43ac (desktop sent it back: the first run predated the stub fix): gate pytest 46, rails pytest 567 passed / 0 failed, hygiene clean, vitest Tests 2 failed | 22361 passed | 118 skipped = settingsScope.rail (StudyChart.jsx:32 static scan) + pollingSites.rail baselines (DESKTOP-VERIFIED by name in js.log).
 open: existing consumer_refusal callers in T13/T14 files should adopt server_lane_composition once T17 merges (T13/T14 builders told).
 ## W5-T13 alerts (needs T11 READY + T12 on master)
-state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
-branch: feat/pine-w5-t13-alerts   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Opus
-locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final2.lock
-
+state: READY            round: r0            updated: 2026-11-04 17:44 CT
+branch: feat/pine-w5-t13-alerts   tip: a21ad7df75 (docs-only over code tip 222ff8cf0f, the final-tip tree; DESKTOP-VERIFIED final-tip TIP line 222ff8cf0f at 17:00, after the last code commit 15:37)   base: merge 8d6682856a = W5-T11 86218da704 + origin/master 9bfd567837 (STACK: T3 -> T11)   tested on master: 9bfd567837   worktree: pine-dsk-w5t13   model: Opus
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t13/EVIDENCE.md
+built (files: api/services/alert_user_series.py, indicator_alert_service.py, indicator_alert_evaluator.py, alert_shadow_log.py, api/routers/indicator_alerts.py, docs/pine/PHASE3-RUNTIME-PLAN.md S1, tests incl. 3 existing test files updated for intended contract changes): _gate_lane admits a runtime document only when server_lane_refusal is None, else new gate server-lane with the guard's sentence; _gate_runtime_service replaces the cross-lane check (one run on the alert's own bars; run-wide refusal = gate server-run; per-plot refusal withholds that plot only); _make_runtime_value_fn; _gate_repaint reads repaint_stamp; _gate_budget skips runtime docs; window 5,000 D / 32,768 intraday; prefill and catalog list runtime plots. Bar times: daily YYYYMMDD sent as its session-open instant (bar_open_instant = the W5-T7b rule), intraday as-is; unreadable times refused; the forming bar is never sent. Cycle and shadow lane: one request per (sym, tf) group per definition version. Formula alerts keep their own window in a shared group; an edited runtime script re-arms; withheld alerts surface as needs-attention with the guard's sentence.
+checks: 24 new rails (all red on base); 306 passed on tip across 7 rail files; mutations 28/28 killed. Alert suite (103 files): 3 tip-only failures were intended contract changes, fixed; the other 16 fail alone on base too. final-tip: gate 46, hygiene clean, vitest Tests 2 failed | 22512 passed = pollingSites.rail + settingsScope.rail baselines (DESKTOP-VERIFIED). Stage unset: real admission and client refuse, nothing sent.
+open: real T7 answers withheld until W5-T7b (READY) merges and T11 r1 accepts `warmup`; browser evaluability.js still answers `lane` for a runtime document instead of `server-lane`; _save_runtime does not call forget() and runs no rev migration (T13 guards the first itself); adopt T17's server_lane_composition after T17 merges; the wire cannot carry daily ISO dates; the 32,768-bar intraday fetch cost is unmeasured. PID 20096 is NOT this lane (desktop correction above).
 ## W5-T14 scans (needs T11 READY + T12 on master)
 state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
 branch: feat/pine-w5-t14-scans   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Sonnet
