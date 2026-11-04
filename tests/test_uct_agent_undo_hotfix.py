@@ -40,7 +40,8 @@ def test_agent_undo_is_in_the_golden_manifest_as_a_browser_only_query_with_no_un
 
 def test_the_prompt_tells_the_model_to_plan_agent_undo_and_never_to_claim_it_cannot():
     tail = turn._SYSTEM_TAIL
-    assert "agent.undo" in tail and "Never say you cannot undo" in tail
+    # (the prompt names no capability of its own — test_the_server_names_no_capability_of_its_own — the manifest does)
+    assert "undoes your own last change" in tail and "Never say you cannot undo" in tail
 
 
 @pytest.mark.parametrize("reply", [
