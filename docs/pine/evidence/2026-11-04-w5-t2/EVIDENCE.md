@@ -109,7 +109,16 @@ reason also broke its digest; the rail now re-digests honestly). Round 2 re-ran 
 @MUTROWS@
 
 ## final-tip
-@FINALTIP@
+Command: `bash $S/final-tip.sh pine-dsk-w5t2 dsk-w5t2-final tests/test_script_engine_version_gate.py`, lock
+`dsk/heavy-final3.lock`, tip `073806c4b4` (code identical to every later commit; only this file differs), tested on
+(T1's) master `5d95103c8a`. Logs `_resume-2026-11-01/runs/dsk-w5t2-final/` and `runs/w5t2/finaljob.log`.
+- gate pytest (4 files): 46 passed. `tests/test_script_engine_version_gate.py`: 6 passed. Hygiene: clean (34,676 files).
+- full chart+hooks vitest: Test Files 1 failed | 1335 passed | 27 skipped (1363); Tests 1 failed | 22380 passed |
+  118 skipped (22499). The only failure is `src/hooks/pollingSites.rail.test.js`, the desktop baseline (96582cd549 is
+  not in this tree, so settingsScope is not expected red). Both W5-T2 rails passed inside the run.
+- In the same hold: `pine_runtime_closure.mjs --check` 0 findings (64 modules); HP-1 on the final tip's bundle
+  (1,829,141 B, 69 modules) **GREEN 166/166** (`runs/w5t2/hp1.log`).
+- No `app/dist` or `app/dist-server` was created in the worktree (bundles were built into a scratch dir).
 
 ## Open items
 - T7/T8 must add `digest` to every job result (finding 1) before T13 can get an `ok` answer.
