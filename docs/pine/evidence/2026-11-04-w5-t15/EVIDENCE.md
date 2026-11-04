@@ -1,0 +1,50 @@
+# W5-T15 Backtest: a stored runtime document replays through the client
+
+Branch `feat/pine-w5-t15-backtest`. Base (tested-on-master merge): `e710d36d6a`
+(= W5-T11 `86218da704` + `git merge --no-ff origin/master` at `9bfd567837`). Built on master
+`4739e11ef1` (block-run gates): the `ast` path, its M3 gates and its 409 verdict are untouched.
+
+## What changed
+- `api/routers/screener_backtest.py`: a `def_id` naming a runtime document no longer 400s
+  ("carries no compute.ast"). `_definition_tree` -> `_runtime_descriptor` asks, in the 5.2 order, the
+  stored verdict (`runtime_server_lane._verdict`) then `server_lane_refusal(row, lane="backtest")`
+  (`_admission`), then picks the plot (one output, or the new optional body field `plot`; several
+  outputs with none named, or an unknown name, is a 409 `runtime:backtest-plot`).
+  `_RuntimeReplay` reads bars per symbol, sends them in chunks of `RUNTIME_BATCH`=50 as ONE request
+  (profile `backtest`, through `pine_runtime_client`), asks verdict+admission again before EVERY
+  chunk, and hands the engine each symbol's column (na -> None).
+- `api/services/screener/backtest.py`: a seam, `run_backtest(..., column_for=, warmup_bars=)`. Given a
+  column the engine skips the tree-only steps (scalar check, `max_lookback`, `interpret`) and runs the
+  SAME window / warm-up / hole / true-false tally. One tally, not a second for the service.
+- Refusal mapping (design 3.7, backtest column), never 400, never a 200 "no signal":
+  503 = `server-unavailable`, `server-auth`, `server-busy`; 500 = `server-integrity`; every other guard
+  (killed, not-yet-graded, stage, server-stage, engine-mismatch, worker-oom/failed, time-budget,
+  run-wide and per-output refusals, the stored verdict) = 409 with `guard: sentence`.
+- Bar time units: the engine's bars carry `t` as `"YYYY-MM-DD"` (store ts is YYYYMMDD int). The
+  client refuses a non-number and a YYYYMMDD int would pass as a number 1,000x too small.
+  `_epoch_seconds` sends unix seconds at 00:00 UTC for ISO strings and YYYYMMDD ints; anything else is
+  left unchanged so the client refuses it by name (`server-integrity` -> 500). ASSUMPTION (not
+  captured): the service reads daily `t` as UTC-midnight epoch seconds, as the fake and
+  `bars_fixture` do. Needs T7/T3 confirmation.
+- Receipt identity: `job_id` digests `{runtime handle, plot, output}` in the tree's place; `def_hash` is
+  the runtime handle (`runtime:sha256:...`).
+
+## Nothing reaches members while PINE_RUNTIME_SERVER_STAGE is unset
+`test_with_the_server_stage_unset_nothing_reaches_the_service` runs the REAL admission chain (kill
+list, grading and pane stage patched open) with the server stage unset: 409 `runtime:server-stage`,
+inline and `?background=1`, no client built, no service call, nothing queued. No flag set anywhere.
+
+## Notes / open items
+- T7 results carry no `digest` (T11's finding) and the client requires one on every `ok` result: until
+  the service emits it, every real run is `server-integrity` (500). End-to-end gap, noted not patched.
+- Warm-up: the service returns none yet, so a fixed lead `RUNTIME_WARMUP_BARS`=500 is read and the
+  first 500 bars of any tape are charged to `bars_warmup`; the script's own na bars are
+  `bars_not_computable`. Recursive indicators converge over the lead; this is not a TradingView seed.
+  T16's `runtimeWarmupOf` should replace the constant.
+- A refusal is whole-request (503/409/500): a backtest has no partial answer (design 3.7).
+- Background POST: admission refuses at POST (pre-queue); a transport refusal after queueing surfaces
+  as the poll's `status: error` with the guard sentence (the existing `_submit` shape).
+- Private helpers `runtime_server_lane._verdict/_admission` are reused (T11's file untouched).
+- Engine bump (SCRIPT_ENGINE_VERSION): NO. No chart-engine output changes.
+
+## Checks

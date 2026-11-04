@@ -741,7 +741,8 @@ class _SymbolScan:
 def _scan_symbol(tree: Any, bars: Sequence[Mapping[str, Any]], *,
                  frm: str, to: str, warmup: int,
                  fields: Sequence[str],
-                 opts: Optional[Mapping[str, Any]] = None) -> _SymbolScan:
+                 opts: Optional[Mapping[str, Any]] = None,
+                 col: Optional[Sequence[Optional[float]]] = None) -> _SymbolScan:
     """Evaluate the tree over this symbol's bars and tally the window.
 
     ⭐ THE WHOLE ENGINE IS THIS FUNCTION PLUS ARITHMETIC. ``interpret`` already
@@ -776,7 +777,17 @@ def _scan_symbol(tree: Any, bars: Sequence[Mapping[str, Any]], *,
     """
     # ⭐ `opts` carries ONLY the definition semantics (owner decision A): the same
     # `ast_interpret` contract the chart, the sweep and the alert lane run under.
-    col = interpret(tree, list(bars), opts=dict(opts) if opts else None)
+    # ⭐ W5-T15 -- a runtime document's column is computed by the runtime service and
+    # handed in (`run_backtest(column_for=...)`); every other replay is interpreted.
+    # Either way the column goes through the SAME window, warm-up, hole and
+    # true/false tally below: there is one tally, not a second one for the service.
+    if col is None:
+        col = interpret(tree, list(bars), opts=dict(opts) if opts else None)
+    elif len(col) != len(bars):
+        raise BacktestRefusal(
+            "not_a_condition",
+            f"— the column has {len(col)} values for {len(bars)} bars; a screen answers "
+            "once per bar.")
     # ⭐ ASKED AT THE LEAF, BECAUSE THE TOP OF THE TREE CANNOT ANSWER IT — see
     # `_unanswerable_bars`. This is the honest hole; `col[i] is None` alone finds
     # it only for a tree that is a bare series.
@@ -879,6 +890,9 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                  bars_source: Optional[str] = None,
                  opts: Optional[Mapping[str, Any]] = None,
                  withheld_for: Optional[Callable[[Sequence[Mapping[str, Any]]], Optional[str]]] = None,
+                 column_for: Optional[Callable[[str, Sequence[Mapping[str, Any]]],
+                                               Sequence[Optional[float]]]] = None,
+                 warmup_bars: int = 0,
                  ) -> Receipt:
     """Backtest one screen. Returns a ``Receipt`` — an answer or a named refusal.
 
@@ -889,6 +903,14 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
     :param horizons:    forward horizons in bars
     :param min_signals: the floor below which a win rate is withheld
     :param bars_source: a label for the receipt; this module never reads bars itself
+    :param column_for:  ⭐ W5-T15: ``(symbol, bars) -> column`` (one value per bar, ``None``
+                        for na). Given, the screen is that column and ``tree`` is a
+                        descriptor this module never reads (no scalar check, no
+                        ``interpret``): the column comes from the runtime service, which is
+                        the only place a runtime document can be evaluated. ``warmup_bars``
+                        is then the leading bars charged to warm-up (the tree's own
+                        ``max_lookback`` is not there to ask). A raise from ``column_for``
+                        is NOT caught: a refusal of the run is the caller's to map.
     :param withheld_for: ``bars -> sentence | None`` — ⭐ C48 / C45 (M3): why the
                         member's chart withholds this screen on a symbol's bars
                         (a saved definition's ``meta.blockRuns``, asked by the
@@ -945,7 +967,7 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
     # the tree which declared scalars it names; we hold NO history of any of them,
     # so an empty scalar dict is the honest state of the world at every past bar
     # and every name it returns is a name we cannot answer in the past.
-    missing = unresolved_scalars(tree, {})
+    missing = unresolved_scalars(tree, {}) if column_for is None else ()
     if missing:
         return refuse(
             "scalar_no_history",
@@ -956,8 +978,11 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                "could not audit, so we refuse instead."),
             names=missing)
 
-    warmup = max_lookback(tree)
-    fields = _bar_fields(tree)
+    if column_for is None:
+        warmup = max_lookback(tree)
+        fields = _bar_fields(tree)
+    else:
+        warmup, fields = max(0, int(warmup_bars)), ()
     method = _method_block(warmup=warmup, min_signals=min_signals,
                            horizons=horizons)
     method["bar_fields_read"] = list(fields)
@@ -986,7 +1011,8 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                 continue
             bars = list(bars)
             scan = _scan_symbol(tree, bars, frm=frm, to=to, warmup=warmup,
-                                fields=fields, opts=opts)
+                                fields=fields, opts=opts,
+                                col=(column_for(sym, bars) if column_for is not None else None))
             # ⭐⭐ C48 / C45 (M3) — ASKED AFTER THE TREE, as the chart and the sweep ask
             # it (a symbol whose bars the tree refuses keeps that refusal). Withheld,
             # the symbol contributes no bar to any count: its every answer is the
