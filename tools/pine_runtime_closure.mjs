@@ -11,6 +11,7 @@
 //   node tools/pine_runtime_closure.mjs            print the closure and every finding
 //   node tools/pine_runtime_closure.mjs --check    the same; exit 1 on any finding
 //   node tools/pine_runtime_closure.mjs --json     the closure as JSON (modules, findings)
+//   --repo DIR     walk another checkout (the control tree of the rail)
 //
 // Exit 0 clean · 1 a finding (named, with the import chain that reaches it) · 2 the walk
 // could not be made (an entry or an import that does not resolve). ⛔ 2 is never clean.
@@ -216,12 +217,14 @@ export function findings(closure = walk(), { repo = REPO } = {}) {
 }
 
 function main(argv) {
-  const closure = walk()
+  const at = argv.indexOf('--repo')
+  const repo = at >= 0 ? resolve(argv[at + 1]) : REPO
+  const closure = walk(ROOTS, repo)
   if (closure.unresolved.length) {
     for (const u of closure.unresolved) console.error(`closure: cannot resolve '${u.spec}' from ${u.from}`)
     return 2
   }
-  const found = findings(closure)
+  const found = findings(closure, { repo })
   const lines = [...closure.modules.values()].reduce((a, m) => a + m.source.split('\n').length, 0)
   const all = [...closure.modules.keys(), ...closure.json]
   if (argv.includes('--json')) {

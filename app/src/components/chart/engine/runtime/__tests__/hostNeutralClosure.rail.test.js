@@ -17,7 +17,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { walk, findings } from '../../../../../../../tools/pine_runtime_closure.mjs'
+import { walk, findings, ROOTS } from '../../../../../../../tools/pine_runtime_closure.mjs'
 import { buildPineRuntime } from '../../../../../../scripts/build-pine-runtime.mjs'
 import {
   computeRuntimeColumns, runtimeObjectValues, resetRuntimeSessions, resetRuntimeLedgers,
@@ -89,17 +89,21 @@ describe('the compute closure (tools/pine_runtime_closure.mjs)', () => {
       "import j from 'jsep'",
       "import '../../../../other/y.js'",
       'const t = Date.now()',
-      "// fetch('/a comment is not code') import.meta.env",
+      "// fetch('/a comment is not code') import" + ".meta.env",
       "const url = 'http://not-a-comment'",
     ].join('\n'))
-    writeFileSync(path.join(eng, 'nativeRegistry.js'), "export const f = () => fetch('/x')\nconst g = import.meta.env\n")
+    // line 1: a string holding a slash-star must not open a comment that hides the fetch on line 2
+    // (spelled in pieces: vite's own transform reads a slash-star or an env read even inside a string)
+    writeFileSync(path.join(eng, 'nativeRegistry.js'), "const glob = 'src/" + "*.js'\nexport const f = () => fetch('/x')\nconst g = import" + ".meta.env\n")
+    writeFileSync(path.join(eng, 'runtime', 'serverEntry.js'), "export * from './runtimeColumns.js'\n")
     writeFileSync(path.join(repo, 'app', 'src', 'other', 'y.js'), 'export const y = 1\n')
-    const closure = walk(['app/src/components/chart/engine/runtime/runtimeColumns.js'], repo)
+    const closure = walk(ROOTS, repo)
+    expect(closure.unresolved).toEqual([])
     const got = findings(closure, { repo })
     const has = (re) => expect(got.some((f) => re.test(f)), String(re)).toBe(true)
     has(/^forbidden module app\/src\/components\/chart\/engine\/nativeRegistry\.js .*runtimeColumns\.js -> .*nativeRegistry\.js$/)
-    has(/^network in the closure at app\/src\/components\/chart\/engine\/nativeRegistry\.js:1:/)
-    has(/^build flag in the closure at app\/src\/components\/chart\/engine\/nativeRegistry\.js:2:/)
+    has(/^network in the closure at app\/src\/components\/chart\/engine\/nativeRegistry\.js:2:/)
+    has(/^build flag in the closure at app\/src\/components\/chart\/engine\/nativeRegistry\.js:3:/)
     has(/^bare import 'lodash'/)
     has(/^wall clock the host cannot inject at app\/src\/components\/chart\/engine\/runtime\/runtimeColumns\.js:5:/)
     has(/^stale ALLOWED_CLOCKS entry: app\/src\/components\/chart\/engine\/runtime\/vm\.js/)
@@ -107,6 +111,15 @@ describe('the compute closure (tools/pine_runtime_closure.mjs)', () => {
     has(/^door registration missing: app\/src\/components\/chart\/engine\/nativeRegistry\.js no longer reaches .*lowerTfGate\.js/)
     expect(got.some((f) => f.startsWith("bare import 'jsep'"))).toBe(false)
     expect(got.filter((f) => /runtimeColumns\.js:[67]:/.test(f))).toEqual([])
+    // the CLI on the same tree: red (1), naming the module
+    const red = spawnSync(process.execPath, [TOOL, '--check', '--repo', repo], { encoding: 'utf8', timeout: 60000 })
+    expect(red.status).toBe(1)
+    expect(red.stdout).toContain('FINDING forbidden module app/src/components/chart/engine/nativeRegistry.js')
+    // ...and a tree the walk cannot even enter is 2, never clean
+    const empty = mkdtempSync(path.join(tmpdir(), 'pine-closure-empty-'))
+    const none = spawnSync(process.execPath, [TOOL, '--check', '--repo', empty], { encoding: 'utf8', timeout: 60000 })
+    expect(none.status).toBe(2)
+    expect(none.stderr).toContain('cannot resolve')
   })
 })
 
