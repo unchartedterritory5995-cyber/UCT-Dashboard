@@ -96,10 +96,13 @@ export default function StudyMark3D({ mood = 'idle', size = 72, variant = 12, st
       if (variant >= 11 && (!reduced || fixed != null)) { group.rotation.x = tiltBase + Math.sin(t * Math.PI * 2 * 0.5) * 0.06; group.position.y = Math.sin(t * Math.PI * 2 * 0.75) * 2.5 }
       renderer.render(scene, camera)
     }
-    const io = typeof IntersectionObserver === 'function' ? new IntersectionObserver((es) => { visible = es.some((x) => x.isIntersecting) }) : null
+    let onScreen = true, tabShown = !document.hidden
+    const io = typeof IntersectionObserver === 'function' ? new IntersectionObserver((es) => { onScreen = es.some((x) => x.isIntersecting); visible = onScreen && tabShown }) : null
     io?.observe(host)
+    const onVis = () => { tabShown = !document.hidden; visible = onScreen && tabShown }   // a hidden tab draws nothing (phone battery)
+    document.addEventListener('visibilitychange', onVis)
     raf = requestAnimationFrame(frame)
-    return () => { cancelAnimationFrame(raf); io?.disconnect(); scene.traverse((o) => { o.geometry?.dispose?.(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((x) => x.dispose?.()) }); renderer.dispose(); renderer.domElement?.remove() }
+    return () => { cancelAnimationFrame(raf); io?.disconnect(); document.removeEventListener('visibilitychange', onVis); scene.traverse((o) => { o.geometry?.dispose?.(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((x) => x.dispose?.()) }); renderer.dispose(); renderer.domElement?.remove() }
   }, [mood, size, variant])
   const glow = still ? '' : mood === 'fire' ? m.fire : mood === 'happy' ? m.happy : mood === 'oops' ? m.oops : mood === 'think' ? m.think : ''
   return (
