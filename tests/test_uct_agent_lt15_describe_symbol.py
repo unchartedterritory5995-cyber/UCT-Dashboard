@@ -96,9 +96,12 @@ def test_promote_talk_reads_is_by_name_only():
 
 
 @pytest.mark.parametrize("reply", [
-    LIVE_REPLY, "Let me check NVDA's setup.", "I'll pull up NVDA's daily bars.", "Sure, checking that now.",
-    "Analyzing NVDA's daily setup for you.", "Looking into it, one moment.",
-    "I'm going to review the setup on NVDA.", "OK — fetching NVDA's daily bars now.",
+    LIVE_REPLY, "Let me check NVDA's setup.", "Let me pull up NVDA.", "I'll fetch NVDA's daily bars.",
+    "Fetching that for you now!", "I'll pull up NVDA's daily bars.", "Sure, checking that now.",
+    "OK — fetching NVDA's daily bars now.",
+    # matches the template too, and that is intended: a talk-only reply promising a check that never happens is
+    # exactly the LT-15 failure, so the honest sentence replaces it
+    "Sure, I'll check with the team.",
 ])
 def test_announced_lookups_with_no_op_are_replaced(reply):
     # (a promise the older claim rule already names — "I'll pull up …" — keeps its NOTHING_DONE; both are honest)
@@ -161,3 +164,38 @@ def test_an_announcement_followed_by_anything_else_is_not_replaced():
                   "Checking NVDA's daily setup now: it is above its 50-day.",
                   "Checking " + "NVDA " * 30 + "now."):
         assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"})["reply"] == reply
+
+
+# ── PR #763 delta review: a strict template over the whole reply; everything else stands ──────────────────────────
+DELTA_NEGATIVES = [
+    "Let me check — yes, RS Rank runs from 1 to 99.",
+    "I'll check whether that's a pivot — usually yes.",
+    "I'll look at it this way, a pivot is the breakout point.",
+    "I will describe it simply, a VCP is a series of tighter pullbacks.",
+    "Let me review that, and honestly it looks like a classic flat base.",
+    "I'm looking at a 7% max loss as the rule.",
+    "I'm calculating risk as 1% of the account per trade.",
+    "Checking the stop is wise right now.",
+    "Running stops tight works well for you.",
+    # a main verb or copula in the object is an answer, never an announcement
+    "Checking what it is now.", "Checking which ones are leaders now.", "Checking what it was now.",
+    "Checking where they were now.", "Checking how it works now.", "Checking what helps now.",
+    "Checking what makes it now.", "Checking what it means now.", "Checking how it runs now.",
+    "Let me check it as well.", "I'll check whether it held.", "Let me check it this way.", "I'll describe it simply.",
+    # outside the template: more than 6 object tokens, a digit, a comma
+    "Checking NVDA AMD AAPL MSFT META TSLA GOOGL now.", "Checking the 50 day now.", "Checking NVDA, AMD now.",
+]
+
+
+@pytest.mark.parametrize("reply", DELTA_NEGATIVES)
+def test_delta_review_answers_are_never_replaced(reply):
+    assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"})["reply"] == reply
+
+
+@pytest.mark.parametrize("reply", [LIVE_REPLY, "Let me check NVDA's setup.", "Fetching that for you now!"])
+def test_no_rewrite_on_a_grounded_answer_or_the_news_ask_box(reply):
+    # those turns cannot carry ops: a short reply stands as written
+    assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"}, grounded=True)["reply"] == reply
+    assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"}, answer_only=True)["reply"] == reply
+    out = _run(env("answer", [], reply=reply), message="what does this headline mean", answer_only=True)
+    assert out["disposition"] == "answer" and out["reply"] == reply
