@@ -27,13 +27,28 @@ export function shuffle(list, seed = Date.now()) {
   return a
 }
 
-function isSignedOut(e) { return e && (e.status === 401 || e.status === 403) }
+/** A status that means the MEMBER cannot play at all (signed out, unpaid, Study off): the whole pool fails. */
+export function isFatal(e) { return !!e && (e.status === 401 || e.status === 402 || e.status === 403 || e.status === 404) }
 
+/** One skill session per setup, ONE AT A TIME. The first version fired them all at once; on the live pod nine
+ *  concurrent session writes against one SQLite file can refuse ("database is locked"), and one refused skill took
+ *  the whole pool down with it ("Couldn't load the Blitz pool", the owner, 2026-11-04, on his phone). Now a skill
+ *  that fails for a non-fatal reason is skipped and the others still play; only a member-level refusal (signed
+ *  out, unpaid, Study off) or EVERY skill failing surfaces as an error, and that error names the status. */
 async function skillSets(skillIds, size, fetcher) {
-  const sets = await Promise.all(skillIds.map((skill_id) => fetcher(SESSIONS_URL, { method: 'POST', body: { kind: 'skill', skill_id, size } }).catch((e) => (isSignedOut(e) ? e : null))))
-  const out = sets.find(isSignedOut)
-  if (out) throw out
-  return sets.filter(Boolean)
+  const sets = []
+  let lastErr = null
+  for (const skill_id of skillIds) {
+    try {
+      sets.push(await fetcher(SESSIONS_URL, { method: 'POST', body: { kind: 'skill', skill_id, size } }))
+    } catch (e) {
+      if (isFatal(e)) throw e
+      lastErr = e
+      try { console.warn('[study] skill session failed, skipped', skill_id, e?.status || e?.message) } catch { /* no console */ }
+    }
+  }
+  if (!sets.length && lastErr) throw lastErr
+  return sets
 }
 
 /** The chart (spot) items of several setups, one shuffled list. Each: id, skill, name, q, choices, bars

@@ -32,6 +32,22 @@ describe('challenge bank', () => {
     await expect(fetchSpotPool(['setup.family3.kicker'], 5, fetcher)).rejects.toBe(err)
   })
 
+  it('the sessions are asked ONE AT A TIME, a skill that fails for a server reason is skipped, and only all-fail is an error', async () => {
+    let inFlight = 0, peak = 0
+    const fetcher = vi.fn(async (url, opts) => {
+      inFlight += 1; peak = Math.max(peak, inFlight)
+      await new Promise((r) => setTimeout(r, 5))
+      inFlight -= 1
+      if (opts.body.skill_id === 'setup.family1.launchpad') throw Object.assign(new Error('500'), { status: 500 })
+      return { session_id: `s-${opts.body.skill_id}`, items: [spotItem(`i-${opts.body.skill_id}`, opts.body.skill_id)] }
+    })
+    const pool = await fetchSpotPool(['setup.family3.kicker', 'setup.family1.launchpad', 'setup.family4.oops'], 5, fetcher, 3)
+    expect(peak).toBe(1)
+    expect(pool.map((p) => p.skill).sort()).toEqual(['setup.family3.kicker', 'setup.family4.oops'])
+    const allFail = vi.fn(async () => { throw Object.assign(new Error('500'), { status: 500 }) })
+    await expect(fetchSpotPool(['setup.family3.kicker'], 5, allFail)).rejects.toMatchObject({ status: 500 })
+  })
+
   it('scoreAttempt posts the answer into the item\'s session and normalizes the forward bars', async () => {
     const fetcher = vi.fn(async () => ({ correct: true, reveal: { forward_bars: [{ t: 20250201, o: 1, h: 2, l: 0.5, c: 1.5, v: 1 }] } }))
     const r = await scoreAttempt({ id: 'i1', sessionId: 's1' }, { choice: 'Yes' }, 1234.6, fetcher)
