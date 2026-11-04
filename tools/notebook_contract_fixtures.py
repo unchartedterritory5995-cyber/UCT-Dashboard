@@ -1753,9 +1753,16 @@ def route_table(app: Any) -> list[tuple[str, str]]:
     return sorted(out)
 
 
+#: The names of the routers' FLAG-gate dependencies (each answers the one 404 while its switch is off), named
+#: rather than matched by prefix: `_require_admin`, `_require_paid` and the like answer 401/402/403 and are not
+#: flag gates. A new flag gate must be added here, or its routes read as ungated in the flags-off sweep (which then
+#: fails on the 404 it did not expect, naming the route).
+FLAG_GATE_DEPENDENCIES = frozenset({"_require_enabled", "_require_w11", "_require_layout_sharing", "_require_tier3"})
+
+
 def gated_routes(app: Any) -> set[tuple[str, str]]:
-    """`(METHOD, path)` for every route behind a flag gate: a dependency named `_require_enabled` or another
-    `_require_<switch>` (never `require_paid`, the plan check). DERIVED from the routers, like `route_table`."""
+    """`(METHOD, path)` for every route behind a flag gate: a dependency named in `FLAG_GATE_DEPENDENCIES`.
+    DERIVED from the routers, like `route_table`."""
     out = set()
     for r in app.routes:
         dependant = getattr(r, "dependant", None)
@@ -1766,7 +1773,7 @@ def gated_routes(app: Any) -> set[tuple[str, str]]:
             d = stack.pop()
             names.add(getattr(d.call, "__name__", ""))
             stack.extend(d.dependencies)
-        if any(n.startswith("_require_") for n in names):
+        if names & FLAG_GATE_DEPENDENCIES:
             for m in r.methods or ():
                 if m not in ("HEAD", "OPTIONS"):
                     out.add((m, r.path))

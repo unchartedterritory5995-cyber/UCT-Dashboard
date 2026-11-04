@@ -135,6 +135,22 @@ def _recorded():
     return out
 
 
+def test_the_flag_gate_names_are_the_routers_own_and_only_404_gates():
+    """F6: `gated_routes` matches the named flag gates, never any `_require_*` (an admin or plan check is not one).
+    Each name is a real router-level gate dependency on the app, and each answers 404 with its switch off."""
+    app = gen.build_app()
+    seen = set()
+    for r in app.routes:
+        stack = list(getattr(getattr(r, "dependant", None), "dependencies", []) or [])
+        while stack:
+            d = stack.pop()
+            seen.add(getattr(d.call, "__name__", ""))
+            stack.extend(d.dependencies)
+    assert gen.FLAG_GATE_DEPENDENCIES <= seen, sorted(gen.FLAG_GATE_DEPENDENCIES - seen)
+    assert not {"_require_admin", "_require_paid", "require_paid"} & gen.FLAG_GATE_DEPENDENCIES
+    assert gen.gated_routes(app), "non-vacuity: some routes are still behind a flag gate"
+
+
 def test_every_route_has_a_pinned_answer_and_both_sweeps():
     app = gen.build_app()
     table = gen.route_table(app)
