@@ -118,6 +118,65 @@
    "ownWords": [
     "lists"
    ]
+  },
+  {
+   "id": "workflow.multiTimeframe",
+   "capabilities": [
+    "chartSetup.multiTimeframe"
+   ],
+   "board": "ONE",
+   "needs": [
+    "chartSetup.multiTimeframe"
+   ],
+   "source": "Track D workflow (d): the daily and weekly setup side by side from one bars.daily read (chart.describeSetup's computation reused)",
+   "deterministic": {
+    "plan": [
+     {
+      "action": "chartSetup.multiTimeframe",
+      "args": {
+       "symbol": null
+      }
+     }
+    ]
+   },
+   "model": {
+    "ops": [
+     {
+      "action": "chartSetup.multiTimeframe",
+      "target": "$charts[0]",
+      "args": {
+       "symbol": null
+      }
+     }
+    ]
+   },
+   "expect": {
+    "reads": [
+     "^POST /api/agent/data .*bars\\.daily.*NVDA"
+    ],
+    "unchanged": true
+   },
+   "phrasings": [
+    {
+     "text": "show me the daily and weekly setup side by side",
+     "det": "required"
+    },
+    {
+     "text": "daily vs weekly setup for NVDA",
+     "det": "required"
+    },
+    {
+     "text": "multi-timeframe snapshot of this chart",
+     "det": "required"
+    },
+    {
+     "text": "compare the weekly and daily view of NVDA",
+     "det": "required"
+    }
+   ],
+   "ownWords": [
+    "chartSetup"
+   ]
   }
  ]
 }

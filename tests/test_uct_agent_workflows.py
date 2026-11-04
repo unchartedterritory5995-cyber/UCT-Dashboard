@@ -55,6 +55,7 @@ def test_every_workflow_action_is_a_data_read_never_local_only():
 
 
 def test_each_action_is_registered_by_its_own_module_as_a_query():
-    for mod, name in (("relativeStrength", "stock.relativeStrength"), ("watchlistChanges", "watchlist.changes")):
+    for mod, name in (("relativeStrength", "stock.relativeStrength"), ("watchlistChanges", "watchlist.changes"),
+                      ("multiTimeframe", "chartSetup.multiTimeframe")):
         src = (ROOT / f"app/src/agent/capabilities/{mod}.js").read_text(encoding="utf-8")
         assert f"name: '{name}'" in src and "query: true" in src and "localOnly" not in src.split("registerCapability({", 1)[1]

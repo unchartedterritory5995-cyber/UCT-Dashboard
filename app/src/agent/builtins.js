@@ -36,6 +36,7 @@ import { registerChartDescribeCapability } from './capabilities/chartDescribe'
 // Track D (dark, UCT_AGENT_WORKFLOWS): the trading workflows — each registers only when its name is switched on
 import { registerRelativeStrengthCapability } from './capabilities/relativeStrength'
 import { registerWatchlistChangesCapability } from './capabilities/watchlistChanges'
+import { registerMultiTimeframeCapability } from './capabilities/multiTimeframe'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
 import { registerScreenerPageCapabilities } from './capabilities/screenerPage'
 import { registerBreadthPageCapabilities } from './capabilities/breadthPage'
@@ -91,5 +92,6 @@ export function registerServerGatedBuiltins() {
   registerChartDescribeCapability()      // W2-B3: chart.describeSetup while the server serves `bars.daily`
   registerRelativeStrengthCapability()   // Track D: stock.relativeStrength while UCT_AGENT_WORKFLOWS lists relativeStrength
   registerWatchlistChangesCapability()   // Track D: watchlist.changes while UCT_AGENT_WORKFLOWS lists watchlistChanges
+  registerMultiTimeframeCapability()     // Track D: chartSetup.multiTimeframe while UCT_AGENT_WORKFLOWS lists setupSnapshot
   registerCoachCapabilities()            // Wave 3 (W3-1..4): coach.* / journal.* while the server serves `coach` (UCT_AGENT_COACH)
 }

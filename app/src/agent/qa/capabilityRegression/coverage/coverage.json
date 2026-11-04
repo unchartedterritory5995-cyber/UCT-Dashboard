@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 156,
+  "all": 157,
   "withProductionKinds": 145,
-  "darkGated": 11
+  "darkGated": 12
  },
  "totals": {
-  "capabilities": 156,
-  "withAnyRegressionCase": 96,
+  "capabilities": 157,
+  "withAnyRegressionCase": 97,
   "perProtection": {
    "nl": {
-    "covered": 96,
-    "applicable": 156
+    "covered": 97,
+    "applicable": 157
    },
    "routing": {
-    "covered": 96,
-    "applicable": 156
+    "covered": 97,
+    "applicable": 157
    },
    "args": {
-    "covered": 96,
-    "applicable": 156
+    "covered": 97,
+    "applicable": 157
    },
    "execution": {
-    "covered": 96,
-    "applicable": 156
+    "covered": 97,
+    "applicable": 157
    },
    "receipt": {
-    "covered": 71,
-    "applicable": 156
+    "covered": 72,
+    "applicable": 157
    },
    "refusal": {
     "covered": 27,
-    "applicable": 156
+    "applicable": 157
    },
    "permission": {
-    "covered": 148,
-    "applicable": 156
+    "covered": 149,
+    "applicable": 157
    },
    "undo": {
     "covered": 43,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 21,
-    "applicable": 156
+    "applicable": 157
    },
    "phrasings": {
-    "covered": 96,
-    "applicable": 156
+    "covered": 97,
+    "applicable": 157
    }
   }
  },
@@ -2256,6 +2256,60 @@
     "args": [],
     "execution": [],
     "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.multiTimeframe": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "workflow.multiTimeframe: \"show me the daily and weekly setup side by side\"",
+     "workflow.multiTimeframe: \"daily vs weekly setup for NVDA\"",
+     "workflow.multiTimeframe: \"multi-timeframe snapshot of this chart\"",
+     "workflow.multiTimeframe: \"compare the weekly and daily view of NVDA\""
+    ],
+    "routing": [
+     "workflow.multiTimeframe: \"show me the daily and weekly setup side by side\"",
+     "workflow.multiTimeframe: \"daily vs weekly setup for NVDA\"",
+     "workflow.multiTimeframe: \"multi-timeframe snapshot of this chart\"",
+     "workflow.multiTimeframe: \"compare the weekly and daily view of NVDA\""
+    ],
+    "args": [
+     "corpus workflow.multiTimeframe"
+    ],
+    "execution": [
+     "workflow.multiTimeframe (c)"
+    ],
+    "receipt": [
+     "workflow.multiTimeframe (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

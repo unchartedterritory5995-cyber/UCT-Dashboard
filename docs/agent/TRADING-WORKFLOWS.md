@@ -116,6 +116,48 @@ never says "live" or "now". It shows counts only, never headline text (the News 
   dark by default; isolation.
 - Dark corpus `workflow.watchlistChanges`: 4 phrasings at levels (a), (b) and (c) on the WATCH board.
 
+### 3. Multi-timeframe snapshot — `chartSetup.multiTimeframe` (workflow `setupSnapshot`)
+
+**Why:** a member rarely judges a base on one timeframe. Today, "describe this setup" and then "and on the weekly?"
+take two turns and produce two cards that are hard to compare.
+
+**Reads:** a single `bars.daily` read of 252 completed sessions, plus one `instrument.resolve` when the named symbol
+is not the chart's own. The weekly column is built from the same bars (calendar weeks), so both columns are dated to
+the same last session.
+
+**Computation:** this workflow reuses `chart.describeSetup`'s pure `setupOf`, the KN-1 formulas. There is no second
+implementation, and the tests pin that both columns equal describeSetup's D and W figures.
+
+The two columns, daily and weekly, each show:
+- the close vs the 20-bar and 50-bar SMA;
+- the width of the last 10 bars.
+
+Shared across both columns:
+- the distance off the 52-week high;
+- the daily trend flags.
+
+An **alignment** line only *counts* how many of the measured averages the close is above. It is a fact, never a call.
+
+**Notes and refusals:**
+- A column the bars cannot support says why, for example "needs 50 weeks; 48 held".
+- A partial last week is named.
+- Stale bars are said.
+- No bars: describeSetup's fixed sentence, with no figure.
+- "This chart" on a multi-chart board with none selected asks which chart. The fast path never guesses.
+
+**Tests:**
+- `app/src/agent/agentWorkflowMultiTimeframe.test.jsx`: the parity with describeSetup, alignment, short history,
+  partial week, stale data, refusal; the real panel on the fast path (own symbol, and a named symbol on no chart) and
+  the model path; the "which chart" check; dark by default; isolation.
+- Dark corpus `workflow.multiTimeframe`: 4 phrasings at levels (a), (b) and (c).
+
+**Not chosen this round** (they stay candidates):
+- *Earnings reaction history* is not possible honestly through the existing kinds. `earnings` reported rows carry
+  only a fiscal label and no report date (`marketdata/earnings.py`), so the gap and next-day move cannot be tied to a
+  dated session without guessing. It needs a dated past-reports source first.
+- *Screen → open a grid* would compose `screener.runSaved` with `chartGrid.set`. Those files (multiChart, compound,
+  steps, board receipts) are under active change in other tracks.
+
 ## Capability-regression (capreg) integration
 
 The dark corpus lives in `app/src/agent/qa/capabilityRegression/baseline/corpus.dark.json`. It uses the main corpus's
