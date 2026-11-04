@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 03:45 CT
+updated: 2026-11-04 04:20 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -173,9 +173,15 @@ engine bump needed: decided at READY
 next: built-in Volatility Stop per W4-BREAKDOWN T14; measure-pair on pine-dsk-mpbase2 (mp2 lane), final-tip on lane 2
 
 ## W5-T7 (picked per 063fe2ba8e: needs T1 + T6, both READY; stacked on T6)
-state: BUILDING   round: r0   updated: 2026-11-04 01:45 CT
-branch: feat/pine-w5-t7-pool   base: W5-T6 tip 94b46f55b1   worktree: pine-dsk-w5t7   model: Opus
-next: pool + sandbox per SERVER-RUNTIME-DESIGN P1 T7 (services/pine_runtime/{pool,job,sandbox}.mjs)
+state: READY            round: r0            updated: 2026-11-04 04:20 CT
+branch: feat/pine-w5-t7-pool   tip: 5e6c63e24e (EVIDENCE over code tip cc76515bb6, which final-tip ran on)   base: W5-T6 tip 94b46f55b1 (STACK: T1 -> T6 -> T7)   tested on master: 5d95103c8a
+engine bump needed: NO (re-exports only; bundle sha moves, no output change)
+evidence: docs/pine/evidence/2026-11-04-w5-t7/EVIDENCE.md + redbase.py, mutate_node.py, muts*.json
+report: New services/pine_runtime/{pool,job,sandbox}.mjs; rails test/{job,adapter,pool,sandbox,hostile}.test.mjs + poolFixtures.mjs + fixtures/fakeBundle.mjs. T6 wiring in server.mjs: a full queue answers 429 runtime:server-busy (was 500); main({ pool }) starts the pool, prints workers=N, stops it on close; SERVICE_POOL_OPTIONS = { requireL4: true } passed by the isMain boot. T1 wiring in serverEntry.js: re-exports the pane budget, incremental key, time-budget and failed guards, and the objects key; T1's rail EXPORTS list updated. Rails red on base via redbase.py (byte-exact restore): modules absent -> all 5 new files red; base server.mjs -> hostile.test red; base serverEntry -> 5 real-bundle rails + T1 entry rail red. Tip: node --test 72/72 (T6's 33 + 39 new); vitest serverBundle.rail + frontend gate 9/9. Mutations (heavy-mut): 71/72 killed, control survives; 1 equivalent sb:l4-worker-env-inherited (the L4 probe reads no env); vitest 4/4; round-1 survivors got rails; one unreachable second guard (pool:answer-twice) deleted. final-tip (heavy-final3): gate pytest 46, version-gate 6, hygiene clean, vitest 1 failed | 22366 passed | 118 skipped = pollingSites.rail baseline. Desktop confirmed no leftover node workers from this worktree.
+decisions later lanes must mirror (full list in EVIDENCE): T11 guards runtime:server-busy (429 whole request, or per-job withhold past deadline), runtime:server-worker-oom, runtime:server-worker-failed, runtime:time-budget (hard kill), runtime:server-integrity (resumed run or bad column), per-output runtime:server-output-absent, runtime:server-drawings (key __runtimeObjects), runtime.error and runtime:failed; columns: canonical NaN, never partial, want=[] means all; results carry no digest/cache/instructions yet. T8: never cache any pool-made stop. T9: /ready does not consult pool.ready() yet (compose in the canary hook; pool.stats() ready). T10: node --permission (--experimental-permission on Node 20.18) --allow-fs-read=/app --allow-worker --disallow-code-generation-from-strings (codegen flag must be process-level). T2: the 3 L1 allowlist fetch( entries go stale when those edges are cut; sandbox.test goes red until they are deleted.
+open: (1) ENGINE FINDING: deep UDF recursion and a 200k-node expression stop as runtime:statement with a raw "Maximum call stack size exceeded", not as build refusal / IR limit as the design table says. (2) POSSIBLE BROWSER GAP: runtimeAsync messageOf ships meta {runtimeHistory} only, so runtimeVersionRefusal never sees the version facts off-thread (the server passes the full meta, declared under HP-7); worth a look on the live chart path. (3) T3 codec/digest still to adopt. (4) probeVerdictCache persists per worker (content-keyed, capped, bounded by recycling).
+merge-order note: T7 and T8 are both stacked on T6 and both may touch server.mjs/serverEntry.js; merge T7 first, then T8 rebased/merged by the coordinator.
+desktop check: PASS (scope = new service files + minimal T6/T1 wiring + rail list + evidence; cc76515bb6..5e6c63e24e is EVIDENCE only; local == origin; worktree clean)
 
 ## W5-T8 (picked per 063fe2ba8e: needs T6, READY; stacked on T6)
 state: BUILDING   round: r0   updated: 2026-11-04 01:45 CT
