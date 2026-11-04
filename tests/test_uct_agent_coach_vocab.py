@@ -72,7 +72,6 @@ def test_an_uncited_setup_definition_is_found(reply):
 @pytest.mark.parametrize("reply", [
     "Whether this is a VCP depends on UCT's template; ask me to teach it.",
     "Check the VCP template before you decide what you are looking at.",
-    "VCP — from UCT's setup template (the approved playbook):\nWhat it is: a base whose pullbacks contract.",
     "Breakouts can fail; volume is one input. What level are you watching?",
     "The episode taught you something about patience.",
 ])
@@ -176,3 +175,81 @@ def test_a_later_model_request_never_contains_brain_text(monkeypatch):
         turn.run_turn(message="and then?", context=ctx, history=_knowledge_rows(f"From UCT's playbook: {PASSAGE}"),
                       capabilities=CAPS, caller=caller)
         assert PASSAGE not in json.dumps(seen["messages"])
+
+
+def test_751_only_a_real_template_citation_switches_the_definition_check_off():
+    """#751 B-1 / re-review r2: free text never cites a definition -- "From UCT's playbook" (a passage, possibly team
+    commentary), "approved playbook", "Setup Library", even a copied template header. Only coach.explain's stored
+    setup.playbook citation marker for THAT template in this conversation does."""
+    for reply in ("From UCT's playbook — Watching a cup: A cup and handle is a rounded base with a short dip.",
+                  "Per the approved playbook, a VCP is a base whose pullbacks contract.",
+                  "See the Setup Library: the EP refers to a big news gap.",
+                  "Unlike UCT's playbook, I'd say a VCP is a coil.",
+                  "VCP — from UCT's setup template (the approved playbook): a VCP is a base whose pullbacks contract.",
+                  "UCT team commentary that mentions Cup with Handle (not UCT's definition of it) — A cup and handle is a rounded base."):
+        assert setups.uncited_setup_definitions(reply), reply
+
+
+MARKER_VCP = ('<uct_knowledge_ref/> UCT showed the member an answer from its approved knowledge here (not stored or replayed; '
+              'retrieve it again to use it). Cited: setup template "VCP" (source: UCT Setup Library; policy p7).')
+
+
+def test_the_stored_citation_marker_is_the_only_citation():
+    hist = [{"role": "member", "text": "teach me the vcp", "data": None},
+            {"role": "outcome", "text": MARKER_VCP, "data": {"kind": "answered", "actions": ["coach.explain"], "knowledge": True}}]
+    assert setups.cited_templates(hist) == {"VCP"}
+    reply = "A VCP is a base whose pullbacks contract, as the template above says."
+    assert setups.uncited_setup_definitions(reply, setups.cited_templates(hist)) == []
+    assert setups.uncited_setup_definitions("A VCP is a base. An EP is a big news gap.", {"VCP"}) == ["EP"]
+    # a marker without the knowledge flag, a member's own words, a passage marker: none cites a template
+    assert setups.cited_templates([{"role": "outcome", "text": MARKER_VCP, "data": {"kind": "answered"}}]) == set()
+    assert setups.cited_templates([{"role": "member", "text": MARKER_VCP, "data": None}]) == set()
+    assert setups.cited_templates([{"role": "outcome", "data": {"knowledge": True},
+                                    "text": '<uct_knowledge_ref/> ... Cited: knowledge base entry #12 "VCP notes".'}]) == set()
+
+
+@pytest.mark.parametrize("reply", [
+    "In a VCP, price swings get smaller from left to right.",
+    "VCPs form when sellers dry up after each pullback.",
+    "The VCP pattern is a series of tighter pullbacks.",
+    "A pocket pivot setup means volume beats the recent down days.",
+    "Episodic pivots happen when news changes a company's story.",
+])
+def test_wider_definition_shapes_are_caught(reply):
+    assert setups.uncited_setup_definitions(reply), reply
+
+
+def test_a_coach_turn_with_the_marker_in_history_may_restate_the_template(monkeypatch):
+    monkeypatch.setenv(coach.FLAG_ENV, "1")
+    hist = [{"role": "member", "text": "teach me the vcp", "data": None},
+            {"role": "outcome", "text": MARKER_VCP, "data": {"kind": "answered", "actions": ["coach.explain"], "knowledge": True}}]
+    reply = "A VCP is a base whose pullbacks may contract; check the template's entry line on your chart. What do you see?"
+    ok = turn.run_turn(message="so what is it?", context=CTX, history=hist, capabilities=CAPS, caller=_scripted(reply))
+    assert ok["usage"]["coach_guard"] == [] and ok["envelope"]["reply"].startswith("A VCP is")
+    bad = turn.run_turn(message="so what is it?", context=CTX, history=[], capabilities=CAPS, caller=_scripted(reply))
+    assert bad["envelope"]["reply"] == setups.DEFINITION_FIXED and bad["usage"]["coach_guard"] == ["definition"]
+
+
+# ── pre-activation: conversation naming never reads a coach reply (concept / Brain text) ─────────────────────────────
+
+def test_naming_leaves_out_coach_replies():
+    seen = {}
+
+    def caller(**kw):
+        seen["content"] = kw["messages"][0]["content"]
+        return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text=json.dumps({"title": "Coaching Chat"}))],
+                                     stop_reason="end_turn", usage=types.SimpleNamespace(input_tokens=1, output_tokens=1))
+    rows = [{"role": "member", "text": "coach me on failed breakouts", "data": None},
+            {"role": "agent", "text": "A breakout is a move through a level that had been containing price; it can fail.",
+             "data": {"envelope": {"disposition": "answer", "ops": []}, "coach": True}},
+            {"role": "member", "text": "thanks", "data": None},
+            {"role": "agent", "text": "You're welcome.", "data": {"envelope": {"disposition": "answer", "ops": []}}}]
+    turn.name_conversation(rows, caller=caller)
+    assert "containing price" not in seen["content"]
+    assert "coach me on failed breakouts" in seen["content"] and "You're welcome." in seen["content"]
+
+
+def test_the_router_marks_a_coach_reply_for_the_naming_rule():
+    import inspect
+    from api.routers import uct_agent as rx
+    assert '**({"coach": True} if "coach_guard" in usage else {})' in inspect.getsource(rx)

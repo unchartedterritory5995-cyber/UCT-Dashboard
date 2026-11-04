@@ -1687,6 +1687,8 @@ def name_conversation(turns: list[dict], caller: Callable | None = None, meter=N
             continue                                       # QA F-18 / F-22: a local or isolated result never reaches the naming model
         if t["role"] == "agent" and _kn_frame().used_knowledge(t.get("data")):
             continue                                       # KN-1 r4: knowledge-derived text never reaches the naming model
+        if t["role"] == "agent" and isinstance(t.get("data"), dict) and t["data"].get("coach") is True:
+            continue                                       # Wave 3: a coach reply (concept / Brain text) never reaches the naming model
         who = "Member" if t["role"] == "member" else "Agent"
         lines.append(f"{who}: {' '.join(str(t['text']).split())[:400]}")
     if not any(ln.startswith("Member:") for ln in lines):
@@ -2500,7 +2502,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                                                                  claim_repaired=bool(usage.get("false_claim")),
                                                                  grounded=True), env), caps)
             if coach_turn:
-                envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
+                envelope = agent_coach.guard_envelope(envelope, context, msg, usage, history)
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
@@ -2523,7 +2525,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
                                                              claim_repaired=bool(usage.get("false_claim"))), env), caps)
         if coach_turn:
-            envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
+            envelope = agent_coach.guard_envelope(envelope, context, msg, usage, history)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         title = clean_title(env) if conversation_title and not envelope.get("need_groups") else None
