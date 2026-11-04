@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 00:05 CT
+updated: 2026-11-04 05:50 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (1 Opus, 5 Sonnet: W3 S1 r2 Opus; W5-T1, W4-T7, W4-T3 r1, E lows, W5-T3). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -20,6 +20,8 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 - shared install: pine-base app/node_modules present; app/package-lock.json identical to origin/master, so no npm ci needed
 
 ### Deviations from the plan (for the coordinator's awareness)
+- 6. SECOND HEAVY LANE (owner-approved 2026-11-04 ~05:45 CT, to cut a ~8 h lock queue): final-tip runs ONLY may use lane 2, lock file C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/dsk/heavy-final2.lock (same heavy_lock.py, --path). measure-pair and mutation runs stay on the default lock, one at a time (measure-pair shares pine-dsk-mpbase). At most 2 heavy jobs run at once (each final-tip vitest uses --maxWorkers=2); RAM was 18-19 GB free with one running. A non-baseline vitest failure from a lane-2 run is re-run alone before it counts as new. First users: W4-T3 r1 and W5-T3 final-tips. Each EVIDENCE.md says which lane its final-tip ran on.
+- 7. Timestamp correction: block "updated:" times written 23:07-00:05 CT were wrong (wall clock was ~05:00-05:40 CT on 2026-11-04). Content was correct; only the clock was off.
 1. `pine-handoff` does not exist on the desktop. Used the documented fallback: `pine-handoff-dsk`, detached at origin/docs/pine-parity-programme (7809e3399b). $H points there.
 2. BUILDER-RULES setup step 1 runs `git -C $UCT_WORKTREES/pine-handoff worktree add`. Desktop builders use `git -C $UCT_WORKTREES/pine-base worktree add` instead (same repo, same result).
 3. pine-base is detached at 6272ed7fa3 (older than master). Left untouched: it only supplies node_modules, and the lockfile matches master. The measure-pair base is pine-dsk-mpbase, which builders switch to their own merge-base inside each hl job.
