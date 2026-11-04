@@ -40,3 +40,25 @@ PR #755 (independently reviewed: APPROVE) was merged to master as fa5b9751d9, th
 
 ## Release train 2
 PR #754 (integration review APPROVE; sync delta review APPROVE; agent ci green on 4107befe3f) was merged to master as 3d3d444d4f after the hotfix was verified live.
+
+## Release train 2: live (2026-11-04 00:36Z)
+PR #754 was merged as master 3d3d444d4f. The gate passed in 35 min, which is close to its 40-min limit. `production` = 3d3d444d4f, and the pod restarted at 00:36Z.
+
+Production checks:
+- health is ok; anonymous config gets 401; planner v1; the same 11 kinds;
+- no knowledge kinds; research.company and history.eventStudy are absent;
+- `coach: false`, and /api/agent/coach/concepts returns 404;
+- the Railway Agent variables equal the pre-release baseline (no KNOWLEDGE, COACH or PLANNER; the DATA_KINDS hash is unchanged).
+
+Live features:
+- "describe the setup on this chart": a clarify asks "Which chart?" with 4 choices. Picking NVDA gives the deterministic setup card with dated measurables and "Descriptive, not a recommendation", and no model reply line. PASS.
+- "nvda pullbacks": a dated pullback table (depth, sessions to low, recovered). PASS.
+- New minor finding LT-15: "describe the setup on nvda" (a symbol, not a chart) replied "Checking NVDA's daily setup now." and no card followed. A talk reply announced work that never ran.
+
+Budget: $0.22 of $5 today (13 calls).
+
+In flight, not merged:
+- #758, W2 follow-ups: webops hygiene, research separation, LT-13 indicator references (LT-13 now gives an honest "the alert catalog has no MA cross" refusal).
+- #757, coach pre-activation: #751 B-1 fix, guard recall 50%→60% on a held-out set, citation-based definition check, naming exclusion.
+- agent/kn/grounded-reply: Brain grounded response.
+- #751: mention-refine, waiting for #757's B-1 fix.
