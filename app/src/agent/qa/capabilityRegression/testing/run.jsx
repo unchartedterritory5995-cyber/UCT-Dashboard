@@ -5,6 +5,7 @@ import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow } from './harness'
 import { routedNames } from './route'
+import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
 
 /** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
@@ -79,6 +80,15 @@ export function checkExpect(ctx, e, label) {
     const get = (o, k) => k.split('.').reduce((a, x) => a?.[x], o)
     if (e.indicatorAlerts.count != null) expect(rows.length, `${label}: indicator alerts`).toBe(e.indicatorAlerts.count)
     if (e.indicatorAlerts.match) expect(rows.some(r => Object.entries(e.indicatorAlerts.match).every(([k, v]) => get(r, k) === v)), `${label}: an indicator alert ${JSON.stringify(e.indicatorAlerts.match)} (rows: ${JSON.stringify(rows.map(r => [r.sym, r.indicator, r.condition, r.threshold, r.active]))})`).toBe(true)
+  }
+  if (e.drawings) {
+    // the chart's drawings in the REAL drawings store (by the first chart's symbol); `has` = dotted-path fields of one
+    const sym = h.charts.read(chartsOf(board)[e.drawings.chart || 0]?.id)?.symbol
+    const ds = drawingsStore.peekDrawings(sym) || []
+    const get = (o, k) => k.split('.').reduce((a, x) => a?.[x], o)
+    if (e.drawings.count != null) expect(ds.length, `${label}: drawings on ${sym}`).toBe(e.drawings.count)
+    if (e.drawings.has) expect(ds.some(d => Object.entries(e.drawings.has).every(([k, v]) => get(d, k) === v)), `${label}: a drawing ${JSON.stringify(e.drawings.has)} (have ${JSON.stringify(ds.map(d => [d.type, d.points?.[0]?.price, d.color]))})`).toBe(true)
+    if (e.drawings.colour) expect(ds.some(d => hueFamily(d.color) === e.drawings.colour), `${label}: a ${e.drawings.colour} drawing`).toBe(true)
   }
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id

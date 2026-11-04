@@ -77,7 +77,11 @@ export function resolveTarget(t, body) {
   const list = body?.context?.[m[1]]
   return Array.isArray(list) && list[Number(m[2] || 0)] ? list[Number(m[2] || 0)].ref : `missing:${t}`
 }
-export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTarget(o.target, body), args: o.args }))
+// an ARG may name a live value from the request context: "$ctx:drawings.0.drawings.0.id" (ids minted at run time)
+const resolveArg = (v, body) => (typeof v === 'string' && v.startsWith('$ctx:')
+  ? v.slice(5).split('.').reduce((a, k) => a?.[k], body?.context) ?? `missing:${v}`
+  : Array.isArray(v) ? v.map(x => resolveArg(x, body)) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolveArg(x, body)])) : v)
+export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTarget(o.target, body), args: resolveArg(o.args, body) }))
 
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } = {}) {
   const p = setupPanel()
