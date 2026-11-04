@@ -11,8 +11,9 @@ const fetcher = async url => {
   return r.json()
 }
 
-export default function useSavedScreens() {
-  const { data, error, mutate } = useSWR('/api/screener/saved-screens', fetcher)
+/** `enabled: false` → a null SWR key: nothing is fetched (the Agent's screener host for a non-admin). */
+export default function useSavedScreens({ enabled = true } = {}) {
+  const { data, error, mutate } = useSWR(enabled ? '/api/screener/saved-screens' : null, fetcher)
 
   const create = async (name, spec, is_public = false) => {
     await fetch('/api/screener/saved-screens', {
