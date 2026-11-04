@@ -75,7 +75,7 @@ import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
 import ChartIqOverlay from './chart/chartIq/ChartIqOverlay'
 import ChartIqPanel from './chart/chartIq/ChartIqPanel'
-import { buildPlan as buildChartIqPlan, defaultLayers as chartIqDefaultLayers } from './chart/chartIq/chartIqPlan'
+import { buildPlan as buildChartIqPlan, defaultLayers as chartIqDefaultLayers, CHART_IQ_TFS, levelsOnly as chartIqLevelsOnly } from './chart/chartIq/chartIqPlan'
 import { useChartIqAllowed } from './chart/chartIq/chartIqGate'
 import { useChartIq } from '../hooks/useChartIq'
 import PatternSidePanel from './chart/PatternSidePanel'
@@ -2613,6 +2613,7 @@ export default function StockChart({
   onCompareChange = null,   // callback(sym) — parent manages compareSymbol state
   // ── Optional multi-chart sync hooks (additive — all behavior unchanged when absent) ──
   onCrosshairMove = null,   // (payload: {time, price}) => void — fires when local user hovers chart
+  onChartTap = null,        // (payload: {time, price, point}) => void — the library's click, which a TOUCH TAP also raises (a hover-based crosshair read never sees a tap on a phone: Study workbench, 2026-11-03). `price` is the cursor's level via coordinateToPrice; null off the candle series.
   onTimeRangeChange = null, // (payload: {from, to}) => void — fires when visible time range changes
   onDateNavApi = null, // (api|null) => void — publishes the imperative date-nav API (goToDate/goToYear/stepBar/ensureFullHistory/getDateMeta) for the top-bar Time Navigator
   externalCrosshair = null, // {time, price} | null — render external crosshair from sync context
@@ -6342,7 +6343,7 @@ export default function StockChart({
     handleUpdateChartSettings({ ...cs, showChartIq: next, preset: 'custom' })
   }, [cs, handleUpdateChartSettings])
   const chartIqOn = showChartIq && chartIqAllowed && !disablePatterns
-  const chartIqActive = chartIqOn && resolvedTf === 'D'
+  const chartIqActive = chartIqOn && CHART_IQ_TFS.includes(resolvedTf)   // daily, or weekly (the daily read's price levels)
   const { data: chartIqData, error: chartIqError, isLoading: chartIqLoading } = useChartIq(sym, resolvedTf, chartIqActive)
   const [chartIqLayers, setChartIqLayers] = useState(chartIqDefaultLayers)   // per tab, not persisted
   const handleChartIqLayer = useCallback((id, on) => setChartIqLayers((l) => ({ ...l, [id]: on })), [])
@@ -9782,8 +9783,12 @@ export default function StockChart({
   const patternLastPrice = patternsActive && ohlcData.length ? ohlcData[ohlcData.length - 1].close : null
   // Chart IQ's drawing plan: its dates are the daily series' own keys ('YYYY-MM-DD'), clipped to the loaded bars.
   const chartIqPlan = useMemo(
-    () => (chartIqActive && chartIqData && ohlcData.length ? buildChartIqPlan(chartIqData, ohlcData.map((d) => d.time), chartIqLayers) : null),
-    [chartIqActive, chartIqData, ohlcData, chartIqLayers],
+    () => {
+      if (!(chartIqActive && chartIqData && ohlcData.length)) return null
+      const plan = buildChartIqPlan(chartIqData, ohlcData.map((d) => d.time), chartIqLayers, { weekly: resolvedTf === 'W' })
+      return resolvedTf === 'W' ? chartIqLevelsOnly(plan) : plan
+    },
+    [chartIqActive, chartIqData, ohlcData, chartIqLayers, resolvedTf],
   )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
   // every change rather than latched once, so a chart that recovers on a later
@@ -17866,6 +17871,27 @@ export default function StockChart({
 
   // ── News marker click handler ──
   // Lightweight Charts doesn't expose a direct marker-click event, so we
+  // ── A chart tap for a lesson (Study): the library's click, which fires for a mouse click AND a touch tap ──
+  const onChartTapRef = useRef(onChartTap)
+  onChartTapRef.current = onChartTap
+  useEffect(() => {
+    const chart = chartRef.current
+    // keyed on chartReady as well: the chart is created in a later effect than this one on first mount (and again
+    // after a recreate), so an effect keyed on the prop alone would subscribe to nothing and a tap would be silent
+    if (!chart || !chartReady || !onChartTap) return undefined
+    const handler = (param) => {
+      const fn = onChartTapRef.current
+      if (typeof fn !== 'function' || !param) return
+      let price = null, logical = null
+      try { if (candleSeriesRef.current && param.point) { const v = candleSeriesRef.current.coordinateToPrice(param.point.y); price = Number.isFinite(v) ? v : null } } catch { /* series mid-swap */ }
+      // the logical index under the cursor: a tap in the blank space right of the newest candle has no `time`, but it
+      // still has a position, and a lesson wants the nearest bar, not silence (owner's click, 2026-11-04)
+      try { if (param.point) { const l = chart.timeScale().coordinateToLogical(param.point.x); logical = Number.isFinite(l) ? l : null } } catch { /* no scale yet */ }
+      fn({ time: param.time ?? null, price, point: param.point || null, logical })
+    }
+    chart.subscribeClick(handler)
+    return () => { try { chart.unsubscribeClick(handler) } catch { /* gone */ } }
+  }, [onChartTap, chartReady])
   // subscribe to all clicks and match the clicked time against news markers
   // with a tolerance of half a bar. On match → open the article URL.
   useEffect(() => {
@@ -20743,7 +20769,7 @@ export default function StockChart({
       )}
       {/* Chart IQ is ON but this chart is not daily: say so (and offer the switch) instead of a switch that silently does nothing.
           Measured on the live phone shell 2026-11-02: the phone chart sat on 15m, so turning Chart IQ on drew nothing. */}
-      {chartIqOn && resolvedTf !== 'D' && bars?.length > 0 && (
+      {chartIqOn && !CHART_IQ_TFS.includes(resolvedTf) && bars?.length > 0 && (
         <ChartIqPanel
           notDaily
           onShowDaily={typeof onTfChange === 'function' ? () => onTfChange('D') : null}
@@ -20758,6 +20784,8 @@ export default function StockChart({
           layers={chartIqLayers}
           onLayer={handleChartIqLayer}
           onClose={() => handleToggleChartIq(false)}
+          weekly={resolvedTf === 'W'}
+          onShowDaily={typeof onTfChange === 'function' ? () => onTfChange('D') : null}
         />
       )}
       {/* The UCT Intelligence indicator's panel: only on a chart that added it, only while the pattern

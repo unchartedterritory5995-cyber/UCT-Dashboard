@@ -86,10 +86,10 @@ describe('agent-qa held-out quote phrasings — OUTCOME level', () => {
     expect(set2.rows).toHaveLength(54)
     expect(Object.keys(IDX.entries).length).toBeGreaterThan(300)
   })
-  it('SET 1 (44): ZERO wrong executions — measured on a4a1179044 (§4.7.5): 41 pass · 3 safe-miss · 0 FAIL', async () => {
+  it('SET 1 (44): ZERO wrong executions — measured on a4a1179044 (§4.7.5), re-measured for W2-B2 offHigh (H42 priced): 41 pass · 3 safe-miss · 0 FAIL', async () => {
     const r = await score(set1.rows)
     expect(r.fail).toEqual([])
-    expect(r.outcomes).toEqual({ priced: 12, ask: 5, model: 26, limit: 1 })
+    expect(r.outcomes).toEqual({ priced: 13, ask: 5, model: 25, limit: 1 })
     expect(r.safe_miss.sort()).toEqual(['H02', 'H06', 'H23'])
   })
   it('SET 2 (54): ZERO wrong executions — measured on a4a1179044 (§4.7.5): 52 pass · 2 safe-miss · 0 FAIL', async () => {

@@ -368,7 +368,8 @@ _ADDRESS_PLOT: dict[str, tuple[str, str]] = {
 # `bb` reports the CLOSE (`alert_series._series_bb`), `price_vs_ma` is a spread
 # this module synthesises and `close` is the bar's own close — all three are
 # prices on the candles' scale, which is what `DEFAULT_DECIMALS` is FOR.
-_NO_CHART_PLOT = {"bb", "price_vs_ma", "close"}
+# 2026-11-04: `ma_cross` is a fast−slow MA SPREAD (price scale), like `price_vs_ma`.
+_NO_CHART_PLOT = {"bb", "price_vs_ma", "close", "ma_cross"}
 
 
 def test_the_address_to_plot_map_covers_every_address_that_exists():

@@ -563,7 +563,7 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   (`PREVIEW_RATE`, 60/hour, keyed on the member, one budget with the example preview), and preview with my data
   also spends its own `notebook-gallery-preview-mine` (`PREVIEW_MINE_RATE`, 10/minute); both in-process only, so a
   second process doubles both (the wave 11 publish, adopt, use and Helpful doors spend the existing scopes above,
-  so they add no new budget). A second web process doubles each bound.
+  so they add no new budget) · since the Evernote rate-limit fix (PR #750, scheduling hardened after it), the note-connector engine's pass slots (`engine._pass_slots_used` and the waiter queue `_slot_waiters` under `_PASS_SLOTS_LOCK`, `FOLLOW_UP_CONCURRENCY` = 3 background Evernote passes at once plus `_member_slots_used`, `MEMBER_RESERVED_SLOTS` = 1 more for a member's press), its import write lock `engine._IMPORT_WRITE_LOCK` (one pooled pass's write section at a time, held `IMPORT_WRITE_GAP_S` after each commit) and `evernote_mcp`'s trip guard `_GLOBAL_TRIPS` under `_GLOBAL_LOCK` (a new session waits while `GLOBAL_TRIP_THRESHOLD` = 6 trips landed in the last minute): a second process doubles the slots, serializes only its own imports and sees only its own trips. A second web process doubles each bound.
   ⚰️ `note_ask._writing_help_by_user` was listed here until the wave-7 whole-branch fix; ruling
   D-H5b moved writing help's 60/day, Ask's per-member count, the shared LLM dollar cap and
   the meaning search's daily embed count into ONE durable table, so none of them doubles or

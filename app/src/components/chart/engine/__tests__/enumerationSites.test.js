@@ -2462,8 +2462,10 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     expect(body.length, 'the dict body came back empty: the delimiter search failed')
       .toBeGreaterThan(200)
     const all = [...body.matchAll(/"([a-z_][\w.]*)"\s*:/g)].map(m => m[1])
-    expect(all.length, 'the column table is not 31 = 28 levels + 2 events + 1 price')
-      .toBe(31)
+    // 2026-11-04 — `ma_cross` (MA crossover) is the 32nd, in its OWN partition
+    // (`CROSS_ADDRESSES`), so the 28 levels below — the frozen replay grid — do not move.
+    expect(all.length, 'the column table is not 32 = 28 levels + 2 events + 1 price + 1 cross')
+      .toBe(32)
 
     // The three partitions, read from the evaluator AS CODE. The two small ones
     // are closed exclusion tuples; everything else is a LEVEL, which is the same
@@ -2479,7 +2481,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     const prices = tupleOf('PRICE_ADDRESSES')
     expect(events).toEqual(['sar.priceCrossedSar', 'sar.trendFlipped'])
     expect(prices).toEqual(['close'])
-    const addresses = all.filter(a => !events.includes(a) && !prices.includes(a))
+    const crosses = tupleOf('CROSS_ADDRESSES')
+    expect(crosses).toEqual(['ma_cross'])
+    const addresses = all.filter(a => !events.includes(a) && !prices.includes(a) && !crosses.includes(a))
 
     expect(addresses.length,
       'the evaluator address count moved. It is 28, in 14 groups — NOT the 25 the B5 SDD '

@@ -139,7 +139,8 @@ const AT_CLOSE = ' (?:at|as of|on) (?:the )?(?:latest |last |most recent )?close
 const UNI_WORD = '(us|u\\.s\\.|nyse|nasdaq|uct)'
 const UNI_PRE = `(?:${UNI_WORD} )?`
 const UNI_POST = `(?: (?:on|for|in|across) (?:the )?${UNI_WORD}(?: stocks)?)?`
-const ASK = "(?:(?:what(?:'s| is| are| was)?|how(?:'s| is)|show(?: me)?|give me|tell me) )?"
+// W2: "hows breadth today", "whats breadth" (no apostrophe) and a curly ’ read the same
+const ASK = "(?:(?:what(?:'s|’s|s| is| are| was)?|how(?:'s|’s|s| is)|show(?: me)?|give me|tell me) )?"
 const OVERVIEW_RE = new RegExp(`^${ASK}(?:the )?${UNI_PRE}(?:market )?breadth(?: (?:look(?:ing)?|like|doing))*${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
 const PCT_RE = new RegExp(`^${ASK}(?:the )?(?:percent(?:age)?|%|pct|share) (?:of )?${UNI_PRE}(?:stocks )?(?:that are |are |were |is |trading )?(above|over|below|under|not above|at or below|at or under) (?:their |the |its )?(\\d+)(?:[\\s-]*(?:day|d))?(?:[\\s-]*(?:simple moving average|moving average|sma|dma|ma))?${UNI_POST}(${WHEN_NOW}|${AT_CLOSE})$`)
 const uniOf = (...ws) => {
@@ -306,7 +307,7 @@ export function registerBreadthCapabilities() {
 
   registerCapability({
     name: 'breadth.show',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'breadth', query: true,
     // ⛔ the boundary: this answer is shown to the member and never replayed to a model
     localOnly: true,
