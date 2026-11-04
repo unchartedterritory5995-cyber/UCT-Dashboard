@@ -48,3 +48,36 @@ inline and `?background=1`, no client built, no service call, nothing queued. No
 - Engine bump (SCRIPT_ENGINE_VERSION): NO. No chart-engine output changes.
 
 ## Checks
+Tested tree: code tip `560d8e6958` (this file is the only later change). Base `e710d36d6a`.
+
+- New rails `tests/test_screener_backtest_runtime.py`: 26 tests. On base (archive of the base tree + the
+  test file): 23 failed, 1 passed (the pure `job_id` digest test exists on base). On tip: 26 passed.
+- final-tip (`bash $S/final-tip.sh pine-dsk-w5t15 dsk-w5t15-final <8 backtest pytest files>`, lock
+  `heavy-final2.lock`, 42.4 min): gate pytest 46 passed; hygiene rc=0; rails pytest 175 passed
+  (runtime, def_id, route, controls, screener_backtest, backtest_engine, backtest_endpoint,
+  backtest_stats); vitest chart+hooks: 2 failed | 1333 passed | 27 skipped, the two failures being
+  the stated baselines `settingsScope.rail` and `pollingSites.rail`. Logs:
+  `_resume-2026-11-01/runs/dsk-w5t15-final/`.
+- Existing backtest tests are green on tip. One existing rail
+  (`test_the_routers_ONE_engine_call_binds_against_the_REAL_signature`) forced the runtime branch to
+  share the single `engine.run_backtest` call site; it does.
+
+## Mutations (pytest, `heavy-mut.lock`, byte-exact restore, PYTHONDONTWRITEBYTECODE)
+| mutation | killed by |
+|---|---|
+| per-chunk admission removed | test_a_kill_between_chunks_stops_the_run_at_the_next_chunk |
+| door admission removed | test_with_the_server_stage_unset_nothing_reaches_the_service |
+| epoch seconds -> date key | test_the_daily_bar_time_reaches_the_service_as_unix_seconds_not_a_date_key |
+| busy / auth dropped from 503 | test_a_service_refusal_maps_to_503_409_or_500... |
+| integrity not 500; everything 409 | test_a_tape_with_a_non_date_time_is_refused_by_the_clients_integrity_guard... |
+| wrong profile | test_a_runtime_document_replays_through_the_client_and_is_not_a_400 |
+| na kept as a number | same |
+| per-output refusal ignored | same family (integrity/mapping tests) |
+| plot guess allowed | test_several_plots_need_a_named_one... |
+| def_hash not the handle | test_a_runtime_document_replays... |
+| warmup not charged (engine seam; router arg) | test_the_leading_bars_are_charged_to_warmup... |
+| batch size ignored | test_a_kill_between_chunks... |
+| stored verdict not re-asked per chunk | test_a_verdict_that_lands_between_chunks_stops_the_run |
+| job id ignores plot | test_each_plot_of_one_script_is_its_own_receipt_through_the_route |
+| column_for / bars_for not routed to the replay | test_a_runtime_document_replays... |
+| engine column-length check; router column-length check | EQUIVALENT survivors: the client already refuses a column whose length differs from bars.n (server-integrity), so these are defence in depth. |
