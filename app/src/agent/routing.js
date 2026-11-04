@@ -216,7 +216,11 @@ export const GROUPS = [
   // a question — except a request to GO TO the breadth page / monitor, which stays navigation
   // (settings group). The lookahead is anchored at the start of the message (no lookbehind).
   { id: 'breadth', title: 'Market breadth now and history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)', domains: ['breadth'],
+    // W2 gaps-5: "averages for the S&P" — the MARKET's moving-average participation is breadth's (A20…A200: the share of stocks
+    // above their averages); UCT's data group has no moving-average reading for an index (stock.dailyBars: closes, ranges,
+    // off-high, pullbacks), so breadth is the canonical capability (breadth.show; the US universe stands for the S&P)
     words: [/^(?!.*\b(open|go to|take me to|navigate to|bring up|pull up|switch to)\b.*\bbreadth\b.*\b(page|monitor|dashboard|tab|screen)\b).*\bbreadth\b/,
+      /\b(?:moving )?averages? (?:for|on|of|across) (?:the )?(?:s ?& ?p|s and p|spx|spy|market|nasdaq|nyse|us market)\b/,
       /\b(percent|pct|share|portion|how many|what %|what percent)\b.*\b(above|below|over|under)\b.*\b\d+[- ]?(day|d|dma|sma|ema|week)\b/,
       /% (of )?(all )?(us |nyse |nasdaq |uct )?(stocks|names|issues)\b/,
       /\b(us|nyse|nasdaq|uct) (stocks|names|issues) (are |were )?above\b/,
@@ -231,6 +235,10 @@ export const GROUPS = [
     // should open on the weekly", "by default", "always open") and alert sounds (plural) are settings
     words: [/\bsettings?\b/, /\b(dark|light) mode\b/, /\b(app|uct|site|light|dark) theme\b/, /\bdefault (chart )?time ?frames?\b/, /\b(alert )?sounds?\b/,
       /\bnew charts? (?:should|will|to|must|always) (?:open|start|load|default|be)\b|\bby default\b|\balways (?:open|start|load)\b|\bdefault for new charts?\b/, /\bdigest\b/, /\bemail\b/, /\b(open|go to|take me to)\b.*\b(page|screener|dashboard|breadth|research)\b/] },
+  // W2 gaps-5: the earnings CALENDAR (calendar.day / calendar.nextReport) in its own small group — "what's on the calendar
+  // this week", "who reports tomorrow" (it was ungrouped: never named by any message's words)
+  { id: 'calendar', title: 'Earnings calendar: who reports on a day or this week, when one stock reports next', domains: ['calendar'], fillLast: true,
+    words: [/\bcalendar\b/, /\bwho(?:'s| is)? report(?:s|ing)\b/, /\b(?:earnings|reports?) (?:this|next) week\b|\breporting (?:this|next) week\b/] },
   { id: 'agent', title: 'Questions about what UCT Agent can do', domains: ['agent'], always: true, words: [] },
   // hotfix 2026-11-03 (live: "Undo the last change you made to my charts." reached a model with no Undo): the Agent's OWN
   // Undo (agent.undo → the receipt's Undo, browser-only) in its OWN one-action group, named by any Undo word — so the

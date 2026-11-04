@@ -549,6 +549,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const undoAfterRef = useRef(null)         // hotfix 2026-11-03: a model plan "change …, then undo it" — the Undo waits for the change
   const undoneFirstRef = useRef(false)      // review F3: a planned Undo ran FIRST this turn — a later "didn't change anything" isn't true
   const createdRef = useRef(null)           // review #771: { turn, refs } — the charts the latest committing request created
+  const questionSetAsideRef = useRef(false) // LT-5/6: this turn's message set the open question aside (a new request)
   const askedGroupsRef = useRef(null)       // W2 AUDIT: the routing groups the model's open question was asked with
   const lastRoutedRef = useRef(null)        // this turn's routed groups (legacy request), for a question it asks
   const notDoneRef = useRef(null)           // W2 audit: this turn's fixed "Not done: …" sentences (notDone.js)
@@ -1641,10 +1642,26 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     lockRef.current = true
     turnStart('send')
     saidRef.current = text
-    const askedFor = askedForRef.current
+    const askedFor0 = askedForRef.current
     // review #771 delta H1/L3: this message ANSWERS the model's open question (a choice, or a short reply) — else it is routed fresh
-    const carryAsked = !!askedFor && isShortAnswer(text, lastQuestionRef.current?.choices || [], answering)
+    const carryAsked = !!askedFor0 && isShortAnswer(text, lastQuestionRef.current?.choices || [], answering)
+    // ⭐ LT-5 / LT-6 (live 2026-11-03: "trendline on nvda from 2031-01-01 to today" typed while UCT still waited on its
+    // October-lows question was answered ABOUT October): a message that is not an answer to the open question is a NEW
+    // request. The question is WITHDRAWN (its choices go), nothing of it is carried (words, groups, a held plan), and the
+    // model is told it was set aside — never merged into the new request.
+    const qOpen = lastQuestionRef.current
+    const localOpen = pendingRef.current?.kind === 'target'
+    const setAside = !answering && (!!askedFor0 || localOpen) && !isShortAnswer(text, qOpen?.choices || [], false)
+    const askedFor = setAside ? null : askedFor0
     askedForRef.current = null
+    if (setAside) {
+      if (localOpen) pendingRef.current = null
+      pendingQuestionRef.current = null
+      askedGroupsRef.current = null
+      if (qOpen?.id) patchItem(qOpen.id, { status: 'withdrawn' })
+      lastQuestionRef.current = null
+      questionSetAsideRef.current = true
+    }
     push({ role: 'member', text, voice })
     setBusy(true)
     // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
@@ -2080,8 +2097,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // follow-up the instant path could not read still reaches the model with its referent. Never values.
       const memoryFor = () => {
         const m = memoryRef.current.forModel()
-        if (!m) return null
-        return withModelRefs(m, back)
+        // LT-6: the model's last question was set aside by this message — it is a NEW request (turn.py OPEN QUESTION rule)
+        const aside = questionSetAsideRef.current ? { question_set_aside: true } : null
+        if (!m) return aside
+        return { ...withModelRefs(m, back), ...(aside || {}) }
       }
       const ask = (r, extra = {}) => {
         const mem = memoryFor()
@@ -2398,6 +2417,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (!dropHeldForUndo(held)) push({ role: 'agent', text: UNDO_AFTER_NOTHING })
       }
       undoneFirstRef.current = false
+      questionSetAsideRef.current = false
       // W2 audit: a partly-possible request never reads as complete — what wasn't done is said last, in UCT's own words
       for (const t of notDoneRef.current || []) push({ role: 'refusal', text: t })
       if (notDoneRef.current?.length) record({ member: null, outcome: notDoneRef.current.join(' '), outcomeData: { kind: 'not-done' }, telemetry: { path: 'model', voice } })

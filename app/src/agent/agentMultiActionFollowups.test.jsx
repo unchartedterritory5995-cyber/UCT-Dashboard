@@ -857,3 +857,51 @@ describe('nl-gaps-4 · CG-28 (#774): the words traders use for a chart\'s indica
     expect(wordsSelect('indicatorSetup', 'move the RSI into its own pane')).toBe(true)
   })
 })
+
+describe('nl-gaps-5 · LT-5 / LT-6: a new request typed while a question is open is a NEW request, never merged', () => {
+  const octQ = () => ({ ...env('clarify', [], ''), question: { text: 'Which October low do you mean — Oct 10 or Oct 24?', choices: [{ label: 'Oct 10' }, { label: 'Oct 24' }] } })
+  it('LT-6: "trendline on nvda from 2031-01-01 to today" after an unanswered question → the question is withdrawn, the model is told it was set aside', async () => {
+    const { say } = mount(...HALF())
+    envelopes.push(octQ)
+    await say('draw a trendline on nvda from the october lows')
+    await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
+    envelopes.push(env('answer', [], 'That date is in the future, so I can’t anchor a trendline there.'))
+    await say('trendline on nvda from 2031-01-01 to today')
+    const body = turnBodies()[1]
+    expect(body.context.conversation_memory?.question_set_aside).toBe(true)
+    const q = screen.queryAllByTestId('agent-question')[0]
+    expect(q.querySelectorAll('button').length).toBe(0)                                      // withdrawn — no live choices
+    expect(q.textContent).toMatch(/Withdrawn/)
+  }, 30000)
+  it('LT-5: a short answer ("the close") still answers the open question — nothing is set aside', async () => {
+    const { say } = mount(...HALF())
+    envelopes.push(() => ({ ...env('clarify', [], ''), question: { text: 'Anchor the AVWAP at which price — open, close, high or low?', choices: [{ label: 'Open' }, { label: 'Close' }, { label: 'High' }, { label: 'Low' }] } }))
+    await say('avwap on nvda from last friday')
+    await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
+    envelopes.push(env('answer', [], 'ok'))
+    await say('the close')
+    expect(turnBodies()[1].context.conversation_memory?.question_set_aside).toBeUndefined()
+    expect(screen.queryAllByTestId('agent-question')[0].querySelectorAll('button').length).toBe(4)
+  }, 30000)
+  it('a LOCAL "which chart?" question is set aside by a new request — the held plan never runs, the new one does', async () => {
+    const { board, h, say } = mount([
+      { id: 'c1', type: 'chart', x: 0, y: 0, w: 8, h: 20, color: 'A', opts: settings() },
+      { id: 'c2', type: 'chart', x: 8, y: 0, w: 8, h: 20, color: 'B', opts: settings() },
+    ], { A: 'NVDA', B: 'AMD' })
+    await say('make it weekly')
+    await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
+    await say('add a QQQ chart')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(3), { timeout: 8000 })
+    expect(h.charts.read('c1').tf).toBe('D')
+    expect(h.charts.read('c2').tf).toBe('D')
+    expect(screen.queryAllByTestId('agent-question')[0].querySelectorAll('button').length).toBe(0)
+  }, 30000)
+})
+
+describe('nl-gaps-5 · routing gaps', () => {
+  it('"what\'s on the calendar this week" routes the earnings calendar; "averages for the S&P" routes breadth', () => {
+    expect(selectGroups("what's on the calendar this week").selected).toContain('calendar')
+    expect(wordsSelect('calendar', 'who reports tomorrow')).toBe(true)
+    expect(wordsSelect('breadth', 'averages for the S&P')).toBe(true)
+  })
+})
