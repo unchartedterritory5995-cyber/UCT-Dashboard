@@ -75,7 +75,10 @@ three and makes one request.
     `test_definition_concierge` 5, `test_frontend_deps_installed` 1, `test_phase_e_acceptance` 3, `test_starter_library` 5,
     `off_request_path` 1).
   Tip failure list: `runs/w5t14/tip-failed.txt` (before the move of the helpers).
-- final-tip: see the end of this file.
+- final-tip (tip `95ce2713b0`, lock `heavy-final3.lock`, `bash $S/final-tip.sh pine-dsk-w5t14 dsk-w5t14-final tests/test_scan_runtime_lane.py`,
+  log `runs/w5t14/final.log`): gate pytest **46 passed**; hygiene **clean**; lane rails **50 passed**; chart+hooks vitest
+  **2 failed | 1333 passed | 27 skipped (1362 files)**, the two failures being exactly the stated baselines
+  `settingsScope.rail` (red on masters at/after 96582cd549) and `pollingSites.rail` (red on every master). Worktree clean.
 
 ## Mutation table
 Lock `_resume-2026-11-01/dsk/heavy-mut.lock`. `python -B docs/pine/evidence/2026-11-04-w5-t14/mutate_pytest.py
