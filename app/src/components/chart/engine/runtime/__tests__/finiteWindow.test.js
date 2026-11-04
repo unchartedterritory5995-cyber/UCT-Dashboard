@@ -419,8 +419,12 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
     // computes `cum` as a forward scan; the bar-by-bar runtime has no entry, so the
     // two families stay apart exactly as the heading says.
     expect(FINITE_WINDOW.cum).toBeUndefined()
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`).guard)
-      .toBe('runtime:call-windowed-state')
+    // ⭐ W4 T10 — and then the runtime lane BUILT it: `CARRIED.cumPine`, held to the
+    // columnar `cumCol` in `w4StateKernels.test.js`. It is still not a FINITE window.
+    // The specimen of "a builtin this lane has no entry for" is now `ta.cog`.
+    expect(buildRuntimeIr(`${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`, { bars: BARS, inputs: {} }).ok).toBe(true)
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cog(x, 5))\n`).guard)
+      .toBe('runtime:call-undeclared-builtin-state')
   })
 
   it('⛔⛔ A PINE SPELLING THE TABLE HOLDS UNDER ANOTHER NAME IS NOT "UNDECLARED"', () => {

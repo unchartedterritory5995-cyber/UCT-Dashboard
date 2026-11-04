@@ -484,6 +484,7 @@ export function validateIr(p) {
         }
         walkExpr(e.cond, `${where}.cond`)
         walkExpr(e.source, `${where}.source`)
+        if (e.third !== undefined) walkExpr(e.third, `${where}.third`)
         return
       }
       case EXPR.WINDOW: {
@@ -854,8 +855,11 @@ export const carriedCall = (site, source) => ({ kind: EXPR.CARRIED, site, source
 /** ⭐ A TWO-INPUT carried-state builtin — Pine's `ta.valuewhen(cond, src, n)`.
  *  `site` is FRAME-RELATIVE exactly as `carriedCall`'s is, so one compiled body
  *  serves every invocation and two call sites keep two rings. */
-export const carried2Call = (site, cond, source) => (
-  { kind: EXPR.CARRIED2, site, cond, source })
+export const carried2Call = (site, cond, source, third) => (
+  third === undefined
+    ? { kind: EXPR.CARRIED2, site, cond, source }
+    // ⭐ W4 T10 — a THREE-INPUT member (`ta.stoch`, `ta.vwap`): `third` is pushed last.
+    : { kind: EXPR.CARRIED2, site, cond, source, third })
 
 export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })

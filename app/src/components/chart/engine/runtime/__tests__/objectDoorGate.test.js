@@ -52,6 +52,12 @@ const SHAPES = {
   // ⭐ WS-D constant-var folding (gate review MEDIUM): an input default read from a `var`
   // nothing reassigns. Master refuses it (`runtime:input-state`); without the door gate on
   // `inputConsts` the door drew "146.05" / "299.06" here (reviewer's probes, RDDT 1D).
+  // ⭐ W4 T10 — the state kernels are pane-only; the door answers what master answered
+  // (`runtime:call-windowed-state`), the `false` flavour.
+  t10_cum: ['x = close + k * 0\nv = ta.cum(x)\n', false],
+  t10_pivot: ['x = high + k * 0\nv = ta.pivothigh(x, 3, 3)\n', false],
+  t10_stoch: ['x = close + k * 0\nv = ta.stoch(x, high, low, 14)\n', false],
+  t10_vwap: ['x = close + k * 0\nv = ta.vwap(x)\n', false],
   cv_int: ['', false, 'var int LEN = 5\nlen = input.int(LEN, "L")\n', 'v = ta.sma(close, len) + k * 0\n'],
   cv_float: ['', false, 'var float M = 2.0\nm = input.float(M, "M")\n', 'v = close * m + k * 0\n'],
 }

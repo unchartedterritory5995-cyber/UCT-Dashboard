@@ -431,6 +431,30 @@ export const runtimeOwnsPineTwin = (name, argc) => {
  *  this, and the corpus's largest occurrence is a small literal. */
 export const MAX_VALUEWHEN_OCCURRENCE = 1000
 
+/** ⭐⭐ W4 T10 — THE STATE KERNELS THIS LANE SERVES OVER A VALUE THE RUN COMPUTES:
+ *  Pine name -> `{ kind, arity, legacy }`. `arity` is the argument counts it owns;
+ *  `legacy: true` is a v1-v4 bare spelling, owned only BEFORE v5 (from v5 the bare
+ *  name is no Pine function, and `undeclared` stays the true sentence for it —
+ *  `LEGACY_REQUEST_CALLS`' rule). `ta.vwap` has no bare spelling: before v5 `vwap`
+ *  was a variable, never a call. */
+export const RUNTIME_STATE_KERNELS = Object.freeze(Object.fromEntries([
+  // [Pine spelling, kernel family, arities owned, v1-v4 bare spelling?]
+  ['ta.cum', 'running-total', [1], false],
+  ['cum', 'running-total', [1], true],
+  ['ta.pivothigh', 'pivot-high', [2, 3], false],
+  ['pivothigh', 'pivot-high', [2, 3], true],
+  ['ta.pivotlow', 'pivot-low', [2, 3], false],
+  ['pivotlow', 'pivot-low', [2, 3], true],
+  ['ta.stoch', 'stochastic', [4], false],
+  ['stoch', 'stochastic', [4], true],
+  ['ta.vwap', 'session-vwap', [1], false],
+].map(([name, kind, arity, legacy]) => [name, { kind, arity, legacy }])))
+
+/** The widest `ta.pivothigh`/`ta.pivotlow` window (`left + right + 1`) this lane
+ *  will hold a ring for; an absurd span is a typo, and sizing it silently is how a
+ *  script becomes a hang. */
+export const MAX_PIVOT_SPAN = 5000
+
 const OBJECT_NS = /^(line|label|box|table|polyline|linefill)\./
 const ARRAY_NS = /^(array|matrix|map)\./
 
@@ -6035,6 +6059,96 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⛔ A BUILDER'S OWN REFUSAL IS HONOURED, so a shape it will not take
         // says why in its own words instead of arriving as "not a shape the
         // translator reads" pointing at the statement.
+        // ⭐⭐ W4 T10 — `ta.cum`, `ta.pivothigh`/`ta.pivotlow`, `ta.stoch` and
+        // `ta.vwap(source)` OVER A VALUE THE RUN COMPUTES. Each is the columnar
+        // lane's arithmetic stepped by `interpret.js` (`CARRIED.cumPine`,
+        // `.pivotHighPine`, `.pivotLowPine`; `CARRIED2.stochPine`, `.vwapPine`),
+        // held to the columnar answer in `w4StateKernels.test.js`. A pure source
+        // never arrives here: the columnar lane answers it whole.
+        // ⛔ BEFORE THE NAMESPACED TRANSFORM BELOW, WHICH WOULD OTHERWISE RESPELL
+        // `ta.pivothigh` as `pivothigh(…)[right]` — a history read over a call that
+        // carries state, which refuses. A script's own function of the name wins.
+        // ⛔ NOT AT THE OBJECT DOOR. The C18 door answers what master answered —
+        // `runtime:call-windowed-state` below — until a TradingView capture proves
+        // these exact there; the pane is the only door that serves them.
+        const kernel = !atObjectDoor && Object.prototype.hasOwnProperty.call(RUNTIME_STATE_KERNELS, node.name)
+          ? RUNTIME_STATE_KERNELS[node.name] : null
+        // ⛔ A PIVOT WHOSE `rightbars` IS ONLY KNOWN WHILE THE BAR RUNS KEEPS THE
+        // BUILDER'S OWN REFUSAL (`rt7PivotRightbars.test.js`'s control): the ring is
+        // sized before bar 0, so it cannot be served, and the sentence the existing
+        // path gives is the true one.
+        const pivotRightUnknown = kernel && (kernel.kind === 'pivot-high' || kernel.kind === 'pivot-low')
+          && (node.args.length === 2 || node.args.length === 3) && !node.args.some((a) => a && a.name)
+          && !constValueOf(
+            (() => { const a = node.args[node.args.length - 1]; return a && a.value !== undefined ? a.value : a })(), scope)
+        if (kernel && fnIndex === undefined && !pivotRightUnknown && kernel.arity.includes(node.args.length)
+          && !(kernel.legacy && pineVersion >= 5)) {      // no version line = v1
+          const at = locate(node.tok)
+          if (node.args.some((a) => a && a.name)) {
+            throw new RuntimeRefusal('runtime:builtin-args', `a named argument on \`${node.name}\``, at)
+          }
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          const foldWhole = (arg, what, min) => {
+            const v = foldConstNode(arg, at,
+              `the ${what} of \`${node.name}\` is only known while the bar is running, `
+              + 'so the state it needs cannot be sized before bar 0', scope)
+            if (!Number.isInteger(v) || v < min) {
+              throw new RuntimeRefusal('runtime:builtin-args',
+                `\`${node.name}\` needs a whole ${what} of at least ${min}, got ${v}`, at)
+            }
+            return v
+          }
+          const pushEntry = (entry) => {
+            let at2
+            if (owner !== null) {
+              const list = functions[owner].carriedLocals || (functions[owner].carriedLocals = [])
+              at2 = list.length
+              list.push(entry)
+            } else {
+              at2 = carriedMain.length
+              carriedMain.push(entry)
+            }
+            return at2
+          }
+          if (kernel.kind === 'running-total') {
+            const cidx = pushEntry({ fn: 'cumPine', n: 1, name: `${node.name}(…)` })
+            conditionalHistoryGuard('a stateful built-in', null)
+            return carriedCall(cidx, lowerExpr(given[0], scope))
+          }
+          if (kernel.kind === 'pivot-high' || kernel.kind === 'pivot-low') {
+            // `ta.pivothigh(leftbars, rightbars)` reads `high`, `ta.pivotlow` reads
+            // `low` — the function's own extreme, never `close` (`pine.js::pivotAtConfirmation`).
+            const three = given.length === 3
+            const srcIr = three ? lowerExpr(given[0], scope) : series(kernel.kind === 'pivot-high' ? 'high' : 'low')
+            const left = foldWhole(three ? given[1] : given[0], 'left bar count', 1)
+            const right = foldWhole(three ? given[2] : given[1], 'right bar count', 1)
+            if (left + right + 1 > MAX_PIVOT_SPAN) {
+              throw new RuntimeRefusal('runtime:builtin-args',
+                `\`${node.name}\` spans ${left + right + 1} bars, past this engine's ceiling of ${MAX_PIVOT_SPAN}`, at)
+            }
+            const cidx = pushEntry({
+              fn: kernel.kind === 'pivot-high' ? 'pivotHighPine' : 'pivotLowPine',
+              n: left + right + 1, m: right, name: `${node.name}(…,${left},${right})`,
+            })
+            conditionalHistoryGuard('a stateful built-in', null)
+            return carriedCall(cidx, srcIr)
+          }
+          if (kernel.kind === 'stochastic') {
+            // Pine's order is (source, high, low, length); the kernel takes the
+            // source first, then the high, the length, then the low (pushed last).
+            const n = foldWhole(given[3], 'length', 1)
+            const idx = pushCarried2({ fn: 'stochPine', n, name: `${node.name}(…,${n})` })
+            conditionalHistoryGuard('a stateful built-in', null)
+            return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope), lowerExpr(given[2], scope))
+          }
+          // vwap: the session is the ET calendar day (`computeVWAP`'s own bucket),
+          // read from the clock fields so the kernel never does date arithmetic.
+          const key = binary('+', binary('+',
+            binary('*', clock('year'), num(10000)), binary('*', clock('month'), num(100))), clock('dayofmonth'))
+          const idx = pushCarried2({ fn: 'vwapPine', n: 1, name: `${node.name}(…)` })
+          conditionalHistoryGuard('a stateful built-in', null)
+          return carried2Call(idx, key, lowerExpr(given[0], scope), series('volume'))
+        }
         if (typeof node.name === 'string'
             && Object.prototype.hasOwnProperty.call(PINE_NAMESPACED_TREE, node.name)) {
           const args = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
