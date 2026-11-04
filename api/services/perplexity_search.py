@@ -638,8 +638,9 @@ def web_search(
     # voice, catalysts…) gets exactly the dict it always got, so no member-facing response changes shape.
     # `attempts` (requests sent, retries included) and `usage_reported` let that ledger charge the whole
     # reservation when the returned cost cannot cover everything billed (an earlier attempt, missing usage).
-    if return_cost and cost is not None:
-        return {**result, "cost_usd": cost, "attempts": attempts, "usage_reported": bool(data.get("usage"))}
+    if return_cost:
+        return {**result, **({"cost_usd": cost} if cost is not None else {}), "attempts": attempts,
+                "usage_reported": bool(data.get("usage"))}
     return result
 
 

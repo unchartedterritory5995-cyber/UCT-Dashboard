@@ -621,6 +621,12 @@ def pplx(monkeypatch):
     monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
     monkeypatch.setattr(p.time, "sleep", lambda s: None)
     monkeypatch.setattr(p, "_save_shadow", lambda *a, **k: None)
+    # hermetic whatever ran before: no shared cost-log writes, no daily search gate, no cached answer
+    from api.services import narrative_cost_guard as ncg
+    monkeypatch.setattr(ncg, "record", lambda *a, **k: None)
+    monkeypatch.setattr(p, "_check_daily_budget", lambda surface: None)
+    for k in ("PERPLEXITY_TEST_ENFORCE_BUDGET", "PERPLEXITY_DAILY_LIMIT", "PPLX_REQUEST_FEE_USD"):
+        monkeypatch.delenv(k, raising=False)
     p._SEARCH_CACHE.clear() if hasattr(p._SEARCH_CACHE, "clear") else None
     yield p
     p._SEARCH_CACHE.clear() if hasattr(p._SEARCH_CACHE, "clear") else None
