@@ -37,10 +37,11 @@ const rows = []
  *  turns it red until the marker is removed, and an unrelated break is never hidden. */
 const V2_GAPS = {
   'grid.four.unnamed': { id: 'V2-G1', owner: 'planner v2 (turn_v2 prompt / steps.js)', mode: 'chart count',
-    reason: 'v1 commits 3 × widget.add + widget.arrange as ONE plan (planOps places the adds with the re-tile); v2 runs one '
-      + 'step at a time, so the third add finds no empty space and is refused before the arrange runs. A real model can recover '
-      + '(arrange first, or add then arrange) from the refusal, but the canonical order fails: v2 needs either a "make room" '
-      + 'rule in its prompt or a multi-op step for board re-tiles.' },
+    reason: 'the canonical plan is 3 × widget.add + widget.arrange. On master v1 fails it too (capreg CG-3: add + change-existing '
+      + 'refused); #771 fixes v1 by running the adds then ONE re-tile in a single plan (splitMixedOps arrangeAfter). v2 runs one '
+      + 'step at a time, so the third add finds no empty space and is refused before the arrange runs — #771 does not fix v2. A '
+      + 'real model can recover from the refusal (arrange first), but v2 needs a "make room first" prompt rule or a multi-op '
+      + 're-tile step to match.' },
 }
 
 /** turn_v2's mode for one step, from the manifest entry the v2 request carried (STEP-1 + v2-readiness-2 agent.undo). */
@@ -66,7 +67,19 @@ const turnCount = (p) => p.st.calls.filter(c => c[1] === '/api/agent/turn').leng
 
 /** run.jsx replay(), with the model turns served by the v2 step server. Returns { modelTurns } (v2 streams opened). */
 async function replayV2({ board: boardName = 'ONE', steps, seed = {} }, label) {
-  const script = steps.flatMap(s => (s.model ? v2Script(s.model) : []))
+  // keyed by the MEMBER'S MESSAGE: a step with no canonical plan (a prelude, a deterministic follow-up) that still reaches
+  // the model gets a bare reply, never the next step's plan (the step server's script is consumed per stream)
+  const plans = new Map(steps.filter(s => s.model).map(s => [s.say, v2Script(s.model)]))
+  const queues = new Map()
+  const dispatch = (c) => {
+    const msg = c.body?.message
+    if (!queues.has(msg) || queues.get(msg).done) queues.set(msg, { items: [...(plans.get(msg) || [{ reply: '' }])], done: false })
+    const q = queues.get(msg)
+    const item = q.items.shift()
+    if (!q.items.length) q.done = true
+    return typeof item === 'function' ? item(c) : item
+  }
+  const script = Array.from({ length: 64 }, () => dispatch)
   const m = mountCase(boardName, { seed, stepScript: script })
   // the catalog was registered under a v1 config (registerCatalog): re-read it from this case's server, which says v2
   _resetAgentConfig()
