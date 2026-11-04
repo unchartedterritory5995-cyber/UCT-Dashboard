@@ -40,8 +40,8 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | breadth.history | breadth | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | breadth.page | breadth | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | breadth.show | breadth | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
-| calendar.day | — | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
-| calendar.nextReport | — | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
+| calendar.day | calendar | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
+| calendar.nextReport | calendar | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | chart.addCustomTimeframe | charts | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | chart.addTab | charts | local | exact | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ |
 | chart.applyTemplate | charts | confirm | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
