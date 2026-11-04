@@ -141,6 +141,17 @@ def _git(*args: str):
         return None
 
 
+#: files whose presence at the merge base proves master HAS the capreg suite (this rail, and every corpus / lock path the
+#: suite has used — `data/` until 2026-11-04, then `baseline/`). Add a path here when the baseline moves.
+SUITE_MARKERS = (
+    "tests/test_uct_agent_capreg_baseline.py",
+    "app/src/agent/qa/capabilityRegression/baseline/corpus.json",
+    "app/src/agent/qa/capabilityRegression/baseline/baseline.lock.json",
+    "app/src/agent/qa/capabilityRegression/data/corpus.json",
+    "app/src/agent/qa/capabilityRegression/data/baseline.lock.json",
+)
+
+
 def base_lock(git=None):
     """The lock at the merge base with origin/master: (lock | None, reason).
     reason: ok | no-ref (origin/master unresolvable) | absent (master has no capreg suite yet) |
@@ -151,8 +162,10 @@ def base_lock(git=None):
         return None, "no-ref"
     text = git("show", f"{mb}:{LOCK.relative_to(ROOT).as_posix()}")
     if text is None:
-        corpus_there = git("show", f"{mb}:{CORPUS.relative_to(ROOT).as_posix()}")
-        return None, ("lock-missing" if corpus_there is not None else "absent")
+        # "absent" only when master has NO trace of the suite: this rail's own file, or the corpus / lock at any path the
+        # suite has ever used. A renamed baseline folder can then never pass itself off as "not on master yet".
+        there = any(git("show", f"{mb}:{path}") is not None for path in SUITE_MARKERS)
+        return None, ("lock-missing" if there else "absent")
     return json.loads(text), "ok"
 
 
@@ -278,6 +291,10 @@ def test_merge_base_check_never_blocks_the_master_gate():
                               ("y" if a[0] == "rev-parse" else ("{}" if a[1].endswith("corpus.json") else None))))
     ok, msg = merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, corpus_only)
     assert ok is False and "moved or renamed lock" in msg
+    rail_only = lambda *a: ("mb1\n" if a[0] == "merge-base" else ("x" if a == ("rev-parse", "HEAD") else ("y" if a[0] == "rev-parse" else
+                            ("pass" if a[1].endswith("tests/test_uct_agent_capreg_baseline.py") else None))))
+    ok, msg = merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, rail_only)
+    assert ok is False and "moved or renamed lock" in msg          # the folder renamed away: the rail file betrays the suite
     neither = lambda *a: ("mb1\n" if a[0] == "merge-base" else ("x" if a == ("rev-parse", "HEAD") else ("y" if a[0] == "rev-parse" else None)))
     assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, neither)[0] is True
 
@@ -415,7 +432,7 @@ if __name__ == "__main__":
 
 
 def test_no_control_characters_in_the_data():
-    """A JSON `\b` written for a regex word boundary decodes to a BACKSPACE byte (it happened in CG-7 / CG-12's reasons):
+    r"""A JSON `\b` written for a regex word boundary decodes to a BACKSPACE byte (it happened in CG-7 / CG-12's reasons):
     every string in the baseline and coverage files, once parsed, holds no control character but newline and tab."""
     bad = []
 
@@ -431,7 +448,7 @@ def test_no_control_characters_in_the_data():
 
     for f in sorted([*(CAPREG / "baseline").glob("*.json"), *(CAPREG / "coverage").glob("*.json")]):
         walk(_load(f), f.relative_to(CAPREG).as_posix())
-    assert not bad, "control characters (write a regex \b as \\b in JSON):\n  " + "\n  ".join(bad)
+    assert not bad, r"control characters (write a regex \b as \\b in JSON):" + "\n  " + "\n  ".join(bad)
 
 
 def test_rail_self_test_detects_a_loosened_gap_mode():
