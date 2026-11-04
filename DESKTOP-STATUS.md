@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 07:26 CT
+updated: 2026-11-04 07:30 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -35,6 +35,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
    At most 5 heavy jobs at once (24 cores; final-tip vitest uses --maxWorkers=2; ~16 GB RAM free with 2 running). Any non-baseline failure from a parallel run is re-run alone before it counts as new. Each EVIDENCE.md names its lanes. The RAM/disk watch (8 GB / 20 GB) still stops new lanes.
 7. Builder cap raised from 6 to 9 by the owner's instruction (max 2 Opus: W3, W5-T6). The coordinator's ruling a48cbe455f said 6; the owner outranks it.
 9. LOCK-PATH INCIDENT (found 2026-11-04 07:14 CT): the W4-T7 builder ran its round-d mutation, measure-pair and final-tip jobs on lock files under C:/Users/Patrick/.claude/ (heavy-mut.lock, heavy-mp2.lock, heavy-final2.lock) instead of _resume-2026-11-01/dsk/, because the desktop's message named the locks without full paths. So those jobs excluded nobody, and it switched the shared base pine-dsk-mpbase2 while others measured. Desktop audit from the mpbase2 reflog and each run's "== side" timestamps: W4-T7's own round-d measure-pairs are INVALID (re-running); W4-T15's affected first rt1 run was already discarded by its builder (its reported run, 05:35-06:20, has base 6990d63b02 on every side); W4-T9's run (04:26-05:35:53) saw base ac659bae66 throughout (the next switch was 05:35:54), so it stands; W4-T14 measured before the incident. No other script uses the wrong folder. From now on every measure-pair job asserts the base HEAD before and after each side, and every instruction carries full lock paths.
+10. CONCURRENT STEPS PER LANE (owner, 2026-11-04 07:30 CT: "do them concurrently"): a lane may run its heavy steps at once ONLY in separate worktrees. Mutations edit src in place and measure-pair copies zzMP tests into the tip worktree, so final-tip and probes run in a second DETACHED worktree at the same committed tip (pine-dsk-w4t10-final, pine-dsk-w4t7-probe), which is removed afterwards (junction unlinked first). Applied to W4-T10 (mutations || final-tip) and W4-T7 (measure-pair re-run || object-door work).
 8. Clock note: block times are local CT and correct. An earlier note here called them wrong; that was my mistake (the health log prints UTC under Git Bash). Withdrawn. SECOND clock note: blocks stamped 03:45, 04:20 and 04:35 CT on 2026-11-04 (W4-T15 start, W5-T7 READY, W5-T8 READY) were written ahead of the clock, at about 03:20-03:40 CT; from 2026-11-04 04:13 CT every stamp is read from the local clock.
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
