@@ -18,7 +18,10 @@ export const useAgentApp = () => useContext(AgentContext)
  */
 export function useAgentPageHost(surface, host, { owned = false } = {}) {
   const app = useContext(AgentContext)
-  const register = app?.registerPage
+  // Only while the Agent may show (admin + switch): registering sets provider state, so registering for a
+  // member or an anonymous visitor would cost every host page one extra render on mount and on unmount for
+  // nothing (W2 follow-up, review-728-741 #1). Registers as soon as `allowed` turns true (auth resolves).
+  const register = app?.allowed ? app.registerPage : null
   useEffect(() => {
     if (!register || !host || !surface) return undefined
     return register({ surface, host, owned })

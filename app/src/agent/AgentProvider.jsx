@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAgentFlag, AGENT_OPEN_KEY, AGENT_OPEN_EVENT, readLocal, writeLocal } from './agentFlag'
 import { readAgentWidth } from './agentWidth'
 import AgentNavBridge from './AgentNavBridge'
+import ErrorBoundary from '../components/ErrorBoundary'
 import { AgentContext } from './agentApp'
 import styles from './AgentPanel.module.css'
 
@@ -38,9 +39,23 @@ function AgentPageDock({ host, surface, request, onClose }) {
   const width = readAgentWidth()
   return (
     <div className={styles.pageDock} style={{ '--agent-w': `${width}px` }} data-testid="agent-page-dock" data-surface={surface}>
-      <Suspense fallback={null}>
-        <AgentPanel host={host} surface={surface} request={request} onClose={onClose} />
-      </Suspense>
+      {/* Its own boundary (review-728-741 #3): the dock renders OUTSIDE App.jsx's RouteErrorBoundary, so a
+          panel crash would otherwise reach the top-level boundary and take the page down with it. Keyed by
+          surface, so the next page gets a fresh panel. */}
+      <ErrorBoundary key={surface} fallback={<AgentDockCrashed onClose={onClose} />}>
+        <Suspense fallback={null}>
+          <AgentPanel host={host} surface={surface} request={request} onClose={onClose} />
+        </Suspense>
+      </ErrorBoundary>
+    </div>
+  )
+}
+
+function AgentDockCrashed({ onClose }) {
+  return (
+    <div role="alert" data-testid="agent-page-dock-error" style={{ padding: 12, fontSize: 12, color: 'var(--text-muted)' }}>
+      UCT Agent hit an error and stopped. The page is unaffected.{' '}
+      <button type="button" onClick={onClose}>Close</button>
     </div>
   )
 }
