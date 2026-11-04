@@ -5,6 +5,11 @@ import golden from '../data/goldenWorkflows.json'
 import { multiChartPlan } from '../../../multiChart'
 import { fastParse } from '../../../fastPath'
 import { planCompound } from '../../../compound'
+import { resolveFollowUp } from '../../../conversation'
+import { createMemory } from '../../../memory'
+
+// ⚠ a copy of useAgent.js FOLLOW_CUES (not exported): which messages try the conversation's follow-up reader FIRST
+const FOLLOW_CUES = /\b(?:it|that|this|them|those|these|both|first|second|third|last|other|others|rest|fast|faster|fastest|slow|slower|slowest|short|long|same|match|look like|next to|just added|i added|new one|everywhere|all of them|all my|every)\b/i
 
 export { corpus, golden }
 export const phrasingsOf = (intent) => intent.phrasings.map(p => (typeof p === 'string' ? { text: p } : p))
@@ -27,11 +32,20 @@ export function deterministicReading(text, host) {
   if (mc?.kind === 'ops') return { plan: mc.ops.map(o => ({ action: o.action, args: o.args || {} })), via: 'multiChart' }
   if (mc?.kind === 'steps') return { plan: mc.steps.flatMap(s => s.ops).map(o => ({ action: o.action, args: o.args || {} })), via: 'multiChart' }
   if (mc?.kind === 'say') return { say: true, via: 'multiChart' }
+  const follow = () => {
+    const f = resolveFollowUp(text, { host, memory: createMemory(), epoch: null })
+    if (f?.kind === 'ops') return { plan: f.ops.map(o => ({ action: o.action, args: o.args || {} })), via: 'followUp' }
+    if (f?.kind === 'say' || f?.kind === 'ask') return { say: true, via: 'followUp' }
+    return null
+  }
+  const cued = FOLLOW_CUES.test(text)
+  if (cued) { const f = follow(); if (f) return f }
   const fp = fastParse(text, { host })
   if (fp?.kind === 'ops') return { plan: fp.ops.map(o => ({ action: o.action, args: o.args || {} })), via: 'fastPath' }
   if (fp?.kind === 'undo') return { plan: [{ action: 'agent.undo', args: fp.about ? { about: fp.about } : {} }], via: 'fastPath' }
   if (fp?.kind === 'say') return { say: true, via: 'fastPath' }
   if (fp) return { kind: fp.kind, via: 'fastPath' }
+  if (!cued) { const f = follow(); if (f) return f }
   const cp = planCompound(text, { host })
   if (cp?.steps) return { steps: cp.steps.map(s => s.kind), via: 'compound' }
   return null

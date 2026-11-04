@@ -6,6 +6,17 @@ import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow } from './harness'
 import { routedNames } from './route'
 
+/** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
+export function hueFamily(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''))
+  if (!m) return null
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16) / 255)
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  if (max - min < 0.12) return 'grey'
+  let h = max === r ? ((g - b) / (max - min)) % 6 : max === g ? (b - r) / (max - min) + 2 : (r - g) / (max - min) + 4
+  h = (h * 60 + 360) % 360
+  return h < 20 || h >= 335 ? 'red' : h < 45 ? 'orange' : h < 70 ? 'yellow' : h < 165 ? 'green' : h < 260 ? 'blue' : 'purple'
+}
 const callLine = (c) => `${c[0]} ${c[1]}${c[2] ? ` ${JSON.stringify(c[2])}` : ''}`
 const turnCount = (p) => p.st.calls.filter(c => c[1] === '/api/agent/turn').length
 
@@ -40,6 +51,15 @@ export function checkExpect(ctx, e, label) {
   if (e.widgetTypes) {
     const types = board.state.widgets.map(w => w.type)
     for (const t of e.widgetTypes.include || []) expect(types, `${label}: a ${t} widget on the board`).toContain(t)
+  }
+  if (e.instance) {
+    // one indicator instance, found by dotted-path fields ({"inputs.period": 9}); `has` = exact fields; `colour` = a hue family
+    const id = chartsOf(board)[e.instance.chart || 0]?.id
+    const get = (o, k) => k.split('.').reduce((a, x) => a?.[x], o)
+    const hit = p.instancesOn(board, id).find(i => Object.entries(e.instance.find).every(([k, v]) => get(i, k) === v))
+    expect(hit, `${label}: an indicator matching ${JSON.stringify(e.instance.find)}`).toBeTruthy()
+    for (const [k, v] of Object.entries(e.instance.has || {})) expect(get(hit, k), `${label}: ${k}`).toEqual(v)
+    if (e.instance.colour) expect(hueFamily(get(hit, e.instance.colour.key)), `${label}: ${e.instance.colour.key} is ${e.instance.colour.family}`).toBe(e.instance.colour.family)
   }
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id

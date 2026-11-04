@@ -6,8 +6,7 @@ import { registerCatalog } from './testing/registry'
 import { corpus, phrasingsOf, gapIt } from './testing/corpus'
 import { routedNames } from './testing/route'
 import { wordsSelect, groupOfAction } from '../../routing'
-import { BOARDS } from './testing/harness'
-import { makeBoard } from '../../__fixtures__/board'
+import { panelHost } from './testing/harness'
 
 await registerCatalog()
 
@@ -16,7 +15,7 @@ for (const intent of corpus.intents) {
     for (const ph of phrasingsOf(intent)) {
       const { run, tag } = gapIt(ph.gaps?.a)
       run(`"${ph.text}" routes ${intent.needs.join(' + ')}${tag}`, () => {
-        const host = makeBoard(...BOARDS[intent.board]()).host
+        const host = panelHost(intent.board)
         const { names, overBudget } = routedNames(ph.text, { host, recentActions: intent.recentActions || [] })
         for (const a of intent.needs) expect(names, `"${ph.text}" → ${a}`).toContain(a)
         // catalog truncation: a group the message needs is never the one the per-request budget cut

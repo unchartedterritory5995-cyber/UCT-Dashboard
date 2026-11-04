@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 22,
+  "withAnyRegressionCase": 26,
   "perProtection": {
    "nl": {
-    "covered": 20,
+    "covered": 24,
     "applicable": 154
    },
    "routing": {
-    "covered": 19,
+    "covered": 24,
     "applicable": 154
    },
    "args": {
-    "covered": 19,
+    "covered": 24,
     "applicable": 154
    },
    "execution": {
-    "covered": 19,
+    "covered": 23,
     "applicable": 154
    },
    "receipt": {
-    "covered": 17,
+    "covered": 21,
     "applicable": 154
    },
    "refusal": {
@@ -34,19 +34,19 @@
     "applicable": 154
    },
    "permission": {
-    "covered": 126,
+    "covered": 127,
     "applicable": 154
    },
    "undo": {
-    "covered": 9,
+    "covered": 11,
     "applicable": 95
    },
    "multiStep": {
-    "covered": 9,
+    "covered": 10,
     "applicable": 154
    },
    "phrasings": {
-    "covered": 17,
+    "covered": 22,
     "applicable": 154
    }
   }
@@ -182,7 +182,7 @@
   },
   {
    "id": "CG-7",
-   "reason": "routing: 'drawdowns' matches the DRAWINGS group (/\bdraw\\w*\b/) — routed [drawings, agent]: stock.dailyBars is not sent",
+   "reason": "routing: 'drawdowns' matches the DRAWINGS group (/\\bdraw\\w*\\b/) — routed [drawings, agent]: stock.dailyBars is not sent",
    "owner": "nlfix builder (routing.js), per AUDIT 11-04",
    "level": "a",
    "intent": "stock.pullbacks",
@@ -219,6 +219,22 @@
    "level": "c",
    "intent": "undo.named-after-grid",
    "phrasing": "put my layout back"
+  },
+  {
+   "id": "CG-10",
+   "reason": "WRONG deterministic reading: the follow-up reader (conversation.js resolveFollowUp) matches the word 'hide' inside 'unhide' and plans indicator.hide — the opposite action — with no model call",
+   "owner": "agent-core builder (conversation.js follow-up reader / NL)",
+   "level": "b",
+   "intent": "indicator.show",
+   "phrasing": "unhide the 50 sma"
+  },
+  {
+   "id": "CG-10",
+   "reason": "through the panel 'unhide the 50 sma' on a hidden SMA 50 answers 'already hidden' and leaves it hidden (on a visible one it would HIDE it)",
+   "owner": "agent-core builder (conversation.js follow-up reader / NL)",
+   "level": "c",
+   "intent": "indicator.show",
+   "phrasing": "unhide the 50 sma"
   }
  ],
  "capabilities": {
@@ -3254,27 +3270,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "indicator.hide: \"hide the 50 sma\"",
+     "indicator.hide: \"hide the SMA 50\"",
+     "indicator.hide: \"turn off the 50 day moving average\"",
+     "indicator.hide: \"hide the 50 day\""
+    ],
+    "routing": [
+     "indicator.hide: \"hide the 50 sma\"",
+     "indicator.hide: \"hide the SMA 50\"",
+     "indicator.hide: \"turn off the 50 day moving average\"",
+     "indicator.hide: \"hide the 50 day\""
+    ],
+    "args": [
+     "corpus indicator.hide"
+    ],
+    "execution": [
+     "indicator.hide (c)"
+    ],
+    "receipt": [
+     "indicator.hide (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "indicator.hide: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -3406,26 +3440,46 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 5,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "indicator.remove-sma200: \"remove the 200 sma\"",
+     "indicator.remove-sma200: \"take off the 200 day moving average\"",
+     "indicator.remove-sma200: \"get rid of the 200\"",
+     "indicator.remove-sma200: \"delete the SMA 200 from this chart\"",
+     "indicator.remove-sma200: \"remove the 200 day\""
+    ],
+    "routing": [
+     "indicator.remove-sma200: \"remove the 200 sma\"",
+     "indicator.remove-sma200: \"take off the 200 day moving average\"",
+     "indicator.remove-sma200: \"get rid of the 200\"",
+     "indicator.remove-sma200: \"delete the SMA 200 from this chart\"",
+     "indicator.remove-sma200: \"remove the 200 day\""
+    ],
+    "args": [
+     "corpus indicator.remove-sma200"
+    ],
+    "execution": [
+     "indicator.remove-sma200 (c)"
+    ],
+    "receipt": [
+     "indicator.remove-sma200 (c)"
+    ],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "indicator.remove-sma200: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -3482,28 +3536,43 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 3,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "indicator.show: \"show the 50 sma again\"",
+     "indicator.show: \"turn the 50 day back on\"",
+     "indicator.show: \"show the SMA 50\""
+    ],
+    "routing": [
+     "indicator.show: \"show the 50 sma again\"",
+     "indicator.show: \"unhide the 50 sma\"",
+     "indicator.show: \"turn the 50 day back on\"",
+     "indicator.show: \"show the SMA 50\""
+    ],
+    "args": [
+     "corpus indicator.show"
+    ],
+    "execution": [
+     "indicator.show (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "indicator.show: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -3558,27 +3627,47 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 5,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "indicator.update-period: \"change the 9 ema to a 10\"",
+     "indicator.update-period: \"make the 9 ema a 10 ema\"",
+     "indicator.update-period: \"change the 9 ema's period to 10\"",
+     "indicator.update-period: \"set the 9 ema to 10\"",
+     "indicator.update-period: \"switch the 9 ema to a 10 period\""
+    ],
+    "routing": [
+     "indicator.update-period: \"change the 9 ema to a 10\"",
+     "indicator.update-period: \"make the 9 ema a 10 ema\"",
+     "indicator.update-period: \"change the 9 ema's period to 10\"",
+     "indicator.update-period: \"set the 9 ema to 10\"",
+     "indicator.update-period: \"switch the 9 ema to a 10 period\""
+    ],
+    "args": [
+     "corpus indicator.update-period"
+    ],
+    "execution": [
+     "indicator.update-period (c)"
+    ],
+    "receipt": [
+     "indicator.update-period (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "indicator.update-period: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -3827,30 +3916,47 @@
    "fast": true,
    "protections": {
     "nl": true,
-    "routing": false,
-    "args": false,
+    "routing": true,
+    "args": true,
     "execution": true,
-    "receipt": false,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": true,
     "multiStep": true,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 5,
    "evidence": {
     "nl": [
+     "indicatorStyle.colour: \"make the 9 ema red\"",
+     "indicatorStyle.colour: \"color the 9 ema red\"",
+     "indicatorStyle.colour: \"change the 9 ema's colour to red\"",
+     "indicatorStyle.colour: \"turn the 9 ema red\"",
+     "indicatorStyle.colour: \"paint the 9 ema red\"",
      "GW-12.emas-coloured-exact-undo"
     ],
-    "routing": [],
-    "args": [],
+    "routing": [
+     "indicatorStyle.colour: \"make the 9 ema red\"",
+     "indicatorStyle.colour: \"color the 9 ema red\"",
+     "indicatorStyle.colour: \"change the 9 ema's colour to red\"",
+     "indicatorStyle.colour: \"turn the 9 ema red\"",
+     "indicatorStyle.colour: \"paint the 9 ema red\""
+    ],
+    "args": [
+     "corpus indicatorStyle.colour"
+    ],
     "execution": [
+     "indicatorStyle.colour (c)",
      "GW-12.emas-coloured-exact-undo"
     ],
-    "receipt": [],
+    "receipt": [
+     "indicatorStyle.colour (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [
+     "indicatorStyle.colour: undo restores",
      "GW-12.emas-coloured-exact-undo"
     ],
     "multiStep": [

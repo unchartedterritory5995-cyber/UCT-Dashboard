@@ -10,6 +10,7 @@
 // answers regardless. No paid model call; no real market value (every figure below is synthetic).
 import { screen } from '@testing-library/react'
 import { setupPanel, bareSettings } from '../../../testing/panelHarness'
+import { makeBoard } from '../../../__fixtures__/board'
 import { groupOfAction } from '../../../routing'
 import { configFor, PROD_KINDS } from './registry'
 
@@ -113,3 +114,12 @@ export function faithful(p, plan) {
 export const refusals = () => [...screen.getByTestId('agent-transcript').querySelectorAll('[role="status"]')].filter(e => !e.closest('[data-testid="agent-typing"]') && e.textContent.trim())
 export const receiptsNow = () => screen.queryAllByTestId('agent-receipt')
 export const proposalsNow = () => screen.queryAllByTestId('agent-proposal').filter(e => e.getAttribute('data-status') === 'pending')
+
+/** The host the deterministic readers see in the panel (setupPanel.mount's decoration: indicators manageable, a label
+ *  per chart). A bare fixture host hides every indicator edit phrase from the fast path (it needs canManageIndicators). */
+export function panelHost(boardName) {
+  const board = makeBoard(...BOARDS[boardName]())
+  const base = board.host.charts
+  const d = (x) => (x ? { ...x, label: `Chart (${x.symbol})` } : x)
+  return { ...board.host, charts: { ...base, list: () => base.list().map(d), read: (r) => d(base.read(r)), canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: () => null } }
+}

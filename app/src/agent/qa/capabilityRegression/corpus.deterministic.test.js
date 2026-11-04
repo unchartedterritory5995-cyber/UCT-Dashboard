@@ -5,8 +5,7 @@
 import { describe, expect } from 'vitest'
 import { registerCatalog } from './testing/registry'
 import { corpus, phrasingsOf, gapIt, deterministicReading, equivalent } from './testing/corpus'
-import { BOARDS } from './testing/harness'
-import { makeBoard } from '../../__fixtures__/board'
+import { panelHost } from './testing/harness'
 
 await registerCatalog()
 
@@ -16,7 +15,7 @@ for (const intent of corpus.intents) {
       if (ph.prelude) continue                       // a reading that depends on the conversation is the model's
       const { run, tag } = gapIt(ph.gaps?.b)
       run(`"${ph.text}"${ph.det === 'required' ? ' (required)' : ''}${tag}`, () => {
-        const host = makeBoard(...BOARDS[intent.board]()).host
+        const host = panelHost(intent.board)
         const r = deterministicReading(ph.text, host)
         if (ph.det === 'required') expect(r, `"${ph.text}" must be read without the model`).not.toBeNull()
         if (r && intent.deterministic) expect(equivalent(r, intent.deterministic), `"${ph.text}" read as ${JSON.stringify(r)}`).toBe(true)
