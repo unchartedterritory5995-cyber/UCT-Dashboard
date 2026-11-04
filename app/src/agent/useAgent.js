@@ -52,6 +52,7 @@ import { createStepRunner } from './steps'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
 import { KNOWLEDGE_REF } from './coach/brain'
+import { isCoachMessage } from './capabilities/coach'
 // ⭐ INDICATORS ⇄ AGENT (2026-10-12): the chart's Create Indicator / Modify doors open the Agent; the
 // member's answer to its question runs the existing `indicator.draft` for that chart. See indicatorEntry.js.
 import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, INDICATOR_DOORS, openIndicatorDoor } from './indicatorEntry'
@@ -1650,7 +1651,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // M2 indicator writes are offered only when some chart on this board can manage indicators.
       const manageIndicators = (() => { try { return host?.charts?.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } })()
       // PLANNER v2 (UCT_AGENT_PLANNER=v2 on the server): the step loop (agent/steps.js) — the v1 request below is untouched
-      if (!nl1 && serverPlanner() === 'v2') {
+      // (a COACH message stays on the v1 path: the server serves coach turns on v1 — review C1 — and only this path shows
+      // the coach's actions, not just its reply; pre-activation, v2 stays off)
+      if (!nl1 && serverPlanner() === 'v2' && !isCoachMessage(text)) {
         if (!v2Ref.current) v2Ref.current = createStepRunner()
         turnPath('model')
         await v2Ref.current.send({ text, voice, manageIndicators, pending: p?.kind === 'proposal' ? p : null }, v2DepsRef.current())

@@ -144,7 +144,8 @@ def guard_inputs(context: Any, message: str) -> list[str]:
     return out
 
 
-def guard_envelope(envelope: dict, context: Any, message: str, usage: dict | None = None) -> dict:
+def guard_envelope(envelope: dict, context: Any, message: str, usage: dict | None = None,
+                   history: list | None = None) -> dict:
     """Apply guard.enforce to a coach turn's reply (and a clarify question's text). A violating text is REPLACED
     by the fixed sentence; the codes are logged value-free and noted in `usage['coach_guard']` (codes only)."""
     import logging
@@ -163,7 +164,8 @@ def guard_envelope(envelope: dict, context: Any, message: str, usage: dict | Non
         # review B4 / N5: the model never writes its own definition of a UCT setup -- an uncited definition-like
         # sentence about a named setup replaces the reply (code `definition`)
         from api.services.uct_agent.coach import setups
-        if not res["violations"] and setups.uncited_setup_definitions(reply):
+        # (cited ONLY by coach.explain's own stored setup.playbook citation marker in this conversation's history)
+        if not res["violations"] and setups.uncited_setup_definitions(reply, setups.cited_templates(history)):
             codes.append("definition")
             out["reply"] = setups.DEFINITION_FIXED
     q = out.get("question")

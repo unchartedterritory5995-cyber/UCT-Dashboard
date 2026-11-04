@@ -622,7 +622,10 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     try:
         # A request for more action groups is plumbing, not a reply: nothing is stored for it.
         turn_id = None if env.get("need_groups") else store.add_turn(uid, cid, "agent", env.get("reply") or (env.get("question") or {}).get("text") or "",
-                             {"envelope": env, "citations": usage.get("citations")})
+                             {"envelope": env, "citations": usage.get("citations"),
+                              # Wave 3: a COACH turn's reply (it read the coach's concept / Brain text) is marked, so the
+                              # chat-naming request leaves it out (turn.name_conversation)
+                              **({"coach": True} if "coach_guard" in usage else {})})
     except Exception:  # noqa: BLE001 -- the answer stands; only its transcript row is lost
         log.exception("[uct-agent] could not store the agent turn")
         turn_id = None
