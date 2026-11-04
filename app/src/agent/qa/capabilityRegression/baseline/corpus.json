@@ -2321,6 +2321,268 @@
         "close the AMD chart",
         "delete the right-hand chart"
       ]
+    },
+    {
+      "id": "screener.runSaved",
+      "source": "Batch C3 (11-04): saved screens, breadth history, layouts, watchlists",
+      "capabilities": [
+        "screener.runSaved"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.runSaved"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "screener.runSaved",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "screener.runSaved",
+            "target": "$screener",
+            "args": {
+              "screen": "7",
+              "show": null,
+              "as": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/screener/scan|^POST /api/agent/data .*screen"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "run my Momentum Screen",
+        "run the Momentum Screen",
+        "show me the results of my Momentum Screen",
+        "open my saved Momentum Screen and run it"
+      ]
+    },
+    {
+      "id": "breadth.history.nhnl",
+      "source": "Batch C3 (11-04): saved screens, breadth history, layouts, watchlists (live P-07 / J-01 'when did nh/nl last go negative')",
+      "capabilities": [
+        "breadth.history"
+      ],
+      "board": "ONE",
+      "needs": [
+        "breadth.history"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "breadth.history",
+            "args": {
+              "metric": "net_new_high_low",
+              "find": "last"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "breadth.history",
+            "target": "$breadth",
+            "args": {
+              "universe": "us",
+              "metric": "net_new_high_low",
+              "op": "below",
+              "level": 0,
+              "find": "last",
+              "start": null,
+              "end": null,
+              "aggregation": "daily"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "breadth/history|breadth"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "when did nh/nl last go negative",
+        "when was net new highs last below zero",
+        "last time new highs minus new lows went negative",
+        "when did net new highs last turn negative"
+      ]
+    },
+    {
+      "id": "layout.open",
+      "source": "Batch C3 (11-04): saved screens, breadth history, layouts, watchlists",
+      "capabilities": [
+        "layout.open"
+      ],
+      "board": "LAYOUTS",
+      "needs": [
+        "layout.open"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "layout.open",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "layout.open",
+            "target": "$layouts",
+            "args": {
+              "layout": "2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "layout": {
+          "active": "Momentum"
+        },
+        "charts": {
+          "count": 2,
+          "symbols": [
+            "SPY",
+            "QQQ"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "open my Momentum layout",
+        "switch to the Momentum layout",
+        "load Momentum",
+        "go to my Momentum layout",
+        "pull up the Momentum layout"
+      ]
+    },
+    {
+      "id": "layout.saveAs",
+      "source": "Batch C3 (11-04): saved screens, breadth history, layouts, watchlists (live E-06)",
+      "capabilities": [
+        "layout.saveAs"
+      ],
+      "board": "LAYOUTS",
+      "needs": [
+        "layout.saveAs"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "layout.saveAs",
+            "args": {
+              "name": "Swing 2"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "layout.saveAs",
+            "target": "$layouts",
+            "args": {
+              "name": "Swing 2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "layout": {
+          "names": [
+            "Swing 2"
+          ],
+          "active": "Swing 2"
+        }
+      },
+      "phrasings": [
+        "save this layout as Swing 2",
+        "save this as a new layout called Swing 2",
+        "save the board as Swing 2",
+        "save a copy of this layout named Swing 2"
+      ]
+    },
+    {
+      "id": "watchlist.add",
+      "source": "Batch C3 (11-04): saved screens, breadth history, layouts, watchlists",
+      "capabilities": [
+        "watchlist.add"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.add"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.add",
+            "args": {
+              "symbols": [
+                "AMD"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.add",
+            "target": "$watchlists[0]",
+            "args": {
+              "symbols": [
+                "AMD"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "watchlist": {
+          "name": "Momentum",
+          "include": [
+            "AMD",
+            "NVDA",
+            "TSLA"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "watchlist": {
+            "name": "Momentum",
+            "exclude": [
+              "AMD"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "add AMD to my Momentum list",
+        "put AMD on the Momentum watchlist",
+        "add AMD to Momentum",
+        "throw AMD on my Momentum watchlist"
+      ]
     }
   ],
   "refusals": [

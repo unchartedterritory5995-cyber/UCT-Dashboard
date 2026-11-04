@@ -24,6 +24,11 @@ export const BOARDS = {
   ONE_SPY: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'SPY' }],
   HALF: () => [[chart('c1', 0, 0, 12, 20)], { 'N:c1': 'NVDA' }],
   TWO: () => [[chart('c1', 0, 0, 12, 20), chart('c2', 12, 0, 12, 20)], { 'N:c1': 'NVDA', 'N:c2': 'AMD' }],
+  // a saved-layout library (the Layout Dock's semantics: __fixtures__/board.js) — Swing open, Momentum a 2-chart board
+  LAYOUTS: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA', 'N:m1': 'SPY', 'N:m2': 'QQQ' }, { layouts: { entries: [{ id: 1, name: 'Swing' }, { id: 2, name: 'Momentum' }],
+    boards: { 1: [chart('c1', 0, 0, 24, 20)], 2: [chart('m1', 0, 0, 12, 20), chart('m2', 12, 0, 12, 20)] }, active: 1 } }],
+  // saved watchlists behind the real routes' semantics (__fixtures__/board.js)
+  WATCH: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA'] }, { id: 'w2', name: 'Earnings', symbols: ['AAPL'] }] }],
   FOUR: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => chart(id, (i % 2) * 12, Math.floor(i / 2) * 10, 12, 10)),
     { 'N:c1': 'SPY', 'N:c2': 'QQQ', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }],
 }
@@ -75,7 +80,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
       return json(st.alerts)
     }
     if (u === '/api/screener/fields' || u.startsWith('/api/screener/fields?')) return json({ fields: FIELDS })
-    if (u === '/api/screener/saved-screens') return json({ saved: [], starters: [] })
+    if (u === '/api/screener/saved-screens') return json({ saved: [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], starters: [] })
     if (u === '/api/screener/scan') {
       const ok = (r, f) => (f.op === 'gt' ? r[f.key] > f.min : f.op === 'lt' ? r[f.key] < f.max : true)
       const rows = UNIVERSE.filter(r => (body.filters || []).every(f => ok(r, f)))

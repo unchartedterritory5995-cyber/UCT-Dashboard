@@ -61,6 +61,17 @@ export function checkExpect(ctx, e, label) {
     for (const [k, v] of Object.entries(e.instance.has || {})) expect(get(hit, k), `${label}: ${k}`).toEqual(v)
     if (e.instance.colour) expect(hueFamily(get(hit, e.instance.colour.key)), `${label}: ${e.instance.colour.key} is ${e.instance.colour.family}`).toBe(e.instance.colour.family)
   }
+  if (e.layout) {
+    const lib = board.state.layouts
+    if (e.layout.active) expect(lib?.entries.find(x => x.id === lib.activeId)?.name, `${label}: the open layout`).toBe(e.layout.active)
+    for (const n of e.layout.names || []) expect((lib?.entries || []).map(x => x.name), `${label}: a layout named ${n}`).toContain(n)
+  }
+  if (e.watchlist) {
+    const wl = (board.state.server?.lists || []).find(l => l.name === e.watchlist.name)
+    expect(wl, `${label}: the watchlist ${e.watchlist.name}`).toBeTruthy()
+    for (const sym of e.watchlist.include || []) expect(wl.items.map(i => i.sym), `${label}: ${sym} on ${e.watchlist.name}`).toContain(sym)
+    for (const sym of e.watchlist.exclude || []) expect(wl.items.map(i => i.sym), `${label}: ${sym} not on ${e.watchlist.name}`).not.toContain(sym)
+  }
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)

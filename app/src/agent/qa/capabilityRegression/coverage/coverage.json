@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 33,
+  "withAnyRegressionCase": 38,
   "perProtection": {
    "nl": {
-    "covered": 31,
+    "covered": 36,
     "applicable": 154
    },
    "routing": {
-    "covered": 31,
+    "covered": 36,
     "applicable": 154
    },
    "args": {
-    "covered": 31,
+    "covered": 36,
     "applicable": 154
    },
    "execution": {
-    "covered": 30,
+    "covered": 35,
     "applicable": 154
    },
    "receipt": {
-    "covered": 27,
+    "covered": 31,
     "applicable": 154
    },
    "refusal": {
@@ -34,11 +34,11 @@
     "applicable": 154
    },
    "permission": {
-    "covered": 128,
+    "covered": 129,
     "applicable": 154
    },
    "undo": {
-    "covered": 12,
+    "covered": 13,
     "applicable": 95
    },
    "multiStep": {
@@ -46,7 +46,7 @@
     "applicable": 154
    },
    "phrasings": {
-    "covered": 29,
+    "covered": 34,
     "applicable": 154
    }
   }
@@ -696,24 +696,40 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "breadth.history.nhnl: \"when did nh/nl last go negative\"",
+     "breadth.history.nhnl: \"when was net new highs last below zero\"",
+     "breadth.history.nhnl: \"last time new highs minus new lows went negative\"",
+     "breadth.history.nhnl: \"when did net new highs last turn negative\""
+    ],
+    "routing": [
+     "breadth.history.nhnl: \"when did nh/nl last go negative\"",
+     "breadth.history.nhnl: \"when was net new highs last below zero\"",
+     "breadth.history.nhnl: \"last time new highs minus new lows went negative\"",
+     "breadth.history.nhnl: \"when did net new highs last turn negative\""
+    ],
+    "args": [
+     "corpus breadth.history.nhnl"
+    ],
+    "execution": [
+     "breadth.history.nhnl (c)"
+    ],
+    "receipt": [
+     "breadth.history.nhnl (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
@@ -4386,24 +4402,42 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 5,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "layout.open: \"open my Momentum layout\"",
+     "layout.open: \"switch to the Momentum layout\"",
+     "layout.open: \"load Momentum\"",
+     "layout.open: \"go to my Momentum layout\"",
+     "layout.open: \"pull up the Momentum layout\""
+    ],
+    "routing": [
+     "layout.open: \"open my Momentum layout\"",
+     "layout.open: \"switch to the Momentum layout\"",
+     "layout.open: \"load Momentum\"",
+     "layout.open: \"go to my Momentum layout\"",
+     "layout.open: \"pull up the Momentum layout\""
+    ],
+    "args": [
+     "corpus layout.open"
+    ],
+    "execution": [
+     "layout.open (c)"
+    ],
+    "receipt": [
+     "layout.open (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
@@ -4468,26 +4502,42 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "layout.saveAs: \"save this layout as Swing 2\"",
+     "layout.saveAs: \"save this as a new layout called Swing 2\"",
+     "layout.saveAs: \"save the board as Swing 2\"",
+     "layout.saveAs: \"save a copy of this layout named Swing 2\""
+    ],
+    "routing": [
+     "layout.saveAs: \"save this layout as Swing 2\"",
+     "layout.saveAs: \"save this as a new layout called Swing 2\"",
+     "layout.saveAs: \"save the board as Swing 2\"",
+     "layout.saveAs: \"save a copy of this layout named Swing 2\""
+    ],
+    "args": [
+     "corpus layout.saveAs"
+    ],
+    "execution": [
+     "layout.saveAs (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "layout.saveAs: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -5178,24 +5228,40 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "screener.runSaved: \"run my Momentum Screen\"",
+     "screener.runSaved: \"run the Momentum Screen\"",
+     "screener.runSaved: \"show me the results of my Momentum Screen\"",
+     "screener.runSaved: \"open my saved Momentum Screen and run it\""
+    ],
+    "routing": [
+     "screener.runSaved: \"run my Momentum Screen\"",
+     "screener.runSaved: \"run the Momentum Screen\"",
+     "screener.runSaved: \"show me the results of my Momentum Screen\"",
+     "screener.runSaved: \"open my saved Momentum Screen and run it\""
+    ],
+    "args": [
+     "corpus screener.runSaved"
+    ],
+    "execution": [
+     "screener.runSaved (c)"
+    ],
+    "receipt": [
+     "screener.runSaved (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
@@ -5843,27 +5909,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "watchlist.add: \"add AMD to my Momentum list\"",
+     "watchlist.add: \"put AMD on the Momentum watchlist\"",
+     "watchlist.add: \"add AMD to Momentum\"",
+     "watchlist.add: \"throw AMD on my Momentum watchlist\""
+    ],
+    "routing": [
+     "watchlist.add: \"add AMD to my Momentum list\"",
+     "watchlist.add: \"put AMD on the Momentum watchlist\"",
+     "watchlist.add: \"add AMD to Momentum\"",
+     "watchlist.add: \"throw AMD on my Momentum watchlist\""
+    ],
+    "args": [
+     "corpus watchlist.add"
+    ],
+    "execution": [
+     "watchlist.add (c)"
+    ],
+    "receipt": [
+     "watchlist.add (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "watchlist.add: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

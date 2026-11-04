@@ -997,6 +997,115 @@
      "gaps": []
     }
    }
+  },
+  "screener.runSaved": {
+   "digest": "fc1a17124e7c8c4e",
+   "phrasings": {
+    "run my Momentum Screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "run the Momentum Screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "show me the results of my Momentum Screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "open my saved Momentum Screen and run it": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
+  },
+  "breadth.history.nhnl": {
+   "digest": "aaf39c1c212e65d6",
+   "phrasings": {
+    "when did nh/nl last go negative": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "when was net new highs last below zero": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "last time new highs minus new lows went negative": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "when did net new highs last turn negative": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
+  },
+  "layout.open": {
+   "digest": "b0249ca6647841eb",
+   "phrasings": {
+    "open my Momentum layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "switch to the Momentum layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "load Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "go to my Momentum layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "pull up the Momentum layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
+  },
+  "layout.saveAs": {
+   "digest": "9278d4007074d629",
+   "phrasings": {
+    "save this layout as Swing 2": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "save this as a new layout called Swing 2": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "save the board as Swing 2": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "save a copy of this layout named Swing 2": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
+  },
+  "watchlist.add": {
+   "digest": "36b44e8bb7d541b2",
+   "phrasings": {
+    "add AMD to my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "put AMD on the Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "add AMD to Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "throw AMD on my Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
   }
  },
  "refusals": {
