@@ -22,7 +22,8 @@ from tools import agent_eval_ledger as L
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
 TOOLS = sorted(glob.glob(os.path.join(ROOT, "tools", "agent_*.py")))
-PAID_TOOLS = ("agent_eval_run.py", "agent_live_batch.py", "agent_latency_probe.py", "agent_live_chain.py", "agent_smoke_context_breadth.py")
+PAID_TOOLS = ("agent_eval_run.py", "agent_live_batch.py", "agent_latency_probe.py", "agent_live_chain.py", "agent_smoke_context_breadth.py",
+              "agent_eval_multistep.py")
 
 
 # ── fixtures ────────────────────────────────────────────────────────────────────────────────────

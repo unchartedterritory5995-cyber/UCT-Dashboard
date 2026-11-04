@@ -12,7 +12,7 @@
 //   const { say, board, h } = p.mount(...FOUR())
 //   await say('add the 9 and 20 ema')
 //   p.turns()  p.instancesOn(board, 'c0')  p.lastAgent()
-import { vi } from 'vitest'
+import { vi, expect } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { makeBoard } from '../__fixtures__/board'
 import { mergeChartSettings, CHART_DEFAULTS } from '../../components/chart/chartDefaults'
@@ -38,6 +38,19 @@ export const FOUR = (syms = ['SPY', 'QQQ', 'NVDA', 'TSLA']) => [['c0', 'c1', 'c2
   Object.fromEntries(syms.map((s, i) => [`N:c${i}`, s]))]
 export const label = (s) => (s ? { ...s, label: `Chart (${s.symbol})` } : s)
 
+// ── REAL-MODEL EVALUATION (tools/agent_eval_multistep.py; OFF unless AGENT_EVAL_BRIDGE is set) ──────────────
+// The bridge serves /api/agent/turn and /api/agent/record as the production route does (sandbox store, the production
+// meter, the real planner on the separate eval key, or a stub in its dry run). Only the case id is sent with the body
+// (the test id's leading token, resolved by the bridge); nothing else leaves the test.
+const EVAL_BRIDGE = globalThis.process?.env?.AGENT_EVAL_BRIDGE || ''
+const REAL_FETCH = globalThis.fetch
+export const evalBridgeOn = () => !!EVAL_BRIDGE
+async function viaBridge(url, body) {
+  const r = await REAL_FETCH(`${EVAL_BRIDGE}${url}`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ case: expect.getState().currentTestName || '', body }) })
+  return new Response(await r.text(), { status: r.status, headers: { 'content-type': 'application/json' } })
+}
+
 export function setupPanel() {
   const st = { envelopes: [], calls: [], selected: null }
   const env = (disposition, ops, reply = '') => ({ disposition, reply, question: null, ops, unsupported_category: null })
@@ -49,6 +62,7 @@ export function setupPanel() {
     const body = init.body ? JSON.parse(init.body) : null
     st.calls.push([init.method || 'GET', String(url), body])
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
+    if (EVAL_BRIDGE && (url === '/api/agent/turn' || url === '/api/agent/record')) return viaBridge(url, body)
     if (url === '/api/agent/turn') {
       const e = st.envelopes.shift() || env('answer', [], MODEL_SENTINEL)
       return json({ conversationId: 'ac_1', envelope: typeof e === 'function' ? e(body) : e, usage: { research_calls: 0, citations: [] } })
@@ -61,7 +75,7 @@ export function setupPanel() {
     return json({ conversations: [] })
   })
 
-  const idle = () => waitFor(() => { if (screen.queryByTestId('agent-typing')) throw new Error('busy') }, { timeout: 10000 })
+  const idle = () => waitFor(() => { if (screen.queryByTestId('agent-typing')) throw new Error('busy') }, { timeout: EVAL_BRIDGE ? 120000 : 10000 })
   const turns = () => st.calls.filter(c => c[1] === '/api/agent/turn').length
   const lastTurnBody = () => [...st.calls].reverse().find(c => c[1] === '/api/agent/turn')?.[2] || null
   const transcript = () => screen.getByTestId('agent-transcript').textContent
