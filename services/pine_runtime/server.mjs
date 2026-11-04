@@ -32,6 +32,10 @@ import {
 } from './auth.mjs'
 import { MAX_BODY_BYTES, PROTOCOL, SCHEMA_GUARD, parseRunRequest } from './protocol.mjs'
 import { BUSY_GUARD, createPool } from './pool.mjs'
+// W5-T9 (the only T9 additions to this file: these two imports, the metrics wiring in
+// createPineRuntimeServer, the /v1/metrics route, and the canary wiring in main)
+import { createMetrics } from './metrics.mjs'
+import { createCanary, loadCanaryInputs } from './canary.mjs'
 
 export const UNAVAILABLE_GUARD = 'runtime:server-unavailable'
 export const FAILED_GUARD = 'runtime:server-failed'
@@ -102,7 +106,7 @@ function send(res, status, payload) {
   res.end(text)
 }
 
-function refuse(res, status, guard, sentence, log) {
+function refuseResponse(res, status, guard, sentence, log) {
   log(`[pine-runtime] refused status=${status} guard=${guard}`)
   send(res, status, { protocol: PROTOCOL, error: { guard, sentence } })
 }
@@ -138,11 +142,17 @@ function wellFormedResults(jobs, results) {
  * @param {(request:object) => Promise<object[]>} [o.runner]  the job pool (T7); absent = not ready
  * @param {() => boolean} [o.canary]  readiness beyond "loaded" (the T9 parity canary)
  * @param {() => number} [o.now]      unix seconds
+ * @param {object} [o.metrics]       W5-T9: createMetrics(); counted per request, served at GET /v1/metrics
+ * @param {() => object} [o.poolStats] W5-T9: the pool's stats(), for /v1/metrics
+ * @param {() => object} [o.canaryStatus] W5-T9: the canary's status(), for /v1/metrics
+ * @param {object} [o.boot]          W5-T9: the boot fingerprint's fields, for /v1/metrics
  */
 export function createPineRuntimeServer({ secrets, door, runner = null, canary = () => true,
-  now = () => Math.floor(Date.now() / 1000), log = console.log } = {}) {
+  now = () => Math.floor(Date.now() / 1000), log = console.log,
+  metrics = createMetrics(), poolStats = null, canaryStatus = null, boot = null } = {}) {
   if (!Array.isArray(secrets) || secrets.length === 0) throw new Error('createPineRuntimeServer needs at least one secret')
   const replay = new ReplayGuard()
+  const refuse = (res, status, guard, sentence, l) => { metrics.refused(guard); return refuseResponse(res, status, guard, sentence, l) }
   const ready = () => Boolean(door && door.identity && runner) && canary() === true
 
   async function run(req, res) {
@@ -177,7 +187,17 @@ export function createPineRuntimeServer({ secrets, door, runner = null, canary =
     if (!wellFormedResults(checked.request.jobs, results)) {
       return refuse(res, 500, FAILED_GUARD, 'the runtime pool did not answer every job once, so no job in this request has a value.', log)
     }
+    metrics.answered(checked.request.profile, results)
     return send(res, 200, { protocol: PROTOCOL, engine: door.identity, results })
+  }
+
+  /** W5-T9: GET /v1/metrics. Signed like /v1/run, over the empty body; same clock and replay rules. */
+  function metricsRoute(req, res) {
+    const parsed = parseSignatureHeader(req.headers[SIGNATURE_HEADER], now())
+    if (parsed.reason) return refuse(res, 401, AUTH_GUARD, `${parsed.reason}, so no metrics are served.`, log)
+    if (!verifyBody(secrets, parsed, Buffer.alloc(0))) return refuse(res, 401, AUTH_GUARD, 'the signature does not match, so no metrics are served.', log)
+    if (!replay.admit(parsed.v1, parsed.t, now())) return refuse(res, 401, AUTH_GUARD, 'this signed request was already received, so it is not served twice.', log)
+    return send(res, 200, metrics.snapshot({ identity: door && door.identity, boot, pool: poolStats && poolStats(), canary: canaryStatus && canaryStatus() }))
   }
 
   const server = createHttpServer({ maxHeaderSize: 16 * 1024 }, (req, res) => {
@@ -186,6 +206,10 @@ export function createPineRuntimeServer({ secrets, door, runner = null, canary =
     if (path === '/ready') {
       if (req.method !== 'GET') return send(res, 405, { ready: false })
       return ready() ? send(res, 200, { ready: true }) : send(res, 503, { ready: false })
+    }
+    if (path === '/v1/metrics') {
+      if (req.method !== 'GET') return send(res, 405, { protocol: PROTOCOL, error: { guard: SCHEMA_GUARD, sentence: 'GET only' } })
+      return metricsRoute(req, res)
     }
     if (path === '/v1/run') {
       if (req.method !== 'POST') return send(res, 405, { protocol: PROTOCOL, error: { guard: SCHEMA_GUARD, sentence: 'POST only' } })
@@ -233,26 +257,39 @@ export async function listenDualStack(server, port, { host = '::' } = {}) {
 
 /** Boot: env allowlist, secrets, bundle, dual-stack listener, one grep-able fingerprint line.
  *  `pool` (W5-T7): options for createPool; when given and no `runner` is, the job pool is started
- *  on the same bundle, is the runner, and is stopped when the server closes. */
-export async function main({ env = process.env, bundle = DEFAULT_BUNDLE, runner = null, pool: poolOpts = null, log = console.log } = {}) {
+ *  on the same bundle, is the runner, and is stopped when the server closes.
+ *  `canary` (W5-T9; default ON exactly when `pool` is SERVICE_POOL_OPTIONS, the real boot): with a pool, run the parity canary at boot and every 15 minutes; /ready is
+ *  false until it is green and while it is red (design 3.8). */
+export async function main({ env = process.env, bundle = DEFAULT_BUNDLE, runner = null, pool: poolOpts = null, canary: canaryOn = poolOpts === SERVICE_POOL_OPTIONS, log = console.log } = {}) {
   const refusal = envRefusal(env)
   if (refusal) throw new Error(refusal)
   const secrets = parseSecrets(env.PINE_RUNTIME_SERVICE_SECRET)
   const port = portOf(env)
   const door = await loadBundle(bundle)
   const pool = !runner && poolOpts ? await createPool({ ...poolOpts, bundle }) : null
-  const server = createPineRuntimeServer({ secrets, door, runner: pool ? pool.run : runner, log })
-  if (pool) server.once('close', () => { pool.close().then(() => log('[pine-runtime] pool stopped')) })
+  const canary = pool && canaryOn
+    ? createCanary({ run: pool.run, inputs: loadCanaryInputs(), identity: door.identity, log })
+    : null
+  const id = door.identity
+  const boot = { engine: `${id.script_engine}/${id.runtime_frontend}/${id.runtime_ir}`, bundle: id.bundle_sha256.slice(0, 12),
+    node: process.version, workers: pool ? pool.size : null }
+  const server = createPineRuntimeServer({
+    secrets, door, runner: pool ? pool.run : runner, log, boot,
+    canary: pool ? () => pool.ready() && (!canary || canary.ok()) : undefined,
+    poolStats: pool ? pool.stats : null, canaryStatus: canary ? canary.status : null,
+  })
+  if (pool) server.once('close', () => { (canary ? canary.stop() : Promise.resolve()).then(() => pool.close()).then(() => log('[pine-runtime] pool stopped')) })
   let bound
   try {
     bound = await listenDualStack(server, port)
   } catch (e) {
+    if (canary) await canary.stop()
     if (pool) await pool.close()
     throw e
   }
-  const id = door.identity
   log(`[pine-runtime] boot engine=${id.script_engine}/${id.runtime_frontend}/${id.runtime_ir} `
     + `bundle=${id.bundle_sha256.slice(0, 12)} node=${process.version} workers=${pool ? pool.size : runner ? 'pool' : 0} port=${bound}`)
+  if (canary) { canary.start(); canary.runOnce().catch(() => {}) } // ready only once green
   return server
 }
 
