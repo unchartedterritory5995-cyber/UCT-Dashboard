@@ -148,6 +148,22 @@ function gridRequest(raw0, lower0, charts, host) {
   for (const s of syms) rest = rest.replace(new RegExp(`\\$?\\b${escapeRe(s)}\\b`, 'gi'), ' ')
   rest = rest.replace(/[,;.!?&()]/g, ' ').replace(GRID_FILLER, ' ').trim()
   if (rest) return null
+  // ⭐ LIVE TRAIN 4 (production 993ef96a2a: "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size." on a board of 6
+  // charts ADDED four — 10 charts): more charts on the board than tickers, and the member's words neither ask for new
+  // ones nor build a whole workspace — never guessed, never a silent removal: ONE question, replace the charts (the ones
+  // showing a named ticker kept; the removal approval-gated) or add these beside them
+  if (!lead && !ASKS_NEW.test(raw) && syms.length < charts.length) {
+    const n = charts.length, k = syms.length
+    return {
+      kind: 'ask',
+      text: `You have ${n} charts here. Replace them with these ${k} (${syms.join(', ')}), or add ${k} more beside them?`,
+      choices: [{ ref: 'grid:replace', label: `Replace my ${n} charts with these ${k}` }, { ref: 'grid:add', label: `Add ${k} more charts` }],
+      options: {
+        replace: [{ ...chartGrid(syms, tf, layoutHit ? layoutHit[1] : null, false, rail), args: { ...chartGrid(syms, tf, layoutHit ? layoutHit[1] : null, false, rail).args, replace: 'charts' } }],
+        add: [chartGrid(syms, tf, layoutHit ? layoutHit[1] : null, true, rail)],
+      },
+    }
+  }
   const fresh = wantsNew(raw, syms.length, charts.length)
   // least disruptive: NEW charts (no layout asked for) that fit in the empty space go there — nothing re-tiled
   if (fresh && !layoutHit && !rail && !EQUAL_SIZE_WORDS.test(raw) && fitsEmpty(host, syms.length)) {

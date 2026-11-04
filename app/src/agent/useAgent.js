@@ -1566,6 +1566,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
       return
     }
+    if (p.gridChoice) {
+      // live train 4: the member's pick — replace the charts (a card: it removes charts) or add these beside them
+      const ops = ref === 'grid:replace' ? p.gridChoice.replace : ref === 'grid:add' ? p.gridChoice.add : null
+      if (!ops) return
+      lastActionsRef.current = ops.map(o => o.action)
+      return await execute(ops, { path: 'fast', mode: 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
+    }
     if (p.workspace) {
       // ⭐ PHASE 3 acceptance: replace the board, or build the whole workspace in a new layout — then the WHOLE request runs
       if (ref === 'workspace:new' && !host?.layouts) {
@@ -1790,6 +1797,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const multi = (answering || memRef || pendingRef.current?.kind === 'target' || peekAuthoringIntent()) ? null : multiChartPlan(text, { host })
       if (multi?.kind === 'say') {
         push({ role: 'agent', text: multi.text })
+        record({ member: text, outcome: multi.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
+      if (multi?.kind === 'ask') {
+        // live train 4: replace the board's charts, or add these beside them — the member decides (chooseTarget gridChoice)
+        pendingRef.current = { kind: 'target', ops: [], path: 'fast', member: text, voice, epoch: epochOf(host), gridChoice: multi.options }
+        push({ role: 'question', text: multi.text, choices: [...multi.choices, { label: 'Cancel', cancel: true }], local: true })
         record({ member: text, outcome: multi.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
         return
       }

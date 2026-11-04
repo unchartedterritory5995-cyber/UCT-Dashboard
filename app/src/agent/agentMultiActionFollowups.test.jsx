@@ -984,3 +984,65 @@ describe('gaps-5 delta nits', () => {
     expect(wordsSelect('indicators', 'how are the moving averages looking for the market')).toBe(false)
   })
 })
+
+// ═══ LIVE TRAIN 4 (production 993ef96a2a) ════════════════════════════════════════════════════════════════
+describe('live train 4 · "four charts, all the same size" on a board of SIX charts — asked, never 10 charts', () => {
+  const OWNER = 'Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.'
+  const SIX = () => [[0, 1, 2, 3, 4, 5].map(i => ({ id: `c${i}`, type: 'chart', x: (i % 3) * 8, y: Math.floor(i / 3) * 10, w: 8, h: 10, color: 'ABCDEF'[i], opts: { ...settings(), ...(i === 0 ? { tf: 'W' } : {}) } })),
+    { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA', E: 'NVDA', F: 'QQQ' }]
+  it('the deterministic reader asks: replace the 6 charts or add 4 more — nothing changes until the member picks', async () => {
+    const { board, say } = mount(...SIX())
+    await say(OWNER)
+    expect(chartsOf(board)).toHaveLength(6)
+    const q = screen.queryAllByTestId('agent-question')
+    expect(q).toHaveLength(1)
+    expect(q[0].textContent).toMatch(/You have 6 charts here\. Replace them with these 4 \(SPY, QQQ, NVDA, TSLA\), or add 4 more beside them\?/)
+    expect(turnBodies()).toHaveLength(0)
+  }, 30000)
+  it('"Add 4 more charts" → 10 charts (the owner\'s pick, said)', async () => {
+    const { board, say } = mount(...SIX())
+    await say(OWNER)
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 more charts' }))
+    await idle()
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 8000 })
+  }, 30000)
+  it('"Replace my 6 charts with these 4" → a CARD (it removes charts); approved → 4 equal charts, the ones already showing a ticker kept on it, other widgets stay', async () => {
+    const [ws, groups] = SIX()
+    const { board, h, say } = mount([...ws.map(w => ({ ...w, y: w.y ? 8 : 0, h: 8 })), { id: 'wl', type: 'watchlist', x: 0, y: 16, w: 24, h: 4, color: 'A', opts: {} }], groups)
+    await say(OWNER)
+    fireEvent.click(screen.getByRole('button', { name: 'Replace my 6 charts with these 4' }))
+    await idle()
+    if (process.env.DUMP) console.log('CLICK>>', transcript().slice(-500))
+    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal').length).toBeGreaterThan(0))
+    expect(chartsOf(board)).toHaveLength(6)                                                     // nothing removed before approval
+    await say('do it')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    expect(chartsOf(board).map(w => h.charts.read(w.id).symbol).sort()).toEqual(['NVDA', 'QQQ', 'SPY', 'TSLA'])
+    expect(new Set(chartsOf(board).map(w => `${w.w}x${w.h}`)).size).toBe(1)
+    expect(board.state.widgets.some(w => w.id === 'wl')).toBe(true)                               // the watchlist stays
+    expect(board.state.widgets.some(w => w.id === 'c0')).toBe(true)                               // the SPY chart reused (its ticker kept)
+  }, 40000)
+  it('"add four charts for …" / "new charts for …" still ADD (no question)', async () => {
+    const { board, say } = mount(...SIX())
+    await say('add four new charts for SPY, QQQ, NVDA and TSLA, all the same size')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 8000 })
+    expect(screen.queryAllByTestId('agent-question')).toHaveLength(0)
+  }, 30000)
+  it('a board with as many charts as tickers (or fewer) is reused, as on train 3 — no question', async () => {
+    const { board, h, say } = mount(...HALF())
+    await say(OWNER)
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    expect(chartsOf(board).map(w => h.charts.read(w.id).symbol)).toEqual(['SPY', 'QQQ', 'NVDA', 'TSLA'])
+  }, 30000)
+})
+
+describe('live train 4 · a workspace conflict at save: the receipt says on screen, NOT saved — never done', () => {
+  it('a revision conflict (another window changed the workspace) → "On your screen but NOT saved", the reload note, no Undo', async () => {
+    const { board, say } = mount(...HALF(), { epoch: () => 1, persist: async () => ({ ok: false, conflict: true, reason: 'conflict' }) })
+    await say('Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    await waitFor(() => expect(summaries()[0]).toMatch(/^On your screen but NOT saved: set up four charts/))
+    expect(receipts()[0].textContent).toMatch(/changed in another window or device/)
+    expect(receipts()[0].getAttribute('data-undoable')).toBeNull()
+  }, 30000)
+})
