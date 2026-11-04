@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 08:06 CT
+updated: 2026-11-04 10:48 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -38,7 +38,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 10. CONCURRENT STEPS PER LANE (owner, 2026-11-04 07:30 CT: "do them concurrently"): a lane may run its heavy steps at once ONLY in separate worktrees. Mutations edit src in place and measure-pair copies zzMP tests into the tip worktree, so final-tip and probes run in a second DETACHED worktree at the same committed tip (pine-dsk-w4t10-final, pine-dsk-w4t7-probe), which is removed afterwards (junction unlinked first). Applied to W4-T10 (mutations || final-tip) and W4-T7 (measure-pair re-run || object-door work).
 8. Clock note: block times are local CT and correct. An earlier note here called them wrong; that was my mistake (the health log prints UTC under Git Bash). Withdrawn. SECOND clock note: blocks stamped 03:45, 04:20 and 04:35 CT on 2026-11-04 (W4-T15 start, W5-T7 READY, W5-T8 READY) were written ahead of the clock, at about 03:20-03:40 CT; from 2026-11-04 04:13 CT every stamp is read from the local clock.
 
->>> NEW-LANE FREEZE (owner, 2026-11-04 07:34 CT): "dont start anything new until all that past work is completed fully". The desktop starts NO new lane until W4-T7 and W4-T10 are READY. Remaining startable work (W4-T8 after T7, W5-T9/T10/T11+, captures) waits. <<<
+>>> NEW-LANE FREEZE (owner, 2026-11-04 07:34 CT): "dont start anything new until all that past work is completed fully". MET 2026-11-04 10:48 CT: all 21 lanes READY (W4-T10 and W4-T7 last). No new lane started; next work (W4-T8 stacked on T7, W5-T9/T10/T11+, captures) awaits the owner. <<<
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
@@ -74,15 +74,17 @@ desktop check of the definition of done: PASS (scope, rail 6/6, 8/8 mutations, f
 open: the bundle still carries the fetch-bearing modules and two build gates (T2's job); old esbuild duplicate-case warning at ir.js:518 (pre-existing).
 
 ## W4-T7
-state: BUILDING   round: r0   updated: 2026-11-04 07:14 CT
-branch: feat/pine-w4-t7-fn-series   tip: e39b8c0ef6 (EVIDENCE over engine/test tip 066b312f11)   tested on master: 5d95103c8a   worktree: pine-dsk-w4t7   model: Sonnet
-engine bump needed: YES (refusals become served values)
-built: pineRuntimeFrontend.js only: hoistCommittedSeries no longer refuses inside a frame; a UDF body's own statement list and its result are hoist sinks; the hoisted slot is frame-local with its ring from fnHistorySlotFor (per call site). Still refused by name: nested lists incl. block values (x = if..., switch; lowerBlockValue withdraws the sink in a frame) and a global's history through a UDF (function-global-state). 7 superseded pins updated in 6 test files + one census bucket list.
-checks: rail w4FrameHoist (12 tests, 5,000-bar differential vs a hand-bound root) red on master 7 failed / 5 passed, green on tip (29 with historyExpression). Mutations 7 killed (M1-M5, M7, M9); M6 (cosmetic slot name) and M8 (redundant sink-null at defineFunction) survive as equivalent. measure-pair rt0+rt1: harness identical (336 captures each, MATCH 93 / 111); C18 probes identical; audit: 2 scripts move to their next wall (logistic-regression-v3, volume-surge-radar); census 3 rows (rt0) / 16 rows (rt1) differ, none attach-flip. final-tip: gate pytest 46, version-gate 6, hygiene clean, vitest 22372 passed / 1 failed = pollingSites.rail baseline.
-MEASURE-PAIR INVALIDATED (deviation 9): its dsk-w4t7d round used lock files under C:/Users/Patrick/.claude/ (wrong folder, from the desktop's bare-name instruction), so its mp0 base side ran on 6990d63b02 instead of its merge-base 5d95103c8a and its mp0b base side was switched mid-side; mutations and final-tip stand. Re-running measure-pair on the real heavy-mp2 lock with base checks before and after each side.
-HOLD before READY: one script on the LIVE object door moved BUILD-REFUSED -> DREW-NOTHING-KEPT (now builds and draws nothing), unnamed in the log. The desktop asked the builder to name it and prove the blank correct, or else keep master's answer at the object door (as T2/T12 do), rail it and re-measure.
-open (later lanes): pre-existing root leak, an if-expression arm hoists above the if at root (T5); ta.pivot* in a UDF now stops at call-windowed-state (T10's wall); n/2 window lengths from a simple parameter still refuse (T8/T17).
-
+state: READY            round: r0            updated: 2026-11-04 10:48 CT
+branch: feat/pine-w4-t7-fn-series   tip: 8f420e0043 (docs-only evidence over code tip 0ac78ae601)   tested on master: 5d95103c8a   worktree: pine-dsk-w4t7 (clean, local = origin)   model: Sonnet
+engine bump needed: YES (refusals become served values; SCRIPT_ENGINE_VERSION NOT edited)
+evidence: docs/pine/evidence/2026-11-03-w4-t7/EVIDENCE.md (on the branch; addendum + correction of the invalid round-d runs)
+built: pineRuntimeFrontend.js only: hoistCommittedSeries no longer refuses inside a frame; a UDF body's own statement list and its result are hoist sinks; the hoisted slot is frame-local with its ring from fnHistorySlotFor (per call site). Still refused by name: nested lists incl. block values and a global's history through a UDF (function-global-state).
+OBJECT DOOR (hold resolved): the script was reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine (helpers use (...)[1] over parameter expressions; with the hoist it built and its one info-box label.new was dropped by the renderer -> DREW-NOTHING-KEPT). The blank could not be proven correct (TradingView draws that box), so the frame hoist is gated off at the live object door (atObjectDoor && owner !== null) and the door keeps master's BUILD-REFUSED answer; the runtime pane keeps the new behaviour.
+checks: w4FrameHoist.test.js 15 tests (door refuses runtime:history-expression, pane builds the same source, door still serves master's root-list hoist); red on master, green on tip. Mutations: M1-M5, M7, M9 killed; M10 (remove the door gate) killed by the door-refusal rail; M6/M8 equivalent.
+measure-pair (VALID re-run dsk-w4t7e on _resume-2026-11-01/dsk/heavy-mp2.lock; tip 42d7c83698 = same engine code as 0ac78ae601 (no non-doc diff); DESKTOP-VERIFIED from driver.out: base 5d95103c8a asserted on every side, sides 07:25:59 / 07:39:20 / 07:54:11 / 08:08:59, MP_OK, mid-run switch watcher silent): rt0 harness identical 336 captures MATCH 93/103/140, C18 probes identical, audit no non-timing diffs, census 2 rows differ (timeout row + volatility-coil-edge-bullbyte drop counts, both base-noise); rt1 harness identical MATCH 111/107/118, probes identical, audit no diffs, 17 census rows differ (runtime-pane first-wall / peel-depth moves), none flips to attached. OBJECT DOOR: no change.
+final-tip (dsk-w4t7d-final on code tip 0ac78ae601, 04:43-05:26; DESKTOP-VERIFIED it ran after that round's measure-pair released, so no same-worktree overlap; its wrong lock folder affects exclusion only): gate pytest 46, version-gate 6, hygiene clean, vitest Test Files 1 failed | 1334 passed, Tests 1 failed | 22375 passed | 118 skipped = pollingSites.rail baseline.
+cleanup: pine-dsk-w4t7-probe never created; pine-dsk-mpbase2 back at 5d95103c8a, clean.
+open (later lanes): root if-expression arm hoist leak (T5); ta.pivot* in a UDF stops at call-windowed-state (T10); n/2 window lengths from a simple parameter (T8/T17).
 ## W4-T11
 state: READY            round: r0            updated: 2026-11-03 23:40 CT
 branch: feat/pine-w4-t11-runtime-text   tip: a944bd68c2 (docs-only evidence over code tip 7c88e80844)   tested on master: 5d95103c8a
