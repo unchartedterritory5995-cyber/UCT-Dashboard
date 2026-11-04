@@ -182,6 +182,44 @@ Flag-off regression suites (capreg + goldens + conversation / undo / memory / de
 
 Caveat, said plainly: these shape cases are mine, written from AUDIT's abstract descriptions. Twice my own sets have overstated generalisation, so the sealed re-score is the measure that counts.
 
+#### STOP on in-plan (A): status, risk, proposal (AUDIT decision after the sealed re-score of `36957ddf7a`)
+
+**Sealed result.** Flag ON 28/37, flag OFF 14/37, no regressions, D1 unchanged. Cross-turn (B) 19/19. In-plan (A) 9/16: only 1 of the 8 shapes AUDIT described flipped. The scorer's own fresh, sealed in-plan set scores **1/12 with the flag both ON and OFF**, so on fresh in-plan wording NLM-1 adds nothing over v1. **The deterministic in-plan normalisation is not extended further.** Each round fitted my probes (29/29 on my shape set) and did not generalise.
+
+Sealed history (flag ON / OFF of 37):
+
+| Head | ON / OFF | Note |
+|---|---|---|
+| D1.3 `799d3419a5` | 17 / 14 | |
+| D2/D3.1 `c887318c81` | 20 / 14 | |
+| D2/D3.2 `77542d5342` | 27 / 14 | B 19/19, A 8/16 |
+| D3.3 `36957ddf7a` | 28 / 14 | A 9/16 |
+
+Almost all of the lift came from D2/D3.2, whose main mechanism (a command aimed at a referent set on ANY turn, plus the follow-up operations) is what makes (B) work.
+
+**Which (A) rewrites the sealed passes actually exercise.** I have not seen the sealed texts, so I cannot attribute the 9 in-plan passes to specific rules myself. Every rule announces itself on the turn trace: `mark('nlm1:rewrite', <rule>)`, `nlm1:followup-ops`, `nlm1:created-ref`, `nlm1:ordinal`, readable in `window.__uctAgentTurns` / `trace.lastTurns()`. The attribution therefore needs AUDIT to run the sealed set once with a per-case tally of those marks (no texts need to be shared). Pending that tally, the honest classification by evidence:
+
+| Rewrite / mechanism (in-plan) | Exercised by sealed passes? | Exercised by my probes |
+|---|---|---|
+| Created-chart reference on Track A's binding (`plans.js`) | probably: P01/P02/P15 class; Track A's fix also passes flag-off | first set, A-sets |
+| Command at a referent set (`followupOps.aimCommandAtSet`) | **yes, indirectly**: it is what makes the first turn of the (B) cases act (sealed B 4 → 19 at D2/D3.2) | all sets |
+| Style the indicator just added (+ `runCompound` fallback) | unknown (needs the trace tally) | S3, R-A5, D2-18 |
+| Ordinal over just-created charts (`rescopeOrdinal`) | unknown | G-b3, G-a3 |
+| `with-indicator`, `add-to-it(-clause)`, `distribute-indicators` | unknown | first set, G-a, R-A |
+| `multi-ticker-create`, count-of-charts → grid | unknown; the sealed "one chart too many" shape did not flip | G-a, R-A4b, S2 |
+| `verbless-assign`, `tf-modifier`, `quantifier` | unknown | R-A1, R-A2 |
+| In-message repeat / same-on-new-chart | unknown; the sealed S5/S6 shapes did not flip | R-A3, S5, S6 |
+| Clause splitting, swap, `give`, possessives, `new chart for` | **no evidence**: of the 8 shapes they target, 1 flipped | S1, S4, S7 |
+
+**Risk.** A taken rewrite runs deterministically, bypassing the planner. A rewrite that misreads an unforeseen phrasing acts on the board with no model in the loop, though still through policy, approvals, receipts and Undo. A rewrite no reader takes is dropped, and the original message goes on as typed. The probe-only rules add that risk without measured benefit.
+
+**Proposal (owner / AUDIT decision; not implemented, no code changed).**
+1. **Keep** D1 routing v2, the (B) cross-turn mechanisms (referent sets, repeat / additive / repeat-with-modification, inversion, removal by position, referent + value, the D3 referent tracker and follow-up rewriter), command-at-set, and `plans.js` (thin, on Track A's binding, and it moves to created-binding-v2).
+2. **Flag-gate, default OFF**, every in-plan normalisation in the table without sealed evidence: `rewriteSameRequest`'s structure stages, in-message same, `rewriteClauses`, swap, `rescopeOrdinal` in `runCompound`, and the `runCompound` fallback. Proposed third key: `localStorage uct.agent.nlm1.inplan = '1'`. With it off, NLM-1 = D1 + (B). Then **remove** any gated rule the AUDIT trace tally shows no sealed pass ever uses.
+3. Re-run the sealed set with the in-plan key OFF. The prediction is (B) 19/19 kept, and (A) back near the flag-off figure. That shows exactly what the in-plan rules were buying.
+
+**Measurement caveat.** No-model scoring (all of my sets, and the sealed set as scored) measures only **deterministic coverage**: whether a request is handled without the model. In production, an in-plan request no deterministic reader takes goes to the **planner** (the model), so "does nothing without a planner" is the expected v1 behaviour, not a failure of the product. The real in-plan measure is planner-assisted or a model eval. My scripted-canonical-plan mode (`NLM1_WF_MODE=planner`, 8/9: routing plus binding plus executor right whenever the plan is right) is a proxy for the routing and binding half only. A real model eval needs the owner's paid-eval approval (`EVAL.md`), and it is the right way to decide whether any in-plan determinism is worth keeping.
+
 Recorded gaps (capreg `gapIt`: each must fail exactly as recorded, so a fix is noticed):
 - **NLM1-G1** (D2-13, G-a3): after the new chart's later changes are undone exactly, the creation's own Undo is refused ("Workspace has changed since I made that change"). The new chart's stored settings aren't byte-identical after those undos, so the workspace fingerprint no longer matches. Same with the flag off. Runtime exact-undo area (#771), reported to AUDIT.
 - **NLM1-G2** (D2-18), FIXED in D2/D3.2 by the style-last-added mechanism (marker removed). It was: an indicator added on a chart the same request created (through its alias, the deferred step) isn't found by the conversation follow-up reader, so the next "make it orange" has no referent. Same in two separate turns with the flag off (it goes to the model). Conversation memory × CG-37, reported to AUDIT.
@@ -212,4 +250,5 @@ Unit coverage: `nlm1/nlm1FollowupOps.test.js` (referent sets, repeat / additive,
 | `799d3419a5` | D1.3: ticker + info-seeking / period-change entities, byte budget = v1 fallback size; cost analysis |
 | `c887318c81` | D2/D3.1: follow-ups as operations (referent sets, repeat / additive, inversion, removal by position, ordinals over created charts), same-request normalisation, planner-assisted mode, generalisation set; routing: evidence-ordered cut, multi-ticker charts entity |
 | `77542d5342` | D2/D3.2: command at a referent set (any turn), referent + value, repeat with a modification, style the indicator just added (+ runCompound fallback), honest not-there; in-plan structural normalisations; in-message repeat as steps; robustness set (22); routing: entities as evidence on overflow |
-| (this commit) | D3.3: in-plan shapes by structure: verb-anchored clause steps (set anaphora between clauses), swap over a referent set, "give <target> <thing>", possessives, a count of charts is a grid (no extra chart), in-message "same" for a ticker / a new chart, "new chart for", NLM-1 mechanisms count as reading; shape set (29, written before the code); flag-state check in every run |
+| `36957ddf7a` | D3.3: in-plan shapes by structure: verb-anchored clause steps (set anaphora between clauses), swap over a referent set, "give <target> <thing>", possessives, a count of charts is a grid (no extra chart), in-message "same" for a ticker / a new chart, "new chart for", NLM-1 mechanisms count as reading; shape set (29, written before the code); flag-state check in every run |
+| (this commit) | Doc only: STOP on in-plan (A) per AUDIT; sealed history; rule attribution needs the trace tally; risk; proposal to flag-gate (default off) and then remove probe-only in-plan rules; measurement caveat (no-model = deterministic coverage; real in-plan = planner / paid model eval) |
