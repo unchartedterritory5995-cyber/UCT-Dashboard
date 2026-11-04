@@ -63,3 +63,21 @@ Green on tip: see FINAL below.
 | entry drops `RUNTIME_IR_VERSION` | "exports the entry surface" |
 | format `cjs` | "exports the entry surface" |
 No equivalent survivors.
+
+## FINAL checks
+Red on master (proxy, byte-exact restore): with `scripts/build-pine-runtime.mjs` moved aside the rail suite fails to load
+("Cannot find module .../build-pine-runtime.mjs", rc 1, no tests); on master the file and `serverEntry.js` do not exist.
+Green on tip: `serverBundle.rail.test.js` 6/6; with `pineRuntimeFrontendGate.test.js` 9/9 (command:
+`node node_modules/vitest/vitest.mjs run <both files> --maxWorkers=2`, tip b67c3c4dc7).
+
+final-tip run 1 (tip 6888e54478, tested on master 5d95103c8a), log dir `_resume-2026-11-01/runs/w5t1-final/`:
+- gate pytest (no_shadowed_definitions, dockerfile_vite_build_args, vite_flag_ledger, visibility_flag_ledger): 46 passed
+- `tests/test_script_engine_version_gate.py`: 6 passed; hygiene: clean (34669 tracked files)
+- full chart+hooks vitest: 2 failed | 22365 passed | 118 skipped (Test Files 2 failed | 1333 passed | 27 skipped).
+  Failures: `pollingSites.rail` (known baseline) and `pineRuntimeFrontendGate` "no live file reaches the runtime lane"
+  (NEW, caused by this branch's serverEntry importing `pineRuntimeFrontend`; fixed in b67c3c4dc7, gate now 9/9 above).
+
+final-tip run 2 on the final tree (b67c3c4dc7): NOT COMPLETED. The job was queued at 16:32 and never obtained the heavy
+lock in ~7 h (other builders' jobs kept winning it); it was cancelled by its owner, not run. The delta since run 1 is
+the 2-line re-export plus this document, and the bundle built from it is byte-identical to run 1's. Coordinator: rerun
+`final-tip.sh` on the tip before merge; expected totals 1 failed (pollingSites.rail baseline).
