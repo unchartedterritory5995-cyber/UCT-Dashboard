@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 06:16 CT
+updated: 2026-11-04 07:02 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -235,6 +235,15 @@ region: ast/interpret.js tables + api/services/ast_interpret.py; RT/vm.js OP.CAR
 next: state kernels (ta.cum, running totals, ta.vwap, pivots, ta.stoch over runtime values); measure-pair against the T1 tip on mp2; object door keeps master's answer unless proved
 
 ## W5-T5 cross-engine report (picked per 063fe2ba8e: needs T4, READY; stacked on T4)
-state: BUILDING   round: r0   updated: 2026-11-04 06:07 CT
-branch: feat/pine-w5-t5-cross-engine   base: W5-T4 tip eb922686fe   worktree: pine-dsk-w5t5   model: Sonnet
-next: report only (no gating): HP-8 on Playwright WebKit and Firefox; H7 tz/DST fixture in every host; direct Math probe across Node 24 / Chromium 145 / WebKit / Firefox (+ Node 20 if installed) to inform the HP-3 trig decision. Data only; the decision stays with the coordinator.
+state: READY            round: r0            updated: 2026-11-04 07:02 CT
+branch: feat/pine-w5-t5-cross-engine   tip: e9b0f119a5 (code tip 9fe52d5cea)   base: W5-T4 tip eb922686fe (no merge; merge T4 first)
+engine bump needed: NO
+evidence: docs/pine/evidence/w5-host-parity/REPORT.md + hp8-summary.json, math-summary.json, tz-summary.json, hosts.json (raw 23 MB outputs local in _resume-2026-11-01/runs/w5t5/). New tools: tools/pine_cross_engine_probe.{js,mjs}, tools/pine_cross_engine_report.py; tools/pine_runtime_host_parity.py gains --browser and a per-column ulp diff; .mjs gains --raw-out. REPORT.md names the reproduction command for each run.
+HP-8 (T4 corpus, 166 cases: 135 ok, 31 withheld): Chromium 145 164/166 equal; Firefox 146.0.1 164/166 (same 2 transcendental cases); WebKit 26.0 159/166 (those 2 + rma_alma_hma at calcbars, d5000, forming, listing, m5_32768). 0 inconclusive anywhere. All 31 refusal cases agree on guard and bar in every engine; all 135 ok digests match the Python codec on every engine. Column detail: p3 (sin*cos+atan) differs on all three (up to 512 ulp on Chromium, 64-128 elsewhere, from near-cancellation amplifying a 1-ulp operand difference); p4 (sqrt/log10) up to 2 ulp on Firefox and WebKit (log10); WebKit also p0/p1 (log, exp, 1 ulp) and the ta.alma column of rma_alma_hma (277-24,729 rows, 1-2 ulp).
+tz/DST (H7): the runtime's own clockFns.js in Node, Chromium, Firefox, WebKit; every UTC hour 1990-2030 (359,400 hours, 5.03M values) plus 8 New York session-edge wall times on all 14,975 days: all four hosts find the same 82 DST transitions, equal to an independent arithmetic US-rule check; 0 differences vs Node in sweep, edge instants and read-backs (the non-existent 02:30 on the 41 spring-forward days reads back identically wrong in every host).
+Math probe (30,000 fixed inputs, 23 functions, inputs bit-identical on all hosts): Chromium 145 vs Node 24 differs ONLY in sin (960, 3.2%) and cos (1016, 3.4%), max 1 ulp; exp, log, pow, tan, atan2 identical. Firefox and WebKit agree with each other on sin, cos, tan, pow and differ from both V8 builds: three distinct trig answers (Node 24 / Chromium 145 / Firefox+WebKit). Firefox = Node on 17/23 (except sin, cos, tan, log10, pow 14 inputs, hypot 38%). WebKit differs on 22/23 (only sqrt identical), up to 2 ulp, 16-28% of inputs for cbrt, sinh, cosh, atan2. No difference exceeds 2 ulp. (A first draft built inputs with Math.pow and showed false 40-85 ulp diffs; fixed and re-run.)
+Node 20: NOT installed (only Node 24.13.1; no nvm/fnm/volta); nothing downloaded. Node 20.18 / V8 11.3 sin/cos and tz stay open: run `node tools/pine_cross_engine_probe.mjs --out f` on a machine with Node 20.
+final-tip (tool code added; heavy-final2, on 9fe52d5cea): gate pytest 46, hygiene clean, rails pytest 216, vitest 1 failed | 22536 passed | 118 skipped = pollingSites.rail baseline. All browsers and servers closed (desktop confirmed no Playwright process left).
+process note: the builder's Write tool refused to create REPORT.md as a "report file"; it wrote it with PowerShell instead, since REPORT.md is this lane's assigned committed deliverable. Flagged for the reviewer's awareness.
+open: HP-3 sin/cos decision (T4's a/b/c) stays the coordinator's; new data point: Firefox and WebKit agree with each other on trig and disagree with both V8 builds. No scheduled probe cadence (coordinator's call).
+desktop check: PASS (report + tools, final-tip at baseline, local == origin, worktree clean)
