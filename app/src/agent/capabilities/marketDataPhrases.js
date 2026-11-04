@@ -35,7 +35,9 @@ const VETO = [/\bwhy\b/, /\bnews\b/, /\bmarket\s*cap\b/, /\bp\/?e\b/, /\bpe rati
   /\bhits?\b/, /\bcross(es)?\b/, /\bwatchlist\b/, /\bchart\b/, /\bdividend/, /\bbuy\b/, /\bsell\b/, /\bshould i\b/,
   /\btarget\b/, /\bforecast\b/, /\bpredict/, /\bfutures?\b/, /\bvolume\b/, /\beuros?\b|\bpounds?\b|\byen\b|\bin [a-z]+ (dollars|currency)\b/,
   /\b\d+\s*(m|min|mins|minutes?|h|hr|hrs|hourly)\b/, /\btime\s*frame\b/, /\bindicators?\b/, /\b(rsi|macd|ema|sma|vwap|bollinger)\b/,
-  /\b\d{1,2}(:\d\d)?\s*(am|pm)\b/, /\bzoom\b/, /\bdraw/, /\bswitch\b/, /\bopen\b.*\bchart/]
+  /\b\d{1,2}(:\d\d)?\s*(am|pm)\b/, /\bzoom\b/, /\bdraw/, /\bswitch\b/, /\bopen\b.*\bchart/,
+  // CG-15 (corpus #769): "trade places with the left and right charts" is a board swap, never a quote for PLACES / LEFT / CHARTS
+  /\bcharts\b/, /\b(?:trade|switch|swap|change|exchange) places\b/, /\bswap\b/, /\bwidgets?\b/, /\bpanels?\b/]
 
 // a time the parser cannot resolve without a clock: never "now", never "the last session" (§4.7.1)
 const TIME_VETO = [/\bhistor(y|ical|ic)\b/, /\bago\b/, /\bsince\b/, /\bbefore\b/, /\buntil\b/, /\byesterday('?s)?\b/,
@@ -120,7 +122,8 @@ export function parsePriceSentence(text) {
     return candidates.length === 1 && !SESSION_RE.test(low) && !/\btoday\b/.test(low)
       ? { intent: 'bars.lastClose', candidates } : null
   }
-  const PRICE_CTX = /\b(price|prices|pricing|quote|quotes|trading|trade|traded|at|doing|up|down)\b/
+  // CG-11 (corpus #769): "how much is NVDA right now"
+  const PRICE_CTX = /\b(price|prices|pricing|quote|quotes|trading|trade|traded|at|doing|up|down)\b|\bhow much is\b/
   const onlyCashtags = allCash && s.split(/[\s,]+/).filter(Boolean).every(w => /^\$/.test(w) || /^and$/i.test(w))
   if (!PRICE_CTX.test(low) && !SESSION_RE.test(low) && !onlyCashtags) return null
   if (/\b(high|low|range)\b/.test(low) && !candidates.some(c => /^(HIGH|LOW)$/.test(c.text))) return null

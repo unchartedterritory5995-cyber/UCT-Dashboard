@@ -20,6 +20,7 @@ import { multiChartPlan } from './multiChart'
 import { buildIndicatorAlertSource } from './host'
 import { _resetIndicatorAlertCache } from './capabilities/indicatorAlerts'
 import { notDoneLines } from './notDone'
+import { parsePriceSentence } from './capabilities/marketDataPhrases'
 import { receiptView } from './receiptView'
 import { manifestFor, MANIFEST_CONTRACT } from './capabilities'
 const FULLM = manifestFor({ surface: 'charts', createIndicator: true })
@@ -703,4 +704,33 @@ describe('AUDIT · indicatorAlert.create is ONE chart\'s — resolved by named s
     expect(transcript()).not.toMatch(/Alert you when the 9 EMA crosses above the 20 EMA on the TSLA daily chart/)
     expect(alertPosts).toHaveLength(0)
   }, 40000)
+})
+
+describe('CG-10..16 · corpus gaps (#769): never the opposite action, never a quote for English words; routing', () => {
+  it('CG-15: "trade places with the left and right charts" is never a quote (PLACES / LEFT / CHARTS)', () => {
+    expect(parsePriceSentence('trade places with the left and right charts')).toBeNull()
+    expect(parsePriceSentence('swap the left and right charts')).toBeNull()
+    expect(selectGroups('trade places with the left and right charts').selected).toContain('boardEdit')
+  })
+  it('CG-11/12/13/14/16 route their capability groups', () => {
+    expect(selectGroups('how much is NVDA right now').selected).toContain('data')
+    expect(wordsSelect('alerts', 'tell me about TSM the company')).toBe(false)
+    expect(selectGroups('tell me about TSM the company').selected).toContain('data')
+    expect(selectGroups('tell me when NVDA crosses 150').selected).toContain('alerts')
+    expect(selectGroups('how does NVDA stack up against AMD').selected).toContain('data')
+    expect(selectGroups('get rid of the AMD chart').selected).toContain('workspace')
+    expect(selectGroups('give me new charts for AAPL and MSFT').selected).toContain('workspace')
+  })
+  it('CG-10 (panel): "unhide the 50 sma" SHOWS a hidden SMA 50 — never hides it', async () => {
+    const hiddenSma = () => {
+      const s = mergeChartSettings(null)
+      return { settings: { ...s, indicatorInstances: (s.indicatorInstances || []).map(i => (i.defId === 'movingAverage' && Number(i.inputs?.period) === 50 ? { ...i, hidden: true } : i)) } }
+    }
+    const { board, say } = mount([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'A', opts: hiddenSma() }], { A: 'SPY' })
+    const sma50 = () => (board.state.widgets[0].opts.settings.indicatorInstances || []).find(i => i.defId === 'movingAverage' && Number(i.inputs?.period) === 50)
+    expect(sma50()?.hidden).toBe(true)
+    await say('unhide the 50 sma')
+    await waitFor(() => expect(sma50()?.hidden).toBeFalsy(), { timeout: 8000 })
+    expect(turnBodies()).toHaveLength(0)
+  }, 30000)
 })

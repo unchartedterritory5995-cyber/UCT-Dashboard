@@ -72,7 +72,9 @@ export const GROUPS = [
     actions: ['widget.setOption'],
     words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
-    words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) chart\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
+    // CG-14 / CG-16 (corpus #769): "get rid of the AMD chart", "give me new charts for AAPL and MSFT" (widget.addCharts — the
+    // existing charts stay; chartGrid.set only with a count, grid or equal-size words, or a replace)
+    words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) charts?\b/, /\b(add|open|close|remove|delete|get rid of|ditch|kill|lose|drop)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
       /\b(link|unlink|colou?r group)\b/, /\btabs?\b/, EQUAL_SIZE,
       // CG-3a (corpus #769): a COUNT of charts with no tickers ("put four charts on my screen", "create four charts") is
       // new charts + an even re-tile — the widget adds and the arrange live here (chartGrid needs tickers)
@@ -159,7 +161,8 @@ export const GROUPS = [
       /\b(over|under|above|below) \$?\d+ (bucks|dollars)\b|\b\d+ (million|mil|m|billion|bn?) (a day|dollar volume)\b|\bliquid (names|stocks)\b/,
       /\b(sort (it|them|that|by)|only the ones|same thing but|just (the )?(large|small|mid)[- ]?caps)\b/] },
   { id: 'alerts', title: 'Price alerts (list, create, delete)', domains: ['alert'],
-    words: [/\balerts?\b/, /\b(notify|ping|tell) me\b/, /\b(crosses|breaks|hits)\b/] },
+    // CG-12 (corpus #769): "tell me about TSM" is a question, never an alert — only "tell me when / if …" is
+    words: [/\balerts?\b/, /\b(notify|ping) me\b/, /\btell me (when|if|once|as soon as)\b/, /\b(crosses|breaks|hits)\b/] },
   // ⭐ W1-B B-03: INDICATOR alerts (RSI, MACD…) in their own small group, `fillLast` like every specialised group — so the
   // fallback fill for a message nothing named still carries the screener (F-SB-1: every discovery question reaches the
   // planner with it) exactly as before. Named by an alert word beside an indicator word, or pause / resume.
@@ -184,7 +187,9 @@ export const GROUPS = [
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
     words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
       /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/,
-      DATA_HISTORY],
+      DATA_HISTORY,
+      // CG-11 / CG-13 (corpus #769): "how much is NVDA (right now)", "how does NVDA stack up against AMD"
+      /\bhow much is \$?[a-z]{1,5}\b|\bwhat(?:'s| is) \$?[a-z]{1,5} (?:at|worth|going for)\b/, /\bstacks? up (?:against|to|with|vs\.?|versus)\b/],
     // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"
     vocab: [/\b(reports?|reporting|valuation|stacks? up|anything new (on|with)|what'?s (going on|happening) with|why did .+ (gap|move|drop|fall|jump|rally|sell off))\b/] },
   // MARKET INTELLIGENCE breadth slice 1 (2026-10-11): historical breadth QUESTIONS. "breadth" alone is
