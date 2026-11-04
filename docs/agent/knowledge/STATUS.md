@@ -202,6 +202,12 @@ filtering or ranking work would add complexity without a measurable gain; embedd
   kb_id a positive integer; anything else is ignored (row stays withheld).
 - (4) 122 served, flagged rows matching a looser cue -> PROVENANCE-REVIEW-LOOSER-CUE.md (ids only) for the rights review.
 - Real snapshot after the changes: 71 withheld, 309 served and flagged, 0 mention errors (unchanged).
+- 2026-11-04 (owner directive via AUDIT): the 122 looser-cue rows are WITHHELD, not served as commentary: the index's
+  definitional cue is now the looser cue (SCHEMA 4). None has a rights clearance; all are trader_archive (admitted
+  source, 5 traders). Real snapshot: 122/122 + 71/71 withheld, 0 escaped; non-dated 150 withheld, 230 served flagged.
+- Rebuild safety: a build writes a temporary file and swaps it in with one os.replace; a failed build leaves the old
+  file untouched and no temporary file; a stale index (pack_ts or schema mismatch) is never served, and a request during
+  another thread's rebuild gets "being rebuilt" (tests r751_a_search_never_waits..., r751_a_failed_rebuild...).
 
 ## Next step to resume
 MERGED DARK (2026-11-03): #735 is on master via release train 2, PR #754, master 3d3d444d4f, after Wave 1.1 was verified live.

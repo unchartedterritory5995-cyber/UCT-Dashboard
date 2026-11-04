@@ -4,13 +4,17 @@ For the provenance / rights review (owner decision 2026-11-03, points 2-3). **Co
 
 - Snapshot: the real Brain Pack snapshot used for the #751 counts (2,837 servable non-dated rows before the refinement;
   71 withheld by the reviewed cue; 309 served and flagged `commentary_only`).
-- These 122 rows are SERVED today as team commentary (every one is flagged `commentary_only`; 43 are in dated
-  categories). They match a LOOSER cue than the owner-reviewed one: an excluded template name/alias, then within 80
-  characters (crossing sentence ends) one of is|are|means|defined|definition|rule(s)|entry|stop|criteria|trigger|pivot|
-  buy point|setup.
-- Not a code defect (the reviewed 40-character cue is the owner's rule). A reviewer decides per row: keep as commentary,
-  or withhold. To withhold rows, the policy needs an owner decision (for example a `withheld_rows` list); to serve a
-  withheld row, `cleared_rows` needs a complete, well-formed entry.
+- Provenance review (2026-11-04, counts only): all 122 come from one admitted source (`trader_archive`, team-owned
+  under the source policy), 5 distinct traders, no blank trader; categories MACRO 43 (dated), SETUP 60, RULE 17,
+  PSYCHOLOGY 2. Rights clearance: 0 of the 122 have a `cleared_rows` entry, so none is verified as UCT's own wording
+  rather than a restatement of a third-party (excluded) setup definition.
+- Decision (owner directive relayed by AUDIT, 2026-11-04): uncertain entries are WITHHELD, never admitted on a
+  commentary label. The index's definitional cue is now this looser cue (an excluded template name/alias, then within
+  80 characters, crossing sentence ends, one of is|are|means|defined|definition|rule(s)|entry|stop|criteria|trigger|
+  pivot|buy point|setup), so all 122 are withheld together with the original 71 (index SCHEMA 4).
+- A row returns only through a complete, well-formed `cleared_rows` entry (provenance_ref, rights_review_ref,
+  approved_by, approved_on, kb_id). Real snapshot after the change: 122/122 withheld, 71/71 still withheld, 0 rows
+  matching either cue served; non-dated: 150 withheld by the mention rule, 230 served flagged as commentary.
 
 kb_ids (122):
 

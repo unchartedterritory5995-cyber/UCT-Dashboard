@@ -25,7 +25,7 @@ from api.services.uct_agent.knowledge import pack
 
 log = logging.getLogger(__name__)
 ENV_PATH = "UCT_AGENT_KNOWLEDGE_INDEX"
-SCHEMA = 3
+SCHEMA = 4
 _LOCK = threading.Lock()
 FAIL_COOLDOWN_S = 60
 _FAILED: dict = {"at": 0.0, "ts": None}
@@ -169,9 +169,12 @@ def _template_aliases(src) -> dict:
     return out
 
 
-# The definitional cue (review r4, probe_n15.py:35, owner decision 2026-11-03 point 3): a template name/alias, whole
-# word, then within 40 characters that are not a full stop one of these words.
-DEFINITIONAL_CUE = r"[^.]{0,40}\b(is|are|means|defined|definition|rules?|entry|stop|criteria)\b"
+# The definitional cue: a template name/alias as a whole term, then one of these words within 80 characters (across
+# sentence ends). Owner decision 2026-11-03 point 3 withheld the reviewed 40-char cue's 71 rows; owner directive
+# 2026-11-04 widens it to the review's looser cue (+122 served rows): an uncertain definition-like row is WITHHELD
+# until a complete provenance + rights-review entry clears it (policy.cleared_rows); a commentary label never admits it.
+DEFINITIONAL_CUE = (r"[\s\S]{0,80}?\b(is|are|means|defined|definition|rules?|entry|stop|criteria|trigger|pivot|"
+                    r"buy point|setup)\b")
 MIN_TERM = 3
 # review #751 note 1: a whole term is bounded by NON-word characters (`\b` never fires after a term ending in ")")
 _WB, _WE = r"(?<!\w)", r"(?!\w)"

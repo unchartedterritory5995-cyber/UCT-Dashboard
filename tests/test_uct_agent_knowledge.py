@@ -1471,7 +1471,12 @@ def test_refine_cue_matches_the_reviewed_pattern():
     for txt in ("A cup and handle is a base", "Cup and Handle rules: buy the handle", "cup and handle - entry at pivot",
                 "the cup and handle stop goes under the handle", "cup and handle criteria"):
         assert index._mentions(txt, mi)[1] == ["Cup with Handle"], txt
-    assert index._mentions("Nice cup and handle. It is working.", mi)[1] == []                 # the cue is past a full stop
+    # owner directive 2026-11-04: the looser cue crosses a full stop (withheld unless cleared) ...
+    assert index._mentions("Nice cup and handle. It is working.", mi)[1] == ["Cup with Handle"]
+    for txt in ("cup and handle, the trigger is the handle high", "cup and handle buy point at the lip",
+                "this cup and handle setup", "cup and handle" + " x" * 30 + " pivot"):
+        assert index._mentions(txt, mi)[1] == ["Cup with Handle"], txt
+    assert index._mentions("cup and handle" + " x" * 45 + " is", mi)[1] == []                 # ... within 80 characters
     assert index._mentions("cup and handle forming on SMCI", mi) == (["Cup with Handle"], [], False)
 
 
@@ -1541,3 +1546,31 @@ def test_r751_a_search_never_waits_for_another_threads_rebuild(kn):
     finally:
         index._LOCK.release()
     assert index.ensure()["ok"] is True                                       # the next request rebuilds
+
+
+def test_r751_a_failed_rebuild_never_serves_the_old_or_a_partial_index(kn, monkeypatch):
+    """Owner 2026-11-04: a rebuild never serves stale or partially rebuilt knowledge. The new index is written to a
+    temporary file and swapped in by one os.replace; a failed build leaves no file behind, the old file untouched, and
+    the stale index is not served (its pack_ts no longer matches the installed pack)."""
+    import sqlite3 as _sq
+    assert index.ensure()["ok"] is True
+    target = index.index_path()
+    before = index.built_info()
+    (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 70), encoding="utf-8")   # a new pack landed
+    real, real_build = index._template_aliases, index.build
+
+    def boom(src):
+        raise _sq.OperationalError("disk I/O error")
+    monkeypatch.setattr(index, "_template_aliases", boom)
+    assert index.build()["ok"] is False
+    assert index.built_info() == before                                       # old file untouched, never half-written
+    assert not [f for f in os.listdir(os.path.dirname(target)) if ".build-" in f]   # no temporary file left
+    index._FAILED.update(at=0.0, ts=None)
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    monkeypatch.setattr(index, "build", lambda: {"ok": False, "reason": "index build failed"})
+    out = read("knowledge.search", {"question": "episodic pivot", "k": 3})
+    assert out["status"] == "unavailable" and not (out.get("data") or {}).get("passages")   # stale index not served
+    monkeypatch.setattr(index, "_template_aliases", real)
+    monkeypatch.setattr(index, "build", real_build)
+    index._FAILED.update(at=0.0, ts=None)
+    assert index.ensure()["ok"] is True and index.built_info()["pack_ts"] != before["pack_ts"]
