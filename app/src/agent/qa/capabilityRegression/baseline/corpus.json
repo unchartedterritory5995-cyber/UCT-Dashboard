@@ -6426,6 +6426,208 @@
           "text": "add a chart for AMD and put the 50 SMA on it"
         }
       ]
+    },
+    {
+      "id": "bqa1.hide.named-chart",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#2: the chart named in the clause)",
+      "capabilities": [
+        "indicator.hide"
+      ],
+      "board": "FOUR_DEFAULT",
+      "needs": [
+        "indicator.hide"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.hide",
+            "args": {
+              "instance": "ovl:2"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.hide",
+            "target": "$indicatorEdits[2]",
+            "args": {
+              "instance": "ovl:2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "chart": 2,
+          "find": {
+            "inputs.period": 50,
+            "inputs.maType": "sma"
+          },
+          "has": {
+            "hidden": true
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "hide the 50 sma on the NVDA chart",
+          "det": "required"
+        },
+        {
+          "text": "hide the SMA 50 on the NVDA chart",
+          "det": "required"
+        },
+        {
+          "text": "turn off the 50 sma on the NVDA chart",
+          "det": "required"
+        },
+        {
+          "text": "hide the 50 sma on the bottom-left chart",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "bqa1.remove.named-chart",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#2: the chart named in the clause)",
+      "capabilities": [
+        "indicator.remove"
+      ],
+      "board": "FOUR_DEFAULT",
+      "needs": [
+        "indicator.remove"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.remove",
+            "args": {
+              "instance": "ovl:3"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.remove",
+            "target": "$indicatorEdits[2]",
+            "args": {
+              "instance": "ovl:3"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "indicators": {
+          "chart": 2,
+          "exclude": [
+            "movingAverage(200 sma)"
+          ],
+          "include": [
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)",
+            "movingAverage(50 sma)"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        {
+          "text": "remove the 200 sma from the NVDA chart",
+          "det": "required"
+        },
+        {
+          "text": "remove the SMA 200 from the NVDA chart",
+          "det": "required"
+        },
+        {
+          "text": "delete the 200 sma off the NVDA chart",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "bqa1.colour.named-chart",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#4: the receipt names the colour; #2: the named chart)",
+      "capabilities": [
+        "indicatorStyle.set"
+      ],
+      "board": "FOUR_DEFAULT",
+      "needs": [
+        "indicatorStyle.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorStyle.set",
+            "args": {
+              "property": "color"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorStyle.set",
+            "target": "$indicatorEdits[2]",
+            "args": {
+              "instance": "ovl:1",
+              "property": "color",
+              "value": "#df4646",
+              "output": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "chart": 2,
+          "find": {
+            "inputs.period": 20,
+            "inputs.maType": "ema"
+          },
+          "colour": {
+            "key": "inputs.color",
+            "family": "red"
+          }
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "make the 20 ema on the NVDA chart red",
+          "det": "required"
+        },
+        {
+          "text": "make the EMA 20 on the NVDA chart red",
+          "det": "required"
+        }
+      ]
     }
   ],
   "refusals": [
@@ -7542,6 +7744,148 @@
             "unchanged": true,
             "receipt": false,
             "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.bqa1.full-board-new-chart",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#1: a full board — the new chart is never placed off-screen; said honestly, nothing changes, nothing to undo)",
+      "capabilities": [
+        "widget.add"
+      ],
+      "board": "FOUR_DEFAULT",
+      "steps": [
+        {
+          "say": "open AMD on a new chart",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "charts": {
+              "count": 4
+            },
+            "modelTurns": 0,
+            "refusedAction": "widget.add"
+          }
+        },
+        {
+          "say": "open AMD on a new chart and switch it to the weekly",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "charts": {
+              "count": 4
+            },
+            "modelTurns": 0,
+            "refusedAction": "widget.add"
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ],
+      "refuses": [
+        "widget.add"
+      ]
+    },
+    {
+      "id": "refuse.bqa1.full-board-new-chart.model",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#1, the model's plan: the same placement check refuses it)",
+      "capabilities": [
+        "widget.add",
+        "chart.setSymbol"
+      ],
+      "board": "FOUR_DEFAULT",
+      "steps": [
+        {
+          "say": "could you squeeze one more chart in for AMD",
+          "model": {
+            "ops": [
+              {
+                "action": "widget.add",
+                "target": "$workspace",
+                "args": {
+                  "type": "chart",
+                  "as": "new1"
+                }
+              },
+              {
+                "action": "chart.setSymbol",
+                "target": "new1",
+                "args": {
+                  "symbol": "AMD"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "charts": {
+              "count": 4
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.bqa1.line-noun-no-drawing",
+      "source": "BROWSER-QA-1 (11-04): real-browser QA of production 29830442d0 — defects 1-4 (#3: “the line” names a drawing — never an indicator; with no line drawing it is said, nothing changes; the Undo after it takes back the member's last REAL change)",
+      "capabilities": [
+        "indicator.hide"
+      ],
+      "board": "FOUR_DEFAULT",
+      "steps": [
+        {
+          "say": "hide the 50 sma on the NVDA chart",
+          "expect": {
+            "receipt": true,
+            "instance": {
+              "chart": 2,
+              "find": {
+                "inputs.period": 50,
+                "inputs.maType": "sma"
+              },
+              "has": {
+                "hidden": true
+              }
+            }
+          }
+        },
+        {
+          "say": "make the line red",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "color that line red",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "restored": true
           }
         }
       ]

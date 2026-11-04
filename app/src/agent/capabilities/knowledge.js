@@ -37,13 +37,8 @@ const refusalText = (env, what) => {
 // approved exists the member is told so plainly; nothing is ever filled in.
 const NO_SOURCE = 'No approved UCT source covers this'
 /** a refusal meaning "this setup has no approved template" (unknown name, or a template the source policy excludes) */
-const NOT_APPROVED = /no approved setup template named|approved knowledge does not include the/
-/** the setup as the member named it: a short plain name only (the arg is model-written, so anything longer or
- *  sentence-like is never echoed: it could carry a definition) */
-const said = (s) => {
-  const t = String(s || '').trim()
-  return /^[A-Za-z0-9&+/' -]{1,32}$/.test(t) && t.split(/\s+/).length <= 4 ? t : 'that setup'
-}
+const NOT_APPROVED = /no approved setup template|approved knowledge does not include the/
+// review #781 finding 4: the setup argument (model- or classifier-written) is never echoed in a refusal
 /** "UCT playbook pack of Nov 1, 2026 · source policy v3" (only the parts the envelope carries) */
 const versionLine = (env, policyVersion) => {
   const pv = policyVersion ?? env?.coverage?.policy_version
@@ -80,10 +75,10 @@ const TEMPLATE_LINES = [
   ['description', 'What it is'], ['ideal_regime', 'Best market'], ['entry_triggers', 'Entry'], ['stop_methods', 'Stop'],
   ['max_stop_pct', 'Max stop'], ['profit_logic', 'Taking profits'], ['invalidation', 'Invalidation'], ['common_mistakes', 'Common mistakes'],
 ]
-export function answerFromPlaybook(env, setup) {
+export function answerFromPlaybook(env) {
   if (!usable(env)) {
     const why = Array.isArray(env?.notes) ? String(env.notes[0] || '') : ''
-    if (env?.status === 'refused' && NOT_APPROVED.test(why)) return `UCT has no approved playbook definition for ${said(setup)}.`
+    if (env?.status === 'refused' && NOT_APPROVED.test(why)) return 'UCT has no approved playbook definition for that setup.'
     return refusalText(env, "UCT's setup templates")
   }
   const d = env.data
@@ -111,10 +106,10 @@ function recordLine(b) {
   const z = typeof b.edge_z === 'number' ? `, z = ${b.edge_z > 0 ? '+' : ''}${b.edge_z}` : ''
   return `${m}: n = ${b.n}${fig ? `, ${fig}` : ''}${z}. ${b.label_text}.`
 }
-export function answerFromRecord(env, setup) {
+export function answerFromRecord(env) {
   if (!usable(env)) {
     const why = Array.isArray(env?.notes) ? String(env.notes[0] || '') : ''
-    if (env?.status === 'refused' && NOT_APPROVED.test(why)) return `UCT has no approved evidence for ${said(setup)}.`
+    if (env?.status === 'refused' && NOT_APPROVED.test(why)) return 'UCT has no approved evidence for that setup.'
     return refusalText(env, "UCT's setup records")
   }
   const d = env.data

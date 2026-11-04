@@ -34,7 +34,7 @@ import { registerCapability, registerTargetKind, registerContextProvider } from 
 import { objectTypeName, objectSummary } from '../../components/chart/drawingObjects'
 import { UCT_DRAW_GOLD } from '../../components/chart/drawingColors'
 import { LINE_DASH } from '../../components/chart/drawingStyle'
-import { normalizeColor } from './chart'
+import { normalizeColor, colorName } from './chart'
 // the drawing layer's own rule for what a tool's points must be (C-3): every point the Agent writes is checked by it
 import { validateDrawing, drawingTimeFor } from '../../components/chart/drawingTools'
 import { newDrawingProps } from '../../components/chart/drawingSettingsSchema'
@@ -271,7 +271,7 @@ export function registerDrawingCapabilities() {
       if (!o || !n || same(o, n)) return null
       const what = []
       const ck = colorKeyOf(o)
-      if (o[ck] !== n[ck]) what.push(`colour ${n[ck]}`)
+      if (o[ck] !== n[ck]) what.push(`colour ${colorName(n[ck])}`)
       if ((o.lineStyle || 'solid') !== (n.lineStyle || 'solid')) what.push(n.lineStyle)
       if ((o.lineWidth || 1) !== (n.lineWidth || 1)) what.push(`${n.lineWidth}px`)
       return `Restyled the ${nameOf(o)} on ${a.symbol}: ${what.join(', ')}`

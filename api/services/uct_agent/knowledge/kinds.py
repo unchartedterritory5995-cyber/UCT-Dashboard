@@ -395,7 +395,7 @@ def resolve_setup(word: str) -> dict:
     except Exception:  # noqa: BLE001 — the vocabulary is an extra guard, not a dependency
         amb = set()
     if w in amb:
-        return {"ok": False, "reason": f"UCT uses “{word}” for more than one setup; say which one you mean",
+        return {"ok": False, "reason": "UCT uses that name for more than one setup; say which one you mean",
                 "candidates": []}
     c = pack.connect()
     if c is None:
@@ -416,11 +416,11 @@ def resolve_setup(word: str) -> dict:
             by_alias.append((name, al))
     hits = exact or by_alias
     if not hits:
-        return {"ok": False, "reason": f"UCT has no approved setup template named “{word}”", "candidates": []}
+        return {"ok": False, "reason": "UCT has no approved setup template by that name", "candidates": []}
     if len(hits) > 1:
         names = sorted(h[0] for h in hits)
         return {"ok": False, "candidates": names,
-                "reason": "“%s” matches more than one UCT setup template: %s — which one?" % (word, ", ".join(names))}
+                "reason": "That name matches more than one UCT setup template: %s — which one?" % ", ".join(names)}
     return {"ok": True, "name": hits[0][0], "aliases": hits[0][1], "matched": "name" if exact else "alias"}
 
 

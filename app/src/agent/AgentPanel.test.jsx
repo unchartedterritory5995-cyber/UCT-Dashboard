@@ -92,7 +92,7 @@ describe('UCT Agent panel', () => {
     render(<AgentPanel host={host} onClose={() => {}} />)
     type('Change this chart to bars, switch it to weekly, hide Volume, and make the background cream')
     const receipt = await screen.findByTestId('agent-receipt')
-    expect(receipt.textContent).toContain('Changed chart to Bars · Switched timeframe to Weekly · Hid Volume · Changed background to #f3efe4')
+    expect(receipt.textContent).toContain('Changed chart to Bars · Switched timeframe to Weekly · Hid Volume · Changed background to cream')
     expect(host.commits).toHaveLength(1)
     expect(host.raw('w1').tf).toBe('W')
     // natural-language undo: deterministic, no model call
