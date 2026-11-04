@@ -12,7 +12,8 @@ HOW THE AGENT CAP HOLDS UNDER CONCURRENCY
     Agent store: today's committed dollars = settled actuals + open reservations; the
     call is admitted only if committed + THIS call's worst case <= the cap. Two calls
     racing for the last dollars cannot both see the same total.
-  * The worst case is an upper bound, not a guess: every UTF-8 byte of the request
+  * The worst case is a conservative bound under stated assumptions (docs/agent/budget/PER-TURN-CAP.md):
+    every UTF-8 byte of the request
     (system, messages, output schema) is counted as one input token -- a token is
     never shorter than a byte -- plus a fixed allowance for the provider's own framing,
     priced as a cache WRITE (1.25x, the dearest way input is billed), plus `max_tokens`
@@ -80,6 +81,10 @@ RESEARCH_OUTPUT_TOKENS = 600
 RESEARCH_RATES = (3.0, 15.0)            # $/MTok, the dearest rate in perplexity_search._PPLX_PRICES
 RESEARCH_FEE_USD = 0.006
 RESEARCH_ATTEMPTS = 4
+#: A reservation still open after this long belongs to a call whose process died (request-path calls time out in
+#: seconds): it is SETTLED at its worst case -- never released -- so the day stays conservative and rows don't pile up.
+STALE_RESERVATION_S = 900
+STALE_SWEEP_LIMIT = 200
 
 AGENT_EXHAUSTED = ("UCT Agent has reached today's AI budget, so I can't interpret new requests until tomorrow. "
                    "Charts, breadth and other instant commands still work.")
@@ -224,9 +229,10 @@ def _has_1h_cache(node: Any) -> bool:
 
 
 def worst_case_usd(kwargs: dict) -> float:
-    """An upper bound on one Messages call's cost: bytes as tokens + framing, all billed as a
-    cache write (a 1-hour cache write, 2x, when any block asks for one), plus every output token
-    it may write (`max_tokens`: the provider never bills more output than that)."""
+    """A conservative bound on one Messages call's cost, valid while its assumptions hold (tokens <= bytes +
+    FRAMING_TOKENS, the price table is right, output is billed up to `max_tokens`): bytes as tokens + framing,
+    all billed as a cache write (a 1-hour cache write, 2x, when any block asks for one), plus every output token
+    it may write."""
     tokens = request_bytes(kwargs) + FRAMING_TOKENS
     if _has_1h_cache({k: kwargs.get(k) for k in ("system", "messages", "tools")}):
         tokens = int(tokens * CACHE_WRITE_MULT_1H / CACHE_WRITE_MULT) + 1     # priced at 2x instead of 1.25x
@@ -276,6 +282,27 @@ def attach_conversation(request_id: int, conversation_id: str) -> None:
     """A new chat's id is known only after the request opened; record it so a reroute finds it."""
     with contextlib.closing(_connect()) as c:
         c.execute("UPDATE agent_requests SET conversation_id = ? WHERE id = ?", (conversation_id, int(request_id)))
+
+
+def _sweep_stale(c, now: int) -> int:
+    """Inside the caller's transaction: settle at most STALE_SWEEP_LIMIT reservations older than STALE_RESERVATION_S at
+    their worst case (actual = reserved, outcome 'stale_worst_case'). Totals are unchanged; nothing is released."""
+    return c.execute(
+        "UPDATE agent_spend SET status='settled', actual_usd=reserved_usd, outcome='stale_worst_case', settled_at=?"
+        " WHERE id IN (SELECT id FROM agent_spend WHERE status='reserved' AND created_at < ? ORDER BY id LIMIT ?)",
+        (now, now - STALE_RESERVATION_S, STALE_SWEEP_LIMIT)).rowcount
+
+
+def sweep_stale_reservations(now: int | None = None) -> int:
+    with contextlib.closing(_connect()) as c:
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            n = _sweep_stale(c, int(now if now is not None else time.time()))
+            c.execute("COMMIT")
+            return n
+        except Exception:
+            c.execute("ROLLBACK")
+            raise
 
 
 def _turn_sum(c, request_id: int) -> tuple[int, float]:
@@ -343,6 +370,7 @@ def reserve(*, user_id: Any, request_id: int | None, category: str, model: str, 
                     if not moved:
                         c.execute("ROLLBACK")
                         raise BudgetRefused("call_limit", STEP_LIMIT)
+                _sweep_stale(c, now)
                 committed = float(c.execute(
                     "SELECT COALESCE(SUM(CASE status WHEN 'reserved' THEN reserved_usd ELSE actual_usd END), 0)"
                     " FROM agent_spend WHERE et_day = ?", (day,)).fetchone()[0] or 0.0)
@@ -393,8 +421,8 @@ def settle(reservation_id: int, *, actual_usd: float | None, tokens: dict | None
             else:
                 charged = float(actual_usd)
                 if charged > reserved:
-                    # By construction this cannot happen; if it ever does, the real figure is kept
-                    # (never hidden) and the bound is logged as wrong.
+                    # The bound's assumptions failed (docs/agent/budget/PER-TURN-CAP.md): the real figure is kept
+                    # (never hidden), so later calls see it, and the bound is logged as wrong.
                     log.error("[uct-agent budget] actual cost exceeded its worst case (reservation %s)", reservation_id)
             c.execute("UPDATE agent_spend SET status='settled', actual_usd=?, input_tokens=?, output_tokens=?,"
                       " cache_read_tokens=?, cache_write_tokens=?, outcome=?, settled_at=? WHERE id = ?",
@@ -514,6 +542,11 @@ class Meter:
             raise
         if isinstance(res, dict) and res.get("cached"):
             self.spent_usd += settle(rid, actual_usd=0.0, outcome="cached")
+        elif isinstance(res, dict) and (int(res.get("attempts") or 1) > 1 or res.get("usage_reported") is False):
+            # the returned cost prices only the LAST attempt from its usage: earlier attempts may have been billed and
+            # missing usage prices only the fee -- the whole reservation (every attempt's worst case) is kept
+            self.spent_usd += settle(rid, actual_usd=None, outcome="research_retried" if int(res.get("attempts") or 1) > 1
+                                     else "no_usage")
         elif isinstance(res, dict) and isinstance(res.get("cost_usd"), (int, float)):
             self.spent_usd += settle(rid, actual_usd=float(res["cost_usd"]))
         else:
@@ -532,7 +565,7 @@ def state(day: str | None = None) -> dict:
             " SUM(status='settled'), SUM(status='reserved'), SUM(status='released'),"
             " COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0),"
             " COALESCE(SUM(cache_read_tokens),0), COALESCE(SUM(cache_write_tokens),0),"
-            " SUM(outcome IN ('no_usage','worst_case','partial'))"
+            " SUM(outcome IN ('no_usage','worst_case','partial','research_retried','stale_worst_case'))"
             " FROM agent_spend WHERE et_day = ?", (day,)).fetchone()
         by_cat = {row[0]: round(float(row[1] or 0), 6) for row in c.execute(
             "SELECT category, SUM(CASE status WHEN 'reserved' THEN reserved_usd ELSE actual_usd END)"

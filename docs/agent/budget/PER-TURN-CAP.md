@@ -61,6 +61,23 @@ headroom at a time (call 1 settles at its real cost, typically a few cents).
 
 ## Limits of the guarantee (read before relying on it)
 
+### Paths the cap does not bound
+
+1. **An actual cost above its reservation is kept.** If a byte bound's assumptions fail (below), `settle()` records the
+   real figure and logs it; it is never hidden or clamped. That one turn can then end above $0.25 (later calls of the
+   turn see it and are refused).
+2. **Perplexity's per-request fee tiers.** The research bound uses the repo's lowest fee ($0.006); higher search-context
+   tiers bill up to $0.014, so a lookup can cost more than its reservation (case 1).
+3. **Planner v2, v2 resume and scripts** carry no request id and are not capped here (v2 checks its own turn in the loop).
+
+Research retries and missing usage are no longer an unbounded path: `web_search` reports how many requests it sent
+and whether usage came back, and `Meter.research` keeps the WHOLE reservation (4 attempts' worst case) whenever there
+was a retry or no usage. Only a single attempt with usage settles at its reported cost. A reservation still open
+after 15 minutes (a process that died mid-call) is settled at its worst case by a bounded sweep (200 rows per
+reservation transaction), never released.
+
+### Assumptions
+
 * **Not a provider guarantee.** The Messages API has no per-request dollar ceiling. The bound rests on: tokens <=
   bytes + 4000 framing; billed output <= `max_tokens` (thinking included); the repo price table being right; no
   server tools, data-residency or long-context multipliers on these requests (v1 uses none). Within those
@@ -72,8 +89,7 @@ headroom at a time (call 1 settles at its real cost, typically a few cents).
     follow-up call, and that call's own reservation is exact, so the cap still holds; the cost of exceeding the
     allowance is a paid lookup whose results are not read (`RESEARCH_UNREAD_TURN_CAP`).
 * **Research is a different provider.** Its bound and its settled cost both come from `perplexity_search._PPLX_PRICES`
-  and `PPLX_REQUEST_FEE_USD` ($0.006). Perplexity's per-request fee rises with search context size; if the account is
-  billed the higher tiers, the research bound is low by up to $0.008 per attempt.
+  and `PPLX_REQUEST_FEE_USD` ($0.006); see "Paths the cap does not bound" for the fee tiers.
 * **Conservative by design.** Bytes-as-tokens overstates input about 3-4x, so a request can be refused while its real
   cost would fit. On Haiku 4.5 no request inside the current size limits is refused at its first call. On a dearer
   planner model (for example Sonnet 5.5 at $2/$10) a request at the size limits reserves about $0.36 and **would be

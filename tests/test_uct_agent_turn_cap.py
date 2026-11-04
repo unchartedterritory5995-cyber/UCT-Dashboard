@@ -596,3 +596,175 @@ def test_TURN_research_results_too_large_for_the_turn_are_measured_and_not_read(
     assert len(calls) == 1 and out["usage"]["research_unread"] == "turn_cap"
     assert out["envelope"]["reply"] == turn.RESEARCH_UNREAD_TURN_CAP and out["envelope"]["ops"] == []
     assert budget.turn_committed_usd(rid) <= budget.turn_cap_usd()
+
+
+# ═══ verification review #785 (round 2) ═════════════════════════════════════════════════════════
+class _PplxResp:
+    def __init__(self, status=200, payload=None):
+        self.status_code = status
+        self._payload = payload or {}
+
+    def raise_for_status(self):
+        import requests
+        if self.status_code >= 400:
+            err = requests.HTTPError(f"{self.status_code} error")
+            err.response = self
+            raise err
+
+    def json(self):
+        return self._payload
+
+
+@pytest.fixture
+def pplx(monkeypatch):
+    import api.services.perplexity_search as p
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
+    monkeypatch.setattr(p.time, "sleep", lambda s: None)
+    monkeypatch.setattr(p, "_save_shadow", lambda *a, **k: None)
+    p._SEARCH_CACHE.clear() if hasattr(p._SEARCH_CACHE, "clear") else None
+    yield p
+    p._SEARCH_CACHE.clear() if hasattr(p._SEARCH_CACHE, "clear") else None
+
+
+_PPLX_OK = {"choices": [{"message": {"content": "answer text"}}], "citations": [],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+
+
+def _posts(monkeypatch, p, replies):
+    sent = []
+
+    def post(*a, **k):
+        sent.append(1)
+        return replies[min(len(sent), len(replies)) - 1]
+
+    monkeypatch.setattr(p.requests, "post", post)
+    return sent
+
+
+def test_RESEARCH_web_search_reports_its_attempts_and_whether_usage_came_back(pplx, monkeypatch):
+    sent = _posts(monkeypatch, pplx, [_PplxResp(503), _PplxResp(502), _PplxResp(200, _PPLX_OK)])
+    res = pplx.web_search(query="retry count q1", mode="fast", cost_surface="uct_agent", return_cost=True)
+    assert len(sent) == 3 and res["attempts"] == 3 and res["usage_reported"] is True
+    _posts(monkeypatch, pplx, [_PplxResp(200, {k: v for k, v in _PPLX_OK.items() if k != "usage"})])
+    res = pplx.web_search(query="no usage q2", mode="fast", cost_surface="uct_agent", return_cost=True)
+    assert res["attempts"] == 1 and res["usage_reported"] is False
+    # every other caller gets exactly the dict it always got
+    _posts(monkeypatch, pplx, [_PplxResp(200, _PPLX_OK)])
+    assert "attempts" not in pplx.web_search(query="plain q3", mode="fast")
+
+
+def test_RESEARCH_a_retried_lookup_keeps_the_whole_reservation_not_the_last_attempts_cost(clean, pplx, monkeypatch):
+    _posts(monkeypatch, pplx, [_PplxResp(503), _PplxResp(200, _PPLX_OK)])
+    rid = budget.open_request("u", "c", "q")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    res = m.research(lambda: turn._research("retried q4", "week"))
+    assert res["attempts"] == 2 and res["cost_usd"] < budget.research_worst_case_usd()
+    assert budget.turn_committed_usd(rid) == pytest.approx(budget.research_worst_case_usd())
+    assert budget.state()["calls"]["charged_worst_case"] == 1
+
+
+def test_RESEARCH_missing_usage_keeps_the_whole_reservation_not_just_the_fee(clean, pplx, monkeypatch):
+    _posts(monkeypatch, pplx, [_PplxResp(200, {k: v for k, v in _PPLX_OK.items() if k != "usage"})])
+    rid = budget.open_request("u", "c", "q")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    res = m.research(lambda: turn._research("no usage q5", "week"))
+    assert res["usage_reported"] is False and res["cost_usd"] == pytest.approx(0.006)
+    assert budget.turn_committed_usd(rid) == pytest.approx(budget.research_worst_case_usd())
+
+
+def test_RESEARCH_one_attempt_with_usage_settles_at_its_reported_cost(clean, pplx, monkeypatch):
+    _posts(monkeypatch, pplx, [_PplxResp(200, _PPLX_OK)])
+    rid = budget.open_request("u", "c", "q")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    m.research(lambda: turn._research("clean q6", "week"))
+    assert budget.turn_committed_usd(rid) == pytest.approx(100 * 3 / 1e6 + 50 * 15 / 1e6 + 0.006)
+
+
+def test_RESEARCH_a_failed_lookup_keeps_the_whole_reservation(clean, pplx, monkeypatch):
+    _posts(monkeypatch, pplx, [_PplxResp(503)] * 4)
+    rid = budget.open_request("u", "c", "q")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    res = m.research(lambda: turn._research("failing q7", "week"))
+    assert res["answer"] == "research unavailable right now"
+    assert budget.turn_committed_usd(rid) == pytest.approx(budget.research_worst_case_usd())
+
+
+def test_CLIENTS_both_agent_callers_turn_sdk_retries_off(monkeypatch):
+    """max_retries=0 on BOTH Agent clients: an SDK default change can never retry (and bill) behind a reservation."""
+    from api.services import engine
+    seen = []
+
+    class Stream:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def __iter__(self):
+            return iter(())
+
+        def get_final_message(self):
+            return "final"
+
+    fake = types.SimpleNamespace(messages=types.SimpleNamespace(create=lambda **kw: "made", stream=lambda **kw: Stream()))
+    fake.with_options = lambda **kw: seen.append(kw) or fake
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: fake)
+    assert turn._default_caller(model="m") == "made"
+    assert turn._default_stream_caller(lambda t: None, model="m") == "final"
+    assert len(seen) == 2 and all(kw.get("max_retries") == 0 for kw in seen)
+
+
+def test_SWEEP_stale_reservations_are_settled_at_their_worst_case_never_released(clean):
+    import contextlib
+    import time as _t
+    rid = budget.open_request("u", "c", "q")
+    old = _reserve(rid, 0.2)
+    fresh = _reserve(rid, 0.04)
+    with contextlib.closing(budget._connect()) as c:
+        c.execute("UPDATE agent_spend SET created_at = ? WHERE id = ?", (int(_t.time()) - budget.STALE_RESERVATION_S - 5, old))
+    before = budget.state()
+    assert budget.sweep_stale_reservations() == 1
+    after = budget.state()
+    assert after["committed_usd"] == pytest.approx(before["committed_usd"])        # nothing handed back
+    assert after["reserved_usd"] == pytest.approx(0.04) and after["settled_usd"] == pytest.approx(0.2)
+    assert after["calls"]["released"] == 0
+    budget.release(old)                                                           # too late: stays charged
+    budget.settle(old, actual_usd=0.001)
+    assert budget.turn_committed_usd(rid) == pytest.approx(0.24)
+    assert budget.sweep_stale_reservations() == 0                                 # the fresh one is untouched
+    budget.settle(fresh, actual_usd=0.01)
+
+
+def test_SWEEP_runs_inside_every_reservation_and_is_bounded(clean, monkeypatch):
+    import contextlib
+    import time as _t
+    monkeypatch.setattr(budget, "STALE_SWEEP_LIMIT", 3)
+    ids = [_reserve(None, 0.01) for _ in range(5)]
+    with contextlib.closing(budget._connect()) as c:
+        c.execute("UPDATE agent_spend SET created_at = ? WHERE id IN (%s)" % ",".join("?" * len(ids)),
+                  (int(_t.time()) - 10_000, *ids))
+    _reserve(None, 0.01)                                                          # one reservation sweeps 3 of 5
+    assert budget.state()["calls"]["open"] == 3
+    _reserve(None, 0.01)                                                          # the next sweeps the other 2
+    st = budget.state()
+    assert st["calls"]["open"] == 2 and st["committed_usd"] == pytest.approx(0.07)
+
+
+def test_TELEMETRY_a_paid_lookup_whose_results_are_not_read_is_still_counted(clean, monkeypatch):
+    kw = _first_call_kwargs(message=QUESTION, context={}, history=[])
+    after = budget.worst_case_usd({**kw, "messages": kw["messages"] + [{"role": "assistant", "content": json.dumps(RESEARCH_ENV)},
+                                                                      {"role": "user", "content": "r" * turn.RESEARCH_RESULT_BYTES}]})
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(0.0016 + budget.research_worst_case_usd() + after + 0.002, 6)))
+    monkeypatch.setattr(turn, "_research", lambda q, r: {"answer": "é" * 2400, "citations": ["https://x.example/" + "p" * 9000] * 6,
+                                                         "cached": False, "cost_usd": 0.02, "attempts": 2})
+    rid = budget.open_request("u", "c", QUESTION)
+    out = turn.run_turn(message=QUESTION, context={}, history=[], caller=_caller([], RESEARCH_ENV),
+                        meter=budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    assert out["usage"]["research_unread"] == "turn_cap" and out["usage"]["research_calls"] == 1
+
+
+def test_WORDING_no_absolute_claims_in_the_budget_code():
+    src = open(budget.__file__, encoding="utf-8").read()
+    for phrase in ("not a guess", "By construction", "An upper bound on one"):
+        assert phrase not in src

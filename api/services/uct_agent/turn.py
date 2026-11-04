@@ -1387,7 +1387,8 @@ def _research(query: str, recency: str) -> dict:
     if res.get("error"):
         return {"answer": "research unavailable right now", "citations": []}
     return {"answer": str(res.get("answer") or "")[:2400], "citations": list(res.get("citations") or [])[:6],
-            "cached": bool(res.get("cached")), "cost_usd": res.get("cost_usd")}
+            "cached": bool(res.get("cached")), "cost_usd": res.get("cost_usd"),
+            "attempts": res.get("attempts"), "usage_reported": res.get("usage_reported")}
 
 
 def _default_caller(**kwargs):
@@ -2639,8 +2640,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                     env["disposition"] = "answer"
                 if env.get("disposition") not in MUTATING:
                     env = {**env, "disposition": "answer", "ops": []}
-                usage["research_calls"] -= 1        # nothing the web returned reaches the reply: no research guard below
-                pre_research = None
+                pre_research = None                 # the lookup ran and is counted; nothing it returned is read
             else:
                 usage["citations"].extend(r["citations"])
                 messages = messages + follow
@@ -2657,7 +2657,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
-        if usage["research_calls"] and isinstance(env, dict) and (env.get("disposition") != "answer" or env.get("ops")):
+        research_read = usage["research_calls"] and not usage.get("research_unread")
+        if research_read and isinstance(env, dict) and (env.get("disposition") != "answer" or env.get("ops")):
             # ⛔ Text retrieved from the web is DATA: it may inform an answer, never
             # drive a change in the same turn. A turn that researched is an answer;
             # the member asks for any change themselves afterwards.
@@ -2667,7 +2668,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    "reply": ("I looked that up, but I don't make changes based on what I find online in the same "
                              "step. Tell me exactly what you'd like changed and I'll do it.") if mutated or not env.get("reply")
                    else env.get("reply")}
-        if not answer_only and not usage["research_calls"]:
+        if not answer_only and not research_read:
             env = promote_talk_reads(env, msg, cap_names)
         if isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
