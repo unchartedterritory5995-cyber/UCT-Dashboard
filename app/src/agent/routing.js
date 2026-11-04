@@ -40,8 +40,10 @@ export const GROUPS = [
     // Gate B vocabulary (soft): an overlay or a symbol swap said without "compare" / "chart"
     vocab: [/\b(next to (this|it)|on top of (this|it)|swap \$?[a-z]{1,5} (for|with)|instead of \$?[a-z]{1,5})\b/],
     words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|hourly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
-      /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(theme|colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing|thin bars|invert|template|defaults?|tabs?|compar(?:e|es|ing|isons?)|versus|against|overlays?|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
+      /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(theme|colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|thin bars|invert|template|defaults?|tabs?|compar(?:e|es|ing|isons?)|versus|against|overlays?|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
       /\bvolume\b/,
+      // CG-20 (corpus #774): "swing" (swing labels) — not a layout's / list's NAME ("open my Swing layout")
+      /^(?!.*\b(?:layouts?|watch ?lists?|lists?|screens?|templates?)\b).*\bswing\b/,
       // P1: a symbol / setting put on a chart NAMED by position or order ("TSLA on the left", "on the second one")
       /\bon the (left|right|top|bottom|first|second|third|fourth|last|middle)\b/] },
   // Charts operator P1 (2026-10-27): the rest of a chart's own controls, in their OWN group so the NL-1 core
@@ -87,7 +89,9 @@ export const GROUPS = [
   // INDICATORS M1 (agreed with Indicators, AGENT-INTEGRATION-HANDOFF §11). A message matching an
   // indicators word AND a charts word routes BOTH; the hints decide.
   { id: 'indicators', title: 'Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)', domains: ['indicator'],
-    words: [/\bindicators?\b/, /\b(rsi|macd|ema|sma|vwap|atr|bollinger|keltner|stochastic|supertrend|regression|correlation|momentum|oscillator|histogram)\b/,
+    words: [/\bindicators?\b/, /\b(rsi|macd|ema|sma|vwap|atr|bollinger|keltner|stochastic|supertrend|regression|correlation|oscillator|histogram)\b/,
+      // CG-18 (corpus #774): "momentum" names an indicator — not in a screen's / list's name ("run my Momentum screen")
+      /^(?!.*\b(?:screens?|scans?|screener|watch ?lists?|lists?)\b).*\bmomentum\b/,
       // W2 (CG-4): an indicator spelled out ("add the relative strength index") — not the screener's RS words
       /\b(relative strength index|moving average convergence|average true range|exponential moving average|simple moving average|volume[- ]weighted average)\b/,
       // ⭐ acceptance 2026-10-29: "each with a 50sma", "9ema" — a length typed against its type
@@ -96,7 +100,9 @@ export const GROUPS = [
       /\bwhat'?s on (this|the|my) chart\b|\b(have|got) the \d+ on\b|\b\d+ (line|ma|average)\b/,
       // Gate C: moving averages by name or by LENGTH ("add a 200 day moving average", "add the 9 and 20",
       // "put the 50 on it", "make it a 9" after an add) and the short names traders type ("bollies", "bb")
-      /\bmoving averages?\b|\b(mas?|bbands?|bb|bollies|boll)\b|\b\d{1,3}[- ]?(?:day|week|period)\b/,
+      /\bmoving averages?\b|\b(mas?|bbands?|bb|bollies|boll)\b/,
+      // CG-19 (corpus #774): a LENGTH ("the 200 day") — not in a question over a universe of stocks ("% of stocks above the 50 day")
+      /^(?!.*\b(?:percent|%|pct|share|how many)\b.*\b(?:stocks|names|issues)\b)(?!.*\b(?:stocks|names|issues)\b.*\b(?:above|below)\b).*\b\d{1,3}[- ]?(?:day|week|period)\b/,
       /\b(add|put|throw|slap|stick|plot|show|hide|remove|take off|clear|get rid of|make|swap|replace)\b.*\bthe \d{1,3}(?:\s*(?:,|and|&)\s*(?:the )?\d{1,3})*\b/,
       /\b(build|make|create|write|code)\b.*\b(indicator|study|signal|formula)\b/, /\b(when|whenever|if)\b.*\b(cross(es)?|above|below)\b/,
       // a colour RULE ("colour the candles by trend"), not a colour ("colour the candles green")
@@ -185,9 +191,12 @@ export const GROUPS = [
   // W2-B1 (RS-1): `research.ask` rides in this group by domain ("why is X down", "what's driving …", catalysts);
   // W2-B2: `history.afterEvent` too ("how has X behaved after …", "what happens after …")
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
-    words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
+    // CG-21 (corpus #774): "news" — not the News WIDGET ("add a news widget")
+    words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
       /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/,
       DATA_HISTORY,
+      // CG-12 (corpus #774): "tell me about AAPL", "tell me about TSM the company"
+      /\btell me (?:a (?:little|bit) )?about\b/,
       // CG-11 / CG-13 (corpus #769): "how much is NVDA (right now)", "how does NVDA stack up against AMD"
       /\bhow much is \$?[a-z]{1,5}\b|\bwhat(?:'s| is) \$?[a-z]{1,5} (?:at|worth|going for)\b/, /\bstacks? up (?:against|to|with|vs\.?|versus)\b/],
     // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"

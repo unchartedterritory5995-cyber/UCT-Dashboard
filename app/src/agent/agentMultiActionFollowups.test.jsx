@@ -734,3 +734,17 @@ describe('CG-10..16 · corpus gaps (#769): never the opposite action, never a qu
     expect(turnBodies()).toHaveLength(0)
   }, 30000)
 })
+
+describe('CG-12/18..21 · routing collisions (#774): each everyday phrasing is named only by its owner', () => {
+  it('a name or a widget never pulls in another group by one of its words', () => {
+    expect(wordsSelect('data', 'tell me about AAPL')).toBe(true)
+    expect(wordsSelect('indicators', 'run my Momentum screen')).toBe(false)
+    expect(wordsSelect('indicators', 'add the momentum indicator')).toBe(true)
+    expect(wordsSelect('indicators', 'what percent of stocks are above the 50 day')).toBe(false)
+    expect(wordsSelect('indicators', 'add a 200 day moving average')).toBe(true)
+    expect(wordsSelect('charts', 'open my Swing layout')).toBe(false)
+    expect(wordsSelect('charts', 'show swing labels')).toBe(true)
+    expect(wordsSelect('data', 'add a news widget')).toBe(false)
+    expect(wordsSelect('data', 'NVDA news')).toBe(true)
+  })
+})
