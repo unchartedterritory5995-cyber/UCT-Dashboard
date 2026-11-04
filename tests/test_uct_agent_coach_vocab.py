@@ -176,3 +176,15 @@ def test_a_later_model_request_never_contains_brain_text(monkeypatch):
         turn.run_turn(message="and then?", context=ctx, history=_knowledge_rows(f"From UCT's playbook: {PASSAGE}"),
                       capabilities=CAPS, caller=caller)
         assert PASSAGE not in json.dumps(seen["messages"])
+
+
+def test_751_only_a_real_template_citation_switches_the_definition_check_off():
+    """#751 B-1: "From UCT's playbook" (a passage -- possibly team commentary), "approved playbook", "Setup Library" are not
+    a citation of a definition; only coach.explain's own setup.playbook template header is."""
+    for reply in ("From UCT's playbook — Watching a cup: A cup and handle is a rounded base with a short dip.",
+                  "Per the approved playbook, a VCP is a base whose pullbacks contract.",
+                  "See the Setup Library: the EP refers to a big news gap.",
+                  "UCT team commentary that mentions Cup with Handle (not UCT's definition of it) — A cup and handle is a rounded base."):
+        assert setups.uncited_setup_definitions(reply), reply
+    cited = "VCP — from UCT's setup template (the approved playbook):\nWhat it is: a base whose pullbacks contract."
+    assert setups.uncited_setup_definitions(cited) == []

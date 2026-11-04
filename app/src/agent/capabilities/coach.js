@@ -140,7 +140,10 @@ async function explainSetup(setup, topic, c, rows, host) {
   }
   const p = await brainPassage(topic)
   if (p) {
-    const g = guardEnforce(`${noDefinition(setup)} The closest approved passage:\n${p.text}${bg ? `\n\n${BACKGROUND_HEADING}\n${bg.text}` : ''}`,
+    // #751 B-1: a COMMENTARY passage (it mentions an excluded setup) is never "the closest approved passage" — its own
+    // text already says it is team commentary, not UCT's definition
+    const lead = p.commentary ? 'Related UCT team commentary:' : 'The closest approved passage:'
+    const g = guardEnforce(`${noDefinition(setup)} ${lead}\n${p.text}${bg ? `\n\n${BACKGROUND_HEADING}\n${bg.text}` : ''}`,
       [p.text, bg?.text || '', setup])
     if (!g.violations.length) return { text: g.text, title: p.title || setup, storedAs: knowledgeMarker([p.cite]), ...(next ? { next } : {}) }
   }
@@ -179,7 +182,8 @@ export async function explainConcept(topic, host) {
   const g = guardEnforce(body, [c.text, obs || ''])
   const next = nextFor({ after: 'explain', conceptId: c.id, consent: consentState(), hasChart: !!observedChart(host), concepts: rows })
   if (brain) {
-    const b = guardEnforce(`${brain.text}\n\n${body}`, [brain.text, c.text, obs || ''])
+    // #751 B-1: team commentary never leads the coach note (it follows it, labelled); an approved passage still leads
+    const b = guardEnforce(brain.commentary ? `${body}\n\n${brain.text}` : `${brain.text}\n\n${body}`, [brain.text, c.text, obs || ''])
     if (!b.violations.length) return { text: b.text, title: c.title, next, storedAs: knowledgeMarker([brain.cite]) }
   }
   return { text: g.text, title: c.title, next }

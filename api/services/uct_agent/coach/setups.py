@@ -68,8 +68,10 @@ _DEF_TAIL = (r"(?:s|es)?\s*(?:\([^)]{0,40}\)\s*)?(?:(?:is|are|means|refers to|is
 _DEF_FORMS = [(name or " / ".join(AMBIGUOUS[form]), re.compile(r"(?:^|[^A-Za-z0-9])" + _body(form) + _DEF_TAIL,
                                                                  0 if form in ("EP", "PEG") else re.I))
               for name, form, _rx_ in _FORMS]
-# the reply cites UCT's playbook (what coach.explain itself writes when it teaches from a template or a passage)
-_CITES = re.compile(r"UCT's setup template|approved playbook|From UCT's playbook|Setup Library|UCT's playbook", re.I)
+# the reply carries a REAL setup.playbook template citation -- the exact header coach.explain writes when it teaches
+# from a template (coach/brain.js setupTemplate). #751 B-1: "From UCT's playbook" (a passage, possibly team commentary),
+# "approved playbook", "Setup Library" and the like are NOT a citation of a definition.
+_CITES = re.compile(r"— from UCT's setup template \(the approved playbook\):", re.I)
 
 
 def uncited_setup_definitions(reply: str) -> list[str]:
