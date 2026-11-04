@@ -97,6 +97,8 @@ _DIRECT_USER_TABLES = (
     "j2_note_sources",
     "j2_note_sync_log",
     "j2_note_remote_index",
+    # L4 (2026-11-03): what each synced note's content-named media ref is stored as.
+    "j2_note_import_media",
     "j2_obsidian_devices",
     "j2_obsidian_staging",
     "j2_obsidian_manifest",

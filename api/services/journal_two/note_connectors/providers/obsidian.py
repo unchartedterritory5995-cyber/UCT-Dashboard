@@ -1920,6 +1920,15 @@ class ObsidianProvider(NoteProvider):
             conn.close()
         return [RemoteRef(remote_id=r["vault_path"], updated_at=r["recorded_at"]) for r in rows]
 
+    def media_ref_names_content(self, ref: str) -> bool:
+        """L4 (2026-11-03): a staged-blob ref (`obsidian-att:<sha256>/...`,
+        `obsidian-file:<sha256>/...`) names its bytes, so the engine reuses what a note already
+        stored for it on an update. A hotlink (`http(s)://`) does not: its bytes can change."""
+        for scheme in (ATT_SCHEME, FILE_SCHEME):
+            if isinstance(ref, str) and ref.startswith(scheme):
+                return bool(_SHA_RE.fullmatch(ref[len(scheme):].split("/", 1)[0]))
+        return False
+
     def pending_renames(self, conn: Any, remote_ids: list[str]) -> list[dict[str, Any]]:
         """L2 (2026-11-03): the renames a final push recorded (`obsidian_staging._record_renames`)
         whose NEW path is among `remote_ids`, still true now: the old path is not back in the

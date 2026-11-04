@@ -3240,6 +3240,80 @@ def _decide_and_store(
     return media_policy.store_media(user_id, note_id, decide(data, content_type, name), budget=budget)
 
 
+def _media_reuse_on(provider: NoteProvider) -> bool:
+    """L4: the provider names media by CONTENT for some refs (`media_ref_names_content(ref)`;
+    Obsidian's staged-blob refs carry their sha256), so a ref seen again is the same bytes."""
+    return callable(getattr(provider, "media_ref_names_content", None))
+
+
+def _stored_file_exists(user_id: str, note_id: str, url: str) -> bool:
+    """Whether a stored UCT attachment URL of THIS note still has its file (the attachment
+    GC removes unreferenced ones), through the path resolver the attachment door serves with."""
+    parts = (url or "").rsplit("/", 2)
+    if len(parts) != 3:
+        return False
+    path = notes_svc.serve_note_image_path(user_id, note_id, parts[1], parts[2])
+    return path is not None and path.is_file()
+
+
+def _stored_from_json(raw: str) -> media_policy.StoredMedia | None:
+    try:
+        d = json.loads(raw)
+        original = d.pop("original", None)
+        return media_policy.StoredMedia(
+            **d, original=media_policy.StoredMedia(**original) if original else None)
+    except (TypeError, ValueError):
+        return None
+
+
+def _reusable_stored_media(
+    conn: sqlite3.Connection, user_id: str, note_id: str, provider: NoteProvider, refs: list[Any],
+) -> dict[str, media_policy.StoredMedia]:
+    """L4 (live Obsidian probe 2026-11-03): `{ref: StoredMedia}` this note already stored for
+    the content-named refs among `refs` (`j2_note_import_media`), whose files (and kept original)
+    are all still on disk. Reused as they are: same URL, no fetch, no copy, nothing reserved
+    under the media cap (the bytes are already counted). Anything else is fetched as before."""
+    wanted = sorted({r for r in refs if isinstance(r, str) and provider.media_ref_names_content(r)})
+    out: dict[str, media_policy.StoredMedia] = {}
+    for i in range(0, len(wanted), 400):  # sqlite variable-limit safety
+        part = wanted[i:i + 400]
+        for row in conn.execute(
+                "SELECT ref, stored_json FROM j2_note_import_media WHERE user_id = ? AND note_id = ?"
+                f" AND ref IN ({','.join('?' * len(part))})", (user_id, note_id, *part)):
+            stored = _stored_from_json(row["stored_json"])
+            if stored is None or not _stored_file_exists(user_id, note_id, stored.url):
+                continue
+            if stored.original is not None and not _stored_file_exists(
+                    user_id, note_id, stored.original.url):
+                continue
+            out[row["ref"]] = stored
+    return out
+
+
+def _record_stored_media(
+    conn: sqlite3.Connection, user_id: str, note_id: str, provider: NoteProvider,
+    resolved: dict[str, media_policy.StoredMedia], note_refs: list[str],
+) -> None:
+    """L4: remember what each content-named ref of this note is stored as, for the next update
+    (`_reusable_stored_media`), and forget the refs the note no longer has. Upserts only: a media
+    retry resolves a subset and must not forget the refs resolved on an earlier pass. Rows beside
+    the note, never attrs in the body: the editor's schema would drop an extra attr on save.
+    Commits."""
+    keep = sorted({r for r in note_refs if isinstance(r, str)})
+    conn.execute(
+        "DELETE FROM j2_note_import_media WHERE user_id = ? AND note_id = ?"
+        " AND ref NOT IN (SELECT value FROM json_each(?))",
+        (user_id, note_id, json.dumps(keep)))
+    now = _now_iso()
+    conn.executemany(
+        "INSERT OR REPLACE INTO j2_note_import_media (user_id, note_id, ref, stored_json, recorded_at)"
+        " VALUES (?, ?, ?, ?, ?)",
+        [(user_id, note_id, ref, json.dumps(dataclasses.asdict(stored)), now)
+         for ref, stored in resolved.items()
+         if isinstance(ref, str) and provider.media_ref_names_content(ref)])
+    conn.commit()
+
+
 async def _upload_media_for_note(
     provider: NoteProvider, creds: dict[str, Any], user_id: str, note_id: str,
     media_entries: list[dict[str, Any]], *, prior_attempts: dict[str, int],
@@ -3617,11 +3691,19 @@ async def _confirm_and_resolve_batch(
         resolved: dict[str, media_policy.StoredMedia] = {}
         notices: dict[str, dict] = {}
         waiting: list[tuple[str, float | None]] = []
+        reuse = _media_reuse_on(provider)
         if media:
-            resolved, notices, up, med_failures = await _upload_media_for_note(
-                provider, creds, user_id, note_id, media,
+            # L4 (2026-11-03): an update reuses what this note already stored for an unchanged,
+            # content-named ref (same URL, nothing fetched or copied); the rest is fetched.
+            reused = (await asyncio.to_thread(
+                _reusable_stored_media, conn, user_id, note_id, provider,
+                [m.get("ref") for m in media]) if reuse and status != "created" else {})
+            to_fetch = [m for m in media if m.get("ref") not in reused]
+            resolved, notices, up, med_failures = (await _upload_media_for_note(
+                provider, creds, user_id, note_id, to_fetch,
                 prior_attempts=(notice_attempts or {}).get(key, {}), budget=budget,
-                rate_limited_out=waiting)
+                rate_limited_out=waiting) if to_fetch else ({}, {}, 0, []))
+            resolved = {**reused, **resolved}
             if waiting:
                 known = [w for _r, w in waiting if isinstance(w, (int, float))]
                 result["rateLimitedRefs"].append((rn.remote_id, max(known) if known else None))
@@ -3681,6 +3763,9 @@ async def _confirm_and_resolve_batch(
                 result["touched"].append((rn, key, note_id))  # placeholder still intact
             continue
         if applied:
+            if reuse:
+                _record_stored_media(conn, user_id, note_id, provider, resolved,
+                                     _placeholder_refs(rn.doc))
             # I8: an attachment waiting on the rate limit is no failure to list.
             waiting_refs = {r for r, _w in waiting}
             result["noticeFailures"].extend(_notice_failures(

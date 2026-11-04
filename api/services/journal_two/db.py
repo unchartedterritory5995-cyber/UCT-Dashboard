@@ -844,6 +844,21 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_renames (
     PRIMARY KEY (user_id, vault_id, new_path)
 );
 
+-- L4 (live Obsidian probe 2026-11-03): what a synced note's content-named media ref (an
+-- Obsidian blob ref carries its sha256) is stored as, so an update reuses the stored file (same
+-- URL, no fetch, no copy) instead of copying every attachment again on every edit. One row per
+-- (note, ref); `stored_json` is a media_policy.StoredMedia. Written and read only by the sync
+-- engine (`_record_stored_media` / `_reusable_stored_media`); a reuse also checks the file is
+-- still on disk. Member data: purged with the account (account_purge).
+CREATE TABLE IF NOT EXISTS j2_note_import_media (
+    user_id     TEXT NOT NULL,
+    note_id     TEXT NOT NULL,
+    ref         TEXT NOT NULL,
+    stored_json TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, note_id, ref)
+);
+
 -- 2026-09-02 adversarial audit, "single-process assumptions" #1:
 -- obsidian_link.py's connect-code epoch (closes I6 -- a pre-disconnect
 -- code redeeming into a full reconnection) used to live in a bare

@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**151 tables in auth.db** (140 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
+**152 tables in auth.db** (141 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -111,6 +111,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_note_sources` | `user_id` | Direct | `DELETE FROM j2_note_sources WHERE user_id = ?` |
 | `j2_note_sync_log` | `user_id` | Direct | `DELETE FROM j2_note_sync_log WHERE user_id = ?` |
 | `j2_note_remote_index` | `user_id` | Direct | `DELETE FROM j2_note_remote_index WHERE user_id = ?` |
+| `j2_note_import_media` | `user_id` | Direct | `DELETE FROM j2_note_import_media WHERE user_id = ?` |
 | `j2_obsidian_devices` | `user_id` | Direct | `DELETE FROM j2_obsidian_devices WHERE user_id = ?` |
 | `j2_obsidian_staging` | `user_id` | Direct | `DELETE FROM j2_obsidian_staging WHERE user_id = ?` |
 | `j2_obsidian_manifest` | `user_id` | Direct | `DELETE FROM j2_obsidian_manifest WHERE user_id = ?` |
