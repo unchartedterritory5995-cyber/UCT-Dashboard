@@ -54,6 +54,7 @@ import hashlib
 import json
 import logging
 import os
+import sqlite3
 import time
 from datetime import datetime
 from typing import Any, Callable
@@ -89,8 +90,8 @@ UNAVAILABLE = ("UCT Agent can't check its AI budget right now, so nothing was se
 STEP_LIMIT = "That request needed more AI steps than one request is allowed, so nothing was changed. Try asking in smaller parts."
 TURN_CAP_FIRST = ("That request is larger than one turn's AI budget allows, so nothing was sent and nothing changed. "
                   "Try a shorter request or a new chat.")
-TURN_CAP_LATER = ("That request reached one turn's AI budget, so I stopped before this step and it changed nothing. "
-                  "Anything UCT already did is shown above; ask for the rest on its own.")
+TURN_CAP_LATER = ("That request reached one turn's AI budget, so I stopped before finishing it. Nothing was changed. "
+                  "Try asking in smaller parts.")
 
 
 class BudgetRefused(Exception):
@@ -171,13 +172,26 @@ def _connect():
     conn = store._connect()
     conn.isolation_level = None
     if _READY_FOR != store._DB_PATH:
-        conn.executescript(_SCHEMA)
-        # a ledger created before the per-turn cap gets its column (idempotent; older rows carry NULL)
-        if "turn_request_id" not in {r[1] for r in conn.execute("PRAGMA table_info(agent_spend)").fetchall()}:
-            conn.execute("ALTER TABLE agent_spend ADD COLUMN turn_request_id INTEGER")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_spend_turn ON agent_spend(turn_request_id)")
+        try:
+            conn.executescript(_SCHEMA)
+            _add_turn_column(conn)
+        except Exception:
+            conn.close()                     # never leak the connection on a failed first open
+            raise
         _READY_FOR = store._DB_PATH
     return conn
+
+
+def _add_turn_column(conn) -> None:
+    """A ledger created before the per-turn cap gets its column (older rows carry NULL). Two first opens racing
+    may both see it missing: the loser's "duplicate column" means the winner already added it."""
+    if "turn_request_id" not in {r[1] for r in conn.execute("PRAGMA table_info(agent_spend)").fetchall()}:
+        try:
+            conn.execute("ALTER TABLE agent_spend ADD COLUMN turn_request_id INTEGER")
+        except sqlite3.OperationalError as e:
+            if "duplicate column" not in str(e).lower():
+                raise
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_spend_turn ON agent_spend(turn_request_id)")
 
 
 # ── worst cases ─────────────────────────────────────────────────────────────────────────────────
@@ -189,8 +203,13 @@ def _price(model: str, **tokens) -> float:
 
 
 def request_bytes(kwargs: dict) -> int:
+    """UTF-8 bytes of what the model reads. The output schema (`output_config`) is counted TWICE: the provider
+    renders a structured-output schema into the prompt in addition to constraining the reply with it."""
     body = {k: kwargs.get(k) for k in ("system", "messages", "output_config", "tools", "tool_choice")}
-    return len(json.dumps(body, ensure_ascii=False, default=str).encode("utf-8"))
+    n = len(json.dumps(body, ensure_ascii=False, default=str).encode("utf-8"))
+    if kwargs.get("output_config") is not None:
+        n += len(json.dumps(kwargs.get("output_config"), ensure_ascii=False, default=str).encode("utf-8"))
+    return n
 
 
 def _has_1h_cache(node: Any) -> bool:

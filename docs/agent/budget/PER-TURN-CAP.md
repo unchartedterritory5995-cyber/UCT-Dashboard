@@ -31,17 +31,22 @@ call) cannot both fit in the same headroom. After the call, `settle()` replaces 
 
 A refused call is **never made and never shortened** (`max_tokens` is not lowered to fit). The member gets a fixed
 sentence: `TURN_CAP_FIRST` when nothing of the request has run yet ("nothing was sent and nothing changed"), otherwise
-`TURN_CAP_LATER` ("I stopped before this step and it changed nothing. Anything UCT already did is shown above"). The
+`TURN_CAP_LATER` ("I stopped before finishing it. Nothing was changed."). The
 v1 server never applies an op itself; ops reach the browser only in a returned envelope, so a refused call can never
 leave an op half-reported. Optional steps are checked up front and skipped honestly instead of failing late: the
 server repair is skipped if the repair call cannot fit (the first plan is served through the usual checks), and
 research is skipped with `RESEARCH_TURN_CAP` unless the lookup **and** the call that reads it both fit (a mixed
-request keeps its planned change). The naming call is a nicety: refused, the chat keeps its first-message name.
+request keeps its planned change). After the lookup, the REAL results are measured before the call that reads them
+is reserved; if they do not fit, the turn ends with `RESEARCH_UNREAD_TURN_CAP` (the lookup ran and is paid; nothing
+from it reaches the reply) instead of a late refusal. The naming call is a nicety: refused, the chat keeps its
+first-message name. A refused NL-1 browser repair is not written to the transcript: the browser ignores a failed
+repair and serves its first plan, so the stored chat matches what the member saw.
 
 ## Worst case per call (Haiku 4.5: $1 in, $1.25 cache write, $5 out per MTok — `narrative_cost_guard._PRICES`)
 
-Model call: `(UTF-8 bytes of system + messages + output schema + 4000 framing) x cache-write rate + max_tokens x
-output rate`. A token is never shorter than a byte, and the 1.25x cache write is the dearest way input is billed
+Model call: `(UTF-8 bytes of system + messages + 2 x output schema + 4000 framing) x cache-write rate + max_tokens x
+output rate`. The schema is counted twice because the provider renders a structured-output schema into the prompt as
+well as constraining the reply with it. A token is never shorter than a byte, and the 1.25x cache write is the dearest way input is billed
 (a block asking for the 1-hour cache is priced at 2x).
 
 | call | max_tokens | measured request | worst case |
@@ -59,7 +64,13 @@ headroom at a time (call 1 settles at its real cost, typically a few cents).
 * **Not a provider guarantee.** The Messages API has no per-request dollar ceiling. The bound rests on: tokens <=
   bytes + 4000 framing; billed output <= `max_tokens` (thinking included); the repo price table being right; no
   server tools, data-residency or long-context multipliers on these requests (v1 uses none). Within those
-  assumptions the $0.25 holds; it is not an absolute guarantee.
+  assumptions the $0.25 holds; it is not an absolute guarantee. Under the bytes + 4000 assumption:
+  * the provider's own framing (role markers, any schema rendering beyond the second copy counted) is assumed
+    to fit in 4000 tokens;
+  * the 12 KB research-result allowance used by the research PRE-CHECK is not a bound (a non-ASCII answer or long
+    citation URLs exceed it). It only decides whether to start the lookup: the real results are measured before the
+    follow-up call, and that call's own reservation is exact, so the cap still holds; the cost of exceeding the
+    allowance is a paid lookup whose results are not read (`RESEARCH_UNREAD_TURN_CAP`).
 * **Research is a different provider.** Its bound and its settled cost both come from `perplexity_search._PPLX_PRICES`
   and `PPLX_REQUEST_FEE_USD` ($0.006). Perplexity's per-request fee rises with search context size; if the account is
   billed the higher tiers, the research bound is low by up to $0.008 per attempt.

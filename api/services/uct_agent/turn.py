@@ -1525,6 +1525,8 @@ RESEARCH_NOT_RUN = ("I couldn't look that up right now, so I haven't answered fr
                     "Please ask again later.")
 RESEARCH_TURN_CAP = ("I'd need to look that up, but this request has reached one turn's AI budget, so I haven't. "
                      "Ask it again on its own and I'll check current information.")
+RESEARCH_UNREAD_TURN_CAP = ("I looked that up, but reading the results would go past one turn's AI budget, so I haven't "
+                            "answered from them. Ask it again on its own and I'll check current information.")
 #: The pre-check's allowance for the research block the post-research call carries (answer <= 2400 characters,
 #: <= 6 citations). An allowance, not a bound: that call's own reservation is exact.
 RESEARCH_RESULT_BYTES = 12000
@@ -2619,15 +2621,30 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                 r = _research(str(req["query"]), str(req.get("recency") or "any"))
                 usage["stages"]["research"] = _ms(t_research)
             r = {"answer": r.get("answer", ""), "citations": list(r.get("citations") or [])}   # ledger fields never reach the model
-            usage["citations"].extend(r["citations"])
-            messages = messages + [
+            follow = [
                 {"role": "assistant", "content": text},
                 {"role": "user", "content": _block("research_results", r)
                  + "\nAnswer the member's request from these results. Set research to null (and `title` as instructed). If the results "
                    "say research is unavailable or do not cover the question, say plainly that you could not "
                    "retrieve current information; never present facts from memory as current."},
             ]
-            continue
+            if not _affords_next(meter, call_kw, follow):
+                # the pre-check used an allowance for the results; the REAL results (measured here, before the call is
+                # reserved) do not fit: the turn ends honestly instead of being refused half-way. A planned change stays.
+                usage["research_unread"] = "turn_cap"
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
+                env = {**env, "reply": RESEARCH_UNREAD_TURN_CAP, "research": None, "question": None}
+                if env.get("disposition") == "clarify":
+                    env["disposition"] = "answer"
+                if env.get("disposition") not in MUTATING:
+                    env = {**env, "disposition": "answer", "ops": []}
+                usage["research_calls"] -= 1        # nothing the web returned reaches the reply: no research guard below
+                pre_research = None
+            else:
+                usage["citations"].extend(r["citations"])
+                messages = messages + follow
+                continue
         if pre_research is not None and isinstance(env, dict):
             # The change planned before the research, with the researched answer as its reply.
             env = {**env, "disposition": pre_research["disposition"], "ops": pre_research["ops"],

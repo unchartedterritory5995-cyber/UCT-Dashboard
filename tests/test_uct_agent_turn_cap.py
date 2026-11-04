@@ -483,3 +483,116 @@ def test_FAILURE_an_error_event_after_the_stream_started_is_settled_never_releas
     with pytest.raises(anthropic.InternalServerError):
         m.call("turn", overloaded, **KW)
     assert budget.turn_committed_usd(rid) == pytest.approx((1000 + 2048 * 5) / 1e6) and budget.state()["calls"]["released"] == 0
+
+
+# ═══ review #785 nits ═══════════════════════════════════════════════════════════════════════════
+def test_MIGRATION_two_first_opens_racing_on_an_old_ledger_both_succeed_and_add_the_column_once(tmp_path):
+    """Two threads, each on its own connection to a ledger from before the per-turn cap, both read the column as
+    missing before either adds it (the first-boot race): the loser's "duplicate column" is tolerated, no call fails."""
+    import contextlib
+    import sqlite3
+    db = str(tmp_path / "old_ledger.db")
+    with contextlib.closing(sqlite3.connect(db)) as c:
+        c.execute("CREATE TABLE agent_spend (id INTEGER PRIMARY KEY AUTOINCREMENT, et_day TEXT NOT NULL, request_id INTEGER,"
+                  " status TEXT NOT NULL, reserved_usd REAL NOT NULL)")
+        c.commit()
+    gate = threading.Barrier(2, timeout=20)
+
+    class StaleRead:
+        """A connection whose PRAGMA answer was read before the gate, like two first opens interleaving."""
+
+        def __init__(self):
+            self.conn = sqlite3.connect(db, timeout=30, isolation_level=None, check_same_thread=False)
+            self.cols = [r[1] for r in self.conn.execute("PRAGMA table_info(agent_spend)").fetchall()]
+
+        def execute(self, sql, *a):
+            if sql.startswith("PRAGMA"):
+                return types.SimpleNamespace(fetchall=lambda: [(i, c) for i, c in enumerate(self.cols)])
+            return self.conn.execute(sql, *a)
+
+    errors, done = [], []
+
+    def first_open():
+        c = StaleRead()
+        try:
+            gate.wait()
+            budget._add_turn_column(c)
+            done.append(1)
+        except Exception as e:  # noqa: BLE001
+            errors.append(repr(e))
+        finally:
+            c.conn.close()
+
+    ts = [threading.Thread(target=first_open) for _ in range(2)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert errors == [] and len(done) == 2
+    with contextlib.closing(sqlite3.connect(db)) as c:
+        cols = [r[1] for r in c.execute("PRAGMA table_info(agent_spend)").fetchall()]
+    assert cols.count("turn_request_id") == 1
+
+
+def test_MIGRATION_a_failed_first_open_closes_its_connection(monkeypatch):
+    import sqlite3
+    closed = []
+
+    class Broken:
+        isolation_level = ""
+
+        def executescript(self, s):
+            raise sqlite3.OperationalError("disk I/O error")
+
+        def close(self):
+            closed.append(1)
+
+    monkeypatch.setattr(store, "_connect", lambda: Broken())
+    monkeypatch.setattr(budget, "_READY_FOR", None)
+    with pytest.raises(sqlite3.OperationalError):
+        budget._connect()
+    assert closed == [1]
+    monkeypatch.setattr(budget, "_READY_FOR", None)
+
+
+def test_WORDING_a_later_refusal_says_nothing_was_changed():
+    assert "Nothing was changed." in budget.TURN_CAP_LATER and "shown above" not in budget.TURN_CAP_LATER
+    assert "nothing changed" in budget.TURN_CAP_FIRST
+
+
+def test_BYTES_the_output_schema_is_counted_twice():
+    no_schema = {k: v for k, v in KW.items() if k != "output_config"}
+    schema_bytes = len(json.dumps(KW["output_config"], ensure_ascii=False).encode("utf-8"))
+    # without a schema the body still carries `"output_config": null` (4 bytes)
+    assert budget.request_bytes(KW) == budget.request_bytes(no_schema) - 4 + 2 * schema_bytes
+
+
+def test_ROUTE_a_refused_browser_repair_is_not_written_to_the_transcript_the_member_never_saw_it(client, monkeypatch):
+    """useAgent.js ignores a failed NL-1 repair (r2 not ok) and serves its first plan: no 'stopped' row may appear."""
+    calls = []
+    monkeypatch.setattr(turn, "_default_caller", _caller(calls, {**ENV, "title": "RSI on the chart"}))
+    r1 = client.post("/api/agent/turn", json={"message": "add rsi"})
+    assert r1.status_code == 200
+    cid = r1.json()["conversationId"]
+    before = store.get_turns(ADMIN["id"], cid)
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(budget.state()["committed_usd"] + 0.001, 6)))
+    r2 = client.post("/api/agent/turn", json={"message": "add rsi", "reroute": True, "conversationId": cid,
+                                              "repair": {"errors": ["unknown action x.y"], "plan": []}})
+    assert r2.status_code == 400 and r2.json()["detail"] == budget.TURN_CAP_LATER
+    assert store.get_turns(ADMIN["id"], cid) == before              # nothing the member did not see
+
+
+def test_TURN_research_results_too_large_for_the_turn_are_measured_and_not_read(clean, monkeypatch):
+    """The pre-check's 12 KB allowance is not a bound: oversized real results are measured before the follow-up call
+    is reserved, and the turn ends honestly instead of a late refusal."""
+    kw = _first_call_kwargs(message=QUESTION, context={}, history=[])
+    after = budget.worst_case_usd({**kw, "messages": kw["messages"] + [{"role": "assistant", "content": json.dumps(RESEARCH_ENV)},
+                                                                      {"role": "user", "content": "r" * turn.RESEARCH_RESULT_BYTES}]})
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(0.0016 + budget.research_worst_case_usd() + after + 0.002, 6)))
+    monkeypatch.setattr(turn, "_research", lambda q, r: {"answer": "é" * 2400, "citations": ["https://x.example/" + "p" * 9000] * 6,
+                                                         "cached": False, "cost_usd": budget.research_worst_case_usd()})
+    rid = budget.open_request("u", "c", QUESTION)
+    calls = []
+    out = turn.run_turn(message=QUESTION, context={}, history=[], caller=_caller(calls, RESEARCH_ENV),
+                        meter=budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    assert len(calls) == 1 and out["usage"]["research_unread"] == "turn_cap"
+    assert out["envelope"]["reply"] == turn.RESEARCH_UNREAD_TURN_CAP and out["envelope"]["ops"] == []
+    assert budget.turn_committed_usd(rid) <= budget.turn_cap_usd()
