@@ -131,7 +131,7 @@ const GAPS = new RegExp(`^${LEAD} after (?:a |an )?(?:(\\d{1,2}(?:\\.\\d+)?)\\s?
 const HIGHS = new RegExp(`^${LEAD} after (?:it )?(?:(?:makes?|made|making|hits?|hitting|sets?|setting|breaks? out to|broke out to|breaking out to) )?(?:a |an )?(?:new )?(?:(52)[- ]?week|(\\d{1,3})[- ]?(day|session|week))s? (?:closing )?(?:highs?|breakouts?|break[- ]outs?)${TAIL}`, 'i')
 const SMA_X = new RegExp(`^${LEAD} after (?:it )?(?:cross(?:es|ed|ing)?|breaks?|broke|breaking|closes|closed|closing|moves?|moved|moving) (above|over|below|under) (?:its |the )?(\\d{1,3})[- ]?day(?: (?:simple )?(?:moving average|sma|ma|line|average))?${TAIL}`, 'i')
 const RSI_X = new RegExp(`^${LEAD} after (?:its |the )?rsi(?: ?\\(?(\\d{1,3})\\)?)? (?:(?:drops?|dropped|falls?|fell|goes|went|gets?|got|crosses|crossed|dips?|dipped|moves?|moved|rises?|rose|climbs?|climbed) )?(below|under|above|over) (\\d{1,2})${TAIL}`, 'i')
-const BREADTH_STUDY = /^(?:how|what)\b.{0,80}\b(?:after|following)\b.{0,40}\b(?:breadth thrusts?|zweig(?: breadth)?(?: thrusts?)?|breadth (?:surges?|spikes?|signals?))\b/i
+const BREADTH_STUDY = /^(?:how|what)\b[^,;]{0,80}\b(?:after|following)\b[^,;]{0,40}\b(?:breadth thrusts?|zweig(?: breadth)?(?: thrusts?)?|breadth (?:surges?|spikes?|signals?))(?: (?:historically|in the past|over time))?(?: since \d{4})?$/i   // anchored: a trailing second request is never swallowed
 const NOT_A_SYMBOL = new Set(['it', 'its', 'this', 'that', 'they', 'them', 'stocks', 'stock', 'market', 'the'])
 const normalise = (t) => String(t || '').replace(/[’`]/g, "'").trim().replace(/[?!.]+$/, '').replace(/\s+/g, ' ').trim()
 const sinceOf = (y) => (y ? `${y}-01-01` : null)

@@ -223,7 +223,7 @@ export const GROUPS = [
       // PKG2: an event study said another way ("in the weeks after gapping up 8%", "after 20-day breakouts", "after new 50-day highs")
       /\b(?:after|following) .*\b(?:gapping|gaps? (?:up|down)|breakouts?|break(?:s|ing)? out|new \d{1,3}[- ]?(?:day|week|session) (?:closing )?highs?)\b/,
       // PKG2: an index level / commodity / crypto price (the asset-class quote kinds, MD-1 §4.7.3) — "gold price", "price of bitcoin"
-      /\b(?:gold|silver|copper|crude|oil|brent|wti|natgas|natural gas|bitcoin|btc|ethereum|ether|solana)(?:'s)? (?:price|quote|at|trading)\b|\b(?:price|quote|level) (?:of|for|on) (?:gold|silver|copper|crude|oil|brent|wti|natgas|natural gas|bitcoin|btc|ethereum|ether|solana|the (?:s&p|dow|nasdaq|russell|vix))\b/,
+      /\b(?:gold|silver|copper|crude|oil|brent|wti|natgas|natural gas|bitcoin|btc|ethereum|ether|solana)(?:'s)? (?:price|quote)\b|\b(?:price|quote|level) (?:of|for|on) (?:gold|silver|copper|crude|oil|brent|wti|natgas|natural gas|bitcoin|btc|ethereum|ether|solana|the (?:s&p|dow|nasdaq|russell|vix))\b/,
       DATA_HISTORY,
       // CG-12 (corpus #774): "tell me about AAPL", "tell me about TSM the company"
       /\btell me (?:a (?:little|bit) )?about\b/,

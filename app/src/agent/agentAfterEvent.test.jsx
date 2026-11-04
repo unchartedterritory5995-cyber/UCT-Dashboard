@@ -220,6 +220,9 @@ describe('history.afterEvent: served vs dark, local-only', () => {
     expect(BREADTH_DECLINE).toMatch(/No figure is stated\.$/)
     expect(BREADTH_DECLINE).not.toMatch(/\d+(?:\.\d+)?%/)
     expect(fastParse('when was the last breadth thrust', {})?.kind).not.toBe('say')
+    // anchored: a second request after the breadth question is not swallowed by the decline
+    expect(match('how does SPY do after breadth thrusts and add rsi to the chart')).toBeNull()
+    expect(match('how did SPY do after breadth thrusts since 2010')).toEqual({ say: BREADTH_DECLINE })
   })
 
   it('served: ONE study read after instrument.resolve; the answer is the table; an unconfirmed word reads nothing', async () => {

@@ -191,10 +191,11 @@ describe('owner 2026-11-03: grounded, cited knowledge answers (the v1 answer its
     expect(answerFromRecord({ ...RECORD, ...COV })).toContain('source policy v3')
   })
   it('no approved template: said plainly, never filled in, never the policy internals', () => {
-    for (const why of ['UCT has no approved setup template named “ZZ”',
+    // review #781 finding 4: the requested name (model or classifier text) is never echoed, approved or not
+    for (const why of ['UCT has no approved setup template by that name', 'UCT has no approved setup template named “ZZ”',
       "UCT's approved knowledge does not include the Cup with Handle template: origin not approved"]) {
-      expect(answerFromPlaybook(refused('setup.playbook', why), 'Cup with Handle')).toBe('UCT has no approved playbook definition for Cup with Handle.')
-      expect(answerFromRecord(refused('setup.record', why), 'Cup with Handle')).toBe('UCT has no approved evidence for Cup with Handle.')
+      expect(answerFromPlaybook(refused('setup.playbook', why), 'Cup with Handle')).toBe('UCT has no approved playbook definition for that setup.')
+      expect(answerFromRecord(refused('setup.record', why), 'Cup with Handle')).toBe('UCT has no approved evidence for that setup.')
     }
   })
   it('a model-written setup argument that reads like a definition is never echoed', () => {

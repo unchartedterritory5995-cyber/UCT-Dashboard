@@ -30,7 +30,7 @@
     "applicable": 154
    },
    "refusal": {
-    "covered": 27,
+    "covered": 30,
     "applicable": 154
    },
    "permission": {
@@ -1808,7 +1808,7 @@
     "args": true,
     "execution": true,
     "receipt": true,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": true,
     "multiStep": true,
@@ -1836,7 +1836,8 @@
      "corpus symbol.switch",
      "GW-01.symbol-weekly-emas-log-undo",
      "GW-09.two-new-charts",
-     "refuse.tab-standin"
+     "refuse.tab-standin",
+     "refuse.bqa1.full-board-new-chart.model"
     ],
     "execution": [
      "symbol.switch (c)",
@@ -1848,7 +1849,9 @@
      "GW-01.symbol-weekly-emas-log-undo",
      "GW-09.two-new-charts"
     ],
-    "refusal": [],
+    "refusal": [
+     "refuse.bqa1.full-board-new-chart.model"
+    ],
     "permission": [],
     "undo": [
      "symbol.switch: undo restores",
@@ -3812,39 +3815,49 @@
     "args": true,
     "execution": true,
     "receipt": true,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": true,
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 4,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "indicator.hide: \"hide the 50 sma\"",
      "indicator.hide: \"hide the SMA 50\"",
      "indicator.hide: \"turn off the 50 day moving average\"",
-     "indicator.hide: \"hide the 50 day\""
+     "indicator.hide: \"hide the 50 day\"",
+     "bqa1.hide.named-chart: \"hide the 50 sma on the NVDA chart\"",
+     "bqa1.hide.named-chart: \"hide the SMA 50 on the NVDA chart\""
     ],
     "routing": [
      "indicator.hide: \"hide the 50 sma\"",
      "indicator.hide: \"hide the SMA 50\"",
      "indicator.hide: \"turn off the 50 day moving average\"",
-     "indicator.hide: \"hide the 50 day\""
+     "indicator.hide: \"hide the 50 day\"",
+     "bqa1.hide.named-chart: \"hide the 50 sma on the NVDA chart\"",
+     "bqa1.hide.named-chart: \"hide the SMA 50 on the NVDA chart\""
     ],
     "args": [
-     "corpus indicator.hide"
+     "corpus indicator.hide",
+     "corpus bqa1.hide.named-chart"
     ],
     "execution": [
-     "indicator.hide (c)"
+     "indicator.hide (c)",
+     "bqa1.hide.named-chart (c)"
     ],
     "receipt": [
-     "indicator.hide (c)"
+     "indicator.hide (c)",
+     "bqa1.hide.named-chart (c)"
     ],
-    "refusal": [],
+    "refusal": [
+     "refuse.bqa1.line-noun-no-drawing"
+    ],
     "permission": [],
     "undo": [
-     "indicator.hide: undo restores"
+     "indicator.hide: undo restores",
+     "bqa1.hide.named-chart: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
@@ -4002,37 +4015,43 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 5,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "indicator.remove-sma200: \"remove the 200 sma\"",
      "indicator.remove-sma200: \"take off the 200 day moving average\"",
      "indicator.remove-sma200: \"get rid of the 200\"",
      "indicator.remove-sma200: \"delete the SMA 200 from this chart\"",
-     "indicator.remove-sma200: \"remove the 200 day\""
+     "indicator.remove-sma200: \"remove the 200 day\"",
+     "bqa1.remove.named-chart: \"remove the 200 sma from the NVDA chart\""
     ],
     "routing": [
      "indicator.remove-sma200: \"remove the 200 sma\"",
      "indicator.remove-sma200: \"take off the 200 day moving average\"",
      "indicator.remove-sma200: \"get rid of the 200\"",
      "indicator.remove-sma200: \"delete the SMA 200 from this chart\"",
-     "indicator.remove-sma200: \"remove the 200 day\""
+     "indicator.remove-sma200: \"remove the 200 day\"",
+     "bqa1.remove.named-chart: \"remove the 200 sma from the NVDA chart\""
     ],
     "args": [
      "corpus indicator.remove-sma200",
+     "corpus bqa1.remove.named-chart",
      "refuse.indicator.remove-sma200.dismissed"
     ],
     "execution": [
-     "indicator.remove-sma200 (c)"
+     "indicator.remove-sma200 (c)",
+     "bqa1.remove.named-chart (c)"
     ],
     "receipt": [
-     "indicator.remove-sma200 (c)"
+     "indicator.remove-sma200 (c)",
+     "bqa1.remove.named-chart (c)"
     ],
     "refusal": [
      "refuse.indicator.remove-sma200.dismissed"
     ],
     "permission": [
-     "indicator.remove-sma200: waits for Apply"
+     "indicator.remove-sma200: waits for Apply",
+     "bqa1.remove.named-chart: waits for Apply"
     ],
     "undo": [],
     "multiStep": [],
@@ -4550,35 +4569,41 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 5,
+   "phrasings": 7,
    "evidence": {
     "nl": [
      "indicatorStyle.colour: \"make the 9 ema red\"",
      "indicatorStyle.colour: \"color the 9 ema red\"",
      "indicatorStyle.colour: \"change the 9 ema's colour to red\"",
      "indicatorStyle.colour: \"turn the 9 ema red\"",
-     "indicatorStyle.colour: \"paint the 9 ema red\""
+     "indicatorStyle.colour: \"paint the 9 ema red\"",
+     "bqa1.colour.named-chart: \"make the 20 ema on the NVDA chart red\""
     ],
     "routing": [
      "indicatorStyle.colour: \"make the 9 ema red\"",
      "indicatorStyle.colour: \"color the 9 ema red\"",
      "indicatorStyle.colour: \"change the 9 ema's colour to red\"",
      "indicatorStyle.colour: \"turn the 9 ema red\"",
-     "indicatorStyle.colour: \"paint the 9 ema red\""
+     "indicatorStyle.colour: \"paint the 9 ema red\"",
+     "bqa1.colour.named-chart: \"make the 20 ema on the NVDA chart red\""
     ],
     "args": [
-     "corpus indicatorStyle.colour"
+     "corpus indicatorStyle.colour",
+     "corpus bqa1.colour.named-chart"
     ],
     "execution": [
-     "indicatorStyle.colour (c)"
+     "indicatorStyle.colour (c)",
+     "bqa1.colour.named-chart (c)"
     ],
     "receipt": [
-     "indicatorStyle.colour (c)"
+     "indicatorStyle.colour (c)",
+     "bqa1.colour.named-chart (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
-     "indicatorStyle.colour: undo restores"
+     "indicatorStyle.colour: undo restores",
+     "bqa1.colour.named-chart: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
@@ -7342,7 +7367,7 @@
     "args": true,
     "execution": true,
     "receipt": true,
-    "refusal": false,
+    "refusal": true,
     "permission": true,
     "undo": true,
     "multiStep": true,
@@ -7369,7 +7394,8 @@
     "args": [
      "corpus grid.four.unnamed",
      "corpus widget.news",
-     "GW-09.two-new-charts"
+     "GW-09.two-new-charts",
+     "refuse.bqa1.full-board-new-chart.model"
     ],
     "execution": [
      "grid.four.unnamed (c)",
@@ -7381,7 +7407,10 @@
      "widget.news (c)",
      "GW-09.two-new-charts"
     ],
-    "refusal": [],
+    "refusal": [
+     "refuse.bqa1.full-board-new-chart",
+     "refuse.bqa1.full-board-new-chart.model"
+    ],
     "permission": [],
     "undo": [
      "widget.news: undo restores",

@@ -120,7 +120,7 @@ describe('compound plan → single write → ACK → receipt → undo', () => {
       op('chart.setBackground', { color: '#f3efe4' }),
     ])
     expect(p.ok).toBe(true)
-    expect(p.lines).toEqual(['Changed chart to Bars', 'Switched timeframe to Weekly', 'Hid Volume', 'Changed background to #f3efe4'])
+    expect(p.lines).toEqual(['Changed chart to Bars', 'Switched timeframe to Weekly', 'Hid Volume', 'Changed background to cream'])
     const res = await commitPlan(host, p)
     expect(res.ok).toBe(true)
     expect(host.commits).toHaveLength(1)
