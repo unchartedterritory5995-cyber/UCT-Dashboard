@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 01:10 CT
+updated: 2026-11-04 01:20 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -59,12 +59,12 @@ report: pineRuntimeFrontend.js T2 band only. New simpleValueOf used by invariant
 desktop check of the definition of done: PASS (T2 band plus intended test updates, rail red on master / green on tip, 25/25 mutations, measure-pair both lanes, final-tip at baseline on ce5c4bf34b and ce5c4bf34b..ac659bae66 is EVIDENCE.md only, local == origin, worktree clean)
 
 ## W5-T1
-state: BUILDING   round: r0   updated: 2026-11-04 06:00 CT
-branch: feat/pine-w5-t1-server-bundle   tip: caa9d246f4 (EVIDENCE-only over code tip b67c3c4dc7)   tested on master: 5d95103c8a   worktree: pine-dsk-w5t1   model: Sonnet
+state: READY            round: r0            updated: 2026-11-04 01:20 CT
+branch: feat/pine-w5-t1-server-bundle   tip: 27e95ca34c (EVIDENCE-only over code tip b67c3c4dc7)   tested on master: 5d95103c8a   worktree: pine-dsk-w5t1   model: Sonnet
 engine bump needed: no (one 2-line non-behavioural re-export in runtimeColumns.js; bundle byte-identical before/after, so no measure-pair)
 built: runtime/serverEntry.js (re-exports only); app/scripts/build-pine-runtime.mjs -> dist-server/pine-runtime.mjs + manifest; app/scripts/measure-pine-runtime.mjs bare-Node probe; serverBundle.rail.test.js (6 tests). First bare-Node run (5,000 daily bars, Node 24.13.1, MACD+RSI+ATR): bundle 2,140,179 bytes, 90 modules, no node_modules; import 61 ms (253 ms cold disk); cold run 48 ms; five runs 48/15/9/8/6 ms; RSS 88.5 MB, heap 17.6 MB. Rail 6/6 (red stand-in: suite fails to load with the build script moved aside). Mutations 8/8 killed. final-tip run 1 on 6888e54478 found a pineRuntimeFrontendGate failure (entry imported the front end without the clock), fixed in b67c3c4dc7 (gate + rail 9/9).
-missing for READY: final-tip on the final tree (the builder's run waited ~7 h in the single-lock queue and was cancelled). Requeued on lane 2 (deviation 6) as w5t1-final3.
-next: final-tip on caa9d246f4, record it in EVIDENCE.md, READY. Then W5-T6 starts from T1's tip.
+final-tip (lane 2, label w5t1-final3, 42.7 min, on caa9d246f4 = code b67c3c4dc7): gate pytest 46 passed; version-gate 6 passed; hygiene clean (34669 files); chart+hooks vitest Test Files 1 failed | 1334 passed | 27 skipped, Tests 1 failed | 22366 passed | 118 skipped; only failure pollingSites.rail (desktop read js.log: the only FAIL line); pineRuntimeFrontendGate green. EVIDENCE.md supersedes its earlier NOT COMPLETED note. Logs _resume-2026-11-01/runs/w5t1-final3/.
+desktop check of the definition of done: PASS (scope, rail 6/6, 8/8 mutations, final-tip at baseline, b67c3c4dc7..27e95ca34c is EVIDENCE.md only, local == origin, worktree clean). W5-T6 builds on caa9d246f4 (same code).
 open: the bundle still carries the fetch-bearing modules and two build gates (T2's job); old esbuild duplicate-case warning at ir.js:518 (pre-existing).
 
 ## W4-T7
