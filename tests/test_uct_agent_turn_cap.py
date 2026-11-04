@@ -617,13 +617,17 @@ class _PplxResp:
 
 @pytest.fixture
 def pplx(monkeypatch):
-    import api.services.perplexity_search as p
+    # the module turn._research will import NOW (sys.modules), not a binding another test file may have purged
+    import importlib
+    p = importlib.import_module("api.services.perplexity_search")
     monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
     monkeypatch.setattr(p.time, "sleep", lambda s: None)
     monkeypatch.setattr(p, "_save_shadow", lambda *a, **k: None)
     # hermetic whatever ran before: no shared cost-log writes, no daily search gate, no cached answer
-    from api.services import narrative_cost_guard as ncg
-    monkeypatch.setattr(ncg, "record", lambda *a, **k: None)
+    import api.services as services_pkg
+    for ncg in {id(m): m for m in (importlib.import_module("api.services.narrative_cost_guard"),
+                                   getattr(services_pkg, "narrative_cost_guard", None)) if m is not None}.values():
+        monkeypatch.setattr(ncg, "record", lambda *a, **k: None)
     monkeypatch.setattr(p, "_check_daily_budget", lambda surface: None)
     for k in ("PERPLEXITY_TEST_ENFORCE_BUDGET", "PERPLEXITY_DAILY_LIMIT", "PPLX_REQUEST_FEE_USD"):
         monkeypatch.delenv(k, raising=False)
@@ -664,7 +668,7 @@ def test_RESEARCH_a_retried_lookup_keeps_the_whole_reservation_not_the_last_atte
     rid = budget.open_request("u", "c", "q")
     m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
     res = m.research(lambda: turn._research("retried q4", "week"))
-    assert res["attempts"] == 2 and res["cost_usd"] < budget.research_worst_case_usd()
+    assert res.get("attempts") == 2 and res["cost_usd"] < budget.research_worst_case_usd(), {k: v for k, v in res.items() if k != "answer"}
     assert budget.turn_committed_usd(rid) == pytest.approx(budget.research_worst_case_usd())
     assert budget.state()["calls"]["charged_worst_case"] == 1
 
