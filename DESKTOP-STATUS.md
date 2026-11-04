@@ -1,9 +1,9 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 06:00 CT
+updated: 2026-11-03 23:55 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
-free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 6 (1 Opus, 5 Sonnet: W3 S1 r2 Opus; W5-T1, W4-T7, W4-T3 r1, E lows, W5-T3). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
+free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 9 (2 Opus: W3 S1 r2, W5-T6; 7 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, E lows, W5-T3, W4-T0 peel, W2 r3). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
 baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
 poll on ops/pine-coord: ARMED (15 min). Read 063fe2ba8e (KEEP BUILDING, pause cancelled for the desktop) at 23:55 CT: acknowledged; nothing was paused here. After the queue, the desktop picks further W4/W5 work whose dependencies are met, per that note.
@@ -25,22 +25,27 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 3. pine-base is detached at 6272ed7fa3 (older than master). Left untouched: it only supplies node_modules, and the lockfile matches master. The measure-pair base is pine-dsk-mpbase, which builders switch to their own merge-base inside each hl job.
 4. Owner's standing PC-load memory says 1 build agent at a time; the plan allows 4. The owner has since said to use more agents, so 6 builders are running. Heavy jobs remain serialised by the lock.
 5. Plan correction: W3 edits app/src/components/chart/engine/pineTextFormat.js (engine/, not ast/pineTextFormat.js as DESKTOP-PROMPT section 4 says). The T11 builder was told; that file is off limits to every desktop lane until W3 merges. W3 also edits ast/pine.js 19357+ and ast/objectProgram.js.
-6. SECOND HEAVY LANE (owner-approved 2026-11-04 ~05:45 CT, to cut a ~8 h lock queue): final-tip runs ONLY may use lane 2, lock file C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/dsk/heavy-final2.lock (same heavy_lock.py, --path). measure-pair and mutation runs stay on the default lock, one at a time (measure-pair shares pine-dsk-mpbase). At most 2 heavy jobs run at once (each final-tip vitest uses --maxWorkers=2); RAM was 18-19 GB free with one running. A non-baseline vitest failure from a lane-2 run is re-run alone before it counts as new. First users: W4-T3 r1 and W5-T3 final-tips. Each EVIDENCE.md says which lane its final-tip ran on.
-7. Timestamp correction: block "updated:" times written 23:07-00:05 CT were wrong (wall clock was ~05:00-05:40 CT on 2026-11-04). Content was correct; only the clock was off.
+6. MORE HEAVY LANES (owner-approved 2026-11-03 ~23:40 CT: "push the limits higher"). Same heavy_lock.py, separate lock files under _resume-2026-11-01/dsk/ via --path:
+   - default lock: mutation runs + measure-pair on pine-dsk-mpbase (W4-T7, E lows, ...)
+   - heavy-mp2.lock: measure-pair on the NEW base pine-dsk-mpbase2 (detached d8d4f0937d, node_modules junctioned to pine-base); first user W3
+   - heavy-final2.lock and heavy-final3.lock: final-tip and other single-worktree jobs (W4-T3 r1, W5-T1, W4-T0 job.sh on lane 2; W5-T3, W3 final, W5-T6, W2 r3 on lane 3)
+   At most 4 heavy jobs at once (24 cores; final-tip vitest uses --maxWorkers=2; ~16 GB RAM free with 2 running). Any non-baseline failure from a parallel run is re-run alone before it counts as new. Each EVIDENCE.md names its lanes. The RAM/disk watch (8 GB / 20 GB) still stops new lanes.
+7. Builder cap raised from 6 to 9 by the owner's instruction (max 2 Opus: W3, W5-T6). The coordinator's ruling a48cbe455f said 6; the owner outranks it.
+8. Clock note: block times are local CT and correct. An earlier note here called them wrong; that was my mistake (the health log prints UTC under Git Bash). Withdrawn.
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
-- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3 (created by builders)
+- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3, pine-dsk-w5t6, pine-dsk-w4t0, pine-dsk-w2 (created by builders); pine-dsk-mpbase2 (second measure-pair base, created by this session)
 
 ### Queue (in order, as builder slots free; cap 6 at >=8 GB)
 Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to unblock merges and engine numbering first, short lanes first:
-1. W5-T6 (desktop's own; starts the moment W5-T1 is READY, branched from T1's tip)
+1. W5-T6: STARTED 23:55 CT from W5-T1 tip caa9d246f4 (T1 code complete; only its final-tip is pending)
 2. W4-T3 fix round @ 572376edf6: STARTED 23:07 CT
 3. E evidence-engine lows @ e58edcbeaf: STARTED 23:40 CT (slot freed by W4-T11 READY)
 4. W5-T3 codec @ cd61d6741d: STARTED 23:50 CT (slot freed by W4-T2 READY)
 5. W3 S1 round 2 @ 7eaca7777f: STARTED 00:05 CT (slot freed by W4-T12 READY)
-6. W4-T0 census peel @ 75c4c400c2 (job.sh + coverage map docs)
-7. W2 round 3 @ 1a8dddb408 (classify P11, edit packet; NEVER arm or touch flags)
+6. W4-T0 census peel @ 75c4c400c2: STARTED 23:55 CT
+7. W2 round 3 @ 1a8dddb408: STARTED 23:55 CT (NEVER arm or touch flags)
 8. W5-T2 (after W5-T1 MERGED)
 READY lanes wait for the new coordinator's review. The desktop does not review, merge or bump.
 
@@ -113,3 +118,19 @@ state: BUILDING   round: r2   updated: 2026-11-04 00:05 CT
 branch: feat/pine-w3-drawings   start tip: 7eaca7777f   worktree: pine-dsk-w3   model: Opus
 engine bump needed: yes (engine 8 at merge, per ASSIGNMENTS)
 next: apply the r2 items per ASSIGNMENTS/reviews, measure-pair both lanes + final-tip, EVIDENCE.md, READY
+
+## W5-T6
+state: BUILDING   round: r0   updated: 2026-11-03 23:55 CT
+branch: feat/pine-w5-t6-supervisor   base: W5-T1 tip caa9d246f4   worktree: pine-dsk-w5t6   model: Opus
+engine bump needed: decided at READY
+next: supervisor + protocol + auth per W5 design section 7; local only, HMAC keys from env in tests. Merge origin/master in once T1 merges.
+
+## W4-T0 census peel (re-homed)
+state: BUILDING   round: r0   updated: 2026-11-03 23:55 CT
+branch: fix/pine-w0-census-peel   start tip: 75c4c400c2   worktree: pine-dsk-w4t0   model: Sonnet
+next: run docs/pine/evidence/2026-11-03-w0-peel/job.sh with desktop paths (lane 2), write coverage-map.json, targets, COVERAGE-MAP-2026-11-03.md, 7.1 corrigendum, READY
+
+## W2 round 3 (re-homed)
+state: BUILDING   round: r3   updated: 2026-11-03 23:55 CT
+branch: feat/pine-w2-arming   start tip: 1a8dddb408   worktree: pine-dsk-w2   model: Sonnet
+next: per round2/WIP-STATE.md + round3-job.sh: classify P11, edit the packet, READY. NEVER arm or touch flags; any flag/Railway step is skipped and reported.
