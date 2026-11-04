@@ -29,7 +29,7 @@ Now every capreg test file pins Date (`testing/clock.js` `pinClock()`):
 - The instant is chosen by `CAPREG_CLOCK`: `post` (default) is Tue 2026-11-03 17:00 ET, after the close; `rth` is
   11:00 ET, in the regular session.
 - Only Date is faked; it advances from that instant.
-- Agent CI runs the suite at both instants.
+- Agent CI runs the suite at both instants, in parallel (a matrix leg each, its own 20 min timeout), with one aggregate check `capability-regression`.
 - An answer that legitimately differs by instant is written down explicitly in `baseline/clockExpectations.json`
   (locked like every entry). `session.extended @ rth` expects the refusal, nothing changed, and no receipt. It is not
   marked as a gap.

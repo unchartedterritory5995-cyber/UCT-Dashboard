@@ -6,7 +6,7 @@
 //   post (default) — Tue 2026-11-03 17:00 ET, after the close: pre/post-market toggles are open
 //   rth            — Tue 2026-11-03 11:00 ET, the regular session
 // Only Date is faked (timers stay real) and it ADVANCES from the pinned instant, so waits, timeouts and the panel's
-// own polling behave as they do live. Agent CI runs the suite at BOTH instants (agent-ci.yml, capability-regression);
+// own polling behave as they do live. Agent CI runs the suite at BOTH instants, in parallel (agent-ci.yml capability-regression-clock matrix);
 // an expectation that legitimately differs in-session says so explicitly (baseline/clockExpectations.json).
 import { vi, beforeAll, afterAll } from 'vitest'
 
