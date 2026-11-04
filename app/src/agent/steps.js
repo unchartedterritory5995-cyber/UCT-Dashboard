@@ -161,6 +161,17 @@ export function argRefProblem(op, refMap) {
   return null
 }
 
+/** review #775 (3): the turn a resumed card continues when the runner no longer holds it — its Undo baseline is the
+ *  stack AS IT WAS when the turn started (carried on the paused card), so a later agent.undo step of this turn can only
+ *  ever reach this turn's own changes. With no carried baseline, the stack as it is NOW minus the card's own change
+ *  (the newest entry, just committed by the approval) — never "everything is this turn's". */
+export function resumedTurn(p, deps) {
+  const stack = (deps?.undoRef?.current || []).map(e => e.id)
+  const undoBefore = Array.isArray(p?.undoBefore) ? [...p.undoBefore] : stack.slice(0, Math.max(0, stack.length - 1))
+  return { turnId: p?.turnId ?? null, refMap: {}, sources: {}, voice: false, chain: Promise.resolve(),
+    changeSteps: Math.max(1, Number(p?.changeSteps) || 0), undoBefore }
+}
+
 export function createStepRunner() {
   let paused = null              // { turnId, id, memoryTurn, alias } while a card waits
   let active = null              // the turn being served: { turnId, refMap, sources, voice, chain }
@@ -234,7 +245,8 @@ export function createStepRunner() {
     if (al?.source && (res.status === 'query' || res.status === 'done')) active.sources[al.alias] = al.source
     if (res.status === 'proposed') {
       // the card waits: whatever the member does about it (approve / dismiss) is recorded for afterCard
-      paused = { turnId: ev.turnId, id: ev.id, memoryTurn: deps.memoryRef?.current?.currentTurn?.() ?? null, alias: al?.kind ? al : null }
+      paused = { turnId: ev.turnId, id: ev.id, memoryTurn: deps.memoryRef?.current?.currentTurn?.() ?? null, alias: al?.kind ? al : null,
+        undoBefore: active.undoBefore, changeSteps: active.changeSteps }
       tapRef.current = []
     }
     await agentStepResult({ turnId: ev.turnId, id: ev.id, ...res })
@@ -299,7 +311,7 @@ export function createStepRunner() {
       deps.tapRef.current = null
       const res = outcomeOf(bodies.length ? bodies : [{ outcome: 'the member dismissed the card', outcomeData: { kind: 'dismissed' } }], null)
       const status = res.status === 'done' ? 'done' : (res.status === 'failed' ? 'failed' : 'refused')
-      if (!active) active = { turnId: p.turnId, refMap: {}, sources: {}, voice: false, chain: Promise.resolve(), changeSteps: 1, undoBefore: null }
+      if (!active) active = resumedTurn(p, deps)
       active.chain = Promise.resolve()
       const added = status === 'done' ? await newRefs(deps.host, deps.capCtx, active.refMap) : []
       if (status === 'done') bindAlias(active, p.alias, added)      // the approved creator's alias names what it made

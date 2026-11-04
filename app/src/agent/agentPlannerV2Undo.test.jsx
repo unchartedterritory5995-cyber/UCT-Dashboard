@@ -12,7 +12,7 @@ import { registerBuiltins } from './builtins'
 import { setupPanel, TWO } from './testing/panelHarness'
 import { installStepServer } from './testing/stepServer'
 import { _resetAgentConfig } from './agentClient'
-import { undoOutcomeOf, UNDO_AFTER_NOTHING_V2 } from './steps'
+import { undoOutcomeOf, UNDO_AFTER_NOTHING_V2, resumedTurn } from './steps'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -104,5 +104,16 @@ describe('v2-readiness-2 — agent.undo as a v2 step', () => {
     expect(undoOutcomeOf([{ outcome: 'Took back all 2', outcomeData: { kind: 'undo-turn', done: 2, of: 2 } }]).status).toBe('done')
     expect(undoOutcomeOf([{ outcome: 'protected', outcomeData: { kind: 'undo-refused-protected' } }]).status).toBe('refused')
     expect(undoOutcomeOf([{ outcome: 'not saved', outcomeData: { kind: 'undo-unsaved' } }]).status).toBe('failed')
+  })
+
+  it('review #775: a resumed turn the runner no longer holds keeps its OWN Undo baseline, never the whole stack', () => {
+    const deps = { undoRef: { current: [{ id: 'u1' }, { id: 'u2' }, { id: 'u3' }] } }
+    // the card carried the stack as it was when its turn started: only u3 (this turn's) is fresh
+    expect(resumedTurn({ turnId: 't', undoBefore: ['u1', 'u2'], changeSteps: 2 }, deps)).toMatchObject({ undoBefore: ['u1', 'u2'], changeSteps: 2 })
+    // nothing carried: everything but the card's own (newest) change is older — never `null` (= all of it fresh)
+    const r = resumedTurn({ turnId: 't' }, deps)
+    expect(r.undoBefore).toEqual(['u1', 'u2'])
+    expect(r.changeSteps).toBe(1)
+    expect(resumedTurn({ turnId: 't' }, { undoRef: { current: [] } }).undoBefore).toEqual([])
   })
 })

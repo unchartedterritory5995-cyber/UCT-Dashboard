@@ -27,8 +27,9 @@ Pricing (claude-haiku-4-5 unless --model; narrative_cost_guard rates):
     + 4,000 framing + max_tokens of output. `gate_peak` = the largest (spent + worst) over the turn's rounds; margin
     = 0.25 − gate_peak. v1 is one call: its gate figure is that call's worst case.
 
-  python tools/agent_v2_corpus_cost.py                 # markdown tables
-  python tools/agent_v2_corpus_cost.py --json          # JSON
+  AUTH_DB_PATH=$TEMP/v2cost.db python tools/agent_v2_corpus_cost.py          # markdown tables
+  AUTH_DB_PATH=$TEMP/v2cost.db python tools/agent_v2_corpus_cost.py --json   # JSON
+(it refuses to run unless AUTH_DB_PATH is under the temp directory, and never records a cost row)
 """
 from __future__ import annotations
 
@@ -170,7 +171,6 @@ def measure_v2(intent: dict, ph: dict, ctx: dict, manifest: list[dict], model: s
             return {"id": step_id, "status": "query", "result": "UCT showed the member the result (" + "x" * 160 + ")"}
         return {"id": step_id, "status": "done", "receipt": f"Done: {steps[n]['action']} (as the receipt words it)"}
 
-    t1._record_cost = lambda r: 0.0
     real_cost = v2._call_cost
 
     def tracked(model_id, resp):                  # the loop's own `spent` is what the gate adds the next worst case to
@@ -210,7 +210,29 @@ def measure_v2(intent: dict, ph: dict, ctx: dict, manifest: list[dict], model: s
             "gate_peak_usd": round(max((r["gate"] for r in rounds), default=0.0), 5)}
 
 
+def require_temp_db() -> None:
+    """Refuse to run unless AUTH_DB_PATH points into the temp directory: nothing here may ever reach the real cost
+    ledger (review #775: a scripted response recorded by the real cost guard would be a FAKE spend row)."""
+    import tempfile
+    db = os.environ.get("AUTH_DB_PATH") or ""
+    tmp = os.path.normcase(os.path.realpath(tempfile.gettempdir()))
+    if not db or not os.path.normcase(os.path.realpath(db)).startswith(tmp + os.sep):
+        raise SystemExit("agent_v2_corpus_cost: refusing to run — set AUTH_DB_PATH to a throwaway DB under "
+                         f"{tempfile.gettempdir()} (e.g. AUTH_DB_PATH=$TEMP/v2cost.db); the real ledger is never touched")
+
+
 def measure(model: str = "claude-haiku-4-5", layout: str = "index", export: str = EXPORT) -> dict:
+    require_temp_db()
+    from api.services.uct_agent import turn as t1
+    real_record = t1._record_cost
+    t1._record_cost = lambda r: 0.0               # BEFORE any call (v1 first): a scripted response is never recorded
+    try:
+        return _measure(model, layout, export)
+    finally:
+        t1._record_cost = real_record
+
+
+def _measure(model: str, layout: str, export: str) -> dict:
     import logging
     logging.disable(logging.WARNING)              # the scripted v1 reply is priced, not judged: its parse notes are noise here
     from api.services.uct_agent import turn_v2 as v2

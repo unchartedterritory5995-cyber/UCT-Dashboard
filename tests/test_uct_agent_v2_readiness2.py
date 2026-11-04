@@ -71,7 +71,7 @@ def test_UNDO_rule_rides_the_system_prompt_only_when_agent_undo_is_offered():
     with_undo = v2._start("x", CTX_U, [], CAPS + [UNDO], None, None, None, None, None)["system"][0]["text"]
     without = v2._start("x", CTX_U, [], CAPS, None, None, None, None, None)["system"][0]["text"]
     assert v2.V2_UNDO_RULE in with_undo and "agent__undo" in with_undo
-    assert "UNDO." not in without and without == with_undo.replace("\n\n" + v2.V2_UNDO_RULE, "").replace("\nagent__undo: Undo YOUR OWN most recent…", "").replace("\n[board]", "") or v2.V2_UNDO_RULE not in without
+    assert v2.V2_UNDO_RULE not in without and "agent__undo" not in without and "UNDO." not in without
 
 
 # ── 2. knowledge flag-off identity ────────────────────────────────────────────────────────────
@@ -110,3 +110,32 @@ def test_UNDO_no_undo_claim_survives_an_undo_step_that_did_not_go_through(reply)
     assert go(c, waiter({"status": "refused", "refusal": "changed since"}))["envelope"]["reply"] == v2.UNDO_NOT_DONE
     c = scripted(resp(tool_use("agent__undo", {"target": "a1", "args": {"scope": "last", "about": None}}, "tu2")), resp(text(reply)))
     assert go(c, waiter({"status": "done", "receipt": "Undid it"}))["envelope"]["reply"] == reply      # its receipt is above
+
+
+# review #775 (4): the claim check is per Undo step, and a strong claim with no Undo step at all is caught
+def test_UNDO_a_claim_with_NO_undo_step_is_caught_but_an_ordinary_restore_is_not():
+    c = scripted(resp(tool_use("chart__setTimeframe", {"target": "c1", "args": {"timeframe": "D"}}, "tu1")), resp(text("Undone — back to daily.")))
+    assert go(c, waiter({"status": "done", "receipt": "Chart (SPY) to daily"}), message="back to daily")["envelope"]["reply"] == v2.UNDO_NOT_DONE
+    c = scripted(resp(tool_use("chart__setTimeframe", {"target": "c1", "args": {"timeframe": "D"}}, "tu1")), resp(text("Restored the daily timeframe.")))
+    assert go(c, waiter({"status": "done", "receipt": "Chart (SPY) to daily"}), message="back to daily")["envelope"]["reply"] == "Restored the daily timeframe."
+
+
+def test_UNDO_one_good_undo_among_several_does_not_back_a_claim():
+    u = lambda i: tool_use("agent__undo", {"target": "a1", "args": {"scope": "last", "about": None}}, f"tu{i}")  # noqa: E731
+    c = scripted(resp(u(1), u(2)), resp(text("Took both back.")))
+    out = go(c, waiter({"status": "done", "receipt": "Undid A"}, {"status": "refused", "refusal": "changed since"}))
+    assert [s["status"] for s in out["envelope"]["steps"]] == ["done", "refused"]
+    assert out["envelope"]["reply"] == v2.UNDO_NOT_DONE
+    c = scripted(resp(u(1), u(2)), resp(text("Took both back.")))
+    assert go(c, waiter({"status": "done", "receipt": "Undid A"}, {"status": "done", "receipt": "Undid B"}))["envelope"]["reply"] == "Took both back."
+
+
+@pytest.mark.parametrize("steps,reply,unbacked", [
+    ([], "All set.", False),
+    ([], "I undid that.", True),
+    ([], "I reversed the order.", False),                              # weak word, no Undo planned: an ordinary change
+    ([{"action": "agent.undo", "status": "done"}], "Put it back.", False),
+    ([{"action": "agent.undo", "status": "refused"}], "Put it back.", True),
+])
+def test_undo_claim_unbacked_table(steps, reply, unbacked):
+    assert v2.undo_claim_unbacked(steps, reply) is unbacked

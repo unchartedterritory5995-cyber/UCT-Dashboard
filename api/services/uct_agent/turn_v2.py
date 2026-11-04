@@ -92,9 +92,12 @@ _DOMAIN_TITLE = {
 }
 
 UNDO_NOT_DONE = "Nothing was undone (see above)."
-#: an Undo claim in the model's own words ("Undone.", "I reverted…", "took that back", "restored …")
-_UNDO_CLAIM = re.compile(r"\b(?:undone|undid|undoing|reverted|reverting|reversed|took (?:it|that|them|those) back|taken back|"
-                         r"put (?:it|that|them) back|restored|rolled back)\b", re.I)
+#: an Undo claim in the model's own words. STRONG words only ever mean an Undo ("undone", "I undid", "took that back",
+#: "rolled back", "reverted"); WEAK ones ("restored", "put it back", "reversed") can also describe an ordinary change
+#: ("restored the daily timeframe" after chart.setTimeframe), so they count only in a turn that planned an Undo.
+_UNDO_STRONG = re.compile(r"\b(?:undone|undid|undoing|reverted|reverting|took (?:it|that|them|those|both|everything) back|"
+                          r"taken back|rolled back)\b", re.I)
+_UNDO_WEAK = re.compile(r"\b(?:restored|restoring|reversed|put (?:it|that|them|those|both|everything) back)\b", re.I)
 ROUND_LIMIT = "I stopped there: that request needed more steps than one turn allows. What is done is shown above; ask for the rest on its own."
 TURN_CAP = "I stopped there: that request reached one turn's AI budget. What is done is shown above; ask for the rest on its own."
 STEP_TIMEOUT = "I stopped there: a step did not report back in time. What is done is shown above."
@@ -419,6 +422,17 @@ def count_tool_search(rails: dict, content: list[dict]) -> None:
                 rails["tool_search_misses"] += 1
 
 
+def undo_claim_unbacked(steps: list[dict], text: str) -> bool:
+    """review #775: a reply may claim an Undo only when the turn's agent.undo steps ALL went through (each one is a
+    step with its own receipt). An Undo claim with no Undo step done — none planned, any one refused or failed — is
+    unbacked. Weak words count only when an Undo was planned (see _UNDO_WEAK)."""
+    undos = [s for s in steps if s.get("action") == UNDO_ACTION]
+    claims = bool(_UNDO_STRONG.search(text)) or (bool(undos) and bool(_UNDO_WEAK.search(text)))
+    if not claims:
+        return False
+    return not undos or any(s.get("status") != "done" for s in undos)
+
+
 def _final(state: dict, reply: str, usage_note: str | None = None) -> dict:
     usage = state["usage"]
     _rails(state)
@@ -432,9 +446,8 @@ def _final(state: dict, reply: str, usage_note: str | None = None) -> dict:
     text = _clean(reply, 6000)
     if not applied and t1._CLAIMS_WITHOUT_ACTION.match(text):
         text = t1.NOTHING_DONE                          # nothing ran: a claim never reaches the member
-    undos = [s for s in state["steps"] if s["action"] == UNDO_ACTION]
-    if undos and not any(s["status"] == "done" for s in undos) and _UNDO_CLAIM.search(text):
-        text = UNDO_NOT_DONE                            # v2-readiness-2: only doUndo's receipt may say something was undone
+    if undo_claim_unbacked(state["steps"], text):
+        text = UNDO_NOT_DONE                            # v2-readiness-2: only doUndo's receipts may say something was undone
     envelope = {"disposition": "answer", "reply": text, "question": None, "ops": [],
                 "unsupported_category": None, "planner": "v2",
                 "steps": [{k: s[k] for k in ("id", "action", "target", "mode", "status")} for s in state["steps"]]}
