@@ -1,0 +1,485 @@
+"""UCT Agent planner v1 — the server-enforced PER-TURN dollar cap (owner 2026-11-04; docs/agent/budget/PER-TURN-CAP.md).
+
+One member request (its planner call, schema retry, server repair, research lookup, post-research call, the browser's
+reroute / repair of the same request, its background naming call, and E-1's classifier where present) may COMMIT at
+most UCT_AGENT_TURN_USD ($0.25): settled actuals + open worst-case reservations + the next call's worst case, checked
+in the same ledger transaction as the $5 daily cap. No model is ever called: every caller here is a script.
+"""
+from __future__ import annotations
+
+import json
+import threading
+import types
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from api.routers import uct_agent as rx
+from api.services import daily_counters, narrative_cost_guard
+from api.services.uct_agent import budget, limits, store, turn, turn_v2
+
+ADMIN = {"id": "38c023cf-0e81-4187-aa43-ac51a751a001", "plan": "pro", "role": "admin"}
+ENV = {"disposition": "answer", "reply": "hi", "question": None, "ops": [], "unsupported_category": None,
+       "research": None, "title": None}
+ZERO_SITE = lambda: (0.0, 15.0)  # noqa: E731
+KW = {"model": "claude-haiku-4-5", "max_tokens": 2048, "system": [{"type": "text", "text": "x" * 20000}],
+      "messages": [{"role": "user", "content": "y" * 4000}], "output_config": {"format": {"type": "json_schema", "schema": {}}}}
+HAIKU_USAGE = (1200, 80, 0, 0)                     # $0.0012 in + $0.0004 out = $0.0016 actual
+
+
+def _resp(env=None, usage=HAIKU_USAGE, stop="end_turn"):
+    u = None if usage is None else types.SimpleNamespace(input_tokens=usage[0], output_tokens=usage[1],
+                                                         cache_read_input_tokens=usage[2],
+                                                         cache_creation_input_tokens=usage[3])
+    return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text=json.dumps(env or ENV))],
+                                 stop_reason=stop, usage=u)
+
+
+def _caller(calls, *envs, usage=HAIKU_USAGE):
+    envs = list(envs) or [ENV]
+
+    def call(**kw):
+        calls.append(kw)
+        return _resp(envs[min(len(calls), len(envs)) - 1], usage)
+    return call
+
+
+def _reserve(rid, usd, counts_as_call=False, category="turn"):
+    return budget.reserve(user_id="u", request_id=rid, category=category, model="m", worst_usd=usd,
+                          site_reader=ZERO_SITE, counts_as_call=counts_as_call)
+
+
+@pytest.fixture
+def clean(monkeypatch):
+    store._reset_for_tests()
+    budget._reset_for_test()
+    limits._reset_for_test()
+    daily_counters.clear()
+    for k in ("UCT_AGENT_BUDGET_USD", "UCT_AGENT_MAX_CALLS_PER_REQUEST", budget.TURN_USD_ENV, *limits.DEFAULTS):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setattr(budget, "site_spend_usd", ZERO_SITE)
+    yield
+    budget._reset_for_test()
+    limits._reset_for_test()
+    daily_counters.clear()
+
+
+@pytest.fixture
+def client(clean, monkeypatch):
+    narrative_cost_guard._reset_for_test(turn.COST_SURFACE)
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+    from api.middleware.auth_middleware import get_current_user_with_plan
+    app = FastAPI()
+    app.include_router(rx.router)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: ADMIN
+    yield TestClient(app)
+    narrative_cost_guard._reset_for_test(turn.COST_SURFACE)
+
+
+def _first_call_kwargs(**run):
+    """The exact request run_turn's first planner call sends (a dry run without a meter)."""
+    seen = []
+    turn.run_turn(caller=_caller(seen), **run)
+    return seen[0]
+
+
+# ═══ the switch ═════════════════════════════════════════════════════════════════════════════════
+def test_SWITCH_defaults_to_25_cents_and_garbage_never_means_unlimited(monkeypatch):
+    monkeypatch.delenv(budget.TURN_USD_ENV, raising=False)
+    assert budget.turn_cap_usd() == 0.25 == budget.DEFAULT_TURN_USD
+    for v in ("0", "", "abc", "-1", "nan"):
+        monkeypatch.setenv(budget.TURN_USD_ENV, v)
+        assert budget.turn_cap_usd() == 0.25
+    monkeypatch.setenv(budget.TURN_USD_ENV, "0.4")
+    assert budget.turn_cap_usd() == 0.4
+    assert turn_v2.turn_usd() == 0.4 and turn_v2.TURN_USD_ENV == budget.TURN_USD_ENV   # one switch, v1 and v2
+
+
+# ═══ boundary ═══════════════════════════════════════════════════════════════════════════════════
+def test_BOUNDARY_a_call_whose_worst_case_is_exactly_25_cents_is_admitted_one_micro_dollar_more_is_not(clean):
+    rid = budget.open_request("u", "c", "hello")
+    with pytest.raises(budget.BudgetRefused) as e:
+        _reserve(rid, 0.250001)
+    assert e.value.reason == "turn_cap" and e.value.sentence == budget.TURN_CAP_FIRST     # nothing was sent yet
+    _reserve(rid, 0.25)
+    assert budget.turn_committed_usd(rid) == pytest.approx(0.25)
+    with pytest.raises(budget.BudgetRefused) as e:
+        _reserve(rid, 0.000001)
+    assert e.value.reason == "turn_cap" and e.value.sentence == budget.TURN_CAP_LATER
+
+
+def test_BOUNDARY_the_sum_of_calls_lands_exactly_on_the_cap_without_float_drift(clean):
+    rid = budget.open_request("u", "c", "hello")
+    for _ in range(25):
+        _reserve(rid, 0.01)                         # 25 x $0.01 == $0.25 exactly (rounded to the micro-dollar)
+    with pytest.raises(budget.BudgetRefused):
+        _reserve(rid, 0.000001)
+
+
+def test_BOUNDARY_settling_at_actual_frees_the_difference_for_the_next_call(clean):
+    rid = budget.open_request("u", "c", "hello")
+    r1 = _reserve(rid, 0.20)
+    with pytest.raises(budget.BudgetRefused):
+        _reserve(rid, 0.10)                         # $0.20 open + $0.10 > $0.25
+    budget.settle(r1, actual_usd=0.05)
+    _reserve(rid, 0.20)                             # $0.05 actual + $0.20 == $0.25
+    assert budget.turn_committed_usd(rid) == pytest.approx(0.25)
+
+
+def test_BOUNDARY_every_category_and_the_off_ceiling_calls_count_toward_the_turn(clean):
+    """Research and E-1's classifier (counts_as_call=False) do not use one of the request's calls, but every dollar
+    of theirs counts toward the turn; the call ceiling is untouched by them."""
+    rid = budget.open_request("u", "c", "what's new with NVDA")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    m.call("evidence", lambda **kw: _resp(usage=(1000, 10, 0, 0)), counts_as_call=False, **KW)    # E-1 shape
+    m.research(lambda: {"answer": "x", "citations": [], "cached": False, "cost_usd": 0.007})
+    assert m.calls_left() == 2
+    assert budget.turn_committed_usd(rid) == pytest.approx(0.007 + (1000 * 1 + 10 * 5) / 1e6)
+    assert m.turn_room_usd() == pytest.approx(0.25 - budget.turn_committed_usd(rid))
+
+
+def test_BOUNDARY_a_request_without_an_id_is_not_turn_capped_but_the_daily_cap_still_holds(clean, monkeypatch):
+    """Scripts and planner v2 (which caps its own turn, turn_v2.py) carry no request id."""
+    _reserve(None, 0.30)
+    monkeypatch.setenv("UCT_AGENT_BUDGET_USD", "0.5")
+    with pytest.raises(budget.BudgetRefused) as e:
+        _reserve(None, 0.30)
+    assert e.value.reason == "agent_cap"
+
+
+def test_BOUNDARY_the_daily_cap_is_preserved_and_wins_when_both_would_refuse(clean, monkeypatch):
+    monkeypatch.setenv("UCT_AGENT_BUDGET_USD", "0.10")
+    rid = budget.open_request("u", "c", "hello")
+    with pytest.raises(budget.BudgetRefused) as e:
+        _reserve(rid, 0.26)                         # over both
+    assert e.value.reason == "agent_cap" and e.value.sentence == budget.AGENT_EXHAUSTED
+    with pytest.raises(budget.BudgetRefused) as e:
+        _reserve(rid, 0.11)                         # inside the turn, over the day
+    assert e.value.reason == "agent_cap"
+    assert budget.state()["turn_cap_usd"] == 0.25 and budget.state()["cap_usd"] == 0.10
+
+
+def test_BOUNDARY_a_refused_call_takes_no_place_in_the_call_ceiling(clean):
+    rid = budget.open_request("u", "c", "hello")
+    with pytest.raises(budget.BudgetRefused):
+        _reserve(rid, 0.30, counts_as_call=True)
+    assert budget.calls_used(rid) == 0
+
+
+def test_BOUNDARY_a_one_hour_cache_write_is_priced_at_2x(clean):
+    one_h = {**KW, "system": [{"type": "text", "text": "x" * 20000, "cache_control": {"type": "ephemeral", "ttl": "1h"}}]}
+    n = budget.request_bytes(one_h) + budget.FRAMING_TOKENS
+    assert budget.worst_case_usd(one_h) >= n * 2.0 / 1e6 + 2048 * 5 / 1e6 - 1e-9
+    assert budget.worst_case_usd(one_h) > budget.worst_case_usd(KW)
+
+
+# ═══ retries and failures ════════════════════════════════════════════════════════════════════════
+def test_FAILURE_a_provider_error_response_releases_its_reservation_and_the_retry_fits(clean, monkeypatch):
+    import anthropic
+    import httpx
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(budget.worst_case_usd(KW) + 0.001, 6)))
+    rid = budget.open_request("u", "c", "hello")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    err = anthropic.BadRequestError("schema too complex", response=httpx.Response(
+        400, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages")), body=None)
+    with pytest.raises(anthropic.BadRequestError):
+        m.call("turn", lambda **kw: (_ for _ in ()).throw(err), **KW)
+    assert budget.turn_committed_usd(rid) == 0 and budget.calls_used(rid) == 0
+    m.call("schema_retry", lambda **kw: _resp(), **KW)            # the retry has the whole turn again
+    assert budget.turn_committed_usd(rid) == pytest.approx(0.0016)
+
+
+def test_FAILURE_a_timeout_is_charged_its_worst_case_to_the_turn_and_blocks_a_retry_that_cannot_fit(clean, monkeypatch):
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(budget.worst_case_usd(KW) * 1.5, 6)))
+    rid = budget.open_request("u", "c", "hello")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    with pytest.raises(TimeoutError):
+        m.call("turn", lambda **kw: (_ for _ in ()).throw(TimeoutError()), **KW)
+    assert budget.turn_committed_usd(rid) == pytest.approx(budget.worst_case_usd(KW), abs=1e-6)
+    tried = []
+    with pytest.raises(budget.BudgetRefused) as e:
+        m.call("turn", lambda **kw: tried.append(1) or _resp(), **KW)
+    assert e.value.reason == "turn_cap" and tried == []              # refused BEFORE the call
+
+
+def test_FAILURE_partial_usage_settles_at_the_reported_input_plus_the_output_ceiling(clean):
+    rid = budget.open_request("u", "c", "hello")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+
+    def dropped(**kw):
+        e = ConnectionError("stream dropped")
+        e.uct_usage = {"input": 3000, "cache_read": 4000, "cache_write": 0}
+        raise e
+
+    with pytest.raises(ConnectionError):
+        m.call("turn", dropped, **KW)
+    expected = (3000 * 1 + 4000 * 0.1 + 2048 * 5) / 1e6
+    assert budget.turn_committed_usd(rid) == pytest.approx(expected)
+    assert expected < budget.worst_case_usd(KW)
+    st = budget.state()
+    assert st["calls"]["charged_worst_case"] == 1 and st["tokens"]["output"] == 2048
+
+
+def test_FAILURE_the_streamed_caller_reports_the_input_the_provider_billed_when_it_fails_mid_stream(clean, monkeypatch):
+    from api.services import engine
+
+    class Stream:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def __iter__(self):
+            yield types.SimpleNamespace(type="message_start", message=types.SimpleNamespace(usage=types.SimpleNamespace(
+                input_tokens=2500, cache_read_input_tokens=0, cache_creation_input_tokens=0)))
+            yield types.SimpleNamespace(type="text", text='{"disposition":')
+            raise ConnectionError("dropped")
+
+    fake = types.SimpleNamespace(messages=types.SimpleNamespace(stream=lambda **kw: Stream()))
+    fake.with_options = lambda **kw: fake
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: fake)
+    rid = budget.open_request("u", "c", "hello")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    with pytest.raises(ConnectionError):
+        m.call("turn", lambda **kw: turn._default_stream_caller(lambda t: None, **kw), **KW)
+    assert budget.turn_committed_usd(rid) == pytest.approx((2500 * 1 + 2048 * 5) / 1e6)
+
+
+def test_FAILURE_a_failed_settle_keeps_the_worst_case_on_the_turn(clean, monkeypatch):
+    rid = budget.open_request("u", "c", "hello")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+    monkeypatch.setattr(budget, "settle", lambda *a, **k: 0.0)        # the ledger write fails: the row stays reserved
+    m.call("turn", lambda **kw: _resp(), **KW)
+    assert budget.turn_committed_usd(rid) == pytest.approx(budget.worst_case_usd(KW), abs=1e-6)
+
+
+def test_FAILURE_an_unreadable_ledger_refuses_the_call(clean, monkeypatch):
+    rid = budget.open_request("u", "c", "hello")
+    monkeypatch.setattr(budget, "_turn_sum", lambda c, r: (_ for _ in ()).throw(OSError("disk")))
+    with pytest.raises(budget.BudgetRefused) as e:
+        _reserve(rid, 0.01)
+    assert e.value.reason == "unavailable"
+
+
+# ═══ concurrency ════════════════════════════════════════════════════════════════════════════════
+def _race(n, fn):
+    ok, no, barrier = [], [], threading.Barrier(n)
+
+    def one(i):
+        barrier.wait()
+        try:
+            ok.append(fn(i))
+        except budget.BudgetRefused as e:
+            no.append(e.reason)
+
+    ts = [threading.Thread(target=one, args=(i,)) for i in range(n)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    return ok, no
+
+
+def test_CONCURRENCY_calls_of_one_request_racing_never_pass_its_cap(clean):
+    rid = budget.open_request("u", "c", "hello")
+    ok, no = _race(20, lambda i: _reserve(rid, 0.05))
+    assert len(ok) == 5 and no == ["turn_cap"] * 15                  # $0.25 / $0.05, not one more
+    assert budget.turn_committed_usd(rid) == pytest.approx(0.25)
+
+
+def test_CONCURRENCY_two_turns_from_one_member_at_once_each_get_their_own_cap(clean):
+    a = budget.open_request("u", "c", "first")
+    b = budget.open_request("u", "c", "second")
+    ok, no = _race(24, lambda i: _reserve(a if i % 2 else b, 0.05))
+    assert len(ok) == 10 and no == ["turn_cap"] * 14
+    assert budget.turn_committed_usd(a) == pytest.approx(0.25) == budget.turn_committed_usd(b)
+
+
+def test_CONCURRENCY_two_turns_at_once_still_share_the_daily_cap(clean, monkeypatch):
+    monkeypatch.setenv("UCT_AGENT_BUDGET_USD", "0.30")
+    a = budget.open_request("u", "c", "first")
+    b = budget.open_request("u", "c", "second")
+    ok, no = _race(2, lambda i: _reserve(a if i else b, 0.25))
+    assert len(ok) == 1 and no == ["agent_cap"]
+    assert budget.state()["committed_usd"] == pytest.approx(0.25)
+
+
+def test_CONCURRENCY_a_reroute_and_the_naming_call_of_one_request_cannot_both_slip_under(clean):
+    rid = budget.open_request("u", "c", "add rsi")
+    _reserve(rid, 0.15)
+    ok, no = _race(2, lambda i: _reserve(rid, 0.08, counts_as_call=bool(i)))
+    assert len(ok) == 1 and no == ["turn_cap"]
+
+
+# ═══ the turn (scripted model) ══════════════════════════════════════════════════════════════════
+def test_TURN_a_request_larger_than_one_turn_allows_is_refused_before_anything_is_sent(clean, monkeypatch):
+    monkeypatch.setenv(budget.TURN_USD_ENV, "0.001")
+    rid = budget.open_request("u", "c", "hi")
+    calls = []
+    with pytest.raises(budget.BudgetRefused) as e:
+        turn.run_turn(message="hi", context={}, history=[], caller=_caller(calls),
+                      meter=budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    assert calls == [] and e.value.reason == "turn_cap" and e.value.sentence == budget.TURN_CAP_FIRST
+    assert budget.state()["committed_usd"] == 0
+
+
+def test_TURN_max_tokens_is_never_lowered_to_fit_the_cap(clean, monkeypatch):
+    kw = _first_call_kwargs(message="hi", context={}, history=[])
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(budget.worst_case_usd(kw), 6)))     # exactly one call's worth
+    rid = budget.open_request("u", "c", "hi")
+    calls = []
+    out = turn.run_turn(message="hi", context={}, history=[], caller=_caller(calls),
+                        meter=budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    assert out["envelope"]["reply"] == "hi" and [c["max_tokens"] for c in calls] == [turn.output_ceiling(turn.model())]
+
+
+QUESTION = "what's the latest news on NVDA earnings this week?"
+RESEARCH_ENV = {**ENV, "reply": "Let me check.", "research": {"query": "NVDA earnings", "recency": "week"}}
+
+
+def test_TURN_research_runs_when_the_lookup_and_the_call_that_reads_it_fit(clean, monkeypatch):
+    looked = []
+    monkeypatch.setattr(turn, "_research", lambda q, r: looked.append(q) or {"answer": "A.", "citations": [], "cached": False, "cost_usd": 0.01})
+    rid = budget.open_request("u", "c", QUESTION)
+    calls = []
+    out = turn.run_turn(message=QUESTION, context={}, history=[], caller=_caller(calls, RESEARCH_ENV, {**ENV, "reply": "NVDA reported on Tuesday."}),
+                        meter=budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    assert looked and len(calls) == 2 and out["envelope"]["reply"] == "NVDA reported on Tuesday."
+    assert budget.turn_committed_usd(rid) <= 0.25
+
+
+def test_TURN_research_is_skipped_honestly_when_it_and_its_answer_cannot_fit(clean, monkeypatch):
+    kw = _first_call_kwargs(message=QUESTION, context={}, history=[])
+    # room for the first call, not for the $0.108 lookup + the call that reads it
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(budget.worst_case_usd(kw) + 0.05, 6)))
+    looked = []
+    monkeypatch.setattr(turn, "_research", lambda q, r: looked.append(q) or {"answer": "A.", "citations": []})
+    rid = budget.open_request("u", "c", QUESTION)
+    calls = []
+    out = turn.run_turn(message=QUESTION, context={}, history=[], caller=_caller(calls, RESEARCH_ENV),
+                        meter=budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    assert looked == [] and len(calls) == 1
+    assert out["envelope"]["reply"] == turn.RESEARCH_TURN_CAP and out["usage"]["research_skipped"] == "turn_cap"
+    assert "research" not in budget.state()["by_category"]
+
+
+def test_TURN_a_mixed_request_keeps_its_planned_change_when_research_is_skipped_for_the_cap(clean, monkeypatch):
+    from tests.test_uct_agent import CAPS, CTX, env as mkenv
+    op = {"action": "chart.setType", "target": "c1", "args": {"type": "line"}}
+    kw = _first_call_kwargs(message="switch to line and what's the latest news on NVDA?", context=CTX, history=[], capabilities=CAPS)
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(budget.worst_case_usd(kw) + 0.05, 6)))
+    monkeypatch.setattr(turn, "_research", lambda q, r: pytest.fail("no lookup"))
+    rid = budget.open_request("u", "c", "x")
+    mixed = mkenv("apply", ops=[op], reply="Switching.", research={"query": "NVDA news", "recency": "week"})
+    out = turn.run_turn(message="switch to line and what's the latest news on NVDA?", context=CTX, history=[], capabilities=CAPS,
+                        caller=_caller([], mixed), meter=budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    e = out["envelope"]
+    assert e["reply"] == turn.RESEARCH_TURN_CAP and e["disposition"] == "apply"
+    assert [o["action"] for o in e["ops"]] == ["chart.setType"]   # planned, not claimed as researched
+
+
+def test_TURN_the_server_repair_is_skipped_when_it_cannot_fit_and_the_plan_is_served_as_checked(clean, monkeypatch):
+    from tests import test_uct_agent_w11_repair_b as rb
+    monkeypatch.setenv("UCT_AGENT_NL1", "1")
+    message = "mark when the 9 ema crosses above the 20 on this chart"
+    first = rb._unsupported(rb.LT4_REPLY)
+    seen = []
+    turn.run_turn(message=message, context=rb.CTX2, history=[], capabilities=rb.ALL, caller=_caller(seen, first, rb._plan_ia()))
+    assert len(seen) == 2                                           # without a meter: the repair runs
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(budget.worst_case_usd(seen[0]) + 0.0001, 6)))
+    rid = budget.open_request("u", "c", message)
+    calls = []
+    out = turn.run_turn(message=message, context=rb.CTX2, history=[], capabilities=rb.ALL, caller=_caller(calls, first, rb._plan_ia()),
+                        meter=budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    assert len(calls) == 1 and out["usage"]["repair_skipped"] == "turn_cap" and "repaired" not in out["usage"]
+    assert not out["envelope"]["ops"]                                # nothing is planned, nothing claimed done
+    assert budget.turn_committed_usd(rid) <= budget.turn_cap_usd()
+
+
+def test_TURN_the_naming_call_is_refused_when_its_request_has_no_room_and_names_nothing(clean, monkeypatch):
+    rid = budget.open_request("u", "c", "hello")
+    _reserve(rid, 0.249)
+    calls = []
+    with pytest.raises(budget.BudgetRefused) as e:
+        turn.name_conversation([{"role": "member", "text": "show me nvda weekly"}], caller=_caller(calls),
+                               meter=budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    assert e.value.reason == "turn_cap" and calls == []
+
+
+# ═══ the /turn route ════════════════════════════════════════════════════════════════════════════
+def test_ROUTE_a_turn_cap_refusal_is_a_400_with_the_fixed_sentence_and_nothing_is_sent(client, monkeypatch):
+    calls = []
+    monkeypatch.setattr(turn, "_default_caller", _caller(calls))
+    monkeypatch.setenv(budget.TURN_USD_ENV, "0.001")
+    r = client.post("/api/agent/turn", json={"message": "hi"})
+    assert r.status_code == 400 and r.json()["detail"] == budget.TURN_CAP_FIRST and calls == []
+    assert daily_counters.value(rx._et_day(), rx.SCOPE, ADMIN["id"]) == 0       # the day's count given back
+
+
+def test_ROUTE_a_reroute_is_charged_to_the_same_turn_and_refused_honestly_when_it_cannot_fit(client, monkeypatch):
+    calls = []
+    monkeypatch.setattr(turn, "_default_caller", _caller(calls, {**ENV, "title": "RSI on the chart"}))   # named in-turn
+    r1 = client.post("/api/agent/turn", json={"message": "add rsi"})
+    assert r1.status_code == 200
+    made = len(calls)
+    assert made == 1                                                 # one call used: the ceiling leaves the reroute one
+    spent = budget.state()["committed_usd"]
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(spent + 0.001, 6)))     # the reroute's worst case cannot fit
+    r2 = client.post("/api/agent/turn", json={"message": "add rsi", "reroute": True, "conversationId": r1.json()["conversationId"]})
+    assert r2.status_code == 400 and r2.json()["detail"] == budget.TURN_CAP_LATER and len(calls) == made
+    # the transcript stores UCT's fixed sentence, never a claim
+    turns = store.get_turns(ADMIN["id"], r1.json()["conversationId"])
+    assert turns[-1]["text"] == budget.TURN_CAP_LATER
+
+
+def test_ROUTE_the_background_naming_call_counts_toward_its_turn_and_a_refusal_never_fails_the_turn(client, monkeypatch):
+    kw = _first_call_kwargs(message="show nvda weekly", context={}, history=[], conversation_title=rx.NO_TITLE_YET)
+    # the first call bills nearly its whole worst case (every byte a cache write, all output), leaving less room
+    # than the naming call's worst case
+    calls = []
+    monkeypatch.setattr(turn, "_default_caller", _caller(calls, usage=(0, 2048, 0, budget.request_bytes(kw))))
+    monkeypatch.setenv(budget.TURN_USD_ENV, str(round(budget.worst_case_usd(kw) + 0.0001, 6)))
+    r = client.post("/api/agent/turn", json={"message": "show nvda weekly"})
+    assert r.status_code == 200 and len(calls) == 1                  # the naming call was refused, not made
+    assert "title" not in budget.state()["by_category"]
+    monkeypatch.delenv(budget.TURN_USD_ENV)
+    r = client.post("/api/agent/turn", json={"message": "show nvda daily"})
+    assert r.status_code == 200 and len(calls) == 3                  # with room: the turn + its naming call
+    assert "title" in budget.state()["by_category"]
+
+
+def test_TURN_a_typical_golden_manifest_question_still_researches_after_a_cache_miss(clean, monkeypatch):
+    """The cap must not take research away from an ordinary request: the full golden manifest (at the 60-action
+    limit), an empty chat, and a first call that missed the cache (its whole prompt billed as a cache write at a
+    realistic ~3.5 bytes per token)."""
+    from pathlib import Path
+    golden = json.loads((Path(__file__).resolve().parents[1] / "app/src/agent/contract/manifest.golden.json").read_text(encoding="utf-8"))
+    caps = golden["capabilities"][:turn.MAX_CAPABILITIES]
+    kw = _first_call_kwargs(message=QUESTION, context={}, history=[], capabilities=caps)
+    usage = (0, 300, 0, budget.request_bytes(kw) * 2 // 7)
+    monkeypatch.setattr(turn, "_research", lambda q, r: {"answer": "A" * 2400, "citations": ["https://example.com/" + "p" * 80] * 6,
+                                                         "cached": False, "cost_usd": 0.02})
+    rid = budget.open_request("u", "c", QUESTION)
+    calls = []
+    out = turn.run_turn(message=QUESTION, context={}, history=[], capabilities=caps,
+                        caller=_caller(calls, RESEARCH_ENV, {**ENV, "reply": "NVDA reported on Tuesday."}, usage=usage),
+                        meter=budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    assert len(calls) == 2 and out["usage"]["research_calls"] == 1 and "research_skipped" not in out["usage"]
+    assert budget.turn_committed_usd(rid) <= 0.25
+
+
+def test_FAILURE_an_error_event_after_the_stream_started_is_settled_never_released(clean):
+    import anthropic
+    import httpx
+    rid = budget.open_request("u", "c", "hello")
+    m = budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE)
+
+    def overloaded(**kw):
+        e = anthropic.InternalServerError("overloaded", response=httpx.Response(
+            529, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages")), body=None)
+        e.uct_usage = {"input": 1000, "cache_read": 0, "cache_write": 0}
+        raise e
+
+    with pytest.raises(anthropic.InternalServerError):
+        m.call("turn", overloaded, **KW)
+    assert budget.turn_committed_usd(rid) == pytest.approx((1000 + 2048 * 5) / 1e6) and budget.state()["calls"]["released"] == 0

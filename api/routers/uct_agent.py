@@ -598,7 +598,8 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         _give_back(uid)
         log.info("[uct-agent] paid call refused reason=%s", e.reason)
         store.add_turn(uid, cid, "outcome", e.sentence, {"kind": "error"})
-        raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason == "call_limit" else 429),
+        # call_limit / turn_cap: this request's own limits (not today's), so a 400 with UCT's fixed sentence
+        raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason in ("call_limit", "turn_cap") else 429),
                             detail=e.sentence)
     except agent.TurnError as e:
         _give_back(uid)
