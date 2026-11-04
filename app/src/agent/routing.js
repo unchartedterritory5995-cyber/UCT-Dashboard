@@ -40,8 +40,12 @@ export const GROUPS = [
     // Gate B vocabulary (soft): an overlay or a symbol swap said without "compare" / "chart"
     vocab: [/\b(next to (this|it)|on top of (this|it)|swap \$?[a-z]{1,5} (for|with)|instead of \$?[a-z]{1,5})\b/],
     words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|hourly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
-      /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(theme|colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|thin bars|invert|template|defaults?|tabs?|compar(?:e|es|ing|isons?)|versus|against|overlays?|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
+      /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|thin bars|invert|template|tabs?|compar(?:e|es|ing|isons?)|versus|against|overlays?|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
       /\bvolume\b/,
+      // CG-25 (corpus #774): "theme" is the CHART's look — never the app's ("light / dark / app / UCT theme")
+      /\b(?<!(?:light|dark|app|uct|site) )themes?\b/,
+      // "defaults" — a chart's own defaults ("restore the chart defaults"), never a default for NEW charts (settings)
+      /^(?!.*\b(?:new charts?|by default|always open)\b).*\bdefaults?\b/,
       // CG-20 (corpus #774): "swing" (swing labels) — not a layout's / list's NAME ("open my Swing layout")
       /^(?!.*\b(?:layouts?|watch ?lists?|lists?|screens?|templates?)\b).*\bswing\b/,
       // P1: a symbol / setting put on a chart NAMED by position or order ("TSLA on the left", "on the second one")
@@ -217,7 +221,10 @@ export const GROUPS = [
       /\badvance[- /]decline\b|\badvancers?\b|\bdecliners?\b|\ba\/d (line|ratio|numbers?)\b|\badvancing (issues|stocks)\b/,
       /\bstage ?[24] (counts?|stocks|names)\b/, /\b(up|down) 4%/, /\bmarket internals\b/] },
   { id: 'settings', title: 'App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages', domains: ['settings', 'app'],
-    words: [/\bsettings?\b/, /\b(dark|light) mode\b/, /\bapp theme\b/, /\bdefault (chart )?timeframe\b/, /\b(alert )?sound\b/, /\bdigest\b/, /\bemail\b/, /\b(open|go to|take me to)\b.*\b(page|screener|dashboard|breadth|research)\b/] },
+    // CG-25..27 (corpus #774): the APP's theme ("use the light theme", "UCT theme"), a DEFAULT for new charts ("new charts
+    // should open on the weekly", "by default", "always open") and alert sounds (plural) are settings
+    words: [/\bsettings?\b/, /\b(dark|light) mode\b/, /\b(app|uct|site|light|dark) theme\b/, /\bdefault (chart )?time ?frames?\b/, /\b(alert )?sounds?\b/,
+      /\bnew charts? (?:should|will|to|must|always) (?:open|start|load|default|be)\b|\bby default\b|\balways (?:open|start|load)\b|\bdefault for new charts?\b/, /\bdigest\b/, /\bemail\b/, /\b(open|go to|take me to)\b.*\b(page|screener|dashboard|breadth|research)\b/] },
   { id: 'agent', title: 'Questions about what UCT Agent can do', domains: ['agent'], always: true, words: [] },
   // hotfix 2026-11-03 (live: "Undo the last change you made to my charts." reached a model with no Undo): the Agent's OWN
   // Undo (agent.undo → the receipt's Undo, browser-only) in its OWN one-action group, named by any Undo word — so the

@@ -37,6 +37,8 @@ const NOT_A_TICKER = new Set(('line lines places place left charts chart level l
   + 'gray grey brown teal cyan magenta make set turn paint colour color recolor recolour add remove draw hide '
   + 'thick thin dashed dotted solid bold').split(/\s+/))
 
+const QUOTE_FRAME = /\b(?:price|prices|pricing|quote|quotes|how much is|trading at|trade at|premarket|pre-market|after ?hours|overnight)\b/
+
 // intent words only (never a symbol): the parser's own fixed typo list (MD-1-phrasings §1.6)
 const TYPOS = { wats: "what's", whats: "what's", wat: 'what', tradin: 'trading', tradeing: 'trading', pirce: 'price',
   prcie: 'price', pric: 'price', qoute: 'quote', quoet: 'quote', premarkt: 'premarket', premaket: 'premarket',
@@ -114,8 +116,12 @@ export function parsePriceSentence(text) {
   if (VETO.some(re => re.test(low)) || TIME_VETO.some(re => re.test(low))) return null
   // CG-15/22/23: an everyday word typed in lower case is DROPPED as a candidate (never a ticker) — the rest still read
   // ("price of nvda and set" prices NVDA); a sentence left with none is not a price question at all
-  const candidates = (candidatesOf(s) || null)?.filter(c => !(c.form === 'lower' && NOT_A_TICKER.has(c.text))) || null
+  const all = candidatesOf(s)
+  const candidates = all ? all.filter(c => !(c.form === 'lower' && NOT_A_TICKER.has(c.text))) : null
   if (!candidates || !candidates.length || candidates.length > MAX_TICKERS) return null
+  // a sentence that leaned on an everyday word ("add a horizontal level at 200", "close the Swing tab") is not a price
+  // question unless it SAYS so — a clear quote frame or a $ ticker keeps the rest ("price of nvda and set" → NVDA)
+  if (all.length !== candidates.length && !QUOTE_FRAME.test(low) && !candidates.some(c => c.form === 'cashtag')) return null
   const allCash = candidates.every(c => c.form === 'cashtag')
   if (candidates.length > 1 && !allCash && !/(\band\b|,)/i.test(s)) return null
   // a list ("X and Y", "X, Y") must have a candidate in EVERY item: "nvda and on price" names two things, one of which

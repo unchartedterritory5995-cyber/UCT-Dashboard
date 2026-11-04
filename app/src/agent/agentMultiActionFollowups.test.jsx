@@ -819,3 +819,27 @@ describe('nl-gaps-2 review notes', () => {
     expect(wordsSelect('definitions', 'find me a volatility indicator')).toBe(true)                   // master's search words still search
   })
 })
+
+describe('nl-gaps-3 · CG-25..27 (#774): app settings vs the chart', () => {
+  it('CG-25: the APP theme routes settings; a CHART theme / candle colours route the chart', () => {
+    for (const m of ['use the light theme', 'switch to the dark theme', 'change the app theme', 'use the UCT theme']) {
+      expect(wordsSelect('settings', m), m).toBe(true)
+      expect(wordsSelect('charts', m), m).toBe(false)
+    }
+    expect(wordsSelect('charts', 'apply the Sunset chart theme')).toBe(true)
+    expect(wordsSelect('charts', 'make the candle colours green and red')).toBe(true)
+  })
+  it('CG-26: a default for NEW charts routes settings', () => {
+    for (const m of ['new charts should open on the weekly', 'open charts on the daily by default', 'always open charts on the 5 minute', 'set my default timeframe to weekly'])
+      expect(wordsSelect('settings', m), m).toBe(true)
+    expect(wordsSelect('charts', 'restore the chart defaults')).toBe(true)
+  })
+  it('CG-27: "turn off alert sounds" routes settings', () => {
+    expect(wordsSelect('settings', 'turn off alert sounds')).toBe(true)
+  })
+  it('an everyday word the sentence leaned on is never a ticker without a clear quote frame', () => {
+    expect(parsePriceSentence('add a horizontal level at 200')).toBeNull()
+    expect(parsePriceSentence('close the Swing tab')).toBeNull()
+    expect(parsePriceSentence('price of nvda and set')?.candidates?.map(c => c.text)).toEqual(['nvda'])
+  })
+})
