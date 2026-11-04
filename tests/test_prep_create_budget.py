@@ -281,7 +281,6 @@ def test_the_create_regime_read_never_asks_the_default_breadth(db_path, monkeypa
 
 def _route(monkeypatch):
     from api.routers import notebook_journal_styles as r
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     app = FastAPI()
     app.include_router(r.router)
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "pro"}

@@ -8,9 +8,8 @@ wave 10 already made the BUILT-IN Templates dialog a browsable gallery
 
 The rules, each railed by tests/test_notebook_template_gallery.py:
 
-  * GATED. `NOTEBOOK_TEMPLATE_GALLERY_ENABLED`, read per request through the one
-    Notebook flag parse, default OFF -- the router answers 404 for every route while it
-    is off, before any session is read (`notebook_template_gallery.py`).
+  * ALWAYS ON. `NOTEBOOK_TEMPLATE_GALLERY_ENABLED`, the style library's and the example notes'
+    switches were retired as always on (2026-11-04); layout sharing keeps its own switch.
   * REVIEWED BEFORE PUBLISHING (owner, WAVE-11-PLAN.md:20). Publishing creates a
     PENDING submission that only its author (and an admin) can see. An admin approves
     it before it is listed, or rejects it with a note the author reads. Editing an
@@ -71,24 +70,15 @@ from api.services.journal_two import example_sanitize
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import page_layout_share as pls
 from api.services.journal_two import sample_marker
-from api.services.journal_two import starter_packs
 from api.services.journal_two.notebook_widgets import notebook_widgets_wave_on
 from api.services.journal_two.page_layout_share import LAYOUT_ITEM, LAYOUT_PAGES
 from api.services.journal_two.tool_errors import ToolError
 from api.services.notebook_flags import TRUTHY, flag_on
 
-FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
-
 #: ⛔ ONE FACT IN TWO FILES with the client's GALLERY_CATEGORIES
 #: (app/src/pages/journal-2-0/lib/templateGallery.js); tests/test_notebook_template_gallery.py
 #: PARSES the client file and holds the two equal.
 CATEGORIES = ("trade_plan", "journal", "research", "review")
-LIBRARY_FLAG = "NOTEBOOK_STYLE_LIBRARY_ENABLED"
-#: P3b (R-P3b-6): the example-note switch. SERVER-ONLY -- it is not in `auth.NOTEBOOK_FLAGS` and has no
-#: client fallback row; the lazy library list reports it as `capabilities.exampleNotes`. Read per call by
-#: `example_enabled`, with a plain `os.environ.get` so the feature-flag index sees it (a `flag_on` call is
-#: for payload flags only, `notebook_flags.py`'s rule) and the ledger declares it.
-EXAMPLE_FLAG = "NOTEBOOK_EXAMPLE_NOTES_ENABLED"
 #: The item type of an example note (P3b). An example belongs to a style (R-P3b-2) and is NEVER listed on its
 #: own: no list, section, filter, author page or feed returns one, and the library's type chips skip it.
 EXAMPLE_ITEM = "example_note"
@@ -173,52 +163,24 @@ class GalleryServerError(Exception):
     Deliberately NOT a `GalleryError`: that one is a 400, a request the member can change."""
 
 
-def enabled() -> bool:
-    """The gate, read PER CALL through the one Notebook flag parse (default OFF)."""
-    return flag_on(FLAG, False)
-
-
-def library_enabled() -> bool:
-    """P3a's gate, read PER CALL through the one Notebook flag parse (default OFF)."""
-    return flag_on(LIBRARY_FLAG, False)
-
-
 #: P4b (R-P4b-10): the layout-sharing switch. SERVER-ONLY: it is not in `auth.NOTEBOOK_FLAGS` and has no client
 #: fallback row (a payload key would cost first-open bytes); the lazy library list reports it as
 #: `capabilities.layoutSharing` and `GET /layouts/status` answers 404 while it is off. Read per call with a plain
-#: `os.environ.get` (a `flag_on` call is for payload flags), and it needs the library AND page layouts too.
+#: `os.environ.get` (a `flag_on` call is for payload flags), and it needs page layouts too.
 LAYOUT_SHARING_FLAG = "NOTEBOOK_LAYOUT_SHARING_ENABLED"
 PAGE_LAYOUTS_FLAG = "JOURNAL_PAGE_LAYOUTS_ENABLED"
 
 
 def _layout_switches_on() -> bool:
-    """The two switches that are layout sharing's OWN (page layouts and the sharing env), read PER CALL and
-    WITHOUT the library switch, so a list that has already read `library_enabled` once can combine the two
-    without reading it again (P5's one-read rule, `test_one_list_request_reads_the_switches_once`)."""
+    """The two switches layout sharing needs (page layouts and the sharing env), read PER CALL."""
     return (flag_on(PAGE_LAYOUTS_FLAG, False)
             and (os.environ.get(LAYOUT_SHARING_FLAG) or "").strip().lower() in TRUTHY)
 
 
 def layout_sharing_enabled() -> bool:
-    """P4b's gate: all three switches on, read PER CALL. Default OFF; an unrecognised value is OFF.
-
-    The fourth switch, the gallery's own (`FLAG`), is the router's dependency, not part of this function,
-    exactly as `library_enabled` leaves it to the router: every route that calls this is behind it."""
-    return library_enabled() and _layout_switches_on()
-
-
-def example_enabled() -> bool:
-    """P3b's gate (R-P3b-6): `NOTEBOOK_EXAMPLE_NOTES_ENABLED` AND the library switch, read PER CALL.
-
-    Default OFF, and an unrecognised value is OFF: for a default-off gate that is exactly `flag_on`'s
-    truth table, so the one TRUTHY set decides (`notebook_flags.TRUTHY`)."""
-    return library_enabled() and _example_switch_on()
-
-
-def _example_switch_on() -> bool:
-    """The example switch alone, without the library switch (the same split as `_layout_switches_on`), so a list
-    that has already read `library_enabled` can combine them without reading it again."""
-    return (os.environ.get(EXAMPLE_FLAG) or "").strip().lower() in TRUTHY
+    """P4b's gate: both of its switches on, read PER CALL. Default OFF; an unrecognised value is OFF. (The
+    library and the gallery it also needed were retired as always on, 2026-11-04.)"""
+    return _layout_switches_on()
 
 
 def _now() -> str:
@@ -885,15 +847,10 @@ def list_gallery(
     hidden), so an author always knows where their template stands."""
     if section not in SECTIONS:
         raise GalleryError("Unknown gallery section.")
-    # With the library off the gallery must look exactly like today's: "trending" is a P3a sort,
-    # so it answers what any unknown sort answered before it existed (same 400, same sentence).
-    # The switches are read ONCE per request (P5-T5b-R1): `library_on` and the WHERE term below both derive
-    # from this one answer, so a switch flip mid-request cannot pair a library-off branch with a style row.
+    # The switches are read ONCE per request (P5-T5b-R1): the WHERE term below derives from this one answer.
     hidden = _hidden_styles()
-    library_on = hidden != "all"
-    if sort not in SORTS or (sort == "trending" and not library_on):
-        raise GalleryError("Sort by newest, most adopted or trending." if library_on
-                           else "Sort by newest or most used.")
+    if sort not in SORTS:
+        raise GalleryError("Sort by newest, most adopted or trending.")
     if category not in (None, "", *CATEGORIES):
         raise GalleryError("Unknown category.")
     if item_type not in (None, "", *LISTED_ITEM_TYPES):
@@ -904,9 +861,8 @@ def list_gallery(
     where: list[str] = []
     args: list[Any] = []
     # Ruling P3b-R12: an author's OWN Your submissions lists their example notes too, with the status and any
-    # reviewer's note, while the switch is on (R-P3b-2's "never listed on its own" governs the library, where
-    # other members browse). With the switch off an example reads as absent everywhere, here included.
-    if section != "mine" or not (library_on and _example_switch_on()):    # `example_enabled`, library read once
+    # reviewer's note (R-P3b-2's "never listed on its own" governs the library, where other members browse).
+    if section != "mine":
         where.append(_NEVER_LISTED)
     if section == "mine":
         where.append("g.user_id = ?")
@@ -918,15 +874,11 @@ def list_gallery(
     if category:
         where.append("g.category = ?")
         args.append(category)
-    # A library type (a style, a layout) or a trading-style filter asked for while the library is off is unknown:
-    # the same 400 as before either existed. Then the ONE type rule for the non-style types (`_hidden_item_types`,
-    # given this request's `library_on` so `library_enabled` is read once): a hidden type asked for by name is
+    # The ONE type rule for the non-style types (`_hidden_item_types`): a hidden type asked for by name is
     # unknown, and every row of one is kept out of the WHERE. Style rows are `_hidden_styles_sql`'s, below.
-    if not library_on and (item_type in ("style", LAYOUT_ITEM) or trading_style):
+    if item_type in _hidden_item_types():
         raise GalleryError("Unknown item type.")
-    if item_type in _hidden_item_types(library_on):
-        raise GalleryError("Unknown item type.")
-    where.append(_type_visible_clause(library_on))
+    where.append(_type_visible_clause())
     if item_type:
         where.append("g.item_type = ?")
         args.append(item_type)
@@ -966,30 +918,24 @@ def _row(conn: sqlite3.Connection, gallery_id: str, viewer_id: str | None = None
     return _read(conn, viewer_id, "g.id = ?", (gallery_id,)).fetchone()
 
 
-def _hidden_item_types(library_on: bool | None = None) -> tuple[str, ...]:
-    """⛔ THE ONE RULE for which NON-STYLE item types are absent right now (R-P3b-6, R-P4b-10): an example note
-    while its switch is off, a page layout while layout sharing is off. Style rows are NOT this function's:
-    `_hidden_styles` owns them (P5-AUD-1), so there is one decision over style visibility, not two.
+def _hidden_item_types() -> tuple[str, ...]:
+    """⛔ THE ONE RULE for which NON-STYLE item types are absent right now (R-P4b-10): a page layout while layout
+    sharing is off. Style rows are NOT this function's: `_hidden_styles` owns them (P5-AUD-1), so there is one
+    decision over style visibility, not two. (Example notes were hidden while their switch was off; it was
+    retired as always on, 2026-11-04.)
 
-    Wave 11 (Task 11.7): the three tool types (`TOOL_ITEM_TYPES`) while the library switch or wave 11 is off.
-
-    A caller that already read `library_enabled` for this request passes it as `library_on`, so a list reads the
-    library switch once (P5-T5b-R1); every other caller lets this read it."""
-    if library_on is None:
-        library_on = library_enabled()
+    Wave 11 (Task 11.7): the three tool types (`TOOL_ITEM_TYPES`) while wave 11 is off."""
     hidden = []
-    if not (library_on and _example_switch_on()):
-        hidden.append(EXAMPLE_ITEM)
-    if not (library_on and _layout_switches_on()):
+    if not _layout_switches_on():
         hidden.append(LAYOUT_ITEM)
-    if not (library_on and notebook_widgets_wave_on(11)):
+    if not notebook_widgets_wave_on(11):
         hidden.extend(TOOL_ITEM_TYPES)       # wave 11 (Task 11.7): stored, never deleted; back on re-arm
     return tuple(hidden)
 
 
-def _type_visible_clause(library_on: bool | None = None) -> str:
+def _type_visible_clause() -> str:
     """`_hidden_item_types` as a WHERE term over the alias `g`, always non-empty, so a caller ANDs it in."""
-    hidden = _hidden_item_types(library_on)
+    hidden = _hidden_item_types()
     return "1 = 1" if not hidden else "g.item_type NOT IN (" + ", ".join(f"'{t}'" for t in hidden) + ")"
 
 
@@ -1003,27 +949,16 @@ def _type_visible_clause(library_on: bool | None = None) -> str:
 def _hidden_styles() -> str:
     """What the gallery hides of its style rows right now, read PER CALL.
 
-    `"all"`  -- the library switch is off: every style row reads as absent (R-P3-10, R-T3-w1).
-    `"firm"` -- the library is on and the starter-packs switch is off: the firm style rows (`kind = 'firm'`, the
-               starter packs' fifteen seeded picks) read as absent (P5-AUD-1). So a firm style row is listed, in
-               every read and in UCT picks, ONLY while BOTH switches are on, and NOTEBOOK_STARTER_PACKS_ENABLED=0
-               hides them again. The pack install does not go through this: it reads its rows directly
-               (`starter_packs.install`, behind its own switches).
-    `"official"` -- the library is on and wave 11 is off: the official template rows (`kind = 'official'`,
-               W11-R4) read as absent. They are listed only while the library AND wave 11 are on, whatever the
-               starter-packs switch says.
-    `"firm+official"` -- the library is on and both are off: both kinds read as absent.
-    `""` -- nothing is hidden."""
-    if not library_enabled():
-        return "all"
-    hidden = [k for k, on in (("firm", starter_packs.enabled()), ("official", notebook_widgets_wave_on(11)))
-              if not on]
-    return "+".join(hidden)
+    `"official"` -- wave 11 is off: the official template rows (`kind = 'official'`, W11-R4) read as absent.
+    `""` -- nothing is hidden.
+
+    (The library and starter-pack switches, which also hid every style row (`"all"`) or the firm rows
+    (`"firm"`), were retired as always on, 2026-11-04.)"""
+    return "" if notebook_widgets_wave_on(11) else "official"
 
 
 def _hidden_style_kinds(hidden: str) -> tuple[str, ...]:
-    """The style-row kinds one `_hidden_styles()` answer hides while the library is on (`"firm+official"` is
-    both). `"all"` is not a kind answer: both renderings branch on it first."""
+    """The style-row kinds one `_hidden_styles()` answer hides."""
     return tuple(k for k in hidden.split("+") if k)
 
 
@@ -1031,29 +966,22 @@ def _library_hides(row: sqlite3.Row) -> bool:
     """`_hidden_styles()` for one row. A hidden row reads exactly like one that does not exist: for its author
     and an admin as much as for a browsing member. `row` must carry `item_type` and `kind`.
 
-    P3b (R-P3b-6): an example-note row reads the same way while ITS switch is off (which the library switch
-    being off implies). Stored, never deleted: arming the switch again brings it back as it was. This branch
-    comes FIRST (P5-FIN-R1): the style rule below answers False for every non-style row.
-
     P4b (R-P4b-10): a page-layout row reads the same way while layout sharing is off (all three of its switches),
     so `GET /{id}`, Helpful, report, the admin routes and adopt all 404 a layout without a route gate of their own.
-    ⛔ ONE ORDER (P4b final T1): the example branch, then the layout branch, then P5's style rule. The two
-    non-style branches ask `_hidden_item_types`, the same answer the list WHERE renders (`_type_visible_clause`).
+    ⛔ ONE ORDER (P4b final T1): the layout branch, then the tool branch, then P5's style rule. The non-style
+    branches ask `_hidden_item_types`, the same answer the list WHERE renders (`_type_visible_clause`).
 
     ⛔ C1 (P5 landing review M-1, P4b final): BOTH columns are read here for EVERY row, before any branch. A narrow
     SELECT that leaves `kind` out then fails in every test of every switch state, never only for a style row in
     the one state (library on, starter packs off) that reads `kind`, which is how C1 hid."""
     item_type, kind = row["item_type"], row["kind"]
-    if item_type == EXAMPLE_ITEM:
-        return EXAMPLE_ITEM in _hidden_item_types()
     if item_type == LAYOUT_ITEM:
         return LAYOUT_ITEM in _hidden_item_types()
     if item_type in TOOL_ITEM_TYPES:
         return item_type in _hidden_item_types()
     if item_type != "style":
         return False
-    hidden = _hidden_styles()
-    return hidden == "all" or kind in _hidden_style_kinds(hidden)
+    return kind in _hidden_style_kinds(_hidden_styles())
 
 
 def _hidden_styles_sql(hidden: str | None = None) -> str:
@@ -1061,8 +989,6 @@ def _hidden_styles_sql(hidden: str | None = None) -> str:
     A caller that already holds this request's `_hidden_styles()` answer passes it, so the switches are read once."""
     if hidden is None:
         hidden = _hidden_styles()
-    if hidden == "all":
-        return "g.item_type = 'outline'"
     kinds = _hidden_style_kinds(hidden)
     if kinds:
         return "NOT (g.item_type = 'style' AND g.kind IN (" + ", ".join(f"'{k}'" for k in kinds) + "))"
@@ -1145,10 +1071,8 @@ def get_item(viewer_id: str, gallery_id: str, *, is_admin: bool = False,
                 rev = _pending_revision(row, wave11=w11)
                 if rev is not None:
                     out["pendingRevision"] = rev
-            # P3b Task 6: the style's own examples ("In use"), only while the example switch is on (absent, not
-            # empty, while it is off: the key itself is the switch's answer, as everywhere an example is absent).
-            if example_enabled():
-                out["examples"] = _style_examples(conn, row)
+            # P3b Task 6: the style's own examples ("In use").
+            out["examples"] = _style_examples(conn, row)
         elif row["item_type"] == EXAMPLE_ITEM:
             # P3b: an example's LISTED snapshot (`payload_json`, never `pending_json`) and, for a reviewer only, its
             # held revision -- the same rule as a style's, so a revision is seen before it is approved.
@@ -2266,8 +2190,6 @@ def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, 
     Task 11.8: `edits` and `keep` are the author's share-preview answers (W11-R6), handed to the one reducer
     (`style_payload` -> `share.share_template`) for a template holding slots; the answer carries `droppedSlots`
     then (the slots whose target is not the member's, left out)."""
-    if not library_enabled():
-        return None
     clean_title = _clean_text(title, field="title", limit=MAX_TITLE_CHARS, required=True)
     clean_desc = _clean_text(description, field="description", limit=MAX_DESCRIPTION_CHARS, required=False)
     clean_cat = _clean_category(category)
@@ -2455,12 +2377,10 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
             "SELECT item_type, title FROM j2_template_gallery WHERE id = ? AND user_id = ? AND kind = 'member'",
             (gallery_id, user_id)).fetchone()
         # The same rule as the update ring: only a watcher whose copy still exists is told ("your copy is
-        # yours" is a sentence about that copy). While the library is off the delete still happens (taking
-        # your own content down is always possible) but nobody is rung: a withdraw notice is a library effect,
-        # and a library-off pod must look exactly like today (R-P3-10; final review M-8).
+        # yours" is a sentence about that copy).
         # Fix round 1 (c4): a widget, routine or tracker listing's watchers are told too (their copy's own table);
         # a tool's notice needs wave 11 as well, the same switches as everything else about it.
-        rings = (item is not None and item["item_type"] in _WATCHED_TYPES and library_enabled()
+        rings = (item is not None and item["item_type"] in _WATCHED_TYPES
                  and (item["item_type"] == "style" or notebook_widgets_wave_on(11)))
         watchers = [] if not rings else [
             r["user_id"] for r in conn.execute(
@@ -2697,8 +2617,6 @@ def preview_example_title(conn: sqlite3.Connection | None, user_id: str, note_id
     `MAX_RAW_TITLE_CHARS`) and reduces NOTHING of the note, so a member typing a title never re-reduces the body.
     The note must still be one that may be an example (None, the route's 404, otherwise); its body is not read
     beyond `_example_note`'s own checks. Writes nothing."""
-    if not example_enabled():
-        return None
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -2723,8 +2641,6 @@ def preview_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
     author may switch on, in body order, at the author's own address; a switched-on one appears in `bodyJson`
     at that address too. `title` is the scrubbed form of `title` (or of the note's own title when none is
     given). `before` is the author's own text and goes to the author only."""
-    if not example_enabled():
-        return None
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -3092,8 +3008,6 @@ def publish_example(conn: sqlite3.Connection | None, user_id: str, note_id: Any,
     ⛔ P3b-T3-R1 (review I-1): the note is bounded before it is reduced (`_example_note`), and the reduction
     runs BEFORE `BEGIN IMMEDIATE`, against a fresh id. Only the lookup, the image rebinding and the write sit
     inside the write lock, so a publish never holds auth.db's lock for the length of a reduction."""
-    if not example_enabled():
-        return None
     if conn is not None and conn.in_transaction:
         raise ValueError("publish_example needs a connection with no open transaction")
     owned = conn is None
@@ -3263,7 +3177,6 @@ def use_template(user_id: str, gallery_id: str, conn: sqlite3.Connection | None 
 
 # ── adopting a community style, and the previewed update (P3a Task 5) ──────────────────────
 
-ADOPT_NEEDS_STYLES_SENTENCE = "Journal styles are not on for you yet, so a style can't be adopted."
 UPDATE_STALE_SENTENCE = "This style changed since you opened the update. Nothing was changed. Look again."
 UPDATE_MOVED_SENTENCE = ("The author listed a newer version since you opened the update. Nothing was changed. "
                          "Look again.")
@@ -3809,10 +3722,6 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False, answers:
     copy (the member's choice). The lookup and the copy share one BEGIN IMMEDIATE."""
     from api.services.journal_two import create_keys
     from api.services.journal_two import journal_styles as js
-    if not library_enabled():
-        return None
-    if not js.enabled():
-        raise GalleryConflict(ADOPT_NEEDS_STYLES_SENTENCE)
     k = create_keys.clean_create_key(key) if _wave11_library_on() else None
     owned = conn is None
     conn = conn or get_connection()
@@ -3917,8 +3826,6 @@ def list_updates(user_id: str, conn: sqlite3.Connection | None = None) -> list[d
 
     Read from the COPY's own `source_version`, so a style adopted without "notify me" is here too: that
     choice is about being told, not about being offered."""
-    if not library_enabled():
-        return []
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -3949,8 +3856,6 @@ def _plan(conn: sqlite3.Connection, user_id: str, style_id: Any, prepared: "_Pre
     `prepared` (W11-R53, `apply_update` under its write lock): the listing cleaned before the lock; only its stored
     text is compared here (`_ListingMoved`), so no clean runs under the lock."""
     from api.services.journal_two import journal_styles as js
-    if not library_enabled():
-        return None, None, None
     mine = js.get_style(user_id, style_id, conn, full=True)
     if mine is None or mine.get("builtin") or not mine.get("sourceGalleryId"):
         return None, None, None
@@ -4035,7 +3940,7 @@ def apply_update(user_id: str, style_id: Any, *, take_outline: bool, base_update
 def _prepare_update(conn: sqlite3.Connection, user_id: str, style_id: Any) -> _Prepared | None:
     """The listing an update of `style_id` would take, cleaned outside the lock (W11-R53); None when there is none."""
     from api.services.journal_two import journal_styles as js
-    if conn.in_transaction or not library_enabled():
+    if conn.in_transaction:
         return None
     mine = js.get_style(user_id, style_id, conn)
     return _prepare(conn, mine["sourceGalleryId"]) if mine and mine.get("sourceGalleryId") else None
@@ -4114,8 +4019,9 @@ def _apply_update_once(user_id: str, style_id: Any, take_outline: bool, base_upd
 
 
 def _wave11_library_on() -> bool:
-    """The two switches every wave 11 door of the library needs, read PER CALL."""
-    return library_enabled() and notebook_widgets_wave_on(11)
+    """The switch every wave 11 door of the library needs, read PER CALL (the library's own switch was retired
+    as always on, 2026-11-04)."""
+    return notebook_widgets_wave_on(11)
 
 
 def _tool_share(kind: str, row: dict, *, edits: Any, keep: Any):
@@ -4694,8 +4600,6 @@ def _use_library_template_once(user_id: str, gallery_id: Any, *, answers: Any = 
     from api.services.journal_two import routines, trackers
     if not _wave11_library_on():
         return None
-    if not js.enabled():
-        raise GalleryConflict(ADOPT_NEEDS_STYLES_SENTENCE)
     if conn is not None and conn.in_transaction:
         raise ValueError("use_library_template owns its transactions: call it outside one")
     k = create_keys.clean_create_key(key)
@@ -5356,7 +5260,7 @@ def set_helpful(user_id: str, gallery_id: Any, on: bool,
     Task 11.11 (W11-R8): while wave 11 is on, marking a style, widget, routine or tracker item needs use on
     HELPFUL_DAYS different ET days (`use_days`), else `GalleryConflict` with `code == "helpful_days"` and
     S_HELPFUL_DAYS (the route answers 409 `{detail: {code, message}}`). Unmarking is always allowed."""
-    if not library_enabled() or not isinstance(gallery_id, str) or not gallery_id:
+    if not isinstance(gallery_id, str) or not gallery_id:
         return None
     owned = conn is None
     conn = conn or get_connection()
@@ -5464,8 +5368,6 @@ def author_page(viewer_id: str, handle: Any, conn: sqlite3.Connection | None = N
     or the handle is not one. ⛔ R-P3-2: only approved, listed, non-hidden items, under the display name the
     gallery already shows (`_author_label`), and no user id or email anywhere in it. An author with nothing
     listed reads as `ANONYMOUS_AUTHOR`: there is no row to take their display name from."""
-    if not library_enabled():
-        return None
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -5493,8 +5395,6 @@ def set_follow(viewer_id: str, handle: Any, on: bool,
                conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
     """Follow an author by their handle, or stop. `{"following": bool}`; None when the library is off, the
     handle is not one, or it is the viewer's own (nobody follows themselves)."""
-    if not library_enabled():
-        return None
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -5517,8 +5417,6 @@ def set_follow(viewer_id: str, handle: Any, on: bool,
 def feed(viewer_id: str, conn: sqlite3.Connection | None = None) -> list[dict[str, Any]]:
     """What the authors the viewer follows have listed, newest first (`LIST_LIMIT`). Empty while the library
     is off. The same listed rule as every other read: approved and not hidden."""
-    if not library_enabled():
-        return []
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -5540,14 +5438,9 @@ def admin_queue(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     owned = conn is None
     conn = conn or get_connection()
     try:
-        # R-T3-R2: with the library off the queue is today's -- outline rows only. A style row (and its
-        # held revision) is reviewable only while the library is on, and a firm style row only while the
-        # starter-packs switch is on too (P5-AUD-1): `_hidden_styles_sql`, the one rule.
-        # P3b: an example note is reviewable only while ITS switch is on, the same rule one level down.
-        # P4b (R-P4b-10): a layout row only while layout sharing is on: `_type_visible_clause`, the type rule.
+        # The style rows the switches hide (`_hidden_styles_sql`, the one rule), and a layout row only while
+        # layout sharing is on (R-P4b-10): `_type_visible_clause`, the type rule.
         visible_terms = f" AND {_hidden_styles_sql()} AND {_type_visible_clause()}"
-        if not example_enabled():
-            visible_terms += f" AND {_NEVER_LISTED}"
 
         def rows(where: str, order: str, queue: bool = False) -> list[dict]:
             # A reviewer's queue is nobody's vote: no viewer is bound (`_read` binds "").

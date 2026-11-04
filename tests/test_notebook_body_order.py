@@ -107,7 +107,8 @@ def _gated_rows(real_app) -> list[bc.Row]:
 def test_no_gated_route_declares_a_body_parameter_or_reads_one_unbounded(real_app):
     rows = _gated_rows(real_app)
     reading = sum(r.reads_body for r in rows)
-    assert len(rows) > 60 and reading > 25, (len(rows), reading)
+    # (smaller since 2026-11-04: the routers whose flags were retired as always on have no gate to be behind)
+    assert len(rows) > 30 and reading > 10, (len(rows), reading)
     wrong = [f"{r.method} {r.path}: " + "; ".join(f"{x.call} in {x.where}" for x in r.uncapped)
              for r in rows if r.uncapped]
     assert not wrong, "a route behind a flag gate reads a body with no bound:\n  " + "\n  ".join(wrong)

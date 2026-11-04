@@ -216,8 +216,6 @@ NOT_REHEARSED = {
                             "tests/test_notebook_door_guard_flag.py "
                             "(test_the_payload_carries_the_mode_and_it_defaults_to_full, "
                             "test_the_mode_is_read_PER_REQUEST_not_captured_at_import)"),
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 12 12A): the "
-                                          "community template gallery; no rendered on/off probe in this tool"),
     # Wave 11 (#263). Each reason names what the gate protects, from the PR body; a numbered
     # "owner decision" is that body's "Decisions for you" list.
     "NOTEBOOK_VOICE_NOTES_ENABLED": ("armed on web 2026-10-09 (docs/feature_flags.json) (wave 11 11A): voice and "
@@ -230,34 +228,10 @@ NOT_REHEARSED = {
     "AWARENESS_NOTE_RESURFACE_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13D): the "
                                          "awareness scan's resurfacing pass; its evidence is an insight row from a "
                                          "scan cycle"),
-    # Journal styles programme (P1 / P2 Tier 2 part A). Both ARMED on web (docs/feature_flags.json carries the flip
-    # times); walked by notebook_fin_walk (c2: the styles groups and `smart`), no rendered on/off probe written here.
-    "NOTEBOOK_JOURNAL_STYLES_ENABLED": "armed (journal styles P1, 2026-10-14): note kinds, styles and trader blocks; "
-                                       "walked by the fin walk's styles groups, no rendered probe in this tool",
-    "NOTEBOOK_SMART_CHIPS_ENABLED": "armed (P2 Tier 2 part A, 2026-10-15): /plan, the alert chip and the screenshot "
-                                    "tag; walked by the fin walk's `smart` group, no rendered probe in this tool",
-    # Tier 2 part B. Its evidence is a scheduled pass (a j2_earnings_followup_runs row) and a delivered
-    # notice, not a page read: walked by notebook_fin_walk's followup group (c2), not rehearsed.
-    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": ("armed on web 2026-10-16 (docs/feature_flags.json) (Tier 2 part B): the "
-                                           "16:45 / 18:00 ET earnings follow-up pass, its bell, card and prefill; "
-                                           "evidence is a run-ledger row and a delivered notice (the fin walk's "
-                                           "followup group)"),
     # Journal P4a. A layout editor and a saved layout, not a page read this tool can switch.
     "JOURNAL_PAGE_LAYOUTS_ENABLED": ("armed on web 2026-10-18 (docs/feature_flags.json) (P4a): the Customize button "
                                      "on Today and the trade page and reading a saved layout; off, both pages render "
                                      "their fixed layout; no rendered on/off probe in this tool"),
-    # Notebook P3a. Its evidence is the style library walk (share, approve, adopt, Helpful, follow, an
-    # update and a withdraw, read off the rendered pages in a sandbox) and the route-off tests -- not a
-    # rendered probe here. (Task 11 reworded this from a fin-walk library group that did not exist; the final
-    # review M-3 then struck its sweep.flags-off.json citation: in that "every flag off" sweep the router's
-    # own gallery switch answers 404 before `_require_library` runs, so it cannot show THIS switch's 404.)
-    "NOTEBOOK_STYLE_LIBRARY_ENABLED": ("armed on web 2026-10-18 (docs/feature_flags.json) (P3a): the community style "
-                                       "library -- sharing a style, adopting one, Helpful, author pages, follow and "
-                                       "the feed; every library route answers 404 while off with the gallery on "
-                                       "(tests/test_style_library_adopt.py and tests/test_style_library_social.py, "
-                                       "the ..._404_for_everyone_while_the_library_is_off tests); evidence is "
-                                       "tools/notebook_style_library_walk.py in a sandbox and those tests, not a "
-                                       "rendered probe"),
     # P2 Tier 3. Gates CREATING a mood check-in block and offering three views/doors; an existing
     # block still renders when it is off. Not rehearsed in this tool; the fin walk's Tier 3 group
     # (Task 10) is its evidence.
@@ -265,25 +239,6 @@ NOT_REHEARSED = {
                               "block, the By check-in view, Checklist from my winners and the Your trading year door;"
                               " creating only (an existing check-in block still renders); evidence is the fin walk's "
                               "Tier 3 group (Task 10)"),
-    "NOTEBOOK_EXAMPLE_NOTES_ENABLED": "armed on web 2026-10-18 (P3b, docs/feature_flags.json): example notes on a "
-                                      "shared style -- the preview, the publish and the In use section; "
-                                      "server-only, NOT on the auth payload (so no payload key to verify), and "
-                                      "every example route answers 404 while off (tests/test_example_notes.py, "
-                                      "the ..._switch_off_... tests); needs the library switch",
-    # P5. Gates the How do you trade? offer, the starter-pack install endpoint and the firm style
-    # rows in the gallery (listed only while the library switch is on too, P5-AUD-1); installing a
-    # pack writes the member's own styles, which this read-only rehearsal does not do. Its evidence
-    # is tools/notebook_p5_walk.py (the offer, the install, the reload, the Starter packs button and
-    # the two B4 tours, at 1280/820/390; P5 Task 10), the route-off tests in tests/test_starter_packs.py
-    # (test_while_a_switch_is_off_every_caller_gets_the_identical_404, test_install_needs_both_its_switches)
-    # and tests/test_firm_style_seed.py. (The fin walk has no starter-packs step; it arms the switch in
-    # c2 only through WAVE_FLAGS. Ruling P5-R-T2-2 chose this reword over a new fin-walk step.)
-    "NOTEBOOK_STARTER_PACKS_ENABLED": ("armed on web 2026-10-19 (docs/feature_flags.json) (P5): the How do you trade?"
-                                       " offer and the starter-pack install endpoint (need "
-                                       "NOTEBOOK_JOURNAL_STYLES_ENABLED also on), and the firm style rows in the "
-                                       "gallery, listed only while NOTEBOOK_STYLE_LIBRARY_ENABLED is on too; "
-                                       "installing a pack writes the member's own styles, so there is no rendered "
-                                       "on/off probe in this tool"),
     "NOTEBOOK_LAYOUT_SHARING_ENABLED": "dark (P4b): sharing and adopting page layouts; server-only, rehearsed by the P4b walk (tools/notebook_layout_library_walk.py)",
     # Notebook widgets, waves 1-6 and 8-10 (wave 7 has no flag). Each is an enablement gate over its own / menu
     # entries and (waves 1-3, 6, 8-10) its server reads; a widget already stored in a note renders whatever it says.

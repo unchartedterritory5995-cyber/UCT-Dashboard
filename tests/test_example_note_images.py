@@ -194,17 +194,6 @@ def test_an_approved_example_image_serves_to_any_paid_member_with_every_public_h
     assert api.get(f"{URL}/{gid}/images/0").status_code == 200
 
 
-def test_the_image_route_is_absent_while_the_example_switch_is_off(api, conn, ex_on, ocr, att, monkeypatch):
-    sid = _shared_style(conn)
-    nid = _note_with_files(conn, att, files=(("a.png", b"x"),))
-    gid = _publish(api, nid, sid, [_src("author", nid, "a.png")]).json()["template"]["id"]
-    _approve(conn, gid)
-    assert api.get(f"{URL}/{gid}/images/0").status_code == 200                           # control
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "0")
-    assert api.get(f"{URL}/{gid}/images/0").status_code == 404
-    assert (_gallery_root(att) / gid / "0.png").is_file()                                 # stored, never deleted
-
-
 # ── 5. withdraw ─────────────────────────────────────────────────────────────────────────────
 
 def test_withdrawing_the_style_withdraws_its_examples_and_files(api, conn, ex_on, ocr, att):

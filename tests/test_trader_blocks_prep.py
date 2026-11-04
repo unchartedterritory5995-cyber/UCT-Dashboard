@@ -426,9 +426,7 @@ def test_route_answers_each_part_and_404s_an_unknown_one(cold, monkeypatch, db_p
     app = FastAPI()
     app.include_router(r.router)
     url = "/api/j2/trader-blocks/prep/{}"
-    monkeypatch.delenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", raising=False)
-    assert TestClient(app).get(url.format("wire")).status_code == 404
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+    assert TestClient(app).get(url.format("wire")).status_code == 401
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "free"}
     assert TestClient(app).get(url.format("wire")).status_code == 402
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "pro"}
@@ -443,7 +441,6 @@ def test_route_answers_a_raising_read_as_its_gap(cold, monkeypatch, db_path):
     from api.routers import notebook_journal_styles as r
     from api.services.journal_two import trader_blocks as tb
     monkeypatch.setattr(tb, "_prep_wire", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x")))
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     app = FastAPI()
     app.include_router(r.router)
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "pro"}

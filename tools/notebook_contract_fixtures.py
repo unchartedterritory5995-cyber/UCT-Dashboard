@@ -72,30 +72,16 @@ FREE = {"plan": "free"}
 #: plan grading, My Playbook, research capture, review drafts, the setups board, find similar, thesis chips and the
 #: visual playbook) were retired as ALWAYS ON (2026-11-04), so they are no longer here: there is nothing to arm.
 FLAGS = (
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
     # The onboarding router (the sample notebook's add / status / remove, and the tour rows).
     # Here since fin-data2 round 2: lane FE2 words the removal's kept-folder sentence.
     "NOTEBOOK_ONBOARDING_ENABLED",
-    # Notebook P1: journal styles and kinds of note (api/routers/notebook_journal_styles.py).
-    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    # Notebook P2 Tier 2 part A: the alert chip, the screenshot chip and their ticker route.
-    "NOTEBOOK_SMART_CHIPS_ENABLED",
-    # Notebook P2 Tier 2 part B: the earnings follow-up notice and card.
-    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
+    # (journal styles, the smart chips, the earnings follow-up, the gallery, the style library, example notes and
+    # starter packs were retired as ALWAYS ON, 2026-11-04)
     # Journal P4a: page layouts (Customize on Today and the trade page, reading a saved layout).
     "JOURNAL_PAGE_LAYOUTS_ENABLED",
-    # Notebook P3a: the community style library (share, adopt, helpful, follow, feed).
-    "NOTEBOOK_STYLE_LIBRARY_ENABLED",
-
-
     # Notebook P2 Tier 3: the mood check-in block and its kin (no NOTEBOOK_ prefix; payload key journal_tier3_enabled).
     "JOURNAL_TIER3_ENABLED",
-    # Notebook P3b: example notes on a shared style (server-only; needs the library switch too).
-    "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
-    # Notebook P5: starter packs (the How do you trade? offer, the install endpoint, and, with the library
-    # switch above, the firm style rows in the gallery lists: P5-AUD-1).
-    "NOTEBOOK_STARTER_PACKS_ENABLED",
-    # Notebook P4b: sharing a page layout through the library (server-only; needs the library and page layouts too).
+    # Notebook P4b: sharing a page layout through the library (server-only; needs page layouts too).
     "NOTEBOOK_LAYOUT_SHARING_ENABLED",
 )
 
@@ -1592,12 +1578,6 @@ def _style_library(w: World) -> None:
              note="The library's Preview: the listed payload composed with the viewer's own data.")
     w.record("template-gallery.feed.empty", "GET", f"{base}/feed", case="empty", expect=200,
              note="The viewer follows nobody now (they unfollowed above).")
-    w.p.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
-    try:
-        w.record("template-gallery.adopt.styles-off", "POST", f"{base}/{sid}/adopt", case="error", expect=409,
-                 json_body={"notify": False}, note="The member's Journal styles switch is off: nothing is adopted.")
-    finally:
-        w.p.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     # P3a Task 10 fix round 1 (P3a-T10-R3): an adopted copy of another author's listing is refused before any
     # write. Recorded LAST, so no fixture above moves.
     w.record("template-gallery.styles.publish.adopted", "POST", f"{base}/styles", case="error", expect=400,

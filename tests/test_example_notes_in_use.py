@@ -151,15 +151,6 @@ def test_examples_carry_the_listed_reduction_and_never_pending_json(api, conn, e
 
 # ── server: the switch ─────────────────────────────────────────────────────────────────────
 
-def test_examples_are_absent_while_the_example_switch_is_off(api, conn, ex_on, ocr, monkeypatch):
-    sid = _shared_style(conn, approve=True)
-    _example(conn, sid, title="Plan")
-    assert "examples" in _item(api, sid)                                    # control: on, it is there
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "0")
-    for who, role in (("reader", "member"), ("author", "member"), ("admin", "admin")):
-        assert "examples" not in _item(api, sid, who, role), who            # the style still reads; the key does not
-
-
 def test_an_outline_carries_no_examples(api, conn, ex_on):
     from tests._style_library_helpers import _row
     gid = _row(conn, item_type="outline")

@@ -5,8 +5,7 @@ settings) and the property values a new note starts with. This module is the ONE
 styles: the store, versions, defaults, the composer that turns a style into a note body, and the
 "update layout" planner. The router is api/routers/notebook_journal_styles.py.
 
-⛔ Dark behind NOTEBOOK_JOURNAL_STYLES_ENABLED, read PER CALL through the one Notebook flag parse.
-⛔ The switch gates CREATING, never RENDERING (docs/notebook/p1-verify-before-building.md §c).
+Always on: NOTEBOOK_JOURNAL_STYLES_ENABLED was retired 2026-11-04 (it was 1 on web).
 
 Kinds of note live in note_kinds.py (Task 4). It is read through `_nk()`, a lazy import, so this
 module imports cleanly on its own; nothing here restates a kind constant.
@@ -29,16 +28,8 @@ from typing import Any, Callable
 from api.services.auth_db import get_connection
 from api.services.journal_two import sample_marker
 from api.services.journal_two.json_depth import _json_depth_exceeds
-from api.services.notebook_flags import flag_on
 
 _log = logging.getLogger(__name__)
-
-FLAG = "NOTEBOOK_JOURNAL_STYLES_ENABLED"
-
-
-def enabled() -> bool:
-    """The gate, read per call (default OFF)."""
-    return flag_on(FLAG, False)
 
 
 def _nk():

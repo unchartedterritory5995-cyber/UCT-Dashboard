@@ -6,13 +6,8 @@ A pack is the firm style rows Task 3 seeds (`template_gallery.seed_firm_styles`:
 so a copy carries `source_gallery_id` / `source_version` and obeys every rule an adopt obeys. Route:
 `POST /api/j2/journal-styles/starter-packs/{pack}` (api/routers/notebook_journal_styles.py).
 
-  * THE SWITCHES: `NOTEBOOK_STARTER_PACKS_ENABLED` and `NOTEBOOK_JOURNAL_STYLES_ENABLED`, and NOT the library
-    switch (R-P5-2: firm picks are the team's, so they do not wait on the community library).
-    `enabled()` is the starter switch alone, because it is the server's half of the payload key
-    `notebook_starter_packs_enabled` (tests/test_notebook_flag_parse.py compares the two); the Journal
-    styles half is the router's own gate, and `install` asks both. The install never needs the rows
-    LISTED; in the gallery itself a firm style row is listed only while this switch AND the library
-    switch are on (P5-AUD-1, `template_gallery._hidden_styles`), so `enabled()` going false hides them too.
+  * ALWAYS ON: `NOTEBOOK_STARTER_PACKS_ENABLED` (and the journal styles and library switches) were retired as
+    always on (2026-11-04). The install never needs the rows LISTED.
   * ONE TRANSACTION (ruling P5-R-C2): a SAVEPOINT per row and one commit. A row whose adopt raises a
     `GalleryError` (a kind a later release removed, the member's style cap) is rolled back to its savepoint
     and named in `skipped` with that error's sentence as its `reason` (ruling P5-R-T4-5: the offer says why);
@@ -29,19 +24,11 @@ import sqlite3
 from typing import Any
 
 from api.services.auth_db import get_connection
-from api.services.notebook_flags import flag_on
-
-FLAG = "NOTEBOOK_STARTER_PACKS_ENABLED"
 
 #: ⛔ ONE FACT IN TWO FILES with `PACKS` in app/src/pages/journal-2-0/lib/starterPacks.js (an array of
 #: `{key, label}`). tests/test_starter_packs.py parses the client's keys and holds them equal to these, and
 #: holds these equal to the seed file's packs in order.
 PACKS = ("swing", "day", "prop", "options", "earnings")
-
-
-def enabled() -> bool:
-    """The starter-packs switch, read PER CALL through the one Notebook flag parse (default OFF)."""
-    return flag_on(FLAG, False)
 
 
 def _pack_ids(conn: sqlite3.Connection, pack: str) -> list[str]:
@@ -58,13 +45,12 @@ def _already_has(conn: sqlite3.Connection, user_id: str, gallery_id: str) -> boo
 
 def install(conn: sqlite3.Connection | None, user_id: str, pack: str) -> dict[str, Any] | None:
     """`{"installed": [{"styleId", "title"}], "alreadyHad": [title], "skipped": [{"title", "reason"}]}`, each list in seed
-    order, or None when the pack is unknown or either switch is off (the route answers its one 404).
+    order, or None when the pack is unknown (the route answers its one 404).
 
     `conn` may be None (the route), and then this opens and closes its own connection. A connection
     already inside a transaction keeps it: the rows are written inside it and the one commit commits it."""
-    from api.services.journal_two import journal_styles as js
     from api.services.journal_two import template_gallery as gallery
-    if pack not in PACKS or not enabled() or not js.enabled():
+    if pack not in PACKS:
         return None
     owned = conn is None
     conn = conn or get_connection()

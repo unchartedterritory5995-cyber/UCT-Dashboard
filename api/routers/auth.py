@@ -167,10 +167,6 @@ NOTEBOOK_FLAGS = {
     # Payload key `notebook_ai_actions_enabled`; the router's gate reads the same
     # variable per request through `flag_on`.
     "NOTEBOOK_AI_ACTIONS_ENABLED": False,    # enablement  — unset means OFF (AI changes across notes, lane 11C)
-    # Wave 12 lane 12A: the community template gallery. The router's gate
-    # (journal_two/template_gallery.enabled) reads the same variable through
-    # flag_on, per request; the payload key is `notebook_template_gallery_enabled`.
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": False,  # enablement — unset means OFF (community gallery, lane 12A)
     # Wave 13 lane 13D: resurfacing (Awareness Engine R7-R9 bring a note back in-app when its
     # ticker reaches a level it named, moves 8%+, or reaches its date). The scan's gate
     # (journal_two/note_levels.enabled, read by awareness/engine.py per cycle) reads the same
@@ -193,26 +189,14 @@ NOTEBOOK_FLAGS = {
     # `compass_notes_tool_enabled` lets the client name it ONLY while it is on. The tool's own gate
     # (coach_chat_tools.notes_tool_enabled) reads through `flag_on` too: one variable, one parse.
     "COMPASS_NOTES_TOOL_ENABLED": False,  # enablement — unset means OFF (Compass reads notes, text chat)
-    # Notebook P1 (journal styles): kinds of note, journal styles, the manager, /style and the
-    # update-layout action. The router's gate (journal_styles.enabled) reads it through flag_on per
-    # request; the payload key is `notebook_journal_styles_enabled`. Gates CREATING, never rendering.
-    "NOTEBOOK_JOURNAL_STYLES_ENABLED": False,  # enablement — unset means OFF (journal styles, P1)
-    "NOTEBOOK_SMART_CHIPS_ENABLED": False,  # enablement (Tier 2 part A: alert + screenshot chips)
-    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": False,  # enablement (Tier 2 part B: earnings follow-up notice + card)
     # P4a (page layouts): the Customize button on Today and the trade page, and reading a saved
     # layout. The payload key is `journal_page_layouts_enabled`. ⛔ The JOURNAL_ prefix is kept on
     # purpose: no rail requires NOTEBOOK_ (J2_SHARE_LINKS_ENABLED above is prefixless too).
     "JOURNAL_PAGE_LAYOUTS_ENABLED": False,  # enablement — unset means OFF (page layouts, P4a)
-    "NOTEBOOK_STYLE_LIBRARY_ENABLED": False,  # enablement, unset means OFF (P3a: community style library)
     # P2 Tier 3: the mood check-in block, the By check-in view, Checklist from my winners and the
     # Your trading year door. Gates CREATING, never rendering. No NOTEBOOK_ prefix on purpose
     # (J2_SHARE_LINKS_ENABLED above is the precedent); the payload key is `journal_tier3_enabled`.
     "JOURNAL_TIER3_ENABLED": False,  # enablement — unset means OFF (Tier 3: check-in, winners checklist, year)
-    # P5 (starter packs): the How do you trade? offer and the starter-pack install endpoint (both need
-    # NOTEBOOK_JOURNAL_STYLES_ENABLED), and the firm style rows in the gallery, which list only while
-    # NOTEBOOK_STYLE_LIBRARY_ENABLED is on too (P5-AUD-1, template_gallery._hidden_styles). Payload key
-    # `notebook_starter_packs_enabled`.
-    "NOTEBOOK_STARTER_PACKS_ENABLED": False,  # enablement — unset means OFF (starter packs, P5)
     # Notebook widgets (plan docs/superpowers/plans/2026-10-20-notebook-widgets.md): one gate per wave. A flag gates
     # menu entries and server reads only; a stored widget always renders. Payload keys `notebook_widgets_w<n>_enabled`.
     "NOTEBOOK_WIDGETS_W1_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 1)
@@ -235,18 +219,24 @@ NOTEBOOK_FLAGS = {
 # the Support page strip (feature_status reads that section as always on).
 NOTEBOOK_ALWAYS_ON_KEYS: tuple[str, ...] = (
     "notebook_chart_plan_enabled",
+    "notebook_earnings_followup_enabled",
     "notebook_earnings_prep_enabled",
     "notebook_entry_context_enabled",
     "notebook_find_similar_enabled",
     "notebook_formulas_enabled",
     "notebook_getting_started_enabled",
     "notebook_image_docx_documents_enabled",
+    "notebook_journal_styles_enabled",
     "notebook_passed_setups_enabled",
     "notebook_plan_grading_enabled",
     "notebook_playbook_enabled",
     "notebook_review_drafts_enabled",
     "notebook_setups_board_enabled",
+    "notebook_smart_chips_enabled",
+    "notebook_starter_packs_enabled",
+    "notebook_style_library_enabled",
     "notebook_ta_fingerprint_enabled",
+    "notebook_template_gallery_enabled",
     "notebook_terminal_links_enabled",
     "notebook_thesis_chips_enabled",
     "notebook_trade_canvas_enabled",

@@ -3793,13 +3793,12 @@ async def ask_current_note_stream(
 
 
 def _styled_create_allowed(user: dict) -> None:
-    """Journal styles (P1): the ONLY place POST /notes reads the switch or the plan, and only when a
-    styleId/kindId is sent -- every other create is exactly what it was (spec P1.7c). Both checks are
-    the journal-styles router's OWN (`_require_enabled`, then `require_paid`), called here so the
-    switch, the plan predicate and the 402 sentence have one authority. The gate answers first."""
+    """Journal styles (P1): the ONLY place POST /notes reads the plan, and only when a styleId/kindId
+    is sent -- every other create is exactly what it was (spec P1.7c). The check is the journal-styles
+    router's OWN `require_paid`, called here so the plan predicate and the 402 sentence have one
+    authority. (The styles switch it used to read first was retired as always on, 2026-11-04.)"""
     from api.middleware import auth_middleware as authmw
     from api.routers import notebook_journal_styles as styles_router
-    styles_router._require_enabled()
     planned = user if "plan" in user else {**user, "plan": authmw.get_user_plan(user["id"])}
     styles_router.require_paid(planned)
 

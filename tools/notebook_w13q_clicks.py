@@ -103,7 +103,6 @@ PHONE = {"width": 390, "height": 844}
 # api/routers/auth.py to be the only one) and could hand the ledger "1" as the gate's default.
 FLAGS = [
     "NOTEBOOK_ASK_INSERT_ON",              # Q9 insert the answer
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",   # Q2's template sheet as production may show it
     # Finish program, lane CLICKS: the eight flows that had no driver, plus every other
     # wave 11-14 gate, so the counts are taken on the product a member with everything on sees.
     "AWARENESS_NOTE_RESURFACE_ENABLED",    # Q16 (lane 13D)

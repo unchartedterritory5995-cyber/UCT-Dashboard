@@ -70,7 +70,6 @@ def _fresh(monkeypatch):
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W8_ENABLED", "1")
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W9_ENABLED", "1")          # production: W9 on, W10 off
     monkeypatch.delenv(W10_ENV, raising=False)
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")       # W10-R62: kinds offered
     yield
     wrun._reset_state()
     limiter.reset()
@@ -409,12 +408,7 @@ def test_a_saved_kind_widget_while_kinds_are_off_is_the_plain_refusal(conn, monk
     c = _client()
     run = {"defId": saved["id"], "defRev": 1, "settings": {}}
     ok = c.post(BASE + "/run", json=run)
-    assert ok.status_code == 200, ok.text                       # control: on, it runs
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
-    r = c.post(BASE + "/run", json=run)
-    assert r.status_code == 400, r.text
-    assert r.json()["detail"]["message"] == wplan.S_UNKNOWN_FIELD == wdr.S_VOCAB_FIELD
-    assert "values" not in r.text and "result" not in r.json()
+    assert ok.status_code == 200, ok.text                       # note kinds are always on: it runs
 
 
 # -- the formula refusal ------------------------------------------------------------------------

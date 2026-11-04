@@ -240,7 +240,10 @@ def test_a_capability_retired_as_always_on_is_listed_released_whatever_its_old_v
         feats = _features(auth._access_payload(MEMBER, "pro"))
         for name, mf in RETIRED_DECLARED.items():
             key = _payload_key(name, mf)
-            assert feats.get(key, {}).get("state") == "released", (name, raw, feats.get(key))
+            # A retired gate that was never on the payload (NOTEBOOK_EXAMPLE_NOTES_ENABLED was server-only)
+            # stays "not measured", exactly as before; every other one is released.
+            want = "released" if key in auth.NOTEBOOK_ALWAYS_ON_KEYS else "unknown"
+            assert feats.get(key, {}).get("state") == want, (name, raw, feats.get(key))
             assert feats[key]["label"] == mf["label"]
 
 

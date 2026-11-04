@@ -149,7 +149,6 @@ def test_a_broker_trade_is_listed_by_its_stable_ref(db_path):
 
 def _client(monkeypatch, plan="pro"):
     from api.routers import notebook_journal_styles as r
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     app = FastAPI()
     app.include_router(r.router)
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": plan}

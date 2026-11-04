@@ -236,14 +236,3 @@ def test_two_watchers_rung_in_the_same_millisecond_both_get_a_durable_withdraw_n
     assert gallery.unpublish("author", item["id"], conn=conn) is True
     assert _durable_rows(conn) == ["w1", "w2"]
 
-
-def test_unpublishing_a_style_while_the_library_is_off_deletes_it_and_rings_no_one(conn, lib_on, monkeypatch):
-    """Final review M-8: deleting your own item is always possible, but a withdraw notice is a library effect and
-    a library-off pod must look exactly like today (R-P3-10)."""
-    item = listed_style(conn)
-    gallery.adopt_style("w1", item["id"], notify=True, conn=conn)
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    with mock.patch(ADD) as add:
-        assert gallery.unpublish("author", item["id"], conn=conn) is True
-    assert add.call_count == 0
-    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE id = ?", (item["id"],)).fetchone()[0] == 0

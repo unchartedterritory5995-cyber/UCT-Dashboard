@@ -65,7 +65,6 @@ def db_path(monkeypatch):
 
 @pytest.fixture
 def client(db_path, monkeypatch):
-    monkeypatch.setenv(sc.FLAG, "1")
     app = FastAPI()
     app.include_router(sc.router)
     c = TestClient(app)
@@ -81,24 +80,6 @@ def _as(client, uid="u1", plan="pro"):
     user = {"id": uid, "role": "member", "plan": plan}
     client.app_ref.dependency_overrides[authmw.get_current_user] = lambda: dict(user)
     client.app_ref.dependency_overrides[authmw.get_current_user_with_plan] = lambda: dict(user)
-
-
-def test_switch_off_is_the_one_404(client, monkeypatch):
-    monkeypatch.delenv(sc.FLAG, raising=False)
-    r = client.post(URL, json={"text": "NVDA"})              # signed out, flag unset
-    assert (r.status_code, r.json()) == (404, {"detail": "Not found"})
-
-
-def test_switch_off_answers_before_the_session_the_plan_or_the_body(client, monkeypatch):
-    """Signed in and paid, a malformed body: with the switch OFF the answer is the one 404, never the
-    body's 422 and never a 402. The gate runs before every other dependency."""
-    _as(client)
-    assert client.post(URL, content=b"[1]").status_code == 422                       # control: switch on
-    monkeypatch.setenv(sc.FLAG, "0")
-    r = client.post(URL, content=b"[1]")
-    assert (r.status_code, r.json()) == (404, {"detail": "Not found"})
-    _as(client, plan="free")
-    assert client.post(URL, json={"text": "NVDA"}).status_code == 404                # not a 402 either
 
 
 def test_signed_out_is_401(client):

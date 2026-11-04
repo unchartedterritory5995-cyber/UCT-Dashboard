@@ -115,14 +115,14 @@ from api.routers import notebook_shares as notebook_shares_router
 from api.routers import notebook_publish as notebook_publish_router
 from api.routers import notebook_export as notebook_export_router
 from api.routers import notebook_onboarding as notebook_onboarding_router
-# Wave 12 lane 12A: the community template gallery (/api/j2/template-gallery/*), dark
-# behind NOTEBOOK_TEMPLATE_GALLERY_ENABLED; mounted with the other Notebook routers.
+# Wave 12 lane 12A: the community template gallery (/api/j2/template-gallery/*), always on (its flag
+# was retired 2026-11-04); mounted with the other Notebook routers.
 from api.routers import notebook_template_gallery as notebook_template_gallery_router
 # Notebook P1: journal styles + kinds of note (/api/j2/journal-styles, /api/j2/note-kinds, and two
-# /api/j2/notes/{id}/... "Update layout" routes), dark behind NOTEBOOK_JOURNAL_STYLES_ENABLED, paid.
+# /api/j2/notes/{id}/... "Update layout" routes), paid; always on (its flag was retired 2026-11-04).
 from api.routers import notebook_journal_styles as notebook_journal_styles_router
-# Notebook P2 Tier 2 part A: the smart chips' one ticker check (POST /api/j2/smart-chips/tickers), dark
-# behind NOTEBOOK_SMART_CHIPS_ENABLED, paid.
+# Notebook P2 Tier 2 part A: the smart chips' one ticker check (POST /api/j2/smart-chips/tickers), paid;
+# always on (its flag was retired 2026-11-04).
 from api.routers import notebook_smart_chips as notebook_smart_chips_router
 
 # Wave 13 lane 13I-1: the technical fingerprint + chart-block index
@@ -9564,13 +9564,13 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] notebook routine reminders registration failed (non-fatal): {e}")
         # Tier 2 part B (R-T2B-2): Notebook earnings follow-up notices. The registrar wires 16:45 ET and
-        # 18:00 ET mon-fri and a one-shot boot catch-up; NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED (and the
-        # journal styles switch) are read at every RUN, never here. In-app bell only.
+        # 18:00 ET mon-fri and a one-shot boot catch-up (always on: its flag was retired 2026-11-04).
+        # In-app bell only.
         try:
             from api.services.journal_two import earnings_followup as _j2_followup
             if _j2_followup.register_followup_jobs(_scheduler):
                 print("[startup] notebook earnings follow-ups registered (16:45 + 18:00 ET mon-fri, boot "
-                      "catch-up; inert unless NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED)")
+                      "catch-up)")
         except Exception as e:
             print(f"[startup] notebook earnings follow-ups registration failed (non-fatal): {e}")
         # Wave 7 (controller wiring, lane H) — Notebook semantic-search index

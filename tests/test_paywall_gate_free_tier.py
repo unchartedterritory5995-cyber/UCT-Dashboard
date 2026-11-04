@@ -903,7 +903,7 @@ NOTEBOOK_PAID_BY_RULING: set[tuple[str, str]] = {
 #: only: with a flag off every caller gets the one 404, which says nothing about
 #: the plan gate.
 NOTEBOOK_RULING_FLAGS = (
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
 )
 
 #: ✋ NOT PAID, AND PINNED SO THAT CHANGES ONLY ON PURPOSE. None of these is new
