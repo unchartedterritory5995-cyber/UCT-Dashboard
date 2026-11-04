@@ -2367,6 +2367,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         from api.services.uct_agent.knowledge import evidence as _evidence
         if _evidence.active(context, v2):
             return _evidence.serve(run_turn, _args)
+        if _evidence.resume_active(context, v2):
+            return _evidence.serve_resume(run_turn, _args)
     if v2 is not None:
         # W3 review C1: a COACH turn never takes the v2 step loop (it has no coach block and no coach guard): it is
         # served on this v1 path, where the coach prompt, the no-streaming rule and the server guard all apply.
@@ -2479,7 +2481,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     # manifest (the knowledge flag is on); a coach turn has its own guard (agent_coach.guard_envelope).
     kn_caps = {n for n in cap_names if _kn_frame().is_knowledge_action(n)}
     kn_on = (bool(kn_caps) or _e1 in ("gate", "gate_kn")) and not coach_turn   # knowledge offered, or E-1 chart / none
-    kn_turn = kn_on and (_e1 == "gate_kn" or _kn_frame().wants_knowledge(msg)) and not _kn_frame().about_a_symbol(
+    # E-1 chart / none turns: E-1's own word check (evidence.playbook_worded, which exempts UCT feature help) decides
+    kn_words = (_e1 == "gate_kn") if _e1 in ("gate", "gate_kn") else _kn_frame().wants_knowledge(msg)
+    kn_turn = kn_on and kn_words and not _kn_frame().about_a_symbol(
         msg, [str(c.get("symbol") or "") for c in ((context or {}).get("charts") or []) if isinstance(c, dict)])
     kn_ref = next((str(r.get("ref")) for r in ((context or {}).get("playbook") or [])
                    if isinstance(r, dict) and str(r.get("ref") or "") in valid_refs), None) if kn_caps else None

@@ -458,6 +458,22 @@ def named_setups(message: str, vocab: list[dict]) -> tuple[list[str], list[str]]
     return list(dict.fromkeys(approved)), list(dict.fromkeys(other))
 
 
+#: review #781 delta 2 (usability): UCT product features and how-do-I navigation ("how do I add a breakout scan",
+#: "explain the gaps tab", "open the indicator menu in UCT") are help about UCT, not playbook questions. A NAMED setup
+#: still counts ("how do I scan for EPs" is a mixed turn).
+_FEATURE = re.compile(r"\b(scans?|scanners?|screens?|screeners?|columns?|tabs?|menus?|alerts?|drawings?|draw|drawn|panels?|"
+                      r"widgets?|settings?|buttons?|indicators?|watchlists?|layouts?|toolbar|sidebar|page|dashboard|"
+                      r"shortcuts?|hotkeys?|templates? (gallery|picker))\b")
+_NAVIGATE = re.compile(r"\b(how (do|can|would) (i|you|we)|where (is|are|do|can)|show me how to|how to) (\w+ )?"
+                       r"(add|set|open|save|draw|find|change|use|create|delete|remove|show|hide|turn|switch|export|"
+                       r"share|edit|rename|move|configure|enable|disable|get to)\b")
+
+
+def feature_context(text: str) -> bool:
+    f = _fold(text)
+    return bool(_FEATURE.search(f) or _NAVIGATE.search(f))
+
+
 def playbook_worded(message: str, vocab: list[dict], symbols: list[str]) -> bool:
     """The deterministic INPUT backstop on a chart / none turn (review #781 finding 1 and its delta): the member's
     words ask about a setup or the playbook, independently of the classifier —
@@ -472,6 +488,8 @@ def playbook_worded(message: str, vocab: list[dict], symbols: list[str]) -> bool
     approved, other = named_setups(message, vocab)
     if approved or other:
         return True
+    if feature_context(message):
+        return False
     m = _fold(message)
     for rx, to in _CONTRACTIONS:
         m = rx.sub(to, m)
@@ -481,30 +499,57 @@ def playbook_worded(message: str, vocab: list[dict], symbols: list[str]) -> bool
     return bool(_ASKS.search(m) and _TERMS.search(m))
 
 
-#: review #781 delta (b): the OUTPUT backstop. A chart / none reply that presents UCT-owned methodology — it names UCT,
-#: the team or "our" rules / setups, or it names a setup together with entry / stop / criteria wording — is replaced
-#: by UCT's fixed sentence (ops are kept). It complements the classifier and the input check; it never adds text.
-_OWNED = re.compile(r"\b(uct|uncharted territory|the team|our)( s)? (\w+ ){0,2}(rules?|setups?|playbook|criteria|methods?|"
-                    r"methodology|approach|process|system|enters?|entry|entries|buys?|trades?|stops?|sells?|exits?|"
-                    r"definition|defines?)\b")
-_METHOD = re.compile(r"\b(entry|entries|enter|buy point|stops?|stop loss|max stop|criteria|rules?|trigger\w*|invalidat\w*|"
-                     r"position siz\w*|risk per trade|win rate|hit rate)\b")
+#: review #781 delta (b) and delta 2: the OUTPUT backstop. BEST-EFFORT, never the guarantee (that is evidence routing
+#: plus the eval): a chart / none reply is replaced by UCT's fixed sentence (ops kept, nothing added) when it
+#:   - presents owned methodology: UCT / the team / we / us / our (crew, rules...) within three words of a
+#:     methodology verb or noun (buy, sell, get in / out, add, trim, enter, rules, setup, stop...), in a sentence that is
+#:     not about a UCT feature (menu, tab, screener, alert...);
+#:   - names a setup (approved or known) together with entry / exit / stop / criteria wording, or defines it
+#:     ("an EP is ...", "EP means ...", "EP = ...");
+#:   - or answers a turn whose INPUT used setup vocabulary with entry / exit / trigger / buy-point wording.
+_SUBJECT = r"(uct|uncharted territory|the team|our team|we|us|our)"
+_ACTS = (r"(rules?|setups?|playbook|criteria|methods?|methodology|approach|process|system|plays?|enters?|entry|entries|"
+         r"buys?|buying|sells?|selling|get in|gets in|get out|gets out|adds?|adding|trims?|trimming|trades?|trading|"
+         r"stops?|exits?|definition|defines?)")
+_OWNED = re.compile(r"\b" + _SUBJECT + r"( s)? (\w+ ){0,3}" + _ACTS + r"\b")
+_METHOD = re.compile(r"\b(entry|entries|enter|entering|buy point|buy|buys|buying|sell|sells|selling|get in|get out|"
+                     r"adds? (to|on)|trim|trims|trimming|stops?|stop loss|max stop|criteria|rules?|trigger\w*|"
+                     r"invalidat\w*|position siz\w*|risk per trade|win rate|hit rate)\b")
+_DEFINES = r"( s)? (is|are|means|refers to|stands for|=)\b"
+_SENTENCES = re.compile(r"(?<=[.!?;\n])\s+")
 
 
-def presents_methodology(reply: str, vocab: list[dict]) -> bool:
+def _defines_named(reply: str, names: list[str]) -> bool:
     f = _fold(reply)
-    if _OWNED.search(f):
-        return True
+    raw = str(reply or "").casefold()               # "EP = ..." / "EP: ..." (folding drops the punctuation)
+    return any(re.search(r"\b" + re.escape(_fold(n)) + r"s?" + _DEFINES, f)
+               or re.search(r"(?<![a-z0-9])" + re.escape(str(n).casefold()) + r"s?\s*[=:]", raw)
+               for n in names if _fold(n))
+
+
+def presents_methodology(reply: str, vocab: list[dict], message: str = "") -> bool:
+    for sent in _SENTENCES.split(str(reply or "")):
+        fs = _fold(sent)
+        if _OWNED.search(fs) and not _FEATURE.search(fs):
+            return True
+    f = _fold(reply)
     approved, other = named_setups(reply, vocab)
-    return bool((approved or other) and _METHOD.search(f))
+    names = approved + other + [a for v in vocab if v.get("name") in approved for a in (v.get("aliases") or [])]
+    if (approved or other) and (_METHOD.search(f) or _defines_named(reply, names)):
+        return True
+    if message and not feature_context(message):
+        m_app, m_oth = named_setups(message, vocab)
+        if (m_app or m_oth or _TERMS.search(_fold(message))) and _METHOD.search(f):
+            return True
+    return False
 
 
-def output_backstop(res: dict, vocab: list[dict]) -> dict:
+def output_backstop(res: dict, vocab: list[dict], message: str = "") -> dict:
     env = res.get("envelope") if isinstance(res, dict) else None
     if not isinstance(env, dict) or env.get("need_groups"):
         return res
     reply = str(env.get("reply") or "")
-    if not reply.strip() or reply.strip() in fixed_sentences() or not presents_methodology(reply, vocab):
+    if not reply.strip() or reply.strip() in fixed_sentences() or not presents_methodology(reply, vocab, message):
         return res
     log.info("uct_agent evidence: output backstop replaced a %d-char reply", len(reply))
     res["envelope"] = {**env, "reply": NOT_RETRIEVED, "question": None}
@@ -512,6 +557,26 @@ def output_backstop(res: dict, vocab: list[dict]) -> dict:
         res["envelope"] = {**res["envelope"], "disposition": "answer", "ops": []}
     res.setdefault("usage", {})["output_backstop"] = True
     return res
+
+
+def resume_active(context: Any, v2: Optional[dict]) -> bool:
+    """Review #781 delta 2 item 4: a planner-v2 RESUME while Brain is on (only chart / none turns ever reach v2)."""
+    if not brain_on() or not (isinstance(v2, dict) and v2.get("resume") is not None):
+        return False
+    from api.services.uct_agent import coach
+    return not coach.is_coach_turn(context)
+
+
+def serve_resume(run_turn: Callable[..., dict], args: dict) -> dict:
+    """The resumed v2 turn's final reply gets the same output backstop and general label as its first part."""
+    try:
+        vocab = approved_setups()
+    except Exception:  # noqa: BLE001
+        vocab = []
+    res = run_turn(**{**args, "_e1": True})
+    if isinstance(res, dict) and res.get("paused"):
+        return res
+    return label_general(output_backstop(res, vocab, str(args.get("message") or "")))
 
 
 def fixed_sentences() -> set:
@@ -603,7 +668,7 @@ def serve(run_turn: Callable[..., dict], args: dict) -> dict:
         if args.get("v2") is not None and kn_words:
             return done(answer_envelope(NOT_RETRIEVED))
         res = run_turn(**{**stripped, "_e1": "gate_kn" if kn_words else "gate"})
-        return _merge_usage(label_general(output_backstop(res, vocab)), decision, use, cached)
+        return _merge_usage(label_general(output_backstop(res, vocab, message)), decision, use, cached)
     if args.get("answer_only") or args.get("headline") is not None:
         return done(answer_envelope(NEWS_BOX))     # the News Ask box: playbook / mixed / ambiguous never planned there
     if args.get("v2") is not None:

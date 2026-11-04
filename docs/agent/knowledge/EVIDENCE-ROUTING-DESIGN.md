@@ -247,11 +247,22 @@ Where: `knowledge/evidence.py`, entered from the top of `turn.run_turn` (one hoo
   - **A named setup on a chart / none turn becomes `mixed`** (`named_setups`, with or without a stock: "what's NVDA's
     EP setup look like"): UCT's read answers the definition part, the planner the chart part, its reply dropped.
     "eps" is never read as a setup name.
-  - **Output backstop** (`output_backstop`, v1 and v2): a chart / none reply that presents UCT-owned methodology —
-    UCT / the team / "our" within three words of rules, setups, playbook, criteria, entry, stop, buys, trades,
-    definition...; or a setup name together with entry / stop / criteria / trigger / win-rate wording — is replaced by
-    UCT's fixed "can't retrieve" sentence (a write keeps its ops). It never adds text. Ordinary help mentioning UCT
-    ("open the indicator menu in UCT") is untouched (tested).
+  - **Output backstop** (`output_backstop`, v1, v2 and v2 resumes). **Best-effort only:** the guarantee is evidence
+    routing plus the eval, never this pattern list. A chart / none reply is replaced by UCT's fixed "can't retrieve"
+    sentence (a write keeps its ops; nothing is added) when it:
+    - presents owned methodology: UCT / the team / we / us / our (crew, rules...) within three words of a
+      methodology word (buy, sell, get in / out, add, trim, enter, rules, setup, play, stop...), in a sentence not
+      about a UCT feature (menu, tab, screener, alert...);
+    - names a setup (approved or known) with entry / exit / stop / criteria wording, or defines it ("an EP is",
+      "EP means", "EP = ...", "EP: ...");
+    - answers a turn whose input used setup vocabulary with entry / exit / trigger / buy-point wording.
+  - **UCT feature help is exempt from the input check** (review #781 delta 2): product-feature words (scan, screen,
+    screener, column, tab, menu, alert, drawing, panel, widget, setting, button, indicator, watchlist, layout...) or
+    how-do-I navigation ("how do I add / set / open / save / draw...") mean the message is help about UCT. A named
+    setup still counts. While E-1 runs, #768's own word list is not consulted on chart / none turns; E-1's check
+    decides (`_e1="gate"` / `"gate_kn"`). Nine help phrasings are pinned as negative tests.
+  - **v2 resumes** (only chart / none turns reach v2) get the same output backstop and general label
+    (`serve_resume`); a paused result passes through.
 - **General-information label (review #781 finding 2, owner: general education and chart analysis stay clearly
   distinguished):** while Brain is on, a chart / none turn's model-written reply ends with the fixed line "General
   information, not from UCT's approved playbook." Decided deterministically (`evidence.label_general`): E-1 class chart /

@@ -626,3 +626,78 @@ def test_delta_alias_tolerance():
                     ("UNDERCUT AND RALLY", "Undercut & Rally")):
         assert want in ev.named_setups(m, v)[0], m
     assert ev.named_setups("sleep and rally", v) == ([], [])
+
+
+# ── review #781 delta 2 ─────────────────────────────────────────────────────────────────────────────────────────
+@pytest.mark.parametrize("reply,msg", [
+    ("An EP is a 10% earnings gap; you buy at the open and sell below the day's low.", "tell me something interesting"),
+    ("We buy EPs at the open and trim into strength.", "tell me something interesting"),
+    ("Our crew's favourite play: EP, buy the ORH.", "tell me something interesting"),
+    ("This setup's buy point is the prior high.", "what makes a good pivot"),
+    ("The trigger is a close above the pivot.", "describe a pocket pivot"),
+    ("EP = gap + volume.", "tell me something interesting"),
+])
+def test_delta2_output_backstop_catches_the_reviewers_evasions(monkeypatch, reply, msg):
+    use(monkeypatch, MISROUTES[1])
+    # bypass the input check so the OUTPUT backstop is what is tested
+    monkeypatch.setattr(ev, "playbook_worded", lambda *a, **k: False)
+    monkeypatch.setattr(ev, "named_setups", lambda m, v: ([], []) if m == msg else _real_named(m, v))
+    out = run(msg, caller=caller_of(_resp(env("answer", reply=reply))))
+    assert out["envelope"]["reply"] == ev.NOT_RETRIEVED, reply
+
+
+_real_named = ev.named_setups
+
+
+@pytest.mark.parametrize("msg", ["open the indicator menu in UCT", "how do I add a breakout scan", "show me how to draw a flag",
+                                 "how do I set up a gap scanner", "what does the pullback column mean in the screener",
+                                 "how do I set an alert for a breakout", "what are the rules for the momentum screen",
+                                 "how do I save this pattern drawing", "explain the gaps tab"])
+def test_delta2_ordinary_uct_help_is_not_a_playbook_question(monkeypatch, msg):
+    use(monkeypatch, MISROUTES[1])
+    reply = "Use the menu at the top of the panel; pick the item and press Save."
+    out = run(msg, caller=caller_of(_resp(env("answer", reply=reply))))
+    assert out["envelope"]["reply"] == reply + "\n\n" + ev.GENERAL_LABEL
+    assert ev.playbook_worded(msg, VOCAB, []) is False
+
+
+@pytest.mark.parametrize("reply", ["In UCT, set a stop alert from the alert menu.", "Open the indicator menu in UCT and pick RSI.",
+                                   "We can add that indicator from the toolbar."])
+def test_delta2_feature_help_mentioning_uct_is_not_methodology(monkeypatch, reply):
+    use(monkeypatch, MISROUTES[1])
+    out = run("how do I set a stop alert", caller=caller_of(_resp(env("answer", reply=reply))))
+    assert out["envelope"]["reply"] == reply + "\n\n" + ev.GENERAL_LABEL
+
+
+def test_delta2_playbook_paraphrases_still_caught_with_feature_words_absent():
+    for m in ("how do I trade a flat base", "describe a pocket pivot", "walk me through a wedge pop"):
+        assert ev.playbook_worded(m, VOCAB, []) is True, m
+
+
+def test_delta2_a_v2_resume_gets_the_output_backstop_and_the_label(monkeypatch):
+    from api.services.uct_agent import turn_v2
+    replies = iter([INVENTED, "Done: your chart is on bars now, and the volume pane is hidden."])
+    monkeypatch.setattr(turn_v2, "run_turn_v2", lambda **kw: {"envelope": env("answer", reply=next(replies)),
+                                                               "usage": {}, "title": None})
+    c = use(monkeypatch, AssertionError("a resume is never classified again"))
+    v2 = {"wait_step": None, "turn_token": "t", "resume": {"x": 1}, "resume_result": {"status": "done"}}
+    out = run("make it bars", v2=v2)
+    assert c.calls == [] and out["envelope"]["reply"] == ev.NOT_RETRIEVED
+    out = run("make it bars", v2=v2)
+    assert out["envelope"]["reply"].endswith(ev.GENERAL_LABEL)
+
+
+def test_delta2_a_paused_v2_resume_passes_through(monkeypatch):
+    from api.services.uct_agent import turn_v2
+    paused = {"paused": True, "turn_token": "t", "envelope": {"paused": True}, "usage": {}}
+    monkeypatch.setattr(turn_v2, "run_turn_v2", lambda **kw: paused)
+    v2 = {"wait_step": None, "turn_token": "t", "resume": {"x": 1}, "resume_result": {"status": "done"}}
+    assert run("make it bars", v2=v2) is paused
+
+
+def test_delta2_brain_off_resume_is_untouched(monkeypatch):
+    from api.services.uct_agent import turn_v2
+    monkeypatch.delenv("UCT_AGENT_KNOWLEDGE")
+    monkeypatch.setattr(turn_v2, "run_turn_v2", lambda **kw: {"envelope": env("answer", reply=INVENTED), "usage": {}, "title": None})
+    v2 = {"wait_step": None, "turn_token": "t", "resume": {"x": 1}, "resume_result": {"status": "done"}}
+    assert run("make it bars", v2=v2, caps=CAPS, ctx=CTX)["envelope"]["reply"] == INVENTED
