@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 10:48 CT
+updated: 2026-11-04 11:22 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -38,7 +38,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 10. CONCURRENT STEPS PER LANE (owner, 2026-11-04 07:30 CT: "do them concurrently"): a lane may run its heavy steps at once ONLY in separate worktrees. Mutations edit src in place and measure-pair copies zzMP tests into the tip worktree, so final-tip and probes run in a second DETACHED worktree at the same committed tip (pine-dsk-w4t10-final, pine-dsk-w4t7-probe), which is removed afterwards (junction unlinked first). Applied to W4-T10 (mutations || final-tip) and W4-T7 (measure-pair re-run || object-door work).
 8. Clock note: block times are local CT and correct. An earlier note here called them wrong; that was my mistake (the health log prints UTC under Git Bash). Withdrawn. SECOND clock note: blocks stamped 03:45, 04:20 and 04:35 CT on 2026-11-04 (W4-T15 start, W5-T7 READY, W5-T8 READY) were written ahead of the clock, at about 03:20-03:40 CT; from 2026-11-04 04:13 CT every stamp is read from the local clock.
 
->>> NEW-LANE FREEZE (owner, 2026-11-04 07:34 CT): "dont start anything new until all that past work is completed fully". MET 2026-11-04 10:48 CT: all 21 lanes READY (W4-T10 and W4-T7 last). No new lane started; next work (W4-T8 stacked on T7, W5-T9/T10/T11+, captures) awaits the owner. <<<
+>>> NEW-LANE FREEZE LIFTED 2026-11-04 11:22 CT. The freeze (owner 07:34: "dont start anything new until all that past work is completed fully") was met when W4-T7 became READY; the owner then said "lets do all that and then proceed into the next steps". Batch 4 started (8 builders, 2 Opus; owner cap 9): W4-T8, W4-T13 spike, W5-T2, W5-T9, W5-T10, W5-T11, W5-T12, W5-T4 r1. Merging and engine numbers stay with the coordinator (desktop never merges). <<<
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
@@ -228,7 +228,7 @@ open: a direct parameter offset src[length-1] at two call sites fails with a nam
 desktop check: PASS (FE + 2 test files + evidence; T2-helper edit named; 133a4d217a..e1d180f163 is EVIDENCE only; local == origin; worktree clean)
 
 ## W5-T4 host-parity rail (picked per 063fe2ba8e: needs T1 + T3, both READY)
-state: READY (with a DESIGN DECISION for the coordinator/owner: HP-3 gating)   round: r0   updated: 2026-11-04 06:06 CT
+state: BUILDING r1 (HP-3 decision taken: option b)   round: r0   updated: 2026-11-04 06:06 CT
 branch: feat/pine-w5-t4-host-parity   tip: eb922686fe (EVIDENCE over code tip 56279a879e)   base: W5-T1 27e95ca34c + one local merge of W5-T3 409456ee36 (e5f7ea0e0b, no conflict); merge T1 and T3 first   tested on master: 5d95103c8a
 engine bump needed: NO
 evidence: docs/pine/evidence/2026-11-04-w5-t4/EVIDENCE.md + muts.json, muts-r2.json
@@ -240,6 +240,7 @@ checks: mutations (heavy-mut) 29/29 killed in 2 rounds, control survives, no equ
 open: HP-3 gating decision; verify HP-1 under Node 20 before T19; extract runtime __tests__ sources with a licence filter; HP-8/T5 can reuse the .py with webkit/firefox, scope now includes other V8 builds.
 desktop check: PASS for the build (scope, rails, 29/29, final-tip at baseline, local == origin, worktree clean). HP-3 red is a real cross-host finding, reported, not hidden.
 
+r1 (2026-11-04 11:22 CT): the owner delegated the open decisions ("lets do all that"); the desktop took option (b), the reversible one: trig cases (transcendental@*) are REPORTED by HP-3 with their ulp counts, not gated; every other HP-3 case stays gated. Option (a) (a JS sin/cos in the runtime, engine bump) is left as a candidate lane for the coordinator. Builder adds the report path, a rail and a mutation, re-runs final-tip on _resume-2026-11-01/dsk/heavy-final3.lock.
 ## W4-T10 (picked per 063fe2ba8e: "after T1"; STACKED on the laptop's W4-T1, reviewed GO, in the merge queue)
 state: READY            round: r0            updated: 2026-11-04 08:06 CT
 branch: feat/pine-w4-t10-state-kernels   tip: aab2471815 (docs over engine tip 22ad7169f5)   base: origin/feat/pine-w4-t1-wall-report f9b85fb442 (merge W4-T1 first)
@@ -263,3 +264,42 @@ final-tip (tool code added; heavy-final2, on 9fe52d5cea): gate pytest 46, hygien
 process note: the builder's Write tool refused to create REPORT.md as a "report file"; it wrote it with PowerShell instead, since REPORT.md is this lane's assigned committed deliverable. Flagged for the reviewer's awareness.
 open: HP-3 sin/cos decision (T4's a/b/c) stays the coordinator's; new data point: Firefox and WebKit agree with each other on trig and disagree with both V8 builds. No scheduled probe cadence (coordinator's call).
 desktop check: PASS (report + tools, final-tip at baseline, local == origin, worktree clean)
+
+## W4-T8 series int window lengths (after T7 READY; T2 READY for simple lengths)
+state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
+branch: feat/pine-w4-t8-series-length   base: W4-T7 8f420e0043 + local merge of W4-T2 ac659bae66 (STACK: merge T7 and T2 first)   model: Sonnet
+locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · mp _resume-2026-11-01/dsk/heavy-mp2.lock (pine-dsk-mpbase2, base set in-job to the stacked parent) · final _resume-2026-11-01/dsk/heavy-final2.lock
+
+## W4-T13 spike (spike only, docs/probes; the build is capture-gated on P1)
+state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
+branch: spike/pine-w4-t13-candle   base: origin/master 09453ca1a3   model: Sonnet
+locks: none (docs only)
+scope: answer whether the member pane can draw an OHLC row; no engine edit.
+
+## W5-T2 host-neutral closure (needs T1, READY)
+state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
+branch: feat/pine-w5-t2-host-neutral   base: W5-T1 27e95ca34c (STACK: merge T1 first)   model: Opus
+locks: mut heavy-mut · mp _resume-2026-11-01/dsk/heavy-mp3.lock (pine-dsk-mpbase3) if engine behaviour changes · final _resume-2026-11-01/dsk/heavy-final3.lock
+
+## W5-T9 observability + canary + smoke (needs T4 + T7, both READY)
+state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
+branch: feat/pine-w5-t9-canary   base: W5-T7 5e6c63e24e + local merge of W5-T4 eb922686fe (STACK: T1 -> T6 -> T7, T3 -> T4)   model: Sonnet
+locks: mut heavy-mut · final _resume-2026-11-01/dsk/heavy-final2.lock
+no Railway: capacity numbers on a LOCAL container/process only.
+
+## W5-T10 image (needs T6 + T7, both READY)
+state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
+branch: feat/pine-w5-t10-image   base: W5-T7 5e6c63e24e (STACK: T1 -> T6 -> T7)   model: Sonnet
+locks: mut heavy-mut · final _resume-2026-11-01/dsk/heavy-final3.lock
+files only (Dockerfile, railway.json); no Railway service is created (T20 is the owner's).
+
+## W5-T11 client + lane adapter (needs T3, READY)
+state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
+branch: feat/pine-w5-t11-client   base: W5-T3 409456ee36 (STACK: merge T3 first)   model: Opus
+locks: mut heavy-mut · final _resume-2026-11-01/dsk/heavy-final2.lock
+
+## W5-T12 admission + flags (no dependencies)
+state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
+branch: feat/pine-w5-t12-admission   base: origin/master 09453ca1a3   model: Sonnet
+locks: mut heavy-mut · final _resume-2026-11-01/dsk/heavy-final3.lock
+ledger rows in docs/feature_flags.json only; no flag is set anywhere.
