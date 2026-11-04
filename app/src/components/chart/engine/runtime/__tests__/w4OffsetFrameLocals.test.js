@@ -97,7 +97,7 @@ plot(g(close, 7))
 
   it('a name the body redeclares in a nested block does not change what the local was bound to', () => {
     // `periods` was bound from the PARAMETER `length`; the inner `length` is another slot.
-    const body = 'f(src, length) =>\n    periods = length - 1\n    s = 0.0\n    if close > 0\n        length = 2\n'
+    const body = 'f(src, length) =>\n    periods = length - 1\n    s = 0.0\n    if close > 0\n        length = 2\n        length += 0\n'
       + '        for j = 0 to periods\n            s += src[j]\n    s\n'
     const [a, b] = run(`${head}${body}plot(f(close, 3))\nplot(f(close, 7))\n`)
     const [ra, rb] = run(`${head}plot(ta.sma(close, 3) * 3)\nplot(ta.sma(close, 7) * 7)\n`)

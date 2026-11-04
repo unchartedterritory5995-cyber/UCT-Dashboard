@@ -4768,14 +4768,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐⭐ W4-T9 — A LOCAL THE FRAME DERIVES FROM ITS PARAMETERS, by slot → the
    *  binding's parse expression and the scope it was written in. Recorded where a
    *  function body binds `name = expr` (never `var`, never reassigned anywhere in
-   *  the script, no `/` or `%` in it: T17), and read only by `frameSubstitute`. */
+   *  the script; `/` and `%` are refused downstream by the fold: T17), and read only by `frameSubstitute`. */
   const frameLocalDefs = new Map()
-  const hasDivision = (x, d = 0) => {
-    if (!x || typeof x !== 'object' || d > 64) return false
-    if (Array.isArray(x)) return x.some((y) => hasDivision(y, d + 1))
-    if (x.type === 'binary' && (x.op === '/' || x.op === '%')) return true
-    return Object.entries(x).some(([k, v]) => k !== 'tok' && hasDivision(v, d + 1))
-  }
 
   /** ⭐⭐ W4-T9 — THE FRAME'S NAMES, ANSWERED IN ONE PLACE (`constValueOf`'s and
    *  `foldConstNode`'s substitution, which were two copies). A parameter the call
@@ -9924,7 +9918,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         markUdtSlot(slot, value, scope, toks, eq)
         // ⭐⭐ W4-T9 — a frame local bound once to arithmetic over the frame is
         // what a bound or an offset reads through (`frameSubstitute`)
-        if (!mutable && !hasDivision(value)) {
+        if (!mutable) {
           frameLocalDefs.set(slot, { expr: value, scope })
         }
         out.push(declare(slot, lowerExpr(value, scope)))
