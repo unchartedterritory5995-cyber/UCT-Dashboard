@@ -293,7 +293,7 @@ function nodeRaw(rt, c, rows) {
   }
 }
 
-export async function runNode({ bundle, corpus = loadCorpus(), only = null, log = () => {} } = {}) {
+export async function runNode({ bundle, corpus = loadCorpus(), only = null, log = () => {}, rawSink = null } = {}) {
   const rt = await import(pathToFileURL(resolve(bundle)).href)
   const identity = identityOf(rt)
   const cases = caseList(corpus).filter((c) => !only || only.includes(c.case) || only.includes(c.script))
@@ -304,7 +304,9 @@ export async function runNode({ bundle, corpus = loadCorpus(), only = null, log 
   for (const c of cases) {
     const t0 = performance.now()
     const rows = bars[c.set].map((b) => ({ ...b }))
-    records[c.case] = recordOf(nodeRaw(rt, c, rows), identity)
+    const raw = nodeRaw(rt, c, rows)
+    if (rawSink) rawSink[c.case] = raw
+    records[c.case] = recordOf(raw, identity)
     log(`${c.case.padEnd(40)} ${records[c.case].status.padEnd(9)} ${(performance.now() - t0).toFixed(0).padStart(6)} ms ${records[c.case].guards.join(',')}`)
   }
   return { host: 'node', identity, barsSha256: barsSha, records, recordedOn: hostVersions() }
@@ -569,7 +571,10 @@ async function main(argv) {
         return red.length ? 0 : 1
       } finally { rmSync(dir, { recursive: true, force: true }) }
     }
-    const got = await runNode({ bundle, corpus, only, log })
+    // W5-T5: --raw-out keeps Node's own encoded columns so a differing case can be explained by column and ulp
+    const rawSink = argOf(argv, '--raw-out') ? {} : null
+    const got = await runNode({ bundle, corpus, only, log, rawSink })
+    if (rawSink) atomicWrite(argOf(argv, '--raw-out'), JSON.stringify({ host: 'node', results: rawSink }))
     if (argOf(argv, '--out')) atomicWrite(argOf(argv, '--out'), `${JSON.stringify(got, null, 1)}\n`)
     if (argv.includes('--write')) {
       const prev = existsSync(EXPECTED_FILE) ? JSON.parse(readFileSync(EXPECTED_FILE, 'utf8')) : null
