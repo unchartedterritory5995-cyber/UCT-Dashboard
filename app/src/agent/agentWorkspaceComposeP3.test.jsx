@@ -63,7 +63,7 @@ describe('the whole-workspace request (live acceptance 2026-10-31)', () => {
     expect(shape(board)).toBe(before)                                           // a question changes nothing
     // the pick → the explicit approval card: it says exactly what goes; still nothing changed
     const card = await click('Replace current board')
-    expect(card).toMatch(/replacing your board: removed the News.* and the Screener.*\(Undo puts them back\)/)
+    expect(card).toMatch(/replacing your board: will remove the News.* and the Screener.*\(Undo puts them back\)/)
     expect(card).toMatch(/When you approve the card above, I'll carry on with the rest: “RSI beneath each chart”/)
     expect(shape(board)).toBe(before)
     // approved → the WHOLE request, one coordinated plan

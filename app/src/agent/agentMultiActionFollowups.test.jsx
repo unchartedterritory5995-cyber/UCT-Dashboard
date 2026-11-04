@@ -14,6 +14,8 @@ import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { touchesCharts, arrangesBoard, asSubjectWords, isShortAnswer, isNewRequest } from './useAgent'
 import { AuthContext } from '../context/AuthContext'
+import { NL1_KEY } from './nl1/interpreter'
+import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { selectGroups, routeManifest, wordsSelect } from './routing'
 import { fastParse } from './fastPath'
 import { multiChartPlan } from './multiChart'
@@ -32,6 +34,7 @@ import AgentPanel from './AgentPanel'
 registerBuiltins()
 
 let envelopes, calls, saveFails
+let nl1Config = false
 const env = (disposition, ops, reply = '') => ({ disposition, reply, question: null, ops, unsupported_category: null })
 beforeEach(() => {
   envelopes = []; calls = []; saveFails = false
@@ -45,6 +48,7 @@ beforeEach(() => {
       return json({ conversationId: 'ac_1', envelope: typeof e === 'function' ? e(body) : (e || env('answer', [], 'NO SCRIPTED MODEL TURN')), usage: { research_calls: 0, citations: [] } })
     }
     if (url === '/api/agent/record') return json({ conversationId: 'ac_1' })
+    if (url === '/api/agent/config') return nl1Config ? json({ stream: false, nl1: true }) : json({ conversations: [] })
     const q = /ticker-search\?q=([^&]+)/.exec(String(url))
     if (q) return json({ results: [{ ticker: decodeURIComponent(q[1]).toUpperCase() }] })
     if (String(url).startsWith('/api/live-prices')) return json({})
@@ -983,4 +987,182 @@ describe('gaps-5 delta nits', () => {
     expect(wordsSelect('indicators', 'hide the moving averages on my SPX chart')).toBe(true)
     expect(wordsSelect('indicators', 'how are the moving averages looking for the market')).toBe(false)
   })
+})
+
+// ═══ LIVE TRAIN 4 (production 993ef96a2a) ════════════════════════════════════════════════════════════════
+describe('live train 4 · "four charts, all the same size" on a board of SIX charts — asked, never 10 charts', () => {
+  const OWNER = 'Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.'
+  const SIX = () => [[0, 1, 2, 3, 4, 5].map(i => ({ id: `c${i}`, type: 'chart', x: (i % 3) * 8, y: Math.floor(i / 3) * 10, w: 8, h: 10, color: 'ABCDEF'[i], opts: { ...settings(), ...(i === 0 ? { tf: 'W' } : {}) } })),
+    { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA', E: 'NVDA', F: 'QQQ' }]
+  it('the deterministic reader asks: replace the 6 charts or add 4 more — nothing changes until the member picks', async () => {
+    const { board, say } = mount(...SIX())
+    await say(OWNER)
+    expect(chartsOf(board)).toHaveLength(6)
+    const q = screen.queryAllByTestId('agent-question')
+    expect(q).toHaveLength(1)
+    expect(q[0].textContent).toMatch(/You have 6 charts here\. Replace them with these 4 \(SPY, QQQ, NVDA, TSLA\), or add 4 more beside them\?/)
+    expect(turnBodies()).toHaveLength(0)
+  }, 30000)
+  it('"Add 4 more charts" → 10 charts (the owner\'s pick, said)', async () => {
+    const { board, say } = mount(...SIX())
+    await say(OWNER)
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 more charts' }))
+    await idle()
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 8000 })
+  }, 30000)
+  it('"Replace my 6 charts with these 4" → a CARD (it removes charts); approved → 4 equal charts, the ones already showing a ticker kept on it, other widgets stay', async () => {
+    const [ws, groups] = SIX()
+    const { board, h, say } = mount([...ws.map(w => ({ ...w, y: w.y ? 8 : 0, h: 8 })), { id: 'wl', type: 'watchlist', x: 0, y: 16, w: 24, h: 4, color: 'A', opts: {} }], groups)
+    await say(OWNER)
+    fireEvent.click(screen.getByRole('button', { name: 'Replace my 6 charts with these 4' }))
+    await idle()
+    if (process.env.DUMP) console.log('CLICK>>', transcript().slice(-500))
+    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal').length).toBeGreaterThan(0))
+    expect(chartsOf(board)).toHaveLength(6)                                                     // nothing removed before approval
+    await say('do it')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    expect(chartsOf(board).map(w => h.charts.read(w.id).symbol).sort()).toEqual(['NVDA', 'QQQ', 'SPY', 'TSLA'])
+    expect(new Set(chartsOf(board).map(w => `${w.w}x${w.h}`)).size).toBe(1)
+    expect(board.state.widgets.some(w => w.id === 'wl')).toBe(true)                               // the watchlist stays
+    expect(board.state.widgets.some(w => w.id === 'c0')).toBe(true)                               // the SPY chart reused (its ticker kept)
+  }, 40000)
+  it('"add four charts for …" / "new charts for …" still ADD (no question)', async () => {
+    const { board, say } = mount(...SIX())
+    await say('add four new charts for SPY, QQQ, NVDA and TSLA, all the same size')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 8000 })
+    expect(screen.queryAllByTestId('agent-question')).toHaveLength(0)
+  }, 30000)
+  it('a board with as many charts as tickers (or fewer) is reused, as on train 3 — no question', async () => {
+    const { board, h, say } = mount(...HALF())
+    await say(OWNER)
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    expect(chartsOf(board).map(w => h.charts.read(w.id).symbol)).toEqual(['SPY', 'QQQ', 'NVDA', 'TSLA'])
+  }, 30000)
+})
+
+describe('live train 4 · a workspace conflict at save: the receipt says on screen, NOT saved — never done', () => {
+  it('a revision conflict (another window changed the workspace) → "On your screen but NOT saved", the reload note, no Undo', async () => {
+    const { board, say } = mount(...HALF(), { epoch: () => 1, persist: async () => ({ ok: false, conflict: true, reason: 'conflict' }) })
+    await say('Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    await waitFor(() => expect(summaries()[0]).toMatch(/^On your screen but NOT saved: set up four charts/))
+    expect(receipts()[0].textContent).toMatch(/changed in another window or device/)
+    expect(receipts()[0].getAttribute('data-undoable')).toBeNull()
+  }, 30000)
+})
+
+describe('live train 4 · NO receipt claims a change the save did not confirm (owner rule)', () => {
+  it('a single change whose save fails: "On your screen but NOT saved", no Undo offered', async () => {
+    const { h, say } = mount(...HALF(), { epoch: () => 1, persist: async () => ({ ok: false, reason: 'not-saved' }) })
+    await say('weekly')
+    await waitFor(() => expect(h.charts.read('c1').tf).toBe('W'))
+    await waitFor(() => expect(summaries()[0]).toMatch(/^On your screen but NOT saved: switched timeframe to Weekly/))
+    expect(receipts()[0].getAttribute('data-undoable')).toBeNull()
+  }, 30000)
+  it('an Undo whose save fails: said as on screen, NOT saved — never "undone" as if final', async () => {
+    let fail = false
+    const { h, say } = mount(...HALF(), { epoch: () => 1, persist: async () => (fail ? { ok: false, reason: 'not-saved' } : { ok: true }) })
+    await say('weekly')
+    await waitFor(() => expect(h.charts.read('c1').tf).toBe('W'))
+    fail = true
+    await say('undo')
+    await waitFor(() => expect(h.charts.read('c1').tf).toBe('D'))
+    await waitFor(() => expect(summaries().slice(-1)[0]).toMatch(/^On your screen but NOT saved: undid/))
+  }, 30000)
+  it('stale state (the board changed in another window before the write): nothing is written, said plainly', async () => {
+    const { h, say } = mount(...HALF(), { epoch: () => 1, boardInSync: async () => ({ ok: false, reason: 'your workspace was changed in another window or device' }) })
+    await say('weekly')
+    await waitFor(() => expect(transcript()).toMatch(/I didn't change anything: your workspace was changed in another window or device/))
+    expect(h.charts.read('c1').tf).toBe('D')
+    expect(receipts()).toHaveLength(0)
+  }, 30000)
+  it('a grouped add + change whose SECOND part is not saved: the first part is said, the second "on your screen but wasn’t saved", never "Done in 2 steps"', async () => {
+    let n = 0
+    const { say } = mount(...HALF(), { epoch: () => 1, persist: async () => (++n === 2 ? { ok: false, reason: 'conflict' } : { ok: true }) })
+    await say('add a QQQ chart and change the SPY chart to weekly')
+    await waitFor(() => expect(transcript()).toMatch(/is on your screen but wasn’t saved/), { timeout: 8000 })
+    expect(transcript()).not.toMatch(/Done in 2 steps/)
+  }, 30000)
+})
+
+describe('review t4 · the replace-or-add question on EVERY path (model, NL-1) — reworded requests never make 10 charts', () => {
+  const SIX = () => [[0, 1, 2, 3, 4, 5].map(i => ({ id: `c${i}`, type: 'chart', x: (i % 3) * 8, y: Math.floor(i / 3) * 10, w: 8, h: 10, color: 'ABCDEF'[i], opts: settings() })),
+    { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA', E: 'NVDA', F: 'QQQ' }]
+  const boardRef = (b) => (b.context?.board || b.context?.boards || [])[0]?.ref || 'board'
+  for (const [said, plan] of [
+    ["I'd like SPY, QQQ, NVDA and TSLA on four charts, all the same size, thanks", (b) => [{ action: 'chartGrid.set', target: boardRef(b), args: { symbols: ['SPY', 'QQQ', 'NVDA', 'TSLA'], timeframe: null, layout: 'grid', new_charts: true, watchlist: null, replace: null } }]],
+    ['could you put SPY QQQ NVDA TSLA on equal charts for me please', (b) => [
+      ...[1, 2, 3, 4].map(n => ({ action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: `n${n}` } })),
+      ...['SPY', 'QQQ', 'NVDA', 'TSLA'].map((s, i) => ({ action: 'chart.setSymbol', target: `n${i + 1}`, args: { symbol: s } })),
+      { action: 'widget.arrange', target: boardRef(b), args: { widgets: null, pattern: 'grid' } }]],
+  ]) {
+    it(`model path: "${said}" → the question, no charts added`, async () => {
+      const { board, say } = mount(...SIX())
+      envelopes.push(b => env('apply', plan(b)))
+      await say(said)
+      expect(turnBodies().length).toBeLessThanOrEqual(1)                                       // the instant reader may take it first
+      expect(chartsOf(board)).toHaveLength(6)
+      expect(screen.queryAllByTestId('agent-question')[0]?.textContent || '').toMatch(/You have 6 charts here\. Replace them with these 4/)
+    }, 30000)
+  }
+  it('NL-1 path: the same question (the check is not inside the legacy-only branch)', async () => {
+    try { localStorage.setItem(NL1_KEY, '1') } catch { /* */ }
+    nl1Config = true
+    _resetAgentConfig(); await loadAgentConfig()
+    try {
+      const { board, say } = mount(...SIX())
+      envelopes.push(b => ({ ...env('apply', [{ action: 'chartGrid.set', target: Object.values(b.context || {}).flat().find(e => e?.ref && /board/i.test(String(e.label || e.ref)))?.ref || 'board', args: { symbols: ['SPY', 'QQQ', 'NVDA', 'TSLA'], timeframe: null, layout: 'grid', new_charts: true, watchlist: null, replace: null } }]), correction: null }))
+      await say("I'd like SPY, QQQ, NVDA and TSLA on four charts, all the same size, thanks")
+      expect(chartsOf(board)).toHaveLength(6)
+      expect(screen.queryAllByTestId('agent-question')[0]?.textContent || '').toMatch(/You have 6 charts here/)
+    } finally { nl1Config = false; try { localStorage.removeItem(NL1_KEY) } catch { /* */ }; _resetAgentConfig() }
+  }, 30000)
+  it('the replace CARD names each chart to remove by ticker + timeframe and says "will remove"; the receipt says "removed"', async () => {
+    const { board, say } = mount(...SIX())
+    await say('Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace my 6 charts with these 4' }))
+    await idle()
+    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal').length).toBeGreaterThan(0))
+    const card = screen.queryAllByTestId('agent-proposal')[0].textContent
+    expect(card).toMatch(/replacing your charts: will remove the NVDA chart \(Daily\) and the QQQ chart \(Daily\)/)
+    expect(card).not.toMatch(/: removed /)
+    await say('do it')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    expect(transcript()).toMatch(/replacing your charts: removed the NVDA chart \(Daily\) and the QQQ chart \(Daily\)/)
+  }, 40000)
+})
+
+describe('review t4 M5 · "…charts, each with an RSI" — the per-chart steps survive the replace-or-add question', () => {
+  const SIX = () => [[0, 1, 2, 3, 4, 5].map(i => ({ id: `c${i}`, type: 'chart', x: (i % 3) * 8, y: Math.floor(i / 3) * 10, w: 8, h: 10, color: 'ABCDEF'[i], opts: settings() })),
+    { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA', E: 'NVDA', F: 'QQQ' }]
+  const plan = (b) => [
+    ...[1, 2, 3, 4].map(n => ({ action: 'widget.add', target: ref(b, 'workspace'), args: { type: 'chart', as: `n${n}` } })),
+    ...['SPY', 'QQQ', 'NVDA', 'TSLA'].map((s, i) => ({ action: 'chart.setSymbol', target: `n${i + 1}`, args: { symbol: s } })),
+    ...[1, 2, 3, 4].map(n => ({ action: 'indicator.add', target: `n${n}`, args: { defId: 'rsi', inputs: null } })),
+  ]
+  const rsiOn = (w) => (w.opts?.settings?.indicatorInstances || []).some(i => i.defId === 'rsi' && !i.deleted)
+  it('"Add 4 more charts" → 10 charts, the 4 new ones each with its RSI', async () => {
+    const { board, h, say } = mount(...SIX())
+    envelopes.push(b => env('apply', plan(b)))
+    await say('I would like SPY, QQQ, NVDA and TSLA on equal charts, each with an RSI, thanks')
+    await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 more charts' }))
+    await idle()
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 10000 })
+    const fresh = chartsOf(board).filter(w => !/^c\d$/.test(w.id))
+    await waitFor(() => expect(fresh.map(w => board.state.widgets.find(x => x.id === w.id)).every(rsiOn)).toBe(true), { timeout: 10000 })
+    expect(chartsOf(board).filter(w => /^c\d$/.test(w.id)).some(rsiOn)).toBe(false)               // the existing charts untouched
+    expect(fresh.map(w => h.charts.read(w.id).symbol).sort()).toEqual(['NVDA', 'QQQ', 'SPY', 'TSLA'])
+  }, 45000)
+  it('"Replace my 6 charts with these 4" → the card; approved → 4 charts, each with its RSI', async () => {
+    const { board, say } = mount(...SIX())
+    envelopes.push(b => env('apply', plan(b)))
+    await say('I would like SPY, QQQ, NVDA and TSLA on equal charts, each with an RSI, thanks')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace my 6 charts with these 4' }))
+    await idle()
+    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal').length).toBeGreaterThan(0))
+    await say('do it')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 10000 })
+    await waitFor(() => expect(chartsOf(board).every(rsiOn)).toBe(true), { timeout: 10000 })
+  }, 45000)
 })
