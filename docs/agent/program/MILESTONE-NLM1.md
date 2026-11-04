@@ -1,0 +1,100 @@
+# MILESTONE NLM-1: "Flexible understanding" (Track B, next-generation Agent intelligence)
+
+**Status: DARK, not merged, not deployed.** Branch `agent/nlm1/flexible-understanding` (worktree `C:/w/nlm1`), draft PR #790. Stacked on Track A's `origin/agent/w2/live-train4-fixes` at `7be34d2dd9` (CG-37 `createdBinding`), as AUDIT directed. Re-merge it when AUDIT says it is final. The NLM-1 commits are separate, so they rebase cleanly.
+
+No production behaviour change: with the flag off, v1 routing is byte-identical (a frozen sha256), and every NLM-1 code path is gated. No spending-limit change, no paid call, no model change. F-16/F-23 model isolation is untouched: routing only changes which capabilities the model sees, and every op is still re-validated against the full registry, the approval policy and the protected-layout checks.
+
+## 1. Scope
+
+| Deliverable | What | Where |
+|---|---|---|
+| D1 | Registry-derived capability discovery: a lexical index generated from the capability manifest, a curated trader vocabulary (data), entity typing, a context-aware selector within the existing budget; v1's regexes kept as the boost / fallback layer | `app/src/agent/nlm1/capabilityIndex.js`, `routingV2.js`, `vocabulary.json`, `routers.js` |
+| D1.1 / D1.2 | Held-out follow-ups (AUDIT, structural): weak evidence never costs v1's fallback; critical groups; context-aware expansion; undo signal; percent-move screens; routed size trimmed | same files; `devMetrics.test.js` |
+| D2 | Multi-step plans with references: "add a chart for AMD and put RSI on it / on both", "… with RSI", plus grouped Undo for the whole request. Built on Track A's `bindCreated` (the create op's alias, resolved to the committed widget's id), through the existing executor and runtime | `nlm1/plans.js`, `nlm1/followups.js` (`rewriteSameRequest`), thin hooks in `useAgent.js` |
+| D3 | Conversational context: a referent tracker (the last committing message, read into slots: ticker, chart position, timeframe, created?). It rewrites "same for QQQ", "now the right one too", "same on the left but weekly", "and one for QQQ", "the other one monthly", "do that for the top right and bottom left charts" and "it = the chart the last request named" into the explicit forms the existing readers execute | `nlm1/followups.js`, hook in `useAgent.js` |
+| D4 | This document | `docs/agent/program/MILESTONE-NLM1.md` |
+
+No competing action engine: D2/D3 only rewrite text, or bind a plan's own alias. Everything then goes through the same readers (fastPath / multiChart / compound / conversation), planner, approval policy, protected-layout checks, runtime, receipts and grouped Undo (#771). A rewrite that no reader claims is dropped, and the message goes on exactly as typed.
+
+## 2. Flag (two keys, both default OFF)
+
+| Key | Where | Default |
+|---|---|---|
+| `UCT_AGENT_ROUTING_V2=1` | server env, reported as `routing_v2` by `GET /api/agent/config` (`api/routers/uct_agent.py`) | off |
+| `localStorage uct.agent.routingV2 = '1'` (`window.__uctAgentRoutingV2(true)`) | the admin's browser | off |
+
+Only both keys on enable NLM-1 (`nlm1/flag.js routingV2Active`): routing v2 (`pickRouter`), the D2/D3 rewriter and created-reference plans, and request-level Undo grouping. Anything else, including a config that hasn't answered, errored, or has unavailable storage, means v1.
+
+Hooks in production files, all gated: `useAgent.js` (`pickRouter` at the two routing calls; the rewrite before the readers; `planCreatedReference` in the fast path and in `runCompound`; Undo grouping after `execute` and `runCompound`), `agentClient.js` (`routing_v2` read), `memory.js` (`lastTurn().id`, additive). `routing.js` is untouched.
+
+## 3. Acceptance results
+
+### D1: routing
+
+| Criterion | Result |
+|---|---|
+| (a) capreg corpus routes 100% with the flag on; no intent loses its owning group | **488/488** (`qa/capabilityRegression/corpus.routingV2.test.js`): every needed action sent, none cut by the budget, within budget, no v1 owning group lost |
+| (b) routing-collision table | **35/35** words-only (unchanged v1 table; v1's regexes are v2's boost layer) and **35/35** v2 (owner recognised, selected and ranked in the top 2: `routingCollisionV2.test.js`) |
+| (c) independent held-out paraphrases, routing recall ≥ 95% within the current budget | scored by AUDIT on the sealed set (317 phrasings; this track never read it). See the table below |
+| (d) flag off: byte-identical routing (hash) | sha256 over 2268 `routeManifest` answers (corpus, collisions, golden steps × 4 contexts) equals the fingerprint frozen from pristine code: master `c87ab6d578` and the stacked Track A base `7be34d2dd9`; also through the two-key gate states (`nlm1/routingV1Identity.test.js`) |
+
+Held-out (sealed set, scored independently by AUDIT; aggregates only):
+
+| Metric | v1 | D1 `9a912420cc` | D1.1 `09512d5def` | D1.2 `92893dca0f` |
+|---|---|---|---|---|
+| Raw availability (needed actions sent) | 95.3% | 93.7% | **97.2%** | pending AUDIT re-score |
+| Own-groups recall (router's own selection) | 78.2% | 90.9% | **94.3%** | pending |
+| Broad fallback | 18.0% | 3.2% | **0.6%** | pending |
+| Avg actions per request (budget 55) | 24.9 | 31.5 | 36.8 | pending (dev: see below) |
+| Capabilities below v1 | (none) | 5 | 1 (screener.run percent-move) | pending; dev shows none |
+
+Dev metrics harness (`nlm1/devMetrics.test.js`, `NLM1_METRICS=1` prints the tables). Its gates: own ≥ 90%, availability ≥ v1, no capability below v1, no single message v1 routes fully that nlm1 does not:
+
+| Set | Router | Own-groups | Fallback | Availability | Avg actions | Avg groups | Avg manifest bytes |
+|---|---|---|---|---|---|---|---|
+| capreg corpus (488) | v1 | 94.9% | 5.1% | 100.0% | 21.5 | 3.1 | 20,395 |
+| | nlm1 (D1.2) | **99.8%** | **0.0%** | 100.0% | 26.8 | 3.7 | 25,477 |
+| dev tuning set (155, this track's) | v1 | 65.2% | 25.8% | 87.7% | 28.4 | 4.5 | 28,251 |
+| | nlm1 (D1.2) | **98.7%** | **0.0%** | **99.4%** | 31.5 | 5.0 | 31,019 |
+
+Prompt-size delta (D1.2): +5.1 KB of manifest JSON per turn on the corpus (+25%), +2.8 KB on the dev set (+10%). D1.1 was +13.8 KB on the corpus. The per-turn cost cap (#785) reserves on bytes, so this is the activation input for the paid eval's cost check.
+
+### D2 + D3: final workspace state plus Undo (`nlm1/nlm1Workflows.test.jsx`, `nlm1/baseline/workflows.json`)
+
+40 cases (18 D2 multi-step / same-plan references, 22 D3 cross-turn), capreg golden-workflow format, replayed through the real panel and asserted on the FINAL WORKSPACE STATE (charts, symbols, timeframes, indicators, colours) and on Undo restoring it exactly. No model anywhere (`modelTurns: 0`).
+
+| Mode | Pass | Notes |
+|---|---|---|
+| Flag OFF, master `c87ab6d578` | 14/40 | D2 4/18, D3 10/22 |
+| Flag OFF, + Track A `7be34d2dd9` | 18/40 | createdBinding's production fix |
+| **Flag ON (NLM-1)** | **38/40 + 2 recorded gaps** | D2 16/18 + 2 gaps, D3 22/22 |
+
+Acceptance: D2 needs ≥ 15 golden multi-step / cross-turn workflows passing with grouped Undo restoring exactly: **16** (D2-01..12, 14..17). D3 needs ≥ 20 cross-turn cases: **22**.
+
+Recorded gaps (capreg `gapIt`: each must fail exactly as recorded, so a fix is noticed):
+- **NLM1-G1** (D2-13): after the new chart's later changes are undone exactly, the creation's own Undo is refused ("Workspace has changed since I made that change"). The new chart's stored settings aren't byte-identical after those undos, so the workspace fingerprint no longer matches. Same with the flag off. Runtime exact-undo area (#771), reported to AUDIT.
+- **NLM1-G2** (D2-18): an indicator added on a chart the same request created (through its alias, the deferred step) isn't found by the conversation follow-up reader, so the next "make it orange" has no referent. Same in two separate turns with the flag off (it goes to the model). Conversation memory × CG-37, reported to AUDIT.
+
+Unit coverage: `nlm1/nlm1Followups.test.js` (rewriter rules, never-guess cases, tracker bounds) and `nlm1/nlm1Routing.test.js` (vocabulary validity; the vocabulary is a supplement: the index alone recognises ≥ 75% of the dev set; index generated from the registry; entity typing; `NLM1_ROUTER`).
+
+## 4. Activation checklist (needs the OWNER's approval plus a PAID eval; nothing here is authorised yet)
+
+1. AUDIT's held-out re-score of the frozen D1.x head: raw availability ≥ 95.3% (v1), own-groups ≥ 90%, no capability below v1.
+2. Track A's `agent/w2/live-train4-fixes` final and merged; NLM-1 re-merged on it; gates re-run (identity fingerprint re-frozen for the new base, only if routing inputs changed).
+3. Owner/peer review of `nlm1/vocabulary.json` (marked draft) and of the rewrite rules in `nlm1/followups.js`.
+4. Gaps NLM1-G1 / G2 triaged by their owners (they also affect the flag-off product).
+5. Paid eval (separate owner authorisation, `EVAL.md`): the real planner model with routing v2. Measure task success on the capreg corpus and live phrasings, need_groups reroute rate, input tokens and $ per turn against the #785 per-turn cap (expected +10–25% manifest bytes), and confirm the model handles the larger mean routed set.
+6. Full Agent suite plus CI green on the RC; the master deploy gate; normal release approvals (guard → gate → promote). Builders never merge.
+7. Staged activation, admin only: set `UCT_AGENT_ROUTING_V2=1` on web, opt in one admin browser (`window.__uctAgentRoutingV2(true)`), live smoke of the D2/D3 workflows on the owner's board, then decide. Kill switch: unset the env var or clear the browser key (each alone returns v1).
+
+## 5. Commits
+
+| Head | What |
+|---|---|
+| `9a912420cc` | D1: index, vocabulary, routing v2, routers, two-key flag, gates |
+| `1af16a8ef5` | D2/D3: workflow cases + harness `seed.nlm1` |
+| `d21bce8c55` | merge Track A `7be34d2dd9` (stack for D2) |
+| `393ab08fd8` | D1(d): fingerprint frozen per base |
+| `09512d5def` | D1.1: weak evidence, critical groups, expansion, undo signal, typos, dev metrics |
+| `92893dca0f` | D1.2: percent-move screens, best group leads under doubt, size trimmed |
+| (this commit) | D2/D3: referent tracker + rewriter, created-reference plans on `bindCreated`, request-level Undo grouping, D4 |

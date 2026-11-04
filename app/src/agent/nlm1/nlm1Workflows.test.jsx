@@ -7,6 +7,7 @@ import { cleanup } from '@testing-library/react'
 import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
 import { replay } from '../qa/capabilityRegression/testing/run'
 import { pinClock } from '../qa/capabilityRegression/testing/clock'
+import { gapIt } from '../qa/capabilityRegression/testing/corpus'
 import data from './baseline/workflows.json'
 
 pinClock()
@@ -20,6 +21,8 @@ const only = globalThis.process?.env?.NLM1_WF_ONLY || ''
 describe(`NLM-1 workflows (${OFF ? 'flag OFF — baseline' : 'flag ON'})`, () => {
   for (const w of data.workflows) {
     if (only && !w.id.startsWith(only)) continue
-    it(`${w.id}`, async () => { await replay({ ...w, seed: { ...(w.seed || {}), nlm1: !OFF } }, w.id) }, 60000)
+    // a recorded gap must fail exactly as recorded (capreg gapIt) — with NLM-1 on; flag-off baseline runs every case plainly
+    const { run, tag } = OFF ? { run: it, tag: '' } : gapIt(w.gap)
+    run(`${w.id}${tag}`, async () => { await replay({ ...w, seed: { ...(w.seed || {}), nlm1: !OFF } }, w.id) }, 60000)
   }
 })

@@ -18,7 +18,7 @@ import { storeConversation } from '../../../../components/chart/builder/conversa
 import { CREATE_INDICATOR_FLAG_KEY } from '../../../../components/chart/builder/studio/createIndicatorFlag'
 import { groupOfAction } from '../../../routing'
 import { configFor, PROD_KINDS } from './registry'
-import { _resetAgentConfig } from '../../../agentClient'
+import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -120,8 +120,8 @@ export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTa
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } = {}) {
   // NLM-1 (dark): seed.nlm1 turns BOTH keys on for this case (server config routing_v2 + the browser switch); every other
   // case has the browser key cleared, so NLM-1 stays off whatever an earlier case left cached
-  try { if (seed.nlm1) { localStorage.setItem('uct.agent.routingV2', '1'); _resetAgentConfig() } else localStorage.removeItem('uct.agent.routingV2') } catch { /* */ }
   const p = setupPanel()
+  try { if (seed.nlm1) { localStorage.setItem('uct.agent.routingV2', '1'); _resetAgentConfig() } else localStorage.removeItem('uct.agent.routingV2') } catch { /* */ }
   const st = { log: [], replay: null, views: {}, screens: seed.screens || [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
@@ -199,6 +199,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
     if (u === '/api/agent/data') return json({ contract: 'MD-1.0', kind: body?.kind, params_echo: body?.params, status: 'unavailable', notes: [], data: null })
     return base(url, init)
   }
+  // NLM-1: the config cleared above is read again through THIS case's config route (routing_v2: true) before any turn
+  if (seed.nlm1) loadAgentConfig()
   const spec = BOARDS[boardName]()
   let mounted = null
   mounted = p.mount(...spec)
