@@ -17,7 +17,7 @@ import os
 
 ENV = "UCT_AGENT_WORKFLOWS"
 #: the workflow names (the browser's capability modules check exactly these strings)
-NAMES = ("relativeStrength", "watchlistChanges", "setupSnapshot")
+NAMES = ("relativeStrength", "watchlistChanges", "setupSnapshot", "themeRotation")
 _ALL = frozenset({"1", "true", "on", "yes", "all"})
 _OFF = frozenset({"", "0", "false", "off", "no", "none"})
 

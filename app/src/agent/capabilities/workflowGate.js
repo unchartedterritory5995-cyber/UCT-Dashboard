@@ -8,7 +8,7 @@ import * as agentClient from '../agentClient'
 import { GROUPS } from '../routing'
 
 /** The workflow names (api/services/uct_agent/workflows.py NAMES). */
-export const WORKFLOWS = ['relativeStrength', 'watchlistChanges', 'setupSnapshot']
+export const WORKFLOWS = ['relativeStrength', 'watchlistChanges', 'setupSnapshot', 'themeRotation']
 
 /** Is `name` switched on by this server AND are all of `kinds` served? Pure over the loaded config. */
 export function workflowServed(name, kinds) {

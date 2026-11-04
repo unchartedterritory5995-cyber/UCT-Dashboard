@@ -170,12 +170,57 @@ An **alignment** line only *counts* how many of the measured averages the close 
   the model path; the "which chart" check; dark by default; isolation.
 - Dark corpus `workflow.multiTimeframe`: 4 phrasings at levels (a), (b) and (c).
 
-**Not chosen this round** (they stay candidates):
-- *Earnings reaction history* is not possible honestly through the existing kinds. `earnings` reported rows carry
-  only a fiscal label and no report date (`marketdata/earnings.py`), so the gap and next-day move cannot be tied to a
-  dated session without guessing. It needs a dated past-reports source first.
-- *Screen → open a grid* would compose `screener.runSaved` with `chartGrid.set`. Those files (multiChart, compound,
-  steps, board receipts) are under active change in other tracks.
+### 4. Theme rotation — `stock.themeRotation` (workflow `themeRotation`)
+
+**Why:** UCT members trade themes. The Theme Tracker shows one period at a time, so "what's rotating in and out" means
+comparing three tabs by eye. `stock.themes` lists only one period's leaders.
+
+**Reads:** three `themes` reads (1w, 1m and 3m; leaders; limit 30, the kind's maximum). They come from the Theme
+Tracker's cached payload, which is never built, so there are 0 provider calls.
+
+**Computation:** `ranksOf` and `rotationOf`, both pure.
+- **Re-ranking.** Each period's rows are re-ranked here; the adapter's order is never trusted. Themes are sorted by
+  the 2-decimal return the member sees (descending), then by name.
+- **Ties.** Tied returns share a rank (competition ranking: 1, 2, 2, 4). A tie at #10 keeps both themes.
+- **Keys.** Themes are keyed by ticker, or by name when there is none. Duplicates are dropped.
+- **Missing themes.** A theme missing from a period's top 30 is "outside the top 30" for that period, never a rank.
+
+The card has three lists:
+
+| list | rule |
+|---|---|
+| new to the top 10 | 1w rank ≤ 10, and 1m rank > 10 or outside the 1m top 30 |
+| out of the top 10 | 3m rank ≤ 10, and 1w rank > 10 or outside the 1w top 30 |
+| top 10 on all three | rank ≤ 10 on 1w, 1m and 3m |
+
+**Dating:** the card is dated by the themes data's own time ("as of the Tue, Nov 3 close"). When prices are moving it
+says "including intraday prices UCT applied at …; not a live feed". If the periods were read at different times, it
+names each one.
+
+**Refusals and notes:**
+- 1w unavailable (theme data warming): fixed words, no figure.
+- 1m or 3m unavailable: the card says so and leaves out the lists that need that period.
+- Stale theme data: noted.
+
+**Tests:**
+- `app/src/agent/agentWorkflowThemeRotation.test.jsx`: re-ranking from shuffled input, ties (including at #10),
+  missing themes, an unread period, duplicates, the card and its refusal; the real panel (exactly three reads); dark
+  by default; a later config switching it off; isolation.
+- Dark corpus `workflow.themeRotation`: 4 phrasings at levels (a), (b) and (c).
+
+## Not built: blocked or held
+
+- **Earnings reaction history: BLOCKED.** It needs a dated past-reports gateway kind, which is a data-track decision.
+  The `earnings` kind's reported rows carry only a fiscal label (`marketdata/earnings.py`), and `fundamentals` carries
+  a period end, not a report date. A report's gap and next-day move therefore cannot be tied to a dated session
+  without guessing. Dated sources exist outside the gateway (`services/screener/earnings_dates.py`,
+  `earnings_movement.py`, `earnings_table._last_report_date`). Exposing one is a new MD-1 kind, which is outside Track
+  D's scope.
+- **Screen → open a grid: HELD.** It would compose `screener.runSaved` with `chartGrid.set`, and those files
+  (multiChart, compound, steps, board receipts) are under active change in other tracks.
+- **Breadth context for a chart: HELD.** It needs a separate decision. Breadth is a model-isolated kind, so this would
+  be a local-only capability, which means a `turn.LOCAL_ONLY_ACTIONS` change, a regenerated isolation handshake and
+  mirror tests.
 
 ## Capability-regression (capreg) integration
 

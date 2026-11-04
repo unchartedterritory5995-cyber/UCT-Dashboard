@@ -1031,7 +1031,7 @@ DATA_READ_ACTIONS = frozenset({
     # train2 (W2-B3 #746, live for admins): the setup description is a deterministic read of bars.daily
     "chart.describeSetup",
     # Track D trading workflows (dark, UCT_AGENT_WORKFLOWS): deterministic cards over bars.daily / quotes / news.company
-    "stock.relativeStrength", "watchlist.changes", "chartSetup.multiTimeframe",
+    "stock.relativeStrength", "watchlist.changes", "chartSetup.multiTimeframe", "stock.themeRotation",
 })
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "

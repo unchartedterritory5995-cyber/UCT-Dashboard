@@ -37,6 +37,7 @@ import { registerChartDescribeCapability } from './capabilities/chartDescribe'
 import { registerRelativeStrengthCapability } from './capabilities/relativeStrength'
 import { registerWatchlistChangesCapability } from './capabilities/watchlistChanges'
 import { registerMultiTimeframeCapability } from './capabilities/multiTimeframe'
+import { registerThemeRotationCapability } from './capabilities/themeRotation'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
 import { registerScreenerPageCapabilities } from './capabilities/screenerPage'
 import { registerBreadthPageCapabilities } from './capabilities/breadthPage'
@@ -93,5 +94,6 @@ export function registerServerGatedBuiltins() {
   registerRelativeStrengthCapability()   // Track D: stock.relativeStrength while UCT_AGENT_WORKFLOWS lists relativeStrength
   registerWatchlistChangesCapability()   // Track D: watchlist.changes while UCT_AGENT_WORKFLOWS lists watchlistChanges
   registerMultiTimeframeCapability()     // Track D: chartSetup.multiTimeframe while UCT_AGENT_WORKFLOWS lists setupSnapshot
+  registerThemeRotationCapability()      // Track D: stock.themeRotation while UCT_AGENT_WORKFLOWS lists themeRotation
   registerCoachCapabilities()            // Wave 3 (W3-1..4): coach.* / journal.* while the server serves `coach` (UCT_AGENT_COACH)
 }

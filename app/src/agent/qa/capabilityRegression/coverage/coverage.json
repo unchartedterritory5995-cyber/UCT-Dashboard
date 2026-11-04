@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 157,
+  "all": 158,
   "withProductionKinds": 145,
-  "darkGated": 12
+  "darkGated": 13
  },
  "totals": {
-  "capabilities": 157,
-  "withAnyRegressionCase": 97,
+  "capabilities": 158,
+  "withAnyRegressionCase": 98,
   "perProtection": {
    "nl": {
-    "covered": 97,
-    "applicable": 157
+    "covered": 98,
+    "applicable": 158
    },
    "routing": {
-    "covered": 97,
-    "applicable": 157
+    "covered": 98,
+    "applicable": 158
    },
    "args": {
-    "covered": 97,
-    "applicable": 157
+    "covered": 98,
+    "applicable": 158
    },
    "execution": {
-    "covered": 97,
-    "applicable": 157
+    "covered": 98,
+    "applicable": 158
    },
    "receipt": {
-    "covered": 72,
-    "applicable": 157
+    "covered": 73,
+    "applicable": 158
    },
    "refusal": {
     "covered": 27,
-    "applicable": 157
+    "applicable": 158
    },
    "permission": {
-    "covered": 149,
-    "applicable": 157
+    "covered": 150,
+    "applicable": 158
    },
    "undo": {
     "covered": 43,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 21,
-    "applicable": 157
+    "applicable": 158
    },
    "phrasings": {
-    "covered": 97,
-    "applicable": 157
+    "covered": 98,
+    "applicable": 158
    }
   }
  },
@@ -6694,6 +6694,60 @@
     ],
     "receipt": [
      "workflow.relativeStrength (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.themeRotation": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "workflow.themeRotation: \"which themes are rotating?\"",
+     "workflow.themeRotation: \"theme rotation\"",
+     "workflow.themeRotation: \"which themes are fading\"",
+     "workflow.themeRotation: \"emerging themes this week\""
+    ],
+    "routing": [
+     "workflow.themeRotation: \"which themes are rotating?\"",
+     "workflow.themeRotation: \"theme rotation\"",
+     "workflow.themeRotation: \"which themes are fading\"",
+     "workflow.themeRotation: \"emerging themes this week\""
+    ],
+    "args": [
+     "corpus workflow.themeRotation"
+    ],
+    "execution": [
+     "workflow.themeRotation (c)"
+    ],
+    "receipt": [
+     "workflow.themeRotation (c)"
     ],
     "refusal": [],
     "permission": [],

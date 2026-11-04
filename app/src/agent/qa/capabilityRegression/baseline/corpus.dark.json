@@ -179,6 +179,62 @@
    "ownWords": [
     "chartSetup"
    ]
+  },
+  {
+   "id": "workflow.themeRotation",
+   "capabilities": [
+    "stock.themeRotation"
+   ],
+   "board": "ONE",
+   "needs": [
+    "stock.themeRotation"
+   ],
+   "source": "Track D workflow: theme rotation across 1w / 1m / 3m from three themes reads",
+   "deterministic": {
+    "plan": [
+     {
+      "action": "stock.themeRotation",
+      "args": {}
+     }
+    ]
+   },
+   "model": {
+    "ops": [
+     {
+      "action": "stock.themeRotation",
+      "target": "$stockData",
+      "args": {}
+     }
+    ]
+   },
+   "expect": {
+    "reads": [
+     "^POST /api/agent/data .*themes.*1w",
+     "^POST /api/agent/data .*themes.*3m"
+    ],
+    "unchanged": true
+   },
+   "phrasings": [
+    {
+     "text": "which themes are rotating?",
+     "det": "required"
+    },
+    {
+     "text": "theme rotation",
+     "det": "required"
+    },
+    {
+     "text": "which themes are fading",
+     "det": "required"
+    },
+    {
+     "text": "emerging themes this week",
+     "det": "required"
+    }
+   ],
+   "ownWords": [
+    "data"
+   ]
   }
  ]
 }
