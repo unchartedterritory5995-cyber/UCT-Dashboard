@@ -45,7 +45,9 @@ const text = `${JSON.stringify({
   length: sorted,
 }, null, 1)}\n`
 if (argv.includes('--check')) {
-  const have = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : ''
+  const have = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8').replace(/
+/g, '
+') : ''
   if (have !== text) { console.error('windowLengthQualifiers.json differs from the reference'); process.exit(1) }
   console.log(`ok: ${Object.keys(sorted).length} functions match`)
 } else {
