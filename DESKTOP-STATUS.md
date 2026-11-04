@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 15:11 CT
+updated: 2026-11-04 15:24 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -281,10 +281,13 @@ proposed scope: (1) renderer task: binder.js payload from four computed columns 
 T12 note: corrects the plan: T12 (f8ddebfa76) does not touch memberPaneDefinition.js; its FE hunks do not overlap T13's sites, but :9710 shifts ~+84 lines, so build T13 on top of T12.
 open (coordinator): who owns the renderer task (outside W4 per the breakdown); LWC per-point wick/border unmeasured (needs a browser); plotbar colour unverified; acceptance needs capture W4-P1.
 ## W5-T2 host-neutral closure (needs T1, READY)
-state: BUILDING   round: r0   updated: 2026-11-04 11:22 CT
-branch: feat/pine-w5-t2-host-neutral   base: W5-T1 27e95ca34c (STACK: merge T1 first)   model: Opus
-locks: mut heavy-mut · mp _resume-2026-11-01/dsk/heavy-mp3.lock (pine-dsk-mpbase3) if engine behaviour changes · final _resume-2026-11-01/dsk/heavy-final3.lock
-
+state: READY            round: r0            updated: 2026-11-04 15:24 CT
+branch: feat/pine-w5-t2-host-neutral   tip: 0b45a9707a (docs-only evidence over code tip b886da066a)   base: W5-T1 27e95ca34c (STACK: merge T1 first)   tested on master: 5d95103c8a   worktree: pine-dsk-w5t2   model: Opus
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t2/EVIDENCE.md
+built: the runtime lane registers its C18 values through a new leaf objectRuntimeSeam.js instead of importing objectColumns (that one import pulled the registry, serverCompute, runtimeKill, runtimePaneGate and runtimePanePermission into the compute closure); lowerTf.js reads the lower-TF flag through a new leaf lowerTfServing.js (lowerTfGate.js registers itself; nativeRegistry and test-setup import it; unregistered = off); every clock a run reads takes an injected opts.now (pane budget, VM WALL_TIME, translator pine:timeout via translatePine opts.now + withTranslateClock), one default host clock per module; new tool tools/pine_runtime_closure.mjs (--check, --repo): closure base 84 modules / 35 findings -> tip 64 / 0; server bundle 2.14 MB -> 1.83 MB; T1's serverBundle.rail edited (a VITE_* value no longer moves the bundle).
+checks: hostNeutralClosure.rail 14/14 + serverBundle.rail 6/6 on tip; on base the tool exits 1 with 35 findings and the rail cannot load. Mutations 44/44 killed over 2 rounds, control survives. measure-pair on heavy-mp3 (pine-dsk-mpbase3 at 27e95ca34c; DESKTOP-VERIFIED BASE_HEAD asserted before/after every side, sides 12:52:57 / 13:11:39 / 13:28:43 / 13:47:14, measured tip b886da066a = code tip): C18 0 diffs and harness 0 diffs on both lanes; census rt1 0 diffs, rt0 3 rows of wall-clock pine:timeout noise present on both sides; 0 unintended; OBJECT DOOR: no change. W5-T4 HP-1 read-only on the tip bundle: 166/166. final-tip on 073806c4b4 (DESKTOP-VERIFIED no code diff from b886da066a): gate 46, engine-version gate 6, hygiene clean, vitest Tests 1 failed | 22380 passed | 118 skipped = pollingSites.rail.
+open: with the lower-TF flag ON (it is off), the worker and server name an unroutable refusal store-unmeasured instead of runtime-lane (no value change); wire the closure check into the deploy gate (T19, told); reword the feature_flags.json note for VITE_PINE_LOWER_TF_ENABLED; carry the serverBundle rail edits into any T1 fix round.
 ## W5-T9 observability + canary + smoke (needs T4 + T7, both READY)
 state: READY            round: r0            updated: 2026-11-04 12:45 CT
 branch: feat/pine-w5-t9-canary   tip: c169b1ce16 (docs-only EVIDENCE + capacity JSONs over code tip becd0756be, which final-tip ran on)   base: merge f526d609e4 = W5-T7 5e6c63e24e + W5-T4 eb922686fe (STACK: T1 -> T6 -> T7 and T3 -> T4; merge those first)   tested on master: 5d95103c8a   worktree: pine-dsk-w5t9   model: Sonnet
