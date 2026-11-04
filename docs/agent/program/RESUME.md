@@ -1,5 +1,29 @@
 # RESUME.md — exact state to resume from (written 2026-11-03 ≈07:00Z, owner's usage limit approaching)
 
+## STOP 3 / OVERNIGHT 2026-11-04 — read this section first
+
+**Production:** master = production = `6990d63b02` (train 3, web SUCCESS 08:06Z). Flags unchanged: STREAM/DATA(11 kinds)/NEWS/NL1/SCAN/AGENT_BREADTH_CURRENT=1, DAILY_CAP 3000; PLANNER/KNOWLEDGE/COACH/COST_CAP/SENTRY_DSN/ANTHROPIC_BASE_URL unset.
+- Live today: #766 hotfix (agent.undo planner action, undo/multi-chart/equal-size routing, honest receipts; `edd353fc06`, 6/6 owner checks PASS live), train 3 #770 (#765 rail fix, #758, #757 coach gates DARK, #763 LT-15 describe-symbol, #762 MA-cross alerts — member-facing via chart alert popover; created/armed/deleted live OK).
+- Live acceptance log: session scratchpad `live-acceptance-2026-11-04.md` (14 + 10 scenarios). Scratch layout "New Layout" in owner's dock (owner layouts untouched).
+- Known live defects (fail safe): Agent indicator-alert creation on multi-chart boards (instance not chart-scoped; clarify answer drops routing groups; proposal reply shown beside refusal); EMA legend "Add alert" says "not available" (pick MA Cross); "unhide" read as hide (CG-10); "trade places…" read as quotes (CG-15).
+
+**Open PRs (none authorized for release unless stated):**
+| PR | Branch @ head | State | Next |
+|---|---|---|---|
+| #771 NL multi-action follow-ups | agent/w2/nl-multiaction-followups @ 5494af31f9+ | review CHANGES REQUIRED (H1 "the new one" binds wrong chart; M2 applied-unsaved stop msg; L3 undo promotion gating; L4 notDone false line) + live alert defect + CG-10..16 | builder fixing → delta review → owner release approval |
+| #769 capability regression system | agent/qa/capability-regression @ ab760d6ca4+ | APPROVE WITH NITS (baseline-lock bypass, coverage counting, gap mode, docs) | builder fixing nits → merge with next train (test/CI/docs only) |
+| (next) capability coverage batch 2 | agent/qa/capability-regression-2 | in progress | draft PR |
+| #772 gate speedup (4 vitest shards) | ci/gate-speedup @ 38cb2b0282 | review SOUND; nits fixed | OWNER APPROVAL (release gate change); watch first run |
+| #773 coach guard recall | agent/w3/guard-recall @ 4c4faa0c36 | held-out (run once): advice 88.5 / critical 94.3 / edu FP 17.8 (bar 95/100) | owner: approve paid 2nd-stage classifier run (~420 calls, <$0.15); run guard over knowledge pack before any activation |
+| #768 Brain grounded-reply (defence in depth) | agent/kn/grounded-reply @ 71ec4750a9 | APPROVE WITH NITS; safe to merge DARK; EVIDENCE-ROUTING-DESIGN.md (E-1) | owner: dark-merge OK? E-1 approval + eval budget |
+| #751 Brain mention-refine | agent/kn/mention-refine @ fa5078ca53 | APPROVE (final) dark | owner: dark-merge OK? serve_flagged decision (default withhold) |
+| #761 coach held-out fixtures | agent/w3/guard-independent-heldout | draft | merge with tests |
+| #748 retention proposal | design only | owner-only checks A1–A3, P1–P3, R1–R3, S1 | owner |
+
+**Blocked:** `alert_soak_matrix --arm` (prod read denied; disarm is not scoped; snooze expiry) — owner runs `--verify` or allows.
+
+**Agents (this session):** nlfix builder (#771), capreg builder (#769 / -2), Brain builder = peer session blake-d8. Suite lock: `tools/agent_suite_lock.py run --who <name> -- <cmd>`. Disk: keep ≥10 GB free (C: hit 775 MB on 11-04; merged worktrees removed).
+
 **Standing instruction at stop time (owner):** do not merge, deploy, activate features, or change approval boundaries. Everything below is saved to branches; nothing is merged beyond what this file says.
 
 ## STOP 2 — weekly usage limit (2026-11-03, resets 12pm America/New_York). Read this section first.
