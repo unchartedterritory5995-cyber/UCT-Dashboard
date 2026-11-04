@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 154,
+  "all": 157,
   "withProductionKinds": 145,
-  "darkGated": 9
+  "darkGated": 12
  },
  "totals": {
-  "capabilities": 154,
-  "withAnyRegressionCase": 94,
+  "capabilities": 157,
+  "withAnyRegressionCase": 97,
   "perProtection": {
    "nl": {
-    "covered": 94,
-    "applicable": 154
+    "covered": 97,
+    "applicable": 157
    },
    "routing": {
-    "covered": 94,
-    "applicable": 154
+    "covered": 97,
+    "applicable": 157
    },
    "args": {
-    "covered": 94,
-    "applicable": 154
+    "covered": 97,
+    "applicable": 157
    },
    "execution": {
-    "covered": 94,
-    "applicable": 154
+    "covered": 97,
+    "applicable": 157
    },
    "receipt": {
-    "covered": 69,
-    "applicable": 154
+    "covered": 72,
+    "applicable": 157
    },
    "refusal": {
     "covered": 27,
-    "applicable": 154
+    "applicable": 157
    },
    "permission": {
-    "covered": 146,
-    "applicable": 154
+    "covered": 149,
+    "applicable": 157
    },
    "undo": {
     "covered": 43,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 21,
-    "applicable": 154
+    "applicable": 157
    },
    "phrasings": {
-    "covered": 94,
-    "applicable": 154
+    "covered": 97,
+    "applicable": 157
    }
   }
  },
@@ -2283,6 +2283,60 @@
     "args": [],
     "execution": [],
     "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.multiTimeframe": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "workflow.multiTimeframe: \"show me the daily and weekly setup side by side\"",
+     "workflow.multiTimeframe: \"daily vs weekly setup for NVDA\"",
+     "workflow.multiTimeframe: \"multi-timeframe snapshot of this chart\"",
+     "workflow.multiTimeframe: \"compare the weekly and daily view of NVDA\""
+    ],
+    "routing": [
+     "workflow.multiTimeframe: \"show me the daily and weekly setup side by side\"",
+     "workflow.multiTimeframe: \"daily vs weekly setup for NVDA\"",
+     "workflow.multiTimeframe: \"multi-timeframe snapshot of this chart\"",
+     "workflow.multiTimeframe: \"compare the weekly and daily view of NVDA\""
+    ],
+    "args": [
+     "corpus workflow.multiTimeframe"
+    ],
+    "execution": [
+     "workflow.multiTimeframe (c)"
+    ],
+    "receipt": [
+     "workflow.multiTimeframe (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
@@ -6594,6 +6648,60 @@
     "phrasings": []
    }
   },
+  "stock.relativeStrength": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "workflow.relativeStrength: \"NVDA relative strength vs SPY\"",
+     "workflow.relativeStrength: \"what's the relative strength of NVDA against SPY over the last 3 months?\"",
+     "workflow.relativeStrength: \"is NVDA outperforming the market?\"",
+     "workflow.relativeStrength: \"show me NVDA's RS line versus SPY\""
+    ],
+    "routing": [
+     "workflow.relativeStrength: \"NVDA relative strength vs SPY\"",
+     "workflow.relativeStrength: \"what's the relative strength of NVDA against SPY over the last 3 months?\"",
+     "workflow.relativeStrength: \"is NVDA outperforming the market?\"",
+     "workflow.relativeStrength: \"show me NVDA's RS line versus SPY\""
+    ],
+    "args": [
+     "corpus workflow.relativeStrength"
+    ],
+    "execution": [
+     "workflow.relativeStrength (c)"
+    ],
+    "receipt": [
+     "workflow.relativeStrength (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.themes": {
    "domain": "stock",
    "group": "data",
@@ -6740,6 +6848,60 @@
     "undo": [
      "watchlist.add: undo restores"
     ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.changes": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "workflow.watchlistChanges: \"what changed in my Momentum watchlist since yesterday?\"",
+     "workflow.watchlistChanges: \"how is my Momentum watchlist doing today\"",
+     "workflow.watchlistChanges: \"movers in my Momentum list\"",
+     "workflow.watchlistChanges: \"show me the biggest movers in the Momentum watchlist\""
+    ],
+    "routing": [
+     "workflow.watchlistChanges: \"what changed in my Momentum watchlist since yesterday?\"",
+     "workflow.watchlistChanges: \"how is my Momentum watchlist doing today\"",
+     "workflow.watchlistChanges: \"movers in my Momentum list\"",
+     "workflow.watchlistChanges: \"show me the biggest movers in the Momentum watchlist\""
+    ],
+    "args": [
+     "corpus workflow.watchlistChanges"
+    ],
+    "execution": [
+     "workflow.watchlistChanges (c)"
+    ],
+    "receipt": [
+     "workflow.watchlistChanges (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
     "multiStep": [],
     "phrasings": []
    }

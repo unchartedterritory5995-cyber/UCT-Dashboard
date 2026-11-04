@@ -16,7 +16,7 @@
 //   phrasings   ≥ 3 distinct owner-style phrasings with no known gap
 import { manifestFor, getCapability } from '../../../capabilities'
 import { groupOfAction } from '../../../routing'
-import { corpus, golden, phrasingsOf, deterministicReading } from './corpus'
+import { catalogCorpus as corpus, golden, phrasingsOf, deterministicReading } from './corpus'
 import { panelHost } from './harness'
 import collisions from '../baseline/routingCollisions.json'
 

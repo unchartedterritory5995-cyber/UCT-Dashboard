@@ -521,6 +521,19 @@
    ],
    "fast": false
   },
+  "chartSetup.multiTimeframe": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "chartSetup.removeTimeframe": {
    "domain": "chartSetup",
    "group": "chartSetup",
@@ -1656,6 +1669,19 @@
    ],
    "fast": true
   },
+  "stock.relativeStrength": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true
+  },
   "stock.themes": {
    "domain": "stock",
    "group": "data",
@@ -1690,6 +1716,19 @@
    "reversible": true,
    "undo": "exact",
    "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "watchlist.changes": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
    "surfaces": [
     "charts"
    ],

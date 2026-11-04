@@ -166,9 +166,9 @@ export function checkExpect(ctx, e, label) {
  * Replay steps on a fresh panel. step = { say, model?: { ops, disposition }, expect, approve?: true, afterApprove? }.
  * Each step's expectations are retried until they hold (UI work settles asynchronously) and then asserted.
  */
-export async function replay({ board: boardName = 'ONE', steps, seed = {} }, label) {
+export async function replay({ board: boardName = 'ONE', steps, seed = {}, kinds = undefined }, label) {
   _resetScreenerCache()                               // before the panel mounts (it reads the saved screens on open)
-  const m = mountCase(boardName, { seed })
+  const m = mountCase(boardName, kinds ? { seed, kinds } : { seed })   // `kinds`: the dark corpus runs the whole catalog (ALL_KINDS)
   const { p, board, say } = m
   _resetScreenerCache()                               // module-level: each case reads its own saved screens
   // a member's panel has read their indicator alerts long before they ask (the cache is module-level: start clean)
