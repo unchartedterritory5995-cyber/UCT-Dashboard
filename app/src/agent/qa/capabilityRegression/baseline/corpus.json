@@ -7354,6 +7354,120 @@
         "gold price",
         "how much is gold"
       ]
+    },
+    {
+      "id": "scan.to-new-watchlist",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
+      "capabilities": [
+        "watchlist.create",
+        "watchlist.add"
+      ],
+      "board": "SCAN",
+      "needs": [
+        "watchlist.create",
+        "watchlist.add"
+      ],
+      "recentActions": [
+        "screener.run"
+      ],
+      "before": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "screen\\.run.*chg_pct_1m"
+            ]
+          }
+        }
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "watchlist.create",
+            "target": "$watchlistLibrary",
+            "args": {
+              "name": "Leaders",
+              "as": "new1"
+            }
+          },
+          {
+            "action": "watchlist.add",
+            "target": "new1",
+            "args": {
+              "symbols": {
+                "from": "lastScreen",
+                "top": null
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "watchlistNames": {
+          "include": [
+            "Leaders",
+            "Momentum"
+          ]
+        },
+        "watchlist": {
+          "name": "Leaders",
+          "include": [
+            "T01",
+            "T12"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "put these in a new watchlist called Leaders",
+        "make a new list called Leaders with these",
+        "create a watchlist named Leaders from those results"
+      ]
     }
   ],
   "refusals": [

@@ -3266,6 +3266,26 @@
      "modes": {}
     }
    }
+  },
+  "scan.to-new-watchlist": {
+   "digest": "2ca7780ccc8811a4",
+   "phrasings": {
+    "put these in a new watchlist called Leaders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a new list called Leaders with these": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "create a watchlist named Leaders from those results": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

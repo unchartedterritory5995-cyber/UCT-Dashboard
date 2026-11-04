@@ -26,7 +26,7 @@
     "applicable": 154
    },
    "receipt": {
-    "covered": 70,
+    "covered": 71,
     "applicable": 154
    },
    "refusal": {
@@ -42,7 +42,7 @@
     "applicable": 95
    },
    "multiStep": {
-    "covered": 23,
+    "covered": 24,
     "applicable": 154
    },
    "phrasings": {
@@ -6739,7 +6739,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 7,
+   "phrasings": 10,
    "evidence": {
     "nl": [
      "watchlist.add: \"add AMD to my Momentum list\"",
@@ -6760,16 +6760,19 @@
     "args": [
      "corpus watchlist.add",
      "corpus scan.to-watchlist",
+     "corpus scan.to-new-watchlist",
      "GW-25.scan-conversation"
     ],
     "execution": [
      "watchlist.add (c)",
      "scan.to-watchlist (c)",
+     "scan.to-new-watchlist (c)",
      "GW-25.scan-conversation"
     ],
     "receipt": [
      "watchlist.add (c)",
      "scan.to-watchlist (c)",
+     "scan.to-new-watchlist (c)",
      "GW-25.scan-conversation"
     ],
     "refusal": [],
@@ -6780,6 +6783,8 @@
     ],
     "multiStep": [
      "scan.to-watchlist: after an earlier turn",
+     "scan.to-new-watchlist: 2-op plan",
+     "scan.to-new-watchlist: after an earlier turn",
      "GW-25.scan-conversation"
     ],
     "phrasings": []
@@ -6859,43 +6864,55 @@
     "routing": true,
     "args": true,
     "execution": true,
-    "receipt": false,
+    "receipt": true,
     "refusal": true,
     "permission": true,
     "undo": null,
-    "multiStep": false,
+    "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 4,
+   "phrasings": 7,
    "evidence": {
     "nl": [
      "watchlist.create: \"create a new watchlist called Semis\"",
      "watchlist.create: \"make a list named Semis\"",
      "watchlist.create: \"start a new watchlist Semis\"",
-     "watchlist.create: \"new watchlist: Semis\""
+     "watchlist.create: \"new watchlist: Semis\"",
+     "scan.to-new-watchlist: \"put these in a new watchlist called Leaders\"",
+     "scan.to-new-watchlist: \"make a new list called Leaders with these\""
     ],
     "routing": [
      "watchlist.create: \"create a new watchlist called Semis\"",
      "watchlist.create: \"make a list named Semis\"",
      "watchlist.create: \"start a new watchlist Semis\"",
-     "watchlist.create: \"new watchlist: Semis\""
+     "watchlist.create: \"new watchlist: Semis\"",
+     "scan.to-new-watchlist: \"put these in a new watchlist called Leaders\"",
+     "scan.to-new-watchlist: \"make a new list called Leaders with these\""
     ],
     "args": [
      "corpus watchlist.create",
+     "corpus scan.to-new-watchlist",
      "refuse.watchlist.create.dismissed"
     ],
     "execution": [
-     "watchlist.create (c)"
+     "watchlist.create (c)",
+     "scan.to-new-watchlist (c)"
     ],
-    "receipt": [],
+    "receipt": [
+     "scan.to-new-watchlist (c)"
+    ],
     "refusal": [
      "refuse.watchlist.create.dismissed"
     ],
     "permission": [
-     "watchlist.create: waits for Apply"
+     "watchlist.create: waits for Apply",
+     "scan.to-new-watchlist: waits for Apply"
     ],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "scan.to-new-watchlist: 2-op plan",
+     "scan.to-new-watchlist: after an earlier turn"
+    ],
     "phrasings": []
    }
   },

@@ -51,6 +51,14 @@ the reroute, it plans nothing. The fixture server serves the canonical reads wit
 `instrument.resolve` following instruments.py §4.7.5, alerts with read-back, a screener catalog, and `bars.daily`
 reads recorded but not answered. No real market value is ever produced.
 
+### Dark entries (`"kinds": "ALL"`, PKG2)
+
+An intent, golden workflow or refusal case whose capability rides on a data kind production does not list yet
+(`history.eventStudy` → `history.afterEvent`, the `index.quote` / `commodity.quote` / `crypto.quote` kinds) carries
+`"kinds": "ALL"`. The production suites skip it; `corpus.dark.test.jsx` runs it at levels (a), (b) and (c) with every
+gated kind on, so what the owner gets on enabling the kind is pinned before the flip. The fixture answers those kinds
+with a made-up study and the asset kinds' honest decline. When a kind joins production's list, drop the marker.
+
 ### Known gaps are tests that are expected to fail
 
 A failing case is never weakened. It carries `gaps.<a|b|c> = {id, reason, owner, mode}` and runs through

@@ -11,11 +11,11 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | routing | 95 / 154 |
 | args | 95 / 154 |
 | execution | 95 / 154 |
-| receipt | 70 / 154 |
+| receipt | 71 / 154 |
 | refusal | 27 / 154 |
 | permission | 146 / 154 |
 | undo | 43 / 95 |
-| multiStep | 23 / 154 |
+| multiStep | 24 / 154 |
 | phrasings | 95 / 154 |
 
 ## Known gaps (2)
@@ -162,7 +162,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | volume.setState | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | watchlist.add | lists | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | watchlist.clear | lists | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ | ✓ |
-| watchlist.create | lists | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |
+| watchlist.create | lists | confirm | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | ✓ | ✓ |
 | watchlist.delete | lists | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |
 | watchlist.list | lists | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
 | watchlist.open | lists | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
