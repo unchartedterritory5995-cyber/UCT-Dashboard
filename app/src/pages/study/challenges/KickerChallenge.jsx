@@ -83,7 +83,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone }) {
   const tapBar = ({ index }) => {
     if (state !== 'ask' || index < 0) return
     const near = cands.map((c) => ({ c, dd: Math.abs(c.i - index) })).sort((p, q) => p.dd - q.dd)[0]
-    if (near && near.dd <= (phone ? 5 : 3)) { setPick(near.c.i); tapFeedback(prefs) }
+    if (near && near.dd <= (phone ? 5 : 4)) { setPick(near.c.i); tapFeedback(prefs) }
   }
   return (
     <div className={state === 'bad' ? d5.shakeHard : ''} data-testid="kicker-round">
