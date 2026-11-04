@@ -199,6 +199,35 @@ function receiptCharts(host, plan, res) {
     return out.length ? out : null
   } catch { return null }
 }
+// ⭐ W2 AUDIT (live 2026-11-04, train 3): an indicator alert is ONE chart's — the same instance id (the default EMA 9 is
+// "ovl:0" on every chart) is on every chart of the board. When the plan doesn't say which chart (`chart` null), the chart
+// is resolved here, deterministically and in this order: the chart the member SELECTED, a chart the member's words name
+// by its label ("Bottom-left chart (TSLA)" — a clicked choice), by its symbol (one chart), or by symbol + position. Still
+// ambiguous → left null, and the capability asks which chart. The model's own `chart` is never overridden.
+const CHART_SCOPED = new Set(['indicatorAlert.create'])
+export function scopeChartOps(ops, host, words) {
+  if (!(ops || []).some(o => CHART_SCOPED.has(o?.action) && o.args && o.args.chart == null)) return ops
+  let charts = []
+  try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
+  if (charts.length < 2) return ops
+  const ref = (() => {
+    try { const s = host?.charts?.selected?.(); if (s && charts.some(c => c.ref === s)) return s } catch { /* no selection */ }
+    const t = String(words || '')
+    const lower = t.toLowerCase()
+    const byLabel = charts.filter(c => c.label && lower.includes(String(c.label).toLowerCase()))
+    if (byLabel.length === 1) return byLabel[0].ref
+    const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const bySym = charts.filter(c => c.symbol && new RegExp(`(^|[^A-Za-z])\\$?${esc(c.symbol)}(?![A-Za-z])`, String(c.symbol).length >= 3 ? 'i' : '').test(t))   // a 1–2 letter ticker only in capitals ("on", "a")
+    if (bySym.length === 1) return bySym[0].ref
+    if (bySym.length > 1) {
+      const pos = bySym.filter(c => c.position && new RegExp(`\\b${esc(String(c.position).toLowerCase())}\\b`).test(lower))
+      if (pos.length === 1) return pos[0].ref
+    }
+    return null
+  })()
+  if (!ref) return ops
+  return ops.map(o => (CHART_SCOPED.has(o?.action) && o.args && o.args.chart == null ? { ...o, args: { ...o.args, chart: ref } } : o))
+}
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
@@ -473,6 +502,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const tapRef = useRef(null)               // ⭐ PHASE 2: outcome kinds recorded while one step of a multi-step request runs
   const undoAfterRef = useRef(null)         // hotfix 2026-11-03: a model plan "change …, then undo it" — the Undo waits for the change
   const undoneFirstRef = useRef(false)      // review F3: a planned Undo ran FIRST this turn — a later "didn't change anything" isn't true
+  const askedGroupsRef = useRef(null)       // W2 AUDIT: the routing groups the model's open question was asked with
+  const lastRoutedRef = useRef(null)        // this turn's routed groups (legacy request), for a question it asks
   const notDoneRef = useRef(null)           // W2 audit: this turn's fixed "Not done: …" sentences (notDone.js)
   const lastUndoRef = useRef(null)          // review F5: how the last doUndo ended — 'ok' | 'unsaved' | 'refused' | 'none'
   const runCompoundRef = useRef(null)       // ⭐ PHASE 3 acceptance: approve() resumes a whole workspace (defined after it)
@@ -1950,7 +1981,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // Gate B (0C): the member's live names and the lexicon's typo readings route too (routing.js)
       const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold,
         names: routingNames(host), correct: (t) => (correctTypos(t, lexiconFor(host)) || []).map(v => v.text) }
-      let routed = routeManifest(full, text, routeOpts)
+      // ⭐ W2 AUDIT (live 2026-11-04: "Bottom-left chart (TSLA)" — a click on the model's own "which TSLA chart?" — was routed by
+      // its own words, without indicatorAlerts, so the model had to ask need_groups and lost the thread): an ANSWER to the
+      // model's question keeps the groups the question was asked with (they ride along; the answer's words still route too)
+      const askedGroups = askedFor && askedGroupsRef.current ? askedGroupsRef.current : []
+      askedGroupsRef.current = null
+      let routed = routeManifest(full, text, routeOpts, askedGroups)
+      lastRoutedRef.current = routed.routing ? routed.routing.selected : null
       mark('route', routed.routing ? `${routed.manifest.length}/${full.length}` : 'full')
       // Data that can change outside this panel is re-read first (bounded) — Phase 2: only for the
       // action groups this message was routed to (a timeframe change no longer waits on alerts).
@@ -1989,7 +2026,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
         // The groups the model needs come first; whatever no longer fits the budget is dropped
         // from THIS request (named, not sent). If a needed group itself cannot fit, stop honestly.
-        routed = routeManifest(full, text, routeOpts, need)
+        routed = routeManifest(full, text, routeOpts, [...askedGroups, ...need])
+        lastRoutedRef.current = routed.routing ? routed.routing.selected : null
         live.settle(null)
         if (!need.every(g => routed.routing?.selected?.includes(g) || !routed.routing)) {
           push({ role: 'agent', text: 'That touches too many parts of UCT for one request. Try asking for one part at a time.' })
@@ -2059,6 +2097,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       if (env.disposition === 'clarify') {
         pendingRef.current = p                     // a question doesn't drop a waiting proposal
+        // W2 AUDIT: the groups this question was asked with go with its answer (the legacy routed request above)
+        askedGroupsRef.current = lastRoutedRef.current ? [...lastRoutedRef.current] : null
         push({ role: 'question', text: env.question?.text || env.reply, choices: clarifyChoices(env.question?.choices).map(c => ({ label: c.label })) })
         return
       }
@@ -2143,13 +2183,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // OWNER 2026-10-12: a bare acknowledgement ("On it.") before an APPLY's receipt is a second message
       // that says nothing — the receipt is the confirmation. Anything substantive still shows.
       const bareAck = env.disposition === 'apply' && BARE_ACK.test(String(env.reply || '').trim())
-      if (env.reply && !bareAck && (!localPlan || env.local_notice === true)) push({ role: 'agent', text: env.reply, sources })
+      // W2 AUDIT (live 2026-11-04): a PROPOSAL's reply ("Alert you when the 9 EMA crosses above the 20…") describes what the
+      // card would do — when UCT then refuses the plan, the refusal REPLACES it (it is taken back below), never both
+      const replyId = env.reply && !bareAck && (!localPlan || env.local_notice === true) ? nid() : null
+      if (replyId) push({ id: replyId, role: 'agent', text: env.reply, sources })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
       const bound = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
       // ⛔ S6 F1–F3: the model's plan is checked against the member's own words before anything runs
-      const screened = screenModelOps(host, bound, text, capCtx)
+      const screened = screenModelOps(host, scopeChartOps(bound, host, `${askedFor || ''} ${text}`), text, capCtx)
       if (screened.ask) {
         // a pick that fills one argument of the planned ops (a new draft's chart): chooseTarget runs them with it
         if (screened.ask.pick) pendingRef.current = { kind: 'target', ops: screened.ask.pick.ops, path: 'model', mode: env.disposition, member: text, voice, epoch: epochOf(host), pickArg: screened.ask.pick }
@@ -2253,7 +2296,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           return
         }
       }
-      await execute(ops, { path: 'model', mode: disposition, member: null, voice })
+      {
+        const outer = tapRef.current
+        const kinds = []
+        tapRef.current = kinds
+        try { await execute(ops, { path: 'model', mode: disposition, member: null, voice }) } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
+        if (replyId && env.disposition === 'propose' && kinds.length && kinds.every(k => /^refused/.test(k))) setItems(xs => xs.filter(x => x.id !== replyId))
+      }
       // agent.undo LAST: exactly what THIS plan committed (its new Undo entries, newest first) — through doUndo
       const after = undoAfterRef.current
       undoAfterRef.current = null

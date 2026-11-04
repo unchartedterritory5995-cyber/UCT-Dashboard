@@ -128,11 +128,18 @@ function resolveInstanceRef(charts, text) {
 
 /** The instance named by `instance` (its id, or LT-13 a human reference to it) across the board's charts:
  * { inst, chart } (the first chart), { ambiguous } (several charts), { ambiguousRef } (several instances), or null. */
-function findInstance(host, instanceId) {
+// ⭐ W2 AUDIT (live 2026-11-04, train 3): `chart` scopes the lookup to ONE chart (the chart's ref, from the charts entry,
+// or the chart the browser resolved: the selected one, the one the member named) — the same instance id ("ovl:0", the
+// default EMA 9) is on every chart, so an unscoped lookup on a board of six asked "which chart?" forever.
+function findInstance(host, instanceId, chartRef = null) {
   const id = String(instanceId || '')
   if (!id) return null
   let charts = []
   try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
+  if (chartRef != null && String(chartRef).trim()) {
+    charts = charts.filter(c => String(c.ref) === String(chartRef))
+    if (!charts.length) return { noChart: String(chartRef) }
+  }
   let hits = []
   for (const c of charts) {
     const inst = indicatorsOn(c.cs).find(i => i.instanceId === id)
@@ -311,13 +318,16 @@ export function registerIndicatorAlertCapabilities() {
       + 'condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: "crosses above 70" = cross_above 70; "is over 70" = above 70); '
       + 'threshold = the level as a number when the condition has one, else null. A PRICE level alert ("when NVDA hits 150") is alert.create, not this. '
       + 'MA cross ("the 9 ema crosses above the 20"): instance = the 9, crossWith = the 20 (ids), condition cross_above|cross_below, threshold null; crossWith = null otherwise. '
+      + 'chart = the ref of the chart (charts entry) the alert is for — the same indicator id is on several charts, so name the chart the member means; null only when one chart has it. '
       + 'Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.',
     args: { type: 'object', properties: {
       instance: { type: 'string' }, plot: { type: ['string', 'null'] }, condition: { type: 'string' }, threshold: { type: ['number', 'null'] },
-      crossWith: { type: ['string', 'null'] },
-    }, required: ['instance', 'plot', 'condition', 'threshold', 'crossWith'], additionalProperties: false },
-    // 2026-11-04 — `crossWith` was ADDED; an arg shape from before it (key left out) reads as null.
-    absentAsNull: ['crossWith'],
+      crossWith: { type: ['string', 'null'] }, chart: { type: ['string', 'null'] },
+    }, required: ['instance', 'plot', 'condition', 'threshold', 'crossWith', 'chart'], additionalProperties: false },
+    // 2026-11-04 — `crossWith` and `chart` were ADDED; an arg shape from before them (key left out) reads as null.
+    absentAsNull: ['crossWith', 'chart'],
+    // the model's chart ref → the real chart ref (useAgent translateRefs)
+    argRefs: { chart: 'chart' },
     async prepare() {
       const host = hostRef
       let catalog = null, fresh = false
@@ -325,8 +335,9 @@ export function registerIndicatorAlertCapabilities() {
       try { await loadIndicatorAlerts(host, { force: true }); fresh = true } catch { fresh = false }
       return { iaCatalog: catalog, iaBookFresh: fresh }
     },
-    check(st, { instance, plot, condition, threshold, crossWith = null }, env) {
-      const found = findInstance(hostRef, instance)
+    check(st, { instance, plot, condition, threshold, crossWith = null, chart = null }, env) {
+      const found = findInstance(hostRef, instance, chart)
+      if (found?.noChart) return 'That chart isn’t on this board any more, so nothing was created — ask again for the chart you mean.'
       if (!found) return `There's no indicator “${instance}” on your charts — use an id from the indicators entry, or add the indicator to a chart first.`
       if (found.ambiguousRef) return `“${instance}” could be ${found.ambiguousRef.length > 1 ? found.ambiguousRef.join(' or ') : `more than one ${found.ambiguousRef[0]}`} on your chart — say which indicator the alert is for.`
       if (found.ambiguous) return `That indicator is on ${found.ambiguous.length} charts with different symbols — say which chart the alert is for.`
@@ -354,8 +365,8 @@ export function registerIndicatorAlertCapabilities() {
       if (st.alerts.find(a => a.active && sameAlert(a, c)) || st.creates.find(x => sameAlert(x, c))) return `You already have an active alert for ${phrase(c)}.`
       return null
     },
-    apply(st, { instance, plot, condition, threshold, crossWith = null }, env) {
-      const found = findInstance(hostRef, instance)
+    apply(st, { instance, plot, condition, threshold, crossWith = null, chart = null }, env) {
+      const found = findInstance(hostRef, instance, chart)
       const plots = plotsForInstance(env.iaCatalog, found.inst)
       const p = plot != null ? plots.find(x => x.value === String(plot)) : plots[0]
       const cond = (p.conditions || []).find(c => c.value === condition)
@@ -419,10 +430,11 @@ const maOf = (inst) => {
   return { type: String(i.maType || 'sma').toLowerCase(), period, source: i.source == null ? 'close' : String(i.source), offset: Number.isFinite(off) ? off : 0 }
 }
 /** The cross the two instances describe, or the sentence that says why they can't. */
+// W2 AUDIT: the second average is looked up on the FIRST one's chart (a cross is one chart's two lines)
 function resolveCross(found, crossWith, condition) {
   const a = found.inst
   if (!crossWith || !String(crossWith).trim()) return `Which average should ${a.name || 'it'} cross — say the other moving average on the chart (e.g. the 20).`
-  const other = findInstance(hostRef, crossWith)
+  const other = findInstance(hostRef, crossWith, found.chart?.ref ?? null)
   if (!other) return `There's no indicator “${crossWith}” on your charts — use an id from the indicators entry, or add that moving average first.`
   if (other.ambiguousRef) return `“${crossWith}” could be ${other.ambiguousRef.length > 1 ? other.ambiguousRef.join(' or ') : `more than one ${other.ambiguousRef[0]}`} on your chart — say which average.`
   if (other.ambiguous) return `That average is on ${other.ambiguous.length} charts with different symbols — say which chart the alert is for.`

@@ -17,6 +17,8 @@ import { AuthContext } from '../context/AuthContext'
 import { selectGroups, routeManifest, wordsSelect } from './routing'
 import { fastParse } from './fastPath'
 import { multiChartPlan } from './multiChart'
+import { buildIndicatorAlertSource } from './host'
+import { _resetIndicatorAlertCache } from './capabilities/indicatorAlerts'
 import { notDoneLines } from './notDone'
 import { receiptView } from './receiptView'
 import { manifestFor, MANIFEST_CONTRACT } from './capabilities'
@@ -551,4 +553,105 @@ describe('CG-3 · a COUNT of charts with no tickers: new charts, then ONE even r
     await waitFor(() => expect(transcript()).toMatch(/ask in two steps|didn't change anything/))
     expect(shape(board, h)).toBe(before)
   }, 30000)
+})
+
+// ═══ AUDIT · indicator alerts on a board of several charts (live 2026-11-04, train 3) ═══════════════════
+describe('AUDIT · indicatorAlert.create is ONE chart\'s — resolved by named symbol, the selection, a clarify choice', () => {
+  const CROSS = [{ value: 'cross_above', label: 'Fast MA crosses above slow MA', needs_threshold: false }, { value: 'cross_below', label: 'Fast MA crosses below slow MA', needs_threshold: false }]
+  const OSC = [{ value: 'above', label: 'Above threshold', needs_threshold: true }, { value: 'below', label: 'Below threshold', needs_threshold: true }]
+  const CATALOG = [
+    { indicator: 'rsi', label: 'RSI', conditions: OSC, default_threshold: 70, plots: [{ value: 'rsi', label: 'RSI', conditions: OSC, default_threshold: 70, inputs: { period: 14 } }] },
+    { indicator: 'ma_cross', label: 'MA Cross', conditions: CROSS, default_threshold: null, plots: [{ value: 'ma_cross', label: 'MA Cross', conditions: CROSS, default_threshold: null, inputs: { ma_type: 'ema', fast: 9, slow: 20 }, instance_defs: ['movingAverage'] }] },
+  ]
+  let alertPosts, rows
+  const withRsi = () => ({ settings: { ...mergeChartSettings(null), indicatorInstances: [...(mergeChartSettings(null).indicatorInstances || []), { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 }, hidden: false }] } })
+  // three charts, every one carrying the default EMA 9 / EMA 20 (the SAME instance ids "ovl:0" / "ovl:1") and the same RSI id
+  const SIX = () => [[
+    { id: 'c1', type: 'chart', x: 0, y: 0, w: 8, h: 20, color: 'A', opts: withRsi() },
+    { id: 'c2', type: 'chart', x: 8, y: 0, w: 8, h: 20, color: 'B', opts: withRsi() },
+    { id: 'c3', type: 'chart', x: 16, y: 0, w: 8, h: 20, color: 'C', opts: withRsi() },
+  ], { A: 'NVDA', B: 'TSLA', C: 'TSLA' }]
+  beforeEach(() => {
+    alertPosts = []; rows = []
+    _resetIndicatorAlertCache()
+    const inner = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = String(url), m = (init.method || 'GET').toUpperCase()
+      const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+      if (u === '/api/indicator-alerts/catalog') return json({ catalog: CATALOG, refusals: [] })
+      if (u === '/api/indicator-alerts' && m === 'GET') return json({ alerts: rows })
+      if (u === '/api/indicator-alerts' && m === 'POST') {
+        const body = JSON.parse(init.body)
+        alertPosts.push(body)
+        const row = { id: 100 + rows.length, sym: body.sym, indicator: body.indicator, condition: body.condition ?? null, threshold: body.threshold ?? null, tf: body.tf, active: true, instance_id: body.instance_id ?? null, params_json: body.params ? JSON.stringify(body.params) : null }
+        rows.push(row)
+        return json({ id: row.id })
+      }
+      return inner(url, init)
+    })
+  })
+  function mountSel(selected) {
+    const r = mount(...SIX(), { indicatorAlerts: buildIndicatorAlertSource() })
+    r.h.charts.selected = () => selected
+    return r
+  }
+  const lib = (b) => b.context.indicatorAlertLibrary[0].ref
+  const cross = (b, instance, crossWith, chart = null) => ({ action: 'indicatorAlert.create', target: lib(b), args: { instance, plot: null, condition: 'cross_above', threshold: null, crossWith, chart } })
+  async function approve(say) {
+    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal').length).toBeGreaterThan(0), { timeout: 8000 })
+    await say('do it')
+    await waitFor(() => expect(alertPosts.length).toBe(1), { timeout: 8000 })
+  }
+  it('by a NAMED symbol: "…on the NVDA chart" → the NVDA chart\'s EMA 9 × EMA 20, no "which chart?"', async () => {
+    const { say } = mountSel(null)
+    envelopes.push(b => env('propose', [cross(b, 'ovl:0', 'ovl:1')], 'Alert you when the 9 EMA crosses above the 20 EMA on NVDA.'))
+    await say('Alert me when the 9 EMA crosses above the 20 EMA on the NVDA chart.')
+    expect(transcript()).not.toMatch(/on \d+ charts with different symbols/)
+    await approve(say)
+    expect(alertPosts[0]).toMatchObject({ sym: 'NVDA', indicator: 'ma_cross', condition: 'cross_above' })
+  }, 40000)
+  it('"this chart" with a chart SELECTED (human refs "ema_9" / "ema_20") → that chart', async () => {
+    const { say } = mountSel('c3')
+    envelopes.push(b => env('propose', [cross(b, 'ema_9', 'ema_20')], 'Alert you when the 9 EMA crosses above the 20 EMA on the TSLA daily chart.'))
+    await say('alert me when the 9 ema crosses above the 20 on this chart')
+    expect(transcript()).not.toMatch(/on \d+ charts with different symbols/)
+    await approve(say)
+    expect(alertPosts[0]).toMatchObject({ sym: 'TSLA', indicator: 'ma_cross' })
+  }, 40000)
+  it('the MODEL names the chart (`chart` = its context ref) → that chart', async () => {
+    const { say } = mountSel(null)
+    envelopes.push(b => env('propose', [cross(b, 'ovl:0', 'ovl:1', b.context.charts.find(c => c.symbol === 'NVDA').ref)]))
+    await say('set up a cross alert on the 9 and 20 for my first chart please')
+    await approve(say)
+    expect(alertPosts[0]).toMatchObject({ sym: 'NVDA' })
+  }, 40000)
+  it('via the model\'s CLARIFY: the clicked choice keeps the question\'s groups (indicatorAlerts) and picks that chart', async () => {
+    const { say } = mountSel(null)
+    envelopes.push(() => ({ ...env('clarify', [], ''), question: { text: 'Which TSLA chart?', choices: [{ label: 'Chart c2' }, { label: 'Chart c3' }] } }))
+    envelopes.push(b => env('propose', [cross(b, 'ovl:0', 'ovl:1')]))
+    await say('Alert me when the 9 EMA crosses above the 20 EMA on the TSLA chart.')
+    await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Chart c3' }))
+    await idle()
+    expect(turnBodies()).toHaveLength(2)
+    expect(turnBodies()[1].capabilities.map(c => c.name)).toContain('indicatorAlert.create')   // the question's groups rode along
+    expect(transcript()).not.toMatch(/on \d+ charts with different symbols/)
+    await approve(say)
+    expect(alertPosts[0]).toMatchObject({ sym: 'TSLA', indicator: 'ma_cross' })
+  }, 40000)
+  it('an RSI threshold alert resolves the same way (named symbol)', async () => {
+    const { say } = mountSel(null)
+    envelopes.push(b => env('propose', [{ action: 'indicatorAlert.create', target: lib(b), args: { instance: 'inst:rsi:1', plot: null, condition: 'above', threshold: 70, crossWith: null, chart: null } }]))
+    await say('let me know when RSI on NVDA goes above 70')
+    await approve(say)
+    expect(alertPosts[0]).toMatchObject({ sym: 'NVDA', indicator: 'rsi', condition: 'above', threshold: 70 })
+  }, 40000)
+  it('still ambiguous (two TSLA charts, nothing selected or chosen) → asked, and the refusal REPLACES the proposal\'s reply', async () => {
+    const { say } = mountSel(null)
+    envelopes.push(b => env('propose', [cross(b, 'ovl:0', 'ovl:1')], 'Alert you when the 9 EMA crosses above the 20 EMA on the TSLA daily chart.'))
+    await say('Alert me when the 9 EMA crosses above the 20 EMA on the TSLA chart.')
+    await waitFor(() => expect(transcript()).toMatch(/I didn't change anything/))
+    expect(transcript()).not.toMatch(/Alert you when the 9 EMA crosses above the 20 EMA on the TSLA daily chart/)
+    expect(alertPosts).toHaveLength(0)
+  }, 40000)
 })
