@@ -45,6 +45,9 @@ class Classifier:
         return o if isinstance(o, types.SimpleNamespace) else _cresp(o)
 
 
+JUDGE_CLEAR = {"prescribes_trading_action": False, "presents_uct_methodology": False, "defines_a_setup": False}
+
+
 def no_planner(**kw):
     raise AssertionError("the planner must not be called on this path")
 
@@ -57,6 +60,7 @@ def _brain(monkeypatch):
     monkeypatch.setattr(ev, "approved_setups", lambda: [dict(s) for s in VOCAB])
     monkeypatch.setattr(turn, "_record_cost", lambda resp: 0.001)
     monkeypatch.setattr(ev, "CALL", Classifier(cls()))
+    monkeypatch.setattr(ev, "JUDGE_CALL", Classifier(JUDGE_CLEAR))     # the scripted output judge: all false by default
     ev._reset_for_test()
     yield
     ev._reset_for_test()
@@ -770,3 +774,89 @@ def test_the_knowledge_flag_alone_changes_nothing_and_costs_nothing(monkeypatch)
         r["usage"].pop("latency_ms"); r["usage"]["stages"] = None
     assert a == b
     assert ev.GENERAL_LABEL not in a["envelope"]["reply"]
+
+
+# ── the output judge (owner 2026-11-04: fix hidden-method detection; scripted, no paid call) ─────────────────────────
+HIDDEN = "Load up when it clears last week's high, and bail the second it loses the breakout day's low."
+
+
+def _judge(monkeypatch, *outs):
+    j = Classifier(*outs)
+    monkeypatch.setattr(ev, "JUDGE_CALL", j)
+    return j
+
+
+@pytest.mark.parametrize("flag", ev.JUDGE_KEYS)
+def test_judge_any_flag_replaces_a_hidden_method_the_patterns_missed(monkeypatch, flag):
+    use(monkeypatch, MISROUTES[1])
+    j = _judge(monkeypatch, {**JUDGE_CLEAR, flag: True})
+    assert ev.presents_methodology(HIDDEN, VOCAB, "tell me something interesting") is False      # patterns miss it
+    out = run("tell me something interesting", caller=caller_of(_resp(env("answer", reply=HIDDEN))))
+    assert out["envelope"]["reply"] == ev.NOT_RETRIEVED and out["usage"]["judge"] == f"judge:{flag}"
+    body = json.dumps(j.calls[0]["messages"])
+    assert "Load up" in body and j.calls[0]["output_config"]["format"]["schema"]["additionalProperties"] is False
+    assert "reply" not in j.calls[0]["output_config"]["format"]["schema"]["properties"]
+
+
+def test_judge_clear_keeps_the_reply_with_the_label(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    _judge(monkeypatch, JUDGE_CLEAR)
+    reply = "VWAP is the volume-weighted average price for the session."
+    out = run("what is vwap", caller=caller_of(_resp(env("answer", reply=reply))))
+    assert out["envelope"]["reply"] == reply + "\n\n" + ev.GENERAL_LABEL and out["usage"]["judge"] == "judge:clear"
+
+
+@pytest.mark.parametrize("bad", [RuntimeError("down"), TimeoutError("slow"), _cresp(text="nope"),
+                                 _cresp(JUDGE_CLEAR, stop="refusal"), _cresp(JUDGE_CLEAR, stop="max_tokens"),
+                                 {**JUDGE_CLEAR, "extra": False}, {"prescribes_trading_action": False},
+                                 {**JUDGE_CLEAR, "defines_a_setup": "no"}])
+def test_judge_fails_closed(monkeypatch, bad):
+    use(monkeypatch, MISROUTES[1])
+    _judge(monkeypatch, bad)
+    out = run("what is vwap", caller=caller_of(_resp(env("answer", reply="VWAP is a volume-weighted average."))))
+    assert out["envelope"]["reply"] == ev.NOT_RETRIEVED
+
+
+def test_judge_keeps_a_writes_ops(monkeypatch):
+    use(monkeypatch, cls(evidence="chart", topic="chart_or_symbol", setups=(), concept=""))
+    _judge(monkeypatch, {**JUDGE_CLEAR, "prescribes_trading_action": True})
+    e = run("make it bars", caller=caller_of(_resp(env("apply", [OP], reply="Bars now; grab some on the dip."))))["envelope"]
+    assert e["ops"] == [OP] and e["reply"] == ev.NOT_RETRIEVED
+
+
+def test_judge_is_not_called_without_model_text_or_on_other_classes(monkeypatch):
+    j = _judge(monkeypatch, AssertionError("no judge call"))
+    use(monkeypatch, cls(evidence="chart", topic="chart_or_symbol", setups=(), concept=""))
+    run("make it bars", caller=caller_of(_resp(env("apply", [OP], reply=""))))      # no reply text
+    for c in (cls(), cls(evidence="ambiguous")):                                         # playbook / ambiguous
+        use(monkeypatch, c)
+        run("what is an EP")
+    use(monkeypatch, cls(evidence="mixed", chart_ask=True))
+    run("make it bars and what is an EP", caller=caller_of(_resp(env("apply", [OP], reply="Bars it is."))))
+    assert j.calls == []
+
+
+def test_judge_never_runs_while_e1_is_off(monkeypatch):
+    monkeypatch.delenv(ev.E1_FLAG)
+    j = _judge(monkeypatch, AssertionError("no judge call with E-1 off"))
+    run("tell me something", caller=caller_of(_resp(env("answer", reply=HIDDEN))))
+    assert j.calls == []
+
+
+def test_judge_is_metered_off_the_call_ceiling(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    _judge(monkeypatch, JUDGE_CLEAR)
+    seen = []
+    meter = types.SimpleNamespace(user_id=1, request_id=None, calls_left=lambda: 2,
+                                  call=lambda category, fn, counts_as_call=True, **kw: (seen.append((category, counts_as_call)), fn(**kw))[1])
+    run("what is vwap", meter=meter, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert (ev.JUDGE_CATEGORY, False) in seen and (ev.CATEGORY, False) in seen
+
+
+def test_judge_covers_v2_resumes(monkeypatch):
+    from api.services.uct_agent import turn_v2
+    monkeypatch.setattr(turn_v2, "run_turn_v2", lambda **kw: {"envelope": env("answer", reply=HIDDEN), "usage": {}, "title": None})
+    _judge(monkeypatch, {**JUDGE_CLEAR, "prescribes_trading_action": True})
+    v2 = {"wait_step": None, "turn_token": "t", "resume": {"x": 1}, "resume_result": {"status": "done"}}
+    assert run("ok", v2=v2)["envelope"]["reply"] == ev.NOT_RETRIEVED
+

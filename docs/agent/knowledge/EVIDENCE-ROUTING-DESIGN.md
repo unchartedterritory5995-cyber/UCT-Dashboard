@@ -339,3 +339,22 @@ judge, not with patterns.
 **Alternative (no new cost):** accept that the reply check is best-effort, and that the guarantee for chart / none
 turns is the input classifier's recall alone (measured by the eval). The owner decides which.
 
+### Built dark: the output judge (owner 2026-11-04: fix hidden-method detection)
+`evidence.judge_backstop` / `judge_reply`. On a chart / none turn, a model reply that survives the free deterministic
+checks is judged by MEANING: one small closed-schema call returns `prescribes_trading_action`,
+`presents_uct_methodology` and `defines_a_setup`. It uses the classifier's model and the classifier's injection rule;
+the reply and the message go in as DATA, and the output has no reply field.
+- Any true → UCT's fixed "can't retrieve" sentence (a write keeps its ops).
+- Any failure → the same sentence (fail closed): an error, timeout, refusal, truncated or unreadable output,
+  off-schema output, or a budget refusal.
+- Fixed sentences, empty replies, and playbook / mixed / ambiguous turns are never judged.
+- **Switch:** it runs only where E-1 runs (`UCT_AGENT_KNOWLEDGE` + `UCT_AGENT_KN_E1` + a pack), so the knowledge flag
+  alone never pays for it.
+- **Metering:** budget category `evidence_judge`, off the request's call ceiling like the classifier, and under the
+  daily cap. It also covers v2 resumes.
+- **Cost:** about one more small call on chart / none turns that carry model text.
+
+**Status:** plumbing tested with a scripted judge (`tests/test_uct_agent_evidence.py` `test_judge_*`). Its ACCURACY is
+not established here. The verdict is the reviewer's sealed held-out set and the owner-approved paid eval, and
+activation needs that separate authorization. Brain stays OFF.
+
