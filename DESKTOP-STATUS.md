@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 15:24 CT
+updated: 2026-11-04 16:01 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -38,6 +38,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 10. CONCURRENT STEPS PER LANE (owner, 2026-11-04 07:30 CT: "do them concurrently"): a lane may run its heavy steps at once ONLY in separate worktrees. Mutations edit src in place and measure-pair copies zzMP tests into the tip worktree, so final-tip and probes run in a second DETACHED worktree at the same committed tip (pine-dsk-w4t10-final, pine-dsk-w4t7-probe), which is removed afterwards (junction unlinked first). Applied to W4-T10 (mutations || final-tip) and W4-T7 (measure-pair re-run || object-door work).
 8. Clock note: block times are local CT and correct. An earlier note here called them wrong; that was my mistake (the health log prints UTC under Git Bash). Withdrawn. SECOND clock note: blocks stamped 03:45, 04:20 and 04:35 CT on 2026-11-04 (W4-T15 start, W5-T7 READY, W5-T8 READY) were written ahead of the clock, at about 03:20-03:40 CT; from 2026-11-04 04:13 CT every stamp is read from the local clock.
 
+>>> RAM INCIDENT 2026-11-04 16:01 CT: free RAM fell 10.3 GB (15:39) -> 0.8 GB (~16:02). Cause: an unlocked `timeout 1500 python -m pytest --collect-only -q -p no:cacheprovider tests/` from the W5-T13 builder (identified from its own transcript; the process's parent shells had already exited) grew to 13 GB. The desktop first asked the four W5 server-lane builders, then stopped it when RAM reached 0.8 GB (it was this session's process). RAM back to 14.4 GB at once. W5-T13 told: named test files only, broad pytest through heavy-final2. No other job was affected; watch re-armed at the 6 GB floor. <<<
 >>> NEW-LANE FREEZE LIFTED 2026-11-04 11:22 CT. The freeze (owner 07:34: "dont start anything new until all that past work is completed fully") was met when W4-T7 became READY; the owner then said "lets do all that and then proceed into the next steps". Batch 4 started (8 builders, 2 Opus; owner cap 9): W4-T8, W4-T13 spike, W5-T2, W5-T9, W5-T10, W5-T11, W5-T12, W5-T4 r1. W5-T12 turned out to be on master already; its slot went to W5-T17. Merging and engine numbers stay with the coordinator (desktop never merges). <<<
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
