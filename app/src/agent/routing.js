@@ -212,7 +212,8 @@ export const GROUPS = [
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
 const NOT_TICKERS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC'])
-const tickerWords = (raw) => (String(raw).match(/(?:^|[\s$])([A-Z]{1,5})(?=[\s,.!?]|$)/g) || [])
+// W2 audit (live 2026-11-04): a POSSESSIVE ticker ("NVDA's recent pullbacks") is a ticker too
+const tickerWords = (raw) => (String(raw).match(/(?:^|[\s$])([A-Z]{1,5})(?=['’]s\b|[\s,.!?]|$)/g) || [])
   .map(w => w.trim().replace('$', '')).filter(w => !NOT_TICKERS.has(w))
 
 const BY_DOMAIN = new Map(GROUPS.flatMap(g => g.domains.map(d => [d, g.id])))
@@ -276,6 +277,10 @@ export function wordsSelect(id, message) {
   const g = GROUPS.find(x => x.id === id)
   return !!g && (g.words || []).some(re => re.test(q))
 }
+const STOCK_HISTORY = /\b(?:pull(?:ed|ing|s)?[\s-]?backs?|pulled back|pulling back|draw[\s-]?downs?|off (?:its|the|their) (?:\S+ )?highs?|(?:how far|distance) (?:off|from|below) (?:its|the|their) (?:\S+ )?highs?|(?:trading|price|daily|weekly|recent|52[\s-]?week) range|(?:last|past) \d+ (?:trading )?(?:days|sessions|weeks|months)|price history|(?:trading|stock) history)\b/
+// a CONCEPT question ("what is a pullback?") is the coach's / the model's own answer, not one stock's history
+const CONCEPT_Q = /\bwhat(?:'s| is| are) (?:a|an) |\b(?:explain|define|definition|meaning of|in plain (?:words|english))\b/
+const UNIVERSE_WORDS = /\bpull(?:ed|ing|s)?[-\s]?backs? (?:to|into|toward|near)\b|\bin (?:up|down)trends\b|\b(?:stocks|names|tickers|equities|screens?|scans?|screener|universe|watchlist|list)\b/
 export function selectGroups(message, { pendingActions = [], recentActions = [], names = null, correct = null } = {}) {
   const raw = String(message || '')
   const q = raw.toLowerCase()
@@ -291,6 +296,11 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
     if (texts.some(t => g.words.some(re => re.test(t)))) hits.add(g.id)
   }
   for (const t of texts) for (const id of namedGroups(t, names)) hits.add(id)
+  // W2 audit (live 2026-11-04: "Show me NVDA's recent pullbacks." never reached stock.dailyBars): ONE stock's price history —
+  // its pullbacks, drawdowns, distance off its high, its range, its last N days — is the data group's, however the stock
+  // is named (a possessive ticker, a lower-case one, "it"). A question over a UNIVERSE of stocks ("stocks pulling back to
+  // the 20") stays the screener's: these words never add data there.
+  if (texts.some(t => STOCK_HISTORY.test(t) && !UNIVERSE_WORDS.test(t) && !CONCEPT_Q.test(t))) hits.add('data')
   // "put NVDA on the left", "Switch to AMD": a ticker-shaped word (case-sensitive, on the raw
   // text) after a show/switch verb is a chart symbol request.
   if (SYMBOL_VERB.test(q) && tickerWords(raw).length) hits.add('charts')

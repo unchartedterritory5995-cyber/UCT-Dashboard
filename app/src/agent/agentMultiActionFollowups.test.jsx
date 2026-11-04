@@ -14,6 +14,10 @@ import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { touchesCharts, arrangesBoard } from './useAgent'
 import { AuthContext } from '../context/AuthContext'
+import { selectGroups, routeManifest } from './routing'
+import { manifestFor, MANIFEST_CONTRACT } from './capabilities'
+const FULLM = manifestFor({ surface: 'charts', createIndicator: true })
+const LIM = { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from './AgentPanel'
@@ -296,4 +300,22 @@ describe('AUDIT · live checks on #766', () => {
     expect(asked[2]).toBe('default')
     expect(h.charts.read(chartsOf(board).find(w => h.charts.read(w.id).symbol === 'AMD').id).tf).toBe('W')
   }, 40000)
+})
+
+// ═══ AUDIT · one stock's price history routes the data group ═══════════════════════════════════════════
+describe('AUDIT · "Show me NVDA\'s recent pullbacks." routes `data` (stock.dailyBars)', () => {
+  it('possessive / lower-case tickers and the history words select data; the data group carries stock.dailyBars', () => {
+    for (const m of ['Show me NVDA\'s recent pullbacks.', 'show me NVDA’s recent pullbacks', 'how far has NVDA pulled back', 'NVDA drawdowns this year',
+      'how far off its high is NVDA', 'nvda pullbacks', 'what was AMD\'s trading range over the last 20 days', 'TSLA price history', 'When does TSLA report earnings next?']) {
+      expect(selectGroups(m).selected, m).toContain('data')
+    }
+    expect(routeManifest(FULLM, 'show me NVDA recent pullbacks', LIM).manifest.length).toBeGreaterThan(0)   // stock.dailyBars registers only while the server serves bars.daily
+  })
+  it('a question over a UNIVERSE of stocks stays the screener\'s (the history words never add data there)', () => {
+    for (const m of ['show me stocks pulling back to the 20 ema', 'find names with a drawdown under 10%', 'scan for pullbacks'])
+      expect(selectGroups(m).selected, m).not.toContain('data')
+  })
+  it('a possessive ticker after a show verb is a chart symbol too', () => {
+    expect(selectGroups('show NVDA\'s chart').selected).toContain('charts')
+  })
 })
