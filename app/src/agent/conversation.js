@@ -57,9 +57,17 @@ const R_SPEED = new RegExp(`^the (fast|faster|fastest|quick|quicker|short|shorte
 const R_LEN = /^(?:the )?(\d{1,4})(?: (ema|sma|wma|hma|ma|moving average|line|one|day|period))?$/
 const PRONOUN = /^(?:it|that|this|that one|this one|them|those|these|both|them both|them all)$/
 /** Was the last committed change about indicators? (a pronoun then points at them) */
+// NLM1-G2: "add a chart for AMD and put the 50 SMA on it" → "make it orange" — the turn also CREATED the chart the indicator
+// sits on (its creation ops remembered on the new chart's committed id). That creation is the indicator's setting, not a
+// second subject: a turn whose only other ops set up a chart the same turn created is still about its indicators.
+const CHART_SETUP = new Set(['widget.add', 'widget.addCharts', 'chart.setSymbol', 'chart.setTimeframe', 'chart.setType'])
 export function aboutIndicators(memory, epoch) {
   const last = memory?.lastTurn?.(epoch)
-  return !!last && last.ops.length > 0 && last.ops.every(o => getCapability(o.action)?.target === 'indicatorEdits')
+  if (!last || !last.ops.length) return false
+  const isInd = (o) => getCapability(o.action)?.target === 'indicatorEdits'
+  if (!last.ops.some(isInd)) return false
+  const created = new Set(last.ops.filter(o => o.action === 'widget.add' || o.action === 'widget.addCharts').map(o => String(o.target)))
+  return last.ops.every(o => isInd(o) || (CHART_SETUP.has(o.action) && created.has(String(o.target))))
 }
 const ORD_N = { first: 1, '1st': 1, second: 2, '2nd': 2, third: 3, '3rd': 3, fourth: 4, '4th': 4, top: 1, last: -1, bottom: -1 }
 const FAST = /^(?:fast|faster|fastest|quick|quicker|short|shorter|shortest)$/
