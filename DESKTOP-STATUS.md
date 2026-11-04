@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 13:39 CT
+updated: 2026-11-04 14:37 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -317,10 +317,13 @@ state: ALREADY ON MASTER (no build)   updated: 2026-11-04 11:27 CT
 finding: origin/feat/pine-w5-t12-admission (b901fcbbbf) is an ancestor of origin/master, merged as PR #737 (e055b21e7f; commits 51dd352603, a223d56a99). DESKTOP-VERIFIED with git merge-base --is-ancestor. Master has server_stage/effective_server_stage/server_permitted/service_missing/server_lane_refusal(row, *, lane), the three ledger rows, tests/test_runtime_server_stage.py (49). Builder stopped before any change; worktree pine-dsk-w5t12 removed (junction unlinked first), local branch deleted, remote untouched. Unchecked: whether the PINE_RUNTIME_ALLOWLIST row carries the pane-only note (coordinator may want a one-line follow-up).
 
 ## W5-T17 composition + stamps (needs T12, which is ON MASTER)
-state: BUILDING   round: r0   updated: 2026-11-04 11:27 CT
-branch: feat/pine-w5-t17-stamps   base: origin/master   model: Sonnet
-locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
-
+state: READY            round: r0            updated: 2026-11-04 14:37 CT
+branch: feat/pine-w5-t17-stamps   tip: f777d2c427 (docs-only EVIDENCE over c1cb5d43ac, the final-tip tree)   base: origin/master 09453ca1a3   worktree: pine-dsk-w5t17   model: Sonnet
+engine bump needed: NO
+evidence: docs/pine/evidence/2026-11-04-w5-t17/EVIDENCE.md
+built (DESKTOP-VERIFIED file list: api/routers/user_definitions.py, api/services/runtime_definitions.py, api/services/user_definitions.py, tests/test_pine_runtime_composition.py, tests/test_runtime_definitions.py): runtime_definitions.validate rejects a runtime doc with meta.blockRuns; new request_reads (runtime requirements read, fails closed on an unreadable source); user_definitions.server_lane_composition runs 5.2 steps 1-4 in order (definition, stored verdict, consumer_refusal, server_lane_refusal), never raises, never calls the service; server_lanes_stamp; _awaits_retranslation False for runtime; consumer_refusal takes an optional definition and reads request.* from a runtime source; router _stamped adds server_lanes {alerts, screener, scans} to runtime rows only (ast rows carry no key).
+checks: composition rail 39 tests (31 failed / 8 passed against base files, the 8 cover existing behaviour; 39/39 on tip). Mutations 15/15 killed. Stub at tests/test_runtime_definitions.py:75 now accepts graded_only (the real server_lane_refusal passes it once the stamp reaches it); intent unchanged, explained in EVIDENCE.md. final-tip r2 on c1cb5d43ac (desktop sent it back: the first run predated the stub fix): gate pytest 46, rails pytest 567 passed / 0 failed, hygiene clean, vitest Tests 2 failed | 22361 passed | 118 skipped = settingsScope.rail (StudyChart.jsx:32 static scan) + pollingSites.rail baselines (DESKTOP-VERIFIED by name in js.log).
+open: existing consumer_refusal callers in T13/T14 files should adopt server_lane_composition once T17 merges (T13/T14 builders told).
 ## W5-T13 alerts (needs T11 READY + T12 on master)
 state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
 branch: feat/pine-w5-t13-alerts   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Opus
@@ -340,3 +343,14 @@ locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk
 state: BUILDING   round: r0   updated: 2026-11-04 13:39 CT
 branch: feat/pine-w5-t16-rule-record   base: W5-T11 86218da704 + local merge of origin/master 9bfd567837 (STACK: T3 -> T11)   model: Sonnet
 locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
+
+## W5-T18 editor status (optional in the design; needs T17, READY)
+state: BUILDING   round: r0   updated: 2026-11-04 14:37 CT
+branch: feat/pine-w5-t18-editor-status   base: W5-T17 f777d2c427 (STACK)   model: Sonnet
+locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final2.lock
+
+## W5-T19 gate + runbook (needs T4, T10, T11, all READY)
+state: BUILDING   round: r0   updated: 2026-11-04 14:37 CT
+branch: feat/pine-w5-t19-gate   base: W5-T10 a1523b3897 + local merges of W5-T4 09753c9426 and W5-T11 86218da704 (STACK)   model: Sonnet
+locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
+note: workflow file edited on the branch only; never pushed to master; HP-1 under Node 20 is red on the two trig cases (W5-T4 r1), so the builder proposes the gate's handling for the coordinator.
