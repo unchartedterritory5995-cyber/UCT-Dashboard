@@ -29,6 +29,9 @@ export function checkExpect(ctx, e, label) {
   const calls = p.st.calls.slice(since.calls).filter(c => c[1] !== '/api/agent/turn' && c[1] !== '/api/agent/record')
   if (e.modelTurns != null) expect(turnCount(p) - since.turns, `${label}: model turns`).toBeLessThanOrEqual(e.modelTurns)
   if (e.unchanged) expect(boardState(board), `${label}: the board is unchanged`).toBe(before)
+  // NLM-1 step plans: what the panel SAID (a read-back line, a skipped step) — a structural phrase, matched case-insensitively
+  for (const r of e.says || []) expect(String(p.transcript()), `${label}: the panel says /${r}/`).toMatch(new RegExp(r, 'i'))
+  for (const r of e.saysNot || []) expect(String(p.transcript()), `${label}: the panel does not say /${r}/`).not.toMatch(new RegExp(r, 'i'))
   if (e.bySymbol) {
     // NLM-1: a chart found by the ONE symbol it shows (wherever a new chart was placed): its timeframe, and which indicator
     // kinds it carries (`has` / `hasNot`: defIds; `period`: a movingAverage of that length)

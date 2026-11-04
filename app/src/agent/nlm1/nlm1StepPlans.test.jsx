@@ -1,16 +1,16 @@
-// NLM-1 · STRUCTURED STEP PLANS — the NO-MODEL SCRIPTED-PLAN HARNESS (feeds AUDIT's separate planner eval).
-// Each case (nlm1/baseline/stepplans.json) scripts a CORRECT planner answer in the proposed step-reference schema; it is
-// desugared onto today's executor (nlm1/stepPlan.js: a create's id = the runtime alias; "$id.chart" = that alias or the
-// op's own chart; explicit targets never re-targeted) and replayed through the REAL panel as the model's answer
-// (harness `faithful`), with NLM-1 ON and the in-plan key OFF (as NLM-1 would ship). Asserted: the FINAL WORKSPACE STATE,
-// then grouped Undo restoring the board exactly. A plan the runtime cannot carry yet must be REPORTED as unsupported
-// (`expectUnsupported`), never approximated. Unit checks of the desugaring come first.
+// NLM-1 · STRUCTURED STEP PLANS — the NO-MODEL SCRIPTED-PLAN HARNESS over the PRODUCTION path (nlm1/stepPlans.js; feeds
+// AUDIT's separate planner eval). Each case (nlm1/baseline/stepplans.json) scripts a CORRECT planner answer in the
+// step-reference schema and replays it through the REAL panel as the model's answer to an opaque line (+ the words that
+// name its target chart), with NLM-1 ON and the in-plan key OFF. Asserted: final workspace state, what the panel said
+// (the read-back line, a step it did not run and why), then grouped Undo restoring the board exactly.
+// Unit checks of (a) validation / preparation and (b) results-by-state come first.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
 import { replay } from '../qa/capabilityRegression/testing/run'
 import { pinClock } from '../qa/capabilityRegression/testing/clock'
-import { desugarStepPlan } from './stepPlan'
+import { isStepPlan, prepareStepPlan, producesOf, addedInstance } from './stepPlans'
+import { indicatorEditsRef } from '../capabilities/indicatorEdits'
 import data from './baseline/stepplans.json'
 
 pinClock()
@@ -18,44 +18,57 @@ vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default:
 await registerCatalog()
 afterEach(() => { vi.restoreAllMocks(); cleanup() })
 
-describe('desugarStepPlan (pure)', () => {
-  it('a create\'s id becomes the runtime alias; "$id.chart" resolves to it; indicator ops on existing charts aim at the indicator entry', () => {
-    const r = desugarStepPlan({ ops: [
-      { id: 's1', action: 'widget.add', target: '$workspace', args: { type: 'chart' } },
-      { action: 'chart.setTimeframe', target: '$s1.chart', args: { timeframe: 'W' } },
-      { id: 's3', action: 'chart.setSymbol', target: '$charts[1]', args: { symbol: 'TSLA' } },
-      { action: 'indicator.add', target: '$s3.chart', args: { defId: 'rsi' } },
-    ] })
-    expect(r.ops[0].args.as).toBe('s1')
-    expect(r.ops[1].target).toBe('s1')
-    expect(r.ops[3].target).toBe('$indicatorEdits[1]')
+describe('(a) produces + validation (pure)', () => {
+  it('what each kind of op produces', () => {
+    expect(producesOf({ action: 'widget.add', args: { type: 'chart' } })).toEqual({ chart: 'created' })
+    expect(producesOf({ action: 'chart.setTimeframe', args: {} })).toEqual({ chart: 'target' })
+    expect(producesOf({ action: 'indicator.add', args: {} })).toEqual({ chart: 'target', indicator: true })
+    expect(producesOf({ action: 'alert.create', args: {} })).toEqual({})
   })
-  it('refuses forward references, unknown ids, duplicate ids and results the runtime does not carry', () => {
-    expect(desugarStepPlan({ ops: [{ action: 'chart.setTimeframe', target: '$x.chart', args: {} }] }).unsupported[0]).toMatch(/no EARLIER step/)
-    expect(desugarStepPlan({ ops: [{ id: 'a', action: 'widget.add', target: '$workspace', args: { type: 'chart' } }, { id: 'a', action: 'widget.add', target: '$workspace', args: { type: 'chart' } }] }).unsupported[0]).toMatch(/used twice/)
-    expect(desugarStepPlan({ ops: [{ id: 'e', action: 'indicator.add', target: '$charts[0]', args: {} }, { action: 'indicatorStyle.set', target: '$charts[0]', args: { instance: '$e.indicator' } }] }).unsupported[0]).toMatch(/indicator result/)
+  it('a plain plan is not a step plan (v1 behaviour untouched)', () => {
+    expect(isStepPlan([{ action: 'chart.setTimeframe', target: 'c1', args: { timeframe: 'W' } }])).toBe(false)
+    expect(isStepPlan([{ id: 's1', action: 'chart.setTimeframe', target: 'c1', args: {} }])).toBe(true)
+  })
+  it('prepares: a create\'s id is the runtime alias, "$id.chart" its alias or its own chart, indicator ops on the chart\'s entry', () => {
+    const p = prepareStepPlan([
+      { id: 'n', action: 'widget.add', target: 'workspace', args: { type: 'chart' } },
+      { action: 'chart.setSymbol', target: '$n.chart', args: { symbol: 'AMD' } },
+      { action: 'indicator.add', target: '$n.chart', args: { defId: 'rsi' } },
+      { id: 'x', action: 'chart.setSymbol', target: 'c1', args: { symbol: 'TSLA' } },
+      { action: 'indicator.add', target: '$x.chart', args: { defId: 'macd' } },
+    ])
+    expect(p.error).toBeUndefined()
+    expect(p.ops[0].args.as).toBe('n')
+    expect(p.ops[1].target).toBe('n')
+    expect(p.ops[2].target).toBe('n')
+    expect(p.ops[4].target).toBe(indicatorEditsRef('c1'))
+  })
+  it('refuses the WHOLE plan: forward / unknown refs, duplicate ids, a field the producer lacks, a consumer of the wrong kind', () => {
+    expect(prepareStepPlan([{ action: 'chart.setTimeframe', target: '$x.chart', args: {} }]).error[0]).toMatch(/no earlier step/)
+    expect(prepareStepPlan([{ id: 'a', action: 'chart.setSymbol', target: 'c1', args: { symbol: 'A' } }, { id: 'a', action: 'chart.setSymbol', target: 'c1', args: { symbol: 'B' } }]).error[0]).toMatch(/used twice/)
+    expect(prepareStepPlan([{ id: 't', action: 'chart.setTimeframe', target: 'c1', args: {} }, { action: 'indicatorStyle.set', target: 'ixe:c1', args: { instance: '$t.indicator' } }]).error[0]).toMatch(/adds no indicator/)
+    expect(prepareStepPlan([{ id: 'n', action: 'widget.add', target: 'workspace', args: { type: 'chart' } }, { action: 'alert.create', target: '$n.chart', args: {} }]).error[0]).toMatch(/does not act on a chart/)
   })
 })
 
-describe('scripted step plans through the real panel (final state + grouped Undo)', () => {
+describe('(b) results by state (pure)', () => {
+  it('the one NEW instance that matches what the step added', () => {
+    const rows = [{ instanceId: 'old', defId: 'movingAverage', inputs: { period: 21, maType: 'ema' } }, { instanceId: 'new', defId: 'movingAverage', inputs: { period: 21, maType: 'ema' } }]
+    const host = { charts: { list: () => [{ ref: 'c1' }], read: () => ({ cs: { indicatorInstances: rows } }) } }
+    const step = { args: { defId: 'movingAverage', inputs: [{ key: 'period', value: 21 }, { key: 'maType', value: 'ema' }] } }
+    expect(addedInstance(host, step, new Map([['c1', new Set(['old'])]]))).toMatchObject({ ok: true, instanceId: 'new' })
+    expect(addedInstance(host, step, new Map([['c1', new Set(['old', 'new'])]]))).toMatchObject({ ok: false, why: 'it did not take effect' })
+    expect(addedInstance(host, step, new Map([['c1', new Set()]]))).toMatchObject({ ok: false, why: 'more than one indicator like it was added' })
+  })
+})
+
+describe('scripted step plans through the real panel (final state, what was said, grouped Undo)', () => {
   for (const c of data.cases) {
     it(c.id, async () => {
-      const steps = []
-      for (const s of c.steps) {
-        if (!s.plan) { steps.push(s); continue }
-        const d = desugarStepPlan(s.plan)
-        if (s.expectUnsupported) {
-          expect(d.unsupported, `${c.id}: the plan is reported unsupported`).toBeTruthy()
-          for (const why of s.expectUnsupported) expect(d.unsupported.join(' | ')).toContain(why)
-          return
-        }
-        expect(d.unsupported, `${c.id}: ${(d.unsupported || []).join(' | ')}`).toBeUndefined()
-        // the plan answers an OPAQUE line, so no deterministic reader can take the step before the scripted planner does
-        // (the natural-language request stays in the case file, for the eval); the step must be the model's
-        // (`names`: the words a real request names its target chart with — the panel never acts on an unnamed chart of a
-        // multi-chart board, and that screen stays in force here)
-        steps.push({ ...s, say: `«scripted plan ${c.id}»${s.names ? ` (${s.names})` : ""}`, model: { ops: d.ops }, expect: { ...s.expect, receipt: true } })
-      }
+      const steps = c.steps.map(s => (s.plan
+        // an OPAQUE line (+ the words naming its target): no deterministic reader can take the step before the planner
+        ? { ...s, say: `«scripted plan ${c.id}»${s.names ? ` (${s.names})` : ''}`, model: s.plan }
+        : s))
       await replay({ board: c.board, steps, seed: { nlm1: true, nlm1Inplan: false } }, c.id)
     }, 60000)
   }

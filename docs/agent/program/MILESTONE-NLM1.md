@@ -334,6 +334,22 @@ Owner direction (11-04): keep the cross-turn behaviour; keep non-generalising in
 - (d) the prompt / schema change, coordinated with the planner owners;
 - (e) the paid eval, on the stepplans case format with the model's plan in place of the scripted one.
 
+## 3c. BUILD (a)–(c) of §3b (AUDIT approved 11-04; branch `agent/nlm1/step-plans`, stacked on #790's head)
+
+Dark behind the same two NLM-1 keys (the in-plan key is not involved). No prompt or schema edits: only a plan whose ops carry an `id` (which no current planner emits) takes this path. With either key off the path is never entered, so behaviour is byte-identical (see the flag-off results below).
+
+- **Module** `nlm1/stepPlans.js` (new; the scripted-plan desugarer `nlm1/stepPlan.js` is deleted). Hooks in `useAgent.js` are thin: the model path after binding, `runFollowUps` before each follow-up op, and `approve()` / `dismiss()`.
+- **(a) `produces` + validation.** `producesOf(op)`: a chart `widget.add` produces `chart` (created); a chart / indicator-edits op produces `chart` (its target); `indicator.add` also produces `indicator`; a capability can declare `produces` itself. `prepareStepPlan` validates the WHOLE plan before anything runs. A forward or unknown reference, a duplicate id, a field the producer lacks, or a consumer that does not act on a chart refuses the whole plan: "I didn't run any of that plan: …" (kind `refused-step-plan`). A create's id becomes the executor's existing `args.as` alias; `$id.chart` becomes the alias or the explicit chart; indicator consumers use that chart's indicator-edits entry. Every target is explicit, so created-binding never re-aims a step plan.
+- **(b) Per-plan results.** A step that changes "the indicator step k added" (`$k.indicator`) is resolved just before it runs, from STATE: the one instance on the chart that was not there before the plan and matches the step's defId / period / maType. No result (the step failed, was refused or dismissed, or was ambiguous) means the step does not run, and the panel says so: "I didn't run step n (…): it changes the indicator step k adds, and it did not take effect." (kind `refused-step-result`). P6 is green.
+- **(c) Postcondition read-back.** After the plan runs (or after its card is approved or dismissed), each checkable step is read back from the board: chart created, symbol, timeframe, indicator present. Then the server's saved copy of each touched chart is compared (`widgetInSync`). One plain line: "Checked on your board: all N checked steps are in place." or "… k of N … Not in place: step n (…)." plus "On your screen but not saved yet: …". A step that consumes a result but was never reached (the batch stopped before it) is named as well. While a card from the plan is waiting: "Part of this plan waits for your approval on the card above — it runs only if you approve it."
+  - **Placement (flagged to AUDIT):** the read-back lives in the NLM-1 module and is shown as outcome lines. It does not touch the receipt code (release-path, #796). A receipt-level read-back would be useful outside NLM-1, but it was deliberately not widened.
+- **Harness** `nlm1/baseline/stepplans.json` v2 + `nlm1/nlm1StepPlans.test.jsx`. The production path runs through the real panel with NLM-1 on and the in-plan key off. Unit tests cover (a) and (b). Cases P1–P10 all pass (15/15):
+  - P1–P6: final state, the read-back line, grouped Undo.
+  - P7: a forward reference refuses the whole plan; the board is unchanged.
+  - P8: a failed step mid-plan. The partial result is stated explicitly: step 1 is in place, "Not in place: step 2", and "didn't run step 3". No rollback: what ran stays, and the member's Undo reverts it.
+  - P9: an approval dismissed mid-plan. No alert is created and "nothing changed".
+  - P10: a reference to a refused step. The board is unchanged; step 2 is reported as not run because step 1 did not take effect.
+
 ## 4. Activation checklist (needs the OWNER's approval plus a PAID eval; nothing here is authorised yet)
 
 1. AUDIT's held-out re-score of the frozen D1.x head: raw availability ≥ 95.3% (v1), own-groups ≥ 90%, no capability below v1.
