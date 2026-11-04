@@ -228,3 +228,28 @@ def test_a_coach_turn_with_the_marker_in_history_may_restate_the_template(monkey
     assert ok["usage"]["coach_guard"] == [] and ok["envelope"]["reply"].startswith("A VCP is")
     bad = turn.run_turn(message="so what is it?", context=CTX, history=[], capabilities=CAPS, caller=_scripted(reply))
     assert bad["envelope"]["reply"] == setups.DEFINITION_FIXED and bad["usage"]["coach_guard"] == ["definition"]
+
+
+# ── pre-activation: conversation naming never reads a coach reply (concept / Brain text) ─────────────────────────────
+
+def test_naming_leaves_out_coach_replies():
+    seen = {}
+
+    def caller(**kw):
+        seen["content"] = kw["messages"][0]["content"]
+        return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text=json.dumps({"title": "Coaching Chat"}))],
+                                     stop_reason="end_turn", usage=types.SimpleNamespace(input_tokens=1, output_tokens=1))
+    rows = [{"role": "member", "text": "coach me on failed breakouts", "data": None},
+            {"role": "agent", "text": "A breakout is a move through a level that had been containing price; it can fail.",
+             "data": {"envelope": {"disposition": "answer", "ops": []}, "coach": True}},
+            {"role": "member", "text": "thanks", "data": None},
+            {"role": "agent", "text": "You're welcome.", "data": {"envelope": {"disposition": "answer", "ops": []}}}]
+    turn.name_conversation(rows, caller=caller)
+    assert "containing price" not in seen["content"]
+    assert "coach me on failed breakouts" in seen["content"] and "You're welcome." in seen["content"]
+
+
+def test_the_router_marks_a_coach_reply_for_the_naming_rule():
+    import inspect
+    from api.routers import uct_agent as rx
+    assert '**({"coach": True} if "coach_guard" in usage else {})' in inspect.getsource(rx)
