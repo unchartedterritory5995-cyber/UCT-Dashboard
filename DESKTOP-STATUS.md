@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 00:35 CT
+updated: 2026-11-04 00:50 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -113,10 +113,13 @@ report: All 5 lows in tools/vendor_harness/evidence_engine.py + docs/pine/EVIDEN
 desktop check of the definition of done: PASS (scope = evidence engine + its tests/doc/mutations + generated queue, rails red/green, 71/71 mutations, final-tip at baseline, e58edcbeaf..558c7a5c25 is EVIDENCE.md only, local == origin, worktree clean)
 
 ## W5-T3 codec (re-homed)
-state: BUILDING   round: r0   updated: 2026-11-03 23:50 CT
-branch: per ASSIGNMENTS row (existing branch)   start tip: cd61d6741d   worktree: pine-dsk-w5t3   model: Sonnet
-engine bump needed: no (per ASSIGNMENTS)
-next: final-tip + EVIDENCE.md, READY
+state: READY            round: r2            updated: 2026-11-04 00:50 CT
+branch: feat/pine-w5-t3-codec   tip: 409456ee36 (EVIDENCE-only over judged code tip cd61d6741d)   tested on master: 0afa7645dd (merge-base at run time)
+engine bump needed: NO (adds columnDigest.js, called by nothing yet, plus pine_runtime_codec.py, tests, fixture, design doc; SCRIPT_ENGINE_VERSION untouched)
+evidence: docs/pine/evidence/2026-11-03-w5-t3/EVIDENCE.md (on the branch)
+report: final-tip on desktop lane 3 (heavy-final3.lock), held 48 min: gate pytest 46 passed; hygiene clean; tests/test_pine_runtime_codec.py 211 passed; chart+hooks vitest 1 failed file / 1334 passed / 27 skipped (1 failed test / 22505 passed / 118 skipped) = pollingSites.rail baseline; columnDigest.test.js passed; 0 new failures. r2 fixes, each with its rail named in EVIDENCE (most with a JS and a Python twin over one fixture: 63 cases, 50 refuse inputs, 10 decode_refuse, 5 decode_accept, 13 equal groups): design 2.3/3.2 byte layout incl. engine block and runtime_language; plain-object containers only; one accepted column-type set; rows null/int/bool; bundle_sha256 must be a string; Python accepts an int past 2**53 only when exactly a double; hex helpers moved into the test file; decode_accept and refusal-list size guards.
+for the delta reviewer: (1) the r2 review file is not on origin/ops/pine-coord (it holds only ASSIGNMENTS.md), so the fixes were mapped from the r2 commit message; check that mapping. (2) Mutation proof is round 1's laptop result (JS 54/55, 1 equivalent removed; Python 57/57); mutations were NOT re-run on the r2 delta, as the assignment asked only for final-tip + EVIDENCE.
+desktop check: PASS for what was assigned (scope matches, cd61d6741d..409456ee36 is EVIDENCE.md only, local == origin, worktree clean)
 
 ## W3 S1 round 2 (re-homed)
 state: BUILDING   round: r2   updated: 2026-11-04 00:05 CT
