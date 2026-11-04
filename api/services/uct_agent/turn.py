@@ -791,7 +791,8 @@ DISPOSITIONS
 - clarify: you need one thing first that no default covers, usually WHICH existing target to change. ops []; fill `question` with short `choices` (use target labels). Never clarify a matter of taste or judgment ("cleaner", "nicer", "better for swing trading") — propose your best plan instead; the member can adjust or dismiss it.
 - apply: the member directly asked for specific changes that AVAILABLE ACTIONS can make — however many steps, charts or widgets it takes ("create four charts for SPY, QQQ, NVDA and TSLA, all daily", "make the 9 green on both charts", "add the 9 and 20 EMA and copy them to my other charts"). ops = exactly what they asked for, nothing extra. UCT itself asks first for anything permanent, destructive or broad (the actions marked "needs confirmation" or "permanent"), so never propose just because a request has several parts. A request to CREATE a custom indicator ("create a custom indicator that shows the difference between the 9 and 20 EMA as a percentage, in a separate pane") is apply: ONE indicator.draft on the NEW-draft entry with the member's words verbatim -- UCT builds it, saves it as a new indicator and adds it to the chart itself, and asks first only when its own checks need the member (a name they already use, an acknowledgement).
 - propose: the request needs interpretation, taste or judgment ("make it look cleaner", "set this up for day trading"). ops = your proposed changes; UCT asks before executing. Example: "make the right chart look cleaner" → propose (not clarify) concrete ops on the right chart, such as hiding its Volume and/or a calmer theme.
-- unsupported: they asked you to DO something no available action can do. ops []. Say plainly that you can't do that yet and, if you know it, where in UCT they can do it by hand. Set unsupported_category to one short lowercase word naming the area (for example indicators, widgets, layouts, alerts, scanners, drawings, navigation, account, other).
+- unsupported: they asked you to DO something no available action can do. ops []. Say plainly that you can't do that yet and, if you know it, where in UCT they can do it by hand. Set unsupported_category to one short lowercase word naming the area (for example indicators, widgets, layouts, alerts, scanners, drawings, navigation, account, email, sms, trading, print, export, other).
+- PARTLY POSSIBLE: a request that mixes something AVAILABLE ACTIONS can do with something none can ("switch SPY to weekly and email me a screenshot") is apply/propose with the ops for the part you can do, AND unsupported_category set to the area of the part you can't (email, sms, trading, print, export, other). Never drop that part silently; UCT tells the member which part was not done.
 
 ACT ON CLEAR INTENT — DON'T MAKE THE MEMBER MANAGE YOU
 If the request can be done with reasonable, established defaults, plan it; do not ask. Defaults: an indicator at its standard settings; "my chart" when only one chart exists; ALL of a screen's results unless they give a number (top null); a short descriptive name for a new list or layout they did not name (not one already used); the latest completed session for "daily" figures; the action's own hints for which widget shows something. Never ask for something UCT can look up (a sector's members, a list's tickers, which widget is a watchlist). When they name a trading CONCEPT that one of UCT's starter or saved screens in <workspace_context> already defines (breakouts, leaders, pullbacks, tight bases, gap movers…), run that screen and name it in `reply` — never invent your own criteria for it; if none fits, say so and offer the closest. "Strongest" means highest RS Rank (say so) and "weakest" means lowest RS Rank, across UCT's whole Screener universe — "my strongest stocks" too; screen within one of their watchlists only when they name it ("my strongest stocks in Momentum"), and never answer a screening request by opening or showing a watchlist. "Best" or "top" stocks with no measure named means UCT Composite, the Screener's own default ranking (say so) — never a ranking of your own. "My watchlist" / "my list" means the watchlist on their board. Clarify ONLY when: essential information is missing and has no safe default; readings would give materially different results; it is unclear WHICH existing thing to change, delete or overwrite among several; or what they asked for is not available and they must choose an alternative. When you use a default that matters, say it in one short `reply` line (e.g. "Using the latest session's close and dollar volume.").
@@ -820,7 +821,7 @@ When <research_results> are provided, answer from them, mention sources briefly 
 
 FOLLOW-UPS
 When the screener entry in <workspace_context> has a `lastScreen` and the member narrows, re-sorts or refers to its results ("now only above $20", "sort those by…", "exclude ETFs", "the first four", "those", "put the top 15 into…"), that last screen is what they mean: refine it (screener.run mode refine) or use {"from": "lastScreen", "top": N}. Do not ask which screen unless the conversation shows another result set that fits equally well.
-<workspace_context> may carry `conversation_memory`, written by UCT (never by you): `recent_results` are tickers UCT showed this chat, `symbols_in_order` in the order the member saw them — "the third one" is the third ticker of the latest set, "the others" the rest of it; `subject_chart` is the chart ref this chat last changed — "it" for a chart when none is `selected`; `last_change` names the actions of the last change ("do the same on the right one"); `recent_corrections` are the member's own corrections — follow them. `recent_indicators` are the indicators UCT's latest adding change put on charts, in that order (`target` = that chart's indicatorEdits ref, `id` = the instance): "the first one" / "the second one" follow that order, "the fast one" is the shortest length, "those" / "them" are all of them. "My other charts", "the others", "the rest" mean every chart in <workspace_context> except the one(s) this conversation is about. A ticker taken from `recent_results` is used exactly as listed. If a reference does not fit what is there (no such position, an expired set), clarify.
+<workspace_context> may carry `conversation_memory`, written by UCT (never by you): `recent_results` are tickers UCT showed this chat, `symbols_in_order` in the order the member saw them — "the third one" is the third ticker of the latest set, "the others" the rest of it; `subject_chart` is the chart ref this chat last changed — "it" for a chart when none is `selected`; `last_change` names the actions of the last change ("do the same on the right one"); `recent_corrections` are the member's own corrections — follow them. `recent_indicators` are the indicators UCT's latest adding change put on charts, in that order (`target` = that chart's indicatorEdits ref, `id` = the instance): "the first one" / "the second one" follow that order, "the fast one" is the shortest length, "those" / "them" are all of them. "My other charts", "the others", "the rest" mean every chart in <workspace_context> except the one(s) this conversation is about. A ticker taken from `recent_results` is used exactly as listed. If a reference does not fit what is there (no such position, an expired set), clarify. `question_set_aside: true` means the member did NOT answer your last question and moved on (LT-6): read this message as a NEW request on its own — never as the answer to, or a continuation of, that question.
 "It", "that list", "the watchlist you just made" and similar mean what the latest [UCT executed] lines name (e.g. Created the watchlist “X”): find X in <workspace_context> by that name and act on it — do not ask which one.
 If <pending_proposal> is present and the member adjusts it ("leave Volume", "only the left one"), return a new propose with the adjusted ops; return apply only if they clearly approved the adjusted version. Approving a proposal as-is ("do it") never reaches you.
 
@@ -1184,9 +1185,11 @@ KNOWLEDGE_REPLAY = (f"[UCT] {KNOWLEDGE_REF} (UCT showed the member an answer fro
 ACTIONLESS_OUTCOME_KINDS = frozenset({
     "authoring-cancelled", "authoring-prompt", "clarify-multichart", "clarify-referent", "clarify-save-target",
     "clarify-workspace", "compound-stopped", "compound-too-long", "dismissed", "followup-refused",
-    "guide-do-say", "nothing-pending", "reference-refused", "refused-stale", "retarget-refused", "undo",
+    "guide-do-say", "not-done", "nothing-pending", "reference-refused", "refused-stale", "retarget-refused", "undo",
     "undo-none", "undo-refused", "undo-refused-mismatch", "undo-refused-protected", "undo-turn",
     "undo-unsaved", "unsupported",
+    # W2: UCT's own fixed sentences — what part of a request was not done; where a split request stopped
+    "split-stopped",
 })
 
 
@@ -1841,7 +1844,24 @@ def false_capability_claim(env: Any, cap_names: set[str] | None, unselected_ids:
     return None
 
 
-def promote_talk_reads(env: Any) -> Any:
+# the browser's own Undo (its receipt's Undo), planned as an action — never executed by the server
+UNDO_ACTION = "agent.undo"
+
+
+# review #771 (3): the member's words must BE an Undo command for an answer's [agent.undo] to run — the server half of the
+# browser's own Undo reader (fastPath.controlWord / undoWords): a sentence that starts with an Undo verb, never a question
+# about Undo ("how does undo work?", "can you undo a trade?")
+_UNDO_COMMAND = re.compile(
+    r"^\s*(?:(?:please|pls|can you|could you|would you|just|ok|okay|actually|oops|wait|sorry|hmm|no),?\s+)*"
+    r"(?:undo|revert|reverse|roll (?:it |that )?back|take (?:that|it|them|everything|all of (?:that|it)) (?:all )?back|put (?:it|that|my \w+|the \w+) back)\b"
+    r"(?!.*\?\s*$)", re.I)
+
+
+def is_undo_command(msg: str | None) -> bool:
+    return bool(msg) and bool(_UNDO_COMMAND.match(str(msg))) and not re.search(r"\b(?:how|why|what|when|does|do i|can i)\b.*\bundo\b", str(msg), re.I)
+
+
+def promote_talk_reads(env: Any, msg: str | None = None, cap_names: set[str] | None = None) -> Any:
     """⛔ LT-15 (live 2026-11-03): "describe the setup on nvda" — the planner returned the right READ op
     (chart.describeSetup) under disposition `answer`, with the reply "Checking NVDA's daily setup now.". TALK never
     carries ops, so the op was dropped and the member saw the announcement and then nothing. An `answer` whose ops
@@ -1851,6 +1871,14 @@ def promote_talk_reads(env: Any) -> Any:
     if not isinstance(env, dict) or env.get("disposition") != "answer":
         return env
     ops = env.get("ops") if isinstance(env.get("ops"), list) else []
+    if (len(ops) == 1 and isinstance(ops[0], dict) and ops[0].get("action") == UNDO_ACTION
+            and is_undo_command(msg) and (cap_names is None or UNDO_ACTION in cap_names)):
+        # ⭐ W2 audit (train-3 review): an ANSWER carrying exactly [agent.undo] ("Undoing that now.") had its op dropped and
+        # its words shown — a false claim. It is the member's Undo: served as an apply of agent.undo ALONE with the reply
+        # blanked; the browser's own Undo (doUndo, every refusal) and its receipt are the only claim. sanitize_envelope
+        # still refuses it when agent.undo is not in this request's manifest. Never any other write.
+        log.info("uct_agent talk with agent.undo: served as apply, dropped a %d-char reply", len(str(env.get("reply") or "")))
+        return {**env, "disposition": "apply", "question": None, "reply": ""}
     if not ops or not all(isinstance(o, dict) and o.get("action") in DATA_READ_ACTIONS for o in ops):
         return env
     log.info("uct_agent talk with data-read ops: served as apply (%s)",
@@ -1972,8 +2000,10 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         "reply": reply,
         "question": q,
         "ops": ops,
+        # W2 audit (live 2026-11-04): a PARTLY possible request ("…weekly and email me a screenshot") keeps the area of the
+        # part no action can do beside its ops — the browser says it in a FIXED sentence (notDone.js), never this text
         "unsupported_category": (str(env.get("unsupported_category"))[:40]
-                                 if disp == "unsupported" and env.get("unsupported_category") else None),
+                                 if env.get("unsupported_category") and (disp == "unsupported" or (disp in MUTATING and ops)) else None),
         **({"local_notice": True} if local_notice else {}),
     }
 
@@ -2582,7 +2612,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                              "step. Tell me exactly what you'd like changed and I'll do it.") if mutated or not env.get("reply")
                    else env.get("reply")}
         if not answer_only and not usage["research_calls"]:
-            env = promote_talk_reads(env)
+            env = promote_talk_reads(env, msg, cap_names)
         if isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
         if answer_only and isinstance(env, dict) and (env.get("ops") or env.get("disposition") in MUTATING):

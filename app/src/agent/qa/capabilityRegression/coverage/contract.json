@@ -146,7 +146,7 @@
   },
   "calendar.day": {
    "domain": "calendar",
-   "group": null,
+   "group": "calendar",
    "target": "calendar",
    "risk": "local",
    "reversible": true,
@@ -159,7 +159,7 @@
   },
   "calendar.nextReport": {
    "domain": "calendar",
-   "group": null,
+   "group": "calendar",
    "target": "calendar",
    "risk": "local",
    "reversible": true,

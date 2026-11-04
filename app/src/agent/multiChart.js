@@ -100,7 +100,7 @@ const GRID_LAYOUT = [[/\b(?:side[\s-]by[\s-]side|next to each other|in (?:a )?ro
 // the charts are re-tiled evenly (chartGrid.set), never dropped into whatever empty space happens to be there
 export const EQUAL_SIZE_WORDS = /\b(?:same|equal|even|identical) (?:size|sizes|sized|width|height)\b|\bequal(?:ly)?[\s-]?sized?\b|\bevenly\b|\bequally\b/i
 // everything else such a sentence may say — any other word means it is not ONLY a grid of these tickers
-const GRID_FILLER = /\b(?:please|can|could|would|you|i|want|need|like|to|create|make|open|add|show|set|setup|up|give|me|put|load|pull|bring|build|chart|charts|display|lay|out|new|separate|for|of|with|on|showing|and|them|all|each|every|one|a|an|the|in|into|as|be|is|are|my|grid|2x2|2|x|by|side|stacked|top|other|row|column|quad|equal|equally|sized|size|sizes|same|identical|evenly|layout|arrangement|arranged|time ?frames?|daily|weekly|monthly|hourly|intraday|minutes?|min|hour|hr|1h|4h|1|5|15|30|60|two|three|four|five|six|seven|eight|nine|both|too|also|just|now)\b/gi
+const GRID_FILLER = /\b(?:please|can|could|would|you|i|want|need|like|to|create|make|open|add|show|set|setup|up|give|me|put|load|pull|bring|build|chart|charts|display|lay|out|new|separate|for|of|with|on|showing|and|them|all|each|every|one|a|an|the|in|into|as|be|is|are|my|grid|2x2|2|x|by|side|stacked|top|other|row|column|quad|panels?|cells?|boxes|windows|quadrants|equal|equally|sized|size|sizes|same|identical|evenly|layout|arrangement|arranged|time ?frames?|daily|weekly|monthly|hourly|intraday|minutes?|min|hour|hr|1h|4h|1|5|15|30|60|two|three|four|five|six|seven|eight|nine|both|too|also|just|now)\b/gi
 // ⭐ live acceptance 2026-10-29: "open daily charts for aapl msft nvda, each with a 50sma" — the tickers of a grid may be
 // typed in lowercase. Only the words a grid sentence leaves once its own words are taken out, each at most four letters
 // (a longer word is more often a company name — "apple" — and stays the model's) and passing the shared N4 rule: not a
@@ -128,6 +128,8 @@ const WATCH_RAIL = /(?:,\s*|\s+)(?:and\s+|with\s+|plus\s+)?(?:a|one)\s+watch ?li
 export const isWorkspaceRequest = (text) => WORKSPACE_LEAD.test(String(text || '').trim())
 export const asksForWatchlistRail = (text) => WATCH_RAIL.test(String(text || ''))
 function gridRequest(raw0, lower0, charts, host) {
+  // W2 (CG-2): '2×2' typed with the multiplication sign
+  raw0 = String(raw0).replace(/×/g, 'x'); lower0 = String(lower0).replace(/×/g, 'x')
   const lead = WORKSPACE_LEAD.exec(raw0)
   const rail = WATCH_RAIL.test(raw0)
   const raw = raw0.replace(WORKSPACE_LEAD, 'open ').replace(WATCH_RAIL, ' ').replace(/\s+/g, ' ').trim()
