@@ -18,6 +18,8 @@ const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', 
 export const BOARDS = {
   EMPTY: () => [[], {}],
   ONE: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }],
+  // a chart with the PRODUCT DEFAULTS (EMA 9/20, SMA 50/200 overlays on), as a member's untouched chart is
+  ONE_TSLA_DEFAULT: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: {} }], { 'N:c1': 'TSLA' }],
   ONE_SPY: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'SPY' }],
   HALF: () => [[chart('c1', 0, 0, 12, 20)], { 'N:c1': 'NVDA' }],
   TWO: () => [[chart('c1', 0, 0, 12, 20), chart('c2', 12, 0, 12, 20)], { 'N:c1': 'NVDA', 'N:c2': 'AMD' }],
@@ -28,10 +30,17 @@ export const BOARDS = {
 // Synthetic screener catalog / universe (never real values)
 const FIELDS = [{ key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%' }, { key: 'price', label: 'Price', type: 'range', unit: '$' },
   { key: 'chg_pct', label: 'Change %', type: 'range', unit: '%' }, { key: 'rel_volume', label: 'Rel Volume', type: 'range', unit: 'x' }]
+const LOWER_OK = new Set(['NVDA', 'TSLA', 'AMD', 'AAPL', 'QQQ'])
 const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25 }))
 
-/** A JSON-able snapshot of the board (widgets + link-group symbols): equality = nothing changed. */
-export const boardState = (board) => JSON.stringify({ widgets: board.state.widgets, groupSyms: board.state.groupSyms })
+/** The board's EFFECTIVE state — every widget's cell, and each chart's symbol, timeframe and merged settings (what the
+ *  member sees): equality = nothing changed for the member. (A stored `tf: 'D'` written back where nothing was stored
+ *  is the same chart; `exactState` is the byte-level form, for the cases that promise byte-identical storage.) */
+export const boardState = (board) => JSON.stringify([...board.state.widgets].sort((a, b) => String(a.id).localeCompare(String(b.id))).map(w => {
+  const c = w.type === 'chart' ? board.host.charts.read(w.id) : null
+  return { id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h, ...(c ? { symbol: c.symbol, tf: c.tf, cs: c.cs } : { opts: w.opts }) }
+}))
+export const exactState = (board) => JSON.stringify({ widgets: board.state.widgets, groupSyms: board.state.groupSyms })
 export const chartsOf = (board) => board.state.widgets.filter(w => w.type === 'chart').sort((a, b) => (a.y - b.y) || (a.x - b.x))
 
 /** Resolve a canonical op's symbolic target ("$charts[0]", "$workspace", "$board", "$indicatorEdits[0]", "new1") from the request context. */
@@ -45,7 +54,7 @@ export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTa
 
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS } = {}) {
   const p = setupPanel()
-  const st = { log: [] }
+  const st = { log: [], alerts: [] }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url); const method = init.method || 'GET'
@@ -55,9 +64,14 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS } = {}) {
     p.st.calls.push([method, u, body])
     if (u === '/api/agent/config') return json(configFor(kinds))
     if (u.startsWith('/api/watchlist-alerts')) {
-      if (method === 'POST') return json({ id: 'new1', user_id: 'me', sym: body.sym, target_price: body.target_price, direction: body.direction, is_active: 1, triggered_at: null, alert_type: body.alert_type || 'price' })
-      if (method === 'DELETE') return json({ ok: true })
-      return json([])
+      // the real routes' behaviour (agentAlerts.test.jsx): owner-scoped rows, a POST returns the row, a DELETE removes it
+      if (method === 'POST') {
+        const row = { id: `new${st.alerts.length + 1}`, user_id: 'me', sym: String(body.sym).toUpperCase(), target_price: body.target_price, direction: body.direction, is_active: 1, triggered_at: null, created_at: '2026-11-04T13:00:00Z', alert_type: body.alert_type || 'price', drawing_id: null }
+        st.alerts = [row, ...st.alerts]
+        return json(row)
+      }
+      if (method === 'DELETE') { const id = decodeURIComponent(u.split('/').pop()); st.alerts = st.alerts.filter(r => r.id !== id); return json({ ok: true }) }
+      return json(st.alerts)
     }
     if (u === '/api/screener/fields' || u.startsWith('/api/screener/fields?')) return json({ fields: FIELDS })
     if (u === '/api/screener/saved-screens') return json({ saved: [], starters: [] })
@@ -67,6 +81,12 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS } = {}) {
       return json({ total: rows.length, rows: rows.slice(0, body.page_size || 25), snapshot_date: '2026-10-07' })
     }
     // every other read answers EMPTY / unavailable: the corpus asserts WHICH canonical read ran, never a figure
+    // instrument.resolve as the server answers it (MD-1 §4.7, instruments.py): a symbol typed in capitals resolves; a lowercase
+    // one resolves only when §4.7.5 confirms it ('nvda' yes; 'spy', 'gold' no — the neutral ask)
+    if (u === '/api/agent/data' && body?.kind === 'instrument.resolve') {
+      const results = (body.params?.symbols || []).map(c => { const t = String(c?.text ?? c).replace(/^\$/, ''); return (t === t.toUpperCase() || LOWER_OK.has(t.toUpperCase())) ? { input: c?.text ?? c, class: 'symbol', symbol: t } : { input: c?.text ?? c, class: 'symbol_typed_lowercase', symbol: t.toUpperCase() } })
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', notes: [], data: { results } })
+    }
     if (u === '/api/agent/data') return json({ contract: 'MD-1.0', kind: body?.kind, params_echo: body?.params, status: 'unavailable', notes: [], data: null })
     return base(url, init)
   }

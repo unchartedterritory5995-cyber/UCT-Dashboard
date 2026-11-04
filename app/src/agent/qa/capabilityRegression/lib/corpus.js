@@ -43,10 +43,14 @@ export function partialMatch(got, want) {
   if (want && typeof want === 'object') return !!got && typeof got === 'object' && Object.keys(want).every(k => partialMatch(got[k], want[k]))
   return got === want
 }
+// a ticker's CASE is not part of the plan (the runtime resolves it: instrument.resolve / the symbol search)
+const upperSymbols = (v, k = null) => (Array.isArray(v) ? v.map(x => upperSymbols(x, k))
+  : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([kk, x]) => [kk, upperSymbols(x, kk)]))
+    : (k === 'symbol' || k === 'symbols') && typeof v === 'string' ? v.toUpperCase() : v)
 /** Is a deterministic reading equivalent to the intent's canonical deterministic expectation? */
 export function equivalent(reading, det) {
   if (!reading) return false
   if (det.steps) return Array.isArray(reading.steps) && reading.steps.join() === det.steps.join()
-  if (det.plan) return Array.isArray(reading.plan) && partialMatch(reading.plan, det.plan)
+  if (det.plan) return Array.isArray(reading.plan) && partialMatch(upperSymbols(reading.plan), det.plan)
   return false
 }
