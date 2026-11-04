@@ -284,6 +284,56 @@ Recorded gaps (capreg `gapIt`: each must fail exactly as recorded, so a fix is n
 
 Unit coverage: `nlm1/nlm1FollowupOps.test.js` (referent sets, repeat / additive, inversion, removal, ordinals, on a fake 2×2 board), `nlm1/nlm1Followups.test.js` (rewriter and same-request rules, never-guess cases, tracker bounds) and `nlm1/nlm1Routing.test.js` (vocabulary validity; the vocabulary is a supplement: the index alone recognises ≥ 75% of the dev set; index generated from the registry; entity typing; `NLM1_ROUTER`).
 
+## 3b. DESIGN (proposal, not built beyond the harness): structured multi-step plans through the PLANNER
+
+Owner direction (11-04): keep the cross-turn behaviour; keep non-generalising in-plan rules off; priorities are structured multi-step plans, operation-result references, correct chart targeting, grouped Undo and accurate final-state verification. Unfinished planner behaviour is never enabled in production.
+
+**Problem.** In-plan requests ("add a chart for AMD, make it weekly and put RSI on it") belong to the planner: four rounds of deterministic rules did not generalise. The planner already has two shapes:
+- **v1** (one model call, one envelope of ops): created widgets carry an `as` alias, and later ops may target it. Anything else ("it", "the new one") is a pronoun the browser must bind (Track A's `createdBinding`, being reworked as created-binding-v2).
+- **v2** (`turn_v2.py`, `UCT_AGENT_PLANNER=v2`, off): one tool call per step, in rounds. Each step's result (including `New refs:` for created charts) is fed back before the next step. Correct, but one model round per step (6-round, $0.25 caps).
+
+**Proposal: one structured plan, with steps that name earlier steps' RESULTS by id.**
+
+1. **Schema.** Each op may carry an `id`. A `target` or any `args` value may be a reference `$<id>.<field>` to an EARLIER op of the same plan. Fields are declared per capability in the registry (new metadata `produces`):
+
+   | Producer | Field |
+   |---|---|
+   | `widget.add` type chart | `chart` (the new chart) |
+   | any chart-scoped op | `chart` (its own target) |
+   | `indicator.add` | `indicator` (the committed instance) |
+   | `chartGrid.set` / `widget.addCharts` | `charts[i]` |
+   | `watchlist.create`, `layout.saveAs`, `alert.create` | their new object |
+
+2. **Validation, before anything runs** (browser `planOps`, mirrored as a syntactic pre-check on the server): a reference names an earlier op, a field its capability declares, and a kind compatible with the consuming op's target kind. Any violation refuses the WHOLE plan, never a partial run.
+3. **Resolution reuses the runtime, no new engine.**
+   - `chart` of a creating op = today's alias (`as`): the runtime resolves it to the committed widget's id (`commitPlan` `created`), and deferred / sequential ops are re-aimed by `landDeferred`.
+   - **New, small:** the runtime records each committed op's results in a per-plan map keyed by step id. That covers an `indicator.add`'s instance id (already reported by the Indicators receipt, `takeIndicatorTouches`) and a grid's charts in order. A deferred step referencing them is re-aimed by the same `landDeferred` hook.
+4. **Chart targeting / created-binding-v2.** A structured plan names every target explicitly (a context ref or a step reference), and v2's structural rule is that an explicit target is never re-targeted. So binding is not involved at all. created-binding-v2 stays the fallback only for legacy pronoun plans and the instant path, with its contract unchanged (`(ops, text, host) → {ops} | {ask} | null`). NLM-1's `plans.js` already hands it only untargeted ops.
+5. **Approval policy:** unchanged, decided per op (`decideMode`). A plan with a proposal-risk step shows one card. Steps after a pending proposal wait, as v2's pause does. A reference into a proposed step resolves only after approval.
+6. **Grouped Undo:** one plan = one Undo group (Mission 3 grouping; NLM-1's request-level grouping), each entry's exact Undo. A step that fails stops the plan: "made X, then stopped: Y didn't go through".
+7. **Final-state verification:** each capability declares a postcondition (chart shows the symbol / timeframe; the instance is on that chart; the chart exists). After commit, each step's postcondition is read back from PERSISTED state, and a mismatch is said in the receipt ("on your screen but not saved" / "did not take") instead of a success claim. The harness asserts the same from outside.
+8. **Where it runs.** Structured plans fit the v1 envelope (ONE model call: cheapest, and the whole plan is validated before anything runs). v2's rounds stay for plans whose later steps depend on a READ (a screen's result, a quote), where the model must see a result before planning. v2's `New refs:` result line becomes the same `$<id>.<field>` vocabulary.
+9. **Flags and ownership.** Behind NLM-1's keys plus the planner flag; never on in production without the owner. The prompt and schema text lives in `turn.py` / `turn_v2.py` (owned by `release/agent-dark-train`), so those edits are coordinated through AUDIT, not made here.
+
+**Built now (the harness only):** `nlm1/stepPlan.js` desugars a structured plan onto TODAY's executor: a create's `id` becomes the alias; `$id.chart` becomes that alias or the op's own chart; an indicator op on an existing chart is aimed at its indicator entry. A result the runtime cannot carry yet (`.indicator`), a forward or unknown reference, or a duplicate id is REPORTED as unsupported, never approximated. `nlm1/nlm1StepPlans.test.jsx` + `nlm1/baseline/stepplans.json` (the case format for AUDIT's eval: request text, board, the scripted correct plan, the words naming its targets, expected final state, Undo) replay each scripted plan through the real panel as the model's answer. They send an opaque line plus the target-naming words, so no deterministic reader pre-empts the planner and the multi-chart "which chart?" safety screen stays in force. With NLM-1 on and the in-plan key off, they assert final state and then grouped Undo restoring the board exactly.
+
+| Case | What it covers | Result |
+|---|---|---|
+| P1 | create + tf + indicator on `$step1.chart` | pass, Undo restores |
+| P2 | two creates, an indicator on each by reference | pass, Undo restores |
+| P3 | an explicit existing chart, then `$s1.chart` | pass |
+| P4 | create + an explicit change on the EXISTING chart (never re-targeted) | pass |
+| P5 | symbol + tf + indicator on one existing chart | pass |
+| P6 | style the indicator a step added (`$e.indicator`) | reported unsupported: needs the runtime results map |
+| P7 | a forward reference | refused |
+
+**Proposed build order (after approval):**
+- (a) `produces` metadata + reference validation (browser, pure);
+- (b) the runtime per-plan results map (`indicator`, `charts[i]`), which turns P6 green;
+- (c) postcondition read-back in receipts;
+- (d) the prompt / schema change, coordinated with the planner owners;
+- (e) the paid eval, on the stepplans case format with the model's plan in place of the scripted one.
+
 ## 4. Activation checklist (needs the OWNER's approval plus a PAID eval; nothing here is authorised yet)
 
 1. AUDIT's held-out re-score of the frozen D1.x head: raw availability ≥ 95.3% (v1), own-groups ≥ 90%, no capability below v1.
