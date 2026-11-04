@@ -211,6 +211,8 @@ all resolve against the same bars.
 | CG-32 | a | "anchor a vwap to oct 1" matches neither "anchored vwap" nor "avwap". | nlfix |
 | CG-33 | a | **Replay is never routed.** chart.replay sits in the chartSetup group by action name, and that group has no replay words ("replay", "as of", "hide what came after"). This is the live LT-7 cause and it is still open; all four replay phrasings fail. | nlfix |
 | CG-34 | workflow | After "open a chart for AMD", "add rsi to it" asks "Which chart do you mean?": a chart the conversation just CREATED is not "it". | agent-core |
+| CG-35 | a | "what's on the calendar this week" matches no group and falls back to every group. On /charts the earnings week is a screen (the calendar.* capabilities exist only on the Calendar page). | nlfix |
+| CG-36 | a | "averages for the S&P" matches no group, so it falls back to every group. "how are the moving averages looking for the market" is caught by the indicators words. Canonical: breadth.show, where "averages" means % above moving averages. | nlfix |
 
 Observations that are not marked as gaps because they need an owner ruling:
 

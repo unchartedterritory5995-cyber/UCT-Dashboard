@@ -60,7 +60,7 @@ export const BOARDS = {
 
 // Synthetic screener catalog / universe (never real values)
 const FIELDS = [{ key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%' }, { key: 'price', label: 'Price', type: 'range', unit: '$' },
-  { key: 'chg_pct', label: 'Change %', type: 'range', unit: '%' }, { key: 'rel_volume', label: 'Rel Volume', type: 'range', unit: 'x' }]
+  { key: 'chg_pct', label: 'Change %', type: 'range', unit: '%' }, { key: 'rel_volume', label: 'Rel Volume', type: 'range', unit: 'x' }, { key: 'days_to_earnings', label: 'Days to earnings', type: 'range', unit: 'd' }]
 // the indicator-alert catalog as the evaluator serves it (indicator_alert_evaluator.alert_catalog), RSI + the MA cross (train 3)
 const OSC = [{ value: 'above', label: 'Above threshold', needs_threshold: true }, { value: 'below', label: 'Below threshold', needs_threshold: true },
   { value: 'cross_above', label: 'Crosses above', needs_threshold: true }, { value: 'cross_below', label: 'Crosses below', needs_threshold: true }]
@@ -89,7 +89,7 @@ const synthBar = (t, i) => { const c = 100 + 20 * Math.sin(i / 17) + i * 0.05; r
 export const SYNTH_BARS = BAR_DAYS.map((t, i) => synthBar(t, i))
 const lastOnOrBefore = (ms) => { let r = BAR_DAYS[0]; for (const t of BAR_DAYS) { if (t <= ms) r = t; else break } return r }
 const LOWER_OK = new Set(['NVDA', 'TSLA', 'AMD', 'AAPL', 'QQQ'])
-const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25 }))
+const UNIVERSE = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${String(i + 1).padStart(2, '0')}`, adr_pct: 2 + i, price: 10 + i * 5, chg_pct: i - 3, rel_volume: 0.5 + i * 0.25, days_to_earnings: i }))
 
 /** The board's EFFECTIVE state — every widget's cell, and each chart's symbol, timeframe and merged settings (what the
  *  member sees): equality = nothing changed for the member. (A stored `tf: 'D'` written back where nothing was stored

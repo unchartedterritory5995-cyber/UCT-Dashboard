@@ -3125,6 +3125,58 @@
      "modes": {}
     }
    }
+  },
+  "earnings.this-week": {
+   "digest": "d3abfbe740548ff4",
+   "phrasings": {
+    "what's on the calendar this week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "names the screener group by its own words"
+     }
+    },
+    "which stocks report earnings this week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "who's reporting this week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "breadth.averages": {
+   "digest": "2f13283795e30659",
+   "phrasings": {
+    "averages for the S&P": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "names the breadth group by its own words"
+     }
+    },
+    "how are the moving averages looking for the market": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "→ breadth.show"
+     }
+    },
+    "market averages breadth": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

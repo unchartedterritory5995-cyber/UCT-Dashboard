@@ -6657,6 +6657,153 @@
         "create a 2-hour chart interval",
         "add 2 hours as a timeframe"
       ]
+    },
+    {
+      "id": "earnings.this-week",
+      "source": "AUDIT 11-04: phrasings that match NO routing group (they fall back to every group). Canonical on /charts: the earnings week is a SCREEN (the screener words already route 'earnings this week' / 'reporting this week'); the calendar.* capabilities exist only on the Calendar page surface, and app.open has no calendar page",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "ownWords": [
+        "screener"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "screener.run",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "days_to_earnings",
+                  "op": "lte",
+                  "value": 7,
+                  "max": null,
+                  "values": null
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "new",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/screener/scan|^POST /api/agent/data .*screen\\.run"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        {
+          "text": "what's on the calendar this week",
+          "gaps": {
+            "a": {
+              "id": "CG-35",
+              "reason": "routing: no group's words match 'what's on the calendar this week' (no calendar group on /charts; the screener words need earnings/reporting + this/next week), so the message falls back to every group and reaches the screener only by the budget fill",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "names the screener group by its own words"
+            }
+          }
+        },
+        "which stocks report earnings this week",
+        "who's reporting this week"
+      ]
+    },
+    {
+      "id": "breadth.averages",
+      "source": "AUDIT 11-04: phrasings that match NO routing group (they fall back to every group). Canonical: breadth.show — in UCT's vocabulary 'averages' for the market are the % of stocks above their moving averages (the Breadth monitor); breadth has no S&P universe, so 'the S&P' is read as the US universe",
+      "capabilities": [
+        "breadth.show"
+      ],
+      "board": "ONE",
+      "needs": [
+        "breadth.show"
+      ],
+      "ownWords": [
+        "breadth"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "breadth.show",
+            "args": {
+              "mode": "value"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "breadth.show",
+            "target": "$breadth",
+            "args": {
+              "mode": "value",
+              "universe": "us",
+              "metrics": [
+                "pct_above_20sma",
+                "pct_above_50sma",
+                "pct_above_200sma"
+              ],
+              "date": null,
+              "compare_date": null,
+              "start": null,
+              "end": null,
+              "basis": null,
+              "side": null,
+              "sessions": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "breadth"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        {
+          "text": "averages for the S&P",
+          "gaps": {
+            "a": {
+              "id": "CG-36",
+              "reason": "routing: no group's words match 'averages for the S&P' (the breadth words need a % / above / below form or 'breadth'), so it falls back to every group and reaches breadth only by the budget fill",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "names the breadth group by its own words"
+            }
+          }
+        },
+        {
+          "text": "how are the moving averages looking for the market",
+          "gaps": {
+            "a": {
+              "id": "CG-36",
+              "reason": "routing: 'moving averages' is an INDICATORS word, so a market-averages question routes [indicators] only and breadth.show is not sent",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ breadth.show"
+            }
+          }
+        },
+        "market averages breadth"
+      ]
     }
   ],
   "refusals": [

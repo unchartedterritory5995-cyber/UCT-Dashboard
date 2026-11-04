@@ -530,6 +530,33 @@
    "phrasing": "start replay mode on 2026-03-02"
   },
   {
+   "id": "CG-35",
+   "reason": "routing: no group's words match 'what's on the calendar this week' (no calendar group on /charts; the screener words need earnings/reporting + this/next week), so the message falls back to every group and reaches the screener only by the budget fill",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "names the screener group by its own words",
+   "level": "a",
+   "intent": "earnings.this-week",
+   "phrasing": "what's on the calendar this week"
+  },
+  {
+   "id": "CG-36",
+   "reason": "routing: no group's words match 'averages for the S&P' (the breadth words need a % / above / below form or 'breadth'), so it falls back to every group and reaches breadth only by the budget fill",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "names the breadth group by its own words",
+   "level": "a",
+   "intent": "breadth.averages",
+   "phrasing": "averages for the S&P"
+  },
+  {
+   "id": "CG-36",
+   "reason": "routing: 'moving averages' is an INDICATORS word, so a market-averages question routes [indicators] only and breadth.show is not sent",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ breadth.show",
+   "level": "a",
+   "intent": "breadth.averages",
+   "phrasing": "how are the moving averages looking for the market"
+  },
+  {
    "id": "CG-34",
    "reason": "after 'open a chart for AMD' (widget.addCharts), 'add rsi to it' asks 'Which chart do you mean?' — the chart this conversation just CREATED is not 'it' (subjectTarget remembers changed charts, not created ones); nothing is added",
    "owner": "agent-core builder (useAgent.js subjectTarget / memory)",
@@ -1192,7 +1219,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 15,
+   "phrasings": 18,
    "evidence": {
     "nl": [
      "breadth.now: \"what's the breadth like\"",
@@ -1214,18 +1241,21 @@
      "corpus breadth.now",
      "corpus breadth.measure-now",
      "corpus breadth.measure-nasdaq",
+     "corpus breadth.averages",
      "GW-03.breadth-member-side"
     ],
     "execution": [
      "breadth.now (c)",
      "breadth.measure-now (c)",
      "breadth.measure-nasdaq (c)",
+     "breadth.averages (c)",
      "GW-03.breadth-member-side"
     ],
     "receipt": [
      "breadth.now (c)",
      "breadth.measure-now (c)",
      "breadth.measure-nasdaq (c)",
+     "breadth.averages (c)",
      "GW-03.breadth-member-side"
     ],
     "refusal": [],
@@ -6361,7 +6391,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 5,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "screener.adr: \"find stocks with ADR above 5%\"",
@@ -6369,27 +6399,31 @@
      "screener.adr: \"show me names with ADR greater than 5 percent\"",
      "screener.adr: \"scan for ADR > 5%\"",
      "screener.adr: \"which stocks have an ADR above 5%\"",
-     "GW-05.screen-price-rvol"
+     "earnings.this-week: \"what's on the calendar this week\""
     ],
     "routing": [
      "screener.adr: \"find stocks with ADR above 5%\"",
      "screener.adr: \"screen for stocks with an ADR over 5%\"",
      "screener.adr: \"show me names with ADR greater than 5 percent\"",
      "screener.adr: \"scan for ADR > 5%\"",
-     "screener.adr: \"which stocks have an ADR above 5%\""
+     "screener.adr: \"which stocks have an ADR above 5%\"",
+     "earnings.this-week: \"which stocks report earnings this week\""
     ],
     "args": [
      "corpus screener.adr",
+     "corpus earnings.this-week",
      "GW-05.screen-price-rvol",
      "refuse.screener.saveAs.dismissed"
     ],
     "execution": [
      "screener.adr (c)",
+     "earnings.this-week (c)",
      "GW-05.screen-price-rvol",
      "GW-06.hidden-field-refused"
     ],
     "receipt": [
      "screener.adr (c)",
+     "earnings.this-week (c)",
      "GW-05.screen-price-rvol"
     ],
     "refusal": [

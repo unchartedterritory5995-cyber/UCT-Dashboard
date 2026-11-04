@@ -18,7 +18,7 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | multiStep | 19 / 154 |
 | phrasings | 92 / 154 |
 
-## Known gaps (63)
+## Known gaps (66)
 
 | id | level | intent | phrasing | owner | reason |
 |---|---|---|---|---|---|
@@ -75,6 +75,9 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | CG-33 | a | chart.replay | "replay the chart from march 2 2026" | nlfix builder (routing.js) | routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open |
 | CG-33 | a | chart.replay | "go back to march 2 2026 and hide what came after" | nlfix builder (routing.js) | routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open |
 | CG-33 | a | chart.replay | "start replay mode on 2026-03-02" | nlfix builder (routing.js) | routing: chart.replay belongs to the chartSetup group by action name, and that group has NO replay words ('replay', 'as of', 'hide what came after'), so a replay request never sends chart.replay — the live LT-7 cause (it reached chart.goToDate) is still open |
+| CG-35 | a | earnings.this-week | "what's on the calendar this week" | nlfix builder (routing.js) | routing: no group's words match 'what's on the calendar this week' (no calendar group on /charts; the screener words need earnings/reporting + this/next week), so the message falls back to every group and reaches the screener only by the budget fill |
+| CG-36 | a | breadth.averages | "averages for the S&P" | nlfix builder (routing.js) | routing: no group's words match 'averages for the S&P' (the breadth words need a % / above / below form or 'breadth'), so it falls back to every group and reaches breadth only by the budget fill |
+| CG-36 | a | breadth.averages | "how are the moving averages looking for the market" | nlfix builder (routing.js) | routing: 'moving averages' is an INDICATORS word, so a market-averages question routes [indicators] only and breadth.show is not sent |
 | CG-34 | workflow | GW-22.new-chart-then-rsi-on-it | — | agent-core builder (useAgent.js subjectTarget / memory) | after 'open a chart for AMD' (widget.addCharts), 'add rsi to it' asks 'Which chart do you mean?' — the chart this conversation just CREATED is not 'it' (subjectTarget remembers changed charts, not created ones); nothing is added |
 | CG-12 | collision | routing data | "tell me about TSM the company" | nlfix builder (routing.js) | the alerts words /\b(notify/ping/tell) me\b/ select 'tell me about …' |
 | CG-13 | collision | routing data | "how does NVDA stack up against AMD" | nlfix builder (routing.js) | the charts compare words select 'against' |
