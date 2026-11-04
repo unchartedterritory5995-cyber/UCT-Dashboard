@@ -17,7 +17,8 @@
 import { describe, it, expect, afterEach, afterAll, vi } from 'vitest'
 import { waitFor, fireEvent, screen, cleanup } from '@testing-library/react'
 import fs from 'node:fs'
-import { registerCatalog } from './qa/capabilityRegression/testing/registry'
+import { getCapability } from './capabilities'
+import { registerCatalog, isDark } from './qa/capabilityRegression/testing/registry'
 import { corpus, phrasingsOf, failureMode, gapIt } from './qa/capabilityRegression/testing/corpus'
 import { mountCase, resolveOps, boardState, receiptsNow, refusals, panelHost } from './qa/capabilityRegression/testing/harness'
 import { pinClock, CLOCK } from './qa/capabilityRegression/testing/clock'
@@ -31,6 +32,8 @@ import { _resetAgentConfig, loadAgentConfig } from './agentClient'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 await registerCatalog()
+// PKG2: a DARK corpus entry ("kinds": "ALL") runs only in capabilityRegression/corpus.dark.test.jsx
+const PROD_INTENTS = corpus.intents.filter(i => !isDark(i))
 afterEach(() => { vi.restoreAllMocks(); cleanup() })
 
 const FULL = globalThis.process?.env?.V2_PARITY === 'full'
@@ -42,6 +45,10 @@ const rows = []
 const V2_GAPS = {
   // V2-G1 ("Put four charts on my screen") is FIXED by V2-G2 plan groups (agent/w2/v2-nl-equivalence): the adds and the
   // re-tile come in one response and run as ONE plan, as v1 runs them. No v2-only gap is open.
+  // V2-G3 (PKG2, planner v2 is dark): "put these in a new watchlist called Leaders" — v1 runs watchlist.create + watchlist.add
+  // {from: lastScreen} into the new list's alias as ONE approved plan; v2 makes the guarded create its own card, then the
+  // add (a later response targeting the alias `new1`) does not land in the created list: the list is created EMPTY.
+  'scan.to-new-watchlist': { id: 'V2-G3', reason: 'v2: a create card then an add into its alias leaves the new list empty', owner: 'agent-core (planner v2)', mode: '→ Apply: T01 on Leaders' },
 }
 
 /** The CORPUS's own known gap (ph.gaps.c), honoured as the v1 capreg final-state test honours it (corpus.js gapIt): the
@@ -85,7 +92,8 @@ function v2Script(plan) {
   const responses = []
   for (const op of plan.ops) {
     const lastR = responses[responses.length - 1]
-    const groupable = (o) => o.action !== 'agent.undo'
+    // (PKG2: a guarded op — its own card — is a response of its own here too, judged from the registry's contract)
+    const groupable = (o) => o.action !== 'agent.undo' && v2ModeOf({ name: o.action, ...(getCapability(o.action) || {}) }) === 'apply'
     if (lastR && lastR.groupable && groupable(op)) lastR.ops.push(op)
     else responses.push({ ops: [op], groupable: groupable(op) })
   }
@@ -173,7 +181,7 @@ function routing(intent, ph) {
 describe('planner v2 parity — capability-regression corpus', () => {
   if (!FULL) {
     // the RAIL: the first phrasing of every intent reaches the same final state under v2
-    for (const intent of corpus.intents) {
+    for (const intent of PROD_INTENTS) {
       const ph = phrasingsOf(intent)[0]
       const body = async () => {
         await replayV2({ board: intent.board, seed: intent.seed, steps: stepsOf(intent, ph) }, `v2 ${intent.id}`)
@@ -193,7 +201,7 @@ describe('planner v2 parity — capability-regression corpus', () => {
     }
     return
   }
-  for (const intent of corpus.intents) {
+  for (const intent of PROD_INTENTS) {
     for (const ph of phrasingsOf(intent)) {
       it(`${intent.id} · "${ph.text}"`, async () => {
         const r = routing(intent, ph)
