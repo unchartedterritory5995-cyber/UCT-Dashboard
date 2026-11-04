@@ -1,8 +1,8 @@
 {
   "master_sha": null,
   "gate_run_id": "41889812880",
-  "gate_conclusion": "failure",
+  "gate_conclusion": "cancelled",
   "promoted": "no",
   "production_head_after": null,
-  "ts": "2026-11-04T19:01:42.074824Z"
+  "ts": "2026-11-04T19:34:18.005841Z"
 }
