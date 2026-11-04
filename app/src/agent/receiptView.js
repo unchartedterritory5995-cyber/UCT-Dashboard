@@ -40,7 +40,15 @@ function withTimeframes(line, charts) {
 // touched, read after it committed. With it, the one-liner names each chart with its symbol AND timeframe; Details stay
 // the receipt's lines word for word.
 // `name` (W2): this receipt is ONE part of a multi-part request — a line that names no chart is said on its chart.
-export function receiptView(lines, { isUndo = false, charts = null, name = false } = {}) {
+// `unsaved` (live train 4: a workspace conflict left "Added four new charts…" reading as done): the change is ON SCREEN but
+// was NOT saved — the one-liner says so first, never as a finished change; Details keep the record word for word
+export function receiptView(lines, opts = {}) {
+  const v = receiptViewOf(lines, opts)
+  if (!opts.unsaved || !v.summary) return v
+  const what = v.summary.replace(/^Done — /, '').replace(/[.]+$/, '')
+  return { summary: `On your screen but NOT saved: ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, details: v.details || (lines || []).join(' · ') }
+}
+function receiptViewOf(lines, { isUndo = false, charts = null, name = false } = {}) {
   const raw = (lines || []).map(l => String(l || '').trim()).filter(Boolean)
   if (!raw.length) return { summary: '', details: '' }
   const all = raw.join(' · ')

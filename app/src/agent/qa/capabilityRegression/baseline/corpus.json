@@ -6280,6 +6280,152 @@
         "how are the moving averages looking for the market",
         "market averages breadth"
       ]
+    },
+    {
+      "id": "wrongtarget.new-chart-weekly",
+      "source": "AUDIT 11-04 (NLM-1 held-out P02 / P15): an in-plan reference to a chart created in the SAME request must land on the NEW chart, never on the existing one",
+      "capabilities": [
+        "widget.addCharts"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.addCharts"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "widget.addCharts",
+            "target": "$workspace",
+            "args": {
+              "symbols": [
+                "TSLA"
+              ],
+              "timeframe": "W",
+              "chart_type": null,
+              "exact": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbols": [
+            "NVDA",
+            "TSLA"
+          ],
+          "tfs": [
+            "D",
+            "W"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "open TSLA on a new chart and switch it to the weekly"
+        }
+      ]
+    },
+    {
+      "id": "wrongtarget.new-chart-line",
+      "source": "AUDIT 11-04 (NLM-1 held-out P02 / P15): an in-plan reference to a chart created in the SAME request must land on the NEW chart, never on the existing one",
+      "capabilities": [
+        "widget.addCharts"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.addCharts"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "widget.addCharts",
+            "target": "$workspace",
+            "args": {
+              "symbols": [
+                "META"
+              ],
+              "timeframe": null,
+              "chart_type": "line",
+              "exact": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbols": [
+            "NVDA",
+            "META"
+          ],
+          "types": [
+            "candles",
+            "line"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "add a chart for META and make it a line chart"
+        }
+      ]
+    },
+    {
+      "id": "wrongtarget.new-chart-50sma",
+      "source": "AUDIT 11-04 (NLM-1 held-out P02 / P15): an in-plan reference to a chart created in the SAME request must land on the NEW chart, never on the existing one (a new chart is born with the default overlays, SMA 50 among them: the assertion is that the EXISTING bare chart is NOT given one)",
+      "capabilities": [
+        "widget.addCharts"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.addCharts"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "widget.addCharts",
+            "target": "$workspace",
+            "args": {
+              "symbols": [
+                "AMD"
+              ],
+              "timeframe": null,
+              "chart_type": null,
+              "exact": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbols": [
+            "NVDA",
+            "AMD"
+          ]
+        },
+        "indicators": {
+          "chart": 0,
+          "exclude": [
+            "movingAverage(50 sma)"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "add a chart for AMD and put the 50 SMA on it"
+        }
+      ]
     }
   ],
   "refusals": [

@@ -7333,31 +7333,43 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 4,
+   "phrasings": 7,
    "evidence": {
     "nl": [
      "widget.addCharts: \"open charts for AAPL and MSFT\"",
      "widget.addCharts: \"add charts for AAPL and MSFT\"",
      "widget.addCharts: \"open AAPL and MSFT in new charts\"",
      "widget.addCharts: \"give me new charts for AAPL and MSFT\"",
-     "GW-22.new-chart-then-rsi-on-it"
+     "wrongtarget.new-chart-weekly: \"open TSLA on a new chart and switch it to the weekly\"",
+     "wrongtarget.new-chart-line: \"add a chart for META and make it a line chart\""
     ],
     "routing": [
      "widget.addCharts: \"open charts for AAPL and MSFT\"",
      "widget.addCharts: \"add charts for AAPL and MSFT\"",
      "widget.addCharts: \"open AAPL and MSFT in new charts\"",
-     "widget.addCharts: \"give me new charts for AAPL and MSFT\""
+     "widget.addCharts: \"give me new charts for AAPL and MSFT\"",
+     "wrongtarget.new-chart-weekly: \"open TSLA on a new chart and switch it to the weekly\"",
+     "wrongtarget.new-chart-line: \"add a chart for META and make it a line chart\""
     ],
     "args": [
      "corpus widget.addCharts",
+     "corpus wrongtarget.new-chart-weekly",
+     "corpus wrongtarget.new-chart-line",
+     "corpus wrongtarget.new-chart-50sma",
      "GW-22.new-chart-then-rsi-on-it"
     ],
     "execution": [
      "widget.addCharts (c)",
+     "wrongtarget.new-chart-weekly (c)",
+     "wrongtarget.new-chart-line (c)",
+     "wrongtarget.new-chart-50sma (c)",
      "GW-22.new-chart-then-rsi-on-it"
     ],
     "receipt": [
      "widget.addCharts (c)",
+     "wrongtarget.new-chart-weekly (c)",
+     "wrongtarget.new-chart-line (c)",
+     "wrongtarget.new-chart-50sma (c)",
      "GW-22.new-chart-then-rsi-on-it"
     ],
     "refusal": [],
