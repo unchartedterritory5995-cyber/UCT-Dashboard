@@ -22,6 +22,16 @@ export const ROUTING_VERSION = 1
 
 // hotfix 2026-11-03: "on four charts", "4 charts", "two more charts", "all the same size", "equal size", "evenly", "split"
 const MULTI_CHARTS = /\b(two|three|four|five|six|seven|eight|nine|ten|twelve|[2-9]|1[0-2]) (new |separate |more |different |individual |equal |identical )?(\w+ )?charts\b/
+// W2 audit (live 2026-11-04, CG-6/7/7b): ONE stock's price history — its pullbacks, drawdowns, distance off its (52-week) high,
+// its range, its last N days — is the data group's (stock.dailyBars), however the stock is named. A question over a
+// UNIVERSE of stocks ("stocks pulling back to the 20") stays the screener's, and a CONCEPT question ("what is a pullback?")
+// the model's own answer: neither is matched here.
+const STOCK_HISTORY = /\b(?:pull(?:ed|ing|s)?[\s-]?backs?|pulled back|pulling back|draw[\s-]?downs?|off (?:its|the|their) (?:\S+ )?highs?|(?:how far|distance) (?:off|from|below) (?:its|the|their) (?:\S+ )?highs?|(?:trading|price|daily|weekly|recent|52[\s-]?week) range|(?:last|past) \d+ (?:trading )?(?:days|sessions|weeks|months)|price history|(?:trading|stock) history)\b/
+const CONCEPT_Q = /\bwhat(?:'s| is| are) (?:a|an) |\b(?:explain|define|definition|meaning of|in plain (?:words|english))\b/
+const UNIVERSE_WORDS = /\bpull(?:ed|ing|s)?[-\s]?backs? (?:to|into|toward|near)\b|\bin (?:up|down)trends\b|\b(?:stocks|names|tickers|equities|screens?|scans?|screener|universe|watchlist|list)\b/
+const DATA_HISTORY = new RegExp(`^(?!.*(?:${UNIVERSE_WORDS.source}))(?!.*(?:${CONCEPT_Q.source})).*${STOCK_HISTORY.source}`)
+// W2 (CG-1): "four equal panels" — a count of chart cells said as panels / cells / boxes / windows / quadrants
+const GRID_CELLS = /\b(two|three|four|five|six|seven|eight|nine|[2-9]) (?:\w+ )?(?:panels|cells|boxes|windows|quadrants)\b|\bequal (?:panels|cells|boxes|windows|quadrants)\b/
 const EQUAL_SIZE = /\b(same|equal|even|identical) (size|sizes|sized|width|height)\b|\bequal(ly)?[\s-]?sized?\b|\bevenly\b|\bequally\b|\bsplit\b|\btile\b|\btiled\b/
 
 /** Action groups, keyed by capability DOMAIN (the name prefix). Titles are shown to the model. */
@@ -42,7 +52,8 @@ export const GROUPS = [
     // W2-B3: chart.describeSetup here by action name too (a grounded setup description; the charts group keeps its size),
     // named by "describe / summarise / walk me through … setup"
     actions: ['chart.replay', 'chart.describeSetup'],
-    words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
+    // W2 (CG-5): "what's the setup here" names chart.describeSetup too (not only describe / summarise / walk me through)
+    words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/, /\bwhat(?:'s|’s|s| is) (?:the |this |my )?(?:chart'?s? )?set-?up\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
@@ -53,7 +64,7 @@ export const GROUPS = [
       // hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size." routed [charts, agent]
       // only — the model had no grid and no add, and put four tickers on TABS of one chart): a count of charts said
       // anywhere, and equal sizing, name this group too (routing only ADDS)
-      MULTI_CHARTS, EQUAL_SIZE] },
+      MULTI_CHARTS, EQUAL_SIZE, GRID_CELLS] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
   { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)', domains: ['board'], fillLast: true,
@@ -72,6 +83,8 @@ export const GROUPS = [
   // indicators word AND a charts word routes BOTH; the hints decide.
   { id: 'indicators', title: 'Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)', domains: ['indicator'],
     words: [/\bindicators?\b/, /\b(rsi|macd|ema|sma|vwap|atr|bollinger|keltner|stochastic|supertrend|regression|correlation|momentum|oscillator|histogram)\b/,
+      // W2 (CG-4): an indicator spelled out ("add the relative strength index") — not the screener's RS words
+      /\b(relative strength index|moving average convergence|average true range|exponential moving average|simple moving average|volume[- ]weighted average)\b/,
       // ⭐ acceptance 2026-10-29: "each with a 50sma", "9ema" — a length typed against its type
       /\b\d{1,4}-?(?:ema|sma|wma|hma|ma)s?\b/,
       // "what's on this chart", "do i have the 50 on here", "a weekly 10 line": the chart's indicators
@@ -101,7 +114,8 @@ export const GROUPS = [
     words: [/\b(draw|add|put|place|plot|anchor|drop|mark)\b.*\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|boxe?s?|notes?|text|anchored vwap|avwap)\b/,
       /\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|anchored vwap|avwap)\b.*\b(from|between|starting|anchored|since)\b/, /\banchored vwap\b|\bavwap\b/] },
   { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
-    words: [/\bdraw\w*\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
+    // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
+    words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
   { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
@@ -166,7 +180,8 @@ export const GROUPS = [
   // W2-B2: `history.afterEvent` too ("how has X behaved after …", "what happens after …")
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
     words: [/\b(news|headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
-      /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/],
+      /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/,
+      DATA_HISTORY],
     // Gate B vocabulary (soft): "when does nvda report", "anything new on tesla", "stack up on valuation"
     vocab: [/\b(reports?|reporting|valuation|stacks? up|anything new (on|with)|what'?s (going on|happening) with|why did .+ (gap|move|drop|fall|jump|rally|sell off))\b/] },
   // MARKET INTELLIGENCE breadth slice 1 (2026-10-11): historical breadth QUESTIONS. "breadth" alone is
@@ -197,6 +212,8 @@ export const GROUPS = [
     words: [/\b(?:undo|undoing|revert|reverting)\b/,
       /\b(?:reverse|roll ?back) (?:that|it|this|what (?:you|u)|the last|my last|your last|those changes|that change|everything)\b|\broll (?:it|that|this) back\b/,
       /\bput (?:it|that|them|everything|things) back (?:the way|how|as) (?:it|they) (?:was|were)\b/,
+      // W2 (CG-9): "put my layout back", "put the charts back"
+      /\bput (?:my|the) (?:layout|board|charts?|workspace|widgets) back\b/,
       /\btake (?:it|that|this|them|those|everything|all (?:of )?(?:that|it|this)) (?:all )?back\b|\btake back (?:that|what (?:you|u)|the last|my last|your last|those changes|that change|everything|whatever (?:you|u))\b/] },
   // ⭐ PHASE 2 Workstream B: EXPLAIN a term or feature, SHOW ME where a control is — both change nothing
   { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
@@ -273,17 +290,15 @@ export function routingNames(host) {
 const INDICATOR_LOOK = /\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y|cyan|magenta|lime|gold|navy|maroon|colou?rs?|thick|thicker|thin|thinner|dashed|dotted|solid|bolder)\b/
 /** Did the message's own words select this group (not the always-on, follow-up or fallback ones)? */
 export function wordsSelect(id, message) {
-  const q = String(message || '').toLowerCase()
+  const q = String(message || '').toLowerCase().replace(/×/g, 'x')
   const g = GROUPS.find(x => x.id === id)
   return !!g && (g.words || []).some(re => re.test(q))
 }
-const STOCK_HISTORY = /\b(?:pull(?:ed|ing|s)?[\s-]?backs?|pulled back|pulling back|draw[\s-]?downs?|off (?:its|the|their) (?:\S+ )?highs?|(?:how far|distance) (?:off|from|below) (?:its|the|their) (?:\S+ )?highs?|(?:trading|price|daily|weekly|recent|52[\s-]?week) range|(?:last|past) \d+ (?:trading )?(?:days|sessions|weeks|months)|price history|(?:trading|stock) history)\b/
 // a CONCEPT question ("what is a pullback?") is the coach's / the model's own answer, not one stock's history
-const CONCEPT_Q = /\bwhat(?:'s| is| are) (?:a|an) |\b(?:explain|define|definition|meaning of|in plain (?:words|english))\b/
-const UNIVERSE_WORDS = /\bpull(?:ed|ing|s)?[-\s]?backs? (?:to|into|toward|near)\b|\bin (?:up|down)trends\b|\b(?:stocks|names|tickers|equities|screens?|scans?|screener|universe|watchlist|list)\b/
 export function selectGroups(message, { pendingActions = [], recentActions = [], names = null, correct = null } = {}) {
   const raw = String(message || '')
-  const q = raw.toLowerCase()
+  // W2 (CG-2): "2×2" typed with the multiplication sign reads as "2x2"
+  const q = raw.toLowerCase().replace(/×/g, 'x')
   const always = GROUPS.filter(g => g.always).map(g => g.id)
   const hits = new Set()
   // ⭐ Gate B (0C): typo-corrected readings route too ("earnigns date for amd", "opne swng board") —
@@ -300,7 +315,6 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // its pullbacks, drawdowns, distance off its high, its range, its last N days — is the data group's, however the stock
   // is named (a possessive ticker, a lower-case one, "it"). A question over a UNIVERSE of stocks ("stocks pulling back to
   // the 20") stays the screener's: these words never add data there.
-  if (texts.some(t => STOCK_HISTORY.test(t) && !UNIVERSE_WORDS.test(t) && !CONCEPT_Q.test(t))) hits.add('data')
   // "put NVDA on the left", "Switch to AMD": a ticker-shaped word (case-sensitive, on the raw
   // text) after a show/switch verb is a chart symbol request.
   if (SYMBOL_VERB.test(q) && tickerWords(raw).length) hits.add('charts')

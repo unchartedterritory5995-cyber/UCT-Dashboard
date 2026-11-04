@@ -1322,13 +1322,21 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const doUndo = useCallback(async (undoId, { member, voice, about = null, rest = false, single = false } = {}) => {
     const stack = undoRef.current
     const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
+    // OWNER RULING (W2, 11-04: "undo" after "add the 9 and 20 EMAs" took back only one EMA): a PLAIN Undo of the newest
+    // change takes back the WHOLE last request when that request committed several changes — the same turn-level group
+    // as mission 3, newest first, each through doUndoOne (every refusal unchanged). A described Undo ("undo the colour
+    // change") and an Undo of a named entry stay exactly one entry.
+    if (!undoId && !about && !single && entry) {
+      const turnIds = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => stack.some(e => e.id === id))
+      if (turnIds.length > 1 && turnIds.includes(entry.id)) return await undoIds(turnIds, { member, voice, rest, what: 'from that request' })
+    }
     const group = !single && entry?.group ? stack.filter(e => e.group === entry.group) : null
     if (!group || group.length < 2) return await doUndoOne(undoId, { member, voice, about })
     const ids = about ? group.filter(e => undoMatches(about, e)).map(e => e.id) : group.map(e => e.id)
     if (!ids.length) return await doUndoOne(undoId, { member, voice, about })   // the mismatch refusal, as before
     if (ids.length === 1) return await doUndoOne(ids[0], { member, voice })
     return await undoIds(ids, { member, voice, rest, what: 'from that request' })
-  }, [doUndoOne, undoIds])
+  }, [host, doUndoOne, undoIds])
   const undoTurn = useCallback(async ({ member, voice, rest = false } = {}) => {
     const ids = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => undoRef.current.some(e => e.id === id))
     if (ids.length <= 1) return await doUndo(ids[0] || null, { member, voice })

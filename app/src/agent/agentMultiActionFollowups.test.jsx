@@ -14,7 +14,9 @@ import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { touchesCharts, arrangesBoard, asSubjectWords } from './useAgent'
 import { AuthContext } from '../context/AuthContext'
-import { selectGroups, routeManifest } from './routing'
+import { selectGroups, routeManifest, wordsSelect } from './routing'
+import { fastParse } from './fastPath'
+import { multiChartPlan } from './multiChart'
 import { notDoneLines } from './notDone'
 import { receiptView } from './receiptView'
 import { manifestFor, MANIFEST_CONTRACT } from './capabilities'
@@ -455,5 +457,63 @@ describe('R · multi-op receipts name each chart and setting; no "already" for n
     await waitFor(() => expect(receipts()).toHaveLength(1), { timeout: 8000 })
     expect(transcript()).not.toMatch(/[Aa]lready/)
     expect(summaries()[0]).toMatch(/daily chart(?: for|:) NVDA/)
+  }, 30000)
+})
+
+// ═══ CG · the regression corpus's known gaps owned here (#769) ══════════════════════════════════════════
+describe('CG · corpus gaps — routing reads the owner\'s words', () => {
+  it('CG-1 "four equal panels" and CG-2 "2×2" (the multiplication sign) route the chart grid', () => {
+    for (const m of ['Show SPY, QQQ, NVDA and TSLA in four equal panels.', 'Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA.', 'SPY QQQ NVDA TSLA in 4 cells'])
+      expect(selectGroups(m).selected, m).toContain('chartGrid')
+  })
+  it('CG-2: the deterministic grid reader reads "2×2" as "2x2"', () => {
+    const board = makeBoard(...HALF())
+    expect(multiChartPlan('Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA.', { host: board.host })?.ops?.[0]).toMatchObject({ action: 'chartGrid.set', args: { symbols: ['SPY', 'QQQ', 'NVDA', 'TSLA'] } })
+  })
+  it('CG-4 a spelled-out indicator routes indicators; CG-5 "what\'s the setup here" routes chartSetup', () => {
+    expect(selectGroups('add the relative strength index').selected).toContain('indicators')
+    expect(wordsSelect('chartSetup', "what's the setup here")).toBe(true)
+    expect(wordsSelect('chartSetup', 'whats the setup on this chart')).toBe(true)
+  })
+  it('CG-6/7/7b: one stock\'s history names the DATA group by its own words; "drawdowns" is never a drawing', () => {
+    for (const m of ["show me NVDA's recent pullbacks", 'nvda pullbacks', 'how far has NVDA pulled back', 'NVDA drawdowns this year', 'NVDA distance from the 52-week high'])
+      expect(wordsSelect('data', m), m).toBe(true)
+    expect(wordsSelect('drawings', 'NVDA drawdowns this year')).toBe(false)
+    expect(wordsSelect('drawings', 'draw a line at 500')).toBe(true)
+  })
+  it('CG-9: "put my layout back" is an Undo (words and routing)', () => {
+    expect(fastParse('put my layout back')).toEqual({ kind: 'undo', about: 'layout' })
+    expect(fastParse('put the charts back the way they were')).toEqual({ kind: 'undo', about: 'chart' })
+    expect(selectGroups('put my layout back').selected).toContain('undo')
+  })
+  it('CG-9 (panel): "put my layout back" after a 2×2 grid restores the board', async () => {
+    const { board, h, say } = mount(...HALF())
+    const before = shape(board, h)
+    await say('Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.')
+    await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
+    await say('put my layout back')
+    await waitFor(() => expect(shape(board, h)).toBe(before), { timeout: 8000 })
+    expect(turnBodies()).toHaveLength(0)
+  }, 30000)
+  it('breadth: "hows breadth today" (no apostrophe) is read deterministically, like "how\'s breadth today"', () => {
+    for (const t of ['hows breadth today', "how's breadth today", 'how’s breadth today'])
+      expect(fastParse(t)?.ops?.[0]?.action, t).toBe('breadth.show')
+  })
+})
+
+describe('OWNER RULING · a plain "undo" after a multi-change request takes back the WHOLE request', () => {
+  it('"add RSI and switch to weekly" (two steps) → "undo" → both taken back; a described Undo still takes one', async () => {
+    const { board, h, say } = mount(...HALF())
+    const before = shape(board, h)
+    envelopes.push(b => env('apply', [
+      { action: 'chart.setTimeframe', target: b.context.charts[0].ref, args: { timeframe: 'W' } },
+      { action: 'indicator.add', target: b.context.indicatorEdits[0].ref, args: { defId: 'rsi', inputs: null } },
+    ]))
+    await say('put the rsi study on and flip it over to the weekly view for me')
+    await waitFor(() => expect(JSON.stringify(board.state.widgets[0].opts)).toMatch(/"defId":"rsi"/), { timeout: 8000 })
+    expect(h.charts.read('c1').tf).toBe('W')
+    await say('undo')
+    await waitFor(() => expect(shape(board, h)).toBe(before), { timeout: 8000 })
+    expect(transcript()).toMatch(/Took back all 2 changes from that request/)
   }, 30000)
 })
