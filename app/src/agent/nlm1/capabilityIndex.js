@@ -1,0 +1,180 @@
+// ── NLM-1 D1 · REGISTRY-DERIVED CAPABILITY INDEX ─────────────────────────────────────────────────────────────
+//
+// A lexical index GENERATED from the canonical capability manifest (manifestFor: the same list the model is shown):
+// each routing group is one document made of its capabilities' names (camelCase split), summaries, argument names
+// and enum values, the group's own title, and — for the indicators group — the indicator catalog's names (the
+// registry's addable rows, the member's own saved ones included). A capability that ships tomorrow is routable by
+// its own words the day it registers; nothing here is hand-written per group.
+//
+// On top: the curated TRADER VOCABULARY (vocabulary.json, data, reviewed) — "studies", "oscillator", "pane",
+// "levels", "s/r", "quad" … → the groups they point at.
+//
+// Scoring is BM25 over the group documents plus the vocabulary's direct weights. Pure and deterministic: no model
+// call, no network, no state beyond a memo keyed on the manifest's names and the catalog's names.
+
+import { GROUPS, groupOfAction } from '../routing'
+import { addableRows } from '../capabilities/indicatorEdits'
+import vocabulary from './vocabulary.json'
+
+export const INDEX_VERSION = 1
+
+// ── text → tokens ──────────────────────────────────────────────────────────────────────────────────────────────
+const STOP = new Set(('a an the to of on in for and or my me i it its this that these those is are be was were with please can could would ' +
+  'should will you u your just from at by as do does did so if then than into onto up out about any some one ones also too now ' +
+  'want need like get got make let lets us we our them they their there here what which who how when where why all each every ' +
+  'not no yes ok okay hey thanks thank pls').split(' '))
+
+export function stem(w) {
+  if (w.length <= 3 || /\d/.test(w)) return w
+  if (w.endsWith('ies') && w.length > 4) return w.slice(0, -3) + 'y'
+  if (w.endsWith('ing') && w.length > 5) return w.slice(0, -3)
+  if (w.endsWith('ed') && w.length > 4) return w.slice(0, -2)
+  if (/(?:ss|us|is)$/.test(w)) return w
+  if (/(?:sh|ch|x|s)es$/.test(w)) return w.slice(0, -2)
+  if (w.endsWith('s')) return w.slice(0, -1)
+  return w
+}
+const splitCamel = (s) => String(s || '').replace(/([a-z])([A-Z])/g, '$1 $2')
+export function tokens(text) {
+  const words = String(text || '').toLowerCase().replace(/×/g, 'x').match(/[a-z0-9]+/g) || []
+  return words.filter(w => !STOP.has(w)).map(stem)
+}
+
+// ── the vocabulary: phrase patterns, compiled once ─────────────────────────────────────────────────────────────
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
+function compileTerm(term) {
+  // "copy * indicators": an inner * is ONE word; "ema*": a trailing * is any word ending
+  const parts = term.trim().split(/\s+/).map((p, i, all) => {
+    if (p === '*') return '\\S+'
+    const trail = p.endsWith('*') && i === all.length - 1
+    const body = esc(trail ? p.slice(0, -1) : p)
+    return trail ? `${body}\\S*` : body
+  })
+  return new RegExp(`(?:^|[^a-z0-9%/])${parts.join('\\s+')}(?=$|[^a-z0-9])`)
+}
+let TERMS = null
+export function vocabularyTerms() {
+  if (!TERMS) TERMS = Object.entries(vocabulary.terms).map(([term, groups]) => ({ term, re: compileTerm(term), groups }))
+  return TERMS
+}
+export const RELATED = vocabulary.related
+export const VOCAB_CAP = 1.5
+
+/** The vocabulary's direct group weights for a message: { groupId: weight } (the max over the terms that matched). */
+export function vocabularyHits(text) {
+  const q = ` ${String(text || '').toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ')} `
+  const out = {}
+  const matched = []
+  for (const t of vocabularyTerms()) {
+    if (!t.re.test(q)) continue
+    matched.push(t.term)
+    // several terms naming one group add up (capped at VOCAB_CAP): "find stocks with …" is more screener than "stocks"
+    for (const [g, w] of Object.entries(t.groups)) out[g] = Math.min(VOCAB_CAP, (out[g] || 0) + w)
+  }
+  return { groups: out, terms: matched }
+}
+
+// ── the index ──────────────────────────────────────────────────────────────────────────────────────────────────
+const W_TITLE = 2
+const W_NAME = 2
+const W_SUMMARY = 1
+// how much a token TELLS, by the field it came from: a capability's name, its group's title, its argument words and the
+// catalog's names are what it IS; summary prose ("show the real matches") is incidental — half the evidence
+const F_SUMMARY = 0.5
+const W_ARG = 1
+const W_CATALOG = 1.5
+const K1 = 1.2
+const B = 0.5
+
+function catalogNames() {
+  // each addable row: its name, its id (camelCase split) and its settings line ("period, maType ema|sma…")
+  try { return addableRows().map(r => [r.name, splitCamel(r.defId), typeof r.settings === 'string' ? r.settings : JSON.stringify(r.settings || '')].join(' ').trim()).filter(Boolean) } catch { return [] }
+}
+
+function argWords(schema) {
+  const out = []
+  const props = schema?.properties || {}
+  for (const [k, v] of Object.entries(props)) {
+    out.push(splitCamel(k).replace(/_/g, ' '))
+    for (const e of v?.enum || v?.items?.enum || []) if (typeof e === 'string') out.push(splitCamel(e).replace(/[_-]/g, ' '))
+  }
+  return out.join(' ')
+}
+
+let MEMO = { key: null, index: null }
+
+/**
+ * The index for a manifest: { docs: Map<group, Map<token, weightedTf>>, len: Map<group, n>, avg, idf: Map<token, idf>, groups: [ids] }.
+ * Memoised on the manifest's names + the catalog's names (both change only when the registry / the member's catalog does).
+ */
+export function buildIndex(manifest) {
+  const cat = catalogNames()
+  const key = manifest.map(c => c.name).join('|') + '#' + cat.join('|')
+  if (MEMO.key === key) return MEMO.index
+  const docs = new Map()
+  const field = new Map()
+  const add = (g, text, w, f = 1) => {
+    if (!g) return
+    const d = docs.get(g) || new Map()
+    const fw = field.get(g) || new Map()
+    for (const t of tokens(text)) { d.set(t, (d.get(t) || 0) + w); fw.set(t, Math.max(fw.get(t) || 0, f)) }
+    docs.set(g, d); field.set(g, fw)
+  }
+  for (const c of manifest) {
+    const g = groupOfAction(c.name)
+    add(g, splitCamel(String(c.name).replace(/\./g, ' ')), W_NAME)
+    add(g, c.summary || '', W_SUMMARY, F_SUMMARY)
+    add(g, argWords(c.args), W_ARG)
+  }
+  for (const g of GROUPS) if (docs.has(g.id)) add(g.id, g.title, W_TITLE)
+  if (docs.has('indicators')) for (const n of cat) add('indicators', n, W_CATALOG)
+  const len = new Map([...docs].map(([g, d]) => [g, [...d.values()].reduce((a, b) => a + b, 0)]))
+  const avg = [...len.values()].reduce((a, b) => a + b, 0) / Math.max(1, len.size)
+  const df = new Map()
+  for (const d of docs.values()) for (const t of d.keys()) df.set(t, (df.get(t) || 0) + 1)
+  const N = docs.size
+  const idf = new Map([...df].map(([t, n]) => [t, Math.log(1 + (N - n + 0.5) / (n + 0.5))]))
+  const index = { docs, field, len, avg, idf, groups: [...docs.keys()] }
+  MEMO = { key, index }
+  return index
+}
+
+// ── ENTITY TYPING: what a value IS → the registry's own argument vocabulary ───────────────────────────────────
+// "march 2020" is a `date`, "182.50" a `price`, "AMD" a `symbol`, "orange" a `color`, "65 minute" a `timeframe` —
+// the words capabilities NAME their arguments with, so a message that only carries values still finds the
+// capabilities that take them. Weighted lower than a word (a date fits replay, breadth and drawings alike).
+const MONTHS = /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? ?(?:\d{1,2}(?:st|nd|rd|th)?\b|(?:19|20)\d\d\b|low|high|top|bottom)|\b(?:january|february|march|april|june|july|august|september|october|november|december)\b/i
+const DATEISH = /\b(?:(?:19|20)\d\d-\d\d-\d\d|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|(?:19|20)\d\d|yesterday|last (?:mon|tues|wednes|thurs|fri)day|(?:mon|tues|wednes|thurs|fri)day)\b/i
+const PRICEISH = /(?:\$\d|\b\d+\.\d{1,2}\b|\b(?:at|to|above|below|under|over|hits?|breaks?|gets? to) \$?\d{2,5}\b)/i
+const COLORISH = /\b(?:red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y|cyan|magenta|lime|gold|navy|maroon)\b/i
+const TFISH = /\b\d+ ?(?:m|min|mins|minute|minutes|h|hr|hour|hours|d|day|w|week)\b/i
+const NOT_TICKER = new Set(['I', 'A', 'UCT', 'ETF', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'ADR', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC', 'OHLC', 'VWAP', 'AVWAP', 'MA', 'MAS', 'VCP', 'EPS', 'COT', 'ADX', 'OBV', 'CCI', 'PE'])
+export const ENTITY_W = 0.5
+export function entityTokens(raw) {
+  const s = String(raw || '')
+  const out = []
+  if (MONTHS.test(s) || DATEISH.test(s)) out.push('date')
+  if (PRICEISH.test(s)) out.push('price')
+  if (COLORISH.test(s)) out.push('color')
+  if (TFISH.test(s)) out.push('timeframe')
+  if ((s.match(/(?:^|[\s$(,])([A-Z]{1,5})(?=['’]s\b|[\s,.!?)]|$)/g) || []).map(w => w.trim().replace(/^[$(,]/, '')).some(w => !NOT_TICKER.has(w))) out.push('symbol')
+  return out
+}
+
+/** BM25 of each group for query tokens — `weights` (token → factor, default 1) discounts weak evidence. */
+export function lexicalScores(index, qTokens, weights = null) {
+  const out = {}
+  const uniq = [...new Set(qTokens)]
+  for (const g of index.groups) {
+    const d = index.docs.get(g)
+    const norm = K1 * (1 - B + B * (index.len.get(g) / index.avg))
+    let s = 0
+    for (const t of uniq) {
+      const tf = d.get(t)
+      if (!tf) continue
+      s += (weights?.get(t) ?? 1) * index.field.get(g).get(t) * index.idf.get(t) * (tf * (K1 + 1)) / (tf + norm)
+    }
+    if (s > 0) out[g] = s
+  }
+  return out
+}

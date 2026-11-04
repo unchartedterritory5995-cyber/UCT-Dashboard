@@ -37,7 +37,8 @@ import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutpu
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT, normalizeArgs } from './capabilities'
 import { UNDO_ACTION } from './capabilities/about'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
-import { routeManifest, routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
+import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
+import { pickRouter } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
 import { doItForMe } from './capabilities/guide'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
@@ -2115,7 +2116,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const askedGroups = carryAsked && askedGroupsRef.current ? askedGroupsRef.current : []
       askedGroupsRef.current = null
       if (askedGroups.length) routeOpts.after = askedGroups
-      let routed = routeManifest(full, text, routeOpts)
+      const route = pickRouter()
+      let routed = route(full, text, routeOpts)
       lastRoutedRef.current = routed.routing ? routed.routing.selected : null
       mark('route', routed.routing ? `${routed.manifest.length}/${full.length}` : 'full')
       // Data that can change outside this panel is re-read first (bounded) — Phase 2: only for the
@@ -2157,7 +2159,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
         // The groups the model needs come first; whatever no longer fits the budget is dropped
         // from THIS request (named, not sent). If a needed group itself cannot fit, stop honestly.
-        routed = routeManifest(full, text, routeOpts, need)
+        routed = route(full, text, routeOpts, need)
         lastRoutedRef.current = routed.routing ? routed.routing.selected : null
         live.settle(null)
         if (!need.every(g => routed.routing?.selected?.includes(g) || !routed.routing)) {
