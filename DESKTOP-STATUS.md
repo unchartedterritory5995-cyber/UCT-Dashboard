@@ -1,11 +1,11 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 04:14 CT
+updated: 2026-11-04 04:22 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
-baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
+baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. UPDATE: on masters at or after 96582cd549 (2026-11-02 Study workbench), src/components/chart/settingsScope.rail.test.js is also red on master (static scan of src/lab/StudyChart.jsx:32), so lanes tested there show 2 failed files. pine-dsk-smoke removed (junction rmdir'd first).
 poll on ops/pine-coord: ARMED (15 min). Read 063fe2ba8e (KEEP BUILDING, pause cancelled for the desktop) at 23:55 CT: acknowledged; nothing was paused here. After the queue, the desktop picks further W4/W5 work whose dependencies are met, per that note.
 >>> PAUSE BANNER SUPERSEDED FOR THE DESKTOP BY THE OWNER'S DIRECT INSTRUCTION <<<
 After fd609214e4 was written, the owner told this desktop session directly: "pausing laptop work and saving it and resuming everything here".
@@ -168,12 +168,15 @@ open: (1) the 854c1c507a fix from the WIP list was NOT applied: still open. (2) 
 note on "baseline": the desktop baseline (1 failed file) is for final-tip's chart+hooks vitest only. P11's 25 files come from the wider gate suite, where 17 pre-existing master reds is consistent, not a stale baseline.
 desktop check: PASS (all changed files under docs/, local == origin, worktree clean)
 
-## W4-T14 (picked per coord note 063fe2ba8e: dependencies met)
-state: BUILDING   round: r0   updated: 2026-11-04 00:25 CT
-branch: feat/pine-w4-t14   base: origin/master   worktree: pine-dsk-w4t14   model: Sonnet
-why this one: Batch 3, no dependency (T9 waits on T2 merge, T8 on T7, T10 on T1, T15 on T0's re-count). Region FE :7810-8040, :8218-8225 overlaps no in-flight lane.
-engine bump needed: decided at READY
-next: built-in Volatility Stop per W4-BREAKDOWN T14; measure-pair on pine-dsk-mpbase2 (mp2 lane), final-tip on lane 2
+## W4-T14 (picked per 063fe2ba8e: dependencies met)
+state: READY            round: r0            updated: 2026-11-04 04:22 CT
+branch: feat/pine-w4-t14   tip: 27c2d0fa1d (EVIDENCE over code tip 458c914961)   tested on master: 03a42b201a
+engine bump needed: YES (SCRIPT_ENGINE_VERSION not edited)
+evidence: docs/pine/evidence/2026-11-04-w4-t14/EVIDENCE.md
+report: ast/pineRuntimeFrontend.js T14 bands only. A v6 unmatched `if` (no else) or `switch` (no default) now yields `false` when every arm value is a provable bool (comparison, and/or/not, true/false, input.bool, a name declared bool or bound to a provable bool, a UDF whose every result is one, a ternary whose both branches are). v5 still gives na; unprovable shapes keep the named runtime:block-value refusal; the OBJECT door keeps Q-A3 refused; a tuple sink is never served false. New rail runtime/__tests__/w4V6Bool.test.js (17); 7 tests in p3WsaReviewFixes.test.js rewritten from "refused" to served. Rails: FE at master bytes -> 18 of 100 fail across the two files; tip 144/144 incl. p3WsaDarkGate; 10 related block-value rail files pass (264). Mutations (heavy-mut) 15/16 killed; survivor equivalent (dropping the single-slot restriction on the false fallback changes nothing because tuple arm values never parse as a provable bool). measure-pair (heavy-mp2, mpbase2 at 03a42b201a), rt0+rt1: C18 audit and probes 0 diffs; harness totals identical; census 967 rows, 0 unintended: rt0 2 rows NOISE (volatility-coil-edge-bullbyte, halftrend-longshort-signal-engine-bigbeluga: timeout step jitter); rt1 3 rows INTENDED (ict-institutional-order-flow-fadi, volume-delta-oi-delta-kioseff-trading, mirage-liquidity-sweep-pro-willyalgotrader: first wall moves off runtime:block-value, all stay unattached). volatility-stop is not in the sample, so no attach measured for it. final-tip (heavy-final2; the first run overlapped measure-pair and was DISCARDED; re-run alone, no zzMP files in js.log): gate pytest 46, hygiene clean, vitest 2 failed | 1333 passed | 27 skipped: pollingSites.rail (baseline) + settingsScope.rail.
+settingsScope.rail = NEW MASTER RED, not this branch (desktop-verified): it is a static acorn scan failing on app/src/lab/StudyChart.jsx:32; src/lab and the rail are byte-identical to origin/master on this branch; StudyChart.jsx came from 96582cd549 (2026-11-02 Study workbench round 3), which is NOT in the desktop baseline master 5d95103c8a but IS in 03a42b201a. Every lane tested on a master at or after 96582cd549 will show it. The desktop baseline for such lanes is 2 failed files.
+open: Q-A3 TradingView capture not taken: the documented v6 reading (false) is served; if the capture disagrees, revert only the falseFallback branch.
+desktop check: PASS (scope, rails, 15/16 with 1 equivalent, measure-pair both lanes, final-tip at baseline + one master red, local == origin, worktree clean)
 
 ## W5-T7 (picked per 063fe2ba8e: needs T1 + T6, both READY; stacked on T6)
 state: READY            round: r0            updated: 2026-11-04 04:20 CT
