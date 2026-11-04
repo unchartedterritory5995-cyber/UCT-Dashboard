@@ -148,7 +148,7 @@ export function registerSavedScreenCapabilities() {
     },
   })
 
-  const common = { surfaces: ['charts'], target: 'savedScreens', exclusive: true, exclusiveReason: 'Do the saved-screen change on its own, then ask for anything else.' }
+  const common = { surfaces: ['charts', 'screener'], target: 'savedScreens', exclusive: true, exclusiveReason: 'Do the saved-screen change on its own, then ask for anything else.' }
 
   registerCapability({
     ...common,

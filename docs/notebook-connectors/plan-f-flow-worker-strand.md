@@ -64,3 +64,19 @@ At 20 rows per 10 minutes, N rows drain in about N/2 minutes, OCR included for i
 | | | |
 
 The same query is in `docs/runbooks/note-import-repair.md`, "Before the deploy".
+
+## 2026-11-03: deleted destination folder fix (`fix/connector-missing-dest-folder`)
+
+`tools/flow_worker_watch_coverage.py` flags `api/services/journal_two/notes.py`. Classification: **flow-worker stranded: ADDITIVE, safe; discharge by marker bump at the next window. No flow-worker redeploy is forced.**
+
+- Flow-worker reaches `notes.py` by exactly one chain: `flow_worker_main` → `flow_router` → `flow_admin_auth` → `auth_service` → `auth_db` → `journal_two/db` → `notes`.
+- `db.py` imports only `convert_playbook_to_tiptap` and `extract_plain_text` from `notes`, lazily, inside migration helpers. Neither function changed.
+- Flow-worker never calls `delete_folder` or `import_confirm`, and never raises or catches `DestinationFolderNotFound`.
+- `dest_folder.py` and `engine.py` are not in its import closure.
+
+## 2026-11-03: Evernote rate-limit fix (`fix/evernote-tool-rate-limit`)
+
+`tools/flow_worker_watch_coverage.py` flags `api/services/journal_two/db.py` and `api/services/journal_two/note_connectors/providers/base.py`. Classification: **flow-worker stranded, ADDITIVE and safe. Discharge with a marker bump at the next window. No forced flow-worker redeploy.**
+
+- `base.py`: flow-worker uses only `_is_disallowed_ip`, which is unchanged. It is reached through `alert_taxonomy.outbound_webhooks`.
+- `db.py`: the new nullable column `j2_note_sources.sync_state` and its ALTER run only inside `auth_db.init_db`, which flow-worker never runs.

@@ -64,6 +64,35 @@ function Headlines({ items }) {
   )
 }
 
+// RS-1 research: the three sections the contract names, then the dated sources. Facts first (UCT's own data,
+// each sentence naming its source and time); web commentary is labelled as such and never mixed into the facts.
+const RESEARCH_SECTIONS = [['facts', "What UCT's data shows"], ['interpretation', 'Interpretation (web commentary, not UCT data)'], ['unknown', 'Not known / not available']]
+function Research({ view }) {
+  return (
+    <div className={styles.research} data-testid="agent-result-research">
+      {RESEARCH_SECTIONS.map(([key, label]) => (view[key]?.length > 0 && (
+        <section key={key} className={styles.section} data-testid={`agent-research-${key}`}>
+          <h4 className={styles.sectionTitle}>{label}</h4>
+          <ul className={styles.sectionList}>{view[key].map((s, i) => <li key={i}>{s}</li>)}</ul>
+        </section>
+      )))}
+      {view.cited?.length > 0 && (
+        <section className={styles.section} data-testid="agent-research-sources">
+          <h4 className={styles.sectionTitle}>Sources</h4>
+          <ul className={styles.cited}>
+            {view.cited.map((c, i) => (
+              <li key={i}>
+                <span className={styles.meta}>{c.when}</span>
+                {c.url ? <a href={c.url} target="_blank" rel="noreferrer noopener">{c.title}</a> : <span>{c.title}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  )
+}
+
 function OpenLink({ link }) {
   const inRouter = useInRouterContext()
   return inRouter
@@ -126,7 +155,7 @@ const METRIC = new Set(['value', 'comparison', 'metrics', 'range'])
 
 // structured views use the column's width (so their figures sit side by side); a single figure and
 // short prose stay as compact as their content
-const FULL = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
+const FULL = new Set(['comparison', 'metrics', 'range', 'table', 'headlines', 'research'])
 
 export default function AgentResult({ view, onOpenChart = null, busy = false }) {
   const body = (() => {
@@ -151,6 +180,14 @@ export default function AgentResult({ view, onOpenChart = null, busy = false }) 
           <>
             {view.title && <div className={styles.title}>{view.title}</div>}
             <Headlines items={view.headlines} />
+          </>
+        )
+      case 'research':
+        return (
+          <>
+            {view.title && <div className={styles.title}>{view.title}</div>}
+            <Research view={view} />
+            {view.note && <div className={styles.note}>{view.note}</div>}
           </>
         )
       default:

@@ -1,0 +1,128 @@
+{
+  "enml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div><a href=\"https://example.com/chart\"><en-media hash=\"365dccce50f2d8411c4e737c7ff0057d\" type=\"image/png\"/>chart page</a></div><div><a href=\"https://example.com/only-image\"><en-media hash=\"2532ebd4e83baf1960c50dccf0919a3d\" type=\"image/png\"/></a></div><div><a href=\"evernote:///view/123/s1/22222222-0000-4000-8000-00000000000a/22222222-0000-4000-8000-00000000000a/\"><en-media hash=\"365dccce50f2d8411c4e737c7ff0057d\" type=\"image/png\"/></a></div><div><a href=\"/relative/path\"><en-media hash=\"752edbf5288dd63f3481a3f7fe6adc94\" type=\"application/pdf\"/></a></div><div><a href=\"https://www.evernote.com/l/AbCdEf\"><en-media hash=\"2532ebd4e83baf1960c50dccf0919a3d\" type=\"image/png\" alt=\"Second chart\"/></a></div><div><a href=\"https://www.evernote.com/l/ZzYyXx\"><en-media hash=\"2532ebd4e83baf1960c50dccf0919a3d\" type=\"image/png\"/></a></div><div><a href=\"https://www.evernote.com/shard/s1/nl/123/22222222-0000-4000-8000-00000000000a/\"><en-media hash=\"2532ebd4e83baf1960c50dccf0919a3d\" type=\"image/png\"/></a></div></en-note>",
+  "id": "08-link-around-image",
+  "note": {
+    "created": "20260101T090000Z",
+    "guid": "11111111-0000-4000-8000-000000000008",
+    "notebook": "Trading",
+    "notes": {
+      "22222222-0000-4000-8000-00000000000a": "Target Note"
+    },
+    "resources": [
+      {
+        "data_b64": "dWN0LWZpeHR1cmUtaW1hZ2UtY2hhcnQ=",
+        "hash": "365dccce50f2d8411c4e737c7ff0057d",
+        "mime": "image/png",
+        "name": "chart.png"
+      },
+      {
+        "data_b64": "dWN0LWZpeHR1cmUtaW1hZ2Utc2Vjb25k",
+        "hash": "2532ebd4e83baf1960c50dccf0919a3d",
+        "mime": "image/png",
+        "name": "second.png"
+      },
+      {
+        "data_b64": "dWN0LWZpeHR1cmUtcGRmLXJlcG9ydA==",
+        "hash": "752edbf5288dd63f3481a3f7fe6adc94",
+        "mime": "application/pdf",
+        "name": "report.pdf"
+      }
+    ],
+    "title": "Linked images note"
+  },
+  "server": {
+    "blocks": [
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "chart page",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "https://example.com/only-image",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "Linked note",
+        "type": "paragraph"
+      },
+      {
+        "text": "[file: report.pdf]",
+        "type": "attachmentChip"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "Second chart",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "https://www.evernote.com/l/ZzYyXx",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "Linked note",
+        "type": "paragraph"
+      }
+    ],
+    "chips": [
+      "report.pdf"
+    ],
+    "images": [
+      "365dccce50f2d8411c4e737c7ff0057d",
+      "2532ebd4e83baf1960c50dccf0919a3d",
+      "365dccce50f2d8411c4e737c7ff0057d",
+      "2532ebd4e83baf1960c50dccf0919a3d",
+      "2532ebd4e83baf1960c50dccf0919a3d",
+      "2532ebd4e83baf1960c50dccf0919a3d"
+    ],
+    "links": [
+      {
+        "target": "https://example.com/chart",
+        "text": "chart page"
+      },
+      {
+        "target": "https://example.com/only-image",
+        "text": "https://example.com/only-image"
+      },
+      {
+        "target": "note:Target Note",
+        "text": "Linked note"
+      },
+      {
+        "target": "note:Second chart",
+        "text": "Second chart"
+      },
+      {
+        "target": "https://www.evernote.com/l/ZzYyXx",
+        "text": "https://www.evernote.com/l/ZzYyXx"
+      },
+      {
+        "target": "note:Target Note",
+        "text": "Linked note"
+      }
+    ],
+    "notices": [],
+    "task_checked": []
+  }
+}

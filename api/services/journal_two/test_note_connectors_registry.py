@@ -29,7 +29,8 @@ def test_import_is_inert_with_zero_env_vars(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     from api.services.journal_two.note_connectors import registry
     importlib.reload(registry)  # re-run module body with the clean env -- must not raise
-    assert registry.names() == ["roam", "craft", "notion", "dropbox", "onenote", "onedrive", "obsidian"]
+    assert registry.names() == ["roam", "craft", "notion", "dropbox", "onenote", "onedrive", "obsidian",
+                                "evernote"]  # Plan E Task 6
     assert registry.configured("notion") is False
     assert registry.configured("dropbox") is False
     assert registry.configured("onenote") is False
@@ -89,8 +90,9 @@ def test_configured_reflects_env_for_obsidian(monkeypatch):
 
 def test_configured_is_false_not_raising_for_an_unknown_provider():
     from api.services.journal_two.note_connectors import registry
-    assert registry.configured("evernote") is False
-    assert registry.is_known("evernote") is False
+    # Plan E Task 6: "evernote" is a real provider now; this pins the contract on an unknown name.
+    assert registry.configured("evernote-legacy") is False
+    assert registry.is_known("evernote-legacy") is False
 
 
 def test_build_provider_dispatches_to_the_right_class():
@@ -115,7 +117,7 @@ def test_build_provider_dispatches_to_the_right_class():
 def test_build_provider_raises_not_configured_for_an_unknown_name():
     from api.services.journal_two.note_connectors import registry, errors
     with pytest.raises(errors.NoteConnNotConfigured):
-        registry.build_provider("evernote")
+        registry.build_provider("evernote-legacy")
 
 
 def test_build_provider_threads_the_source_row_folder_path_to_dropbox():

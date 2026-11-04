@@ -98,6 +98,22 @@ Continue Wave 2 aggressively after Wave 1.1; begin Wave 3 (intelligent trading c
 | Deterministic evaluation suite: factual accuracy (every figure traceable), uncertainty stated, unsupported conclusions refused (no "guaranteed", "will", "sure thing"), no order/trading language | none | yes |
 Acceptance (Wave 3): (a) "explain what a tight consolidation means and why volume matters" → grounded educational answer, no figure invented; (b) "review my last 10 trades" → consent prompt → descriptive review from the member's own journal rows, value-free in telemetry; (c) "what's the setup here" on a chart → uses `chart.describeSetup` output, adds the educational layer, never a target or guarantee; (d) "how did names with this setup do before" → uses the Wave 2 event-study kind; (e) coaching follow-ups keep context; (f) the eval suite's unsupported-claim detector blocks at least 20 adversarial phrasings. All Wave 3 capabilities default OFF behind `UCT_AGENT_COACH` (new server flag, default off) and admin-only.
 
+
+## Trading Brain integration (owner mission 2026-11-03, after the usage-limit pause)
+AUDIT is the integrator for PR #735 (agent/kn/knowledge-poc, Trading Brain knowledge kinds: knowledge.search, setup.playbook, setup.record; 5,270 admitted entries; default-deny source policy; flag `UCT_AGENT_KNOWLEDGE` default off). Phases: (1) independent code review against the owner's nine points; fix integration defects with review + regression tests; (2) combined trading-analysis workflows — Example A knowledge definition with sources; B "analyze NVDA against UCT's momentum breakout criteria" (criteria → served evidence vs interpretation; needs W2-B3 chart.describeSetup + a criteria mapping); C historical research with sample sizes/uncertainty, never a proven edge; D scan + knowledge + workspace; (3) repeatable deterministic with-Brain vs without-Brain evaluation (definitions, setup interpretation, grounding, attribution, statistics, ambiguity, freshness, refusals, multi-step, regression) — free first, no paid evals; (4) ONE coordinated integration candidate `agent/rc/brain-w2` (agent/int-w2 + #735 + the Wave 2 PRs it needs), independently reviewed, all tests passing; (5) report with GO/HOLD. Boundaries: preserve everything built; admin-only; knowledge flags stay OFF in production; no new admitted sources; no proprietary exposure; no paid evals; no merge to master or deploy without explicit approval; do not interrupt Wave 1.1/2/3. Wisdom vocabulary is the authoritative setup terminology (the Wave 3 coach KB must map to it). Merges into shared integration branches remain frozen; the candidate branch is where assembly happens.
+
+
+## Owner decisions 2026-11-03 (after the Fable-limit recovery)
+- **D1 Wisdom vocabulary: APPROVED WITH RESTRICTIONS.** Additive expansion of the authoritative Wisdom setup vocabulary to cover the missing Brain templates: map all 48; separate missing concepts from aliases/synonyms/overlaps; preserve canonical IDs and behaviour; resolve ambiguity explicitly; no change to the Wisdom scoring engine, setup evaluation logic, historical statistics or the partner's Brain; Wisdom maintainer review before merge; tests proving existing Wisdom behaviour unchanged; any substantive methodology change is HELD for the owner. Work: branch `wisdom/vocab-brain-expansion` (C:/w/wv-1), draft PR, DO NOT MERGE.
+- **D2 Planner v2 cost cap: KEEP $0.25 per turn.** Authorized: efficient planner architecture (relevant capability selection, smaller catalogs, deferred tool discovery, prompt/token optimization, cost-aware routing incl. evaluating Haiku 5.5). No production model switch; v2 stays OFF; free deterministic tests first; paid evals only within separately approved limits; measure tokens, cost, routing and tool-selection accuracy, multi-step success; if quality cannot fit the cap, report tradeoffs, never weaken the limit.
+- Freeze unchanged: no merge or deploy without explicit approval. Priorities: (1) Wave 1.1 reviews, (2) Wave 2 integration issues, (3) planner v2 readiness within the cap, (4) Wave 3 coach testing, (5) #735 review and cross-wave compatibility.
+
+
+## Owner decisions at resume (after the weekly-limit reset, 2026-11-03)
+- **A/D line:** approved as a PUBLIC Screener field only if it is the conventional accumulation/distribution line computed entirely from public OHLCV with the canonical calculation; the UCT `accdis` rating stays hidden (F-16). If only the proprietary field exists → HOLD and report.
+- **Wave 1.1:** GO to finish and prepare the combined candidate (#727 blocking fixes, #725 hardening, assembly on agent/rc/w11, full tests, independent review). NOT merged or deployed; the release decision comes back to the owner with the exact commit, tests, security assessment, rollback plan and GO/HOLD.
+- Resume priorities: 1 Wave 1.1 · 2 research B1/B2 · 3 planner within $0.25 · 4 coach C1/C2 · 5 #735 review · 6 chart setup, Explain/Show/Do, Wisdom mapping in parallel. Waves 2/3 and the Brain must not delay Wave 1.1.
+
 ## Activation checklist (admin-only; owner sets flags; order is mandatory)
 1. `UCT_AGENT_STREAM=1` — after production flags are verified.
 2. `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,quotes,instrument.resolve` — after RC1.
@@ -106,3 +122,30 @@ Acceptance (Wave 3): (a) "explain what a tight consolidation means and why volum
 5. `UCT_AGENT_SCAN=1` — only after F-16 (#654/#657/#661 content) is on master, isolation audit cells 23/24 closed, rails green, and an independent verification is recorded in BOARD.
 6. `UCT_AGENT_PLANNER=v2` — only after the sealed-set result meets target with 0 FAIL and the owner approves the model.
 7. `UCT_AGENT_ISOLATED`, `UCT_AGENT_NL1`, `AGENT_BREADTH_CURRENT` — stay OFF in Wave 1.
+
+## Wave 3 — intelligent trading coach (owner-authorized 2026-11-03, builder w3-a, branch `agent/w3/coach` → base `agent/int-w3`)
+
+**Scope.** The Agent as an educational trading coach: explains trading concepts from a curated knowledge base
+(`docs/agent/coach/concepts/*.md`, ≥ 12 concepts) with ONE grounded observation from the open chart; a deterministic
+evaluation suite (`api/services/uct_agent/coach/guard.py` + browser mirror) applied to every coach reply server-side;
+trade-review foundations over the member's OWN journal (consent-gated, descriptive stats only, a PROPOSED note the
+member approves); a single-turn coaching workflow (explain → what to check → one question back, `coach.next` quick
+replies). W3-5 (`chart.describeSetup`) and W3-6 (`history.eventStudy`) are BLOCKED on Wave 2: their contract is
+`contracts/COACH-1.md`; nothing of them is built.
+
+**Dependencies.** Wave 1 (on `agent/int-w3`): conversation state (`store.STATE_KEYS`, W1-C), the MD-1 `bars.daily`
+kind for the observation, the j2 journal routes as read-only consumers. Wave 2 for W3-5/W3-6 only.
+
+**Hard rules (verbatim in effect).** Every new capability default OFF behind the NEW server flag `UCT_AGENT_COACH`
+(reported by `/api/agent/config` as `coach`) and admin-only. No autonomous trading, order placement, price targets, or
+any guaranteed / will / sure claim. Every figure in a coach answer comes from an envelope or the member's own journal
+rows (never invented); "Educational, not advice" on every coach answer. The member's journal is read ONLY after an
+explicit per-conversation consent (`coach.consent` → state key `coachConsent`, with a clear revoke); journal writes
+are limited to a PROPOSED note; telemetry is value-free (ADR-005 style: codes, counts, dates).
+
+**Acceptance.** Rails green: the concept base parses with the four sections and passes its own guard; the shared
+adversarial fixture (≥ 20 violating, ≥ 10 clean phrasings) trips exactly its codes on BOTH implementations; a coach
+turn's violating reply is replaced server-side and logged value-free; a coach answer never carries a figure absent
+from its inputs; the golden manifest is unchanged on a dark server; nothing under `coach/` calls a j2 write except
+`journal.proposeNote` → `POST /api/j2/notes`. PRs: W3-1+W3-2, then W3-3, then W3-4, each with full Agent suites via the
+lock. Activation (flag on, admin-only) is a separate owner decision after Phase 1 live testing.

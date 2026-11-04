@@ -50,7 +50,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.addCharts",
@@ -140,7 +145,91 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": {
+     "symbols": [
+      "tickers",
+      "symbol",
+      "ticker",
+      "stocks",
+      "list"
+     ],
+     "symbols.from": [
+      "symbols.list",
+      "symbols.watchlist",
+      "symbols.source",
+      "symbols.ref",
+      "symbols.screen",
+      "symbols.of",
+      "from",
+      "source",
+      "watchlist"
+     ],
+     "symbols.top": [
+      "symbols.count",
+      "symbols.n",
+      "symbols.limit",
+      "symbols.first",
+      "symbols.take",
+      "top",
+      "count",
+      "limit"
+     ],
+     "timeframe": [
+      "tf",
+      "interval",
+      "period",
+      "time_frame",
+      "timeFrame"
+     ],
+     "chart_type": [
+      "type",
+      "chartType",
+      "style",
+      "chart_style"
+     ]
+    },
+    "coerce": {
+     "timeframe": {
+      "daily": "D",
+      "day": "D",
+      "1d": "D",
+      "d1": "D",
+      "1day": "D",
+      "weekly": "W",
+      "week": "W",
+      "1w": "W",
+      "monthly": "M",
+      "month": "M",
+      "1mo": "M",
+      "hourly": "60",
+      "hour": "60",
+      "1h": "60",
+      "60m": "60",
+      "60min": "60",
+      "1hr": "60",
+      "5min": "5",
+      "15min": "15",
+      "30min": "30",
+      "1min": "1",
+      "default": null,
+      "": null
+     },
+     "chart_type": {
+      "candle": "candles",
+      "candlestick": "candles",
+      "candlesticks": "candles",
+      "hollow candles": "hollow",
+      "bar": "bars",
+      "ohlc": "bars",
+      "line chart": "line",
+      "default": null,
+      "": null
+     }
+    },
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": "{\"symbols\":[\"NVDA\"],\"timeframe\":\"D\",\"chart_type\":null,\"exact\":null} or {\"symbols\":{\"from\":\"<watchlist ref or screen as>\",\"top\":2},\"timeframe\":null,\"chart_type\":null,\"exact\":null}; timeframe 1|5|15|30|60|D|W|M (D daily, W weekly, M monthly, 60 hourly). No other keys: indicators, a row or a position cannot be set here — plan the charts alone and say in `reply` that indicators can be added next. ⛔ With NO chart in <workspace_context>, \"add / open / show a <timeframe> chart of <symbol>\" is THIS op on the workspace entry — never chart.setSymbol / chart.setTimeframe on a chart that does not exist."
    },
    {
     "name": "screener.run",
@@ -261,7 +350,82 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": {
+     "sort_field": [
+      "sort.field",
+      "sort.key",
+      "sort.by",
+      "sort_by",
+      "sortBy",
+      "sort_key",
+      "sortKey",
+      "order_by",
+      "orderBy",
+      "sort_on"
+     ],
+     "sort_dir": [
+      "sort.dir",
+      "sort.direction",
+      "sort.order",
+      "sort_direction",
+      "sortDir",
+      "sortDirection",
+      "direction",
+      "order",
+      "sort_order",
+      "sortOrder"
+     ],
+     "show": [
+      "limit",
+      "top",
+      "rows",
+      "count",
+      "page_size",
+      "pageSize"
+     ],
+     "filters": [
+      "conditions",
+      "criteria"
+     ]
+    },
+    "coerce": {
+     "sort_dir": {
+      "descending": "desc",
+      "ascending": "asc",
+      "descend": "desc",
+      "ascend": "asc",
+      "highest": "desc",
+      "lowest": "asc",
+      "high to low": "desc",
+      "low to high": "asc",
+      "highest first": "desc",
+      "lowest first": "asc",
+      "down": "desc",
+      "up": "asc"
+     },
+     "mode": {
+      "refinement": "refine",
+      "refined": "refine",
+      "update": "refine",
+      "modify": "refine",
+      "narrow": "refine",
+      "fresh": "new",
+      "create": "new",
+      "run": "new"
+     }
+    },
+    "defaults": {
+     "filters": []
+    },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
+    "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
     "name": "screener.runSaved",
@@ -298,7 +462,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.state",
@@ -315,7 +484,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.listSaved",
@@ -332,7 +506,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.saveAs",
@@ -355,7 +534,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.duplicateSaved",
@@ -385,7 +569,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.renameSaved",
@@ -412,7 +601,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.deleteSaved",
@@ -435,7 +629,12 @@
     "risk": "confirm",
     "reversible": false,
     "undo": "none",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.remove",
@@ -458,7 +657,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.move",
@@ -503,7 +707,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.arrange",
@@ -542,7 +751,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.setLink",
@@ -580,7 +794,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.showList",
@@ -607,7 +826,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.showScan",
@@ -642,7 +866,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.resize",
@@ -679,7 +908,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.selectTab",
@@ -706,7 +940,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.renameTab",
@@ -740,7 +979,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.closeTab",
@@ -767,7 +1011,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "widget.addTab",
@@ -813,7 +1062,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.list",
@@ -844,7 +1098,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.add",
@@ -894,7 +1153,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.remove",
@@ -917,7 +1181,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.update",
@@ -964,7 +1233,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.show",
@@ -987,7 +1261,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.hide",
@@ -1010,7 +1289,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "agent.capabilities",
@@ -1041,6 +1325,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -1057,7 +1343,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    }
   ],
   "m2": [
@@ -1180,7 +1471,82 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": {
+     "sort_field": [
+      "sort.field",
+      "sort.key",
+      "sort.by",
+      "sort_by",
+      "sortBy",
+      "sort_key",
+      "sortKey",
+      "order_by",
+      "orderBy",
+      "sort_on"
+     ],
+     "sort_dir": [
+      "sort.dir",
+      "sort.direction",
+      "sort.order",
+      "sort_direction",
+      "sortDir",
+      "sortDirection",
+      "direction",
+      "order",
+      "sort_order",
+      "sortOrder"
+     ],
+     "show": [
+      "limit",
+      "top",
+      "rows",
+      "count",
+      "page_size",
+      "pageSize"
+     ],
+     "filters": [
+      "conditions",
+      "criteria"
+     ]
+    },
+    "coerce": {
+     "sort_dir": {
+      "descending": "desc",
+      "ascending": "asc",
+      "descend": "desc",
+      "ascend": "asc",
+      "highest": "desc",
+      "lowest": "asc",
+      "high to low": "desc",
+      "low to high": "asc",
+      "highest first": "desc",
+      "lowest first": "asc",
+      "down": "desc",
+      "up": "asc"
+     },
+     "mode": {
+      "refinement": "refine",
+      "refined": "refine",
+      "update": "refine",
+      "modify": "refine",
+      "narrow": "refine",
+      "fresh": "new",
+      "create": "new",
+      "run": "new"
+     }
+    },
+    "defaults": {
+     "filters": []
+    },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
+    "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
     "name": "screener.runSaved",
@@ -1217,7 +1583,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.state",
@@ -1234,7 +1605,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.listSaved",
@@ -1251,351 +1627,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
-   },
-   {
-    "name": "screener.saveAs",
-    "domain": "screener",
-    "target": "savedScreens",
-    "summary": "Save the LAST screen run here (its exact filters, sort, ranking and logic) as a new saved screen in the member's Screener. Never replaces an existing one.",
-    "hints": "target = the ref of the savedScreenLibrary entry; name = the name as given. It saves the last screen run here — one run earlier in this conversation, or earlier in this same request. To run a NEW screen and save it in one request: the screen first, then this — it saves that screen.",
-    "args": {
-     "type": "object",
-     "properties": {
-      "name": {
-       "type": "string"
-      }
-     },
-     "required": [
-      "name"
-     ],
-     "additionalProperties": false
-    },
-    "risk": "confirm",
-    "reversible": true,
-    "undo": "exact",
-    "query": false
-   },
-   {
-    "name": "screener.duplicateSaved",
-    "domain": "screener",
-    "target": "savedScreens",
-    "summary": "Copy a saved screen (one of the member's or a UCT starter) to a new saved screen with exactly the same definition (filters, sort, ranking, logic, view, columns).",
-    "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of the screen to copy (from yours, or a starter id from the screener entry's savedScreens); name = the new name as given, or null for \"<name> copy\" (do not ask for a name).",
-    "args": {
-     "type": "object",
-     "properties": {
-      "screen": {
-       "type": "string"
-      },
-      "name": {
-       "type": [
-        "string",
-        "null"
-       ]
-      }
-     },
-     "required": [
-      "screen",
-      "name"
-     ],
-     "additionalProperties": false
-    },
-    "risk": "confirm",
-    "reversible": true,
-    "undo": "exact",
-    "query": false
-   },
-   {
-    "name": "screener.renameSaved",
-    "domain": "screener",
-    "target": "savedScreens",
-    "summary": "Rename one of the member's own saved screens.",
-    "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of one of YOUR screens; name = the new name as given.",
-    "args": {
-     "type": "object",
-     "properties": {
-      "screen": {
-       "type": "string"
-      },
-      "name": {
-       "type": "string"
-      }
-     },
-     "required": [
-      "screen",
-      "name"
-     ],
-     "additionalProperties": false
-    },
-    "risk": "confirm",
-    "reversible": true,
-    "undo": "exact",
-    "query": false
-   },
-   {
-    "name": "screener.deleteSaved",
-    "domain": "screener",
-    "target": "savedScreens",
-    "summary": "Delete one of the member's own saved screens (permanent). UCT's starter screens cannot be deleted.",
-    "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of one of YOUR screens. If more than one could be meant, clarify with the real names — never pick one by similarity. Deleting is always shown as a proposal first, so do not ask \"are you sure?\".",
-    "args": {
-     "type": "object",
-     "properties": {
-      "screen": {
-       "type": "string"
-      }
-     },
-     "required": [
-      "screen"
-     ],
-     "additionalProperties": false
-    },
-    "risk": "confirm",
-    "reversible": false,
-    "undo": "none",
-    "query": false
-   },
-   {
-    "name": "agent.capabilities",
-    "domain": "agent",
-    "target": "about",
-    "summary": "Answer what UCT Agent can and cannot do (now, partly, not yet, planned) about a topic — from UCT's own capability list, never from memory.",
-    "hints": "target = the ref of the agent entry. Use ONLY for a question ABOUT abilities (\"can you draw trendlines?\", \"what can you do with layouts?\", \"can you backtest?\"). A polite request to DO something you can do (\"can you switch this to weekly?\") is a command: plan it, do not use this. topic: overview for \"what can you do?\"; other when no topic fits.",
-    "args": {
-     "type": "object",
-     "properties": {
-      "topic": {
-       "type": "string",
-       "enum": [
-        "backtest",
-        "vision",
-        "breadth",
-        "history",
-        "arrange",
-        "widgets",
-        "layouts",
-        "customIndicator",
-        "indicators",
-        "drawings",
-        "chartSettings",
-        "charts",
-        "savedScreens",
-        "screener",
-        "watchlists",
-        "alerts",
-        "stockInfo",
-        "appSettings",
-        "guide",
-        "similarity",
-        "overview",
-        "other"
-       ]
-      }
-     },
-     "required": [
-      "topic"
-     ],
-     "additionalProperties": false
-    },
-    "risk": "local",
-    "reversible": true,
-    "undo": "none",
-    "query": true
-   }
-  ],
-  "m3": [
-   {
-    "name": "screener.run",
-    "domain": "screener",
-    "target": "screener",
-    "summary": "Run a stock screen on UCT's Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for \"show me / find stocks with …\".",
-    "hints": "target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member's own words ([\"software\"]) — UCT matches the real values; value/max null. \"(latest session)\" fields only when a session is named (\"today\", \"yesterday\"); \"$10M a day\" / \"per day\" if none named = the 30-day average, not share volume. A measure not in `fields`: say the Screener doesn't have it, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:\"screen1\", top:null} = all); else null. within: a watchlist ref only if they name that list (\"in Momentum\"); else null (the whole market).",
-    "args": {
-     "type": "object",
-     "properties": {
-      "filters": {
-       "type": "array",
-       "items": {
-        "type": "object",
-        "properties": {
-         "field": {
-          "type": "string"
-         },
-         "op": {
-          "type": "string",
-          "enum": [
-           "gt",
-           "gte",
-           "lt",
-           "lte",
-           "eq",
-           "between",
-           "in",
-           "not_in"
-          ]
-         },
-         "value": {
-          "type": [
-           "number",
-           "null"
-          ]
-         },
-         "max": {
-          "type": [
-           "number",
-           "null"
-          ]
-         },
-         "values": {
-          "type": [
-           "array",
-           "null"
-          ],
-          "items": {
-           "type": "string"
-          }
-         }
-        },
-        "required": [
-         "field",
-         "op",
-         "value",
-         "max",
-         "values"
-        ],
-        "additionalProperties": false
-       }
-      },
-      "sort_field": {
-       "type": [
-        "string",
-        "null"
-       ]
-      },
-      "sort_dir": {
-       "type": [
-        "string",
-        "null"
-       ],
-       "enum": [
-        "asc",
-        "desc",
-        null
-       ]
-      },
-      "mode": {
-       "type": "string",
-       "enum": [
-        "new",
-        "refine"
-       ]
-      },
-      "show": {
-       "type": [
-        "integer",
-        "null"
-       ]
-      },
-      "as": {
-       "type": [
-        "string",
-        "null"
-       ]
-      },
-      "within": {
-       "type": [
-        "string",
-        "null"
-       ]
-      }
-     },
-     "required": [
-      "filters",
-      "sort_field",
-      "sort_dir",
-      "mode",
-      "show",
-      "as",
-      "within"
-     ],
-     "additionalProperties": false
-    },
-    "risk": "local",
-    "reversible": true,
-    "undo": "none",
-    "query": true
-   },
-   {
-    "name": "screener.runSaved",
-    "domain": "screener",
-    "target": "screener",
-    "summary": "Run one of the member's saved screens (or a UCT starter screen) and show the real matches.",
-    "hints": "target = the ref of the screener entry; screen = the id of an entry in savedScreens (never invent one; clarify with the real names if unsure). show: rows (null = 10). as: name its RESULT when a later op in the same request uses its stocks; else null.",
-    "args": {
-     "type": "object",
-     "properties": {
-      "screen": {
-       "type": "string"
-      },
-      "show": {
-       "type": [
-        "integer",
-        "null"
-       ]
-      },
-      "as": {
-       "type": [
-        "string",
-        "null"
-       ]
-      }
-     },
-     "required": [
-      "screen",
-      "show",
-      "as"
-     ],
-     "additionalProperties": false
-    },
-    "risk": "local",
-    "reversible": true,
-    "undo": "none",
-    "query": true
-   },
-   {
-    "name": "screener.state",
-    "domain": "screener",
-    "target": "screener",
-    "summary": "Say what the last screen run here was: its filters, sort and number of matches.",
-    "hints": "target = the ref of the screener entry.",
-    "args": {
-     "type": "object",
-     "properties": {},
-     "required": [],
-     "additionalProperties": false
-    },
-    "risk": "local",
-    "reversible": true,
-    "undo": "none",
-    "query": true
-   },
-   {
-    "name": "screener.listSaved",
-    "domain": "screener",
-    "target": "screener",
-    "summary": "List the member's saved screens and UCT's starter screens.",
-    "hints": "target = the ref of the screener entry.",
-    "args": {
-     "type": "object",
-     "properties": {},
-     "required": [],
-     "additionalProperties": false
-    },
-    "risk": "local",
-    "reversible": true,
-    "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "breadth.show",
@@ -1726,7 +1763,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "breadth.history",
@@ -1836,7 +1878,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.saveAs",
@@ -1859,7 +1906,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.duplicateSaved",
@@ -1889,7 +1941,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.renameSaved",
@@ -1916,7 +1973,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.deleteSaved",
@@ -1939,7 +2001,12 @@
     "risk": "confirm",
     "reversible": false,
     "undo": "none",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "agent.capabilities",
@@ -1970,6 +2037,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -1986,10 +2055,15 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    }
   ],
-  "m4": [
+  "m3": [
    {
     "name": "chart.setType",
     "domain": "chart",
@@ -2019,7 +2093,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setTimeframe",
@@ -2052,7 +2131,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setSymbol",
@@ -2075,7 +2159,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setSession",
@@ -2102,7 +2191,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setScale",
@@ -2130,7 +2224,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.applyTheme",
@@ -2210,7 +2309,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setBackground",
@@ -2233,7 +2337,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setCandleColors",
@@ -2266,7 +2375,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "volume.setState",
@@ -2294,14 +2408,19 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setSetting",
     "domain": "chart",
     "target": "chart",
     "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
-    "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Only these settings: for any other (header info-row fields, volume plot style…) do NOT plan an op — say where it lives in Chart Settings.",
+    "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Any other setting (header info-row fields, volume plot style…): no op — say where it lives in Chart Settings.",
     "args": {
      "type": "object",
      "properties": {
@@ -2364,6 +2483,7 @@
         "prevDayLevels.high.enabled",
         "prevDayLevels.low.enabled",
         "prevDayLevels.close.enabled",
+        "bgMode",
         "bgGradient.top",
         "bgGradient.bottom",
         "volume.upColor",
@@ -2409,7 +2529,23 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": {
+     "setting": [
+      "key",
+      "id",
+      "name",
+      "option",
+      "settingId",
+      "setting_id",
+      "path",
+      "property"
+     ]
+    },
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": "args {\"setting\": <one id from the list>, \"value\": …} — \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported."
    },
    {
     "name": "chart.applyTemplate",
@@ -2432,7 +2568,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.resetDefaults",
@@ -2449,7 +2590,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.goToDate",
@@ -2472,7 +2618,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.compare",
@@ -2509,7 +2660,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.addCustomTimeframe",
@@ -2547,7 +2703,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.run",
@@ -2668,7 +2829,82 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": {
+     "sort_field": [
+      "sort.field",
+      "sort.key",
+      "sort.by",
+      "sort_by",
+      "sortBy",
+      "sort_key",
+      "sortKey",
+      "order_by",
+      "orderBy",
+      "sort_on"
+     ],
+     "sort_dir": [
+      "sort.dir",
+      "sort.direction",
+      "sort.order",
+      "sort_direction",
+      "sortDir",
+      "sortDirection",
+      "direction",
+      "order",
+      "sort_order",
+      "sortOrder"
+     ],
+     "show": [
+      "limit",
+      "top",
+      "rows",
+      "count",
+      "page_size",
+      "pageSize"
+     ],
+     "filters": [
+      "conditions",
+      "criteria"
+     ]
+    },
+    "coerce": {
+     "sort_dir": {
+      "descending": "desc",
+      "ascending": "asc",
+      "descend": "desc",
+      "ascend": "asc",
+      "highest": "desc",
+      "lowest": "asc",
+      "high to low": "desc",
+      "low to high": "asc",
+      "highest first": "desc",
+      "lowest first": "asc",
+      "down": "desc",
+      "up": "asc"
+     },
+     "mode": {
+      "refinement": "refine",
+      "refined": "refine",
+      "update": "refine",
+      "modify": "refine",
+      "narrow": "refine",
+      "fresh": "new",
+      "create": "new",
+      "run": "new"
+     }
+    },
+    "defaults": {
+     "filters": []
+    },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
+    "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
     "name": "screener.runSaved",
@@ -2705,7 +2941,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.state",
@@ -2722,7 +2963,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.listSaved",
@@ -2739,7 +2985,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "alert.list",
@@ -2785,7 +3036,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "alert.create",
@@ -2820,7 +3076,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "alert.delete",
@@ -2837,7 +3098,12 @@
     "risk": "confirm",
     "reversible": false,
     "undo": "none",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "stock.profile",
@@ -2860,7 +3126,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "stock.earnings",
@@ -2883,7 +3154,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "stock.compare",
@@ -2909,7 +3185,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "breadth.show",
@@ -3040,7 +3321,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "breadth.history",
@@ -3150,7 +3436,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "settings.show",
@@ -3167,7 +3458,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "settings.setAppTheme",
@@ -3213,7 +3509,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "settings.setDefaultTimeframe",
@@ -3243,7 +3544,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "settings.setAlertSound",
@@ -3289,7 +3595,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "app.open",
@@ -3359,7 +3670,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "news.latest",
@@ -3389,7 +3705,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "news.catalysts",
@@ -3412,7 +3733,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "settings.setWatchlistDigest",
@@ -3440,7 +3766,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.saveAs",
@@ -3463,7 +3794,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.duplicateSaved",
@@ -3493,7 +3829,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.renameSaved",
@@ -3520,7 +3861,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.deleteSaved",
@@ -3543,7 +3889,12 @@
     "risk": "confirm",
     "reversible": false,
     "undo": "none",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chartGrid.set",
@@ -3621,7 +3972,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.applyThemeAll",
@@ -3701,7 +4057,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.addTab",
@@ -3749,7 +4110,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.selectTab",
@@ -3776,7 +4142,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.closeTab",
@@ -3803,7 +4174,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.renameTab",
@@ -3834,7 +4210,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": "only for a chart widget's TAB the member names as a tab (\"rename the tab\"). \"rename <a layout name> to …\" is layout.rename."
    },
    {
     "name": "chart.linkTab",
@@ -3875,7 +4256,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.list",
@@ -3906,7 +4292,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.add",
@@ -3956,7 +4347,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.remove",
@@ -3979,7 +4375,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.update",
@@ -4026,7 +4427,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.show",
@@ -4049,7 +4455,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.hide",
@@ -4072,7 +4483,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "agent.capabilities",
@@ -4103,6 +4519,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -4119,7 +4537,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "guide.explain",
@@ -4142,14 +4565,19 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "guide.show",
     "domain": "guide",
     "target": "guide",
-    "summary": "SHOW the member where a Charts control is: highlight the real control on their board with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
-    "hints": "target = the guide entry. feature = one of: canvas (chart background, grid, crosshair and watermark); link (linking charts and widgets); symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); hideDrawings (hiding and showing drawings); drawing (basic drawing tools); settings (finding chart settings). A request to DO it (\"change my chart to weekly\") is a command, not this.",
+    "summary": "SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
+    "hints": "target = the guide entry. feature = one of: canvas (chart background, grid, crosshair and watermark); link (linking charts and widgets); symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); hideDrawings (hiding and showing drawings); drawing (basic drawing tools); settings (finding chart settings). Other pages, only there: screenerScreens (screener), screenerColumns (screener), screenerFilters (screener), breadthViews (breadth), breadthTable (breadth), calendarNextReport (calendar), journalNewNote (journal). A request to DO it (\"change my chart to weekly\") is a command, not this.",
     "args": {
      "type": "object",
      "properties": {
@@ -4166,7 +4594,14 @@
         "layouts",
         "hideDrawings",
         "drawing",
-        "settings"
+        "settings",
+        "screenerScreens",
+        "screenerColumns",
+        "screenerFilters",
+        "breadthViews",
+        "breadthTable",
+        "calendarNextReport",
+        "journalNewNote"
        ]
       }
      },
@@ -4178,7 +4613,473 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   }
+  ],
+  "m4": [
+   {
+    "name": "screener.run",
+    "domain": "screener",
+    "target": "screener",
+    "summary": "Run a stock screen on UCT's Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for \"show me / find stocks with …\".",
+    "hints": "target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member's own words ([\"software\"]) — UCT matches the real values; value/max null. \"(latest session)\" fields only when a session is named (\"today\", \"yesterday\"); \"$10M a day\" / \"per day\" if none named = the 30-day average, not share volume. A measure not in `fields`: say the Screener doesn't have it, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:\"screen1\", top:null} = all); else null. within: a watchlist ref only if they name that list (\"in Momentum\"); else null (the whole market).",
+    "args": {
+     "type": "object",
+     "properties": {
+      "filters": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "field": {
+          "type": "string"
+         },
+         "op": {
+          "type": "string",
+          "enum": [
+           "gt",
+           "gte",
+           "lt",
+           "lte",
+           "eq",
+           "between",
+           "in",
+           "not_in"
+          ]
+         },
+         "value": {
+          "type": [
+           "number",
+           "null"
+          ]
+         },
+         "max": {
+          "type": [
+           "number",
+           "null"
+          ]
+         },
+         "values": {
+          "type": [
+           "array",
+           "null"
+          ],
+          "items": {
+           "type": "string"
+          }
+         }
+        },
+        "required": [
+         "field",
+         "op",
+         "value",
+         "max",
+         "values"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "sort_field": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "sort_dir": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "asc",
+        "desc",
+        null
+       ]
+      },
+      "mode": {
+       "type": "string",
+       "enum": [
+        "new",
+        "refine"
+       ]
+      },
+      "show": {
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "as": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "within": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "filters",
+      "sort_field",
+      "sort_dir",
+      "mode",
+      "show",
+      "as",
+      "within"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": {
+     "sort_field": [
+      "sort.field",
+      "sort.key",
+      "sort.by",
+      "sort_by",
+      "sortBy",
+      "sort_key",
+      "sortKey",
+      "order_by",
+      "orderBy",
+      "sort_on"
+     ],
+     "sort_dir": [
+      "sort.dir",
+      "sort.direction",
+      "sort.order",
+      "sort_direction",
+      "sortDir",
+      "sortDirection",
+      "direction",
+      "order",
+      "sort_order",
+      "sortOrder"
+     ],
+     "show": [
+      "limit",
+      "top",
+      "rows",
+      "count",
+      "page_size",
+      "pageSize"
+     ],
+     "filters": [
+      "conditions",
+      "criteria"
+     ]
+    },
+    "coerce": {
+     "sort_dir": {
+      "descending": "desc",
+      "ascending": "asc",
+      "descend": "desc",
+      "ascend": "asc",
+      "highest": "desc",
+      "lowest": "asc",
+      "high to low": "desc",
+      "low to high": "asc",
+      "highest first": "desc",
+      "lowest first": "asc",
+      "down": "desc",
+      "up": "asc"
+     },
+     "mode": {
+      "refinement": "refine",
+      "refined": "refine",
+      "update": "refine",
+      "modify": "refine",
+      "narrow": "refine",
+      "fresh": "new",
+      "create": "new",
+      "run": "new"
+     }
+    },
+    "defaults": {
+     "filters": []
+    },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
+    "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
+   },
+   {
+    "name": "screener.runSaved",
+    "domain": "screener",
+    "target": "screener",
+    "summary": "Run one of the member's saved screens (or a UCT starter screen) and show the real matches.",
+    "hints": "target = the ref of the screener entry; screen = the id of an entry in savedScreens (never invent one; clarify with the real names if unsure). show: rows (null = 10). as: name its RESULT when a later op in the same request uses its stocks; else null.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "screen": {
+       "type": "string"
+      },
+      "show": {
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "as": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "screen",
+      "show",
+      "as"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.state",
+    "domain": "screener",
+    "target": "screener",
+    "summary": "Say what the last screen run here was: its filters, sort and number of matches.",
+    "hints": "target = the ref of the screener entry.",
+    "args": {
+     "type": "object",
+     "properties": {},
+     "required": [],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.listSaved",
+    "domain": "screener",
+    "target": "screener",
+    "summary": "List the member's saved screens and UCT's starter screens.",
+    "hints": "target = the ref of the screener entry.",
+    "args": {
+     "type": "object",
+     "properties": {},
+     "required": [],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.saveAs",
+    "domain": "screener",
+    "target": "savedScreens",
+    "summary": "Save the LAST screen run here (its exact filters, sort, ranking and logic) as a new saved screen in the member's Screener. Never replaces an existing one.",
+    "hints": "target = the ref of the savedScreenLibrary entry; name = the name as given. It saves the last screen run here — one run earlier in this conversation, or earlier in this same request. To run a NEW screen and save it in one request: the screen first, then this — it saves that screen.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.duplicateSaved",
+    "domain": "screener",
+    "target": "savedScreens",
+    "summary": "Copy a saved screen (one of the member's or a UCT starter) to a new saved screen with exactly the same definition (filters, sort, ranking, logic, view, columns).",
+    "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of the screen to copy (from yours, or a starter id from the screener entry's savedScreens); name = the new name as given, or null for \"<name> copy\" (do not ask for a name).",
+    "args": {
+     "type": "object",
+     "properties": {
+      "screen": {
+       "type": "string"
+      },
+      "name": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "screen",
+      "name"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.renameSaved",
+    "domain": "screener",
+    "target": "savedScreens",
+    "summary": "Rename one of the member's own saved screens.",
+    "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of one of YOUR screens; name = the new name as given.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "screen": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "screen",
+      "name"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.deleteSaved",
+    "domain": "screener",
+    "target": "savedScreens",
+    "summary": "Delete one of the member's own saved screens (permanent). UCT's starter screens cannot be deleted.",
+    "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of one of YOUR screens. If more than one could be meant, clarify with the real names — never pick one by similarity. Deleting is always shown as a proposal first, so do not ask \"are you sure?\".",
+    "args": {
+     "type": "object",
+     "properties": {
+      "screen": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "screen"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": false,
+    "undo": "none",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "agent.capabilities",
+    "domain": "agent",
+    "target": "about",
+    "summary": "Answer what UCT Agent can and cannot do (now, partly, not yet, planned) about a topic — from UCT's own capability list, never from memory.",
+    "hints": "target = the ref of the agent entry. Use ONLY for a question ABOUT abilities (\"can you draw trendlines?\", \"what can you do with layouts?\", \"can you backtest?\"). A polite request to DO something you can do (\"can you switch this to weekly?\") is a command: plan it, do not use this. topic: overview for \"what can you do?\"; other when no topic fits.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "topic": {
+       "type": "string",
+       "enum": [
+        "backtest",
+        "vision",
+        "breadth",
+        "history",
+        "arrange",
+        "widgets",
+        "layouts",
+        "customIndicator",
+        "indicators",
+        "drawings",
+        "chartSettings",
+        "charts",
+        "savedScreens",
+        "screener",
+        "watchlists",
+        "alerts",
+        "stockInfo",
+        "calendar",
+        "journal",
+        "appSettings",
+        "guide",
+        "similarity",
+        "overview",
+        "other"
+       ]
+      }
+     },
+     "required": [
+      "topic"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    }
   ],
   "m5": [
@@ -4211,7 +5112,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setTimeframe",
@@ -4244,7 +5150,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setSymbol",
@@ -4267,7 +5178,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setSession",
@@ -4294,7 +5210,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setScale",
@@ -4322,7 +5243,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.applyTheme",
@@ -4402,7 +5328,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setBackground",
@@ -4425,7 +5356,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setCandleColors",
@@ -4458,7 +5394,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "volume.setState",
@@ -4486,14 +5427,19 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setSetting",
     "domain": "chart",
     "target": "chart",
     "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
-    "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Only these settings: for any other (header info-row fields, volume plot style…) do NOT plan an op — say where it lives in Chart Settings.",
+    "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Any other setting (header info-row fields, volume plot style…): no op — say where it lives in Chart Settings.",
     "args": {
      "type": "object",
      "properties": {
@@ -4556,6 +5502,7 @@
         "prevDayLevels.high.enabled",
         "prevDayLevels.low.enabled",
         "prevDayLevels.close.enabled",
+        "bgMode",
         "bgGradient.top",
         "bgGradient.bottom",
         "volume.upColor",
@@ -4601,7 +5548,23 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": {
+     "setting": [
+      "key",
+      "id",
+      "name",
+      "option",
+      "settingId",
+      "setting_id",
+      "path",
+      "property"
+     ]
+    },
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": "args {\"setting\": <one id from the list>, \"value\": …} — \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported."
    },
    {
     "name": "chart.applyTemplate",
@@ -4624,7 +5587,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.resetDefaults",
@@ -4641,7 +5609,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.goToDate",
@@ -4664,7 +5637,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.compare",
@@ -4701,7 +5679,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.addCustomTimeframe",
@@ -4739,7 +5722,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.run",
@@ -4860,7 +5848,82 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": {
+     "sort_field": [
+      "sort.field",
+      "sort.key",
+      "sort.by",
+      "sort_by",
+      "sortBy",
+      "sort_key",
+      "sortKey",
+      "order_by",
+      "orderBy",
+      "sort_on"
+     ],
+     "sort_dir": [
+      "sort.dir",
+      "sort.direction",
+      "sort.order",
+      "sort_direction",
+      "sortDir",
+      "sortDirection",
+      "direction",
+      "order",
+      "sort_order",
+      "sortOrder"
+     ],
+     "show": [
+      "limit",
+      "top",
+      "rows",
+      "count",
+      "page_size",
+      "pageSize"
+     ],
+     "filters": [
+      "conditions",
+      "criteria"
+     ]
+    },
+    "coerce": {
+     "sort_dir": {
+      "descending": "desc",
+      "ascending": "asc",
+      "descend": "desc",
+      "ascend": "asc",
+      "highest": "desc",
+      "lowest": "asc",
+      "high to low": "desc",
+      "low to high": "asc",
+      "highest first": "desc",
+      "lowest first": "asc",
+      "down": "desc",
+      "up": "asc"
+     },
+     "mode": {
+      "refinement": "refine",
+      "refined": "refine",
+      "update": "refine",
+      "modify": "refine",
+      "narrow": "refine",
+      "fresh": "new",
+      "create": "new",
+      "run": "new"
+     }
+    },
+    "defaults": {
+     "filters": []
+    },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
+    "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
     "name": "screener.runSaved",
@@ -4897,7 +5960,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.state",
@@ -4914,7 +5982,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.listSaved",
@@ -4931,7 +6004,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.saveAs",
@@ -4954,7 +6032,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.duplicateSaved",
@@ -4984,7 +6067,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.renameSaved",
@@ -5011,7 +6099,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.deleteSaved",
@@ -5034,7 +6127,12 @@
     "risk": "confirm",
     "reversible": false,
     "undo": "none",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.applyThemeAll",
@@ -5114,7 +6212,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.addTab",
@@ -5162,7 +6265,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.selectTab",
@@ -5189,7 +6297,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.closeTab",
@@ -5216,7 +6329,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.renameTab",
@@ -5247,7 +6365,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": "only for a chart widget's TAB the member names as a tab (\"rename the tab\"). \"rename <a layout name> to …\" is layout.rename."
    },
    {
     "name": "chart.linkTab",
@@ -5288,7 +6411,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "agent.capabilities",
@@ -5319,6 +6447,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -5335,7 +6465,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    }
   ],
   "m6": [
@@ -5368,7 +6503,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setTimeframe",
@@ -5401,7 +6541,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setSymbol",
@@ -5424,7 +6569,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setSession",
@@ -5451,7 +6601,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setScale",
@@ -5479,7 +6634,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.applyTheme",
@@ -5559,7 +6719,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setBackground",
@@ -5582,7 +6747,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setCandleColors",
@@ -5615,7 +6785,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "volume.setState",
@@ -5643,14 +6818,19 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.setSetting",
     "domain": "chart",
     "target": "chart",
     "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
-    "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Only these settings: for any other (header info-row fields, volume plot style…) do NOT plan an op — say where it lives in Chart Settings.",
+    "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Any other setting (header info-row fields, volume plot style…): no op — say where it lives in Chart Settings.",
     "args": {
      "type": "object",
      "properties": {
@@ -5713,6 +6893,7 @@
         "prevDayLevels.high.enabled",
         "prevDayLevels.low.enabled",
         "prevDayLevels.close.enabled",
+        "bgMode",
         "bgGradient.top",
         "bgGradient.bottom",
         "volume.upColor",
@@ -5758,7 +6939,23 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": {
+     "setting": [
+      "key",
+      "id",
+      "name",
+      "option",
+      "settingId",
+      "setting_id",
+      "path",
+      "property"
+     ]
+    },
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": "args {\"setting\": <one id from the list>, \"value\": …} — \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported."
    },
    {
     "name": "chart.applyTemplate",
@@ -5781,7 +6978,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.resetDefaults",
@@ -5798,7 +7000,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.goToDate",
@@ -5821,7 +7028,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.compare",
@@ -5858,7 +7070,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.addCustomTimeframe",
@@ -5896,7 +7113,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.run",
@@ -6017,7 +7239,82 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": {
+     "sort_field": [
+      "sort.field",
+      "sort.key",
+      "sort.by",
+      "sort_by",
+      "sortBy",
+      "sort_key",
+      "sortKey",
+      "order_by",
+      "orderBy",
+      "sort_on"
+     ],
+     "sort_dir": [
+      "sort.dir",
+      "sort.direction",
+      "sort.order",
+      "sort_direction",
+      "sortDir",
+      "sortDirection",
+      "direction",
+      "order",
+      "sort_order",
+      "sortOrder"
+     ],
+     "show": [
+      "limit",
+      "top",
+      "rows",
+      "count",
+      "page_size",
+      "pageSize"
+     ],
+     "filters": [
+      "conditions",
+      "criteria"
+     ]
+    },
+    "coerce": {
+     "sort_dir": {
+      "descending": "desc",
+      "ascending": "asc",
+      "descend": "desc",
+      "ascend": "asc",
+      "highest": "desc",
+      "lowest": "asc",
+      "high to low": "desc",
+      "low to high": "asc",
+      "highest first": "desc",
+      "lowest first": "asc",
+      "down": "desc",
+      "up": "asc"
+     },
+     "mode": {
+      "refinement": "refine",
+      "refined": "refine",
+      "update": "refine",
+      "modify": "refine",
+      "narrow": "refine",
+      "fresh": "new",
+      "create": "new",
+      "run": "new"
+     }
+    },
+    "defaults": {
+     "filters": []
+    },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
+    "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
     "name": "screener.runSaved",
@@ -6054,7 +7351,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.state",
@@ -6071,7 +7373,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.listSaved",
@@ -6088,7 +7395,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.saveAs",
@@ -6111,7 +7423,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.duplicateSaved",
@@ -6141,7 +7458,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.renameSaved",
@@ -6168,7 +7490,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.deleteSaved",
@@ -6191,7 +7518,12 @@
     "risk": "confirm",
     "reversible": false,
     "undo": "none",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.applyThemeAll",
@@ -6271,7 +7603,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.addTab",
@@ -6319,7 +7656,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.selectTab",
@@ -6346,7 +7688,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.closeTab",
@@ -6373,7 +7720,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "chart.renameTab",
@@ -6404,7 +7756,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": "only for a chart widget's TAB the member names as a tab (\"rename the tab\"). \"rename <a layout name> to …\" is layout.rename."
    },
    {
     "name": "chart.linkTab",
@@ -6445,7 +7802,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.list",
@@ -6476,7 +7838,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.add",
@@ -6526,7 +7893,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.remove",
@@ -6549,7 +7921,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.update",
@@ -6596,7 +7973,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.show",
@@ -6619,7 +8001,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.hide",
@@ -6642,7 +8029,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "agent.capabilities",
@@ -6673,6 +8065,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -6689,7 +8083,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    }
   ],
   "m7": [
@@ -6812,7 +8211,82 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": {
+     "sort_field": [
+      "sort.field",
+      "sort.key",
+      "sort.by",
+      "sort_by",
+      "sortBy",
+      "sort_key",
+      "sortKey",
+      "order_by",
+      "orderBy",
+      "sort_on"
+     ],
+     "sort_dir": [
+      "sort.dir",
+      "sort.direction",
+      "sort.order",
+      "sort_direction",
+      "sortDir",
+      "sortDirection",
+      "direction",
+      "order",
+      "sort_order",
+      "sortOrder"
+     ],
+     "show": [
+      "limit",
+      "top",
+      "rows",
+      "count",
+      "page_size",
+      "pageSize"
+     ],
+     "filters": [
+      "conditions",
+      "criteria"
+     ]
+    },
+    "coerce": {
+     "sort_dir": {
+      "descending": "desc",
+      "ascending": "asc",
+      "descend": "desc",
+      "ascend": "asc",
+      "highest": "desc",
+      "lowest": "asc",
+      "high to low": "desc",
+      "low to high": "asc",
+      "highest first": "desc",
+      "lowest first": "asc",
+      "down": "desc",
+      "up": "asc"
+     },
+     "mode": {
+      "refinement": "refine",
+      "refined": "refine",
+      "update": "refine",
+      "modify": "refine",
+      "narrow": "refine",
+      "fresh": "new",
+      "create": "new",
+      "run": "new"
+     }
+    },
+    "defaults": {
+     "filters": []
+    },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
+    "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
     "name": "screener.runSaved",
@@ -6849,7 +8323,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.state",
@@ -6866,7 +8345,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.listSaved",
@@ -6883,7 +8367,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.saveAs",
@@ -6906,7 +8395,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.duplicateSaved",
@@ -6936,7 +8430,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.renameSaved",
@@ -6963,7 +8462,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.deleteSaved",
@@ -6986,7 +8490,12 @@
     "risk": "confirm",
     "reversible": false,
     "undo": "none",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.list",
@@ -7017,7 +8526,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.add",
@@ -7067,7 +8581,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.remove",
@@ -7090,7 +8609,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.update",
@@ -7137,7 +8661,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.show",
@@ -7160,7 +8689,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "indicator.hide",
@@ -7183,7 +8717,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "agent.capabilities",
@@ -7214,6 +8753,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -7230,7 +8771,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    }
   ],
   "m8": [
@@ -7353,7 +8899,82 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": {
+     "sort_field": [
+      "sort.field",
+      "sort.key",
+      "sort.by",
+      "sort_by",
+      "sortBy",
+      "sort_key",
+      "sortKey",
+      "order_by",
+      "orderBy",
+      "sort_on"
+     ],
+     "sort_dir": [
+      "sort.dir",
+      "sort.direction",
+      "sort.order",
+      "sort_direction",
+      "sortDir",
+      "sortDirection",
+      "direction",
+      "order",
+      "sort_order",
+      "sortOrder"
+     ],
+     "show": [
+      "limit",
+      "top",
+      "rows",
+      "count",
+      "page_size",
+      "pageSize"
+     ],
+     "filters": [
+      "conditions",
+      "criteria"
+     ]
+    },
+    "coerce": {
+     "sort_dir": {
+      "descending": "desc",
+      "ascending": "asc",
+      "descend": "desc",
+      "ascend": "asc",
+      "highest": "desc",
+      "lowest": "asc",
+      "high to low": "desc",
+      "low to high": "asc",
+      "highest first": "desc",
+      "lowest first": "asc",
+      "down": "desc",
+      "up": "asc"
+     },
+     "mode": {
+      "refinement": "refine",
+      "refined": "refine",
+      "update": "refine",
+      "modify": "refine",
+      "narrow": "refine",
+      "fresh": "new",
+      "create": "new",
+      "run": "new"
+     }
+    },
+    "defaults": {
+     "filters": []
+    },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
+    "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
    },
    {
     "name": "screener.runSaved",
@@ -7390,7 +9011,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.state",
@@ -7407,7 +9033,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.listSaved",
@@ -7424,7 +9055,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "stock.profile",
@@ -7447,7 +9083,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "stock.earnings",
@@ -7470,7 +9111,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "stock.compare",
@@ -7496,7 +9142,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "news.latest",
@@ -7526,7 +9177,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "news.catalysts",
@@ -7549,7 +9205,12 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.saveAs",
@@ -7572,7 +9233,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.duplicateSaved",
@@ -7602,7 +9268,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.renameSaved",
@@ -7629,7 +9300,12 @@
     "risk": "confirm",
     "reversible": true,
     "undo": "exact",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "screener.deleteSaved",
@@ -7652,7 +9328,12 @@
     "risk": "confirm",
     "reversible": false,
     "undo": "none",
-    "query": false
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    },
    {
     "name": "agent.capabilities",
@@ -7683,6 +9364,8 @@
         "watchlists",
         "alerts",
         "stockInfo",
+        "calendar",
+        "journal",
         "appSettings",
         "guide",
         "similarity",
@@ -7699,7 +9382,796 @@
     "risk": "local",
     "reversible": true,
     "undo": "none",
-    "query": true
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   }
+  ],
+  "m9": [
+   {
+    "name": "screener.run",
+    "domain": "screener",
+    "target": "screener",
+    "summary": "Run a stock screen on UCT's Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for \"show me / find stocks with …\".",
+    "hints": "target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member's own words ([\"software\"]) — UCT matches the real values; value/max null. \"(latest session)\" fields only when a session is named (\"today\", \"yesterday\"); \"$10M a day\" / \"per day\" if none named = the 30-day average, not share volume. A measure not in `fields`: say the Screener doesn't have it, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:\"screen1\", top:null} = all); else null. within: a watchlist ref only if they name that list (\"in Momentum\"); else null (the whole market).",
+    "args": {
+     "type": "object",
+     "properties": {
+      "filters": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "field": {
+          "type": "string"
+         },
+         "op": {
+          "type": "string",
+          "enum": [
+           "gt",
+           "gte",
+           "lt",
+           "lte",
+           "eq",
+           "between",
+           "in",
+           "not_in"
+          ]
+         },
+         "value": {
+          "type": [
+           "number",
+           "null"
+          ]
+         },
+         "max": {
+          "type": [
+           "number",
+           "null"
+          ]
+         },
+         "values": {
+          "type": [
+           "array",
+           "null"
+          ],
+          "items": {
+           "type": "string"
+          }
+         }
+        },
+        "required": [
+         "field",
+         "op",
+         "value",
+         "max",
+         "values"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "sort_field": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "sort_dir": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "asc",
+        "desc",
+        null
+       ]
+      },
+      "mode": {
+       "type": "string",
+       "enum": [
+        "new",
+        "refine"
+       ]
+      },
+      "show": {
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "as": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "within": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "filters",
+      "sort_field",
+      "sort_dir",
+      "mode",
+      "show",
+      "as",
+      "within"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": {
+     "sort_field": [
+      "sort.field",
+      "sort.key",
+      "sort.by",
+      "sort_by",
+      "sortBy",
+      "sort_key",
+      "sortKey",
+      "order_by",
+      "orderBy",
+      "sort_on"
+     ],
+     "sort_dir": [
+      "sort.dir",
+      "sort.direction",
+      "sort.order",
+      "sort_direction",
+      "sortDir",
+      "sortDirection",
+      "direction",
+      "order",
+      "sort_order",
+      "sortOrder"
+     ],
+     "show": [
+      "limit",
+      "top",
+      "rows",
+      "count",
+      "page_size",
+      "pageSize"
+     ],
+     "filters": [
+      "conditions",
+      "criteria"
+     ]
+    },
+    "coerce": {
+     "sort_dir": {
+      "descending": "desc",
+      "ascending": "asc",
+      "descend": "desc",
+      "ascend": "asc",
+      "highest": "desc",
+      "lowest": "asc",
+      "high to low": "desc",
+      "low to high": "asc",
+      "highest first": "desc",
+      "lowest first": "asc",
+      "down": "desc",
+      "up": "asc"
+     },
+     "mode": {
+      "refinement": "refine",
+      "refined": "refine",
+      "update": "refine",
+      "modify": "refine",
+      "narrow": "refine",
+      "fresh": "new",
+      "create": "new",
+      "run": "new"
+     }
+    },
+    "defaults": {
+     "filters": []
+    },
+    "defaultsWhen": {
+     "filters": {
+      "mode": [
+       "refine"
+      ]
+     }
+    },
+    "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
+   },
+   {
+    "name": "screener.runSaved",
+    "domain": "screener",
+    "target": "screener",
+    "summary": "Run one of the member's saved screens (or a UCT starter screen) and show the real matches.",
+    "hints": "target = the ref of the screener entry; screen = the id of an entry in savedScreens (never invent one; clarify with the real names if unsure). show: rows (null = 10). as: name its RESULT when a later op in the same request uses its stocks; else null.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "screen": {
+       "type": "string"
+      },
+      "show": {
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "as": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "screen",
+      "show",
+      "as"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.state",
+    "domain": "screener",
+    "target": "screener",
+    "summary": "Say what the last screen run here was: its filters, sort and number of matches.",
+    "hints": "target = the ref of the screener entry.",
+    "args": {
+     "type": "object",
+     "properties": {},
+     "required": [],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.listSaved",
+    "domain": "screener",
+    "target": "screener",
+    "summary": "List the member's saved screens and UCT's starter screens.",
+    "hints": "target = the ref of the screener entry.",
+    "args": {
+     "type": "object",
+     "properties": {},
+     "required": [],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "indicatorAlert.create",
+    "domain": "indicatorAlert",
+    "target": "indicatorAlertLibrary",
+    "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band…), exactly as the chart's Indicator Alerts popover does: the alert watches that chart's symbol and timeframe with the instance's own settings. Undo deletes it.",
+    "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: \"crosses above 70\" = cross_above 70; \"is over 70\" = above 70); threshold = the level as a number when the condition has one, else null. A PRICE level alert (\"when NVDA hits 150\") is alert.create, not this. Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "instance": {
+       "type": "string"
+      },
+      "plot": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "condition": {
+       "type": "string"
+      },
+      "threshold": {
+       "type": [
+        "number",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "instance",
+      "plot",
+      "condition",
+      "threshold"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "indicatorAlert.toggle",
+    "domain": "indicatorAlert",
+    "target": "indicatorAlert",
+    "summary": "Pause or resume ONE indicator alert (the alert manager's own switch). Undo switches it back.",
+    "hints": "target = the ref of that alert in the indicatorAlerts list; active = false to pause, true to resume. One op per alert.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "active": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "active"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "indicatorAlert.delete",
+    "domain": "indicatorAlert",
+    "target": "indicatorAlert",
+    "summary": "Delete one of the member's indicator alerts (permanent — UCT cannot restore a deleted alert).",
+    "hints": "target = the ref of that alert in the indicatorAlerts list. One op per alert. Always shown as a proposal first; if two alerts could be the one they mean, clarify with the real alerts as choices — never pick one. To stop one without deleting it, indicatorAlert.toggle.",
+    "args": {
+     "type": "object",
+     "properties": {},
+     "required": [],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": false,
+    "undo": "none",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.saveAs",
+    "domain": "screener",
+    "target": "savedScreens",
+    "summary": "Save the LAST screen run here (its exact filters, sort, ranking and logic) as a new saved screen in the member's Screener. Never replaces an existing one.",
+    "hints": "target = the ref of the savedScreenLibrary entry; name = the name as given. It saves the last screen run here — one run earlier in this conversation, or earlier in this same request. To run a NEW screen and save it in one request: the screen first, then this — it saves that screen.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.duplicateSaved",
+    "domain": "screener",
+    "target": "savedScreens",
+    "summary": "Copy a saved screen (one of the member's or a UCT starter) to a new saved screen with exactly the same definition (filters, sort, ranking, logic, view, columns).",
+    "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of the screen to copy (from yours, or a starter id from the screener entry's savedScreens); name = the new name as given, or null for \"<name> copy\" (do not ask for a name).",
+    "args": {
+     "type": "object",
+     "properties": {
+      "screen": {
+       "type": "string"
+      },
+      "name": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "screen",
+      "name"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.renameSaved",
+    "domain": "screener",
+    "target": "savedScreens",
+    "summary": "Rename one of the member's own saved screens.",
+    "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of one of YOUR screens; name = the new name as given.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "screen": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "screen",
+      "name"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "screener.deleteSaved",
+    "domain": "screener",
+    "target": "savedScreens",
+    "summary": "Delete one of the member's own saved screens (permanent). UCT's starter screens cannot be deleted.",
+    "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of one of YOUR screens. If more than one could be meant, clarify with the real names — never pick one by similarity. Deleting is always shown as a proposal first, so do not ask \"are you sure?\".",
+    "args": {
+     "type": "object",
+     "properties": {
+      "screen": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "screen"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": false,
+    "undo": "none",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "indicator.list",
+    "domain": "indicator",
+    "target": "indicators",
+    "summary": "List the indicators on ONE chart (as its legend names them): built-in or custom, shown or hidden, on the price chart or in its own pane. UCT answers from the chart's real state — use this (disposition apply) whenever they ask what indicators are on a chart, whether one is on, or which are hidden, instead of answering yourself.",
+    "hints": "target = the indicators entry for the chart the member means (with several charts and no chart named, ask which). filter: hidden | shown | null (all).",
+    "args": {
+     "type": "object",
+     "properties": {
+      "filter": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "hidden",
+        "shown",
+        null
+       ]
+      }
+     },
+     "required": [
+      "filter"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "indicator.add",
+    "domain": "indicator",
+    "target": "indicatorEdits",
+    "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
+    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "defId": {
+       "type": "string"
+      },
+      "inputs": {
+       "type": [
+        "array",
+        "null"
+       ],
+       "items": {
+        "type": "object",
+        "properties": {
+         "key": {
+          "type": "string"
+         },
+         "value": {
+          "type": [
+           "string",
+           "number",
+           "boolean"
+          ]
+         }
+        },
+        "required": [
+         "key",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     },
+     "required": [
+      "defId",
+      "inputs"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "indicator.remove",
+    "domain": "indicator",
+    "target": "indicatorEdits",
+    "summary": "Remove ONE indicator (its whole group, e.g. all COT panes) from ONE chart — the settings ✕ / legend Delete. Always shown as a proposal first, listing anything it would disconnect. Undo restores it exactly (same identity, reconnected inputs).",
+    "hints": "target = the ref of that chart's indicatorEdits entry. instance = the indicator's `id` from that chart's indicators list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).",
+    "args": {
+     "type": "object",
+     "properties": {
+      "instance": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "instance"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "confirm",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "indicator.update",
+    "domain": "indicator",
+    "target": "indicatorEdits",
+    "summary": "Change the settings of ONE indicator already on ONE chart, in place — its length, its moving-average type, or another setting its row lists (what the indicator's settings dialog does). Never adds a second copy. Undo puts the old settings back.",
+    "hints": "target = the ref of that chart's indicatorEdits entry. instance = the indicator's `id` from that chart's indicators list (exact; a name only if it is unique). inputs = [{key, value}] with ONLY keys from that indicator's settings, and ONLY the settings the member named — everything else stays as it is (an EMA stays an EMA unless they name a type). \"make it a 9\" right after adding an EMA 20 → that EMA, [{key:\"period\",value:9}]; \"change that to an SMA\" → [{key:\"maType\",value:\"sma\"}]. Use this — never indicator.remove + indicator.add — to change an indicator that is already on the chart.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "instance": {
+       "type": "string"
+      },
+      "inputs": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "key": {
+          "type": "string"
+         },
+         "value": {
+          "type": [
+           "string",
+           "number",
+           "boolean"
+          ]
+         }
+        },
+        "required": [
+         "key",
+         "value"
+        ],
+        "additionalProperties": false
+       }
+      }
+     },
+     "required": [
+      "instance",
+      "inputs"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "indicator.show",
+    "domain": "indicator",
+    "target": "indicatorEdits",
+    "summary": "Show ONE indicator (its whole group) on ONE chart — the settings / legend eye. Undo puts it back.",
+    "hints": "target = the ref of that chart's indicatorEdits entry. instance = the indicator's `id` from that chart's indicators list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).",
+    "args": {
+     "type": "object",
+     "properties": {
+      "instance": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "instance"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "indicator.hide",
+    "domain": "indicator",
+    "target": "indicatorEdits",
+    "summary": "Hide ONE indicator (its whole group) on ONE chart — the settings / legend eye. Undo puts it back.",
+    "hints": "target = the ref of that chart's indicatorEdits entry. instance = the indicator's `id` from that chart's indicators list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).",
+    "args": {
+     "type": "object",
+     "properties": {
+      "instance": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "instance"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "exact",
+    "query": false,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
+   },
+   {
+    "name": "agent.capabilities",
+    "domain": "agent",
+    "target": "about",
+    "summary": "Answer what UCT Agent can and cannot do (now, partly, not yet, planned) about a topic — from UCT's own capability list, never from memory.",
+    "hints": "target = the ref of the agent entry. Use ONLY for a question ABOUT abilities (\"can you draw trendlines?\", \"what can you do with layouts?\", \"can you backtest?\"). A polite request to DO something you can do (\"can you switch this to weekly?\") is a command: plan it, do not use this. topic: overview for \"what can you do?\"; other when no topic fits.",
+    "args": {
+     "type": "object",
+     "properties": {
+      "topic": {
+       "type": "string",
+       "enum": [
+        "backtest",
+        "vision",
+        "breadth",
+        "history",
+        "arrange",
+        "widgets",
+        "layouts",
+        "customIndicator",
+        "indicators",
+        "drawings",
+        "chartSettings",
+        "charts",
+        "savedScreens",
+        "screener",
+        "watchlists",
+        "alerts",
+        "stockInfo",
+        "calendar",
+        "journal",
+        "appSettings",
+        "guide",
+        "similarity",
+        "overview",
+        "other"
+       ]
+      }
+     },
+     "required": [
+      "topic"
+     ],
+     "additionalProperties": false
+    },
+    "risk": "local",
+    "reversible": true,
+    "undo": "none",
+    "query": true,
+    "argAliases": null,
+    "coerce": null,
+    "defaults": null,
+    "defaultsWhen": null,
+    "shape": null
    }
   ]
  },
@@ -8189,11 +10661,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -8221,260 +10693,7 @@
    },
    "capabilities_ref": "m1"
   },
-  "d02": {
-   "conversationId": null,
-   "message": "stocks with RS rank above 90",
-   "voice": false,
-   "pending": null,
-   "context": {
-    "surface": "charts",
-    "charts": [
-     {
-      "ref": "c1",
-      "label": "Chart (QQQ)",
-      "position": null,
-      "symbol": "QQQ",
-      "timeframe": "D",
-      "timeframeLabel": "Daily",
-      "chartType": "candles",
-      "volume": "visible",
-      "background": "#17181a",
-      "upColor": "#2faf68",
-      "downColor": "#df4646",
-      "extendedHours": false,
-      "scale": "linear",
-      "linkedWidgets": 0
-     }
-    ],
-    "otherWidgets": [],
-    "workspace": [
-     {
-      "ref": "w1",
-      "label": "Workspace",
-      "widgetCount": 1,
-      "widgetLimit": 16,
-      "openSlots": {
-       "chart": 0
-      },
-      "visibleWidgets": [
-       {
-        "type": "chart",
-        "label": "Chart",
-        "position": null
-       }
-      ]
-     }
-    ],
-    "screener": [
-     {
-      "ref": "s1",
-      "label": "Screener",
-      "fields": "sector:Sector(list);exchange:Exchange(list);beta:Beta;market_cap:Market Cap($);price:Price($);avg_volume_30d:Avg Volume (30d);pe_fwd:Forward P/E;peg:PEG;eps_growth:EPS Growth(%);rev_growth:Revenue Growth(%);eps_past_5y_growth:EPS Growth Past 5Y(%);eps_next_5y_growth:EPS Growth Next 5Y (est)(%);sales_past_5y_growth:Sales Growth Past 5Y(%);op_margin:Operating Margin(%);roe:ROE(%);pe_ttm:P/E (TTM);ps:P/S;pb:P/B;dividend_yield:Dividend Yield(%);gross_margin:Gross Margin(%);net_margin:Net Margin(%);roa:ROA(%);debt_to_equity:Debt / Equity;current_ratio:Current Ratio;quick_ratio:Quick Ratio;p_fcf:P/FCF;p_ocf:P/OCF;payout_ratio:Payout Ratio(%);roic:ROIC(%);lt_debt_to_capital:LT Debt / Capital;enterprise_value:Enterprise Value;ev_sales:EV / Sales;ev_ebitda:EV / EBITDA;ev_fcf:EV / FCF;earnings_yield:Earnings Yield(%);fcf_yield:FCF Yield(%);eps_ttm:EPS (TTM);revenue_ps:Revenue / Share;fcf_ps:FCF / Share;book_value_ps:Book Value / Share;cash_ps:Cash / Share;working_capital:Working Capital;ebitda_margin:EBITDA Margin(%);ebit_margin:EBIT Margin(%);roce:ROCE(%);income_quality:Income Quality;tax_rate:Effective Tax Rate(%);interest_coverage:Interest Coverage;net_debt_to_ebitda:Net Debt / EBITDA;cash_ratio:Cash Ratio;asset_turnover:Asset Turnover;capex_to_revenue:Capex / Revenue(%);rnd_to_revenue:R&D / Revenue(%);sbc_to_revenue:SBC / Revenue(%);cash_conversion_cycle:Cash Conversion Cycle(days);ipo_date:IPO Date;ipo_age_days:IPO Age (days);country:Country(list);above_50sma:Above 50 SMA(yes/no);ma_stack:MA Stack(list);rsi14:RSI (14);vol_ratio:Volume Ratio(×);rvol_live:Rel Volume (by now)(×);premarket_chg_pct:Ext-hrs %(%);premarket_price:Ext-hrs price($);adr_pct:ADR %(%);gap_pct:Gap %(%);dist_52w_high_pct:Dist from 52W High(%);new_52w_high:New 52W High(yes/no);pct_vs_ema20:EMA20 Distance(%);candle_type:Candle Type(list);candle_trend:Prior Trend(list);wide_bar:Wide Bar (>1.5 ATR)(yes/no);narrow_bar:Narrow Bar (<0.5 ATR)(yes/no);close_position:Close Position in Range;bar_character:Bar Character(list);candle_recent:Recent Pattern (5d)(list);candle_weekly:Weekly Candle(list);candle_monthly:Monthly Candle(list);candle_recent_status:Next Open After Pattern(list);candle_recent_bars_ago:Pattern Age;tight_consolidation:Tight Consolidation(yes/no);nr7:NR7 (narrowest of 7)(yes/no);inside_bar_run:Inside-Bar Run;higher_lows_run:Higher-Lows Run;pullback_depth_pct:Pullback Depth(%);consecutive_up:Consecutive Up Days;chg_pct_1d:Change Today(%);chg_pct_1w:Change 1W(%);chg_pct_1m:Change 1M(%);chg_pct_3m:Change 3M(%);chg_pct_6m:Change 6M(%);chg_pct_1y:Change 1Y(%);chg_pct_ytd:Change YTD(%);chg_from_open_pct:Change from Open(%);dist_20d_high_pct:Dist from 20D High(%);dist_52w_low_pct:Dist from 52W Low(%);dist_ath_pct:Dist from All-Time High(%);new_ath:New All-Time High(yes/no);dollar_vol_30d:Dollar Volume (30d)($);dollar_vol_1d:Dollar Volume (1 day)($);pole_pct:Prior Run (Pole %)(%);vol_nweek_low:Volume Dry-Up;vol_updown_ratio:Up/Down Volume(×);close_cv_pct:Close Tightness (CV)(%);avg_body_pct_5:5-Bar Body Tightness;ema_touch_count:EMA20 Touches (15 bars);ema20_rising:EMA20 Rising(yes/no);ema10_rising:EMA10 Rising(yes/no);ema_stack_intact:EMA Stack Intact (10>20, rising)(yes/no);atr_ext_sma50:ATR Extension vs 50SMA(ATR);rs_line_trend:RS Line vs SPY(list);atr_pct:ATR % of Price(%);pct_vs_sma20:SMA20 Distance(%);adr_pct_1w:ADR % (5-day)(%);consecutive_down:Consecutive Down Days;inst_pct:Institutional Ownership(%);body_pct:Last-Bar Body;upper_wick_pct:Upper Wick;lower_wick_pct:Lower Wick;industry:Industry(list);index_sp500:S&P 500(yes/no);index_ndx:Nasdaq 100(yes/no);index_dow:Dow 30(yes/no);index_r2k:Russell 2000(yes/no);is_etf:ETF(yes/no);is_leveraged:Leveraged/Inverse ETF(yes/no);stage2:Weinstein Stage 2(yes/no);stage4:Weinstein Stage 4(yes/no);shares_outstanding:Shares Outstanding;float_shares:Float (Shares);float_pct:Float % of Shares(%);short_float_pct:Short % of Float(%);short_ratio:Short Ratio (Days to Cover);insider_own_pct:Insider Ownership(%);insider_cluster_days:Insider Cluster Buy (days ago);insider_trans_pct:Insider Transactions(%);inst_trans_pct:Institutional Transactions(%);optionable:Optionable(yes/no);shortable:Shortable(yes/no);next_earnings_date:Next Earnings Date;days_to_earnings:Days to Earnings;earnings_session:Earnings Session(list);last_report_move_pct:Last Report Move(%);implied_move_pct:Implied Move (pre-report)(%);analyst_consensus:Analyst Consensus(list);pt_target:Price Target($);pt_upside_pct:PT Upside(%);upgrades_30d:Upgrades (30d);downgrades_30d:Downgrades (30d);eps_next_y_growth:EPS Growth Next FY (est)(%);security_type:Type(list);dollar_volume_1d:Dollar Volume (latest session)($);volume_1d:Volume (latest session);close_1d:Close (latest session)($)",
-      "savedScreens": []
-     }
-    ],
-    "alertLibrary": [
-     {
-      "ref": "a1",
-      "label": "Price alerts (create new alerts here)",
-      "active": 0,
-      "wentOff": 0
-     }
-    ],
-    "stockData": [
-     {
-      "ref": "m1",
-      "label": "UCT stock data (profile, fundamentals, earnings, comparisons, stored news, catalysts)"
-     }
-    ],
-    "breadth": [
-     {
-      "ref": "b1",
-      "label": "UCT market breadth (US, NYSE, Nasdaq — finalized end of day; dates only here)",
-      "latest_finalized": {
-       "us": null,
-       "nyse": null,
-       "nasdaq": null
-      }
-     }
-    ],
-    "watchlistDigest": [
-     {
-      "ref": "d1",
-      "label": "Watchlist email digest",
-      "setting": "unknown"
-     }
-    ],
-    "savedScreenLibrary": [
-     {
-      "ref": "s2",
-      "label": "Saved screens (save, rename, copy, delete here)",
-      "yours": [],
-      "starters": 0,
-      "lastScreenHere": null
-     }
-    ],
-    "board": [
-     {
-      "ref": "b2",
-      "label": "Board (arrange, remove, link and configure the widgets on it)",
-      "grid": {
-       "cols": 24,
-       "rows": 20
-      },
-      "widgets": [
-       {
-        "id": "c",
-        "type": "chart",
-        "label": "Chart",
-        "position": null,
-        "x": 0,
-        "y": 0,
-        "w": 24,
-        "h": 20,
-        "link": "N"
-       }
-      ]
-     }
-    ],
-    "indicators": [
-     {
-      "ref": "i1",
-      "chart": "Chart (QQQ)",
-      "position": null,
-      "symbol": "QQQ",
-      "createIndicator": true,
-      "indicators": [
-       {
-        "name": "Volume",
-        "placement": "price",
-        "setting": true
-       }
-      ]
-     }
-    ],
-    "indicatorEdits": [
-     {
-      "ref": "i2",
-      "chart": "Chart (QQQ)",
-      "position": null,
-      "symbol": "QQQ",
-      "canManage": true
-     }
-    ],
-    "indicatorDrafts": [
-     {
-      "ref": "i3",
-      "new": true,
-      "label": "start a NEW indicator draft (or edit one of yourIndicators)",
-      "yourIndicators": []
-     }
-    ],
-    "definitionLibrary": [
-     {
-      "ref": "d2",
-      "label": "Indicator definitions (search, describe, copy, delete your own here)"
-     }
-    ],
-    "agent": [
-     {
-      "ref": "a2",
-      "label": "UCT Agent (ask what I can and cannot do)"
-     }
-    ]
-   },
-   "manifestVersion": 1,
-   "routing": {
-    "version": 1,
-    "groups": [
-     {
-      "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
-     },
-     {
-      "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
-     },
-     {
-      "id": "chartGrid",
-      "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
-     },
-     {
-      "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
-     },
-     {
-      "id": "workspace",
-      "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
-     },
-     {
-      "id": "layouts",
-      "title": "Saved layouts (open, save, create, copy, rename, delete)"
-     },
-     {
-      "id": "indicators",
-      "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
-     },
-     {
-      "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
-     },
-     {
-      "id": "definitions",
-      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
-     },
-     {
-      "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
-     },
-     {
-      "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
-     },
-     {
-      "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
-     },
-     {
-      "id": "screener",
-      "title": "Screener (run screens, saved screens: run, save, copy, rename, delete)"
-     },
-     {
-      "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
-     },
-     {
-      "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
-     },
-     {
-      "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
-     },
-     {
-      "id": "breadth",
-      "title": "Market breadth now and history (US, NYSE, Nasdaq: % of stocks above moving averages, new highs/lows, advance/decline, Stage 2/4)"
-     },
-     {
-      "id": "settings",
-      "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
-     },
-     {
-      "id": "agent",
-      "title": "Questions about what UCT Agent can do"
-     },
-     {
-      "id": "guide",
-      "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
-     }
-    ],
-    "selected": [
-     "screener",
-     "agent"
-    ]
-   },
-   "capabilities_ref": "m2"
-  },
+  "d02": null,
   "d03": {
    "conversationId": null,
    "message": "show me the leaders making new highs",
@@ -8699,11 +10918,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -8728,7 +10947,7 @@
      "agent"
     ]
    },
-   "capabilities_ref": "m3"
+   "capabilities_ref": "m2"
   },
   "d04": {
    "conversationId": null,
@@ -8954,11 +11173,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -8990,7 +11209,7 @@
      "guide"
     ]
    },
-   "capabilities_ref": "m4"
+   "capabilities_ref": "m3"
   },
   "d05": {
    "conversationId": null,
@@ -9216,11 +11435,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -9244,7 +11463,7 @@
      "agent"
     ]
    },
-   "capabilities_ref": "m2"
+   "capabilities_ref": "m4"
   },
   "d06": {
    "conversationId": null,
@@ -9470,11 +11689,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -9725,11 +11944,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -9980,11 +12199,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -10016,7 +12235,7 @@
      "guide"
     ]
    },
-   "capabilities_ref": "m4"
+   "capabilities_ref": "m3"
   },
   "d09": {
    "conversationId": null,
@@ -10503,11 +12722,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -10759,11 +12978,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -10787,7 +13006,7 @@
      "agent"
     ]
    },
-   "capabilities_ref": "m2"
+   "capabilities_ref": "m4"
   },
   "d11": {
    "conversationId": null,
@@ -11013,11 +13232,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -11041,7 +13260,7 @@
      "agent"
     ]
    },
-   "capabilities_ref": "m2"
+   "capabilities_ref": "m4"
   },
   "d12": {
    "conversationId": null,
@@ -11528,11 +13747,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -11783,11 +14002,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -11819,7 +14038,7 @@
      "guide"
     ]
    },
-   "capabilities_ref": "m4"
+   "capabilities_ref": "m3"
   },
   "d14": {
    "conversationId": null,
@@ -12306,11 +14525,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -12822,11 +15041,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -13338,11 +15557,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -13593,11 +15812,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -13629,7 +15848,7 @@
      "guide"
     ]
    },
-   "capabilities_ref": "m4"
+   "capabilities_ref": "m3"
   },
   "d18": {
    "conversationId": null,
@@ -14116,11 +16335,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -14371,11 +16590,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -14407,7 +16626,7 @@
      "guide"
     ]
    },
-   "capabilities_ref": "m4"
+   "capabilities_ref": "m3"
   },
   "d20": {
    "conversationId": null,
@@ -14633,11 +16852,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -14669,7 +16888,7 @@
      "guide"
     ]
    },
-   "capabilities_ref": "m4"
+   "capabilities_ref": "m3"
   },
   "d21": {
    "conversationId": null,
@@ -14895,11 +17114,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -14931,7 +17150,7 @@
      "guide"
     ]
    },
-   "capabilities_ref": "m4"
+   "capabilities_ref": "m3"
   },
   "d22": {
    "conversationId": null,
@@ -15157,11 +17376,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -15412,11 +17631,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -15928,11 +18147,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -16183,11 +18402,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -16438,11 +18657,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -16466,7 +18685,7 @@
      "agent"
     ]
    },
-   "capabilities_ref": "m2"
+   "capabilities_ref": "m4"
   },
   "r01": {
    "conversationId": null,
@@ -16953,11 +19172,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -16979,10 +19198,11 @@
     "selected": [
      "indicators",
      "screener",
+     "indicatorAlerts",
      "agent"
     ]
    },
-   "capabilities_ref": "m7"
+   "capabilities_ref": "m9"
   },
   "r02": {
    "conversationId": null,
@@ -17469,11 +19689,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -17985,11 +20205,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -18501,11 +20721,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -18529,7 +20749,7 @@
      "agent"
     ]
    },
-   "capabilities_ref": "m2"
+   "capabilities_ref": "m4"
   },
   "r05": {
    "conversationId": null,
@@ -18755,11 +20975,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -18791,7 +21011,7 @@
      "guide"
     ]
    },
-   "capabilities_ref": "m4"
+   "capabilities_ref": "m3"
   }
  }
 }

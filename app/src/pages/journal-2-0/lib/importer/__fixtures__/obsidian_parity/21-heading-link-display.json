@@ -25,6 +25,12 @@
         "text": "Other note"
       }
     ],
+    "notices": [
+      {
+        "name": "missing.png",
+        "reason": "not_found"
+      }
+    ],
     "pending": [
       {
         "key": "name:obsidian:vault-1/ghost",
@@ -56,7 +62,7 @@
       }
     ],
     "task_checked": [],
-    "text": "Heading link display Missing: Ghost > Risk, Ghost, Ghost > Risk, Ghost and Ghost > Risk#Sub. This note: Risk and #^abc. Resolved: Other note > Risk, Other note and the risk. Files: report #2.pdf and the sheet. Embeds: Ghost, Ghost, missing.png and Other note."
+    "text": "Heading link display Missing: Ghost > Risk, Ghost, Ghost > Risk, Ghost and Ghost > Risk#Sub. This note: Risk and #^abc. Resolved: Other note > Risk, Other note and the risk. Files: report #2.pdf and the sheet. Embeds: Ghost, Ghost,   and Other note."
   },
   "vault_id": "vault-1",
   "vault_paths": [

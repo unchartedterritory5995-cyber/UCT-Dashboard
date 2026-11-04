@@ -45,6 +45,7 @@ REQ = {"mode": "value", "universe": "us", "metrics": ["pct_above_50sma"], "date"
        "compare_date": None, "start": None, "end": None}
 BREADTH_OP = {"action": "breadth.show", "target": "b1", "args": REQ}
 PROFILE_OP = {"action": "stock.profile", "target": "m1", "args": {"symbol": "NVDA"}}
+WRITE_OP = {"action": "chart.setType", "target": "m1", "args": {"type": "bars"}}
 
 
 def env(disposition, ops=(), reply="", question=None):
@@ -200,7 +201,8 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
             nxt = src.find("registerCapability(", m.end())
             if "localOnly: true" in src[m.end(): nxt if nxt != -1 else len(src)]:
                 found.add(m.group(1))
-    assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history"}
+    # W2-B2: history.afterEvent; journal.reviewTrades (W3 review B3): the member's own journal review is shown, never replayed to a model
+    assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades"}
 
 
 # ═══ 3. the one door: what a stored row may say to a model ══════════════════════════════════════════
@@ -258,9 +260,11 @@ def test_DOOR_a_local_plans_agent_row_is_left_out_even_if_stored_with_text():
 def test_PLAN_reply_is_blanked_for_a_local_lookup():
     out = turn.sanitize_envelope(env("apply", [BREADTH_OP], reply="Breadth was 73.5% on Friday."), {"b1"})
     assert out["ops"] == [BREADTH_OP] and out["reply"] == ""
-    # a plan without a local-only op keeps a disclosing reply
-    out2 = turn.sanitize_envelope(env("apply", [PROFILE_OP], reply="Using UCT's stock data."), {"m1"})
+    # a WRITE plan without a local-only op keeps a disclosing reply
+    out2 = turn.sanitize_envelope(env("apply", [WRITE_OP], reply="Using UCT's stock data."), {"m1"})
     assert out2["reply"] == "Using UCT's stock data."
+    # hotfix 2026-11-03: a data-read plan (stock.profile) never serves the model's pre-read words
+    assert turn.sanitize_envelope(env("apply", [PROFILE_OP], reply="Using UCT's stock data."), {"m1"})["reply"] == ""
 
 
 # ═══ 4. the joint multi-turn leak test (real router, scripted model, captured payloads) ════════════
@@ -433,7 +437,7 @@ def test_MIXED_news_plus_a_change_WITHOUT_breadth_still_researches_as_before(mon
 
 
 def test_MIXED_the_notice_is_never_attached_to_a_plan_without_a_local_lookup():
-    out = turn.sanitize_envelope(env("apply", [PROFILE_OP], reply="Using UCT's data."), {"m1"},
+    out = turn.sanitize_envelope(env("apply", [WRITE_OP], reply="Using UCT's data."), {"m1"},
                                  local_notice=turn.LOCAL_NEWS_NOT_DONE)
     assert out["reply"] == "Using UCT's data." and "local_notice" not in out
     assert not re.search(r"\d", turn.LOCAL_NEWS_NOT_DONE)              # deterministic words, no figures

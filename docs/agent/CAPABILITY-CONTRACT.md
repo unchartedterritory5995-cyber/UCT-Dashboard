@@ -62,7 +62,7 @@ When one of these domains needs execution, it gets the same treatment: an owner-
 
 **Shared file:** `app/src/agent/contract/manifest.contract.json`.
 
-**Version and entry keys:** manifest version 1. Each entry carries `args`, `domain`, `hints`, `name`, `query`, `reversible`, `risk`, `summary`, `target` and `undo`.
+**Version and entry keys:** manifest version 1. Each entry carries `args`, `domain`, `hints`, `name`, `query`, `reversible`, `risk`, `summary`, `target` and `undo` — and, since W1.1 (R-01, LT-3), the capability's args tolerance `argAliases`, `coerce`, `defaults`, `defaultsWhen` and its exact-shape example `shape` (each `null` when it declares none; `app/src/agent/README.md` "Args tolerance"; `limits.maxShape` caps the example).
 
 **Limits** (the server constants in `turn.py` must equal these):
 

@@ -456,7 +456,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
 
   return (
     <div className={styles.saveMenuWrap} ref={wrapRef}>
-      <button type="button" className="btn btn-primary" onClick={() => setOpen(o => !o)}>
+      <button type="button" className="btn btn-primary" data-guide="screener.screens" onClick={() => setOpen(o => !o)}>
         Screener ▾
       </button>
       {open && (

@@ -1,0 +1,15 @@
+{
+  "about": "A COPY of the v1 rows of the Measurables table in docs/agent/program/contracts/KN-1-knowledge.md (Trading Brain builder; origin/agent/kn/knowledge-poc @ 3852446f29). The contract lives on another branch until integration; at integration this copy must equal the contract's table (agentChartDescribe.test.jsx pins chart.describeSetup's ids to it).",
+  "contract": "docs/agent/program/contracts/KN-1-knowledge.md",
+  "contract_ref": "origin/agent/kn/knowledge-poc@3852446f29",
+  "v1": [
+    { "id": "close_vs_sma20", "meaning": "(close − SMA20) / SMA20 × 100", "unit": "pct" },
+    { "id": "close_vs_sma50", "meaning": "(close − SMA50) / SMA50 × 100", "unit": "pct" },
+    { "id": "pct_from_52w_high", "meaning": "(close − 52-week high) / 52-week high × 100 (≤ 0)", "unit": "pct" },
+    { "id": "range_pct_10", "meaning": "(max high − min low) over the last 10 sessions / min low × 100", "unit": "pct" },
+    { "id": "rel_volume_50d", "meaning": "session volume / 50-session average volume", "unit": "x" },
+    { "id": "sma50_above_sma200", "meaning": "SMA50 > SMA200", "unit": "bool" },
+    { "id": "sma50_rising", "meaning": "SMA50 today > SMA50 20 sessions ago", "unit": "bool" },
+    { "id": "sma200_rising", "meaning": "SMA200 today > SMA200 20 sessions ago", "unit": "bool" }
+  ]
+}

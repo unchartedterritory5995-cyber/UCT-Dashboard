@@ -122,7 +122,7 @@ export function NewNoteCaret(doors) {
 export default function NewNoteMenu({ onBlank, ...doors }) {
   return (
     <div className={styles.split} data-tour="new-note-home">
-      <button type="button" className={`btn btn-primary ${styles.main}`} onClick={onBlank}>
+      <button type="button" className={`btn btn-primary ${styles.main}`} onClick={onBlank} data-guide="journal.newNote">
         <UIcon name="plus" size={14} gold={false} /> New note
       </button>
       <CaretMenu caretClass={`btn btn-primary ${styles.caret}`} {...doors} />

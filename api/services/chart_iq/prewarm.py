@@ -43,12 +43,53 @@ def _conn() -> sqlite3.Connection:
     if p not in _INIT:
         c.execute("PRAGMA journal_mode=WAL")
         c.execute("CREATE TABLE IF NOT EXISTS viewed (ticker TEXT PRIMARY KEY, at REAL NOT NULL)")
+        c.execute("CREATE TABLE IF NOT EXISTS asks (day TEXT NOT NULL, kind TEXT NOT NULL, n INTEGER NOT NULL, secs REAL NOT NULL, "
+                  "PRIMARY KEY (day, kind))")
         _INIT.add(p)
     return c
 
 
 _PENDING: dict = {}
 _FLUSHER = []
+_ASKS: dict = {}   # (ET day, kind) -> [count, seconds]: how members' reads are served (pack / cache / live latest / live past date)
+ASK_KINDS = ("pack", "cache", "live_latest", "live_past")
+
+
+def _et_day() -> str:
+    import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+
+
+def record_ask(kind: str, secs: float) -> None:
+    """Count one read by how it was served, for the past-date decision (2026-11-03: is a slow past-date read common enough to
+    pack recent days too?). In memory, written with the view batch. Never raises, never blocks."""
+    try:
+        with _LOCK:
+            cur = _ASKS.setdefault((_et_day(), kind), [0, 0.0])
+            cur[0] += 1
+            cur[1] += float(secs)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def ask_summary(days: int = 14) -> dict:
+    """{day: {kind: {"n", "avg_s"}}} for the last `days` days with any reads (admin pack status)."""
+    flush()
+    try:
+        c = _conn()
+        try:
+            rows = c.execute("SELECT day, kind, n, secs FROM asks ORDER BY day DESC").fetchall()
+        finally:
+            c.close()
+    except Exception:  # noqa: BLE001
+        return {}
+    out = {}
+    for day, kind, n, secs in rows:
+        if day not in out and len(out) >= days:
+            continue
+        out.setdefault(day, {})[kind] = {"n": n, "avg_s": round(secs / n, 3) if n else None}
+    return out
 
 
 def record_view(ticker: str) -> None:
@@ -75,12 +116,15 @@ def flush() -> int:
     """Write the pending views now. Returns how many were written. Never raises."""
     with _LOCK:
         batch = list(_PENDING.items()); _PENDING.clear()
-    if not batch:
+        asks = [(d, k, v[0], v[1]) for (d, k), v in _ASKS.items()]; _ASKS.clear()
+    if not batch and not asks:
         return 0
     try:
         c = _conn()
         try:
             c.executemany("INSERT INTO viewed (ticker, at) VALUES (?, ?) ON CONFLICT(ticker) DO UPDATE SET at=excluded.at", batch)
+            c.executemany("INSERT INTO asks (day, kind, n, secs) VALUES (?, ?, ?, ?) ON CONFLICT(day, kind) DO UPDATE SET "
+                          "n = n + excluded.n, secs = secs + excluded.secs", asks)
             c.commit()
         finally:
             c.close()

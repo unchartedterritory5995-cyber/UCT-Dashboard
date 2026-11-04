@@ -3320,6 +3320,19 @@ def register_chart_iq_pack_jobs(scheduler):
         pass
     scheduler.add_job(_sync, trigger=IntervalTrigger(minutes=15), id="chart_iq_pack_sync", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=600)
+    def _behind_alert():
+        try:
+            from api.services.chart_iq import pack
+            pack.alert_if_behind()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] behind-alert job error: %s", exc)
+
+    # After the PC's build window (nightly 22:30 CT + 15 min sync) and after its 06:00 CT retry: page ops if members are
+    # still reading an older session than the market's last one.
+    scheduler.add_job(_behind_alert, trigger=CronTrigger(day_of_week="tue-sat", hour=0, minute=20, timezone=_ET),
+                      id="chart_iq_pack_behind_evening", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    scheduler.add_job(_behind_alert, trigger=CronTrigger(day_of_week="mon-fri", hour=7, minute=35, timezone=_ET),
+                      id="chart_iq_pack_behind_morning", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
     from api.services.chart_iq import pack as _ciq_pack_gate
     if not _ciq_pack_gate.server_build_allowed():   # the in-pod build took the pod down 11/02; the PC owns the build
         return True
@@ -7300,6 +7313,15 @@ async def lifespan(app: FastAPI):
                 _note_sync_scheduler.run_due_sync_blocking,
                 trigger=CronTrigger(minute=23, timezone=_ET),
                 id="note_sync_due", max_instances=1, replace_existing=True,
+            )
+            # Quick follow-up passes (live gate 2026-11-03): a source a provider's rate limit
+            # cut short (Evernote's per-minute tool limit) is stamped a few minutes ahead and
+            # synced again here instead of waiting for the hourly tick. A cheap no-op when no
+            # source is stamped; bounded per source per hour in the engine.
+            _scheduler.add_job(
+                _note_sync_scheduler.run_follow_up_sync_blocking,
+                trigger=IntervalTrigger(minutes=int(os.getenv("NOTE_SYNC_FOLLOW_UP_INTERVAL_MIN", "2"))),
+                id="note_sync_follow_up", max_instances=1, replace_existing=True,
             )
             # Nightly FULL-listing pass (MUST-RESOLVE #2, distinct minute
             # offset from the tick above) -- delete detection (engine.py's

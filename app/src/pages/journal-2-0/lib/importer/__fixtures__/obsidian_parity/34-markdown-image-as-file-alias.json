@@ -1,0 +1,56 @@
+{
+  "id": "34-markdown-image-as-file-alias",
+  "input_markdown": "# Markdown image as the alias of a file link\n\nx [[q.pdf|![](att/img.png)]] y\n\nold [[r.pdf|![](att/img2.png)]] plugin\n\nnote [[Plan|![](att/img3.png)]] here\n\nnone [[Nope|![](att/img4.png)]] yet\n\nweb [[Plan|![](https://example.com/a.png)]] too\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [
+      {
+        "label": null,
+        "name": "q.pdf"
+      },
+      {
+        "label": null,
+        "name": "r.pdf"
+      }
+    ],
+    "highlights": [],
+    "images": [
+      "att/img.png",
+      "att/img2.png",
+      "att/img3.png",
+      "att/img4.png",
+      "https://example.com/a.png"
+    ],
+    "links": [
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      },
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      }
+    ],
+    "notices": [],
+    "pending": [
+      {
+        "key": "name:obsidian:vault-1/nope",
+        "text": "Nope"
+      }
+    ],
+    "task_checked": [],
+    "text": "Markdown image as the alias of a file link x  [file: q.pdf]  y old  [file: r.pdf]  plugin note  Plan here none  Nope yet web  Plan too"
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "att/q.pdf",
+    "att/img.png",
+    "att/r.pdf",
+    "att/img2.png",
+    "att/img3.png",
+    "att/img4.png",
+    "Plan.md"
+  ]
+}

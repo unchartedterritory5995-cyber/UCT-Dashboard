@@ -200,11 +200,11 @@
   },
   {
    "id": "indicatorAlerts",
-   "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+   "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
   },
   {
    "id": "data",
-   "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+   "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
   },
   {
    "id": "breadth",
@@ -336,11 +336,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -490,11 +490,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -651,11 +651,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -821,11 +821,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -971,11 +971,11 @@
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
