@@ -48,7 +48,67 @@ Command, under heavy-final3: `final-tip.sh pine-dsk-w3 w3r2-final tests/test_scr
 - The branch's rails, all green in that run: `ast/textRefusalNames.test.js` (23), `__tests__/w3CapturedCells.vendor.test.js` (8),
   `__tests__/strFormat.vendor.test.js` (11), `__tests__/formatVendorRules.test.js` (10).
 
-## Not run in this re-home (open, from the handoff commit 58dd37a20c)
-The handoff listed pin-on-master, the 35-file rail job, the 13-mutation run (`runs/w3r2/muts2.json`) and the "why" census
-base/tip. They live in the laptop's `runs/w3r2/job2.sh`, which is not on the desktop. The coordinator scoped this
-re-home to measure-pair plus final-tip. Red-on-master and the mutation table are therefore NOT re-proved here.
+## Pin on master (red on master, green on the tip)
+One job, lane `_resume-2026-11-01/dsk/heavy-mut.lock` (label `w3-mut`): `runs/w3r2-pinmut.sh` -> `runs/w3r2-pin.py`.
+Tip `58dd37a20c` (code); master bytes from `52f76f9b4f`. It swaps `pineTextFormat.js`, `ast/pine.js` and `ast/objectProgram.js` in
+place to the master bytes (`git show`), runs, then restores the saved bytes and asserts them byte-exact. No checkout, stash or reset.
+Rail files: `ast/textRefusalNames.test.js`, `__tests__/w3CapturedCells.vendor.test.js`, `__tests__/strFormat.vendor.test.js`,
+`__tests__/formatVendorRules.test.js`. Logs and JSON reports: `_resume-2026-11-01/runs/w3r2-pin/` (`tip`, `master`, `master-pinejs-only`).
+
+| run | textRefusalNames (23) | strFormat.vendor (11) | formatVendorRules (10) | w3CapturedCells (8) | total |
+|---|---|---|---|---|---|
+| tip | 23 pass | 11 pass | 10 pass | 8 pass | 52/52 |
+| all 3 src at master | 19 FAIL / 4 pass | 2 FAIL ("everything no capture shows is refused", "the four unpinned cases each come back null") | 1 FAIL ("`str.format` IS SERVED for the patterns a capture pins") | 8 pass | 30 pass / 22 fail |
+| only `pine.js` at master | 7 FAIL (all of section B: date, bare number, integer, string list, helper, `?:`, createDropWhy) | pass | pass | pass | 45 / 7 fail |
+
+- Red on master: the -0 rail ("WITHHELD where the rule's words do not settle the characters"), the NBSP rail ("the keywords are trimmed
+  as Java's String.trim does"), the decimal-tie rails, the round-1 lows (999.9996 under `{N}`, 9.996 under percent) and every section-B name.
+- Green on master BY DESIGN (controls; they guard that nothing that drew before changes): textRefusalNames "the naming changes NO
+  decision: the drop counts are what they were" and the three section-C controls (`#.##` cells carried; the helper-parameter cells; the bare
+  `{N}` liquidation-levels rendering), and all 8 w3CapturedCells cases (each capture's drawn cells are TradingView's and the count is the
+  merge base's). No re-pin needed.
+
+## Mutations (`docs/pine/evidence/2026-11-04-w3-s1r2/muts2.json`, `$S/mutate.py` over the 4 rail files, same job)
+Log `_resume-2026-11-01/runs/w3r2-pin/mutate.log`. **21 of 22 killed, 1 survivor.** Every restore was byte-exact (mutate.py asserts it).
+
+| mutation | killed by |
+|---|---|
+| M01 type keyword read with JS `\s` (NBSP) | keywords are trimmed as Java's String.trim does |
+| M02 style keyword trimmed with `trim()` (NBSP) | same |
+| M03 an input of `-0` no longer withheld | WITHHELD where the rule's words do not settle the characters |
+| M04 negative-zero rule removed | same |
+| M05 decimal-tie rule removed | a DECIMAL half tie is withheld by name |
+| M06 exact-tie rule removed | WITHHELD ... |
+| M07 grouping bound on the product, not the rounded whole | WITHHELD ... |
+| M08 na rule removed | WITHHELD ... |
+| M09 `percentMessageNumber` stops asking `percentWithheldWhy` | WITHHELD ... |
+| M10 `{N}` bound not asked of the rounded text (999.9996) | strFormat.vendor: the four unpinned cases each come back null |
+| M11 `formatMessageNumber` stops serving `percent` | the reference's three examples |
+| M12 preset keyword matched untrimmed | the grammar admits the keyword, spaced as the reference spells it |
+| M13 `isMessageNumberFormat` forgets the presets | the document validator asks the SAME authority |
+| M14 validator back to a pattern-only check | same |
+| M15 cell drop site ignores the text reader's refusal | `{N,date,...}` the text reader's own refusal |
+| M16 create drop site ignores it | a create's content slot names the text reader's refusal too |
+| M17 `str.format` refusal not named | `{N,date,...}` ... |
+| M18 loop per-pass refusal not named | a string list read by the counter |
+| M20 bare `{N,number}` named generically | a bare `{N,number}` element names itself |
+| M21 per-pass `?:` shape not spelled | a `?:` whose test moves per pass |
+| M22 per-pass list-element shape not spelled | a string list read by the counter |
+| **M19 SURVIVED** `textRefuse` also writes `lastCanonRefusal` | none. NOT equivalent, see below |
+
+M19 (OPEN, needs a fix round): `pine.js` keeps the text reader's refusal off `lastCanonRefusal` because that value decides
+(`rtAdmits`, `rtTextOf`, `noteGuardRefusal`). The text guards (`pine:text-value`, `loop:per-pass`) are not in `RT_ADMITS`, so a leak cannot
+OPEN the runtime lane. It can OVERWRITE an admitting refusal (`pine:reassign` / `pine:block`) written earlier in the same slot read, and
+that would drop a cell the C18 runtime lane serves today. None of the 4 rail files builds with `objectOpts.runtimeCheck` (the C18 door),
+so none can see it. The rail needed: a C18-door probe whose text slot hits an admitting refusal and then a text refusal, asserting the
+runtime text placeholder is still produced. Unmutated tip vs master on the C18 door: 0 diffs (measure-pair rt0/rt1 above).
+
+## Why census (base vs tip)
+Same job. `tools/pine_coverage/w3_why_input.py --sample _resume-2026-11-01/pine-sample` gave 195 scripts. The env-gated
+`ast/w3ObjectWhy.measure.test.js` (`W3_INPUT`/`W3_OUT`) ran on the tip and with the 3 src files at master bytes. Outputs (licence-held
+spellings, not committed): `_resume-2026-11-01/runs/w3r2-pin/why-tip.json`, `why-base.json`.
+- `cellTextWhy` "no refusal recorded": base 22, tip **0**. `createDropWhy` "no refusal recorded": base 4, tip **0**. All 22 cells the
+  W3 census counted now carry a name.
+- `dropped` / `attempted` / `dropReasons` / throws: identical on all 195 rows. The names changed no decision.
+- 7 rows differ at all, and only in their why-sentences (6 in `cellTextWhy`, 1 in `createDropWhy`). On the tip, `cellTextWhy` now
+  names `pine:text-value` 16 times and `loop:per-pass` 16 times.
