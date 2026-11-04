@@ -905,3 +905,24 @@ describe('nl-gaps-5 · routing gaps', () => {
     expect(wordsSelect('breadth', 'averages for the S&P')).toBe(true)
   })
 })
+
+describe('nl-gaps-5 · CG-29..36 (#774 21ec4fb410)', () => {
+  it('CG-33: Replay Mode is named by its own words', () => {
+    for (const m of ['replay NVDA from march 3', 'start a bar replay', 'show me the chart as of oct 1', 'hide what came after the breakout', 'step through the bars', 'exit replay', 'stop replay'])
+      expect(wordsSelect('chartSetup', m), m).toBe(true)
+  })
+  it('CG-29..32: time-anchored drawing phrasings route the drawing tools', () => {
+    for (const m of ['connect the two lows with a trend line', 'draw a line from sep 2 to oct 28', 'fib retracement sep 2 100 to oct 28 180', 'write breakout on the chart at 150', 'anchor a vwap to oct 1'])
+      expect(wordsSelect('drawingTools', m), m).toBe(true)
+  })
+  it('CG-35: on /charts the earnings calendar is a screen (calendar.* exist only on the Calendar page)', () => {
+    expect(wordsSelect('screener', "what's on the calendar this week")).toBe(true)
+    expect(wordsSelect('screener', 'who reports this week')).toBe(true)
+    expect(wordsSelect('calendar', "what's on the calendar this week")).toBe(true)          // the Calendar page's own actions, where they exist
+  })
+  it('CG-36: the MARKET\'s moving averages are breadth\'s, never the chart\'s indicators', () => {
+    expect(wordsSelect('breadth', 'how are the moving averages looking for the market')).toBe(true)
+    expect(wordsSelect('indicators', 'how are the moving averages looking for the market')).toBe(false)
+    expect(wordsSelect('indicators', 'add the 50 day moving average')).toBe(true)
+  })
+})

@@ -58,8 +58,12 @@ export const GROUPS = [
     // W2-B3: chart.describeSetup here by action name too (a grounded setup description; the charts group keeps its size),
     // named by "describe / summarise / walk me through … setup"
     actions: ['chart.replay', 'chart.describeSetup'],
+    // CG-33 (corpus #774, live LT-7): Replay Mode had no words of its own — "replay", "bar replay", "as of <date>", "hide
+    // what came after", "step through", "exit / stop replay" (routing only ADDS this group) — the first words below
     // W2 (CG-5): "what's the setup here" names chart.describeSetup too (not only describe / summarise / walk me through)
-    words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/, /\bwhat(?:'s|’s|s| is) (?:the |this |my )?(?:chart'?s? )?set-?up\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
+    words: [/\b(?:bar )?replay(?:ing|ed)?\b/, /\bas of (?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]* \d{1,2}|\d{1,2}\/\d{1,2}|\d{4}-\d{2}-\d{2}|last \w+)\b/,
+      /\bhide (?:what|everything|all|the bars?|the candles?)(?: that)? (?:came |comes )?after\b/, /\bstep (?:through|forward|back)\b/,
+      /\btemplates?\b/, /\blooks? (just )?like\b/, /\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/, /\bwhat(?:'s|’s|s| is) (?:the |this |my )?(?:chart'?s? )?set-?up\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
@@ -104,12 +108,14 @@ export const GROUPS = [
       /\bwhat'?s on (this|the|my) chart\b|\b(have|got) the \d+ on\b|\b\d+ (line|ma|average)\b/,
       // CG-28 (corpus #774): the words traders use for a chart's indicators — "which studies do I have on here", "my
       // oscillators", "the averages", "what overlays are on", "which lines (MAs) are on here" — and "on here" = this chart
-      /\b(?<!case )stud(?:y|ies)\b|\boscillators\b|\b(?:moving |the |my |which |what |all (?:the |my )?)averages\b|\bmas\b/,
+      /\b(?<!case )stud(?:y|ies)\b|\boscillators\b|\bmas\b/,
+      /^(?!.*\b(?:the market|market'?s|s ?& ?p|spx|nyse|nasdaq|breadth|stocks)\b).*\b(?:moving |the |my |which |what |all (?:the |my )?)averages\b/,
       /\b(?:what|which|any|my|the) (?:[a-z-]+ ){0,2}(?:overlays|lines)\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/,
       /\b(?:what|which)\b.*\b(?:have|got|is|are)\b.*\b(?:on|in) here\b/,
       // Gate C: moving averages by name or by LENGTH ("add a 200 day moving average", "add the 9 and 20",
       // "put the 50 on it", "make it a 9" after an add) and the short names traders type ("bollies", "bb")
-      /\bmoving averages?\b|\b(mas?|bbands?|bb|bollies|boll)\b/,
+      // CG-36 (corpus #774): the MARKET's moving averages ("how are the moving averages looking for the market") are breadth's
+      /^(?!.*\b(?:the market|market'?s|s ?& ?p|spx|nyse|nasdaq|breadth|stocks)\b).*\bmoving averages?\b/, /\b(mas?|bbands?|bb|bollies|boll)\b/,
       // CG-19 (corpus #774): a LENGTH ("the 200 day") — not in a question over a universe of stocks ("% of stocks above the 50 day")
       /^(?!.*\b(?:percent|%|pct|share|how many)\b.*\b(?:stocks|names|issues)\b)(?!.*\b(?:stocks|names|issues)\b.*\b(?:above|below)\b).*\b\d{1,3}[- ]?(?:day|week|period)\b/,
       /\b(add|put|throw|slap|stick|plot|show|hide|remove|take off|clear|get rid of|make|swap|replace)\b.*\bthe \d{1,3}(?:\s*(?:,|and|&)\s*(?:the )?\d{1,3})*\b/,
@@ -132,7 +138,11 @@ export const GROUPS = [
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
   { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP', domains: [], fillLast: true,
     actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap'],
-    words: [/\b(draw|add|put|place|plot|anchor|drop|mark)\b.*\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|boxe?s?|notes?|text|anchored vwap|avwap)\b/,
+    // CG-29..32 (corpus #774): "connect … with a trend line", "draw a line from <date> to <date>", a bare "fib retracement
+    // sep 2 100 to oct 28 180", "write breakout on the chart at …", "anchor a vwap to oct 1"
+    words: [/\b(draw|add|put|place|plot|anchor|drop|mark|connect|join|link)\b.*\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|boxe?s?|notes?|text|anchored vwap|avwap)\b/,
+      /\b(?:draw|put|add|plot)\b.*\blines? from\b.*\bto\b/, /\bfib(?:onacci)?(?: retracement)?\b|\bretracement\b/,
+      /\b(?:write|type|label|annotate)\b.*\b(?:on (?:the|my|this) chart|at \$?\d)/, /\banchor(?:ed)? (?:a |an |the )?vwap\b/,
       /\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|anchored vwap|avwap)\b.*\b(from|between|starting|anchored|since)\b/, /\banchored vwap\b|\bavwap\b/] },
   { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
@@ -169,6 +179,9 @@ export const GROUPS = [
       // screener and answered from the web. A question over a UNIVERSE of stocks — never one named ticker ("is
       // NVDA up more than 5%" stays a quote). turn.py `is_screen_question` (a stricter subset) drops web research.
       /\b(how many|which|what) (stocks|names|tickers|equities)\b/,
+      // CG-35 (corpus #774): calendar.day / calendar.nextReport exist ONLY on the Calendar page (surfaces ['calendar']); on
+      // /charts "what's on the calendar this week" / "who reports this week" is the earnings-window SCREEN
+      /\bon the (?:earnings )?calendar\b|\b(?:report(?:s|ing)?|earnings) (?:this|next) week\b|\bwho(?:'s| is)? report(?:s|ing)\b/,
       /\b(stocks|names|tickers|equities) (are |were |that are |that were )?(up|down|gained|lost|gaining|losing|rose|fell|rising|falling|green|red)\b/],
     // ⭐ Gate B (0C): TRADING VOCABULARY that names a SCREEN without the word "screen" (soft, see
     // selectGroups). Routing only: it changes which actions the model SEES first, never what a word
@@ -220,7 +233,7 @@ export const GROUPS = [
     // above their averages); UCT's data group has no moving-average reading for an index (stock.dailyBars: closes, ranges,
     // off-high, pullbacks), so breadth is the canonical capability (breadth.show; the US universe stands for the S&P)
     words: [/^(?!.*\b(open|go to|take me to|navigate to|bring up|pull up|switch to)\b.*\bbreadth\b.*\b(page|monitor|dashboard|tab|screen)\b).*\bbreadth\b/,
-      /\b(?:moving )?averages? (?:for|on|of|across) (?:the )?(?:s ?& ?p|s and p|spx|spy|market|nasdaq|nyse|us market)\b/,
+      /\b(?:moving )?averages?\b.*\b(?:for|on|of|across|in) (?:the )?(?:s ?& ?p|s and p|spx|spy|market|nasdaq|nyse|us market)\b/,
       /\b(percent|pct|share|portion|how many|what %|what percent)\b.*\b(above|below|over|under)\b.*\b\d+[- ]?(day|d|dma|sma|ema|week)\b/,
       /% (of )?(all )?(us |nyse |nasdaq |uct )?(stocks|names|issues)\b/,
       /\b(us|nyse|nasdaq|uct) (stocks|names|issues) (are |were )?above\b/,
