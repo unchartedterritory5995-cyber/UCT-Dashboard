@@ -24,8 +24,7 @@ Branch `feat/pine-w5-t15-backtest`. Base (tested-on-master merge): `e710d36d6a`
   client refuses a non-number and a YYYYMMDD int would pass as a number 1,000x too small.
   `_epoch_seconds` sends unix seconds at 00:00 UTC for ISO strings and YYYYMMDD ints; anything else is
   left unchanged so the client refuses it by name (`server-integrity` -> 500). ASSUMPTION (not
-  captured): the service reads daily `t` as UTC-midnight epoch seconds, as the fake and
-  `bars_fixture` do. Needs T7/T3 confirmation.
+  captured): the service reads daily `t` as UTC-midnight epoch seconds (SUPERSEDED by r1 below).
 - Receipt identity: `job_id` digests `{runtime handle, plot, output}` in the tree's place; `def_hash` is
   the runtime handle (`runtime:sha256:...`).
 
@@ -81,3 +80,17 @@ Tested tree: code tip `560d8e6958` (this file is the only later change). Base `e
 | job id ignores plot | test_each_plot_of_one_script_is_its_own_receipt_through_the_route |
 | column_for / bars_for not routed to the replay | test_a_runtime_document_replays... |
 | engine column-length check; router column-length check | EQUIVALENT survivors: the client already refuses a column whose length differs from bars.n (server-integrity), so these are defence in depth. |
+
+## r1 (fix): the daily bar time is the 09:30 America/New_York open
+Coordinator finding (W5-T7b `e13d282eae`): UTC-midnight seconds make every clock read one day early.
+`_epoch_seconds` now only names the date (YYYYMMDD int or ISO) and calls
+`indicator_compute.bar_open_instant(date, "D")` (not re-implemented; the same function W5-T14 uses);
+an unreadable value is returned unchanged so the client refuses it by name. The ASSUMPTION line in
+"What changed" is superseded.
+- Rail `test_every_spelling_of_a_daily_session_is_the_0930_ET_open_across_dst_and_winter` pins winter
+  2024-01-02 (1704205800), 2024-03-08 and 2024-03-11 around the 2024-03-10 spring-forward (gap
+  3 days minus 1 h), and 2024-11-04 after the fall-back, for ISO, YYYYMMDD and timestamped spellings;
+  `..._unix_seconds_not_a_date_key` pins the bytes the fake receives.
+- Mutations (`heavy-mut.lock`, 5/5 killed): UTC midnight; fixed 14:30 UTC offset; YYYYMMDD not
+  normalised; wrong tf; unrecognised value guessed as 0.0. Script/log: `_resume-2026-11-01/runs/w5t15/`.
+- Tests: 26 passed in `test_screener_backtest_runtime.py`.
