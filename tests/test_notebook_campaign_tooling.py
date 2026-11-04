@@ -2786,7 +2786,7 @@ def test_i2_the_obscured_suppression_is_the_d005_geometry_only_and_is_recorded()
 
 def test_i3_the_moved_lines_are_pinned_to_the_served_tree():
     # re-pinned 2026-11-04: template_gallery.py lost the retired library/example switches' lines above these
-    want = {"key_in_flight": 4224, "key_reused": 4223, "listing_moved": 3186, "helpful_days": 5124}
+    want = {"key_in_flight": 4221, "key_reused": 4220, "listing_moved": 3185, "helpful_days": 5121}
     for k, line in want.items():
         assert SPEC["sentences"][k]["source"].endswith(f":{line}"), (k, SPEC["sentences"][k]["source"])
 

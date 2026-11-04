@@ -87,7 +87,7 @@ EXAMPLE_ITEM = "example_note"
 ITEM_TYPES = ("outline", "style", EXAMPLE_ITEM, LAYOUT_ITEM, "widget_definition", "routine", "tracker")
 #: Wave 11 (Task 11.7, spec §9): the three tool item types -- a member's shared widget, routine or tracker. Each is
 #: category `"review"`, `body_json` `{}` and `payload_json` the share reducer's payload. Absent from every gallery
-#: read while the library switch or wave 11 is off (`_hidden_item_types`, the one type rule).
+#: read while wave 11 is off (`_hidden_item_types`, the one type rule).
 TOOL_ITEM_TYPES = ("widget_definition", "routine", "tracker")
 #: The item types a member can list or filter by: every type but the example note (R-P3b-2). It includes
 #: `page_layout` (P4b); whether a layout row is SHOWN is the switch's business (`_hidden_item_types`).
@@ -440,9 +440,9 @@ def seed_firm_styles(conn: sqlite3.Connection) -> int:
     preview, exactly as `publish_style` stores them. To change a shipped row, add a `-v2` row and retire
     the `-v1` one (R-P5-4); there is no in-place upsert.
 
-    ⛔ Visibility is NOT decided here. A firm style row is listed, in every gallery read and in UCT picks, only
-    while BOTH the library switch and the starter-packs switch are on (P5-AUD-1, superseding P5-R-C3), by the one
-    rule `_hidden_styles`; either switch alone shows nothing. Task 4's install reads these rows directly, so it
+    ⛔ Visibility is NOT decided here. A firm style row is listed, in every gallery read and in UCT picks, by the one
+    rule `_hidden_styles` (P5-AUD-1; the library and starter-pack switches that could hide it were retired as always
+    on, 2026-11-04). Task 4's install reads these rows directly, so it
     does not need them listed."""
     added = 0
     now = _now()
@@ -2180,8 +2180,7 @@ def _held_or_replaced_once(conn: sqlite3.Connection, *, user_id: str, key_column
 def publish_style(user_id: str, style_id: Any, *, title: Any, description: Any, category: Any,
                   trading_style: Any, edits: Any = None, keep: Any = (),
                   conn: sqlite3.Connection | None = None) -> dict | None:
-    """Submit (or resubmit) one of the member's own styles. None when the library is off
-    or the style is not theirs.
+    """Submit (or resubmit) one of the member's own styles. None when the style is not theirs.
 
     First publish: a PENDING style item. Again while pending or rejected: replaces it in
     place, back to pending (today's outline rule). Again while APPROVED: the new version is
@@ -3206,8 +3205,7 @@ def _listed_style_row(conn: sqlite3.Connection, gallery_id: Any) -> sqlite3.Row 
     """The row of a style a member may adopt: a style item that is approved and not hidden.
 
     ⛔ WITHOUT `_library_hides` (P4b final, merge): P5's starter-pack install reads its firm rows through this
-    behind its OWN two switches, and the library switch has no effect on an install
-    (tests/test_starter_packs.py::test_the_library_switch_has_no_effect_on_install). Every member-facing caller
+    (no switch: the starter packs' and the library's were retired as always on, 2026-11-04). Every member-facing caller
     (`adopt_style`, `_plan`) applies `_library_hides` itself, as it did before P4b."""
     return _listed_row(conn, gallery_id, "style", hides=False)
 
@@ -3608,7 +3606,7 @@ def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, 
                       prepared: _Prepared | None = None) -> dict:
     """The body of an adopt, for a row `_listed_style_row` returned (rulings P5-R-C1 / P5-R-C2).
 
-    ONE body, called by `adopt_style` (behind the library and Journal styles switches, `commit=True`), by
+    ONE body, called by `adopt_style` (`commit=True`), by
     `use_library_template` (Task 11.8) and by the starter-pack install (`starter_packs.install`, behind its own two
     switches, `commit=False`), so every rule an adopt obeys holds for all of them. With `commit=False` nothing here
     commits or rolls back: the caller owns the transaction (the install wraps each row in a SAVEPOINT and commits
@@ -3711,8 +3709,8 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False, answers:
 
     A new `j2_journal_styles` row through `journal_styles.create_style` (so every rule a style obeys on
     save is applied to it), written WITH its `source_gallery_id`, `source_version`, `source_block_ids` and
-    `source_outline_hash`, in the one transaction that also records the use and the watch. None when the library is off or the item is not a listed style; `GalleryConflict` when the member's
-    Journal styles switch is off. A repeat adopt makes another copy (the member's choice) and never counts
+    `source_outline_hash`, in the one transaction that also records the use and the watch. None when the item is
+    not a listed style. A repeat adopt makes another copy (the member's choice) and never counts
     as a second use. `notify` records a watch row so a later task can tell them about an update.
     The body is `_adopt_listed_row`, shared with the starter-pack install (P5-R-C1). Task 11.8: `answers` and
     `choices` answer a template's choices and reuse questions (`_materialize`).
@@ -3721,7 +3719,6 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False, answers:
     inside the replay window answers the FIRST copy (`replayed: True`) and makes nothing; a new key makes another
     copy (the member's choice). The lookup and the copy share one BEGIN IMMEDIATE."""
     from api.services.journal_two import create_keys
-    from api.services.journal_two import journal_styles as js
     k = create_keys.clean_create_key(key) if _wave11_library_on() else None
     owned = conn is None
     conn = conn or get_connection()
@@ -4574,8 +4571,8 @@ def _use_library_template_once(user_id: str, gallery_id: Any, *, answers: Any = 
                                payload: Any = None, key: Any = None,
                                conn: sqlite3.Connection | None = None, _released: bool = False) -> dict | None:
     """Use a listed template (official or a member's) to make a note: `{"note", "skipped", "style", "credit",
-    "created": {"routines", "trackers", "widgets"}}`. None when the library or wave 11 is off or the item is not a
-    listed style; `GalleryConflict` when the member's Journal styles switch is off.
+    "created": {"routines", "trackers", "widgets"}}`. None when wave 11 is off or the item is not a listed
+    style.
 
     W11-R4: the member's newest live copy of the item is REUSED; only the first Use adopts (`_adopt_listed_row`,
     with the answers and choices). The find-or-adopt runs under one `BEGIN IMMEDIATE`, so two Uses at once make ONE
@@ -5253,7 +5250,7 @@ def set_helpful(user_id: str, gallery_id: Any, on: bool,
                 conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
     """Mark a listed item helpful, or take the mark back. `{"helpful": bool, "count": int}`.
 
-    None when the library is off, or the member may not vote on it: the item is not theirs to see, is not
+    None when the member may not vote on it: the item is not theirs to see, is not
     listed (pending, rejected, hidden), or is their OWN. One vote per member per item (the primary key), so
     marking it twice is the same as once, and unmarking what was never marked changes nothing.
 
@@ -5325,7 +5322,7 @@ def answer_helpful_prompt(user_id: str, gallery_id: Any, answer: Any, *,
     "yes" also marks Helpful through the same rule as `set_helpful` (`_write_helpful`), in the SAME transaction: a
     refusal (`GalleryConflict` code `helpful_days`) rolls the prompt row back too. `{"answer", "helpful", "count"}`,
     with `answer` the STORED answer. `GalleryError(S_HELPFUL_ANSWER)` for an answer outside HELPFUL_ANSWERS; None
-    when wave 11 or the library is off, the member may not vote on the item (unseen, unlisted, their own), or the item
+    when wave 11 is off, the member may not vote on the item (unseen, unlisted, their own), or the item
     is not a template (fix round 1, m-5: the line is only shown for `style` items). Caller-connection semantics
     (m-1): a transaction the caller opened is never committed or rolled back here (`_CallerTx`)."""
     if answer not in HELPFUL_ANSWERS:
@@ -5364,8 +5361,8 @@ def _author_of(conn: sqlite3.Connection, handle: Any) -> str | None:
 def author_page(viewer_id: str, handle: Any, conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
     """An author's page: who they are as the gallery already shows them, and what of theirs is listed.
 
-    `{"author": {handle, label, itemCount, following, mine}, "items": [...]}`, or None when the library is off
-    or the handle is not one. ⛔ R-P3-2: only approved, listed, non-hidden items, under the display name the
+    `{"author": {handle, label, itemCount, following, mine}, "items": [...]}`, or None when the handle is
+    not one. ⛔ R-P3-2: only approved, listed, non-hidden items, under the display name the
     gallery already shows (`_author_label`), and no user id or email anywhere in it. An author with nothing
     listed reads as `ANONYMOUS_AUTHOR`: there is no row to take their display name from."""
     owned = conn is None
@@ -5393,8 +5390,8 @@ def author_page(viewer_id: str, handle: Any, conn: sqlite3.Connection | None = N
 
 def set_follow(viewer_id: str, handle: Any, on: bool,
                conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
-    """Follow an author by their handle, or stop. `{"following": bool}`; None when the library is off, the
-    handle is not one, or it is the viewer's own (nobody follows themselves)."""
+    """Follow an author by their handle, or stop. `{"following": bool}`; None when the handle is not
+    one, or it is the viewer's own (nobody follows themselves)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -5503,7 +5500,7 @@ def admin_act(admin_id: str, gallery_id: str, action: Any, *, note: Any = "",
     moves = _DirMoves(EXAMPLE_MOVE_SENTENCE)
     try:
         row = conn.execute("SELECT * FROM j2_template_gallery WHERE id = ?", (gallery_id,)).fetchone()
-        # R-T4-3 (R-P3-10): a style row is absent while the library is off, for a reviewer who knows its id
+        # R-T4-3 (R-P3-10): a row the one rule hides (`_library_hides`) is absent for a reviewer who knows its id
         # as much as for a member. The queue and `get_item` already hide it; this is the write door.
         if row is None or _library_hides(row):
             return None

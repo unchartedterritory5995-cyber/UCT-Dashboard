@@ -6,7 +6,7 @@ The service is `template_gallery.get_item` (a style's `examples`, an example's `
 * `examples`: up to 3 APPROVED, listed, non-hidden example items linked to the style, newest first, each exactly
   `{id, title, bodyJson, updatedAt}`. `bodyJson` is the stored LISTED example reduction (`payload.bodyJson`,
   ruling P3b-R13), never a gallery-mode re-reduction, and never a held revision (`pending_json`).
-* absent while the example switch is off (`example_enabled()`, which needs the library switch too).
+* (the example switch that could hide them was retired as always on, 2026-11-04).
 * an example item read by someone who may see its style carries `linkedStyle: {id, title}` (the reviewer's
   "the linked style's title"); None when they may not see the style.
 """

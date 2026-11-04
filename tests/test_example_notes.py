@@ -1,7 +1,7 @@
 """P3b Task 3: an author's EXAMPLE NOTE -- the preview, the publish, held revisions and the style link.
 
-The service is `api/services/journal_two/template_gallery.py` (`preview_example`, `publish_example`,
-`example_enabled`); the routes are `POST /api/j2/template-gallery/examples/preview` and
+The service is `api/services/journal_two/template_gallery.py` (`preview_example`, `publish_example`; always on
+since the example switch was retired, 2026-11-04); the routes are `POST /api/j2/template-gallery/examples/preview` and
 `POST /api/j2/template-gallery/examples` in `api/routers/notebook_template_gallery.py`.
 
 ⛔ A change entry's `before` is the author's own text. It is handed to the author's preview and is
