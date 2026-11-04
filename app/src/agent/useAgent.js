@@ -299,6 +299,10 @@ export function isNewRequest(text, question = null) {
     ...(lower.match(new RegExp(REQUEST_NOUN.source, 'gi')) || []).map(x => x.toLowerCase()),
   ])
   if (!objects.size) return false
+  // gaps-5 nit: "set it at 70" / "draw it from 2026-10-10" — the reply's thing is a PRONOUN (the question's own subject) and
+  // it brings only a value or a date: no ticker, indicator or tool of its own → it answers ("At what RSI level…?")
+  const named = [...objects].filter(o => !/^(?:\d{4}-\d{2}-\d{2}|\d+(?:\.\d+)?)$/.test(o))
+  if (!named.length && /\b(?:it|that|this|them|those)\b/i.test(raw)) return false
   // compared with the CHOICES only (what the question offered — never every word of the question, which names its topic)
   const offered = sigTokens((question?.choices || []).map(c => c?.label || '').join(' '))
   const fresh = [...objects].filter(o => !offered.has(o) && !o.split(/\s+/).every(w => offered.has(w)))

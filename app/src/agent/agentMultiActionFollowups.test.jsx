@@ -967,6 +967,9 @@ describe('gaps-5 delta nits', () => {
     expect(isNewRequest('draw a trendline on NVDA from 2031-01-01 to today', { text: 'Which NVDA October low do you mean?', choices: [{ label: 'Oct 10' }, { label: 'Oct 24' }] })).toBe(true)
     expect(isNewRequest('set an alert on AMD at 150', { text: 'Which chart should get the RSI alert?', choices: [{ label: 'Chart (NVDA)' }, { label: 'Chart (AMD)' }] })).toBe(true)
     expect(isNewRequest('add the 50 day moving average to AMD', { text: 'Which chart should get the RSI alert?', choices: [{ label: 'Chart (NVDA)' }, { label: 'Chart (AMD)' }] })).toBe(true)
+    // a pronoun + a value / date with no ticker, indicator or tool of its own answers a question with no choices
+    expect(isNewRequest('set it at 70', { text: 'At what RSI level should the alert fire?', choices: [] })).toBe(false)
+    expect(isNewRequest('draw it from 2026-10-10', { text: 'From which date should the trendline start?', choices: [] })).toBe(false)
     // …and naming only what was offered still answers
     expect(isNewRequest('put it on AMD', { text: 'Which chart should get the RSI alert?', choices: [{ label: 'Chart (NVDA)' }, { label: 'Chart (AMD)' }] })).toBe(false)
   })
