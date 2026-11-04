@@ -528,13 +528,22 @@ def playbook_worded(message: str, vocab: list[dict], symbols: list[str]) -> bool
 _SUBJECT = r"(uct|uncharted territory|the team|our team|we|us|our)"
 _ACTS = (r"(rules?|setups?|playbook|checklists?|criteria|methods?|methodology|approach|process|system|plays?|enters?|entry|entries|"
          r"buys?|buying|sells?|selling|get in|gets in|get out|gets out|adds?|adding|trims?|trimming|trades?|trading|"
-         r"stops?|exits?|definition|defines?)")
+         r"stops?|exits?|go long|go short|goes long|goes short|bails?|definition|defines?)")
 _OWNED = re.compile(r"\b" + _SUBJECT + r"( s)? (\w+ ){0,3}" + _ACTS + r"\b")
 _METHOD = re.compile(r"\b(entry|entries|entry rules?|enter|entering|buy point|buy|buys|buying|sell|sells|selling|get in|"
                      r"get out|go long|go short|goes long|goes short|exit|exits|exiting|out (under|over|below|above)|"
                      r"bail|bails|cut it|cut the|adds? (to|on)|trim|trims|trimming|stops?|stop loss|max stop|criteria|"
                      r"rules?|trigger\w*|invalidat\w*|position siz\w*|risk per trade|win rate|hit rate)\b")
 _TRADE = re.compile(r"\b(trade|trades|trading)\b")       # method words in a QUESTION only (never a chart reading)
+#: review #781 delta 4: method ACTIONS (a feature word never excuses them; "set a stop alert" has none)
+_METHOD_VERB = re.compile(r"\b(go long|go short|goes long|goes short|buy|buys|buying|sell|sells|selling|enter|enters|"
+                          r"entering|exit|exits|exiting|trim|trims|trimming|bail|bails|get in|get out|"
+                          r"out (under|over|below|above)|adds? (to|on))\b")
+#: an explicit statement of a rule or approach, with or without a setup name ("the entry rule here is ...",
+#: "his approach is to go long ...")
+_RULE_STMT = re.compile(r"\b(entry|exit|stop|sell|buy) (rules?|points?|signals?|triggers?) (here |for this |for that |for it )?"
+                        r"(is|are)\b|\b(approach|method|system|process|plan|edge|style|playbook|strategy|rule) "
+                        r"(here )?(is|was) to (go long|go short|buy|sell|enter|short|fade|add|trim)\b")
 _DEFINES = r"( s)? (is|are|means|refers to|stands for|=)\b"
 _SENTENCES = re.compile(r"(?<=[.!?;\n])\s+")
 _LIST_ITEM = re.compile(r"^\s*([-*\u2022\u2013]|\d{1,2}[.)])\s+")
@@ -563,8 +572,14 @@ def presents_methodology(reply: str, vocab: list[dict], message: str = "") -> bo
     for seg in _segments(reply):
         fs = _fold(seg)
         # a sentence about a UCT feature is exempt only without method + pattern vocabulary together (delta 3 item 1)
-        if _OWNED.search(fs) and not (_FEATURE.search(fs) and not _method_and_pattern(fs)):
+        if _OWNED.search(fs) and not (_FEATURE.search(fs) and not (_METHOD_VERB.search(fs) or _method_and_pattern(fs))):
             return True
+        if _RULE_STMT.search(fs):
+            return True
+    # a list whose items state at least two method actions is a playbook, named or not (review #781 delta 4)
+    items = [_fold(_LIST_ITEM.sub("", ln)) for ln in str(reply or "").splitlines() if _LIST_ITEM.match(ln)]
+    if sum(1 for it in items if _METHOD_VERB.search(it) or _METHOD.search(it)) >= 2:
+        return True
     f = _fold(reply)
     approved, other = named_setups(reply, vocab)
     names = approved + other + [a for v in vocab if v.get("name") in approved for a in (v.get("aliases") or [])]

@@ -48,6 +48,10 @@
     {"text": "Episodic pivot checklist:\n- gap on news\n- go long over the opening range\n- out under the low of day", "after": "tell me something interesting", "expect": "replace", "source": "delta 3 (list)"},
     {"text": "Our checklist:\n1. tight base\n2. go long on the break", "after": "tell me something interesting", "expect": "replace", "source": "delta 3 (list)"},
     {"text": "A checklist:\n- go long over the pivot\n- bail under the 10-day", "after": "describe a pocket pivot", "expect": "replace", "source": "delta 3 (list)"},
+    {"text": "The entry rule here is a close above the prior high.", "after": "tell me something interesting", "expect": "replace", "source": "delta 4"},
+    {"text": "Kristjan's approach is to go long on the first break of the range.", "after": "tell me something interesting", "expect": "replace", "source": "delta 4"},
+    {"text": "Using the alerts menu, we go long when the alert fires.", "after": "how do I use alerts", "expect": "replace", "source": "delta 4"},
+    {"text": "1. Wait for a tight range\n2. Go long on the break\n3. Out under the low of day", "after": "tell me something interesting", "expect": "replace", "source": "delta 4 (unnamed numbered checklist)"},
     {"text": "In UCT, set a stop alert from the alert menu.", "after": "how do I set a stop alert", "expect": "keep", "source": "delta 2 (false positive)"},
     {"text": "Open the indicator menu in UCT and pick RSI.", "after": "how do I add RSI", "expect": "keep", "source": "delta 1 (false positive check)"},
     {"text": "NVDA is trading near the breakout level.", "after": "what's the breakout level on this chart", "expect": "keep", "source": "delta 3 (chart reading)"}
