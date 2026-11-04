@@ -1,0 +1,333 @@
+{
+ "router": "v1",
+ "items": 317,
+ "budget": 55,
+ "recall": 95.3,
+ "ownWordsRecall": 73.5,
+ "fallbackRate": 21.8,
+ "meanRoutedActions": 24.9,
+ "overBudget": 0,
+ "meanGroups": 3.8,
+ "byKind": {
+  "chatty": {
+   "n": 33,
+   "recall": 97
+  },
+  "indirect": {
+   "n": 44,
+   "recall": 95.5
+  },
+  "order": {
+   "n": 27,
+   "recall": 96.3
+  },
+  "plain": {
+   "n": 106,
+   "recall": 93.4
+  },
+  "slang": {
+   "n": 60,
+   "recall": 95
+  },
+  "typo": {
+   "n": 47,
+   "recall": 97.9
+  }
+ },
+ "byCapability": {
+  "agent.undo": {
+   "n": 17,
+   "recall": 94.1
+  },
+  "alert.create": {
+   "n": 16,
+   "recall": 93.8
+  },
+  "alert.delete": {
+   "n": 3,
+   "recall": 100
+  },
+  "alert.list": {
+   "n": 4,
+   "recall": 75
+  },
+  "breadth.history": {
+   "n": 4,
+   "recall": 100
+  },
+  "breadth.show": {
+   "n": 15,
+   "recall": 86.7
+  },
+  "chart.applyTheme": {
+   "n": 2,
+   "recall": 100
+  },
+  "chart.describeSetup": {
+   "n": 4,
+   "recall": 75
+  },
+  "chart.goToDate": {
+   "n": 3,
+   "recall": 100
+  },
+  "chart.replay": {
+   "n": 3,
+   "recall": 100
+  },
+  "chart.setBackground": {
+   "n": 2,
+   "recall": 100
+  },
+  "chart.setScale": {
+   "n": 7,
+   "recall": 100
+  },
+  "chart.setSession": {
+   "n": 5,
+   "recall": 100
+  },
+  "chart.setSymbol": {
+   "n": 23,
+   "recall": 95.7
+  },
+  "chart.setTimeframe": {
+   "n": 36,
+   "recall": 100
+  },
+  "chart.setType": {
+   "n": 9,
+   "recall": 100
+  },
+  "chartGrid.set": {
+   "n": 20,
+   "recall": 95
+  },
+  "drawing.addLevel": {
+   "n": 5,
+   "recall": 80
+  },
+  "drawing.addTrendline": {
+   "n": 2,
+   "recall": 100
+  },
+  "drawing.clear": {
+   "n": 3,
+   "recall": 66.7
+  },
+  "indicator.add": {
+   "n": 33,
+   "recall": 97
+  },
+  "indicator.hide": {
+   "n": 3,
+   "recall": 100
+  },
+  "indicator.remove": {
+   "n": 10,
+   "recall": 100
+  },
+  "indicator.update": {
+   "n": 4,
+   "recall": 100
+  },
+  "indicatorAlert.create": {
+   "n": 4,
+   "recall": 100
+  },
+  "indicatorStyle.set": {
+   "n": 4,
+   "recall": 100
+  },
+  "layout.open": {
+   "n": 5,
+   "recall": 80
+  },
+  "layout.saveAs": {
+   "n": 2,
+   "recall": 100
+  },
+  "news.latest": {
+   "n": 13,
+   "recall": 100
+  },
+  "screener.run": {
+   "n": 18,
+   "recall": 94.4
+  },
+  "screener.runSaved": {
+   "n": 3,
+   "recall": 100
+  },
+  "screener.saveAs": {
+   "n": 2,
+   "recall": 100
+  },
+  "settings.setAppTheme": {
+   "n": 3,
+   "recall": 100
+  },
+  "stock.compare": {
+   "n": 3,
+   "recall": 100
+  },
+  "stock.dailyBars": {
+   "n": 4,
+   "recall": 75
+  },
+  "stock.earnings": {
+   "n": 12,
+   "recall": 100
+  },
+  "stock.profile": {
+   "n": 4,
+   "recall": 100
+  },
+  "stock.quote": {
+   "n": 4,
+   "recall": 100
+  },
+  "watchlist.add": {
+   "n": 10,
+   "recall": 100
+  },
+  "watchlist.create": {
+   "n": 2,
+   "recall": 100
+  },
+  "watchlist.remove": {
+   "n": 3,
+   "recall": 100
+  },
+  "widget.add": {
+   "n": 4,
+   "recall": 75
+  },
+  "widget.remove": {
+   "n": 4,
+   "recall": 100
+  }
+ },
+ "misses": [
+  {
+   "text": "swap this to META",
+   "kind": "slang",
+   "missing": [
+    "chart.setSymbol"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "can you make my screen show SPY, QQQ, NVDA and TSLA all at the same time",
+   "kind": "indirect",
+   "missing": [
+    "chartGrid.set"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "add a news panel",
+   "kind": "plain",
+   "missing": [
+    "widget.add"
+   ],
+   "fallback": true
+  },
+  {
+   "text": "can you make my chart look like it did a minute ago",
+   "kind": "indirect",
+   "missing": [
+    "agent.undo"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "hey if TSLA drops below 300 i want to know about it",
+   "kind": "chatty",
+   "missing": [
+    "alert.create"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "list everything i'm alerting on",
+   "kind": "plain",
+   "missing": [
+    "alert.list"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "TSLA 5 day change",
+   "kind": "plain",
+   "missing": [
+    "stock.dailyBars"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "is TSLA setting up",
+   "kind": "plain",
+   "missing": [
+    "chart.describeSetup"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "how many names above the 50",
+   "kind": "slang",
+   "missing": [
+    "breadth.show"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "who's ripping with 2x volume",
+   "kind": "slang",
+   "missing": [
+    "screener.run"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "switch to my momentum board",
+   "kind": "plain",
+   "missing": [
+    "layout.open"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "horizontal at 95.50",
+   "kind": "plain",
+   "missing": [
+    "drawing.addLevel"
+   ],
+   "fallback": true
+  },
+  {
+   "text": "wipe all the lines off this chart",
+   "kind": "plain",
+   "missing": [
+    "drawing.clear"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "the 200 day, how many above it",
+   "kind": "order",
+   "missing": [
+    "breadth.show"
+   ],
+   "fallback": false
+  },
+  {
+   "text": "21 eam please",
+   "kind": "typo",
+   "missing": [
+    "indicator.add"
+   ],
+   "fallback": true
+  }
+ ]
+}

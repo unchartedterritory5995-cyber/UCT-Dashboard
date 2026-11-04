@@ -1,0 +1,2245 @@
+{
+ "about": "NLM-1 HELD-OUT routing set (Track B, independent acceptance). Owner-style phrasings written fresh — trader slang, typos, long chatty sentences, indirect requests, non-standard order — each labelled with the capability(ies) the routed request must carry. NOT shown to the NLM-1 implementer until its D1 is frozen. Score with heldout.score.test.js (NLM1_HELDOUT=1).",
+ "version": 1,
+ "items": [
+  {
+   "text": "flip it to the weekly",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "gimme the 15",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "hourly pls",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "bump this to the monthly view",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "lemme see the 30 min",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "swtich to wekly",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "chnage timeframe to daily",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "go to teh 5 minute",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "hourlly chart",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "ok so i was looking at this and honestly i think i need to see the bigger picture, can you put it on the weekly for me",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "hey quick thing, the daily is too noisy today, could we go up to the weekly instead",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "can you make my screen show the weekly bars",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd like this chart to be on 60 minute candles",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "would it be possible to look at this on a monthly basis",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "weekly, this chart, please",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "to the 5 minute switch it",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "the daily — put it back on that",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "throw up AMD",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "lemme see NVDA",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "pull TSLA real quick",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "swap this to META",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "swich to AAPL",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "chnage the ticker to MSFT",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "shwo me AMZN",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "alright so i keep hearing about AVGO, can you just put it on my chart so i can take a look",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "hey can you replace what's on here with GOOGL, thanks a lot",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "can you make my screen show SMCI",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i want to be looking at PLTR on this chart",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "could this chart be COIN instead",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "AMD on this chart",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "on the chart, CRWD please",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "NFLX — show it",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "make it hollow candles",
+   "needs": [
+    "chart.setType"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "bars instead of candles",
+   "needs": [
+    "chart.setType"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "line it",
+   "needs": [
+    "chart.setType"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "area chart vibes please",
+   "needs": [
+    "chart.setType"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "swtich to line chrat",
+   "needs": [
+    "chart.setType"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "candlestciks please",
+   "needs": [
+    "chart.setType"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "hollow candels",
+   "needs": [
+    "chart.setType"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "can you make my chart draw a simple line",
+   "needs": [
+    "chart.setType"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd prefer to see OHLC bars here",
+   "needs": [
+    "chart.setType"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "log it",
+   "needs": [
+    "chart.setScale"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "put the price axis on log",
+   "needs": [
+    "chart.setScale"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "percent scale pls",
+   "needs": [
+    "chart.setScale"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "logarithmic scael",
+   "needs": [
+    "chart.setScale"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "swich to log scale",
+   "needs": [
+    "chart.setScale"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "can you make the price axis logarithmic",
+   "needs": [
+    "chart.setScale"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd like the scale in percent from the start",
+   "needs": [
+    "chart.setScale"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "include premarket and after hours",
+   "needs": [
+    "chart.setSession"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "turn extended hours on",
+   "needs": [
+    "chart.setSession"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "show the overnight session too",
+   "needs": [
+    "chart.setSession"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "regular hours only please",
+   "needs": [
+    "chart.setSession"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "can you make my chart show pre-market trading as well",
+   "needs": [
+    "chart.setSession"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "slap the 21 ema on",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "throw a 50 day on it",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "add vwap",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "gimme macd",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "put bollies on",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "stick the 200 on there",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "add teh 9 ema",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "put rsi on teh chart",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "ad the 50 sma",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "macd plz on it",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "bolinger bands",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "so i'm trying to follow the trend better, can you add the 10 and 20 day moving averages to this chart",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "hey could you put an RSI on here, i want to see if it's overbought",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "can you make my chart show the 100 day moving average",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd like to see average true range under the price",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "it would help to have the stochastic on this",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "the 9 ema — add it",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "on this chart, the 20 sma please",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "RSI, 14 period, add",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "kill the 200 sma",
+   "needs": [
+    "indicator.remove"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "nuke the macd",
+   "needs": [
+    "indicator.remove"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "ditch the rsi",
+   "needs": [
+    "indicator.remove"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "lose the 50 day",
+   "needs": [
+    "indicator.remove"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "remvoe the 200 sma",
+   "needs": [
+    "indicator.remove"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "delte the rsi",
+   "needs": [
+    "indicator.remove"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "can you make the 50 day moving average go away",
+   "needs": [
+    "indicator.remove"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i don't need the macd on here anymore",
+   "needs": [
+    "indicator.remove"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "hide the 9 ema for now",
+   "needs": [
+    "indicator.hide"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "turn off the 20 ema temporarily",
+   "needs": [
+    "indicator.hide"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "make the 50 sma invisible",
+   "needs": [
+    "indicator.hide"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "change the 20 ema to a 21",
+   "needs": [
+    "indicator.update"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "make the rsi period 7",
+   "needs": [
+    "indicator.update"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "switch the 50 sma to an ema",
+   "needs": [
+    "indicator.update"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "set the macd to 8 17 9",
+   "needs": [
+    "indicator.update"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "make the 9 ema yellow",
+   "needs": [
+    "indicatorStyle.set"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "thicken the 200 sma",
+   "needs": [
+    "indicatorStyle.set"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "dashed line for the 50 day",
+   "needs": [
+    "indicatorStyle.set"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "color the rsi orange",
+   "needs": [
+    "indicatorStyle.set"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "4 up with SPY QQQ IWM DIA",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "quad view: AAPL MSFT NVDA AMZN",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "split SPY and QQQ side by side",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "2x2 of the big tech names: AAPL MSFT GOOGL META",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "fuor charts with SPY QQQ NVDA TSLA",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "put AMD and NVDA side by sdie",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "for the open tomorrow i want to watch SPY, QQQ, IWM and the VIX all at once, so can you lay those out as four charts the same size",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "hey can you set me up with NVDA and AMD next to each other so i can compare them",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "can you make my screen show SPY, QQQ, NVDA and TSLA all at the same time",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd like a layout with TSLA and RIVN split evenly",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "SPY QQQ NVDA TSLA, four charts, same size",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "side by side — AMD, NVDA",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "add a news panel",
+   "needs": [
+    "widget.add"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "put a watchlist widget on my board",
+   "needs": [
+    "widget.add"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "i want the themes widget here",
+   "needs": [
+    "widget.add"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "add an options flow widget",
+   "needs": [
+    "widget.add"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "close the news widget",
+   "needs": [
+    "widget.remove"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "remove the left chart",
+   "needs": [
+    "widget.remove"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "kill the bottom right chart",
+   "needs": [
+    "widget.remove"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "take the watchlist widget off my board",
+   "needs": [
+    "widget.remove"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "nah undo",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "scrap that",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "ctrl z",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "revert pls",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "oops go back",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "udno that",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "undoo",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "revrt that change",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "actually i changed my mind, can you put it back how it was before you touched it",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "hmm that's not what i wanted, can you reverse whatever you just did",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "can you make my chart look like it did a minute ago",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd like the last change taken back",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "ping me if NVDA tags 150",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "alert at 200 on TSLA",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "hit me up when AAPL breaks 250",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "lmk if SPY loses 600",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "set an alret on NVDA at 150",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "notfy me when AMD crosses 180",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "i'm going to be away from the screen for a while, can you alert me if NVDA gets above 150 while i'm gone",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "hey if TSLA drops below 300 i want to know about it",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "can you make sure i get told when META hits 700",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd like a heads up if QQQ falls under 500",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "what alerts do i have running",
+   "needs": [
+    "alert.list"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "show my price alerts",
+   "needs": [
+    "alert.list"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "any alerts set on NVDA",
+   "needs": [
+    "alert.list"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "list everything i'm alerting on",
+   "needs": [
+    "alert.list"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "kill my NVDA price alert",
+   "needs": [
+    "alert.delete"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "cancel the TSLA price alert",
+   "needs": [
+    "alert.delete"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "get rid of all alerts on AMD",
+   "needs": [
+    "alert.delete"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "alert me when RSI goes over 70",
+   "needs": [
+    "indicatorAlert.create"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "tell me when the 9 ema crosses the 21",
+   "needs": [
+    "indicatorAlert.create"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "ping me on a macd cross up",
+   "needs": [
+    "indicatorAlert.create"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "let me know if stochastic gets oversold",
+   "needs": [
+    "indicatorAlert.create"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "when's NVDA reporting",
+   "needs": [
+    "stock.earnings"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "AMD er date",
+   "needs": [
+    "stock.earnings"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "TSLA earnings when",
+   "needs": [
+    "stock.earnings"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "next print for AAPL",
+   "needs": [
+    "stock.earnings"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "when does nvda reprot",
+   "needs": [
+    "stock.earnings"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "earnigns date for amd",
+   "needs": [
+    "stock.earnings"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "msft erarnings",
+   "needs": [
+    "stock.earnings"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "can you tell me when META has its next earnings",
+   "needs": [
+    "stock.earnings"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd like to know when CRWD reports",
+   "needs": [
+    "stock.earnings"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "whats the news on NVDA",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "any headlines on TSLA today",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "AMD news",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "what's out on SMCI",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "newz on tsla",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "latest hedlines for AAPL",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "can you make my screen show the latest NVDA news",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd like to read what's being said about PLTR",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "what does CRWD do",
+   "needs": [
+    "stock.profile"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "give me the rundown on PLTR",
+   "needs": [
+    "stock.profile"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "company profile for ANET",
+   "needs": [
+    "stock.profile"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "who is SMCI",
+   "needs": [
+    "stock.profile"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "NVDA vs AMD fundamentals",
+   "needs": [
+    "stock.compare"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "compare MSFT and GOOGL",
+   "needs": [
+    "stock.compare"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "how does AVGO stack up to NVDA",
+   "needs": [
+    "stock.compare"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "where's NVDA trading",
+   "needs": [
+    "stock.quote"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "price on TSLA",
+   "needs": [
+    "stock.quote"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "what's AAPL at right now",
+   "needs": [
+    "stock.quote"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "NVDA last",
+   "needs": [
+    "stock.quote"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "how far is NVDA off the highs",
+   "needs": [
+    "stock.dailyBars"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "TSLA 5 day change",
+   "needs": [
+    "stock.dailyBars"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "what was AMD's close yesterday",
+   "needs": [
+    "stock.dailyBars"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "NVDA range last week",
+   "needs": [
+    "stock.dailyBars"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "what's the setup on NVDA",
+   "needs": [
+    "chart.describeSetup"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "describe this chart's setup",
+   "needs": [
+    "chart.describeSetup"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "is TSLA setting up",
+   "needs": [
+    "chart.describeSetup"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "walk me through the setup on AMD",
+   "needs": [
+    "chart.describeSetup"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "how's breadth",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "market internals?",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "breadth check",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "how many names above the 50",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "how's bredth today",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "breath check pls",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "i'm trying to figure out if this rally is real, how does market breadth look right now",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "hey before i get aggressive, what percent of stocks are above their 200 day",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "can you tell me how the broad market internals look",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd like to know how many stocks are above the 20 day right now",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "when did breadth last go below 20%",
+   "needs": [
+    "breadth.history"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "how many times has the % above the 50 day been under 15",
+   "needs": [
+    "breadth.history"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "last time new lows outnumbered new highs",
+   "needs": [
+    "breadth.history"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "scan for adr over 5",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "find me movers up 5% today",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "who's ripping with 2x volume",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "names over 20 bucks with big volume",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "scren for stocks above the 50 sma",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "fidn stocks with rvol over 2",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "i want a shortlist for tomorrow, can you find stocks over 10 dollars with volume twice normal",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "hey can you pull up stocks that are within 5% of their 52 week high",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "can you make my screen show stocks up more than 3% today",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "i'd like a list of names with an ADR above 4%",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "run my momentum scan",
+   "needs": [
+    "screener.runSaved"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "rerun my breakout screen",
+   "needs": [
+    "screener.runSaved"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "fire off my EP screen",
+   "needs": [
+    "screener.runSaved"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "save this scan as gappers",
+   "needs": [
+    "screener.saveAs"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "keep this screen, name it leaders",
+   "needs": [
+    "screener.saveAs"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "toss AMD on my momentum list",
+   "needs": [
+    "watchlist.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "add NVDA to watch",
+   "needs": [
+    "watchlist.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "put TSLA in my swing list",
+   "needs": [
+    "watchlist.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "add AMD to my watchlsit",
+   "needs": [
+    "watchlist.add"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "put NVDA on my momemtum list",
+   "needs": [
+    "watchlist.add"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "can you make sure SMCI is on my earnings list",
+   "needs": [
+    "watchlist.add"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "take TSLA off my swing list",
+   "needs": [
+    "watchlist.remove"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "drop NVDA from momentum",
+   "needs": [
+    "watchlist.remove"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "remove AMD from my watchlist",
+   "needs": [
+    "watchlist.remove"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "make a new list called semis",
+   "needs": [
+    "watchlist.create"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "start a watchlist named AI plays",
+   "needs": [
+    "watchlist.create"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "load my swing layout",
+   "needs": [
+    "layout.open"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "switch to my momentum board",
+   "needs": [
+    "layout.open"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "open the earnings layout",
+   "needs": [
+    "layout.open"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "pull up my default layout",
+   "needs": [
+    "layout.open"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "save this as a new layout called morning",
+   "needs": [
+    "layout.saveAs"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "save the board as scalps",
+   "needs": [
+    "layout.saveAs"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "draw a line at 150",
+   "needs": [
+    "drawing.addLevel"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "put a level at 200 on NVDA",
+   "needs": [
+    "drawing.addLevel"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "mark 180 with a horizontal line",
+   "needs": [
+    "drawing.addLevel"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "horizontal at 95.50",
+   "needs": [
+    "drawing.addLevel"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "trendline from oct 1 at 140 to oct 20 at 160",
+   "needs": [
+    "drawing.addTrendline"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "draw a trend line connecting oct 2 130 and oct 22 150",
+   "needs": [
+    "drawing.addTrendline"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "clear my drawings",
+   "needs": [
+    "drawing.clear"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "wipe all the lines off this chart",
+   "needs": [
+    "drawing.clear"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "delete every drawing on TSLA",
+   "needs": [
+    "drawing.clear"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "dark mode please",
+   "needs": [
+    "settings.setAppTheme"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "switch the app to light mode",
+   "needs": [
+    "settings.setAppTheme"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "use the nord app theme",
+   "needs": [
+    "settings.setAppTheme"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "make the chart theme midnight",
+   "needs": [
+    "chart.applyTheme"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "use the carbon chart theme",
+   "needs": [
+    "chart.applyTheme"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "black background",
+   "needs": [
+    "chart.setBackground"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "make the chart background navy",
+   "needs": [
+    "chart.setBackground"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "replay from march 2",
+   "needs": [
+    "chart.replay"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "show me the chart as of last june",
+   "needs": [
+    "chart.replay"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "go back to may 1 and hide everything after",
+   "needs": [
+    "chart.replay"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "scroll to march 2",
+   "needs": [
+    "chart.goToDate"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "jump the chart to january 15",
+   "needs": [
+    "chart.goToDate"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "take me to last october on the chart",
+   "needs": [
+    "chart.goToDate"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "AMD on the weekly",
+   "needs": [
+    "chart.setSymbol",
+    "chart.setTimeframe"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "put TSLA on the 15 minute",
+   "needs": [
+    "chart.setSymbol",
+    "chart.setTimeframe"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "show me NVDA daily",
+   "needs": [
+    "chart.setSymbol",
+    "chart.setTimeframe"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "hey can you switch this over to META and put it on the hourly so i can see the intraday trend",
+   "needs": [
+    "chart.setSymbol",
+    "chart.setTimeframe"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "switch to AMD and add the 50 sma",
+   "needs": [
+    "chart.setSymbol",
+    "indicator.add"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "pull up NVDA with the 21 ema on it",
+   "needs": [
+    "chart.setSymbol",
+    "indicator.add"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "weekly + 10 week ma",
+   "needs": [
+    "chart.setTimeframe",
+    "indicator.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "go weekly and throw the 30 week on",
+   "needs": [
+    "chart.setTimeframe",
+    "indicator.add"
+   ],
+   "kind": "slang"
+  },
+  {
+   "text": "four charts SPY QQQ IWM DIA all on the hourly",
+   "needs": [
+    "chartGrid.set",
+    "chart.setTimeframe"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "SPY and QQQ side by side on the 5 minute",
+   "needs": [
+    "chartGrid.set",
+    "chart.setTimeframe"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "set me up with NVDA AMD and AVGO side by side and put the 50 day on each of them",
+   "needs": [
+    "chartGrid.set",
+    "indicator.add"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "find stocks with adr over 5 and add the top 5 to my momentum list",
+   "needs": [
+    "screener.run",
+    "watchlist.add"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "scan for gappers and put the top three on my watchlist",
+   "needs": [
+    "screener.run",
+    "watchlist.add"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "can you find the strongest movers today and open the top four as charts",
+   "needs": [
+    "screener.run",
+    "chartGrid.set"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "weekly — no wait, undo that",
+   "needs": [
+    "chart.setTimeframe",
+    "agent.undo"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "flip to monthly then undo it",
+   "needs": [
+    "chart.setTimeframe",
+    "agent.undo"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "draw a line at 150 on NVDA and alert me if it gets there",
+   "needs": [
+    "alert.create",
+    "drawing.addLevel"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "how's breadth right now and when was the last time it was this weak",
+   "needs": [
+    "breadth.show",
+    "breadth.history"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "when does NVDA report and what's the latest news",
+   "needs": [
+    "stock.earnings",
+    "news.latest"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "AMD earnings date plus headlines",
+   "needs": [
+    "stock.earnings",
+    "news.latest"
+   ],
+   "kind": "plain"
+  },
+  {
+   "text": "so the five minute is way too noisy for what i'm doing, let's look at the 30 minute instead please",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "you know what, i want the monthly on this one, i'm thinking long term here",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "i've been meaning to look at ARM all morning, can you bring it up on this chart",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "i read that the 65 ema works well on this name, can you add it so i can check",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "honestly my chart feels naked, can you put the 9 and 21 ema back on it",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "this chart is way too cluttered, can you take the bollinger bands off",
+   "needs": [
+    "indicator.remove"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "i trade the semis so give me SMH, NVDA, AMD and AVGO, four charts, all equal please",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "wait no that's wrong, go back to what i had a second ago",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "i don't want to stare at this all day, so just ping me if AMD gets through 180",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "i'm looking for tight setups, can you find stocks within 3% of their 50 day with low volume",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "before i size up, can you check what share of nasdaq stocks are above their 50 day",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "NVDA is moving a lot today, can you show me the latest headlines so i know why",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "i like how CELH is acting, could you add it to my swing watchlist",
+   "needs": [
+    "watchlist.add"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "time to do my end of day review, can you load my review layout",
+   "needs": [
+    "layout.open"
+   ],
+   "kind": "chatty"
+  },
+  {
+   "text": "is there a way to see this as 4 hour bars",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "could the chart be zoomed out to weekly candles",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "is it possible to put AMD where NVDA is",
+   "needs": [
+    "chart.setSymbol"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "is there a way to see volume weighted average price on here",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "could you have the chart show the 200 day line",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "is there a way to get rid of the vwap line",
+   "needs": [
+    "indicator.remove"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "is there a way to get notified if NVDA drops under 140",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "is there a way to see which stocks gapped up more than 4% today",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "is there a way to see how many stocks are making new highs today",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "is there a way to see when AVGO reports",
+   "needs": [
+    "stock.earnings"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "is there a way to see AAPL MSFT and GOOGL all at once",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "is there a way to reverse that last thing",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "indirect"
+  },
+  {
+   "text": "monthly. this one.",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "on the hourly i want it",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "rsi — throw it on",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "the 50 day, on there please",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "150 on NVDA, alert me",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "TSLA, below 300, let me know",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "TSLA — any news",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "headlines, AMD",
+   "needs": [
+    "news.latest"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "the 200 day, how many above it",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "adr above 5, find them",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "up 4% today with volume, which names",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "NVDA, momentum list, add",
+   "needs": [
+    "watchlist.add"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "NVDA AMD side by side",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "that last change — undo",
+   "needs": [
+    "agent.undo"
+   ],
+   "kind": "order"
+  },
+  {
+   "text": "weelky please",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "dialy chart",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "15 minuet",
+   "needs": [
+    "chart.setTimeframe"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "add teh vwap",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "put the 50 sam on",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "21 eam please",
+   "needs": [
+    "indicator.add"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "alrt me at 150 on NVDA",
+   "needs": [
+    "alert.create"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "scna for adr above 5",
+   "needs": [
+    "screener.run"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "how is breadht",
+   "needs": [
+    "breadth.show"
+   ],
+   "kind": "typo"
+  },
+  {
+   "text": "2x2 wiht SPY QQQ IWM DIA",
+   "needs": [
+    "chartGrid.set"
+   ],
+   "kind": "typo"
+  }
+ ]
+}
