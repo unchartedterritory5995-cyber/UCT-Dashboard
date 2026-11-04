@@ -1,6 +1,9 @@
 # Brain knowledge: evidence routing before any answer (design, no code)
 
-Status: DESIGN for owner review, 2026-11-04. Nothing here is built. Brain (UCT_AGENT_KNOWLEDGE) stays OFF.
+Status: owner APPROVED E-1 development 2026-11-04 (relayed by AUDIT). Release 1 is BUILT DARK on
+`agent/kn/e1-evidence-routing` (draft PR): `api/services/uct_agent/knowledge/evidence.py`, scripted tests only. Brain
+(UCT_AGENT_KNOWLEDGE) stays OFF. The paid labelled-set eval has NOT run and needs separate owner approval. See
+"Release 1 as built" at the end.
 
 ## The owner's requirement (2026-11-04)
 
@@ -194,3 +197,51 @@ not fire once `playbook.*` is stripped.
 2. Approve the eval budget for the labelled-set run.
 3. Confirm the conservative default: while Brain is on, `trading_concept` turns are served only from approved
    knowledge or as unavailable.
+
+## Release 1 as built (2026-11-04, dark)
+
+Where: `knowledge/evidence.py`, entered from the top of `turn.run_turn` (one hook, `_e1`). Tests:
+`tests/test_uct_agent_evidence.py` (scripted classifier and planner) and `app/src/agent/agentKnowledgeEvidence.test.jsx`.
+
+- **Switch:** the server flag `UCT_AGENT_KNOWLEDGE` itself (read per request), not the browser's manifest. With Brain
+  on, E-1 runs even if the browser did not offer a `playbook.*` capability, so a routed manifest cannot bypass it.
+  Brain off: the hook returns at once and the turn is byte-identical (tested).
+- **Not classified:** a coach turn (own guard), a planner-v2 resume (only chart / none ever reach v2, so its manifest
+  is already stripped), an empty / over-long / nonsense message (UCT's own sentence or fixed clarify, no call), and
+  every browser fast path (it never sends a turn; tested in the browser).
+- **Classifier:** `claude-haiku-4-5` (the planner model), `max_tokens` 200, timeout `UCT_AGENT_EVIDENCE_TIMEOUT_S`
+  (default 2 s, no retries), metered as budget category `evidence`. Input: the message, the last two Agent rows'
+  action names, open chart symbols, and the approved setups (policy-admitted, active templates) with aliases. The
+  schema has no free-text answer field; `concept` is cut to 60 characters and used only as a read's argument.
+- **Decision rules on top of the class:** a setup topic or a named setup classed `chart` / `none` is `mixed` (chart
+  ask) or `playbook`; `trading_concept` + `none` is `playbook` (or `mixed` with a chart ask); `playbook` + chart ask
+  is `mixed`. Any off-schema value, error, timeout, refusal or truncated output is `ambiguous`. A budget refusal is
+  re-raised (the member gets the budget sentence, never a planner answer).
+- **playbook:** `playbook.setup` per named setup (definition / rules, or any topic naming a setup), `playbook.record`
+  for a record, else `playbook.explain(concept or the message)`. An excluded setup is asked by name, so the server
+  refuses it and the browser shows "UCT has no approved playbook definition for X". If the request's manifest lacks the
+  playbook capabilities but routing left the group unselected, UCT returns `need_groups: ["playbook"]` (the browser's
+  one reroute); otherwise the fixed "can't retrieve" sentence.
+- **mixed:** always the **v1** planner (v2 has no class-keyed drop), never streamed, with `playbook.*` and the
+  playbook routing group removed. Its reply is dropped whatever it says. apply → chart ops kept as planned + UCT's
+  reads; propose → the proposal card + a fixed sentence (a read never rides behind a proposal); answer / clarify /
+  unsupported → UCT's reads only; over the op limit → chart ops + a fixed sentence.
+- **chart / none:** the requested planner (v1 or v2) without `playbook.*` and without the playbook group; streams as
+  today.
+- **Planner v2 (off in production):** v2's browser runner shows a final reply only and never runs a final envelope's
+  ops or choices. So with v2 on, only chart / none turns use v2; playbook / mixed get a fixed "not available in this
+  planner mode yet" sentence and ambiguous gets UCT's clarify text as the reply. Brain + v2 together needs the v2
+  runner to render UCT's reads first (a later, separate change).
+- **News Ask box (`answer_only`):** playbook / mixed / ambiguous get a fixed sentence pointing to the main chat.
+- **Reroute:** a reroute continues its request, so the decision is cached per (user, request, message) for 5 minutes
+  (in-process; a failed classification is never cached). A cache miss on another worker classifies again.
+
+**Call ceiling (owner decision before activation):** the per-request ceiling is 2 paid calls
+(`UCT_AGENT_MAX_CALLS_PER_REQUEST`). With Brain on, the classifier takes one, so a chart / none / mixed turn has one
+planner call and **no** research round or server repair left: those already degrade to UCT's existing fixed sentences
+(`RESEARCH_STEP_LIMIT`, the R-04 clarify). Nothing unsafe follows, but web research is effectively off while Brain is
+on unless the ceiling is raised to 3. Not changed here.
+
+**Still required before any activation:** the labelled-set eval (≥ 600 playbook-class prompts, 0 misses; separate
+owner approval and budget), an independent review, and live admin acceptance on a dark admin flag.
+

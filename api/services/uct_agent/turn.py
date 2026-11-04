@@ -2237,7 +2237,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
              on_event: Callable[[dict], None] | None = None, stream_caller: Callable[..., Any] | None = None,
              meter=None, reroute: bool = False, interpreter: str | None = None, repair: dict | None = None,
              reference: dict | None = None, headline: dict | None = None, answer_only: bool = False,
-             v2: dict | None = None) -> dict:
+             v2: dict | None = None, _e1: bool = False) -> dict:
     """Returns {envelope, usage, title}. Raises TurnError with a member sentence.
     `v2` (Wave 1 A-04; the router passes it ONLY when UCT_AGENT_PLANNER=v2 and the turn streams): the planner v2
     arguments {wait_step, turn_token[, resume, resume_result]} — the turn is served by turn_v2.run_turn_v2, the
@@ -2260,7 +2260,14 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     back to the model once, in this request, if a call is left; the result passes every check as usual.
     `headline` (News -> Agent, news.py): ONE stored UCT News headline the SERVER read by its id, shown to the
     model as data with news.RULES. `answer_only` (the News Ask box): no web research runs and any op the model
-    writes is dropped -- the turn can only answer."""
+    writes is dropped -- the turn can only answer.
+    `_e1` (internal): this call is E-1's own planner call (knowledge/evidence.py). While Brain is on, every other
+    request is classified there FIRST and reaches the planner only through it, with playbook.* removed."""
+    if not _e1:
+        _args = dict(locals())
+        from api.services.uct_agent.knowledge import evidence as _evidence
+        if _evidence.active(context, v2):
+            return _evidence.serve(run_turn, _args)
     if v2 is not None:
         # W3 review C1: a COACH turn never takes the v2 step loop (it has no coach block and no coach guard): it is
         # served on this v1 path, where the coach prompt, the no-streaming rule and the server guard all apply.
