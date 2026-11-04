@@ -65,7 +65,9 @@ describe('⛔⛔ a length that is BOUND but not CONSTANT says so', () => {
 
   it('⭐ a REASSIGNED top-level name used as a window length', () => {
     // The `keltner-center-of-gravity-channel` shape: `per := …` then `ta.atr(per)`.
-    const r = refusalOf(`${head}n = 5\nn := 6\nplot(ta.sma(close, n))\n`)
+    // ⭐ W4-T2 — the write is under a PER-BAR test: an unconditional `n := 6` is
+    // `simple` and now folds (`w4SimpleFolding.test.js`); this one is `series`.
+    const r = refusalOf(`${head}n = 5\nif close > open\n    n := 6\nplot(ta.sma(close, n))\n`)
     expect(r.message).not.toContain('never given a value')
     expect(r.message).toContain('n')
   })

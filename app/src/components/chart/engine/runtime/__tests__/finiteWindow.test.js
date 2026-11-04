@@ -325,17 +325,16 @@ describe('⭐ length semantics and resources', () => {
     expect(r.message).not.toMatch(/^a history offset/)
   })
 
-  it('⚠️ MEASURED GAP — ARITHMETIC over an input does NOT fold yet', () => {
+  it('⭐ ARITHMETIC over an input folds (W4-T2 closed the measured gap)', () => {
     // A bare input name folds because `pine.js` substitutes the frozen default
-    // and the canonical node IS a `num`. `k + 2` stays an `op` node, so the
-    // fold refuses. That is CONSERVATIVE — a refusal, never a wrong width — but
-    // it is a real gap and this pins it as a fact rather than folklore. Closing
-    // it means consulting `pine.js`'s own `constantValueOf` (with its fold
-    // budget), which touches history offsets too and is therefore NOT 2F-2B's
-    // to change. ⛔ If this test ever goes red because the length now folds,
-    // that is the fix landing — assert the value, do not delete the case.
+    // and the canonical node IS a `num`. `k + 2` stayed an `op` node and the
+    // fold refused — conservative, and pinned here as a gap "to assert the value
+    // of, not delete, the day it lands". W4-T2 folds pointwise arithmetic over a
+    // canonical tree with no bar in it (`foldConstNode`, `foldScalar`): 5 + 2.
     const src = `${head}k = input.int(5, "K")\nvar x = 0.0\nx := close\nplot(ta.sma(x, k + 2))\n`
-    expect(refusalOf(src).guard).toBe('runtime:history-dynamic-offset')
+    const { out, program } = runPine(src)
+    expect(program.windows[0].span).toBe(7)
+    sameSeries(out, pureLane('ta.sma(close, 7)'), 'input arithmetic length')
   })
 
   it('⛔ a FRACTIONAL or NEGATIVE length refuses — a ring has whole cells', () => {
