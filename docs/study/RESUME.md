@@ -1263,6 +1263,20 @@ Decision: ladder step 12 with the halo at 0.3 (the glow turned down a touch). Co
 - Not done, on purpose: the site favicon is unchanged (the compass + candle IS the brand mark, but swapping the whole
   site's icon is the owner's call; the .ico is ready). No npm build was run before the commit; a background build
   check follows this entry.
+## 2026-11-03 (night): "LET'S DO IT" — merge first, then the phone tap fix and the polish
+
+- master merged INTO the branch (f259d9f437): 1382 commits behind, overlap on StockChart.jsx, StudyReview.jsx,
+  DrillPlayer.jsx, NO conflicts; overlap rails green on the merged tree (StockChart.onChartTap 4, StudyMark 3,
+  StudyLanding 4, DrillPlayer 14, TapDrill 4, StudyReview 47); pytest study leak + store 55 passed
+  (pytest lives in C:/Users/pgosz/uct-worktrees/study/.venv; the default Python has none).
+- PR #559 (this branch) retitled and rewritten to cover everything on it; MERGEABLE. The owner merges:
+  `! gh pr merge 559 --merge --repo unchartedterritory5995-cyber/UCT-Dashboard; echo "merge exit $?"`
+  (one master merge at a time; wait for web SUCCESS before the next).
+- 93fc003ff6: the PRODUCT tap drill fixed for phones (DrillPlayer -> StockChart onChartTap; crosshair = mouse
+  fallback, 400 ms dedupe; chartTapTime.tapDayKey); the mark on the reveal card (happy/oops) and the end card (fire
+  on a perfect set); StudyMark3D sleeps on a hidden tab; workbench mood buttons on one row on a phone.
+- NEXT (the owner's order): port the scored workbench pieces into the product once batch 13 and 14 are scored;
+  grow the setup bank (the unseen-only pool thins per account).
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
