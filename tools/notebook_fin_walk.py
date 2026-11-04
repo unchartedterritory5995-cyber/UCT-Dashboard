@@ -73,42 +73,27 @@ CAL_FILE = "fin-walk-sandbox-calendar.json"
 # Sandbox degradation every lane's sandbox already serves (13X's list, reused, not widened).
 BENIGN = ("/api/j2/broker/sync", "/api/stream/bars", "/api/live-prices", "warm=1", "/api/stream/prices")
 
-# The switches waves 11-14 and P1/P2 add and production has not armed (count them from the list,
-# never from this line). Read against the ledger at run time (`flag_sets`), so a name that is not a
-# real flag refuses the run.
+# The switches waves 11-14 and P1/P2 add that the walk arms in c2 (count them from the list, never
+# from this line). Read against the ledger at run time (`flag_sets`), so a name that is not a real
+# flag refuses the run. The other wave 11-14 and P1-P5 switches were retired as ALWAYS ON
+# (2026-11-04, `auth.NOTEBOOK_ALWAYS_ON_KEYS`): there is nothing to arm, every config serves them.
 WAVE_FLAGS = [
-    "NOTEBOOK_FORMULAS_ENABLED", "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
-    "NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED", "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
-    "NOTEBOOK_CHART_PLAN_ENABLED", "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED", "NOTEBOOK_PLAYBOOK_ENABLED",
-    "NOTEBOOK_SETUPS_BOARD_ENABLED", "NOTEBOOK_FIND_SIMILAR_ENABLED", "NOTEBOOK_EARNINGS_PREP_ENABLED",
-    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED", "NOTEBOOK_PASSED_SETUPS_ENABLED",
-    "AWARENESS_NOTE_RESURFACE_ENABLED", "NOTEBOOK_THESIS_CHIPS_ENABLED", "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
-    "NOTEBOOK_GETTING_STARTED_ENABLED",
-    # Notebook P1 (journal styles), dark in production; walked in c2 by the `styles` step.
-    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    # Notebook P2 Tier 2 part A (alert chip, screenshot chip), dark in production.
-    "NOTEBOOK_SMART_CHIPS_ENABLED",
-    # Notebook P2 Tier 2 part B (earnings follow-up), dark in production.
-    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
-    # Notebook P4a (page layouts: Customize on Today and the trade page), dark in production; walked in c2 by `page_layouts`.
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    # Notebook P4a (page layouts: Customize on Today and the trade page); walked in c2 by `page_layouts`.
     "JOURNAL_PAGE_LAYOUTS_ENABLED",
-    # Notebook P3a (community style library), dark in production.
-    "NOTEBOOK_STYLE_LIBRARY_ENABLED",
-    # Notebook P5 (starter packs), dark in production.
-    "NOTEBOOK_STARTER_PACKS_ENABLED",
 ]
 # Armed in c2 for the meaning-search TOUR only (the tour lists only while its flag is on). The
 # search itself needs an embedding key and is recorded NOT_RUN.
 TOUR_ONLY_FLAGS = ["NOTEBOOK_SEMANTIC_SEARCH_ENABLED"]
-# c3: the dependents ON, their prerequisites OFF.
-C3_ON = ["NOTEBOOK_VISUAL_PLAYBOOK_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED", "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
-         "NOTEBOOK_GETTING_STARTED_ENABLED"]
-C3_OFF = ["NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_CHART_PLAN_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED"]
+# c3: the dependents ON, their prerequisites OFF. RETIRED 2026-11-04: every dependent and every
+# prerequisite it switched was retired as always on, so the state c3 walked can no longer exist.
+C3_ON: list[str] = []
+C3_OFF: list[str] = []
 # keyed: the AI features, walked with the two model keys the owner authorised (sandbox only).
 # Voice notes and meaning search stay OFF in production; they are armed here in the sandbox.
 KEYED_EXTRA = ["NOTEBOOK_WRITING_HELP_ENABLED", "NOTEBOOK_ASK_INSERT_ON", "NOTEBOOK_ATTACHMENTS_ON",
                "NOTEBOOK_AI_ACTIONS_ENABLED", "NOTEBOOK_VOICE_NOTES_ENABLED", "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
-               "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "COMPASS_NOTES_TOOL_ENABLED", "J2_OCR_ENABLED"]
+               "COMPASS_NOTES_TOOL_ENABLED", "J2_OCR_ENABLED"]
 MODEL_KEY_NAMES = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY")   # presence is read; a value is never printed
 # Ledger-armed names that are jobs / infrastructure / a mode, not a member-facing gate: left unset.
 NOT_MEMBER_GATES = {"NOTEBOOK_DOOR_GUARD", "J2_ATTACHMENT_BACKUP_ENABLED", "J2_ATTACHMENT_GC_ENABLED", "J2_OCR_ENABLED"}
@@ -1040,6 +1025,8 @@ def run_c1(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
 # ── c3: a dependent switched on without its prerequisite ────────────────────────────────────
 
 def run_c3(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
+    if not (C3_ON or C3_OFF):
+        raise h.SetupFailed("c3 is retired: the switches it paired were retired as always on (2026-11-04)")
     cfg = "c3"
     ctx, email, me = member(browser, admin.request, base, "c3m", "1280")
     inst = Inst(ctx, cfg, "1280")
