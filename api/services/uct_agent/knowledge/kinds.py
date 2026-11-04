@@ -163,6 +163,8 @@ def validate_setup(params: dict) -> Optional[str]:
     why = _gate()
     if why:
         return why
+    if policy.minimal_mode():
+        return "UCT's setup templates and records are not served in the minimal Brain configuration"
     s = str(params.get("setup") or "").strip()
     if not s or len(s) > MAX_SETUP:
         return "a setup name (up to 60 characters) is required"
@@ -689,7 +691,7 @@ def _blocked_snapshot() -> Optional[tuple]:
     except OSError:
         amt = None
     build = index.build_id(index.built_info())
-    key = (pack.pack_ts(), build, str(policy.path()), pmt, amt, rights._key() is not None)
+    key = (pack.pack_ts(), build, str(policy.path()), pmt, amt, rights._key() is not None, policy.minimal_mode())
     snap = _BLOCKED_CACHE.get("snap")
     if _BLOCKED_CACHE["key"] == key and snap is not None:
         return snap

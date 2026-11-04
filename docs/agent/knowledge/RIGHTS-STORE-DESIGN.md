@@ -101,6 +101,19 @@ serve_flagged` (commentary rows only; a definitional row never), adding an origi
 fields carry no key: `policy.json` is the reviewed source policy, and PR review of every change to it is the gate.**
 Only `cleared_rows` moves to the authoritative store in this design.
 
+**Minimal mode enforces it in code (owner, 2026-11-04):** `UCT_AGENT_KN_MINIMAL=1` pins the baseline in code and
+ignores every `policy.json` field that could widen serving without a verified path:
+- sources beyond `setup_knowledge` / `trader_archive`;
+- extra `team_origins`;
+- `rights_cleared_concepts`;
+- `serve_flagged`;
+- `cleared_rows`, which are ignored even when signed, with the key and an anchor.
+
+Setup templates and records are refused even if listed in the data kinds. `policy.json` may still NARROW.
+
+Tests (`test_minimal_mode_*`): each edit is served with minimal mode off (positive control) and blocked with it on.
+So the block, and nothing else, is what stops it.
+
 **What this does NOT show:**
 - Answer safety. With Brain on and E-1 off, the planner can still write a definition in its own words.
 - A member-facing test therefore needs E-1 (#781) as well. Otherwise use admin-only direct reads of

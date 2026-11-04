@@ -506,6 +506,7 @@ def apply(new: list[dict], policy_path: Path, applied_by: str, audit_path: Optio
         for e in new:
             rec = {"applied_at": stamp, "applied_by": str(applied_by).strip(), "kb_id": e["kb_id"],
                    "content_sha": e["content_sha"], "rights_review_ref": e["rights_review_ref"],
+                   "provenance_ref": e["provenance_ref"],
                    "approved_by": e["approved_by"], "approved_on": e["approved_on"],
                    "action": "replaced" if e["kb_id"] in by_id else "added", "policy_version": version, "prev": prev}
             rec["sha"] = _line_sha(key, prev, rec)
@@ -567,8 +568,9 @@ def revoke(kb_ids: list, policy_path: Path, revoked_by: str, reason: str, audit_
 
 
 def reanchor(policy_path: Path, by: str, reason: str) -> dict:
-    """OWNER-ONLY recovery (needs the key): after a crash between a file write and the anchor write, set the anchor to
-    the files' current, fully verified state. This IS a deliberate acceptance of the files as they are; it is logged."""
+    """OWNER-ONLY recovery (needs the key) after a crash between a file write and the anchor write. FORWARD ONLY
+    (QA #793 round 3): the files' signed log must EXTEND the anchored log (the record at the anchored seq carries the
+    anchored head), so files rolled back behind the anchor are refused and a revocation can never be undone this way."""
     key = _key()
     if key is None:
         raise ValueError(f"no rights key on this server ({KEY_ENV})")
@@ -585,15 +587,105 @@ def reanchor(policy_path: Path, by: str, reason: str) -> dict:
         pid = pol.get("rights_policy_id")
         if not isinstance(pid, str) or not pid:
             raise ValueError("this policy has no rights_policy_id")
-        try:
-            old = read_anchor(pid, key)
-        except ValueError:
-            old = None
+        old = read_anchor(pid, key)                          # an edited anchor raises: use `rebuild`, never this
+        if old is not None:
+            at = old["seq"]
+            if at > len(recs) or (at > 0 and recs[at - 1]["sha"] != old["head"]) or (at == 0 and old["head"] != _GENESIS):
+                raise ValueError("the files are BEHIND or beside the anchored state (a rollback); re-anchoring only moves "
+                                 "forward. Nothing changed")
         import secrets
         aid = old["anchor_id"] if old else secrets.token_hex(16)
         _write_anchor(pid, aid, len(recs), head, key)
     log.warning("[kn rights] re-anchored policy %s at seq %d by %s: %s", pid[:8], len(recs), str(by)[:40], str(reason)[:120])
     return {"seq": len(recs)}
+
+
+def rebuild(policy_path: Path, by: str, reason: str, now: Optional[float] = None) -> dict:
+    """OWNER-ONLY recovery (needs the key) when the signed log is BROKEN (an edited, deleted, reordered or forged line).
+    Keeps the verified prefix, and treats EVERY row that any line after the break touches (or that the policy lists
+    without the prefix's support) as REVOKED: the lines after a break cannot be trusted to say a row is still cleared,
+    so a row revoked after the break can never come back. If a later line cannot be read at all, every row is revoked.
+    Writes signed `revoked` records (reason: rebuild), the policy and the anchor; never reads the repository export."""
+    key = _key()
+    if key is None:
+        raise ValueError(f"no rights key on this server ({KEY_ENV})")
+    if not policy._APPROVER.match(str(by or "").strip()) or not str(reason or "").strip():
+        raise ValueError("a name and a reason are required")
+    t = float(now if now is not None else _clock())
+    p = Path(policy_path)
+    ap = audit_path_for(p)
+    with _FileLock(p):
+        lines = ap.read_text(encoding="utf-8").splitlines() if ap.exists() else []
+        prefix, prev, bad_at = [], _GENESIS, None
+        for i, line in enumerate(lines):
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                rec = None
+            if not isinstance(rec, dict) or rec.get("prev") != prev or rec.get("sha") != _line_sha(key, prev, rec):
+                bad_at = i
+                break
+            prefix.append(rec)
+            prev = rec["sha"]
+        pol = json.loads(p.read_text(encoding="utf-8"))
+        pid = pol.get("rights_policy_id")
+        if bad_at is None:
+            raise ValueError("the signed log verifies; nothing to rebuild (use reanchor after a crash)")
+        if not isinstance(pid, str) or not pid:
+            raise ValueError("this policy has no rights_policy_id")
+        active = active_from_log(prefix)
+        tail, unreadable = lines[bad_at:], False
+        touched = set()
+        for line in tail:
+            try:
+                r = json.loads(line)
+                k = r.get("kb_id") if isinstance(r, dict) else None
+                if k is None:
+                    unreadable = True
+                else:
+                    touched.add(k)
+            except ValueError:
+                if line.strip():
+                    unreadable = True
+        listed = {e.get("kb_id"): str(e.get("content_sha") or "").lower()
+                  for e in pol.get("cleared_rows") or [] if isinstance(e, dict)}
+        touched |= {k for k, v in listed.items() if active.get(k) != v}
+        revoke_now = sorted(active, key=str) if unreadable else sorted((k for k in active if k in touched), key=str)
+        stamp = datetime.datetime.fromtimestamp(t, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        version = int(pol.get("policy_version") or 0) + 1
+        new_lines, prev = [], (prefix[-1]["sha"] if prefix else _GENESIS)
+        for k in revoke_now:
+            rec = {"applied_at": stamp, "applied_by": str(by).strip(), "kb_id": k, "content_sha": active[k],
+                   "action": "revoked", "reason": ("rebuild after a broken log: " + str(reason).strip())[:200],
+                   "policy_version": version, "prev": prev}
+            rec["sha"] = _line_sha(key, prev, rec)
+            prev = rec["sha"]
+            new_lines.append(json.dumps(rec, ensure_ascii=False, separators=(",", ":")))
+        last = _latest(prefix)
+        keep = {k: v for k, v in active.items() if k not in set(revoke_now)}
+        rows = [{"kb_id": k, "content_sha": v, "provenance_ref": last[k].get("provenance_ref") or "rebuilt",
+                 "rights_review_ref": last[k].get("rights_review_ref"), "approved_by": last[k].get("approved_by"),
+                 "approved_on": last[k].get("approved_on")} for k, v in keep.items()]
+        broken = ap.with_suffix(ap.suffix + f".broken-{int(t)}")
+        if ap.exists():
+            ap.replace(broken)                                     # kept for the owner's investigation
+        ap.write_text("".join(json.dumps(r, ensure_ascii=False, separators=(",", ":")) + "\n" for r in prefix)
+                      + "".join(x + "\n" for x in new_lines), encoding="utf-8")
+        pol["cleared_rows"] = sorted(rows, key=lambda e: int(e.get("kb_id") or 0))
+        pol["policy_version"] = version
+        pol["audit_head"] = prev
+        p.write_text(json.dumps(pol, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        try:
+            old = read_anchor(pid, key)
+        except ValueError:
+            old = None
+        import secrets
+        _write_anchor(pid, old["anchor_id"] if old else secrets.token_hex(16), len(prefix) + len(new_lines), prev, key)
+    log.warning("[kn rights] rebuilt policy %s after a broken log (line %d): %d kept, %d revoked, by %s: %s",
+                pid[:8], bad_at + 1, len(keep), len(revoke_now), str(by)[:40], str(reason)[:120])
+    return {"broken_at_line": bad_at + 1, "kept": len(keep), "revoked": len(revoke_now), "saved_as": broken.name}
 
 
 _AUTH_CACHE: dict = {"key": None, "ids": {}}
@@ -603,8 +695,8 @@ def authorized() -> dict:
     """{kb_id: content_sha} of cleared rows the RUNTIME may serve: policy entries backed by the signed audit log, the
     log's head equal to the policy's audit_head, and the count within the cap. Anything else -> {} (default-deny)."""
     key = _key()
-    want = policy.cleared_row_ids()
-    if key is None or not want:
+    want = policy.cleared_row_ids()                 # {} in minimal mode
+    if key is None or not want or policy.minimal_mode():
         return {}
     pp = policy.path()
     ap = audit_path_for(pp)

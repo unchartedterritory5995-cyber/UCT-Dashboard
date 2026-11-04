@@ -489,3 +489,56 @@ def test_the_anchor_lives_outside_the_editable_files(kn):
     pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
     assert "seq" not in json.dumps(pol) and "rights_anchor" not in json.dumps(pol)
 
+
+
+# ── QA #793 round 4: recovery can never restore a revoked row ─────────────────────────────────────────────────────
+def _break_line(kn, idx, mutate):
+    ap = rights.audit_path_for(kn["policy"])
+    lines = ap.read_text(encoding="utf-8").splitlines()
+    lines[idx] = mutate(lines[idx])
+    ap.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_rebuild_treats_rows_touched_after_the_break_as_revoked(kn):
+    rights.apply(_synthetic(3), kn["policy"], applied_by="Reviewer One", now=FIXED)            # 1001 1002 1003
+    rights.revoke([1002], kn["policy"], revoked_by="Owner Name", reason="withdrawn", now=FIXED + 10)   # line 4
+    rights.apply(_synthetic(1, start=1004), kn["policy"], applied_by="Reviewer One", now=FIXED + 20)  # line 5
+    # break line 4 (the revoke) so that, naively, 1002 would look active again from the prefix
+    _break_line(kn, 3, lambda ln: ln.replace("withdrawn", "WITHDRAWN"))
+    assert rights.authorized() == {}
+    res = rights.rebuild(kn["policy"], by="Owner Name", reason="log edited", now=FIXED + 30)
+    assert res["broken_at_line"] == 4
+    active = rights.active_from_log(rights.read_audit(rights.audit_path_for(kn["policy"])))
+    assert 1002 not in active                        # revoked after/at the break: NEVER restored
+    assert 1004 not in active                        # added after the break: not trusted, revoked
+    assert set(active) == {1001, 1003}               # untouched prefix rows stay cleared
+    assert set(rights.authorized()) == {1001, 1003}  # and the runtime agrees with the rebuilt state
+
+
+def test_rebuild_with_an_unreadable_line_revokes_everything(kn):
+    rights.apply(_synthetic(3), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    _break_line(kn, 2, lambda ln: "{not json")
+    rights.rebuild(kn["policy"], by="Owner Name", reason="corrupt", now=FIXED + 5)
+    assert rights.active_from_log(rights.read_audit(rights.audit_path_for(kn["policy"]))) == {}
+    assert rights.authorized() == {}
+
+
+def test_rebuild_refuses_a_log_that_verifies_and_needs_the_key(kn, monkeypatch):
+    rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    with pytest.raises(ValueError, match="nothing to rebuild"):
+        rights.rebuild(kn["policy"], by="Owner Name", reason="x")
+    monkeypatch.delenv(rights.KEY_ENV)
+    with pytest.raises(ValueError, match="no rights key"):
+        rights.rebuild(kn["policy"], by="Owner Name", reason="x")
+
+
+def test_reanchor_only_moves_forward_never_back_over_a_revocation(kn):
+    rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    before = kn["policy"].read_text(encoding="utf-8")
+    log_before = rights.audit_path_for(kn["policy"]).read_text(encoding="utf-8")
+    rights.revoke([1001], kn["policy"], revoked_by="Owner Name", reason="withdrawn", now=FIXED + 10)
+    kn["policy"].write_text(before, encoding="utf-8")                                      # roll the files back
+    rights.audit_path_for(kn["policy"]).write_text(log_before, encoding="utf-8")
+    with pytest.raises(ValueError, match="only moves forward"):
+        rights.reanchor(kn["policy"], by="Owner Name", reason="trying to undo the revoke")
+    assert rights.authorized() == {}

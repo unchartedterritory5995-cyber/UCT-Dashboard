@@ -154,3 +154,78 @@ def test_control_a_complete_rights_cleared_concept_admits_it_an_incomplete_one_d
     pol["templates"]["rights_cleared_concepts"] = [entry]
     _with_policy(monkeypatch, tmp_path, templates=pol["templates"])
     assert 60 in _ids_for(CUP_Q)                                               # complete: admitted
+
+
+# ── QA round 4 / owner: MINIMAL MODE blocks the unverified policy.json path, proven against positive controls ────────
+def _edit_self_review(pol):
+    pol["sources"]["self_review"]["admit"] = True
+    return {"sources": pol["sources"]}, "brain own review episodic pivot gap volume", 6
+
+
+def _edit_serve_flagged(pol):
+    return {"excluded_setup_mentions": {"mode": "serve_flagged"}}, CUP_Q, 61
+
+
+def _edit_team_origins(pol):
+    pol["templates"]["team_origins"] = pol["templates"]["team_origins"] + ["O'Neil"]
+    return {"templates": pol["templates"]}, CUP_Q, 60
+
+
+def _edit_rights_cleared(pol):
+    pol["templates"]["rights_cleared_concepts"] = [{"template": "Cup with Handle", "provenance_ref": "PROV-1",
+                                                    "rights_review_ref": "RR-1", "approved_by": "Owner Name",
+                                                    "approved_on": "2026-10-01"}]
+    return {"templates": pol["templates"]}, CUP_Q, 60
+
+
+EDITS = [_edit_self_review, _edit_serve_flagged, _edit_team_origins, _edit_rights_cleared]
+
+
+@pytest.mark.parametrize("edit", EDITS, ids=lambda f: f.__name__[6:])
+def test_minimal_mode_is_what_blocks_each_unverified_policy_edit(minimal, monkeypatch, tmp_path, edit):
+    over, q, row = edit(_shipped())
+    _with_policy(monkeypatch, tmp_path, **over)
+    monkeypatch.setenv(policy.MINIMAL_ENV, "1")
+    assert row not in _ids_for(q)                                              # BLOCKED in minimal mode ...
+    monkeypatch.delenv(policy.MINIMAL_ENV)
+    assert row in _ids_for(q)                                                  # ... and only the block stops it
+
+
+def test_minimal_mode_blocks_a_fully_signed_clearance_too(minimal, monkeypatch, tmp_path):
+    monkeypatch.setenv(rights.KEY_ENV, "test-server-held-rights-key-0123456789abcdef")
+    _with_policy(monkeypatch, tmp_path)
+    sha = index.content_shas([60])[60]
+    import os
+    from pathlib import Path
+    rights.apply([{"kb_id": 60, "content_sha": sha, "provenance_ref": "P", "rights_review_ref": "R",
+                   "approved_by": "Owner Name", "approved_on": "2026-10-01"}],
+                 Path(os.environ["UCT_AGENT_KNOWLEDGE_POLICY"]), applied_by="Owner Name", now=time.time())
+    assert 60 in _ids_for(CUP_Q)                                               # positive control: a signed clearance serves
+    monkeypatch.setenv(policy.MINIMAL_ENV, "1")
+    assert rights.authorized() == {} and policy.cleared_row_ids() == {}
+    assert 60 not in _ids_for(CUP_Q)                                           # minimal mode: no cleared rows at all
+
+
+def test_minimal_mode_still_lets_the_policy_narrow(minimal, monkeypatch, tmp_path):
+    monkeypatch.setenv(policy.MINIMAL_ENV, "1")
+    q = "kicker gap over the moving averages entry"
+    assert 62 in _ids_for(q)                                                   # a trader_archive row
+    pol = _shipped()
+    pol["sources"]["trader_archive"]["admit"] = False
+    _with_policy(monkeypatch, tmp_path, sources=pol["sources"])
+    assert 62 not in _ids_for(q)
+
+
+@pytest.mark.parametrize("kind", ["setup.playbook", "setup.record"])
+def test_minimal_mode_refuses_templates_and_records_even_if_listed(minimal, monkeypatch, kind):
+    from api.services.uct_agent.marketdata import gateway
+    monkeypatch.setenv("UCT_AGENT_DATA_KINDS", "knowledge.search,setup.playbook,setup.record")
+    monkeypatch.setenv(policy.MINIMAL_ENV, "1")
+    out = gateway.read(kind, {"setup": "EP"}, user_id=1, turn_id=f"tm{time.time_ns()}")
+    assert out["status"] == "refused" and not out.get("data")
+
+
+@pytest.mark.parametrize("v", ["", "0", "off", "minimal"])
+def test_minimal_mode_needs_an_explicit_on_value(monkeypatch, v):
+    monkeypatch.setenv(policy.MINIMAL_ENV, v)
+    assert policy.minimal_mode() is False
