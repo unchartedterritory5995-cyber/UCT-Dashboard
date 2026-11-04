@@ -1,5 +1,5 @@
 {
-  "policy_version": 4,
+  "policy_version": 5,
   "about": "UCT Agent knowledge source policy (KN-1). DEFAULT-DENY: a Brain Pack source the policy does not list as admitted is invisible to the Agent. Admitting a source is an owner decision recorded here as a reviewed diff. Read per request by api/services/uct_agent/knowledge/policy.py.",
   "approval": {
     "by": "owner",
@@ -171,5 +171,9 @@
     }
   },
   "cleared_rows": [],
-  "cleared_rows_about": "Owner decision 2026-11-03: admitted rows that NAME an excluded setup with definitional wording are withheld pending provenance and rights review. A row is served only after review, listed here as {kb_id, provenance_ref, rights_review_ref, approved_by, approved_on} (every field required). Other mentions are served as team commentary, flagged commentary_only. Empty: nothing is cleared yet."
+  "cleared_rows_about": "Owner decisions 2026-11-03/04: an admitted row that NAMES an excluded setup is withheld pending provenance and rights review (see excluded_setup_mentions). A row is served only after review, listed here as {kb_id, content_sha, provenance_ref, rights_review_ref, approved_by, approved_on}: every field required, approved_by a name, approved_on an ISO date not in the future, content_sha the sha256 the index records for the reviewed text (a changed text loses its clearance). Empty: nothing is cleared yet.",
+  "excluded_setup_mentions": {
+    "mode": "withhold",
+    "about": "Owner directive 2026-11-04 (withhold uncertain; a commentary label never makes restricted content permissible): 'withhold' = every admitted row that names an excluded setup is withheld unless it is on cleared_rows. 'serve_flagged' (owner only) re-admits rows WITHOUT definitional wording as a block, served flagged commentary_only; definitional rows stay withheld either way."
+  }
 }

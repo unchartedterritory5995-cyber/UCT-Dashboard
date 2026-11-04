@@ -18,6 +18,7 @@ import os
 import re
 import sqlite3
 import threading
+import unicodedata
 import time
 from typing import Optional
 
@@ -25,7 +26,7 @@ from api.services.uct_agent.knowledge import pack
 
 log = logging.getLogger(__name__)
 ENV_PATH = "UCT_AGENT_KNOWLEDGE_INDEX"
-SCHEMA = 4
+SCHEMA = 5
 _LOCK = threading.Lock()
 FAIL_COOLDOWN_S = 60
 _FAILED: dict = {"at": 0.0, "ts": None}
@@ -119,6 +120,8 @@ def build() -> dict:
         dst.commit()
         dst.close()
         dst = None
+        with open(tmp, "rb+") as fh:                 # review #751 delta 5: durable before it becomes the index
+            os.fsync(fh.fileno())
         os.replace(tmp, target)
         tmp = None
         log.info("[uct-agent knowledge] index built rows=%s duplicates=%s pack_ts=%s", len(rows), dups, ts)
@@ -173,16 +176,41 @@ def _template_aliases(src) -> dict:
 # sentence ends). Owner decision 2026-11-03 point 3 withheld the reviewed 40-char cue's 71 rows; owner directive
 # 2026-11-04 widens it to the review's looser cue (+122 served rows): an uncertain definition-like row is WITHHELD
 # until a complete provenance + rights-review entry clears it (policy.cleared_rows); a commentary label never admits it.
+# review #751 delta 2: definitional wording AFTER the term (+ refers to / known as / consists of / must / should /
+# called), or BEFORE it ("definition of a X", "we call this a X", "known as X"): either withholds the row.
 DEFINITIONAL_CUE = (r"[\s\S]{0,80}?\b(is|are|means|defined|definition|rules?|entry|stop|criteria|trigger|pivot|"
-                    r"buy point|setup)\b")
+                    r"buy point|setup|refers? to|known as|consists? of|must|should|called|characteri[sz]ed by|"
+                    r"forms? when|looks? like|requires?|needs?|wants?)\b")
+DEFINITIONAL_CUE_BEFORE = (r"\b(definition of|defines?|defined|defining|we call (?:this|it|that)|called|known as|"
+                           r"characteri[sz]ed by|criteria for|rules for|forms? when|looks? like|"
+                           r"refers? to|means|what (?:is|are) (?:an?|the))\b[\s\S]{0,40}?")
 MIN_TERM = 3
 # review #751 note 1: a whole term is bounded by NON-word characters (`\b` never fires after a term ending in ")")
 _WB, _WE = r"(?<!\w)", r"(?!\w)"
+_PLURAL = r"(?:e?s)?"
+
+
+def fold(s) -> str:
+    """review #751 delta 1: the one spelling every term and every row is compared in: NFKC (NBSP, full-width forms),
+    case-folded, "&" read as "and", and every run of punctuation / underscores / whitespace collapsed to one space,
+    so "Cup-and-Handle", "cup  and handle", "cup & handle" and "CUP AND HANDLE" are the same text."""
+    s = unicodedata.normalize("NFKC", str(s or "")).casefold().replace("&", " and ")
+    return re.sub(r"[\W_]+", " ", s).strip()
+
+
+def _variants(term: str) -> list:
+    """The folded term and, for a multi-word term, its unspaced form ("cupandhandle"); longest first."""
+    out = [term]
+    squashed = term.replace(" ", "")
+    if " " in term and len(squashed) >= 6:
+        out.append(squashed)
+    return out
 
 
 def _mention_index(src) -> Optional[dict]:
-    """{term: {template names}} for every template name/alias of >= 3 characters (lowercase, raw form: the same
-    terms the review counted with), plus one combined whole-word regex as a prefilter. None when unreadable."""
+    """{term: {template names}} for every template name/alias of >= 3 characters (folded: see fold()), plus one
+    combined whole-term regex as a prefilter. Each term also matches its plural and its unspaced form. None when
+    unreadable."""
     terms: dict = {}
     try:
         for r in src.execute("SELECT name, aliases FROM setup_templates"):
@@ -192,7 +220,7 @@ def _mention_index(src) -> Optional[dict]:
             except ValueError:
                 al = str(r["aliases"] or "").split(",")
             for t in [name, *(al if isinstance(al, list) else [])]:
-                t = str(t).strip().lower()
+                t = fold(t)
                 if len(t) >= MIN_TERM:
                     terms.setdefault(t, set()).add(name)
     except sqlite3.Error:
@@ -200,30 +228,31 @@ def _mention_index(src) -> Optional[dict]:
     if not terms:
         return {"terms": {}, "any": None, "per": {}}
     ordered = sorted(terms, key=len, reverse=True)
-    anyre = re.compile(_WB + "(" + "|".join(re.escape(t) for t in ordered) + ")" + _WE, re.I)
+    alt = lambda t: "(?:" + "|".join(re.escape(v) for v in _variants(t)) + ")"   # noqa: E731
+    anyre = re.compile(_WB + "(?:" + "|".join(alt(t) for t in ordered) + ")" + _PLURAL + _WE)
     per = {}
     for t in ordered:
-        e = re.escape(t)
-        per[t] = (re.compile(_WB + e + _WE, re.I), re.compile(_WB + e + _WE + DEFINITIONAL_CUE, re.I))
+        e = _WB + alt(t) + _PLURAL + _WE
+        per[t] = (_variants(t), re.compile(e), re.compile(e + DEFINITIONAL_CUE), re.compile(DEFINITIONAL_CUE_BEFORE + e))
     return {"terms": terms, "any": anyre, "per": per}
 
 
 def _mentions(content: str, mi: Optional[dict]) -> tuple:
-    """(templates mentioned, templates mentioned with definitional wording, error?) for one row's content. Each term
-    is tested on its own, so one term can never hide another's match. Any failure is reported as an error (the
-    caller withholds the row: fail closed)."""
+    """(templates mentioned, templates mentioned with definitional wording, error?) for one row's content, compared
+    in the folded spelling. Each term is tested on its own, so one term can never hide another's match. Any failure
+    is reported as an error (the caller withholds the row: fail closed)."""
     if mi is None:
         return [], [], True
     try:
-        if not mi["any"] or not mi["any"].search(content or ""):
+        low = fold(content)
+        if not mi["any"] or not mi["any"].search(low):
             return [], [], False
         mentioned, definitional = set(), set()
-        low = content.casefold()
-        for t, (m_re, d_re) in mi["per"].items():
+        for t, (variants, m_re, d_after, d_before) in mi["per"].items():
             # review #751 perf: only a term present as a substring is scanned (same result, far fewer regex scans)
-            if t in low and m_re.search(content):
+            if any(v in low for v in variants) and m_re.search(low):
                 mentioned |= mi["terms"][t]
-                if d_re.search(content):
+                if d_after.search(low) or d_before.search(low):
                     definitional |= mi["terms"][t]
         return sorted(mentioned), sorted(definitional), False
     except Exception:  # noqa: BLE001 — unparseable row: withheld by the caller
@@ -243,6 +272,29 @@ def mention_rows() -> Optional[list]:
         return [tuple(r) for r in c.execute(
             "SELECT kb_id, source, category, mention_templates, definitional_templates, mention_error FROM docs "
             "WHERE mention_templates != '' OR mention_error = 1")]
+    except sqlite3.Error:
+        return None
+    finally:
+        c.close()
+
+
+def content_shas(kb_ids) -> Optional[dict]:
+    """{kb_id: content_sha} for these rows (review #751 delta 3: a clearance is bound to the text it cleared);
+    None when the index cannot be read."""
+    ids = sorted({int(k) for k in kb_ids or []})
+    if not ids:
+        return {}
+    try:
+        c = _connect()
+    except sqlite3.Error:
+        return None
+    try:
+        out = {}
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            out.update({int(k): str(s or "") for k, s in c.execute(
+                f"SELECT kb_id, content_sha FROM docs WHERE kb_id IN ({','.join('?' * len(chunk))})", chunk)})
+        return out
     except sqlite3.Error:
         return None
     finally:

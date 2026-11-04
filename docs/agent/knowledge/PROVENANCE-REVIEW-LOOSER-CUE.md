@@ -16,6 +16,10 @@ For the provenance / rights review (owner decision 2026-11-03, points 2-3). **Co
   approved_by, approved_on, kb_id). Real snapshot after the change: 122/122 withheld, 71/71 still withheld, 0 rows
   matching either cue served; non-dated: 150 withheld by the mention rule, 230 served flagged as commentary.
 
+- 2026-11-04 later (delta review): every row that NAMES an excluded setup is now withheld by default
+  (policy `excluded_setup_mentions.mode = "withhold"`), so these 122 stay withheld whatever the cue. A clearance must
+  also carry the reviewed text's `content_sha`.
+
 kb_ids (122):
 
 10761, 10810, 10840, 10877, 10881, 10925, 10943, 10944, 10998, 11028, 11034, 11040, 11048, 11091, 11095,

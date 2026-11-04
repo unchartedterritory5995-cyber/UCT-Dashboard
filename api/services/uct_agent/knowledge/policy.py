@@ -125,7 +125,8 @@ def classify_record(key: str) -> dict:
     return {"state": "unknown", "licence": "unresolved", "label": key, "reason": "a record source the policy does not list"}
 
 
-_CLEARED_ROW_FIELDS = ("kb_id", "provenance_ref", "rights_review_ref", "approved_by", "approved_on")
+_CLEARED_ROW_FIELDS = ("kb_id", "content_sha", "provenance_ref", "rights_review_ref", "approved_by", "approved_on")
+_SHA = re.compile(r"^[0-9a-f]{64}$")
 
 
 _APPROVER = re.compile(r"^(?=.*[A-Za-z])[A-Za-z0-9 .'@_-]{2,80}$")
@@ -143,15 +144,20 @@ def _approved_on_ok(v) -> bool:
     return d <= datetime.datetime.now(datetime.timezone.utc).date()
 
 
-def cleared_row_ids() -> set:
-    """kb_ids on policy.cleared_rows with EVERY required field present (provenance + rights review) and well formed
-    (review #751 note 3: a positive integer kb_id, an approver name, an ISO approval date not in the future); any
-    other entry is ignored, so its row stays withheld."""
-    out = set()
+def cleared_row_ids() -> dict:
+    """{kb_id: content_sha} for policy.cleared_rows entries with EVERY required field present (provenance + rights
+    review) and well formed (review #751 note 3: a positive integer kb_id, an approver name, an ISO approval date not
+    in the future; delta 3: the sha256 content_sha of the text that was reviewed, as the index records it). The caller
+    serves a cleared row only while its current content_sha matches, so changed text loses its clearance. Any other
+    entry is ignored, so its row stays withheld."""
+    out = {}
     for e in load().get("cleared_rows") or []:
         if not (isinstance(e, dict) and all(str(e.get(f) or "").strip() for f in _CLEARED_ROW_FIELDS)):
             continue
         if not (_APPROVER.match(str(e["approved_by"]).strip()) and _approved_on_ok(e["approved_on"])):
+            continue
+        sha = str(e["content_sha"]).strip().lower()
+        if not _SHA.match(sha):
             continue
         k = e["kb_id"]
         if isinstance(k, bool):
@@ -161,8 +167,20 @@ def cleared_row_ids() -> set:
         except (TypeError, ValueError):
             continue
         if k > 0:
-            out.add(k)
+            out[k] = sha
     return out
+
+
+MENTIONS_WITHHOLD, MENTIONS_SERVE_FLAGGED = "withhold", "serve_flagged"
+
+
+def excluded_mentions_mode() -> str:
+    """Review #751 delta 6 (owner directive 2026-11-04, withhold uncertain): an admitted row that NAMES an excluded
+    setup is withheld unless cleared ("withhold", the default and what any value but "serve_flagged" means). The owner
+    may re-admit those rows as a block, served flagged commentary_only, with "serve_flagged"."""
+    v = str((load().get("excluded_setup_mentions") or {}).get("mode") or "").strip().lower() \
+        if isinstance(load().get("excluded_setup_mentions"), dict) else ""
+    return MENTIONS_SERVE_FLAGGED if v == MENTIONS_SERVE_FLAGGED else MENTIONS_WITHHOLD
 
 
 def admitted_sources() -> list[str]:

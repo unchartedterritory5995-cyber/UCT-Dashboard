@@ -211,8 +211,14 @@ def search(params: dict, ctx: dict) -> dict:
         return _envelope(kind, params, status="unavailable",
                          notes=["UCT's knowledge base cannot verify its source rules right now, so nothing is served"])
     flags_by_id = _commentary_flags()
+    built_at = _blocked_key_built_at()
     cands = index.query(q, sources=admitted, exclude_categories=exclude, category=params.get("category"),
                         limit=policy.search_setting("candidates", 40), phrases=phrases, exclude_ids=blocked_ids)
+    if index.built_info().get("built_at") != built_at:
+        # review #751 delta 4: the index was swapped between the withheld list and the query (a pack install):
+        # the withheld list belongs to the OLD index, so nothing from this query is served
+        _refund(ctx, budget)
+        return _envelope(kind, params, status="unavailable", notes=[index.REBUILDING])
     max_age = policy.dated_max_age_days()
     excerpt_chars = policy.search_setting("excerpt_chars", 500)
     passages, withheld_injection, withheld_stale = [], 0, 0
@@ -676,7 +682,15 @@ def _blocked_ids() -> Optional[list]:
         rows = index.mention_rows()
         if ids is None or rows is None:              # never cache a "cannot tell"
             return None
-        cleared = policy.cleared_row_ids()
+        want = policy.cleared_row_ids()
+        shas = index.content_shas(want) if want else {}
+        if shas is None:
+            return None
+        # review #751 delta 3: a clearance holds only while the row's text is the text that was reviewed
+        cleared = {k for k, sha in want.items() if shas.get(k) == sha}
+        # review #751 delta 6 (owner directive 2026-11-04): by default ANY mention of an excluded setup is withheld
+        # unless cleared; the owner can re-admit them as a block (policy excluded_setup_mentions.mode = serve_flagged)
+        withhold_mentions = policy.excluded_mentions_mode() != policy.MENTIONS_SERVE_FLAGGED
         mention_blocked, flagged = set(), {}
         for kb_id, _src, _cat, mentioned, definitional, err in rows:
             if err:
@@ -684,13 +698,18 @@ def _blocked_ids() -> Optional[list]:
                 continue
             ex_def = [n for n in str(definitional or "").split("|") if n and n in excluded]
             ex_men = [n for n in str(mentioned or "").split("|") if n and n in excluded]
-            if ex_def and int(kb_id) not in cleared:
+            if (ex_def or (ex_men and withhold_mentions)) and int(kb_id) not in cleared:
                 mention_blocked.add(int(kb_id))
             elif ex_men:
                 flagged[int(kb_id)] = ex_men
         _BLOCKED_CACHE.update(key=key, ids=sorted(set(ids) | mention_blocked), flagged=flagged,
                               mention_blocked=sorted(mention_blocked))
     return _BLOCKED_CACHE["ids"]
+
+
+def _blocked_key_built_at():
+    k = _BLOCKED_CACHE.get("key")
+    return k[1] if isinstance(k, tuple) and len(k) > 1 else None
 
 
 def _commentary_flags() -> dict:

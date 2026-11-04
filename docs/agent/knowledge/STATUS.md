@@ -208,6 +208,21 @@ filtering or ranking work would add complexity without a measurable gain; embedd
 - Rebuild safety: a build writes a temporary file and swaps it in with one os.replace; a failed build leaves the old
   file untouched and no temporary file; a stale index (pack_ts or schema mismatch) is never served, and a request during
   another thread's rebuild gets "being rebuilt" (tests r751_a_search_never_waits..., r751_a_failed_rebuild...).
+- Delta review of 8dbf655fb7 (2026-11-04), fixed:
+  1. Spelling variants: rows and terms are compared folded (NFKC, case-folded, "&" = "and", punctuation/space runs
+     collapsed); a term also matches its plural and its unspaced form.
+  2. Definitional wording BEFORE the term ("definition of", "we call this", "known as", "characterised by", "rules
+     for"...) and more after it (refers to, consists of, must, should, requires...) withholds the row.
+  3. A clearance names the reviewed text: cleared_rows entries need `content_sha` (the index's sha256); changed text
+     under the same kb_id loses its clearance.
+  4. If the index is swapped between the withheld list and the query, nothing is served ("being rebuilt").
+  5. The temp index file is fsynced before os.replace.
+  6. OWNER DEFAULT (directive 2026-11-04, withhold uncertain): policy `excluded_setup_mentions.mode = "withhold"`:
+     every admitted row that NAMES an excluded setup is withheld unless cleared. `serve_flagged` (owner only) re-admits
+     the non-definitional ones as a block, flagged commentary_only. policy_version 5, index SCHEMA 5.
+  Real snapshot (counts only): non-dated 2,837 servable, 430 withheld by the mention rule, 0 served flagged; the 71 and
+  the 122 all withheld; 0 served rows match any cue, a variant or a pre-term cue. If the owner chose serve_flagged:
+  201 non-dated withheld, 229 served flagged.
 
 ## Next step to resume
 MERGED DARK (2026-11-03): #735 is on master via release train 2, PR #754, master 3d3d444d4f, after Wave 1.1 was verified live.

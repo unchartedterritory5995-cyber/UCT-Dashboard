@@ -189,7 +189,7 @@ def test_concept_retrieval_returns_team_owned_passages_with_provenance(kn):
         assert p["licence"] == "team_owned"
         assert p["kb_id"] and p["title"] and p["source"] and p["trader"]
         assert "episodic" in (p["title"] + p["excerpt"]).lower()
-    assert out["coverage"]["policy_version"] == 4
+    assert out["coverage"]["policy_version"] == 5
     assert out["coverage"]["admitted_sources"] == ["setup_knowledge", "trader_archive"]
 
 
@@ -841,7 +841,7 @@ def test_n3_an_unresolved_origin_is_refused():
 
 def test_n3_served_template_carries_provenance(kn):
     d = read("setup.playbook", {"setup": "EP"})["data"]
-    assert d["licence"] == "team_owned" and "UCT team setup template" in d["source"] and d["approved_by_policy"] == 4
+    assert d["licence"] == "team_owned" and "UCT team setup template" in d["source"] and d["approved_by_policy"] == 5
     assert d["origin_trader"] == "TSDR"
 
 
@@ -1408,6 +1408,28 @@ def _add_rows(kn, rows):
     (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 11), encoding="utf-8")
 
 
+def _mi(templates):
+    """A real mention index (index._mention_index) over {template name: [aliases]}."""
+    db = sqlite3.connect(":memory:")
+    db.row_factory = sqlite3.Row
+    db.execute("CREATE TABLE setup_templates (name TEXT, aliases TEXT)")
+    db.executemany("INSERT INTO setup_templates VALUES (?,?)", [(n, json.dumps(a)) for n, a in templates.items()])
+    return index._mention_index(db)
+
+
+def _with_policy(monkeypatch, tmp_path, **over):
+    pol = json.loads(Path(os.environ.get("UCT_AGENT_KNOWLEDGE_POLICY") or policy.DEFAULT_PATH).read_text(encoding="utf-8"))
+    pol.update(over)
+    f = tmp_path / f"policy-{time.time_ns()}.json"
+    f.write_text(json.dumps(pol), encoding="utf-8")
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    return pol
+
+
+SERVE_FLAGGED = {"excluded_setup_mentions": {"mode": "serve_flagged"}}
+
+
 MENTION_ROWS = [
     (60, "SETUP", "TSDR 2026-09-01 t60: cup and handle note",
      "The cup and handle is a rounded base where the entry is the handle high.", "trader_archive"),      # definitional
@@ -1424,11 +1446,16 @@ def test_refine_definitional_mention_of_an_excluded_setup_is_withheld(kn):
     assert 60 not in ids
 
 
-def test_refine_commentary_mention_is_served_and_flagged(kn):
+def test_refine_commentary_mention_is_served_and_flagged_only_when_the_owner_re_admits_mentions(kn, monkeypatch, tmp_path):
     _add_rows(kn, MENTION_ROWS)
-    ps = read("knowledge.search", {"question": "watching a cup and handle patient volume", "k": 3})["data"]["passages"]
-    p = next(p for p in ps if p["kb_id"] == 61)
+    q = {"question": "watching a cup and handle patient volume", "k": 3}
+    # owner directive 2026-11-04 (review #751 delta 6): by default a row naming an excluded setup is withheld
+    assert 61 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}
+    _with_policy(monkeypatch, tmp_path, **SERVE_FLAGGED)
+    p = next(p for p in read("knowledge.search", q)["data"]["passages"] if p["kb_id"] == 61)
     assert p["commentary_only"] is True and p["mentions_excluded_setup"] == ["Cup with Handle"]
+    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "cup and handle handle high entry rounded base", "k": 3})["data"]["passages"]}
+    assert 60 not in ids                                                  # a definitional row stays withheld either way
 
 
 def test_refine_admitted_template_definitions_are_untouched(kn):
@@ -1438,36 +1465,39 @@ def test_refine_admitted_template_definitions_are_untouched(kn):
     assert "commentary_only" not in p
 
 
-def test_refine_a_complete_clearance_serves_the_row(kn, monkeypatch, tmp_path):
+def test_refine_a_complete_clearance_serves_the_row_only_for_the_text_reviewed(kn, monkeypatch, tmp_path):
     _add_rows(kn, MENTION_ROWS)
-    pol = json.loads(Path(os.environ["UCT_AGENT_KNOWLEDGE_POLICY"]).read_text(encoding="utf-8"))
-    entry = {"kb_id": 60, "provenance_ref": "PROV-60", "rights_review_ref": "RR-60", "approved_by": "owner", "approved_on": "2026-11-04"}
-    pol["cleared_rows"] = [entry]
-    f = tmp_path / "cleared_rows.json"
-    f.write_text(json.dumps(pol), encoding="utf-8")
-    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
-    ps = read("knowledge.search", {"question": "cup and handle handle high entry rounded base", "k": 3})["data"]["passages"]
-    p = next(p for p in ps if p["kb_id"] == 60)
+    index.ensure()
+    sha = index.content_shas([60])[60]
+    entry = {"kb_id": 60, "content_sha": sha, "provenance_ref": "PROV-60", "rights_review_ref": "RR-60",
+             "approved_by": "owner", "approved_on": "2026-11-04"}
+    q = {"question": "cup and handle handle high entry rounded base", "k": 3}
+    _with_policy(monkeypatch, tmp_path, cleared_rows=[entry])
+    p = next(p for p in read("knowledge.search", q)["data"]["passages"] if p["kb_id"] == 60)
     assert p["commentary_only"] is True                                   # still flagged: cleared is not a definition
-    pol["cleared_rows"] = [{**entry, "rights_review_ref": ""}]           # incomplete clearance: withheld again
-    f.write_text(json.dumps(pol), encoding="utf-8")
-    os.utime(f, (time.time() + 5, time.time() + 5))
-    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "cup and handle handle high entry rounded base", "k": 3})["data"]["passages"]}
-    assert 60 not in ids
+    _with_policy(monkeypatch, tmp_path, cleared_rows=[{**entry, "rights_review_ref": ""}])   # incomplete: withheld
+    assert 60 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}
+    _with_policy(monkeypatch, tmp_path, cleared_rows=[{k: v for k, v in entry.items() if k != "content_sha"}])
+    assert 60 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}   # no sha: withheld
+    # review #751 delta 3: the text changes under the same kb_id (a later pack): the clearance no longer holds
+    _with_policy(monkeypatch, tmp_path, cleared_rows=[entry])
+    c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
+    c.execute("UPDATE knowledge_base SET content = content || ' The handle is the whole rule.' WHERE id = 60")
+    c.commit()
+    c.close()
+    (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 31), encoding="utf-8")
+    assert 60 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}
 
 
-def test_refine_shipped_policy_clears_nothing():
-    assert json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))["cleared_rows"] == []
-    assert policy.cleared_row_ids() == set()
+def test_refine_shipped_policy_clears_nothing_and_withholds_mentions():
+    shipped = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
+    assert shipped["cleared_rows"] == [] and shipped["excluded_setup_mentions"]["mode"] == "withhold"
+    assert policy.cleared_row_ids() == {}
+    assert policy.excluded_mentions_mode() == policy.MENTIONS_WITHHOLD
 
 
 def test_refine_cue_matches_the_reviewed_pattern():
-    mi = {"terms": {"cup and handle": {"Cup with Handle"}}}
-    import re as _re
-    e = _re.escape("cup and handle")
-    mi["any"] = _re.compile(r"\b(" + e + r")\b", _re.I)
-    mi["per"] = {"cup and handle": (_re.compile(r"\b" + e + r"\b", _re.I),
-                                    _re.compile(r"\b" + e + r"\b" + index.DEFINITIONAL_CUE, _re.I))}
+    mi = _mi({"Cup with Handle": ["cup and handle"]})
     for txt in ("A cup and handle is a base", "Cup and Handle rules: buy the handle", "cup and handle - entry at pivot",
                 "the cup and handle stop goes under the handle", "cup and handle criteria"):
         assert index._mentions(txt, mi)[1] == ["Cup with Handle"], txt
@@ -1507,22 +1537,41 @@ def test_refine_frame_rule_tells_the_model_commentary_is_not_a_definition():
 
 # ── review #751 queue (before activation): boundaries, clearance formats, non-blocking rebuild ─────────────────────
 def test_r751_a_term_ending_in_a_bracket_still_matches_as_a_whole_term():
-    import re as _re
-    mi = {"terms": {"ep (earnings)": {"Episodic Pivot"}}, "any": None, "per": {}}
-    e = _re.escape("ep (earnings)")
-    mi["any"] = _re.compile(index._WB + "(" + e + ")" + index._WE, _re.I)
-    mi["per"] = {"ep (earnings)": (_re.compile(index._WB + e + index._WE, _re.I),
-                                   _re.compile(index._WB + e + index._WE + index.DEFINITIONAL_CUE, _re.I))}
+    mi = _mi({"Episodic Pivot": ["ep (earnings)"]})
     assert index._mentions("The EP (earnings) is a gap on a report.", mi) == (["Episodic Pivot"], ["Episodic Pivot"], False)
     assert index._mentions("STEP (earnings) noted", mi) == ([], [], False)                  # not inside a longer word
 
 
+def test_r751_spelling_variants_are_the_same_term():
+    """review #751 delta 1: hyphens, NBSP, double spaces, case, '&' for 'and', a plural, no spaces, full-width."""
+    mi = _mi({"Cup with Handle": ["cup and handle"], "High Tight Flag": ["high tight flag", "htf"]})
+    for txt in ("Watching a Cup-and-Handle on NVDA", "watching a cup\u00a0and handle", "watching a cup  and   handle",
+                "watching a CUP & HANDLE", "two cup and handles forming", "a cupandhandle forming",
+                "a cup_and_handle forming", "a \uff23\uff35\uff30 and handle forming"):
+        assert index._mentions(txt, mi)[0] == ["Cup with Handle"], txt
+    assert index._mentions("Cup-and-Handle is defined by the handle", mi)[1] == ["Cup with Handle"]
+    assert index._mentions("two HTFs on the list", mi)[0] == ["High Tight Flag"]
+    assert index._mentions("a cupboard and a handle", mi) == ([], [], False)
+
+
+def test_r751_definitional_wording_before_the_term_withholds():
+    """review #751 delta 2: 'definition of a X', 'we call this a X', 'known as X', and after-term refers to / must."""
+    mi = _mi({"Cup with Handle": ["cup and handle"]})
+    for txt in ("Here is the definition of a cup and handle: a rounded base.", "We call this a cup and handle.",
+                "This pattern is known as a cup and handle", "Cup and handle refers to a base with a handle",
+                "the cup and handle must have a handle in the upper half", "a cup and handle should form over 7 weeks"):
+        assert index._mentions(txt, mi)[1] == ["Cup with Handle"], txt
+
+
 def test_r751_clearance_fields_must_be_well_formed(monkeypatch, tmp_path):
-    good = {"kb_id": 60, "provenance_ref": "PROV-60", "rights_review_ref": "RR-60", "approved_by": "owner",
-            "approved_on": "2026-11-01"}
+    sha = "a" * 64
+    good = {"kb_id": 60, "content_sha": sha, "provenance_ref": "PROV-60", "rights_review_ref": "RR-60",
+            "approved_by": "owner", "approved_on": "2026-11-01"}
     cases = [({}, True), ({"approved_on": "11/01/2026"}, False), ({"approved_on": "2026-02-30"}, False),
              ({"approved_on": "2999-01-01"}, False), ({"approved_by": "!"}, False), ({"approved_by": "x" * 81}, False),
-             ({"approved_by": "1234"}, False), ({"kb_id": True}, False), ({"kb_id": -3}, False), ({"kb_id": "60"}, True)]
+             ({"approved_by": "1234"}, False), ({"kb_id": True}, False), ({"kb_id": -3}, False), ({"kb_id": "60"}, True),
+             ({"content_sha": ""}, False), ({"content_sha": "abc"}, False), ({"content_sha": "g" * 64}, False),
+             ({"content_sha": "A" * 64}, True)]
     pol = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
     f = tmp_path / "p.json"
     monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
@@ -1530,7 +1579,33 @@ def test_r751_clearance_fields_must_be_well_formed(monkeypatch, tmp_path):
         pol["cleared_rows"] = [{**good, **over}]
         f.write_text(json.dumps(pol), encoding="utf-8")
         os.utime(f, (time.time() + i + 1, time.time() + i + 1))
-        assert (policy.cleared_row_ids() == {60}) is ok, over
+        got = policy.cleared_row_ids()
+        assert (set(got) == {60}) is ok, over
+        if ok:
+            assert got[60] == str({**good, **over}["content_sha"]).lower()
+
+
+def test_r751_mentions_mode_only_serve_flagged_re_admits(monkeypatch, tmp_path):
+    for v, want in ((None, "withhold"), ("withhold", "withhold"), ("SERVE_FLAGGED", "serve_flagged"), ("serve", "withhold"),
+                    (["serve_flagged"], "withhold")):
+        _with_policy(monkeypatch, tmp_path, excluded_setup_mentions={"mode": v})
+        assert policy.excluded_mentions_mode() == want, v
+    _with_policy(monkeypatch, tmp_path, excluded_setup_mentions="serve_flagged")
+    assert policy.excluded_mentions_mode() == "withhold"
+
+
+def test_r751_a_swap_between_the_withheld_list_and_the_query_serves_nothing(kn, monkeypatch):
+    """review #751 delta 4: the withheld list belongs to the index it was computed on."""
+    index.ensure()
+    real = index.query
+
+    def swapped(*a, **k):
+        out = real(*a, **k)
+        monkeypatch.setattr(index, "built_info", lambda: {"built_at": "999", "pack_ts": "x", "schema": str(index.SCHEMA)})
+        return out
+    monkeypatch.setattr(index, "query", swapped)
+    out = read("knowledge.search", {"question": "episodic pivot", "k": 3})
+    assert out["status"] == "unavailable" and out["notes"][0] == index.REBUILDING
 
 
 def test_r751_a_search_never_waits_for_another_threads_rebuild(kn):
