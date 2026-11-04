@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 00:25 CT
+updated: 2026-11-04 00:35 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -97,10 +97,12 @@ report: Only ast/pineRuntimeFrontend.js changed in source (+ tests, capture-queu
 desktop check of the definition of done: PASS (scope, rail red/green, mutations, measure-pair both lanes, final-tip at baseline, 24604edea2..f8ddebfa76 is EVIDENCE.md only, local == origin, worktree clean). Coordinator note: the lane delivers the typing machinery but no named spec script yet; judge scope on that.
 
 ## W4-T3 (re-homed fix round)
-state: BUILDING   round: r1   updated: 2026-11-03 23:07 CT
-branch: feat/pine-w4-t3-session-text   start tip: 572376edf6   worktree: pine-dsk-w4t3   model: Sonnet
-engine bump needed: yes (engine 7 at merge, per ASSIGNMENTS)
-next: run ONLY the final-tip named at the end of its EVIDENCE.md, record it, READY for delta review
+state: READY            round: r1            updated: 2026-11-04 00:35 CT
+branch: feat/pine-w4-t3-session-text   tip: 84a9dcff92 (EVIDENCE-only over code tip 572376edf6)   tested on master: d8d4f0937d (merge-base)
+engine bump needed: YES (engine 7 at merge, per ASSIGNMENTS)
+evidence: docs/pine/evidence/2026-11-03-w4-t3/EVIDENCE.md (on the branch; final-tip section updated)
+report: Fix round r1: only the final-tip named at the end of EVIDENCE.md was outstanding. Ran it on desktop lane 2 (heavy-final2.lock, deviation 6), label w4t3-r1-final; the waiting default-lock job was stopped before it started; a first launch died in 0 s on a quoting error and was relaunched via a run.sh wrapper. Results: gate pytest 46 passed; hygiene clean (34672 files); version-gate 6 passed; chart+hooks vitest Test Files 1 failed | 1334 passed | 27 skipped (1362), Tests 1 failed | 22418 passed | 118 skipped. The one failure is src/hooks/pollingSites.rail.test.js (desktop baseline): 0 new failures. Logs: _resume-2026-11-01/runs/w4t3-r1-final/.
+desktop check: PASS (desktop read js.log directly: the only FAIL line is pollingSites.rail; 572376edf6..84a9dcff92 is EVIDENCE.md only; local == origin; worktree clean). Ready for delta review.
 
 ## E evidence-engine lows (re-homed)
 state: READY            round: r0            updated: 2026-11-04 00:20 CT
