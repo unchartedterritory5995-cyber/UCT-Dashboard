@@ -166,14 +166,14 @@ filtering or ranking work would add complexity without a measurable gain; embedd
   member's question (no extra model call), or KNOWLEDGE_NOT_RETRIEVED if that read is not offered; a change + playbook
   question keeps the change and adds the read; a clarify keeps its choices, never its model-written text. A local-only
   lookup's notice still replaces KNOWLEDGE_NO_WEB (tested). Flag off: unchanged (tested, streaming included).
-- Review #768 delta (2026-11-04): the OUTPUT decides, not a word list. While knowledge is on (server flag, a playbook.*
-  capability offered, or the playbook group named as not offered): an answer never streams; the playbook group is
-  ALWAYS offered in the browser; a reply / clarify text / choice naming a setup of the installed pack
-  (frame.names_setup over kinds._alias_map, folded, plural and unspaced forms) is replaced by the playbook.explain read
-  (or a need_groups reroute, or KNOWLEDGE_NOT_RETRIEVED); for a message about a specific stock or chart only definitional
-  wording is caught (frame.defines_setup), so "the breakout level on NVDA" is answered as before; clarify keeps only
-  short plain choices; a proposal never gets a read added (its reply is dropped). Flag off: a talk reply with a stray
-  playbook.* op is served exactly as before.
+- Review #768 delta (2026-11-04) and OWNER DIRECTIVE: v1's gates are DEFENCE IN DEPTH, not the guarantee. A word list
+  (or a scan of the model's answer) cannot enforce "playbook definitions only from approved retrieval": the reviewer's
+  phrasings ("what's a VCP?", "tell me about cup and handle") pass it. Brain stays OFF until a retrieval-first evidence
+  step exists: design docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md (owner decisions pending). Kept here, low risk:
+  the server's words match across line breaks (re.S); while a knowledge capability is offered an answer never streams;
+  a knowledge-turn clarify keeps only short plain choices (none left = the read); a message about a specific stock or
+  chart is not a knowledge turn; a proposal never gets a read added (its reply is dropped); flag off, a talk reply with
+  a stray playbook.* op is served exactly as before (the gate checks cap_names).
 
 ## Blocked / needs the owner
 - Admitting `self_review`, `manual`, `chart_intake:*` or any `intake:*` source (policy.json is the switch; default-deny until the owner rules).

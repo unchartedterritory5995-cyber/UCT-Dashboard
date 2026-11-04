@@ -276,26 +276,12 @@ def test_r768_the_servers_playbook_words_are_the_browsers():
 
 
 # ── review #768 delta: the output decides, clarify choices, flag-off identity, symbol questions, proposals ──────────
-@pytest.mark.parametrize("message", ["what's a VCP?", "whats an EP", "how does a flat base work", "what makes a good pivot",
-                                     "tell me about cup and handle", "What is a cup and handle?", "describe a high tight flag",
-                                     "Explain" + chr(10) + "VCP"])
-def test_r768d_the_reviewers_phrasings_are_answered_by_uct_s_read(message):
+@pytest.mark.parametrize("message", ["What are the" + chr(10) + "rules for a VCP?", "Explain" + chr(10) + "VCP", "define" + chr(10) + chr(10) + "an EP"])
+def test_r768d_line_breaks_never_hide_a_playbook_question(message):
     res = _run(message, env("answer", reply=LONG))
     out = res["envelope"]
     assert [o["action"] for o in out["ops"]] == ["playbook.explain"] and out["reply"] == "", message
     assert "10%" not in json.dumps(out)
-
-
-def test_r768d_the_output_decides_a_reply_naming_a_pack_setup_is_never_served(monkeypatch):
-    from api.services.uct_agent.knowledge import kinds, frame
-    monkeypatch.setattr(kinds, "_alias_map", lambda: {"volatility contraction": [], "bull flag thing": []})
-    frame._VOCAB.update(key=None, re=None)
-    res = _run("hmm ok, and the other one?", env("answer", reply="The volatility contraction is a series of tighter pullbacks."))
-    assert res["envelope"]["ops"][0]["action"] == "playbook.explain" and res["envelope"]["reply"] == ""
-    assert res["usage"]["knowledge_first"] == "reply_named_setup:read"
-    res = _run("hmm ok, and the other one?", env("answer", reply="Markets were quiet today."))
-    assert res["envelope"]["reply"] == "Markets were quiet today." and "knowledge_first" not in res["usage"]
-    frame._VOCAB.update(key=None, re=None)
 
 
 def test_r768d_an_answer_never_streams_while_knowledge_is_on():
@@ -328,19 +314,16 @@ def test_r768d_a_question_about_a_stock_or_chart_is_not_a_playbook_question(mess
     assert res["envelope"]["reply"] == reply and res["envelope"]["ops"] == [] and "knowledge_first" not in res["usage"]
 
 
-def test_r768d_a_question_about_a_stock_still_never_serves_a_setup_definition():
-    res = _run("is NVDA forming a VCP?", env("answer", reply="A VCP is a series of tighter pullbacks; NVDA has two."))
-    assert res["envelope"]["reply"] == "" and res["envelope"]["ops"][0]["action"] == "playbook.explain"
-
-
 def test_r768d_a_proposal_never_gets_a_knowledge_read_behind_its_card():
-    out = _run("set up my chart the way a VCP trader would", env("propose", [OP], reply="A VCP trader likes bars; a VCP is a base."))["envelope"]
+    out = _run("what is a VCP, and set things up for trading one", env("propose", [OP], reply="A VCP trader likes bars; a VCP is a base."))["envelope"]
     assert [o["action"] for o in out["ops"]] == ["chart.setType"] and out["reply"] == ""
 
 
-def test_r768d_when_the_read_is_not_offered_the_browser_is_asked_for_the_playbook_group():
-    routing = {"groups": [{"id": "charts", "title": "Charts"}, {"id": "playbook", "title": "UCT trading knowledge"}],
-               "selected": ["charts"]}
-    out = turn.run_turn(message="what's a VCP?", context=CTX, history=[], capabilities=CAPS, routing=routing,
-                        caller=caller_of(_resp(env("answer", reply=LONG))))["envelope"]
-    assert out["disposition"] == "clarify" and out.get("need_groups") == ["playbook"] and out["reply"] == ""
+def test_r768d_the_word_list_is_not_the_guarantee_brain_stays_off_until_evidence_routing():
+    """Owner 2026-11-04: v1's gates are defence in depth. Phrasings the words miss are answered by the model, which is
+    why Brain stays OFF until the evidence step (docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md) is built."""
+    from pathlib import Path
+    from api.services.uct_agent.knowledge import frame
+    assert not frame.wants_knowledge("what's a VCP?")                 # a known gap of the word list (documented)
+    doc = Path(__file__).resolve().parents[1] / "docs" / "agent" / "knowledge" / "EVIDENCE-ROUTING-DESIGN.md"
+    assert "Brain stays OFF" in doc.read_text(encoding="utf-8")

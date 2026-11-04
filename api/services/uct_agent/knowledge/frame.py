@@ -68,91 +68,17 @@ _WORDS = [re.compile(p, re.S) for p in (     # re.S: a message's line breaks nev
     r"\b(what (is|are|does)|define|definition of|explain|how does (uct|the team))\b.*\b(ep|eps|episodic pivots?|vcp|u&r|undercut|kicker|htf|high tight flag|tight flags?|flags?|bases?|pivots?|setups?|breakouts?|pullbacks?|patience|discipline)\b",
     r"\b(according to|in) (uct|the team|the playbook)\b",
 )]
-# Server-only extra phrasings (delta review 1): a FAST PATH only. The decisive check is on the model's OUTPUT
-# (names_setup on the reply, turn.knowledge_first), never on a word list alone.
-_CONCEPTS = (r"(ep|eps|episodic pivots?|vcp|u&r|undercut|kicker|htf|high tight flag|tight flags?|flags?|bases?|pivots?|"
-             r"setups?|breakouts?|pullbacks?|patience|discipline|cup (and|with|&) handle)")
-# The setup NAMES (not the generic words "breakout", "pivot", "base"...) the OUTPUT check falls back to when no pack
-# vocabulary is readable.
+# Setup NAMES (not generic words like "breakout" or "pivot"): an upper-case word that is one of these is a setup, not
+# a ticker (about_a_symbol).
 _NAMED = (r"(ep|eps|episodic pivots?|vcps?|u&r|u and r|undercut (and|&) rally|kickers?|htfs?|high tight flags?|"
           r"cup (and|with|&) handles?)")
-_EXTRA = [re.compile(r"\b(what'?s|whats|what makes|tell me about|describe|how (does|do)\b.*\bwork)\b.*\b" + _CONCEPTS + r"\b", re.S),
-          re.compile(r"\b" + _CONCEPTS + r"\b.*\b(work|mean|look like)s?\b", re.S)]
 
 
 def wants_knowledge(message) -> bool:
     m = str(message or "").lower()
     if re.search(_COACHING, m):
         return False
-    return any(w.search(m) for w in _WORDS) or any(w.search(m) for w in _EXTRA)
-
-
-def _tok(s) -> str:
-    """The knowledge package's term spelling (kinds._tok), after NFKC: lowercase words, '&' kept, the rest one space."""
-    import unicodedata
-    return " ".join(re.findall(r"[a-z0-9&]+", unicodedata.normalize("NFKC", str(s or "")).lower()))
-
-
-_VOCAB: dict = {"key": None, "re": None}
-
-
-def _vocab_re():
-    """One whole-term regex over every setup template name / alias in the INSTALLED pack (kinds._alias_map, cached
-    per pack version), plural allowed and unspaced forms included. None when no pack / no templates."""
-    from api.services.uct_agent.knowledge import kinds
-    amap = kinds._alias_map()
-    key = id(amap)
-    if _VOCAB["key"] != key:
-        terms = set()
-        for k in amap:
-            if len(k) >= 2:
-                terms.add(k)
-                if " " in k and len(k.replace(" ", "")) >= 6:
-                    terms.add(k.replace(" ", ""))
-        alt = "|".join(re.escape(t) for t in sorted(terms, key=len, reverse=True))
-        _VOCAB.update(key=key, re=re.compile(r"(?<![a-z0-9&])(" + alt + r")(e?s)?(?![a-z0-9&])") if alt else None)
-    return _VOCAB["re"]
-
-
-def names_setup(text) -> bool:
-    """Does this text name any setup in the installed pack's vocabulary (folded spelling)? The OUTPUT-side check
-    (delta review 1): grounded in what the model wrote, not in how the member phrased the question."""
-    t = str(text or "")
-    if not t.strip():
-        return False
-    try:
-        rx = _vocab_re()
-    except Exception:  # noqa: BLE001 — no pack readable: the input words and the cue below still apply
-        rx = None
-    if rx is not None:
-        tok = _tok(t)
-        return bool(rx.search(tok) or rx.search(tok.replace(" and ", " & ")) or rx.search(tok.replace(" & ", " and ")))
-    # no readable pack vocabulary: the setup names decide
-    return bool(re.search(r"(?<![a-z0-9&])" + _NAMED + r"(?![a-z0-9&])", _tok(t)))
-
-
-_CUE_AFTER = re.compile(r"^[\s\S]{0,40}?\b(is|are|means|defined|definition|refers? to|known as|consists? of|"
-                        r"characteri[sz]ed by|forms? when|requires?|rules?|criteria|entry|stop)\b")
-_CUE_BEFORE = re.compile(r"\b(definition of|defines?|defined|we call (this|it|that)|called|known as|characteri[sz]ed by|"
-                         r"what (is|are) (an?|the))\b[\s\S]{0,40}?$")
-
-
-def defines_setup(text) -> bool:
-    """A setup of the installed pack named WITH definitional wording within 40 characters (before or after). Used
-    instead of names_setup when the member asked about a specific stock or chart, so "NVDA is near its breakout" is
-    served while "a VCP is a contraction pattern…" is not."""
-    t = str(text or "")
-    try:
-        rx = _vocab_re()
-    except Exception:  # noqa: BLE001
-        rx = None
-    tok = _tok(t)
-    if rx is None:
-        rx = re.compile(r"(?<![a-z0-9&])" + _NAMED + r"(?![a-z0-9&])")
-    for m in rx.finditer(tok):
-        if _CUE_AFTER.search(tok[m.end():]) or _CUE_BEFORE.search(tok[:m.start()]):
-            return True
-    return False
+    return any(w.search(m) for w in _WORDS)
 
 
 # Delta review 5: a message about a SPECIFIC stock or chart ("what is the breakout level on NVDA", "the pivots on
@@ -170,7 +96,7 @@ def about_a_symbol(message, symbols=()) -> bool:
         return True
     for w in re.findall(r"\$?\b[A-Z]{2,5}\b", raw):
         w = w.lstrip("$")
-        if w in _NOT_TICKERS or names_setup(w):
+        if w in _NOT_TICKERS or re.fullmatch(_NAMED, w.lower()):
             continue
         return True
     return False

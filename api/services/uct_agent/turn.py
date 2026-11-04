@@ -1037,30 +1037,28 @@ DATA_READ_ACTIONS = frozenset({
 #: Planner v2 reads first and answers from the framed result; it never passes through here.
 KNOWLEDGE_NO_WEB = ("I answered from UCT's knowledge base only: it is never combined with a web search in the same "
                     "step. Ask the web question on its own in a new chat.")
-#: Review #768 (owner: no unsupported pre-retrieval explanation reaches the member). While knowledge is ON (the server
-#: flag, a playbook.* capability offered, or the playbook group named as not offered), a planner-v1 turn is put
-#: "knowledge first" BEFORE research and sanitize (knowledge_first), and an answer's reply never streams:
+#: Review #768 — DEFENCE IN DEPTH, not the guarantee (owner 2026-11-04: Brain stays OFF until a retrieval-first
+#: evidence step exists; design docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md). While a playbook.* capability is
+#: offered, a planner-v1 turn is put "knowledge first" BEFORE research and sanitize (knowledge_first), and an answer's
+#: reply never streams:
 #:   - a TALK disposition (answer / clarify) holding a knowledge op becomes an apply of those knowledge ops only;
-#:   - a "knowledge turn" = the member's words ask a playbook question (frame.wants_knowledge, a fast path) or name a
-#:     setup of the installed pack, and the message is not about a specific stock or chart (frame.about_a_symbol);
-#:   - the OUTPUT decides as well (delta review 1): a reply / question / choice naming a setup of the installed pack
-#:     (frame.names_setup; for a message about a stock or chart, only definitional wording: frame.defines_setup) is
-#:     never served; and on a knowledge turn the model's own words never are:
-#:       an answer becomes UCT's playbook.explain read of the member's message (no extra model call); if that read is
-#:         not offered, the browser is asked to add the playbook group (need_groups), else UCT's fixed sentence below;
+#:   - on a "knowledge turn" (the member's words ask a playbook question: frame.wants_knowledge, the browser's own
+#:     routing words; never a message about a specific stock or chart: frame.about_a_symbol) the model's words are
+#:     never served:
+#:       an answer becomes UCT's playbook.explain read of the member's message (no extra model call), or UCT's fixed
+#:         sentence below when that read is not offered;
 #:       a clarify keeps only short plain choices (<= 40 characters, no definitional wording) under UCT's fixed text,
 #:         or becomes the read when none is left;
-#:       an apply gets the read added on a knowledge turn (its reply is then dropped by sanitize_envelope), otherwise
-#:         only its reply is dropped; a propose only loses its reply (a read never rides behind a proposal card).
-#: With the flag off and no knowledge capability none of this runs (flag-off parity is tested).
+#:       an apply gets the read added (its reply is then dropped by sanitize_envelope); a propose only loses its reply
+#:         (a read never rides behind a proposal card).
+#: With the flag off no knowledge capability exists and none of this runs (flag-off parity is tested).
 KNOWLEDGE_NOT_RETRIEVED = "UCT can't retrieve an approved playbook definition for that."
 KNOWLEDGE_CLARIFY = "Which one do you mean?"
 _CHOICE_CUE = re.compile(r"[:;]|\b(is|are|means|defined|definition|refers? to|consists? of|characteri[sz]ed by|when)\b", re.I)
 
 
-def knowledge_first(env, msg: str, cap_names: set, kn_ref, kn_turn: bool, compact: bool,
-                    unselected_ids: set | None = None, symbolic: bool = False):
-    """(env, reason or None). See KNOWLEDGE_NOT_RETRIEVED's comment. `symbolic`: the message is about a stock/chart."""
+def knowledge_first(env, msg: str, cap_names: set, kn_ref, kn_turn: bool, compact: bool):
+    """(env, reason or None). See KNOWLEDGE_NOT_RETRIEVED's comment."""
     if not isinstance(env, dict):
         return env, None
     fr = _kn_frame()
@@ -1069,39 +1067,33 @@ def knowledge_first(env, msg: str, cap_names: set, kn_ref, kn_turn: bool, compac
     kops = [o for o in ops if fr.is_knowledge_action(o.get("action")) and o.get("action") in cap_names]
     if disp in ("answer", "clarify") and kops:
         return {**env, "disposition": "apply", "ops": kops, "reply": "", "question": None}, "talk_with_knowledge_op"
-    if kops or disp not in DISPOSITIONS or disp == "unsupported":
-        return env, None
-    q = env.get("question") if isinstance(env.get("question"), dict) else {}
-    choices = [c for c in q.get("choices") or []] if isinstance(q.get("choices"), list) else []
-    check = fr.defines_setup if symbolic else fr.names_setup
-    said = any(check(t) for t in [env.get("reply"), q.get("text"), *[c for c in choices if isinstance(c, str)]])
-    if not (kn_turn or said):
+    if not kn_turn or kops or disp not in DISPOSITIONS or disp == "unsupported":
         return env, None
     op = None
     if "playbook.explain" in cap_names and kn_ref:
         qq = str(msg or "")[:400]
         op = ({"action": "playbook.explain", "target": kn_ref, "args_json": json.dumps({"question": qq})} if compact
               else {"action": "playbook.explain", "target": kn_ref, "args": {"question": qq}})
-    why = "knowledge_turn" if kn_turn else "reply_named_setup"
 
     def the_read(tag):
         if op is not None:
             return {**env, "disposition": "apply", "ops": [op], "reply": "", "question": None}, f"{tag}:read"
-        if unselected_ids and "playbook" in unselected_ids:
-            return {**env, "reply": "", "question": None, "research": None, "need_groups": ["playbook"]}, f"{tag}:reroute"
         return ({**env, "disposition": "answer", "ops": [], "reply": KNOWLEDGE_NOT_RETRIEVED, "question": None,
                  "research": None}, f"{tag}:not_retrieved")
 
     if disp == "answer":
-        return the_read(why)
+        return the_read("knowledge_turn")
     if disp == "clarify":
+        q = env.get("question") if isinstance(env.get("question"), dict) else {}
+        choices = q.get("choices") if isinstance(q.get("choices"), list) else []
         keep = [c for c in choices if isinstance(c, str) and 0 < len(c.strip()) <= 40 and not _CHOICE_CUE.search(c)]
         if not keep:
-            return the_read(why + ":clarify")
-        return {**env, "reply": "", "question": {**q, "text": KNOWLEDGE_CLARIFY, "choices": keep}}, why + ":clarify"
-    if disp == "apply" and kn_turn and op is not None and len(ops) < MAX_OPS:
-        return {**env, "ops": ops + [op]}, why + ":read_added"
-    return {**env, "reply": ""}, why + ":reply_dropped"
+            return the_read("knowledge_turn:clarify")
+        return {**env, "reply": "", "question": {**q, "text": KNOWLEDGE_CLARIFY, "choices": keep}}, "knowledge_turn:clarify"
+    if disp == "apply" and op is not None and len(ops) < MAX_OPS:
+        return {**env, "ops": ops + [op]}, "knowledge_turn:read_added"
+    return {**env, "reply": ""}, "knowledge_turn:reply_dropped"
+
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
                      "from it. To answer about it again, plan the same lookup.]")
@@ -2380,16 +2372,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     # review #768: knowledge first (see KNOWLEDGE_NOT_RETRIEVED). Only when a playbook.* capability is in the validated
     # manifest (the knowledge flag is on); a coach turn has its own guard (agent_coach.guard_envelope).
     kn_caps = {n for n in cap_names if _kn_frame().is_knowledge_action(n)}
-    try:
-        from api.services.uct_agent.knowledge import kinds as _kn_kinds
-        kn_flag = bool(_kn_kinds.enabled())
-    except Exception:  # noqa: BLE001
-        kn_flag = False
-    # knowledge ON: the server flag, a knowledge capability offered, or the playbook group named as not offered
-    kn_on = (kn_flag or bool(kn_caps) or "playbook" in (unselected_ids or set())) and not coach_turn
-    kn_symbolic = kn_on and _kn_frame().about_a_symbol(
+    kn_on = bool(kn_caps) and not coach_turn          # a knowledge capability is offered (the flag is on)
+    kn_turn = kn_on and _kn_frame().wants_knowledge(msg) and not _kn_frame().about_a_symbol(
         msg, [str(c.get("symbol") or "") for c in ((context or {}).get("charts") or []) if isinstance(c, dict)])
-    kn_turn = kn_on and not kn_symbolic and (_kn_frame().wants_knowledge(msg) or _kn_frame().names_setup(msg))
     kn_ref = next((str(r.get("ref")) for r in ((context or {}).get("playbook") or [])
                    if isinstance(r, dict) and str(r.get("ref") or "") in valid_refs), None) if kn_caps else None
     repaired = bool(repair_in)               # a repair request (or one already made here) is never repaired again
@@ -2487,7 +2472,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                                        {"role": "user", "content": _block("validation_error", {"errors": problems})}]
                 continue
         if kn_on and not asks_groups and not usage.get("hidden_phrase") and isinstance(env, dict):
-            env, kn_why = knowledge_first(env, msg, cap_names, kn_ref, kn_turn, compact, unselected_ids, kn_symbolic)
+            env, kn_why = knowledge_first(env, msg, cap_names, kn_ref, kn_turn, compact)
             if kn_why:
                 usage["knowledge_first"] = kn_why
                 log.info("uct_agent knowledge first: %s", kn_why)
