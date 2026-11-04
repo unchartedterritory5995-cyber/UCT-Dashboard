@@ -96,4 +96,10 @@ equal the programme's baseline numbers, so the base side was f9b85fb442-equivale
 - vwap session = ET calendar day like `computeVWAP` (non-ET exchanges inherit that house rule); anchored/stdev forms refused.
 
 ## Final-tip numbers
-Appended below after the run.
+`final-tip.sh pine-dsk-w4t10 dsk-w4t10/final tests/test_ast_interpret.py tests/test_ast_interpret_c12r_work.py tests/test_script_engine_version_gate.py`
+on tip `490146fe3f` (tree identical to the engine tip `22ad7169f5` apart from docs): gate pytest 46 passed; ast_interpret +
+engine-version-gate pytest 113 passed; hygiene clean; vitest chart+hooks `Test Files 1 failed | 1335 passed | 27 skipped (1363)`,
+`Tests 1 failed | 22422 passed | 118 skipped (22541)`. The one failure is `pollingSites.rail` (known baseline, red on every master).
+`settingsScope.rail` passed in this run. Logs `runs/dsk-w4t10/final/`.
+Engine-folder run on the pre-final tree (`eng.log`) also showed measure-test timeouts under load only (re-run green alone) and the
+`enumerationSites` ledger scan, fixed by writing the kernel table without bare indicator-id keys.
