@@ -181,7 +181,8 @@ describe('⭐⭐ what it does NOT serve keeps its refusal by name', () => {
     }
     stops('bar_index > 3 ? na : 2', 'na')
     stops('bar_index - 5', 'zero then negative')
-    stops('bar_index / 7 + 0.5', 'fractional')
+    stops('bar_index / 7 + 0.5', 'fractional below 1')
+    stops('bar_index > 3 ? 2.5 : 2', 'fractional above 1')
     stops('bar_index > 2 ? 5001 : 2', 'beyond the ring (5000)')
   })
 
