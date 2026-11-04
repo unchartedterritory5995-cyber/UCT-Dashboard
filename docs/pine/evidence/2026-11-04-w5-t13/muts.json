@@ -32,8 +32,8 @@
  [
   "M06 per-output refusal at arm ignored",
   "api/services/alert_user_series.py",
-  "            if refusal is not None:\n                withheld[address]",
-  "            if False:\n                withheld[address]"
+  "        if refusal is not None:\n            withheld[address]",
+  "        if False:\n            withheld[address]"
  ],
  [
   "M07 forming bars sent",
