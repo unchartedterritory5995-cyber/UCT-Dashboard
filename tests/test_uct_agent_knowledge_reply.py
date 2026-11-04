@@ -120,6 +120,7 @@ def _model_reply(blocks, stop):
 def test_v2_is_unchanged_it_reads_first_then_answers_from_the_framed_result(monkeypatch):
     from api.services.uct_agent import turn_v2 as v2
     monkeypatch.setenv(v2.PLANNER_ENV, "v2")
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE", "1")   # #775 knowledge_gate: v2 offers playbook.* only with the KN flag on
     monkeypatch.setattr(turn, "sanitize_envelope", lambda *a, **k: pytest.fail("v2 never passes the v1 gate"))
     final = "Per UCT's playbook (UCT KB #2), an EP is a gap on a fresh catalyst."
     script = [_model_reply([types.SimpleNamespace(type="tool_use", id="k1", name="playbook__setup",
