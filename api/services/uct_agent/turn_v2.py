@@ -125,11 +125,9 @@ def rounds() -> int:
 
 
 def turn_usd() -> float:
-    try:
-        v = float(os.environ.get(TURN_USD_ENV, "") or DEFAULT_TURN_USD)
-    except ValueError:
-        v = DEFAULT_TURN_USD
-    return v if v > 0 else DEFAULT_TURN_USD
+    """The same switch, default and parsing as v1's per-request cap (budget.turn_cap_usd)."""
+    from api.services.uct_agent import budget
+    return budget.turn_cap_usd()
 
 
 def tools_mode() -> str:

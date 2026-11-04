@@ -558,6 +558,9 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
             budget.attach_conversation(request_id, cid)
         if body.reroute and history and history[-1].get("role") == "member" and history[-1].get("text") == body.message:
             history = history[:-1]        # the same message, asked again with more actions
+        elif body.repair is not None and body.reroute and any(
+                t.get("role") == "member" and t.get("text") == body.message for t in history[-2:]):
+            pass                          # the browser's repair of a message already stored: the member typed it once
         else:
             store.add_turn(uid, cid, "member", body.message,
                            {"voice": bool(body.voice), **({"news": headline["id"]} if answer_only else {})})
@@ -588,6 +591,10 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     if on_event is not None and planner_v2() and headline is None and not body.reroute and not agent_coach.is_coach_turn(body.context):
         token, v2 = _v2_register(uid)
         v2["step_groups"] = body.stepGroups is True
+    # The browser's NL-1 repair (useAgent.js) IGNORES a failed repair and goes on with its first plan: the member never
+    # sees that failure, so it is never written to the transcript (the chat on reload and the next turn's history must
+    # match what the member saw). Every other failure is shown to the member and stored.
+    shown = body.repair is None
     try:
         out = agent.run_turn(message=body.message, context=turn_context, history=history,
                              capabilities=body.capabilities,
@@ -601,16 +608,20 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         # refused BEFORE a paid call: nothing was sent, nothing changed; the day's count is given back
         _give_back(uid)
         log.info("[uct-agent] paid call refused reason=%s", e.reason)
-        store.add_turn(uid, cid, "outcome", e.sentence, {"kind": "error"})
-        raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason == "call_limit" else 429),
+        if shown:
+            store.add_turn(uid, cid, "outcome", e.sentence, {"kind": "error"})
+        # call_limit / turn_cap: this request's own limits (not today's), so a 400 with UCT's fixed sentence
+        raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason in ("call_limit", "turn_cap") else 429),
                             detail=e.sentence)
     except agent.TurnError as e:
         _give_back(uid)
-        store.add_turn(uid, cid, "outcome", f"Refused: {e}", {"kind": "error"})
+        if shown:
+            store.add_turn(uid, cid, "outcome", f"Refused: {e}", {"kind": "error"})
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:  # noqa: BLE001 -- a provider failure is a sentence, not a 500
         _give_back(uid)
-        store.add_turn(uid, cid, "outcome", "UCT Agent was unavailable for this message.", {"kind": "error"})
+        if shown:
+            store.add_turn(uid, cid, "outcome", "UCT Agent was unavailable for this message.", {"kind": "error"})
         kind, said = provider_failure(e)
         log.exception("[uct-agent] turn failed kind=%s class=%s", kind, type(e).__name__)
         raise HTTPException(status_code=503, detail=said)

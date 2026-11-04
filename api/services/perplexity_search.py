@@ -541,7 +541,9 @@ def web_search(
 
     t0 = time.time()
     data = None
+    attempts = 0                      # requests actually sent (each may be billed): the Agent ledger needs the count
     for attempt in range(_MAX_RETRIES + 1):
+        attempts += 1
         try:
             r = requests.post(
                 _BASE,
@@ -634,8 +636,11 @@ def web_search(
     # ⭐ OPT-IN (`return_cost=True`, UCT Agent's spend ledger only): this call's own cost rides on the
     # RETURNED dict, never the cache and never any other caller's result — every other caller (AI Search,
     # voice, catalysts…) gets exactly the dict it always got, so no member-facing response changes shape.
-    if return_cost and cost is not None:
-        return {**result, "cost_usd": cost}
+    # `attempts` (requests sent, retries included) and `usage_reported` let that ledger charge the whole
+    # reservation when the returned cost cannot cover everything billed (an earlier attempt, missing usage).
+    if return_cost:
+        return {**result, **({"cost_usd": cost} if cost is not None else {}), "attempts": attempts,
+                "usage_reported": bool(data.get("usage"))}
     return result
 
 
