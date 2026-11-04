@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 03:30 CT
+updated: 2026-11-04 03:40 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -144,9 +144,13 @@ open for the reviewer / later lanes: (1) T11 must mirror wire decisions the desi
 desktop check of the definition of done: PASS (scope: new service files + 2 T1 lines + rail list + evidence; rails red/green; 58/58; final-tip at baseline; local == origin; worktree clean; grep found no hardcoded secret)
 
 ## W4-T0 census peel (re-homed)
-state: BUILDING   round: r0   updated: 2026-11-03 23:55 CT
-branch: fix/pine-w0-census-peel   start tip: 75c4c400c2   worktree: pine-dsk-w4t0   model: Sonnet
-next: run docs/pine/evidence/2026-11-03-w0-peel/job.sh with desktop paths (lane 2), write coverage-map.json, targets, COVERAGE-MAP-2026-11-03.md, 7.1 corrigendum, READY
+state: READY            round: r0            updated: 2026-11-04 03:40 CT
+branch: fix/pine-w0-census-peel   tip: 127a0f1e3c (docs/evidence only over 75c4c400c2)   tested on master: 6990d63b02
+engine bump needed: NO (tooling + docs)
+evidence: docs/pine/evidence/2026-11-03-w0-peel/EVIDENCE.md + job-desktop.sh (path mappings: env-laptop.sh -> env-desktop.sh, WT -> pine-dsk-w4t0, sample $UCT_RESUME/pine-sample, node_modules junction)
+report: job-desktop.sh on lane 2 (w4t0-job; 65 min wait, 60.4 min run), every step rc 0. Harness: production 93 MATCH / 103 DIVERGE / 140 INCONCLUSIVE (same as 11-02); runtime-on 111/107/118. Census 967/967 rows in both lanes on the new tooling and on origin/master's old tooling. Map 11-02 -> 11-03: transfer fully 211 -> 218 (32.1%); attach in any form 285 -> 287; runtime-on transfer 250 -> 259; verified transfer 45 -> 47. Instrument A/B on one tree: the old tooling also gives 218/287/259/47, so the new peel changes wall attribution (44 walls differ), not counts; the +7 comes from master moving (e.g. [request-security] 0/3 on 11-02, now 17/54). Section 7.1: 12 production-lane captures cover 16 of 44 unverified items (the 11-02 text said 28 cover 48 of 73). Rails: census vitest 11 passed / 2 skipped; pine pytest 105; gate pytest 52; hygiene clean. Mutations J1-J4, J6, P1-P8 all killed. Deliverables: docs/pine/coverage-map.json, coverage-targets-2026-11-03.json, COVERAGE-MAP-2026-11-03.md (A/B section, tables, method), and a 7.1 corrigendum in COVERAGE-MAP-2026-11-02.md before 7.2 (the old 7.1 ranked scripts whose own capture already DIVERGEs and credited runtime-on rows to the production lane). Raw run outputs stay local ($UCT_RESUME/runs/w0peel).
+note: the full chart+hooks vitest final-tip was not run (scope was the census rail; no app/src engine file changed on this branch).
+desktop check: PASS (only docs changed over 75c4c400c2; no script source text in committed map files, grep checked; local == origin; worktree clean). W4-T15 (after T0's re-count) becomes startable once this merges or from this tip.
 
 ## W2 round 3 (re-homed)
 state: READY            round: r3            updated: 2026-11-04 01:10 CT
