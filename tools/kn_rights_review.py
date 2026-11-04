@@ -5,6 +5,8 @@
   python tools/kn_rights_review.py validate C:/reviews/kb123.json [...]
   python tools/kn_rights_review.py emit C:/reviews/kb123.json [...] [--policy docs/agent/knowledge/policy.json] [--apply --by NAME]
 
+`sign-bulk` (owner only, on the server where UCT_KN_RIGHTS_KEY is set) prints a signed bulk approval. Applying a
+clearance also needs that key: nobody who only edits policy.json can clear or approve anything.
 `status` prints counts only. `worksheet` writes ONE row's review sheet (it holds the row's text, so it must be written
 OUTSIDE the repository and never committed). `emit` prints the cleared_rows entries; only with --apply does it write
 them into the policy file (and bump policy_version). No bulk re-admission: at most 10 rows per run, each with its own
@@ -45,8 +47,20 @@ def main(argv=None) -> int:
     e.add_argument("--policy", default=str(policy.DEFAULT_PATH))
     e.add_argument("--apply", action="store_true")
     e.add_argument("--by", default="", help="the person applying these clearances (required with --apply)")
+    b = sub.add_parser("sign-bulk", help="OWNER ONLY, where UCT_KN_RIGHTS_KEY is set: print a signed bulk approval")
+    b.add_argument("--by", required=True)
+    b.add_argument("--on", required=True, help="YYYY-MM-DD")
+    b.add_argument("--max-rows", type=int, required=True)
+    b.add_argument("--reason", required=True)
     a = ap.parse_args(argv)
 
+    if a.cmd == "sign-bulk":
+        try:
+            print(json.dumps({"bulk_clearance_approval": rights.sign_bulk(a.by, a.on, a.max_rows, a.reason)}, indent=2))
+        except ValueError as err:
+            print(f"refused: {err}", file=sys.stderr)
+            return 1
+        return 0
     if a.cmd == "status":
         print(json.dumps(rights.status(), indent=2))
         return 0

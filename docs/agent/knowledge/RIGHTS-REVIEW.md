@@ -30,30 +30,45 @@ content permissible, and there is no bulk re-admission.
    file and bumps `policy_version`. Any change to the shipped `policy.json` still goes through review and the owner,
    like every policy change.
 
-## What the tool cannot do
-**The tool cannot verify that a person actually reviewed a row.** It checks that the worksheet is complete and the text
-unchanged, and it records who applied it. Whether the provenance and rights review really happened is process, and
-the owner signs. A clearance change to the shipped `policy.json` goes through review and the owner like every policy
-change.
+## Authorization (review #793, owner 2026-11-04)
+- **Server-held key:** `UCT_KN_RIGHTS_KEY` (at least 32 characters) lives only in the server environment, never in
+  the repository. Applying a clearance and signing a bulk approval both need it. Every audit record and every bulk
+  approval carries an HMAC-SHA256 signature under that key, so someone who can edit `policy.json` or the audit log but
+  does not hold the key cannot forge a clearance, an approval or a record.
+- **Runtime check:** a knowledge read serves a cleared row only when `rights.authorized()` holds for it:
+  - its policy entry is backed by a validly signed audit record for that row and that exact text;
+  - the log ends at the `audit_head` the policy recorded;
+  - the number of cleared rows is within the cap.
 
-## Guards
-- **Across runs (review #793):**
-  - at most **20 rows cleared per UTC day** (added or replaced), counted from the audit log;
-  - at most **25 cleared rows in the policy**, unless the policy carries a complete owner-signed
-    `bulk_clearance_approval` `{approved_by, approved_on, max_rows, reason}`, in which case `max_rows` is the cap.
-  - A refused apply writes nothing.
-- **Audit log:** every applied clearance is appended to `cleared-rows-audit.jsonl` next to the policy file. Each record
-  holds who applied it (`--by`, required), when (UTC), the row, its sha, its review references, added or replaced, and
-  the policy version. Each record carries the previous record's hash, so an edited, deleted or corrupted line breaks
-  the chain, and `apply` then refuses to write anything.
-- **No bulk re-admission:** at most 10 rows per run, one row per worksheet, no duplicate `kb_id`, and every row
-  carries its OWN `rights_review_ref` (a reference shared across rows is refused). Validation is all-or-nothing: one
-  invalid worksheet emits nothing.
+  A hand-edited `policy.json` therefore serves nothing extra. Without the key on the server, nothing is cleared and
+  no cleared row is served.
+- **Limits:**
+  - at most **20 rows per UTC day**, counted from the signed log;
+  - at most **25 cleared rows** in total, unless a **signed** `bulk_clearance_approval` raises it, never above
+    **200** (`BULK_MAX`). An approval that is unsigned, edited after signing, signed with another key, or above
+    the bound counts as nothing.
+- **The limits survive log tampering:** the policy records the log's head, so a trimmed, deleted, rotated or replaced
+  log no longer matches. `apply` then refuses, and the rows that log backed stop being served. Wiping the policy's
+  clearances, the head and the log all together only un-clears everything.
+- **Concurrency:** `apply` holds an exclusive lock file beside the policy for its whole read-check-write.
+- **Owner signing:** `python tools/kn_rights_review.py sign-bulk --by NAME --on YYYY-MM-DD --max-rows N --reason TEXT`,
+  run where the key is set. It prints the approval to put in the policy, which then goes through PR review.
+
+## What the tool cannot do
+**The tool cannot verify that a person actually reviewed a row.** It checks that the worksheet is complete and the
+text unchanged, and records who applied it. Whether the provenance and rights review really happened is process, and
+the owner signs. The key controls who can apply, not whether a review was honest. PR review of every policy change
+remains the human gate.
+
+## Guards per run
+- **No bulk re-admission:** at most 10 rows per run, one row per worksheet, no duplicate `kb_id`, and every row carries
+  its OWN `rights_review_ref` (a reference shared across rows is refused). Validation is all-or-nothing: one invalid
+  worksheet emits nothing.
 - **Bound to the reviewed text:** the entry stores the `content_sha` the index computed for the reviewed text. The
   knowledge read serves a cleared row only while the current sha matches, so an edited row loses its clearance
-  automatically, and `status` reports it under `cleared_text_changed`.
-- `apply` replaces an older entry for the same row and touches no other policy key (`excluded_setup_mentions.mode`
-  stays as it is).
+  automatically (`status` reports `cleared_text_changed`).
+- `apply` replaces an older entry for the same row and touches no other policy key except `cleared_rows`,
+  `policy_version` and `audit_head`.
 
 ## Tests
 `tests/test_uct_agent_kn_rights.py` (fixture pack only, pinned clock):
@@ -69,3 +84,4 @@ change.
 - the cumulative guards: the daily cap across runs and its UTC-day reset, the policy cap and an owner-signed bulk approval
   (an incomplete one does not count), `--by` required, the hash-chained audit log, and an edited log blocking every
   later apply.
+- authorization: no key means nothing cleared or served (a short key counts as none); an approval with any name, edited after signing, signed with another key or above the bound counts as nothing; a hand-edited clearance is never served and blocks apply; trimming, deleting or rotating the log never resets the daily cap; concurrent applies (8 threads) never exceed the cap and keep the chain; the policy cap holds on later days.

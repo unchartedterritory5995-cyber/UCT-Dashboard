@@ -9,6 +9,7 @@ import pytest
 from api.services.uct_agent.knowledge import index, policy, rights
 from tests.test_uct_agent_knowledge import KB, _make_pack, kn as _kn_base, read  # noqa: F401
 
+KEY = "test-server-held-rights-key-0123456789abcdef"
 FIXED = 1_793_000_000.0                       # a pinned clock for apply (2026-10-26 UTC)
 CUP = (14, "SETUP", "TSDR note: cup and handle", "The cup and handle forms over weeks; the team watches the handle.",
        "trader_archive", "TSDR", 5)
@@ -24,6 +25,7 @@ def kn(_kn_base, monkeypatch, tmp_path):
     f = tmp_path / "policy_rights.json"
     f.write_text(json.dumps(pol), encoding="utf-8")
     monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+    monkeypatch.setenv(rights.KEY_ENV, KEY)                        # the server-held secret (test value)
     index.build()
     return {**_kn_base, "policy": f}
 
@@ -212,20 +214,122 @@ def test_daily_cap_holds_across_runs_and_resets_the_next_utc_day(kn):
     assert res["added"] == 1
 
 
-def test_policy_cap_needs_an_owner_signed_bulk_approval(kn):
+def _fill_to_cap(kn):
     for day in range(2):
         rights.apply(_synthetic(12, start=1001 + 12 * day), kn["policy"], applied_by="Reviewer One", now=FIXED + day * 86400)
     rights.apply(_synthetic(1, start=1100), kn["policy"], applied_by="Reviewer One", now=FIXED + 2 * 86400)   # 25 rows
-    with pytest.raises(ValueError, match="policy cap"):
-        rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
+
+
+def _set_bulk(kn, b):
     pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
-    pol["bulk_clearance_approval"] = {"approved_by": "Owner Name", "approved_on": "2026-10-01", "max_rows": 30}  # no reason
+    pol["bulk_clearance_approval"] = b
     kn["policy"].write_text(json.dumps(pol), encoding="utf-8")
+
+
+def test_policy_cap_needs_a_bulk_approval_signed_with_the_server_key(kn, monkeypatch):
+    _fill_to_cap(kn)
     with pytest.raises(ValueError, match="policy cap"):
         rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
-    pol["bulk_clearance_approval"]["reason"] = "reviewed batch of team posts"
-    kn["policy"].write_text(json.dumps(pol), encoding="utf-8")
+    # any name in policy.json is NOT an approval (review #793: genuine server-side authorization)
+    _set_bulk(kn, {"approved_by": "x x", "approved_on": "2026-10-01", "max_rows": 30, "reason": "trust me"})
+    with pytest.raises(ValueError, match="policy cap"):
+        rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
+    good = rights.sign_bulk("Owner Name", "2026-10-01", 30, "reviewed batch of team posts")
+    _set_bulk(kn, {**good, "max_rows": 31})                                   # a signed approval, edited
+    with pytest.raises(ValueError, match="policy cap"):
+        rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
+    monkeypatch.setenv(rights.KEY_ENV, "another-key-0123456789abcdef0123456789")
+    other = rights.sign_bulk("Owner Name", "2026-10-01", 30, "signed with a different key")
+    monkeypatch.setenv(rights.KEY_ENV, KEY)
+    _set_bulk(kn, other)
+    with pytest.raises(ValueError, match="policy cap"):
+        rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
+    _set_bulk(kn, good)
     assert rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)["added"] == 1
+
+
+@pytest.mark.parametrize("n", [25, 201, 10 ** 9, True, "30", 0, -5])
+def test_bulk_approvals_have_a_hard_upper_bound(kn, n):
+    with pytest.raises(ValueError, match="max_rows"):
+        rights.sign_bulk("Owner Name", "2026-10-01", n, "r")
+    import hashlib
+    import hmac
+    b = {"approved_by": "Owner Name", "approved_on": "2026-10-01", "max_rows": n, "reason": "r"}
+    sig = hmac.new(KEY.encode(), ("bulk|" + rights._bulk_fields(b)).encode(), hashlib.sha256).hexdigest()
+    assert rights.bulk_cap({"bulk_clearance_approval": {**b, "signature": sig}}) == rights.POLICY_CAP
+
+
+def test_without_the_server_key_nothing_is_cleared_or_served(kn, monkeypatch):
+    ws = _filled(rights.worksheet(14))
+    rights.apply(rights.entries([ws]), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    q = {"question": "cup and handle handle weeks", "k": 3}
+    assert 14 in _ids(read("knowledge.search", q))
+    monkeypatch.delenv(rights.KEY_ENV)
+    assert rights.authorized() == {} and 14 not in _ids(read("knowledge.search", q))
+    with pytest.raises(ValueError, match="no rights key"):
+        rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    with pytest.raises(ValueError, match="no rights key"):
+        rights.sign_bulk("Owner Name", "2026-10-01", 30, "r")
+    monkeypatch.setenv(rights.KEY_ENV, "short")                                # a key under 32 characters is no key
+    assert rights.authorized() == {}
+
+
+def test_a_hand_edited_clearance_is_never_served_and_blocks_apply(kn):
+    import sqlite3
+    del sqlite3
+    sha = rights.worksheet(14)["content_sha"]
+    pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
+    pol["cleared_rows"] = [{"kb_id": 14, "content_sha": sha, "provenance_ref": "P", "rights_review_ref": "R",
+                            "approved_by": "Owner Name", "approved_on": "2026-10-01"}]
+    kn["policy"].write_text(json.dumps(pol), encoding="utf-8")
+    assert rights.authorized() == {}
+    assert 14 not in _ids(read("knowledge.search", {"question": "cup and handle handle weeks", "k": 3}))
+    with pytest.raises(ValueError, match="without a signed audit record"):
+        rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
+
+
+@pytest.mark.parametrize("how", ["trim_end", "delete", "rotate"])
+def test_trimming_deleting_or_rotating_the_log_never_resets_the_daily_cap(kn, how):
+    rights.apply(_synthetic(20), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    ap = rights.audit_path_for(kn["policy"])
+    lines = ap.read_text(encoding="utf-8").splitlines()
+    if how == "trim_end":
+        ap.write_text("\n".join(lines[:5]) + "\n", encoding="utf-8")
+    elif how == "delete":
+        ap.unlink()
+    else:
+        ap.rename(ap.with_suffix(".jsonl.1"))
+    with pytest.raises(ValueError, match="audit log"):
+        rights.apply(_synthetic(1, start=9001), kn["policy"], applied_by="Reviewer One", now=FIXED + 60)
+    assert rights.authorized() == {}                                           # and nothing it backed is served
+
+
+def test_concurrent_applies_never_exceed_the_daily_cap_and_keep_the_chain(kn):
+    import threading
+    results = []
+
+    def go(i):
+        try:
+            rights.apply(_synthetic(4, start=1001 + 10 * i), kn["policy"], applied_by="Reviewer One", now=FIXED)
+            results.append("ok")
+        except ValueError as e:
+            results.append(str(e))
+    ts = [threading.Thread(target=go, args=(i,)) for i in range(8)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    log = rights.read_audit(rights.audit_path_for(kn["policy"]))
+    assert results.count("ok") == 5 and len(log) == 20                          # 5 x 4 = the daily cap, no more
+    assert all("daily cap" in r for r in results if r != "ok")
+    pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
+    assert len(pol["cleared_rows"]) == 20 and pol["audit_head"] == log[-1]["sha"]
+
+
+def test_limit_exhaustion_policy_cap_holds_on_later_days(kn):
+    _fill_to_cap(kn)
+    for d in range(3, 6):
+        with pytest.raises(ValueError, match="policy cap"):
+            rights.apply(_synthetic(1, start=1300 + d), kn["policy"], applied_by="Reviewer One", now=FIXED + d * 86400)
+    assert len(rights.authorized()) == rights.POLICY_CAP                     # every signed row is served, none more
 
 
 def test_replacing_a_row_does_not_grow_the_policy_count_but_counts_toward_the_day(kn):

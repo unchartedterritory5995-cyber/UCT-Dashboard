@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
 import sqlite3
 from pathlib import Path
 from typing import Any, Optional
@@ -164,18 +165,27 @@ def entries(worksheets: list) -> list[dict]:
     return out
 
 
-# ── cumulative guards and the audit log (review #793) ─────────────────────────────────────────────────────────────
-#: The per-run limit alone could be looped. These hold ACROSS runs:
-#:   DAILY_CAP        at most this many rows cleared (added or replaced) per UTC day, counted from the audit log;
-#:   POLICY_CAP       at most this many cleared_rows in the policy, unless the policy carries a complete owner-signed
-#:                    `bulk_clearance_approval` {approved_by, approved_on, max_rows, reason}; then max_rows is the cap.
-#: Every applied clearance is appended to an append-only, hash-chained audit log (who applied it, when, which row and
-#: review); apply refuses to write if the log's chain is broken. The tool CANNOT verify that a person actually reviewed
-#: a row: that is process, and the owner signs (RIGHTS-REVIEW.md).
+# ── server-side authorization, cumulative guards and the signed audit log (review #793; owner 2026-11-04) ─────────
+#: AUTHORIZATION: every clearance and every bulk approval is signed with HMAC-SHA256 under a SERVER-HELD secret,
+#: UCT_KN_RIGHTS_KEY (>= 32 characters; set only in the server environment, never in the repository). Anyone who can
+#: edit policy.json or the audit log but does not hold the key cannot forge a clearance, a bulk approval or an audit
+#: record. Without the key nothing can be cleared AND no cleared row is served (authorized() is empty).
+#: RUNTIME: knowledge reads serve a cleared row only when authorized(): its policy entry is backed by a validly signed
+#: audit record for that kb_id and content_sha, the log's last record is the head the policy recorded (audit_head),
+#: and the number of cleared rows is within the cap. A hand-edited policy.json therefore serves nothing extra.
+#: LIMITS (they hold across runs, log trimming, deletion and rotation):
+#:   DAILY_CAP  rows cleared per UTC day, counted from the signed log. The policy records the log's head; a trimmed,
+#:              deleted or rotated log no longer matches it, so apply refuses (and the rows it backed stop being served);
+#:   POLICY_CAP cleared rows in total unless a SIGNED bulk_clearance_approval raises it, never above BULK_MAX.
+#: CONCURRENCY: apply holds an exclusive lock file beside the policy for its whole read-check-write.
+#: The tool CANNOT verify that a person actually reviewed a row: that is process, and the owner signs.
 DAILY_CAP = 20
 POLICY_CAP = 25
+BULK_MAX = 200
 AUDIT_NAME = "cleared-rows-audit.jsonl"
+KEY_ENV = "UCT_KN_RIGHTS_KEY"
 _GENESIS = "0" * 64
+LOCK_WAIT_S = 10.0
 
 
 def _clock() -> float:
@@ -184,18 +194,32 @@ def _clock() -> float:
     return time.time()
 
 
+def _key() -> Optional[bytes]:
+    k = str(os.environ.get(KEY_ENV) or "")
+    return k.encode("utf-8") if len(k) >= 32 else None
+
+
+def _mac(key: bytes, text: str) -> str:
+    import hashlib
+    import hmac
+    return hmac.new(key, text.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
 def audit_path_for(policy_path: Path) -> Path:
     return Path(policy_path).with_name(AUDIT_NAME)
 
 
-def _line_sha(prev: str, rec: dict) -> str:
-    import hashlib
+def _line_sha(key: bytes, prev: str, rec: dict) -> str:
     body = json.dumps({k: v for k, v in rec.items() if k != "sha"}, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256((prev + body).encode("utf-8")).hexdigest()
+    return _mac(key, "audit|" + prev + body)
 
 
-def read_audit(path: Path) -> list[dict]:
-    """The audit records, verifying the hash chain. Raises ValueError if any line is unreadable or the chain breaks."""
+def read_audit(path: Path, key: Optional[bytes] = None) -> list[dict]:
+    """The signed audit records. Raises ValueError without the server key, or if any line is unreadable or its
+    signature / chain does not verify."""
+    key = key or _key()
+    if key is None:
+        raise ValueError(f"no rights key on this server ({KEY_ENV}): nothing can be cleared or verified")
     p = Path(path)
     if not p.exists():
         return []
@@ -207,75 +231,184 @@ def read_audit(path: Path) -> list[dict]:
             rec = json.loads(line)
         except ValueError:
             raise ValueError(f"audit log line {i} is not JSON: the log was edited; nothing applied") from None
-        if rec.get("prev") != prev or rec.get("sha") != _line_sha(prev, rec):
-            raise ValueError(f"audit log chain broken at line {i}: the log was edited; nothing applied")
+        if not isinstance(rec, dict) or rec.get("prev") != prev or rec.get("sha") != _line_sha(key, prev, rec):
+            raise ValueError(f"audit log line {i} does not verify (edited, forged or out of order); nothing applied")
         prev = rec["sha"]
         out.append(rec)
     return out
 
 
-def bulk_cap(pol: dict) -> int:
-    """POLICY_CAP, or a complete owner-signed bulk approval's max_rows."""
+def _bulk_fields(b: dict) -> str:
+    return json.dumps({k: b.get(k) for k in ("approved_by", "approved_on", "max_rows", "reason")},
+                      sort_keys=True, separators=(",", ":"))
+
+
+def sign_bulk(approved_by: str, approved_on: str, max_rows: int, reason: str) -> dict:
+    """A bulk_clearance_approval signed with the server key (the owner runs this where the key lives)."""
+    key = _key()
+    if key is None:
+        raise ValueError(f"no rights key on this server ({KEY_ENV})")
+    if not policy._APPROVER.match(str(approved_by or "").strip()) or not policy._approved_on_ok(approved_on):
+        raise ValueError("approved_by must be a name and approved_on an ISO date on or before today")
+    if not str(reason or "").strip():
+        raise ValueError("a reason is required")
+    if isinstance(max_rows, bool) or not isinstance(max_rows, int) or not POLICY_CAP < max_rows <= BULK_MAX:
+        raise ValueError(f"max_rows must be an integer above {POLICY_CAP} and at most {BULK_MAX}")
+    b = {"approved_by": str(approved_by).strip(), "approved_on": str(approved_on).strip(), "max_rows": max_rows,
+         "reason": str(reason).strip()}
+    return {**b, "signature": _mac(key, "bulk|" + _bulk_fields(b))}
+
+
+def bulk_cap(pol: dict, key: Optional[bytes] = None) -> int:
+    """POLICY_CAP, or a SIGNED bulk approval's max_rows (never above BULK_MAX). An unsigned or forged one is ignored."""
+    key = key or _key()
     b = pol.get("bulk_clearance_approval")
-    if isinstance(b, dict) and policy._APPROVER.match(str(b.get("approved_by") or "").strip()) \
-            and policy._approved_on_ok(b.get("approved_on")) and str(b.get("reason") or "").strip():
+    if key is None or not isinstance(b, dict):
+        return POLICY_CAP
+    n = b.get("max_rows")
+    if isinstance(n, bool) or not isinstance(n, int) or not POLICY_CAP < n <= BULK_MAX:
+        return POLICY_CAP
+    import hmac
+    if not hmac.compare_digest(str(b.get("signature") or ""), _mac(key, "bulk|" + _bulk_fields(b))):
+        return POLICY_CAP
+    if not policy._APPROVER.match(str(b.get("approved_by") or "").strip()) or not policy._approved_on_ok(b.get("approved_on")) \
+            or not str(b.get("reason") or "").strip():
+        return POLICY_CAP
+    return n
+
+
+def _latest(recs: list[dict]) -> dict:
+    out = {}
+    for r in recs:
+        out[r.get("kb_id")] = r
+    return out
+
+
+def _backed(rows: list[dict], recs: list[dict]) -> list:
+    """kb_ids of policy cleared_rows WITHOUT a matching signed audit record (latest record for the row, same sha)."""
+    last = _latest(recs)
+    return [e.get("kb_id") for e in rows
+            if not (e.get("kb_id") in last and last[e["kb_id"]].get("content_sha") == str(e.get("content_sha") or "").lower())]
+
+
+class _FileLock:
+    def __init__(self, path: Path):
+        self.path = Path(str(path) + ".lock")
+        self.fd = None
+
+    def __enter__(self):
+        import time
+        deadline = time.monotonic() + LOCK_WAIT_S
+        while True:
+            try:
+                self.fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                return self
+            except FileExistsError:
+                if time.monotonic() > deadline:
+                    raise ValueError("another rights apply is running (lock held); try again") from None
+                time.sleep(0.05)
+
+    def __exit__(self, *a):
+        os.close(self.fd)
         try:
-            n = int(b.get("max_rows"))
-        except (TypeError, ValueError):
-            n = 0
-        if n > 0:
-            return n
-    return POLICY_CAP
+            os.unlink(str(self.path))
+        except OSError:
+            pass
+        return False
 
 
 def apply(new: list[dict], policy_path: Path, applied_by: str, audit_path: Optional[Path] = None,
           now: Optional[float] = None) -> dict:
-    """Write the entries into this policy file, after the cumulative guards, and append one audit record per row.
-    Returns {added, replaced, policy_version}. Raises ValueError (nothing written) when a guard refuses."""
+    """Write the entries into this policy file after authorization and the cumulative guards, appending one SIGNED
+    audit record per row. Returns {added, replaced, policy_version}. Raises ValueError (nothing written) on refusal."""
+    key = _key()
+    if key is None:
+        raise ValueError(f"no rights key on this server ({KEY_ENV}): clearances can only be applied where it is set")
     if not policy._APPROVER.match(str(applied_by or "").strip()):
         raise ValueError("applied_by must name the person applying these clearances")
     t = float(now if now is not None else _clock())
     day = datetime.datetime.fromtimestamp(t, datetime.timezone.utc).date().isoformat()
     p = Path(policy_path)
     ap = Path(audit_path) if audit_path else audit_path_for(p)
-    log_recs = read_audit(ap)
-    today = sum(1 for r in log_recs if str(r.get("applied_at", ""))[:10] == day)
-    if today + len(new) > DAILY_CAP:
-        raise ValueError(f"daily cap: {today} row(s) already cleared today (UTC); {len(new)} more would exceed "
-                         f"{DAILY_CAP}. No bulk re-admission")
-    pol = json.loads(p.read_text(encoding="utf-8"))
-    rows = [e for e in pol.get("cleared_rows") or [] if isinstance(e, dict)]
-    by_id = {e.get("kb_id"): i for i, e in enumerate(rows)}
-    added = sum(1 for e in new if e["kb_id"] not in by_id)
-    cap = bulk_cap(pol)
-    if len(rows) + added > cap:
-        raise ValueError(f"policy cap: {len(rows)} cleared row(s) + {added} would exceed {cap}. More needs an "
-                         "owner-signed bulk_clearance_approval in the policy")
-    replaced = 0
-    for e in new:
-        if e["kb_id"] in by_id:
-            rows[by_id[e["kb_id"]]] = e
-            replaced += 1
-        else:
-            rows.append(e)
-    pol["cleared_rows"] = sorted(rows, key=lambda e: int(e.get("kb_id") or 0))
-    pol["policy_version"] = int(pol.get("policy_version") or 0) + 1
-    stamp = datetime.datetime.fromtimestamp(t, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    prev = log_recs[-1]["sha"] if log_recs else _GENESIS
-    lines = []
-    for e in new:
-        rec = {"applied_at": stamp, "applied_by": str(applied_by).strip(), "kb_id": e["kb_id"],
-               "content_sha": e["content_sha"], "rights_review_ref": e["rights_review_ref"],
-               "approved_by": e["approved_by"], "approved_on": e["approved_on"],
-               "action": "replaced" if e["kb_id"] in by_id else "added", "policy_version": pol["policy_version"],
-               "prev": prev}
-        rec["sha"] = _line_sha(prev, rec)
-        prev = rec["sha"]
-        lines.append(json.dumps(rec, ensure_ascii=False, separators=(",", ":")))
-    p.write_text(json.dumps(pol, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    with ap.open("a", encoding="utf-8") as f:              # append-only
-        f.write("".join(line + "\n" for line in lines))
-    return {"added": added, "replaced": replaced, "policy_version": pol["policy_version"]}
+    with _FileLock(p):
+        log_recs = read_audit(ap, key)
+        pol = json.loads(p.read_text(encoding="utf-8"))
+        head = log_recs[-1]["sha"] if log_recs else _GENESIS
+        if str(pol.get("audit_head") or _GENESIS) != head:
+            raise ValueError("the audit log does not end where the policy says it does (trimmed, deleted, rotated or "
+                             "replaced); nothing applied")
+        rows = [e for e in pol.get("cleared_rows") or [] if isinstance(e, dict)]
+        unbacked = _backed(rows, log_recs)
+        if unbacked:
+            raise ValueError(f"cleared_rows without a signed audit record ({len(unbacked)}): the policy was edited by "
+                             "hand; nothing applied")
+        today = sum(1 for r in log_recs if str(r.get("applied_at", ""))[:10] == day)
+        if today + len(new) > DAILY_CAP:
+            raise ValueError(f"daily cap: {today} row(s) already cleared today (UTC); {len(new)} more would exceed "
+                             f"{DAILY_CAP}. No bulk re-admission")
+        by_id = {e.get("kb_id"): i for i, e in enumerate(rows)}
+        added = sum(1 for e in new if e["kb_id"] not in by_id)
+        cap = bulk_cap(pol, key)
+        if len(rows) + added > cap:
+            raise ValueError(f"policy cap: {len(rows)} cleared row(s) + {added} would exceed {cap}. More needs a "
+                             "bulk_clearance_approval signed with the server key")
+        replaced = 0
+        for e in new:
+            if e["kb_id"] in by_id:
+                rows[by_id[e["kb_id"]]] = e
+                replaced += 1
+            else:
+                rows.append(e)
+        version = int(pol.get("policy_version") or 0) + 1
+        stamp = datetime.datetime.fromtimestamp(t, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        prev, lines = head, []
+        for e in new:
+            rec = {"applied_at": stamp, "applied_by": str(applied_by).strip(), "kb_id": e["kb_id"],
+                   "content_sha": e["content_sha"], "rights_review_ref": e["rights_review_ref"],
+                   "approved_by": e["approved_by"], "approved_on": e["approved_on"],
+                   "action": "replaced" if e["kb_id"] in by_id else "added", "policy_version": version, "prev": prev}
+            rec["sha"] = _line_sha(key, prev, rec)
+            prev = rec["sha"]
+            lines.append(json.dumps(rec, ensure_ascii=False, separators=(",", ":")))
+        with ap.open("a", encoding="utf-8") as f:              # append-only; the policy then records the new head
+            f.write("".join(line + "\n" for line in lines))
+        pol["cleared_rows"] = sorted(rows, key=lambda e: int(e.get("kb_id") or 0))
+        pol["policy_version"] = version
+        pol["audit_head"] = prev
+        p.write_text(json.dumps(pol, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return {"added": added, "replaced": replaced, "policy_version": version}
+
+
+_AUTH_CACHE: dict = {"key": None, "ids": {}}
+
+
+def authorized() -> dict:
+    """{kb_id: content_sha} of cleared rows the RUNTIME may serve: policy entries backed by the signed audit log, the
+    log's head equal to the policy's audit_head, and the count within the cap. Anything else -> {} (default-deny)."""
+    key = _key()
+    want = policy.cleared_row_ids()
+    if key is None or not want:
+        return {}
+    pp = policy.path()
+    ap = audit_path_for(pp)
+    try:
+        ck = (str(pp), pp.stat().st_mtime_ns, ap.stat().st_mtime_ns if ap.exists() else None, hash(key))
+    except OSError:
+        return {}
+    if _AUTH_CACHE["key"] == ck:
+        return dict(_AUTH_CACHE["ids"])
+    out: dict = {}
+    try:
+        recs = read_audit(ap, key)
+        pol = policy.load()
+        head = recs[-1]["sha"] if recs else _GENESIS
+        if str(pol.get("audit_head") or _GENESIS) == head and len(want) <= bulk_cap(pol, key):
+            last = _latest(recs)
+            out = {k: sha for k, sha in want.items() if k in last and last[k].get("content_sha") == sha}
+    except ValueError:
+        out = {}
+    _AUTH_CACHE.update(key=ck, ids=dict(out))
+    return out
 
 
 def status() -> dict:
@@ -286,7 +419,7 @@ def status() -> dict:
         return {"ok": False, "reason": "the knowledge index cannot be read"}
     admitted = set(policy.admitted_sources())
     named = [r for r in rows if r[1] in admitted]
-    cleared = policy.cleared_row_ids()
+    cleared = authorized()
     shas = index.content_shas(cleared.keys()) or {}
     current = {k for k, s in cleared.items() if shas.get(k) == s}
     return {"ok": True, "admitted_rows_naming_excluded_setups": len(named),
