@@ -262,7 +262,7 @@ export function createStepRunner() {
       // board of several asks which chart; F1–F5). A screen that must ASK puts the question to the member and refuses the
       // step (the member's answer is a new message); nothing runs before the answer.
       const words = active.text || ''
-      const screened = screenModelOps(host, scopeChartOps(translateRefs(bindSourceRefs(ops, active.refMap, { host, message: words }), active.refMap), host, words), words, deps.capCtx || {})
+      const screened = screenModelOps(host, scopeChartOps(translateRefs(bindSourceRefs(ops, active.refMap, { host, message: '' }), active.refMap), host, words), words, deps.capCtx || {})
       let bodies = null
       let bound = screened.ops || []
       if (screened.ask) {
