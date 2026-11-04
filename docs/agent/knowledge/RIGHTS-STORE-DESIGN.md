@@ -1,0 +1,50 @@
+# Rights clearances: one authoritative server store (design note, QA #793 round 3)
+
+Status: PROPOSAL for review, 2026-11-04. No code yet. Brain stays OFF; nothing is cleared anywhere.
+
+## Problem
+Clearances live in `policy.json` and an audit log that ship through the repository, but the anchor that protects
+them lives on whichever machine ran `apply`. Production's `/data` has no anchor, so production would serve nothing,
+and the only fix (`reanchor`) trusts whatever files were deployed. Someone with volume access can also rewrite the
+anchor row with plain SQLite. Layering MACs over editable files keeps producing new holes.
+
+## Proposal
+- **One store, on the production server:** `/data/kn_rights.db` (env `UCT_KN_RIGHTS_DB`). It has two tables:
+  - `kn_cleared_rows`: `kb_id`, `content_sha`, the review refs, `approved_by`, `approved_on`, `applied_by`,
+    `applied_at`;
+  - `kn_rights_events`: append-only, recording every add, replace, revoke and bulk approval, with who and when.
+- **That store is the source of truth.** The runtime (`kinds`) serves a cleared row only from it, and only while the
+  row's current `content_sha` still matches. `policy.json` `cleared_rows` is ignored (removed). `bulk_clearance_approval`
+  and the anchor, MAC chain and `reanchor` go away.
+- **Writes only through the keyed CLI, run against production:** `apply`, `revoke` and `approve-bulk`, run in a
+  production one-off shell. Each write needs `UCT_KN_RIGHTS_KEY` (set only on the production service) and `--by NAME`.
+  Each write is a single `BEGIN IMMEDIATE` transaction that enforces the per-run limit (10), the daily limit (20,
+  counted from the events table, which cannot be trimmed from the repository) and the total limit (25, or a bulk
+  approval's `max_rows` ≤ 200 with an expiry ≤ 90 days, itself an event written by the owner).
+- **The repository holds an export only:** `export` writes the store's current clearances and events to
+  `docs/agent/knowledge/cleared-rows.export.json` for review and history. The runtime never reads it.
+- **Trust model, stated plainly:** access to the production volume or database is trusted, as it is for every other
+  server table (accounts, alerts, transcripts). The store adds no cryptography against that access. The key stops
+  anyone without production shell access, and any repository edit, from clearing anything. The events table is the
+  audit trail. **The tool cannot verify that a human review happened; that is process, and the owner signs.**
+
+## How it deploys
+- The tables are created on the first write, and production starts empty: nothing is cleared, exactly as today.
+- No migration is needed: no environment has a real clearance.
+- With Brain OFF, no runtime path reads the store.
+- The code changes: `rights.py` gets the store, the CLI and the runtime read; `kinds` reads the store. The anchor,
+  MAC chain and policy-file writes are removed. Tests move to a temporary database. The worksheet / validate flow and
+  the 10 / 20 / 25 / 200 limits are unchanged.
+
+## How the owner clears a row in practice
+1. In a production shell: `python tools/kn_rights_review.py worksheet --kb-id N --out /tmp/kbN.json`. This is the
+   production pack, so the reviewed text and its sha are what will be served. Read the row's text there.
+2. Do the provenance and rights review (outside the tool). Fill the decision: `clear`, refs, name, date.
+3. `python tools/kn_rights_review.py apply /tmp/kbN.json --by "Owner Name"` validates, enforces the limits, and writes
+   the row and an event in one transaction.
+4. `python tools/kn_rights_review.py export`, then commit the export through a normal PR, for the record.
+5. To withdraw it: `revoke --kb-id N --by NAME --reason TEXT`. The row stops being served at once, and the event
+   stays.
+
+## Decision needed
+Approve this design (or amend it) before it is built. Until then #793 stays as it is: dark, nothing cleared.
