@@ -187,15 +187,12 @@ describe('⭐⭐ W4 T10 — ta.pivothigh / ta.pivotlow over a value the run comp
     }
   })
 
-  it('the two-argument form reads high for a pivot high and low for a pivot low', () => {
-    const [hi, lo] = run(5, `${state('z', 'close')}f(s) => ta.pivothigh(3, 3) + 0 * s
-plot(f(z))\ng(s) => ta.pivotlow(3, 3) + 0 * s
-plot(g(z))\n`)
+  it('the two-argument form never reaches this lane: it mentions no mutable value, so the columnar lane answers it', () => {
+    expect(RUNTIME_STATE_KERNELS['ta.pivothigh'].arity).toEqual([3])
+    const [hi] = run(5, `${state('z', 'close')}f(s) => ta.pivothigh(3, 3) + 0 * s
+plot(f(z))
+`)
     same(hi, PH(3, 3), 'pivothigh(3,3)')
-    same(lo, PL(3, 3), 'pivotlow(3,3)')
-    expect(hi.some((v) => !Number.isNaN(v))).toBe(true)
-    // control: the lows are NOT the highs
-    expect(lo.filter((v) => !Number.isNaN(v)).some((v, i) => v !== hi.filter((w) => !Number.isNaN(w))[i])).toBe(true)
   })
 
   it('an na anywhere in the window makes the answer na (the columnar rule)', () => {

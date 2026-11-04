@@ -441,10 +441,10 @@ export const RUNTIME_STATE_KERNELS = Object.freeze(Object.fromEntries([
   // [Pine spelling, kernel family, arities owned, v1-v4 bare spelling?]
   ['ta.cum', 'running-total', [1], false],
   ['cum', 'running-total', [1], true],
-  ['ta.pivothigh', 'pivot-high', [2, 3], false],
-  ['pivothigh', 'pivot-high', [2, 3], true],
-  ['ta.pivotlow', 'pivot-low', [2, 3], false],
-  ['pivotlow', 'pivot-low', [2, 3], true],
+  ['ta.pivothigh', 'pivot-high', [3], false],
+  ['pivothigh', 'pivot-high', [3], true],
+  ['ta.pivotlow', 'pivot-low', [3], false],
+  ['pivotlow', 'pivot-low', [3], true],
   ['ta.stoch', 'stochastic', [4], false],
   ['stoch', 'stochastic', [4], true],
   ['ta.vwap', 'session-vwap', [1], false],
@@ -6078,7 +6078,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // sized before bar 0, so it cannot be served, and the sentence the existing
         // path gives is the true one.
         const pivotRightUnknown = kernel && (kernel.kind === 'pivot-high' || kernel.kind === 'pivot-low')
-          && (node.args.length === 2 || node.args.length === 3) && !node.args.some((a) => a && a.name)
+          && node.args.length === 3 && !node.args.some((a) => a && a.name)
           && !constValueOf(
             (() => { const a = node.args[node.args.length - 1]; return a && a.value !== undefined ? a.value : a })(), scope)
         if (kernel && fnIndex === undefined && !pivotRightUnknown && kernel.arity.includes(node.args.length)
@@ -6116,12 +6116,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
             return carriedCall(cidx, lowerExpr(given[0], scope))
           }
           if (kernel.kind === 'pivot-high' || kernel.kind === 'pivot-low') {
-            // `ta.pivothigh(leftbars, rightbars)` reads `high`, `ta.pivotlow` reads
-            // `low` — the function's own extreme, never `close` (`pine.js::pivotAtConfirmation`).
-            const three = given.length === 3
-            const srcIr = three ? lowerExpr(given[0], scope) : series(kernel.kind === 'pivot-high' ? 'high' : 'low')
-            const left = foldWhole(three ? given[1] : given[0], 'left bar count', 1)
-            const right = foldWhole(three ? given[2] : given[1], 'right bar count', 1)
+            // ⭐ THREE ARGUMENTS ONLY. `ta.pivothigh(leftbars, rightbars)` reads `high`
+            // (`low`) and mentions no mutable value, so it is PURE wherever it sits —
+            // the columnar lane answers it and it never reaches this lane.
+            // ⛔ BOTH COUNTS ARE AT LEAST 1: the columnar `pivothigh` refuses 0
+            // ("a whole number of at least 1"), and a zero served here would be a
+            // value no differential can grade. Pine allows 0; it stays refused.
+            const srcIr = lowerExpr(given[0], scope)
+            const left = foldWhole(given[1], 'left bar count', 1)
+            const right = foldWhole(given[2], 'right bar count', 1)
             if (left + right + 1 > MAX_PIVOT_SPAN) {
               throw new RuntimeRefusal('runtime:builtin-args',
                 `\`${node.name}\` spans ${left + right + 1} bars, past this engine's ceiling of ${MAX_PIVOT_SPAN}`, at)
