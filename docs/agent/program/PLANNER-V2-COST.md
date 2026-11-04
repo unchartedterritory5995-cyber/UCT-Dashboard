@@ -85,7 +85,18 @@ turn_v2 decides it, faithful to the v2 manifest.
 | failing (all recorded capreg gaps: CG-3 ×6, CG-8, CG-9, CG-10, CG-15) | 10 | the same 10 |
 | v2-only failures | — | 0 (rail: V2-G1 recorded for when CG-3 is fixed in v1 by #771) |
 | phrasings whose model request carries every needed action (level a) | 218 / 233 (routing) | 233 / 233 (whole manifest, 138 actions ≤ 200) |
-| phrasings that reached the planner at all | — | 115 / 233 (the rest are deterministic, identical in both) |
+| phrasings that reached the planner at all | — | 116 / 233 (the rest are deterministic, identical in both) |
+
+**What CI runs.** The parity RAIL in the default `vitest run src/agent` is **v2-only, on the FIRST phrasing of each intent**
+(46 cases, about 1 minute). It catches a v2 regression; it does not compare against v1. The v1-vs-v2 comparison above
+needs `V2_PARITY=full V2_PARITY_OUT=<file> npx vitest run src/agent/agentPlannerV2Parity.test.jsx` (every phrasing, both
+planners, about 10 minutes). It is NOT run in CI. **Last full run:** 2026-11-04 on `agent/w2/v2-readiness-2` after the review
+#775 fixes (host.js back to master). Results: 233/233 recorded; 223 both pass; 10 both fail (CG-3 ×6, CG-8, CG-9,
+CG-10, CG-15); 0 v2-only failures; 116 reached the planner.
+
+Acceptance set: F01 ("undo all" after an EMA on a NEW chart) is recorded as KNOWN GAP OPTSSIG-NULL while #775 leaves
+host.js as master. The v1 fix (a null opts key reads as absent in optsSig) and its v1 regression test are on
+`agent/w2/optssig-null`, reviewed separately.
 
 V2-G1: "Put four charts on my screen" (3 × widget.add + widget.arrange). #771 fixes v1 (adds + one re-tile in one plan);
 v2 runs steps one at a time, so the third add has no room before the re-tile. It needs a "make room first" prompt rule
@@ -93,6 +104,7 @@ or a multi-op re-tile step. The CI rail runs the first phrasing per intent throu
 
 ## Cost per corpus intent, v1 vs v2 (`tools/agent_v2_corpus_cost.py`; claude-haiku-4-5)
 
+Run it with `AUTH_DB_PATH=$TEMP/v2cost.db python tools/agent_v2_corpus_cost.py`. It refuses to run without a temp DB and never records a cost.
 Inputs are the actual prompts. v1 is `run_turn` with the phrasing's routed manifest and routing block. v2 is the real
 `run_turn_v2` loop, with every round captured: load, then one step per round (the worst case), then the reply. Tokens
 use a BPE-like approximation. The gate replays turn_v2's own rule: spent + `worst_case_usd(next request)` ≤ $0.25,
