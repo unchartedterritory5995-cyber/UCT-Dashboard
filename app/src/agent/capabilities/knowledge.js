@@ -184,7 +184,12 @@ export const PLAYBOOK_WORDS = [
 const playbookGroup = () => GROUPS.find(g => g.id === 'playbook')
 function armRouting(on) {
   const g = playbookGroup()
-  if (g) g.words.splice(0, g.words.length, ...(on ? PLAYBOOK_WORDS : []))
+  if (!g) return
+  g.words.splice(0, g.words.length, ...(on ? PLAYBOOK_WORDS : []))
+  // review #768 delta 1: while UCT's knowledge is on, its group is ALWAYS offered (three small read-only actions), so
+  // a setup question the words miss ("what's a VCP?") still has playbook.explain; the server checks the reply too
+  if (on) g.always = true
+  else delete g.always
 }
 const unregs = {}
 let kindRegistered = false

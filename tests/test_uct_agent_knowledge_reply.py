@@ -188,7 +188,7 @@ def test_r768_the_gate_alone_promotes_a_talk_reply_holding_a_knowledge_op():
 
 def test_r768_a_streamed_answer_with_a_knowledge_op_is_retracted():
     out, events = _stream_run("tell me more about it", env("answer", [SETUP_OP], reply=LONG))
-    assert any(e.get("t") == "delta" for e in events)                         # it did stream (not a playbook question) ...
+    assert not any(e.get("t") == "delta" for e in events)                     # knowledge on: an answer never streams ...
     assert out["envelope"]["reply"] == "" and _streamed_text(events) == ""    # ... and it was taken back
 
 
@@ -201,7 +201,7 @@ def test_r768_a_plain_answer_to_a_playbook_question_becomes_uct_s_cited_read(mes
     assert out["disposition"] == "apply" and out["reply"] == ""
     assert [o["action"] for o in out["ops"]] == ["playbook.explain"] and out["ops"][0]["target"] == "playbook"
     assert out["ops"][0]["args"]["question"] == message
-    assert res["usage"]["knowledge_first"] == "retrieved"
+    assert res["usage"]["knowledge_first"] == "knowledge_turn:read"
     assert "10%" not in json.dumps(out)
 
 
@@ -273,3 +273,74 @@ def test_r768_the_servers_playbook_words_are_the_browsers():
         assert f"/{w.pattern}/" in js, w.pattern
     assert f"/{frame._COACHING}/" in js
     assert not frame.wants_knowledge("teach me what a VCP is") and frame.wants_knowledge("What is a VCP?")
+
+
+# ── review #768 delta: the output decides, clarify choices, flag-off identity, symbol questions, proposals ──────────
+@pytest.mark.parametrize("message", ["what's a VCP?", "whats an EP", "how does a flat base work", "what makes a good pivot",
+                                     "tell me about cup and handle", "What is a cup and handle?", "describe a high tight flag",
+                                     "Explain" + chr(10) + "VCP"])
+def test_r768d_the_reviewers_phrasings_are_answered_by_uct_s_read(message):
+    res = _run(message, env("answer", reply=LONG))
+    out = res["envelope"]
+    assert [o["action"] for o in out["ops"]] == ["playbook.explain"] and out["reply"] == "", message
+    assert "10%" not in json.dumps(out)
+
+
+def test_r768d_the_output_decides_a_reply_naming_a_pack_setup_is_never_served(monkeypatch):
+    from api.services.uct_agent.knowledge import kinds, frame
+    monkeypatch.setattr(kinds, "_alias_map", lambda: {"volatility contraction": [], "bull flag thing": []})
+    frame._VOCAB.update(key=None, re=None)
+    res = _run("hmm ok, and the other one?", env("answer", reply="The volatility contraction is a series of tighter pullbacks."))
+    assert res["envelope"]["ops"][0]["action"] == "playbook.explain" and res["envelope"]["reply"] == ""
+    assert res["usage"]["knowledge_first"] == "reply_named_setup:read"
+    res = _run("hmm ok, and the other one?", env("answer", reply="Markets were quiet today."))
+    assert res["envelope"]["reply"] == "Markets were quiet today." and "knowledge_first" not in res["usage"]
+    frame._VOCAB.update(key=None, re=None)
+
+
+def test_r768d_an_answer_never_streams_while_knowledge_is_on():
+    out, events = _stream_run("what time does the market open?", env("answer", reply=LONG.replace("EP", "open")))
+    assert not any(e.get("t") == "delta" for e in events)
+
+
+def test_r768d_a_knowledge_clarify_keeps_only_short_plain_choices():
+    q = {"text": "Which one?", "choices": ["VCP", "A VCP is a 3-contraction base with a 5% stop", "Flat base: buy the pivot",
+                                           "Cup with Handle"]}
+    out = _run("what is that base?", {**env("clarify"), "question": q})["envelope"]
+    assert out["question"]["choices"] == ["VCP", "Cup with Handle"] and out["question"]["text"] == turn.KNOWLEDGE_CLARIFY
+    q = {"text": "Which one?", "choices": ["A VCP is a 3-contraction base", "Flat base: buy the pivot"]}
+    out = _run("what is that base?", {**env("clarify"), "question": q})["envelope"]
+    assert out["disposition"] == "apply" and out["ops"][0]["action"] == "playbook.explain"   # nothing left: the read
+
+
+def test_r768d_flag_off_a_talk_reply_with_a_stray_playbook_op_is_served_as_before():
+    out = turn.run_turn(message="what is an EP", context=CTX, history=[], capabilities=CAPS,
+                        caller=caller_of(_resp(env("answer", [SETUP_OP], reply="An EP is an episodic pivot."))))["envelope"]
+    assert out["disposition"] == "answer" and out["ops"] == [] and out["reply"] == "An EP is an episodic pivot."
+
+
+@pytest.mark.parametrize("message,reply", [
+    ("what is the breakout level on NVDA", "NVDA's breakout level is near its prior high."),
+    ("what are the pivots on this chart", "The pivots are at the two prior swing highs."),
+])
+def test_r768d_a_question_about_a_stock_or_chart_is_not_a_playbook_question(message, reply):
+    res = _run(message, env("answer", reply=reply))
+    assert res["envelope"]["reply"] == reply and res["envelope"]["ops"] == [] and "knowledge_first" not in res["usage"]
+
+
+def test_r768d_a_question_about_a_stock_still_never_serves_a_setup_definition():
+    res = _run("is NVDA forming a VCP?", env("answer", reply="A VCP is a series of tighter pullbacks; NVDA has two."))
+    assert res["envelope"]["reply"] == "" and res["envelope"]["ops"][0]["action"] == "playbook.explain"
+
+
+def test_r768d_a_proposal_never_gets_a_knowledge_read_behind_its_card():
+    out = _run("set up my chart the way a VCP trader would", env("propose", [OP], reply="A VCP trader likes bars; a VCP is a base."))["envelope"]
+    assert [o["action"] for o in out["ops"]] == ["chart.setType"] and out["reply"] == ""
+
+
+def test_r768d_when_the_read_is_not_offered_the_browser_is_asked_for_the_playbook_group():
+    routing = {"groups": [{"id": "charts", "title": "Charts"}, {"id": "playbook", "title": "UCT trading knowledge"}],
+               "selected": ["charts"]}
+    out = turn.run_turn(message="what's a VCP?", context=CTX, history=[], capabilities=CAPS, routing=routing,
+                        caller=caller_of(_resp(env("answer", reply=LONG))))["envelope"]
+    assert out["disposition"] == "clarify" and out.get("need_groups") == ["playbook"] and out["reply"] == ""

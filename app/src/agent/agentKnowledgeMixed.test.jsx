@@ -66,3 +66,19 @@ describe('review #768: a mixed chart change + knowledge plan', () => {
     expect(board.commits?.length ?? 1).toBeGreaterThan(0)
   })
 })
+
+describe('review #768 delta 1: the playbook group is always offered while knowledge is on', () => {
+  it('a setup question the words miss still gets the playbook group; off again when knowledge is off', async () => {
+    const { loadAgentConfig } = await import('./agentClient')
+    const { registerKnowledgeCapabilities } = await import('./capabilities/knowledge')
+    const { selectGroups, GROUPS } = await import('./routing')
+    await loadAgentConfig()
+    registerKnowledgeCapabilities()
+    for (const m of ["what's a VCP?", 'how does a flat base work', 'tell me about cup and handle', 'make it bars']) {
+      expect(selectGroups(m).selected).toContain('playbook')
+    }
+    _resetKnowledgeForTest()
+    expect(GROUPS.find(g => g.id === 'playbook').always).toBeUndefined()
+    expect(selectGroups('make it bars').selected).not.toContain('playbook')       // a recognised chart request: as before
+  })
+})
