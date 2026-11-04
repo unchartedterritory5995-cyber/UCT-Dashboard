@@ -44,7 +44,6 @@ export const ENGINE_GUARD = 'runtime:server-engine-mismatch'
 export const DOC_UNKNOWN_GUARD = 'runtime:server-doc-unknown'
 
 const HEX64 = /^[0-9a-f]{64}$/
-const B64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 const PRINTABLE = (min, max) => new RegExp(`^[\\x20-\\x7e]{${min},${max}}$`)
 
 class Refused extends Error {
@@ -94,9 +93,10 @@ export function barsSha256(n, cols) {
   return h.digest('hex')
 }
 
-/** Strict canonical base64 -> bytes; refuses any text that is not exactly what we would write. */
+/** Strict canonical base64 -> bytes. ONE rule: the text must be exactly what Buffer would write for
+ *  the bytes it decodes to (no whitespace, URL-safe letters, missing padding or stray pad bits). */
 function b64Bytes(v, path) {
-  if (typeof v !== 'string' || !B64.test(v)) throw bad(path, 'must be canonical base64')
+  if (typeof v !== 'string') throw bad(path, 'must be canonical base64')
   const bytes = Buffer.from(v, 'base64')
   if (bytes.toString('base64') !== v) throw bad(path, 'must be canonical base64')
   return bytes

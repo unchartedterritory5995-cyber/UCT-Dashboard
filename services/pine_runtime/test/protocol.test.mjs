@@ -50,6 +50,14 @@ test('fuzz (L5): 600 seeded mutations of a valid request are each a 400 at the s
   for (const op of ['extra', 'missing', 'truncated', 'byte']) assert.ok(names.has(op), `operator ${op} never ran`)
 })
 
+test('protocol must be 1, and a missing key is named as missing', () => {
+  for (const p of [0, 2, '1']) { const q = validRequest(); q.protocol = p; refused(q, 400, SCHEMA_GUARD, /^protocol: must be 1$/) }
+  for (const [at, key] of [[(q) => q, 'profile'], [(q) => q.definition, 'doc'], [(q) => q.jobs[0].bars, 'sha256'], [(q) => q.jobs[0].ctx, 'historyFromListing']]) {
+    const q = validRequest(); delete at(q)[key]
+    refused(q, 400, SCHEMA_GUARD, new RegExp(`missing key "${key}"`))
+  }
+})
+
 test('closed sets: an unknown key is refused at every level', () => {
   const levels = [
     (q) => q, (q) => q.engine, (q) => q.definition, (q) => q.jobs[1], (q) => q.jobs[1].symbol,
