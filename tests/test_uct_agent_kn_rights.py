@@ -511,8 +511,9 @@ def test_rebuild_treats_rows_touched_after_the_break_as_revoked(kn):
     active = rights.active_from_log(rights.read_audit(rights.audit_path_for(kn["policy"])))
     assert 1002 not in active                        # revoked after/at the break: NEVER restored
     assert 1004 not in active                        # added after the break: not trusted, revoked
-    assert set(active) == {1001, 1003}               # untouched prefix rows stay cleared
-    assert set(rights.authorized()) == {1001, 1003}  # and the runtime agrees with the rebuilt state
+    # QA round 5: the break sits INSIDE the anchored history (the prefix is short of the anchored seq), so every row is
+    # revoked; untouched rows survive only a break AFTER the anchored state (test_rebuild_keeps_untouched_rows_...)
+    assert active == {} and rights.authorized() == {}
 
 
 def test_rebuild_with_an_unreadable_line_revokes_everything(kn):
@@ -542,3 +543,56 @@ def test_reanchor_only_moves_forward_never_back_over_a_revocation(kn):
     with pytest.raises(ValueError, match="only moves forward"):
         rights.reanchor(kn["policy"], by="Owner Name", reason="trying to undo the revoke")
     assert rights.authorized() == {}
+
+
+# ── QA #793 round 5: a key-less editor cuts the log back before a revocation, breaks it, restores cleared_rows ─────
+def _setup_revoked(kn):
+    rights.apply(_synthetic(3), kn["policy"], applied_by="Reviewer One", now=FIXED)            # 1001 1002 1003
+    pol_before = kn["policy"].read_text(encoding="utf-8")
+    ap = rights.audit_path_for(kn["policy"])
+    lines_before = ap.read_text(encoding="utf-8").splitlines()
+    rights.revoke([1002], kn["policy"], revoked_by="Owner Name", reason="withdrawn", now=FIXED + 10)
+    return pol_before, ap, lines_before
+
+
+def _rebuild_never_restores(kn):
+    rights.rebuild(kn["policy"], by="Owner Name", reason="log broken", now=FIXED + 100)
+    active = rights.active_from_log(rights.read_audit(rights.audit_path_for(kn["policy"])))
+    assert 1002 not in active and 1002 not in rights.authorized()
+    assert active == {}                                                         # prefix short of the anchor: all revoked
+
+
+def test_B_truncate_before_the_revoke_and_append_a_forged_line(kn):
+    pol_before, ap, lines_before = _setup_revoked(kn)
+    forged = json.dumps({"kb_id": 1002, "action": "added", "prev": "x", "sha": "y"})
+    ap.write_text("\n".join(lines_before + [forged]) + "\n", encoding="utf-8")
+    kn["policy"].write_text(pol_before, encoding="utf-8")
+    _rebuild_never_restores(kn)
+
+
+def test_C_delete_exactly_the_revoke_line(kn):
+    pol_before, ap, lines_before = _setup_revoked(kn)
+    lines = ap.read_text(encoding="utf-8").splitlines()
+    rights.apply(_synthetic(1, start=1004), kn["policy"], applied_by="Reviewer One", now=FIXED + 20)
+    lines = ap.read_text(encoding="utf-8").splitlines()
+    del lines[3]                                                                # the revoke of 1002
+    ap.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    kn["policy"].write_text(pol_before, encoding="utf-8")
+    _rebuild_never_restores(kn)
+
+
+def test_G_truncate_and_append_a_line_naming_another_row(kn):
+    pol_before, ap, lines_before = _setup_revoked(kn)
+    other = json.dumps({"kb_id": 1003, "action": "revoked", "prev": "x", "sha": "y"})
+    ap.write_text("\n".join(lines_before + [other]) + "\n", encoding="utf-8")
+    kn["policy"].write_text(pol_before, encoding="utf-8")
+    _rebuild_never_restores(kn)
+
+
+def test_rebuild_keeps_untouched_rows_when_the_prefix_reaches_the_anchor(kn):
+    rights.apply(_synthetic(3), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    ap = rights.audit_path_for(kn["policy"])
+    ap.write_text(ap.read_text(encoding="utf-8") + json.dumps({"kb_id": 1003, "action": "added", "prev": "x", "sha": "y"}) + "\n",
+                  encoding="utf-8")                                             # a forged line AFTER the anchored state
+    rights.rebuild(kn["policy"], by="Owner Name", reason="forged append", now=FIXED + 5)
+    assert set(rights.active_from_log(rights.read_audit(ap))) == {1001, 1002}   # only the touched row (1003) revoked

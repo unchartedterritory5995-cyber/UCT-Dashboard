@@ -114,3 +114,7 @@ remains the human gate.
 - authorization: no key means nothing cleared or served (a short key counts as none); an approval with any name, edited after signing, signed with another key or above the bound counts as nothing; a hand-edited clearance is never served and blocks apply; trimming, deleting or rotating the log never resets the daily cap; concurrent applies (8 threads) never exceed the cap and keep the chain; the policy cap holds on later days.
 - QA #793: signed revocation, and a hand re-add of a revoked row never served; a hand removal serves nothing until fixed; revoke needs the key, a name, a reason and a cleared row; revocations do not count toward the cap; bulk approvals expire and are bound to their policy file; a weak key is no key; a stale lock fails closed with recovery steps.
 - QA #793 round 2: the reviewer's exact rollback never restores a revoked row; a rollback plus re-signing is refused; an edited or missing anchor serves nothing; a crash before the anchor write fails closed and the owner can re-anchor; the anchor lives outside the editable files; approvals are bound to the anchor id.
+- QA #793 rounds 4-5, recovery: `reanchor` only moves forward. `rebuild` keeps the verified prefix and revokes every
+  row touched after the break. If the prefix does not reach the anchored state, or there is no readable anchor, it
+  revokes EVERY row. A key-less editor who truncates, deletes or forges lines and restores `cleared_rows` can
+  therefore never get a revoked row served again (tests B, C, G).

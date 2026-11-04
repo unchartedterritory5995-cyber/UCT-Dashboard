@@ -110,6 +110,12 @@ ignores every `policy.json` field that could widen serving without a verified pa
 - `cleared_rows`, which are ignored even when signed, with the key and an anchor.
 
 Setup templates and records are refused even if listed in the data kinds. `policy.json` may still NARROW.
+- **Fail-closed switch:** unset or an off-word (`0`, `false`, `off`, `no`) means off. ANY other value (`enabled`, `Y`,
+  `2`, ...) means ON.
+- **The other fields minimal mode would read are pinned, so they can only narrow:** excluded categories (TEST is always
+  excluded), dated categories (MACRO / REGIME / SECTOR are always dated), the maximum age of dated rows (never above
+  30 days), and trader attribution aliases (the pinned baseline; `policy.json` aliases are ignored). Tested, with a
+  positive control that the same edits do change these values with minimal mode off.
 
 Tests (`test_minimal_mode_*`): each edit is served with minimal mode off (positive control) and blocked with it on.
 So the block, and nothing else, is what stops it.

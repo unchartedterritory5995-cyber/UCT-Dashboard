@@ -58,8 +58,17 @@ MINIMAL_SOURCES = frozenset({"setup_knowledge", "trader_archive"})
 MINIMAL_TEAM_ORIGINS = frozenset({"tsdr", "bracco", "manrav", "chartmaster", "jersace", "attheask", "uct", "uct team"})
 
 
+#: QA round 5: FAIL CLOSED — unset or an explicit off-word means off; ANY other value (enabled, Y, 2, ...) means ON
+_OFF_WORDS = frozenset({"", "0", "false", "off", "no"})
+#: the remaining policy.json fields minimal mode would otherwise read: pinned so they can only NARROW
+MINIMAL_EXCLUDED_CATEGORIES = frozenset({"TEST"})
+MINIMAL_DATED_CATEGORIES = frozenset({"MACRO", "REGIME", "SECTOR"})
+MINIMAL_DATED_MAX_AGE_DAYS = 30
+MINIMAL_TRADER_ALIASES = {"TSDR_Trading": "TSDR", "1ChartMaster": "Chartmaster", "Uncharted Territory": "UCT Team"}
+
+
 def minimal_mode() -> bool:
-    return str(os.environ.get(MINIMAL_ENV) or "").strip().lower() in ("1", "true", "on", "yes")
+    return str(os.environ.get(MINIMAL_ENV) or "").strip().lower() not in _OFF_WORDS
 
 
 def version() -> int:
@@ -215,20 +224,24 @@ def admitted_sources() -> list[str]:
 
 
 def excluded_categories() -> set[str]:
-    return {str(c).upper() for c in load().get("excluded_categories") or []}
+    out = {str(c).upper() for c in load().get("excluded_categories") or []}
+    return out | set(MINIMAL_EXCLUDED_CATEGORIES) if minimal_mode() else out      # minimal: the policy only ADDS
 
 
 def dated_categories() -> set[str]:
-    return {str(c).upper() for c in load().get("dated_categories") or []}
+    out = {str(c).upper() for c in load().get("dated_categories") or []}
+    return out | set(MINIMAL_DATED_CATEGORIES) if minimal_mode() else out         # minimal: more dated = narrower
 
 
 def dated_max_age_days() -> int:
-    return _int(load().get("dated_max_age_days"), 30)
+    n = _int(load().get("dated_max_age_days"), 30)
+    return min(n, MINIMAL_DATED_MAX_AGE_DAYS) if minimal_mode() else n            # minimal: never older
 
 
 def trader(name: Optional[str]) -> str:
     n = str(name or "").strip()
-    return str((load().get("trader_aliases") or {}).get(n, n))
+    aliases = MINIMAL_TRADER_ALIASES if minimal_mode() else (load().get("trader_aliases") or {})
+    return str(aliases.get(n, n))                                                 # minimal: attribution pinned
 
 
 def search_setting(key: str, default: int) -> int:

@@ -225,7 +225,36 @@ def test_minimal_mode_refuses_templates_and_records_even_if_listed(minimal, monk
     assert out["status"] == "refused" and not out.get("data")
 
 
-@pytest.mark.parametrize("v", ["", "0", "off", "minimal"])
-def test_minimal_mode_needs_an_explicit_on_value(monkeypatch, v):
+@pytest.mark.parametrize("v,on", [("", False), ("0", False), ("off", False), ("NO", False), ("false", False),
+                                  ("1", True), ("enabled", True), ("Y", True), ("2", True), ("minimal", True)])
+def test_minimal_mode_fails_closed_on_any_value_but_an_off_word(monkeypatch, v, on):
     monkeypatch.setenv(policy.MINIMAL_ENV, v)
-    assert policy.minimal_mode() is False
+    assert policy.minimal_mode() is on
+
+
+def test_minimal_mode_unrecognised_value_still_blocks_a_widening_edit(minimal, monkeypatch, tmp_path):
+    over, q, row = _edit_self_review(_shipped())
+    _with_policy(monkeypatch, tmp_path, **over)
+    monkeypatch.setenv(policy.MINIMAL_ENV, "enabled")
+    assert row not in _ids_for(q)
+
+
+def test_minimal_mode_pins_categories_age_and_attribution_so_policy_can_only_narrow(minimal, monkeypatch, tmp_path):
+    monkeypatch.setenv(policy.MINIMAL_ENV, "1")
+    pol = _shipped()
+    # widening attempts are ignored ...
+    _with_policy(monkeypatch, tmp_path, excluded_categories=[], dated_categories=[], dated_max_age_days=9999,
+                 trader_aliases={"TSDR": "UCT Team", "Vlogger": "UCT Team"})
+    assert "TEST" in policy.excluded_categories() and {"MACRO", "REGIME", "SECTOR"} <= policy.dated_categories()
+    assert policy.dated_max_age_days() == 30 and policy.trader("Vlogger") == "Vlogger" and policy.trader("TSDR") == "TSDR"
+    assert 11 not in _ids_for("episodic pivot gap test")                     # the TEST row stays excluded
+    # ... narrowing still applies
+    _with_policy(monkeypatch, tmp_path, excluded_categories=["TEST", "SETUP"], dated_max_age_days=1)
+    assert "SETUP" in policy.excluded_categories() and policy.dated_max_age_days() == 1
+    assert 62 not in _ids_for("kicker gap over the moving averages entry")   # SETUP excluded by the narrowing
+    # positive control: with minimal mode OFF the same widening edit DOES change these values
+    monkeypatch.delenv(policy.MINIMAL_ENV)
+    _with_policy(monkeypatch, tmp_path, excluded_categories=[], dated_max_age_days=9999, trader_aliases={"Vlogger": "UCT Team"})
+    assert "TEST" not in policy.excluded_categories() and policy.dated_max_age_days() == 9999
+    assert policy.trader("Vlogger") == "UCT Team"
+    del pol

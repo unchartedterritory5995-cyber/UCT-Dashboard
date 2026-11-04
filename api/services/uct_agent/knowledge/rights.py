@@ -636,7 +636,17 @@ def rebuild(policy_path: Path, by: str, reason: str, now: Optional[float] = None
         if not isinstance(pid, str) or not pid:
             raise ValueError("this policy has no rights_policy_id")
         active = active_from_log(prefix)
-        tail, unreadable = lines[bad_at:], False
+        # QA #793 round 5: an editor can cut the log back to BEFORE a revocation (truncate, delete the revoke line) and
+        # then break it. If the verified prefix does not reach the anchored state (the anchored seq with the anchored
+        # head), nothing after it can be trusted to say a row is still cleared: revoke EVERY row. Also when there is no
+        # readable anchor to compare against.
+        try:
+            anc = read_anchor(pid, key)
+        except ValueError:
+            anc = None
+        reaches = bool(anc) and anc["seq"] <= len(prefix) and (
+            (anc["seq"] == 0 and anc["head"] == _GENESIS) or (anc["seq"] > 0 and prefix[anc["seq"] - 1]["sha"] == anc["head"]))
+        tail, unreadable = lines[bad_at:], not reaches
         touched = set()
         for line in tail:
             try:
