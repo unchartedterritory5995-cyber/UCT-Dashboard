@@ -22,6 +22,7 @@
  * the radiogroup, Enter is Check / Continue, Escape belongs to the Sheet.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { tapDayKey } from './chartTapTime'
 import Sheet from '../../components/mobile/Sheet'
 import StickyActionBar from '../../components/mobile/StickyActionBar'
 import StockChart from '../../components/StockChart'
@@ -34,6 +35,7 @@ import useStudySession from './useStudySession'
 import useHouseChart from './useHouseChart'
 import { studySettingsOverride } from './studyChartLook'
 import { slingshotInstances } from './slingshotOverlay'
+import { studyOpenMarkers } from './studyOverlays'
 import { drillFor, isUnscoredDrill } from './drills'
 import { itemHasChart, questionOf } from './drills/types'
 import RevealCard from './RevealCard'
@@ -69,6 +71,7 @@ function ProgressStrip({ index, total, results, items }) {
     </ol>
   )
 }
+
 
 export default function DrillPlayer({
   open = true,
@@ -150,6 +153,9 @@ export default function DrillPlayer({
   const answerable = !!item && !locked && mod.isAnswerable(state, item)
   const reveal = result?.reveal || null
 
+  // The bars the item wants looked at (an hourly Go Signal's first three bars of the ruled session), a white
+  // dot under each, on the question AND the reveal: they say where to look, never what the answer is.
+  const openMarkers = useMemo(() => (chartVisible ? studyOpenMarkers(item, chartBars) : null), [chartVisible, item, chartBars])
   const annotations = useMemo(
     () => (chartVisible && mod.annotationsFor ? mod.annotationsFor(state, item, reveal, chartBars) : null),
     [chartVisible, mod, state, item, reveal, chartBars],
@@ -157,15 +163,32 @@ export default function DrillPlayer({
 
   const onCrosshairMove = useCallback((payload) => { crosshair.current = payload }, [])
 
-  const onChartClick = useCallback(() => {
+  const tapAt = useCallback((times, price) => {
     if (!chartVisible || locked || !mod.onChartTap || !item) return
-    const c = crosshair.current
-    if (!c) return
-    const time = c.day || c.time
-    const barIndex = chartBars.findIndex((b) => String(b.t) === String(time))
-    const next = mod.onChartTap(state, { time, price: c.cursorPrice, barIndex: barIndex >= 0 ? barIndex : null }, item, chartBars)
+    const keys = (Array.isArray(times) ? times : [times]).filter((t) => t != null).map(String)
+    const barIndex = chartBars.findIndex((b) => keys.includes(String(b.t)))
+    const time = barIndex >= 0 ? chartBars[barIndex].t : keys[0] ?? null
+    const next = mod.onChartTap(state, { time, price, barIndex: barIndex >= 0 ? barIndex : null }, item, chartBars)
     if (next !== state) { setState(next); tapFeedback(prefs) }
   }, [chartVisible, locked, mod, item, chartBars, state, setState, prefs])
+
+  // The library's click, which fires for a mouse click AND a touch tap. A touch never moves the crosshair, so the
+  // container click below (which reads the crosshair) got nothing on a phone: a member tapping a candle saw no
+  // placement. Measured on the Study workbench, 2026-11-03. The library hands back the bar's time directly.
+  const lastLibTap = useRef(0)
+  const onChartTapLib = useCallback((p) => {
+    if (!p || p.time == null) return
+    lastLibTap.current = Date.now()
+    tapAt([p.time, tapDayKey(p.time)], p.price)
+  }, [tapAt])
+
+  // Mouse fallback through the crosshair (an older chart, or a click the library did not report).
+  const onChartClick = useCallback(() => {
+    if (Date.now() - lastLibTap.current < 400) return   // the library already handled this click
+    const c = crosshair.current
+    if (!c) return
+    tapAt([c.day, c.time], c.cursorPrice)
+  }, [tapAt])
 
   const advance = useCallback(() => { s.next() }, [s])
 
@@ -302,7 +325,9 @@ export default function DrillPlayer({
               onSettingsPersist={sessionChart.onSettingsPersist}
               annotations={annotations}
               annotationsVisible={!!annotations}
+              markers={openMarkers}
               onCrosshairMove={onCrosshairMove}
+              onChartTap={onChartTapLib}
             />
           )}
           {needsChart && !chartVisible && (

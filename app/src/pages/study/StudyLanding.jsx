@@ -11,6 +11,7 @@
 // mastery or the one primary action, nothing else; tokens only; every
 // motion is off under prefers-reduced-motion (CSS).
 import UIcon from '../../components/ui/UIcon'
+import StudyMark from '../../components/study/StudyMark'
 import ProgressRing from './ProgressRing'
 import { trackSummary, recommendUnit, RUNGS } from './studyMap'
 import {
@@ -119,6 +120,8 @@ export default function StudyLanding({ curricula = [], byId = {}, badges = [], o
   return (
     <section className={s.landing} aria-label="Your trail">
       <div className={s.hero}>
+        <div className={s.heroHead}>
+        <StudyMark size={76} className={s.mark} />
         <div className={s.heroText}>
           <span className={s.eyebrow}>
             <UIcon name="compass" size={14} />
@@ -126,6 +129,7 @@ export default function StudyLanding({ curricula = [], byId = {}, badges = [], o
           </span>
           <h2 className={s.headline}>Your trail is a chart.</h2>
           <p className={s.tagline}>{TAGLINE}</p>
+        </div>
         </div>
         {method ? (
           <TrailChart

@@ -9,6 +9,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
+import StudyMark from '../../components/study/StudyMark'
 import { endFeedback, feedbackPrefs } from './studyFeedback'
 import styles from './EndCard.module.css'
 
@@ -40,6 +41,7 @@ export default function EndCard({ correct = 0, total = 10, xp = 0, bonuses = [],
   return (
     <section className={styles.card} data-testid="end-card" aria-label="Set finished">
       <div className={styles.ringWrap}>
+        <StudyMark mood={total > 0 && correct === total ? 'fire' : 'happy'} size={64} className={styles.mark} />
         <svg className={styles.ring} width={RING_SIZE} height={RING_SIZE} viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`} aria-hidden="true">
           <circle className={styles.ringTrack} cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={r} strokeWidth={RING_STROKE} fill="none" />
           <circle
