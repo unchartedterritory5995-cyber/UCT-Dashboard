@@ -2030,7 +2030,7 @@ def requirement_tags(definition: dict) -> list:
     return sorted(out)
 
 
-def consumer_refusal(consumer: str, requirements) -> "str | None":
+def consumer_refusal(consumer: str, requirements, definition: Any = None) -> "str | None":
     """Why ``consumer`` may not run a definition carrying ``requirements`` — or
     ``None`` when it may.
 
@@ -2050,7 +2050,20 @@ def consumer_refusal(consumer: str, requirements) -> "str | None":
     re-opens quietly.
     """
     from collections.abc import Mapping
-    from api.services import ast_table
+    from api.services import ast_table, runtime_definitions
+    # ⭐ W5-T17 (design 5.1) — A RUNTIME DOCUMENT'S REQUIREMENTS ARE READ FROM ITS SOURCE.
+    # It stores no tags (`requirements` is `[]`), and the manifest's tags name AST calls, so
+    # the one thing a runtime document can need from a consumer that no consumer can give is
+    # another symbol's or timeframe's bars (`request.*`): refused here by name, for EVERY
+    # consumer, as the member door refuses it at mint (`runtime:request`). Passed only by a
+    # caller that holds the definition; every pre-existing caller is unchanged.
+    if runtime_definitions.is_runtime(definition):
+        reads = runtime_definitions.request_reads(definition)
+        if reads:
+            article = "an" if consumer[:1].lower() in "aeiou" else "a"
+            return (f"this script cannot be used as {article} {consumer}: it reads another "
+                    f"symbol or timeframe ({', '.join(f'`{n}`' for n in reads)}), whose bars "
+                    "the runtime lane does not hold (runtime:request)")
     tags_spec = ast_table.TABLE.get("_requirement_tags") or {}
     have = set(requirements or ())
     if not have:
@@ -2605,8 +2618,15 @@ def _awaits_retranslation(row: Mapping, current: int) -> bool:
     d = row.get("definition")
     if not row.get("has_pine_source") or not isinstance(d, Mapping):
         return False
+    # ⭐ W5-T17 (design 5.1) — A RUNTIME DOCUMENT IS RECOMPILED FROM ITS SOURCE ON EVERY RUN,
+    # so nothing "awaits" a re-translation: the answer is False whatever else the row says,
+    # and the stored `refused` verdict binds it exactly as it binds a script-less `ast` row
+    # (held at today's engine, `same_maths` after it).
+    from api.services import runtime_definitions
+    if runtime_definitions.is_runtime(d):
+        return False
     compute, meta = d.get("compute"), d.get("meta")
-    if not (isinstance(compute, Mapping) and compute.get("kind") == "ast"
+    if not (isinstance(compute, Mapping)
             and isinstance(meta, Mapping) and meta.get("recurrenceOrigin") == "pine"):
         return False
     stamp = engine_stamp_of(d)
@@ -2662,6 +2682,65 @@ def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[
                 "saved from a script today's engine accepts (open it in the Builder's Pine "
                 "tab and save).")
     return None
+
+
+#: ⭐ W5-T17 — THE THREE SERVER LANES A SERVED ROW IS STAMPED FOR: stamp key ->
+#: (consumer name `consumer_refusal` is asked, service profile `server_lane_refusal` words its
+#: sentences with). The stamp's keys are what the editor's "Runs on" line reads.
+SERVER_LANES = {
+    "alerts": ("alert", "alert"),
+    "screener": ("screener", "on-demand"),
+    "scans": ("sweep", "sweep"),
+}
+
+
+def server_lane_composition(row: Any, *, consumer: str, lane: str,
+                            current: Optional[int] = None) -> Optional[tuple]:
+    """⭐ W5-T17 — DESIGN 5.2, THE ORDER, AS ONE FUNCTION: ``(step, guard, sentence)`` for the
+    FIRST refusal that applies to a stored runtime document in a server lane, or ``None`` when
+    the lane may ask the service. Steps 1-4 here, every one a question some other module owns
+    (nothing is re-derived); the service run is step 6 and is never reached from here, so a
+    refusal at any step costs no service time.
+
+      1. definition     the row is readable, carries no `meta.blockRuns`       -> ``definition``
+      2. stored verdict `engine_withheld_reason(row)`                          -> ``withheld``
+      3. consumer       `consumer_refusal(consumer, requirements, definition)` -> ``requirements``
+      4. admission      `runtime_definitions.server_lane_refusal(row, lane=)`  -> its own guard
+
+    Design step 5 (per-plot block gates) is an `ast`-only question: a runtime document
+    carrying its stamp is refused at step 1. Never raises; a row it cannot read is refused at
+    step 1."""
+    from collections.abc import Mapping
+    from api.services import runtime_definitions as rd
+    definition = row.get("definition") if isinstance(row, Mapping) else None
+    if not isinstance(definition, Mapping) or not row.get("def_id"):
+        return ("definition", "definition",
+                "this saved script could not be read, so it does not run on the server")
+    meta = definition.get("meta")
+    if rd.is_runtime(definition) and isinstance(meta, Mapping) and "blockRuns" in meta:
+        return ("definition", "definition",
+                "this script carries per-plot block-run gates, which only a formula document "
+                "has, so it is malformed and does not run on the server")
+    why = engine_withheld_reason(row, current)
+    if why:
+        return ("withheld", "withheld", why)
+    why = consumer_refusal(consumer, row.get("requirements"), definition)
+    if why:
+        return ("requirements", "requirements", why)
+    refusal = rd.server_lane_refusal(row, lane=lane)
+    if refusal:
+        return ("admission", refusal[0], refusal[1])
+    return None
+
+
+def server_lanes_stamp(row: Any) -> dict:
+    """The served row's ``server_lanes``: ``{alerts, screener, scans}``, each ``True`` or
+    ``{guard, sentence}`` from `server_lane_composition` (the editor's "Runs on" reads it)."""
+    out: dict = {}
+    for key, (consumer, lane) in SERVER_LANES.items():
+        refusal = server_lane_composition(row, consumer=consumer, lane=lane)
+        out[key] = True if refusal is None else {"guard": refusal[1], "sentence": refusal[2]}
+    return out
 
 
 def save(user_id: Any, def_id: str, definition: dict,
