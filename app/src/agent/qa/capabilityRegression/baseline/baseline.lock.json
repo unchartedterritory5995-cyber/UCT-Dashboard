@@ -3001,6 +3001,66 @@
      "modes": {}
     }
    }
+  },
+  "bqa1.hide.named-chart": {
+   "digest": "db41e45a361bc94f",
+   "phrasings": {
+    "hide the 50 sma on the NVDA chart": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the SMA 50 on the NVDA chart": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn off the 50 sma on the NVDA chart": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the 50 sma on the bottom-left chart": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "bqa1.remove.named-chart": {
+   "digest": "7bd3d2f013ad4438",
+   "phrasings": {
+    "remove the 200 sma from the NVDA chart": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the SMA 200 from the NVDA chart": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the 200 sma off the NVDA chart": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "bqa1.colour.named-chart": {
+   "digest": "548db259c4bf4250",
+   "phrasings": {
+    "make the 20 ema on the NVDA chart red": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "make the EMA 20 on the NVDA chart red": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -3146,6 +3206,21 @@
   },
   "refuse.empty-board-timeframe": {
    "digest": "65ca9b19e3eafe27",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.bqa1.full-board-new-chart": {
+   "digest": "2143f6239205e223",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.bqa1.full-board-new-chart.model": {
+   "digest": "0ebc7e2efb3ab7d1",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.bqa1.line-noun-no-drawing": {
+   "digest": "8b658d99f3a44ec3",
    "gap": false,
    "mode": null
   }
