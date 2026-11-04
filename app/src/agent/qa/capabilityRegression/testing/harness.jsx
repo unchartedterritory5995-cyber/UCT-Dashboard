@@ -13,6 +13,7 @@ import { setupPanel, bareSettings } from '../../../testing/panelHarness'
 import { makeBoard } from '../../../__fixtures__/board'
 import { groupOfAction } from '../../../routing'
 import { configFor, PROD_KINDS } from './registry'
+import { installStepServer } from '../../../testing/stepServer'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -58,8 +59,12 @@ export function resolveTarget(t, body) {
 }
 export const resolveOps = (ops, body) => ops.map(o => ({ ...o, target: resolveTarget(o.target, body), args: o.args }))
 
-export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } = {}) {
+// v2-readiness-2: `stepScript` (planner v2 parity, agentPlannerV2Parity.test.jsx) — the case's model turns are served by the
+// scripted STEP-1 server (testing/stepServer.js) instead of the v1 envelope queue, and the config says planner 'v2'.
+// Absent (every capability-regression suite), mountCase is exactly as before.
+export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, stepScript = null } = {}) {
   const p = setupPanel()
+  const srv = stepScript ? installStepServer(p, stepScript, { planner: 'v2' }) : null
   const st = { log: [], alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
@@ -68,7 +73,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
     if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search') || u.startsWith('/api/user-definitions')) return base(url, init)
     p.st.calls.push([method, u, body])
-    if (u === '/api/agent/config') return json(configFor(kinds))
+    if (u === '/api/agent/config') return json(srv ? { ...configFor(kinds), planner: 'v2' } : configFor(kinds))
     if (u.startsWith('/api/watchlist-alerts')) {
       // the real routes' behaviour (agentAlerts.test.jsx): owner-scoped rows, a POST returns the row, a DELETE removes it
       if (method === 'POST') {
@@ -97,7 +102,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
     return base(url, init)
   }
   const mounted = p.mount(...BOARDS[boardName]())
-  return { p, st, ...mounted }
+  return { p, st, srv, ...mounted }
 }
 
 /** The faithful scripted model for one turn's canonical plan (see the header). */
