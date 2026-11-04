@@ -143,3 +143,9 @@ every anchor except WebKit's `log`.
 - Node 20 numbers (sin/cos and the tz sweep) need Node 20.18 on a machine that has it: `node tools/pine_cross_engine_probe.mjs --out f` is the whole run; add it to the summarizer.
 - The probe is not scheduled; "weekly" in HP-8 is the coordinator's call.
 - HP-3 (T4) still needs the coordinator's decision on sin/cos. This report adds that Firefox and WebKit agree with each other on trig and disagree with both V8 builds.
+
+## final-tip (tool code was added)
+`bash $S/final-tip.sh pine-dsk-w5t5 w5t5-final tests/test_pine_runtime_engine_identity.py tests/test_pine_runtime_codec.py` on `dsk/heavy-final2.lock`, code tip `9fe52d5cea`
+(logs `_resume-2026-11-01/runs/w5t5-final/`): gate pytest 46 passed; hygiene clean (34733 files); rails pytest 216 passed; full chart+hooks vitest
+Test Files 1 failed | 1336 passed | 27 skipped, Tests 1 failed | 22536 passed | 118 skipped. The one failure is `src/hooks/pollingSites.rail.test.js`, the desktop baseline.
+`hostParity.rail.test.js` (which loads the changed `.mjs`) passed inside the full run.
