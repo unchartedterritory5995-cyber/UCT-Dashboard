@@ -58,7 +58,11 @@ export const NOTE_CONNECTOR_PROVIDERS = [
   { key: 'dropbox', label: 'Dropbox', tokenKind: 'oauth' },
   { key: 'onenote', label: 'OneNote', tokenKind: 'oauth' },
   { key: 'onedrive', label: 'OneDrive', tokenKind: 'oauth' },
-  { key: 'obsidian', label: 'Obsidian', tokenKind: 'device' },
+  // `authoritativeListing`: the provider's listing is its own complete walk, so a note missing
+  // from it was REMOVED there (the backend's `NoteProvider.enumeration_is_authoritative`; pinned
+  // against it by api/services/journal_two/test_note_connectors_authoritative_parity.py). The
+  // note view's "removed from" notice reads it; every other provider "no longer lists" the note.
+  { key: 'obsidian', label: 'Obsidian', tokenKind: 'device', authoritativeListing: true },
   // Plan E Task 10. `beta` shows a "Beta" pill on the Settings tile (Evernote's own connection is beta).
   { key: 'evernote', label: 'Evernote', tokenKind: 'oauth', beta: true },
 ]

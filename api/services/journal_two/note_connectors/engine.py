@@ -193,6 +193,22 @@ _COOLDOWN_SECONDS = 600
 # trash refs); only their enumeration strikes wait for the gap.
 MEMBER_FULL_PASS_MIN_INTERVAL_S = 600
 
+# The <50% enumeration guard in `_run_delete_detection` applies only when the source tracks at
+# least this many notes (live Obsidian probe 2026-11-03, L1). In a 2- or 3-note vault one rename
+# plus one delete is already "fewer than half came back", so the guard refused every removal
+# check and the ghost notes stayed live forever. Why 10: below it, half a source is at most four
+# notes, a count a member can see and fix at a glance, and the guard's job (catching a listing
+# that silently came back short) is still done by the 2-strike rule with its
+# MEMBER_FULL_PASS_MIN_INTERVAL_S gap: a bad listing must repeat on two passes at least ten
+# minutes apart before anything is tagged. And a sever is NON-DESTRUCTIVE: it adds the
+# `source-deleted` tag and stops tracking, never erases the note, and the tag comes off by itself
+# when the item is listed again (`_untag_note_source_reappeared`). From 10 up the ratio guard is
+# unchanged, so a 20-note source returning 3 is still refused. Fix round 1 ruling: ONLY for a
+# provider whose listing is authoritative (`NoteProvider.enumeration_is_authoritative`, today
+# Obsidian's manifest); an API listing can come back short, so every other provider keeps the
+# guard at any size.
+DELETE_GUARD_MIN_KNOWN = 10
+
 # A stored `last_full_sync_at` up to this far in the future is clock skew and
 # still counts; further ahead it is treated as "no previous full pass", so a
 # bad stamp can never lock a member out of the removal check.
@@ -1535,6 +1551,7 @@ async def _do_sync(
                     _run_delete_detection,
                     user_id, source, index_refs, deleted_refs=deleted_refs,
                     stamp_at=_now_iso(),
+                    authoritative=getattr(provider, "enumeration_is_authoritative", False) is True,
                 )
                 if removal_check:
                     removal_reason = "refused" if dd["refused"] else None
@@ -1951,7 +1968,7 @@ async def _do_sync(
 
 def _run_delete_detection(
     user_id: str, source: dict[str, Any], refs: list[RemoteRef],
-    *, deleted_refs: list[RemoteRef] | None = None, stamp_at: str,
+    *, deleted_refs: list[RemoteRef] | None = None, stamp_at: str, authoritative: bool = False,
 ) -> dict[str, Any]:
     """Plan D task 3: `stamp_at` is written to `j2_note_sources.
     last_full_sync_at` in the SAME transaction on EVERY branch, the <50%
@@ -2027,7 +2044,12 @@ def _run_delete_detection(
             (user_id, source_id),
         ).fetchall()
         prev_count = len(existing_rows)
-        if prev_count > 0 and len(seen_ids) < prev_count * 0.5:
+        # L1 (2026-11-03): for a provider whose listing is AUTHORITATIVE (`authoritative`,
+        # Obsidian's manifest) the ratio guard runs only from DELETE_GUARD_MIN_KNOWN tracked
+        # items up; below it the 2-strike rule and its strike gap protect a small vault. Every
+        # other provider keeps the guard at any size (fix round 1 ruling).
+        guarded = prev_count >= DELETE_GUARD_MIN_KNOWN if authoritative else prev_count > 0
+        if guarded and len(seen_ids) < prev_count * 0.5:
             conn.commit()  # the stamp only: no index row is touched
             return {
                 "status": "warning",
@@ -3225,6 +3247,84 @@ def _decide_and_store(
     return media_policy.store_media(user_id, note_id, decide(data, content_type, name), budget=budget)
 
 
+def _media_reuse_on(provider: NoteProvider) -> bool:
+    """L4: the provider names media by CONTENT for some refs (`media_ref_names_content(ref)`;
+    Obsidian's staged-blob refs carry their sha256), so a ref seen again is the same bytes."""
+    return callable(getattr(provider, "media_ref_names_content", None))
+
+
+def _stored_file_exists(user_id: str, note_id: str, url: str) -> bool:
+    """Whether a stored UCT attachment URL of THIS note still has its file (the attachment
+    GC removes unreferenced ones), through the path resolver the attachment door serves with."""
+    parts = (url or "").rsplit("/", 2)
+    if len(parts) != 3:
+        return False
+    path = notes_svc.serve_note_image_path(user_id, note_id, parts[1], parts[2])
+    return path is not None and path.is_file()
+
+
+def _stored_from_json(raw: str) -> media_policy.StoredMedia | None:
+    try:
+        d = json.loads(raw)
+        original = d.pop("original", None)
+        return media_policy.StoredMedia(
+            **d, original=media_policy.StoredMedia(**original) if original else None)
+    except (TypeError, ValueError):
+        return None
+
+
+def _reusable_stored_media(
+    conn: sqlite3.Connection, user_id: str, note_id: str, provider: NoteProvider, refs: list[Any],
+) -> dict[str, media_policy.StoredMedia]:
+    """L4 (live Obsidian probe 2026-11-03): `{ref: StoredMedia}` this note already stored for
+    the content-named refs among `refs` (`j2_note_import_media`), whose files (and kept original)
+    are all still on disk. Reused as they are: same URL, no fetch, no copy, nothing reserved
+    under the media cap (the bytes are already counted). Anything else is fetched as before."""
+    wanted = sorted({r for r in refs if isinstance(r, str) and provider.media_ref_names_content(r)})
+    out: dict[str, media_policy.StoredMedia] = {}
+    for i in range(0, len(wanted), 400):  # sqlite variable-limit safety
+        part = wanted[i:i + 400]
+        for row in conn.execute(
+                "SELECT ref, stored_json FROM j2_note_import_media WHERE user_id = ? AND note_id = ?"
+                f" AND ref IN ({','.join('?' * len(part))})", (user_id, note_id, *part)):
+            stored = _stored_from_json(row["stored_json"])
+            if stored is None or not _stored_file_exists(user_id, note_id, stored.url):
+                continue
+            if stored.original is not None and not _stored_file_exists(
+                    user_id, note_id, stored.original.url):
+                continue
+            out[row["ref"]] = stored
+    return out
+
+
+def _record_stored_media(
+    conn: sqlite3.Connection, user_id: str, note_id: str, provider: NoteProvider,
+    resolved: dict[str, media_policy.StoredMedia], note_refs: list[str], body: Any,
+) -> None:
+    """L4: remember what each content-named ref of this note is stored as, for the next update
+    (`_reusable_stored_media`), and forget the refs the note no longer has. Upserts only: a media
+    retry resolves a subset and must not forget the refs resolved on an earlier pass. Rows beside
+    the note, never attrs in the body: the editor's schema would drop an extra attr on save.
+    Fix round 1: only a ref whose stored URL is in the WRITTEN `body` is recorded. When the
+    resolved body failed validation and `_final_body_without_media` wrote notices instead, the
+    copied files are in no body, so nothing may later be "reused" from them. Commits."""
+    written = json.dumps(body)
+    keep = sorted({r for r in note_refs if isinstance(r, str)})
+    conn.execute(
+        "DELETE FROM j2_note_import_media WHERE user_id = ? AND note_id = ?"
+        " AND ref NOT IN (SELECT value FROM json_each(?))",
+        (user_id, note_id, json.dumps(keep)))
+    now = _now_iso()
+    conn.executemany(
+        "INSERT OR REPLACE INTO j2_note_import_media (user_id, note_id, ref, stored_json, recorded_at)"
+        " VALUES (?, ?, ?, ?, ?)",
+        [(user_id, note_id, ref, json.dumps(dataclasses.asdict(stored)), now)
+         for ref, stored in resolved.items()
+         if isinstance(ref, str) and provider.media_ref_names_content(ref)
+         and stored.url in written])
+    conn.commit()
+
+
 async def _upload_media_for_note(
     provider: NoteProvider, creds: dict[str, Any], user_id: str, note_id: str,
     media_entries: list[dict[str, Any]], *, prior_attempts: dict[str, int],
@@ -3602,11 +3702,19 @@ async def _confirm_and_resolve_batch(
         resolved: dict[str, media_policy.StoredMedia] = {}
         notices: dict[str, dict] = {}
         waiting: list[tuple[str, float | None]] = []
+        reuse = _media_reuse_on(provider)
         if media:
-            resolved, notices, up, med_failures = await _upload_media_for_note(
-                provider, creds, user_id, note_id, media,
+            # L4 (2026-11-03): an update reuses what this note already stored for an unchanged,
+            # content-named ref (same URL, nothing fetched or copied); the rest is fetched.
+            reused = (await asyncio.to_thread(
+                _reusable_stored_media, conn, user_id, note_id, provider,
+                [m.get("ref") for m in media]) if reuse and status != "created" else {})
+            to_fetch = [m for m in media if m.get("ref") not in reused]
+            resolved, notices, up, med_failures = (await _upload_media_for_note(
+                provider, creds, user_id, note_id, to_fetch,
                 prior_attempts=(notice_attempts or {}).get(key, {}), budget=budget,
-                rate_limited_out=waiting)
+                rate_limited_out=waiting) if to_fetch else ({}, {}, 0, []))
+            resolved = {**reused, **resolved}
             if waiting:
                 known = [w for _r, w in waiting if isinstance(w, (int, float))]
                 result["rateLimitedRefs"].append((rn.remote_id, max(known) if known else None))
@@ -3666,6 +3774,9 @@ async def _confirm_and_resolve_batch(
                 result["touched"].append((rn, key, note_id))  # placeholder still intact
             continue
         if applied:
+            if reuse:
+                _record_stored_media(conn, user_id, note_id, provider, resolved,
+                                     _placeholder_refs(rn.doc), body)
             # I8: an attachment waiting on the rate limit is no failure to list.
             waiting_refs = {r for r, _w in waiting}
             result["noticeFailures"].extend(_notice_failures(
@@ -3694,6 +3805,126 @@ async def _confirm_and_resolve_batch(
                 result["touched"].append((rn, f"{key}#remote", sibling_id))
 
     return result
+
+
+_FOLDER_MISSING = object()
+
+
+def _existing_folder(conn: sqlite3.Connection, user_id: str, dest: str, parts: list[str]) -> Any:
+    """The folder `import_confirm` would file `parts` under `dest` into, if it exists, WITHOUT
+    making any (the read half of `notes.ensure_folder_path`, same segment rule and the same
+    depth clamp `import_confirm` applies). `_FOLDER_MISSING` when a segment is not there;
+    `dest or None` for no parts."""
+    depth = notes_svc._folder_depth(conn, user_id, dest) if dest else 0
+    parts = list(parts)[:max(0, notes_svc.MAX_FOLDER_DEPTH - depth)]
+    if not parts:
+        return dest or None
+    pid = dest or ""
+    for raw in parts:
+        name = (raw or "").strip()[:80] or "Untitled"
+        row = conn.execute(
+            "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
+            (user_id, pid, name)).fetchone()
+        if row is None:
+            return _FOLDER_MISSING
+        pid = row["id"]
+    return pid
+
+
+def _apply_source_renames(
+    conn: sqlite3.Connection, user_id: str, source: dict[str, Any], provider: NoteProvider,
+    remote_notes: list[RemoteNote], import_keys: list[str],
+) -> set[str]:
+    """L2 (live Obsidian probe 2026-11-03): before the existing-row read, re-key the note a
+    remote RENAME moved, so it updates in place instead of a duplicate being created. Only for a
+    provider that reports renames (`pending_renames`/`clear_renames`; Obsidian, from what one
+    final push showed: `obsidian_staging._record_renames`). Every other provider makes no query.
+    Returns the OLD remote ids it moved, which the caller drops from this chunk.
+
+    For each rename whose new path is in this chunk, all of:
+      * no row (live or trashed: the unique index covers both) holds the new key yet;
+      * a row holds the old key, live or in the member's trash;
+      * that row was last imported from the old path's CURRENT staged state: its
+        `import_remote_rev` is the old staged row's `updated_at` (fix round 1). Staging paired
+        the new body with the old path's latest STAGED body; this makes it the last IMPORTED one,
+        as the spec asks. An Obsidian edit pushed but never synced, then a rename, fails it and
+        falls back to today's behaviour: the old note takes the edit (or its conflict), the new
+        path is a new note, and the old one is tagged after two strikes. Nothing is lost and
+        nothing goes untracked;
+    then the row's `import_key` moves to the new key in one raw write that never touches
+    `updated_at`, `imported_at` or `import_remote_rev`. Its id, history, links, favourites and
+    content stay. Its conflict sibling (`<old key>#remote`) moves with it when the new
+    sibling key is free. Its old remote-index row goes (the new path's was written by
+    `_touch_remote_index`), and a `source-deleted` tag comes off. The old path's RemoteNote, if
+    this chunk holds one, is dropped by the caller: confirming it would CREATE a note at the old
+    key that no remote-index row tracks. Then the ordinary import runs:
+      * a TRASHED note stays in the trash; the new key reaches `_prepare_import`'s kept-in-trash
+        path (concern 2), never a live copy;
+      * an UNEDITED note is updated by `import_confirm` like any remote change, which files it
+        in the new folder and gives it the new title;
+      * a note the member EDITED is never rewritten. Its folder moves unless the member had
+        filed it elsewhere in UCT, and its title only while it was still the old file name. Its
+        remote revision is NOT stamped (fix round 1): the conflict gate decides. A rename that
+        kept the file's mtime (Obsidian's own rename does) reads "remote unchanged"; one that
+        moved it is a remote change and gets a "(synced copy)".
+    Anything else applies nothing and the note imports as before. Every record seen here is
+    cleared. Commits."""
+    pending = getattr(provider, "pending_renames", None)
+    if pending is None:
+        return set()
+    by_id = {rn.remote_id: (rn, key) for rn, key in zip(remote_notes, import_keys) if key}
+    hints = pending(conn, list(by_id))
+    if not hints:
+        return set()
+    dest = source.get("destFolderId") or ""
+    moved: set[str] = set()
+
+    def key_taken(key: str) -> bool:
+        return conn.execute("SELECT 1 FROM j2_notes WHERE user_id = ? AND import_key = ?",
+                            (user_id, key)).fetchone() is not None
+
+    for h in hints:
+        rn, new_key = by_id[h["newId"]]
+        old_key = provider.import_key(source["remoteId"], h["oldId"])
+        if old_key == new_key or key_taken(new_key):
+            continue
+        old = conn.execute(
+            "SELECT id, title, folder_id, tags, updated_at, imported_at, import_remote_rev,"
+            " deleted_at FROM j2_notes WHERE user_id = ? AND import_key = ?",
+            (user_id, old_key)).fetchone()
+        if old is None or h.get("oldRev") is None or old["import_remote_rev"] != h["oldRev"]:
+            continue
+        sets: dict[str, Any] = {"import_key": new_key}
+        tags = json.loads(old["tags"] or "[]")
+        if "source-deleted" in tags:
+            sets["tags"] = json.dumps([t for t in tags if t != "source-deleted"])
+        if old["deleted_at"] is None and edited_since_import(old["updated_at"], old["imported_at"]):
+            was = _existing_folder(conn, user_id, dest, h.get("oldFolderPath") or [])
+            if was is not _FOLDER_MISSING and (old["folder_id"] or None) == (was or None):
+                parts = list(rn.folder_path or [])
+                depth = notes_svc._folder_depth(conn, user_id, dest) if dest else 0
+                parts = parts[:max(0, notes_svc.MAX_FOLDER_DEPTH - depth)]
+                sets["folder_id"] = (notes_svc.ensure_folder_path(user_id, parts, dest, conn=conn)
+                                     if parts else (dest or None))
+            title = notes_svc.import_title(rn.title)
+            if old["title"] == h.get("oldFallbackTitle") and title != old["title"]:
+                sets["title"] = title
+        cols = ", ".join(f"{c} = ?" for c in sets)
+        conn.execute(f"UPDATE j2_notes SET {cols} WHERE id = ? AND user_id = ? AND import_key = ?",
+                     (*sets.values(), old["id"], user_id, old_key))
+        if not key_taken(f"{new_key}#remote"):
+            conn.execute("UPDATE j2_notes SET import_key = ? WHERE user_id = ? AND import_key = ?",
+                         (f"{new_key}#remote", user_id, f"{old_key}#remote"))
+        conn.execute(
+            "DELETE FROM j2_note_remote_index WHERE user_id = ? AND source_id = ? AND remote_id = ?",
+            (user_id, source["id"], h["oldId"]))
+        moved.add(h["oldId"])
+    provider.clear_renames(conn, [h["newId"] for h in hints])
+    conn.commit()
+    if moved:
+        log.info("[note-sync] source %s: %d renamed note(s) kept their note (re-keyed)",
+                 source.get("id"), len(moved))
+    return moved
 
 
 def _adopt_file_imports(
@@ -3741,6 +3972,13 @@ def _prepare_import(
     import_keys = [
         provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
     ]
+    # L2: a remote rename moves the existing note onto its new key first (Obsidian only). The
+    # old path's own note, if listed in this chunk, is dropped: confirming it would create an
+    # untracked note at the key the rename just vacated.
+    moved = _apply_source_renames(conn, user_id, source, provider, remote_notes, import_keys)
+    if moved:
+        kept = [(rn, k) for rn, k in zip(remote_notes, import_keys) if rn.remote_id not in moved]
+        remote_notes, import_keys = [rn for rn, _k in kept], [k for _rn, k in kept]
     adopted, adoption_failures = _adopt_file_imports(
         conn, user_id, provider, remote_notes, import_keys, adoption_state)
     existing = _bulk_existing_note_meta(conn, user_id, import_keys)
