@@ -14,7 +14,7 @@ file is changed. Suite: `app/src/agent/qa/capabilityRegression/` + `tests/test_u
 | Contract rail | rail 2, `coverage/contract.json` | Removing a capability, `risk` confirm → local, `undo` exact → none, irreversible → reversible, or a query becoming a change needs `### CAP:<name>`. |
 | Arg validity | rail 3 | Every canonical op in the data passes the registry's own `shapeError`. |
 | Stale descriptions | rail 6 | No summary / hint / shape names an action that is not registered. |
-| NL equivalence corpus | `baseline/corpus.json` (24 intent groups, 138 phrasings, 4 refusal cases) | Each phrasing is checked at three levels (§3). The owner's own sentences are pinned by a Python test so they can't be paraphrased away. |
+| NL equivalence corpus | `baseline/corpus.json` (46 intent groups, 233 phrasings, 4 refusal cases) | Each phrasing is checked at three levels (§3). The owner's own sentences are pinned by a Python test so they can't be paraphrased away. |
 | Golden workflows | `baseline/goldenWorkflows.json` (18) | Previously verified workflows: live production acceptance 11-03 (E-01, E-01′, P-07, A-10a, A-13, C-08, P-09, B-07), hotfix #766 T1–T3, owner acceptance (exact Undo), and the AUDIT live passes of 11-04. Each is replayed through the real panel. |
 | Baseline lock | `baseline/baseline.lock.json`, `tests/test_uct_agent_capreg_baseline.py` | Removing an entry or phrasing, adding a known gap, or changing an entry's assertions needs `### BASELINE:<id>`. Adding entries and removing gaps is free (`--update` re-locks, and refuses while an undecided weakening exists). Self-tested on in-memory mutations. |
 | CI | `.github/workflows/agent-ci.yml` job `capability-regression` | A named, separately requirable check: pytest baseline + `vitest run src/agent/qa/capabilityRegression`, about 2 minutes, no model or key. The same files also run in the four shards (union rail) and in the master deploy gate's `npx vitest run src/agent`. Paid live-model evals (`tools/agent_eval_*`) stay separate and are never run here. |
@@ -41,18 +41,18 @@ production's kinds):
 
 | protection | covered / applicable | meaning |
 |---|---|---|
-| nl | 20 / 154 | a phrasing reaches it with no gap at (b) or (c) |
-| routing | 19 / 154 | the production routed request carries it, and it is not cut by the budget |
-| args | 19 / 154 | a canonical op passes shapeError |
-| execution | 19 / 154 | it runs through the real panel with its canonical API asserted |
-| receipt | 17 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
+| nl | 41 / 154 | a phrasing reaches it with no gap at (b) or (c) |
+| routing | 41 / 154 | the production routed request carries it, and it is not cut by the budget |
+| args | 41 / 154 | a canonical op passes shapeError |
+| execution | 40 / 154 | it runs through the real panel with its canonical API asserted |
+| receipt | 35 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
 | refusal | 8 / 154 | a refusal / must-not-change case |
-| permission | 126 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
-| undo | 9 / 95 | undo-exact capabilities with a restore assertion |
-| multiStep | 9 / 154 | inside a multi-op plan or a multi-step workflow |
-| phrasings | 17 / 154 | ≥ 3 gap-free phrasings |
+| permission | 130 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
+| undo | 17 / 95 | undo-exact capabilities with a restore assertion |
+| multiStep | 10 / 154 | inside a multi-op plan or a multi-step workflow |
+| phrasings | 39 / 154 | ≥ 3 gap-free phrasings |
 
-22 of 154 capabilities have a behavioural regression case. The other 132 are in the backlog. Their contract is
+43 of 154 capabilities have a behavioural regression case (22 at PR open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists). The other 111 are in the backlog. Their contract is
 pinned, but nothing tests their language or execution yet. That backlog is the honest size of the "silent loss"
 exposure.
 
@@ -84,6 +84,13 @@ exposure.
 | CG-7b | a | "NVDA distance from the 52-week high" routes to the screener, not data. | nlfix |
 | CG-8 | c | "undo the change you made to my layout" right after chartGrid.set is refused with "not a layout change". | nlfix |
 | CG-9 | a + c | "put my layout back" is not an Undo phrase. | nlfix |
+| CG-10 | b + c | **Wrong execution:** "unhide the 50 sma" is read deterministically as indicator.hide; the follow-up reader matches "hide" inside "unhide". | agent-core (conversation.js) |
+| CG-11 | a | "how much is NVDA right now" sends no stock.quote. | nlfix |
+| CG-12 | a | "tell me about TSM the company": "tell me" is an alerts word, so routing is [alerts] and stock.profile is not sent. | nlfix |
+| CG-13 | a | "how does NVDA stack up against AMD": "against" is a charts compare word, so stock.compare is not sent. | nlfix |
+| CG-14 | a | "get rid of the AMD chart": "get rid of" is not a workspace verb, so widget.remove is not sent. | nlfix |
+| CG-15 | b + c | **Wrong execution:** "trade places with the left and right charts" is claimed by the quote fast reader as a quote for PLACES / LEFT / CHARTS. | agent-md (marketDataQuote.js) |
+| CG-16 | a | "give me new charts for AAPL and MSFT" routes chartGrid but not widget.addCharts. The owner should rule which one is canonical. | nlfix |
 
 Observations that are not marked as gaps because they need an owner ruling:
 
