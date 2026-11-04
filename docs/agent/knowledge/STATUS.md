@@ -220,7 +220,7 @@ filtering or ranking work would add complexity without a measurable gain; embedd
   6. OWNER DEFAULT (directive 2026-11-04, withhold uncertain): policy `excluded_setup_mentions.mode = "withhold"`:
      every admitted row that NAMES an excluded setup is withheld unless cleared. `serve_flagged` (owner only) re-admits
      the non-definitional ones as a block, flagged commentary_only. policy_version 5, index SCHEMA 5.
-  Real snapshot (counts only): non-dated 2,837 servable, 430 withheld by the mention rule, 0 served flagged; the 71 and
+  Real snapshot (counts only): non-dated 2,837 servable BEFORE the mention rule, 430 of them withheld by it, 2,407 served, 0 served flagged; the 71 and
   the 122 all withheld; 0 served rows match any cue, a variant or a pre-term cue. If the owner chose serve_flagged:
   201 non-dated withheld, 229 served flagged.
 
@@ -235,3 +235,8 @@ The PoC is complete and reviewed; it is waiting on the owner. Release candidate 
 1. Owner: review PR #735; decide sources beyond team-owned; when merges reopen, the integrator merges into `agent/int-w2` and regenerates the golden manifest.
 2. Optional free work within scope: an FTS synonym table for UCT slang (EP, U&R, HTF) to raise recall; health card on the Admin page (needs a page-owner OK).
 3. Do not merge anything; merges are frozen until the owner returns.
+- Second delta review (95db830922): APPROVE WITH NITS for merge-dark. Nit 1 fixed: the search takes the withheld ids,
+  flags and the build they belong to from ONE snapshot (kinds._blocked_snapshot); a rebuild during the computation
+  returns "cannot tell" (nothing served or cached); builds carry a nanosecond build_id (index.build_id). Follow-ups
+  (not blocking): short aliases (peg/coil/bob) and the broad after-cues matter only if the owner ever chooses
+  serve_flagged; a directory fsync after os.replace on Linux.

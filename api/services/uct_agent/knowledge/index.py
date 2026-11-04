@@ -61,6 +61,13 @@ def built_info() -> dict:
         return {}
 
 
+def build_id(info: dict):
+    """The identity of one index build (review #751 nit 1): a nanosecond stamp + process id written at build time, so
+    two builds in the same second never compare equal; an index from before SCHEMA 5 falls back to built_at."""
+    info = info or {}
+    return info.get("build_id") or info.get("built_at")
+
+
 def _norm_title(t: str) -> str:
     return re.sub(r"\s+", " ", str(t or "").strip().lower())
 
@@ -115,7 +122,8 @@ def build() -> dict:
                          1 if m_err else 0))
             dst.execute("INSERT INTO fts(rowid, title, content, tags) VALUES (?,?,?,?)",
                         (int(d["id"]), title, content, str(d.get("tags") or "")))
-        meta = {"schema": SCHEMA, "pack_ts": ts, "built_at": int(time.time()), "rows": len(rows), "duplicates": dups}
+        meta = {"schema": SCHEMA, "pack_ts": ts, "built_at": int(time.time()), "rows": len(rows), "duplicates": dups,
+                "build_id": f"{time.time_ns()}-{os.getpid()}"}
         dst.executemany("INSERT INTO meta VALUES (?,?)", [(k, str(v)) for k, v in meta.items()])
         dst.commit()
         dst.close()

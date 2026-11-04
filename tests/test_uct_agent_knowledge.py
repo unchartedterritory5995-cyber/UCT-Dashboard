@@ -1649,3 +1649,30 @@ def test_r751_a_failed_rebuild_never_serves_the_old_or_a_partial_index(kn, monke
     monkeypatch.setattr(index, "build", real_build)
     index._FAILED.update(at=0.0, ts=None)
     assert index.ensure()["ok"] is True and index.built_info()["pack_ts"] != before["pack_ts"]
+
+
+def test_r751_nit1_the_withheld_list_and_its_build_come_from_one_snapshot(kn, monkeypatch):
+    """review #751 nit 1: a rebuild DURING the withheld-list computation is never paired with either build."""
+    index.ensure()
+    kinds._BLOCKED_CACHE.update(key=None, ids=[], snap=None)
+    real = index.mention_rows
+
+    def rebuilt_meanwhile():
+        out = real()
+        assert index.build()["ok"] is True                   # another thread's rebuild lands here
+        return out
+    monkeypatch.setattr(index, "mention_rows", rebuilt_meanwhile)
+    assert kinds._blocked_snapshot() is None                 # cannot tell: nothing is cached or served
+    assert kinds._BLOCKED_CACHE.get("snap") is None
+    out = read("knowledge.search", {"question": "episodic pivot", "k": 3})
+    assert out["status"] == "unavailable"
+    monkeypatch.setattr(index, "mention_rows", real)
+    snap = kinds._blocked_snapshot()
+    assert snap is not None and snap[2] == index.build_id(index.built_info())
+
+
+def test_r751_nit1_two_builds_in_the_same_second_have_different_ids(kn):
+    a = index.build()
+    b = index.build()
+    assert a["ok"] and b["ok"] and a["build_id"] != b["build_id"]
+    assert index.build_id(index.built_info()) == b["build_id"]
