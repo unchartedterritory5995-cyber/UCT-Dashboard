@@ -97,7 +97,10 @@ member apply those definitions — **no competing setup definitions**.
   mean?" (`SETUP_AMBIGUOUS`). The lists live in `app/src/agent/coach/brain.js` and `api/services/uct_agent/coach/setups.py` (a pytest
   keeps them identical). Every matched form takes the playbook path; none reaches a plain concept-note answer.
 - Model-written replies (server, deterministic): a coach reply that DEFINES a named setup ("A VCP is a …",
-  "High tight flag: …") without citing UCT's playbook is replaced (`coach_guard` code `definition`).
+  "High tight flag: …", "In a VCP, price …", "VCPs form when …", "The VCP pattern is a …") is replaced
+  (`coach_guard` code `definition`) unless coach.explain taught THAT template from `setup.playbook` earlier in the
+  conversation, as its stored citation marker shows (`setup template "VCP"`). Free text never counts as a citation:
+  "UCT's playbook", "approved playbook", a copied template header or team commentary (#751 B-1).
 - The 13 concept docs stay generic education (price action, volume, risk, sizing, market conditions …): a test
   fails if any concept file names a canonical template.
 - Routing: the coach group's words and the `coach.explain` fast path cover COACHING phrasings ("coach me on",

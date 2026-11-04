@@ -332,9 +332,10 @@ def test_catalog_offers_exactly_what_can_be_evaluated():
         seen |= set(partition)
     # ⛔ NON-VACUITY: the tuple really holds the three, and each is non-empty.
     # `ADDRESS_PARTITIONS = ()` satisfies every line above.
-    assert len(ev.ADDRESS_PARTITIONS) == 3
+    assert len(ev.ADDRESS_PARTITIONS) == 4  # 2026-11-04: +1 `ma_cross` (CROSS partition)
     assert all(len(p) for p in ev.ADDRESS_PARTITIONS)
-    assert seen == set(ev.INDICATOR_FUNCS) | set(ev.EVENT_FUNCS) | set(ev.PRICE_FUNCS)
+    assert seen == (set(ev.INDICATOR_FUNCS) | set(ev.EVENT_FUNCS) | set(ev.PRICE_FUNCS)
+                    | set(ev.CROSS_FUNCS))
 
 
 def test_a_group_name_is_never_mistaken_for_an_address():
@@ -633,7 +634,7 @@ def test_on_the_CLOSED_lane_exactly_one_offered_address_produces_nothing():
         "the census and the create-path gate disagree about which addresses the "
         "closed lane cannot answer — one of them is refusing the wrong thing")
     # the non-vacuity floor: the loop really did drive the whole catalog.
-    assert len(evaluator.all_addresses()) == 31
+    assert len(evaluator.all_addresses()) == 32  # 2026-11-04: +1 `ma_cross` (CROSS partition)
 
 
 def test_every_plot_address_resolves_to_the_column_it_names():
@@ -1120,7 +1121,8 @@ def test_catalog_order_is_the_dropdown_order_and_it_did_not_change():
     assert served[8:15] == [
         "vwap", "atr", "adx", "obv", "donchian", "ichimoku", "sar",
     ]
-    assert served[15:] == ["close"]
+    # 2026-11-04: `ma_cross` is a SEVENTEENTH group, appended after `close`.
+    assert served[15:] == ["close", "ma_cross"]
     # …and the three legacy multi-plot bases still open on their legacy address,
     # so the pre-selected plot is the one the bare spelling has always meant.
     by_base = {e["indicator"]: e for e in evaluator.alert_catalog()}

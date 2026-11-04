@@ -54,6 +54,7 @@ import { createStepRunner } from './steps'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
 import { KNOWLEDGE_REF } from './coach/brain'
+import { isCoachMessage } from './capabilities/coach'
 // ⭐ INDICATORS ⇄ AGENT (2026-10-12): the chart's Create Indicator / Modify doors open the Agent; the
 // member's answer to its question runs the existing `indicator.draft` for that chart. See indicatorEntry.js.
 import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, INDICATOR_DOORS, openIndicatorDoor } from './indicatorEntry'
@@ -295,6 +296,17 @@ function fanOutOf(ops) {
 // run, what the rest did STAYS (a new list is never deleted because it could not be opened) and
 // the member is told exactly that. Never a way around approval: they are on the same card.
 const isDeferred = (o) => !!getCapability(o?.action)?.deferred
+// ⛔ LT-15: what a query that came back with NOTHING to show says (never an empty row after a reply that announced it)
+export const NO_RESULT = "I couldn't get a result for that, so there is nothing to show. Try asking again."
+/** True when a capability's answer carries nothing the member could see (no text, table, view, link or chart). */
+// (the keys are the ones present.js presentOf renders — text, table, present, link, chart — plus storedAs; a new visible
+// answer field added there must be added here too, or that answer would be replaced by NO_RESULT)
+export function emptyAnswer(a) {
+  if (a == null) return true
+  if (typeof a === 'string') return !a.trim()
+  if (typeof a !== 'object') return true
+  return !String(a.text || '').trim() && !a.table && !a.present && !a.link && !a.chart && !a.storedAs
+}
 // a model reply that only acknowledges (the receipt that follows is the real confirmation)
 export const BARE_ACK = /^(?:on it|sure(?: thing)?|ok(?:ay)?|got it|will do|doing (?:it|that)(?: now)?|right away|coming (?:right )?up|done|one moment|one sec)[.!…]*$/i
 // alias → the name a creator in these ops will give it (watchlist.create's `as`)
@@ -772,7 +784,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       for (const o of queries) {
         let a
         try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host, capCtx) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
-        answers.push(typeof a === 'string' || a == null ? { text: a || '' } : a)
+        // ⛔ LT-15: never "announce work, then show nothing" — a query that came back with nothing to show (no text,
+        // no table, no view, no link) says so plainly instead of leaving an empty row (or none) after the reply
+        answers.push(emptyAnswer(a) ? { text: NO_RESULT } : (typeof a === 'string' ? { text: a } : a))
       }
       // ⭐ ONE presentation contract (present.js): each answer → the smallest view that carries it,
       // shaped by the member's own request (concise by default, depth when asked).
@@ -1853,7 +1867,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // M2 indicator writes are offered only when some chart on this board can manage indicators.
       const manageIndicators = (() => { try { return host?.charts?.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } })()
       // PLANNER v2 (UCT_AGENT_PLANNER=v2 on the server): the step loop (agent/steps.js) — the v1 request below is untouched
-      if (!nl1 && serverPlanner() === 'v2') {
+      // (a COACH message stays on the v1 path: the server serves coach turns on v1 — review C1 — and only this path shows
+      // the coach's actions, not just its reply; pre-activation, v2 stays off)
+      if (!nl1 && serverPlanner() === 'v2' && !isCoachMessage(text)) {
         if (!v2Ref.current) v2Ref.current = createStepRunner()
         turnPath('model')
         await v2Ref.current.send({ text, voice, manageIndicators, pending: p?.kind === 'proposal' ? p : null }, v2DepsRef.current())

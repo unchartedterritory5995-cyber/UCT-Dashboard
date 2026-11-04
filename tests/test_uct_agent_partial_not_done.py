@@ -43,7 +43,7 @@ UNAMES = {"agent.capabilities", "agent.undo", "chart.setTimeframe"}
 
 
 def test_an_answer_carrying_exactly_agent_undo_becomes_an_apply_of_it_with_no_words():
-    out = turn.sanitize_envelope(_env("answer", [UNDO], None, "Undoing that now."), {"a1", "c1"}, UNAMES)
+    out = turn.sanitize_envelope(turn.promote_talk_reads(_env("answer", [UNDO], None, "Undoing that now.")), {"a1", "c1"}, UNAMES)
     assert out["disposition"] == "apply"
     assert [o["action"] for o in out["ops"]] == ["agent.undo"]
     assert out["reply"] == ""
@@ -51,10 +51,11 @@ def test_an_answer_carrying_exactly_agent_undo_becomes_an_apply_of_it_with_no_wo
 
 def test_nothing_else_is_ever_promoted():
     # a write on an answer stays talk (ops dropped); undo + a write on an answer stays talk too
-    out = turn.sanitize_envelope(_env("answer", [OP], None, "Switching to weekly."), {"c1"}, NAMES)
+    out = turn.sanitize_envelope(turn.promote_talk_reads(_env("answer", [OP], None, "Switching to weekly.")), {"c1"}, NAMES)
     assert out["disposition"] == "answer" and out["ops"] == []
-    out = turn.sanitize_envelope(_env("answer", [UNDO, OP], None, "Done."), {"a1", "c1"}, UNAMES)
+    out = turn.sanitize_envelope(turn.promote_talk_reads(_env("answer", [UNDO, OP], None, "Done.")), {"a1", "c1"}, UNAMES)
     assert out["disposition"] == "answer" and out["ops"] == []
-    # agent.undo not in this request's manifest → not promoted
-    out = turn.sanitize_envelope(_env("answer", [UNDO], None, "Use Undo."), {"a1"}, NAMES)
-    assert out["disposition"] == "answer" and out["ops"] == []
+    # agent.undo not in this request's manifest → nothing runs (the planned-action gate refuses it)
+    import pytest
+    with pytest.raises(turn.TurnError):
+        turn.sanitize_envelope(turn.promote_talk_reads(_env("answer", [UNDO], None, "Use Undo.")), {"a1"}, NAMES)
