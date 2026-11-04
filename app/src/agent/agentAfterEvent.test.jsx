@@ -16,7 +16,7 @@ import { answerFromBars, pullbacksOf, windowFor, match as barsMatch, CAPABILITY 
 import { registerMarketDataCapabilities, _resetForTest } from './capabilities/marketDataQuote'
 import {
   answerFromEventStudy, answerAfterEvent, freshnessLine, match, historyServed, registerHistoryCapability, _resetHistoryForTest,
-  CAPABILITY, KIND, DESCRIPTIVE, DEFAULT_HORIZONS,
+  CAPABILITY, KIND, DESCRIPTIVE, DEFAULT_HORIZONS, BREADTH_DECLINE,
 } from './capabilities/history'
 
 let TURN = 't-history'
@@ -193,6 +193,33 @@ describe('history.afterEvent: served vs dark, local-only', () => {
     expect(match('how has NVDA behaved after earnings')).toBeNull()                           // no gap size: the model asks
     expect(match('how has NVDA behaved after 80% gaps')).toBeNull()
     expect(fastParse('how has NVDA behaved after 5%+ gaps', {})).toBeTruthy()
+  })
+
+  it('PKG2: breakouts, moving-average crosses, RSI levels and a sizeless gap take the fast path; a breadth study is declined in fixed words', async () => {
+    wire([KIND, 'instrument.resolve'])
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    const p = (q) => match(q)?.params
+    expect(p('how does SPY do after new 50-day highs')).toEqual({ symbol: 'SPY', indicator: 'pct_from_high', period: 50, op: 'cross_above', threshold: 0, horizons: [...DEFAULT_HORIZONS], since: null })
+    expect(p('what happens to NVDA after a 20-day breakout')).toMatchObject({ symbol: 'NVDA', indicator: 'pct_from_high', period: 20, op: 'cross_above', threshold: 0 })
+    expect(p('how has AMD performed after it makes a new 52-week high since 2020')).toMatchObject({ indicator: 'pct_from_high', period: 252, since: '2020-01-01' })
+    expect(p('how did QQQ do after 4-week highs')).toMatchObject({ indicator: 'pct_from_high', period: 20 })
+    expect(p('what happens to AMD after it crosses above its 50-day')).toMatchObject({ symbol: 'AMD', indicator: 'pct_from_sma', period: 50, op: 'cross_above', threshold: 0 })
+    expect(p('how has TSLA done after closing below the 200 day moving average?')).toMatchObject({ indicator: 'pct_from_sma', period: 200, op: 'cross_below', threshold: 0 })
+    expect(p('how has NVDA done after RSI drops below 30')).toMatchObject({ indicator: 'rsi', period: 14, op: 'cross_below', threshold: 30 })
+    expect(p('how did NVDA do after its rsi(5) goes above 80')).toMatchObject({ indicator: 'rsi', period: 5, op: 'cross_above', threshold: 80 })
+    expect(p('how has NVDA reacted after earnings gaps')).toMatchObject({ indicator: 'gap_pct', op: 'above', threshold: 5 })
+    // never a pronoun or a vague subject as the ticker, never an out-of-range window
+    expect(match('how has it done after new 50-day highs')).toBeNull()
+    expect(match('how does SPY do after new 900-day highs')).toBeNull()
+    expect(match('how does SPY do after new 3-day highs')).toBeNull()
+    // ADR-005: a breadth-conditioned study → the fixed decline (fastPath `say`), no op, no read
+    expect(match('how does SPY do after breadth thrusts?')).toEqual({ say: BREADTH_DECLINE })
+    expect(match('what happened to the market after a Zweig breadth thrust')).toEqual({ say: BREADTH_DECLINE })
+    expect(fastParse('how does SPY do after breadth thrusts', {})).toEqual({ kind: 'say', text: BREADTH_DECLINE })
+    expect(BREADTH_DECLINE).toMatch(/No figure is stated\.$/)
+    expect(BREADTH_DECLINE).not.toMatch(/\d+(?:\.\d+)?%/)
+    expect(fastParse('when was the last breadth thrust', {})?.kind).not.toBe('say')
   })
 
   it('served: ONE study read after instrument.resolve; the answer is the table; an unconfirmed word reads nothing', async () => {

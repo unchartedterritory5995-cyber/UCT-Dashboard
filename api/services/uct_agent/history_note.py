@@ -6,7 +6,7 @@ agent-qa L6). Lives outside `marketdata/` for that reason.
 """
 from __future__ import annotations
 
-INDICATORS = ("gap_pct", "pct_from_sma", "rsi", "bb_pct_b", "macd_hist")
+INDICATORS = ("gap_pct", "pct_from_sma", "rsi", "bb_pct_b", "macd_hist", "pct_from_high")
 NO_PERIOD = ("gap_pct", "macd_hist")
 ALLOWED_SERIES_KINDS = ("technical",)
 DEFAULT_HORIZONS = (1, 5, 21)
