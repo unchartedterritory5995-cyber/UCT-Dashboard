@@ -189,7 +189,7 @@ def test_concept_retrieval_returns_team_owned_passages_with_provenance(kn):
         assert p["licence"] == "team_owned"
         assert p["kb_id"] and p["title"] and p["source"] and p["trader"]
         assert "episodic" in (p["title"] + p["excerpt"]).lower()
-    assert out["coverage"]["policy_version"] == 3
+    assert out["coverage"]["policy_version"] == 5
     assert out["coverage"]["admitted_sources"] == ["setup_knowledge", "trader_archive"]
 
 
@@ -841,7 +841,7 @@ def test_n3_an_unresolved_origin_is_refused():
 
 def test_n3_served_template_carries_provenance(kn):
     d = read("setup.playbook", {"setup": "EP"})["data"]
-    assert d["licence"] == "team_owned" and "UCT team setup template" in d["source"] and d["approved_by_policy"] == 3
+    assert d["licence"] == "team_owned" and "UCT team setup template" in d["source"] and d["approved_by_policy"] == 5
     assert d["origin_trader"] == "TSDR"
 
 
@@ -1383,11 +1383,11 @@ def test_r4_4_no_interval_figures_are_dropped_on_the_admitted_path_too(kn):
 
 
 def test_r4_6_exclusion_failure_withholds_every_setup_knowledge_setup_row(kn, monkeypatch):
+    # refinement (owner 2026-11-03, AUDIT condition 3): any "cannot tell" withholds EVERYTHING, not only SETUP rows
     kinds._BLOCKED_CACHE.update(key=None, ids=[])
     monkeypatch.setattr(index, "excluded_by_template", lambda admitted: None)          # cannot tell
-    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "episodic pivot catalyst gap trigger", "k": 3})["data"]["passages"]}
-    assert 2 not in ids                                                    # the team SETUP row is withheld
-    assert ids                                                             # other admitted rows still answer
+    out = read("knowledge.search", {"question": "episodic pivot catalyst gap trigger", "k": 3})
+    assert out["status"] == "unavailable" and out["data"] is None
     assert kinds._BLOCKED_CACHE["key"] is None                             # a "cannot tell" is never cached
 
 
@@ -1395,3 +1395,284 @@ def test_r4_6_a_missing_index_file_is_a_cannot_tell(tmp_path, monkeypatch):
     monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_INDEX", str(tmp_path / "absent.db"))
     assert index.excluded_by_template(lambda n: True) is None
 
+
+# ── owner source-policy decision 2026-11-03: mentions of excluded setups in admitted rows ──────────────
+def _add_rows(kn, rows):
+    c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
+    now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+    for (i, cat, title, body, src) in rows:
+        c.execute("INSERT INTO knowledge_base VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (i, cat, title, body, "", "TSDR", f"ref:{i}", "", 2, 1, src, "2026", now, now))
+    c.commit()
+    c.close()
+    (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 11), encoding="utf-8")
+
+
+def _mi(templates):
+    """A real mention index (index._mention_index) over {template name: [aliases]}."""
+    db = sqlite3.connect(":memory:")
+    db.row_factory = sqlite3.Row
+    db.execute("CREATE TABLE setup_templates (name TEXT, aliases TEXT)")
+    db.executemany("INSERT INTO setup_templates VALUES (?,?)", [(n, json.dumps(a)) for n, a in templates.items()])
+    return index._mention_index(db)
+
+
+def _with_policy(monkeypatch, tmp_path, **over):
+    pol = json.loads(Path(os.environ.get("UCT_AGENT_KNOWLEDGE_POLICY") or policy.DEFAULT_PATH).read_text(encoding="utf-8"))
+    pol.update(over)
+    f = tmp_path / f"policy-{time.time_ns()}.json"
+    f.write_text(json.dumps(pol), encoding="utf-8")
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    return pol
+
+
+SERVE_FLAGGED = {"excluded_setup_mentions": {"mode": "serve_flagged"}}
+
+
+MENTION_ROWS = [
+    (60, "SETUP", "TSDR 2026-09-01 t60: cup and handle note",
+     "The cup and handle is a rounded base where the entry is the handle high.", "trader_archive"),      # definitional
+    (61, "SETUP", "TSDR 2026-09-02 t61: watching a cup and handle",
+     "Watching NVDA work on a cup and handle. Patient here; waiting for volume.", "trader_archive"),      # commentary
+    (62, "SETUP", "TSDR 2026-09-03 t62: kicker note",
+     "The kicker is a gap over the moving averages and the entry is the open.", "trader_archive"),       # admitted template
+]
+
+
+def test_refine_definitional_mention_of_an_excluded_setup_is_withheld(kn):
+    _add_rows(kn, MENTION_ROWS)
+    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "cup and handle handle high entry rounded base", "k": 3})["data"]["passages"]}
+    assert 60 not in ids
+
+
+def test_refine_commentary_mention_is_served_and_flagged_only_when_the_owner_re_admits_mentions(kn, monkeypatch, tmp_path):
+    _add_rows(kn, MENTION_ROWS)
+    q = {"question": "watching a cup and handle patient volume", "k": 3}
+    # owner directive 2026-11-04 (review #751 delta 6): by default a row naming an excluded setup is withheld
+    assert 61 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}
+    _with_policy(monkeypatch, tmp_path, **SERVE_FLAGGED)
+    p = next(p for p in read("knowledge.search", q)["data"]["passages"] if p["kb_id"] == 61)
+    assert p["commentary_only"] is True and p["mentions_excluded_setup"] == ["Cup with Handle"]
+    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "cup and handle handle high entry rounded base", "k": 3})["data"]["passages"]}
+    assert 60 not in ids                                                  # a definitional row stays withheld either way
+
+
+def test_refine_admitted_template_definitions_are_untouched(kn):
+    _add_rows(kn, MENTION_ROWS)
+    ps = read("knowledge.search", {"question": "kicker gap over the moving averages entry", "k": 3})["data"]["passages"]
+    p = next(p for p in ps if p["kb_id"] == 62)
+    assert "commentary_only" not in p
+
+
+def test_refine_a_complete_clearance_serves_the_row_only_for_the_text_reviewed(kn, monkeypatch, tmp_path):
+    _add_rows(kn, MENTION_ROWS)
+    index.ensure()
+    sha = index.content_shas([60])[60]
+    entry = {"kb_id": 60, "content_sha": sha, "provenance_ref": "PROV-60", "rights_review_ref": "RR-60",
+             "approved_by": "owner", "approved_on": "2026-11-04"}
+    q = {"question": "cup and handle handle high entry rounded base", "k": 3}
+    _with_policy(monkeypatch, tmp_path, cleared_rows=[entry])
+    p = next(p for p in read("knowledge.search", q)["data"]["passages"] if p["kb_id"] == 60)
+    assert p["commentary_only"] is True                                   # still flagged: cleared is not a definition
+    _with_policy(monkeypatch, tmp_path, cleared_rows=[{**entry, "rights_review_ref": ""}])   # incomplete: withheld
+    assert 60 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}
+    _with_policy(monkeypatch, tmp_path, cleared_rows=[{k: v for k, v in entry.items() if k != "content_sha"}])
+    assert 60 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}   # no sha: withheld
+    # review #751 delta 3: the text changes under the same kb_id (a later pack): the clearance no longer holds
+    _with_policy(monkeypatch, tmp_path, cleared_rows=[entry])
+    c = sqlite3.connect(str(kn["brain"] / "data" / "uct_intelligence.db"))
+    c.execute("UPDATE knowledge_base SET content = content || ' The handle is the whole rule.' WHERE id = 60")
+    c.commit()
+    c.close()
+    (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 31), encoding="utf-8")
+    assert 60 not in {p["kb_id"] for p in read("knowledge.search", q)["data"]["passages"]}
+
+
+def test_refine_shipped_policy_clears_nothing_and_withholds_mentions():
+    shipped = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
+    assert shipped["cleared_rows"] == [] and shipped["excluded_setup_mentions"]["mode"] == "withhold"
+    assert policy.cleared_row_ids() == {}
+    assert policy.excluded_mentions_mode() == policy.MENTIONS_WITHHOLD
+
+
+def test_refine_cue_matches_the_reviewed_pattern():
+    mi = _mi({"Cup with Handle": ["cup and handle"]})
+    for txt in ("A cup and handle is a base", "Cup and Handle rules: buy the handle", "cup and handle - entry at pivot",
+                "the cup and handle stop goes under the handle", "cup and handle criteria"):
+        assert index._mentions(txt, mi)[1] == ["Cup with Handle"], txt
+    # owner directive 2026-11-04: the looser cue crosses a full stop (withheld unless cleared) ...
+    assert index._mentions("Nice cup and handle. It is working.", mi)[1] == ["Cup with Handle"]
+    for txt in ("cup and handle, the trigger is the handle high", "cup and handle buy point at the lip",
+                "this cup and handle setup", "cup and handle" + " x" * 30 + " pivot"):
+        assert index._mentions(txt, mi)[1] == ["Cup with Handle"], txt
+    assert index._mentions("cup and handle" + " x" * 45 + " is", mi)[1] == []                 # ... within 80 characters
+    assert index._mentions("cup and handle forming on SMCI", mi) == (["Cup with Handle"], [], False)
+
+
+def test_refine_unparseable_rows_and_unreadable_index_fail_closed(kn, monkeypatch):
+    assert index._mentions("anything", None) == ([], [], True)                                  # no mention index: error
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    monkeypatch.setattr(index, "mention_rows", lambda: None)
+    out = read("knowledge.search", {"question": "episodic pivot", "k": 3})
+    assert out["status"] == "unavailable" and "cannot verify" in out["notes"][0]
+    assert kinds._BLOCKED_CACHE["key"] is None
+
+
+def test_refine_mention_error_rows_are_withheld(kn, monkeypatch):
+    _add_rows(kn, MENTION_ROWS)
+    index.ensure()
+    real = index.mention_rows
+    monkeypatch.setattr(index, "mention_rows", lambda: [(r[0], r[1], r[2], r[3], r[4], 1 if r[0] == 61 else r[5]) for r in real()])
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    ids = {p["kb_id"] for p in read("knowledge.search", {"question": "watching a cup and handle patient volume", "k": 3})["data"]["passages"]}
+    assert 61 not in ids
+
+
+def test_refine_frame_rule_tells_the_model_commentary_is_not_a_definition():
+    from api.services.uct_agent.knowledge import frame
+    assert "commentary only, never UCT's definition" in frame.RULE
+
+
+
+# ── review #751 queue (before activation): boundaries, clearance formats, non-blocking rebuild ─────────────────────
+def test_r751_a_term_ending_in_a_bracket_still_matches_as_a_whole_term():
+    mi = _mi({"Episodic Pivot": ["ep (earnings)"]})
+    assert index._mentions("The EP (earnings) is a gap on a report.", mi) == (["Episodic Pivot"], ["Episodic Pivot"], False)
+    assert index._mentions("STEP (earnings) noted", mi) == ([], [], False)                  # not inside a longer word
+
+
+def test_r751_spelling_variants_are_the_same_term():
+    """review #751 delta 1: hyphens, NBSP, double spaces, case, '&' for 'and', a plural, no spaces, full-width."""
+    mi = _mi({"Cup with Handle": ["cup and handle"], "High Tight Flag": ["high tight flag", "htf"]})
+    for txt in ("Watching a Cup-and-Handle on NVDA", "watching a cup\u00a0and handle", "watching a cup  and   handle",
+                "watching a CUP & HANDLE", "two cup and handles forming", "a cupandhandle forming",
+                "a cup_and_handle forming", "a \uff23\uff35\uff30 and handle forming"):
+        assert index._mentions(txt, mi)[0] == ["Cup with Handle"], txt
+    assert index._mentions("Cup-and-Handle is defined by the handle", mi)[1] == ["Cup with Handle"]
+    assert index._mentions("two HTFs on the list", mi)[0] == ["High Tight Flag"]
+    assert index._mentions("a cupboard and a handle", mi) == ([], [], False)
+
+
+def test_r751_definitional_wording_before_the_term_withholds():
+    """review #751 delta 2: 'definition of a X', 'we call this a X', 'known as X', and after-term refers to / must."""
+    mi = _mi({"Cup with Handle": ["cup and handle"]})
+    for txt in ("Here is the definition of a cup and handle: a rounded base.", "We call this a cup and handle.",
+                "This pattern is known as a cup and handle", "Cup and handle refers to a base with a handle",
+                "the cup and handle must have a handle in the upper half", "a cup and handle should form over 7 weeks"):
+        assert index._mentions(txt, mi)[1] == ["Cup with Handle"], txt
+
+
+def test_r751_clearance_fields_must_be_well_formed(monkeypatch, tmp_path):
+    sha = "a" * 64
+    good = {"kb_id": 60, "content_sha": sha, "provenance_ref": "PROV-60", "rights_review_ref": "RR-60",
+            "approved_by": "owner", "approved_on": "2026-11-01"}
+    cases = [({}, True), ({"approved_on": "11/01/2026"}, False), ({"approved_on": "2026-02-30"}, False),
+             ({"approved_on": "2999-01-01"}, False), ({"approved_by": "!"}, False), ({"approved_by": "x" * 81}, False),
+             ({"approved_by": "1234"}, False), ({"kb_id": True}, False), ({"kb_id": -3}, False), ({"kb_id": "60"}, True),
+             ({"content_sha": ""}, False), ({"content_sha": "abc"}, False), ({"content_sha": "g" * 64}, False),
+             ({"content_sha": "A" * 64}, True)]
+    pol = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
+    f = tmp_path / "p.json"
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+    for i, (over, ok) in enumerate(cases):
+        pol["cleared_rows"] = [{**good, **over}]
+        f.write_text(json.dumps(pol), encoding="utf-8")
+        os.utime(f, (time.time() + i + 1, time.time() + i + 1))
+        got = policy.cleared_row_ids()
+        assert (set(got) == {60}) is ok, over
+        if ok:
+            assert got[60] == str({**good, **over}["content_sha"]).lower()
+
+
+def test_r751_mentions_mode_only_serve_flagged_re_admits(monkeypatch, tmp_path):
+    for v, want in ((None, "withhold"), ("withhold", "withhold"), ("SERVE_FLAGGED", "serve_flagged"), ("serve", "withhold"),
+                    (["serve_flagged"], "withhold")):
+        _with_policy(monkeypatch, tmp_path, excluded_setup_mentions={"mode": v})
+        assert policy.excluded_mentions_mode() == want, v
+    _with_policy(monkeypatch, tmp_path, excluded_setup_mentions="serve_flagged")
+    assert policy.excluded_mentions_mode() == "withhold"
+
+
+def test_r751_a_swap_between_the_withheld_list_and_the_query_serves_nothing(kn, monkeypatch):
+    """review #751 delta 4: the withheld list belongs to the index it was computed on."""
+    index.ensure()
+    real = index.query
+
+    def swapped(*a, **k):
+        out = real(*a, **k)
+        monkeypatch.setattr(index, "built_info", lambda: {"built_at": "999", "pack_ts": "x", "schema": str(index.SCHEMA)})
+        return out
+    monkeypatch.setattr(index, "query", swapped)
+    out = read("knowledge.search", {"question": "episodic pivot", "k": 3})
+    assert out["status"] == "unavailable" and out["notes"][0] == index.REBUILDING
+
+
+def test_r751_a_search_never_waits_for_another_threads_rebuild(kn):
+    index.ensure()
+    (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 50), encoding="utf-8")   # index now stale
+    assert index._LOCK.acquire(blocking=False)
+    try:
+        t0 = time.time()
+        out = index.ensure()
+        assert out == {"ok": False, "reason": index.REBUILDING} and time.time() - t0 < 0.5
+        ids = read("knowledge.search", {"question": "episodic pivot", "k": 3})
+        assert ids["status"] == "unavailable"                                 # nothing from the old index
+    finally:
+        index._LOCK.release()
+    assert index.ensure()["ok"] is True                                       # the next request rebuilds
+
+
+def test_r751_a_failed_rebuild_never_serves_the_old_or_a_partial_index(kn, monkeypatch):
+    """Owner 2026-11-04: a rebuild never serves stale or partially rebuilt knowledge. The new index is written to a
+    temporary file and swapped in by one os.replace; a failed build leaves no file behind, the old file untouched, and
+    the stale index is not served (its pack_ts no longer matches the installed pack)."""
+    import sqlite3 as _sq
+    assert index.ensure()["ok"] is True
+    target = index.index_path()
+    before = index.built_info()
+    (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 70), encoding="utf-8")   # a new pack landed
+    real, real_build = index._template_aliases, index.build
+
+    def boom(src):
+        raise _sq.OperationalError("disk I/O error")
+    monkeypatch.setattr(index, "_template_aliases", boom)
+    assert index.build()["ok"] is False
+    assert index.built_info() == before                                       # old file untouched, never half-written
+    assert not [f for f in os.listdir(os.path.dirname(target)) if ".build-" in f]   # no temporary file left
+    index._FAILED.update(at=0.0, ts=None)
+    kinds._BLOCKED_CACHE.update(key=None, ids=[])
+    monkeypatch.setattr(index, "build", lambda: {"ok": False, "reason": "index build failed"})
+    out = read("knowledge.search", {"question": "episodic pivot", "k": 3})
+    assert out["status"] == "unavailable" and not (out.get("data") or {}).get("passages")   # stale index not served
+    monkeypatch.setattr(index, "_template_aliases", real)
+    monkeypatch.setattr(index, "build", real_build)
+    index._FAILED.update(at=0.0, ts=None)
+    assert index.ensure()["ok"] is True and index.built_info()["pack_ts"] != before["pack_ts"]
+
+
+def test_r751_nit1_the_withheld_list_and_its_build_come_from_one_snapshot(kn, monkeypatch):
+    """review #751 nit 1: a rebuild DURING the withheld-list computation is never paired with either build."""
+    index.ensure()
+    kinds._BLOCKED_CACHE.update(key=None, ids=[], snap=None)
+    real = index.mention_rows
+
+    def rebuilt_meanwhile():
+        out = real()
+        assert index.build()["ok"] is True                   # another thread's rebuild lands here
+        return out
+    monkeypatch.setattr(index, "mention_rows", rebuilt_meanwhile)
+    assert kinds._blocked_snapshot() is None                 # cannot tell: nothing is cached or served
+    assert kinds._BLOCKED_CACHE.get("snap") is None
+    out = read("knowledge.search", {"question": "episodic pivot", "k": 3})
+    assert out["status"] == "unavailable"
+    monkeypatch.setattr(index, "mention_rows", real)
+    snap = kinds._blocked_snapshot()
+    assert snap is not None and snap[2] == index.build_id(index.built_info())
+
+
+def test_r751_nit1_two_builds_in_the_same_second_have_different_ids(kn):
+    a = index.build()
+    b = index.build()
+    assert a["ok"] and b["ok"] and a["build_id"] != b["build_id"]
+    assert index.build_id(index.built_info()) == b["build_id"]

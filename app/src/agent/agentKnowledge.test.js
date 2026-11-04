@@ -167,3 +167,15 @@ describe('review #735 B1: the sign of a controlled edge is always shown', () => 
     expect(t).not.toContain('n = 120')
   })
 })
+
+describe('owner source-policy 2026-11-03: commentary on an excluded setup is labelled in the text the model reads', () => {
+  it('a flagged passage carries the commentary note; an unflagged one does not', () => {
+    const e = env('knowledge.search', { method: 'fts', passages: [
+      { kb_id: 61, title: 'TSDR t61: watching a cup and handle', category: 'SETUP', trader: 'TSDR', source: "the UCT team's own posts (dated)", licence: 'team_owned', excerpt: 'Watching NVDA.', mentions_excluded_setup: ['Cup with Handle'], commentary_only: true },
+      { kb_id: 62, title: 'TSDR t62: kicker note', category: 'SETUP', trader: 'TSDR', source: "the UCT team's own posts (dated)", licence: 'team_owned', excerpt: 'Kicker note.' },
+    ] })
+    const a = answerFromSearch(e)
+    expect(a.text).toContain("[team commentary that mentions Cup with Handle; not UCT's definition of it]")
+    expect(a.text.split('\n').find(l => l.includes('t62'))).not.toContain('team commentary')
+  })
+})
