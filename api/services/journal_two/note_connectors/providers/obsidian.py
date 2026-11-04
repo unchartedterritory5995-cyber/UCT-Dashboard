@@ -1675,6 +1675,9 @@ class ObsidianProvider(NoteProvider):
     """
 
     name = "obsidian"
+    #: L1 fix round 1: the manifest is the plugin's own walk of the vault, so a path missing from
+    #: it is gone (`NoteProvider.enumeration_is_authoritative`).
+    enumeration_is_authoritative = True
 
     def __init__(
         self, *, user_id: str, vault_id: str, client: httpx.AsyncClient | None = None,
@@ -1919,6 +1922,56 @@ class ObsidianProvider(NoteProvider):
         finally:
             conn.close()
         return [RemoteRef(remote_id=r["vault_path"], updated_at=r["recorded_at"]) for r in rows]
+
+    def media_ref_names_content(self, ref: str) -> bool:
+        """L4 (2026-11-03): a staged-blob ref (`obsidian-att:<sha256>/...`,
+        `obsidian-file:<sha256>/...`) names its bytes, so the engine reuses what a note already
+        stored for it on an update. A hotlink (`http(s)://`) does not: its bytes can change."""
+        for scheme in (ATT_SCHEME, FILE_SCHEME):
+            if isinstance(ref, str) and ref.startswith(scheme):
+                return bool(_SHA_RE.fullmatch(ref[len(scheme):].split("/", 1)[0]))
+        return False
+
+    def pending_renames(self, conn: Any, remote_ids: list[str]) -> list[dict[str, Any]]:
+        """L2 (2026-11-03): the renames a final push recorded (`obsidian_staging._record_renames`)
+        whose NEW path is among `remote_ids`, still true now: the old path is not back in the
+        manifest (a rename undone, or the file copied back, before the sync ran moves nothing).
+        A record whose new path left the manifest is already gone (`_record_renames` drops it). Each is
+        `{newId, oldId, oldRev, oldFolderPath, oldFallbackTitle}`: what the engine needs to
+        re-key the note at `oldId`, to check it was last imported from the old path's current
+        staged state (`oldRev`, that row's `updated_at`, the revision `import_confirm` stamps),
+        and to tell whether the member moved or renamed it in UCT since.
+        Read on the engine's connection, scoped to this member and vault like every query here."""
+        ids = sorted({r for r in remote_ids if r})
+        out: list[dict[str, Any]] = []
+        for i in range(0, len(ids), 400):  # sqlite variable-limit safety
+            part = ids[i:i + 400]
+            marks = ",".join("?" * len(part))
+            rows = conn.execute(
+                "SELECT r.new_path, r.old_path, (SELECT s.updated_at FROM j2_obsidian_staging s"
+                "   WHERE s.user_id = r.user_id AND s.vault_id = r.vault_id"
+                "   AND s.vault_path = r.old_path) AS old_rev FROM j2_obsidian_renames r"
+                " WHERE r.user_id = ? AND r.vault_id = ?"
+                f" AND r.new_path IN ({marks})"
+                " AND NOT EXISTS (SELECT 1 FROM j2_obsidian_manifest m WHERE m.user_id = r.user_id"
+                "   AND m.vault_id = r.vault_id AND m.vault_path = r.old_path)",
+                (self.user_id, self.vault_id, *part),
+            ).fetchall()
+            out.extend({"newId": r["new_path"], "oldId": r["old_path"], "oldRev": r["old_rev"],
+                        "oldFolderPath": _folder_path_of(r["old_path"]),
+                        "oldFallbackTitle": _basename_sans_ext(r["old_path"])} for r in rows)
+        return out
+
+    def clear_renames(self, conn: Any, remote_ids: list[str]) -> None:
+        """L2: drop the rename records for these NEW paths (applied, or found not to apply).
+        Left to the caller to commit, on its connection."""
+        ids = sorted({r for r in remote_ids if r})
+        for i in range(0, len(ids), 400):
+            part = ids[i:i + 400]
+            conn.execute(
+                "DELETE FROM j2_obsidian_renames WHERE user_id = ? AND vault_id = ?"
+                f" AND new_path IN ({','.join('?' * len(part))})",
+                (self.user_id, self.vault_id, *part))
 
     def _convert_row(self, vault_path: str, body_md: str, known_paths: list[str],
                       basename_map: dict[str, list[str]], *,

@@ -67,7 +67,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
       sources: [{
         id: 's1', provider: 'roam', displayName: 'My Graph', remoteId: 'my-graph',
         syncEnabled: true, status: 'active', lastSyncAt: '2026-08-01T00:00:00Z',
-        lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null, syncing: false,
+        lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null, syncing: false, queued: false,
         pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
         pluginVersion: null, pluginSupportsAttachments: null,
         counts: {
@@ -108,7 +108,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
       sources: [{
         id: 's2', provider: 'craft', displayName: 'My Space', remoteId: 'link-1',
         syncEnabled: false, status: 'broken', lastSyncAt: '2026-08-02T00:00:00Z',
-        lastSyncStatus: 'error', lastSyncError: 'token expired', warmingUntil: null, syncing: false,
+        lastSyncStatus: 'error', lastSyncError: 'token expired', warmingUntil: null, syncing: false, queued: false,
         pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
         pluginVersion: null, pluginSupportsAttachments: null,
         counts: {
@@ -356,6 +356,16 @@ describe('normalizeSource — syncing (fix round 1, I3)', () => {
     expect(normalizeSource({ id: 's', syncing: true }).syncing).toBe(true)
     expect(normalizeSource({ id: 's', syncing: false }).syncing).toBe(false)
     expect(normalizeSource({ id: 's' }).syncing).toBe(false)
+  })
+})
+
+describe('normalizeSource — queued (D4-2: a pass waiting for a shared pass slot)', () => {
+  it('reads the server flag, defaulting to false', () => {
+    expect(normalizeSource({ id: 's', queued: true }).queued).toBe(true)
+    expect(normalizeSource({ id: 's' }).queued).toBe(false)
+  })
+  it('polls while a source is queued', () => {
+    expect(connectorsRefreshInterval({ providers: { evernote: { sources: [{ id: 'a', queued: true }] } } })).toBe(10000)
   })
 })
 

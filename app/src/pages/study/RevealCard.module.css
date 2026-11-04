@@ -2,6 +2,7 @@
    bar, never a modal. Verdict words in gold / muted ink; never green or red. */
 
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
@@ -245,3 +246,6 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+
+/* the mark reacts to the verdict (happy / oops), top right, clear of the text */
+.mark { position: absolute; top: var(--space-sm); right: var(--space-md); }

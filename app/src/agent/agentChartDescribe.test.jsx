@@ -10,18 +10,19 @@ import handshake from './__fixtures__/program/isolation.json'
 import KN1 from './__fixtures__/kn1-measurables-v1.json'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
-import { setupPanel, ONE } from './testing/panelHarness'
+import { setupPanel, ONE, FOUR } from './testing/panelHarness'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
-import { allCapabilityNames, getCapability, manifestFor } from './capabilities'
+import { allCapabilityNames, getCapability, manifestFor, registerCapability } from './capabilities'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { fastParse } from './fastPath'
 import { selectGroups, groupOfAction } from './routing'
 import { _resetTurns } from './trace'
 import { resolveEnvelope } from './marketdata/__fixtures__/fakeResolve'
 import {
-  answerFromSetup, setupOf, weeklyBars, match, describeServed, registerChartDescribeCapability, _resetDescribeForTest,
+  answerFromSetup, setupOf, weeklyBars, match, matchSymbol, chartForSymbol, describeServed, registerChartDescribeCapability, _resetDescribeForTest,
   CAPABILITY, KIND, MEASURABLES, DESCRIPTIVE, BARS,
 } from './capabilities/chartDescribe'
+import { NO_RESULT, emptyAnswer } from './useAgent'
 
 registerBuiltins()
 const REPO = path.resolve(__dirname, '../../..')
@@ -250,5 +251,109 @@ describe('chart.describeSetup: served panel, follow-ups, dark, isolation', () =>
     expect(match("what's the chart")).toBeNull()
     expect(match('describe the setup of NVDA in detail please')).toBeNull()
     expect(fastParse('describe this setup', {})).toBeTruthy()
+  })
+})
+
+// ── LT-15 (live 2026-11-03): "describe the setup on nvda" on a 4-chart board answered "Checking NVDA's daily setup now."
+// and then showed nothing. The named-symbol phrase is now UCT's own (fast path, no model): the chart showing the ticker,
+// else ANY chart as the op's target with nothing borrowed from it (bars.daily is per symbol); a word that only MIGHT be
+// a ticker gets the neutral question; and a read that comes back with nothing says so (never an empty row).
+describe('LT-15: "describe the setup on <SYMBOL>"', () => {
+  beforeEach(() => { _resetAgentConfig(); _resetTurns(); _resetDescribeForTest(); config = SERVED; wirePanel() })
+  afterEach(() => { _resetTurns(); _resetDescribeForTest(); vi.restoreAllMocks() })
+
+  it('pure: the phrase → the symbol as typed and a timeframe; chart words, pronouns and positions are not tickers', async () => {
+    await loadAgentConfig()
+    expect(matchSymbol('describe the setup on nvda')).toEqual({ symbol: 'nvda', timeframe: null })
+    expect(matchSymbol("What's the setup on $NVDA?")).toEqual({ symbol: 'NVDA', timeframe: null })
+    expect(matchSymbol("describe NVDA's weekly setup")).toEqual({ symbol: 'NVDA', timeframe: 'W' })
+    expect(matchSymbol('describe the setup for amd on the weekly')).toEqual({ symbol: 'amd', timeframe: 'W' })
+    expect(matchSymbol('describe the daily setup of the NVDA chart')).toEqual({ symbol: 'NVDA', timeframe: 'D' })
+    for (const t of ['describe the setup on this chart', 'describe the setup on it', 'describe the setup on the weekly',
+      'describe the setup on the left chart', 'describe this setup', 'describe the setup on nvda and amd', 'buy nvda']) expect(matchSymbol(t), t).toBeNull()
+    const charts = [{ ref: 'a', symbol: 'SPY' }, { ref: 'b', symbol: 'NVDA' }, { ref: 'c', symbol: 'NVDA' }, { ref: 'd', symbol: 'SPY' }]
+    expect(chartForSymbol('nvda', charts)).toBe('b')                    // the chart showing it (first in reading order)
+    expect(chartForSymbol('NVDA', charts, 'c')).toBe('c')               // …the selected one when several do
+    expect(chartForSymbol('AMD', charts, 'd')).toBe('d')                // none shows it: the selected chart
+    expect(chartForSymbol('AMD', charts)).toBe('a')                     // …else the first
+    expect(chartForSymbol('AMD', [])).toBeNull()
+  })
+
+  it('NVDA on a chart (top-left of four, nothing selected): no model, no "Which chart?", ONE bars read of NVDA, that chart\'s card', async () => {
+    const { say, board } = p.mount(...FOUR(['NVDA', 'SPY', 'SPY', 'SPY']))
+    const out = await say('describe the setup on nvda')
+    expect(p.turns()).toBe(0)
+    expect(out).not.toMatch(/Which chart/)
+    expect(reads.map(r => r.kind)).toEqual(['bars.daily'])               // the chart's own ticker: no index read
+    expect(reads[0].params).toEqual({ symbol: 'NVDA', bars: 252 })
+    expect(out).toMatch(/NVDA — daily setup \(.*NVDA\)\), from 252 completed sessions/)
+    expect(out).toContain('On the chart:')
+    expect(out).toContain(DESCRIPTIVE)
+    expect(board.state.widgets.filter(w => w.type === 'chart')).toHaveLength(4)
+    // "this chart" on the same board still asks which one (unchanged)
+    const which = await say('describe the setup on this chart')
+    expect(which).toMatch(/Which chart/)
+    expect(reads.filter(r => r.kind === 'bars.daily')).toHaveLength(1)
+  })
+
+  it('NVDA on NO chart (four SPY charts): resolved through the index, then ONE bars read; nothing borrowed from an SPY chart', async () => {
+    const { say, h } = p.mount(...FOUR(['SPY', 'SPY', 'SPY', 'SPY']))
+    const before = h.charts.list().map(c => c.symbol)
+    const out = await say('describe the setup on nvda')
+    expect(p.turns()).toBe(0)
+    expect(reads.map(r => r.kind)).toEqual(['instrument.resolve', 'bars.daily'])
+    expect(reads[1].params).toEqual({ symbol: 'NVDA', bars: 252 })
+    expect(out).toMatch(/NVDA( \(.*\))? — daily setup, from 252 completed sessions/)
+    expect(out).not.toMatch(/SPY|On the chart:/)                        // no SPY label, no SPY indicators
+    expect(h.charts.list().map(c => c.symbol)).toEqual(before)          // no chart was changed
+  })
+
+  it('an ambiguous word ("meta", no META chart): the neutral question, no bars read, no figure', async () => {
+    const { say } = p.mount(...FOUR(['NVDA', 'SPY', 'SPY', 'SPY']))
+    const out = await say('describe the setup on meta')
+    expect(p.turns()).toBe(0)
+    expect(reads.map(r => r.kind)).toEqual(['instrument.resolve'])
+    expect(out).toContain('I\'m not sure which instrument "meta" means.')
+    expect(out.replace(/\d{1,2}:\d{2}\s?[AP]M/g, '')).not.toMatch(/\d/)      // (the row's timestamp aside)
+    // the same word typed as a ticker is described
+    const sure = await say('describe the setup on META')
+    expect(reads.at(-1)).toMatchObject({ kind: 'bars.daily', params: { symbol: 'META', bars: 252 } })
+    expect(sure).toMatch(/META( \(.*\))? — daily setup/)
+  })
+
+  it('model path: an apply naming a symbol on an SPY chart (the live plan, scripted) describes that symbol', async () => {
+    const { say } = p.mount(...FOUR(['NVDA', 'SPY', 'SPY', 'SPY']))
+    // (the model's refs are c1…c4 in reading order: c1 = the NVDA chart, c2 = an SPY chart)
+    p.st.envelopes.push(p.env('apply', [{ action: CAPABILITY, target: 'c2', args: { symbol: 'NVDA', timeframe: null } }], ''))
+    const out = await say("can you give me a read on nvda's setup")
+    expect(p.turns()).toBe(1)
+    expect(reads.map(r => r.kind)).toEqual(['instrument.resolve', 'bars.daily'])
+    expect(out).toMatch(/NVDA( \(.*\))? — daily setup, from/)
+    expect(out).not.toMatch(/SPY/)
+  })
+
+  it('silent-failure path: a bars read that fails says so; a read that returns NOTHING says so — never an empty row', async () => {
+    // (1) bars unavailable → the capability's own honest sentence
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = String(url)
+      const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+      if (u === '/api/agent/config') return json(config)
+      if (u === '/api/agent/data') { const b = JSON.parse(init.body); reads.push(b); return json(b.kind === 'instrument.resolve' ? resolveEnvelope(b.params) : { status: 'unavailable', data: null }) }
+      if (u === '/api/agent/turn') return json({ conversationId: 'ac_1', envelope: p.st.envelopes.shift(), usage: { research_calls: 0, citations: [] } })
+      return json({ conversations: [] })
+    })
+    const { say } = p.mount(...FOUR(['NVDA', 'SPY', 'SPY', 'SPY']))
+    const failed = await say('describe the setup on nvda')
+    expect(failed).toContain("I couldn't describe NVDA's setup: its completed daily bars are not available from UCT's market data. No figure is stated.")
+    // (2) any query that returns nothing at all → NO_RESULT after the plan's reply
+    expect([null, undefined, '', '   ', {}, { text: '' }].every(emptyAnswer)).toBe(true)
+    expect([' x', { text: 'x' }, { present: { kind: 'metrics' } }, { table: { rows: [] } }].some(emptyAnswer)).toBe(false)
+    const off = registerCapability({ name: 'lt15.emptyRead', target: 'chart', query: true, surfaces: ['charts'], summary: 'A read that returns nothing (test).',
+      args: { type: 'object', properties: {}, required: [], additionalProperties: false }, answer: () => null })
+    try {
+      p.st.envelopes.push(p.env('apply', [{ action: 'lt15.emptyRead', target: 'c1', args: {} }], ''))
+      const empty = await say('read something that comes back empty')
+      expect(empty).toContain(NO_RESULT)
+    } finally { off() }
   })
 })

@@ -117,6 +117,14 @@ class NoteProvider(ABC):
     #: pass reads exactly as it did.
     follow_up_on_rate_limit: bool = False
 
+    #: L1 fix round 1 (2026-11-03): True when the provider's complete listing is AUTHORITATIVE:
+    #: a path missing from it is gone at the source, never a listing that came back short (an API
+    #: page cap, a search index lag, a permission blip). Only then does delete detection skip its
+    #: <50% guard on a small source (`engine.DELETE_GUARD_MIN_KNOWN`). Obsidian's manifest is the
+    #: plugin's own walk of the vault, refused by staging when empty or padded: True there. Every
+    #: API-listed provider keeps the full guard at any size. Default False.
+    enumeration_is_authoritative: bool = False
+
     def listing_revision(self, ref: RemoteRef) -> str | None:
         """Fix round 1 (D1): the note revision the LISTING reported for `ref`, when the
         provider has a real one (the same field its `fetch` stores as the note's revision), else

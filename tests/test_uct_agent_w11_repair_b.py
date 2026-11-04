@@ -107,7 +107,7 @@ def test_no_false_positive_on_honest_or_unrelated_replies(e):
 def test_only_the_live_families_are_checked_and_price_alerts_are_out_of_scope():
     # W1.1 review BLOCKING-1: the check covers the families seen live (indicator alerts, rename) only
     assert turn.false_capability_claim(env("answer", reply="Price alerts aren't available from here yet."), NAMES) is None
-    assert [f[0] for f in turn.CLAIM_FAMILIES] == ["indicatorAlerts", "rename"]
+    assert [f[0] for f in turn.CLAIM_FAMILIES] == ["indicatorAlerts", "rename", "undo"]   # undo: live T2, hotfix 2026-11-03
     # "indicator alerts" never counts when only alert.* exists
     assert turn.false_capability_claim(env("answer", reply="Indicator alerts aren't available from here yet."), {"alert.create"}) is None
 

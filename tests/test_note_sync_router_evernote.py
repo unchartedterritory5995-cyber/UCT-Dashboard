@@ -502,7 +502,19 @@ def test_status_says_which_sources_are_syncing(client_admin, monkeypatch):
     monkeypatch.setattr(engine, "is_source_busy", lambda sid: sid == src["id"])
     body = client_admin.get(f"{BASE}/status").json()
     [row] = body["providers"]["evernote"]["sources"]
-    assert row["syncing"] is True
+    assert row["syncing"] is True and row["queued"] is False
+
+
+def test_status_says_queued_not_syncing_while_a_pass_waits_for_a_slot(client_admin, monkeypatch):
+    # D4-2: a pass waiting for one of the shared pass slots holds the source's in-flight lock but
+    # is not running: the row reads "queued", never "syncing now".
+    from api.services.journal_two.note_connectors import engine
+    src = _seed_evernote_source()
+    monkeypatch.setattr(engine, "is_source_busy", lambda sid: sid == src["id"])
+    monkeypatch.setattr(engine, "is_source_queued", lambda sid: sid == src["id"])
+    body = client_admin.get(f"{BASE}/status").json()
+    [row] = body["providers"]["evernote"]["sources"]
+    assert row["queued"] is True and row["syncing"] is False
 
 
 def test_the_background_choice_reads_follow_up_on_rate_limit_and_nothing_else(monkeypatch):

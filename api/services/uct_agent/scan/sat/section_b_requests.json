@@ -1329,6 +1329,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -2041,6 +2042,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -4069,7 +4071,7 @@
     "domain": "chart",
     "target": "board",
     "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
-    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).",
+    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
     "args": {
      "type": "object",
      "properties": {
@@ -4523,6 +4525,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -5060,6 +5063,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -6224,7 +6228,7 @@
     "domain": "chart",
     "target": "board",
     "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
-    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).",
+    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
     "args": {
      "type": "object",
      "properties": {
@@ -6451,6 +6455,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -7615,7 +7620,7 @@
     "domain": "chart",
     "target": "board",
     "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
-    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).",
+    "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
     "args": {
      "type": "object",
      "properties": {
@@ -8069,6 +8074,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -8757,6 +8763,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -9368,6 +9375,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -9677,8 +9685,8 @@
     "name": "indicatorAlert.create",
     "domain": "indicatorAlert",
     "target": "indicatorAlertLibrary",
-    "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band…), exactly as the chart's Indicator Alerts popover does: the alert watches that chart's symbol and timeframe with the instance's own settings. Undo deletes it.",
-    "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: \"crosses above 70\" = cross_above 70; \"is over 70\" = above 70); threshold = the level as a number when the condition has one, else null. A PRICE level alert (\"when NVDA hits 150\") is alert.create, not this. Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.",
+    "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD line crossing a level, price touching a Bollinger band, the 9 EMA crossing above the 20 EMA…), as the chart's Indicator Alerts popover does: the alert watches that chart's symbol and timeframe with the instance's own settings. Undo deletes it.",
+    "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from the indicators entry of the chart they mean (never a name); plot = null, or for an indicator with several lines the plot address the catalog names (e.g. macd.signal) — if you are not sure which line, ask; condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (what the member said: \"crosses above 70\" = cross_above 70; \"is over 70\" = above 70); threshold = the level as a number when the condition has one, else null. A PRICE level alert (\"when NVDA hits 150\") is alert.create, not this. MA cross (\"the 9 ema crosses above the 20\"): instance = the 9, crossWith = the 20 (ids), condition cross_above|cross_below, threshold null; crossWith = null otherwise. chart = the ref of the chart the alert is for (one indicator id can be on several charts). Always proposed first (disposition propose). For an indicator not on any chart, say to add it first.",
     "args": {
      "type": "object",
      "properties": {
@@ -9699,13 +9707,27 @@
         "number",
         "null"
        ]
+      },
+      "crossWith": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "chart": {
+       "type": [
+        "string",
+        "null"
+       ]
       }
      },
      "required": [
       "instance",
       "plot",
       "condition",
-      "threshold"
+      "threshold",
+      "crossWith",
+      "chart"
      ],
      "additionalProperties": false
     },
@@ -10152,6 +10174,7 @@
         "journal",
         "appSettings",
         "guide",
+        "undo",
         "similarity",
         "overview",
         "other"
@@ -10680,6 +10703,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -10937,6 +10964,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -11190,6 +11221,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -11454,6 +11489,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -11706,6 +11745,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -11963,6 +12006,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -12216,6 +12263,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -12741,6 +12792,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -12997,6 +13052,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -13249,6 +13308,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -13766,6 +13829,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -14019,6 +14086,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -14544,6 +14615,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -15058,6 +15133,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -15576,6 +15655,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -15829,6 +15912,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -16354,6 +16441,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -16607,6 +16698,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -16871,6 +16966,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -17131,6 +17230,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -17395,6 +17498,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -17650,6 +17757,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -17803,267 +17914,6 @@
       "canManage": true
      }
     ],
-    "indicatorCatalog": [
-     {
-      "defId": "rsi",
-      "name": "Relative Strength Index",
-      "settings": "period int 2-100 (14)"
-     },
-     {
-      "defId": "macd",
-      "name": "MACD",
-      "settings": "fastPeriod int 1-100 (12); slowPeriod int 1-200 (26); signalPeriod int 1-50 (9)"
-     },
-     {
-      "defId": "bb",
-      "name": "Bollinger Bands",
-      "settings": "period int 2-200 (20); stdDev float 0.5-5 (2)"
-     },
-     {
-      "defId": "vwap",
-      "name": "Session VWAP",
-      "settings": "opacity int 5-100 (100); lineStyle solid|dashed|dotted (solid); lineWidth int 1-4 (1); bands off|1|2|3 (off)"
-     },
-     {
-      "defId": "stoch",
-      "name": "Stochastic Oscillator",
-      "settings": "kPeriod int 1-100 (14); smoothK int 1-20 (1); dPeriod int 1-20 (3)"
-     },
-     {
-      "defId": "atr",
-      "name": "Average True Range",
-      "settings": "period int 1-100 (14)"
-     },
-     {
-      "defId": "sar",
-      "name": "Parabolic SAR",
-      "settings": "step float 0.001-0.1 (0.02); maxStep float 0.01-1 (0.2)"
-     },
-     {
-      "defId": "ichimoku",
-      "name": "Ichimoku Cloud",
-      "settings": "tenkanPeriod int 1-100 (9); kijunPeriod int 1-200 (26); senkouBPeriod int 1-400 (52)"
-     },
-     {
-      "defId": "mfi",
-      "name": "Money Flow Index",
-      "settings": "period int 2-100 (14)"
-     },
-     {
-      "defId": "cci",
-      "name": "Commodity Channel Index",
-      "settings": "period int 2-200 (20)"
-     },
-     {
-      "defId": "williamsR",
-      "name": "Williams %R",
-      "settings": "period int 2-100 (14)"
-     },
-     {
-      "defId": "adx",
-      "name": "Average Directional Index",
-      "settings": "period int 2-100 (14)"
-     },
-     {
-      "defId": "obv",
-      "name": "On-Balance Volume"
-     },
-     {
-      "defId": "donchian",
-      "name": "Donchian Channels",
-      "settings": "period int 2-200 (20)"
-     },
-     {
-      "defId": "avwap",
-      "name": "Anchored VWAP",
-      "settings": "anchor session|week|month|quarter|year|swingHigh|swingLow (session); lineStyle solid|dashed|dotted (solid); lineWidth int 1-4 (1)"
-     },
-     {
-      "defId": "atrBands",
-      "name": "ATR Bands",
-      "settings": "period int 2-200 (14); multiplier float 0.1-10 (2)"
-     },
-     {
-      "defId": "movingAverage",
-      "name": "Moving Average",
-      "settings": "period int 1-500 (5); maType sma|ema|wma|vwma|hma|smma|dema|tema|lsma (sma)"
-     },
-     {
-      "defId": "dataSeries",
-      "name": "Data Series"
-     },
-     {
-      "defId": "dollarVolume",
-      "name": "Dollar Volume"
-     },
-     {
-      "defId": "superTrend",
-      "name": "SuperTrend",
-      "settings": "atrPeriod int 1-100 (10); multiplier float 0.5-10 (3)"
-     },
-     {
-      "defId": "aroon",
-      "name": "Aroon",
-      "settings": "period int 1-200 (14)"
-     },
-     {
-      "defId": "vortex",
-      "name": "Vortex Indicator",
-      "settings": "period int 2-200 (14)"
-     },
-     {
-      "defId": "choppiness",
-      "name": "Choppiness Index",
-      "settings": "period int 2-200 (14)"
-     },
-     {
-      "defId": "stochRsi",
-      "name": "Stochastic RSI",
-      "settings": "rsiPeriod int 2-200 (14); stochPeriod int 1-200 (14); kSmooth int 1-50 (3); dSmooth int 1-50 (3)"
-     },
-     {
-      "defId": "ppo",
-      "name": "Percentage Price Oscillator",
-      "settings": "fastPeriod int 1-200 (12); slowPeriod int 1-400 (26); signalPeriod int 1-100 (9)"
-     },
-     {
-      "defId": "roc",
-      "name": "Rate of Change",
-      "settings": "period int 1-500 (12)"
-     },
-     {
-      "defId": "momentum",
-      "name": "Momentum",
-      "settings": "period int 1-500 (10)"
-     },
-     {
-      "defId": "tsi",
-      "name": "True Strength Index",
-      "settings": "longPeriod int 1-200 (25); shortPeriod int 1-200 (13); signalPeriod int 1-100 (13)"
-     },
-     {
-      "defId": "cmo",
-      "name": "Chande Momentum Oscillator",
-      "settings": "period int 1-200 (14)"
-     },
-     {
-      "defId": "trix",
-      "name": "TRIX",
-      "settings": "period int 1-200 (15); signalPeriod int 1-100 (9)"
-     },
-     {
-      "defId": "awesome",
-      "name": "Awesome Oscillator",
-      "settings": "fastPeriod int 1-100 (5); slowPeriod int 1-300 (34)"
-     },
-     {
-      "defId": "ultimate",
-      "name": "Ultimate Oscillator",
-      "settings": "fastPeriod int 1-100 (7); midPeriod int 1-200 (14); slowPeriod int 1-400 (28)"
-     },
-     {
-      "defId": "balanceOfPower",
-      "name": "Balance of Power",
-      "settings": "smoothing int 1-200 (14)"
-     },
-     {
-      "defId": "bullBearPower",
-      "name": "Bull/Bear Power",
-      "settings": "period int 1-200 (13)"
-     },
-     {
-      "defId": "keltner",
-      "name": "Keltner Channels",
-      "settings": "period int 1-400 (20); multiplier float 0.1-10 (2); atrPeriod int 1-200 (10)"
-     },
-     {
-      "defId": "envelope",
-      "name": "MA Envelope",
-      "settings": "period int 1-500 (20); percent float 0.1-50 (2.5); maType sma|ema|wma|vwma|hma|smma|dema|tema|lsma (sma)"
-     },
-     {
-      "defId": "bbPercentB",
-      "name": "Bollinger %B",
-      "settings": "period int 2-200 (20); stdDev float 0.5-5 (2)"
-     },
-     {
-      "defId": "bbWidth",
-      "name": "Bollinger BandWidth",
-      "settings": "period int 2-200 (20); stdDev float 0.5-5 (2)"
-     },
-     {
-      "defId": "atrPercent",
-      "name": "ATR %",
-      "settings": "period int 1-100 (14)"
-     },
-     {
-      "defId": "adrPercent",
-      "name": "ADR %",
-      "settings": "period int 1-200 (20)"
-     },
-     {
-      "defId": "historicalVolatility",
-      "name": "Historical Volatility",
-      "settings": "period int 2-400 (20)"
-     },
-     {
-      "defId": "squeeze",
-      "name": "Squeeze",
-      "settings": "period int 2-200 (20); bbMult float 0.5-5 (2); kcMult float 0.5-5 (1.5)"
-     },
-     {
-      "defId": "relativeVolume",
-      "name": "Relative Volume",
-      "settings": "period int 1-500 (50)"
-     },
-     {
-      "defId": "accumDist",
-      "name": "Accumulation/Distribution"
-     },
-     {
-      "defId": "chaikinMoneyFlow",
-      "name": "Chaikin Money Flow",
-      "settings": "period int 1-200 (20)"
-     },
-     {
-      "defId": "chaikinOscillator",
-      "name": "Chaikin Oscillator",
-      "settings": "fastPeriod int 1-100 (3); slowPeriod int 1-200 (10)"
-     },
-     {
-      "defId": "forceIndex",
-      "name": "Elder Force Index",
-      "settings": "period int 1-200 (13)"
-     },
-     {
-      "defId": "pvt",
-      "name": "Price Volume Trend"
-     },
-     {
-      "defId": "upDownVolume",
-      "name": "Up/Down Volume Ratio",
-      "settings": "period int 2-500 (50)"
-     },
-     {
-      "defId": "percentFromMa",
-      "name": "% From MA",
-      "settings": "period int 1-500 (50); maType sma|ema|wma|vwma|hma|smma|dema|tema|lsma (sma)"
-     },
-     {
-      "defId": "fiftyTwoWeek",
-      "name": "52-Week High/Low"
-     },
-     {
-      "defId": "standardDeviation",
-      "name": "Standard Deviation",
-      "settings": "period int 2-500 (20)"
-     },
-     {
-      "defId": "rsLine",
-      "name": "Relative Strength Line",
-      "settings": "benchmark SPY|QQQ|IWM (SPY); lineWidth int 1-4 (1)"
-     }
-    ],
     "indicatorDrafts": [
      {
       "ref": "i3",
@@ -18166,17 +18016,20 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
     ],
     "selected": [
-     "indicators",
      "screener",
      "agent"
     ]
    },
-   "capabilities_ref": "m7"
+   "capabilities_ref": "m4"
   },
   "d25": {
    "conversationId": null,
@@ -18419,6 +18272,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -18674,6 +18531,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -19189,6 +19050,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -19708,6 +19573,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -20222,6 +20091,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",
@@ -20740,6 +20613,10 @@
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -20992,6 +20869,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
       "id": "guide",

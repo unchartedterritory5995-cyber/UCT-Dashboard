@@ -57,9 +57,10 @@ _CITE_RE = re.compile(r"\[\d+\]")
 _MONTH_NAME = (r"(?:\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|"
                r"oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b|\b(?-i:May)\b)")
 _MONTH = _MONTH_NAME + r"\.?"
-#: numbers that are DATES, not figures: a year, a day beside a month name, a quarter label, a clock time, an ordinal
+#: numbers that are DATES, not figures: a year, a day beside a month name (never one followed by "%": "In June 30%
+#: fell" is a figure), a quarter label, a clock time, an ordinal
 _DATE_NUM_RE = re.compile(
-    r"\b(?:19|20)\d\d\b|" + _MONTH + r"\s+\d{1,2}(?:st|nd|rd|th)?\b|\b\d{1,2}(?:st|nd|rd|th)?\s+" + _MONTH_NAME + r"|"
+    r"\b(?:19|20)\d\d\b|" + _MONTH + r"\s+\d{1,2}(?:st|nd|rd|th)?\b(?!\s*%)|\b\d{1,2}(?:st|nd|rd|th)?(?!\s*%)\s+" + _MONTH_NAME + r"|"
     r"\b[Qq][1-4]\b|\b(?:fy|fiscal)\s*\d{2,4}\b|\b\d{1,2}:\d\d\b|\b\d{1,2}(?:st|nd|rd|th)\b", re.I)
 
 NOTE_FACTS = "facts carry only figures the UCT data gateway returned; each names its own source and as_of"
@@ -75,6 +76,9 @@ UNKNOWN_WEB = "no web commentary was available for this answer"
 UNKNOWN_WEB_BUDGET = "the web lookup was not run (the Agent's research budget did not admit it)"
 UNKNOWN_WEB_TURN_USED = ("the web lookup was not run: this turn's one web lookup was already used for another research "
                          "question, so no web commentary is given for this one")
+#: KN-1 owner decision 5 (separation): framed UCT knowledge reached this read, so NO web lookup was made
+UNKNOWN_WEB_KNOWLEDGE = ("the web lookup was not run: this request carried UCT knowledge-base text, and that text is never "
+                         "sent to a web search")
 UNKNOWN_STRIPPED = "{n} web sentence{s} cited figures UCT's data did not return and {were} left out"
 UNKNOWN_SOURCE_DATES = "web sources carry no publication date from the search provider"
 UNKNOWN_EARNINGS_DATES = "UCT's earnings data carries no report dates for past quarters"
@@ -410,6 +414,8 @@ def assemble(symbol: str, topic: str, *, inputs: dict[str, dict], facts: list[di
     web_info = {"ran": False, "cached": False, "stripped": 0}
     if web is None:
         pass
+    elif web.get("knowledge_blocked"):
+        unknown.append(UNKNOWN_WEB_KNOWLEDGE)
     elif web.get("budget_refused"):
         unknown.append(UNKNOWN_WEB_BUDGET)
     elif web.get("turn_used"):
@@ -557,7 +563,14 @@ def read_research_company(params: dict, ctx: dict) -> dict:
             facts.extend(facts_from_themes(e))
 
     query, recency = query_for(sym, topic, question)
-    web, shared = web_for_turn(ctx, query, recency, sym)
+    from api.services.uct_agent.knowledge import frame as kn_frame      # KN-1 owner decision 5: separation
+    if kn_frame.seen(params) or kn_frame.seen(ctx):
+        # the same block turn-level research has (turn.py / turn_v2._research_step): raw Brain knowledge never reaches a
+        # web provider. Blocked, not cleaned; the turn's one web slot is not claimed and nothing is metered.
+        web, shared = {"knowledge_blocked": True, "citations": []}, False
+        log.info("uct_agent.research web skipped: knowledge_separation")
+    else:
+        web, shared = web_for_turn(ctx, query, recency, sym)
     data = assemble(sym, topic, inputs=inputs, facts=facts, web=web, extra_unknown=extra_unknown,
                     news_sources=news_sources)
 
