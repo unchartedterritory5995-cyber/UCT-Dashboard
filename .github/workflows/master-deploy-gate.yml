@@ -362,6 +362,31 @@ jobs:
           /tmp/prodvenv/bin/python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
 
 
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::The master deploy gate failed — Railway has ALREADY built this commit; production will not be promoted."
+          echo ""
+          echo "⛔ READ THAT AGAIN: a red gate does NOT stop the deploy today."
+          echo "Railway's Wait-for-CI is OFF (checkSuites=False on all six services),"
+          echo "so the build started when you pushed. What this failure prevents is the"
+          echo "promotion of \`production\`. Until the watched branch is repointed at"
+          echo "\`production\`, the code IS live and a revert is a push, not a re-run."
+          echo ""
+          echo "This gate is FAST and serialised: it holds the promotion queue, so fix"
+          echo "forward rather than pushing again on top of a red run."
+          echo ""
+          echo "Run the same checks locally:"
+          echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
+          echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
+          echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
+          echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
+          echo "  python tools/check_repo_hygiene.py"
+          echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
+          echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
+          echo "  python -m pytest tests/test_uct_agent*.py -q"
+          echo "  (cd app && npm ci && npx vitest run src/agent src/components/chart/builder/agentMutations)  # CI runs this as 4 shards + an equivalence rail"
+
   # ── SPEEDUP (2026-11-04): the Agent browser suite was 22.3 of the gate's ~31 min, run
   # serially AFTER the Python checks. It now runs as 4 parallel vitest shards beside the
   # `gate` job, exactly as agent-ci.yml already does, and `agent-browser-union` proves the
@@ -444,7 +469,7 @@ jobs:
           for (const f of reports) {
             const r = JSON.parse(fs.readFileSync(path.join('shards', f), 'utf8'));
             for (const t of r.testResults) { files++; ran.add(norm(t.name)); }
-            failed += r.numFailedTests || 0; passed += r.numPassedTests || 0;
+            failed += (r.numFailedTests || 0) + (r.numFailedTestSuites || 0); passed += r.numPassedTests || 0;
           }
           const missing = [...expected].filter(f => !ran.has(f));
           const extra = [...ran].filter(f => !expected.has(f));
