@@ -1,0 +1,49 @@
+{
+ "router": "v1 (master c87ab6d578, no scripted plans)",
+ "passed": 11,
+ "total": 37,
+ "inPlan": {
+  "P01.chart-then-rsi-on-it": false,
+  "P02.new-chart-weekly": false,
+  "P03.two-charts-hourly": true,
+  "P04.weekly-and-21ema": false,
+  "P05.same-for-iwm": false,
+  "P06.swap-both-rsi-both": false,
+  "P07.amd-weekly-macd": false,
+  "P08.grid-21ema-on-all": false,
+  "P09.hourly-vwap-orange": false,
+  "P10.new-chart-no-volume": false,
+  "P11.rsi-here-same-there": false,
+  "P12.ema-left-copy-right": true,
+  "P13.new-weekly-log": false,
+  "P14.then-then": true,
+  "P15.new-line-chart": false,
+  "P16.same-for-qqq": false
+ },
+ "crossTurn": {
+  "X01.it-period": true,
+  "X02.same-for-the-other": true,
+  "X03.other-three": false,
+  "X04.put-that-on": false,
+  "X05.make-it-green": true,
+  "X06.same-but-weekly": false,
+  "X07.it-after-create": true,
+  "X08.the-other-one-too": false,
+  "X09.the-bottom-two": false,
+  "X10.actually-that": true,
+  "X11.remove-it": false,
+  "X12.back-to-daily": false,
+  "X13.that-one-weekly": false,
+  "X14.hide-it": true,
+  "X15.same-but-hourly-other-two": false,
+  "X16.and-the-200-too": false,
+  "X17.make-it-red": true,
+  "X18.make-both-weekly": true,
+  "X19.add-vwap-to-it": false,
+  "X20.remove-from-right": false,
+  "X21.the-first-one": false
+ },
+ "notable": [
+  "P02 / P15: 'open TSLA on a new chart and switch it to the weekly' / 'add a chart for META and make it a line chart' — v1 applies the second part to the EXISTING chart (NVDA becomes weekly / line), not the new one: a wrong-target execution today"
+ ]
+}

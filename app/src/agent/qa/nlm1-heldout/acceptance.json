@@ -1,0 +1,1175 @@
+{
+ "about": "NLM-1 ACCEPTANCE (Track B, independent; agent/qa/nlm1-heldout — NOT merged, NOT shown to the NLM-1 implementer until its D1 is frozen). PENDING: runs only with NLM1_ACCEPT=1 (acceptance.test.jsx), never in master CI before NLM-1 lands. `inPlan`: ONE message whose later parts refer to earlier ones (\"… and put RSI on it\", \"the same for IWM\"); `crossTurn`: context across turns (\"it\", \"that one\", \"the other two\", \"same but weekly\"). Every case asserts the FINAL STATE (capreg predicates, testing/run.jsx) and a GROUPED UNDO: one \"undo\" takes back exactly the last request (inPlan: the whole request -> the board as it started; crossTurn: the last turn only). No model plans are scripted: the cases measure NLM-1's own reading of references and context; with no planner answer the panel's sentinel model leaves the state unchanged, so v1 fails them by construction.",
+ "version": 1,
+ "inPlan": [
+  {
+   "id": "P01.chart-then-rsi-on-it",
+   "board": "HALF",
+   "note": "",
+   "steps": [
+    {
+     "say": "add a chart for AMD and put RSI on it",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbolSet": [
+        "NVDA",
+        "AMD"
+       ]
+      },
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P02.new-chart-weekly",
+   "board": "HALF",
+   "note": "",
+   "steps": [
+    {
+     "say": "open TSLA on a new chart and switch it to the weekly",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbols": [
+        "NVDA",
+        "TSLA"
+       ],
+       "tfs": [
+        "D",
+        "W"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P03.two-charts-hourly",
+   "board": "HALF",
+   "note": "",
+   "steps": [
+    {
+     "say": "add charts for AMD and AVGO, both on the hourly",
+     "expect": {
+      "charts": {
+       "count": 3,
+       "symbolSet": [
+        "NVDA",
+        "AMD",
+        "AVGO"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P04.weekly-and-21ema",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "put NVDA on the weekly and add the 21 ema to it",
+     "expect": {
+      "charts": {
+       "tf": "W"
+      },
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21,
+        "inputs.maType": "ema"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P05.same-for-iwm",
+   "board": "HALF",
+   "note": "",
+   "steps": [
+    {
+     "say": "open a chart for QQQ with the 100 day sma, then do the same for IWM",
+     "expect": {
+      "charts": {
+       "count": 3,
+       "symbolSet": [
+        "NVDA",
+        "QQQ",
+        "IWM"
+       ]
+      },
+      "indicatorsEach": {
+       "include": [
+        "movingAverage(100 sma)"
+       ],
+       "except": [
+        "c1"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P06.swap-both-rsi-both",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "switch the left chart to AMD and the right one to TSLA, and put RSI on both",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "AMD",
+        "TSLA"
+       ]
+      },
+      "indicatorsEach": {
+       "include": [
+        "rsi(14)"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P07.amd-weekly-macd",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "make the AMD chart weekly and give it a MACD",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "macd"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P08.grid-21ema-on-all",
+   "board": "HALF",
+   "note": "",
+   "steps": [
+    {
+     "say": "add a 2x2 of SPY QQQ IWM DIA and put the 21 ema on all of them",
+     "expect": {
+      "charts": {
+       "count": 4,
+       "symbols": [
+        "SPY",
+        "QQQ",
+        "IWM",
+        "DIA"
+       ],
+       "sameSize": true
+      },
+      "indicatorsEach": {
+       "include": [
+        "movingAverage(21 ema)"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P09.hourly-vwap-orange",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "change NVDA to the hourly, add the vwap, and make the vwap orange",
+     "expect": {
+      "charts": {
+       "tf": "60"
+      },
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "vwap"
+       },
+       "colour": {
+        "key": "inputs.color",
+        "family": "orange"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P10.new-chart-no-volume",
+   "board": "HALF",
+   "note": "",
+   "steps": [
+    {
+     "say": "add a chart for AMD on the daily and hide its volume",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "setting": {
+       "chart": 1,
+       "key": "volume.visible",
+       "value": false
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P11.rsi-here-same-there",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "put RSI on the NVDA chart and the same on the AMD chart",
+     "expect": {
+      "indicatorsEach": {
+       "include": [
+        "rsi(14)"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P12.ema-left-copy-right",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "add the 21 ema to the left chart and copy it to the right one",
+     "expect": {
+      "indicatorsEach": {
+       "include": [
+        "movingAverage(21 ema)"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P13.new-weekly-log",
+   "board": "HALF",
+   "note": "",
+   "steps": [
+    {
+     "say": "open SMCI in a new chart, weekly, log scale",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbols": [
+        "NVDA",
+        "SMCI"
+       ],
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "setting": {
+       "chart": 1,
+       "key": "logScale",
+       "value": true
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P14.then-then",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "switch to AMD, then go weekly, then add RSI",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "AMD"
+       ],
+       "tf": "W"
+      },
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P15.new-line-chart",
+   "board": "HALF",
+   "note": "",
+   "steps": [
+    {
+     "say": "add a chart for META and make it a line chart",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "symbols": [
+        "NVDA",
+        "META"
+       ],
+       "types": [
+        "candles",
+        "line"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "P16.same-for-qqq",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "add the 21 ema to this chart and the same for a new QQQ chart",
+     "expect": {
+      "charts": {
+       "count": 2
+      },
+      "indicatorsEach": {
+       "include": [
+        "movingAverage(21 ema)"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true
+     }
+    }
+   ]
+  }
+ ],
+ "crossTurn": [
+  {
+   "id": "X01.it-period",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "add RSI"
+    },
+    {
+     "say": "make it 7 period",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi"
+       },
+       "has": {
+        "inputs.period": 7
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi"
+       },
+       "has": {
+        "inputs.period": 14
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X02.same-for-the-other",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "switch the left chart to weekly"
+    },
+    {
+     "say": "same for the other one",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "W"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X03.other-three",
+   "board": "FOUR",
+   "note": "",
+   "steps": [
+    {
+     "say": "make the top left chart weekly"
+    },
+    {
+     "say": "and the other three too",
+     "expect": {
+      "charts": {
+       "tf": "W"
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D",
+        "D",
+        "D"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X04.put-that-on",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "add the 21 ema to NVDA"
+    },
+    {
+     "say": "put that on AMD as well",
+     "expect": {
+      "indicatorsEach": {
+       "include": [
+        "movingAverage(21 ema)"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "indicators": {
+       "chart": 1,
+       "exclude": [
+        "movingAverage(21 ema)"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X05.make-it-green",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "add the 9 ema"
+    },
+    {
+     "say": "make it green",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 9,
+        "inputs.maType": "ema"
+       },
+       "colour": {
+        "key": "inputs.color",
+        "family": "green"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 9,
+        "inputs.maType": "ema"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X06.same-but-weekly",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "switch to AMD"
+    },
+    {
+     "say": "same but weekly",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "AMD"
+       ],
+       "tf": "W"
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "AMD"
+       ],
+       "tf": "D"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X07.it-after-create",
+   "board": "HALF",
+   "note": "",
+   "steps": [
+    {
+     "say": "open a chart for TSLA"
+    },
+    {
+     "say": "put RSI on it",
+     "expect": {
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "indicators": {
+       "chart": 1,
+       "exclude": [
+        "rsi(14)"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X08.the-other-one-too",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "make the left one a line chart"
+    },
+    {
+     "say": "the other one too",
+     "expect": {
+      "charts": {
+       "types": [
+        "line",
+        "line"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "types": [
+        "line",
+        "candles"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X09.the-bottom-two",
+   "board": "FOUR",
+   "note": "",
+   "steps": [
+    {
+     "say": "put RSI on SPY"
+    },
+    {
+     "say": "now the bottom two",
+     "expect": {
+      "indicators": {
+       "chart": 2,
+       "include": [
+        "rsi(14)"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "indicators": {
+       "chart": 2,
+       "exclude": [
+        "rsi(14)"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X10.actually-that",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "add the 50 ema"
+    },
+    {
+     "say": "actually make that a 65",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 65,
+        "inputs.maType": "ema"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 50,
+        "inputs.maType": "ema"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X11.remove-it",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "add RSI to AMD"
+    },
+    {
+     "say": "remove it",
+     "expect": {
+      "indicators": {
+       "chart": 1,
+       "exclude": [
+        "rsi(14)"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X12.back-to-daily",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "go to the weekly"
+    },
+    {
+     "say": "back to daily",
+     "expect": {
+      "charts": {
+       "tf": "D"
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "tf": "W"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X13.that-one-weekly",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "switch the right chart to TSLA"
+    },
+    {
+     "say": "and that one weekly",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "NVDA",
+        "TSLA"
+       ],
+       "tfs": [
+        "D",
+        "W"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "D"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X14.hide-it",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "add MACD"
+    },
+    {
+     "say": "hide it",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "macd"
+       },
+       "has": {
+        "hidden": true
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "macd"
+       },
+       "has": {
+        "hidden": false
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X15.same-but-hourly-other-two",
+   "board": "FOUR",
+   "note": "",
+   "steps": [
+    {
+     "say": "make SPY and QQQ weekly"
+    },
+    {
+     "say": "same but hourly for the other two",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "W",
+        "60",
+        "60"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "W",
+        "D",
+        "D"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X16.and-the-200-too",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "add the 100 sma"
+    },
+    {
+     "say": "and the 200 ema too",
+     "expect": {
+      "indicators": {
+       "chart": 0,
+       "include": [
+        "movingAverage(100 sma)",
+        "movingAverage(200 ema)"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "indicators": {
+       "chart": 0,
+       "exclude": [
+        "movingAverage(200 ema)"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X17.make-it-red",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "put the 21 ema on the left chart"
+    },
+    {
+     "say": "make it red",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21,
+        "inputs.maType": "ema"
+       },
+       "colour": {
+        "key": "inputs.color",
+        "family": "red"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "movingAverage",
+        "inputs.period": 21,
+        "inputs.maType": "ema"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X18.make-both-weekly",
+   "board": "HALF",
+   "note": "",
+   "steps": [
+    {
+     "say": "open AMD and NVDA side by side"
+    },
+    {
+     "say": "make both weekly",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "tf": "W"
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "count": 2,
+       "tf": "D"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X19.add-vwap-to-it",
+   "board": "ONE",
+   "note": "",
+   "steps": [
+    {
+     "say": "switch to TSLA"
+    },
+    {
+     "say": "and add the vwap to it",
+     "expect": {
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "vwap"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "indicators": {
+       "chart": 0,
+       "count": 0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X20.remove-from-right",
+   "board": "TWO",
+   "note": "",
+   "steps": [
+    {
+     "say": "add RSI to both charts"
+    },
+    {
+     "say": "remove it from the right one",
+     "expect": {
+      "indicators": {
+       "chart": 1,
+       "exclude": [
+        "rsi(14)"
+       ]
+      },
+      "instance": {
+       "chart": 0,
+       "find": {
+        "defId": "rsi"
+       }
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "instance": {
+       "chart": 1,
+       "find": {
+        "defId": "rsi"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "X21.the-first-one",
+   "board": "FOUR",
+   "note": "",
+   "steps": [
+    {
+     "say": "make all four charts weekly"
+    },
+    {
+     "say": "put the first one back on daily",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "W",
+        "W",
+        "W"
+       ]
+      }
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "tf": "W"
+      }
+     }
+    }
+   ]
+  }
+ ]
+}
