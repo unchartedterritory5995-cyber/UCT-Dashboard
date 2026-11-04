@@ -58,6 +58,25 @@ def used_knowledge(data) -> bool:
     return any(is_knowledge_action(a) for a in acts)
 
 
+# Review #768 finding 2: the server's own copy of the playbook routing words (app/src/agent/capabilities/knowledge.js
+# PLAYBOOK_WORDS + COACHING, lowercase). A planner-v1 turn whose message matches, while a playbook.* capability is in
+# the validated manifest, never streams the model's reply and never serves a definition the knowledge base did not
+# give (turn.knowledge_first). Decided on the server, from the member's words; the browser's routing is not trusted.
+_COACHING = r"\b(teach me|help me understand how to apply|quiz me|coach me|walk me through (applying|how to apply)|practice (applying|with me)|drill me)\b"
+_WORDS = [re.compile(p) for p in (
+    r"\b(playbook|setup templates?|template for|rules? for|max(imum)? stop|invalidation|common mistakes|win ?rates?|hit rate|track record|how often does|sample size)\b",
+    r"\b(what (is|are|does)|define|definition of|explain|how does (uct|the team))\b.*\b(ep|eps|episodic pivots?|vcp|u&r|undercut|kicker|htf|high tight flag|tight flags?|flags?|bases?|pivots?|setups?|breakouts?|pullbacks?|patience|discipline)\b",
+    r"\b(according to|in) (uct|the team|the playbook)\b",
+)]
+
+
+def wants_knowledge(message) -> bool:
+    m = str(message or "").lower()
+    if re.search(_COACHING, m):
+        return False
+    return any(w.search(m) for w in _WORDS)
+
+
 def frame(text: str) -> str:
     body = _TAG.sub("[tag removed]", str(text or ""))
     return f"{OPEN}{body}{CLOSE} {RULE}"

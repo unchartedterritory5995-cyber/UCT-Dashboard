@@ -159,6 +159,13 @@ filtering or ranking work would add complexity without a measurable gain; embedd
   gate and the withheld rules are unchanged.
 - Planner v2 (reads, then answers from the framed result) is unchanged and never passes the v1 gate (tested).
 - Flags unchanged: UCT_AGENT_KNOWLEDGE unset; no knowledge kind in UCT_AGENT_DATA_KINDS.
+- Review #768 (2026-11-04), knowledge first (turn.knowledge_first, only while a playbook.* capability is offered):
+  a TALK disposition (answer/clarify) holding a knowledge op becomes an apply of those knowledge ops only (also in the
+  gate itself); a message that is a playbook question (knowledge.frame.wants_knowledge = the browser's PLAYBOOK_WORDS,
+  tested equal) never streams the reply; its answer without a knowledge op becomes UCT's playbook.explain read of the
+  member's question (no extra model call), or KNOWLEDGE_NOT_RETRIEVED if that read is not offered; a change + playbook
+  question keeps the change and adds the read; a clarify keeps its choices, never its model-written text. A local-only
+  lookup's notice still replaces KNOWLEDGE_NO_WEB (tested). Flag off: unchanged (tested, streaming included).
 
 ## Blocked / needs the owner
 - Admitting `self_review`, `manual`, `chart_intake:*` or any `intake:*` source (policy.json is the switch; default-deny until the owner rules).

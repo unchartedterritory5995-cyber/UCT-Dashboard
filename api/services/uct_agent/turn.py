@@ -1037,6 +1037,51 @@ DATA_READ_ACTIONS = frozenset({
 #: Planner v2 reads first and answers from the framed result; it never passes through here.
 KNOWLEDGE_NO_WEB = ("I answered from UCT's knowledge base only: it is never combined with a web search in the same "
                     "step. Ask the web question on its own in a new chat.")
+#: Review #768 (owner: no unsupported pre-retrieval explanation reaches the member). With a playbook.* capability in
+#: the validated manifest, a planner-v1 turn is put "knowledge first" BEFORE research and sanitize (knowledge_first):
+#:   - a TALK disposition (answer / clarify) holding a knowledge op becomes an apply of those knowledge ops only;
+#:   - when the member's words are a playbook question (frame.wants_knowledge) the reply never streams, and
+#:       an answer without a knowledge op becomes UCT's playbook.explain read of the member's question (no extra
+#:         model call); if that read is not offered, UCT's fixed sentence below is the answer;
+#:       a plan with ops but no knowledge op gets that read added (its reply is then dropped by sanitize_envelope);
+#:       a clarify keeps its choices; its model-written question text is replaced.
+#: With the flag off no playbook.* capability exists, so none of this runs.
+KNOWLEDGE_NOT_RETRIEVED = "UCT can't retrieve an approved playbook definition for that."
+KNOWLEDGE_CLARIFY = "Which one do you mean?"
+
+
+def knowledge_first(env, msg: str, cap_names: set, kn_ref, kn_turn: bool, compact: bool):
+    """(env, reason or None). See KNOWLEDGE_NOT_RETRIEVED's comment."""
+    if not isinstance(env, dict):
+        return env, None
+    fr = _kn_frame()
+    disp = env.get("disposition")
+    ops = [o for o in env.get("ops") or [] if isinstance(o, dict)] if isinstance(env.get("ops"), list) else []
+    kops = [o for o in ops if fr.is_knowledge_action(o.get("action")) and o.get("action") in cap_names]
+    if disp in ("answer", "clarify") and kops:
+        return {**env, "disposition": "apply", "ops": kops, "reply": "", "question": None}, "talk_with_knowledge_op"
+    if not kn_turn:
+        return env, None
+    if kops or disp not in DISPOSITIONS or disp == "unsupported":
+        return env, None
+    if "playbook.explain" in cap_names and kn_ref:
+        q = str(msg or "")[:400]
+        op = ({"action": "playbook.explain", "target": kn_ref, "args_json": json.dumps({"question": q})} if compact
+              else {"action": "playbook.explain", "target": kn_ref, "args": {"question": q}})
+    else:
+        op = None
+    if disp == "answer":
+        if op is None:
+            return {**env, "ops": [], "reply": KNOWLEDGE_NOT_RETRIEVED, "question": None, "research": None}, "not_retrieved"
+        return {**env, "disposition": "apply", "ops": [op], "reply": "", "question": None}, "retrieved"
+    if disp == "clarify":
+        q = env.get("question") if isinstance(env.get("question"), dict) else {}
+        return {**env, "reply": "", "question": {**q, "text": KNOWLEDGE_CLARIFY,
+                                                 "choices": q.get("choices") if isinstance(q.get("choices"), list) else []}}, "clarify"
+    # apply / propose without a knowledge op: add the read (or, if it cannot be added, no reply at all)
+    if op is not None and len(ops) < MAX_OPS:
+        return {**env, "ops": ops + [op]}, "read_added"
+    return {**env, "reply": ""}, "reply_dropped"
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
                      "from it. To answer about it again, plan the same lookup.]")
@@ -1839,6 +1884,12 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         return {"disposition": "clarify", "reply": "", "question": {"text": claim["question"], "choices": []},
                 "ops": [], "unsupported_category": None, "false_claim": claim["family"]}
     ops = env.get("ops") if isinstance(env.get("ops"), list) else []
+    if disp in ("answer", "clarify") and any(isinstance(o, dict) and _kn_frame().is_knowledge_action(o.get("action"))
+                                             for o in ops):
+        # review #768 finding 1 (the gate's own copy of knowledge_first): a talk reply holding a knowledge read is
+        # that read, never the model's pre-read words; only the knowledge ops are kept (TALK never mutates)
+        ops = [o for o in ops if isinstance(o, dict) and _kn_frame().is_knowledge_action(o.get("action"))]
+        disp, env = "apply", {**env, "disposition": "apply", "reply": "", "question": None}
     if disp not in MUTATING:
         ops = []                      # TALK never mutates, whatever the model emitted
     ops = [o for o in ops if isinstance(o, dict)]
@@ -2304,6 +2355,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     pre_research = None
     notice = None
     kn_no_web = False
+    # review #768: knowledge first (see KNOWLEDGE_NOT_RETRIEVED). Only when a playbook.* capability is in the validated
+    # manifest (the knowledge flag is on); a coach turn has its own guard (agent_coach.guard_envelope).
+    kn_caps = {n for n in cap_names if _kn_frame().is_knowledge_action(n)}
+    kn_turn = bool(kn_caps) and not coach_turn and _kn_frame().wants_knowledge(msg)
+    kn_ref = next((str(r.get("ref")) for r in ((context or {}).get("playbook") or [])
+                   if isinstance(r, dict) and str(r.get("ref") or "") in valid_refs), None) if kn_caps else None
     repaired = bool(repair_in)               # a repair request (or one already made here) is never repaired again
     if repair_in:
         usage["repaired"] = "browser"
@@ -2313,7 +2370,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # always is; the first one is not when UCT will force research on an answer (current facts).
         # (a coach turn never streams its reply: the guard must see the whole text before the member does)
         rs = (ReplyStream(lambda text: on_event({"t": "delta", "text": text}),
-                          allowed=(round_ > 0 or not forced_research) and pre_research is None and not coach_turn)
+                          allowed=((round_ > 0 or not forced_research) and pre_research is None and not coach_turn
+                                   and not kn_turn))
               if streaming and stream_caller is not None else None)
         call = (lambda **kw: stream_caller(rs.feed, **kw)) if rs is not None else caller
         category = ("reroute" if reroute else "turn") if round_ == 0 else ("repair" if usage.get("repaired") == "server" else "after_research")
@@ -2397,6 +2455,13 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                 messages = messages + [{"role": "assistant", "content": text},
                                        {"role": "user", "content": _block("validation_error", {"errors": problems})}]
                 continue
+        if kn_caps and not asks_groups and not usage.get("hidden_phrase") and isinstance(env, dict):
+            env, kn_why = knowledge_first(env, msg, cap_names, kn_ref, kn_turn, compact)
+            if kn_why:
+                usage["knowledge_first"] = kn_why
+                log.info("uct_agent knowledge first: %s", kn_why)
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
         req = env.get("research") if isinstance(env, dict) else None
         if unselected_ids and isinstance(env, dict) and isinstance(env.get("need_groups"), list) and env["need_groups"]:
             req = None                # it asked for more actions: no research on this call

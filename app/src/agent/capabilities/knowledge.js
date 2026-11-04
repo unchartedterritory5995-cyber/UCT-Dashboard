@@ -147,7 +147,9 @@ const SPECS = {
   'playbook.explain': {
     summary: 'Answer a question about a trading concept, rule or craft from UCT\'s OWN approved knowledge base (the team\'s posts and playbook), cited. '
       + 'Use for "what does UCT mean by an EP?", "how does the team think about patience?", "where does UCT put the stop on a flag?". Never for prices or today\'s market.',
-    hints: 'target = playbook. question: the member\'s question in their words.',
+    hints: 'target = playbook. question: the member\'s question in their words. A question about what a setup or trading concept is, '
+      + 'or how UCT trades it, is answered ONLY by this read (or playbook.setup / playbook.record): plan it, leave reply empty, '
+      + 'never write the definition yourself.',
     args: { type: 'object', properties: { question: { type: 'string' } }, required: ['question'], additionalProperties: false },
     answer: (_s, a) => answerExplain(a || {}),
   },
