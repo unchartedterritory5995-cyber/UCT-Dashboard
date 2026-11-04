@@ -159,6 +159,8 @@
 .dot_red { background: var(--color-danger, #e5604d); box-shadow: 0 0 0 3px rgba(229, 96, 77, 0.18); }
 /* A first import still catching up (live gate 2026-11-03): in progress, not a warning. */
 .dot_progress { background: #5b9bd5; box-shadow: 0 0 0 3px rgba(91, 155, 213, 0.18); }
+/* D4-2: a pass waiting for one of the shared pass slots: neutral, not running, not a problem. */
+.dot_neutral { background: #8a8f98; box-shadow: 0 0 0 3px rgba(138, 143, 152, 0.18); }
 
 .counts { display: flex; gap: 16px; }
 .stat { display: flex; flex-direction: column; gap: 1px; }

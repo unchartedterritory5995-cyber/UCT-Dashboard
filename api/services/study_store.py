@@ -561,6 +561,11 @@ def get_item_prompt(item_id: str, *, approved_only: bool = True) -> Optional[dic
         return None
     d = dict(row)
     d["prompt_json"] = _loads(d.get("prompt_json"), {})
+    # The generators tag a recall prompt with its `subject` (the term the question is about), which IS the
+    # answer for a "which name fits" item; a member payload must never carry it (found 2026-11-03: every
+    # live candle item named its answer in the network tab).
+    if isinstance(d["prompt_json"], dict):
+        d["prompt_json"] = {k: v for k, v in d["prompt_json"].items() if k != "subject"}
     d["has_chart"] = bool(d.pop("bars_ref", None))
     return d
 

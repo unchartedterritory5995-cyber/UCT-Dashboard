@@ -35,6 +35,9 @@
   opacity: 0.18;
   pointer-events: none;
 }
+.heroHead { position: relative; display: flex; align-items: center; gap: var(--space-md); min-width: 0; }
+.mark { flex: none; }
+@media (max-width: 640px) { .heroHead { gap: var(--space-sm); } }
 .heroText { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .eyebrow {
   display: inline-flex;
@@ -197,3 +200,8 @@
   .tile, .candle { transition: none; }
   .tile:hover { transform: none; }
 }
+
+/* the Challenges deck: the same tile, an icon plate instead of the ring */
+.tileChallenge { align-items: center; }
+.challengeIcon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border-accent); background: var(--ut-gold-dim); }
+.tileSub { display: block; color: var(--text-muted); font-size: var(--text-xs); line-height: 1.35; }

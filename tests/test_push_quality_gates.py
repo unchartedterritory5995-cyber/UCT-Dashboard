@@ -121,25 +121,85 @@ def _dir_alert(**kw):
     return base
 
 
-def test_side_confirms_fresh_ask(monkeypatch):
+# Live-path thresholds (no timestamp on the alert => _side_confirms uses the live
+# consolidated NBBO). Fill-path thresholds carry a timestamp on the alert.
+FILL_THR = {"side_confirm_enabled": True, "side_confirm_use_fill_nbbo": True,
+            "side_confirm_fill_lookback_ms": 30000, "side_confirm_ask_tol": 0.005}
+
+
+def _fill_alert(**kw):
+    # directional candidate WITH a fill timestamp -> fill-time confirm path
+    base = {"ticker": "CBRS", "cp": "P", "strike": 100, "exp": "01-21-2028",
+            "averageFillPrice": 32.30, "_direction": "Bear", "_side": "AA",
+            "timestamp": 1_700_000_000.0}
+    base.update(kw)
+    return base
+
+
+# ── LIVE path (no fill timestamp): confirm is now at-or-through-ask, not above-mid
+def test_side_confirms_live_at_ask(monkeypatch):
     monkeypatch.setattr(lmr, "_consolidated_nbbo", lambda occ: (92.75, 93.5, 300.0))
-    assert lmr._side_confirms(_dir_alert(), CONF_THR) is True
+    assert lmr._side_confirms(_dir_alert(averageFillPrice=93.5), CONF_THR) is True
 
 
-def test_side_confirms_stale_abstains(monkeypatch):
+def test_side_confirms_live_inside_spread_abstains(monkeypatch):
+    # fresh quote, fill 93.25 inside 92.75/93.5 => ambiguous, no longer confirmed
+    monkeypatch.setattr(lmr, "_consolidated_nbbo", lambda occ: (92.75, 93.5, 300.0))
+    assert lmr._side_confirms(_dir_alert(averageFillPrice=93.25), CONF_THR) is False
+
+
+def test_side_confirms_live_stale_abstains(monkeypatch):
     monkeypatch.setattr(lmr, "_consolidated_nbbo", lambda occ: (92.75, 93.5, 5285.0))
-    assert lmr._side_confirms(_dir_alert(), CONF_THR) is False
-
-
-def test_side_confirms_contradicting_abstains(monkeypatch):
-    # fresh quote, but fill below mid => bid-side => our ask push isn't confirmed
-    monkeypatch.setattr(lmr, "_consolidated_nbbo", lambda occ: (93.3, 93.5, 100.0))
-    assert lmr._side_confirms(_dir_alert(), CONF_THR) is False
+    assert lmr._side_confirms(_dir_alert(averageFillPrice=93.5), CONF_THR) is False
 
 
 def test_side_confirms_no_quote_abstains(monkeypatch):
     monkeypatch.setattr(lmr, "_consolidated_nbbo", lambda occ: None)
     assert lmr._side_confirms(_dir_alert(), CONF_THR) is False
+
+
+# ── FILL-TIME path: the CBRS case and its siblings
+def test_side_confirms_fill_at_ask(monkeypatch):
+    # clean at-ask lift against a thin, 7.3s-stale LEAP book => CONFIRM
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 7350.0))
+    assert lmr._side_confirms(_fill_alert(averageFillPrice=32.30), FILL_THR) is True
+
+
+def test_side_confirms_fill_inside_spread_suppresses(monkeypatch):
+    # the real CBRS print: $32.20 inside $31.10/$32.30 (10c under ask) => SUPPRESS
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 7350.0))
+    assert lmr._side_confirms(_fill_alert(averageFillPrice=32.20), FILL_THR) is False
+
+
+def test_side_confirms_fill_quote_too_old_abstains(monkeypatch):
+    # last quote before the fill is older than the lookback => can't trust it
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 45000.0))
+    assert lmr._side_confirms(_fill_alert(averageFillPrice=32.30), FILL_THR) is False
+
+
+def test_side_confirms_fill_bid_side(monkeypatch):
+    # BB (sold into the bid): confirm only at/through the bid
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 100.0))
+    assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=31.08), FILL_THR) is True
+    assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=31.70), FILL_THR) is False
+
+
+def test_side_unconfirmed_suppress_default_on_and_allowlisted():
+    # Owner directive 2026-11-02: unconfirmable directional candidates are
+    # SUPPRESSED, not relabeled-and-pushed. The default must be True, and the key
+    # MUST be in BOTH DEFAULT_THRESHOLDS and the /thresholds allow-list or a save
+    # 400s the whole payload (CLAUDE.md gotcha).
+    import inspect
+    d = lmr.DEFAULT_THRESHOLDS
+    assert d.get("side_unconfirmed_suppress") is True
+    assert d.get("side_confirm_use_fill_nbbo") is True
+    assert d.get("side_confirm_fill_lookback_ms") == 30000
+    assert d.get("side_confirm_ask_tol") == 0.005
+    # each key present in BOTH defaults and the /thresholds allow-list (module literals)
+    src = inspect.getsource(lmr)
+    for k in ("side_unconfirmed_suppress", "side_confirm_use_fill_nbbo",
+              "side_confirm_fill_lookback_ms", "side_confirm_ask_tol"):
+        assert src.count(f'"{k}"') >= 2, k
 
 
 def test_relabel_unverified_copies_and_neutralizes():

@@ -99,10 +99,17 @@ export async function brainPassage(question) {
   if (!p || typeof p !== 'object') return null
   const title = clean(p.title, 160), excerpt = clean(p.excerpt, 900), source = clean(p.source, 80)
   if (!excerpt) return null
-  const text = `From UCT's playbook${title ? ` — ${title}` : ''}: ${excerpt}${source ? ` (${source})` : ''}`
+  // #751 review B-1: a passage the Brain flags as COMMENTARY (it mentions an excluded setup; never a definition) is
+  // labelled as team commentary — never "From UCT's playbook", never a citation of a definition. Absent flags (master
+  // today) = an ordinary passage, byte-identical to before.
+  const mentions = Array.isArray(p.mentions_excluded_setup) ? p.mentions_excluded_setup.map(x => clean(x, 60)).filter(Boolean) : []
+  const commentary = p.commentary_only === true || mentions.length > 0
+  const text = commentary
+    ? `UCT team commentary that mentions ${mentions.length ? mentions.join(', ') : 'this setup'} (not UCT's definition of it)${title ? ` — ${title}` : ''}: ${excerpt}${source ? ` (${source})` : ''}`
+    : `From UCT's playbook${title ? ` — ${title}` : ''}: ${excerpt}${source ? ` (${source})` : ''}`
   const cite = { kind: 'knowledge.search', kb_id: Number.isInteger(p.kb_id) ? p.kb_id : null, title, source, ...versions(env),
-    ...(p.epoch ? { epoch: clean(p.epoch, 40) } : {}) }
-  return { title, excerpt, source, text, cite }
+    ...(p.epoch ? { epoch: clean(p.epoch, 40) } : {}), ...(commentary ? { commentary: true } : {}) }
+  return { title, excerpt, source, text, cite, ...(commentary ? { commentary: true, mentions } : {}) }
 }
 
 // ── retention (owner decision; #735 review B-1): Brain text is SHOWN, never stored or replayed ───────────────────────
@@ -121,7 +128,7 @@ export function knowledgeMarker(cites) {
     const who = [c.source ? `source: ${safe(c.source)}` : null, v || null].filter(Boolean).join('; ')
     return c.kind === 'setup.playbook'
       ? `setup template "${safe(c.template)}"${who ? ` (${who})` : ''}`
-      : `knowledge base entry${c.kb_id != null ? ` #${c.kb_id}` : ''}${c.title ? ` "${safe(c.title)}"` : ''}${who ? ` (${who})` : ''}`
+      : `${c.commentary ? 'team commentary ' : ''}knowledge base entry${c.kb_id != null ? ` #${c.kb_id}` : ''}${c.title ? ` "${safe(c.title)}"` : ''}${who ? ` (${who})` : ''}`
   })
   return `${KNOWLEDGE_REF} UCT showed the member an answer from its approved knowledge here (not stored or replayed; retrieve it again to use it).${parts.length ? ` Cited: ${parts.join('; ')}.` : ''}`
 }

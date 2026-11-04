@@ -827,6 +827,38 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_manifest (
     PRIMARY KEY (user_id, vault_id, vault_path)
 );
 
+-- L2 (live Obsidian probe 2026-11-03): a rename the last final push showed. Written by
+-- `obsidian_staging.ingest_batch` when ONE push drops `old_path` from the manifest and adds
+-- `new_path` whose staged body is byte-identical (sha256 `body_sha`), the pairing unique both
+-- ways; consumed by the sync engine, which re-keys the existing note onto `new_path`
+-- (`engine._apply_source_renames`) instead of importing a duplicate. Member data: purged with
+-- the account (account_purge) and with the vault (obsidian_link disconnect). Declared once,
+-- here: `_J2_SCHEMA` runs on every `ensure_schema`, so an existing database gets it on boot.
+CREATE TABLE IF NOT EXISTS j2_obsidian_renames (
+    user_id     TEXT NOT NULL,
+    vault_id    TEXT NOT NULL,
+    new_path    TEXT NOT NULL,
+    old_path    TEXT NOT NULL,
+    body_sha    TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, vault_id, new_path)
+);
+
+-- L4 (live Obsidian probe 2026-11-03): what a synced note's content-named media ref (an
+-- Obsidian blob ref carries its sha256) is stored as, so an update reuses the stored file (same
+-- URL, no fetch, no copy) instead of copying every attachment again on every edit. One row per
+-- (note, ref); `stored_json` is a media_policy.StoredMedia. Written and read only by the sync
+-- engine (`_record_stored_media` / `_reusable_stored_media`); a reuse also checks the file is
+-- still on disk. Member data: purged with the account (account_purge).
+CREATE TABLE IF NOT EXISTS j2_note_import_media (
+    user_id     TEXT NOT NULL,
+    note_id     TEXT NOT NULL,
+    ref         TEXT NOT NULL,
+    stored_json TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, note_id, ref)
+);
+
 -- 2026-09-02 adversarial audit, "single-process assumptions" #1:
 -- obsidian_link.py's connect-code epoch (closes I6 -- a pre-disconnect
 -- code redeeming into a full reconnection) used to live in a bare

@@ -80,3 +80,20 @@ The same query is in `docs/runbooks/note-import-repair.md`, "Before the deploy".
 
 - `base.py`: flow-worker uses only `_is_disallowed_ip`, which is unchanged. It is reached through `alert_taxonomy.outbound_webhooks`.
 - `db.py`: the new nullable column `j2_note_sources.sync_state` and its ALTER run only inside `auth_db.init_db`, which flow-worker never runs.
+
+## 2026-11-03: Evernote slot scheduling (`fix/evernote-slot-scheduling`)
+
+`tools/flow_worker_watch_coverage.py` flags `api/services/journal_two/notes.py`. Classification: **inert strand, no flow-worker redeploy.** flow-worker reaches it by one path, `flow_worker_main` -> `flow_router` -> `flow_admin_auth` -> `auth_service` -> `auth_db` -> `journal_two.db`, and `db.py` imports it LAZILY inside the one-shot Playbook migration (`convert_playbook_to_tiptap`, `extract_plain_text`, both unchanged), which runs only from `auth_db.init_db`, never in flow-worker. The change is inside `import_confirm` (each note's CPU work moved ahead of the write transaction), which flow-worker never calls. `engine.py`, `connections.py` and `providers/evernote.py` are not in its closure.
+
+Final review fix (NEW-A incremental livelock past FETCH_CAP_PER_PASS, NEW-B, NEW-C, the trashed-row `imported_at` guard): the change is in `note_connectors/engine.py` and tests only. `tools/flow_worker_watch_coverage.py` still flags only `api/services/journal_two/notes.py`, from this branch's earlier commits, classified above as an inert strand. `engine.py` is not in flow-worker's import closure. No flow-worker redeploy.
+
+## 2026-11-03: connector note lifecycle (`fix/connector-note-lifecycle`, L1-L4)
+
+`tools/flow_worker_watch_coverage.py` flags `api/services/journal_two/account_purge.py`, `api/services/journal_two/db.py` and `api/services/journal_two/notes.py` (`notes.py` partly from the slot scheduling branch this one is stacked on). Classification: **inert strands, no flow-worker redeploy.**
+
+- `db.py`: `_J2_SCHEMA` gains `j2_obsidian_renames` (L2) and `j2_note_import_media` (L4), both `CREATE TABLE IF NOT EXISTS`, executed only by `ensure_schema` / `auth_db.init_db`, which flow-worker never runs. Additive; nothing else in the module changed.
+- `account_purge.py`: `_DIRECT_USER_TABLES` gains those two table names. Reached through `api.routers.auth`; the purge runs from the web pod's auth routes only, and flow-worker never calls it.
+- `notes.py`: `_row_to_note` gains the `importSource` key (L3). flow-worker serves no note; `db.py` imports only `convert_playbook_to_tiptap` and `extract_plain_text` from it, lazily, inside the one-shot migration, both unchanged.
+- `note_connectors/engine.py`, `obsidian_staging.py`, `obsidian_link.py` and `providers/obsidian.py` carry the behaviour and are not in flow-worker's import closure (the tool does not list them).
+
+Fix round 1 (review of 9af3fae84a): the tool still flags the same three files, still inert. `notes.py` also gains one `DELETE FROM j2_note_import_media` inside `purge_expired_deleted_notes`, the web scheduler's trash sweep, which flow-worker never runs. `providers/base.py` gains a class attribute (`enumeration_is_authoritative = False`); flow-worker uses only its unchanged `_is_disallowed_ip`, and the tool does not list it. The behaviour stays in `engine.py`, `obsidian_staging.py` and `providers/obsidian.py`, outside flow-worker's closure.

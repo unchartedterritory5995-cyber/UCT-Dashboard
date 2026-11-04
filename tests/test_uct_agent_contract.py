@@ -30,12 +30,14 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "indicatorAlert": "indicatorAlerts",
              # Wave 3 (2026-11-03): the coach's own fillLast group (registered only while UCT_AGENT_COACH is on)
              "coach": "coach", "journal": "coach"}
+#: membership by ACTION NAME (routing.js `actions`), ahead of the domain — hotfix 2026-11-03: agent.undo's own group
+_GROUP_BY_ACTION = {"agent.undo": "undo"}
 
 
 def _requests():
     groups = {}
     for c in CAPS:
-        groups.setdefault(_GROUP_OF[c["name"].split(".")[0]], []).append(c)
+        groups.setdefault(_GROUP_BY_ACTION.get(c["name"]) or _GROUP_OF[c["name"].split(".")[0]], []).append(c)
     agent = groups.pop("agent", [])
     return [(g, cs + agent) for g, cs in groups.items()]
 

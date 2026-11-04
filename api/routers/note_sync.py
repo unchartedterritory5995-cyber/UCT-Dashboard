@@ -436,8 +436,11 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
                 obsidian_link.plugin_version_supports_attachments(version) if attachments_on else None)
         s["counts"] = counts_by_source.get(s["id"], dict(_ZERO_COUNTS))
         # Fix round 1 (I3): a pass for this source is running right now (this process's in-flight
-        # guard), so the row can read "syncing" after a background Sync now.
-        s["syncing"] = engine.is_source_busy(s["id"])
+        # guard), so the row can read "syncing" after a background Sync now. D4-2: a pass that
+        # holds the guard but still waits for one of the shared pass slots is "queued" instead.
+        queued = engine.is_source_queued(s["id"])
+        s["queued"] = queued
+        s["syncing"] = engine.is_source_busy(s["id"]) and not queued
         s["pendingRemoval"] = int(pending.get(s["id"], 0))
         # None = the newest row's failures could not be read: the count is
         # unknown (null), and `lastFailuresUnreadable` keeps the card's path to
