@@ -701,3 +701,46 @@ def test_delta2_brain_off_resume_is_untouched(monkeypatch):
     monkeypatch.setattr(turn_v2, "run_turn_v2", lambda **kw: {"envelope": env("answer", reply=INVENTED), "usage": {}, "title": None})
     v2 = {"wait_step": None, "turn_token": "t", "resume": {"x": 1}, "resume_result": {"status": "done"}}
     assert run("make it bars", v2=v2, caps=CAPS, ctx=CTX)["envelope"]["reply"] == INVENTED
+
+
+# ── review #781 delta 3: the eval seed file pins every evasion and false positive found in reviews 1-3 ──────────────
+_SEEDS = None
+
+
+def _seeds():
+    global _SEEDS
+    if _SEEDS is None:
+        from pathlib import Path
+        p = Path(__file__).resolve().parents[1] / "docs" / "agent" / "knowledge" / "e1-eval-seeds.json"
+        _SEEDS = json.loads(p.read_text(encoding="utf-8"))
+    return _SEEDS
+
+
+def test_delta3_the_seed_file_is_well_formed_and_covers_every_review():
+    s = _seeds()
+    assert s["format"] == "uct-e1-eval-seeds/1" and len(s["input"]) >= 30 and len(s["reply"]) >= 12
+    assert {x["expect"] for x in s["input"]} <= {"playbook", "mixed", "chart", "none", "ambiguous"}
+    assert {x["expect"] for x in s["reply"]} <= {"replace", "keep"}
+    srcs = " ".join(x["source"] for x in s["input"] + s["reply"])
+    for r in ("review 1", "delta 1", "delta 2", "delta 3"):
+        assert r in srcs
+
+
+def test_delta3_every_playbook_seed_is_caught_by_the_deterministic_input_layer_and_every_help_seed_is_not():
+    vocab = VOCAB + [{"name": "Kicker", "aliases": []}]
+    for x in _seeds()["input"]:
+        named = any(ev.named_setups(x["text"], vocab))
+        worded = ev.playbook_worded(x["text"], vocab, ["NVDA"])
+        if x.get("layer") == "classifier_only":
+            assert ev.decide({"evidence": "none", "topic": "trading_concept", "setups": [], "concept": "",
+                              "chart_ask": False}, NAMES)["route"] == "playbook"
+        elif x["expect"] in ("playbook", "mixed"):
+            assert named or worded, x["text"]
+        elif x["expect"] == "chart":
+            assert not named and not worded, x["text"]
+
+
+def test_delta3_every_reply_seed_meets_its_expectation_in_the_best_effort_output_backstop():
+    for x in _seeds()["reply"]:
+        got = ev.presents_methodology(x["text"], VOCAB, x["after"])
+        assert got is (x["expect"] == "replace"), x["text"]

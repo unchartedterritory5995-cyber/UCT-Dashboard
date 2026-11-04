@@ -469,9 +469,27 @@ _NAVIGATE = re.compile(r"\b(how (do|can|would) (i|you|we)|where (is|are|do|can)|
                        r"share|edit|rename|move|configure|enable|disable|get to)\b")
 
 
+#: review #781 delta 3 item 3: "where is / where are ... in <a UCT place>" asks where something is in the product.
+_PLACES = (r"(scans?|scanners?|screens?|screeners?|columns?|tabs?|menus?|panels?|widgets?|settings?|toolbar|sidebar|page|"
+           r"dashboard|library|setup library|app|site|charts? page)")
+_LOCATION = re.compile(r"\bwhere (is|are|can i find|do i find|would i find|do i see|can i see)\b.*\b(in|on|under|inside) "
+                       r"(the |my |uct s |uct )?(\w+ )?" + _PLACES + r"\b")
+
+
+def _method_and_pattern(f: str, question: bool = False) -> bool:
+    """Folded text that pairs method vocabulary with setup / pattern vocabulary (review #781 delta 3 item 1)."""
+    return bool((_METHOD.search(f) or (question and _TRADE.search(f))) and _TERMS.search(f))
+
+
 def feature_context(text: str) -> bool:
+    """UCT product help: a product-location question, or feature / how-do-I wording WITHOUT method + pattern
+    vocabulary together ("what's a good pivot entry in the screener" is still a playbook question)."""
     f = _fold(text)
-    return bool(_FEATURE.search(f) or _NAVIGATE.search(f))
+    if _LOCATION.search(f):
+        return True
+    if not (_FEATURE.search(f) or _NAVIGATE.search(f)):
+        return False
+    return not _method_and_pattern(f, question=True)
 
 
 def playbook_worded(message: str, vocab: list[dict], symbols: list[str]) -> bool:
@@ -508,15 +526,29 @@ def playbook_worded(message: str, vocab: list[dict], symbols: list[str]) -> bool
 #:     ("an EP is ...", "EP means ...", "EP = ...");
 #:   - or answers a turn whose INPUT used setup vocabulary with entry / exit / trigger / buy-point wording.
 _SUBJECT = r"(uct|uncharted territory|the team|our team|we|us|our)"
-_ACTS = (r"(rules?|setups?|playbook|criteria|methods?|methodology|approach|process|system|plays?|enters?|entry|entries|"
+_ACTS = (r"(rules?|setups?|playbook|checklists?|criteria|methods?|methodology|approach|process|system|plays?|enters?|entry|entries|"
          r"buys?|buying|sells?|selling|get in|gets in|get out|gets out|adds?|adding|trims?|trimming|trades?|trading|"
          r"stops?|exits?|definition|defines?)")
 _OWNED = re.compile(r"\b" + _SUBJECT + r"( s)? (\w+ ){0,3}" + _ACTS + r"\b")
-_METHOD = re.compile(r"\b(entry|entries|enter|entering|buy point|buy|buys|buying|sell|sells|selling|get in|get out|"
-                     r"adds? (to|on)|trim|trims|trimming|stops?|stop loss|max stop|criteria|rules?|trigger\w*|"
-                     r"invalidat\w*|position siz\w*|risk per trade|win rate|hit rate)\b")
+_METHOD = re.compile(r"\b(entry|entries|entry rules?|enter|entering|buy point|buy|buys|buying|sell|sells|selling|get in|"
+                     r"get out|go long|go short|goes long|goes short|exit|exits|exiting|out (under|over|below|above)|"
+                     r"bail|bails|cut it|cut the|adds? (to|on)|trim|trims|trimming|stops?|stop loss|max stop|criteria|"
+                     r"rules?|trigger\w*|invalidat\w*|position siz\w*|risk per trade|win rate|hit rate)\b")
+_TRADE = re.compile(r"\b(trade|trades|trading)\b")       # method words in a QUESTION only (never a chart reading)
 _DEFINES = r"( s)? (is|are|means|refers to|stands for|=)\b"
 _SENTENCES = re.compile(r"(?<=[.!?;\n])\s+")
+_LIST_ITEM = re.compile(r"^\s*([-*\u2022\u2013]|\d{1,2}[.)])\s+")
+
+
+def _segments(reply: str) -> list[str]:
+    """Sentences, with a list's items judged together with their heading (review #781 delta 3 item 2)."""
+    out: list[str] = []
+    for line in str(reply or "").splitlines():
+        if _LIST_ITEM.match(line) and out:
+            out[-1] = out[-1] + " " + _LIST_ITEM.sub("", line)
+            continue
+        out.extend(p for p in _SENTENCES.split(line) if p.strip())
+    return out
 
 
 def _defines_named(reply: str, names: list[str]) -> bool:
@@ -528,9 +560,10 @@ def _defines_named(reply: str, names: list[str]) -> bool:
 
 
 def presents_methodology(reply: str, vocab: list[dict], message: str = "") -> bool:
-    for sent in _SENTENCES.split(str(reply or "")):
-        fs = _fold(sent)
-        if _OWNED.search(fs) and not _FEATURE.search(fs):
+    for seg in _segments(reply):
+        fs = _fold(seg)
+        # a sentence about a UCT feature is exempt only without method + pattern vocabulary together (delta 3 item 1)
+        if _OWNED.search(fs) and not (_FEATURE.search(fs) and not _method_and_pattern(fs)):
             return True
     f = _fold(reply)
     approved, other = named_setups(reply, vocab)

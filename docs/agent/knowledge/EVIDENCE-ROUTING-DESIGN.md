@@ -261,6 +261,16 @@ Where: `knowledge/evidence.py`, entered from the top of `turn.run_turn` (one hoo
     how-do-I navigation ("how do I add / set / open / save / draw...") mean the message is help about UCT. A named
     setup still counts. While E-1 runs, #768's own word list is not consulted on chart / none turns; E-1's check
     decides (`_e1="gate"` / `"gate_kn"`). Nine help phrasings are pinned as negative tests.
+  - **Review #781 delta 3:**
+    - The feature exemption holds only when the message does NOT pair method vocabulary (entry, exit, stop, buy,
+      sell, rules, trigger, trade...) with setup / pattern vocabulary. "What's a good pivot entry in the screener" is
+      still a playbook question; "how do I add a breakout scan" is help.
+    - A product-location question ("where are the entry rules in the setup library") is help.
+    - The reply check judges a list's items together with their heading, and knows go long / short, exit, out under /
+      over, bail and entry rule. It stays **best-effort**; the guarantee is routing plus the eval.
+    - Every evasion and false positive from reviews 1-3 is in `docs/agent/knowledge/e1-eval-seeds.json`, which joins
+      the labelled eval set. Tests check the deterministic layers against it ("what is position sizing" is
+      classifier-only: the classifier forces trading_concept to playbook).
   - **v2 resumes** (only chart / none turns reach v2) get the same output backstop and general label
     (`serve_resume`); a paused result passes through.
 - **General-information label (review #781 finding 2, owner: general education and chart analysis stay clearly
