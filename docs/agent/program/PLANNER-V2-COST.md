@@ -64,3 +64,47 @@ acts), 0 misses in both (scripted). Reachable steps 92/92 in both layouts. Brows
   Note its >100k-token tier makes the Wave 1 layout dearer on it ($0.67/turn), not cheaper.
 
 Reproduce: `python tools/agent_v2_cost_measure.py` (tables) or `--json`; the Wave 1 table: `python tools/agent_v2_cost_dryrun.py`.
+
+---
+
+# v2-readiness-2 (Mission 3, 2026-11-04): planner v2 on current master, measured over the capability-regression corpus
+
+Branch `agent/w2/v2-readiness-2` (base master `88cca06313`). `UCT_AGENT_PLANNER` stays unset; no production routing
+change; no model call. The #733 work above was ported onto master (index layout, 1,024-token v2 rounds, rails, alias
+binding, acceptance set); #732's `args.py` was NOT (master's W1.1 `turn.normalize_args` is the one normalizer).
+
+## Parity: v1 vs v2 over the corpus (46 intents, 233 phrasings; `agentPlannerV2Parity.test.jsx`, `V2_PARITY=full`)
+
+Both replays use the REAL panel and the same `checkExpect`. v1 = capreg level (c) with the faithful routed model; v2 =
+deterministic layers first (identical code), then the scripted STEP-1 server, one step per canonical op, mode as
+turn_v2 decides it, faithful to the v2 manifest.
+
+| | v1 | v2 |
+|---|---|---|
+| phrasings reaching the same final state | 223 / 233 | 223 / 233 |
+| failing (all recorded capreg gaps: CG-3 ×6, CG-8, CG-9, CG-10, CG-15) | 10 | the same 10 |
+| v2-only failures | — | 0 (rail: V2-G1 recorded for when CG-3 is fixed in v1 by #771) |
+| phrasings whose model request carries every needed action (level a) | 218 / 233 (routing) | 233 / 233 (whole manifest, 138 actions ≤ 200) |
+| phrasings that reached the planner at all | — | 115 / 233 (the rest are deterministic, identical in both) |
+
+V2-G1: "Put four charts on my screen" (3 × widget.add + widget.arrange). #771 fixes v1 (adds + one re-tile in one plan);
+v2 runs steps one at a time, so the third add has no room before the re-tile. It needs a "make room first" prompt rule
+or a multi-op re-tile step. The CI rail runs the first phrasing per intent through v2 (46 cases, ~1 min).
+
+## Cost per corpus intent, v1 vs v2 (`tools/agent_v2_corpus_cost.py`; claude-haiku-4-5)
+
+Inputs are the actual prompts. v1 is `run_turn` with the phrasing's routed manifest and routing block. v2 is the real
+`run_turn_v2` loop, with every round captured: load, then one step per round (the worst case), then the reply. Tokens
+use a BPE-like approximation. The gate replays turn_v2's own rule: spent + `worst_case_usd(next request)` ≤ $0.25,
+checked before each call.
+
+| | v1 | v2 (index, default) | v2 (Wave 1 search) |
+|---|---|---|---|
+| mean input tokens / turn | 15,287 | 20,058 | 68,851 |
+| mean expected $ / turn | $0.0160 | $0.0209 (cached prefix $0.0137) | $0.0691 |
+| worst intent, runtime gate | $0.0878 (one call) | **$0.0718** (grid.four.unnamed, 6 rounds) | $0.2218, then turn_cap |
+| margin under $0.25 | $0.162 | **$0.178** | none: 0 / 46 finish |
+| turns that finish | 46 / 46 | 46 / 46 | 0 / 46 |
+
+The owner flagship (9 steps, 2 cards; acceptance tool above) is still the tightest case. Its summed worst-case
+reservation is $0.2460 on master. The runtime rule (spent + next worst) stays below that.
