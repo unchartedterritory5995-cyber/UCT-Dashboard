@@ -377,6 +377,70 @@ jobs:
           fi
           npx vitest run src/agent src/components/chart/builder/agentMutations
 
+      # ── PINE RUNTIME SERVICE (W5-T19, 2026-11-04) ──────────────────────────────────
+      # docs/pine/SERVER-RUNTIME-DESIGN.md section 8, steps 1-7, in that order; every one is
+      # offline and cheap. Runbook: docs/runbooks/pine-runtime-service.md.
+      # ⛔ NEVER SKIPPED: no `if:`, no continue-on-error, no path filter. A step that cannot find
+      # its subject FAILS (node and pytest both exit non-zero on a missing file).
+      # tests/test_pine_runtime_deploy_gate.py rails all of this: the steps, their order, that the
+      # Node here is the image's Node, and that a NEW tests/test_pine_runtime_*.py must be named.
+      # NOT here, on purpose: the Chromium half of host parity (HP-2/HP-3) and the C18 diff count
+      # run before merge under the coordinator's lock (too heavy for a gate); the post-deploy
+      # smoke needs the live service. The image is not built here: section 8 does not ask for it.
+      #
+      # The Node on this runner must be the image's Node, READ from the image, not retyped: the
+      # setup-node pin above is a major number, so this step compares it with the FROM line of
+      # services/pine_runtime/Dockerfile (a separate rail pins that line to Dockerfile.web's).
+      - name: Pine runtime - this runner's Node is the image's Node
+        run: |
+          want=$(sed -n 's/^FROM node:\([0-9][0-9]*\)\..*/\1/p' services/pine_runtime/Dockerfile | head -n 1)
+          have=$(node -p 'process.versions.node.split(".")[0]')
+          echo "image Node major: ${want:-none}; runner Node: $(node -v) (V8 $(node -p 'process.versions.v8'))"
+          test -n "$want" && test "$want" = "$have"
+
+      # 1. The server bundle builds, and imports under bare Node.
+      - name: Pine runtime - the server bundle builds and imports under bare Node
+        working-directory: app
+        run: |
+          node scripts/build-pine-runtime.mjs
+          node -e "import('./dist-server/pine-runtime.mjs').then(() => console.log('bundle imports'))"
+
+      # 2. Host parity, Node half: HP-1 (committed digests) + HP-4 (the perturbed bundle must go
+      # red) + HP-5. A digest change without an engine bump is red. ⚠️ This runner's V8 (Node 20 =
+      # V8 11.3) is NOT the V8 the digests were recorded on (13.6): on a different V8 the tool
+      # reports exactly the two NAMED trig cases in corpus.json `reportOnly` (V8 sin/cos 1 ulp)
+      # and gates the other 164. On the recording V8 all 166 are gated. Exit 2 (inconclusive) fails.
+      - name: Pine runtime - host parity, Node half (HP-1, HP-4 control, HP-5)
+        run: |
+          node tools/pine_runtime_host_parity.mjs --host node --check
+          node tools/pine_runtime_host_parity.mjs --host node --mutation-control
+
+      # 3. Engine identity agrees (HP-6) and the adapters agree (HP-7). Production dependency set.
+      - name: Pine runtime - engine identity and adapters agree (HP-6, HP-7)
+        run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_engine_identity.py -q -p no:cacheprovider
+
+      # 4. Closure stays host-neutral (W5-T2's tools/pine_runtime_closure.mjs; exits 1 on any finding).
+      # ⚠️ The tool arrives with W5-T2: this step is red on any tree without it, so T2 MUST merge before
+      # (or with) this workflow. That is deliberate: a step that skipped a missing tool would be a rail that
+      # reads green while checking nothing.
+      - name: Pine runtime - the closure stays host-neutral
+        run: node tools/pine_runtime_closure.mjs --check
+
+      # 5. Service unit rails: protocol, auth, sandbox, pool, hostile corpus (and caches, canary,
+      # metrics when they land: the glob takes every *.test.mjs).
+      - name: Pine runtime - service unit rails
+        run: node --test services/pine_runtime/test/*.test.mjs
+
+      # 6. The client, the codec, the stamps and the stop telemetry (and composition and the
+      # server stage when T17 and T12 land: the rail refuses an unnamed tests/test_pine_runtime_*.py).
+      - name: Pine runtime - client, codec and composition rails
+        run: |
+          /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_client.py tests/test_pine_runtime_codec.py tests/test_pine_runtime_deploy_gate.py tests/test_pine_runtime_shared_stamp.py tests/test_pine_runtime_stop_telemetry.py tests/test_pine_runtime_switch_on.py -q -p no:cacheprovider
+
+      # 7. Dockerfile agreement: the image's Node pin and VITE_* set equal Dockerfile.web's.
+      - name: Pine runtime - the image agrees with Dockerfile.web
+        run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_dockerfile.py -q -p no:cacheprovider
+
       - name: Explain a failure
         if: failure()
         run: |
@@ -401,3 +465,4 @@ jobs:
           echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
           echo "  python -m pytest tests/test_uct_agent*.py -q"
           echo "  (cd app && npm ci && npx vitest run src/agent src/components/chart/builder/agentMutations)"
+          echo "  Pine runtime service steps: docs/runbooks/pine-runtime-service.md section 2 lists the exact commands"
