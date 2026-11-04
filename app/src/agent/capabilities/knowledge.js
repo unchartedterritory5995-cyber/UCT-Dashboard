@@ -31,6 +31,25 @@ const refusalText = (env, what) => {
   const why = Array.isArray(env?.notes) && typeof env.notes[0] === 'string' ? env.notes[0] : null
   return why ? `${why}.`.replace(/\.\.$/, '.') : `I couldn't read ${what} right now.`
 }
+// Owner 2026-11-03 (Brain response handling): under planner v1 these texts ARE the answer (the server drops the model's
+// pre-read reply on any playbook.* plan), so each one is grounded and cited: a short fixed lead, the admitted passages or
+// template fields within the server's caps, each with its citation, and the pack + source-policy version. When nothing
+// approved exists the member is told so plainly; nothing is ever filled in.
+const NO_SOURCE = 'No approved UCT source covers this'
+/** a refusal meaning "this setup has no approved template" (unknown name, or a template the source policy excludes) */
+const NOT_APPROVED = /no approved setup template named|approved knowledge does not include the/
+/** the setup as the member named it: a short plain name only (the arg is model-written, so anything longer or
+ *  sentence-like is never echoed: it could carry a definition) */
+const said = (s) => {
+  const t = String(s || '').trim()
+  return /^[A-Za-z0-9&+/' -]{1,32}$/.test(t) && t.split(/\s+/).length <= 4 ? t : 'that setup'
+}
+/** "UCT playbook pack of Nov 1, 2026 · source policy v3" (only the parts the envelope carries) */
+const versionLine = (env, policyVersion) => {
+  const pv = policyVersion ?? env?.coverage?.policy_version
+  const parts = [day(env?.as_of) ? `UCT playbook pack of ${day(env.as_of)}` : null, pv != null ? `source policy v${pv}` : null].filter(Boolean)
+  return parts.length ? `Sources: ${parts.join(' · ')}.` : ''
+}
 /** a template field (string | list | object) → one plain line */
 export function plain(v) {
   if (v == null) return ''
@@ -44,13 +63,13 @@ const pct = (v) => (typeof v === 'number' && Number.isFinite(v) ? `${Math.round(
 export function answerFromSearch(env) {
   if (!usable(env)) return refusalText(env, "UCT's knowledge base")
   const ps = Array.isArray(env.data.passages) ? env.data.passages : []
-  if (!ps.length) return `UCT's approved knowledge base has nothing on that yet (${asOf(env)}).`
+  if (!ps.length) return `${NO_SOURCE} (${asOf(env)}).`
   const lines = ps.map(p => {
-    const who = [p.source, p.trader && p.trader !== 'UCT Team' ? p.trader : null, p.dated && day(p.as_of_post) ? `posted ${day(p.as_of_post)}` : null].filter(Boolean).join(' · ')
+    const who = [Number.isInteger(p.kb_id) ? `UCT KB #${p.kb_id}` : null, p.source, p.trader && p.trader !== 'UCT Team' ? p.trader : null, p.dated && day(p.as_of_post) ? `posted ${day(p.as_of_post)}` : null].filter(Boolean).join(' · ')
     return `• ${p.title}: ${p.excerpt} (${who})`
   })
   return {
-    text: `From ${asOf(env)}:${staleLine(env)}\n${lines.join('\n')}\n${FOOTER}`,
+    text: `From UCT's knowledge base (${asOf(env)}):${staleLine(env)}\n${lines.join('\n')}\n${[versionLine(env), FOOTER].filter(Boolean).join(' ')}`,
     table: { columns: ['Source', 'Title', 'Category'], rows: ps.map(p => [p.source, p.title, p.category]) },
   }
 }
@@ -59,17 +78,22 @@ const TEMPLATE_LINES = [
   ['description', 'What it is'], ['ideal_regime', 'Best market'], ['entry_triggers', 'Entry'], ['stop_methods', 'Stop'],
   ['max_stop_pct', 'Max stop'], ['profit_logic', 'Taking profits'], ['invalidation', 'Invalidation'], ['common_mistakes', 'Common mistakes'],
 ]
-export function answerFromPlaybook(env) {
-  if (!usable(env)) return refusalText(env, "UCT's setup templates")
+export function answerFromPlaybook(env, setup) {
+  if (!usable(env)) {
+    const why = Array.isArray(env?.notes) ? String(env.notes[0] || '') : ''
+    if (env?.status === 'refused' && NOT_APPROVED.test(why)) return `UCT has no approved playbook definition for ${said(setup)}.`
+    return refusalText(env, "UCT's setup templates")
+  }
   const d = env.data
-  const head = `${d.name} — UCT setup template${d.family ? ` (${d.family}` : ''}${d.origin_trader ? `${d.family ? ', ' : ' ('}origin: ${d.origin_trader})` : (d.family ? ')' : '')}`
+  const head = `From UCT's playbook — ${d.name}: UCT setup template${d.family ? ` (${d.family}` : ''}${d.origin_trader ? `${d.family ? ', ' : ' ('}origin: ${d.origin_trader})` : (d.family ? ')' : '')}`
   const rows = TEMPLATE_LINES.map(([k, label]) => {
     if (d[k] == null) return null
     const v = k === 'max_stop_pct' ? pct(Number(d[k])) : plain(d[k])
     return v ? `${label}: ${v}` : null
   }).filter(Boolean)
   return {
-    text: `${head}. ${asOf(env)}.${staleLine(env)}\n${rows.join('\n')}\n${FOOTER}`,
+    text: `${head}. ${asOf(env)}.${staleLine(env)}\n${rows.join('\n')}\n`
+      + `${[`Cited: template “${d.name}”${d.source ? `, ${d.source}` : ''}.`, versionLine(env, d.approved_by_policy), FOOTER].filter(Boolean).join(' ')}`,
     link: d.link && d.link.href ? { href: d.link.href, label: d.link.label || 'Open the Setup Library' } : undefined,
   }
 }
@@ -85,12 +109,16 @@ function recordLine(b) {
   const z = typeof b.edge_z === 'number' ? `, z = ${b.edge_z > 0 ? '+' : ''}${b.edge_z}` : ''
   return `${m}: n = ${b.n}${fig ? `, ${fig}` : ''}${z}. ${b.label_text}.`
 }
-export function answerFromRecord(env) {
-  if (!usable(env)) return refusalText(env, "UCT's setup records")
+export function answerFromRecord(env, setup) {
+  if (!usable(env)) {
+    const why = Array.isArray(env?.notes) ? String(env.notes[0] || '') : ''
+    if (env?.status === 'refused' && NOT_APPROVED.test(why)) return `UCT has no approved evidence for ${said(setup)}.`
+    return refusalText(env, "UCT's setup records")
+  }
   const d = env.data
   const lines = [recordLine(d.engine), recordLine(d.triggers), d.team_archive ? recordLine(d.team_archive) : null].filter(Boolean)
   return `${d.setup}${d.regime && d.regime !== 'ALL' ? ` in a ${d.regime} market` : ''} — UCT's historical record (${asOf(env)}).${staleLine(env)}\n`
-    + `${lines.map(l => `• ${l}`).join('\n')}\n${d.caution || ''}`.trim()
+    + `${lines.map(l => `• ${l}`).join('\n')}\n${d.caution || ''}\n${versionLine(env)}`.trim()
 }
 
 // ── the reads ────────────────────────────────────────────────────────────────────────────────────────
@@ -102,14 +130,14 @@ export async function answerExplain(args = {}) {
 export async function answerSetup(args = {}) {
   const turnId = currentTurnId()
   const env = turnId ? await readData('setup.playbook', { setup: String(args.setup || '').slice(0, 60) }, { purpose: 'answer', turnId }) : null
-  return env ? answerFromPlaybook(env) : `I couldn't read UCT's setup templates: ${NO_TURN}.`
+  return env ? answerFromPlaybook(env, args.setup) : `I couldn't read UCT's setup templates: ${NO_TURN}.`
 }
 export async function answerRecord(args = {}) {
   const params = { setup: String(args.setup || '').slice(0, 60) }
   if (args.regime) params.regime = String(args.regime).toUpperCase()
   const turnId = currentTurnId()
   const env = turnId ? await readData('setup.record', params, { purpose: 'answer', turnId }) : null
-  return env ? answerFromRecord(env) : `I couldn't read UCT's setup records: ${NO_TURN}.`
+  return env ? answerFromRecord(env, args.setup) : `I couldn't read UCT's setup records: ${NO_TURN}.`
 }
 
 // ── registration (server-gated, idempotent) ──────────────────────────────────────────────────────────

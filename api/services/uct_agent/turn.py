@@ -1029,6 +1029,14 @@ DATA_READ_ACTIONS = frozenset({
     # train2 (W2-B3 #746, live for admins): the setup description is a deterministic read of bars.daily
     "chart.describeSetup",
 })
+#: Brain response handling (owner, 2026-11-03, before activation). Planner v1 writes `reply` BEFORE any knowledge is
+#: read, so a plan holding ANY knowledge read (playbook.*, decided by action name: knowledge.frame) never serves it,
+#: not even beside a write: free text cannot be checked for a definition UCT's knowledge base never gave. The member
+#: sees UCT's grounded knowledge card (cited) and, for a write, the change's own receipt. Such a plan is never
+#: researched in the same turn either (web text never sits beside UCT's knowledge); this fixed sentence says so.
+#: Planner v2 reads first and answers from the framed result; it never passes through here.
+KNOWLEDGE_NO_WEB = ("I answered from UCT's knowledge base only: it is never combined with a web search in the same "
+                    "step. Ask the web question on its own in a new chat.")
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
                      "from it. To answer about it again, plan the same lookup.]")
@@ -1799,7 +1807,7 @@ def false_capability_claim(env: Any, cap_names: set[str] | None, unselected_ids:
 
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
                       unselected_ids: set[str] | None = None, local_notice: str | None = None,
-                      claim_repaired: bool = False, grounded: bool = False) -> dict:
+                      claim_repaired: bool = False, grounded: bool = False, knowledge_no_web: bool = False) -> dict:
     """The server-side gate between the model and the browser. `grounded`: the reply was written from research
     results (the post-research call of a mixed request), not before any data was read."""
     need = env.get("need_groups") if unselected_ids else None
@@ -1893,6 +1901,11 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
             log.info("uct_agent data-read plan: dropped a %d-char model reply (%s)", len(reply),
                      ",".join(sorted({str(o.get("action")) for o in ops})))
         reply = ""
+    if disp in MUTATING and any(_kn_frame().is_knowledge_action(o.get("action")) for o in ops):
+        # ⛔ KNOWLEDGE PLANS (owner 2026-11-03): UCT's cited card is the answer; the model's pre-read words never are
+        if reply:
+            log.info("uct_agent knowledge plan: dropped a %d-char model reply", len(reply))
+        reply = KNOWLEDGE_NO_WEB if knowledge_no_web else ""
     if disp in MUTATING and any(o.get("action") in LOCAL_ONLY_ACTIONS for o in ops):
         # ⛔ LOCAL-RESULT BOUNDARY: the model planned a lookup whose figures it never sees, so any
         # figure in its reply is invented. UCT's own answer is the reply; this text is not shown,
@@ -2290,6 +2303,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         return {"envelope": nonsense_clarify(), "usage": usage, "title": None}
     pre_research = None
     notice = None
+    kn_no_web = False
     repaired = bool(repair_in)               # a repair request (or one already made here) is never repaired again
     if repair_in:
         usage["repaired"] = "browser"
@@ -2425,7 +2439,16 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                 usage["local_research_skipped"] = True
         if wants:
             from api.services.uct_agent.knowledge import frame as kn_frame      # KN-1 owner decision 5: separation
-            if kn_frame.seen(messages):
+            if not kn_frame.seen(messages) and any(
+                    isinstance(o, dict) and kn_frame.is_knowledge_action(o.get("action")) and o.get("action") in cap_names
+                    for o in (env.get("ops") or [] if env.get("disposition") in MUTATING else [])):
+                # owner 2026-11-03: a plan reading UCT's knowledge is not researched in the same turn (said in UCT's words)
+                wants = False
+                usage["research_skipped"] = "knowledge_plan"
+                kn_no_web = True
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
+            elif kn_frame.seen(messages):
                 wants = False
                 usage["research_skipped"] = "knowledge_separation"
                 if streaming and rs is not None and rs.streamed:
@@ -2521,7 +2544,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             env = {**env, "disposition": "answer", "ops": [], "question": None,
                    "reply": env.get("reply") or "I can only answer questions about this headline here."}
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
-                                                             claim_repaired=bool(usage.get("false_claim"))), env), caps)
+                                                             claim_repaired=bool(usage.get("false_claim")),
+                                                             knowledge_no_web=kn_no_web), env), caps)
         if coach_turn:
             envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)

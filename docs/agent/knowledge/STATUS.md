@@ -146,6 +146,20 @@ Admitted corpus on the real snapshot: 0 passages under 200 characters, 0 remaini
 0 guard false positives. Retrieval: 38/40 realistic questions answered relevantly, P@3 0.89, p95 < 20 ms. Further
 filtering or ranking work would add complexity without a measurable gain; embeddings stay out (no external calls).
 
+## Brain response handling (branch agent/kn/grounded-reply, owner-approved 2026-11-03, before activation)
+- Planner v1 writes `reply` before anything is read. A v1 plan holding ANY `playbook.*` op (decided by action name,
+  knowledge.frame.is_knowledge_action) never serves that reply (turn.sanitize_envelope); UCT's cited card is the answer.
+- Mixed write + playbook plan (decision): the reply is dropped too. Free text cannot be checked for a definition the
+  knowledge base never gave; the write's receipt confirms the change and the card gives the knowledge.
+- A v1 knowledge plan is never researched in the same turn; the fixed sentence turn.KNOWLEDGE_NO_WEB says so.
+- Cards (capabilities/knowledge.js): fixed leads "From UCT's knowledge base (...)" / "From UCT's playbook - <template>:",
+  a citation per passage (UCT KB #id, source, trader, date) or per template, and the pack + source-policy version.
+  Nothing approved: "No approved UCT source covers this" / "UCT has no approved playbook definition for <X>" /
+  "UCT has no approved evidence for <X>" (X echoed only when it is a short plain name). Server caps, N3, the stats
+  gate and the withheld rules are unchanged.
+- Planner v2 (reads, then answers from the framed result) is unchanged and never passes the v1 gate (tested).
+- Flags unchanged: UCT_AGENT_KNOWLEDGE unset; no knowledge kind in UCT_AGENT_DATA_KINDS.
+
 ## Blocked / needs the owner
 - Admitting `self_review`, `manual`, `chart_intake:*` or any `intake:*` source (policy.json is the switch; default-deny until the owner rules).
 - Activation: `UCT_AGENT_KNOWLEDGE=1` and the three kinds in `UCT_AGENT_DATA_KINDS` — owner only, after merge.
