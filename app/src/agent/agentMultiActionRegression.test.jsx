@@ -129,6 +129,14 @@ describe('T3 · "on four charts, all the same size"', () => {
     expect(h.charts.read('c1').symbol).toBe('NVDA')
     expect(receipts()).toHaveLength(0)
   }, 30000)
+  it('a tab the member DID ask for still runs (the guard reads the member\'s own word "tab")', async () => {
+    const { board, say } = mount(...FULL())
+    envelopes.push(b => env('apply', [{ action: 'chart.addTab', target: ref(b, 'board'), args: { widget: 'c1', timeframe: null, name: 'Swing' } }]))
+    await say('give this chart another tab called Swing please, thanks a lot')
+    await waitFor(() => expect(receipts()).toHaveLength(1))
+    expect(transcript()).not.toMatch(/TABS of one chart/)
+    expect(JSON.stringify(board.state.widgets.find(w => w.id === 'c1').opts)).toMatch(/Swing/)
+  }, 30000)
 })
 
 // ═══ T1 ═══════════════════════════════════════════════════════════════════════════════════════════════

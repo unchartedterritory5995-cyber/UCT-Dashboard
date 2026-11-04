@@ -1857,7 +1857,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // ⛔ hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts…" planned as four TABS of the one chart,
       // overwriting its ticker): a plan that adds chart tabs when the member never said "tab" is a stand-in for what was
       // asked — nothing runs, said plainly (the member can ask for tabs, or for the charts again)
-      if ((env.ops || []).some(o => TAB_ADDS.has(o?.action)) && !/tabs?/i.test(`${askedFor || ''} ${text}`)) {
+      if ((env.ops || []).some(o => TAB_ADDS.has(o?.action)) && !/\btabs?\b/i.test(`${askedFor || ''} ${text}`)) {
         const t = 'I didn’t change anything: my plan would have put those on TABS of one chart, not on separate charts. Ask again for the charts (for example “four charts for SPY, QQQ, NVDA and TSLA in a grid”), or say “tabs” if tabs are what you want.'
         push({ role: 'refusal', text: t })
         record({ member: null, outcome: t, outcomeData: { kind: 'refused', actions: (env.ops || []).map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })

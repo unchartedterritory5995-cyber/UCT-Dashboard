@@ -199,7 +199,7 @@ export const TOPICS = [
   {
     // hotfix 2026-11-03: the Agent's own Undo, asked for in words (agent.undo → the receipt's Undo)
     id: 'undo', title: 'Undoing my changes',
-    words: [/(undo|revert|take (it|that|them) back)/],
+    words: [/\b(undo|revert|take (it|that|them) back)\b/],
     caps: ['agent.undo'], productHas: true,
     canDo: 'undo my own changes when you ask (“undo that”, “undo the last change you made”, “revert the timeframe change”, “undo all of that”) — exactly what the Undo on that change’s receipt does — and tell you plainly when a change can’t be undone (changed since, on another board, a protected layout, or a permanent action)',
     known: () => [],
