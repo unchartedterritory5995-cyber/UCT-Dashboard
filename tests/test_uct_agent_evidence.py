@@ -722,7 +722,7 @@ def test_delta3_the_seed_file_is_well_formed_and_covers_every_review():
     assert {x["expect"] for x in s["input"]} <= {"playbook", "mixed", "chart", "none", "ambiguous"}
     assert {x["expect"] for x in s["reply"]} <= {"replace", "keep"}
     srcs = " ".join(x["source"] for x in s["input"] + s["reply"])
-    for r in ("review 1", "delta 1", "delta 2", "delta 3", "delta 4"):
+    for r in ("review 1", "delta 1", "delta 2", "delta 3", "delta 4", "delta 5"):
         assert r in srcs
 
 

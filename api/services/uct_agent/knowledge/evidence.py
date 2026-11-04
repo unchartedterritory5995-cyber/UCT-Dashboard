@@ -526,24 +526,40 @@ def playbook_worded(message: str, vocab: list[dict], symbols: list[str]) -> bool
 #:     ("an EP is ...", "EP means ...", "EP = ...");
 #:   - or answers a turn whose INPUT used setup vocabulary with entry / exit / trigger / buy-point wording.
 _SUBJECT = r"(uct|uncharted territory|the team|our team|we|us|our)"
-_ACTS = (r"(rules?|setups?|playbook|checklists?|criteria|methods?|methodology|approach|process|system|plays?|enters?|entry|entries|"
-         r"buys?|buying|sells?|selling|get in|gets in|get out|gets out|adds?|adding|trims?|trimming|trades?|trading|"
-         r"stops?|exits?|go long|go short|goes long|goes short|bails?|definition|defines?)")
-_OWNED = re.compile(r"\b" + _SUBJECT + r"( s)? (\w+ ){0,3}" + _ACTS + r"\b")
+#: review #781 delta 5: owned methodology = a subject with a methodology NOUN, or with a TRADING ACTION (below); bare
+#: verbs that are also UI words ("enter the ticker", "add to the list", "exit the chart") never count.
+_ACTS = (r"(rules?|setups?|playbook|checklists?|criteria|methods?|methodology|approach|entry rules?|entries|"
+         r"entry (is|point|points|trigger|triggers|signal)|definition|defines?)")
+#: a TRADING ACTION: an order-like verb with a trading object or level ("buys the break", "sell into strength",
+#: "go long", "out under the low", "stop under the low", "trim into strength"). "Buy signals are...", "rate it a buy",
+#: "enter the ticker", "exit points" are not.
+_TRADE_OBJ = (r"(the |a |an |it |them |some |half |more |back |first |on |at |into |above |below |over |under |near |off |"
+              r"when |if |as |after )")
+_TRADE_ACTION = re.compile(
+    r"\b(go long|go short|goes long|goes short|went long|went short|going long|going short|get long|get short|"
+    r"(buy|buys|buying|bought|sell|sells|selling|sold|short|shorts|shorting|trim|trims|trimming|add|adds|adding|"
+    r"enter|enters|entering) (\w+ ){0,3}(break|breakout|breakdown|pullback|dip|open|opening|close|high|low|pivot|gap|"
+    r"strength|weakness|reclaim|retest|bounce|level|support|resistance|top|bottom|rip|spike|ma|ema|sma|vwap)|"
+    r"(out|stop|stops|stopped out|bail|bails|cut it|exit|exits|exiting|get out|gets out) (under|below|over|above|on a close|"
+    r"if it|when it|at the low|at the high))\b")
+_PERSON_LONG = re.compile(r"\b(i d|i would|i ll|i will|i|we d|we|you d|you|he|she|they|their|his|her|our|uct|the team|"
+                          r"traders?)( \w+){0,2} (go|goes|went|going|get) (long|short)\b")
+_OWNED = re.compile(r"\b" + _SUBJECT + r"( s)? (\w+ ){0,3}(" + _ACTS + r"|" + _TRADE_ACTION.pattern[2:-2] + r")\b")
 _METHOD = re.compile(r"\b(entry|entries|entry rules?|enter|entering|buy point|buy|buys|buying|sell|sells|selling|get in|"
                      r"get out|go long|go short|goes long|goes short|exit|exits|exiting|out (under|over|below|above)|"
                      r"bail|bails|cut it|cut the|adds? (to|on)|trim|trims|trimming|stops?|stop loss|max stop|criteria|"
                      r"rules?|trigger\w*|invalidat\w*|position siz\w*|risk per trade|win rate|hit rate)\b")
 _TRADE = re.compile(r"\b(trade|trades|trading)\b")       # method words in a QUESTION only (never a chart reading)
 #: review #781 delta 4: method ACTIONS (a feature word never excuses them; "set a stop alert" has none)
-_METHOD_VERB = re.compile(r"\b(go long|go short|goes long|goes short|buy|buys|buying|sell|sells|selling|enter|enters|"
-                          r"entering|exit|exits|exiting|trim|trims|trimming|bail|bails|get in|get out|"
-                          r"out (under|over|below|above)|adds? (to|on))\b")
+_METHOD_VERB = _TRADE_ACTION        # review #781 delta 5: trading actions only (never "enter the ticker", "add to the list")
 #: an explicit statement of a rule or approach, with or without a setup name ("the entry rule here is ...",
 #: "his approach is to go long ...")
-_RULE_STMT = re.compile(r"\b(entry|exit|stop|sell|buy) (rules?|points?|signals?|triggers?) (here |for this |for that |for it )?"
-                        r"(is|are)\b|\b(approach|method|system|process|plan|edge|style|playbook|strategy|rule) "
-                        r"(here )?(is|was) to (go long|go short|buy|sell|enter|short|fade|add|trim)\b")
+#: review #781 delta 5: narrowed — a RULE or TRIGGER being stated ("the entry rule here is", "their entry trigger:"),
+#: or an approach "to go long / buy / short ..."; never "buy signals are" or "exit points are" (UI).
+_RULE_STMT = re.compile(r"\b(entry|exit|stop|sell|buy) (rules?|triggers?) (here |for this |for that |for it )?(is|are)\b|"
+                        r"\b(approach|method|system|plan|edge|style|playbook|strategy|rule) (here )?(is|was) to "
+                        r"(go long|go short|buy|sell|short|fade)\b")
+_RULE_COLON = re.compile(r"\b(entry|exit|stop|sell|buy) (rules?|triggers?)\s*:", re.I)
 _DEFINES = r"( s)? (is|are|means|refers to|stands for|=)\b"
 _SENTENCES = re.compile(r"(?<=[.!?;\n])\s+")
 _LIST_ITEM = re.compile(r"^\s*([-*\u2022\u2013]|\d{1,2}[.)])\s+")
@@ -574,13 +590,18 @@ def presents_methodology(reply: str, vocab: list[dict], message: str = "") -> bo
         # a sentence about a UCT feature is exempt only without method + pattern vocabulary together (delta 3 item 1)
         if _OWNED.search(fs) and not (_FEATURE.search(fs) and not (_METHOD_VERB.search(fs) or _method_and_pattern(fs))):
             return True
-        if _RULE_STMT.search(fs):
+        if _RULE_STMT.search(fs) or _PERSON_LONG.search(fs):
             return True
-    # a list whose items state at least two method actions is a playbook, named or not (review #781 delta 4)
+    if _RULE_COLON.search(str(reply or "")):
+        return True
+    # a list whose items state at least two TRADING actions is a playbook, named or not (review #781 delta 4/5)
     items = [_fold(_LIST_ITEM.sub("", ln)) for ln in str(reply or "").splitlines() if _LIST_ITEM.match(ln)]
-    if sum(1 for it in items if _METHOD_VERB.search(it) or _METHOD.search(it)) >= 2:
+    if sum(1 for it in items if _TRADE_ACTION.search(it)) >= 2:
         return True
     f = _fold(reply)
+    # a described method in prose: two or more trading actions anywhere (review #781 delta 5)
+    if len(_TRADE_ACTION.findall(f)) >= 2:
+        return True
     approved, other = named_setups(reply, vocab)
     names = approved + other + [a for v in vocab if v.get("name") in approved for a in (v.get("aliases") or [])]
     if (approved or other) and (_METHOD.search(f) or _defines_named(reply, names)):
