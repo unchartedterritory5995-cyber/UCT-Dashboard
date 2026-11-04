@@ -35,3 +35,26 @@ def test_talk_never_carries_it_and_unsupported_still_does():
 def test_the_prompt_tells_the_model_to_name_the_part_it_cannot_do():
     p = turn._SYSTEM_HEAD
     assert "PARTLY POSSIBLE" in p and "unsupported_category" in p
+
+
+# ── W2 audit (train-3 review): an ANSWER that carries agent.undo ─────────────────────────────────────
+UNDO = {"action": "agent.undo", "target": "a1", "args": {"scope": "last", "about": None}}
+UNAMES = {"agent.capabilities", "agent.undo", "chart.setTimeframe"}
+
+
+def test_an_answer_carrying_exactly_agent_undo_becomes_an_apply_of_it_with_no_words():
+    out = turn.sanitize_envelope(_env("answer", [UNDO], None, "Undoing that now."), {"a1", "c1"}, UNAMES)
+    assert out["disposition"] == "apply"
+    assert [o["action"] for o in out["ops"]] == ["agent.undo"]
+    assert out["reply"] == ""
+
+
+def test_nothing_else_is_ever_promoted():
+    # a write on an answer stays talk (ops dropped); undo + a write on an answer stays talk too
+    out = turn.sanitize_envelope(_env("answer", [OP], None, "Switching to weekly."), {"c1"}, NAMES)
+    assert out["disposition"] == "answer" and out["ops"] == []
+    out = turn.sanitize_envelope(_env("answer", [UNDO, OP], None, "Done."), {"a1", "c1"}, UNAMES)
+    assert out["disposition"] == "answer" and out["ops"] == []
+    # agent.undo not in this request's manifest → not promoted
+    out = turn.sanitize_envelope(_env("answer", [UNDO], None, "Use Undo."), {"a1"}, NAMES)
+    assert out["disposition"] == "answer" and out["ops"] == []

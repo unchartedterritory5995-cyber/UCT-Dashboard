@@ -1806,6 +1806,10 @@ def false_capability_claim(env: Any, cap_names: set[str] | None, unselected_ids:
     return None
 
 
+# the browser's own Undo (its receipt's Undo), planned as an action — never executed by the server
+UNDO_ACTION = "agent.undo"
+
+
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
                       unselected_ids: set[str] | None = None, local_notice: str | None = None,
                       claim_repaired: bool = False, grounded: bool = False) -> dict:
@@ -1840,6 +1844,14 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         return {"disposition": "clarify", "reply": "", "question": {"text": claim["question"], "choices": []},
                 "ops": [], "unsupported_category": None, "false_claim": claim["family"]}
     ops = env.get("ops") if isinstance(env.get("ops"), list) else []
+    if (disp == "answer" and len(ops) == 1 and isinstance(ops[0], dict) and ops[0].get("action") == UNDO_ACTION
+            and (cap_names is None or UNDO_ACTION in cap_names)):
+        # ⭐ W2 audit (train-3 review): an ANSWER carrying exactly [agent.undo] ("Undoing that now.") had its op dropped and its
+        # words shown — a false claim. It is the member's Undo: promoted to an apply of agent.undo alone, its reply blanked;
+        # the browser's own Undo (doUndo, every refusal) and its receipt are the only claim. Nothing else is ever promoted.
+        log.info("uct_agent answer carrying agent.undo: promoted to apply, dropped a %d-char reply", len(str(env.get("reply") or "")))
+        disp = "apply"
+        env = {**env, "reply": ""}
     if disp not in MUTATING:
         ops = []                      # TALK never mutates, whatever the model emitted
     ops = [o for o in ops if isinstance(o, dict)]

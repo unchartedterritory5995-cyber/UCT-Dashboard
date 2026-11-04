@@ -63,7 +63,7 @@ export function receiptView(lines, { isUndo = false, charts = null, name = false
     return { summary: `Done — created ${name} and added it to ${added[2].replace(/[.!]+$/, '')}${pane}.`, details: all }
   }
   // ONE line already IS one short sentence ("Added EMA 20 on Left chart (NVDA)") — said as it is, once
-  if (ls.length === 1) return { summary: ls[0], details: ls[0] !== raw[0] ? all : '' }
+  if (ls.length === 1) return { summary: ls[0], details: '' }
   // hotfix 2026-11-03 (live T1: "Done — added 2 Charts (and 2 more changes)." — the tickers only in Details): new charts
   // each given a ticker are said WITH their tickers, when every new chart's ticker is in the receipt
   const addedN = /^Added (a|\d+) Charts?\b/.exec(ls[0])
