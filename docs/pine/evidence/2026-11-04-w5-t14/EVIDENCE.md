@@ -125,3 +125,32 @@ SURVIVED 1 = the no-op control**, as it must. No equivalent survivors. (An earli
 - Sweep dedupe is by source, so two members with the same script share one run under the first admitted owner.
 - A multi-plot script is refused (`gate:tree`); a member-chosen scan plot needs a document field.
 - Default inputs only; the stored document carries no input values.
+
+## Review round 1: exact failing sets (screener tests, 68 files)
+Base `28a6bd424d` (23, `runs/w5t14/base-failed.txt`):
+test_c45_withheld_doors.py::test_the_question_is_not_vacuous_and_can_answer_no; test_c45_withheld_doors.py::test_the_whole_series_question_per_lane[tree3-alert3-sweep3]; test_concept_vocabulary.py::test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed; test_concept_vocabulary.py::test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS; test_concept_vocabulary.py::test_a_concept_that_screens_on_an_UNCITED_column_is_refused; test_concept_vocabulary.py::test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved; test_concept_vocabulary.py::test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES; test_concept_vocabulary.py::test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift; test_definition_concierge.py::test_EVERY_refusal_names_a_door_and_hands_back_NO_formula; test_definition_concierge.py::test_a_proposal_that_LINTS_repainting_gets_ONE_repair_and_then_a_REFUSAL; test_definition_concierge.py::test_the_BUDGET_is_consulted_BEFORE_the_linter_which_is_how_M6_is_visible; test_definition_concierge.py::test_the_CORPUS_of_FIRM_PHRASINGS_gets_a_NAMED_OUTCOME_for_EVERY_ROW; test_definition_concierge.py::test_the_REPAINT_refusal_is_the_LINTERS_and_disappears_when_the_LINTER_alone_goes; test_frontend_deps_installed.py::test_the_frontend_manifest_is_actually_installed; test_phase_e_acceptance.py::test_the_PINE_SCREENER_PARITY_PATH__one_definition_at_every_step; test_phase_e_acceptance.py::test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED; test_phase_e_acceptance.py::test_the_SCAN_SURFACE_and_the_CHART_read_the_SAME_ROW; test_scan_evaluator_off_request_path.py::test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes; test_starter_library.py::test_a_DEFINITION_GROUNDED_starter_STATES_NO_NUMBER_AND_SCREENS_ON_NO_COLUMN; test_starter_library.py::test_a_RETUNED_THRESHOLD_goes_red_NAMING_THE_NUMBER; test_starter_library.py::test_every_DECLARED_starter_ACTUALLY_RESOLVES; test_starter_library.py::test_installing_a_starter_TWICE_is_ONE_definition_and_editing_it_FORKS_the_hash; test_starter_library.py::test_the_save_path_has_NO_STARTER_BRANCH__BY_AST
+
+Final tip: the full 68-file run (`tip-failed.txt`) was taken BEFORE the helpers moved to `scan_runtime.py`; its difference
+from base was 4 ids: `test_scan_evaluator_off_request_path.py::test_the_BOUNDED_module_names_the_sweep_ONLY_in_RULED_forms`,
+`::test_the_run_handlers_reach_the_QUEUE_and_STOP__the_evaluator_is_past_the_pool`,
+`::test_the_subject_has_no_UNCLASSIFIED_public_function` (all three FIXED by the move: that file re-run on the final code
+fails only its one base test, `test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes`, whose remaining
+handlers are `indicator_alerts` create_alert / get_current_value as on base) and
+`test_screener_live_read_path.py::test_a_STALE_overlay_row_serves_nightly__the_dead_sweeper_contract`.
+That last one reads the wall clock (regular-session hour). It passed in the base run (morning CT) and failed at 15:50 CT on the
+tip AND on the BASE copies of `scan_evaluator.py`/`scan_run.py` put back with `redbase.py` (`1 failed, 25 passed`), so it is the
+hour, not this lane. Not re-run as one whole-suite job on the final tip (no new heavy job); the final failing set is therefore
+base (23) plus that one hour-dependent id, by the two re-runs above.
+
+## Review round 1: daily bar time, two lanes, ONE rule needed
+- W5-T14 (this lane) sends a daily bar at its session's **09:30 America/New_York open in unix seconds**:
+  `scan_evaluator._runtime_bar_seconds` (about line 1516) calling `indicator_compute.bar_open_instant(iso, "D")`, the chart's
+  convention (`indicators.js::barOpenInstant`); `_RUNTIME_BAR_TF` is the single constant.
+- W5-T15 (`origin/feat/pine-w5-t15-backtest`, `api/routers/screener_backtest.py` ~:530-548) sends **00:00 UTC unix seconds**
+  (`calendar.timegm`).
+These disagree (14:30 or 13:30 UTC vs 00:00 UTC for the same session) and the same script would see different `time`/clock
+columns in a scan and a backtest. The service's actual reading of `t` (W5-T7b is establishing it) decides which is right; then
+ONE function should be the authority and both lanes call it. Line to change here: the body of `_runtime_bar_seconds`
+(replace the `bar_open_instant` call at ~:1516 with the shared function, or with a UTC-midnight conversion if T7b rules so);
+rails `test_a_daily_bar_is_sent_at_its_0930_new_york_open_in_unix_seconds` and
+`test_the_utc_offset_follows_new_york_daylight_time` pin the current choice and change with it. No code changed in this round.
