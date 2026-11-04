@@ -3,7 +3,7 @@
   python tools/kn_rights_review.py status
   python tools/kn_rights_review.py worksheet --kb-id 123 --out C:/reviews/kb123.json
   python tools/kn_rights_review.py validate C:/reviews/kb123.json [...]
-  python tools/kn_rights_review.py emit C:/reviews/kb123.json [...] [--policy docs/agent/knowledge/policy.json] [--apply]
+  python tools/kn_rights_review.py emit C:/reviews/kb123.json [...] [--policy docs/agent/knowledge/policy.json] [--apply --by NAME]
 
 `status` prints counts only. `worksheet` writes ONE row's review sheet (it holds the row's text, so it must be written
 OUTSIDE the repository and never committed). `emit` prints the cleared_rows entries; only with --apply does it write
@@ -44,6 +44,7 @@ def main(argv=None) -> int:
     e.add_argument("files", nargs="+")
     e.add_argument("--policy", default=str(policy.DEFAULT_PATH))
     e.add_argument("--apply", action="store_true")
+    e.add_argument("--by", default="", help="the person applying these clearances (required with --apply)")
     a = ap.parse_args(argv)
 
     if a.cmd == "status":
@@ -82,8 +83,12 @@ def main(argv=None) -> int:
     if not a.apply:
         print("dry run: nothing written (pass --apply to write these entries into the policy file)")
         return 0
-    res = rights.apply(ents, Path(a.policy))
-    print(f"applied: {res}")
+    try:
+        res = rights.apply(ents, Path(a.policy), applied_by=a.by)
+    except ValueError as err:
+        print(f"refused: {err}", file=sys.stderr)
+        return 1
+    print(f"applied: {res} (audit log: {rights.audit_path_for(Path(a.policy)).name})")
     return 0
 
 

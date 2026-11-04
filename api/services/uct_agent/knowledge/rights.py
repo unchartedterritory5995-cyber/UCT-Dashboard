@@ -11,8 +11,12 @@ review, one row at a time:
                         review, a source that is not admitted, ...). Empty = it may be emitted.
   entries(wss)       -> the policy.cleared_rows entries for valid worksheets. NO BULK RE-ADMISSION: at most
                         MAX_PER_RUN rows per run, one row per worksheet, each with its OWN rights_review_ref.
-  apply(entries, p)  -> writes them into a policy file (replacing an older entry for the same kb_id) and bumps the
-                        policy version. Never touches excluded_setup_mentions.mode or any other key.
+  apply(entries, p, applied_by)
+                     -> writes them into a policy file (replacing an older entry for the same kb_id) and bumps the
+                        policy version, after the CUMULATIVE guards (DAILY_CAP rows per UTC day, POLICY_CAP cleared rows
+                        unless owner-signed bulk_clearance_approval), appending to a hash-chained audit log. Never
+                        touches excluded_setup_mentions.mode or any other key. The tool cannot verify that a person
+                        reviewed a row: that is process, and the owner signs.
   status()           -> counts only (withheld, cleared and current, cleared but the text changed).
 
 A clearance is bound to the text that was reviewed: kinds serves a cleared row only while the index's current
@@ -160,23 +164,117 @@ def entries(worksheets: list) -> list[dict]:
     return out
 
 
-def apply(new: list[dict], policy_path: Path) -> dict:
-    """Write the entries into this policy file. Returns {added, replaced, policy_version}."""
+# ── cumulative guards and the audit log (review #793) ─────────────────────────────────────────────────────────────
+#: The per-run limit alone could be looped. These hold ACROSS runs:
+#:   DAILY_CAP        at most this many rows cleared (added or replaced) per UTC day, counted from the audit log;
+#:   POLICY_CAP       at most this many cleared_rows in the policy, unless the policy carries a complete owner-signed
+#:                    `bulk_clearance_approval` {approved_by, approved_on, max_rows, reason}; then max_rows is the cap.
+#: Every applied clearance is appended to an append-only, hash-chained audit log (who applied it, when, which row and
+#: review); apply refuses to write if the log's chain is broken. The tool CANNOT verify that a person actually reviewed
+#: a row: that is process, and the owner signs (RIGHTS-REVIEW.md).
+DAILY_CAP = 20
+POLICY_CAP = 25
+AUDIT_NAME = "cleared-rows-audit.jsonl"
+_GENESIS = "0" * 64
+
+
+def _clock() -> float:
+    """The wall clock (tests pin it)."""
+    import time
+    return time.time()
+
+
+def audit_path_for(policy_path: Path) -> Path:
+    return Path(policy_path).with_name(AUDIT_NAME)
+
+
+def _line_sha(prev: str, rec: dict) -> str:
+    import hashlib
+    body = json.dumps({k: v for k, v in rec.items() if k != "sha"}, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256((prev + body).encode("utf-8")).hexdigest()
+
+
+def read_audit(path: Path) -> list[dict]:
+    """The audit records, verifying the hash chain. Raises ValueError if any line is unreadable or the chain breaks."""
+    p = Path(path)
+    if not p.exists():
+        return []
+    out, prev = [], _GENESIS
+    for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            raise ValueError(f"audit log line {i} is not JSON: the log was edited; nothing applied") from None
+        if rec.get("prev") != prev or rec.get("sha") != _line_sha(prev, rec):
+            raise ValueError(f"audit log chain broken at line {i}: the log was edited; nothing applied")
+        prev = rec["sha"]
+        out.append(rec)
+    return out
+
+
+def bulk_cap(pol: dict) -> int:
+    """POLICY_CAP, or a complete owner-signed bulk approval's max_rows."""
+    b = pol.get("bulk_clearance_approval")
+    if isinstance(b, dict) and policy._APPROVER.match(str(b.get("approved_by") or "").strip()) \
+            and policy._approved_on_ok(b.get("approved_on")) and str(b.get("reason") or "").strip():
+        try:
+            n = int(b.get("max_rows"))
+        except (TypeError, ValueError):
+            n = 0
+        if n > 0:
+            return n
+    return POLICY_CAP
+
+
+def apply(new: list[dict], policy_path: Path, applied_by: str, audit_path: Optional[Path] = None,
+          now: Optional[float] = None) -> dict:
+    """Write the entries into this policy file, after the cumulative guards, and append one audit record per row.
+    Returns {added, replaced, policy_version}. Raises ValueError (nothing written) when a guard refuses."""
+    if not policy._APPROVER.match(str(applied_by or "").strip()):
+        raise ValueError("applied_by must name the person applying these clearances")
+    t = float(now if now is not None else _clock())
+    day = datetime.datetime.fromtimestamp(t, datetime.timezone.utc).date().isoformat()
     p = Path(policy_path)
+    ap = Path(audit_path) if audit_path else audit_path_for(p)
+    log_recs = read_audit(ap)
+    today = sum(1 for r in log_recs if str(r.get("applied_at", ""))[:10] == day)
+    if today + len(new) > DAILY_CAP:
+        raise ValueError(f"daily cap: {today} row(s) already cleared today (UTC); {len(new)} more would exceed "
+                         f"{DAILY_CAP}. No bulk re-admission")
     pol = json.loads(p.read_text(encoding="utf-8"))
     rows = [e for e in pol.get("cleared_rows") or [] if isinstance(e, dict)]
     by_id = {e.get("kb_id"): i for i, e in enumerate(rows)}
-    added = replaced = 0
+    added = sum(1 for e in new if e["kb_id"] not in by_id)
+    cap = bulk_cap(pol)
+    if len(rows) + added > cap:
+        raise ValueError(f"policy cap: {len(rows)} cleared row(s) + {added} would exceed {cap}. More needs an "
+                         "owner-signed bulk_clearance_approval in the policy")
+    replaced = 0
     for e in new:
         if e["kb_id"] in by_id:
             rows[by_id[e["kb_id"]]] = e
             replaced += 1
         else:
             rows.append(e)
-            added += 1
     pol["cleared_rows"] = sorted(rows, key=lambda e: int(e.get("kb_id") or 0))
     pol["policy_version"] = int(pol.get("policy_version") or 0) + 1
+    stamp = datetime.datetime.fromtimestamp(t, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    prev = log_recs[-1]["sha"] if log_recs else _GENESIS
+    lines = []
+    for e in new:
+        rec = {"applied_at": stamp, "applied_by": str(applied_by).strip(), "kb_id": e["kb_id"],
+               "content_sha": e["content_sha"], "rights_review_ref": e["rights_review_ref"],
+               "approved_by": e["approved_by"], "approved_on": e["approved_on"],
+               "action": "replaced" if e["kb_id"] in by_id else "added", "policy_version": pol["policy_version"],
+               "prev": prev}
+        rec["sha"] = _line_sha(prev, rec)
+        prev = rec["sha"]
+        lines.append(json.dumps(rec, ensure_ascii=False, separators=(",", ":")))
     p.write_text(json.dumps(pol, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    with ap.open("a", encoding="utf-8") as f:              # append-only
+        f.write("".join(line + "\n" for line in lines))
     return {"added": added, "replaced": replaced, "policy_version": pol["policy_version"]}
 
 

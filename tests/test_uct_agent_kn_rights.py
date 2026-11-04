@@ -9,6 +9,7 @@ import pytest
 from api.services.uct_agent.knowledge import index, policy, rights
 from tests.test_uct_agent_knowledge import KB, _make_pack, kn as _kn_base, read  # noqa: F401
 
+FIXED = 1_793_000_000.0                       # a pinned clock for apply (2026-10-26 UTC)
 CUP = (14, "SETUP", "TSDR note: cup and handle", "The cup and handle forms over weeks; the team watches the handle.",
        "trader_archive", "TSDR", 5)
 
@@ -57,7 +58,7 @@ def test_worksheet_is_one_row_with_its_sha_reasons_and_a_blank_decision(kn):
 def test_a_completed_review_clears_exactly_that_row_and_its_text(kn):
     ws = _filled(rights.worksheet(14))
     assert rights.validate(ws) == []
-    res = rights.apply(rights.entries([ws]), kn["policy"])
+    res = rights.apply(rights.entries([ws]), kn["policy"], applied_by="Reviewer One", now=FIXED)
     assert res == {"added": 1, "replaced": 0, "policy_version": policy.version()}
     assert 14 in _ids(read("knowledge.search", {"question": "cup and handle handle weeks", "k": 3}))
     pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
@@ -69,7 +70,7 @@ def test_changed_text_loses_the_clearance_and_a_stale_worksheet_is_refused(kn):
     import sqlite3
     import time
     ws = _filled(rights.worksheet(14))
-    rights.apply(rights.entries([ws]), kn["policy"])
+    rights.apply(rights.entries([ws]), kn["policy"], applied_by="Reviewer One", now=FIXED)
     _make_pack(kn["brain"], kn["data"], int(time.time()) - 60,
                kb=KB + [(14, CUP[1], CUP[2], CUP[3] + " Edited later.", CUP[4], CUP[5], CUP[6])])
     index.build()
@@ -122,8 +123,8 @@ def test_a_forged_or_foreign_worksheet_is_refused(kn):
 
 def test_apply_replaces_an_older_entry_for_the_same_row(kn):
     ws = _filled(rights.worksheet(14))
-    rights.apply(rights.entries([ws]), kn["policy"])
-    res = rights.apply(rights.entries([_filled(rights.worksheet(14), ref="RR-14b")]), kn["policy"])
+    rights.apply(rights.entries([ws]), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    res = rights.apply(rights.entries([_filled(rights.worksheet(14), ref="RR-14b")]), kn["policy"], applied_by="Reviewer One", now=FIXED)
     assert res["added"] == 0 and res["replaced"] == 1
     rows = json.loads(kn["policy"].read_text(encoding="utf-8"))["cleared_rows"]
     assert [r["rights_review_ref"] for r in rows] == ["RR-14b"]
@@ -142,18 +143,92 @@ def test_cli_worksheet_refuses_a_path_inside_the_repository_and_status_prints_co
     assert CUP[3] not in printed and "withheld_now" in printed
 
 
-def test_cli_emit_is_a_dry_run_unless_applied(kn, tmp_path, capsys):
+def test_cli_emit_is_a_dry_run_unless_applied(kn, tmp_path, capsys, monkeypatch):
     from tools import kn_rights_review as cli
     out = tmp_path / "kb14.json"
     cli.main(["worksheet", "--kb-id", "14", "--out", str(out)])
     out.write_text(json.dumps(_filled(json.loads(out.read_text(encoding="utf-8")))), encoding="utf-8")
     before = kn["policy"].read_text(encoding="utf-8")
+    monkeypatch.setattr(rights, "_clock", lambda: FIXED)
     assert cli.main(["emit", str(out), "--policy", str(kn["policy"])]) == 0
     assert kn["policy"].read_text(encoding="utf-8") == before
-    assert cli.main(["emit", str(out), "--policy", str(kn["policy"]), "--apply"]) == 0
+    assert cli.main(["emit", str(out), "--policy", str(kn["policy"]), "--apply"]) == 1          # --by is required
+    assert kn["policy"].read_text(encoding="utf-8") == before
+    assert cli.main(["emit", str(out), "--policy", str(kn["policy"]), "--apply", "--by", "Reviewer One"]) == 0
     assert json.loads(kn["policy"].read_text(encoding="utf-8"))["cleared_rows"][0]["kb_id"] == 14
+    log = rights.read_audit(rights.audit_path_for(kn["policy"]))
+    assert [(r["kb_id"], r["applied_by"], r["applied_at"]) for r in log] == [(14, "Reviewer One", "2026-10-26T07:33:20Z")]
 
 
 def test_the_shipped_policy_clears_nothing_and_keeps_withholding():
     pol = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
     assert pol["cleared_rows"] == [] and pol["excluded_setup_mentions"]["mode"] == "withhold"
+
+
+# ── review #793: cumulative guards and the append-only audit log (pinned clock) ─────────────────────────────────────
+def _synthetic(n, start=1001):
+    return [{"kb_id": start + i, "content_sha": "a" * 64, "provenance_ref": f"P-{i}", "rights_review_ref": f"R-{start + i}",
+             "approved_by": "Owner Name", "approved_on": "2026-10-01"} for i in range(n)]
+
+
+def test_apply_requires_the_person_applying(kn):
+    with pytest.raises(ValueError, match="applied_by"):
+        rights.apply(_synthetic(1), kn["policy"], applied_by="", now=FIXED)
+
+
+def test_every_applied_clearance_is_in_the_hash_chained_audit_log(kn):
+    rights.apply(_synthetic(2), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    rights.apply(_synthetic(1, start=2001), kn["policy"], applied_by="Reviewer Two", now=FIXED + 60)
+    log = rights.read_audit(rights.audit_path_for(kn["policy"]))
+    assert [(r["kb_id"], r["applied_by"], r["action"]) for r in log] == [
+        (1001, "Reviewer One", "added"), (1002, "Reviewer One", "added"), (2001, "Reviewer Two", "added")]
+    assert log[0]["prev"] == "0" * 64 and log[1]["prev"] == log[0]["sha"]
+
+
+@pytest.mark.parametrize("tamper", ["edit", "delete", "garbage"])
+def test_an_edited_audit_log_blocks_every_later_apply(kn, tamper):
+    rights.apply(_synthetic(2), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    ap = rights.audit_path_for(kn["policy"])
+    lines = ap.read_text(encoding="utf-8").splitlines()
+    if tamper == "edit":
+        lines[0] = lines[0].replace("Reviewer One", "Someone Else")
+    elif tamper == "delete":
+        lines = lines[1:]
+    else:
+        lines.append("{not json")
+    ap.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    before = kn["policy"].read_text(encoding="utf-8")
+    with pytest.raises(ValueError, match="audit log"):
+        rights.apply(_synthetic(1, start=3001), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    assert kn["policy"].read_text(encoding="utf-8") == before
+
+
+def test_daily_cap_holds_across_runs_and_resets_the_next_utc_day(kn):
+    for i in range(2):
+        rights.apply(_synthetic(10, start=1001 + 10 * i), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    with pytest.raises(ValueError, match="daily cap"):
+        rights.apply(_synthetic(1, start=5001), kn["policy"], applied_by="Reviewer One", now=FIXED + 3600)
+    res = rights.apply(_synthetic(1, start=5001), kn["policy"], applied_by="Reviewer One", now=FIXED + 86400)
+    assert res["added"] == 1
+
+
+def test_policy_cap_needs_an_owner_signed_bulk_approval(kn):
+    for day in range(2):
+        rights.apply(_synthetic(12, start=1001 + 12 * day), kn["policy"], applied_by="Reviewer One", now=FIXED + day * 86400)
+    rights.apply(_synthetic(1, start=1100), kn["policy"], applied_by="Reviewer One", now=FIXED + 2 * 86400)   # 25 rows
+    with pytest.raises(ValueError, match="policy cap"):
+        rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
+    pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
+    pol["bulk_clearance_approval"] = {"approved_by": "Owner Name", "approved_on": "2026-10-01", "max_rows": 30}  # no reason
+    kn["policy"].write_text(json.dumps(pol), encoding="utf-8")
+    with pytest.raises(ValueError, match="policy cap"):
+        rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
+    pol["bulk_clearance_approval"]["reason"] = "reviewed batch of team posts"
+    kn["policy"].write_text(json.dumps(pol), encoding="utf-8")
+    assert rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)["added"] == 1
+
+
+def test_replacing_a_row_does_not_grow_the_policy_count_but_counts_toward_the_day(kn):
+    rights.apply(_synthetic(20), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    with pytest.raises(ValueError, match="daily cap"):
+        rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)

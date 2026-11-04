@@ -30,7 +30,22 @@ content permissible, and there is no bulk re-admission.
    file and bumps `policy_version`. Any change to the shipped `policy.json` still goes through review and the owner,
    like every policy change.
 
+## What the tool cannot do
+**The tool cannot verify that a person actually reviewed a row.** It checks that the worksheet is complete and the text
+unchanged, and it records who applied it. Whether the provenance and rights review really happened is process, and
+the owner signs. A clearance change to the shipped `policy.json` goes through review and the owner like every policy
+change.
+
 ## Guards
+- **Across runs (review #793):**
+  - at most **20 rows cleared per UTC day** (added or replaced), counted from the audit log;
+  - at most **25 cleared rows in the policy**, unless the policy carries a complete owner-signed
+    `bulk_clearance_approval` `{approved_by, approved_on, max_rows, reason}`, in which case `max_rows` is the cap.
+  - A refused apply writes nothing.
+- **Audit log:** every applied clearance is appended to `cleared-rows-audit.jsonl` next to the policy file. Each record
+  holds who applied it (`--by`, required), when (UTC), the row, its sha, its review references, added or replaced, and
+  the policy version. Each record carries the previous record's hash, so an edited, deleted or corrupted line breaks
+  the chain, and `apply` then refuses to write anything.
 - **No bulk re-admission:** at most 10 rows per run, one row per worksheet, no duplicate `kb_id`, and every row
   carries its OWN `rights_review_ref` (a reference shared across rows is refused). Validation is all-or-nothing: one
   invalid worksheet emits nothing.
@@ -41,7 +56,7 @@ content permissible, and there is no bulk re-admission.
   stays as it is).
 
 ## Tests
-`tests/test_uct_agent_kn_rights.py` (20 tests, fixture pack only):
+`tests/test_uct_agent_kn_rights.py` (fixture pack only, pinned clock):
 - withheld before review, then served only after a complete review;
 - changed text loses the clearance;
 - every incomplete-decision case, and a source that is not admitted;
@@ -51,3 +66,6 @@ content permissible, and there is no bulk re-admission.
 - CLI: a worksheet path inside the repository is refused, an existing file is never overwritten, `status` prints
   counts only, and `emit` is a dry run without `--apply`;
 - the shipped policy clears nothing.
+- the cumulative guards: the daily cap across runs and its UTC-day reset, the policy cap and an owner-signed bulk approval
+  (an incomplete one does not count), `--by` required, the hash-chained audit log, and an edited log blocking every
+  later apply.
