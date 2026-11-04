@@ -135,9 +135,14 @@ jobs:
       - name: npm ci
         working-directory: app
         run: npm ci
-      - name: vitest src/agent/qa/capabilityRegression
+      # the suite pins Date (testing/clock.js); it runs at BOTH pinned instants so a market-clock dependence can never
+      # again turn a gate red at the 09:30 ET open (2026-11-04): after the close (the default) and in the regular session
+      - name: vitest src/agent/qa/capabilityRegression (pinned after the close)
         working-directory: app
-        run: npx vitest run src/agent/qa/capabilityRegression --reporter=default
+        run: CAPREG_CLOCK=post npx vitest run src/agent/qa/capabilityRegression --reporter=default
+      - name: vitest src/agent/qa/capabilityRegression (pinned in the regular session)
+        working-directory: app
+        run: CAPREG_CLOCK=rth npx vitest run src/agent/qa/capabilityRegression --reporter=default
 
   union:
     name: Shards cover every Agent test file (equivalence rail)

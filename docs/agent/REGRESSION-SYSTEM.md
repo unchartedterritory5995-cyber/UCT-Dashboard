@@ -19,6 +19,27 @@ file is changed. Suite: `app/src/agent/qa/capabilityRegression/` + `tests/test_u
 | Baseline lock | `baseline/baseline.lock.json`, `tests/test_uct_agent_capreg_baseline.py` | Removing an entry or phrasing, adding a known gap, or changing an entry's assertions needs a `### BASELINE:<id>` decision **bound to that exact change** (`- Binds: <old digest>-><new digest or removed>`, plus a real `Date:` and a named `Decided by:`; fenced examples never count). The corpus is held both to the lock in the same tree AND to the lock at the merge base with origin/master, so a hand-edited lock in the same PR cannot hide a weakening. A change of the lock's digest format (`LOCK_FORMAT`) against master needs its own `### LOCKFORMAT:<n>` decision. Adding entries and removing gaps is free (`--update` re-locks, and refuses while an undecided weakening exists). Self-tested on in-memory mutations. |
 | CI | `.github/workflows/agent-ci.yml` job `capability-regression` | A named check: pytest baseline (with master fetched for the merge-base comparison) + `vitest run src/agent/qa/capabilityRegression`, about 7 minutes, no model or key. **It cannot be made a required check: branch protection is not available on this plan (the API answers 403).** The enforcement that does exist: the master deploy gate runs `npx vitest run src/agent` (every file of this suite) before promotion, and the server job runs `tests/test_uct_agent*.py` (the baseline rail). The files also run in the four Agent CI shards (union rail). Paid live-model evals (`tools/agent_eval_*`) stay separate and are never run here. |
 
+### A pinned market clock (2026-11-04 incident)
+
+At the 09:30 ET open the master deploy gate went red. Its 5 `session.extended` cases failed because "show extended
+hours" on a DAILY chart is legitimately refused during the regular session (capabilities/chart.js `extWindowOpen()`,
+utils/extSession.js), and the suite read the wall clock.
+
+Now every capreg test file pins Date (`testing/clock.js` `pinClock()`):
+- The instant is chosen by `CAPREG_CLOCK`: `post` (default) is Tue 2026-11-03 17:00 ET, after the close; `rth` is
+  11:00 ET, in the regular session.
+- Only Date is faked; it advances from that instant.
+- Agent CI runs the suite at both instants.
+- An answer that legitimately differs by instant is written down explicitly in `baseline/clockExpectations.json`
+  (locked like every entry). `session.extended @ rth` expects the refusal, nothing changed, and no receipt. It is not
+  marked as a gap.
+- Inventory rail 8 fails a test file that does not pin the clock.
+
+The rest of the corpus was audited for wall-clock dependence:
+- Breadth "today", earnings "this week", screens and data reads are answered by fixtures that do not depend on the date.
+- Drawing anchors, go-to-date and replay use absolute dates inside the synthetic history, which ends 2026-10-30,
+  before both pinned instants.
+
 ### The faithful scripted model
 
 Older scripted-model tests return their plan whatever the request carried. That hides a routing miss, because the

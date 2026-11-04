@@ -24,6 +24,7 @@ CAPREG = ROOT / "app" / "src" / "agent" / "qa" / "capabilityRegression"
 CORPUS = CAPREG / "baseline" / "corpus.json"
 GOLDEN = CAPREG / "baseline" / "goldenWorkflows.json"
 COLLISIONS = CAPREG / "baseline" / "routingCollisions.json"
+CLOCKX = CAPREG / "baseline" / "clockExpectations.json"
 LOCK = CAPREG / "baseline" / "baseline.lock.json"
 DECISIONS = ROOT / "docs" / "agent" / "COMPATIBILITY-DECISIONS.md"
 AGENT_CI = ROOT / ".github" / "workflows" / "agent-ci.yml"
@@ -50,7 +51,7 @@ def _phrasings(intent):
 
 def fingerprint(corpus: dict, golden: dict) -> dict:
     """The lock's view of the data: per entry, a digest of its ASSERTIONS and the gaps it carries."""
-    out = {"intents": {}, "refusals": {}, "workflows": {}, "collisions": {}}
+    out = {"intents": {}, "refusals": {}, "workflows": {}, "collisions": {}, "clock": {}}
     for it in corpus["intents"]:
         body = {k: v for k, v in it.items() if k not in NOTE_KEYS and k != "phrasings"}
         phr = {}
@@ -68,6 +69,10 @@ def fingerprint(corpus: dict, golden: dict) -> dict:
     for r in (_load(COLLISIONS)["rows"] if COLLISIONS.exists() else []):
         out["collisions"][r["text"]] = {"digest": _digest({k: v for k, v in r.items() if k not in NOTE_KEYS and k != "gap"}), "gap": bool(r.get("gap")),
                                         "mode": (r.get("gap") or {}).get("mode")}
+    # per-instant expectations (testing/clock.js): keyed "<intent>@<clock>"
+    for iid, by in ((_load(CLOCKX)["intents"] if CLOCKX.exists() else {}).items()):
+        for clk, e in by.items():
+            out["clock"][f"{iid}@{clk}"] = {"digest": _digest(e.get("expect")), "gap": False, "mode": None}
     return out
 
 
@@ -112,7 +117,7 @@ def decided_keys(text: str) -> set[str]:
 
 
 def _entry(fp: dict, eid: str):
-    for kind in ("intents", "refusals", "workflows", "collisions"):
+    for kind in ("intents", "refusals", "workflows", "collisions", "clock"):
         if eid in fp.get(kind, {}):
             return fp[kind][eid]
     return None
@@ -232,7 +237,7 @@ def violations(lock: dict, now: dict) -> list[tuple[str, str]]:
             changed = sorted(lvl for lvl in set(c["gaps"]) & set(p["gaps"]) if (c.get("modes") or {}).get(lvl) != (p.get("modes") or {}).get(lvl))
             if changed:
                 v.append((iid, f'phrasing "{text}": the recorded failure mode of its gap changed at level(s) {changed}'))
-    for kind in ("refusals", "workflows", "collisions"):
+    for kind in ("refusals", "workflows", "collisions", "clock"):
         for wid, was in lock.get(kind, {}).items():
             cur = now[kind].get(wid)
             if cur is None:
@@ -250,7 +255,7 @@ def violations(lock: dict, now: dict) -> list[tuple[str, str]]:
 def unlocked(lock: dict, now: dict) -> list[str]:
     out = [i for i in now["intents"] if i not in lock["intents"]]
     out += [f"{i}: \"{t}\"" for i, e in now["intents"].items() if i in lock["intents"] for t in e["phrasings"] if t not in lock["intents"][i]["phrasings"]]
-    out += [w for k in ("refusals", "workflows", "collisions") for w in now[k] if w not in lock.get(k, {})]
+    out += [w for k in ("refusals", "workflows", "collisions", "clock") for w in now[k] if w not in lock.get(k, {})]
     return out
 
 
@@ -407,6 +412,8 @@ def test_agent_ci_runs_the_capability_regression_suite():
     """The deterministic suite is part of the Agent CI (its own job, besides the sharded union) — never a paid eval."""
     y = AGENT_CI.read_text(encoding="utf-8")
     assert "capability-regression" in y and "src/agent/qa/capabilityRegression" in y
+    # the suite runs at BOTH pinned market-clock instants (testing/clock.js; the 2026-11-04 09:30 ET red gate)
+    assert "CAPREG_CLOCK=post" in y and "CAPREG_CLOCK=rth" in y
     assert "test_uct_agent_capreg" in y or "tests/test_uct_agent*.py" in y
     for paid in ("agent_eval_run", "ANTHROPIC_API_KEY", "agent_live_batch"):
         assert paid not in y, f"the Agent CI must never run a paid live-model eval ({paid})"

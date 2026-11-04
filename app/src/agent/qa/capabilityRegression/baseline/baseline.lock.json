@@ -3418,5 +3418,12 @@
    "gap": false,
    "mode": null
   }
+ },
+ "clock": {
+  "session.extended@rth": {
+   "digest": "0502b8c5e034eea9",
+   "gap": false,
+   "mode": null
+  }
  }
 }
