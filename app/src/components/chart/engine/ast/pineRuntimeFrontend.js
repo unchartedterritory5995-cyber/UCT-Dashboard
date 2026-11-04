@@ -345,6 +345,9 @@ const BIN = Object.freeze({
 })
 const PRICE = new Set(['open', 'high', 'low', 'close', 'volume'])
 const BLOCK_WORDS = new Set(['for', 'while'])
+/** W4-T15: Pine Logs. A statement with no chart effect (the log pane is not a
+ *  chart output); its arguments are still evaluated for their side effects. */
+const LOG_FNS = new Set(['log.info', 'log.warning', 'log.error'])
 /** The calls this lane turns into a VALUE SERIES.
  *
  *  ⭐ EXPORTED FOR THE RAIL, which compares it against `pine.js`'s own
@@ -1529,12 +1532,86 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const deferredFnRefusals = new Map()
   /** ⭐ L2 — name → the declared default of each parameter (null where none). */
   const fnDefaultsByName = new Map()
+  /** W4-T15: name -> the declared parameter NAMES, in order, so a call written
+   *  with named arguments (`f(x, len = 3)`) is put in the declared positions. */
+  const fnParamNamesByName = new Map()
   /** ⭐ L2 — a call to a function declaring defaults, with every omitted trailing
    *  argument written in as its default (`paramDefaultsOf`). A bar-series default
    *  is refused by name when the caller's scope binds that name to something
    *  else: the default means Pine's built-in, and the caller's binding is not it.
    *  More arguments than parameters, or an omitted one with no default, are left
    *  for the arity check the call already has. */
+  /** The ONE place a declared default becomes an argument (shared by the
+   *  trailing completion and the named-argument binding below). */
+  const defaultArgOf = (node, scope, d) => {
+      if (d.type === 'name' && BAR_SERIES_DEFAULTS.has(d.name)
+        && (scope.lookup(d.name) !== null || env.has(d.name) || (guardOuter && guardOuter.lookup(d.name) !== null))) {
+        throw new RuntimeRefusal('runtime:function',
+          `\`${node.name}\` is called without its argument whose default is \`${d.name}\`, and this script binds `
+          + `its own \`${d.name}\` where it calls it — the default is Pine's built-in, not that binding`,
+          locate(node.tok))
+      }
+    return { name: null, value: d, tok: node.tok }
+  }
+  /** W4-T15: NAMED ARGUMENTS ON A USER FUNCTION. Pine binds an argument written
+   *  `name = value` to the parameter of that name, wherever it stands in the
+   *  header; positional arguments come first and fill from the left (user-defined
+   *  functions page). The call is rewritten to the declared positions, and a
+   *  parameter nobody supplied takes its declared default, in the middle of the
+   *  list as well as at the end. REFUSED BY NAME: an unknown name, a name given
+   *  twice (or after a positional filled it), a positional argument after a named
+   *  one, a skipped parameter that declares no default. The object door keeps
+   *  master's refusal (`atObjectDoor`). */
+  const bindNamedUserArgs = (node, scope) => {
+    const given = node.args || []
+    if (atObjectDoor || !given.some((a) => a && a.name)) return node
+    const names = fnParamNamesByName.get(node.name)
+    if (!names) return node
+    const defaults = fnDefaultsByName.get(node.name) || []
+    const at = locate(node.tok)
+    const placed = new Array(names.length).fill(null)
+    let named = false
+    let nextPos = 0
+    for (const a of given) {
+      if (!a || !a.name) {
+        if (named) {
+          throw new RuntimeRefusal('runtime:function',
+            `\`${node.name}\` is called with a positional argument after a named one`, at)
+        }
+        if (nextPos >= names.length) {
+          throw new RuntimeRefusal('runtime:statement',
+            `\`${node.name}\` takes ${names.length} argument${names.length === 1 ? '' : 's'}, given ${given.length}`, at)
+        }
+        placed[nextPos] = a
+        nextPos += 1
+        continue
+      }
+      named = true
+      const k = names.indexOf(a.name)
+      if (k < 0) {
+        throw new RuntimeRefusal('runtime:function',
+          `\`${node.name}\` has no parameter named \`${a.name}\``, at)
+      }
+      if (placed[k] !== null) {
+        throw new RuntimeRefusal('runtime:function',
+          `\`${node.name}\` is given its parameter \`${a.name}\` twice`, at)
+      }
+      placed[k] = { name: null, value: a.value, tok: a.tok || node.tok }
+    }
+    let last = placed.length - 1
+    while (last >= 0 && placed[last] === null) last -= 1
+    const args = []
+    for (let k = 0; k <= last; k += 1) {
+      if (placed[k] !== null) { args.push(placed[k]); continue }
+      const d = defaults[k]
+      if (!d) {
+        throw new RuntimeRefusal('runtime:function',
+          `\`${node.name}\` is called without its parameter \`${names[k]}\`, which declares no default`, at)
+      }
+      args.push(defaultArgOf(node, scope, d))
+    }
+    return { ...node, args }
+  }
   const completeUserArgs = (node, scope) => {
     const defaults = fnDefaultsByName.get(node.name)
     const given = node.args || []
@@ -1543,14 +1620,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     for (let k = given.length; k < defaults.length; k += 1) {
       const d = defaults[k]
       if (!d) return node
-      if (d.type === 'name' && BAR_SERIES_DEFAULTS.has(d.name)
-        && (scope.lookup(d.name) !== null || env.has(d.name) || (guardOuter && guardOuter.lookup(d.name) !== null))) {
-        throw new RuntimeRefusal('runtime:function',
-          `\`${node.name}\` is called without its argument whose default is \`${d.name}\`, and this script binds `
-          + `its own \`${d.name}\` where it calls it — the default is Pine's built-in, not that binding`,
-          locate(node.tok))
-      }
-      added.push({ name: null, value: d, tok: node.tok })
+      added.push(defaultArgOf(node, scope, d))
     }
     return { ...node, args: [...given, ...added] }
   }
@@ -5953,6 +6023,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // so this is where a member is told.
         // ⭐ L2 — an omitted trailing argument IS its declared default, written in
         // before any path below counts or lowers the arguments.
+        if (fnParamNamesByName.has(node.name)) node = bindNamedUserArgs(node, scope)
         if (fnDefaultsByName.has(node.name)) node = completeUserArgs(node, scope)
         let specIndex = null
         if (deferredFnRefusals.has(node.name)) {
@@ -7537,10 +7608,65 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!nameTok || nameTok.kind !== 'ident' || String(nameTok.value).indexOf('.') >= 0) return null
     return [lowerExpr(nameNode(nameTok), scope)]
   }
+  /** W4-T15: `log.info(...)` / `log.warning(...)` / `log.error(...)` AS A STATEMENT.
+   *  No chart effect and no stop: `runtime.error` stays the only way a run ends.
+   *  Pine evaluates every argument, so an argument that can DO something (a user
+   *  function with state, an array write, a drawing, a method) is lowered and run
+   *  for it, and its refusal stands. An argument made of pure built-ins (price
+   *  reads, arithmetic, `str.*`, `ta.*` kept in the log's own call site) has no
+   *  effect anything else can observe, so it is not lowered. */
+  const effectfulArg = (node) => {
+    if (!node || typeof node !== 'object') return false
+    if (Array.isArray(node)) return node.some(effectfulArg)
+    if (node.type === 'method') return true
+    if (node.type === 'call') {
+      const n = String(node.name)
+      if (isUserFn(n) || Object.prototype.hasOwnProperty.call(ARRAY_FNS, n) || callFamily(n)) return true
+    }
+    return Object.values(node).some((v) => v && typeof v === 'object' && v.kind === undefined && effectfulArg(v))
+  }
+  const logStmtsOf = (callNode, scope, first) => {
+    if (!callNode || callNode.type !== 'call') {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${first.value}()\` is not a shape this front end reads`, locate(first))
+    }
+    const outStmts = []
+    for (const a of callNode.args || []) {
+      const v = a && a.value !== undefined ? a.value : a
+      if (effectfulArg(v)) outStmts.push(exprStmt(lowerExpr(v, scope, { multi: true, effect: true }), 1))
+    }
+    return outStmts
+  }
+  /** W4-T15: the statement list of a one-line function body, or null when it is a plain expression. */
+  const oneLineBodyOf = (t) => {
+    if (!t.length) return null
+    const line = { header: t, body: [], sub: [] }
+    // split BEFORE the caller reads the last statement's keyword: `log.info(..), x + 1`
+    // ends in `x + 1`, not in the log call the line opens with.
+    if (statementCommaParts(line)) return splitStatementCommas([line])
+    const eq = findTop(t, (x) => isPunct(x, '=') || isPunct(x, ':=') || isCompoundTok(x))
+    return eq > 0 ? [line] : null
+  }
+  /** W4-T15: does this block hold a `break` or `continue` at any depth? A loop with
+   *  one has no captured "last evaluated expression", so it is not given a value. */
+  const loopHasJump = (lines) => (lines || []).some((ln) => {
+    const w = blockKeywordOf(ln)
+    return w === 'break' || w === 'continue' || loopHasJump(ln.sub)
+  })
+  /** W4-T15: a `for`/`while` line whose value this lane carries. */
+  const servedLoopLine = (ln) => {
+    const w = blockKeywordOf(ln)
+    if (w !== 'for' && w !== 'while') return false
+    return !loopHasJump(ln.sub)
+  }
+  /** the sink the NEXT `for`/`while` statement lowered writes its body's value into */
+  let pendingLoopSink = null
+  const takeLoopSink = () => { const p = pendingLoopSink; pendingLoopSink = null; return p }
   /** a statement that ends a block with NO value: its name, or null. */
   const valuelessEndOf = (ln) => {
     const w = blockKeywordOf(ln)
     if (w === 'for' || w === 'while') return 'loop'
+    if (!atObjectDoor && w !== null && LOG_FNS.has(w) && isPunct(((ln && ln.header) || [])[1], '(')) return w
     const h = (ln && ln.header) || []
     if (w !== null && Object.prototype.hasOwnProperty.call(ARRAY_FNS, w) && isVoid(w)
         && isPunct(h[1], '(')) return w
@@ -7587,6 +7713,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (hw === 'switch' && h === lines.length - 1) {
       body.push(...seedSink(sink))
       for (const s of lowerSwitchInto(head.sub, ht.slice(1), scope, nested, label, ht[0])) body.push(s)
+      return body
+    }
+    // W4-T15: A LOOP AT THE END YIELDS ITS LAST PASS'S VALUE (Pine loops page),
+    // `na` when it runs no pass. The sink is seeded `na`, the loop body is lowered
+    // as a value block into it, so the last pass that ran is what stays. A loop
+    // with `break`/`continue` keeps the old answer (valueless).
+    if (!atObjectDoor && h === lines.length - 1 && servedLoopLine(head)) {
+      const inner = { allow: !!(vstate && vstate.allow), valueless: false, end: null }
+      body.push(...seedSink(sink))
+      pendingLoopSink = { sink, label, atTok, vstate: inner }
+      try { for (const s of lowerStmts(lines.slice(h), scope)) body.push(s) } finally { pendingLoopSink = null }
+      if (inner.valueless) noteValueless(vstate, 'loop', label, at)
       return body
     }
     const end = h === lines.length - 1 ? valuelessEndOf(head) : null
@@ -8856,6 +8994,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:loop', '`for … in`', locate(first))
       }
       if (word === 'for') {
+        const loopSink = takeLoopSink()
         const nameTok = toks[1]
         if (!nameTok || nameTok.kind !== 'ident' || !isPunct(toks[2], '=')) {
           throw new RuntimeRefusal('runtime:statement',
@@ -8893,7 +9032,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
         loopRanges.set(slot, forCounterRange(nameTok.value, fromToks, toToks, st.sub, locate(first), scope))
         loopDepth += 1
         let body
-        try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1; loopRanges.delete(slot) }
+        try {
+          body = loopSink
+            ? lowerBlockValue(st.sub || [], inner, loopSink.sink, loopSink.label, loopSink.atTok, loopSink.vstate)
+            : lowerStmts(st.sub || [], inner)
+        } finally { loopDepth -= 1; loopRanges.delete(slot) }
         // ⭐⭐ P3 WS-A — v6 re-reads the `to` bound before every pass; this lane
         // reads it once. Served where the two cannot differ (`forBoundMovedBy`).
         if (pineVersion !== null && pineVersion >= 6) {
@@ -8953,6 +9096,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // per-entry pass count lives in a slot no Pine name can reach, and the
       // bound is the engine's `WHILE_ITERATIONS` (`ir.js::whileStmt`).
       if (word === 'while') {
+        const loopSink = takeLoopSink()
         const testToks = toks.slice(1)
         if (!testToks.length) {
           throw new RuntimeRefusal('runtime:statement', 'a `while` needs a condition', locate(first))
@@ -8970,7 +9114,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         loopDepth += 1
         let body
         try {
-          body = lowerStmts(st.sub || [], inner)
+          body = loopSink
+            ? lowerBlockValue(st.sub || [], inner, loopSink.sink, loopSink.label, loopSink.atTok, loopSink.vstate)
+            : lowerStmts(st.sub || [], inner)
         } finally {
           loopDepth -= 1
           if (passSpecs.length) rtLoopStack.pop()
@@ -9855,6 +10001,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
           out.push(exprStmt(lowered, rec && rec.returns ? rec.returns : 1))
           continue
         }
+        if (!atObjectDoor && LOG_FNS.has(word) && isPunct(toks[1], '(')) {
+          for (const s of logStmtsOf(parseWholeExpression(toks), scope, first)) out.push(s)
+          continue
+        }
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${word}()\``, locate(first))
       }
@@ -9962,6 +10112,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // trailing argument before anything counts it (`completeUserArgs`) — kept
     // before the body compiles, so a definition whose body is HELD still has them.
     if (withDefaults && !spec) fnDefaultsByName.set(nameTok.value, withDefaults.defaults)
+    if (!spec) fnParamNamesByName.set(nameTok.value, params)
     const fnIndex = functions.length
     const record = {
       name: nameTok.value, params: params.length, compiling: true,
@@ -10094,8 +10245,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     try {
       let body = []
       let result = null
-      if (arrow === toks.length - 1) {
-        const lines = st.sub || []
+      // W4-T15: A ONE-LINE BODY THAT IS A BINDING OR COMMA STATEMENTS
+      // (`f(x) => a = x * 2`, `ma(x) => a = 0., a := x + 1, a * 2`) is read as the
+      // same statement list an indented body is, by this reader only.
+      const inlineLines = arrow !== toks.length - 1 && !atObjectDoor ? oneLineBodyOf(toks.slice(arrow + 1)) : null
+      if (arrow === toks.length - 1 || inlineLines) {
+        const lines = inlineLines || st.sub || []
         if (!lines.length) {
           throw new RuntimeRefusal('runtime:function', 'a body with no statements', locate(nameTok))
         }
@@ -10119,6 +10274,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
         }
         const lastWord = blockKeywordOf(lines[lines.length - 1])
+        // W4-T15: a body whose LAST statement is a plain loop returns the loop's value.
+        const loopEndServed = !atObjectDoor && servedLoopLine(lines[lines.length - 1])
         // ⭐⭐ C47 — A BODY THAT ENDS IN `switch <parameter>` OVER TEXT LABELS
         // (`simpleSwitchShape`). In a copy compiled for ONE call site whose
         // argument is a fixed text (`frameConsts`), the arm that text selects is
@@ -10132,7 +10289,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const armToks = arm ? arm.toks : sw.fallback
           // no arm and no default: a `switch` that matches nothing is `na`
           result = armToks ? lowerResult(parseWholeExpression(armToks), fnScope) : naValue()
-        } else if (endsInLoop(lines)
+        } else if (!loopEndServed && endsInLoop(lines)
           // ⭐ R1 — A BODY THAT ENDS IN A VOID COLLECTION CALL (`array.set(…)`,
           // `delta-rsi-oscillator-strategy`'s `matrix_set`) returns nothing in
           // Pine; it is the loop case's twin, compiled VALUELESS by the same rule
@@ -10140,6 +10297,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // name). It was lowered as the result and refused "`array.set`
           // returns nothing, so it cannot be used as a value".
           || (lastWord !== null && ARRAY_FNS[lastWord] && isVoid(lastWord)
+            && isPunct((lines[lines.length - 1].header || [])[1], '('))
+          || (!atObjectDoor && lastWord !== null && LOG_FNS.has(lastWord)
             && isPunct((lines[lines.length - 1].header || [])[1], '('))
           // ⭐ R1 — and a body ending in a drawing the object pass owns.
           || endsInOwnedDrawing(lines)) {
@@ -10155,7 +10314,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           record.valuelessEnd = endsInLoop(lines) ? null
             : (endsInOwnedDrawing(lines) ? 'drawing' : lastWord)
           result = naValue()
-        } else if (chainAt >= 0 || (!atObjectDoor && ((lastWord === 'switch' && !sw) || bodyNeedsBlockValue(lines, fnScope)))) {
+        } else if (chainAt >= 0 || (!atObjectDoor && ((lastWord === 'switch' && !sw) || loopEndServed || bodyNeedsBlockValue(lines, fnScope)))) {
           // ⭐⭐ P3 WS-A — THE BODY'S LAST STATEMENT IS A BLOCK (an `if` chain, a
           // `switch`, a binding whose value is one) or a binding the plain path
           // below cannot read back (a pure binding the resolver holds as an
