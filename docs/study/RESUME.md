@@ -1277,6 +1277,29 @@ Decision: ladder step 12 with the halo at 0.3 (the glow turned down a touch). Co
   on a perfect set); StudyMark3D sleeps on a hidden tab; workbench mood buttons on one row on a phone.
 - NEXT (the owner's order): port the scored workbench pieces into the product once batch 13 and 14 are scored;
   grow the setup bank (the unseen-only pool thins per account).
+## 2026-11-03 (night): "YOU DO IT ALL NOW" — #559 merged by the session; THE CHALLENGES PORTED TO THE PRODUCT (PR #767)
+
+- PR #559 merged by the session at the owner's explicit instruction (2ae460e994). The web deploy watch ran in the
+  background; verify by ancestry against origin/production before claiming it live.
+- Branch feat/study-challenges (b7592ee9eb), PR #767: Blitz, Boss and Spot the Kicker as member features,
+  app/src/pages/study/challenges/ (challengeBank, kickerRules, ChallengeChart, Blitz/Boss/KickerChallenge,
+  ChallengeSheet), a Challenges deck on StudyLanding (shown only when CoursesSection hands an opener),
+  ?study=challenge&challenge=<kind>. Every answer is a real attempt (skill sessions + /api/study/attempts; the key
+  stays on the server). The challenges reuse lab/StartCard, lab/bits, lab/fx, lab/pointers and lab/duo.module.css
+  so the product matches what the owner scored. Workbench pieces 61-63 render the real components on the sandbox
+  bank (shell batch 15); piece 60 shows the deck.
+- MEASURED on the sandbox (Playwright, PC + phone): all three run start -> play -> verdict with real server
+  verdicts and forward bars; no page errors. Two fixes from the measurement: the chart is framed the workbench's way
+  (dailyDefaultBars + rightPadBars) because the drill player's exact date range put the last candle against the
+  price scale and clipped the pointer chip; Kicker letter chips alternate above/below so neighbours never overlap.
+- NOT built (needs bank items the pod does not have): Hard mode (Name -> Enter -> Stop -> Run needs `levels`/`plan`
+  items per setup) and Draw-it (a stop placement scored by the house rule). score_levels and score_plan exist on the
+  server; the items are the gap. Generate from the Kicker spot items (entry = prior high + 0.01, stop = Kicker low /
+  3.5%) as drafts for the owner's review, then import on the pod.
+- CONTENT FLAG for the owner: spot.bear_gaps (78) and spot.setups (96) lessons carry drafting notes "(owner ruling
+  pending; owner 2026-10-27: ...)" that members can read on the reveal card today. Not changed here.
+- Blitz pool sizes: 6 per setup skill + 12 per recall skill = up to 66 questions, 9 skill sessions per run. Skill
+  sessions serve UNSEEN items only, so a member who plays a lot drains the pool: the bank must grow.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.
