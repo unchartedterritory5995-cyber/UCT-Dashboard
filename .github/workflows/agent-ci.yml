@@ -100,6 +100,38 @@ jobs:
           path: shard-${{ matrix.shard }}.json
           if-no-files-found: error
 
+  # Mission 2 (2026-11-04): the deterministic CAPABILITY REGRESSION suite, as its own named check — the NL equivalence
+  # corpus (routing / deterministic plan / final state), the golden workflows, the capability inventory + coverage
+  # rails, and the baseline lock (docs/agent/REGRESSION-SYSTEM.md). Scripted model only: it never calls a paid model,
+  # needs no key, and is ~2 min. The same files ALSO run inside the shards (they live under src/agent), so the union
+  # rail and the master deploy gate's `npx vitest run src/agent` keep covering them; this job makes a regression a
+  # named, separately-requirable failure. Paid live-model evals (tools/agent_eval_*) are separate and never run here.
+  capability-regression:
+    name: UCT Agent capability regression (deterministic, no model)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Baseline lock (removing or weakening a baseline entry needs a recorded decision)
+        run: |
+          python -m pip install --quiet pytest
+          python -m pytest tests/test_uct_agent_capreg_*.py -q -p no:cacheprovider
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci
+        working-directory: app
+        run: npm ci
+      - name: vitest src/agent/qa/capabilityRegression
+        working-directory: app
+        run: npx vitest run src/agent/qa/capabilityRegression --reporter=default
+
   union:
     name: Shards cover every Agent test file (equivalence rail)
     needs: browser
