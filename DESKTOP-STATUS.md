@@ -29,7 +29,8 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
    - default lock: mutation runs + measure-pair on pine-dsk-mpbase (W4-T7, E lows, ...)
    - heavy-mp2.lock: measure-pair on the NEW base pine-dsk-mpbase2 (detached d8d4f0937d, node_modules junctioned to pine-base); first user W3
    - heavy-final2.lock and heavy-final3.lock: final-tip and other single-worktree jobs (W4-T3 r1, W5-T1, W4-T0 job.sh on lane 2; W5-T3, W3 final, W5-T6, W2 r3 on lane 3)
-   At most 4 heavy jobs at once (24 cores; final-tip vitest uses --maxWorkers=2; ~16 GB RAM free with 2 running). Any non-baseline failure from a parallel run is re-run alone before it counts as new. Each EVIDENCE.md names its lanes. The RAM/disk watch (8 GB / 20 GB) still stops new lanes.
+   - heavy-mut.lock (added 00:25 CT, owner: "ramp it up a little"): mutation runs, which touch only the builder's own worktree (W4-T14, W5-T6). The default lock is shared with other projects on this PC (it was held by "stylekit daily").
+   At most 5 heavy jobs at once (24 cores; final-tip vitest uses --maxWorkers=2; ~16 GB RAM free with 2 running). Any non-baseline failure from a parallel run is re-run alone before it counts as new. Each EVIDENCE.md names its lanes. The RAM/disk watch (8 GB / 20 GB) still stops new lanes.
 7. Builder cap raised from 6 to 9 by the owner's instruction (max 2 Opus: W3, W5-T6). The coordinator's ruling a48cbe455f said 6; the owner outranks it.
 8. Clock note: block times are local CT and correct. An earlier note here called them wrong; that was my mistake (the health log prints UTC under Git Bash). Withdrawn.
 
