@@ -7,10 +7,11 @@
 // Pools are 1-2 workers and are closed here.
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { createServer, request as httpRequest } from 'node:http'
 import { SIGNATURE_HEADER, signHeader } from '../auth.mjs'
 import { POOL_DEFAULTS, createPool } from '../pool.mjs'
-import { createPineRuntimeServer, loadBundle, main } from '../server.mjs'
+import { SERVICE_POOL_OPTIONS, createPineRuntimeServer, loadBundle, main } from '../server.mjs'
 import { SECRET } from './helpers.mjs'
 import { FAKE_BUNDLE, buildRealBundle, decodeColumn, docOf, parsedJob, parsedRequest, wireRequest } from './poolFixtures.mjs'
 
@@ -206,7 +207,16 @@ test('wiring: a request the queue cannot hold is 429 runtime:server-busy, and no
   }
 })
 
-test('wiring: main({ pool }) runs the pool on its own bundle; /ready follows it; closing the server stops it', async () => {
+test('wiring: the service boot runs the pool with the L4 self-test, which refuses this unflagged process', async () => {
+  assert.deepEqual(SERVICE_POOL_OPTIONS, { requireL4: true })
+  const text = readFileSync(new URL('../server.mjs', import.meta.url), 'utf8')
+  assert.match(text, /if \(isMain\) \{[^}]*main\(\{ pool: SERVICE_POOL_OPTIONS \}\)/)
+  const port = await freePort()
+  await assert.rejects(main({ env: { PINE_RUNTIME_SERVICE_SECRET: SECRET, PORT: String(port) }, bundle: real.outfile,
+    pool: { ...SERVICE_POOL_OPTIONS, workers: 1 }, log: () => {} }), /L4 self-test found fsWrite, spawn, codegen allowed/)
+})
+
+test('wiring: main({ pool }) runs the pool on its own bundle and closing the server stops it', async () => {
   const port = await freePort()
   const logs = []
   const server = await main({ env: { PINE_RUNTIME_SERVICE_SECRET: SECRET, PORT: String(port) }, bundle: real.outfile,

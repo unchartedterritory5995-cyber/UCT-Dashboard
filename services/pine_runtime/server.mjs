@@ -36,6 +36,9 @@ import { BUSY_GUARD, createPool } from './pool.mjs'
 export const UNAVAILABLE_GUARD = 'runtime:server-unavailable'
 export const FAILED_GUARD = 'runtime:server-failed'
 export const DEFAULT_PORT = 8080
+/** W5-T7: the pool the service's own boot runs. requireL4: the boot refuses to start unless a
+ *  worker can write no file, spawn no process and generate no code (design section 4, L4). */
+export const SERVICE_POOL_OPTIONS = Object.freeze({ requireL4: true })
 
 /** The only variables the service may boot with. Platform-injected names are listed one by one;
  *  a prefix rule would admit RAILWAY_TOKEN. Public-exposure names (RAILWAY_PUBLIC_DOMAIN,
@@ -238,8 +241,7 @@ export async function main({ env = process.env, bundle = DEFAULT_BUNDLE, runner 
   const port = portOf(env)
   const door = await loadBundle(bundle)
   const pool = !runner && poolOpts ? await createPool({ ...poolOpts, bundle }) : null
-  const server = createPineRuntimeServer({ secrets, door, runner: pool ? pool.run : runner, log,
-    ...(pool ? { canary: () => pool.ready() } : {}) })
+  const server = createPineRuntimeServer({ secrets, door, runner: pool ? pool.run : runner, log })
   if (pool) server.once('close', () => { pool.close().then(() => log('[pine-runtime] pool stopped')) })
   let bound
   try {
@@ -258,7 +260,7 @@ const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p)
 const isMain = Boolean(process.argv[1]) && fold(resolve(process.argv[1])) === fold(fileURLToPath(import.meta.url))
 if (isMain) {
   // W5-T7: the service's own boot runs the pool and refuses to start unless the L4 self-test holds
-  main({ pool: { requireL4: true } }).catch((e) => {
+  main({ pool: SERVICE_POOL_OPTIONS }).catch((e) => {
     console.error(`[pine-runtime] BOOT REFUSED: ${e.message}`)
     process.exit(1)
   })

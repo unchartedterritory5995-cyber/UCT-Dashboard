@@ -196,7 +196,6 @@ export async function createPool({
       if (!s.ready || s.busy || s.gone) continue
       const e = take()
       if (!e) return
-      clearTimeout(e.deadlineTimer)
       e.dispatched = true
       inflight.set(ownerKey(e), (inflight.get(ownerKey(e)) || 0) + 1)
       s.busy = e
@@ -221,6 +220,7 @@ export async function createPool({
     const answers = request.jobs.map((job) => new Promise((resolve) => {
       const e = { id: (nextId += 1), profile, owner, doc, job, resolve, done: false, dispatched: false }
       e.deadlineTimer = setTimeout(() => {
+        // ONE guard: only a job still QUEUED is answered here; a dispatched one answers by its run
         const q = queues.get(profile)
         const i = q.indexOf(e)
         if (i < 0) return

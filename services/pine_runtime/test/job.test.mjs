@@ -31,6 +31,11 @@ test('runArgs builds the def, rows and ctx the browser worker builds, from the v
   assert.deepEqual(ctx, { tf: 'D', newestBarIsForming: false, historyFromListing: true, runtimeInputs: { length: 14 },
     symbol: { ticker: 'AAPL', exchange: 'NASDAQ' } })
   assert.notEqual(ctx.runtimeInputs, job.ctx.runtimeInputs, 'the inputs are copied, never shared with the job')
+  job.ctx.historyFromListing = false
+  job.ctx.newestBarIsForming = true
+  const off = runArgs(doc, job).ctx
+  assert.equal(off.historyFromListing, false)
+  assert.equal(off.newestBarIsForming, true)
 })
 
 test('encodeColumn: canonical NaN for na, -0 kept, exact length, numbers only', () => {

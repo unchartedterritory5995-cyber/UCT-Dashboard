@@ -99,6 +99,10 @@ test('deadline: a job still queued past its profile deadline is withheld runtime
     const [, end] = spanOf(await busy)
     assert.ok(answeredAt < end, 'answered at its deadline, not when a worker freed')
   })
+  await withPool({ deadlinesMs: { ...POOL_DEFAULTS.deadlinesMs, alert: 100 } }, async (pool) => {
+    const r = await runOne(pool, { source: 'sleep:300' })
+    assert.equal(r.status, 'ok', 'a job dispatched before its deadline is answered by its run, even when the run outlasts it')
+  })
 })
 
 test('hard kill: a job past killMs is withheld runtime:time-budget and its worker is never reused', async () => {

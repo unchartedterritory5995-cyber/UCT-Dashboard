@@ -37,6 +37,9 @@ test('L1 can fail: every token is caught, an allowlisted line passes only verbat
     const { hits } = scanBundle(`ok\n  ${line}\nok`, [])
     assert.ok(hits.some((h) => h.token === token && h.line === 2), `${token}: ${JSON.stringify(hits)}`)
   }
+  for (const alt of ["x = process['env']", 'import x from "./y.js"', 'export { a } from "./b.js"', "s = 'fs'", 's = "node:http"']) {
+    assert.equal(scanBundle(alt, []).hits.length, 1, alt)
+  }
   for (const benign of ['const offset = 2', 'http_status = 200 // https docs', 'a.processed = true', 'reimport(x)', 'myFetch(x)']) {
     assert.deepEqual(scanBundle(benign, []).hits, [], benign)
   }
@@ -94,6 +97,11 @@ test('L4: under the service flags a worker can write no file, spawn no process a
   const r = selfTestIn([permissionFlag, '--allow-fs-read=*', '--allow-worker', '--disallow-code-generation-from-strings'], target)
   assert.deepEqual(r, { ok: true, results: { fsWrite: 'threw', spawn: 'threw', codegen: 'threw' } })
   assert.equal(existsSync(target), false)
+})
+
+test('L4: one flag missing is enough to fail the self-test', () => {
+  const r = selfTestIn([permissionFlag, '--allow-fs-read=*', '--allow-worker'], join(dir, 'l4-partial.txt'))
+  assert.deepEqual(r, { ok: false, results: { fsWrite: 'threw', spawn: 'threw', codegen: 'ALLOWED' } })
 })
 
 test('L4: the boot\'s default target is a writable path, so only the flags can make the write throw', () => {
