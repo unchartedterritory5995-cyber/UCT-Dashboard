@@ -65,8 +65,9 @@ const CHART_SETUP = new Set(['widget.add', 'widget.addCharts', 'chart.setSymbol'
 export function aboutIndicators(memory, epoch) {
   const last = memory?.lastTurn?.(epoch)
   if (!last || !last.ops.length) return false
-  const isInd = (o) => getCapability(o.action)?.target === 'indicatorEdits'
-  if (!last.ops.some(isInd)) return false
+  // ⭐ PACKAGE 3: building an indicator in chat (its draft / Save) and putting it on a chart is ONE turn about that indicator
+  const isInd = (o) => ['indicatorEdits', 'indicatorDrafts'].includes(getCapability(o.action)?.target)
+  if (!last.ops.some(o => getCapability(o.action)?.target === 'indicatorEdits')) return false
   const created = new Set(last.ops.filter(o => o.action === 'widget.add' || o.action === 'widget.addCharts').map(o => String(o.target)))
   if (!created.size) return last.ops.every(isInd)
   // ...and only when its indicators went ON a chart it created: an indicator op targets `ixe:<chart id>`. An indicator put on
@@ -537,6 +538,8 @@ function repeatOps(last, dests, host) {
         const row = rows.find(r => r.instanceId === args[key])
         const p = portable(row)
         if (!p) return null                                            // not re-findable on another chart
+        // PACKAGE 3: one of the member's own indicators is re-found by its definition — only where it IS
+        if (/^u_/.test(p) && dests.some(d => !rowsOnChart(host, d).some(r => r.defId === p))) return null
         args[key] = p
       }
       if (o.action === 'indicatorCopy.copyTo') return null
@@ -609,9 +612,14 @@ function readOnce(t, ctx) {
     const dests = set.refs.filter(r => !srcs.has(r))
     if (!dests.length) return { kind: 'say', text: 'That change is already on that chart.' }
     const ops = repeatOps({ ops: last.ops.map(o => ({ ...o, target: String(o.target).replace(/^ixe:/, '') })) }, dests, host)
-    if (!ops) return null                                           // not plainly repeatable → the model (which may ask)
-    if (ops.length > MAX_FOLLOW_OPS) return { kind: 'say', text: `That would be ${ops.length} changes at once — UCT makes at most ${MAX_FOLLOW_OPS} in one follow-up. Name fewer charts. Nothing has changed.` }
-    return { kind: 'ops', ops }
+    // ⭐ PACKAGE 3: "apply it to my other chart" right after building an indicator (or a change to it) means THE INDICATOR —
+    // when the last turn can't be repeated there (it isn't on that chart), it is read as a copy of it (below)
+    const copyIt = !ops && /^(?:apply|copy) (?:it|this|that)(?: one)? (?:to|onto|on) /.test(t)
+    if (!ops && !copyIt) return null                                // not plainly repeatable → the model (which may ask)
+    if (!copyIt) {
+      if (ops.length > MAX_FOLLOW_OPS) return { kind: 'say', text: `That would be ${ops.length} changes at once — UCT makes at most ${MAX_FOLLOW_OPS} in one follow-up. Name fewer charts. Nothing has changed.` }
+      return { kind: 'ops', ops }
+    }
   }
   // copy the conversation's indicators onto charts: "now put those on my other charts", "add them to all of them"
   m = COPY_RE.exec(t)

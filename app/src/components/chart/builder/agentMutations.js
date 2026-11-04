@@ -22,7 +22,9 @@
 // `confirmIndicatorMutation`; nothing here claims a save it did not see.
 
 import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, setIndicatorInput, checkInstanceInput, inputSpecOf,
-  setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor, setInstanceDisplayTarget, duplicateInstance, isValidColorValue } from '../engine/instanceControls'
+  setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor, setInstanceDisplayTarget, duplicateInstance, isValidColorValue,
+  setInstanceVisibility } from '../engine/instanceControls'
+import { normalizeVisibility, visibilitySummary, VISIBILITY_PRESETS } from '../engine/instanceTimeframe'
 import { displayTargetOptions, automaticTargetOf, resolveDisplayTarget, paneOwnerOf } from '../engine/displayTarget'
 import { movePane as movePaneWriter, movePaneTo, resolvePaneOrder, storedPaneOrder } from '../engine/paneOrder'
 import { setPaneSize as setPaneSizeWriter, clearPaneSize, storedPaneSizes } from '../engine/paneSizes'
@@ -43,7 +45,10 @@ import { canon, same, changeRecord, holds, revertRecord, setAt, clone } from '..
 export const MUTATION_CONTRACT = 'uct.indicators.mutation/1'
 /** ⭐ I-1…I-8 (2026-10-27, ADDITIVE — the first four ops are unchanged): presentation and
  *  placement of ONE instance, the pane stack, and creating copies. */
-export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget'])
+// ⭐ PACKAGE 3 seam (Agent, 2026-11-04 — docs/indicators/AGENT-CONTRACT-P2-2026-10-27.md §8 (I-14)): `setVisibility` — the
+// Inspector's "Show on" (which CHART timeframes the instance draws on), through `setInstanceVisibility`, the writer the
+// settings row uses. Presentation only; per instance; exact Undo like every style op.
+export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility'])
 export const PANE_OPS = Object.freeze(['movePane', 'setPaneSize'])
 export const CREATE_OPS = Object.freeze(['duplicate', 'copyFrom'])
 export const MUTATION_OPS = Object.freeze(['add', 'remove', 'setVisible', 'setInputs', ...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS])
@@ -905,6 +910,21 @@ function writeStyle(view, req, inst, def, registry) {
       return { ok: true, cs: next, change: { what: 'color', target, ...(req.plotKey ? { plotKey: req.plotKey } : {}), before: pick.current, after: color } }
     }
     return refuse(REASONS.BAD_INPUT, { target: target || null, why: 'name a colour target', options })
+  }
+  if (req.op === 'setVisibility') {
+    // `visibility`: null / 'all' = every timeframe (the absent key); else the stored policy shape
+    // ({preset:'intraday'} | {preset:'dailyUp'} | {preset:'custom', tfs:[chart timeframe codes]})
+    const all = req.visibility === null || req.visibility === 'all'
+    const want = all ? null : normalizeVisibility(req.visibility)
+    if (!all && !want) {
+      return refuse(REASONS.BAD_INPUT, { value: req.visibility ?? null, why: 'show it on all timeframes, intraday only, daily & above, or a list of chart timeframes',
+        options: VISIBILITY_PRESETS.map((p) => ({ value: p.value, label: p.label })) })
+    }
+    const before = normalizeVisibility(inst.visibility)
+    if (same(before, want)) return refuse(REASONS.NO_CHANGE)
+    const next = setInstanceVisibility(view, id, want, registry)
+    if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
+    return { ok: true, cs: next, change: { what: 'visibility', before: visibilitySummary(before), after: visibilitySummary(want) } }
   }
   // setDisplayTarget
   let options = []

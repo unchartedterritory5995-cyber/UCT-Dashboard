@@ -477,3 +477,25 @@ description plus the builder's own "assumed…" lines.
 A turn + Save on an EXISTING draft (refining, then saving in one message) is NOT combined: the turn
 runs, the Save is dropped, and the draft line says "not saved yet — want me to apply it?". No new
 `agentAuthoring` call surface: the Agent calls `draftTurn` then `saveDraft` exactly as today.
+
+## 17. PACKAGE 3 seam — the builder's proposed name, as a suggestion (Agent, 2026-11-04)
+
+Owner (2026-11-04): an indicator the Agent creates gets a HUMAN name; a formula-like or sentence-length derived
+name ("Close above EMA 21 and Volume above 1.5 times SMA 50 (Volume)", chip-cut to "Close above") never reaches
+chat. §P2 naming is unchanged: `create` still takes the DERIVED name (`derivedName.js`), and nothing in the engine
+writes the model's create-name.
+
+- `authoringSession.modelTurn` returns `suggestedName` — the `create` op's `name`, whitespace-collapsed — only for
+  the turn that CREATED the definition, only when the member named nothing (no naming cue in their words), and only
+  when it differs from the name the engine gave. `agentAuthoring.draftTurn` passes it through on an `applied`
+  outcome. It is a suggestion; it is never applied there.
+- The Agent (`indicatorAuthoring.js`) applies it, when `humanName()` accepts it (3–40 characters, ≤ 6 words, no
+  formula symbols or sentence words) and the member has no indicator of that name, through the ONE name-only door:
+  `renameDraft(draftRef, name, {expectedRevision})` — no model call, its own exact draft step. The Agent's Undo of
+  that build takes back both steps (rename, then the build), newest first.
+- Receipts name the member's own indicators by their saved `meta.name` (`indicatorEdits.ownIndicatorName`), not the
+  12-character legend chip (`labelText.chipName`), which can read as a built-in ("Volume Thrust Days" → "Volume").
+
+A Save stays permanent (D7): an Undo that reaches a saved draft's steps refuses with "… is saved in your indicators
+now — a Save is permanent … To remove it, ask me to delete … from your indicators" (`definition.delete`, which is
+proposed and itself undoable).

@@ -30,7 +30,7 @@ import { STUDIO_PREVIEW_DEF_ID } from '../studio/chartPreview'
 import { memberError, memberSaveError, memberRefusal } from './memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './studioTelemetry'
 import { outputNamer, slotWords } from './readback'
-import { soleCueName } from './derivedName'
+import { soleCueName, memberCueNames } from './derivedName'
 import { renamePatch, withMemberName } from './memberNamePatch'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
 import { saveReceipt } from '../studio/saveOutcomeReceipt'
@@ -223,8 +223,17 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
         lines: [...(turn.reply ? [turn.reply] : []), ...gaps, ...out.state.questions.map((q) => q.text)] }] }
   }
   logStudioAction(out.state.lineage, 'preview', { surface: 'studio' })
+  // ⭐ PACKAGE 3 seam (Agent, 2026-11-04 — docs/indicators/AGENT-M3-CONTRACT.md §17): the name the model's `create`
+  // op PROPOSED, handed back as a SUGGESTION only. The engine still names the definition from its maths (derivedName:
+  // `create` takes the derived name); nothing here writes it. A caller that wants a human name applies it through the
+  // ONE name-only door (`renameTurn` / `agentAuthoring.renameDraft`) — its own undoable step. Only for the turn that
+  // CREATED the definition, and only when the member named nothing themselves (their name is already kept).
+  const created = !before.working ? (envelope && Array.isArray(envelope.ops) ? envelope.ops : []).find((o) => o && o.op === 'create') : null
+  const suggested = created && typeof created.name === 'string' ? created.name.replace(/\s+/g, ' ').trim() : ''
+  const named = !!soleCueName(words) || memberCueNames(words).length > 0
+  const suggestedName = suggested && !named && suggested !== ((out.state.working && out.state.working.meta && out.state.working.meta.name) || '') ? suggested : null
   // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the model wrote.
-  return { ok: true, state: out.state, changed: true, outcome: turn.outcome, changes: result.changes || [],
+  return { ok: true, state: out.state, changed: true, outcome: turn.outcome, changes: result.changes || [], ...(suggestedName ? { suggestedName } : {}),
     entries: [{ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
       lines: [...replyLines(out.readback, out.state, result.changes), ...unclear] }] }
 }

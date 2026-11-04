@@ -131,7 +131,11 @@ export const GROUPS = [
   { id: 'indicatorSetup', title: 'Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
     words: [/\b(thick|thicker|thin|thinner|width|dashed|dotted|solid|histogram|columns|plot style|line style)\b/, /\bpanes?\b/, /\b(above|below) (the )?(price|volume)\b/,
       /\b(own|separate|new) pane\b|\b(overlay|put|move)\b.*\b(on|onto) (the )?(price|volume)\b/, /\b(duplicate|copy|copies|clone)\b.*\b(indicators?|studies|rsi|macd|ema|sma)\b/, /\b(same|these|my) indicators\b/,
-      /\b(make|turn|colou?r|paint)\b.*\bthe \d{1,3}\b.*\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y)\b/] },
+      /\b(make|turn|colou?r|paint)\b.*\bthe \d{1,3}\b.*\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y)\b/,
+      // ⭐ PACKAGE 3: which timeframes it shows on ("only show it on the daily", "daily charts only", "except the daily")
+      /\b(daily|weekly|monthly|intraday|hourly)( charts?)? only\b|\bonly (show|display|draw|on)\b.*\b(daily|weekly|monthly|intraday|hourly)\b|\bexcept (on )?the (daily|weekly|monthly|intraday)\b/,
+      // ⭐ PACKAGE 3: the indicator just built / changed onto another chart ("apply it to my other chart", "copy it to the SPY chart")
+      /\b(apply|put|copy|add|place)\b.*\b(it|this|that|them|those)\b.*\b(other|another|both|all)\b.*\bcharts?\b|\bcopy (it|this|that|them|those)\b.*\bcharts?\b/] },
   { id: 'definitions', title: 'Indicator definitions: search UCT\'s and your own indicators, describe one, save a copy, delete one of yours', domains: ['definition'], fillLast: true,
     // CG-24 (corpus #774): "are there any volatility indicators", "which momentum indicators do you have" — a SEARCH of the catalog
     words: [/\b(my|saved|custom|own) indicators?\b/, /\bindicators? (for|that|which|to)\b/, /^(?!.*\b(?:remove|delete|clear|hide|show|add|drop|take off)\b)(?!.*\b(?:on|in) (?:my|this|the|that) charts?\b).*\b(?:(?:any|which|what|some|other|more) (?:[a-z-]+ ){1,2}indicators|indicators? (?:do you have|are available|exist)|are there (?:any )?(?:[a-z-]+ ){0,2}indicators?)\b/, /^(?!.*\b(?:on|in) (?:my|this|the|that) charts?\b)(?!.*\bon (?:here|it|there)\b).*\b(find|search|look for|what) .*\bindicators?\b/, /\b(describe|explain|what does)\b.*\b(indicator|rsi|macd|atr|study)\b/, /\b(delete|remove|copy|duplicate)\b.*\b(my|saved|custom)\b(?:\s+[a-z0-9-]+){0,3}\s+(indicator|formula|study)\b/] },
