@@ -27,12 +27,15 @@ from __future__ import annotations
 
 import datetime
 import json
+import logging
 import os
 import sqlite3
 from pathlib import Path
 from typing import Any, Optional
 
 from api.services.uct_agent.knowledge import index, policy
+
+log = logging.getLogger(__name__)
 
 WORKSHEET_FORMAT = "uct-kn-rights-worksheet/1"
 MAX_PER_RUN = 10
@@ -242,10 +245,100 @@ def read_audit(path: Path, key: Optional[bytes] = None) -> list[dict]:
 
 BULK_MAX_DAYS = 90
 
+# ── the server-side ANCHOR (QA #793 round 2: a rollback of the editable files must not undo a revocation) ─────────
+#: policy.json and the audit log are both files an editor can roll back together: truncate the log before a revoke,
+#: copy that line's sha into audit_head, restore the old cleared_rows. So the latest (seq, head) is ALSO recorded in a
+#: server-side store OUTSIDE those files, written only by apply / revoke / reanchor with the key and MAC'd under it:
+#: a small SQLite file on the server volume (UCT_KN_RIGHTS_ANCHOR, default <DATA_DIR>/kn_rights_anchor.sqlite).
+#: authorized() and every write refuse unless the files' sequence (the number of signed records) and head EQUAL the
+#: anchor. Rolling the files back leaves them behind the anchor, so nothing is served. Bulk approvals are bound to the
+#: anchor's id, which lives only in that store. Residual (documented): someone who can also replace the anchor file on
+#: the server volume, AND holds a matching old copy of it, can roll back; that is server-volume access, not an editor's.
+ANCHOR_ENV = "UCT_KN_RIGHTS_ANCHOR"
+
+
+def anchor_path() -> Path:
+    v = os.environ.get(ANCHOR_ENV)
+    if v:
+        return Path(v)
+    return Path(os.environ.get("DATA_DIR") or "/data") / "kn_rights_anchor.sqlite"
+
+
+def _anchor_conn():
+    import sqlite3
+    ap = anchor_path()
+    ap.parent.mkdir(parents=True, exist_ok=True)
+    c = sqlite3.connect(str(ap), timeout=10.0)
+    c.execute("CREATE TABLE IF NOT EXISTS rights_anchor (policy_id TEXT PRIMARY KEY, anchor_id TEXT NOT NULL, "
+              "seq INTEGER NOT NULL, head TEXT NOT NULL, mac TEXT NOT NULL)")
+    return c
+
+
+def _anchor_mac(key: bytes, pid: str, aid: str, seq: int, head: str) -> str:
+    return _mac(key, f"anchor|{pid}|{aid}|{int(seq)}|{head}")
+
+
+def read_anchor(pid: Optional[str], key: bytes) -> Optional[dict]:
+    """{anchor_id, seq, head} for this policy id, or None when there is none. Raises ValueError if it was edited."""
+    if not pid:
+        return None
+    import contextlib
+    import hmac
+    with contextlib.closing(_anchor_conn()) as c:
+        r = c.execute("SELECT anchor_id, seq, head, mac FROM rights_anchor WHERE policy_id = ?", (pid,)).fetchone()
+    if r is None:
+        return None
+    if not hmac.compare_digest(str(r[3]), _anchor_mac(key, pid, r[0], r[1], r[2])):
+        raise ValueError("the rights anchor does not verify (edited); nothing is served or applied")
+    return {"anchor_id": r[0], "seq": int(r[1]), "head": r[2]}
+
+
+def _write_anchor(pid: str, aid: str, seq: int, head: str, key: bytes) -> None:
+    import contextlib
+    with contextlib.closing(_anchor_conn()) as c:
+        c.execute("INSERT INTO rights_anchor (policy_id, anchor_id, seq, head, mac) VALUES (?,?,?,?,?) "
+                  "ON CONFLICT(policy_id) DO UPDATE SET anchor_id = excluded.anchor_id, seq = excluded.seq, "
+                  "head = excluded.head, mac = excluded.mac", (pid, aid, int(seq), head, _anchor_mac(key, pid, aid, seq, head)))
+        c.commit()
+
+
+def _state(p: Path, ap: Path, key: bytes, create: bool = False) -> dict:
+    """The verified state of a policy + log + anchor, or ValueError: the chain verifies, the policy's audit_head is the
+    log's head, cleared_rows equal the log's active set, and the files' (seq, head) EQUAL the anchor (a fresh, empty
+    policy may have no anchor yet; with create=True one is made for it)."""
+    log_recs = read_audit(ap, key)
+    pol = json.loads(p.read_text(encoding="utf-8"))
+    head = log_recs[-1]["sha"] if log_recs else _GENESIS
+    seq = len(log_recs)
+    if str(pol.get("audit_head") or _GENESIS) != head:
+        raise ValueError("the audit log does not end where the policy says it does (trimmed, deleted, rotated or "
+                         "replaced); nothing applied")
+    rows = [e for e in pol.get("cleared_rows") or [] if isinstance(e, dict)]
+    if _mismatch(rows, log_recs):
+        raise ValueError("cleared_rows and the signed audit log disagree: the policy was edited by hand (remove a "
+                         "clearance with `revoke`); nothing applied")
+    pid = pol.get("rights_policy_id") if isinstance(pol.get("rights_policy_id"), str) else None
+    anc = read_anchor(pid, key)
+    if anc is None:
+        if seq or rows:
+            raise ValueError("no rights anchor for a policy with clearances (rolled back or moved); nothing applied")
+        if create:
+            import secrets
+            if not pid:
+                pid = secrets.token_hex(16)
+                pol["rights_policy_id"] = pid
+                p.write_text(json.dumps(pol, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            anc = {"anchor_id": secrets.token_hex(16), "seq": 0, "head": _GENESIS}
+            _write_anchor(pid, anc["anchor_id"], 0, _GENESIS, key)
+    elif anc["seq"] != seq or anc["head"] != head:
+        raise ValueError("the policy and audit log are not at the anchored state (rolled back or replaced); nothing "
+                         "applied")
+    return {"pol": pol, "recs": log_recs, "head": head, "seq": seq, "rows": rows, "pid": pid, "anchor": anc}
+
 
 def _bulk_fields(b: dict) -> str:
     return json.dumps({k: b.get(k) for k in ("approved_by", "approved_on", "max_rows", "reason", "expires_on",
-                                             "policy_id")}, sort_keys=True, separators=(",", ":"))
+                                             "policy_id", "anchor_id")}, sort_keys=True, separators=(",", ":"))
 
 
 def policy_id(policy_path: Path, create: bool = False) -> Optional[str]:
@@ -282,12 +375,17 @@ def sign_bulk(approved_by: str, approved_on: str, max_rows: int, reason: str, ex
         raise ValueError("expires_on must be an ISO date") from None
     if not 0 < (e - a).days <= BULK_MAX_DAYS:
         raise ValueError(f"expires_on must be after approved_on and at most {BULK_MAX_DAYS} days later")
+    p = Path(policy_path)
+    with _FileLock(p):
+        st = _state(p, audit_path_for(p), key, create=True)
     b = {"approved_by": str(approved_by).strip(), "approved_on": str(approved_on).strip(), "max_rows": max_rows,
-         "reason": str(reason).strip(), "expires_on": str(expires_on), "policy_id": policy_id(policy_path, create=True)}
+         "reason": str(reason).strip(), "expires_on": str(expires_on), "policy_id": st["pid"],
+         "anchor_id": st["anchor"]["anchor_id"]}
     return {**b, "signature": _mac(key, "bulk|" + _bulk_fields(b))}
 
 
-def bulk_cap(pol: dict, key: Optional[bytes] = None, today: Optional[datetime.date] = None) -> int:
+def bulk_cap(pol: dict, key: Optional[bytes] = None, today: Optional[datetime.date] = None,
+             anchor_id: Optional[str] = None) -> int:
     """POLICY_CAP, or a SIGNED, UNEXPIRED bulk approval bound to THIS policy (its rights_policy_id): its max_rows,
     never above BULK_MAX. Unsigned, forged, edited, expired or copied from another policy -> POLICY_CAP."""
     key = key or _key()
@@ -305,6 +403,8 @@ def bulk_cap(pol: dict, key: Optional[bytes] = None, today: Optional[datetime.da
         return POLICY_CAP
     if not b.get("policy_id") or b.get("policy_id") != pol.get("rights_policy_id"):
         return POLICY_CAP                                      # copied from another policy file
+    if not anchor_id or b.get("anchor_id") != anchor_id:
+        return POLICY_CAP                                      # not bound to THIS server's anchor (QA #793 round 2)
     try:
         a, e = datetime.date.fromisoformat(str(b.get("approved_on"))), datetime.date.fromisoformat(str(b.get("expires_on")))
     except ValueError:
@@ -381,24 +481,15 @@ def apply(new: list[dict], policy_path: Path, applied_by: str, audit_path: Optio
     p = Path(policy_path)
     ap = Path(audit_path) if audit_path else audit_path_for(p)
     with _FileLock(p):
-        log_recs = read_audit(ap, key)
-        pol = json.loads(p.read_text(encoding="utf-8"))
-        head = log_recs[-1]["sha"] if log_recs else _GENESIS
-        if str(pol.get("audit_head") or _GENESIS) != head:
-            raise ValueError("the audit log does not end where the policy says it does (trimmed, deleted, rotated or "
-                             "replaced); nothing applied")
-        rows = [e for e in pol.get("cleared_rows") or [] if isinstance(e, dict)]
-        unbacked = _mismatch(rows, log_recs)
-        if unbacked:
-            raise ValueError(f"cleared_rows and the signed audit log disagree on {len(unbacked)} row(s): the policy was "
-                             "edited by hand (remove a clearance with `revoke`); nothing applied")
+        st = _state(p, ap, key, create=True)
+        pol, log_recs, head, rows = st["pol"], st["recs"], st["head"], st["rows"]
         today = sum(1 for r in log_recs if str(r.get("applied_at", ""))[:10] == day and r.get("action") != "revoked")
         if today + len(new) > DAILY_CAP:
             raise ValueError(f"daily cap: {today} row(s) already cleared today (UTC); {len(new)} more would exceed "
                              f"{DAILY_CAP}. No bulk re-admission")
         by_id = {e.get("kb_id"): i for i, e in enumerate(rows)}
         added = sum(1 for e in new if e["kb_id"] not in by_id)
-        cap = bulk_cap(pol, key)
+        cap = bulk_cap(pol, key, anchor_id=st["anchor"]["anchor_id"])
         if len(rows) + added > cap:
             raise ValueError(f"policy cap: {len(rows)} cleared row(s) + {added} would exceed {cap}. More needs a "
                              "bulk_clearance_approval signed with the server key")
@@ -426,6 +517,7 @@ def apply(new: list[dict], policy_path: Path, applied_by: str, audit_path: Optio
         pol["policy_version"] = version
         pol["audit_head"] = prev
         p.write_text(json.dumps(pol, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        _write_anchor(st["pid"], st["anchor"]["anchor_id"], st["seq"] + len(lines), prev, key)
     return {"added": added, "replaced": replaced, "policy_version": version}
 
 
@@ -447,14 +539,10 @@ def revoke(kb_ids: list, policy_path: Path, revoked_by: str, reason: str, audit_
     p = Path(policy_path)
     ap = Path(audit_path) if audit_path else audit_path_for(p)
     with _FileLock(p):
-        log_recs = read_audit(ap, key)
-        pol = json.loads(p.read_text(encoding="utf-8"))
-        head = log_recs[-1]["sha"] if log_recs else _GENESIS
-        if str(pol.get("audit_head") or _GENESIS) != head:
-            raise ValueError("the audit log does not end where the policy says it does; nothing revoked")
-        rows = [e for e in pol.get("cleared_rows") or [] if isinstance(e, dict)]
-        if _mismatch(rows, log_recs):
-            raise ValueError("cleared_rows and the signed audit log disagree; nothing revoked")
+        st = _state(p, ap, key)
+        pol, log_recs, head, rows = st["pol"], st["recs"], st["head"], st["rows"]
+        if st["anchor"] is None:
+            raise ValueError("nothing has been cleared on this policy; nothing revoked")
         active = active_from_log(log_recs)
         missing = [k for k in ids if k not in active]
         if missing:
@@ -474,7 +562,38 @@ def revoke(kb_ids: list, policy_path: Path, revoked_by: str, reason: str, audit_
         pol["policy_version"] = version
         pol["audit_head"] = prev
         p.write_text(json.dumps(pol, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        _write_anchor(st["pid"], st["anchor"]["anchor_id"], st["seq"] + len(lines), prev, key)
     return {"revoked": len(ids), "policy_version": version}
+
+
+def reanchor(policy_path: Path, by: str, reason: str) -> dict:
+    """OWNER-ONLY recovery (needs the key): after a crash between a file write and the anchor write, set the anchor to
+    the files' current, fully verified state. This IS a deliberate acceptance of the files as they are; it is logged."""
+    key = _key()
+    if key is None:
+        raise ValueError(f"no rights key on this server ({KEY_ENV})")
+    if not policy._APPROVER.match(str(by or "").strip()) or not str(reason or "").strip():
+        raise ValueError("a name and a reason are required")
+    p = Path(policy_path)
+    with _FileLock(p):
+        recs = read_audit(audit_path_for(p), key)
+        pol = json.loads(p.read_text(encoding="utf-8"))
+        head = recs[-1]["sha"] if recs else _GENESIS
+        rows = [e for e in pol.get("cleared_rows") or [] if isinstance(e, dict)]
+        if str(pol.get("audit_head") or _GENESIS) != head or _mismatch(rows, recs):
+            raise ValueError("the policy and the log do not agree with each other; fix that first")
+        pid = pol.get("rights_policy_id")
+        if not isinstance(pid, str) or not pid:
+            raise ValueError("this policy has no rights_policy_id")
+        try:
+            old = read_anchor(pid, key)
+        except ValueError:
+            old = None
+        import secrets
+        aid = old["anchor_id"] if old else secrets.token_hex(16)
+        _write_anchor(pid, aid, len(recs), head, key)
+    log.warning("[kn rights] re-anchored policy %s at seq %d by %s: %s", pid[:8], len(recs), str(by)[:40], str(reason)[:120])
+    return {"seq": len(recs)}
 
 
 _AUTH_CACHE: dict = {"key": None, "ids": {}}
@@ -489,23 +608,24 @@ def authorized() -> dict:
         return {}
     pp = policy.path()
     ap = audit_path_for(pp)
+    anc = anchor_path()
     try:
-        ck = (str(pp), pp.stat().st_mtime_ns, ap.stat().st_mtime_ns if ap.exists() else None, hash(key))
+        ck = (str(pp), pp.stat().st_mtime_ns, ap.stat().st_mtime_ns if ap.exists() else None,
+              anc.stat().st_mtime_ns if anc.exists() else None, hash(key))
     except OSError:
         return {}
     if _AUTH_CACHE["key"] == ck:
         return dict(_AUTH_CACHE["ids"])
     out: dict = {}
     try:
-        recs = read_audit(ap, key)
-        pol = policy.load()
-        head = recs[-1]["sha"] if recs else _GENESIS
-        if str(pol.get("audit_head") or _GENESIS) == head and len(want) <= bulk_cap(pol, key):
-            # QA #793: the policy's cleared rows must EQUAL the log's active set; any hand edit (a removal, a re-add of
-            # a revoked row, a changed sha) means nothing is served until the policy and the log agree again
-            if not _mismatch([{"kb_id": k, "content_sha": v} for k, v in want.items()], recs):
+        # QA #793: the files must verify, agree with each other (cleared_rows == the log's active set) AND sit exactly
+        # at the server-side anchor; a hand edit or a rollback of the files serves nothing
+        st = _state(pp, ap, key)
+        if st["anchor"] is not None and len(want) <= bulk_cap(st["pol"], key, anchor_id=st["anchor"]["anchor_id"]):
+            active = {e.get("kb_id"): str(e.get("content_sha") or "").lower() for e in st["rows"]}
+            if active == want:
                 out = dict(want)
-    except ValueError:
+    except (ValueError, OSError):
         out = {}
     _AUTH_CACHE.update(key=ck, ids=dict(out))
     return out

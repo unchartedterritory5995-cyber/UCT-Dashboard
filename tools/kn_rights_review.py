@@ -59,6 +59,10 @@ def main(argv=None) -> int:
     r.add_argument("--by", required=True)
     r.add_argument("--reason", required=True)
     r.add_argument("--policy", default=str(policy.DEFAULT_PATH))
+    ra = sub.add_parser("reanchor", help="OWNER ONLY, key required: accept the current verified files as the anchored state")
+    ra.add_argument("--by", required=True)
+    ra.add_argument("--reason", required=True)
+    ra.add_argument("--policy", default=str(policy.DEFAULT_PATH))
     a = ap.parse_args(argv)
 
     if a.cmd == "sign-bulk":
@@ -72,6 +76,13 @@ def main(argv=None) -> int:
     if a.cmd == "revoke":
         try:
             print(f"revoked: {rights.revoke(a.kb_id, Path(a.policy), revoked_by=a.by, reason=a.reason)}")
+        except ValueError as err:
+            print(f"refused: {err}", file=sys.stderr)
+            return 1
+        return 0
+    if a.cmd == "reanchor":
+        try:
+            print(f"re-anchored: {rights.reanchor(Path(a.policy), by=a.by, reason=a.reason)}")
         except ValueError as err:
             print(f"refused: {err}", file=sys.stderr)
             return 1

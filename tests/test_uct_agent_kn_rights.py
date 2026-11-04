@@ -239,9 +239,8 @@ def test_policy_cap_needs_a_bulk_approval_signed_with_the_server_key(kn, monkeyp
     _set_bulk(kn, {**good, "max_rows": 31})                                   # a signed approval, edited
     with pytest.raises(ValueError, match="policy cap"):
         rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
-    monkeypatch.setenv(rights.KEY_ENV, "another-key-0123456789abcdef0123456789")
-    other = rights.sign_bulk("Owner Name", "2026-10-01", 30, "signed with a different key", "2026-11-30", kn["policy"])
-    monkeypatch.setenv(rights.KEY_ENV, KEY)
+    fields = {k: v for k, v in good.items() if k != "signature"}             # the same approval, signed with ANOTHER key
+    other = {**fields, "signature": rights._mac(b"another-key-0123456789abcdef0123456789", "bulk|" + rights._bulk_fields(fields))}
     _set_bulk(kn, other)
     with pytest.raises(ValueError, match="policy cap"):
         rights.apply(_synthetic(1, start=1200), kn["policy"], applied_by="Reviewer One", now=FIXED + 3 * 86400)
@@ -392,12 +391,16 @@ def test_a_bulk_approval_expires_and_is_bound_to_its_policy_file(kn, tmp_path):
     b = rights.sign_bulk("Owner Name", "2026-10-01", 30, "batch", "2026-11-30", kn["policy"])
     pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
     pol["bulk_clearance_approval"] = b
-    assert rights.bulk_cap(pol, today=TODAY_FIXED) == 30
-    assert rights.bulk_cap(pol, today=__import__("datetime").date(2026, 12, 1)) == rights.POLICY_CAP     # expired
+    aid = b["anchor_id"]
+    assert rights.bulk_cap(pol, today=TODAY_FIXED, anchor_id=aid) == 30
+    assert rights.bulk_cap(pol, today=__import__("datetime").date(2026, 12, 1), anchor_id=aid) == rights.POLICY_CAP  # expired
     other = {**pol, "rights_policy_id": "f" * 32}                              # copied into another policy file
-    assert rights.bulk_cap(other, today=TODAY_FIXED) == rights.POLICY_CAP
+    assert rights.bulk_cap(other, today=TODAY_FIXED, anchor_id=aid) == rights.POLICY_CAP
+    # QA #793 round 2: copying rights_policy_id along with it does not help: the approval is bound to THIS server's anchor
+    assert rights.bulk_cap(pol, today=TODAY_FIXED, anchor_id="e" * 32) == rights.POLICY_CAP
+    assert rights.bulk_cap(pol, today=TODAY_FIXED) == rights.POLICY_CAP
     assert rights.bulk_cap({**pol, "bulk_clearance_approval": {**b, "expires_on": "2026-12-30"}},
-                           today=TODAY_FIXED) == rights.POLICY_CAP                  # edited after signing
+                           today=TODAY_FIXED, anchor_id=aid) == rights.POLICY_CAP     # edited after signing
     with pytest.raises(ValueError, match="at most 90 days"):
         rights.sign_bulk("Owner Name", "2026-10-01", 30, "batch", "2027-03-01", kn["policy"])
     with pytest.raises(ValueError, match="expires_on"):
@@ -418,4 +421,71 @@ def test_a_stale_lock_fails_closed_and_says_how_to_recover(kn, monkeypatch):
         rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
     lock.unlink()
     assert rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)["added"] == 1
+
+
+# ── QA #793 round 2: the server-side anchor defeats a rollback of the editable files ──────────────────────────────
+def test_the_reviewers_rollback_never_restores_a_revoked_row(kn):
+    ws = _filled(rights.worksheet(14))
+    rights.apply(rights.entries([ws]), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    before = kn["policy"].read_text(encoding="utf-8")
+    ap = rights.audit_path_for(kn["policy"])
+    log_before = ap.read_text(encoding="utf-8")
+    rights.revoke([14], kn["policy"], revoked_by="Owner Name", reason="rights withdrawn", now=FIXED + 60)
+    q = {"question": "cup and handle handle weeks", "k": 3}
+    assert 14 not in _ids(read("knowledge.search", q))
+    # the rollback: truncate the log to the line before the revoke, audit_head = that line's sha, old cleared_rows back
+    ap.write_text(log_before, encoding="utf-8")
+    kn["policy"].write_text(before, encoding="utf-8")
+    assert rights.authorized() == {}
+    assert 14 not in _ids(read("knowledge.search", q))
+    with pytest.raises(ValueError, match="anchored state"):
+        rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED + 120)
+
+
+def test_rollback_plus_a_resigned_bulk_approval_is_still_refused(kn):
+    _fill_to_cap(kn)
+    before, log_before = kn["policy"].read_text(encoding="utf-8"), rights.audit_path_for(kn["policy"]).read_text(encoding="utf-8")
+    rights.revoke([1001], kn["policy"], revoked_by="Owner Name", reason="x", now=FIXED + 3 * 86400)
+    kn["policy"].write_text(before, encoding="utf-8")
+    rights.audit_path_for(kn["policy"]).write_text(log_before, encoding="utf-8")
+    with pytest.raises(ValueError, match="anchored state"):                    # signing needs a verified state too
+        rights.sign_bulk("Owner Name", "2026-10-01", 30, "after a rollback", "2026-11-30", kn["policy"])
+    assert rights.authorized() == {}
+
+
+def test_an_edited_or_missing_anchor_serves_nothing(kn):
+    import sqlite3
+    rights.apply(_synthetic(2), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    assert len(rights.authorized()) == 2
+    c = sqlite3.connect(str(rights.anchor_path()))
+    c.execute("UPDATE rights_anchor SET seq = seq + 5")
+    c.commit()
+    c.close()
+    assert rights.authorized() == {}                                           # the MAC no longer verifies
+    rights.anchor_path().unlink()
+    assert rights.authorized() == {}                                           # a policy with clearances needs its anchor
+    with pytest.raises(ValueError, match="no rights anchor"):
+        rights.apply(_synthetic(1, start=3001), kn["policy"], applied_by="Reviewer One", now=FIXED)
+
+
+def test_a_crash_before_the_anchor_write_fails_closed_and_the_owner_can_reanchor(kn, monkeypatch):
+    rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    real = rights._write_anchor
+    monkeypatch.setattr(rights, "_write_anchor", lambda *a, **k: (_ for _ in ()).throw(OSError("crash")))
+    with pytest.raises(OSError):
+        rights.apply(_synthetic(1, start=2001), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    monkeypatch.setattr(rights, "_write_anchor", real)
+    assert rights.authorized() == {}                                           # the files are ahead of the anchor
+    with pytest.raises(ValueError, match="reason"):
+        rights.reanchor(kn["policy"], by="Owner Name", reason="")
+    assert rights.reanchor(kn["policy"], by="Owner Name", reason="crash recovery")["seq"] == 2
+    assert len(rights.authorized()) == 2
+
+
+def test_the_anchor_lives_outside_the_editable_files(kn):
+    rights.apply(_synthetic(1), kn["policy"], applied_by="Reviewer One", now=FIXED)
+    a = rights.anchor_path()
+    assert a.exists() and a.parent != kn["policy"].parent                     # the server volume, not the policy's folder
+    pol = json.loads(kn["policy"].read_text(encoding="utf-8"))
+    assert "seq" not in json.dumps(pol) and "rights_anchor" not in json.dumps(pol)
 

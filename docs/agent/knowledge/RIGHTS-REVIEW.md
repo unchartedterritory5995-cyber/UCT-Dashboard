@@ -50,6 +50,22 @@ content permissible, and there is no bulk re-admission.
 - **The limits survive log tampering:** the policy records the log's head, so a trimmed, deleted, rotated or replaced
   log no longer matches. `apply` then refuses, and the rows that log backed stop being served. Wiping the policy's
   clearances, the head and the log all together only un-clears everything.
+- **Server-side anchor (QA #793 round 2):** `policy.json` and the audit log can be rolled back together by someone who
+  can edit them: truncate the log before a revoke, copy that line's hash into `audit_head`, restore the old
+  `cleared_rows`. So `apply` / `revoke` also record the latest sequence (the number of signed records) and head in a
+  server-side store OUTSIDE those files, MAC'd under the key: `UCT_KN_RIGHTS_ANCHOR`, default
+  `<DATA_DIR>/kn_rights_anchor.sqlite` on the server volume.
+  - Every write and the runtime check refuse unless the files sit EXACTLY at the anchor, so a rolled-back set of files
+    serves nothing.
+  - An edited anchor fails its MAC. A missing anchor for a policy with clearances serves nothing.
+  - Bulk approvals are bound to the anchor's id, which lives only in that store, so copying `rights_policy_id` along
+    with an approval does not help.
+  - Crash recovery: if a run dies between writing the files and writing the anchor, nothing is served until the owner
+    runs `reanchor --by NAME --reason TEXT` (key required). That deliberately accepts the current, fully verified files.
+  - **Residual risk:** someone who can also replace the anchor file on the server volume with an old copy of it can
+    roll back. That is server-volume access, not an editor's.
+- **When a bulk approval expires with more than 25 rows live, nothing is served (fail-closed)** until the rows are
+  revoked down to 25 or a new approval is signed.
 - **Revocation (QA #793):** `revoke --kb-id N --by NAME --reason TEXT` writes a SIGNED, chained `revoked` record and
   removes the row. At runtime the policy's cleared rows must EQUAL the signed log's active set. A row removed by hand,
   a revoked row re-added by hand, or a changed sha means nothing is served, and `apply` refuses, until the two agree.
@@ -97,3 +113,4 @@ remains the human gate.
   later apply.
 - authorization: no key means nothing cleared or served (a short key counts as none); an approval with any name, edited after signing, signed with another key or above the bound counts as nothing; a hand-edited clearance is never served and blocks apply; trimming, deleting or rotating the log never resets the daily cap; concurrent applies (8 threads) never exceed the cap and keep the chain; the policy cap holds on later days.
 - QA #793: signed revocation, and a hand re-add of a revoked row never served; a hand removal serves nothing until fixed; revoke needs the key, a name, a reason and a cleared row; revocations do not count toward the cap; bulk approvals expire and are bound to their policy file; a weak key is no key; a stale lock fails closed with recovery steps.
+- QA #793 round 2: the reviewer's exact rollback never restores a revoked row; a rollback plus re-signing is refused; an edited or missing anchor serves nothing; a crash before the anchor write fails closed and the owner can re-anchor; the anchor lives outside the editable files; approvals are bound to the anchor id.
