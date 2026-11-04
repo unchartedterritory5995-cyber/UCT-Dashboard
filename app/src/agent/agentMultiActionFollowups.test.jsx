@@ -843,3 +843,17 @@ describe('nl-gaps-3 · CG-25..27 (#774): app settings vs the chart', () => {
     expect(parsePriceSentence('price of nvda and set')?.candidates?.map(c => c.text)).toEqual(['nvda'])
   })
 })
+
+describe('nl-gaps-4 · CG-28 (#774): the words traders use for a chart\'s indicators', () => {
+  it('studies / oscillators / averages / MAs / overlays / lines "on here" route the indicators group', () => {
+    for (const m of ['which studies do I have on here', 'what studies are on this chart', 'remove my oscillators', 'hide the averages',
+      'which MAs are on here', 'what overlays are on this chart', 'which lines are on here', 'what do I have on here'])
+      expect(wordsSelect('indicators', m), m).toBe(true)
+  })
+  it('the same words never claim an unrelated message', () => {
+    expect(wordsSelect('indicators', 'read me the case study on NVDA')).toBe(false)
+    expect(wordsSelect('drawings', 'which lines are on here')).toBe(true)                      // drawn levels ride too: the model decides
+    expect(wordsSelect('drawings', 'remove my annotations')).toBe(true)
+    expect(wordsSelect('indicatorSetup', 'move the RSI into its own pane')).toBe(true)
+  })
+})

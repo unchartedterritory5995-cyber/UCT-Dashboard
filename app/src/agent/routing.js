@@ -102,6 +102,11 @@ export const GROUPS = [
       /\b\d{1,4}-?(?:ema|sma|wma|hma|ma)s?\b/,
       // "what's on this chart", "do i have the 50 on here", "a weekly 10 line": the chart's indicators
       /\bwhat'?s on (this|the|my) chart\b|\b(have|got) the \d+ on\b|\b\d+ (line|ma|average)\b/,
+      // CG-28 (corpus #774): the words traders use for a chart's indicators — "which studies do I have on here", "my
+      // oscillators", "the averages", "what overlays are on", "which lines (MAs) are on here" — and "on here" = this chart
+      /\b(?<!case )stud(?:y|ies)\b|\boscillators\b|\b(?:moving |the |my |which |what |all (?:the |my )?)averages\b|\bmas\b/,
+      /\b(?:what|which|any|my|the) (?:[a-z-]+ ){0,2}(?:overlays|lines)\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/,
+      /\b(?:what|which)\b.*\b(?:have|got|is|are)\b.*\b(?:on|in) here\b/,
       // Gate C: moving averages by name or by LENGTH ("add a 200 day moving average", "add the 9 and 20",
       // "put the 50 on it", "make it a 9" after an add) and the short names traders type ("bollies", "bb")
       /\bmoving averages?\b|\b(mas?|bbands?|bb|bollies|boll)\b/,
@@ -131,7 +136,8 @@ export const GROUPS = [
       /\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|anchored vwap|avwap)\b.*\b(from|between|starting|anchored|since)\b/, /\banchored vwap\b|\bavwap\b/] },
   { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
-    words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
+    // CG-28 family: "the lines on here" may be the member's drawn levels as much as their averages — both groups ride
+    words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
   { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
