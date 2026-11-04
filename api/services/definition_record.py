@@ -482,6 +482,31 @@ def record_evaluations(def_hash: str, rev: int, tf: str,
             "refused": [(row, exc) for _, row, exc in refused]}
 
 
+def _tally(column: Sequence[Any], bars: Sequence[Any], pad: int) -> tuple:
+    """THE ONE TALLY both passes share: `(evaluated, true, first_t, last_t)` over the bars past
+    the warm-up `pad`. A `None`, a non-number or a non-finite value is not an evaluation; a true
+    bar is `value != 0` (the scan semantics, E-A1)."""
+    evaluated = 0
+    true = 0
+    first_t: Any = None
+    last_t: Any = None
+    for i, value in enumerate(column):
+        if i < pad:
+            continue
+        if value is None or not isinstance(value, (int, float)):
+            continue
+        if not math.isfinite(float(value)):
+            continue
+        evaluated += 1
+        if float(value) != 0.0:
+            true += 1
+        t = bars[i].get("t") if isinstance(bars[i], dict) else None
+        if first_t is None:
+            first_t = t
+        last_t = t
+    return evaluated, true, first_t, last_t
+
+
 def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
                 inputs: Optional[dict] = None, budget: Optional[dict] = None,
                 at: Optional[float] = None, definition: Optional[Mapping] = None) -> dict:
@@ -562,31 +587,82 @@ def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
                         "recorded": False, "skipped": f"{block_runs.BLOCK_RUNS_GUARD}: {why}"}
     # `max_lookback` counts BARS NEEDED, so the last warm-up index is one less.
     pad = max(0, ast_interpret.max_lookback(ast) - 1)
-    evaluated = 0
-    true = 0
-    first_t: Any = None
-    last_t: Any = None
-    for i, value in enumerate(column):
-        if i < pad:
-            continue
-        if value is None or not isinstance(value, (int, float)):
-            continue
-        if not math.isfinite(float(value)):
-            continue
-        evaluated += 1
-        # ⭐ THE SCAN SEMANTICS, VERBATIM (E-A1): a scan is `<ast> != 0`. The
-        # same tree, the same rule, whether it is drawn on a chart or run over
-        # the universe.
-        if float(value) != 0.0:
-            true += 1
-        t = bars[i].get("t") if isinstance(bars[i], dict) else None
-        if first_t is None:
-            first_t = t
-        last_t = t
+    evaluated, true, first_t, last_t = _tally(column, bars, pad)
 
     out = {"def_hash": def_hash, "evaluated": evaluated, "true": true,
            "first_bar_time": first_t, "through_bar_time": last_t,
            "recorded": False, "skipped": None}
+    if evaluated == 0:
+        out["skipped"] = "no bar in this window was computable"
+        return out
+    out["recorded"] = record_evaluation(
+        def_hash, rev, tf_label, sym, first_t, last_t,
+        bars_evaluated=evaluated, bars_true=true, at=at)
+    return out
+
+
+#: W5-T16: every sentence `record_runtime_pass` can refuse a pass with, by guard. Pairwise distinct
+#: from each other and from `REFUSALS`, so a `raises(match=...)` cannot keep passing after another
+#: gate is deleted.
+RUNTIME_REFUSALS: dict[str, str] = {
+    "not_runtime": "was given a row that is not a stored runtime document",
+    "column_shape": "was answered with a column that is not one value for every bar",
+}
+
+#: The guard a pass is skipped under when the run reports no usable warm-up. Never guessed.
+RUNTIME_WARMUP_GUARD = "runtime:warmup-unreported"
+
+
+def record_runtime_pass(rev: int, tf: str, sym: str, *, row: Mapping, plot_key: str,
+                        bars: Sequence[dict], params: Optional[Mapping] = None,
+                        column_fn: Any = None, at: Optional[float] = None) -> dict:
+    """The runtime-lane twin of `record_pass` (W5-T16, design 5.1): evaluate a STORED RUNTIME
+    DOCUMENT's plot over `bars` through the server lane and record what it said.
+
+    * `def_hash` is DERIVED from the stored document (`runtime_definitions.handle`, minus its
+      `runtime:` namespace prefix so it is a result identity); there is no `def_hash` parameter.
+    * The run goes through `runtime_server_lane.runtime_column_fn(row, plot_key, "record")` (or the
+      `column_fn` a test hands in), so the verdict, admission and transport questions are asked on
+      this call. A `ServerLaneWithheld` is NOT raised: nothing is recorded and `skipped` carries the
+      lane's own `guard: sentence`.
+    * The WARM-UP PAD is the run's own: the column the lane returns carries `.warmup`
+      (`{"withheldBars": n}`, the runtime's `runtimeWarmupOf`). A column with no usable warm-up is
+      never guessed at: nothing is recorded and `skipped` is `RUNTIME_WARMUP_GUARD`. (Schema gap as
+      built: `pine_runtime_client.JobResult` carries no warm-up, so the shipped lane fn returns none
+      and this refuses until the protocol reports it.)
+    * The forward-only origin rule is `record_evaluation`'s, unchanged.
+
+    Returns the same dict as `record_pass`."""
+    from api.services import runtime_definitions, runtime_server_lane
+
+    definition = row.get("definition") if isinstance(row, Mapping) else None
+    if not runtime_definitions.is_runtime(definition):
+        raise ValueError(f"the rule record refuses this pass: it {RUNTIME_REFUSALS['not_runtime']}")
+    handle = runtime_definitions.handle(definition)
+    prefix = "runtime:"
+    def_hash = handle[len(prefix):] if handle.startswith(prefix) else handle
+    rev, tf_label = _definition_key(def_hash, rev, tf)[1:]
+    sym = _symbol(sym)
+
+    bars = list(bars)
+    fn = column_fn or runtime_server_lane.runtime_column_fn(row, plot_key, "record")
+    out = {"def_hash": def_hash, "evaluated": 0, "true": 0, "first_bar_time": None,
+           "through_bar_time": None, "recorded": False, "skipped": None}
+    try:
+        column = fn(bars, dict(params or {}), tf=tf_label, ticker=sym)
+    except runtime_server_lane.ServerLaneWithheld as exc:
+        out["skipped"] = f"{exc.guard}: {exc.sentence}"
+        return out
+    if not isinstance(column, (list, tuple)) or len(column) != len(bars):
+        raise ValueError(f"the rule record refuses this pass: the lane {RUNTIME_REFUSALS['column_shape']}")
+    warm = getattr(column, "warmup", None)
+    n = warm.get("withheldBars") if isinstance(warm, Mapping) else None
+    if isinstance(n, bool) or not isinstance(n, int) or not 0 <= n <= len(bars):
+        out["skipped"] = (f"{RUNTIME_WARMUP_GUARD}: the run reported no usable warm-up, so which bars "
+                          "are evaluations cannot be told and nothing is recorded")
+        return out
+    evaluated, true, first_t, last_t = _tally(column, bars, n)
+    out.update(evaluated=evaluated, true=true, first_bar_time=first_t, through_bar_time=last_t)
     if evaluated == 0:
         out["skipped"] = "no bar in this window was computable"
         return out
