@@ -134,7 +134,7 @@ async function jobWorker({ bundle }) {
   let rt
   try {
     rt = await import(bundle)
-    for (const k of ['computeRuntimeColumns', 'resetRuntimeSessions', 'resetRuntimeLedgers']) {
+    for (const k of ['computeRuntimeColumns', 'resetRuntimeSessions', 'resetRuntimeLedgers', 'runtimeWarmupOf']) {
       if (typeof rt[k] !== 'function') throw new Error(`the bundle exports no ${k}`)
     }
   } catch (e) {

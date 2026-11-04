@@ -16,6 +16,7 @@ function recorder(answer) {
     computeRuntimeColumns(def, rows, ctx, opts) { rt.calls.push({ def, rows, ctx, opts }); return answer(def, rows, ctx, opts) },
     resetRuntimeSessions() { rt.resets.push('sessions') },
     resetRuntimeLedgers() { rt.resets.push('ledgers') },
+    runtimeWarmupOf(c) { return (c && c.__warm) || null },
   }
   return rt
 }

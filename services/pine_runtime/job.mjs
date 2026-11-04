@@ -29,6 +29,11 @@
 //                    run made are not served in v1 and are listed as
 //                    `{key: RUNTIME_OBJECTS_KEY, guard: 'runtime:server-drawings'}`.
 //   want = []        every column the run produced (its enumerable keys).
+//   warmup           (W5-T7b) on every ok result, `{ withheldBars }` from the run's own record
+//                    (`rt.runtimeWarmupOf`, the function the browser worker posts): the bars
+//                    [0, withheldBars) a run off the listing withheld because their values depend on
+//                    where the history starts; 0 when the run withheld none. The supervisor's seal
+//                    (protocol.mjs) checks it is a bar count and adds the digest.
 import { INTEGRITY_GUARD } from './protocol.mjs'
 
 export const OUTPUT_ABSENT_GUARD = 'runtime:server-output-absent'
@@ -122,7 +127,8 @@ export function encodeResult(rt, job, cols) {
     refusals.push({ key: rt.RUNTIME_OBJECTS_KEY, guard: DRAWINGS_GUARD,
       sentence: 'the drawings this script makes are not served to alerts, scans or backtests yet.', bar: null })
   }
-  return { job: job.job, status: 'ok', columns, refusals }
+  const warm = rt.runtimeWarmupOf(cols)
+  return { job: job.job, status: 'ok', columns, refusals, warmup: { withheldBars: warm === null ? 0 : warm.withheldBars } }
 }
 
 /**

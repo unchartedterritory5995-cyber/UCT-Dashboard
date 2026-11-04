@@ -22,6 +22,7 @@ import {
   RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_INCREMENTAL_KEY, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_FAILED_GUARD,
 } from '../runtimeColumns.js'
 import { RUNTIME_OBJECTS_KEY } from '../runtimeObjects.js'
+import { columnDigest } from '../columnDigest.js'
 
 const APP = path.resolve(process.cwd())
 const REPO = path.resolve(APP, '..')
@@ -31,7 +32,8 @@ const EXPORTS = [
   'DEFAULT_LIMITS', 'NATIVE_TFS', 'RUNTIME_FAILED_GUARD', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION',
   'RUNTIME_INCREMENTAL_KEY', 'RUNTIME_IR_VERSION', 'RUNTIME_OBJECTS_KEY', 'RUNTIME_PANE_TIME_BUDGET_MS',
   'RUNTIME_TIME_BUDGET_GUARD', 'SCRIPT_ENGINE_VERSION',
-  'computeRuntimeColumns', 'resetRuntimeLedgers', 'resetRuntimeSessions', 'runtimeVersionRefusal',
+  'columnDigest', 'computeRuntimeColumns', 'decodeColumn', 'resetRuntimeLedgers', 'resetRuntimeSessions',
+  'runtimeVersionRefusal', 'runtimeWarmupOf',
 ]
 
 let dir, built, text
@@ -71,6 +73,12 @@ describe('server bundle (W5-T1)', () => {
     expect(mod.RUNTIME_TIME_BUDGET_GUARD).toBe(RUNTIME_TIME_BUDGET_GUARD)
     expect(mod.RUNTIME_FAILED_GUARD).toBe(RUNTIME_FAILED_GUARD)
     expect(mod.RUNTIME_OBJECTS_KEY).toBe(RUNTIME_OBJECTS_KEY)
+    // W5-T7b: the codec and the warm-up reader are the declaring modules' own functions' behaviour
+    const engine = { script_engine: 1, runtime_language: 'pine', runtime_frontend: 1, runtime_ir: 1, bundle_sha256: '0'.repeat(64) }
+    const run = { engine, columns: { a: [1, NaN, -0] }, refusals: [{ key: 'b', guard: 'g', bar: null }] }
+    expect(mod.columnDigest(run)).toBe(columnDigest(run))
+    expect([...mod.decodeColumn(new Uint8Array(8), 1)]).toEqual([0])
+    expect(mod.runtimeWarmupOf({})).toBe(null)
   })
 
   it('bakes import.meta.env once: no live read remains, the VITE_* value moves the bundle', async () => {
