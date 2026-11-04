@@ -109,18 +109,18 @@ production's kinds):
 
 | protection | covered / applicable | meaning |
 |---|---|---|
-| nl | 57 / 154 | a phrasing reaches it with no gap at (b) or (c) |
-| routing | 57 / 154 | the production routed request carries it, and it is not cut by the budget |
-| args | 57 / 154 | a canonical op passes shapeError |
-| execution | 56 / 154 | it runs through the real panel with its canonical API asserted |
-| receipt | 47 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
+| nl | 63 / 154 | a phrasing reaches it with no gap at (b) or (c) |
+| routing | 63 / 154 | the production routed request carries it, and it is not cut by the budget |
+| args | 63 / 154 | a canonical op passes shapeError |
+| execution | 62 / 154 | it runs through the real panel with its canonical API asserted |
+| receipt | 53 / 154 | that run asserts the receipt (a change) or the canonical read (a query) |
 | refusal | 8 / 154 | a refusal / must-not-change case |
-| permission | 133 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
-| undo | 28 / 95 | undo-exact capabilities with a restore assertion |
+| permission | 135 / 154 | contract pinned for all; confirm-risk ones also need an Apply-waits case (only `alert.create` has one) |
+| undo | 32 / 95 | undo-exact capabilities with a restore assertion |
 | multiStep | 16 / 154 | inside a multi-op plan or a multi-step workflow |
-| phrasings | 55 / 154 | ≥ 3 gap-free phrasings |
+| phrasings | 61 / 154 | ≥ 3 gap-free phrasings |
 
-58 of 154 capabilities have a behavioural regression case (22 at #769's open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists; batches D1 to D6 on #774 added indicator alerts, drawings, chart tabs, chart look, definitions and the indicator draft flow). The other 96 are in the backlog. Their contract is
+64 of 154 capabilities have a behavioural regression case (22 at #769's open; batches C1 to C4 added indicators, alerts, data reads, widgets, layouts and watchlists; batches D1 to D6 on #774 added indicator alerts, drawings, chart tabs, chart look, definitions and the indicator draft flow; D7 and D8 added app settings and chart templates through the preference writer). The other 90 are in the backlog. Their contract is
 pinned, but nothing tests their language or execution yet. That backlog is the honest size of the "silent loss"
 exposure.
 
@@ -164,6 +164,9 @@ exposure.
 | CG-22 | b + c | **Wrong execution:** "move the 200 line up to 210" is claimed by the quote fast reader as a quote for LINE. | agent-md |
 | CG-23 | b + c | **Wrong execution:** "make the up candles blue and the down candles orange" and "blue up candles, orange down candles" are claimed as quotes. | agent-md |
 | CG-24 | a | "are there any volatility indicators" does not route definition.search. | nlfix |
+| CG-25 | a | "use the light theme": "theme" alone is a charts word, so settings.setAppTheme is not sent. | nlfix |
+| CG-26 | a | "new charts should open on the weekly" names no settings word, so it is routed as a chart timeframe change. | nlfix |
+| CG-27 | a | "turn off alert sounds": the settings word is `sound`, and the plural "sounds" does not match, so it routes to alerts only. | nlfix |
 
 Observations that are not marked as gaps because they need an owner ruling:
 
