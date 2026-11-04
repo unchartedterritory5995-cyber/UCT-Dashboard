@@ -1655,7 +1655,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const made = routingV2Active() && step.kind === 'fast' ? planCreatedReference(step.text, host) : null
       // D2.1 (dark): "…, then make the second one weekly" — counted among the charts this request's grid step made
       const ord = !made?.ops && routingV2Active() ? rescopeOrdinal(step.text, { host, order: working || [] }) : null
-      const r = made?.ops ? { ops: made.ops } : ord?.ops ? { ops: ord.ops } : resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
+      let r = made?.ops ? { ops: made.ops } : ord?.ops ? { ops: ord.ops } : resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
+      // D2.2 (dark): a step no reader takes ("…, add the 21 ema and make it orange": the indicator the step before added),
+      // read by the NLM-1 mechanisms over what THIS request has committed so far (memory's current turn)
+      if (routingV2Active() && (r.say || !r.ops?.length) && !r.noop) {
+        const fo = resolveFollowUpOps(step.text, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [], before: null })
+        if (fo?.ops) r = { ops: fo.ops }
+      }
       if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; prevIds = []; continue }
       if (r.note) push({ role: 'outcome', text: r.note })
       if (r.say || !r.ops?.length) { stop(i, String(r.say || 'there was nothing to do there').replace(/[.]+$/, '')); return }
@@ -1759,6 +1765,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           const typed = reads(text)
           const rw = nlm1Rewrite(text, { prev: last ? referentsRef.current.textOf(last.id) : null, claims: reads, originalClaimed: typed })
           if (rw) { mark('nlm1:rewrite', rw.rule); text = rw.text }
+          // D2.2: a request whose parts must each run on their own ("<request>, then do the same for QQQ": each part's "it" is
+          // the chart THAT part creates) — the ordinary multi-step run (runCompound): each part read, executed, receipted,
+          // one Undo group
+          if (rw?.steps?.length > 1) {
+            referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
+            referentsRef.current.note(memoryRef.current.currentTurn(), rw.steps[rw.steps.length - 1])
+            return await runCompoundRef.current?.(rw.steps.map(x => ({ kind: 'fast', text: x })), { member: text, voice })
+          }
           // D2/D3.1 (nlm1/followupOps.js): a follow-up no reader takes, as OPERATIONS — chart referent sets (positions,
           // ordinals, quantifiers), repeat / additive copies of the last request, "back to" inversion from the snapshot
           // taken before it, removal by position. Its ops go through the same execute (policy, runtime, receipts, Undo).

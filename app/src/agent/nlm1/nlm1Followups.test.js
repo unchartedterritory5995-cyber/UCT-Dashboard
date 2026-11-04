@@ -39,6 +39,23 @@ describe('D2.1 same-request mechanisms', () => {
   })
 })
 
+describe('D2.2 structural normalisations (in-plan, no planner)', () => {
+  it('a symbol change with a trailing timeframe and indicator', () => {
+    expect(rewriteSameRequest('switch the right chart to TSLA on the weekly with RSI')?.text).toBe('switch the right chart to TSLA and make it weekly and put RSI on it')
+  })
+  it('tickers assigned to positions, verb or not, plus an indicator on both', () => {
+    expect(rewriteSameRequest('put TSLA on the left and AMD on the right and add rsi to both')?.text).toBe('put TSLA on the left chart and put AMD on the right chart and add rsi to both charts')
+    expect(rewriteSameRequest('TSLA on the left chart, META on the right one, with the 50 sma on both')?.text).toBe('put TSLA on the left chart, put META on the right chart, and add the 50 sma to both charts')
+  })
+  it('"…, then do the same for <ticker>" → two explicit steps', () => {
+    const r = rewriteSameRequest('add a chart for AMD with RSI, then do the same for QQQ')
+    expect(r?.steps).toEqual(['add a chart for AMD and put RSI on it', 'add a chart for QQQ and put RSI on it'])
+  })
+  it('tickers "in four equal charts"', () => {
+    expect(rewriteSameRequest('show SPY, QQQ, IWM and DIA in four equal charts with macd on each')?.text).toBe('open charts for SPY, QQQ, IWM and DIA, each with macd')
+  })
+})
+
 describe('D3 referents across turns', () => {
   it('slots of a request', () => {
     expect(slotsOf('put TSLA on the right chart')).toMatchObject({ tickers: ['TSLA'], pos: 'right', tf: null, creates: false })

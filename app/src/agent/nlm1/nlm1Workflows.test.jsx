@@ -3,11 +3,13 @@
 // golden-workflow format). No model call anywhere (modelTurns 0).
 //   nlm1/baseline/workflows.json   the first set (D2 18, D3 22)
 //   nlm1/baseline/workflows2.json  the GENERALISATION set (AUDIT's sealed-set categories a–f; written after them)
+//   nlm1/baseline/workflows3.json  the ROBUSTNESS set (AUDIT's second report: A in-plan, B cross-turn on varied boards / prior
+//                                  turns, C Undo after a by-ticker add removed by "it")
 // NLM1_WF_MODE=off      the same cases with NLM-1 OFF (the v1 baseline measurement; not a gate)
 // NLM1_WF_MODE=planner  PLANNER-ASSISTED: each step with a `canonical` plan gets that plan as the model's answer (scripted,
 //                       faithful) and its `routes` are checked against routing v2 — a pass means routing + binding +
 //                       executor are right and only a deterministic reader is missing; a fail means something is WRONG
-// NLM1_WF_SET=1 | 2     one set only.
+// NLM1_WF_SET=1 | 2 | 3 | 1,3 …  those sets only.
 import { describe, it, vi, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
@@ -16,6 +18,7 @@ import { pinClock } from '../qa/capabilityRegression/testing/clock'
 import { gapIt } from '../qa/capabilityRegression/testing/corpus'
 import data from './baseline/workflows.json'
 import data2 from './baseline/workflows2.json'
+import data3 from './baseline/workflows3.json'
 
 pinClock()
 vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -32,7 +35,8 @@ const plannerSteps = (steps) => steps.map(s => (s.canonical ? { ...s, model: { o
 
 describe(`NLM-1 workflows (${OFF ? 'flag OFF — baseline' : PLANNER ? 'flag ON, planner-assisted' : 'flag ON'})`, () => {
   const set = globalThis.process?.env?.NLM1_WF_SET || 'all'
-  let all = [...(set === '2' ? [] : data.workflows), ...(set === '1' ? [] : data2.workflows)]
+  const sets = { 1: data.workflows, 2: data2.workflows, 3: data3.workflows }
+  let all = set === 'all' ? [...data.workflows, ...data2.workflows, ...data3.workflows] : set.split(',').flatMap(k => sets[k] || [])
   if (PLANNER) all = all.filter(w => w.steps.some(s => s.canonical))
   for (const w of all) {
     if (only && !w.id.startsWith(only)) continue

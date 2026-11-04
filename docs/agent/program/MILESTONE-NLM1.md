@@ -103,9 +103,46 @@ By category, flag ON: (a) in-plan 4/5 + 1 gap, (b) quantifiers/positions 6/6, (c
 
 **Track A dependency (created-binding v2).** `nlm1/plans.js` hands the binder only UNTARGETED ops and takes the binder as a parameter (`{ bind }`), so it can sit on created-binding-v2 unchanged if v2 keeps the `(ops, text, host) → {ops}|{ask}|null` contract. No flag-ON pass depends on re-targeting an explicitly targeted op. The flag-OFF +4 that Track A gave on the first set does go through that re-targeting (flagged in its review).
 
+#### D2/D3.2: robustness, after AUDIT's second sealed result (20/37 flag on, 14/37 off at `c887318c81`)
+
+The probe matrix (`workflows3.json`: different boards, different prior turns, ordinals with nothing created) found one root cause behind most cross-turn failures: **the FIRST turn did nothing**. A command aimed at charts by ticker or by a quantified set ("add rsi to AMD", "add macd to SPY and QQQ", "make the top two charts weekly") had no deterministic reader, so it went to the model, and the follow-up then had no committed referent. New mechanisms:
+
+| Mechanism | What it does |
+|---|---|
+| Command at a referent set (any turn) | "<command> to/on/for <set>" and "<verb> <set> <rest>": the set resolved by the referent-set resolver, the command read by the fast path as about "it", each chart-scoped op aimed at each chart |
+| Referent + value | "and that one weekly", "the bottom two monthly": no verb needed |
+| Repeat with a modification | "same but monthly for the other two on the bottom", "same but macd for the other two": the last request's ops with the timeframe or indicator replaced |
+| Style the indicator just added | "…, add the 21 ema and make it orange": the indicator the last request (or the step before, inside one request) added, named by what it is, styled on its chart. `runCompound` falls back to these mechanisms when no reader takes a step |
+| Honest "not there" | "remove it from the right one" when the right chart doesn't carry it: said plainly, nothing changed, no model call |
+| In-plan structural normalisations | trailing "on the weekly" / "with RSI" become clauses; verbless assignments ("TSLA on the left chart, META on the right one"); "to both" becomes "to both charts"; "<request>, then do the same for <ticker>" becomes two explicit compound steps; "<tickers> in four equal charts" |
+
+**(A) decision per sub-category: all five are deterministic now**, each through the existing readers:
+
+| Sub-category | How |
+|---|---|
+| Symbol + timeframe + indicator on one chart | trailing-modifier normalisation |
+| Tickers to positions + indicator on both | verbless / quantifier normalisation |
+| "…then do the same for <ticker>" after a create | in-message repeat as two steps |
+| Grid + indicator on all of them | grid and each-with readers, multi-ticker form |
+| Chain where the third change styles the second's indicator | style-last-added mechanism |
+
+Their canonical plans are kept as planner-mode cases (`NLM1_WF_MODE=planner`), reported separately below.
+
+**(C) Undo after "remove it":** not reproducible with the flag on. "add rsi to AMD" (an existing chart, by ticker), then "remove it" (a proposal, approved), then "undo" restores the indicator with its original identity on a 2-chart and a 4-chart board (R-C1, R-C2). Before D2/D3.2, "add … to <ticker>" had no deterministic reader, so with no model plan nothing was ever added, and "undo" had nothing to restore. That is the likely cause of the sealed failure.
+
+Results, all three sets (85 cases: first 40, generalisation 23, robustness 22). Final workspace state plus Undo, no model:
+
+| Mode | First (40) | Generalisation (23) | Robustness (22) | Total |
+|---|---|---|---|---|
+| Flag OFF (with Track A) | 23/40 | 3/23 | 2/22 | 28/85 |
+| **Flag ON, D2/D3.2** | **39/40 + 1 gap** | **22/23 + 1 gap** | **22/22** | **83/85 + 2 recorded gaps (both NLM1-G1)** |
+| Planner-assisted (canonical plans, routes checked under v2) | n/a | 4/5 | 4/4 | 8/9 (G-a3 fails only at Undo: NLM1-G1) |
+
+By AUDIT's categories, robustness set flag ON: A (in-plan) 8/8, B (cross-turn, varied boards / prior turns) 12/12, C (Undo after removal by "it") 2/2. NLM1-G2 is fixed by the style-last-added mechanism: D2-18 now passes and its gap marker is removed. The planner-mode measurement also produced one more routing fix: on overflow, the message's entities count as evidence, so charts is no longer cut from "put TSLA on the left and AMD on the right and add rsi to both". D1 gates and metrics are unchanged.
+
 Recorded gaps (capreg `gapIt`: each must fail exactly as recorded, so a fix is noticed):
 - **NLM1-G1** (D2-13, G-a3): after the new chart's later changes are undone exactly, the creation's own Undo is refused ("Workspace has changed since I made that change"). The new chart's stored settings aren't byte-identical after those undos, so the workspace fingerprint no longer matches. Same with the flag off. Runtime exact-undo area (#771), reported to AUDIT.
-- **NLM1-G2** (D2-18): an indicator added on a chart the same request created (through its alias, the deferred step) isn't found by the conversation follow-up reader, so the next "make it orange" has no referent. Same in two separate turns with the flag off (it goes to the model). Conversation memory × CG-37, reported to AUDIT.
+- **NLM1-G2** (D2-18), FIXED in D2/D3.2 by the style-last-added mechanism (marker removed). It was: an indicator added on a chart the same request created (through its alias, the deferred step) isn't found by the conversation follow-up reader, so the next "make it orange" has no referent. Same in two separate turns with the flag off (it goes to the model). Conversation memory × CG-37, reported to AUDIT.
 
 Unit coverage: `nlm1/nlm1FollowupOps.test.js` (referent sets, repeat / additive, inversion, removal, ordinals, on a fake 2×2 board), `nlm1/nlm1Followups.test.js` (rewriter and same-request rules, never-guess cases, tracker bounds) and `nlm1/nlm1Routing.test.js` (vocabulary validity; the vocabulary is a supplement: the index alone recognises ≥ 75% of the dev set; index generated from the registry; entity typing; `NLM1_ROUTER`).
 
@@ -114,7 +151,7 @@ Unit coverage: `nlm1/nlm1FollowupOps.test.js` (referent sets, repeat / additive,
 1. AUDIT's held-out re-score of the frozen D1.x head: raw availability ≥ 95.3% (v1), own-groups ≥ 90%, no capability below v1.
 2. Track A's created-binding-v2 (the rework of `7be34d2dd9`, which failed review) final and merged; NLM-1 re-merged on it (`plans.js` takes the binder as a parameter); gates re-run (identity fingerprint re-frozen for the new base, only if routing inputs changed).
 3. Owner/peer review of `nlm1/vocabulary.json` (marked draft) and of the rewrite rules in `nlm1/followups.js`.
-4. Gaps NLM1-G1 / G2 triaged by their owners (they also affect the flag-off product).
+4. Gap NLM1-G1 triaged by its owner (it also affects the flag-off product); NLM1-G2 is fixed.
 5. Paid eval (separate owner authorisation, `EVAL.md`): the real planner model with routing v2. Measure task success on the capreg corpus and live phrasings, need_groups reroute rate, input tokens and $ per turn against the #785 per-turn cap (expected +10–25% manifest bytes), and confirm the model handles the larger mean routed set.
 6. Full Agent suite plus CI green on the RC; the master deploy gate; normal release approvals (guard → gate → promote). Builders never merge.
 7. Staged activation, admin only: set `UCT_AGENT_ROUTING_V2=1` on web, opt in one admin browser (`window.__uctAgentRoutingV2(true)`), live smoke of the D2/D3 workflows on the owner's board, then decide. Kill switch: unset the env var or clear the browser key (each alone returns v1).
@@ -131,4 +168,5 @@ Unit coverage: `nlm1/nlm1FollowupOps.test.js` (referent sets, repeat / additive,
 | `92893dca0f` | D1.2: percent-move screens, best group leads under doubt, size trimmed |
 | `344a9777b3` | D2/D3: referent tracker + rewriter, created-reference plans on `bindCreated`, request-level Undo grouping; D4 |
 | `799d3419a5` | D1.3: ticker + info-seeking / period-change entities, byte budget = v1 fallback size; cost analysis |
-| (this commit) | D2/D3.1: follow-ups as operations (referent sets, repeat / additive, inversion, removal by position, ordinals over created charts), same-request normalisation, planner-assisted mode, generalisation set; routing: evidence-ordered cut, multi-ticker charts entity |
+| `c887318c81` | D2/D3.1: follow-ups as operations (referent sets, repeat / additive, inversion, removal by position, ordinals over created charts), same-request normalisation, planner-assisted mode, generalisation set; routing: evidence-ordered cut, multi-ticker charts entity |
+| (this commit) | D2/D3.2: command at a referent set (any turn), referent + value, repeat with a modification, style the indicator just added (+ runCompound fallback), honest not-there; in-plan structural normalisations; in-message repeat as steps; robustness set (22); routing: entities as evidence on overflow |

@@ -62,7 +62,7 @@ describe('follow-ups as operations', () => {
   it('removal by position: the indicator the conversation last added, found by what it IS', () => {
     const memory = memoryOf([{ action: 'indicator.add', target: 'c1', args: { defId: 'rsi' } }], { indicator: { chart: 'c1', instanceId: 'i1', defId: 'rsi' } })
     expect(resolveFollowUpOps('remove it from the bottom right one', { host, memory }).ops).toEqual([{ action: 'indicator.remove', target: indicatorEditsRef('c4'), args: { instance: 'i4' } }])
-    expect(resolveFollowUpOps('take it off the top right', { host, memory })).toBeNull()   // not on that chart: no guess
+    expect(resolveFollowUpOps('take it off the top right', { host, memory })?.say).toMatch(/no rsi .*nothing was removed/i)   // not on that chart: said, never a guess
   })
   it('ordinals over just-created charts', () => {
     expect(rescopeOrdinal('make the second one weekly', { host, order: ['c3', 'c4'] }).ops).toEqual([{ action: 'chart.setTimeframe', target: 'c4', args: { timeframe: 'W' } }])

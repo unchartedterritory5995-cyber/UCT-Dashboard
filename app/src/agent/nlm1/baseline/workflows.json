@@ -775,13 +775,7 @@
       "modelTurns": 0
      }
     }
-   ],
-   "gap": {
-    "id": "NLM1-G2",
-    "owner": "conversation memory x Track A createdBinding (CG-37 follow-up): AUDIT",
-    "mode": "inputs.color is orange",
-    "reason": "an indicator added on a chart the SAME request created (through its alias, the deferred step) is not found by the conversation follow-up reader: the next \"make it orange\" has no referent (compound: stops at that step; two separate turns: goes to the model). The add itself lands on the new chart correctly. Not a routing or rewrite issue."
-   }
+   ]
   },
   {
    "id": "D3-01.it-after-symbol-switch",

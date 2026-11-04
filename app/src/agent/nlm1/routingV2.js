@@ -190,7 +190,15 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   const v1Own = (sel.v1 || []).filter(id => !pinned.includes(id))
   const pinnedSize = pinned.reduce((a, id) => a + sizeOf(id), counts.get(null) || 0)
   const v1Fits = v1Own.reduce((a, id) => a + sizeOf(id), pinnedSize) <= budget
-  const v1Order = v1Fits ? [...v1Own].sort(bySize) : [...v1Own].sort((a, b) => ((scoreOf.get(b) || 0) - (scoreOf.get(a) || 0)) || bySize(a, b))
+  // D2.2: the message's ENTITIES count as evidence in that cut — "put TSLA on the left and AMD on the right and add rsi to
+  // both" names tickers, so the chart group outranks a group a stray word touched
+  const entEvidence = (() => {
+    const e = new Set(entityTokens(message))
+    const by = { symbol: ['charts', 'data', 'alerts'], price: ['alerts', 'drawings'], date: ['charts', 'chartSetup'], pctmove: ['screener'], tickerinfo: ['data'], periodchange: ['data'], tickercharts: ['workspace', 'chartGrid'] }
+    return new Set([...e].flatMap(x => by[x] || []))
+  })()
+  const evidenceOf = (g) => (scoreOf.get(g) || 0) + (entEvidence.has(g) ? k.STRONG : 0)
+  const v1Order = v1Fits ? [...v1Own].sort(bySize) : [...v1Own].sort((a, b) => (evidenceOf(b) - evidenceOf(a)) || bySize(a, b))
   const own = !sel.matched ? [] : sel.uncertain ? ['charts', ...lead]
     : [...v1Order,
       // D1.3 (bytes): on a message v1's words recognised, v2 ADDS a group to the request only on evidence ≥ MATCHED_ADD

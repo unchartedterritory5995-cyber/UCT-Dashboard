@@ -29,7 +29,8 @@ import { tickerWordsOf } from './capabilityIndex'
 
 const NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6 }
 const ORD = { first: 0, second: 1, third: 2, fourth: 3 }
-const TF_WORD = /\b(daily|weekly|monthly|hourly|intraday|\d+\s?(?:m|min|mins|minute|minutes|h|hr|hour|hours))\b/i
+const TF_ALT = 'daily|weekly|monthly|hourly|intraday|\\d+\\s?(?:m|min|mins|minute|minutes|h|hr|hour|hours)'
+const TF_WORD = new RegExp(`\\b(${TF_ALT})\\b`, 'i')
 const PREVIOUS = /\b(previous|prior|original|before|how it was|where it was|what it was|the way it was|last one)\b/i
 
 // ── the board ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -116,8 +117,36 @@ function aim(op, ref) {
   const cap = getCapability(op?.action)
   if (!cap) return null
   if (cap.target === 'chart') return { action: op.action, target: ref, args: op.args || {} }
-  if (cap.target === 'indicatorEdits' && op.action === 'indicator.add') return { action: op.action, target: indicatorEditsRef(ref), args: op.args || {} }
+  // an indicator op re-aims only when it names its indicator by what it IS (an add, or "#21:ema" — never another chart's id)
+  if (cap.target === 'indicatorEdits' && (op.action === 'indicator.add' || op.args?.instance == null || String(op.args.instance).startsWith('#'))) {
+    return { action: op.action, target: indicatorEditsRef(ref), args: op.args || {} }
+  }
   return null
+}
+
+/** How the fast path names an added indicator: "the 21 ema", "rsi" — from the add's own args */
+function describeAdd(op) {
+  const a = op?.args || {}
+  const inp = Object.fromEntries((Array.isArray(a.inputs) ? a.inputs : []).map(i => [i.key, i.value]))
+  if (a.defId === 'movingAverage' && inp.period) return `the ${inp.period} ${String(inp.maType || 'sma')}`
+  return a.defId ? `the ${a.defId}` : null
+}
+const STYLE_WORDS = /\b(?:red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y|cyan|magenta|lime|gold|navy|maroon|thick|thicker|thin|thinner|bold|bolder|dashed|dotted|solid)\b/i
+/**
+ * STYLE THE INDICATOR JUST ADDED: "make it orange", "make that thicker", "turn the new one dashed" — the indicator the last
+ * request (or the step before, inside one request) ADDED, named by what it is, styled on the chart it was added to.
+ */
+function styleLastAdded(s, last, host) {
+  const m = /^(?:make|turn|color|colour|paint|change|set)\s+(?:it|that|that one|this|this one|the new one|the (?:new )?(?:line|indicator|study))\s+(?:to\s+|into\s+)?(.+)$/i.exec(s)
+  if (!m || !STYLE_WORDS.test(m[1])) return null
+  const adds = (last?.ops || []).filter(o => o.action === 'indicator.add')
+  const add = adds[adds.length - 1]
+  const what = describeAdd(add)
+  if (!add || !what) return null
+  const f = fastParse(`make ${what} ${m[1]}`, { host })
+  if (f?.kind !== 'ops' || !f.ops?.length || !f.ops.every(o => /^indicatorStyle\./.test(o.action))) return null
+  const ops = f.ops.map(o => aim(o, String(add.target)))
+  return ops.every(Boolean) ? { ops, rule: 'style-last-added' } : null
 }
 function repeatOn(lastOps0, refs) {
   // what the last request DID, once each ("make both charts weekly" committed one change per chart)
@@ -143,6 +172,45 @@ function valueOp(value, host) {
   const f = fastParse(`switch to ${v.replace(/^the /i, '')}`, { host })
   const op = f?.kind === 'ops' && f.ops.length === 1 ? f.ops[0] : null
   return op && op.action === 'chart.setTimeframe' ? { action: op.action, args: op.args || {} } : null
+}
+
+// ── a chart command aimed at a referent set ───────────────────────────────────────────────────────────────────
+// inline sets: "make THE TOP TWO CHARTS weekly", "put BOTH CHARTS on weekly", "make SPY AND QQQ weekly"
+const INLINE_SET = /^(\w+(?:\s+up)?)\s+((?:the\s+)?(?:top|bottom|left|right)\s+(?:two|three|four|\d)(?:\s+charts?)?|(?:the\s+)?(?:\$?[A-Z]{1,5})(?:(?:\s*,\s*|\s+and\s+)\$?[A-Z]{1,5})+(?:\s+charts?)?|(?:the\s+)?\$?[A-Z]{1,5}(?:\s+chart)?|the\s+other\s+(?:one|two|three)(?:\s+charts?)?|the\s+(?:others|rest))\s+(.+)$/
+/** → { ops, rule } | null — only when every op the command makes is chart-scoped and the set resolves */
+export function aimCommandAtSet(s, { host, sets }) {
+  const tryRead = (command, phrase) => {
+    const refs = sets(phrase)
+    if (!refs) return null
+    const f = fastParse(command, { host })
+    if (f?.kind !== 'ops' || !f.ops?.length || f.ops.some(o => o.target)) return null
+    const ops = refs.flatMap(ref => f.ops.map(o => aim(o, ref)))
+    return ops.length && ops.every(Boolean) ? { ops, rule: 'command-at-set' } : null
+  }
+  // trailing: "<command> to|on|for|onto <set>" — split at each such word from the right
+  const words = s.split(/\s+/)
+  for (let i = words.length - 2; i >= 1; i--) {
+    if (!/^(?:to|on|for|onto)$/i.test(words[i])) continue
+    const r = tryRead(`${words.slice(0, i).join(' ')} on it`, words.slice(i + 1).join(' '))
+    if (r) return r
+  }
+  // inline: "<verb> <set> <rest>"
+  const m = INLINE_SET.exec(s)
+  if (m) return tryRead(`${m[1]} it ${m[3]}`, m[2])
+  return null
+}
+
+/** The last request's ops with a timeframe or an indicator REPLACED ("same but monthly", "same but macd") | null */
+function modify(lastOps, mod, host) {
+  const v = valueOp(mod, host)
+  if (v?.action === 'chart.setTimeframe') {
+    if (!lastOps.some(o => o.action === 'chart.setTimeframe')) return [...lastOps, { action: v.action, args: v.args }]
+    return lastOps.map(o => (o.action === 'chart.setTimeframe' ? { ...o, args: v.args } : o))
+  }
+  const adds = indicatorAdds(mod, host)
+  const kinds = new Set(lastOps.filter(o => o.action === 'indicator.add').map(o => o.args?.defId))
+  if (adds?.length === 1 && kinds.size === 1) return lastOps.map(o => (o.action === 'indicator.add' ? { ...o, args: adds[0].args } : o))
+  return null
 }
 
 // ── ordinals over what was just made ─────────────────────────────────────────────────────────────────────────
@@ -213,14 +281,19 @@ export function resolveFollowUpOps(text, { host, memory, epoch = null, created =
         let rows = []
         try { rows = indicatorRowsOf(host.charts.read(ref)?.cs) || [] } catch { rows = [] }
         const hits = rows.filter(r => r.defId === want.defId && (want.period == null || Number(r.inputs?.period) === Number(want.period)))
-        if (hits.length !== 1) return hits.length ? { say: 'That chart has more than one of those — say which one (its length) and ask again.', rule: 'remove-ambiguous' } : null
+        if (hits.length > 1) return { say: 'That chart has more than one of those — say which one (its length) and ask again.', rule: 'remove-ambiguous' }
+        if (!hits.length) {
+          // said plainly, never a guess at another chart: the indicator meant is not on the chart named
+          const label = (() => { try { return host.charts.read(ref)?.label || `the ${host.charts.read(ref)?.symbol} chart` } catch { return 'that chart' } })()
+          return { say: `There's no ${want.period ? `${want.defId} ${want.period}` : want.defId} on ${label}, so nothing was removed.`.replace('movingAverage', 'moving average'), rule: 'remove-not-there' }
+        }
         ops.push({ action: 'indicator.remove', target: indicatorEditsRef(ref), args: { instance: hits[0].instanceId } })
       }
       return { ops, rule: 'remove-on-charts' }
     }
 
     // INVERSION: "[go|put|switch|set] [<charts>] back [to <value>]"
-    m = /^(?:(?:go|switch|change|flip|put|set|turn|take|bring|move)\s+)?(?:(.+?)\s+)?back(?:\s+to\s+(.+))?$/i.exec(s)
+    m = /^(?:(?:go|switch|change|flip|put|set|turn|take|bring|move)\s+)?(?:(.+?)\s+)?back(?:\s+(?:to|on|onto|at|in)\s+(.+))?$/i.exec(s)
     if (m && last) {
       const refs = m[1] ? sets(m[1]) : (lastCharts.length ? lastCharts : null)
       if (!refs) return null
@@ -245,7 +318,34 @@ export function resolveFollowUpOps(text, { host, memory, epoch = null, created =
       return ops.length ? { ops, rule: 'back-to-before' } : null
     }
 
+    // A REFERENT + A VALUE, no verb: "and that one weekly", "the bottom two monthly", "NVDA weekly", "both daily"
+    m = new RegExp(`^(.+?)\\s+(?:on |to |in )?(?:the )?(${TF_ALT})(?: chart| timeframe)?$`, 'i').exec(s)
+    if (m && !/^(?:make|switch|change|set|put|turn|go|flip|show|open|add)\b/i.test(m[1])) {
+      const refs = sets(m[1])
+      const op = refs ? valueOp(m[2], host) : null
+      if (refs && op) return { ops: refs.map(ref => ({ action: op.action, target: ref, args: op.args })), rule: 'referent-value' }
+    }
+
+    // A CHART COMMAND AIMED AT A REFERENT SET (any turn, not only a follow-up): "add rsi to AMD", "add macd to SPY and QQQ",
+    // "make the top two charts weekly", "put the 21 ema on the bottom two" — the set read by resolveCharts, the command by
+    // the fast path as about "it", each chart-scoped op aimed at each chart of the set
+    const aimed = aimCommandAtSet(s, { host, sets })
+    if (aimed) return aimed
+
     if (!last?.ops?.length) return null
+    // STYLE the indicator the last request added ("make it orange" after "…, add the 21 ema")
+    const styled = styleLastAdded(s, last, host)
+    if (styled) return styled
+    // REPEAT WITH A MODIFICATION on a set: "same but monthly for the other two", "same for the other two but weekly",
+    // "same but macd for the bottom two" — the last request's ops, the timeframe / indicator replaced, re-aimed
+    m = /^(?:do |did )?(?:the )?same(?: thing)?\s+(?:but|except)\s+(?:with |on |in |the )?(.+?)\s+(?:for|on|to)\s+(.+)$/i.exec(s)
+      || (() => { const x = /^(?:do |did )?(?:the )?same(?: thing)?\s+(?:for|on|to)\s+(.+?)\s+(?:but|except)\s+(?:with |on |in |the )?(.+)$/i.exec(s); return x ? [x[0], x[2], x[1]] : null })()
+    if (m) {
+      const refs = sets(m[2])
+      const mod = modify(last.ops, m[1], host)
+      if (refs && mod) { const ops = repeatOn(mod, refs); if (ops) return { ops, rule: 'repeat-modified' } }
+      return null
+    }
     // REPEAT on a set: "(put|do|apply|copy|add) (that|it|the same [thing]) (on|to|for|onto) <charts>"
     m = /^(?:put|do|apply|copy|add|same|repeat)\s+(?:that|it|this|the same(?: thing)?|same|them|those)?\s*(?:(?:on|to|for|onto|with)\s+(.+))?$/i.exec(s)
     if (m && m[1]) {
