@@ -812,6 +812,7 @@ AVAILABLE ACTIONS (ops[].action, with args exactly as the schema says)
 
 _SYSTEM_TAIL = """
 UNDO. An action marked "permanent -- no Undo" or "no Undo" cannot be undone from UCT Agent: never say or imply the member can undo it.
+Undoing YOUR OWN earlier change ("undo that", "undo the last change you made", "revert the timeframe change", "…, then undo it") is an action when AVAILABLE ACTIONS lists one that undoes your own last change: plan it (after the change it undoes, when both are asked for). Never say you cannot undo, and never send the member to another Undo, while that action is listed; UCT reports what was actually undone.
 RESEARCH (`research`: null unless truly needed)
 Leave `research` null for almost every turn. Set it ONLY when a correct answer depends on CURRENT or RECENT facts you cannot know: today's or this week's news, why a stock is moving now, a recent earnings report or call, recent filings, guidance, a Fed speech, today's market action. Then put a focused search query in `research.query` and how recent it must be in `research.recency`, and write `reply` as a one-line placeholder; UCT will run the search and ask you again with the results. Usually the disposition is answer. If the member ALSO asked for a change (a MIXED REQUEST, such as "why is NVDA moving? also put it on the left chart"), use apply or propose with that change's ops NOW, planned from the member's words alone; the research answer comes back as the reply and the change runs as planned here.
 Never request research for workspace commands, proposals, clarifications, or evergreen knowledge (except the current-facts question of a MIXED request, below) (what an indicator measures, EMA vs SMA, how a pattern works, general trading education): answer those directly.
@@ -1742,6 +1743,13 @@ CLAIM_FAMILIES: tuple = (
      re.compile(r"\brenam(?:e|es|ed|ing)\b", re.I),
      (".rename",), ("layouts", "charts", "lists", "screener"),
      "I can rename things here. Which did you mean — a saved layout, a chart tab, a watchlist or a saved screen?"),
+    # hotfix 2026-11-03 (live T2: "Undo the last change you made to my charts." → "I can't undo changes from UCT Agent —
+    # only from UCT itself. Click Undo in the app…" while the Agent's own Undo existed): undoing the Agent's OWN change is
+    # agent.undo (its own `undo` routing group, named by any Undo word); a claim that it is unavailable is repaired like any other false limit
+    ("undo", re.compile(r"\b(?:undo|undoing|revert|reverting|reverse|reversing|take (?:it|that|them) back)\b", re.I),
+     re.compile(r"\b(?:undo|undoing|revert|reverting|reverse|reversing|take (?:it|that|them) back)\b", re.I),
+     ("agent.undo",), ("undo",),
+     "I can undo my own last change here. Say “undo” to take it back, or tell me which change you mean."),
 )
 #: an HONEST qualifier in the claim sentence: the limit is about a channel, a destination, other members, a data
 #: basis or another product — a part of the feature, not the feature. Such a sentence is never a false claim.

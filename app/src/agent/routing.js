@@ -20,6 +20,10 @@
 
 export const ROUTING_VERSION = 1
 
+// hotfix 2026-11-03: "on four charts", "4 charts", "two more charts", "all the same size", "equal size", "evenly", "split"
+const MULTI_CHARTS = /\b(two|three|four|five|six|seven|eight|nine|ten|twelve|[2-9]|1[0-2]) (new |separate |more |different |individual |equal |identical )?(\w+ )?charts\b/
+const EQUAL_SIZE = /\b(same|equal|even|identical) (size|sizes|sized|width|height)\b|\bequal(ly)?[\s-]?sized?\b|\bevenly\b|\bequally\b|\bsplit\b|\btile\b|\btiled\b/
+
 /** Action groups, keyed by capability DOMAIN (the name prefix). Titles are shown to the model. */
 export const GROUPS = [
   { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume', domains: ['chart', 'volume'],
@@ -45,7 +49,11 @@ export const GROUPS = [
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
     words: [/\b(two|three|four|five|six|seven|eight|nine|[2-9]) (new |separate |more )?(\w+ )?charts? (for|of|with|showing|on)\b/, /\bcharts? (for|of|with|showing)\b/, /\b(as|into) (\w+ )?(\w+ )?charts\b/,
-      /\b(grid|2 ?x ?2|2 by 2|side[\s-]by[\s-]side|next to each other|stacked|split (the )?screen)\b/] },
+      /\b(grid|2 ?x ?2|2 by 2|side[\s-]by[\s-]side|next to each other|stacked|split (the )?screen)\b/,
+      // hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size." routed [charts, agent]
+      // only — the model had no grid and no add, and put four tickers on TABS of one chart): a count of charts said
+      // anywhere, and equal sizing, name this group too (routing only ADDS)
+      MULTI_CHARTS, EQUAL_SIZE] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
   { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)', domains: ['board'], fillLast: true,
@@ -54,7 +62,7 @@ export const GROUPS = [
     words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) chart\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
-      /\b(link|unlink|colou?r group)\b/, /\btabs?\b/] },
+      /\b(link|unlink|colou?r group)\b/, /\btabs?\b/, EQUAL_SIZE] },
   // Split from 'workspace' (2026-10-09): a whole-group packer packs better with smaller groups, and
   // saved layouts are their own concept ("open my Swing layout", "save this").
   { id: 'layouts', title: 'Saved layouts (open, save, create, copy, rename, delete)', domains: ['layout'],
@@ -178,6 +186,18 @@ export const GROUPS = [
   { id: 'settings', title: 'App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages', domains: ['settings', 'app'],
     words: [/\bsettings?\b/, /\b(dark|light) mode\b/, /\bapp theme\b/, /\bdefault (chart )?timeframe\b/, /\b(alert )?sound\b/, /\bdigest\b/, /\bemail\b/, /\b(open|go to|take me to)\b.*\b(page|screener|dashboard|breadth|research)\b/] },
   { id: 'agent', title: 'Questions about what UCT Agent can do', domains: ['agent'], always: true, words: [] },
+  // hotfix 2026-11-03 (live: "Undo the last change you made to my charts." reached a model with no Undo): the Agent's OWN
+  // Undo (agent.undo → the receipt's Undo, browser-only) in its OWN one-action group, named by any Undo word — so the
+  // always-on group and every per-request budget keep their size; a model that still needs it asks (need_groups)
+  // (review F1: ADD-ONLY — an Undo word never counts as recognising the message, so selection and the full-budget fill
+  // are exactly master's; the group only rides along. The phrases name the Agent's own change, never "take me back to …",
+  // "roll back my layout to yesterday" or "reverse the order of …")
+  { id: 'undo', title: 'Undo your own last change(s) in this conversation (exactly the receipt’s Undo)', domains: [], fillLast: true, addOnly: true, ridesAlong: true,
+    actions: ['agent.undo'],
+    words: [/\b(?:undo|undoing|revert|reverting)\b/,
+      /\b(?:reverse|roll ?back) (?:that|it|this|what (?:you|u)|the last|my last|your last|those changes|that change|everything)\b|\broll (?:it|that|this) back\b/,
+      /\bput (?:it|that|them|everything|things) back (?:the way|how|as) (?:it|they) (?:was|were)\b/,
+      /\btake (?:it|that|this|them|those|everything|all (?:of )?(?:that|it|this)) (?:all )?back\b|\btake back (?:that|what (?:you|u)|the last|my last|your last|those changes|that change|everything|whatever (?:you|u))\b/] },
   // ⭐ PHASE 2 Workstream B: EXPLAIN a term or feature, SHOW ME where a control is — both change nothing
   { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
     // (show-me words only: an explanation question is the model's to answer, as before — it may reroute to this group)
@@ -320,7 +340,10 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // The message's OWN groups are packed smallest-first (after the always-on, reroute and follow-up
   // groups, which keep their place): more of the distinct things a multi-part request names fit,
   // and if one must wait it is the biggest, most often incidental, group.
-  const pinned = [...new Set([...always, ...extra, ...(opts.pendingActions || []), ...(opts.recentActions || [])].map(x => (x.includes?.('.') ? groupOfAction(x) : x)).filter(Boolean))]
+  // review F1: a `ridesAlong` add-only group its words named (agent.undo: one action) is packed right after the always-on
+  // ones — it never changes what else is selected, and a full budget never cuts it
+  const riders = GROUPS.filter(g => g.ridesAlong && wordsSelect(g.id, message)).map(g => g.id)
+  const pinned = [...new Set([...always, ...riders, ...extra, ...(opts.pendingActions || []), ...(opts.recentActions || [])].map(x => (x.includes?.('.') ? groupOfAction(x) : x)).filter(Boolean))]
   const rest = priority.filter(id => !pinned.includes(id))
   // Nothing recognised: the soft-vocabulary groups first, then charts (the page's own controls), then
   // every other group SMALLEST first — the most groups that fit, so a message nothing named (a breadth
