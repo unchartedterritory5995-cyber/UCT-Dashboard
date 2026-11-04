@@ -8,7 +8,8 @@
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg) var(--space-sm);
   border-top: 1px solid var(--border);
-  background: var(--bg-surface);
+  border-left: 3px solid var(--ut-gold);
+  background: linear-gradient(180deg, #171717, #0f0f0f);
   max-height: 45vh;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -20,14 +21,16 @@
   flex-wrap: wrap;
   gap: var(--space-sm);
   margin: 0;
-  font-size: var(--text-xl);
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -.01em;
   line-height: var(--lh-tight);
 }
 .verdictIcon { display: inline-flex; width: 20px; height: 20px; }
-.verdictCorrect .verdictWord { color: var(--ut-gold); }
-.verdictWrong .verdictWord { color: var(--text-muted); }
-.verdictWrong .verdictIcon { color: var(--text-muted); }
+/* the verdict wears the card colours of the workbench: green right, red wrong */
+.verdictCorrect .verdictWord { color: var(--color-success); }
+.verdictWrong .verdictWord { color: var(--color-danger); }
+.verdictWrong .verdictIcon { color: var(--color-danger); }
 .verdictKey {
   flex-basis: 100%;
   color: var(--text);

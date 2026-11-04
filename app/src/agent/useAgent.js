@@ -1695,7 +1695,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [host, execute, push, record, doUndo])
   runCompoundRef.current = runCompound
   // PLANNER v2: the runner reads the CURRENT closures on every call (never captured when the panel opened)
-  v2DepsRef.current = () => ({ host, push, record, execute, memoryRef, conversationRef, setConversationId, capCtx, tapRef: v2TapRef, mark, patchItem, pendingRef })
+  v2DepsRef.current = () => ({ host, push, record, execute, memoryRef, conversationRef, setConversationId, capCtx, tapRef: v2TapRef, mark, patchItem, pendingRef,
+    // v2-readiness-2: a v2 agent.undo step runs the receipt's own Undo (steps.js runUndoStep)
+    doUndo, undoTurn, undoRef })
 
   const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
     const text = String(raw || '').trim()

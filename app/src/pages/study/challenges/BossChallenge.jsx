@@ -11,7 +11,7 @@ import { useCountUp, useRunOn } from '../../../lab/fx'
 import { spot, rayAt } from '../../../lab/pointers'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
-import LoadFailed from '../../journal-2-0/components/LoadFailed'
+import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
 import { BOSS_TOTAL, fetchSpotPool, scoreAttempt } from './challengeBank'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
@@ -83,7 +83,7 @@ function Win({ xp, onBack, onAgain }) {
   )
 }
 
-export default function BossChallenge({ profile = null, fetcher = studyFetch, onClose }) {
+export default function BossChallenge({ profile = null, fetcher = studyFetch, onClose, signedOut = null }) {
   const prefs = useMemo(() => feedbackPrefs(profile), [profile])
   const [phase, setPhase] = useState('intro')    // intro | play | win | fail
   const [pool, setPool] = useState(null)
@@ -102,7 +102,7 @@ export default function BossChallenge({ profile = null, fetcher = studyFetch, on
   const items = useMemo(() => (pool ? pool.slice(0, BOSS_TOTAL) : []), [pool, run])   // eslint-disable-line react-hooks/exhaustive-deps
   const start = () => { setPhase('play'); setI(0); setMissed(null); setXp(0); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(BOSS_TOTAL), ...p.slice(0, BOSS_TOTAL)]) }
 
-  if (error) return <LoadFailed what="the boss charts" error={error} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
+  if (error) return <ChallengeError what="the boss charts" error={error} signedOut={signedOut} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
   if (phase === 'intro') {
     return (
       <>
