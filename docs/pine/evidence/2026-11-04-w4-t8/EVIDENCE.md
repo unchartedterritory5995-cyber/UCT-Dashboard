@@ -89,3 +89,19 @@ is false at the door (`atObjectDoor`); mutation M3 proves the gate.
   frame-named refusal stays with `simpleSpecialisation`, T9 lane). A body that uses a runtime length directly is served.
 - Capture W4-S1 (REFERENCE -> VENDOR) still to run; the rail is REFERENCE tier.
 - A 5000-cell ring per dynamic site counts against `HISTORY_VALUES` (262144): about 52 dynamic sites per script.
+
+## Addendum (review round): final tree, tip identity, v5 decision
+- **Tips measured**: every measure-pair side (lanes 0 and 1), the mini census re-runs, the mutation job and the first
+  final-tip measured tip `0cd956745f` (tree 1ff55fce41). Base side: `b8e8698406`.
+- **Qualifier table identity**: `windowLengthQualifiers.json` at `0cd956745f` vs the final tree parsed as JSON and
+  compared deep-equal: `DEEP-EQUAL True` (41 functions both). Only whitespace (1-space -> 2-space) and the generator
+  `--check`/indent line changed between them (`git diff 0cd956745f HEAD -- app tools`: those two files), so measure-pair
+  was NOT re-run.
+- **final-tip on the final code tree** `458fc80320` (heavy-final2.lock, label w4t8-final2, `dsk-w4t8-final2`): gate pytest
+  46 passed; engine-version gate 6 passed; hygiene clean (34672 files); chart+hooks vitest Test Files 1336 passed / 27
+  skipped / 1 failed, Tests 22438 passed / 118 skipped / 1 failed. The one failure is `pollingSites.rail` (baseline on
+  every master). Logs `_resume-2026-11-01uns\dsk-w4t8-final2\`. This supersedes the first final-tip numbers above.
+- **OPEN DECISION for the coordinator (v5)**: the spec keeps this v6-only and so does the branch. `heatmap-volume-xdecow`
+  (`//@version=5`) therefore does NOT attach, and the spec "attach expected" does not hold. The extracted v5 reference
+  also declares `length (series int)` for `ta.sma`, `ta.stdev`, `ta.highest`, so serving v5 would be defensible, but it
+  contradicts the spec mutation "serve v5: the v5 control goes red". Not widened.
