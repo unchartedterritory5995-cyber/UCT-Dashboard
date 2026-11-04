@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { registerCatalog, PROD_KINDS, ALL_KINDS } from './lib/registry'
-import { shapeError } from '../../capabilities'
+import { shapeError, getCapability } from '../../capabilities'
 import { contractOf, coverage, canonicalOps, knownGaps } from './lib/inventory'
 import { coverageJson, coverageMd } from './lib/report'
 import { corpus, golden } from './lib/corpus'
@@ -104,5 +104,21 @@ describe('5 · configuration pins', () => {
   })
   it('the whole catalog registers every server-gated capability family (a dark capability is inventoried the day it ships)', () => {
     for (const n of ['chart.describeSetup', 'research.ask', 'history.afterEvent', 'playbook.explain']) expect(catalog.all, n).toContain(n)
+  })
+})
+
+describe('6 · capability descriptions never name an action that does not exist (stale descriptions)', () => {
+  // the planner reads summaries and hints as instructions: "use widget.addCharts", "chart.replay for …" — a renamed or
+  // removed action left in another capability's text sends the model to a capability it cannot have
+  const domains = new Set(catalog.all.map(n => n.split('.')[0]))
+  const verbs = new Set(catalog.all.map(n => n.split('.')[1].split(/(?=[A-Z])/)[0]))
+  it.each(catalog.all.map(n => [n]))('%s', (n) => {
+    const c = getCapability(n)
+    const text = `${c.summary || ''} ${c.hints || ''} ${c.shape || ''}`
+    // an action-shaped token: a known domain + a verb that registered actions use (setting keys such as
+    // "volume.barStyle" are nouns and are not read as actions)
+    const named = [...text.matchAll(/\b([a-z][A-Za-z]*)\.([a-z][A-Za-z]+)\b/g)]
+      .filter(m => domains.has(m[1]) && verbs.has(m[2].split(/(?=[A-Z])/)[0])).map(m => `${m[1]}.${m[2]}`)
+    expect(named.filter(a => !catalog.all.includes(a)), `${n} names actions that are not registered`).toEqual([])
   })
 })

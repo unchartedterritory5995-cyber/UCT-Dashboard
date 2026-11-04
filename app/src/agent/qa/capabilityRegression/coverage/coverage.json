@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 20,
+  "withAnyRegressionCase": 22,
   "perProtection": {
    "nl": {
-    "covered": 18,
+    "covered": 20,
     "applicable": 154
    },
    "routing": {
-    "covered": 16,
+    "covered": 19,
     "applicable": 154
    },
    "args": {
-    "covered": 17,
+    "covered": 19,
     "applicable": 154
    },
    "execution": {
-    "covered": 17,
+    "covered": 19,
     "applicable": 154
    },
    "receipt": {
-    "covered": 15,
+    "covered": 17,
     "applicable": 154
    },
    "refusal": {
@@ -38,7 +38,7 @@
     "applicable": 154
    },
    "undo": {
-    "covered": 7,
+    "covered": 9,
     "applicable": 95
    },
    "multiStep": {
@@ -46,7 +46,7 @@
     "applicable": 154
    },
    "phrasings": {
-    "covered": 13,
+    "covered": 17,
     "applicable": 154
    }
   }
@@ -1059,27 +1059,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "compare.amd: \"compare with AMD\"",
+     "compare.amd: \"overlay AMD on this chart\"",
+     "compare.amd: \"compare NVDA to AMD\"",
+     "compare.amd: \"add AMD as a comparison\""
+    ],
+    "routing": [
+     "compare.amd: \"compare with AMD\"",
+     "compare.amd: \"overlay AMD on this chart\"",
+     "compare.amd: \"compare NVDA to AMD\"",
+     "compare.amd: \"add AMD as a comparison\""
+    ],
+    "args": [
+     "corpus compare.amd"
+    ],
+    "execution": [
+     "compare.amd (c)"
+    ],
+    "receipt": [
+     "compare.amd (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "compare.amd: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -1459,7 +1477,7 @@
    "fast": true,
    "protections": {
     "nl": true,
-    "routing": false,
+    "routing": true,
     "args": true,
     "execution": true,
     "receipt": true,
@@ -1467,26 +1485,41 @@
     "permission": true,
     "undo": true,
     "multiStep": true,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 5,
    "evidence": {
     "nl": [
+     "scale.log: \"log scale\"",
+     "scale.log: \"switch to log scale\"",
+     "scale.log: \"use a logarithmic price scale\"",
+     "scale.log: \"make the chart log\"",
+     "scale.log: \"turn on log scale\"",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
-    "routing": [],
+    "routing": [
+     "scale.log: \"log scale\"",
+     "scale.log: \"switch to log scale\"",
+     "scale.log: \"use a logarithmic price scale\"",
+     "scale.log: \"make the chart log\"",
+     "scale.log: \"turn on log scale\""
+    ],
     "args": [
+     "corpus scale.log",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "execution": [
+     "scale.log (c)",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "receipt": [
+     "scale.log (c)",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
+     "scale.log: undo restores",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "multiStep": [
@@ -1508,27 +1541,45 @@
    ],
    "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "session.extended: \"show extended hours\"",
+     "session.extended: \"turn on extended hours\"",
+     "session.extended: \"show pre-market and after hours\"",
+     "session.extended: \"switch to the extended session\""
+    ],
+    "routing": [
+     "session.extended: \"show extended hours\"",
+     "session.extended: \"turn on extended hours\"",
+     "session.extended: \"show pre-market and after hours\"",
+     "session.extended: \"switch to the extended session\""
+    ],
+    "args": [
+     "corpus session.extended"
+    ],
+    "execution": [
+     "session.extended (c)"
+    ],
+    "receipt": [
+     "session.extended (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "session.extended: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -5984,9 +6035,9 @@
     "permission": true,
     "undo": true,
     "multiStep": true,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
     "nl": [
      "grid.four.unnamed: \"Put four charts on my screen.\"",
@@ -5999,21 +6050,28 @@
     "routing": [
      "grid.four.unnamed: \"give me a 2x2 grid of charts\"",
      "grid.four.unnamed: \"I want four equal charts on the board\"",
-     "grid.four.unnamed: \"four charts, same size, please\""
+     "grid.four.unnamed: \"four charts, same size, please\"",
+     "widget.news: \"add a news widget\"",
+     "widget.news: \"put a news panel on the board\"",
+     "widget.news: \"open the news widget\""
     ],
     "args": [
      "corpus grid.four.unnamed",
+     "corpus widget.news",
      "GW-09.two-new-charts"
     ],
     "execution": [
+     "widget.news (c)",
      "GW-09.two-new-charts"
     ],
     "receipt": [
+     "widget.news (c)",
      "GW-09.two-new-charts"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
+     "widget.news: undo restores",
      "GW-09.two-new-charts"
     ],
     "multiStep": [

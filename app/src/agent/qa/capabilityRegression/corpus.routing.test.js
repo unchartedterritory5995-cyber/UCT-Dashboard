@@ -5,7 +5,7 @@ import { describe, expect } from 'vitest'
 import { registerCatalog } from './lib/registry'
 import { corpus, phrasingsOf, gapIt } from './lib/corpus'
 import { routedNames } from './lib/route'
-import { wordsSelect } from '../../routing'
+import { wordsSelect, groupOfAction } from '../../routing'
 import { BOARDS } from './lib/harness'
 import { makeBoard } from '../../__fixtures__/board'
 
@@ -17,8 +17,10 @@ for (const intent of corpus.intents) {
       const { run, tag } = gapIt(ph.gaps?.a)
       run(`"${ph.text}" routes ${intent.needs.join(' + ')}${tag}`, () => {
         const host = makeBoard(...BOARDS[intent.board]()).host
-        const { names } = routedNames(ph.text, { host, recentActions: intent.recentActions || [] })
+        const { names, overBudget } = routedNames(ph.text, { host, recentActions: intent.recentActions || [] })
         for (const a of intent.needs) expect(names, `"${ph.text}" → ${a}`).toContain(a)
+        // catalog truncation: a group the message needs is never the one the per-request budget cut
+        for (const a of intent.needs) expect(overBudget, `"${ph.text}": ${a}'s group was cut by the budget`).not.toContain(groupOfAction(a))
         // `ownWords`: the group must be selected by the message's OWN words — reaching it only through the
         // unrecognised-message budget fill is luck (the fill order changes with every catalog change)
         for (const g of intent.ownWords || []) expect(wordsSelect(g, ph.text), `"${ph.text}" names the ${g} group by its own words`).toBe(true)

@@ -32,6 +32,15 @@ export function checkExpect(ctx, e, label) {
     const id = chartsOf(board)[e.setting.chart || 0]?.id
     expect(h.charts.read(id)?.cs?.[e.setting.key], `${label}: chart setting ${e.setting.key}`).toEqual(e.setting.value)
   }
+  if (e.settingSome) {
+    const id = chartsOf(board)[e.settingSome.chart || 0]?.id
+    const v = h.charts.read(id)?.cs?.[e.settingSome.key] || []
+    expect(v.some(x => Object.entries(e.settingSome.match).every(([k, want]) => x?.[k] === want)), `${label}: ${e.settingSome.key} holds ${JSON.stringify(e.settingSome.match)}`).toBe(true)
+  }
+  if (e.widgetTypes) {
+    const types = board.state.widgets.map(w => w.type)
+    for (const t of e.widgetTypes.include || []) expect(types, `${label}: a ${t} widget on the board`).toContain(t)
+  }
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)
