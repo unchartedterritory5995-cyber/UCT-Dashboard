@@ -1,0 +1,3026 @@
+{
+  "version": 1,
+  "about": "UCT Agent natural-language EQUIVALENCE corpus (Mission 2). Each intent group lists owner-style phrasings that must mean the SAME thing. Levels: (a) routing — the routed manifest carries every needed action; (b) deterministic — when the fast path / multiChart / compound reader claims a phrasing, its normalized plan equals `deterministic` (det: required — it MUST claim it); (c) final state — through the real panel with a faithful scripted model returning `model`, the FINAL board / reads / receipt satisfy `expect`. A known gap is `gaps.<a|b|c> = {id, reason, owner}` on the phrasing: that check runs as it.fails (it turns red the day the gap is fixed, so the marker must be removed). Removing or weakening an entry needs docs/agent/COMPATIBILITY-DECISIONS.md (baseline.lock.json).",
+  "intents": [
+    {
+      "id": "grid.four.named",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "HALF",
+      "needs": [
+        "chartGrid.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartGrid.set",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "NVDA",
+                "TSLA"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartGrid.set",
+            "target": "$board",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "NVDA",
+                "TSLA"
+              ],
+              "timeframe": null,
+              "layout": "grid",
+              "new_charts": null,
+              "watchlist": null,
+              "replace": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 4,
+          "symbols": [
+            "SPY",
+            "QQQ",
+            "NVDA",
+            "TSLA"
+          ],
+          "sameSize": true
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.",
+          "det": "required"
+        },
+        {
+          "text": "Show SPY, QQQ, NVDA and TSLA in four equal panels.",
+          "gaps": {
+            "a": {
+              "id": "CG-1",
+              "reason": "routing: 'panels' / 'four equal panels' is not a chartGrid word (EQUAL_SIZE needs size/width/height after equal; MULTI_CHARTS needs 'charts'), so the request is routed [charts, agent] only — the model is never shown chartGrid.set (it needs a need_groups reroute the live planner did not ask for on 11-03)",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "→ chartGrid.set"
+            }
+          }
+        },
+        {
+          "text": "Give me four equally sized charts with those tickers.",
+          "prelude": [
+            "I'm watching SPY, QQQ, NVDA and TSLA today."
+          ]
+        },
+        {
+          "text": "Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA.",
+          "gaps": {
+            "a": {
+              "id": "CG-2",
+              "reason": "routing: the chartGrid words match '2x2' / '2 x 2' / '2 by 2' but not the multiplication sign '2×2' (U+00D7) the owner typed; routed [charts, layouts] — no chartGrid.set",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "→ chartGrid.set"
+            }
+          }
+        },
+        "Create four charts for SPY, QQQ, NVDA and TSLA",
+        "put spy, qqq, nvda and tsla on four charts",
+        "Show 4 charts: SPY, QQQ, NVDA, TSLA",
+        "SPY, QQQ, NVDA and TSLA in a 2x2 grid",
+        "four charts, all the same size: SPY, QQQ, NVDA, TSLA",
+        "split my screen into SPY, QQQ, NVDA and TSLA"
+      ]
+    },
+    {
+      "id": "grid.four.named.daily",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "HALF",
+      "needs": [
+        "chartGrid.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartGrid.set",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "NVDA",
+                "TSLA"
+              ],
+              "timeframe": "D"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartGrid.set",
+            "target": "$board",
+            "args": {
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "NVDA",
+                "TSLA"
+              ],
+              "timeframe": "D",
+              "layout": "grid",
+              "new_charts": null,
+              "watchlist": null,
+              "replace": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 4,
+          "symbols": [
+            "SPY",
+            "QQQ",
+            "NVDA",
+            "TSLA"
+          ],
+          "sameSize": true,
+          "tf": "D"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "Create four charts in a 2×2 grid: SPY, QQQ, NVDA, and TSLA, all on the daily timeframe.",
+        "2x2 grid of SPY, QQQ, NVDA, TSLA on the daily",
+        "four daily charts: SPY, QQQ, NVDA and TSLA",
+        "Put SPY, QQQ, NVDA and TSLA on four charts, all daily, all the same size."
+      ]
+    },
+    {
+      "id": "grid.four.unnamed",
+      "capabilities": [
+        "widget.add",
+        "widget.arrange"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.add",
+        "widget.arrange"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "widget.add",
+            "target": "$workspace",
+            "args": {
+              "type": "chart",
+              "as": "new1"
+            }
+          },
+          {
+            "action": "widget.add",
+            "target": "$workspace",
+            "args": {
+              "type": "chart",
+              "as": "new2"
+            }
+          },
+          {
+            "action": "widget.add",
+            "target": "$workspace",
+            "args": {
+              "type": "chart",
+              "as": "new3"
+            }
+          },
+          {
+            "action": "widget.arrange",
+            "target": "$board",
+            "args": {
+              "widgets": null,
+              "pattern": "grid"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 4,
+          "sameSize": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "Put four charts on my screen.",
+          "gaps": {
+            "a": {
+              "id": "CG-3a",
+              "reason": "routing: a COUNT of charts with no tickers routes chartGrid (which needs tickers) but not the workspace group (widget.add / widget.arrange) — the model has no action that can add the charts",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "→ widget.add"
+            },
+            "c": {
+              "id": "CG-3",
+              "reason": "no single plan makes N equal charts without tickers: add ×3 + widget.arrange(grid) on a board with a chart is refused ('Adding widgets and changing existing ones in one request isn’t supported yet'); chartGrid.set requires tickers; screenChartGrid only converts adds that carry tickers",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "chart count"
+            }
+          }
+        },
+        {
+          "text": "Create four charts.",
+          "gaps": {
+            "a": {
+              "id": "CG-3a",
+              "reason": "routing: as 'Put four charts on my screen.' — no workspace group for a count of charts without tickers",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "→ widget.add"
+            },
+            "c": {
+              "id": "CG-3",
+              "reason": "as 'Put four charts on my screen.' — add + re-arrange of an existing chart is refused as a mixed request",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "chart count"
+            }
+          }
+        },
+        {
+          "text": "Make a 2×2 chart layout.",
+          "gaps": {
+            "a": {
+              "id": "CG-3a",
+              "reason": "routing: '2×2' (U+00D7) and 'chart layout' route [charts, layouts] only — no workspace, no chartGrid",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "→ widget.add"
+            },
+            "c": {
+              "id": "CG-3",
+              "reason": "as 'Put four charts on my screen.'",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "chart count"
+            }
+          }
+        },
+        {
+          "text": "give me a 2x2 grid of charts",
+          "gaps": {
+            "c": {
+              "id": "CG-3",
+              "reason": "routes the grid and the workspace, but the only plans are refused (add + arrange existing = mixed request) or impossible (chartGrid.set needs tickers)",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "chart count"
+            }
+          }
+        },
+        {
+          "text": "I want four equal charts on the board",
+          "gaps": {
+            "c": {
+              "id": "CG-3",
+              "reason": "as 'give me a 2x2 grid of charts'",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "chart count"
+            }
+          }
+        },
+        {
+          "text": "four charts, same size, please",
+          "gaps": {
+            "c": {
+              "id": "CG-3",
+              "reason": "as 'give me a 2x2 grid of charts'",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "chart count"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "undo.last",
+      "capabilities": [
+        "agent.undo"
+      ],
+      "board": "ONE",
+      "before": [
+        {
+          "say": "weekly",
+          "expect": {
+            "charts": {
+              "tf": "W"
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "chart.setTimeframe"
+      ],
+      "needs": [
+        "agent.undo"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "agent.undo",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "agent.undo",
+            "target": "$agent",
+            "args": {
+              "scope": "last",
+              "about": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "tf": "D"
+        },
+        "restored": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "undo",
+          "det": "required"
+        },
+        {
+          "text": "undo that",
+          "det": "required"
+        },
+        {
+          "text": "Undo the last change you made to my charts.",
+          "det": "required"
+        },
+        "revert that",
+        "take that back",
+        "put it back the way it was",
+        "roll back what you just did",
+        "can you undo that for me?",
+        "undo the timeframe change",
+        "never mind, undo it",
+        "scratch that",
+        "go back to how it was before"
+      ]
+    },
+    {
+      "id": "compound.change-then-undo",
+      "capabilities": [
+        "chart.setTimeframe",
+        "agent.undo"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setTimeframe",
+        "agent.undo"
+      ],
+      "deterministic": {
+        "steps": [
+          "fast",
+          "undo"
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setTimeframe",
+            "target": "$charts[0]",
+            "args": {
+              "timeframe": "W"
+            }
+          },
+          {
+            "action": "agent.undo",
+            "target": "$agent",
+            "args": {
+              "scope": "last",
+              "about": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "tf": "D"
+        },
+        "restored": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "Change the NVDA chart to the weekly timeframe, then undo that change.",
+          "det": "required"
+        },
+        {
+          "text": "switch to weekly, then undo it",
+          "det": "required"
+        },
+        "change NVDA to weekly then undo",
+        "make it weekly and then undo that",
+        "change nvda to weekly, then revert it"
+      ]
+    },
+    {
+      "id": "timeframe.weekly",
+      "capabilities": [
+        "chart.setTimeframe"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setTimeframe"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setTimeframe",
+            "args": {
+              "timeframe": "W"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setTimeframe",
+            "target": "$charts[0]",
+            "args": {
+              "timeframe": "W"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "tf": "W"
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "switch to weekly",
+          "det": "required"
+        },
+        {
+          "text": "make it weekly",
+          "det": "required"
+        },
+        "weekly chart please",
+        "change the timeframe to weekly",
+        "show me the weekly",
+        "go to the weekly chart",
+        "Change the NVDA chart to the weekly timeframe.",
+        "put NVDA on the weekly",
+        "weekly"
+      ]
+    },
+    {
+      "id": "timeframe.5m",
+      "capabilities": [
+        "chart.setTimeframe"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setTimeframe"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setTimeframe",
+            "args": {
+              "timeframe": "5"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setTimeframe",
+            "target": "$charts[0]",
+            "args": {
+              "timeframe": "5"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "tf": "5"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "5 minute chart",
+        "switch to 5 min",
+        "change to the 5-minute timeframe",
+        "show me the 5m",
+        "go to five minute candles"
+      ]
+    },
+    {
+      "id": "indicator.ema-9-20",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "ONE",
+      "needs": [
+        "indicator.add"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.add",
+            "args": {
+              "defId": "movingAverage",
+              "inputs": [
+                {
+                  "key": "period",
+                  "value": 9
+                },
+                {
+                  "key": "maType",
+                  "value": "ema"
+                }
+              ]
+            }
+          },
+          {
+            "action": "indicator.add",
+            "args": {
+              "defId": "movingAverage",
+              "inputs": [
+                {
+                  "key": "period",
+                  "value": 20
+                },
+                {
+                  "key": "maType",
+                  "value": "ema"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.add",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "defId": "movingAverage",
+              "inputs": [
+                {
+                  "key": "period",
+                  "value": 9
+                },
+                {
+                  "key": "maType",
+                  "value": "ema"
+                }
+              ]
+            }
+          },
+          {
+            "action": "indicator.add",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "defId": "movingAverage",
+              "inputs": [
+                {
+                  "key": "period",
+                  "value": 20
+                },
+                {
+                  "key": "maType",
+                  "value": "ema"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "indicators": {
+          "chart": 0,
+          "include": [
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)"
+          ],
+          "count": 2
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo all of that",
+        "expect": {
+          "indicators": {
+            "chart": 0,
+            "count": 0
+          },
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "add the 9 and 20 EMAs",
+          "det": "required"
+        },
+        "add the 9 and 20 ema",
+        "put the 9 and 20 ema on",
+        "throw the 9 and 20 ema on my chart",
+        "add a 9 ema and a 20 ema",
+        "9 and 20 EMA please",
+        "add EMA 9 and EMA 20",
+        "put the 9/20 emas on this chart"
+      ]
+    },
+    {
+      "id": "indicator.rsi",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "ONE",
+      "needs": [
+        "indicator.add"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.add",
+            "args": {
+              "defId": "rsi"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.add",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "defId": "rsi",
+              "inputs": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "indicators": {
+          "chart": 0,
+          "count": 1
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "add rsi",
+          "det": "required"
+        },
+        "put RSI on the chart",
+        {
+          "text": "add the relative strength index",
+          "gaps": {
+            "a": {
+              "id": "CG-4",
+              "reason": "routing: 'relative strength' is a SCREENER strength word (routing.js screener group) and no indicators word matches the spelled-out 'relative strength index', so indicator.add is never sent (routed [screener, agent])",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "→ indicator.add"
+            }
+          }
+        },
+        "show me RSI on this chart",
+        "can you add an RSI"
+      ]
+    },
+    {
+      "id": "alert.price-above",
+      "capabilities": [
+        "alert.create"
+      ],
+      "board": "ONE",
+      "needs": [
+        "alert.create"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "alert.create",
+            "args": {
+              "symbol": "NVDA",
+              "price": 150,
+              "direction": "above"
+            }
+          }
+        ]
+      },
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "alert.create",
+            "target": "$alertLibrary",
+            "args": {
+              "symbol": "NVDA",
+              "price": 150,
+              "direction": "above"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true,
+        "noCalls": [
+          "^POST /api/watchlist-alerts"
+        ]
+      },
+      "approve": true,
+      "afterApprove": {
+        "writes": [
+          "^POST /api/watchlist-alerts .*\"sym\":\"NVDA\".*150"
+        ],
+        "receipt": true
+      },
+      "phrasings": [
+        "alert me if nvda goes above 150",
+        "set an alert on NVDA at 150 to the upside",
+        "ping me when NVDA crosses above 150",
+        "let me know if NVDA breaks above 150",
+        "notify me when nvda rises to 150",
+        "create a price alert for NVDA above $150"
+      ]
+    },
+    {
+      "id": "describe.setup",
+      "capabilities": [
+        "chart.describeSetup"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.describeSetup"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.describeSetup",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.describeSetup",
+            "target": "$charts[0]",
+            "args": {
+              "symbol": null,
+              "timeframe": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*bars\\.daily.*NVDA"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "describe the setup on nvda",
+        "describe this setup",
+        {
+          "text": "what's the setup here",
+          "gaps": {
+            "a": {
+              "id": "CG-5",
+              "reason": "routing: the chartSetup group's describe words need describe/summarise/walk me through, so 'what's the setup here' does not route chart.describeSetup. MASKED today by the capability's own fast matcher (it claims this exact phrasing with no model call); it bites when the fast reader misses (a typo, a longer sentence)",
+              "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+              "mode": "→ chart.describeSetup"
+            }
+          }
+        },
+        "walk me through the setup on NVDA",
+        "summarize the NVDA setup",
+        "describe the chart setup for NVDA"
+      ]
+    },
+    {
+      "id": "breadth.now",
+      "capabilities": [
+        "breadth.show"
+      ],
+      "board": "ONE",
+      "needs": [
+        "breadth.show"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "breadth.show",
+            "args": {
+              "mode": "value",
+              "universe": "us",
+              "metrics": []
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "breadth.show",
+            "target": "$breadth",
+            "args": {
+              "mode": "value",
+              "universe": "us",
+              "metrics": [],
+              "date": null,
+              "compare_date": null,
+              "start": null,
+              "end": null,
+              "basis": null,
+              "side": null,
+              "sessions": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "breadth"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        {
+          "text": "what's the breadth like",
+          "det": "required"
+        },
+        "how's market breadth today",
+        "show me breadth",
+        "what does breadth look like right now",
+        "how are the market internals",
+        "hows breadth today",
+        "whats the breadth like"
+      ]
+    },
+    {
+      "id": "earnings.date",
+      "capabilities": [
+        "stock.earnings"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.earnings"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.earnings",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.earnings",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "earnings.*NVDA"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "when does nvda report earnings",
+        "nvda earnings date",
+        "when is NVDA's next earnings",
+        "when does nvda report",
+        "NVDA earnings",
+        "what did NVDA report last quarter"
+      ]
+    },
+    {
+      "id": "screener.adr",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.run"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "screener.run",
+            "args": {
+              "filters": [
+                {
+                  "field": "adr_pct",
+                  "op": "gt",
+                  "value": 5
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "screener.run",
+            "target": "$screener",
+            "args": {
+              "filters": [
+                {
+                  "field": "adr_pct",
+                  "op": "gt",
+                  "value": 5,
+                  "max": null,
+                  "values": null
+                }
+              ],
+              "sort_field": null,
+              "sort_dir": null,
+              "mode": "new",
+              "show": null,
+              "as": null,
+              "within": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/screener/scan|^POST /api/agent/data .*screen\\.run"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "find stocks with ADR above 5%",
+        "screen for stocks with an ADR over 5%",
+        "show me names with ADR greater than 5 percent",
+        "scan for ADR > 5%",
+        "which stocks have an ADR above 5%"
+      ]
+    },
+    {
+      "id": "news.latest",
+      "capabilities": [
+        "news.latest"
+      ],
+      "board": "ONE",
+      "needs": [
+        "news.latest"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "news.latest",
+            "args": {
+              "symbol": "TSLA"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "news.latest",
+            "target": "$stockData",
+            "args": {
+              "symbol": "TSLA",
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "news.*TSLA"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "any news on tsla",
+        "latest headlines for TSLA",
+        "what's the news on TSLA",
+        "show me TSLA news",
+        "TSLA headlines"
+      ]
+    },
+    {
+      "id": "symbol.switch",
+      "capabilities": [
+        "chart.setSymbol"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setSymbol"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setSymbol",
+            "args": {
+              "symbol": "AMD"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setSymbol",
+            "target": "$charts[0]",
+            "args": {
+              "symbol": "AMD"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 1,
+          "symbols": [
+            "AMD"
+          ]
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "switch to AMD",
+          "det": "required"
+        },
+        "show me AMD",
+        "pull up AMD",
+        "chart AMD",
+        "put AMD on the chart",
+        "change the symbol to AMD"
+      ]
+    },
+    {
+      "id": "charttype.line",
+      "capabilities": [
+        "chart.setType"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setType"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setType",
+            "args": {
+              "type": "line"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setType",
+            "target": "$charts[0]",
+            "args": {
+              "type": "line"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "types": [
+            "line"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "make it a line chart",
+          "det": "required"
+        },
+        "switch to line",
+        "line chart please",
+        "show it as a line",
+        "change the chart type to line"
+      ]
+    },
+    {
+      "id": "stock.pullbacks",
+      "capabilities": [
+        "stock.dailyBars"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dailyBars"
+      ],
+      "source": "AUDIT 11-04 live: the possessive variant routed without the data group on production edd353fc06",
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.dailyBars",
+            "args": {
+              "symbol": "NVDA",
+              "measure": "pullbacks"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dailyBars",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "measure": "pullbacks",
+              "sessions": null,
+              "date": null,
+              "from": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*bars\\.daily.*NVDA"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        {
+          "text": "show me NVDA's recent pullbacks",
+          "gaps": {
+            "a": {
+              "id": "CG-6",
+              "reason": "routing: no data-group word names 'pullbacks' (it is only screener SOFT vocabulary), so the message is unrecognised and stock.dailyBars arrives only through the budget fill — production edd353fc06 omitted the data group for this possessive form (AUDIT 11-04 live)",
+              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+              "mode": "names the data group by its own words"
+            }
+          }
+        },
+        {
+          "text": "nvda pullbacks",
+          "gaps": {
+            "a": {
+              "id": "CG-6",
+              "reason": "routing: as \"show me NVDA's recent pullbacks\" — data reached only by the fill (the fast reader claims this exact phrasing today)",
+              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+              "mode": "names the data group by its own words"
+            }
+          }
+        },
+        {
+          "text": "how far has NVDA pulled back",
+          "gaps": {
+            "a": {
+              "id": "CG-6",
+              "reason": "routing: 'pulled back' names no data-group word; stock.dailyBars only via the fill",
+              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+              "mode": "names the data group by its own words"
+            }
+          }
+        },
+        {
+          "text": "NVDA drawdowns this year",
+          "gaps": {
+            "a": {
+              "id": "CG-7",
+              "reason": "routing: 'drawdowns' matches the DRAWINGS group (/\\bdraw\\w*\\b/) — routed [drawings, agent]: stock.dailyBars is not sent",
+              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+              "mode": "→ stock.dailyBars"
+            }
+          }
+        }
+      ],
+      "ownWords": [
+        "data"
+      ]
+    },
+    {
+      "id": "stock.offHigh",
+      "capabilities": [
+        "stock.dailyBars"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dailyBars"
+      ],
+      "source": "AUDIT 11-04 live (pullbacks family)",
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.dailyBars",
+            "args": {
+              "symbol": "NVDA",
+              "measure": "offHigh"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dailyBars",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "measure": "offHigh",
+              "sessions": null,
+              "date": null,
+              "from": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*bars\\.daily.*NVDA"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "how far off its high is NVDA",
+        "how far is NVDA off its high",
+        {
+          "text": "NVDA distance from the 52-week high",
+          "gaps": {
+            "a": {
+              "id": "CG-7b",
+              "reason": "routing: '52-week' is a screener word; nothing names the data group, so stock.dailyBars is not sent",
+              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+              "mode": "→ stock.dailyBars"
+            }
+          }
+        }
+      ],
+      "ownWords": [
+        "data"
+      ]
+    },
+    {
+      "id": "undo.named-after-grid",
+      "capabilities": [
+        "agent.undo",
+        "chartGrid.set"
+      ],
+      "board": "HALF",
+      "source": "AUDIT 11-04 live: a named Undo right after chartGrid.set ('my layout') must take the grid back",
+      "before": [
+        {
+          "say": "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.",
+          "expect": {
+            "charts": {
+              "count": 4
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "chartGrid.set"
+      ],
+      "needs": [
+        "agent.undo"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "agent.undo",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "agent.undo",
+            "target": "$agent",
+            "args": {
+              "scope": "last",
+              "about": "layout"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "restored": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "undo the last change you made to my charts",
+        {
+          "text": "undo the change you made to my layout",
+          "gaps": {
+            "c": {
+              "id": "CG-8",
+              "reason": "a named Undo ('my layout') right after chartGrid.set is refused as 'not a layout change' — the grid (a board re-tile) is not matched as a layout change (AUDIT 11-04 live; nlfix fixing)",
+              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+              "mode": "the board is back as it started"
+            }
+          }
+        },
+        "undo that",
+        {
+          "text": "put my layout back",
+          "gaps": {
+            "a": {
+              "id": "CG-9",
+              "reason": "routing: 'put my layout back' is not an Undo phrase (only 'put it/that/them back the way it was'), so agent.undo is not sent",
+              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+              "mode": "→ agent.undo"
+            },
+            "c": {
+              "id": "CG-9",
+              "reason": "neither the fast Undo words nor the routing read 'put my layout back' as an Undo; with the grid just made the board is not restored",
+              "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+              "mode": "the board is back as it started"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "scale.log",
+      "capabilities": [
+        "chart.setScale"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setScale"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setScale",
+            "args": {
+              "scale": "log"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setScale",
+            "target": "$charts[0]",
+            "args": {
+              "scale": "log"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "logScale",
+          "value": true
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "log scale",
+        "switch to log scale",
+        "use a logarithmic price scale",
+        "make the chart log",
+        "turn on log scale"
+      ]
+    },
+    {
+      "id": "session.extended",
+      "capabilities": [
+        "chart.setSession"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setSession"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setSession",
+            "args": {
+              "mode": "extended"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setSession",
+            "target": "$charts[0]",
+            "args": {
+              "mode": "extended"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "sessionView",
+          "value": "extended"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "show extended hours",
+        "turn on extended hours",
+        "show pre-market and after hours",
+        "switch to the extended session"
+      ]
+    },
+    {
+      "id": "compare.amd",
+      "capabilities": [
+        "chart.compare"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.compare"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.compare",
+            "args": {
+              "add": [
+                "AMD"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.compare",
+            "target": "$charts[0]",
+            "args": {
+              "add": [
+                "AMD"
+              ],
+              "remove": [],
+              "clear": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "settingSome": {
+          "key": "comparisonSymbols",
+          "match": {
+            "sym": "AMD"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "compare with AMD",
+        "overlay AMD on this chart",
+        "compare NVDA to AMD",
+        "add AMD as a comparison"
+      ]
+    },
+    {
+      "id": "widget.news",
+      "capabilities": [
+        "widget.add"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.add"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "widget.add",
+            "args": {
+              "type": "news"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "widget.add",
+            "target": "$workspace",
+            "args": {
+              "type": "news",
+              "as": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "widgetTypes": {
+          "include": [
+            "news"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "add a news widget",
+        "put a news panel on the board",
+        "open the news widget",
+        "I want news on my board"
+      ]
+    },
+    {
+      "id": "indicator.remove-sma200",
+      "source": "Batch C1 (11-04): indicators remove / edit / hide / show / style on a member's default chart (EMA 9/20, SMA 50/200)",
+      "capabilities": [
+        "indicator.remove"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "indicator.remove"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.remove",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.remove",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "ovl:3"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "indicators": {
+          "chart": 0,
+          "exclude": [
+            "movingAverage(200 sma)"
+          ],
+          "include": [
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)",
+            "movingAverage(50 sma)"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "remove the 200 sma",
+        "take off the 200 day moving average",
+        "get rid of the 200",
+        "delete the SMA 200 from this chart",
+        "remove the 200 day"
+      ]
+    },
+    {
+      "id": "indicator.update-period",
+      "source": "Batch C1 (11-04): indicators remove / edit / hide / show / style on a member's default chart (EMA 9/20, SMA 50/200)",
+      "capabilities": [
+        "indicator.update"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "indicator.update"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.update",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.update",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "ovl:0",
+              "inputs": [
+                {
+                  "key": "period",
+                  "value": 10
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "indicators": {
+          "chart": 0,
+          "include": [
+            "movingAverage(10 ema)",
+            "movingAverage(20 ema)"
+          ],
+          "exclude": [
+            "movingAverage(9 ema)"
+          ]
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "change the 9 ema to a 10",
+        "make the 9 ema a 10 ema",
+        "change the 9 ema's period to 10",
+        "set the 9 ema to 10",
+        "switch the 9 ema to a 10 period"
+      ]
+    },
+    {
+      "id": "indicator.hide",
+      "source": "Batch C1 (11-04): indicators remove / edit / hide / show / style on a member's default chart (EMA 9/20, SMA 50/200)",
+      "capabilities": [
+        "indicator.hide"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "indicator.hide"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.hide",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.hide",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "ovl:2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "inputs.period": 50,
+            "inputs.maType": "sma"
+          },
+          "has": {
+            "hidden": true
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "hide the 50 sma",
+        "hide the SMA 50",
+        "turn off the 50 day moving average",
+        "hide the 50 day"
+      ]
+    },
+    {
+      "id": "indicator.show",
+      "source": "Batch C1 (11-04): indicators remove / edit / hide / show / style on a member's default chart (EMA 9/20, SMA 50/200)",
+      "capabilities": [
+        "indicator.show"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "before": [
+        {
+          "say": "hide the 50 sma",
+          "expect": {
+            "instance": {
+              "find": {
+                "inputs.period": 50,
+                "inputs.maType": "sma"
+              },
+              "has": {
+                "hidden": true
+              }
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "indicator.hide"
+      ],
+      "needs": [
+        "indicator.show"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicator.show",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicator.show",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "ovl:2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "inputs.period": 50,
+            "inputs.maType": "sma"
+          },
+          "has": {
+            "hidden": false
+          }
+        },
+        "refusal": false
+      },
+      "phrasings": [
+        "show the 50 sma again",
+        {
+          "text": "unhide the 50 sma",
+          "gaps": {
+            "b": {
+              "id": "CG-10",
+              "reason": "WRONG deterministic reading: the follow-up reader (conversation.js resolveFollowUp) matches the word 'hide' inside 'unhide' and plans indicator.hide — the opposite action — with no model call",
+              "owner": "agent-core builder (conversation.js follow-up reader / NL)",
+              "mode": "read as {\"plan\":[{\"action\":\"indicator.hide\",\"args\":{\"instance\":\"ovl:2\"}}],\"via\":\"followUp\"}"
+            },
+            "c": {
+              "id": "CG-10",
+              "reason": "through the panel 'unhide the 50 sma' on a hidden SMA 50 answers 'already hidden' and leaves it hidden (on a visible one it would HIDE it)",
+              "owner": "agent-core builder (conversation.js follow-up reader / NL)",
+              "mode": "hidden"
+            }
+          }
+        },
+        "turn the 50 day back on",
+        "show the SMA 50"
+      ]
+    },
+    {
+      "id": "indicatorStyle.colour",
+      "source": "Batch C1 (11-04): indicators remove / edit / hide / show / style on a member's default chart (EMA 9/20, SMA 50/200)",
+      "capabilities": [
+        "indicatorStyle.set"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "indicatorStyle.set"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorStyle.set",
+            "args": {
+              "property": "color"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorStyle.set",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "ovl:0",
+              "property": "color",
+              "value": "#ef4444",
+              "output": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "inputs.period": 9,
+            "inputs.maType": "ema"
+          },
+          "colour": {
+            "key": "inputs.color",
+            "family": "red"
+          }
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "make the 9 ema red",
+        "color the 9 ema red",
+        "change the 9 ema's colour to red",
+        "turn the 9 ema red",
+        "paint the 9 ema red"
+      ]
+    },
+    {
+      "id": "alert.list",
+      "source": "Batch C2 (11-04): alerts list / delete, data reads (quote, profile, compare, catalysts), widget remove",
+      "capabilities": [
+        "alert.list"
+      ],
+      "board": "ONE",
+      "seed": {
+        "alerts": [
+          {
+            "id": "a1",
+            "sym": "NVDA",
+            "target_price": 150,
+            "direction": "above"
+          },
+          {
+            "id": "a2",
+            "sym": "AMD",
+            "target_price": 90,
+            "direction": "below"
+          }
+        ]
+      },
+      "needs": [
+        "alert.list"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "alert.list",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "alert.list",
+            "target": "$alertLibrary",
+            "args": {
+              "symbol": null,
+              "status": null,
+              "triggered_today": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^GET /api/watchlist-alerts"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "show my alerts",
+        "what alerts do I have",
+        "list my price alerts",
+        "which alerts are set",
+        "show me all my alerts"
+      ]
+    },
+    {
+      "id": "alert.delete",
+      "source": "Batch C2 (11-04): alerts list / delete, data reads (quote, profile, compare, catalysts), widget remove",
+      "capabilities": [
+        "alert.delete"
+      ],
+      "board": "ONE",
+      "seed": {
+        "alerts": [
+          {
+            "id": "a1",
+            "sym": "NVDA",
+            "target_price": 150,
+            "direction": "above"
+          },
+          {
+            "id": "a2",
+            "sym": "AMD",
+            "target_price": 90,
+            "direction": "below"
+          }
+        ]
+      },
+      "needs": [
+        "alert.delete"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "alert.delete",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "alert.delete",
+            "target": "$alerts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "noCalls": [
+          "^DELETE /api/watchlist-alerts"
+        ]
+      },
+      "approve": true,
+      "afterApprove": {
+        "writes": [
+          "^DELETE /api/watchlist-alerts/a1"
+        ],
+        "noCalls": [
+          "^DELETE /api/watchlist-alerts/a2"
+        ]
+      },
+      "phrasings": [
+        "delete my NVDA alert",
+        "remove the NVDA alert",
+        "cancel my alert on NVDA",
+        "get rid of the NVDA price alert"
+      ]
+    },
+    {
+      "id": "stock.quote",
+      "source": "Batch C2 (11-04): alerts list / delete, data reads (quote, profile, compare, catalysts), widget remove (live A-03 'whats nvda at')",
+      "capabilities": [
+        "stock.quote"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.quote"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.quote",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.quote",
+            "target": "$stockData",
+            "args": {
+              "symbols": [
+                "NVDA"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"quotes?\".*NVDA"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "whats nvda at",
+        "what's NVDA trading at",
+        "NVDA price",
+        {
+          "text": "how much is NVDA right now",
+          "gaps": {
+            "a": {
+              "id": "CG-11",
+              "reason": "routing: 'how much is X' names no data-group word (quote words: price / trading at), so the request is routed without stock.quote",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ stock.quote"
+            }
+          }
+        },
+        "quote NVDA"
+      ]
+    },
+    {
+      "id": "stock.profile",
+      "source": "Batch C2 (11-04): alerts list / delete, data reads (quote, profile, compare, catalysts), widget remove (live A-10b)",
+      "capabilities": [
+        "stock.profile"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.profile"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.profile",
+            "args": {
+              "symbol": "TSM"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.profile",
+            "target": "$stockData",
+            "args": {
+              "symbol": "TSM"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "TSM"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "give me a quick profile on TSM",
+        "what does TSM do",
+        "TSM profile",
+        {
+          "text": "tell me about TSM the company",
+          "gaps": {
+            "a": {
+              "id": "CG-12",
+              "reason": "routing: 'tell me' is an ALERTS word (/\\b(notify|ping|tell) me\\b/), so the request is routed [alerts, agent] — stock.profile is not sent",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ stock.profile"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "stock.compare",
+      "source": "Batch C2 (11-04): alerts list / delete, data reads (quote, profile, compare, catalysts), widget remove",
+      "capabilities": [
+        "stock.compare"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.compare"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.compare",
+            "args": {
+              "symbols": [
+                "NVDA",
+                "AMD"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.compare",
+            "target": "$stockData",
+            "args": {
+              "symbols": [
+                "NVDA",
+                "AMD"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "AMD"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "compare NVDA and AMD fundamentals",
+        {
+          "text": "how does NVDA stack up against AMD",
+          "gaps": {
+            "a": {
+              "id": "CG-13",
+              "reason": "routing: 'against' is a charts COMPARE word and 'stack up' only data SOFT vocabulary, so the request routes [charts, agent] — stock.compare (data) is not sent",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ stock.compare"
+            }
+          }
+        },
+        "NVDA vs AMD on valuation",
+        "compare the fundamentals of NVDA versus AMD"
+      ]
+    },
+    {
+      "id": "news.catalysts",
+      "source": "Batch C2 (11-04): alerts list / delete, data reads (quote, profile, compare, catalysts), widget remove",
+      "capabilities": [
+        "news.catalysts"
+      ],
+      "board": "ONE",
+      "needs": [
+        "news.catalysts"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "news.catalysts",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "news.catalysts",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "NVDA"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "what are the catalysts for NVDA",
+        "NVDA catalysts",
+        "any upcoming catalysts on NVDA",
+        "show me NVDA's catalysts"
+      ]
+    },
+    {
+      "id": "widget.remove",
+      "source": "Batch C2 (11-04): alerts list / delete, data reads (quote, profile, compare, catalysts), widget remove",
+      "capabilities": [
+        "widget.remove"
+      ],
+      "board": "TWO",
+      "needs": [
+        "widget.remove"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "widget.remove",
+            "args": {
+              "widget": "c2"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "widget.remove",
+            "target": "$board",
+            "args": {
+              "widget": "c2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 1,
+          "symbols": [
+            "NVDA"
+          ]
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "close the right chart",
+        "remove the chart on the right",
+        {
+          "text": "get rid of the AMD chart",
+          "gaps": {
+            "a": {
+              "id": "CG-14",
+              "reason": "routing: the workspace words name add/open/close/remove/delete … chart but not 'get rid of', so widget.remove is not sent (routed [charts, agent])",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ widget.remove"
+            }
+          }
+        },
+        "close the AMD chart",
+        "delete the right-hand chart"
+      ]
+    },
+    {
+      "id": "screener.runSaved",
+      "source": "Batch C3 (11-04): saved screens, breadth history, layouts, watchlists",
+      "capabilities": [
+        "screener.runSaved"
+      ],
+      "board": "ONE",
+      "needs": [
+        "screener.runSaved"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "screener.runSaved",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "screener.runSaved",
+            "target": "$screener",
+            "args": {
+              "screen": "7",
+              "show": null,
+              "as": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/screener/scan|^POST /api/agent/data .*screen"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "run my Momentum Screen",
+        "run the Momentum Screen",
+        "show me the results of my Momentum Screen",
+        "open my saved Momentum Screen and run it"
+      ]
+    },
+    {
+      "id": "breadth.history.nhnl",
+      "source": "Batch C3 (11-04): saved screens, breadth history, layouts, watchlists (live P-07 / J-01 'when did nh/nl last go negative')",
+      "capabilities": [
+        "breadth.history"
+      ],
+      "board": "ONE",
+      "needs": [
+        "breadth.history"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "breadth.history",
+            "args": {
+              "metric": "net_new_high_low",
+              "find": "last"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "breadth.history",
+            "target": "$breadth",
+            "args": {
+              "universe": "us",
+              "metric": "net_new_high_low",
+              "op": "below",
+              "level": 0,
+              "find": "last",
+              "start": null,
+              "end": null,
+              "aggregation": "daily"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "breadth/history|breadth"
+        ],
+        "unchanged": true
+      },
+      "phrasings": [
+        "when did nh/nl last go negative",
+        "when was net new highs last below zero",
+        "last time new highs minus new lows went negative",
+        "when did net new highs last turn negative"
+      ]
+    },
+    {
+      "id": "layout.open",
+      "source": "Batch C3 (11-04): saved screens, breadth history, layouts, watchlists",
+      "capabilities": [
+        "layout.open"
+      ],
+      "board": "LAYOUTS",
+      "needs": [
+        "layout.open"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "layout.open",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "layout.open",
+            "target": "$layouts",
+            "args": {
+              "layout": "2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "layout": {
+          "active": "Momentum"
+        },
+        "charts": {
+          "count": 2,
+          "symbols": [
+            "SPY",
+            "QQQ"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "open my Momentum layout",
+        "switch to the Momentum layout",
+        "load Momentum",
+        "go to my Momentum layout",
+        "pull up the Momentum layout"
+      ]
+    },
+    {
+      "id": "layout.saveAs",
+      "source": "Batch C3 (11-04): saved screens, breadth history, layouts, watchlists (live E-06)",
+      "capabilities": [
+        "layout.saveAs"
+      ],
+      "board": "LAYOUTS",
+      "needs": [
+        "layout.saveAs"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "layout.saveAs",
+            "args": {
+              "name": "Swing 2"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "layout.saveAs",
+            "target": "$layouts",
+            "args": {
+              "name": "Swing 2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "layout": {
+          "names": [
+            "Swing 2"
+          ],
+          "active": "Swing 2"
+        }
+      },
+      "phrasings": [
+        "save this layout as Swing 2",
+        "save this as a new layout called Swing 2",
+        "save the board as Swing 2",
+        "save a copy of this layout named Swing 2"
+      ]
+    },
+    {
+      "id": "watchlist.add",
+      "source": "Batch C3 (11-04): saved screens, breadth history, layouts, watchlists",
+      "capabilities": [
+        "watchlist.add"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.add"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.add",
+            "args": {
+              "symbols": [
+                "AMD"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.add",
+            "target": "$watchlists[0]",
+            "args": {
+              "symbols": [
+                "AMD"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "watchlist": {
+          "name": "Momentum",
+          "include": [
+            "AMD",
+            "NVDA",
+            "TSLA"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "watchlist": {
+            "name": "Momentum",
+            "exclude": [
+              "AMD"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "add AMD to my Momentum list",
+        "put AMD on the Momentum watchlist",
+        "add AMD to Momentum",
+        "throw AMD on my Momentum watchlist"
+      ]
+    },
+    {
+      "id": "widget.addCharts",
+      "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create",
+      "capabilities": [
+        "widget.addCharts"
+      ],
+      "board": "HALF",
+      "needs": [
+        "widget.addCharts"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "widget.addCharts",
+            "target": "$workspace",
+            "args": {
+              "symbols": [
+                "AAPL",
+                "MSFT"
+              ],
+              "timeframe": null,
+              "chart_type": null,
+              "exact": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 3,
+          "symbolSet": [
+            "NVDA",
+            "AAPL",
+            "MSFT"
+          ],
+          "keepsIds": [
+            "c1"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "open charts for AAPL and MSFT",
+        "add charts for AAPL and MSFT",
+        "open AAPL and MSFT in new charts",
+        {
+          "text": "give me new charts for AAPL and MSFT",
+          "gaps": {
+            "a": {
+              "id": "CG-16",
+              "reason": "routing: 'new charts for …' routes chartGrid (re-tile) but not the workspace group, so widget.addCharts is not sent; chartGrid.set with new_charts may serve it — owner to rule which is canonical",
+              "owner": "nlfix builder (routing.js)",
+              "mode": "→ widget.addCharts"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "board.swap",
+      "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create",
+      "capabilities": [
+        "board.swap"
+      ],
+      "board": "TWO",
+      "needs": [
+        "board.swap"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "board.swap",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "board.swap",
+            "target": "$board",
+            "args": {
+              "a": "c1",
+              "b": "c2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbols": [
+            "AMD",
+            "NVDA"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "swap the two charts",
+        "switch places between the NVDA and AMD charts",
+        "swap NVDA and AMD",
+        {
+          "text": "trade places with the left and right charts",
+          "gaps": {
+            "b": {
+              "id": "CG-15",
+              "reason": "WRONG deterministic reading: the quote fast reader (stock.quote) claims 'trade places with the left and right charts' as a price quote for the 'symbols' PLACES, LEFT, CHARTS — no model call, the swap never happens",
+              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+              "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"places\",\"left\",\"charts\"]}}],\"via\":\"fastPath\"}"
+            },
+            "c": {
+              "id": "CG-15",
+              "reason": "through the panel the swap phrasing becomes a quote read; the board is unchanged",
+              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+              "mode": "chart symbols (board order)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "board.duplicateChart",
+      "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create",
+      "capabilities": [
+        "board.duplicateChart"
+      ],
+      "board": "HALF",
+      "needs": [
+        "board.duplicateChart"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "board.duplicateChart",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "board.duplicateChart",
+            "target": "$board",
+            "args": {
+              "widget": "c1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbolSet": [
+            "NVDA",
+            "NVDA"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "duplicate this chart",
+        "make a copy of the NVDA chart",
+        "clone this chart",
+        "duplicate the NVDA chart"
+      ]
+    },
+    {
+      "id": "watchlist.remove",
+      "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create",
+      "capabilities": [
+        "watchlist.remove"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.remove"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.remove",
+            "args": {
+              "symbols": [
+                "TSLA"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.remove",
+            "target": "$watchlists[0]",
+            "args": {
+              "symbols": [
+                "TSLA"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "watchlist": {
+          "name": "Momentum",
+          "include": [
+            "NVDA"
+          ],
+          "exclude": [
+            "TSLA"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "watchlist": {
+            "name": "Momentum",
+            "include": [
+              "NVDA",
+              "TSLA"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "remove TSLA from my Momentum list",
+        "take TSLA off the Momentum watchlist",
+        "drop TSLA from Momentum",
+        "delete TSLA from my Momentum list"
+      ]
+    },
+    {
+      "id": "watchlist.create",
+      "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create (live C-05b)",
+      "capabilities": [
+        "watchlist.create"
+      ],
+      "board": "WATCH",
+      "needs": [
+        "watchlist.create"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "watchlist.create",
+            "args": {
+              "name": "Semis"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.create",
+            "target": "$watchlistLibrary",
+            "args": {
+              "name": "Semis",
+              "as": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "watchlist": {
+          "name": "Semis"
+        }
+      },
+      "phrasings": [
+        "create a new watchlist called Semis",
+        "make a list named Semis",
+        "start a new watchlist Semis",
+        "new watchlist: Semis"
+      ]
+    }
+  ],
+  "refusals": [
+    {
+      "id": "refuse.undo-nothing",
+      "capabilities": [
+        "agent.undo"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "undo",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.rs-rank-hidden",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "show me my strongest stocks",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0,
+            "noCalls": [
+              "^POST /api/screener/scan",
+              "screen\\.run"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.tab-standin",
+      "capabilities": [
+        "chart.addTab"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "Put SPY and QQQ on two charts please, thank you kindly friend",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.setSymbol",
+                "target": "$charts[0]",
+                "args": {
+                  "symbol": "SPY"
+                }
+              },
+              {
+                "action": "chart.addTab",
+                "target": "$board",
+                "args": {
+                  "widget": "c1",
+                  "timeframe": null,
+                  "name": "QQQ"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.alert-needs-approval",
+      "capabilities": [
+        "alert.create"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "alert me if nvda goes above 150",
+          "model": {
+            "disposition": "apply",
+            "ops": [
+              {
+                "action": "alert.create",
+                "target": "$alertLibrary",
+                "args": {
+                  "symbol": "NVDA",
+                  "price": 150,
+                  "direction": "above"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "proposal": true,
+            "noCalls": [
+              "^POST /api/watchlist-alerts"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
