@@ -1360,3 +1360,86 @@ def test_fix_round_2_constants():
     assert evernote_mcp.GLOBAL_TRIP_THRESHOLD == 6
     assert evernote_mcp.GLOBAL_GATE_MAX_WAIT_S == 120.0
     assert evernote_mcp.FETCH_TOOLS == frozenset({"get_note", "get_attachment"})
+
+
+# --------------------------------------------------------------------------- slot scheduling (NEW-3, NEW-6)
+
+def test_one_listing_allowance_never_exceeds_its_ceiling():
+    # NEW-3: 1000 pages at the 10 s pacing ceiling would be 15 000 s; one listing gets 3600 s.
+    client = _timed_client(Server(), FakeTime())
+    client.seed_interval(evernote_mcp.ADAPTIVE_MAX_INTERVAL_S)
+    client.begin_listing()
+    client.size_listing(1000)
+    assert client.listing_allowance_s() == evernote_mcp.LISTING_ALLOWANCE_MAX_S == 3600.0
+
+
+async def test_every_listing_of_a_pass_shares_one_cumulative_budget():
+    # NEW-3: LISTING_ATTEMPTS restarts plus a full pass's two removal listings could each take a
+    # full allowance; together they get PASS_LISTING_BUDGET_S, then every listing is refused.
+    ft = FakeTime()
+
+    def slow(req, body):
+        ft.t += 10.0
+        return _ok({"hits": []})
+
+    client = _timed_client(Server(slow), ft)
+    client.seed_interval(evernote_mcp.ADAPTIVE_MAX_INTERVAL_S)
+    t0 = ft.t
+    refused = 0
+    for _listing in range(6):
+        client.begin_listing()
+        client.size_listing(1000)
+        try:
+            for i in range(10_000):
+                await client.call_tool("search_notes", {"query": "", "startIndex": i})
+        except errors.NoteConnRateLimited:
+            refused += 1
+        client.end_listing()
+    assert refused == 6
+    spent = ft.t - t0
+    assert evernote_mcp.PASS_LISTING_BUDGET_S <= spent <= evernote_mcp.PASS_LISTING_BUDGET_S + 60
+    client.begin_listing()
+    with pytest.raises(errors.NoteConnRateLimited):  # nothing left: refused without being sent
+        await client.call_tool("search_notes", {"query": "intrash:true"})
+    assert ft.t - t0 == pytest.approx(spent)
+    await client.call_tool("get_note", {"noteId": "n"})  # the fetch clock is its own
+
+
+def test_the_listing_ceilings():
+    assert evernote_mcp.LISTING_ALLOWANCE_MAX_S == 3600.0
+    assert evernote_mcp.PASS_LISTING_BUDGET_S == 7200.0
+
+
+async def test_the_global_gate_survives_a_prune_between_its_count_and_its_read(monkeypatch):
+    # NEW-6: `_global_gate` counted the log, then read `_GLOBAL_TRIPS[0]`, unlocked. Another
+    # thread's prune landing between the two (simulated here: the count empties the log, as a
+    # prune on the scheduler's thread would) made that read an IndexError. The gate now reads the
+    # count and the oldest trip in one step under `_GLOBAL_LOCK`.
+    shared = {"t": 10_000.0}
+    monkeypatch.setattr(evernote_mcp, "_global_clock", lambda: shared["t"])
+    for _ in range(evernote_mcp.GLOBAL_TRIP_THRESHOLD):
+        evernote_mcp._record_global_trip()
+    real_count = evernote_mcp.recent_global_trips
+
+    def count_then_pruned_elsewhere():
+        n = real_count()
+        evernote_mcp._GLOBAL_TRIPS.clear()  # another thread's prune, right after the count
+        return n
+
+    monkeypatch.setattr(evernote_mcp, "recent_global_trips", count_then_pruned_elsewhere)
+    ft = FakeTime()
+    client = _timed_client(Server(), ft)
+    await client.call_tool("get_note", {"noteId": "n"})  # no IndexError
+
+
+def test_the_trip_log_is_guarded_by_one_module_lock():
+    import threading
+    assert isinstance(evernote_mcp._GLOBAL_LOCK, type(threading.Lock()))
+    with evernote_mcp._GLOBAL_LOCK:  # held: a writer on another thread must wait for it
+        done = []
+        t = threading.Thread(target=lambda: (evernote_mcp._record_global_trip(), done.append(1)))
+        t.start()
+        t.join(0.2)
+        assert done == []
+    t.join(5)
+    assert done == [1]

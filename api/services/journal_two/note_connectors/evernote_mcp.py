@@ -35,6 +35,7 @@ import logging
 import math
 import random
 import re
+import threading
 import time
 from collections import deque
 from email.utils import parsedate_to_datetime
@@ -119,6 +120,21 @@ FETCH_TOOLS: frozenset[str] = frozenset({"get_note", "get_attachment"})
 # rate-limit wait budget and the provider's page cap (`_MAX_PAGES`) bound it on top.
 LISTING_ALLOWANCE_MIN_S = 900.0
 LISTING_ALLOWANCE_FACTOR = 1.5
+# NEW-3: the ceilings. `pages` comes from the server's `totalResultCount` (the provider clamps it
+# to its `_MAX_PAGES`, 1000 pages = 100 000 notes), and nothing else bounded a listing's clock:
+# a pass could hold its slot for LISTING_ATTEMPTS restarts plus a full pass's two removal
+# listings, each at 1000 pages x 10 s x 1.5 = 4 h, i.e. a day.
+#  * LISTING_ALLOWANCE_MAX_S, one listing: an hour lists 240 pages (24 000 notes) at the 10 s
+#    pacing ceiling x 1.5, and 2 400 pages (more than any library the pager reads) at the 1 s
+#    adaptive floor, where a session that tripped usually settles. A library too big to list in
+#    an hour at the worst pace is a listing that fails (no strike; the next pass lists again, at
+#    the pace this one learned), never a pass that owns a slot all day.
+#  * PASS_LISTING_BUDGET_S, every listing of one session (pass) together: two hours, i.e. two
+#    full hour-long listings (a full pass's complete listing plus its trash listing) or any mix
+#    of shorter ones and restarts. Past it every listing call is refused unsent, so a pass holds
+#    its slot for at most ~2 h of listing plus the 10 min fetch clock (SESSION_BUDGET_S).
+LISTING_ALLOWANCE_MAX_S = 3600.0
+PASS_LISTING_BUDGET_S = 7200.0
 # N6: only a wait over this closes the session (a server telling us to go away). A wait over
 # MAX_RETRY_AFTER_S up to this is slept ONCE per call, charged to the wait budget.
 LONG_WAIT_S = 120.0
@@ -132,6 +148,9 @@ LONG_WAIT_S = 120.0
 GLOBAL_TRIP_THRESHOLD = 6
 GLOBAL_GATE_MAX_WAIT_S = 120.0
 _GLOBAL_TRIPS: deque[float] = deque()
+# NEW-6: the trip log is written and read from several threads (the uvicorn loop's passes and
+# each scheduler job's own loop), so every touch of it holds this lock. Never held across I/O.
+_GLOBAL_LOCK = threading.Lock()
 
 
 def _global_clock() -> float:
@@ -140,22 +159,31 @@ def _global_clock() -> float:
 
 
 def _prune_global_trips(now: float) -> None:
+    """Caller holds `_GLOBAL_LOCK`."""
     while _GLOBAL_TRIPS and _GLOBAL_TRIPS[0] <= now - RATE_WINDOW_S:
         _GLOBAL_TRIPS.popleft()
 
 
 def _record_global_trip() -> None:
     now = _global_clock()
-    _GLOBAL_TRIPS.append(now)
-    _prune_global_trips(now)
-    while len(_GLOBAL_TRIPS) > 4096:  # a memory bound
-        _GLOBAL_TRIPS.popleft()
+    with _GLOBAL_LOCK:
+        _GLOBAL_TRIPS.append(now)
+        _prune_global_trips(now)
+        while len(_GLOBAL_TRIPS) > 4096:  # a memory bound
+            _GLOBAL_TRIPS.popleft()
+
+
+def _global_trip_window() -> tuple[int, float | None]:
+    """(trips in the last RATE_WINDOW_S, the oldest of them), read in ONE locked step."""
+    now = _global_clock()
+    with _GLOBAL_LOCK:
+        _prune_global_trips(now)
+        return len(_GLOBAL_TRIPS), (_GLOBAL_TRIPS[0] if _GLOBAL_TRIPS else None)
 
 
 def recent_global_trips() -> int:
     """How many Evernote rate-limit trips this process saw in the last RATE_WINDOW_S."""
-    _prune_global_trips(_global_clock())
-    return len(_GLOBAL_TRIPS)
+    return _global_trip_window()[0]
 
 CLIENT_INFO = {"name": "uct-notebook-sync", "version": "1.0"}
 # The same User-Agent as our media fetches (`providers/base.py`).
@@ -370,6 +398,9 @@ class EvernoteMcpClient:
         self._listing_started_at: float | None = None
         self._listing_pages: int | None = None
         self._listing_peak_interval = MIN_CALL_INTERVAL_S
+        # NEW-3: listing seconds this session already spent (closed listings), against
+        # PASS_LISTING_BUDGET_S.
+        self._listing_spent_s = 0.0
         self._phase_closed: set[str] = set()
         self._closed_reason: str | None = None
         self._closed_retry_after: float | None = None
@@ -444,6 +475,8 @@ class EvernoteMcpClient:
             self._listing_pages = pages
 
     def end_listing(self) -> None:
+        if self._listing_started_at is not None:
+            self._listing_spent_s += max(0.0, self._clock() - self._listing_started_at)
         self._listing_started_at = None
         self._listing_pages = None
         self._phase_closed.discard("listing")
@@ -452,9 +485,12 @@ class EvernoteMcpClient:
         """Sized by the HIGHEST interval seen during this listing: a trip widens it, and a
         ramp-down never shrinks it below what the listing already spent."""
         self._listing_peak_interval = max(self._listing_peak_interval, self.call_interval_s)
-        return max(LISTING_ALLOWANCE_MIN_S,
-                   (self._listing_pages or 0) * self._listing_peak_interval
-                   * LISTING_ALLOWANCE_FACTOR)
+        sized = max(LISTING_ALLOWANCE_MIN_S,
+                    (self._listing_pages or 0) * self._listing_peak_interval
+                    * LISTING_ALLOWANCE_FACTOR)
+        # NEW-3: never past one listing's ceiling, nor past what the pass's budget has left.
+        left = max(0.0, PASS_LISTING_BUDGET_S - self._listing_spent_s)
+        return min(sized, LISTING_ALLOWANCE_MAX_S, left)
 
     def _phase(self, name: str) -> str | None:
         if name in FETCH_TOOLS:
@@ -476,12 +512,15 @@ class EvernoteMcpClient:
         """D4: before a session's first call, wait while this process saw GLOBAL_TRIP_THRESHOLD
         or more Evernote trips in the last minute, at most GLOBAL_GATE_MAX_WAIT_S in all."""
         waited = 0.0
-        while waited < GLOBAL_GATE_MAX_WAIT_S and recent_global_trips() >= GLOBAL_TRIP_THRESHOLD:
-            oldest = _GLOBAL_TRIPS[0]
+        while waited < GLOBAL_GATE_MAX_WAIT_S:
+            # NEW-6: the count and the oldest trip in one locked read (another thread may prune).
+            trips, oldest = _global_trip_window()
+            if trips < GLOBAL_TRIP_THRESHOLD or oldest is None:
+                return
             step = max(1.0, oldest + RATE_WINDOW_S - _global_clock())
             step = min(step, GLOBAL_GATE_MAX_WAIT_S - waited)
             log.info("evernote mcp: %d trips in the last minute across sessions; a new session "
-                     "waits %.0f s", len(_GLOBAL_TRIPS), step)
+                     "waits %.0f s", trips, step)
             await self._sleep(step)
             waited += step
 
