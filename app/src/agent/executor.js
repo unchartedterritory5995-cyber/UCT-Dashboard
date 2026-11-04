@@ -25,6 +25,54 @@ import { getCapability, getTargetKind, shapeError, normalizeArgs } from './capab
 // (server turn.py MAX_OPS = contract/manifest.contract.json limits.maxOps; agentContracts.test.js).
 export const MAX_OPS = 24
 
+export const MIXED_REFUSAL = 'I can’t add new widgets and change existing ones in the same request here — ask in two steps: the new widgets first, then the change to the ones you already have.'
+
+// Target kinds whose changes re-tile, replace or re-point the board itself: a request mixing them with new widgets keeps
+// the refusal (the new widgets' placement depends on them, so neither order can be rolled back exactly).
+const SPLIT_DENY_KINDS = new Set(['board', 'workspace', 'layouts'])
+
+/**
+ * ⭐ MISSION 3: "add a QQQ chart and change the SPY chart to weekly" — the ops of a plan refused ONLY as add + change-existing,
+ * split into the part that creates (every creator op and every op aimed at what it creates) and the part that changes
+ * targets that already exist. Each part is an ordinary plan of its own. Pure; null when the request can't be split safely:
+ * an exclusive op (opening a layout), a change to the board / workspace / layouts themselves, or a change to an existing
+ * target that names a new widget (its alias) in its arguments — those keep the refusal.
+ * → { parts: [{ side: 'create'|'change', ops }] } in the member's order (the part whose first op came first runs first).
+ */
+export function splitMixedOps(opsIn) {
+  if (!Array.isArray(opsIn) || opsIn.length < 2) return null
+  const aliases = new Set()
+  for (const op of opsIn) {
+    const c = getCapability(op?.action)?.creates?.(op?.args || {})
+    if (c?.alias) aliases.add(String(c.alias))
+  }
+  if (!aliases.size) return null
+  const create = [], change = []
+  let firstCreate = -1, firstChange = -1
+  opsIn.forEach((op, i) => {
+    const cap = getCapability(op?.action)
+    const creating = !!cap?.creates?.(op?.args || {}) || aliases.has(String(op?.target))
+    if (creating) { create.push(op); if (firstCreate < 0) firstCreate = i } else { change.push(op); if (firstChange < 0) firstChange = i }
+  })
+  if (!create.length || !change.length) return null
+  // ⭐ CG-3 (corpus #769): new widgets + exactly ONE re-tile of the WHOLE board (widget.arrange, widgets null) is the one
+  // board change allowed beside creation — run after the adds, so it arranges them too; one grouped Undo reverses both
+  const arrangeAfter = change.length === 1 && change[0]?.action === 'widget.arrange' && change[0]?.args?.widgets == null
+    && create.every(o => o?.action === 'widget.add' || o?.action === 'widget.addCharts' || aliases.has(String(o?.target)))
+  for (const op of opsIn) if (getCapability(op?.action)?.exclusive && !getCapability(op?.action)?.sequential) return null
+  for (const op of change) {
+    const cap = getCapability(op?.action)
+    if (!cap || cap.query || (SPLIT_DENY_KINDS.has(cap.target) && !arrangeAfter)) return null
+    const args = JSON.stringify(op?.args ?? null)
+    for (const a of aliases) if (args.includes(`"${a}"`)) return null
+  }
+  // CG-3: "put four charts on my screen" planned as new charts + ONE even re-tile of the whole board — the adds first, THEN
+  // the re-tile of what is on the board then (its own plan, of the real widgets), whatever order the model wrote them in
+  const parts = [{ side: 'create', ops: create, at: arrangeAfter ? -1 : firstCreate }, { side: 'change', ops: change, at: firstChange }]
+    .sort((a, b) => a.at - b.at).map(({ side, ops }) => ({ side, ops }))
+  return { parts }
+}
+
 export function planOps(targets, opsIn, env = {}, ctx = null) {
   const refusals = []
   if (!Array.isArray(opsIn) || opsIn.length === 0) {
@@ -121,11 +169,13 @@ export function planOps(targets, opsIn, env = {}, ctx = null) {
 
   // A creating plan may only touch its creators and what it creates: mixing in
   // changes to EXISTING targets would need a general rollback to compensate.
+  // ⭐ MISSION 3 (W2): `code: 'mixed'` — the runtime (useAgent) may instead run the request as TWO executions of this same
+  // planner, in the member's order, with one grouped Undo (splitMixedOps); where it can't, this refusal stands.
   if (created.length) {
     const creatorRefs = new Set(created.map(c => c.op.target))
     const mixed = plans.filter(p => !p.virtual && !creatorRefs.has(p.ref))
     if (mixed.length) {
-      refusals.push({ index: -1, reason: 'Adding widgets and changing existing ones in one request isn’t supported yet — do it in two steps.' })
+      refusals.push({ index: -1, code: 'mixed', reason: MIXED_REFUSAL })
     }
   }
   // An EXCLUSIVE capability (e.g. opening another layout) replaces what every other
