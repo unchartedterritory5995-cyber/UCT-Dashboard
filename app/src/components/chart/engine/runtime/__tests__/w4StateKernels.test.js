@@ -169,6 +169,7 @@ describe('⭐⭐ W4 T10 — ta.pivothigh / ta.pivotlow over a value the run comp
       expect(same(hi, PH(L, R), `pivothigh ${L},${R}`)).toBeGreaterThan(0)
     }
     expect(refusalOf(5, `${state('h', 'high')}plot(ta.pivothigh(h, 3, 0))\n`).guard).toBe('runtime:builtin-args')
+    expect(refusalOf(5, `${state('h', 'high')}plot(ta.pivothigh(h, 0, 3))\n`).guard).toBe('runtime:builtin-args')
   })
 
   it('⛔ THE DELAY: a pivot appears `rightbars` bars AFTER its bar, never on it', () => {
