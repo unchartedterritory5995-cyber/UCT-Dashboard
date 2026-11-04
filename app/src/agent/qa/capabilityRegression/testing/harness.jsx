@@ -94,6 +94,13 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
     if (u === '/api/agent/turn' || u === '/api/agent/record' || u.startsWith('/api/ticker-search') || u.startsWith('/api/user-definitions')) return base(url, init)
     p.st.calls.push([method, u, body])
     if (u === '/api/agent/config') return json(configFor(kinds))
+    // the drawings SYNC as the server holds it (useTracingsSync: prefs.tracings_doc = { updatedAt, doc }) — the account
+    // copy mirrors this tab's store, as it does once the sync has run (host.confirmDrawingsSynced reads it back)
+    if (u === '/api/auth/preferences' && method === 'GET') {
+      const id = drawingsStore.getActiveTracingId?.() ?? 'default'
+      const syms = [...new Set((mounted?.h?.charts?.list?.() || []).map(c => c.symbol))]
+      return json({ tracings_doc: { updatedAt: 1, doc: { activeId: id, byTracing: { [id]: Object.fromEntries(syms.map(sy => [sy, drawingsStore.peekDrawings(sy)])) } } } })
+    }
     if (u.startsWith('/api/indicator-alerts')) {
       // the router's own shapes (indicator_alerts.py), as agentIndicatorAlerts.test.jsx's fixture
       if (u === '/api/indicator-alerts/catalog') return json({ catalog: IA_CATALOG, refusals: [] })
@@ -138,7 +145,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {} } =
     return base(url, init)
   }
   const spec = BOARDS[boardName]()
-  const mounted = p.mount(...spec)
+  let mounted = null
+  mounted = p.mount(...spec)
   const extra = spec[2] || {}
   if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
   if (extra.drawings) {

@@ -1646,6 +1646,167 @@
      "modes": {}
     }
    }
+  },
+  "drawing.addLevel": {
+   "digest": "ebde312f317c63dd",
+   "phrasings": {
+    "draw a horizontal line at 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a line at $200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a horizontal level at 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "draw a price line at 200 on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "mark the 200 level with a line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.list": {
+   "digest": "d9387aeb0c13b257",
+   "phrasings": {
+    "list my drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what drawings are on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the drawings on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which lines have I drawn": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setLevel": {
+   "digest": "b535685bd935176a",
+   "phrasings": {
+    "move the line to 210": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the 200 line up to 210": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "b",
+      "c"
+     ],
+     "modes": {
+      "b": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"line\"]}}],\"via\":\"fastPath\"}",
+      "c": "a drawing {\"points.0.price\":210}"
+     }
+    },
+    "set that level to 210": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "drag the line to 210": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.style": {
+   "digest": "c62a9e4646d98d34",
+   "phrasings": {
+    "make the line red": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "color that line red": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the 200 line to red": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn the horizontal line red": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.remove": {
+   "digest": "df13dc4294fa82b8",
+   "phrasings": {
+    "delete that line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the line at 200": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the horizontal line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "erase the 200 line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.clear": {
+   "digest": "7923b2494125a6a1",
+   "phrasings": {
+    "clear all my drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clear every drawing on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "wipe the drawings off this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove all drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

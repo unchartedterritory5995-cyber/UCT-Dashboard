@@ -172,11 +172,6 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "drawing.addLevel": {
-   "owner": "agent-qa (capreg) — group drawings",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "drawing.addRay": {
    "owner": "agent-qa (capreg) — group drawingTools",
    "since": "2026-11-04",
@@ -197,22 +192,7 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "drawing.clear": {
-   "owner": "agent-qa (capreg) — group drawings",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "drawing.list": {
-   "owner": "agent-qa (capreg) — group drawings",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "drawing.lock": {
-   "owner": "agent-qa (capreg) — group drawings",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "drawing.remove": {
    "owner": "agent-qa (capreg) — group drawings",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
@@ -222,17 +202,7 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "drawing.setLevel": {
-   "owner": "agent-qa (capreg) — group drawings",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "drawing.setVisible": {
-   "owner": "agent-qa (capreg) — group drawings",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "drawing.style": {
    "owner": "agent-qa (capreg) — group drawings",
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"

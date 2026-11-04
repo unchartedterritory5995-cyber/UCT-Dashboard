@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 45,
+  "withAnyRegressionCase": 51,
   "perProtection": {
    "nl": {
-    "covered": 43,
+    "covered": 49,
     "applicable": 154
    },
    "routing": {
-    "covered": 43,
+    "covered": 49,
     "applicable": 154
    },
    "args": {
-    "covered": 44,
+    "covered": 50,
     "applicable": 154
    },
    "execution": {
-    "covered": 42,
+    "covered": 48,
     "applicable": 154
    },
    "receipt": {
-    "covered": 36,
+    "covered": 40,
     "applicable": 154
    },
    "refusal": {
@@ -34,19 +34,19 @@
     "applicable": 154
    },
    "permission": {
-    "covered": 132,
+    "covered": 133,
     "applicable": 154
    },
    "undo": {
-    "covered": 18,
+    "covered": 21,
     "applicable": 95
    },
    "multiStep": {
-    "covered": 9,
+    "covered": 14,
     "applicable": 154
    },
    "phrasings": {
-    "covered": 42,
+    "covered": 48,
     "applicable": 154
    }
   }
@@ -348,6 +348,24 @@
    "level": "c",
    "intent": "indicatorAlert.ma-cross-multichart",
    "phrasing": "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside"
+  },
+  {
+   "id": "CG-22",
+   "reason": "WRONG deterministic reading (the CG-15 family): the quote fast reader claims 'move the 200 line up to 210' as a price quote for the 'symbol' LINE — no model call, the line is not moved",
+   "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"line\"]}}],\"via\":\"fastPath\"}",
+   "level": "b",
+   "intent": "drawing.setLevel",
+   "phrasing": "move the 200 line up to 210"
+  },
+  {
+   "id": "CG-22",
+   "reason": "through the panel the move becomes a quote read; the line stays at 200",
+   "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "mode": "a drawing {\"points.0.price\":210}",
+   "level": "c",
+   "intent": "drawing.setLevel",
+   "phrasing": "move the 200 line up to 210"
   },
   {
    "id": "CG-12",
@@ -2782,27 +2800,47 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 5,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.addLevel: \"draw a horizontal line at 200\"",
+     "drawing.addLevel: \"put a line at $200\"",
+     "drawing.addLevel: \"add a horizontal level at 200\"",
+     "drawing.addLevel: \"draw a price line at 200 on this chart\"",
+     "drawing.addLevel: \"mark the 200 level with a line\""
+    ],
+    "routing": [
+     "drawing.addLevel: \"draw a horizontal line at 200\"",
+     "drawing.addLevel: \"put a line at $200\"",
+     "drawing.addLevel: \"add a horizontal level at 200\"",
+     "drawing.addLevel: \"draw a price line at 200 on this chart\"",
+     "drawing.addLevel: \"mark the 200 level with a line\""
+    ],
+    "args": [
+     "corpus drawing.addLevel"
+    ],
+    "execution": [
+     "drawing.addLevel (c)"
+    ],
+    "receipt": [
+     "drawing.addLevel (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "drawing.addLevel: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -2972,28 +3010,46 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "drawing.clear: \"clear all my drawings\"",
+     "drawing.clear: \"clear every drawing on NVDA\"",
+     "drawing.clear: \"wipe the drawings off this chart\"",
+     "drawing.clear: \"remove all drawings\""
+    ],
+    "routing": [
+     "drawing.clear: \"clear all my drawings\"",
+     "drawing.clear: \"clear every drawing on NVDA\"",
+     "drawing.clear: \"wipe the drawings off this chart\"",
+     "drawing.clear: \"remove all drawings\""
+    ],
+    "args": [
+     "corpus drawing.clear"
+    ],
+    "execution": [
+     "drawing.clear (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "drawing.clear: waits for Apply"
+    ],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "drawing.clear: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -3010,28 +3066,44 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
     "permission": true,
     "undo": null,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "drawing.list: \"list my drawings\"",
+     "drawing.list: \"what drawings are on this chart\"",
+     "drawing.list: \"show me the drawings on NVDA\"",
+     "drawing.list: \"which lines have I drawn\""
+    ],
+    "routing": [
+     "drawing.list: \"list my drawings\"",
+     "drawing.list: \"what drawings are on this chart\"",
+     "drawing.list: \"show me the drawings on NVDA\"",
+     "drawing.list: \"which lines have I drawn\""
+    ],
+    "args": [
+     "corpus drawing.list"
+    ],
+    "execution": [
+     "drawing.list (c)"
+    ],
     "receipt": [],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "drawing.list: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -3086,28 +3158,48 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.remove: \"delete that line\"",
+     "drawing.remove: \"remove the line at 200\"",
+     "drawing.remove: \"get rid of the horizontal line\"",
+     "drawing.remove: \"erase the 200 line\""
+    ],
+    "routing": [
+     "drawing.remove: \"delete that line\"",
+     "drawing.remove: \"remove the line at 200\"",
+     "drawing.remove: \"get rid of the horizontal line\"",
+     "drawing.remove: \"erase the 200 line\""
+    ],
+    "args": [
+     "corpus drawing.remove"
+    ],
+    "execution": [
+     "drawing.remove (c)"
+    ],
+    "receipt": [
+     "drawing.remove (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
-    "multiStep": [],
+    "undo": [
+     "drawing.remove: undo restores"
+    ],
+    "multiStep": [
+     "drawing.remove: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -3162,28 +3254,47 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 3,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.setLevel: \"move the line to 210\"",
+     "drawing.setLevel: \"set that level to 210\"",
+     "drawing.setLevel: \"drag the line to 210\""
+    ],
+    "routing": [
+     "drawing.setLevel: \"move the line to 210\"",
+     "drawing.setLevel: \"move the 200 line up to 210\"",
+     "drawing.setLevel: \"set that level to 210\"",
+     "drawing.setLevel: \"drag the line to 210\""
+    ],
+    "args": [
+     "corpus drawing.setLevel"
+    ],
+    "execution": [
+     "drawing.setLevel (c)"
+    ],
+    "receipt": [
+     "drawing.setLevel (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
-    "multiStep": [],
+    "undo": [
+     "drawing.setLevel: undo restores"
+    ],
+    "multiStep": [
+     "drawing.setLevel: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -3238,28 +3349,46 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "drawing.style: \"make the line red\"",
+     "drawing.style: \"color that line red\"",
+     "drawing.style: \"change the 200 line to red\"",
+     "drawing.style: \"turn the horizontal line red\""
+    ],
+    "routing": [
+     "drawing.style: \"make the line red\"",
+     "drawing.style: \"color that line red\"",
+     "drawing.style: \"change the 200 line to red\"",
+     "drawing.style: \"turn the horizontal line red\""
+    ],
+    "args": [
+     "corpus drawing.style"
+    ],
+    "execution": [
+     "drawing.style (c)"
+    ],
+    "receipt": [
+     "drawing.style (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "drawing.style: after an earlier turn"
+    ],
     "phrasings": []
    }
   },

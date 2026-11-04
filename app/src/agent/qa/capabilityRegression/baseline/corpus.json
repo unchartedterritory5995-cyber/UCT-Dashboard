@@ -3278,6 +3278,457 @@
         "get rid of my RSI indicator alert",
         "cancel the RSI alert"
       ]
+    },
+    {
+      "id": "drawing.addLevel",
+      "source": "Batch D2 (11-04): chart drawings through the real drawings store (host.buildDrawingSource) (live B-03 family)",
+      "capabilities": [
+        "drawing.addLevel"
+      ],
+      "board": "DRAW",
+      "needs": [
+        "drawing.addLevel"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.addLevel",
+            "args": {
+              "price": 200
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.addLevel",
+            "target": "$drawings[0]",
+            "args": {
+              "price": 200,
+              "color": null,
+              "style": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "type": "horizontal",
+            "points.0.price": 200
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 0
+          }
+        }
+      },
+      "phrasings": [
+        "draw a horizontal line at 200",
+        "put a line at $200",
+        "add a horizontal level at 200",
+        "draw a price line at 200 on this chart",
+        "mark the 200 level with a line"
+      ]
+    },
+    {
+      "id": "drawing.list",
+      "source": "Batch D2 (11-04): chart drawings through the real drawings store (host.buildDrawingSource) (live B-01c)",
+      "capabilities": [
+        "drawing.list"
+      ],
+      "board": "DRAW",
+      "before": [
+        {
+          "say": "draw a horizontal line at 200",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addLevel",
+                "target": "$drawings[0]",
+                "args": {
+                  "price": 200,
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        }
+      ],
+      "needs": [
+        "drawing.list"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.list",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.list",
+            "target": "$drawings[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1
+        },
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "list my drawings",
+        "what drawings are on this chart",
+        "show me the drawings on NVDA",
+        "which lines have I drawn"
+      ],
+      "recentActions": [
+        "drawing.addLevel"
+      ]
+    },
+    {
+      "id": "drawing.setLevel",
+      "source": "Batch D2 (11-04): chart drawings through the real drawings store (host.buildDrawingSource)",
+      "capabilities": [
+        "drawing.setLevel"
+      ],
+      "board": "DRAW",
+      "before": [
+        {
+          "say": "draw a horizontal line at 200",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addLevel",
+                "target": "$drawings[0]",
+                "args": {
+                  "price": 200,
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        }
+      ],
+      "needs": [
+        "drawing.setLevel"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.setLevel",
+            "args": {
+              "price": 210
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setLevel",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "price": 210
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "has": {
+            "points.0.price": 210
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 1,
+            "has": {
+              "points.0.price": 200
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "move the line to 210",
+        {
+          "text": "move the 200 line up to 210",
+          "gaps": {
+            "b": {
+              "id": "CG-22",
+              "reason": "WRONG deterministic reading (the CG-15 family): the quote fast reader claims 'move the 200 line up to 210' as a price quote for the 'symbol' LINE — no model call, the line is not moved",
+              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+              "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"line\"]}}],\"via\":\"fastPath\"}"
+            },
+            "c": {
+              "id": "CG-22",
+              "reason": "through the panel the move becomes a quote read; the line stays at 200",
+              "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+              "mode": "a drawing {\"points.0.price\":210}"
+            }
+          }
+        },
+        "set that level to 210",
+        "drag the line to 210"
+      ],
+      "recentActions": [
+        "drawing.addLevel"
+      ]
+    },
+    {
+      "id": "drawing.style",
+      "source": "Batch D2 (11-04): chart drawings through the real drawings store (host.buildDrawingSource)",
+      "capabilities": [
+        "drawing.style"
+      ],
+      "board": "DRAW",
+      "before": [
+        {
+          "say": "draw a horizontal line at 200",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addLevel",
+                "target": "$drawings[0]",
+                "args": {
+                  "price": 200,
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        }
+      ],
+      "needs": [
+        "drawing.style"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.style",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.style",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "color": "#ef4444",
+              "style": null,
+              "width": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 1,
+          "colour": "red"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "make the line red",
+        "color that line red",
+        "change the 200 line to red",
+        "turn the horizontal line red"
+      ],
+      "recentActions": [
+        "drawing.addLevel"
+      ]
+    },
+    {
+      "id": "drawing.remove",
+      "source": "Batch D2 (11-04): chart drawings through the real drawings store (host.buildDrawingSource)",
+      "capabilities": [
+        "drawing.remove"
+      ],
+      "board": "DRAW",
+      "before": [
+        {
+          "say": "draw a horizontal line at 200",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addLevel",
+                "target": "$drawings[0]",
+                "args": {
+                  "price": 200,
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        }
+      ],
+      "needs": [
+        "drawing.remove"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.remove",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.remove",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 0
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 1
+          }
+        }
+      },
+      "phrasings": [
+        "delete that line",
+        "remove the line at 200",
+        "get rid of the horizontal line",
+        "erase the 200 line"
+      ],
+      "recentActions": [
+        "drawing.addLevel"
+      ]
+    },
+    {
+      "id": "drawing.clear",
+      "source": "Batch D2 (11-04): chart drawings through the real drawings store (host.buildDrawingSource) (live I-03)",
+      "capabilities": [
+        "drawing.clear"
+      ],
+      "board": "DRAW",
+      "before": [
+        {
+          "say": "draw a horizontal line at 200",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addLevel",
+                "target": "$drawings[0]",
+                "args": {
+                  "price": 200,
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        }
+      ],
+      "needs": [
+        "drawing.clear"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "drawing.clear",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.clear",
+            "target": "$drawings[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "drawings": {
+          "count": 1
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "drawings": {
+          "count": 0
+        }
+      },
+      "phrasings": [
+        "clear all my drawings",
+        "clear every drawing on NVDA",
+        "wipe the drawings off this chart",
+        "remove all drawings"
+      ],
+      "recentActions": [
+        "drawing.addLevel"
+      ]
     }
   ],
   "refusals": [
