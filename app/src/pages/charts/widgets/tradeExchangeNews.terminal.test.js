@@ -244,8 +244,9 @@ describe('calendar days', () => {
     expect(mergeDay(srv, pool, { dateKey: '2026-10-29' }).map((i) => i.seq)).toEqual([10, 9, 13])
   })
 
-  it('the archive note states the real reach and the retention bound', () => {
-    expect(archiveTitle(NOW - 3 * 86_400_000, NOW)).toMatch(/^The retained archive reaches back to .+\. UCT keeps about 7 days of headlines, up to 5,000; nothing older is available\.$/)
+  it('the archive note states the real reach and that the archive is permanent', () => {
+    expect(archiveTitle(NOW - 3 * 86_400_000, NOW)).toMatch(/^The UCT News archive reaches back to .+\. Every Trade Exchange headline since then is kept permanently\.$/)
+    expect(archiveTitle(NOW - 3 * 86_400_000, NOW)).not.toMatch(/7 days|5,000|aged out/)
     expect(archiveTitle(null, NOW)).toMatch(/empty so far/)
   })
 })

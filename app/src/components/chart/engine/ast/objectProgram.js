@@ -1654,5 +1654,11 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
   })
   const ops = bindOps(program.ops)
   const { trees, ...rest } = program
+  // ⭐ C48 (object lane) — a block-run stamp names its tree like every other
+  // reference: `{tree}` unbound, `{node}` once bound (`objectColumns.js` reads it).
+  if (Array.isArray(rest.blockRuns)) {
+    rest.blockRuns = rest.blockRuns.map((e) => (isObj(e) && Number.isInteger(e.tree)
+      ? (({ tree, ...r }) => ({ ...r, node: nodeOf(tree) }))(e) : e))
+  }
   return { ...rest, ops }
 }

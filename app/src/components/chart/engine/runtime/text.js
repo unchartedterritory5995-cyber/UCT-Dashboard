@@ -26,6 +26,7 @@
 // nobody reads again.
 
 import { formatNumber } from '../objectRuntime.js'
+import { timestampMs, instantField, INSTANT_FIELDS } from './clockFns.js'
 
 /**
  * @typedef {object} TextFn
@@ -107,8 +108,29 @@ export const RUN_TEXT_FNS = Object.freeze({
   },
 })
 
-/** Every text op the VM can execute: the shared table plus the run-only one. */
-export const TEXT_IMPL = Object.freeze({ ...TEXT_FNS, ...RUN_TEXT_FNS })
+/**
+ * ⭐⭐ P3 WS-B — PINE'S CLOCK OVER AN INSTANT THE RUN COMPUTES (`clockFns.js`).
+ *
+ * `timestamp(zone, y, mo, d, h, mi, s)` and `<field>(t, zone)` for the seven
+ * calendar fields. They ride `OP.TEXT` because it is this VM's one TYPED builtin
+ * op — operand kinds declared per entry and checked at one site — and a zone is
+ * text; each RETURNS A NUMBER (UNIX milliseconds, or the field), so nothing
+ * textual survives. ⛔ Kept OUT of `TEXT_FNS` for the reason `RUN_TEXT_FNS` is:
+ * that table is the front end's admission list by Pine NAME, and these names
+ * (`timestamp/zone`, `year/instant`) are this lane's spellings, emitted only by
+ * the front end after it has read the call's arguments and canonicalised the zone
+ * (`clockFns.js::canonicalZone`).
+ */
+const num6 = ['number', 'number', 'number', 'number', 'number', 'number']
+export const CLOCK_TEXT_FNS = Object.freeze({
+  'timestamp/zone': { args: ['string', ...num6], returns: 'number', fn: (z, y, mo, d, h, mi, s) => timestampMs(z, y, mo, d, h, mi, s) },
+  ...Object.fromEntries(INSTANT_FIELDS.map((f) => [`${f}/instant`, {
+    args: ['number', 'string'], returns: 'number', fn: (t, z) => instantField(f, t, z),
+  }])),
+})
+
+/** Every text op the VM can execute: the shared table plus the run-only ones. */
+export const TEXT_IMPL = Object.freeze({ ...TEXT_FNS, ...RUN_TEXT_FNS, ...CLOCK_TEXT_FNS })
 
 /** The names this lane serves, for the front end's admission check. */
 export const TEXT_NAMES = Object.freeze(Object.keys(TEXT_FNS))

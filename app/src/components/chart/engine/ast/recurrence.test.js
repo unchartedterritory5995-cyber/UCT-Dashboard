@@ -19,7 +19,7 @@
 import { describe, it, expect } from 'vitest'
 import { interpret, FN, TableRefusal, MAX_RECURRENCE_STEPS } from './interpret.js'
 import { astReach, maxLookback, modeFromReach } from './lint.js'
-import { TABLE, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, isPointwise } from './parse.js'
+import { TABLE, RECURRENCES, RECURRENCE_BINDINGS, MULTI_STATES, BAR_READERS, isPointwise } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // fixtures
@@ -416,7 +416,8 @@ describe('the recurrence is DECLARED, so neither lane types its shape', () => {
     const implemented = Object.keys(FN).sort()
     const missing = declared.filter((n) => !implemented.includes(n))
     const extra = implemented.filter((n) => !declared.includes(n))
-    const byWalker = [...new Set([...Object.keys(RECURRENCES), ...BAR_READERS])].sort()
+    // ⭐ 2026-10-30 — `multiState` entries are walker-stepped too, read off the manifest.
+    const byWalker = [...new Set([...Object.keys(RECURRENCES), ...Object.keys(MULTI_STATES), ...BAR_READERS])].sort()
     expect(BAR_READERS.length, 'the bar-reading exception must be non-empty')
       .toBeGreaterThan(0)
     expect(extra.join(', '), 'an implemented function the table never declared').toBe('')

@@ -318,10 +318,13 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const v = grade('trend-targets-algoalpha-spy-1d-2026-10-02', 'runtime').v
     expect(v.objects.reason).toMatch(/runtime:warmup-never-converges/)
   }, T)
-  it.fails('wyckoff-accumulation-distribution RDDT (runtime pane): MATCH', () => {
+  // ⭐ WS-E (2026-10-31) — FLIPPED from `it.fails`: a leftward `offset` is carried
+  // (`plots[].displace`), so wyckoff's eight offset plotshapes are drawn where
+  // TradingView draws them, and the whole RDDT capture grades MATCH.
+  it('wyckoff-accumulation-distribution RDDT (runtime pane): MATCH', () => {
     expect(grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
   }, T)
-  it('control: wyckoff — RDDT: the run draws the 12 boxes TradingView draws (RT7); SPY (22): withheld by name; the offset barcolor is withheld', () => {
+  it('control: wyckoff — RDDT: the run draws the 12 boxes TradingView draws (RT7); SPY: the calc_bars_count window draws its boxes and barcolor (WS-E)', () => {
     // RT5 (step 72): the run now OWNS its drawings, so the objects verdict reads the
     // run's own answer: RDDT stops on an engine error (the same one that leaves the
     // 8 plots without a column), SPY on `calc_bars_count = 1000` against 1,800 bars.
@@ -342,12 +345,14 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
       expect(v.paints.verdict).toBe('MATCH')
       expect(v.paints.reason).toMatch(/agree bar for bar/)
     }
+    // ⭐ WS-E (2026-10-31) — SPY (1,800 bars, `calc_bars_count = 1000`) now runs over
+    // its last 1,000 bars as TradingView does (`runtime/calcBarsWindow.js`): its boxes
+    // and its barcolor agree with TradingView instead of being withheld
+    // (`vendorHarness.wseCalcBars` holds every item).
     const v = grade('wyckoff-accumulation-distribution-spy-1d-2026-10-02', 'runtime').v
-    expect(v.objects.verdict).toBe('INCONCLUSIVE')
-    expect(v.objects.reason).toMatch(/runtime:calc-bars-count|the run drew nothing/)
-    // SPY: the run computes nothing (off the listing / calc_bars_count), so its barcolor
-    // is not drawn, by name — withheld, never painted wrong (F1's own pin).
-    expect(v.paints.reason).toMatch(/notDrawn/)
+    expect(v.objects.verdict).toBe('MATCH')
+    expect(v.paints.verdict).toBe('MATCH')
+    expect(v.verdict).toBe('MATCH')
   }, T)
   it('fibonacci-dolphintradebot RDDT (runtime pane): MATCH — RT5 draws the 7 lines + 7 labels from the run', () => {
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v

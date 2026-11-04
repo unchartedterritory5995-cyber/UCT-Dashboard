@@ -1,0 +1,34 @@
+{
+  "_comment": "D2 fix round 2, N4: an embed as the alias of a FILE wikilink reads as the image, then the file chip, on both lanes. The refs pin what real Obsidian 1.13.7 and plugin 0.2.1 send (issue #2 in obsidian-uct-notebook-sync, measured 2026-11-03): Obsidian's cache holds ONLY the embed (`![[img.png]]`) for this text and no link entry at all, and the plugin reads the link from the body at the embed's cached position and sends the WHOLE link as one non-embed original beside the embed's own ref. The r.pdf and s.pdf lines are the same shape; the s line lists the embed's ref BEFORE the link's, so the ref order is pinned not to matter. The cut-off original (`[[r.pdf|![[img2.png]]`), which Obsidian 1.13.7 does not produce, is kept as server robustness in fixture 33.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "attachments/q.pdf",
+    "attachments/img.png",
+    "attachments/r.pdf",
+    "attachments/img2.png",
+    "attachments/s.pdf",
+    "attachments/img3.png"
+  ],
+  "attachments": [
+    {"original": "[[q.pdf|![[img.png]]]]", "embed": false,
+     "path": "attachments/q.pdf", "size": 4096,
+     "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
+    {"original": "![[img.png]]", "embed": true,
+     "path": "attachments/img.png", "size": 1024,
+     "sha256": "7c1f0b0e8b6f2d4f5a3c9e1d0b2a4c6e8f0a1b3c5d7e9f1a3b5c7d9e1f3a5b7c", "status": "ok"},
+    {"original": "[[r.pdf|![[img2.png]]]]", "embed": false,
+     "path": "attachments/r.pdf", "size": 4096,
+     "sha256": "1f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a7988", "status": "ok"},
+    {"original": "![[img2.png]]", "embed": true,
+     "path": "attachments/img2.png", "size": 1024,
+     "sha256": "2a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"},
+    {"original": "![[img3.png]]", "embed": true,
+     "path": "attachments/img3.png", "size": 1024,
+     "sha256": "3a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"},
+    {"original": "[[s.pdf|![[img3.png]]]]", "embed": false,
+     "path": "attachments/s.pdf", "size": 4096,
+     "sha256": "4a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"}
+  ]
+}

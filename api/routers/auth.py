@@ -780,6 +780,19 @@ def _auto_structures_flag(is_admin: bool, is_paid: bool = False) -> dict:
         return {}
 
 
+def _chart_iq_flag(is_admin: bool, is_paid: bool = False) -> dict:
+    """`chart_iq_enabled: True` while this viewer may draw Chart IQ on a chart: an admin while CHART_IQ_ENABLED is on, a
+    PAID member while CHART_IQ_MEMBERS_ENABLED is on too. Read PER CALL through the SAME predicates the route asks
+    (api/routers/chart_iq.enabled / .members_enabled), so the toggle and the route cannot disagree. Never raises."""
+    try:
+        from api.routers import chart_iq
+        if is_admin:
+            return {"chart_iq_enabled": True} if chart_iq.enabled() else {}
+        return {"chart_iq_enabled": True} if (is_paid and chart_iq.members_enabled()) else {}
+    except Exception:  # noqa: BLE001 -- a feature flag must never become a login outage
+        return {}
+
+
 def _feature_status(payload: dict) -> dict:
     """TERM-039's `feature_status` field, derived from the payload just built.
 
@@ -973,7 +986,10 @@ def _access_payload(user: dict, plan: str) -> dict:
         # `runtime_definitions.pane_permitted` — the same function the save
         # door asks of the saving member. The client needs BOTH this and the
         # build flag (`runtimePaneGate.runtimePaneEnabled`), and latches it per tab.
-        **_pine_runtime_pane_flag(user.get("role")),
+        # ⭐ WS-I (R2) — and the member's id, for the `cohort` stage's tag read
+        # (`rollout_gate.pine_runtime_cohort_enabled_for`, which reads nothing
+        # unless the stage IS `cohort`).
+        **_pine_runtime_pane_flag(user.get("role"), user.get("id")),
         **_lane_r_client_flags(),
         # ── Auto Structures (AUTO_STRUCTURES_ENABLED, dark) ─────────────────
         # `auto_structures_enabled` ONLY for an admin while on. A PAID member gets
@@ -981,6 +997,8 @@ def _access_payload(user: dict, plan: str) -> dict:
         # AUTO_STRUCTURES_MEMBERS_ENABLED is on too (trusted tier only); with it
         # off a member's payload stays byte-identical whatever the admin flag says.
         **_auto_structures_flag(is_admin, bool(is_paid_plan or trial_active)),
+        # ── Chart IQ (CHART_IQ_ENABLED / CHART_IQ_MEMBERS_ENABLED, dark): the chart toggle's one signal ──
+        **_chart_iq_flag(is_admin, bool(is_paid_plan or trial_active)),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are
@@ -1013,16 +1031,17 @@ def _charts_list_subscribe_flag() -> dict:
         return {}
 
 
-def _pine_runtime_pane_flag(role) -> dict:
+def _pine_runtime_pane_flag(role, user_id=None) -> dict:
     """GT (owner ruling D1) — may THIS member's pane draw through the runtime lane?
 
     ⛔ ALWAYS A BOOLEAN, and FALSE unless `PINE_RUNTIME_STAGE` says otherwise
     for this member: unset reads `off`, `admins` is true for `role == "admin"`
-    only, `all` is true for everyone. ⛔ NEVER RAISES: this is the universal auth
+    only, `cohort` (WS-I, R2) is true for admins and for members tagged into the
+    `pine-runtime-pane` cohort, `all` is true for everyone. ⛔ NEVER RAISES: this is the universal auth
     path, and an unreadable stage is an OFF stage."""
     try:
         from api.services import runtime_definitions
-        return {"pine_runtime_pane_enabled": bool(runtime_definitions.pane_permitted(role))}
+        return {"pine_runtime_pane_enabled": bool(runtime_definitions.pane_permitted(role, user_id))}
     except Exception:  # noqa: BLE001 -- a feature flag must never become a login outage
         return {"pine_runtime_pane_enabled": False}
 

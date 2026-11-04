@@ -115,7 +115,12 @@ describe('⭐⭐ a daily bar keyed by a DATE opens at its session open — the v
     expect(barOpenInstant('1993-04-05', undefined)).toBe(null) // an absent tf never guesses daily
     expect(barOpenInstant(19930405, 'D')).toBe(null)          // the screen's YYYYMMDD int
     expect(barOpenInstant('2025-02-30', 'D')).toBe(null)      // not a date
-    expect(barOpenInstant('1989-12-29', 'D')).toBe(null)      // below the unit floor
+    // ⚰️ This said `'1989-12-29'` is null, "below the unit floor". The 1990 floor guards a
+    // NUMBER (the `YYYYMMDD` int above); applied to a DATE it blanked every clock column of
+    // any series holding one pre-1990 bar (FX:EURUSD 1D, AAPL deep history). 2026-10-31
+    // (`fix/fx-clock-blank`): a date is read back to the start of standard time.
+    expect(barOpenInstant('1989-12-29', 'D')).toBe(630945000)  // Fri 09:30 EST
+    expect(barOpenInstant('1883-11-18', 'D')).toBe(null)      // New York local mean time
     expect(barOpenInstant(734016600, 'D')).toBe(734016600)    // an instant passes as itself
   })
 

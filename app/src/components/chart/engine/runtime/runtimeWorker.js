@@ -14,8 +14,13 @@
 import { computeRuntimeColumns, RUNTIME_PANE_TIME_BUDGET_MS } from './runtimeColumns.js'
 import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 
+// ⭐ P3 WS-H (S8) — how long the run took, IN the worker (a stop's beacon reports
+// it; the main thread's own clock would also count the queue and the bundle load).
+const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
+
 self.onmessage = (event) => {
   const { id, def, rows, ctx } = event.data || {}
+  const startedAt = clock()
   try {
     const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
     // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
@@ -33,6 +38,7 @@ self.onmessage = (event) => {
         message: String((err && err.message) || err),
         guard: (err && err.guard) || null,
         bar: err && Number.isInteger(err.bar) ? err.bar : null,
+        ms: Math.max(0, Math.round(clock() - startedAt)),
       },
     })
   }

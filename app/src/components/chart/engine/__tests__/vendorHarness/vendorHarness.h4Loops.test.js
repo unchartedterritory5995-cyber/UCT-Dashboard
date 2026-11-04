@@ -278,12 +278,26 @@ plot(s, "vis")
 plot(s * 2, "hid", display=display.none)
 plot(s, "shift", offset=-2)
 `
-  it('⭐ the hidden plot is not drawn, the shifted one is withheld by name, the visible one is drawn', () => {
+  // ⭐ WS-E (2026-10-31) — a LEFTWARD literal `offset` is now carried on the runtime
+  // row (`plots[].displace`, drawn by the binder as a host row's is) instead of
+  // withheld; a rightward one is still withheld by name.
+  it('⭐ the hidden plot is not drawn, the left-shifted one is drawn displaced, the visible one is drawn', () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
     vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
     const door = enterMemberDoor(SRC)
     expect(door.def, door.refusal).toBeTruthy()
     expect(door.built.lane).toBe('runtime')
+    expect((door.built.rows || []).map((r) => r.label)).toEqual(['vis', 'shift'])
+    expect(door.built.withheld).toEqual([])
+    const shift = door.built.definition.plots.find((p) => p.label === 'shift')
+    expect(shift.displace).toBe(-2)
+    expect(door.built.definition.plots.find((p) => p.label === 'vis').displace).toBeUndefined()
+  })
+
+  it('⛔ CONTROL — a RIGHTWARD offset is still withheld by name', () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    const door = enterMemberDoor(SRC.replace('offset=-2', 'offset=2'))
     expect((door.built.rows || []).map((r) => r.label)).toEqual(['vis'])
     expect(door.built.withheld).toEqual(['shift'])
   })

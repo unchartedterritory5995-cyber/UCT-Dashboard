@@ -71,7 +71,7 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 25   # 10 -> 15 (2026-10-06): + the production dependency smoke; 15 -> 25 (2026-10-11): + the UCT Agent tests (npm ci + vitest)
+    timeout-minutes: 60   # 40 -> 60 (2026-11-04, owner-approved): release train 2 ran the gate 35.2 of 40 min on 3d3d444d4f (Agent vitest 23.7 min, serial); 10 -> 15 (2026-10-06): + the production dependency smoke; 15 -> 25 (2026-10-11): + the UCT Agent tests (npm ci + vitest); 25 -> 40 (2026-11-02): Sprint 1 grew the Agent vitest step to 16.2 min and the gate ran 23.5 of 25 min on c3ba71c343
     steps:
       # Two commits so the secret scan has a range to look at; without this
       # `HEAD^` does not resolve and the scan silently has nothing to scan.
@@ -297,6 +297,12 @@ jobs:
       # its subject must not be able to report "clean".
       - name: Visibility flags are declared (offline)
         run: python -m pytest tests/test_visibility_flag_ledger.py -q
+
+      # The server reads the saved-script engine number from the browser's
+      # scriptEngineVersion.js. A bump written in a shape it cannot parse reads as None:
+      # every recorded refusal then binds on the server while the chart moves on.
+      - name: The saved-script engine number parses (offline)
+        run: python -m pytest tests/test_script_engine_version_gate.py -q
 
       - name: Line endings match the stored blobs
         run: python tools/check_repo_hygiene.py

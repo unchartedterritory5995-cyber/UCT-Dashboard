@@ -1,0 +1,49 @@
+//@version=4
+study("UCTPROBE_VW_ARM_HISTORY_V4", overlay = false, max_bars_back = 5000)
+
+// --- 2026-10-31 prod-ternary - IS A v4 `?:` ARM LAZY? AND DOES v4 `iff` RUN BOTH? ---
+//
+// `vw-arm-history` (v6) witnessed that a `ta.*` written in a `?:` arm keeps the
+// history of only the bars its arm runs: T03 / T04 / T05 / K02 / K03 equal the
+// per-run reading on every one of RDDT's 636 bars. TradingView documents the same
+// for v5 (to-v5 guide: "the ternary operator is evaluated lazily"). For v4 nothing
+// is witnessed, and the v4 manual says `iff` "acts identically to the ?: operator"
+// while the to-v5 guide says `iff` "always evaluated both values". So the plot lane
+// withholds a v5 / v6 arm by name (`pine.js::stampTernaryArms`) and draws a v4 one
+// as it always did. This probe settles v4 both ways:
+//
+//   T*  `up ? sma(close, 5) : close` and siblings - per run, or every bar?
+//   K*  the same on every other bar (a window over runs and one over bars differ on
+//       every bar)
+//   F*  the same through `iff` - if these equal the EVERY-BAR reading while T* equal
+//       the per-run one, `iff` and `?:` differ in v4 exactly as the to-v5 guide says
+//   U*  a script function that reads its own history (`src[1]`), called in an arm
+//   E*  the every-bar answers
+//
+// CAPTURE: NYSE:RDDT 1D from the listing (every execution on a loaded bar), inputs at
+// defaults; AMEX:SPY 1D as a second witness. NEVER COMPILED ON TRADINGVIEW: a row that
+// does not compile names its line - split it out and capture the rest.
+
+up = close > open
+even = bar_index % 2 == 0
+f(src) => src - src[1]
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(sma(close, 5), "E03_sma_every_bar")
+plot(ema(close, 5), "E04_ema_every_bar")
+plot(change(close), "E05_change_every_bar")
+
+plot(up ? sma(close, 5) : close, "T03_sma_in_true_arm")
+plot(up ? ema(close, 5) : close, "T04_ema_in_true_arm")
+plot(up ? change(close) : 0.0, "T05_change_in_true_arm")
+plot(up ? 1 : 0, "T07_test_CONTROL")
+
+plot(even ? sma(close, 3) : na, "K02_sma3_on_even_bars")
+plot(even ? change(close) : na, "K03_change_on_even_bars")
+
+plot(iff(up, sma(close, 5), close), "F03_sma_through_iff")
+plot(iff(up, change(close), 0.0), "F05_change_through_iff")
+plot(iff(even, sma(close, 3), na), "F02_sma3_through_iff_even")
+
+plot(up ? f(close) : 0.0, "U01_history_function_in_true_arm")
+plot(f(close), "U02_history_function_every_bar")

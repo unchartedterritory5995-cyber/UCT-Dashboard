@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { _resetNoteLinkTargetsBatchForTests } from '../../lib/noteLinkTargetsBatch'
 
@@ -21,6 +21,10 @@ const NOTE = {
         { type: 'text', text: 'See ' },
         { type: 'noteLink', attrs: { noteId: 'target-1' } },
         { type: 'text', text: ' for background.' },
+      ] },
+      // Plan A Task 2 (L-1): an imported wiki link, resolved to an internal note href.
+      { type: 'paragraph', content: [
+        { type: 'text', text: 'my alias', marks: [{ type: 'link', attrs: { href: '/journal?j2tab=notebook&note=target-2' } }] },
       ] },
     ],
   },
@@ -48,9 +52,14 @@ beforeEach(() => {
 })
 afterEach(() => vi.clearAllMocks())
 
+function LocationProbe() {
+  const loc = useLocation()
+  return <output data-testid="loc">{loc.pathname + loc.search}</output>
+}
+
 async function renderEditor() {
   const NoteEditorPage = (await import('./NoteEditorPage')).default
-  render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>)
+  render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /><LocationProbe /></MemoryRouter>)
   await screen.findByPlaceholderText('Title')
 }
 
@@ -72,5 +81,29 @@ describe('NoteEditorPage — Wave D internal note links', () => {
     await renderEditor()
     await waitFor(() => expect(screen.getByText('Background Thesis')).toBeInTheDocument())
     expect(screen.queryByText(/Linked from/)).toBeNull()
+  })
+})
+
+describe('NoteEditorPage — Plan A Task 2 (L-1): an internal link MARK opens in-app', () => {
+  it('Ctrl+click on a /journal?j2tab=notebook&note= link routes through the noteLink door, never history fallback or a new tab', async () => {
+    const pushSpy = vi.spyOn(window.history, 'pushState')
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => {})
+    try {
+      await renderEditor()
+      const a = await waitFor(() => {
+        const el = [...document.querySelectorAll('a[href]')]
+          .find((x) => x.getAttribute('href') === '/journal?j2tab=notebook&note=target-2') || null
+        expect(el).not.toBeNull()
+        return el
+      })
+      fireEvent.pointerDown(a, { pointerType: 'mouse', bubbles: true })
+      fireEvent.click(a, { ctrlKey: true, bubbles: true })
+      await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe('/journal/notebook?note=target-2'))
+      expect(pushSpy).not.toHaveBeenCalled()
+      expect(openSpy).not.toHaveBeenCalled()
+    } finally {
+      pushSpy.mockRestore()
+      openSpy.mockRestore()
+    }
   })
 })

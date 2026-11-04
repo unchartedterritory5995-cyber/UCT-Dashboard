@@ -25,7 +25,8 @@
 // maxOps), at most MAX_STEPS steps. A larger step stops the request before it runs, with the reason.
 
 import { fastParse, matchPosition, canon } from './fastPath'
-import { multiChartPlan, gridTickers } from './multiChart'
+import { multiChartPlan, gridTickers, isWorkspaceRequest, asksForWatchlistRail } from './multiChart'
+import { labelMap } from '../widgets/registry'
 import { followUpShape, resolveFollowUp } from './conversation'
 import { getCapability, getTargetKind } from './capabilities'
 import { chartRefOf } from './deixis'
@@ -118,6 +119,56 @@ export function planCompound(text, { host } = {}) {
   return { steps }
 }
 
+// ── ⭐ PHASE 3 acceptance (live 2026-10-31): a WHOLE workspace on a board that already holds other things ─────────────────
+// "make me a workspace with four daily charts for NVDA AMD AVGO and MU, a watchlist, and RSI beneath each chart" describes
+// the board the member wants. On a board of only (at most that many) charts it is built in place, as before. On a board
+// that also holds widgets the request does not include (a News feed, a Screener, more charts, a Watchlist that is not the
+// right-hand rail), building in place would squeeze the request into whatever space the charts happen to have — so the
+// member is asked ONCE: replace the current board (a proposal naming what goes; Undo restores it) or build it in a new
+// layout (the current board untouched). Either way the WHOLE request then runs, step by step, through the same execute.
+const LABELS = (() => { try { return labelMap('menu') } catch { return {} } })()
+const widgetName = (t) => LABELS[t] || t
+export const WORKSPACE_CHOICES = [{ ref: 'workspace:replace', label: 'Replace current board' }, { ref: 'workspace:new', label: 'New layout' }]
+/** The first step is a whole workspace and the board holds widgets it does not include → { names } (what's there), else null. */
+export function workspaceConflict(host, steps) {
+  const first = steps?.[0]
+  if (first?.kind !== 'grid' || !isWorkspaceRequest(first.text)) return null
+  let s = null
+  try { s = host?.widgets?.snapshot?.() || null } catch { s = null }
+  if (!s) return null
+  const raw = s.raw || []
+  const cols = s.grid?.cols ?? 24
+  const rows = s.grid?.rows ?? 20
+  const n = gridTickers(first.text, host).length
+  const charts = raw.filter(w => w.type === 'chart')
+  const lists = raw.filter(w => w.type === 'watchlist')
+  // a Watchlist already standing as the right-hand rail IS the one asked for
+  const railHere = asksForWatchlistRail(first.text) && lists.length === 1 && lists[0].x + lists[0].w === cols && lists[0].y === 0 && lists[0].h === rows
+  const others = raw.filter(w => w.type !== 'chart' && !(railHere && w === lists[0]))
+  if (!others.length && charts.length <= n) return null
+  const counts = new Map()
+  for (const w of [...others, ...(charts.length > n ? charts.slice(n) : [])]) counts.set(w.type, (counts.get(w.type) || 0) + 1)
+  const names = [...counts].map(([t, k]) => (k === 1 ? `a ${widgetName(t)}` : `${k} ${widgetName(t)}s`))
+  if (charts.length > n) names.unshift(`${charts.length} charts`)
+  return { names: [...new Set(names)] }
+}
+const andWords = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+export function workspaceQuestion(conflict) {
+  return `Your board already has ${andWords(conflict.names)} on it. Should I replace the current board with this workspace (you approve it first, and Undo puts everything back), or build it in a new layout and leave this board as it is?`
+}
+/** The member's pick → the steps to run: the same request, its grid replacing the board, or after a new layout is made and opened. */
+export function workspaceSteps(steps, pick, host, entries = []) {
+  if (pick === 'workspace:replace') return [{ ...steps[0], replace: true, resume: true }, ...steps.slice(1).map(s => ({ ...s, resume: true }))]
+  const syms = gridTickers(steps[0].text, host)
+  const base = `${syms.join(' ')} workspace`.slice(0, 60)
+  const taken = new Set((entries || []).map(e => String(e.name || '').trim().toLowerCase()))
+  let name = base
+  for (let i = 2; taken.has(name.toLowerCase()) && i < 50; i++) name = `${base} ${i}`
+  return [{ text: `create a new layout called ${name}`, kind: 'newLayout', name, resume: true },
+    { text: `open ${name}`, kind: 'openLayout', name, resume: true },
+    ...steps.map(s => ({ ...s, resume: true }))]
+}
+
 // ── RUN: one step against the live board ────────────────────────────────────────────────────────────
 function chartsOf(host) { try { return host?.charts?.list?.() || [] } catch { return [] } }
 
@@ -185,11 +236,17 @@ export function resolveStep(step, { host, memory, epoch = null, working = null }
     }
     return { ops }
   }
+  if (step.kind === 'newLayout') return { ops: [{ action: 'layout.create', target: 'layouts', args: { name: step.name } }] }
+  if (step.kind === 'openLayout') return { ops: [{ action: 'layout.open', target: 'layouts', args: { layout: step.name } }] }
   if (step.kind === 'grid') {
     const g = multiChartPlan(t, { host })
     if (g?.kind !== 'ops') return { say: g?.text || `I couldn't read “${t}” any more.` }
     const symbols = gridTickers(t, host)
-    return { ops: g.ops, grid: symbols }
+    if (!step.replace) return { ops: g.ops, grid: symbols }
+    // the member chose to replace the board: the same grid, replacing it (chartGrid.set `replace` — always a proposal)
+    const grid = g.ops.find(o => o.action === 'chartGrid.set')
+    if (!grid || g.ops.length !== 1) return { say: `I couldn't build “${t}” as a whole board` }
+    return { ops: [{ ...grid, args: { ...grid.args, replace: true, new_charts: null } }], grid: symbols }
   }
   if (step.kind === 'pane') {
     const want = newPaneIndicator(canon(t).replace(/[.!?]+$/, ''))

@@ -3,8 +3,14 @@
   POST /api/agent/turn                     one model turn -> structured envelope
   POST /api/agent/turn/stream              the same turn as text/event-stream (an answer streams when
                                            UCT_AGENT_STREAM is on; the final event is /turn's JSON)
-  GET  /api/agent/config                   {stream, nl1}: does this server stream turns (UCT_AGENT_STREAM),
-                                           does it serve NL-1 (UCT_AGENT_NL1)
+  GET  /api/agent/config                   {stream, nl1, news, data, scan, planner, coach}: does this server stream turns (UCT_AGENT_STREAM),
+                                           does it serve NL-1 (UCT_AGENT_NL1), the MD-1 data gateway
+                                           (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN); planner v1 | v2
+  GET  /api/agent/coach/concepts           Wave 3 coach (UCT_AGENT_COACH, default off): the concept knowledge base
+  POST /api/agent/turn/step                planner v2 (UCT_AGENT_PLANNER=v2) only: the browser's outcome of ONE step
+  POST /api/agent/turn/resume              planner v2 only: continue a turn paused on an approval card (event stream)
+  POST /api/agent/data                     one MD-1 market-data read -> DataEnvelope (read-only, no model;
+                                           refused unless UCT_AGENT_DATA=1)
   POST /api/agent/record                   record what the BROWSER did (fast-path
                                            turns, receipts, refusals, undo) + telemetry
   GET  /api/agent/conversations            the member's chats, newest first
@@ -187,8 +193,219 @@ def streaming_enabled() -> bool:
 def agent_config(user: dict = Depends(require_admin_dark)):
     """What the browser needs to know about this server's Agent: whether turns stream, and whether it serves
     NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on."""
-    from api.services.uct_agent import turn
-    return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled()}
+    from api.services.uct_agent import news, turn, turn_v2
+    from api.services.uct_agent.marketdata import gateway
+    from api.services.uct_agent import coach
+    return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled(), "news": news.enabled(),
+            "data": gateway.data_enabled(), "scan": gateway.scan_enabled(),
+            "data_kinds": sorted(gateway.enabled_kinds()), "planner": turn_v2.planner(),
+            # Wave 3 (W3-1): the coach, UCT_AGENT_COACH (default off) -- the browser registers coach.* only on true
+            "coach": coach.enabled()}
+
+
+# ── COACH (Wave 3, UCT_AGENT_COACH, default off): the curated concept knowledge base the browser explains from ──
+# docs/agent/coach/concepts/*.md, parsed by services/uct_agent/coach/concepts.py. Read-only, no model call, no
+# member data. 404 while the flag is off (the route does not exist for a dark server), admin-dark like every route.
+@router.get("/api/agent/coach/concepts")
+def agent_coach_concepts(user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import coach
+    from api.services.uct_agent.coach import concepts
+    if not coach.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"concepts": concepts.public_rows(), "footer": coach_footer()}
+
+
+def coach_footer() -> str:
+    from api.services.uct_agent.coach import guard
+    return guard.FOOTER
+
+
+# ── PLANNER v2 (Wave 1 A-04, docs/agent/program/contracts/STEP-1.md): the step registry ───────────────────
+# In-process (one uvicorn process, as production runs): a streaming v2 turn parks a queue under its token; the
+# browser's POST /turn/step feeds it; a turn paused on an approval card parks its loop state until /turn/resume.
+_V2_STEPS: dict[str, tuple[queue.Queue, str]] = {}
+_V2_PAUSED: dict[str, dict] = {}
+_V2_LOCK = threading.Lock()
+
+
+def planner_v2() -> bool:
+    from api.services.uct_agent import turn_v2
+    return turn_v2.planner() == "v2"
+
+
+class StepIn(BaseModel):
+    turnId: str
+    id: str
+    status: str                                       # done | proposed | refused | failed | query
+    receipt: Optional[str] = None
+    refusal: Optional[str] = None
+    result: Optional[Any] = None
+    isolated: Optional[bool] = None
+    added: Optional[list] = None                       # refs a DONE step created (a new chart): [{ref, kind, label}]
+
+
+class ResumeIn(BaseModel):
+    turnId: str
+    id: str
+    status: str                                       # done | refused | failed
+    receipt: Optional[str] = None
+    refusal: Optional[str] = None
+    added: Optional[list] = None
+    voice: bool = False
+
+
+def _v2_waiter(q: "queue.Queue"):
+    from api.services.uct_agent import turn_v2
+
+    def wait_step(step_id: str):
+        deadline = time.monotonic() + turn_v2.STEP_TIMEOUT_S
+        while True:
+            left = deadline - time.monotonic()
+            if left <= 0:
+                return None
+            try:
+                res = q.get(timeout=left)
+            except queue.Empty:
+                return None
+            if res.get("id") == step_id:
+                return res
+    return wait_step
+
+
+def _v2_register(uid) -> tuple[str, dict]:
+    from api.services.uct_agent import turn_v2
+    token, q = turn_v2.new_turn_token(), queue.Queue()
+    with _V2_LOCK:
+        _V2_STEPS[token] = (q, str(uid))
+    return token, {"wait_step": _v2_waiter(q), "turn_token": token}
+
+
+def _v2_unregister(token: str) -> None:
+    with _V2_LOCK:
+        _V2_STEPS.pop(token, None)
+
+
+def _v2_park(token: str, uid, cid: str, out: dict, voice: bool) -> dict:
+    """A turn paused on an approval card: its state waits for /turn/resume (PAUSE_TTL_S); nothing is stored yet."""
+    from api.services.uct_agent import turn_v2
+    with _V2_LOCK:
+        _V2_PAUSED[token] = {"state": out["state"], "uid": str(uid), "cid": cid, "voice": voice,
+                             "expires": time.time() + turn_v2.PAUSE_TTL_S}
+        for k in [k for k, v in _V2_PAUSED.items() if v["expires"] < time.time()]:
+            _V2_PAUSED.pop(k, None)
+    return {"conversationId": cid, "turnId": None, "envelope": out["envelope"],
+            "usage": {k: out["usage"].get(k) for k in ("model", "input_tokens", "output_tokens", "cost_usd", "model_calls",
+                                                       "cache_read_tokens", "cache_write_tokens", "rounds", "steps")}}
+
+
+def _v2_finish(uid, cid: str, out: dict, voice: bool, background: BackgroundTasks) -> dict:
+    from api.services.uct_agent import store
+    env, usage = out["envelope"], out["usage"]
+    try:
+        turn_id = store.add_turn(uid, cid, "agent", env.get("reply") or "", {"envelope": env, "citations": usage.get("citations"), "planner": "v2"})
+    except Exception:  # noqa: BLE001
+        log.exception("[uct-agent] could not store the v2 agent turn")
+        turn_id = None
+    background.add_task(store.record_telemetry, uid, cid, {
+        "path": "model", "disposition": "answer", "actions": [s.get("action") for s in env.get("steps") or []],
+        "clarified": False, "latency_ms": usage.get("latency_ms"), "model": usage.get("model"), "cost_usd": usage.get("cost_usd"),
+        "research_calls": usage.get("research_calls"), "unsupported": None, "voice": voice,
+    })
+    log.info("[uct-agent] v2 turn rounds=%s steps=%s calls=%s in=%s out=%s cache_read=%s stopped=%s", usage.get("rounds"),
+             usage.get("steps"), usage.get("model_calls"), usage.get("input_tokens"), usage.get("output_tokens"),
+             usage.get("cache_read_tokens"), usage.get("stopped"))
+    return {"conversationId": cid, "turnId": turn_id, "envelope": env,
+            "usage": {**{k: usage.get(k) for k in ("model", "input_tokens", "output_tokens", "cost_usd", "latency_ms", "research_calls",
+                                                   "citations", "model_calls", "cache_read_tokens", "cache_write_tokens", "rounds", "steps")},
+                      "stages": usage.get("stages")}}
+
+
+@router.post("/api/agent/turn/step")
+def agent_turn_step(body: StepIn, user: dict = Depends(require_admin_dark)):
+    """The browser's outcome of ONE step of a running v2 turn (its own turn only). Isolated values never pass (L6)."""
+    from api.services.uct_agent import turn as agent
+    with _V2_LOCK:
+        entry = _V2_STEPS.get(body.turnId)
+    if not entry or entry[1] != str(user["id"]):
+        raise HTTPException(status_code=404, detail="No step is waiting for that turn.")
+    res = body.model_dump()
+    res["result"], dropped = agent._strip_isolated(res.get("result"))
+    if res["result"] is agent._DROPPED:
+        res["result"] = None
+    if dropped or body.isolated:
+        res["isolated"] = True
+    entry[0].put(res)
+    return {"ok": True}
+
+
+@router.post("/api/agent/turn/resume")
+def agent_turn_resume(body: ResumeIn, background: BackgroundTasks, user: dict = Depends(require_admin_dark)):
+    """Continue a v2 turn paused on an approval card, as the same event stream as /turn/stream."""
+    events: queue.Queue = queue.Queue()
+
+    def work() -> None:
+        try:
+            events.put(("final", _resume(body, background, user, on_event=lambda e: events.put(("event", e)))))
+        except HTTPException as e:
+            events.put(("error", {"status": e.status_code, "detail": e.detail if isinstance(e.detail, str) else FAILED}))
+        except Exception:  # noqa: BLE001
+            log.exception("[uct-agent] v2 resume failed")
+            events.put(("error", {"status": 500, "detail": FAILED}))
+        finally:
+            events.put(None)
+
+    threading.Thread(target=work, name="uct-agent-resume", daemon=True).start()
+    return StreamingResponse(_relay(events), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"}, background=background)
+
+
+def _relay(events: "queue.Queue"):
+    yield ": open\n\n"
+    while True:
+        item = events.get()
+        if item is None:
+            return
+        kind, payload = item
+        ev = payload if kind == "event" else {"t": kind, **payload}
+        yield f"data: {json.dumps(ev, separators=(',', ':'))}\n\n"
+
+
+def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event) -> dict:
+    from api.services.uct_agent import budget, limits, turn as agent
+    uid = user["id"]
+    if not planner_v2():
+        raise HTTPException(status_code=404, detail="No step is waiting for that turn.")
+    with _V2_LOCK:
+        p = _V2_PAUSED.pop(body.turnId, None)
+    if not p or p["uid"] != str(uid) or p["expires"] < time.time():
+        raise HTTPException(status_code=410, detail="That proposal's turn has expired (a proposal is good for 10 minutes). Ask again.")
+    try:
+        slot = limits.admit(uid, new_request=False)
+    except limits.Refused as e:
+        raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
+    token, q = body.turnId, queue.Queue()
+    with _V2_LOCK:
+        _V2_STEPS[token] = (q, str(uid))
+    try:
+        out = agent.run_turn(message="(resume)", context={}, history=[], on_event=on_event,
+                             meter=budget.Meter(user_id=uid, request_id=None),
+                             v2={"wait_step": _v2_waiter(q), "turn_token": token, "resume": p["state"],
+                                 "resume_result": {"id": body.id, "status": body.status, "receipt": body.receipt, "refusal": body.refusal,
+                                                   "added": body.added}})
+    except budget.BudgetRefused as e:
+        raise HTTPException(status_code=503 if e.reason == "unavailable" else 429, detail=e.sentence)
+    except agent.TurnError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:  # noqa: BLE001
+        kind, said = provider_failure(e)
+        log.exception("[uct-agent] v2 resume failed kind=%s class=%s", kind, type(e).__name__)
+        raise HTTPException(status_code=503, detail=said)
+    finally:
+        _v2_unregister(token)
+        limits.done(slot)
+    if out.get("paused"):
+        return _v2_park(token, uid, p["cid"], out, p["voice"])
+    return _v2_finish(uid, p["cid"], out, p["voice"], background)
 
 
 @router.post("/api/agent/turn/stream")
@@ -202,7 +419,8 @@ def agent_turn_stream(body: TurnIn, background: BackgroundTasks, user: dict = De
     The turn runs in a worker thread; this generator only relays its events. Nothing in an event is
     logged; a plan's words, research results and local-only values never ride one."""
     events: queue.Queue = queue.Queue()
-    on_event = (lambda e: events.put(("event", e))) if streaming_enabled() else None
+    # planner v2 streams its step events whatever UCT_AGENT_STREAM says (its reply never streams early)
+    on_event = (lambda e: events.put(("event", e))) if (streaming_enabled() or planner_v2()) else None
 
     def work() -> None:
         try:
@@ -241,19 +459,67 @@ def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) 
     uid = user["id"]
     if body.repair is not None and not body.reroute:
         raise HTTPException(status_code=400, detail="A repair continues a request; it can't start one.")
+    body, headline = _news_turn(body)
     try:
         slot = limits.admit(uid, new_request=not body.reroute)
     except limits.Refused as e:
         raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
     try:
-        return _admitted_turn(body, background, user, on_event)
+        return _admitted_turn(body, background, user, on_event, headline)
     finally:
         limits.done(slot)
 
 
-def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) -> dict:
+def _news_turn(body: TurnIn) -> tuple[TurnIn, dict | None]:
+    """⭐ NEWS -> AGENT (dark, UCT_AGENT_NEWS): a turn whose context is `{news: {id}}` is the News Ask box. The
+    headline is read HERE by that id (news.headline_for), before anything is charged; nothing else the browser
+    sent reaches the model -- no workspace context, no actions, no routing, no catalogs. Answer-only."""
+    from api.services.uct_agent import news
+    if not news.is_news_turn(body.context):
+        return body, None
+    if body.reroute or body.repair is not None:
+        raise HTTPException(status_code=400, detail="That follow-up has expired. Ask again.")
+    if len((body.message or "").strip()) > news.MAX_MESSAGE:
+        raise HTTPException(status_code=400, detail=f"Keep it under {news.MAX_MESSAGE} characters.")
+    try:
+        headline = news.headline_for(news.requested_id(body.context))
+    except news.Refused as e:
+        raise HTTPException(status_code=e.status, detail=e.sentence)
+    except Exception:  # noqa: BLE001 -- a News store fault is a sentence, and nothing was charged
+        log.exception("[uct-agent] could not read the headline for a news turn")
+        raise HTTPException(status_code=503, detail="UCT News isn't available right now. Try again shortly.")
+    clean = body.model_copy(update={"context": {}, "capabilities": [], "routing": None, "interpreter": None,
+                                    "reference": None, "pending": None, "repair": None, "recentOutcome": None})
+    return clean, headline
+
+
+def _news_conversation(uid, body: TurnIn, headline: dict | None) -> tuple[str, list[dict], dict | None, bool]:
+    """(conversation id, its turns, the headline the model sees, answer_only). An Ask continues ONLY its own
+    headline's conversation -- any other id (another headline's, an ordinary chat, a foreign one) starts a new
+    chat named after the headline. An ordinary turn in a chat started from a headline (Continue in UCT Agent)
+    keeps that headline, read again by the id the chat was started with."""
+    from api.services.uct_agent import news, store
+    if headline is not None:
+        turns = store.get_turns(uid, body.conversationId) if body.conversationId else None
+        if turns is not None and news.conversation_headline(turns) == headline["id"]:
+            return body.conversationId, turns, headline, True
+        cid = store.create_conversation(uid, body.message)
+        store.set_auto_title(uid, cid, news.title_for(headline["headline"]))
+        return cid, [], headline, True
+    cid = store.ensure_conversation(uid, body.conversationId, body.message)
+    turns = store.get_turns(uid, cid) or []
+    started = news.conversation_headline(turns)
+    if started and news.enabled():
+        try:
+            return cid, turns, news.headline_for(started), False
+        except Exception:  # noqa: BLE001 -- the headline is gone or unreadable: the chat goes on without it
+            log.info("[uct-agent] a headline chat continued without its headline")
+    return cid, turns, None, False
+
+
+def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None, headline: dict | None = None) -> dict:
     from api.services import ai_population_cap
-    from api.services.uct_agent import budget, limits, store, turn as agent
+    from api.services.uct_agent import budget, limits, news, store, turn as agent
     t0 = time.perf_counter()
     uid = user["id"]
 
@@ -284,14 +550,14 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         _give_back(uid)
         raise HTTPException(status_code=400, detail="That follow-up has expired. Ask again.")
     try:
-        cid = store.ensure_conversation(uid, body.conversationId, body.message)
+        cid, history, headline, answer_only = _news_conversation(uid, body, headline)
         if cid != body.conversationId:
             budget.attach_conversation(request_id, cid)
-        history = store.get_turns(uid, cid) or []
         if body.reroute and history and history[-1].get("role") == "member" and history[-1].get("text") == body.message:
             history = history[:-1]        # the same message, asked again with more actions
         else:
-            store.add_turn(uid, cid, "member", body.message, {"voice": bool(body.voice)})
+            store.add_turn(uid, cid, "member", body.message,
+                           {"voice": bool(body.voice), **({"news": headline["id"]} if answer_only else {})})
     except Exception:  # noqa: BLE001 -- logged with its traceback; the member gets a sentence
         log.exception("[uct-agent] conversation store failed before the model call")
         _give_back(uid)
@@ -304,15 +570,29 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     # The first-message placeholder is not a name: the model is told there is none yet (and the
     # member's words are never sent twice).
     nameable = None if not info or info.get("source") == "user" else (info["title"] if info.get("source") == "auto" else NO_TITLE_YET)
+    if headline is not None or (history and news.conversation_headline(history)):
+        nameable = None                   # a headline's chat keeps its "News: …" name (the member may rename it)
     pre_ms = _ms(t0)
+    # PLANNER v2 (UCT_AGENT_PLANNER=v2): only a STREAMED, ordinary turn (no headline, no reroute) takes the step loop;
+    # its rounds are metered by the daily cap per call (request_id None: the 2-call ceiling is v1's), never by routing
+    v2 = None
+    # (a COACH turn stays on v1: its prompt block and server guard live there -- W3 review C1)
+    from api.services.uct_agent import coach as agent_coach
+    turn_context = body.context
+    if agent_coach.is_coach_turn(turn_context):
+        # W3 review: the journal review rides to the model only with the consent the SERVER stored for this chat
+        turn_context = agent_coach.with_stored_consent(turn_context, agent_coach.stored_consent(uid, cid))
+    if on_event is not None and planner_v2() and headline is None and not body.reroute and not agent_coach.is_coach_turn(body.context):
+        token, v2 = _v2_register(uid)
     try:
-        out = agent.run_turn(message=body.message, context=body.context, history=history,
+        out = agent.run_turn(message=body.message, context=turn_context, history=history,
                              capabilities=body.capabilities,
                              pending=body.pending, recent_outcome=body.recentOutcome,
                              manifest_version=body.manifestVersion, routing=body.routing,
                              conversation_title=nameable, on_event=on_event,
-                             meter=budget.Meter(user_id=uid, request_id=request_id), reroute=body.reroute,
-                             interpreter=body.interpreter, repair=body.repair, reference=body.reference)
+                             meter=budget.Meter(user_id=uid, request_id=None if v2 else request_id), reroute=body.reroute,
+                             interpreter=body.interpreter, repair=body.repair, reference=body.reference,
+                             headline=headline, answer_only=answer_only, v2=v2)
     except budget.BudgetRefused as e:
         # refused BEFORE a paid call: nothing was sent, nothing changed; the day's count is given back
         _give_back(uid)
@@ -330,6 +610,13 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         kind, said = provider_failure(e)
         log.exception("[uct-agent] turn failed kind=%s class=%s", kind, type(e).__name__)
         raise HTTPException(status_code=503, detail=said)
+    finally:
+        if v2:
+            _v2_unregister(token)
+    if v2:
+        if out.get("paused"):
+            return _v2_park(token, uid, cid, out, bool(body.voice))
+        return _v2_finish(uid, cid, out, bool(body.voice), background)
     env, usage = out["envelope"], out["usage"]
     t_post = time.perf_counter()
     try:
@@ -474,6 +761,53 @@ def agent_conversation_delete(conversation_id: str, user: dict = Depends(require
     return {"deleted": conversation_id}
 
 
+# ── per-conversation state (W1-C C-01, builder-c): the last screen, so a follow-up composes after a reload ──
+# GET/PUT /api/agent/conversations/{id}/state/{key}. Keys are store.STATE_KEYS (`lastScreen`; W3-3 `coachConsent`);
+# the value is validated per key before it is stored: `lastScreen` by services/uct_agent/scan/refine.py (the
+# screener's catalog, F-16 hidden keys, ≤ 50 result ids), `coachConsent` by services/uct_agent/coach.validate_consent
+# ({granted: bool}; the server stamps `at`), and that key exists only while UCT_AGENT_COACH is on (404 otherwise).
+# Owner-scoped: a conversation that is not the member's is 404, like every route above.
+class StateIn(BaseModel):
+    value: Any
+
+
+def _state_key_served(key: str) -> bool:
+    if key == "coachConsent":
+        from api.services.uct_agent import coach
+        return coach.enabled()
+    return True
+
+
+def _validate_state(key: str, value: Any) -> Any:
+    if key == "coachConsent":
+        from api.services.uct_agent import coach
+        return coach.validate_consent(value)
+    from api.services.uct_agent.scan import refine
+    return refine.validate_last_screen(value)
+
+
+@router.get("/api/agent/conversations/{conversation_id}/state/{key}")
+def agent_conversation_state(conversation_id: str, key: str, user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import store
+    if key not in store.STATE_KEYS or not _state_key_served(key) or not store.owns(user["id"], conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    got = store.get_state(user["id"], conversation_id, key)
+    return {"key": key, "value": got["value"] if got else None, "updated_at": got["updated_at"] if got else None}
+
+
+@router.put("/api/agent/conversations/{conversation_id}/state/{key}")
+def agent_conversation_state_put(conversation_id: str, key: str, body: StateIn, user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import store
+    if key not in store.STATE_KEYS or not _state_key_served(key) or not store.owns(user["id"], conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    try:
+        value = _validate_state(key, body.value)
+        store.set_state(user["id"], conversation_id, key, value)
+    except ValueError as e:                      # RefineError is a ValueError, with the member-facing sentence
+        raise HTTPException(status_code=400, detail=str(e)[:400])
+    return {"key": key, "value": value}
+
+
 @router.get("/api/agent/search")
 def agent_search(q: str = "", user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import store
@@ -492,6 +826,21 @@ def agent_session_stats(body: SessionStatsIn, user: dict = Depends(require_admin
     if len(body.symbols) > session_stats.MAX_SYMBOLS:
         raise HTTPException(status_code=400, detail=f"at most {session_stats.MAX_SYMBOLS} symbols at once")
     return session_stats.latest_session(body.symbols)
+
+
+class DataReadIn(BaseModel):
+    kind: str = Field(..., max_length=64)
+    params: dict = Field(default_factory=dict)
+    purpose: str = Field("answer", max_length=16)
+    turn_id: str = Field(..., max_length=80)
+
+
+@router.post("/api/agent/data")
+def agent_data(body: DataReadIn, user: dict = Depends(require_admin_dark)):
+    """One MD-1 market-data read (services/uct_agent/marketdata/gateway.py) -> a DataEnvelope. Read-only, no
+    model call. Dark twice: admin-dark like every route here, and refused unless UCT_AGENT_DATA=1."""
+    from api.services.uct_agent.marketdata import gateway
+    return gateway.read(body.kind, body.params, user_id=user.get("id"), turn_id=body.turn_id, purpose=body.purpose)
 
 
 # ── Market Intelligence breadth slice 1 — LOCAL-RESULT BOUNDARY ────────────────────────────────────

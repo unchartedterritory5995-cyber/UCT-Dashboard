@@ -102,17 +102,46 @@ describe('⛔ what a fill refuses, and by which name', () => {
     expect(r.message).toMatch(/argument 1/)
   })
 
-  it('⭐⭐ THE GRADIENT FORM IS REFUSED BY ITS OWN NAME', () => {
-    // `fill(p1, p2, top_value, bottom_value, top_colour, bottom_colour)` is a
-    // DIFFERENT call that shades vertically between two values; this engine's
-    // fill primitive paints one colour across a span. Telling a member their
-    // colour is missing — when they passed TWO — would send them to fix a line
-    // that is correct.
-    const r = refusalOf(
-      'p1 = plot(close)\np2 = plot(open)\nfill(p1, p2, 1, 2, color.red, color.green)')
-    expect(r.guard).toBe('runtime:fill-gradient')
-    expect(r.message).toMatch(/gradient/)
-    expect(r.message).not.toMatch(/is not one/)
+  // ⭐⭐ WS-E — THE GRADIENT FORM WAS REFUSED BY ITS OWN NAME (`runtime:fill-gradient`)
+  // and is now LOWERED AS AN UNDRAWN FILL: no fill is drawn from the run (the solid
+  // form's colour column has no reader either), and the member pane names every run
+  // fill in its "Not drawn by this pane" note. The refusal took the whole script off
+  // the lane for a band the solid form would not have drawn. Asserted here: it is
+  // recognised as a GRADIENT (never read as a solid fill of the wrong colour), it
+  // spans the two plots it names, and its column carries no colour (`na`).
+  const gradientOf = (src) => {
+    const built = buildRuntimeIr(head + src, { bars: BARS, inputs: {} })
+    expect(built.ok, built.refusal && built.refusal.message).toBe(true)
+    const program = lowerIrProgram(built.ir)
+    const res = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true, barTimes: BARS.map((b) => b.t) })
+    return { outputs: program.outputs, series: res.outputs.map((o) => Array.from(o)) }
+  }
+  it('⭐⭐ THE GRADIENT FORM (six positionals) is a gradient fill, spanning its plots, with no colour column', () => {
+    const r = gradientOf('p1 = plot(close)\np2 = plot(open)\nfill(p2, p1, 1, 2, color.red, color.green)')
+    expect(r.outputs[2]).toMatchObject({ call: 'fill', upper: 1, lower: 0, gradient: true })
+    expect(r.series[2].every((v) => Number.isNaN(v))).toBe(true)
+  })
+
+  it('⭐ the builtin RSI\'s spelling — four positionals and NAMED colours — is the gradient form too', () => {
+    const r = gradientOf('p1 = plot(close)\np2 = plot(open)\n'
+      + 'fill(p1, p2, 100, 70, top_color = color.new(color.green, 0), bottom_color = color.new(color.green, 100))')
+    expect(r.outputs[2]).toMatchObject({ call: 'fill', gradient: true })
+  })
+
+  it('⭐ an all-NAMED gradient (no positional values at all) is the gradient form', () => {
+    const r = gradientOf('p1 = plot(close)\np2 = plot(open)\n'
+      + 'fill(p1, p2, top_value = 1, bottom_value = 2, top_color = color.red, bottom_color = color.green)')
+    expect(r.outputs[2]).toMatchObject({ call: 'fill', gradient: true })
+  })
+
+  it('⛔ CONTROL — a number where the colour goes, then a TITLE, is a solid fill with a bad colour, not a gradient', () => {
+    expect(refusalOf('p1 = plot(close)\np2 = plot(open)\nfill(p1, p2, close, "band")').guard).toBe('runtime:colour')
+  })
+
+  it('⛔ CONTROL — a solid fill with a colour and a TITLE is not a gradient', () => {
+    const r = gradientOf('p1 = plot(close)\np2 = plot(open)\nfill(p1, p2, color.red, "band")')
+    expect(r.outputs[2].gradient).toBeUndefined()
+    expect(r.series[2].map((v) => v >>> 0)).toEqual([RED, RED, RED])
   })
 
   it('a third argument that is simply not a colour says so', () => {

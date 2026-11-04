@@ -22,7 +22,7 @@ export function registerAboutCapabilities() {
   registerContextProvider({ key: 'agent', build: (host, refFor) => [{ ref: refFor('about', 'self'), label: self.label }] })
   registerCapability({
     name: 'agent.capabilities',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'about',
     query: true,
     fastWhole: true,

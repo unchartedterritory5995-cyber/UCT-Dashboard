@@ -17,7 +17,7 @@
 //                                              targets resolved by the caller
 //   { kind: 'undo' } | { kind: 'confirm' } | { kind: 'dismiss' } | { kind: 'subset', count }
 
-import { allCapabilityNames, getCapability } from './capabilities'
+import { allCapabilityNames, getCapability, onSurface } from './capabilities'
 import { lexiconFor, correctTypos, setBaseSources } from './nl/lexicon'
 import { chartQualifier, ordinalChart, ORD_RE } from './deixis'
 
@@ -83,6 +83,9 @@ function matchClause(raw, host) {
   for (const name of allCapabilityNames()) {
     const cap = getCapability(name)
     if (typeof cap.fast !== 'function') continue
+    // ⭐ W2-C1: a page host names its surface; a phrase of a capability not offered there is not claimed
+    // (the Charts host names none = 'charts' → every Charts capability, exactly as before; a page-only one never)
+    if (!onSurface(cap, host?.surface || 'charts')) continue
     // `host` lets a phrase resolve against REAL state (a layout name in the member's
     // catalog); a capability that can't resolve it with certainty returns null.
     const args = cap.fast({ raw: raw.trim(), lower, core, host })
@@ -106,6 +109,7 @@ function matchWhole(text, host) {
   for (const name of allCapabilityNames()) {
     const cap = getCapability(name)
     if (!cap.fastWhole || typeof cap.fast !== 'function') continue
+    if (!onSurface(cap, host?.surface || 'charts')) continue
     const args = cap.fast({ raw: String(text).trim(), lower, core: lower, host })
     if (args) {
       // `__explicit`: the capability read the member's OWN words as an explicit request (policy.js explicitOk)
@@ -151,7 +155,9 @@ export function extractTarget(text, host = null) {
   const pl = PLURAL_RE.exec(s)
   if (pl) return { text: cut(s, pl), target: { plural: true } }
   const ord = host ? ordinalChart(s, host.charts?.list?.() || []) : null
-  if (ord) return { text: cut(s, ord.match), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
+  // ⭐ PHASE 3: "add rsi to the first chart" — the preposition before the ordinal goes with it (as a position's does), so
+  // the clause left is "add rsi", not "add rsi to"
+  if (ord) return { text: cut(s, ord.match).replace(/\s+(?:on|to|onto|for|in|into)$/i, ''), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
   const m = POS_RE.exec(s)
   if (m) {
     // ⭐ PHASE 2: "top left" / "upper right" (no hyphen) are the same position as "top-left"

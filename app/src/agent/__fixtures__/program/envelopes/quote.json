@@ -1,0 +1,289 @@
+{
+  "kind": "quote",
+  "declared_freshness": "live",
+  "category": "market",
+  "cases": {
+    "live": {
+      "contract": "MD-1.0",
+      "kind": "quote",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "live",
+      "as_of": "2026-10-30T19:59:40Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": {
+        "evaluated": 1,
+        "answered": 1,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "quote": {
+          "symbol": "NVDA",
+          "last": 207.04,
+          "change": 2.61,
+          "change_pct": 1.28,
+          "open": 205.03,
+          "high": 208.14,
+          "low": 203.53,
+          "day_close": 207.04,
+          "volume": 162480115,
+          "prev_close": 204.43,
+          "as_of": "2026-10-30T19:59:40Z",
+          "last_source": "trade"
+        },
+        "session": "regular"
+      },
+      "notes": [],
+      "provider_calls": 1
+    },
+    "stale": {
+      "contract": "MD-1.0",
+      "kind": "quote",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "live",
+      "as_of": "2026-10-30T19:57:12Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": true,
+      "source": "massive",
+      "coverage": {
+        "evaluated": 1,
+        "answered": 1,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "quote": {
+          "symbol": "NVDA",
+          "last": 207.04,
+          "change": 2.61,
+          "change_pct": 1.28,
+          "open": 205.03,
+          "high": 208.14,
+          "low": 203.53,
+          "day_close": 207.04,
+          "volume": 162480115,
+          "prev_close": 204.43,
+          "as_of": "2026-10-30T19:57:12Z",
+          "last_source": "trade"
+        },
+        "session": "regular"
+      },
+      "notes": [],
+      "provider_calls": 1
+    },
+    "market-closed": {
+      "contract": "MD-1.0",
+      "kind": "quote",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-10-30T23:59:52Z",
+      "fetched_at": "2026-10-31T14:00:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": {
+        "evaluated": 1,
+        "answered": 1,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "quote": {
+          "symbol": "NVDA",
+          "last": 207.04,
+          "change": 2.61,
+          "change_pct": 1.28,
+          "open": 205.03,
+          "high": 208.14,
+          "low": 203.53,
+          "day_close": 207.04,
+          "volume": 162480115,
+          "prev_close": 204.43,
+          "as_of": "2026-10-30T23:59:52Z",
+          "last_source": "trade"
+        },
+        "session": "closed"
+      },
+      "notes": [
+        "the regular session is not open — these are the last prints from the most recent session, not live prices"
+      ],
+      "provider_calls": 1
+    },
+    "unavailable": {
+      "contract": "MD-1.0",
+      "kind": "quote",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "unavailable",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "the quote provider could not answer"
+      ],
+      "provider_calls": 1
+    },
+    "refused": {
+      "contract": "MD-1.0",
+      "kind": "quote",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "refused",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-agent-gateway",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "this turn already made 8 data reads"
+      ],
+      "provider_calls": 0
+    },
+    "extended-live": {
+      "contract": "MD-1.0",
+      "kind": "quote",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "live",
+      "as_of": "2026-10-30T12:26:07Z",
+      "fetched_at": "2026-10-30T12:30:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": {
+        "evaluated": 1,
+        "answered": 1,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "quote": {
+          "symbol": "NVDA",
+          "last": 207.04,
+          "change": 2.61,
+          "change_pct": 1.28,
+          "open": 205.03,
+          "high": 208.14,
+          "low": 203.53,
+          "day_close": 207.04,
+          "volume": 162480115,
+          "prev_close": 204.43,
+          "as_of": "2026-10-30T12:26:07Z",
+          "last_source": "trade"
+        },
+        "session": "extended"
+      },
+      "notes": [
+        "extended-hours (pre-/post-market) prices — thin trading; the regular-session close is in day_close/prev_close"
+      ],
+      "provider_calls": 1
+    },
+    "extended-closed": {
+      "contract": "MD-1.0",
+      "kind": "quote",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-10-30T21:50:02Z",
+      "fetched_at": "2026-10-30T22:30:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": {
+        "evaluated": 1,
+        "answered": 1,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "quote": {
+          "symbol": "NVDA",
+          "last": 207.04,
+          "change": 2.61,
+          "change_pct": 1.28,
+          "open": 205.03,
+          "high": 208.14,
+          "low": 203.53,
+          "day_close": 207.04,
+          "volume": 162480115,
+          "prev_close": 204.43,
+          "as_of": "2026-10-30T21:50:02Z",
+          "last_source": "trade"
+        },
+        "session": "extended"
+      },
+      "notes": [
+        "the regular session is not open — these are the last prints from the most recent session, not live prices"
+      ],
+      "provider_calls": 1
+    },
+    "holiday": {
+      "contract": "MD-1.0",
+      "kind": "quote",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-11-25T23:59:52Z",
+      "fetched_at": "2026-11-26T16:00:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": {
+        "evaluated": 1,
+        "answered": 1,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "quote": {
+          "symbol": "NVDA",
+          "last": 207.04,
+          "change": 2.61,
+          "change_pct": 1.28,
+          "open": 205.03,
+          "high": 208.14,
+          "low": 203.53,
+          "day_close": 207.04,
+          "volume": 162480115,
+          "prev_close": 204.43,
+          "as_of": "2026-11-25T23:59:52Z",
+          "last_source": "trade"
+        },
+        "session": "closed"
+      },
+      "notes": [
+        "the regular session is not open — these are the last prints from the most recent session, not live prices"
+      ],
+      "provider_calls": 1
+    }
+  }
+}

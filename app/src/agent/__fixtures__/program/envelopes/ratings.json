@@ -1,0 +1,222 @@
+{
+  "kind": "ratings",
+  "declared_freshness": "periodic",
+  "category": "market",
+  "cases": {
+    "periodic": {
+      "contract": "MD-1.0",
+      "kind": "ratings",
+      "params_echo": {
+        "symbols": [
+          "NVDA",
+          "AMD",
+          "AVGO"
+        ]
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T19:45:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-ratings",
+      "coverage": null,
+      "data": {
+        "ratings": [
+          {
+            "symbol": "NVDA",
+            "rating": 92,
+            "percentile": 97
+          },
+          {
+            "symbol": "AMD",
+            "rating": 81,
+            "percentile": 88
+          },
+          {
+            "symbol": "AVGO",
+            "rating": 87,
+            "percentile": 93
+          }
+        ],
+        "missing": []
+      },
+      "notes": [],
+      "provider_calls": 0
+    },
+    "stale": {
+      "contract": "MD-1.0",
+      "kind": "ratings",
+      "params_echo": {
+        "symbols": [
+          "NVDA",
+          "AMD",
+          "AVGO"
+        ]
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-28T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": true,
+      "source": "uct-ratings",
+      "coverage": null,
+      "data": {
+        "ratings": [
+          {
+            "symbol": "NVDA",
+            "rating": 92,
+            "percentile": 97
+          },
+          {
+            "symbol": "AMD",
+            "rating": 81,
+            "percentile": 88
+          },
+          {
+            "symbol": "AVGO",
+            "rating": 87,
+            "percentile": 93
+          }
+        ],
+        "missing": []
+      },
+      "notes": [
+        "older than this kind's freshness budget; say how old"
+      ],
+      "provider_calls": 0
+    },
+    "market-closed": {
+      "contract": "MD-1.0",
+      "kind": "ratings",
+      "params_echo": {
+        "symbols": [
+          "NVDA",
+          "AMD",
+          "AVGO"
+        ]
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T20:00:00Z",
+      "fetched_at": "2026-10-31T14:00:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-ratings",
+      "coverage": null,
+      "data": {
+        "ratings": [
+          {
+            "symbol": "NVDA",
+            "rating": 92,
+            "percentile": 97
+          },
+          {
+            "symbol": "AMD",
+            "rating": 81,
+            "percentile": 88
+          },
+          {
+            "symbol": "AVGO",
+            "rating": 87,
+            "percentile": 93
+          }
+        ],
+        "missing": []
+      },
+      "notes": [
+        "market closed — last session's close"
+      ],
+      "provider_calls": 0
+    },
+    "unavailable": {
+      "contract": "MD-1.0",
+      "kind": "ratings",
+      "params_echo": {
+        "symbols": [
+          "NVDA",
+          "AMD",
+          "AVGO"
+        ]
+      },
+      "status": "unavailable",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-ratings",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "the data source could not answer"
+      ],
+      "provider_calls": 0
+    },
+    "refused": {
+      "contract": "MD-1.0",
+      "kind": "ratings",
+      "params_echo": {
+        "symbols": [
+          "NVDA",
+          "AMD",
+          "AVGO"
+        ]
+      },
+      "status": "refused",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-agent-gateway",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "this turn already made 8 data reads"
+      ],
+      "provider_calls": 0
+    },
+    "partial": {
+      "contract": "MD-1.0",
+      "kind": "ratings",
+      "params_echo": {
+        "symbols": [
+          "NVDA",
+          "AMD",
+          "AVGO"
+        ]
+      },
+      "status": "partial",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T19:45:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-ratings",
+      "coverage": null,
+      "data": {
+        "ratings": [
+          {
+            "symbol": "NVDA",
+            "rating": 92,
+            "percentile": 97
+          },
+          {
+            "symbol": "AMD",
+            "rating": 81,
+            "percentile": 88
+          }
+        ],
+        "missing": [
+          "AVGO"
+        ]
+      },
+      "notes": [
+        "no data for AVGO"
+      ],
+      "provider_calls": 0
+    }
+  }
+}

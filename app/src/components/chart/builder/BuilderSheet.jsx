@@ -83,6 +83,8 @@ import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES } fro
 import { astHash } from '../engine/ast/parse'
 import { lexPine } from '../engine/ast/pine'
 import { DOOR_VERSION } from '../engine/memberDocumentMigration'
+import { withEngineStamp } from '../engine/scriptEngineVersion'
+import { SCRIPT_UPGRADE_PASTE_NOTE, SCRIPT_UPGRADE_RESAVE_NOTE } from './memberPane/savedScriptUpgrade'
 // ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
 // REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
 // the `ast` lane and refuses a disagreement in both directions, so a document
@@ -146,6 +148,9 @@ import {
 import { objectCarry, carriableObjectProgram, carryProgramMeta } from './objectProgramCarry'
 import { isTruthType } from '../engine/outputType'
 import { STATUS as GATE_STATUS } from '../engine/evaluability'
+import {
+  NEW_LINE_FLAG, rowIsNewLine, withLocalLineIdentities, servedLineIdentities, withoutNewLineMarkers,
+} from '../engine/lineIdentity'
 import styles from './BuilderSheet.module.css'
 
 /** The badge vocabulary, cased for display. ⛔ The definition's vocabulary is
@@ -318,6 +323,9 @@ export function isUntouchedRow(row) {
     // mode, an opacity, a fill, a marker) is not the untouched default either;
     // the schema-1 document would silently drop it.
     && !rowCarriesPresentation(row)
+    // ⭐ LINE IDENTITY — a row added (or re-keyed) in this edit is a NEW line, which
+    // only the v2 body can say (`newLine`); the schema-1 body would continue the old one.
+    && !rowIsNewLine(row)
 }
 
 /**
@@ -673,6 +681,13 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // conversational row model does, so a dashed plot is representable there.
       // Last, where `preservePresentation` has always appended it.
       ...(PLOT_LINE_STYLES.includes(r.lineStyle) ? { lineStyle: r.lineStyle } : {}),
+      // ⭐⭐ LINE IDENTITY (owner decision 2026-11-02) — a row ADDED in this edit (or
+      // re-keyed) tells the store it is a NEW line, so a key removed and typed again
+      // before one save does not inherit the removed line's references or alerts
+      // (`api/services/user_definitions.py::decide_line_ids`). The store never keeps
+      // the marker. A row restored from the saved document never carries it, so
+      // every existing document's bytes are unchanged.
+      ...(rowIsNewLine(r) ? { [NEW_LINE_FLAG]: true } : {}),
     }
   })
   const guides = Array.isArray(levels) && levels.length
@@ -1195,7 +1210,8 @@ export default function BuilderSheet({
     setPlotRows((prev) => prev.map((r, j) => (j === i - 1 ? { ...r, ...patch } : r)))
   }, [])
   const addPlot = useCallback(() => {
-    setPlotRows((prev) => [...prev, newPlotRow('')])
+    // ⭐ LINE IDENTITY — a row added here is a NEW line whatever key it is given.
+    setPlotRows((prev) => [...prev, { ...newPlotRow(''), [NEW_LINE_FLAG]: true }])
   }, [])
   const removePlot = useCallback((i) => {
     setPlotRows((prev) => prev.filter((_, j) => j !== i - 1))
@@ -1366,6 +1382,10 @@ export default function BuilderSheet({
   // tabs to be on the wrong one of.)
   const [buildMode, setBuildMode] = useState(() => openingMode(editRow, initialMode))
   const [pickerNote, setPickerNote] = useState(null)
+  /** ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — set while a script document saved WITHOUT its
+   *  source is open for its one-time upgrade (the legend row's door): the Pine tab,
+   *  an empty box, and this sentence saying what to paste. */
+  const [scriptUpgradeNote, setScriptUpgradeNote] = useState(null)
   const rootRef = useRef(null)
 
   const { rows, error: listError } = useUserDefinitions()
@@ -1386,7 +1406,7 @@ export default function BuilderSheet({
     // one value, and it is VISIBLE: both are passive effects, so the sheet
     // paints on the library and then switches. Both props are null for the
     // chart's door, which is what keeps the Library the default it has been.
-    setEditing(null); setBuildMode(openingMode(editRow, initialMode)); setPickerNote(null)
+    setEditing(null); setBuildMode(openingMode(editRow, initialMode)); setPickerNote(null); setScriptUpgradeNote(null)
     // ⛔ THE PLOTS RESET TOO. A sheet reopened with the previous formula's second
     // plot still in it would offer a Save whose document names a tree the box no
     // longer shows — the same reason `source` and `name` are cleared here.
@@ -1424,6 +1444,24 @@ export default function BuilderSheet({
     // ⛔ NO `setAcknowledged` HERE — the restored rows below each carry their
     // own fresh `acknowledged: false`, which is where that flag lives now.
     setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null; pineDoorStampRef.current = null
+    setScriptUpgradeNote(null)
+    // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — the legend menu's "Updated accuracy available"
+    // door (`savedScriptUpgrade.UPGRADE_NOTICE_LABEL`) for a script document saved
+    // before its source was kept. Opened where a script is edited — the Pine tab —
+    // as a REVISION of the same document (`attachPine`: a PUT with `baseVersion`,
+    // the same id, so the chart instance and its alerts follow), with an empty box:
+    // the source is exactly what this document never stored. Nothing is written
+    // until the member pastes and saves; closing leaves it as it was.
+    if (row && row.upgradeScript === true && compute.kind === 'ast') {
+      setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true })
+      setName(String(def?.meta?.name || ''))
+      // the script, when it is stored (a remembered failed write-back); else an empty box
+      const stored = typeof row.pine_source === 'string' && row.pine_source.trim() ? row.pine_source : ''
+      setPineText(stored)
+      setBuildMode('pine')
+      setScriptUpgradeNote(stored ? SCRIPT_UPGRADE_RESAVE_NOTE : SCRIPT_UPGRADE_PASTE_NOTE)
+      return
+    }
     // ⛔⛔ P1 HARDENING (2026-10-11) — THE FORMULA BOX EDITS FORMULAS, AND ONLY FORMULAS.
     // A `runtime` document's `compute.source` is a whole PINE SCRIPT, and the restore
     // below would drop it into the formula box as formula text — a document of one
@@ -1502,6 +1540,9 @@ export default function BuilderSheet({
       const derived = i === 0 ? DEFAULT_PLOT1_LABEL(metaShort) : p.key
       return {
         key: p.key,
+        // ⭐ LINE IDENTITY — the key this row was SAVED under; a row whose key the
+        // member changes is a new line (`lineIdentity.rowIsNewLine`).
+        savedKey: p.key,
         label: (typeof p.label === 'string' && p.label !== derived) ? p.label : '',
         style: typeof p.style === 'string' ? p.style : 'line',
         color: (colorSpec && typeof colorSpec.default === 'string' && colorSpec.default)
@@ -2052,7 +2093,13 @@ export default function BuilderSheet({
       name,
       look: lookToApply,
     }
-    let doc = withPineDoorStamp(withApplyProvenance(documentFor(rows, docArgs), applyProvenanceRef.current), pineDoorStampRef.current)
+    // ⭐ SAVED-SCRIPT AUTO-UPGRADE — this save sends no script, so `saveUserDefinition`
+    // strips any engine stamp the edit carried (`carryProgramMeta`): a hand edit never
+    // claims to be the translator's output, and is never re-translated away.
+    // ⭐ LINE IDENTITY — the `newLine` marks ride an EDIT's body only (a create has no
+    // previous version: every line is new to the store anyway).
+    const lineMarks = (d) => (editing ? d : withoutNewLineMarkers(d))
+    let doc = lineMarks(withPineDoorStamp(withApplyProvenance(documentFor(rows, docArgs), applyProvenanceRef.current), pineDoorStampRef.current))
     // ⭐⭐ P2X (owner decision 3) — A SAVE NEVER SILENTLY DESTROYS THE STORED
     // OBJECT PROGRAM. Kept → it rides byte-identically. Lossy → NOTHING is sent
     // until the member confirms a save that names what it removes; Cancel leaves
@@ -2065,7 +2112,7 @@ export default function BuilderSheet({
         setSaving(false)
         return
       }
-      doc = withPineDoorStamp(withApplyProvenance(documentFor(rows, { ...docArgs, dropObjects: true }), applyProvenanceRef.current), pineDoorStampRef.current)
+      doc = lineMarks(withPineDoorStamp(withApplyProvenance(documentFor(rows, { ...docArgs, dropObjects: true }), applyProvenanceRef.current), pineDoorStampRef.current))
     }
     setObjectLoss(null)
     const valueKey = intent === INTENTS.VALUE && intentRead ? intentRead.selectedKey : null
@@ -2124,6 +2171,15 @@ export default function BuilderSheet({
     applyProvenanceRef.current = null; pineDoorStampRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
     setSavedRow(row)
+    // ⭐ LINE IDENTITY — every row is now SAVED under its key: no row is a new line
+    // for the next save (resending the marker would mint a new identity again).
+    const settleRow = (r) => {
+      if (!r) return r
+      const { [NEW_LINE_FLAG]: _n, ...rest } = r
+      return { ...rest, savedKey: r.key }
+    }
+    setPlot0(settleRow)
+    setPlotRows((prev) => prev.map(settleRow))
 
     // ── the definition the STORE holds, not the draft ────────────────────────
     //
@@ -2137,7 +2193,10 @@ export default function BuilderSheet({
     // the blob's copy was left to lag it.
     // ⭐ P0G — WITH THE STORE'S SEMANTICS, never the draft's guess: the server
     // decides (`decide_semantics`) and says so in `row.semantics`.
-    const storedDoc = withStoredSemantics({
+    // ⭐ LINE IDENTITY — this tab's copy carries each line's identity as the store
+    // decided it, or is marked pending where only the store knows it yet
+    // (`lineIdentity.withLocalLineIdentities`); the list read replaces it.
+    const storedDoc = withStoredSemantics(withLocalLineIdentities({
       ...doc,
       id: row.def_id || doc.id,
       ...(Number.isInteger(row.version) ? { version: row.version } : {}),
@@ -2145,7 +2204,8 @@ export default function BuilderSheet({
         ...doc.compute,
         ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
       },
-    }, row)
+    }, engineRegistry.getDefinition(row.def_id || doc.id) || (editing ? editing.prior : null) || null,
+    servedLineIdentities(row)), row)
     if (editing && row.def_id) {
       setEditing({ defId: row.def_id, version: Number(row.version) || editing.version + 1, prior: storedDoc })
     }
@@ -2251,19 +2311,30 @@ export default function BuilderSheet({
   // action (`attachPineCopy`) is the create this door has always made.
   const attachPineAs = useCallback(async (definition, options = null, revise = false) => {
     const target = revise && editing && editing.runtime ? editing : null
-    const doc = target ? { ...definition, id: target.defId } : definition
+    // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — a formula-lane document built from a script is
+    // stamped with the engine that translated it and saved WITH that script
+    // (`options.source`, from `MemberPane`), so a later engine fix reaches it on
+    // the member's next load (`savedScriptUpgrade.js`). A runtime-lane document
+    // already carries its script and re-runs it on every draw, so it is unchanged.
+    const scriptSource = options && typeof options.source === 'string' && options.source.trim()
+      ? options.source : null
+    const stampIt = !!(scriptSource && definition && definition.compute && definition.compute.kind === 'ast')
+    const base = stampIt ? withEngineStamp(definition) : definition
+    const doc = target ? { ...base, id: target.defId } : base
     const { defs, errors } = validateUserDefinitions([doc])
     if (errors.length || defs.length !== 1) {
       return { ok: false, error: errors.join('\n') || 'The registry refused this definition.' }
     }
     const ack = options && options.previewAcked === true
-    const saveOptions = (ack || target) ? { ...(ack ? { previewAcked: true } : {}),
-      ...(target ? { baseVersion: target.version } : {}) } : null
+    const saveOptions = (ack || target || stampIt) ? { ...(ack ? { previewAcked: true } : {}),
+      ...(target ? { baseVersion: target.version } : {}),
+      ...(stampIt ? { pineSource: scriptSource } : {}) } : null
     const res = await saveUserDefinition(doc, target ? target.defId : null, importTelemetryRef.current, saveOptions)
     if (!res.ok) return res
     importTelemetryRef.current = null
     const row = res.row || {}
-    const storedDoc = {
+    // ⭐ LINE IDENTITY — as `save` (a create has no prior: every line pending).
+    const storedDoc = withLocalLineIdentities({
       ...doc,
       id: row.def_id || doc.id,
       ...(Number.isInteger(row.version) ? { version: row.version } : {}),
@@ -2271,7 +2342,7 @@ export default function BuilderSheet({
         ...doc.compute,
         ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
       },
-    }
+    }, target ? (engineRegistry.getDefinition(target.defId) || target.prior || null) : null, servedLineIdentities(row))
     const { installed, errors: installErrors } = engineRegistry.installUserDefinitions([storedDoc])
     if (installErrors.length || installed.length !== 1) {
       return {
@@ -2621,6 +2692,9 @@ export default function BuilderSheet({
             />
           )}
 
+          {buildMode === 'pine' && scriptUpgradeNote && (
+            <p className={styles.pickerNote} role="status" data-testid="script-upgrade-note">{scriptUpgradeNote}</p>
+          )}
           {buildMode === 'pine' && (
             <ImportBox
               // ⭐ UIE PHASE 5 (M1) — a script opened for edit seeds a FRESH box (its

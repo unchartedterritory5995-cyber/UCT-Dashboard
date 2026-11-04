@@ -11,6 +11,10 @@
 //               today's headlines never enter it and the date never changes by itself.
 //   Jump to time   starts at the newest match received at or before HH:MM ET; the
 //               rows above it load as the reader scrolls up.
+//   All history    Linked to chart: EVERY archived day, newest first (POST /day with
+//               `history: true` -> archive.history_slice), the live pool merged on top.
+//               Its own selection: picking a day narrows to that day, "All history"
+//               (the calendar) returns, and leaving Linked restores the feed's own date.
 //
 // A filter change returns to the top of the SAME date; a new epoch (database
 // recreated) reloads it. Keyset steps mean arrivals can never duplicate or skip a row.
@@ -28,9 +32,19 @@ const EMPTY = Object.freeze({ rows: [], total: null, dayTotal: null, hidden: nul
  * @param request  dayRequest(...) for the same filters (memoised by the caller)
  * @param enabled  false while the feed is unavailable (no requests)
  */
-export default function useTradeExchangeNewsDay({ feed, matches, request, enabled = true }) {
+export default function useTradeExchangeNewsDay({ feed, matches, request, enabled = true, history = false }) {
   const reqKey = useMemo(() => JSON.stringify(request), [request])
-  const [sel, setSel] = useState({ date: null, at: null })         // date null = Today (follows midnight)
+  // Two selections: the feed's own, and Linked to chart's. Linked starts on All history
+  // each time it is switched on; leaving it leaves the feed's selection exactly as it was.
+  const [selFeed, setSelFeed] = useState({ date: null, at: null })     // date null = Today (follows midnight)
+  const [selLinked, setSelLinked] = useState({ date: 'all', at: null })
+  const sel = history ? selLinked : selFeed
+  const setSel = history ? setSelLinked : setSelFeed
+  const wasHistory = useRef(history)
+  useEffect(() => {
+    if (history && !wasHistory.current) setSelLinked({ date: 'all', at: null })
+    wasHistory.current = history
+  }, [history])
   const [meta, setMeta] = useState(null)                           // GET /days
   const [view, setView] = useState(EMPTY)
   const [busy, setBusy] = useState(null)                           // 'init' | 'older' | 'newer' | null
@@ -46,8 +60,9 @@ export default function useTradeExchangeNewsDay({ feed, matches, request, enable
   }, [])
   const localToday = etDateKey(clock)
   const todayKey = meta?.today && meta.today > localToday ? meta.today : localToday
-  const dateKey = sel.date || todayKey
-  const isToday = dateKey === todayKey
+  const allHistory = history && sel.date === 'all'
+  const dateKey = allHistory ? null : (sel.date || todayKey)
+  const isToday = !allHistory && dateKey === todayKey
 
   // ── availability (the calendar): only what the server says it retains ──
   useEffect(() => {
@@ -64,10 +79,10 @@ export default function useTradeExchangeNewsDay({ feed, matches, request, enable
   useEffect(() => {
     if (firstReq.current) { firstReq.current = false; return }
     setSel((s) => (s.at ? { ...s, at: null } : s))
-  }, [reqKey])
+  }, [reqKey, setSel])
 
   // ── the first slice of the selected date (or of its time jump) ──
-  const key = `${reqKey}|${dateKey}|${sel.at || ''}|${epoch ?? ''}|${nonce}`
+  const key = `${reqKey}|${allHistory ? 'all' : dateKey}|${sel.at || ''}|${epoch ?? ''}|${nonce}`
   const keyRef = useRef(key)
   keyRef.current = key
   useEffect(() => {
@@ -75,12 +90,13 @@ export default function useTradeExchangeNewsDay({ feed, matches, request, enable
     let dead = false
     setBusy('init')
     setError(null)
-    fetchDay({ ...request, date: dateKey, at: sel.at || undefined, limit: DAY_LIMIT })
+    fetchDay(allHistory ? { ...request, history: true, limit: DAY_LIMIT }
+      : { ...request, date: dateKey, at: sel.at || undefined, limit: DAY_LIMIT })
       .then((r) => {
         if (dead) return
         setView({ rows: r.items || [], total: r.total, dayTotal: r.day_total, hidden: r.hidden_placeholders,
           top: r.top || 0, hasOlder: !!r.has_older, hasNewer: !!r.has_newer, olderCursor: r.older_cursor,
-          newerCursor: r.newer_cursor, atMatch: r.at_match || null, key })
+          newerCursor: r.newer_cursor, atMatch: r.at_match || null, searchedTo: r.searched_to || null, key })
       })
       .catch((e) => { if (!dead) setError(e) })
       .finally(() => { if (!dead) setBusy(null) })
@@ -96,7 +112,8 @@ export default function useTradeExchangeNewsDay({ feed, matches, request, enable
     if (!cursor || !(direction === 'older' ? v.hasOlder : v.hasNewer)) return
     const k = v.key
     setBusy(direction)
-    fetchDay({ ...request, date: dateKey, cursor, direction, limit: DAY_LIMIT })
+    fetchDay(allHistory ? { ...request, history: true, cursor, limit: DAY_LIMIT }
+      : { ...request, date: dateKey, cursor, direction, limit: DAY_LIMIT })
       .then((r) => {
         if (keyRef.current !== k) return
         setView((cur) => {
@@ -105,14 +122,14 @@ export default function useTradeExchangeNewsDay({ feed, matches, request, enable
           const fresh = (r.items || []).filter((it) => !have.has(it.seq))
           return direction === 'older'
             ? { ...cur, rows: [...cur.rows, ...fresh], hasOlder: !!r.has_older, olderCursor: r.older_cursor || cur.olderCursor,
-              total: r.total, dayTotal: r.day_total, top: Math.max(cur.top, r.top || 0) }
+              total: r.total, dayTotal: r.day_total, top: Math.max(cur.top, r.top || 0), searchedTo: r.searched_to || cur.searchedTo }
             : { ...cur, rows: [...fresh, ...cur.rows], hasNewer: !!r.has_newer, newerCursor: r.newer_cursor || cur.newerCursor,
               total: r.total, dayTotal: r.day_total, top: Math.max(cur.top, r.top || 0) }
         })
       })
       .catch((e) => { if (keyRef.current === k) setError(e) })
       .finally(() => setBusy(null))
-  }, [view, busy, request, dateKey])
+  }, [view, busy, request, dateKey, allHistory])
   const loadOlder = useCallback(() => step('older'), [step])
   const loadNewer = useCallback(() => step('newer'), [step])
 
@@ -131,35 +148,40 @@ export default function useTradeExchangeNewsDay({ feed, matches, request, enable
   let arrivedHidden = 0
   if (shownView) {
     for (const it of feed.items || []) {
-      if (it.seq > shownView.top && etDateKey(it.received_at_ms) === dateKey) {
+      if (it.seq > shownView.top && (allHistory || etDateKey(it.received_at_ms) === dateKey)) {
         arrivedAll++
         if (request.hide_placeholders && it.placeholder === 'graphic') arrivedHidden++
       }
     }
     for (const it of matches || []) {
       if (it.seq <= shownView.top) break
-      if (etDateKey(it.received_at_ms) === dateKey) arrived++
+      if (allHistory || etDateKey(it.received_at_ms) === dateKey) arrived++
     }
   }
 
   const select = useCallback((date) => {
     const d = !date || date >= todayKey ? null : date
     setSel({ date: d, at: null })
-  }, [todayKey])
-  const prevDay = useCallback(() => select(addDays(dateKey, -1)), [select, dateKey])
-  const nextDay = useCallback(() => select(addDays(dateKey, 1)), [select, dateKey])
-  const jumpTo = useCallback((at) => setSel((s) => ({ ...s, at: at || null })), [])
-  const toLatest = useCallback(() => setSel({ date: null, at: null }), [])
+  }, [todayKey, setSel])
+  const prevDay = useCallback(() => { if (dateKey) select(addDays(dateKey, -1)) }, [select, dateKey])
+  const nextDay = useCallback(() => { if (dateKey) select(addDays(dateKey, 1)) }, [select, dateKey])
+  const jumpTo = useCallback((at) => { if (!allHistory) setSel((s) => ({ ...s, at: at || null })) }, [allHistory, setSel])
+  // Latest: the newest headlines -- Linked's newest is All history, the feed's is Today.
+  const toLatest = useCallback(() => setSel({ date: history ? 'all' : null, at: null }), [history, setSel])
+  const showAll = useCallback(() => setSelLinked({ date: 'all', at: null }), [])
   const retry = useCallback(() => { setError(null); setNonce((n) => n + 1) }, [])
 
   return {
     dateKey, todayKey, isToday, at: sel.at, atMatch: shownView?.atMatch || null, meta,
-    rows, total: shownView ? shownView.total + arrived : null,
-    dayTotal: shownView ? shownView.dayTotal + arrivedAll : null,
-    hidden: shownView ? shownView.hidden + arrivedHidden : null,
+    history, allHistory, showAll, searchedTo: shownView?.searchedTo || null,
+    // changes with every older step, so a step that found nothing still asks for the next
+    cursorKey: shownView?.olderCursor ? shownView.olderCursor.join(':') : '',
+    rows, total: shownView && shownView.total != null ? shownView.total + arrived : null,
+    dayTotal: shownView && shownView.dayTotal != null ? shownView.dayTotal + arrivedAll : null,
+    hidden: shownView && shownView.hidden != null ? shownView.hidden + arrivedHidden : null,
     hasOlder: !!shownView?.hasOlder, hasNewer: !!shownView?.hasNewer,
     loading: busy === 'init' || (enabled && !current && !error), loadingMore: busy === 'older' || busy === 'newer',
     error, retry, loadOlder, loadNewer, select, prevDay, nextDay, jumpTo, toLatest,
-    live: isToday && !sel.at && !shownView?.hasNewer,
+    live: (allHistory || isToday) && !sel.at && !shownView?.hasNewer,
   }
 }

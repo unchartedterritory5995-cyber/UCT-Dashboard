@@ -156,7 +156,10 @@ describe('⭐ strict mode does NOT punish a script for being correct', () => {
     // (`cum(1) − valuewhenOccurrence(cond, cum(1), 0)`, exact, never capped) and a
     // screen still refuses it — another `cum`-shaped exception. `ta.wad` is
     // undeclared everywhere, so both contracts refuse it.
-    const script = '//@version=6\nindicator(\"t\")\nplot(ta.wad)\n'
+    // ⚰️ (2026-11-02) …until W1 served `ta.wad` on a pane (TradingView's `f_wad`
+    // under the `cum` bargain) — a THIRD `cum`-shaped exception. `ta.sar` is
+    // unimplemented and ruled (`_functions_excluded.sar`) in both contracts.
+    const script = '//@version=6\nindicator(\"t\")\nplot(ta.sar(0.02, 0.02, 0.2))\n'
     const r = translatePine(script, { strict: true })
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBeTruthy()

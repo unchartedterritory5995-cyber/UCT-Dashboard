@@ -25,7 +25,6 @@ describe('the mistakes members make get the fix', () => {
     ['stddev(close, 20)', 'stdev(close, 20)'],
     ['variance(close, 20)', 'stdev(close, 20) * stdev(close, 20)'],
     ['cross(close, sma(close, 20))', 'crossOver(close, ema(close, 20)) || crossUnder(close, ema(close, 20))'],
-    ['bbUpper(close, 20, 2)', 'sma(close, 20) + 2 * stdev(close, 20)'],
     ['obv > 0', 'obvN(50)'],
     ['change(close, 5)', 'close - close[5]'],
     ['macd(close, 12, 26, 9)', 'ema(macd(close, 12, 26), 9)'],
@@ -41,8 +40,21 @@ describe('the mistakes members make get the fix', () => {
     expect(hint.length).toBeLessThan(240)
   })
 
-  it('sar says why, and names what IS available', () => {
-    expect(hintFor('sar(0.02, 0.02, 0.2)')).toMatch(/not available as a formula yet.*supertrend\(3, 10\)/)
+  it('sar is a formula now (2026-10-30), and the TradingView three-argument form is told how to write it', () => {
+    // ⚰️ This said SAR was "not available as a formula yet". `sar(step, maxStep)` ships
+    // over `accum4`; the refusal of the 3-argument form is the expansion's own sentence.
+    const r = parseFormula('sar(0.02, 0.02, 0.2)')
+    expect(r.ok).toBe(false)
+    expect(r.error).toMatch(/sar\(step, maxStep\).*ta\.sar\(start, increment, maximum\).*sar\(0\.02, 0\.2\)/)
+    expect(parseFormula('sar(0.02, 0.2)').ok).toBe(true)
+  })
+
+  it('Bollinger Bands are a formula now (2026-11-01): bbUpper parses and needs no hint', () => {
+    // ⚰️ This expected the "write it as sma + 2 * stdev" hint. `bbUpper` is now an
+    // expansion that builds exactly that tree, so there is nothing to correct.
+    expect(parseFormula('bbUpper(close, 20, 2)').ok).toBe(true)
+    expect(parseFormula('bbLower(close, 20, 1.5)').ok).toBe(true)
+    expect(evaluateFormula('bbUpper(close, 20, 2)', {}).ok).toBe(true) // the formula sheet accepts it
   })
 
   it('stays silent when it has nothing honest to say', () => {

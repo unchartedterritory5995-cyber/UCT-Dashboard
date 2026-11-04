@@ -1,0 +1,396 @@
+{
+  "kind": "screen.count",
+  "declared_freshness": "periodic",
+  "category": "scan",
+  "cases": {
+    "periodic": {
+      "contract": "MD-1.0",
+      "kind": "screen.count",
+      "params_echo": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        }
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-29T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-screener",
+      "coverage": {
+        "evaluated": 3700,
+        "answered": 3700,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        },
+        "count": 2,
+        "excluded": [],
+        "origin": {
+          "source": "spec"
+        }
+      },
+      "notes": [
+        "Screener snapshot — values as of the 2026-10-29 close (nightly), not live."
+      ],
+      "provider_calls": 0
+    },
+    "stale": {
+      "contract": "MD-1.0",
+      "kind": "screen.count",
+      "params_echo": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        }
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-27T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": true,
+      "source": "uct-screener",
+      "coverage": {
+        "evaluated": 3700,
+        "answered": 3700,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        },
+        "count": 2,
+        "excluded": [],
+        "origin": {
+          "source": "spec"
+        }
+      },
+      "notes": [
+        "Screener snapshot — values as of the 2026-10-27 close (nightly), not live.",
+        "This snapshot is 2 sessions behind the last close."
+      ],
+      "provider_calls": 0
+    },
+    "market-closed": {
+      "contract": "MD-1.0",
+      "kind": "screen.count",
+      "params_echo": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        }
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T20:00:00Z",
+      "fetched_at": "2026-10-31T14:00:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-screener",
+      "coverage": {
+        "evaluated": 3700,
+        "answered": 3700,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        },
+        "count": 2,
+        "excluded": [],
+        "origin": {
+          "source": "spec"
+        }
+      },
+      "notes": [
+        "Screener snapshot — values as of the 2026-10-30 close (nightly), not live."
+      ],
+      "provider_calls": 0
+    },
+    "unavailable": {
+      "contract": "MD-1.0",
+      "kind": "screen.count",
+      "params_echo": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        }
+      },
+      "status": "unavailable",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-screener",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "the data source could not answer"
+      ],
+      "provider_calls": 0
+    },
+    "refused": {
+      "contract": "MD-1.0",
+      "kind": "screen.count",
+      "params_echo": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        }
+      },
+      "status": "refused",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-agent-gateway",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "this turn already made 8 data reads"
+      ],
+      "provider_calls": 0
+    },
+    "partial": {
+      "contract": "MD-1.0",
+      "kind": "screen.count",
+      "params_echo": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        }
+      },
+      "status": "partial",
+      "freshness": "periodic",
+      "as_of": "2026-10-29T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-screener",
+      "coverage": {
+        "evaluated": 3700,
+        "answered": 3540,
+        "dropped": 40,
+        "not_computable": 120
+      },
+      "data": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        },
+        "count": 2,
+        "excluded": [
+          {
+            "symbol": "ZZZQ",
+            "reason": "stopped_bars",
+            "detail": "price history ends 2026-09-01"
+          }
+        ],
+        "origin": {
+          "source": "spec"
+        }
+      },
+      "notes": [
+        "Screener snapshot — values as of the 2026-10-29 close (nightly), not live.",
+        "40 names were excluded because their own price history stopped.",
+        "120 names could not be decided: a value this screen needs is missing."
+      ],
+      "provider_calls": 0
+    },
+    "no-matches": {
+      "contract": "MD-1.0",
+      "kind": "screen.count",
+      "params_echo": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        }
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-29T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-screener",
+      "coverage": {
+        "evaluated": 3700,
+        "answered": 3700,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        },
+        "count": 0,
+        "excluded": [],
+        "origin": {
+          "source": "spec"
+        }
+      },
+      "notes": [
+        "No names matched. Screener snapshot as of the 2026-10-29 close (nightly), not live."
+      ],
+      "provider_calls": 0
+    }
+  }
+}

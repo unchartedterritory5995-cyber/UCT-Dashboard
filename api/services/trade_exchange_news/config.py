@@ -3,10 +3,11 @@
 ⛔ DARK BY DEFAULT. ``TXN_ENABLED`` must be exactly ``"1"``: the ingest route
 does not match, the pipeline never starts and nothing touches /data.
 
-⚠️ History bounds are the OWNER-APPROVED TARGET (7 days / 5,000 headlines,
-whichever comes first) and are "subject to confirmed Trade Exchange retention
-and redistribution permissions". Until that confirmation exists the flag stays
-off; the numbers are here so the bound is enforced the moment it is on.
+⛔⛔ PERMANENT RETENTION (owner, 2026-10-31; Trade Exchange authorized indefinite
+storage). There is NO history bound any more: no age, no count. The former
+``TXN_HISTORY_MAX_AGE_HOURS`` / ``TXN_HISTORY_MAX_ITEMS`` /
+``TXN_JOURNAL_RETENTION_HOURS`` are read by nothing -- setting them changes
+nothing, so a typo or a negative value can never shorten retention again.
 """
 from __future__ import annotations
 
@@ -37,6 +38,52 @@ def _float(key: str, default: float) -> float:
         return default
 
 
+#: Press-release links (release_links.py): FOUR independent switches, all off by
+#: default. The thread runs only with ENABLED; each stage needs its own flag; what
+#: members see needs DISPLAY. So links can be resolved and reviewed dark, each
+#: source rolled back alone, and every link hidden at once without losing any.
+
+def release_links_enabled() -> bool:
+    """Start the resolver thread at boot. Off: nothing new is resolved."""
+    return os.environ.get("TXN_RELEASE_LINKS_ENABLED", "").strip() == "1"
+
+
+def release_links_fmp_enabled() -> bool:
+    """The FMP wire stage (company news, read-only). Read every pass."""
+    return os.environ.get("TXN_RELEASE_LINKS_FMP_ENABLED", "").strip() == "1"
+
+
+def release_links_sec_enabled() -> bool:
+    """The SEC EDGAR stage (free; the repo's fair-access client). Read every pass."""
+    return os.environ.get("TXN_RELEASE_LINKS_SEC_ENABLED", "").strip() == "1"
+
+
+def release_links_display_enabled() -> bool:
+    """Members see stored links (headline events, the live ``link`` event). Off
+    hides every link immediately; the stored rows are untouched."""
+    return os.environ.get("TXN_RELEASE_LINKS_DISPLAY_ENABLED", "").strip() == "1"
+
+
+def release_links_interval_s() -> float:
+    return max(15.0, _float("TXN_RELEASE_LINKS_INTERVAL_S", 60.0))
+
+
+def release_links_start_delay_s() -> float:
+    return _float("TXN_RELEASE_LINKS_START_DELAY_S", 90.0)
+
+
+def release_links_fmp_batch() -> int:
+    return min(1000, _int("TXN_RELEASE_LINKS_FMP_BATCH", 300, lo=1))
+
+
+def release_links_sec_budget() -> int:
+    """SEC requests per pass (one pass a minute): far under fair access. At least
+    20: one headline needs up to 18 (tickers, submissions, 4 filings x index + 3
+    documents), so a smaller budget could leave it stuck at the head of the queue.
+    TXN_RELEASE_LINKS_SEC_ENABLED is the off switch."""
+    return min(120, _int("TXN_RELEASE_LINKS_SEC_BUDGET", 40, lo=20))
+
+
 def db_path() -> str:
     return os.environ.get("TXN_DB_PATH") or os.path.join(
         os.environ.get("DATA_DIR", "/data"), "trade_exchange_news.db")
@@ -59,18 +106,22 @@ def dedupe_window_ms() -> int:
     return int(_float("TXN_DEDUPE_WINDOW_S", 60.0) * 1000)
 
 
-def history_max_age_ms() -> int:
-    return _int("TXN_HISTORY_MAX_AGE_HOURS", 168, lo=1) * 3600 * 1000
+#: Settings retired by permanent retention. Nothing reads them; the admin status
+#: names any still set so they can be removed from the environment.
+RETIRED_ENV = ("TXN_HISTORY_MAX_AGE_HOURS", "TXN_HISTORY_MAX_ITEMS", "TXN_JOURNAL_RETENTION_HOURS")
 
 
-def history_max_items() -> int:
-    return _int("TXN_HISTORY_MAX_ITEMS", 5000, lo=1)
+def retired_env_set() -> list[str]:
+    return [k for k in RETIRED_ENV if os.environ.get(k) is not None]
 
 
-def journal_retention_ms() -> int:
-    """How long the R2 journal keeps a record (its bucket lifecycle rule; the
-    runbook sets 8 days). Recovery never reaches further back than this."""
-    return _int("TXN_JOURNAL_RETENTION_HOURS", 192, lo=1) * 3600 * 1000
+def boot_recovery_window_ms() -> int:
+    """How far back recovery reaches when the database is EMPTY (a fresh or lost
+    volume): the recent days, so live News is whole again within minutes. Older
+    history comes back from a snapshot or ``tools/txn_rebuild_from_r2.py``
+    (docs/runbooks/trade-exchange-news-retention.md), never from this loop.
+    A database that holds anything recovers from its own cursor, however old."""
+    return _int("TXN_BOOT_RECOVERY_WINDOW_HOURS", 192, lo=1) * 3600 * 1000
 
 
 def storage_permitted() -> bool:

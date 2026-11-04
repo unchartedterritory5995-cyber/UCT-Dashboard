@@ -94,7 +94,7 @@
 // this file has, it is the only one, and `sentence.test.js` measures it by
 // rendering through a manifest whose keys were rebuilt in reverse order.
 
-import { TABLE, NODE_TYPES, RECURRENCE_BINDINGS, TICKER_SHAPE } from './parse.js'
+import { TABLE, NODE_TYPES, RECURRENCE_BINDINGS, MULTI_STATES, TICKER_SHAPE } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -717,6 +717,17 @@ export function coverageGaps(table = TABLE, operatorPhrases = OPERATOR_SENTENCE,
 
 const isLeaf = (n) => !!n && typeof n === 'object' && (n.type === 'num' || n.type === 'series')
 
+/** ⭐ 2026-10-30 — the literal `0 / 0`, which this engine writes for "no value" (`na`:
+ *  the formula word, `ta.na`, every Pine `na` and every withheld bar of an
+ *  expansion). It reads back as the words a member means — "no value" — never as
+ *  arithmetic, and it is bracketed like a leaf because it IS one value. Derived
+ *  names (`derivedName.js`) already said "no value"; this makes the read-back agree.
+ *  ⚠️ ONLY the literal: `(high - low) / (high - low)` is a real division that can be
+ *  a hole on some bars, and is described as the division it is. */
+const isNoValue = (n) => !!n && typeof n === 'object' && n.type === 'op' && n.name === '/'
+  && Array.isArray(n.args) && n.args.length === 2
+  && n.args.every((a) => a && a.type === 'num' && a.value === 0)
+
 /** ⚠️ `String(n)`, NEVER `toLocaleString` AND NEVER `Intl`. ECMAScript pins
  *  Number-to-String exactly; a locale format would put a comma in a thousands
  *  separator on one machine and a period on another, and the sentence is
@@ -795,7 +806,7 @@ function refuseGap(gap, kind, name, path) {
  *  claim: exactly one form parses each of the sentences it generates. */
 function renderArg(node, rules, inputs, depth, path, trace) {
   const inner = renderNode(node, rules, inputs, depth + 1, path, trace)
-  return isLeaf(node) ? inner : `(${inner})`
+  return isLeaf(node) || isNoValue(node) ? inner : `(${inner})`
 }
 
 function renderName(node, rules, inputs, path, trace) {
@@ -819,6 +830,15 @@ function renderName(node, rules, inputs, path, trace) {
   // already refused, which helps nobody.
   if (RECURRENCE_BINDINGS.includes(name)) {
     trace.push({ path, rule: 'series:recurrence' })
+    // ⭐ 2026-10-30 — a MULTI-STATE bind says WHICH running value it reads. Without
+    // the number `state1` and `state2` read back as the same words, and a member
+    // could not tell an update that swaps them from one that does not (the
+    // round-trip rail found exactly that). The number is its position in the
+    // entry's own `binds`, read off the manifest.
+    for (const ms of Object.values(MULTI_STATES)) {
+      const at = ms.binds.indexOf(name)
+      if (at >= 0) return `the running value ${at + 1} so far`
+    }
     return 'the running value so far'
   }
   // ⛔ THE TABLE IS CONSULTED FIRST AND THE ORDER IS LOAD-BEARING. A definition
@@ -894,6 +914,10 @@ function renderOp(node, rules, inputs, depth, path, trace) {
   }
   if (node.args.length !== rule.arity) {
     refuse('sentence:arity', `at ${path}: ${name} takes ${rule.arity}, got ${node.args.length}`)
+  }
+  if (isNoValue(node)) {
+    trace.push({ path, rule: 'op:no-value' })
+    return 'no value'
   }
   // ⭐ THE ONE PLACE THE CHROME CONSULTS `yields`. Every operand already being a
   // condition is what makes the `!= 0` scaffolding vacuous; one `num` operand

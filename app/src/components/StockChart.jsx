@@ -73,6 +73,11 @@ import IpoFirstTradeTag from './chart/IpoFirstTradeTag'
 import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
 import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
+import ChartIqOverlay from './chart/chartIq/ChartIqOverlay'
+import ChartIqPanel from './chart/chartIq/ChartIqPanel'
+import { buildPlan as buildChartIqPlan, defaultLayers as chartIqDefaultLayers, CHART_IQ_TFS, levelsOnly as chartIqLevelsOnly } from './chart/chartIq/chartIqPlan'
+import { useChartIqAllowed } from './chart/chartIq/chartIqGate'
+import { useChartIq } from '../hooks/useChartIq'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar, { CHART_TOOLBAR_FOOTPRINT_PX, TOOLS as DESKTOP_TOOLS } from './chart/ChartToolbar'
 import MobileDrawBar from './chart/MobileDrawBar'
@@ -152,6 +157,7 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems } from './chart/legend/chipMenu'
+import { needsScriptForUpgrade, UPGRADE_NOTICE_LABEL } from './chart/builder/memberPane/savedScriptUpgrade'
 import { kindOf as definitionKindOf, copyVerdict } from './chart/builder/definitionActions'
 // ⭐ P1 — INFO VALUES: a header reference `{instanceId, plotKey, format}` to an
 // installed output, read from the binder's own latest value (`infoValueResolve`).
@@ -2617,7 +2623,7 @@ export default function StockChart({
   hidePatterns = false,     // hide the pattern-recognition toggle button
   disablePatterns: disablePatternsProp = false,  // fully disable pattern detection on this instance: no /api/patterns fetch or 30s poll, no PatternOverlay mount, toolbar toggle forced hidden. hidePatterns only hides the button; this kills the data path (grid cells — 16 instances × 30s polls otherwise).
   showSavedDrawings = false, // render the user's saved per-symbol drawings as a READ-ONLY layer when the drawing tools are off (multi-chart grid cells: a member's trendlines must not vanish there). Inert when showDrawingTools is on — the editable overlay already renders them.
-  settingsOverride = null,  // optional PARTIAL chart_settings blob merged over the user's global settings for THIS instance only (multi-chart grid: per-cell chart type). Precedence defaults < global < override; overridden keys are restored from the un-overridden base before any settings write persists, so an override can never leak into the global blob. MUST be identity-stable (useMemo) — it's a memo dep.
+  settingsOverride = null,  // optional PARTIAL chart_settings blob merged over the user's global settings for THIS instance only (a grid cell's own blob or own-chart source, a study exhibit's look). Precedence defaults < global < override. ⛔ Pass `onSettingsPersist` WITH it: without a sink, only override keys an edit left unchanged are restored, and `indicatorInstances` (a new array after any indicator edit) is written to the GLOBAL blob — railed by components/chart/settingsScope.rail.test.js. MUST be identity-stable (useMemo) — it's a memo dep.
   onSettingsPersist = null,  // optional (nextFullSettings) => void — when provided, ALL in-chart settings writes (gear, indicators, overlays, ext-hours, log/pct scale, right-click toggles) route HERE instead of the global chart_settings pref. Used by a Chart widget's EXTRA tabs so each tab's edits persist to that tab's own blob in isolation, never touching the global settings or another tab. `settingsOverride` should carry this tab's full settings so `cs` reflects it.
   hideCompare = false,      // hide both compare-symbol entry points (text input + popover)
   hideCountdown = false,    // hide the intraday bar-close countdown badge
@@ -2740,7 +2746,15 @@ export default function StockChart({
   // MOBILE editor sheet. Absent (every desktop surface), chip bodies stay
   // inert and only the Task-4 controls respond.
   onLegendStudyTap = null,
+  // ⭐⭐ The scope this chart's indicator binder publishes its bind-time notes under
+  // (`createBinder({scope})`: `time(<tf>)` withholdings, render drops, a script's
+  // `runtime.error`). `ChartPane` passes the id it also hands its disclosure strip,
+  // so the strip reads only THIS chart's notes; absent (a grid cell, a harness), the
+  // chart takes its own stable id, which no other strip reads.
+  noticeScope = null,
 }) {
+  const ownNoticeScope = useId()
+  const binderNoticeScope = typeof noticeScope === 'string' && noticeScope ? noticeScope : ownNoticeScope
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   // ═══ ECONOMIC PRIMARY CHART ═════════════════════════════════════════════
   // ⭐ `ECON:<SYMBOL>` is not an instrument: no bars, no OHLC, no quote, no feed.
@@ -5354,10 +5368,18 @@ export default function StockChart({
     // un-overridden base so an override never leaks into the GLOBAL blob.
     // Restore ONLY keys the write carried through unchanged (Object.is vs cs):
     // a key the user deliberately edited differs from cs and must persist —
-    // blanket-restoring would silently drop their global edit. Section-object
-    // overrides would need sub-key diffing here; today's only override is the
-    // primitive per-cell chartType. (The watermark-drag commit builds from
-    // mergeChartSettings(prefs) directly and cannot leak — keep it that way.)
+    // blanket-restoring would silently drop their global edit.
+    // ⚰️ This said "today's only override is the primitive per-cell chartType".
+    // Stale: an override is often a WHOLE settings blob (a grid cell's own-chart
+    // source, a study exhibit's house look), and `indicatorInstances` is a new
+    // array after any add/hide/remove, so it always fails the Object.is test and
+    // this path writes it to GLOBAL. That is why a host that passes an override
+    // MUST also pass `onSettingsPersist` (owner ruling 2026-11-02, policy A:
+    // an edit is saved where the chart lives) — railed by
+    // `components/chart/settingsScope.rail.test.js`. Only an explicitly
+    // allow-listed surface reaches this restore with an override.
+    // (The watermark-drag commit builds from mergeChartSettings(prefs) directly
+    // and cannot leak — keep it that way.)
     let persisted = newSettings
     if (settingsOverride) {
       persisted = { ...newSettings }
@@ -6309,6 +6331,22 @@ export default function StockChart({
     handleUpdateChartSettings({ ...cs, showPatterns: next, preset: 'custom' })
   }, [cs, handleUpdateChartSettings])
   const [activeDetection, setActiveDetection] = useState(null)
+  // ── Chart IQ (pattern recognition drawn on the chart; api/routers/chart_iq.py) ── the toolbar switch persists in chart_settings
+  // like Patterns; it shows only while the server allows this viewer (chart_iq_enabled), and the engine reads DAILY bars, so
+  // the fetch and the drawing happen on the 1D timeframe only. `disablePatterns` (grid cells) kills it with the pattern layer.
+  const chartIqAllowed = useChartIqAllowed()
+  const persistedShowChartIq = !!cs.showChartIq
+  const [showChartIq, setShowChartIq] = useState(persistedShowChartIq)
+  useEffect(() => { setShowChartIq(persistedShowChartIq) }, [persistedShowChartIq])
+  const handleToggleChartIq = useCallback((next) => {
+    setShowChartIq(next)
+    handleUpdateChartSettings({ ...cs, showChartIq: next, preset: 'custom' })
+  }, [cs, handleUpdateChartSettings])
+  const chartIqOn = showChartIq && chartIqAllowed && !disablePatterns
+  const chartIqActive = chartIqOn && CHART_IQ_TFS.includes(resolvedTf)   // daily, or weekly (the daily read's price levels)
+  const { data: chartIqData, error: chartIqError, isLoading: chartIqLoading } = useChartIq(sym, resolvedTf, chartIqActive)
+  const [chartIqLayers, setChartIqLayers] = useState(chartIqDefaultLayers)   // per tab, not persisted
+  const handleChartIqLayer = useCallback((id, on) => setChartIqLayers((l) => ({ ...l, [id]: on })), [])
   // Auto Structures (AUTO_STRUCTURES_ENABLED): the overlay, its fetch and its toolbar toggle are
   // ADMIN-ONLY while the flag is on, and off for everyone else — a member whose persisted
   // `showPatterns` is true still sees (and fetches) nothing, exactly as before.
@@ -7090,14 +7128,20 @@ export default function StockChart({
   // ⭐ THE FOURTH SOURCE FAMILY'S DATA — historical point-in-time fundamentals
   // (`fund:`). Same seam, same stable-identity discipline as the line above; a
   // chart with no `fund:` source makes no request at all.
-  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, csView)
+  // ⭐ 2026-11-01 — the SAME reload rule as the other-symbol hooks above
+  // (OPEN-FINDINGS §10): `_defOf` never changes identity, so a saved `fund:` /
+  // Market Cap / `econ:` source whose definition loaded after the chart restored
+  // was never asked for until the view changed. Each hook re-reads its needed set
+  // when the member's definitions land (`userDefsGeneration`).
+  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, _otherSymbolsRevalidate)
   // ⭐ Market Cap's canonical PIT authority -- null (legacy path) unless the server
   // authority is ON; a chart with no Market Cap source makes no request.
-  const marketCapAuthoritySources = useMarketCapAuthority(_storedInstances, _defOf, sym, csView)
+  const marketCapAuthoritySources = useMarketCapAuthority(_storedInstances, _defOf, sym, _otherSymbolsRevalidate)
   // ⭐ THE FIFTH SOURCE FAMILY'S DATA — economic series (`econ:<SYMBOL>`), for an
   // overlay on ANY chart and for the primary economic series alike. Same seam, same
   // stable-identity discipline; a chart with no `econ:` source makes no request.
-  const economicSources = useEconomicSources(_storedInstances, _defOf, cs)
+  const _economicRevalidate = useMemo(() => ({ cs, userDefsGeneration }), [cs, userDefsGeneration])
+  const economicSources = useEconomicSources(_storedInstances, _defOf, _economicRevalidate)
 
   // ⭐ THE SERVER LANE'S REPAINT SIGNAL (the RS line). `computeFor` reads the
   // column cache synchronously and the fetch lands later; this is what tells
@@ -9737,6 +9781,15 @@ export default function StockChart({
     [patternsActive, ohlcData],
   )
   const patternLastPrice = patternsActive && ohlcData.length ? ohlcData[ohlcData.length - 1].close : null
+  // Chart IQ's drawing plan: its dates are the daily series' own keys ('YYYY-MM-DD'), clipped to the loaded bars.
+  const chartIqPlan = useMemo(
+    () => {
+      if (!(chartIqActive && chartIqData && ohlcData.length)) return null
+      const plan = buildChartIqPlan(chartIqData, ohlcData.map((d) => d.time), chartIqLayers, { weekly: resolvedTf === 'W' })
+      return resolvedTf === 'W' ? chartIqLevelsOnly(plan) : plan
+    },
+    [chartIqActive, chartIqData, ohlcData, chartIqLayers, resolvedTf],
+  )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
   // every change rather than latched once, so a chart that recovers on a later
   // SWR refresh stops reporting empty — a latch taken at first settle would pin
@@ -13287,7 +13340,7 @@ export default function StockChart({
     const engineNeeded = engineInstances.length > 0
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
     if (engineNeeded && !engineRef.current) {
-      engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc() }) }
+      engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc(), scope: binderNoticeScope }) }
     }
     if (engineRef.current) {
       engineRef.current.binder.sync({
@@ -18232,6 +18285,13 @@ export default function StockChart({
       // than erasing its successor's registration.
       try { unregisterManifestRef.current?.() } catch {}
       unregisterManifestRef.current = null
+      // ⭐ The indicator binder lets go BEFORE its chart is removed: `teardown()`
+      // releases its series and clears every bind-time note it published under this
+      // chart's notice scope (`chartClockNotice` / `objectRenderNotice` /
+      // `runtimeErrorNotice`), so an unmounted chart leaves no orphaned scope behind.
+      // Safe unconditionally (zero calls when it holds nothing); no render follows.
+      try { engineRef.current?.binder?.teardown?.() } catch { /* disposed */ }
+      engineRef.current = null
       if (chartRef.current) {
         try { delete window.__uctChartDebug?.[chartId || 'main'] } catch { /* SSR/teardown */ }
         chartRef.current.remove()
@@ -18953,6 +19013,7 @@ export default function StockChart({
         const items = chipMenuItems(c, def, {
           onModify: () => { close(); try { toolbarRef.current?.openCreateIndicator?.({ defId: c.defId }) } catch { /* noop */ } },
           onEditFormula: () => { close(); try { toolbarRef.current?.openFormulaEditor?.({ defId: c.defId }) } catch { /* noop */ } },
+          onScriptUpgrade: () => { close(); try { toolbarRef.current?.openScriptUpgrade?.({ defId: c.defId }) } catch { /* noop */ } },
           onCustomCopy: () => { close(); try { toolbarRef.current?.createCustomCopy?.({ def, inputs: (inst && inst.inputs) || {} }) } catch { /* noop */ } },
           onSettings: (id) => { close(); handleChipSettings(id) },
           onToggleHidden: (id) => { close(); handleChipHidden(id) },
@@ -18977,6 +19038,11 @@ export default function StockChart({
           definitionKind: defKind,
           canModify: (() => { try { return !!toolbarRef.current?.canModifyWithIntelligence?.() } catch { return false } })(),
           copyRefusal: copyCheck && !copyCheck.ok ? copyCheck.reason : undefined,
+          // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — a script saved before its source was kept.
+          // ⛔ L2 — the row is a door into the builder: offered only where that door opens.
+          scriptUpgrade: needsScriptForUpgrade(c.defId)
+            && (() => { try { return !!toolbarRef.current?.canManageIndicators?.() } catch { return false } })(),
+          scriptUpgradeLabel: UPGRADE_NOTICE_LABEL,
         })
         const move = items.find((i) => i.key === 'move')
         const page = (chipPage === 'move' && move && !move.disabled)
@@ -20660,7 +20726,9 @@ export default function StockChart({
         </div>
         )
       })}
-      {!disablePatterns && bars?.length > 0 && (
+      {/* ONE pattern engine draws at a time (owner, 2026-11-01): while Chart IQ is drawing this daily chart, Auto Structures'
+          overlay steps aside, and it is back the moment Chart IQ is off or the chart leaves 1D. Nothing is retired. */}
+      {!disablePatterns && !chartIqActive && bars?.length > 0 && (
         <PatternOverlay
           chart={chartRef.current}
           series={candleSeriesRef.current}
@@ -20687,9 +20755,40 @@ export default function StockChart({
           candles={patternsActive ? ohlcData : null}
         />
       )}
+      {chartIqActive && bars?.length > 0 && chartIqPlan && (
+        <ChartIqOverlay
+          chart={chartRef.current}
+          series={candleSeriesRef.current}
+          containerRef={containerRef}
+          plan={chartIqPlan}
+          candles={ohlcData}
+        />
+      )}
+      {/* Chart IQ is ON but this chart is not daily: say so (and offer the switch) instead of a switch that silently does nothing.
+          Measured on the live phone shell 2026-11-02: the phone chart sat on 15m, so turning Chart IQ on drew nothing. */}
+      {chartIqOn && !CHART_IQ_TFS.includes(resolvedTf) && bars?.length > 0 && (
+        <ChartIqPanel
+          notDaily
+          onShowDaily={typeof onTfChange === 'function' ? () => onTfChange('D') : null}
+          onClose={() => handleToggleChartIq(false)}
+        />
+      )}
+      {chartIqActive && bars?.length > 0 && (
+        <ChartIqPanel
+          data={chartIqData && String(chartIqData.ticker || '').toUpperCase() === String(sym || '').toUpperCase() ? chartIqData : null}
+          loading={chartIqLoading}
+          error={chartIqError}
+          layers={chartIqLayers}
+          onLayer={handleChartIqLayer}
+          onClose={() => handleToggleChartIq(false)}
+          weekly={resolvedTf === 'W'}
+          onShowDaily={typeof onTfChange === 'function' ? () => onTfChange('D') : null}
+        />
+      )}
       {/* The UCT Intelligence indicator's panel: only on a chart that added it, only while the pattern
           layer exists for this viewer. The released-layer toggles inside it appear from their gates. */}
-      {uctIntelOn && (
+      {/* Steps aside for Chart IQ too: same top-right spot, and its switches drive the overlay that is hidden meanwhile. */}
+      {uctIntelOn && !chartIqActive && (
         <UctIntelligencePanel
           state={uctIntel}
           availability={uctIntelAvailability}
@@ -20903,6 +21002,9 @@ export default function StockChart({
             onReplaySpeedChange={setReplaySpeed}
             showPatterns={showPatterns}
             onTogglePatterns={handleTogglePatterns}
+            showChartIq={showChartIq}
+            onToggleChartIq={handleToggleChartIq}
+            chartIqDaily={resolvedTf === 'D'}
             libraryExtraRows={uctIntelLibraryRows}
             showLevels={showPatternLevels}
             onToggleLevels={setShowPatternLevels}

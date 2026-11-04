@@ -1,4 +1,4 @@
-/* G-040 — the three capture-only embeds (Screener, COT, Model Book).
+/* G-040 — the capture-only embeds (Screener, COT, Model Book; UCT News headline).
    Real tokens only (tokens.css). */
 .root {
   display: flex;
@@ -120,4 +120,13 @@
 }
 .dl dd {
   margin: 0;
+}
+
+/* UCT News V2: a Trade Exchange headline, verbatim (NewsHeadlineEmbed). */
+.headline {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }

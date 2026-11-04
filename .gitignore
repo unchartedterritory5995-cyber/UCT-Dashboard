@@ -251,3 +251,4 @@ tools/scan_handoff_out.json
 # Pine support loop working directory (member script source while a report is open; purged on close).
 # docs/pine/support-loop/PHASE-B.md
 /.support-loop-work/
+

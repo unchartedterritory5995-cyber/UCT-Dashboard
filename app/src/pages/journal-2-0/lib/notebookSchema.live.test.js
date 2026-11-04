@@ -22,12 +22,16 @@ let editor = null
 afterEach(() => { editor?.destroy(); editor = null })
 
 describe('this bundle and `widgetEmbed.ta` (13H-1, schema level 4)', () => {
-  it('THIS bundle’s live editor registers `widgetEmbed.ta` and declares 4', () => {
+  it('THIS bundle’s live editor registers `widgetEmbed.ta` and declares at least 4', () => {
     editor = new Editor({ extensions: buildExtensions() })
     expect(Object.keys(editor.schema.nodes.widgetEmbed.attrs)).toContain('ta')
     expect(editor.schema.nodes.widgetEmbed.attrs.ta.default).toBe(null)
     expect(NOTEBOOK_ATTR_SCHEMA['widgetEmbed.ta']).toBe(4)
-    expect(deriveDeclaredSchema(editor.schema)).toBe(4)
+    // At least 4, never "exactly 4": a newer level (connector fidelity's `importNotice`,
+    // 5) may sit above the attribute, and THIS file's claim is only that `ta` keeps the
+    // declaration from falling to 3. The notice's own level is pinned in
+    // importNoticeNode.test.js, which reverts with the notice.
+    expect(deriveDeclaredSchema(editor.schema)).toBeGreaterThanOrEqual(4)
   })
   it('a `ta` value survives the editor round trip (load → getJSON), and null stays null', () => {
     const ta = { v: 1, setupTag: 'Breakout', fingerprint: { v: 1 }, planBlock: { shares: 200, sizedBy: 'starter' } }

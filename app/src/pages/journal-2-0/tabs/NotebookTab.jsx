@@ -147,6 +147,39 @@ const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalen
 const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
 const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
 const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
+// Plan F Task 10: the one-time notice for imports that lost pictures. Fetched only when the server
+// says there is one to show, so the first-open bytes are unchanged for everyone else.
+const ImportRepairNotice = lazyView(() => import('../components/notebook/ImportRepairNotice'), 'import repair notice', null)
+
+// Plan F Task 10: ONE read of the notice per page load AND MEMBER, shared by every mount of this
+// tab (no polling, and switching tabs and back does not ask again). Final review M-1: signing out
+// does not reload the page, so the read is keyed on the member's id: a different member on the
+// same tab reads their own notice, never the last member's count. No member, no read. Resolves to
+// the count of notes that lost something, or 0 for "nothing to show" -- a failed read included,
+// so it never blocks the list.
+const REPAIR_NOTICE_URL = '/api/j2/notes/import/repair-notice'
+let repairNoticeRead = null // { userId, promise }
+function readRepairNotice(userId) {
+  if (!userId) return Promise.resolve(0)
+  if (!repairNoticeRead || repairNoticeRead.userId !== userId) {
+    const promise = fetch(REPAIR_NOTICE_URL, { credentials: 'include' })
+      .then((r) => (r && r.ok ? r.json() : null))
+      .then((b) => {
+        const n = Number(b?.lossNotes)
+        return b?.show === true && Number.isInteger(n) && n > 0 ? n : 0
+      })
+      .catch(() => 0)
+    repairNoticeRead = { userId, promise }
+  }
+  return repairNoticeRead.promise
+}
+// Either button retires it for this page load at once; the POST retires it for good. A failed POST
+// leaves the server row, so the notice can come back on a later load: never lost, never repeated here.
+function dismissRepairNotice(userId) {
+  repairNoticeRead = { userId, promise: Promise.resolve(0) }
+  return fetch(`${REPAIR_NOTICE_URL}/dismiss`, { method: 'POST', credentials: 'include' }).catch(() => null)
+}
+export function __resetRepairNoticeForTests() { repairNoticeRead = null }
 const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
 // Wave 9 (lane 9D, D2): the sidebar's Publish-folder confirmation, fetched on its first open.
 const PublishFolderSheet = lazyDialog(() => import('../components/notebook/PublishFolderSheet'), 'publish folder')
@@ -441,6 +474,53 @@ export default function NotebookTab() {
   // false | true | 'kinds' (Notebook P1: "From a style" opens the sheet with focus on the first kind, not the search box)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  // Plan F Task 10: the wizard opened from the repair notice starts with "Re-import to recover" ticked,
+  // and hands focus back to the pane heading on close (the notice and its button are gone by then).
+  // Both are set at OPEN and left alone on close, so the Sheet still reads them as it closes;
+  // every ordinary Import door goes through `openImport`, which clears them.
+  const [importRecover, setImportRecover] = useState(false)
+  const [importReturnFocus, setImportReturnFocus] = useState(null)
+  const openImport = useCallback(() => {
+    setImportRecover(false)
+    setImportReturnFocus(null)
+    setImportOpen(true)
+  }, [])
+  const [repairLossNotes, setRepairLossNotes] = useState(0)
+  const repairUserId = auth?.user?.id || null
+  useEffect(() => {
+    let live = true
+    setRepairLossNotes(0) // a member change never shows the previous member's count meanwhile
+    readRepairNotice(repairUserId).then((n) => { if (live) setRepairLossNotes(n) })
+    return () => { live = false }
+  }, [repairUserId])
+  // Review M-1: either button unmounts the notice, and the button with it, so focus must not be left
+  // to fall to <body>. It goes to the pane heading, the Notebook's landing place for focus with
+  // nowhere better to go: at once after Dismiss, and through the wizard's `returnFocusTo` when the
+  // wizard closes after Recover. `paneHeadingRef` is declared further down; these run on a click.
+  const retireRepairNotice = useCallback(() => {
+    setRepairLossNotes(0)
+    dismissRepairNotice(repairUserId)
+  }, [repairUserId])
+  const dismissRepair = useCallback(() => {
+    retireRepairNotice()
+    paneHeadingRef.current?.focus()
+  }, [retireRepairNotice])
+  // Review M-5: the dismiss is a best-effort write and is NOT awaited. It is sent first (so it
+  // still goes out before anything the wizard asks for), and the wizard opens at once.
+  const recoverFromRepairNotice = useCallback(() => {
+    retireRepairNotice()
+    setImportRecover(true)
+    setImportReturnFocus(paneHeadingRef)
+    setImportOpen(true)
+  }, [retireRepairNotice])
+  // ONE element, rendered by whichever pane branch is on screen (Research Home or a list).
+  const repairNotice = repairLossNotes > 0 ? (
+    <ImportRepairNotice
+      lossNotes={repairLossNotes}
+      onRecover={recoverFromRepairNotice}
+      onDismiss={dismissRepair}
+    />
+  ) : null
   // Notebook P1: the Styles manager. `?styles=1` (the Settings card's link) asks to open it, once, and leaves the URL
   // clean. The request is kept even if the switch has not latched yet; ONLY the render gate below decides whether
   // anything shows (one guard, not two).
@@ -451,6 +531,14 @@ export default function NotebookTab() {
     setStylesOpen(true)
     setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('styles'); return p }, { replace: true })
   }, [searchParams, setSearchParams])
+  // Plan E Task 10: `?import=evernote` (the Evernote tile's `.enex` offer, `ENEX_IMPORT_HREF` in
+  // connectors/evernoteCopy.js; NotebookTab.importParam.test.jsx routes to that constant) opens the
+  // import wizard once, through the ordinary door, and leaves the URL clean. The same pattern as `?styles=1`.
+  useEffect(() => {
+    if (searchParams.get('import') !== 'evernote') return
+    openImport()
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('import'); return p }, { replace: true })
+  }, [searchParams, setSearchParams, openImport])
   // Notebook widgets phase 2 (wave 8, Task 8.18): the My tools door, beside Styles, while wave 8 is on. My tools is
   // lazy (its own root, the openMyTools door), so a static import here would put it on the Notebook's first open.
   // Links out of it go through this tab's router (R-45).
@@ -2407,11 +2495,15 @@ export default function NotebookTab() {
         ) : isHome ? (
           // Wave H: bare-root Research Home (checkpoint decision 33/57) --
           // "All notes" itself is unchanged, one click away via the sidebar.
+          // Plan F Task 10: the repair notice sits above Home too, where a member lands; the list
+          // branch renders the same element, and only one branch is ever on screen.
+          <>
+          {repairNotice}
           <ResearchHome
             onOpenNote={openNote}
             onCreateNote={() => createNote()}
             onCreateThesis={createThesisNote}
-            onImport={() => setImportOpen(true)}
+            onImport={openImport}
             hasAnyNotes={hasAnyNotes}
             // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
             blockedNoteIds={blockedNoteIds}
@@ -2432,6 +2524,7 @@ export default function NotebookTab() {
             searchActive={sidebarSearching && sidebarOpen}
             skipLinkClassName={styles.skipLink}
           />
+          </>
         ) : (
           <>
         {/* Lane KEYS round 4: ONE Tab stop for the list's header row (the toolbar pattern:
@@ -2577,7 +2670,7 @@ export default function NotebookTab() {
             <button
               type="button"
               className={styles.importBtn}
-              onClick={() => setImportOpen(true)}
+              onClick={openImport}
               aria-haspopup="dialog"
               data-tour="import"
             >
@@ -2632,6 +2725,7 @@ export default function NotebookTab() {
               onClick={() => createNote()}
               disabled={creating}
               data-tour="new-note"
+              data-guide="journal.newNote"
             >
               + New note
             </button>
@@ -2645,11 +2739,7 @@ export default function NotebookTab() {
 
         <NoteConnectorsTrustStrip />
 
-        <ImportWizard
-          open={importOpen}
-          onClose={() => setImportOpen(false)}
-          onImported={handleImported}
-        />
+        {repairNotice}
 
         <ExportDialog
           open={exportOpen}
@@ -2744,7 +2834,7 @@ export default function NotebookTab() {
                 <button
                   type="button"
                   className={`${styles.importBtn} ${styles.importBtnEmphasized}`}
-                  onClick={() => setImportOpen(true)}
+                  onClick={openImport}
                   aria-haspopup="dialog"
                 >
                   <UIcon name="upload" size={16} gold={false} />
@@ -2910,6 +3000,16 @@ export default function NotebookTab() {
         {/* Notebook P1: the Styles manager is mounted OUTSIDE the pane's branches for the same reason as the
             New-note sheet below: the Settings card's `?styles=1` lands on Research Home, where a manager
             mounted inside the list branch opened nothing (found by the Task 15 walk). */}
+        {/* Plan F Task 10 (concern 2): the import wizard is mounted OUTSIDE the pane's branches for the
+            same reason. Research Home's "Import notes" and the repair notice there both open it; mounted
+            inside the list branch, both were dead buttons on Home. */}
+        <ImportWizard
+          open={importOpen}
+          initialRecover={importRecover}
+          returnFocusTo={importReturnFocus}
+          onClose={() => setImportOpen(false)}
+          onImported={handleImported}
+        />
         {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]} />}
         {/* P0.1: the New-note sheet and the voice-note dialog are mounted OUTSIDE the pane's
             branches. Research Home's "New note" menu opens them, and a sheet mounted inside the

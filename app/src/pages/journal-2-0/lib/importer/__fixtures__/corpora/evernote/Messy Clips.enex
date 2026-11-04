@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE en-export SYSTEM "http://xml.evernote.com/pub/evernote-export4.dtd">
+<en-export export-date="20261101T120000Z" application="Evernote" version="10.0">
+<note><title>Web clip: semis rally</title><content><![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><div>Relative <a href="/markets/x">story</a> and an <a href="#top">anchor</a> and <a href="//cdn.example.com/proto">protocol-relative</a>.</div><div>Nameless picture: <en-media type="image/png" hash="efab1df4a920c9224db90261648f4e5f"/></div><div>Finviz chart: <en-media type="image/gif" hash="22c05a10f516c87783ce063da7493939"/> and clip: <en-media type="image/jpeg" hash="20eb65d0fe7face862cd4f937430c30b"/></div><div>Hotlinked: <img src="https://cdn.example.com/r.png"/> blocked: <img src="https://blocked.example.org/p.png"/> relative: <img src="/img/move.png"/></div><div>Read https://example.com/path. Also www.example.com/a, NVDA.US and BRK.B are tickers.</div><div>Code: <code>https://example.com/in-code</code></div><div>见 https://example.com/路径。好</div><div><a href="tel:+15550100">call desk</a> <a href="mailto:desk@example.com">mail desk</a></div><div><a href="javascript:alert(1)">js</a> <a href="java&#9;script:alert(2)">tabbed</a> <a href="vbscript:x">vb</a> <a href="file:///C:/secret.txt">local</a> <a href="data:text/html,hi">datalink</a></div></en-note>]]></content><created>20261020T140000Z</created><updated>20261020T140000Z</updated><tag>clip</tag><note-attributes><source-url>https://news.example.com/markets/semis.html</source-url><author>corpus</author></note-attributes><resource><data encoding="base64">
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggnRFWHRuYW1lbGVzcw==
+</data><mime>image/png</mime><width>1</width><height>1</height><resource-attributes><source-url>https://news.example.com/img</source-url></resource-attributes></resource><resource><data encoding="base64">
+R0lGODlhAQABAHF1b3Rl
+</data><mime>image/gif</mime><width>1</width><height>1</height><resource-attributes><file-name>quote.ashx</file-name></resource-attributes></resource><resource><data encoding="base64">
+/9j/4EpGSUZjbGlwLWltYWdl
+</data><mime>image/jpeg</mime><width>1</width><height>1</height><resource-attributes><file-name>clip-image</file-name></resource-attributes></resource></note>
+<note><title>Media mess</title><content><![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><div>Phone photo: <en-media type="image/heic" hash="89031a588db8d1d1ef630740388f8726"/></div><div>Logo: <en-media type="image/svg+xml" hash="61961e9cbbd4a5c445dd8b4bb36c1d76"/></div><div><a href="https://example.com/report"><en-media type="application/pdf" hash="247b2a8c00a802428caa715c0b853f6e"/></a></div><div><a href="https://example.com/chart"><en-media type="image/png" hash="5b3b636020e8851cf7f3acbc1e3d7bbb"/></a></div><div>Inline data: <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggnRFWHRkYXRhLXVyaQ=="/> encoded: <img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E"/> broken: <img src="data:image/png;base64,@@@notbase64"/></div><div>Slow host: <img src="https://slow.example.com/s.png"/> gone host: <img src="https://gone.example.com/g.png"/></div></en-note>]]></content><created>20261021T140000Z</created><updated>20261021T140000Z</updated><note-attributes><author>corpus</author></note-attributes><resource><data encoding="base64">
+AAAAGGZ0eXBoZWljSU1HMDAwMQ==
+</data><mime>image/heic</mime><width>1</width><height>1</height><resource-attributes><file-name>IMG_0001.HEIC</file-name></resource-attributes></resource><resource><data encoding="base64">
+PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9
+IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiLz48L3N2Zz4=
+</data><mime>image/svg+xml</mime><width>1</width><height>1</height><resource-attributes><file-name>logo.svg</file-name></resource-attributes></resource><resource><data encoding="base64">
+JVBERi0xLjQKMSAwIG9iajw8Pj5lbmRvYmoKJSVFT0YK
+</data><mime>application/pdf</mime><width>1</width><height>1</height><resource-attributes><file-name>report.pdf</file-name></resource-attributes></resource><resource><data encoding="base64">
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggnRFWHRpbi13ZWItbGluaw==
+</data><mime>image/png</mime><width>1</width><height>1</height><resource-attributes><file-name>chart.png</file-name></resource-attributes></resource></note>
+<note><title>Links to notes</title><content><![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><div>App link: <a href="evernote:///view/123/s1/aaaa-1111/aaaa-1111/">Trade plan</a></div><div>Shard link: <a href="https://www.evernote.com/shard/s1/nl/123/bbbb-2222"><b>Trade</b> plan</a></div><div>Share link: <a href="https://www.evernote.com/l/ABCdef">Watchlist</a></div><div>Shared: <a href="https://www.evernote.com/shard/s1/sh/cccc-3333/xyz">Missing note</a></div><div>Ambiguous: <a href="evernote:///view/123/s1/dddd/dddd/">Duplicate title</a></div><div>Picture link: <a href="evernote:///view/123/s1/eeee/eeee/">Trade plan<en-media type="image/png" hash="48fda1ca35e429cac2b43ef508dd2487"/></a></div><div>Long: <a href="evernote:///view/123/s1/ffff/ffff/">LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL</a></div><div>Not a note: <a href="https://evernote.com/pricing">pricing</a></div></en-note>]]></content><created>20261022T140000Z</created><updated>20261022T140000Z</updated><note-attributes><author>corpus</author></note-attributes><resource><data encoding="base64">
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggnRFWHRpbi1ub3RlLWxpbms=
+</data><mime>image/png</mime><width>1</width><height>1</height><resource-attributes><file-name>thumb.png</file-name></resource-attributes></resource></note>
+<note><title>Trade plan</title><content><![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><div>Buy the pullback.</div></en-note>]]></content><created>20261001T140000Z</created><updated>20261001T140000Z</updated><note-attributes><author>corpus</author></note-attributes></note>
+<note><title>Duplicate title</title><content><![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><div>First copy.</div></en-note>]]></content><created>20261002T140000Z</created><updated>20261002T140000Z</updated><note-attributes><author>corpus</author></note-attributes></note>
+<note><title>Duplicate title</title><content><![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><div>Second copy.</div></en-note>]]></content><created>20261003T140000Z</created><updated>20261003T140000Z</updated><note-attributes><author>corpus</author></note-attributes></note>
+<note><title>Hash mismatch paired</title><content><![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><div>Before <en-media type="image/png" hash="00000000000000000000000000000001"/> after</div></en-note>]]></content><created>20261004T140000Z</created><updated>20261004T140000Z</updated><note-attributes><author>corpus</author></note-attributes><resource><data encoding="base64">
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggnRFWHRwYWlyZWQtYnktdW5pcXVlbmVzcw==
+</data><mime>image/png</mime><width>1</width><height>1</height><resource-attributes><file-name>reencoded.png</file-name></resource-attributes></resource></note>
+<note><title>Hash mismatch ambiguous</title><content><![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><div>One <en-media type="image/png" hash="00000000000000000000000000000002"/> two <en-media type="image/png" hash="00000000000000000000000000000003"/> end</div></en-note>]]></content><created>20261005T140000Z</created><updated>20261005T140000Z</updated><note-attributes><author>corpus</author></note-attributes><resource><data encoding="base64">
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggnRFWHRhbWJpZ3VvdXMtYQ==
+</data><mime>image/png</mime><width>1</width><height>1</height><resource-attributes><file-name>first.png</file-name></resource-attributes></resource><resource><data encoding="base64">
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggnRFWHRhbWJpZ3VvdXMtYg==
+</data><mime>image/png</mime><width>1</width><height>1</height><resource-attributes><file-name>second.png</file-name></resource-attributes></resource></note>
+</en-export>

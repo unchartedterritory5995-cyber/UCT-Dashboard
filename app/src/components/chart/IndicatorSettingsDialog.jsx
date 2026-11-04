@@ -42,10 +42,10 @@ import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, use
 import Sheet from '../mobile/Sheet'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { effectiveColourFor } from './engine/pool'
-import { fieldsForInstance, evalActiveWhen } from './indicatorRegistry'
+import { fieldsForInstance, evalActiveWhen, timeInputText, timeInputMs } from './indicatorRegistry'
 import { findInstance, setInstanceInput, setInstanceHidden,
          setInstanceDisplayTarget } from './engine/instanceControls'
-import { PLACEMENT_TARGETS } from './engine/defSchema'
+import { PLACEMENT_TARGETS, isSessionString } from './engine/defSchema'
 import { chipsFrom } from './engine/readout'
 import styles from './IndicatorSettingsDialog.module.css'
 
@@ -271,6 +271,22 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     if (e.key === 'Enter') { e.preventDefault(); commitNumber(field) }
   }, [commitNumber])
 
+  // ⭐ PHASE 3 WS-D — a SESSION commits only a session (`defSchema.isSessionString`). A typed
+  // value that is not one is put back to what is stored, and the row says what a session reads
+  // like — the number field's visible-clamp rule, for text.
+  const commitSession = useCallback((field) => {
+    const raw = draft[field.key]
+    if (raw === undefined) return
+    if (!isSessionString(raw)) {
+      setDraft((d) => { const { [field.key]: _drop, ...rest } = d; return rest })
+      setNotes((s) => ({ ...s, [field.key]: 'A session reads HHMM-HHMM, for example 0930-1600 or 0930-1600:23456' }))
+      return
+    }
+    setNotes((s) => ({ ...s, [field.key]: null }))
+    pendingRef.current.set(field.key, raw)
+    flushNow()
+  }, [draft, flushNow])
+
   // ── the instance-level writes (Visibility) ────────────────────────────────
   const writeSettings = useCallback((next) => {
     if (!next || next === settingsRef.current) return
@@ -443,6 +459,37 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
             >
               {(field.options || []).map(([v, l]) => <option key={String(v)} value={v}>{l}</option>)}
             </select>
+          )}
+          {field.type === 'datetime' && (
+            // ⭐ PHASE 3 WS-D — a Pine `input.time`: one date-and-time control, read and
+            // written in UTC (the instant the script compares `time` against), labelled so.
+            <>
+              <input
+                type="datetime-local" step="60" className={styles.when} {...aria}
+                value={timeInputText(value)}
+                onChange={(e) => {
+                  const ms = timeInputMs(e.target.value)
+                  if (ms === null) return
+                  setDraft((d) => ({ ...d, [field.key]: ms }))
+                  schedule(field.key, ms)
+                }}
+              />
+              <span className={styles.unit} aria-hidden="true">UTC</span>
+            </>
+          )}
+          {field.type === 'session' && (
+            <input
+              type="text" inputMode="numeric" spellCheck={false} className={styles.when} {...aria}
+              placeholder="0930-1600"
+              value={value ?? ''}
+              onChange={(e) => {
+                const raw = e.target.value
+                setDraft((d) => ({ ...d, [field.key]: raw }))
+                if (isSessionString(raw)) schedule(field.key, raw)
+              }}
+              onBlur={() => commitSession(field)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitSession(field) } }}
+            />
           )}
           {field.type === 'toggle' && (
             <button

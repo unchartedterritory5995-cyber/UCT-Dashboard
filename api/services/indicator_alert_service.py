@@ -202,6 +202,10 @@ _MIGRATIONS: tuple[tuple[str, str], ...] = (
     # one of its TWO signals (see `_is_user_authored` — the other is structural,
     # so a row that lost this column still cannot accrue one).
     ("def_source", "ALTER TABLE indicator_alerts ADD COLUMN def_source TEXT"),
+    # ⭐ 2026-11-02 -- WHICH LINE, not which key (`user_definitions.line_identity`).
+    # NULL for every builtin row and for every user row stored before this column;
+    # the latter is bound once, on first evaluation, by `alert_user_series._check_line`.
+    ("plot_uid", "ALTER TABLE indicator_alerts ADD COLUMN plot_uid TEXT"),
 )
 
 #: The two provenances. `NULL` in the column reads as `DEF_SOURCE_BUILTIN`
@@ -281,14 +285,28 @@ def _row_to_dict(row: tuple) -> dict:
         # NULL and therefore reads `"builtin"`, which is what they have always
         # been.
         "def_source": row[23] or DEF_SOURCE_BUILTIN,
+        # ⭐ 2026-11-02 -- the line a USER alert is bound to (None: builtin, or not
+        # yet bound). Read by `alert_user_series._check_line`.
+        "plot_uid": row[24],
     }
+
+
+def bind_plot_uid(alert_id: int, plot_uid: str) -> bool:
+    """Record the line a pre-identity user alert is bound to. ONCE: a row that
+    already carries a `plot_uid` is never rebound, so a later line can never be
+    adopted by an alert that was bound to an earlier one."""
+    with _conn() as db:
+        cur = db.execute(
+            "UPDATE indicator_alerts SET plot_uid=? WHERE id=? AND plot_uid IS NULL",
+            (str(plot_uid), int(alert_id)))
+        return cur.rowcount == 1
 
 
 _COLS = (
     "id, user_id, sym, indicator, condition, threshold, tf, params_json, "
     "active, last_value, last_evaluated_at, triggered_at, trigger_count, created_at, "
     "state, state_detail, state_at, arm_epoch, snooze_until, last_fire_key, "
-    "instance_id, instance_missing_at, scope, def_source"
+    "instance_id, instance_missing_at, scope, def_source, plot_uid"
 )
 
 
@@ -369,8 +387,20 @@ def create(
     # path validation exists to end, reached one step later. A refusal before it
     # means there is nothing to go quiet.
     from api.services import alert_user_series
-    admitted = alert_user_series.arm_for_alert(user_id, indicator, sym.upper(), tf)
+    from api.services import indicator_alert_evaluator as _ev
+    # ⭐ L1 — with the params this row will store and evaluate with (`params_json`,
+    # decoded by the evaluator's own reader), so a gate reading a member's input is
+    # asked at THAT value, not the author's default.
+    admitted = alert_user_series.arm_for_alert(
+        user_id, indicator, sym.upper(), tf,
+        params=_ev._parse_params({"params_json": params_json}))
     source = None if admitted is None else DEF_SOURCE_USER
+    # ⭐ 2026-11-02 -- the LINE this alert is bound to, read off the function the
+    # arm just admitted (`fn.line_id`). None for a builtin.
+    plot_uid = None
+    if admitted is not None:
+        plot_uid = getattr(alert_user_series.user_value_function(user_id, indicator),
+                           "line_id", None)
 
     now = int(time.time())
     # ⛔⛔ `BEGIN IMMEDIATE` BEFORE THE COUNT, AND THE CAP DEPENDS ON IT.
@@ -398,8 +428,8 @@ def create(
             "INSERT INTO indicator_alerts "
             "(user_id, sym, indicator, condition, threshold, tf, params_json, "
             "active, trigger_count, created_at, state, state_at, arm_epoch, "
-            "instance_id, scope, def_source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?, ?)",
+            "instance_id, scope, def_source, plot_uid) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?, ?, ?)",
             (
                 str(user_id),
                 sym.upper(),
@@ -419,6 +449,7 @@ def create(
                 # NULL for a builtin — the same "absence means what it always
                 # meant" rule the `scope` column above is built on.
                 source,
+                plot_uid,
             ),
         )
         new_id = int(cur.lastrowid)
@@ -961,6 +992,13 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     raw = alert.get("indicator")
     address = ev.resolve_address(raw)
     if ev.value_function(address) is None:
+        # ⭐⭐ M2 (review round 2) — A MEMBER'S OWN FORMULA IS NOT IN THE GLOBAL
+        # PARTITIONS (`alert_user_series.USER_FUNCS` is per account, by design), and
+        # this said every one of them was "not an indicator this chart can evaluate".
+        # It is answered by the user lane's own resolver instead (`_diagnose_user`).
+        user = _diagnose_user(alert, bars)
+        if user is not None:
+            return user
         return True, (f"{raw!r} is not an indicator this chart can evaluate — "
                       "this alert can never fire")
     if not bars:
@@ -1000,6 +1038,73 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
                 f"before the closed-bar cutover and the rows are deliberately "
                 f"left active rather than deleted.{instead}")
         return False, (f"{address} has no value on the bars stored for this "
+                       "timeframe yet — not enough history")
+    return False, None
+
+
+def _diagnose_user(alert: dict, bars: Optional[list]) -> Optional[tuple[bool, Optional[str]]]:
+    """``diagnose`` for an alert on a MEMBER'S OWN formula (`u_<12 hex>.<plot>`), or
+    ``None`` for any other address.
+
+    ⭐⭐ C48 / C45 (review round 2, M2) — THE WITHHELD PLOT, MADE VISIBLE. A plot the
+    member's chart withholds on this symbol's bars (`meta.blockRuns`: a call whose code
+    runs only on some bars, and here it ran after a bar it skipped) evaluates to no
+    number on every bar, so the alert goes quiet — and since this deploy that includes
+    every C48 stamp ALREADY SAVED, which the server lanes now honour. Quiet is not the
+    member's to guess at: the silent-alert sweep (`sweep_silent_alerts`) puts this
+    answer in `state_detail` under `needs_attention`, which every alert surface renders
+    verbatim (`app/src/components/chart/alertState.jsx`). The sentence is the gate's own,
+    in an ARMED alert's words (`alert_user_series.withheld_alert_detail`: "Withheld: … .
+    This alert resumes when the value is computable."), whole under the 500 the state
+    holds — on both paths: the column withheld, and the re-arm refusal, which carries the
+    gate's sentence (`block_runs_why`).
+
+    ⛔ EVERY ANSWER COMES FROM THE LANE'S OWN CODE, never a copy of it — the
+    resolver the evaluator calls (`_user_value_function`, whose re-arm raises the
+    same refusal on a registry miss), the one gate check (`fn.withheld`, under the
+    alert's own params and timeframe) and the column itself, judged at the bar the
+    closed lane judges. A refusal (the arm-time door, re-run) is a fault and says
+    which door; a guard that cannot be evaluated is withheld by its own sentence
+    (`block_runs.block_runs_refusal`); anything that RAISES is a fault with its own
+    message; a column with no number YET is not a fault, as for a builtin.
+    """
+    from api.services import alert_user_series as aus
+    from api.services import indicator_alert_evaluator as ev
+
+    raw = str(alert.get("indicator") or "")
+    if not aus.is_user_address(raw):
+        return None
+    if not bars:
+        return True, ("no bars are stored for this symbol and timeframe yet, "
+                      "so nothing can be computed")
+    params = ev._parse_params(alert)
+    tf = alert.get("tf")
+    closed = ev.eval_mode() == "closed"
+    try:
+        fn = ev._user_value_function(alert, bars)
+        why = fn.withheld(bars, params, tf)
+        if why:
+            return True, aus.withheld_alert_detail(why)
+        index = len(bars) - 1
+        if closed:
+            index = ev.closed_bar_index(bars, str(tf or ""), time.time())
+            if index < 1:
+                return False, (f"no bar of this timeframe has closed yet in the "
+                               f"{len(bars)} stored — the closed-bar lane has "
+                               f"nothing to judge")
+        column = (fn.column(bars, params, tf=tf) if getattr(fn, "reads_symbols", None)
+                  else fn.column(bars, params))
+    except aus.AdmissionRefused as exc:
+        # ⭐ L1 — the gates withholding the plot read in an armed alert's words; any other
+        # door's sentence is quoted verbatim (it carries its `[gate:…]` attribution)
+        why = getattr(exc, "block_runs_why", None)
+        return True, (aus.withheld_alert_detail(why) if why else str(exc))
+    except Exception as exc:  # noqa: BLE001 - the message IS the diagnosis
+        return True, f"{type(exc).__name__}: {exc}"
+    # the bar each lane judges: the closed bar, or (forming) the newest number
+    value = column[index] if closed else next((v for v in reversed(column) if v is not None), None)
+    if value is None:
+        return False, (f"{raw} has no value on the bars stored for this "
                        "timeframe yet — not enough history")
     return False, None
 

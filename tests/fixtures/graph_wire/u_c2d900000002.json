@@ -1377,7 +1377,7 @@
     "name": "mid_engagement__13-spma-trend",
     "shortName": "mid_engageme",
     "category": "Custom",
-    "description": "the running value that starts at (0 divided by 0) and becomes ((the 30-bar exponential average of close) when (the running value so far being unknown) is not zero, ((the 30-bar exponential average of close) when (1 when (the 30-bar percent rank of (close minus (close 1 bar ago))) is greater than 50 and 0 otherwise) is not zero, the running value so far when it is zero, and nothing while it is unknown) when it is zero, and nothing while it is unknown) on each of the last 250 bars",
+    "description": "the running value that starts at no value and becomes ((the 30-bar exponential average of close) when (the running value so far being unknown) is not zero, ((the 30-bar exponential average of close) when (1 when (the 30-bar percent rank of (close minus (close 1 bar ago))) is greater than 50 and 0 otherwise) is not zero, the running value so far when it is zero, and nothing while it is unknown) when it is zero, and nothing while it is unknown) on each of the last 250 bars",
     "tags": [
       "custom"
     ],

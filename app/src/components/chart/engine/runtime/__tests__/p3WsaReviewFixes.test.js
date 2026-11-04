@@ -1,0 +1,456 @@
+// app/src/components/chart/engine/runtime/__tests__/p3WsaReviewFixes.test.js
+//
+// ─── ⭐⭐ P3 WS-A — THE INDEPENDENT REVIEW OF dae6d29434, EACH FINDING A RAIL ──────
+//
+// Every case below was a wrong answer (or a wrong refusal) found by a reviewer's
+// probe after the WS-A rails were green. Each asserts Pine's value, worked by
+// hand over the fixture (close 100..107), never the lane's previous output.
+//
+//   C1  `x := if/switch …` — a read of `x` INSIDE the block sees x's PRIOR value
+//       (the lane assigned `na` to x before running the chain)
+//   H1  a function whose last line is a comma statement yields the LAST segment
+//   H2  the v6 `for` guard: the `by` step, a method receiver, a function in the
+//       bound reading a global the body writes, a bound with side effects
+//   H3  `varip x = if/switch` is refused by name, even on a realtime-ledger door
+//   M1  a switch subject holding a call keeps WS-C's invariance (no R4 region)
+//   M2  writes in later comma segments and in inline `=>` arms are mutations
+//   M3  Pine 6 `bool` is never `na`: an unmatched block-valued bool
+//   L1  the array write tables are derived from collections.js
+import { describe, it, expect } from 'vitest'
+
+import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { lowerIrProgram } from '../lowerIr.js'
+import { execute } from '../vm.js'
+import { ARRAY_FNS } from '../collections.js'
+
+const N = 8
+const BARS = Array.from({ length: N }, (_, i) => ({
+  t: 1700000000 + i * 86400, o: 100, h: 102 + i, l: 98, c: 100 + i, v: 1000,
+}))
+const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
+const C = BARS.map((b) => b.c)
+const v5 = '//@version=5\nindicator("t")\n'
+const v6 = '//@version=6\nindicator("t")\n'
+
+const build = (src, opts = {}) => buildRuntimeIr(src, { bars: BARS, inputs: {}, ...opts })
+function run(src, opts) {
+  const built = build(src, opts)
+  expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
+  const program = lowerIrProgram(built.ir)
+  const r = execute(program, {
+    bars: N, series: SERIES, columns: program.columns, confirmed: true,
+    barTimes: BARS.map((b) => b.t),
+  })
+  return Array.from(r.outputs[0])
+}
+const refusalOf = (src, opts) => {
+  const b = build(src, opts)
+  expect(b.ok, 'expected a refusal').toBe(false)
+  return b.refusal
+}
+
+describe('C1 — `x := if/switch`: a read of x inside the block is x\'s PRIOR value', () => {
+  it('⛔⛔ the reviewer\'s case: an outer write, then `x + y`; else `x + 1`', () => {
+    const src = `${v5}var float x = 1.0\nvar float y = 0.0\nx := if close > 103\n    y := y + 1\n    x + y\nelse\n    x + 1\nplot(x)\n`
+    expect(run(src)).toEqual([2, 3, 4, 5, 6, 8, 11, 15])
+  })
+  it('⛔⛔ an arm ending in `y := x * 2` yields that value, computed from x\'s prior value', () => {
+    const src = `${v5}var float x = 1.0\nvar float y = 0.0\nx := if close > 103\n    y := x * 2\nelse\n    x + 1\nplot(x)\n`
+    expect(run(src)).toEqual([2, 3, 4, 5, 10, 20, 40, 80])
+  })
+  it('⛔⛔ a switch block arm `n += 1` then `x * 2`', () => {
+    const src = `${v5}var float x = 1.0\nvar n = 0\nx := switch\n    close > 103 =>\n        n += 1\n        x * 2\n    => x + 1\nplot(x)\n`
+    expect(run(src)).toEqual([2, 3, 4, 5, 10, 20, 40, 80])
+  })
+  it('⛔⛔ an inline comma arm `n += 1, x * 2`', () => {
+    const src = `${v5}var float x = 1.0\nvar n = 0\nx := if close > 103\n    n += 1, x * 2\nelse\n    x + 1\nplot(x)\n`
+    expect(run(src)).toEqual([2, 3, 4, 5, 10, 20, 40, 80])
+  })
+  it('⛔⛔ a counter: `cnt := if close > 101 / cnt + 1 / else 0`', () => {
+    expect(run(`${v5}var cnt = 0\ncnt := if close > 101\n    cnt + 1\nelse\n    0\nplot(cnt)\n`))
+      .toEqual([0, 0, 1, 2, 3, 4, 5, 6])
+  })
+  it('⛔⛔ a state machine: `st := switch st` cycles 1, 2, 0', () => {
+    expect(run(`${v5}var st = 0\nst := switch st\n    0 => 1\n    1 => 2\n    => 0\nplot(st)\n`))
+      .toEqual([1, 2, 0, 1, 2, 0, 1, 2])
+  })
+  it('⛔⛔ a trailing stop: `tr := if close > tr …` reads tr\'s prior value in test and arm', () => {
+    const src = `${v5}var float tr = 0.0\ntr := if close > tr\n    math.max(tr, close - 2)\nelse\n    close + 2\nplot(tr)\n`
+    expect(run(src)).toEqual(C.map((c) => c - 2))
+  })
+  it('⛔ a non-`var` name: its value this bar before the block', () => {
+    const src = `${v5}x = close\nx := if close > 103\n    x * 2\nelse\n    x + 1\nplot(x)\n`
+    expect(run(src)).toEqual(C.map((c) => (c > 103 ? c * 2 : c + 1)))
+  })
+  // ⛔ review 3 L-2 — the temp carries the target's kind (text here)
+  it('⛔ a TEXT target: `s := if … "b" else "c"` keeps its text kind through the temp', () => {
+    expect(run(`${v5}var string s = "a"\ns := if close > 103\n    "b"\nelse\n    "c"\nplot(s == "b" ? 1 : 0)\n`)).toEqual([0, 0, 0, 0, 1, 1, 1, 1])
+  })
+  it('⛔ a COLOUR target keeps its colour kind through the temp', () => {
+    expect(run(`${v5}var color c = color.red\nc := if close > 103\n    color.green\nelse\n    color.blue\nplot(c == color.green ? 1 : 0)\n`)).toEqual([0, 0, 0, 0, 1, 1, 1, 1])
+  })
+  it('⛔ CONTROL — an unmatched `x := if` with no else still yields na (Pine)', () => {
+    const out = run(`${v5}var float x = 1.0\nx := if close > 103\n    x + 1\nplot(x)\n`)
+    expect(out.slice(0, 4).every(Number.isNaN)).toBe(true)
+    expect(out.slice(4).every(Number.isNaN)).toBe(true)   // na + 1 stays na
+  })
+})
+
+describe('H1 — a function whose last line is a comma statement yields the LAST segment', () => {
+  for (const head of [v5, v6]) {
+    const ver = head.includes('=5') ? 'v5' : 'v6'
+    it(`⛔⛔ ${ver}: \`a = x, g(a)\` yields g(a)`, () => {
+      expect(run(`${head}g(v) => v * 3\nf(x) =>\n    a = x, g(a)\nplot(f(close))\n`)).toEqual(C.map((c) => c * 3))
+    })
+    it(`⛔⛔ ${ver}: \`a := x, g(a)\` yields g(a)`, () => {
+      expect(run(`${head}g(v) => v * 3\nf(x) =>\n    a = 0.0\n    a := x, g(a)\nplot(f(close))\n`)).toEqual(C.map((c) => c * 3))
+    })
+    it(`⛔⛔ ${ver}: \`a = x, b = a * 2, g(b)\` yields g(b)`, () => {
+      expect(run(`${head}g(v) => v * 3\nf(x) =>\n    a = x, b = a * 2, g(b)\nplot(f(close))\n`)).toEqual(C.map((c) => c * 6))
+    })
+  }
+})
+
+describe('H2 — the v6 `for` guard: every way a pass can move the loop', () => {
+  it('⛔⛔ (a) the body writes the `by` step', () => {
+    const r = refusalOf(`${v6}int st = 1\nint c = 0\nfor i = 0 to 9 by st\n    c += 1\n    if i == 0\n        st := 3\nplot(c)\n`)
+    expect(r.guard).toBe('runtime:loop')
+    expect(r.message).toMatch(/Pine 6/)
+  })
+  it('⛔ CONTROL — (a) a step the body never writes is served', () => {
+    expect(run(`${v6}int st = 3\nint c = 0\nfor i = 0 to 9 by st\n    c += 1\nplot(c)\n`)).toEqual(Array(N).fill(4))
+  })
+  it('⛔⛔ (b) a user METHOD on the bound\'s array pushes into it', () => {
+    const src = `${v6}method grow(array<float> arr) =>\n    array.push(arr, 9.0)\n    0\na = array.from(1.0, 2.0)\nfloat s = 0.0\n`
+      + 'for i = 0 to array.size(a) - 1\n    s += 1\n    if array.size(a) < 4\n        a.grow()\nplot(s)\n'
+    expect(refusalOf(src).guard).toBe('runtime:loop')
+  })
+  it('⛔⛔ (b) a user METHOD sets the element an element bound reads', () => {
+    const src = `${v6}method bump(array<float> arr) =>\n    array.set(arr, 0, 5.0)\n    0\na = array.from(3.0)\nfloat s = 0.0\n`
+      + 'for i = 0 to array.get(a, 0)\n    s += 1\n    a.bump()\nplot(s)\n'
+    expect(refusalOf(src).guard).toBe('runtime:loop')
+  })
+  it('⛔⛔ (c) a function in the bound reads a global the body reassigns', () => {
+    const src = `${v6}var int lim = 3\nlimit() => lim\nint c = 0\nfor i = 0 to limit()\n    c += 1\n    lim := 1\nplot(c)\n`
+    const b = build(src)
+    if (b.ok) throw new Error('served a bound read through `limit()` that the body moves')
+    expect(b.refusal.guard).toMatch(/runtime:loop|runtime:function-global-state/)
+  })
+  it('⛔⛔ (c) the same through a nested function', () => {
+    const src = `${v6}var int lim = 3\ninner() => lim\nlimit() => inner() + 0\nint c = 0\nfor i = 0 to limit()\n    c += 1\n    lim := 1\nplot(c)\n`
+    const b = build(src)
+    if (b.ok) throw new Error('served a bound read through nested functions that the body moves')
+    expect(b.refusal.guard).toMatch(/runtime:loop|runtime:function-global-state/)
+  })
+  it('⛔⛔ (d) a bound whose call pushes to a global array runs every pass in v6', () => {
+    const src = `${v6}var a = array.new_float(0)\nnxt() =>\n    array.push(a, 1.0)\n    3\nint c = 0\nfor i = 0 to nxt()\n    c += 1\nplot(c)\n`
+    const b = build(src)
+    if (b.ok) throw new Error('served a bound with a side effect')
+    expect(b.refusal.guard).toMatch(/runtime:loop|runtime:function-global-state/)
+  })
+  it('⛔⛔ (d) a bound whose call keeps `var` state runs every pass in v6', () => {
+    const src = `${v6}tick() =>\n    var int c = 0\n    c += 1\n    3\nint n = 0\nfor i = 0 to tick()\n    n += 1\nplot(n)\n`
+    const r = refusalOf(src)
+    expect(r.guard).toBe('runtime:loop')
+  })
+  it('⛔ CONTROL — (d) a pure function in the bound is served', () => {
+    expect(run(`${v6}three() => 3\nint n = 0\nfor i = 0 to three()\n    n += 1\nplot(n)\n`)).toEqual(Array(N).fill(4))
+  })
+})
+
+describe('H3 — `varip x = if/switch` is refused by name', () => {
+  it('⛔⛔ on a realtime-ledger door (where a plain top-level `varip` is admitted)', () => {
+    const r = refusalOf(`${v6}varip float x = if close > 103\n    1.0\nelse\n    2.0\nplot(x)\n`, { realtimeLedger: true })
+    expect(r.guard).toBe('runtime:varip')
+    expect(r.message).toMatch(/block-valued `varip`/)
+  })
+  it('⛔⛔ and `varip x = switch` the same', () => {
+    const r = refusalOf(`${v6}varip x = switch\n    close > 103 => 1\n    => 2\nplot(x)\n`, { realtimeLedger: true })
+    expect(r.guard).toBe('runtime:varip')
+  })
+})
+
+describe('M1 — a switch subject holding a call keeps its invariance', () => {
+  it('⛔⛔ `switch input.string(…)` with ta arms draws exactly the chosen arm', () => {
+    const src = `${v5}x = switch input.string("WMA", "t", options = ["WMA", "HMA"])\n    "WMA" => ta.wma(close, 3)\n    "HMA" => ta.hma(close, 3)\nplot(x)\n`
+    expect(run(src)).toEqual(run(`${v5}plot(ta.wma(close, 3))\n`))
+  })
+})
+
+describe('M2 — a write in a later comma segment or an inline arm is a mutation', () => {
+  it('⛔⛔ the switch-statement counter idiom on a plain name: `close > 103 => c += 1`', () => {
+    expect(run(`${v5}c = 0\nswitch\n    close > 103 => c += 1\nplot(c)\n`)).toEqual([0, 0, 0, 0, 1, 1, 1, 1])
+  })
+  it('⛔ CONTROL — the same with `var` accumulates', () => {
+    expect(run(`${v5}var c = 0\nswitch\n    close > 103 => c += 1\nplot(c)\n`)).toEqual([0, 0, 0, 0, 1, 2, 3, 4])
+  })
+  it('⛔⛔ a write in a LATER comma segment', () => {
+    expect(run(`${v5}a = 0\nb = 0\nif close > 103\n    a += 1, b += 2\nplot(b)\n`)).toEqual([0, 0, 0, 0, 2, 2, 2, 2])
+  })
+  it('⛔⛔ inside a function body: `x > 103 => acc += x` on a plain local', () => {
+    const src = `${v5}f(x) =>\n    acc = 0.0\n    switch\n        x > 103 => acc += x\n    acc\nplot(f(close))\n`
+    expect(run(src)).toEqual([0, 0, 0, 0, 104, 105, 106, 107])
+  })
+})
+
+describe('M3 — Pine 6 `bool` is never `na`', () => {
+  // `b == false` tells false from na: na compares false to everything here.
+  it('⛔⛔ v6: an unmatched block-valued bool is FALSE, or refused by name — never na', () => {
+    const b = build(`${v6}b = if close > 103\n    true\nplot(b == false ? 5 : 7)\n`)
+    if (!b.ok) { expect(b.refusal.message).toMatch(/bool/); return }
+    const program = lowerIrProgram(b.ir)
+    const r = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true, barTimes: BARS.map((x) => x.t) })
+    expect(Array.from(r.outputs[0])).toEqual([5, 5, 5, 5, 7, 7, 7, 7])
+  })
+  it('⛔⛔ v6: the same in a function ending in a switch', () => {
+    const b = build(`${v6}f(x) =>\n    switch\n        x > 103 => true\nplot(f(close) == false ? 5 : 7)\n`)
+    if (!b.ok) { expect(b.refusal.message).toMatch(/bool/); return }
+    const program = lowerIrProgram(b.ir)
+    const r = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true, barTimes: BARS.map((x) => x.t) })
+    expect(Array.from(r.outputs[0])).toEqual([5, 5, 5, 5, 7, 7, 7, 7])
+  })
+  it('⛔⛔ v6: a name declared `bool` as the arm value — refused by name too', () => {
+    const r = refusalOf(`${v6}bool up = close > open\nb = if close > 103\n    up\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/bool/)
+  })
+  it('⛔ CONTROL — v6: a NUMBER with no else still yields na (not refused)', () => {
+    const out = run(`${v6}x = if close > 103\n    1.0\nplot(x)\n`)
+    expect(out.slice(0, 4).every(Number.isNaN)).toBe(true)
+    expect(out.slice(4)).toEqual([1, 1, 1, 1])
+  })
+  it('⛔ CONTROL — v6: a bool WITH an else is served', () => {
+    expect(run(`${v6}b = if close > 103\n    true\nelse\n    false\nplot(b ? 1 : 0)\n`)).toEqual([0, 0, 0, 0, 1, 1, 1, 1])
+  })
+  // ⭐⭐ review H-2 — the guard FAILS CLOSED: unmatched (bars 0-5, close > 105 is
+  // false) must never serve `na` where Pine 6 draws `false` ([5,5,5,5,5,5,7,7]).
+  const unmatchedBoolIsRefused = (src) => {
+    const b = build(src)
+    if (b.ok) {
+      const program = lowerIrProgram(b.ir)
+      const r = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true, barTimes: BARS.map((x) => x.t) })
+      expect(Array.from(r.outputs[0])).toEqual([5, 5, 5, 5, 5, 5, 7, 7])
+      return
+    }
+    expect(b.refusal.guard).toBe('runtime:block-value')
+    expect(b.refusal.message).toMatch(/v6 bool is never `na`/)
+  }
+  it('⛔⛔ H-2: a user function returning bool', () => {
+    unmatchedBoolIsRefused(`${v6}isUp(x) => x > 105\nb = if close > 105\n    isUp(close)\nplot(b == false ? 5 : 7)\n`)
+  })
+  it('⛔⛔ H-2: a `timeframe.isdaily` arm', () => {
+    unmatchedBoolIsRefused(`${v6}b = if close > 105\n    timeframe.isdaily\nplot(b == false ? 5 : 7)\n`)
+  })
+  it('⛔⛔ H-2: `array.get` of a bool array', () => {
+    unmatchedBoolIsRefused(`${v6}var ba = array.new_bool(1, true)\nb = if close > 105\n    array.get(ba, 0)\nplot(b == false ? 5 : 7)\n`)
+  })
+  it('⛔⛔ H-2: a switch arm ending in a user bool function', () => {
+    unmatchedBoolIsRefused(`${v6}isUp(x) => x > 105\nb = switch\n    close > 105 => isUp(close)\nplot(b == false ? 5 : 7)\n`)
+  })
+  it('⛔⛔ H-2: a target declared `bool b = false`, then `b := if …`', () => {
+    unmatchedBoolIsRefused(`${v6}isUp(x) => x > 105\nbool b = false\nb := if close > 105\n    isUp(close)\nplot(b == false ? 5 : 7)\n`)
+  })
+  it('⛔ CONTROL — H-2: a target declared `float` is served (na) whatever the arm', () => {
+    const out = run(`${v6}g(x) => x * 2\nfloat f = na\nf := if close > 105\n    g(close)\nplot(f)\n`)
+    expect(out.slice(0, 6).every(Number.isNaN)).toBe(true)
+    expect(out.slice(6)).toEqual([212, 214])
+  })
+  it('⛔ CONTROL — H-2: a name bound to arithmetic is provably a number: served', () => {
+    const out = run(`${v6}m = close * 2\nx = if close > 105\n    m\nplot(x)\n`)
+    expect(out.slice(0, 6).every(Number.isNaN)).toBe(true)
+    expect(out.slice(6)).toEqual([212, 214])
+  })
+  // ⛔⛔ review 3 M-1a — `ta.valuewhen` / `ta.change` / `nz` return their SOURCE's type
+  it('⛔⛔ M-1a: `ta.valuewhen` of a bool source is not a number', () => {
+    const r = refusalOf(`${v6}b = if close > 105\n    ta.valuewhen(high > low + 6, close > open, 0)\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⛔⛔ M-1a: `nz` of a bool name is not a number', () => {
+    const r = refusalOf(`${v6}up = close > open\nb = if close > 105\n    nz(up)\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔⛔ review 3 M-1b — a global `float x` must not type a function-local bool `x`
+  it('⛔⛔ M-1b: `x := if` on a local bool x shadowing a global float x', () => {
+    const r = refusalOf(`${v6}float x = 0.0\nf(v) =>\n    x = v > 100\n    x := if v > 102\n        true\n    x ? 1 : 0\nplot(f(close))\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⛔⛔ M-1b: an arm reading the local bool x (a global float x elsewhere)', () => {
+    const r = refusalOf(`${v6}float x = 0.0\nf(v) =>\n    x = v > 100\n    y = if v > 102\n        x\n    y ? 1 : 0\nplot(f(close))\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⭐ re-review H-2 — names are typed PER SCOPE: a local bool `x` inside f() does not
+  // disqualify the main program's `float x` where the main program reads it
+  it('⭐ H-2: a top-level read of a global float x is served, a local bool x in f() notwithstanding', () => {
+    const out = run(`${v6}float x = close\nf(v) =>\n    x = v > 100\n    x ? 1 : 0\ny = if close > 105\n    x\nplot(y + f(close) * 0)\n`)
+    expect(out.slice(0, 6).every(Number.isNaN)).toBe(true)
+    expect(out.slice(6)).toEqual([106, 107])
+  })
+  it('⭐ H-2: `var x = 0.0` is a float by its initialiser — `x := if … g(close)` is served', () => {
+    const out = run(`${v6}g(v) => v * 2\nvar x = 0.0\nx := if close > 105\n    g(close)\nplot(x)\n`)
+    expect(out.slice(0, 6).every(Number.isNaN)).toBe(true)
+    expect(out.slice(6)).toEqual([212, 214])
+  })
+  it('⛔⛔ H-2: an untyped PARAMETER is unknown, even beside a global float of that name', () => {
+    const r = refusalOf(`${v6}float v = 1.0\nf(v) =>\n    y = if v > 105\n        v\n    nz(y)\nplot(f(close > 105))\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⭐ H-2: a function with no binding of its own reads the main program\'s typed name', () => {
+    const out = run(`${v6}float x = close\nf() =>\n    y = if close > 105\n        x\n    nz(y)\nplot(f())\n`)
+    expect(out).toEqual([0, 0, 0, 0, 0, 0, 106, 107])
+  })
+  // ⛔ re-review 2 M-3 — a function's own declaration of `b` (in a block the read is
+  // outside) does not hide the main program's BOOL `b`: conflicting types in reach refuse
+  it('⛔⛔ re-review 2 M-3: a main-program bool read in a function that declares the name elsewhere refuses', () => {
+    const r = refusalOf(`${v6}b = close > open\nf() =>\n    if close > 1000\n        b = 1.0\n    y = if close > 102\n        b\n    y\nplot(f() ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔ re-review 2 L-4 — a declaration wins over a built-in of the same spelling
+  it('⛔ re-review 2 L-4: a shadowed built-in (`high = close > open`) is the member\'s bool, refused', () => {
+    const r = refusalOf(`${v6}high = close > open\nb = if close > 102\n    high\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔ re-review 2 L-5 — the SOURCE argument is resolved by name
+  // (`ta.valuewhen` at top level carries the case: in an arm it meets conditional-history
+  // first; the grammar refuses named arguments on `nz` / `ta.change`, and a named
+  // `occurrence` anywhere but last. With `source =` written FIRST, argument slot 1 is the
+  // CONDITION — a bool — which the old reader took as the source and so refused a float.)
+  it('⭐ re-review 2 L-5: `ta.valuewhen(source = close, condition = up, occurrence = 0)` is a number — v6 draws v5', () => {
+    const body = 'up = close > open\ny = ta.valuewhen(source = close, condition = up, occurrence = 0)\nx = if close > 105\n    y\nplot(x)\n'
+    const five = run(v5 + body)
+    expect(five.some((x) => !Number.isNaN(x))).toBe(true)
+    expect(run(v6 + body)).toEqual(five)
+  })
+  it('⛔ re-review 2 L-5: `ta.valuewhen(source = up, condition = high > low, occurrence = 0)` is a bool, refused', () => {
+    const r = refusalOf(`${v6}up = close > open\ny = ta.valuewhen(source = up, condition = high > low, occurrence = 0)\nb = if close > 102\n    y\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔ re-review 4 L — an inline switch arm CONTINUED on the next line (`c => close` /
+  // `      > open`): the block reader opens a sub-block after `=>`, so the text after `=>`
+  // is not the arm's whole value. Its type is unknown, so it refuses (both readers).
+  // (a value `switch`, and a function ending in a plain `switch`, are refused by the arm
+  // lowering itself — "ends in a block" — before the classifier is asked)
+  it('⛔⛔ re-review 4: a value `switch` arm continued onto the next line refuses', () => {
+    const r = refusalOf(`${v6}x = switch\n    close > 104 => close\n          > open\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`|ends in a block/)
+  })
+  // ⛔⛔ C47 — a `switch <simple string param>` body lowers ONE arm's inline text per call
+  // site. A CONTINUED arm's value is not that text, so `simpleSwitchShape` declines it and
+  // the body is refused like any other unreadable switch — standalone and as an arm value.
+  const C47_CONTINUED = 'f(simple string m) =>\n    switch m\n        "a" => close\n              > open\n        "b" => open\n              > close\n'
+  it('⛔⛔ re-review 4: a C47 `switch m` body whose arms continue onto the next line refuses as an arm value', () => {
+    const r = refusalOf(`${v6}${C47_CONTINUED}x = if close > 103\n    f("a")\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`|ends in a block|block/)
+  })
+  for (const objectDoor of [false, true]) {
+    it(`⛔⛔ re-review 4: standalone \`plot(f("a"))\` over continued C47 arms is refused (${objectDoor ? 'object door' : 'pane'})`, () => {
+      for (const head of [v5, v6]) {
+        const b = build(`${head}${C47_CONTINUED}plot(f("a"))\n`, { objectDoor, objectTrees: [], objectTreesAt: [] })
+        expect(b.ok, 'expected a refusal').toBe(false)
+      }
+    })
+  }
+  it('⭐ re-review 4 CONTROL: single-line C47 arms still draw the selected arm', () => {
+    const out = run(`${v6}f(simple string m) =>\n    switch m\n        "a" => close\n        "b" => open\nplot(f("a"))\n`)
+    expect(out).toEqual(C)
+  })
+  it('⭐ re-review 4 CONTROL: a single-line numeric inline arm is served — v6 draws v5', () => {
+    const body = 'x = switch\n    close > 104 => close\nplot(x)\n'
+    const five = run(v5 + body)
+    expect(five.some((x) => !Number.isNaN(x))).toBe(true)
+    expect(run(v6 + body)).toEqual(five)
+  })
+  // ⛔ re-review 3 L-2 — a parameter's DEFAULT value is a read, not a declaration: `close`
+  // and `na` in `f(src = close, alt = na)` are still the built-ins inside f
+  it('⭐ re-review 3 L-2: identifiers in parameter defaults are not declarations — v6 draws v5', () => {
+    const body = 'f(src = close, alt = na) =>\n    y = if src > 105\n        close\n    else if src < 0\n        na\n    nz(y) + nz(alt)\nplot(f())\n'
+    const five = run(v5 + body)
+    expect(five.some((x) => x !== 0)).toBe(true)
+    expect(run(v6 + body)).toEqual(five)
+  })
+  // ⛔ re-review 3 rails (a) — a destructured name takes ITS element's type
+  it('⛔⛔ re-review 3 (a): `[a, b] = g()` with g() => [close, close > open] — arm `b` (a bool) refuses', () => {
+    const r = refusalOf(`${v6}g() => [close, close > open]\n[a, b] = g()\nx = if close > 104\n    b\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⭐ re-review 3 (a): …and arm `a` (a number) is served — v6 draws v5', () => {
+    const body = 'g() => [close, close > open]\n[a, b] = g()\nx = if close > 104\n    a\nplot(x)\n'
+    const five = run(v5 + body)
+    expect(five.some((x) => !Number.isNaN(x))).toBe(true)
+    expect(run(v6 + body)).toEqual(five)
+  })
+  // ⛔ re-review 3 rails (b) — EVERY definition of a name must be numeric
+  it('⛔⛔ re-review 3 (b): a numeric overload beside a bool overload of the same name refuses', () => {
+    const r = refusalOf(`${v6}f(float v) => v * 2\nf(bool v) => v and close > 0\nx = if close > 104\n    f(close > open)\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔ re-review 3 rails (c) — a function ending in a block whose arms are bools
+  it('⛔⛔ re-review 3 (c): a function whose body ends in an `if` with bool arms refuses', () => {
+    const r = refusalOf(`${v6}f() =>\n    if close > 100\n        close > open\n    else\n        close < open\nx = if close > 104\n    f()\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⛔⛔ re-review 3 (c): a function whose body ends in a `switch` with a bool arm refuses', () => {
+    const r = refusalOf(`${v6}f() =>\n    switch\n        close > 100 => close > open\n        => false\nx = if close > 104\n    f()\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⭐ re-review 3 M-1: a function ending in a numeric `switch` — v6 draws v5', () => {
+    const body = 'f() =>\n    switch\n        close > 105 => close\n        close < 0 => open\nx = if close > 103\n    f()\nplot(x)\n'
+    const five = run(v5 + body)
+    expect(five.some((x) => !Number.isNaN(x))).toBe(true)
+    expect(run(v6 + body)).toEqual(five)
+  })
+  // ⭐ re-review 2 H-2 — provably numeric values the bool rule refused; the v6 pane must
+  // serve each and draw what v5 draws (an unmatched float is `na` in both)
+  const PANE_FLOATS = {
+    ma_selector_udf: 'dema(s, l) =>\n    e1 = ta.ema(s, l)\n    2 * e1 - ta.ema(e1, l)\ntyp = "DEMA"\nx = switch typ\n    "DEMA" => dema(close, 3)\n    "SMA" => ta.sma(close, 3)\nplot(x)\n',
+    tuple_macd: '[m, s, h] = ta.macd(close, 3, 6, 2)\nx = if close > 104\n    m\nplot(x)\n',
+    input_int: 'len = input.int(3, "L")\nx = if close > 104\n    len\nplot(x)\n',
+    ta_tr_var: 'x = if close > 104\n    ta.tr\nplot(x)\n',
+    na_name: 'x = if close > 104\n    close\nelse if close < 0\n    na\nplot(x)\n',
+    udf_arm: 'f(v) => v * 2\nx = if close > 104\n    f(close)\nplot(x)\n',
+  }
+  for (const [name, body] of Object.entries(PANE_FLOATS)) {
+    it(`⭐ re-review 2 H-2: ${name} — v6 serves it and draws v5's values`, () => {
+      const five = run(v5 + body)
+      expect(five.some((x) => !Number.isNaN(x))).toBe(true)
+      expect(run(v6 + body)).toEqual(five)
+    })
+  }
+  // ⛔ a user function whose value is a bool stays refused (the inference only proves numbers)
+  it('⛔⛔ re-review 2 H-2: a user function returning a bool is refused as the arm value', () => {
+    const r = refusalOf(`${v6}f(v) => v > 104\nb = if close > 102\n    f(close)\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⛔⛔ re-review 2 H-2: `input.bool` is a bool, refused', () => {
+    const r = refusalOf(`${v6}on = input.bool(true, "On")\nb = if close > 102\n    on\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔ review 3 L-3 — a ternary whose both branches are numbers is a number
+  it('⛔ CONTROL — L-3: a numeric ternary arm is served (na where unmatched)', () => {
+    const out = run(`${v6}x = if close > 103\n    close > open ? 1.0 : 2.0\nplot(x)\n`)
+    expect(out.slice(0, 4).every(Number.isNaN)).toBe(true)
+    expect(out.slice(4)).toEqual([1, 1, 1, 1])
+  })
+  it('⛔ CONTROL — v5: an unmatched block-valued bool is na', () => {
+    expect(run(`${v5}b = if close > 103\n    true\nplot(b == false ? 5 : 7)\n`)).toEqual(Array(N).fill(7))
+  })
+})
+
+describe('L2 — a branch ending in a loop: the refusal does not claim a loop has no value', () => {
+  it('⛔ the sentence says the loop\'s value is not lowered (Pine yields its last pass)', () => {
+    const r = refusalOf(`${v5}x = if close > 103\n    for i = 0 to 2\n        0\nelse\n    0\nplot(x)\n`)
+    expect(r.guard).toBe('runtime:block-value')
+    expect(r.message).toMatch(/last pass/)
+    expect(r.message).not.toMatch(/no value to yield/)
+  })
+})
+
+describe('L1 — every array function says whether it writes, and how', () => {
+  it('⛔ each ARRAY_FNS entry declares `writes` as one of none / elements / size', () => {
+    const bad = Object.entries(ARRAY_FNS).filter(([, d]) => !['none', 'elements', 'size'].includes(d.writes)).map(([k]) => k)
+    expect(bad).toEqual([])
+  })
+  it('⛔ CONTROL — the writers are the ones Pine documents', () => {
+    expect(ARRAY_FNS['array.push'].writes).toBe('size')
+    expect(ARRAY_FNS['array.set'].writes).toBe('elements')
+    expect(ARRAY_FNS['array.size'].writes).toBe('none')
+  })
+})

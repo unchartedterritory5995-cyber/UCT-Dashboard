@@ -77,6 +77,11 @@ Flow per source, per sync:
      this round) stays as an inert intact placeholder rather than being
      silently stripped, so self-heal's substring check keeps a real signal
      to retry against on a future sync.
+     Plan A Task 4: that retry is the link heal pass
+     (`link_keys.heal_pending_links`, run at the end of every round over the
+     member's `import_links_pending` notes), never a re-import: an unresolved
+     link no longer keeps `import_media_pending` set, so it no longer makes
+     `import_confirm` re-write the note or the engine re-download its media.
   6. Cursor advances to `max(ref.updated_at for ref in refs)` ONLY if the
      whole sync completed without raising — a provider exception mid-source
      updates the log row to 'error' and leaves the cursor untouched.
@@ -86,19 +91,34 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
+import copy
+import dataclasses
+import hashlib
 import json
 import logging
+import math
 import os
 import random
 import sqlite3
 import threading
-from datetime import datetime, timezone
+import urllib.parse
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import import_notice, import_provenance, media_policy
 from api.services.journal_two import notes as notes_svc
+from api.services.journal_two.import_provenance import edited_since_import
+from api.services.journal_two.notes_quota import NoteQuotaExceeded
 from api.services.journal_two.note_connectors import connections, errors, oauth
-from api.services.journal_two.note_connectors.convert import rewrite_body
+from api.services.journal_two.note_connectors import adoption, dest_folder
+from api.services.journal_two.note_connectors.link_keys import heal_pending_links, resolve_link_keys
+from api.services.journal_two.note_connectors.convert import REF_PREFIX, mddoc, rewrite_body
+from api.services.journal_two.note_connectors.convert.rewrite import chips_to_images
+from api.services.journal_two.note_connectors.convert.linkify import (
+    finalize_links, import_link_keys,
+)
 from api.services.journal_two.note_connectors.providers.base import (
     NoteProvider, RemoteNote, RemoteRef,
 )
@@ -143,6 +163,12 @@ def _release_source(source_id: str) -> None:
     with _inflight_lock:
         _inflight_sources.discard(source_id)
 
+
+def is_source_busy(source_id: str) -> bool:
+    """True while a sync of this source is in flight (read-only peek)."""
+    with _inflight_lock:
+        return source_id in _inflight_sources
+
 # Backoff ladder after a transient sqlite3 "database is locked" (mirrors
 # broker/sync.py's _LOCKED_RETRY_DELAYS exactly). Jittered so parallel
 # retriers don't re-collide in lockstep.
@@ -152,19 +178,135 @@ _LOCKED_RETRY_DELAYS = (1.0, 3.0, 8.0)
 # manual=True (the explicit "Sync now" action always runs).
 _COOLDOWN_SECONDS = 600
 
+# A member's "Sync now" runs the removal check (a complete listing feeding the
+# 2-strike delete detection) at most once per this many seconds per source,
+# measured from `j2_note_sources.last_full_sync_at`, which EVERY full pass
+# writes (scheduler and member alike). Inside the window the press downgrades
+# to an incremental pass. The same gap holds for EVERY full pass, scheduler
+# included: `_run_delete_detection` counts no enumeration-only miss as a
+# strike when the previous full pass was under this many seconds ago, so
+# strike 2 always lands at least 10 minutes after strike 1. Scheduler passes
+# are never downgraded (they still list fully, stamp, and honour explicit
+# trash refs); only their enumeration strikes wait for the gap.
+MEMBER_FULL_PASS_MIN_INTERVAL_S = 600
+
+# A stored `last_full_sync_at` up to this far in the future is clock skew and
+# still counts; further ahead it is treated as "no previous full pass", so a
+# bad stamp can never lock a member out of the removal check.
+_LAST_FULL_FUTURE_SKEW_S = 60
+
 # Roam's own pull-many batches 40 eids/call; other providers just inherit
 # fetch_many's default per-ref loop, so this bound mainly controls failure
 # isolation granularity (how many notes one bad batch can knock out before
 # the per-ref fallback kicks in), not provider-specific behavior.
 _FETCH_BATCH_SIZE = 40
 
+#: Plan E Task 5 review I3: a pass fetches, finalizes and IMPORTS this many refs at a time, so at
+#: most one chunk of converted notes is held at once (a 5000-note first sync held all 5000). A
+#: multiple of `_FETCH_BATCH_SIZE`, so each provider's `fetch_many` batches are unchanged.
+IMPORT_CHUNK_NOTES = _FETCH_BATCH_SIZE * 5
+#: Plan E Task 9 fix round 1 (I2): at most this many unlisted notes are fetched per full pass to
+#: retry their pending media (`_pending_media_refs`), stalest import first, so a large backlog is
+#: worked through over several nights instead of one burst against the provider's rate limit.
+MEDIA_RETRY_NOTES_PER_PASS = 25
+
+# Quick follow-up passes (live gate 2026-11-03). Evernote's per-minute tool limit cut the owner's
+# first import at 75 of 215 notes, and the rest then waited for the hourly :23 tick. A provider that
+# declares `follow_up_on_rate_limit` (Evernote) and ends a pass with listed notes left unread by
+# `NoteConnRateLimited` gets its source stamped (`warming_until`) for ONE follow-up pass
+# retry_after + FOLLOW_UP_MARGIN_S from now, clamped to [FOLLOW_UP_MIN_DELAY_S,
+# FOLLOW_UP_MAX_DELAY_S]. The `note_sync_follow_up` APScheduler job (`sync_follow_up_sources`) runs
+# due stamps through `sync_source`, so the in-flight lock still means one pass at a time per source.
+# Repeats until the backlog is empty, at most FOLLOW_UP_MAX_PASSES_PER_HOUR passes per source per
+# hour (counted from the sync log, every kind of pass included); past that the hourly tick takes it.
+FOLLOW_UP_MIN_DELAY_S = 120
+# Fix round 1 (I7): the ceiling is an hour, reached only when the server itself asks for a wait
+# that long (a client never sleeps through a wait over its own cap; it hands it up instead).
+FOLLOW_UP_MAX_DELAY_S = 3600
+FOLLOW_UP_MARGIN_S = 30
+FOLLOW_UP_MAX_PASSES_PER_HOUR = 12
+# Fix round 1 (I9): the follow-up job LEASES a due stamp for this long instead of clearing it. The
+# pass it starts replaces or clears it; a pass that crashed (or a pod that died) fires again once
+# the lease runs out, still inside the hourly bound.
+FOLLOW_UP_LEASE_S = 1800
+# Fix round 1 (D2): the most note fetches one pass makes for a provider that opts in to follow-ups.
+# 300 at Evernote's observed ~60-80 calls a minute, paced to 80% of that, is ~4-6 minutes of
+# get_note (a note's attachments come on top), inside the client's 10-minute wall clock
+# (`evernote_mcp.SESSION_BUDGET_S`), so one member's pass never holds the serial scheduler long.
+# The notes not reached are leftovers: the follow-up comes for them, and with D1 a later pass
+# never fetches a stored, unchanged note again, so the import still converges.
+FETCH_CAP_PER_PASS = 300
+# Fix round 1 (I10): an import that keeps reading "importing" with no new note stored for this
+# many passes in a row, or with none stored in a pass more than IMPORT_STALL_AFTER_S after its
+# first importing pass, is shown as stalled (amber) with an honest sentence; it keeps retrying.
+IMPORT_STALL_PASSES = 3
+IMPORT_STALL_AFTER_S = 86400
+# Fix round 1 (D3): a pacing interval a pass learned from a rate limit seeds the next pass,
+# halving every PACE_HALF_LIFE_S, and is forgotten after PACE_MEMORY_S.
+PACE_MEMORY_S = 86400
+PACE_HALF_LIFE_S = 21600
+# Fix round 2 (N3): a pass that leaves leftovers but stores nothing new books its follow-up no
+# sooner than FOLLOW_UP_BACKOFF_BASE_S x 2^(zero passes - 1), up to FOLLOW_UP_MAX_DELAY_S: 2, 4, 8,
+# 16, 32, 60 minutes. Chosen over "leave it to the hourly tick" because an outage that ends after a
+# few minutes is picked up in minutes rather than up to an hour later, while a source that stays
+# stuck costs at most a pass an hour within six passes, the same as the tick. A pass that makes
+# progress resets it (the quick follow-up comes back). The same holds for a listing that keeps
+# being rate limited (it counts as a zero pass).
+FOLLOW_UP_BACKOFF_BASE_S = 120
+# N5: a source whose follow-up pass raised (anything but a rate limit) this many times in a row
+# loses its stamp; the hourly tick carries on with it.
+FOLLOW_UP_MAX_ERRORS = 3
+# D4: at most this many passes of an opt-in provider (Evernote) run at once in this process:
+# first syncs, Sync now, follow-ups and the scheduler ticks alike (`_acquire_pass_slot`), each still
+# under its source's in-flight lock. Follow-up passes are launched together and wait for a slot,
+# so many members importing at once proceed in parallel. Bounded because whether Evernote's limit
+# is per user or per app is unknown: measured in simulation, 50 first passes started at once
+# against a shared per-app limit thrashed it and learned a 10 s pace each (D3 then carried it),
+# taking 5.5 h for what three at a time do in about an hour. `evernote_mcp`'s process-level trip
+# guard holds new sessions back on top when trips across sessions spike.
+# ⚠️ SINGLE-PROCESS state (a threading lock and a counter, loop-agnostic like
+# `_try_acquire_source`, because the scheduler's jobs run on their own event loops): a second web
+# process has its own slots.
+FOLLOW_UP_CONCURRENCY = 3
+PASS_SLOT_POLL_S = 1.0
+_PASS_SLOTS_LOCK = threading.Lock()
+_pass_slots_used = 0
+
+
+async def _acquire_pass_slot() -> None:
+    """D4: wait for one of FOLLOW_UP_CONCURRENCY process-wide pass slots (polls; never blocks
+    the event loop)."""
+    global _pass_slots_used
+    while True:
+        with _PASS_SLOTS_LOCK:
+            if _pass_slots_used < FOLLOW_UP_CONCURRENCY:
+                _pass_slots_used += 1
+                return
+        await asyncio.sleep(PASS_SLOT_POLL_S)
+
+
+def _release_pass_slot() -> None:
+    global _pass_slots_used
+    with _PASS_SLOTS_LOCK:
+        _pass_slots_used = max(0, _pass_slots_used - 1)
+
+
+def _pass_slots_in_use() -> int:
+    with _PASS_SLOTS_LOCK:
+        return _pass_slots_used
+
 # Server-side cap on notes_svc.import_confirm is 500/batch; the engine stays
 # well under it.
 _CONFIRM_BATCH_SIZE = 200
 
 
+def _utcnow() -> datetime:
+    """The engine's one clock. Tests monkeypatch this to move time."""
+    return datetime.now(timezone.utc)
+
+
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return _utcnow().isoformat()
 
 
 def _parse_iso(value: Any) -> datetime | None:
@@ -174,6 +316,59 @@ def _parse_iso(value: Any) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+def _last_full_pass_at(value: Any, now: datetime) -> datetime | None:
+    """The stored `last_full_sync_at` as an aware datetime, or None when it
+    must count as "no previous full pass": absent, unparseable, or more than
+    `_LAST_FULL_FUTURE_SKEW_S` in the future. A naive stamp is read as UTC."""
+    last = _parse_iso(value)
+    if last is None:
+        return None
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    if last > now + timedelta(seconds=_LAST_FULL_FUTURE_SKEW_S):
+        return None
+    return last
+
+
+def _removal_check_summary(
+    user_id: str, source_id: str, *, ran: bool, reason: str | None, severed: int,
+) -> dict[str, Any]:
+    """The `removalCheck` block of a member full-pass result, read AFTER the
+    pass: `pending` from the index, `nextAllowedAt` from the stored stamp
+    (None when the next check is already allowed)."""
+    now = _utcnow()
+    source = connections.get_source_by_id(source_id) or {}
+    last = _last_full_pass_at(source.get("lastFullSyncAt"), now)
+    next_allowed = None
+    if last is not None:
+        nxt = last + timedelta(seconds=MEMBER_FULL_PASS_MIN_INTERVAL_S)
+        if nxt > now:
+            next_allowed = nxt.isoformat()
+    pending = connections.pending_removal_counts(user_id, [source_id]).get(source_id, 0)
+    return {
+        "ran": ran, "reason": reason, "nextAllowedAt": next_allowed,
+        "pending": int(pending), "severed": int(severed or 0),
+    }
+
+
+async def _member_full_pass(user_id: str, source_id: str) -> dict[str, Any]:
+    """A member's "Sync now" with full=True. Decided under the in-flight
+    guard, from a fresh read of the source, so a pass that finished a moment
+    ago is always seen. Inside the rate-limit window it downgrades to a plain
+    incremental pass (no strike, no stamp); otherwise it runs the removal
+    check."""
+    current = connections.get_source_by_id(source_id) or {}
+    now = _utcnow()
+    last = _last_full_pass_at(current.get("lastFullSyncAt"), now)
+    if last is not None and (now - last).total_seconds() < MEMBER_FULL_PASS_MIN_INTERVAL_S:
+        result = await _do_sync(user_id, source_id, full=False)
+        result["removalCheck"] = _removal_check_summary(
+            user_id, source_id, ran=False, reason="rate_limited", severed=0,
+        )
+        return result
+    return await _do_sync(user_id, source_id, full=False, removal_check=True)
 
 
 def _chunks(seq: list, n: int):
@@ -227,6 +422,21 @@ def _within_cooldown(source: dict[str, Any]) -> bool:
 
 # ── Sync log bracket (mirrors broker/sync.py's _start_log/_finish_log) ──────
 
+def _drain_provider_item_failures(
+    provider: Any, item_failures: list[str], notice_failures: list[dict[str, Any]],
+) -> None:
+    """Plan E Task 8 (Plan D's design): a provider that records per-note problems itself
+    (`drain_item_failures`, `{noteTitle, reason, name}` entries) hands them over here; each reaches
+    `failures_json` and its reason the result's `failures` and the log row's `error`. Providers
+    without the method are untouched."""
+    drain = getattr(provider, "drain_item_failures", None)
+    if drain is None:
+        return
+    for entry in drain() or []:
+        notice_failures.append(entry)
+        item_failures.append(entry.get("reason") or "")
+
+
 def _start_log(user_id: str, source_id: str) -> int:
     conn = get_connection()
     try:
@@ -241,9 +451,13 @@ def _start_log(user_id: str, source_id: str) -> int:
         conn.close()
 
 
+#: The most `failures_json` entries one log row keeps (Plan D's card lists them).
+FAILURES_JSON_CAP = 50
+
+
 def _finish_log(
     log_id: int, *, status: str, counts: dict[str, int], error: str | None = None,
-    source_deleted: int = 0,
+    source_deleted: int = 0, failures_json: list[dict] | None = None,
 ) -> None:
     """`source_deleted` is passed SEPARATELY from `counts` on purpose: the
     sever count is produced by delete detection, not by the per-note import
@@ -252,7 +466,15 @@ def _finish_log(
     `_latest_sync_counts` (routers/note_sync.py) reads the newest log row to
     build the connectors card's counts -- a deletion that is never written to
     this row is invisible to the member no matter what the sync response
-    said in the moment."""
+    said in the moment.
+
+    `failures_json` (Plan A Task 6, read by Plan D's `/log` parser in
+    routers/note_sync.py): the `{noteTitle, reason, name}` of every
+    importNotice this pass wrote, `reason` being the member-readable sentence.
+    Capped at `FAILURES_JSON_CAP`; NULL when there were none. Plan D's DDL
+    always has the column, so it is written unconditionally."""
+    items = list(failures_json or [])[:FAILURES_JSON_CAP]
+    blob = json.dumps(items, ensure_ascii=False) if items else None
     conn = get_connection()
     try:
         conn.execute(
@@ -260,7 +482,8 @@ def _finish_log(
             UPDATE j2_note_sync_log
                SET finished_at = ?, status = ?, error = ?,
                    notes_created = ?, notes_updated = ?, notes_skipped = ?,
-                   media_uploaded = ?, conflicts = ?, source_deleted = ?
+                   media_uploaded = ?, conflicts = ?, source_deleted = ?,
+                   failures_json = ?, adopted = ?
              WHERE id = ?
             """,
             (
@@ -268,7 +491,7 @@ def _finish_log(
                 int(counts.get("created", 0)), int(counts.get("updated", 0)),
                 int(counts.get("skipped", 0)), int(counts.get("mediaUploaded", 0)),
                 int(counts.get("conflicts", 0)), int(source_deleted or 0),
-                log_id,
+                blob, int(counts.get("adopted", 0)), log_id,
             ),
         )
         conn.commit()
@@ -280,6 +503,7 @@ def _finish_log(
 
 async def sync_source(
     source_id: str, *, full: bool = False, manual: bool = False,
+    member: bool = False,
 ) -> dict[str, Any]:
     """Sync one source. Serialized per source via a loop-agnostic in-flight
     guard (Fix-round-1 #4 — see `_try_acquire_source`'s module-level
@@ -293,7 +517,18 @@ async def sync_source(
     `except`). Only after every attempt is still busy does this return a
     `"busy"` status rather than raising — a caller in a race with the
     nightly full pass or another "Sync now" click gets a clean, actionable
-    answer, never a crash."""
+    answer, never a crash.
+
+    `member=True` is a person waiting on "Sync now": it implies
+    `manual=True` (no cooldown) and makes exactly ONE acquire attempt — if
+    the source is busy it returns `busy` at once, never walking the sleep
+    ladder. The sqlite "locked" retry ladder is unchanged for every caller.
+
+    `member=True, full=True` runs the removal check (`_member_full_pass`),
+    rate-limited by `MEMBER_FULL_PASS_MIN_INTERVAL_S`; its result carries a
+    `removalCheck` block. Only that combination carries it."""
+    if member:
+        manual = True
     source = connections.get_source_by_id(source_id)
     if source is None:
         raise ValueError(f"unknown note-connector source {source_id!r}")
@@ -304,11 +539,13 @@ async def sync_source(
     attempts = 1 + len(_LOCKED_RETRY_DELAYS)
     for attempt in range(attempts):
         if not _try_acquire_source(source_id):
-            if attempt == attempts - 1:
+            if member or attempt == attempts - 1:
                 return {"status": "busy", "sourceId": source_id}
             await asyncio.sleep(_LOCKED_RETRY_DELAYS[attempt] * random.uniform(0.5, 1.5))
             continue
         try:
+            if member and full:
+                return await _member_full_pass(source["userId"], source_id)
             return await _do_sync(source["userId"], source_id, full=full)
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower() or attempt == attempts - 1:
@@ -317,6 +554,257 @@ async def sync_source(
         finally:
             _release_source(source_id)
     raise RuntimeError("unreachable")  # loop always returns or raises
+
+
+def _same_revision(a: Any, b: Any) -> bool:
+    """Fix round 1 (D1): do two revision stamps name the same instant? Both normalised through
+    `import_provenance.instant` and compared at WHOLE SECONDS. Assumption, written down because
+    it could not be confirmed against the live server: Evernote's `get_note.updated` (what
+    `import_remote_rev` stores) and `search_notes` hits' `updatedAt` (the listing) are the same
+    note field, but the probe recorded no format for the first and the corpus mock serves it as
+    epoch milliseconds and the second as an ISO string at whole seconds. Comparing at whole
+    seconds makes those agree; the cost is that an edit landing in the SAME second as the stored
+    revision reads as unchanged until the next edit (the same accepted limitation as Notion's
+    minute-precision revisions in `_remote_changed`). Anything unreadable is never "the same"."""
+    if not isinstance(a, str) or not isinstance(b, str):
+        return False
+    da, db_ = import_provenance.instant(a), import_provenance.instant(b)
+    if da is None or db_ is None:
+        return False
+    return da.replace(microsecond=0) == db_.replace(microsecond=0)
+
+
+def _classify_listed(
+    user_id: str, source: dict[str, Any], provider: NoteProvider, refs: list[RemoteRef],
+    want_rows: bool = False,
+) -> tuple[set[str], set[str]]:
+    """Fix round 1 (D1) and round 2 (N1): `(unchanged, has_row)` for the listed refs.
+
+    `unchanged`: refs that need no fetch: the provider names a real listing revision
+    (`listing_revision`; None, the base default, skips nothing), and the member's stored,
+    untrashed note under the provider's live import key carries that same revision and waits on
+    no media (`import_media_pending` 0). `has_row`: refs that have such a stored note at all (the
+    fetch order puts the rest first). Read from `j2_notes`, NEVER from `j2_note_remote_index`
+    (C2). A note adoption could still claim has no row under the live key, so it is never
+    skipped. `want_rows` asks for `has_row` even when no ref has a revision. Worker thread: one
+    bulk read per 500 keys."""
+    listing_revision = getattr(provider, "listing_revision", None)
+    revs: dict[str, str] = {}
+    if listing_revision is not None:
+        for r in refs:
+            rev = listing_revision(r)
+            if rev:
+                revs[r.remote_id] = rev
+    if not revs and not want_rows:
+        return set(), set()
+    by_key = {provider.import_key(source["remoteId"], r.remote_id): r.remote_id for r in refs}
+    unchanged: set[str] = set()
+    has_row: set[str] = set()
+    keys = list(by_key)
+    conn = get_connection()
+    try:
+        for i in range(0, len(keys), 500):  # sqlite variable-limit safety
+            chunk = keys[i:i + 500]
+            rows = conn.execute(
+                f"SELECT import_key, import_remote_rev, import_media_pending FROM j2_notes "
+                f"WHERE user_id = ? AND deleted_at IS NULL "
+                f"AND import_key IN ({','.join('?' * len(chunk))})",
+                (user_id, *chunk)).fetchall()
+            for row in rows:
+                rid = by_key[row["import_key"]]
+                has_row.add(rid)
+                rev = revs.get(rid)
+                if rev and (row["import_media_pending"] or 0) == import_notice.MEDIA_PENDING_NONE \
+                        and _same_revision(row["import_remote_rev"], rev):
+                    unchanged.add(rid)
+    finally:
+        conn.close()
+    return unchanged, has_row
+
+
+def _load_sync_state(source: dict[str, Any]) -> dict[str, Any]:
+    """The source's small JSON state (`j2_note_sources.sync_state`): `pace` (D3) and `importing`
+    (I10). Anything unreadable is an empty state, never an error."""
+    raw = source.get("syncState")
+    if not raw:
+        return {}
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _save_sync_state(user_id: str, source_id: str, source: dict[str, Any],
+                     state: dict[str, Any]) -> None:
+    raw = json.dumps(state, sort_keys=True) if state else None
+    if raw != (source.get("syncState") or None):
+        connections.set_sync_state(user_id, source_id, raw)
+
+
+def _seeded_interval(pace: Any, now: datetime) -> float | None:
+    """D3: the interval to seed a new session with: the stored one halved every
+    PACE_HALF_LIFE_S since it was learned, or None once it is PACE_MEMORY_S old (or unreadable).
+    The client clamps it to its own adaptive range."""
+    if not isinstance(pace, dict):
+        return None
+    interval = pace.get("intervalS")
+    learned_at = _parse_iso(pace.get("learnedAt"))
+    if not isinstance(interval, (int, float)) or not math.isfinite(interval) or learned_at is None:
+        return None
+    age = (now - learned_at).total_seconds()
+    if age < 0 or age >= PACE_MEMORY_S:
+        return None
+    return float(interval) * 0.5 ** (age / PACE_HALF_LIFE_S)
+
+
+def _track_import_progress(state: dict[str, Any], new_notes: int, now: datetime,
+                           *, counted: bool = True) -> bool:
+    """I10: update the `importing` record for a pass that left leftovers and say whether the
+    import has stalled: IMPORT_STALL_PASSES passes in a row with no new note stored, or a pass
+    with none more than IMPORT_STALL_AFTER_S after the first importing pass. `counted=False`
+    (N4: a nightly full pass) never adds a zero pass; progress still resets the count."""
+    imp = state.get("importing")
+    if not isinstance(imp, dict) or _parse_iso(imp.get("since")) is None:
+        imp = {"since": now.isoformat(), "zeroPasses": 0}
+    previous = int(imp.get("zeroPasses") or 0)
+    zero = 0 if new_notes > 0 else previous + 1 if counted else previous
+    imp["zeroPasses"] = zero
+    state["importing"] = imp
+    age = (now - _parse_iso(imp["since"])).total_seconds()
+    return zero >= IMPORT_STALL_PASSES or (zero >= 1 and age >= IMPORT_STALL_AFTER_S)
+
+
+def _schedule_follow_up(user_id: str, source_id: str, retry_afters: list[float | None],
+                        zero_passes: int = 0) -> bool:
+    """Book ONE quick follow-up pass for a source a rate limit cut short (see
+    FOLLOW_UP_MIN_DELAY_S). Returns False, and clears any stamp, when the source already ran
+    FOLLOW_UP_MAX_PASSES_PER_HOUR passes in the last hour (this one included): the hourly tick
+    takes it from there. `zero_passes` (N3): passes in a row without progress back the follow-up
+    off exponentially (FOLLOW_UP_BACKOFF_BASE_S). Worker thread: DB reads and one write."""
+    now = datetime.now(timezone.utc)
+    passes = connections.count_passes_since(
+        user_id, source_id, (now - timedelta(hours=1)).isoformat())
+    if passes >= FOLLOW_UP_MAX_PASSES_PER_HOUR:
+        connections.set_follow_up(user_id, source_id, None)
+        return False
+    known = [r for r in retry_afters if isinstance(r, (int, float)) and math.isfinite(r) and r >= 0]
+    delay = (max(known) if known else 0) + FOLLOW_UP_MARGIN_S
+    if zero_passes >= 1:
+        delay = max(delay, FOLLOW_UP_BACKOFF_BASE_S * 2 ** min(zero_passes - 1, 20))
+    delay = min(max(delay, FOLLOW_UP_MIN_DELAY_S), FOLLOW_UP_MAX_DELAY_S)
+    connections.set_follow_up(user_id, source_id, (now + timedelta(seconds=delay)).isoformat())
+    return True
+
+
+async def _listing_rate_limited(
+    user_id: str, source_id: str, source: dict[str, Any], provider: Any, log_id: int,
+    counts: dict[str, int], sync_state: dict[str, Any], exc: errors.NoteConnRateLimited, *,
+    full: bool, removal_check: bool, removal_reason: str | None,
+) -> dict[str, Any]:
+    """Fix round 2 (concern 4): the LISTING of an opt-in provider was rate limited. The pass is
+    recorded as in progress with LISTING_LIMITED_REASON (not "sync stopped"), counts as a pass
+    without progress toward the stall rule (a full pass does not), and books its follow-up with
+    the same backoff as any pass without progress. Nothing was listed, so nothing moves."""
+    stalled = _track_import_progress(sync_state, 0, _utcnow(), counted=not full)
+    await asyncio.to_thread(_schedule_follow_up, user_id, source_id, [exc.retry_after],
+                            sync_state["importing"]["zeroPasses"])
+    learned = getattr(provider, "learned_pacing", None)
+    interval, tripped = learned() if learned is not None else (None, False)
+    if tripped and isinstance(interval, (int, float)):
+        sync_state["pace"] = {"intervalS": float(interval), "learnedAt": _now_iso()}
+    await asyncio.to_thread(_save_sync_state, user_id, source_id, source, sync_state)
+    label = dest_folder.provider_label(source.get("provider"))
+    status = "warning" if stalled else "importing"
+    sentence = (LISTING_STALLED_REASON if stalled else LISTING_LIMITED_REASON).format(label=label)
+    failure = f"listing rate limited: {exc}"
+    log.warning("[note-sync] source %s: %s", source_id, failure)
+    await asyncio.to_thread(connections.record_sync_result, user_id, source_id, ok=True,
+                            status=status, error=sentence)
+    await asyncio.to_thread(_finish_log, log_id, status=status, counts=counts, error=failure,
+                            source_deleted=0, failures_json=[])
+    result: dict[str, Any] = {"status": status, "sourceId": source_id, **counts,
+                              "sourceDeleted": 0, "failures": [failure],
+                              "deleteDetectionWarning": None}
+    if removal_check:
+        result["removalCheck"] = _removal_check_summary(
+            user_id, source_id, ran=False, reason=removal_reason or "enumeration_failed",
+            severed=0)
+    return result
+
+
+async def sync_follow_up_sources() -> dict[str, int]:
+    """Scheduler entry for the quick follow-up passes (`note_sync_follow_up`). Each due source's
+    stamp is LEASED (FOLLOW_UP_LEASE_S ahead) before its pass, so a pass that raises re-fires only
+    once the lease runs out, never every tick; the pass books the next one itself if notes are
+    still left, or clears the stamp. A source another pass is already
+    syncing is skipped with its stamp KEPT: that pass replaces or clears it. Serial, and one failing
+    source never blocks the others. `manual=True`: a follow-up runs inside the 10 min cooldown."""
+    now = datetime.now(timezone.utc)
+    ran = busy = 0
+    claimed: list[dict[str, Any]] = []
+    for source in connections.list_follow_up_due(now.isoformat()):
+        if is_source_busy(source["id"]):
+            busy += 1
+            continue
+        # I9: the hourly bound is enforced here too, not only when a pass books a follow-up.
+        if connections.count_passes_since(
+                source["userId"], source["id"],
+                (now - timedelta(hours=1)).isoformat()) >= FOLLOW_UP_MAX_PASSES_PER_HOUR:
+            connections.set_follow_up(source["userId"], source["id"], None)
+            continue
+        # I9: a LEASE, not a clear: the pass replaces or clears it when it ends, and a pass that
+        # crashed fires again once the lease runs out.
+        connections.set_follow_up(source["userId"], source["id"],
+                                  (now + timedelta(seconds=FOLLOW_UP_LEASE_S)).isoformat())
+        ran += 1
+        claimed.append(source)
+
+    # D4: the claimed passes are launched together; the process-wide pass slots (taken inside
+    # `_do_sync`) let FOLLOW_UP_CONCURRENCY of them run at once.
+    async def run(source: dict[str, Any]) -> bool:
+        failed = False
+        was_busy = False
+        try:
+            result = await sync_source(source["id"], manual=True)
+            was_busy = isinstance(result, dict) and result.get("status") == "busy"
+        except errors.NoteConnRateLimited:
+            log.info("[note-sync] follow-up pass for source %s was rate limited", source["id"])
+        except Exception:  # noqa: BLE001 -- isolate per-source failures
+            failed = True
+            log.exception("[note-sync] follow-up pass failed for source %s", source["id"])
+        if not was_busy:
+            try:
+                await asyncio.to_thread(_note_follow_up_outcome, source, failed)
+            except Exception:  # noqa: BLE001 -- bookkeeping never fails the job
+                log.exception("[note-sync] follow-up bookkeeping failed for %s", source["id"])
+        return was_busy
+
+    outcomes = await asyncio.gather(*(run(s) for s in claimed))
+    busy += sum(1 for b in outcomes if b)
+    return {"ran": ran, "busy": busy}
+
+
+def _note_follow_up_outcome(source: dict[str, Any], failed: bool) -> None:
+    """N5: count follow-up passes in a row that raised (not a rate limit). At
+    FOLLOW_UP_MAX_ERRORS the stamp is cleared and the count reset: the hourly tick carries on. A
+    pass that did not raise resets the count. Reads the row fresh (the pass may have written it)."""
+    current = connections.get_source_by_id(source["id"])
+    if current is None:
+        return
+    state = _load_sync_state(current)
+    if failed:
+        errors_in_a_row = int(state.get("followUpErrors") or 0) + 1
+        if errors_in_a_row >= FOLLOW_UP_MAX_ERRORS:
+            log.warning("[note-sync] source %s: %d follow-up passes failed in a row; leaving it "
+                        "to the hourly sync", source["id"], errors_in_a_row)
+            connections.set_follow_up(current["userId"], current["id"], None)
+            state.pop("followUpErrors", None)
+        else:
+            state["followUpErrors"] = errors_in_a_row
+    else:
+        state.pop("followUpErrors", None)
+    _save_sync_state(current["userId"], current["id"], current, state)
 
 
 async def sync_due_sources() -> None:
@@ -385,6 +873,12 @@ async def _resolve_credentials(user_id: str, provider_name: str) -> dict[str, An
     is itself a safe no-op for a registered provider whose stored token
     carries no `expiresAt` (Notion — tokens don't expire, so this makes
     ZERO extra network calls for it, same as before) or no `refreshToken`."""
+    # Plan E Task 6: a provider with its own refresh hook (Evernote: rotating refresh token,
+    # compare-and-swap, per-user threading lock) uses it; every other provider is unchanged.
+    from . import registry  # lazy, as `_default_provider_factory` imports it
+    entry = registry.get_entry(provider_name) if registry.is_known(provider_name) else None
+    if entry is not None and entry.refresh is not None:
+        return await entry.refresh(user_id)
     if oauth.is_registered(provider_name):
         return await oauth.refresh_if_needed(user_id, provider_name)
     return connections.get_token(user_id, provider_name)
@@ -392,25 +886,96 @@ async def _resolve_credentials(user_id: str, provider_name: str) -> dict[str, An
 
 # ── Core per-source sync ─────────────────────────────────────────────────────
 
-async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any]:
+async def _do_sync(
+    user_id: str, source_id: str, *, full: bool, removal_check: bool = False,
+) -> dict[str, Any]:
+    """`full` is the scheduler's nightly pass. `removal_check` is a member's
+    full pass (`_member_full_pass`): a complete listing feeds delete
+    detection while only the incremental delta is fetched and imported. The
+    two flags are mutually exclusive; the caller guarantees it."""
+    if full and removal_check:
+        raise ValueError("_do_sync: full and removal_check are mutually exclusive")
     source = connections.get_source_by_id(source_id)
     if source is None:
         raise ValueError(f"unknown note-connector source {source_id!r}")
 
-    log_id = _start_log(user_id, source_id)
-    counts = {"created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0, "conflicts": 0}
+    log_id = await asyncio.to_thread(_start_log, user_id, source_id)
+    counts = {"created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0, "conflicts": 0,
+              "adopted": 0,  # Plan E Task 8: file-imported notes re-keyed onto live sync
+              # Fix round 2 (N8): listed notes D1 did not fetch (stored revision match). Its own
+              # key, never `skipped` (the card's "Unchanged"), so a large import does not read as
+              # thousands of unchanged notes every pass. Not persisted to the log row.
+              "unchanged": 0}
     item_failures: list[str] = []
+    # Plan A Task 6: {noteTitle, reason, name} per importNotice written this pass,
+    # for the log row's `failures_json` (the `failures` strings above are unchanged).
+    notice_failures: list[dict[str, Any]] = []
     delete_guard_warning: str | None = None
+    delete_guard_refused = False
+    fetch_failed = 0  # review M6: notes the row says could not be read (they are retried)
+    rate_limited: dict[str, tuple[str, float | None]] = {}  # live gate 2026-11-03: not failures
+    media_waiting: set[str] = set()  # notes whose attachment still waits on the limit (I8)
     deleted_count = 0
     provider: NoteProvider | None = None
+    slot_held = False
 
     try:
-        provider = _provider_factory(source["provider"], source)
+        # Final review M2: building may read the DB (Evernote's admin mode reads the member's
+        # role), so it runs in a worker thread; constructors only build clients, never I/O on a loop.
+        provider = await asyncio.to_thread(_provider_factory, source["provider"], source)
+        follow_up = getattr(provider, "follow_up_on_rate_limit", False) is True
+        if follow_up:
+            await _acquire_pass_slot()  # D4: released in the `finally` below
+            slot_held = True
+        sync_state = _load_sync_state(source)
+        if follow_up and hasattr(provider, "seed_pacing"):
+            seed = _seeded_interval(sync_state.get("pace"), _utcnow())
+            if seed is not None:
+                provider.seed_pacing(seed)
         creds = await _resolve_credentials(user_id, source["provider"])
         if creds is None:
             raise errors.NoteConnNotConfigured(
                 f"no connected credentials for provider {source['provider']!r}"
             )
+
+        # ⛔ Live audit 2026-11-03 (H1): a source whose destination folder was deleted refused
+        # every batch forever. ONE place for every provider (Obsidian's vault folder included:
+        # its subfolders are made under this one by `import_confirm`'s folderPath), before any
+        # listing: the source gets its default folder back and this pass imports into it. A
+        # paused, disabled or disconnected source is never given one (`heal_missing_dest_folder`).
+        # Review M2: a repair that raises is logged and the pass goes on as it would have (a
+        # missing folder then fails at the confirm, which tries the repair once more).
+        try:
+            heal = await asyncio.to_thread(dest_folder.heal_missing_dest_folder, user_id, source_id)
+        except Exception:  # noqa: BLE001 — never let the repair abort the pass
+            log.exception("[note-sync] source %s: destination-folder check failed", source_id)
+            heal = None
+        if heal is not None and heal.outcome in dest_folder.USABLE:
+            # Review M1: the row is the authority (re-pointed by the heal, or by a delete since
+            # this dict was read), so every usable answer is applied, not only a repair.
+            source = {**source, "destFolderId": heal.dest_folder_id}
+        elif heal is not None and heal.outcome in ("paused", "disabled", "failed"):
+            # Re-review N2: the folder is missing and this pass cannot repair it, so every batch
+            # would be refused (and each would take the write lock to try the repair again).
+            # Nothing is listed, fetched or confirmed; the cursor is untouched, so whatever is
+            # waiting is fetched the pass after the repair succeeds. One sentence, recorded once.
+            sentence = _heal_sentence(heal, source)
+            log.warning("[note-sync] source %s: destination folder missing (%s); pass skipped",
+                        source_id, heal.outcome)
+            connections.record_sync_result(user_id, source_id, ok=True, status="warning",
+                                           error=sentence)
+            _finish_log(log_id, status="warning", counts=counts,
+                        error=f"{DEST_MISSING_FAILURE_PREFIX} ({heal.outcome}): pass skipped",
+                        source_deleted=0, failures_json=[])
+            skipped: dict[str, Any] = {
+                "status": "warning", "sourceId": source_id, **counts, "sourceDeleted": 0,
+                "failures": [f"{DEST_MISSING_FAILURE_PREFIX} ({heal.outcome}): pass skipped"],
+                "deleteDetectionWarning": None,
+            }
+            if removal_check:
+                skipped["removalCheck"] = _removal_check_summary(
+                    user_id, source_id, ran=False, reason=None, severed=0)
+            return skipped
 
         # `list_present_refs` governs BOTH the cursor-reset decision right
         # below AND (further down, on a full pass) the complete-set input to
@@ -419,6 +984,31 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # read differently (this repo's own "a second authority over one
         # value" defect shape).
         present_fn = getattr(provider, "list_present_refs", None)
+
+        # Plan D task 3, removal check step (1): the COMPLETE listing comes
+        # FIRST — `list_present_refs` when the provider has it, else
+        # `list_changed(cursor=None)` — so that the stored-cursor
+        # `list_changed` below is the LAST listing call and every provider's
+        # per-call instance state (Notion `_page_meta`, Craft `_doc_meta`,
+        # Dropbox/OneDrive `opaque_cursor`, OneDrive `_deleted_refs`, Roam
+        # `_title_to_uid`) ends exactly as after a plain incremental pass. If
+        # this listing fails, the check does not run (no strike, no stamp)
+        # and the pass carries on as an ordinary incremental one.
+        removal_listing: list[RemoteRef] | None = None
+        enumeration_failed = False  # set below on a full pass whose complete listing fails
+        removal_reason: str | None = None
+        if removal_check:
+            try:
+                if present_fn is not None:
+                    removal_listing = await present_fn(creds)
+                else:
+                    removal_listing = await provider.list_changed(creds, cursor=None)
+            except Exception as e:  # noqa: BLE001 — degrade to incremental, never abort
+                item_failures.append(
+                    f"removal check skipped: the full listing failed (synced "
+                    f"changes only): {e}"
+                )
+                removal_reason = "enumeration_failed"
 
         # Raw cursor, unadjusted — providers own their own overlap window.
         # A provider WITHOUT `list_present_refs` (Roam/Craft/Notion/Dropbox/
@@ -446,7 +1036,14 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # (spec §9); this is that separation actually holding on the cursor
         # too, not just on `index_refs`.
         cursor = None if (full and present_fn is None) else source.get("cursor")
-        refs = await provider.list_changed(creds, cursor=cursor)
+        try:
+            refs = await provider.list_changed(creds, cursor=cursor)
+        except errors.NoteConnRateLimited as e:
+            if not follow_up:
+                raise
+            return await _listing_rate_limited(
+                user_id, source_id, source, provider, log_id, counts, sync_state, e,
+                full=full, removal_check=removal_check, removal_reason=removal_reason)
         # Task 4: `index_refs` is what delete detection + remote_index
         # bookkeeping actually see. Defaults to `refs` (today's behavior,
         # unconditionally) and is ONLY ever overridden below, on a `full`
@@ -455,7 +1052,16 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # hook, leaves this byte-for-byte equal to `refs`.
         index_refs = refs
 
-        if full:
+        # Removal check step (4): a page in EITHER listing is present (union
+        # by remote_id, the delta's ref winning) — absorbs search-index lag
+        # in either listing, so a lagging full listing can never strike a
+        # page the delta just returned.
+        if removal_listing is not None:
+            by_id = {r.remote_id: r for r in removal_listing}
+            by_id.update({r.remote_id: r for r in refs})
+            index_refs = list(by_id.values())
+
+        if full or removal_listing is not None:
             # Task 11 MUST-RESOLVE #4: when the provider exposes a
             # provider-precise trash sweep (Notion's `list_deleted`, NOT
             # part of the abstract `NoteProvider` contract — checked via
@@ -497,31 +1103,84 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             # aborts the sync — `index_refs` simply falls back to `refs`,
             # today's behavior, unchanged. `present_fn` itself was already
             # resolved once, above, before the cursor decision — reused here.
-            if present_fn is not None:
+            # (A removal check already called it, as step (1), above.)
+            # ⛔ Plan E Task 5 review I1: when the complete listing FAILS and no removal listing
+            # stood in for it, there is NO complete set this pass. The changed-note delta must
+            # never stand in for one: every unchanged note would read as missing, and two such
+            # nights severed notes that were still there (the <50% guard only catches a SMALL
+            # delta). So the removal check does not run at all (no strike, no stamp), exactly as
+            # on the member path when its listing fails. OneNote takes this branch too.
+            # (`full` and `removal_check` are exclusive, `_do_sync` refuses both: on a full pass
+            # there is never a removal listing to stand in, so a failure always skips. Task 6
+            # review m1 removed the dead branch that said otherwise.)
+            enumeration_failed = False
+            if full and present_fn is not None:
                 try:
                     index_refs = await present_fn(creds)
                 except Exception as e:  # noqa: BLE001
+                    enumeration_failed = True
                     item_failures.append(
-                        f"list_present_refs sweep failed (falling back to "
-                        f"refs-drive-everything): {e}"
+                        f"list_present_refs sweep failed (removal check skipped "
+                        f"this pass, no strikes): {e}"
                     )
 
-            dd = _run_delete_detection(user_id, source, index_refs, deleted_refs=deleted_refs)
-            # `deleted` is meaningful even alongside a warning now (Fix-round-1
-            # #1a): the explicit-sever cap can refuse the LIST_DELETED signal
-            # for a subset of rows in the same pass unrelated 2-strike misses
-            # still legitimately sever — unlike the <50% guard, which always
-            # returns deleted=0 because it refuses the WHOLE pass before any
-            # row is touched. Reading `dd["deleted"]` unconditionally is a
-            # strict superset of the old "else" branch's behavior.
-            deleted_count = dd["deleted"]
-            if dd["status"] == "warning":
-                delete_guard_warning = dd["reason"]
+            if enumeration_failed:
+                if removal_check:
+                    removal_reason = "enumeration_failed"
+                # Review R2: a skipped check is counted; 3 in a row turn the source amber.
+                await asyncio.to_thread(connections.note_removal_check, user_id, source_id, ran=False)
+            else:
+                await asyncio.to_thread(connections.note_removal_check, user_id, source_id, ran=True)
+                # Every full pass, scheduler or member, stamps
+                # `last_full_sync_at` in the detection transaction (refused
+                # included) — the member rate limit reads it.
+                dd = await asyncio.to_thread(
+                    _run_delete_detection,
+                    user_id, source, index_refs, deleted_refs=deleted_refs,
+                    stamp_at=_now_iso(),
+                )
+                if removal_check:
+                    removal_reason = "refused" if dd["refused"] else None
+                # `deleted` is meaningful even alongside a warning now (Fix-round-1
+                # #1a): the explicit-sever cap can refuse the LIST_DELETED signal
+                # for a subset of rows in the same pass unrelated 2-strike misses
+                # still legitimately sever — unlike the <50% guard, which always
+                # returns deleted=0 because it refuses the WHOLE pass before any
+                # row is touched. Reading `dd["deleted"]` unconditionally is a
+                # strict superset of the old "else" branch's behavior.
+                deleted_count = dd["deleted"]
+                if dd["status"] == "warning":
+                    delete_guard_warning = dd["reason"]
+                    delete_guard_refused = bool(dd["refused"])
 
-        _touch_remote_index(user_id, source, provider, index_refs)
+        # Off the event loop (fix round 1): one upsert per listed ref, run by "Sync now" and the
+        # first sync on the uvicorn loop.
+        await asyncio.to_thread(_touch_remote_index, user_id, source, provider, index_refs)
 
-        remote_notes, fetch_failures = await _fetch_remote_notes(provider, creds, refs)
-        item_failures.extend(fetch_failures)
+        # Plan E Task 9 (found by the messy Evernote corpus), fix round 1: a
+        # provider with `list_present_refs` keeps its stored cursor on a full
+        # pass, so a note whose remote never changes is never listed again,
+        # and an image that failed to copy on it ("retrying on the next
+        # sync") was never retried. ONLY on a scheduler full pass whose
+        # complete listing succeeded (never a member's removal-check pass,
+        # which is an incremental pass; review C2), and ONLY for a provider
+        # whose `fetch` needs no listing state (`fetch_is_listing_independent`,
+        # Evernote; review C1), the listed notes still waiting on a retryable
+        # copy are fetched too: unedited ones only (review I1), at most
+        # MEDIA_RETRY_NOTES_PER_PASS, stalest import first (review I2). Each
+        # is a media retry and nothing else: `_import_remote_notes` lets it
+        # through only when its payload hash equals the stored one (C1's
+        # belt guard). They never feed the cursor (OneNote's is a drain
+        # watermark a newer ref would jump) and never hold it.
+        # (`not enumeration_failed` is a belt: a failed listing leaves `index_refs is
+        # refs`, so there is no unlisted note to pick anyway.)
+        fetch_refs = refs
+        retry_ids: set[str] = set()
+        if (full and present_fn is not None and not enumeration_failed
+                and getattr(provider, "fetch_is_listing_independent", False) is True):
+            retries = _pending_media_refs(user_id, source, provider, refs, index_refs)
+            retry_ids = {r.remote_id for r in retries}
+            fetch_refs = refs + retries
 
         # ⛔⛔ session-audit.md A1: every ref this pass fetched but never
         # actually got a stored note out of — a fetch failure (never made it
@@ -533,17 +1192,91 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # and an oversized-but-otherwise-ordinary note is lost permanently:
         # a plain re-push of unchanged content is a no-op (no new hash, no
         # new timestamp), so nothing would ever ask for it again.
-        not_stored_refs: set[str] = {r.remote_id for r in refs} - {rn.remote_id for rn in remote_notes}
-
-        if remote_notes:
-            result = await _import_remote_notes(user_id, source, provider, creds, remote_notes)
-            counts["created"] += result["created"]
-            counts["updated"] += result["updated"]
-            counts["skipped"] += result["skipped"]
-            counts["mediaUploaded"] += result["mediaUploaded"]
-            counts["conflicts"] += result["conflicts"]
-            item_failures.extend(result["failures"])
-            not_stored_refs.update(result.get("notStoredRefs", []))
+        #
+        # Plan E Task 5 review I3: fetched, finalized and imported one chunk at a time, so at
+        # most IMPORT_CHUNK_NOTES converted notes are alive at once. A link to a note in a later
+        # chunk is left pending and healed by that chunk's `_import_remote_notes` (its heal pass
+        # runs at the end of every call). The cursor rule below is unchanged: it still runs once,
+        # after every chunk, and only when nothing went unstored.
+        fetched_ids: set[str] = set()
+        not_stored_refs: set[str] = set()
+        linked_note_ids: list[str] = []
+        adoption_state: dict = {}  # Task 8 concern 4: what this pass adopted, across chunks
+        imported_any = False
+        # Fix round 1 (D1): work is cumulative across passes. A listed note whose STORED copy
+        # carries the listing's own revision and waits on no media is not fetched again, and
+        # counts as stored (for "X of Y" and for the cursor), so an interrupted first import
+        # resumes where it stopped instead of re-reading the whole library every pass. Read from
+        # `j2_notes` ONLY: `_touch_remote_index` above already stamped every listed ref, fetched
+        # or not, so the remote index would skip the very notes that were never read (C2). Never
+        # on the nightly full pass (a converter change must still reach every changed note).
+        unchanged, has_row = await asyncio.to_thread(
+            _classify_listed, user_id, source, provider, fetch_refs, follow_up)
+        listed_count = len(fetch_refs)
+        skipped_now: set[str] = set()
+        if not full and unchanged:
+            skipped_now = unchanged
+            fetch_refs = [r for r in fetch_refs if r.remote_id not in unchanged]
+            fetched_ids.update(unchanged)
+            counts["unchanged"] += len(unchanged)
+        if follow_up:
+            # Fix round 2 (N1): the cap is safe even if D1's revision match never fires: notes
+            # with no stored row first, then changed or media-pending ones, then the rest (only a
+            # full pass still has those), each group in listing order. So every pass makes
+            # new-note progress until every note has a row.
+            fetch_refs = sorted(fetch_refs, key=lambda r: (
+                0 if r.remote_id not in has_row else 2 if r.remote_id in unchanged else 1))
+            log.info("[note-sync] %s D1 skipped %d of %d listed (stored revision match)",
+                     source.get("provider"), len(skipped_now), listed_count)
+        # Fix round 1 (D2): a bounded pass for a provider that opts in (a one-item list, so the
+        # count is shared across chunks).
+        fetch_cap = [FETCH_CAP_PER_PASS] if follow_up else None
+        for chunk_index, chunk_refs in enumerate(_chunks(fetch_refs, IMPORT_CHUNK_NOTES)):
+            if chunk_index:
+                # M2: a source paused, disconnected or removed mid-pass stops at the next chunk.
+                current = await asyncio.to_thread(connections.get_source_by_id, source_id)
+                if (current is None or not current.get("syncEnabled")
+                        or current.get("status") != "active"):
+                    log.info("[note-sync] source %s was paused or removed mid-pass; stopping",
+                             source_id)
+                    break
+            chunk_notes, fetch_failures = await _fetch_remote_notes(
+                provider, creds, chunk_refs, rate_limited, fetch_cap)
+            fetch_failed += len(fetch_failures)
+            item_failures.extend(fetch_failures)
+            _drain_provider_item_failures(provider, item_failures, notice_failures)
+            # Plan A Task 10: links finalized here, before anything hashes or stores a doc.
+            chunk_notes = await asyncio.to_thread(_finalize_remote_notes, chunk_notes)
+            fetched_ids.update(rn.remote_id for rn in chunk_notes)
+            if chunk_notes:
+                imported_any = True
+                result = await _import_remote_notes(
+                    user_id, source, provider, creds, chunk_notes, heal=False,
+                    adoption_state=adoption_state, retry_only=retry_ids)
+                linked_note_ids.extend(result.get("linkedNoteIds", []))
+                counts["created"] += result["created"]
+                counts["updated"] += result["updated"]
+                counts["skipped"] += result["skipped"]
+                counts["mediaUploaded"] += result["mediaUploaded"]
+                counts["conflicts"] += result["conflicts"]
+                counts["adopted"] += result.get("adopted", 0)
+                item_failures.extend(result["failures"])
+                notice_failures.extend(result.get("noticeFailures", []))
+                not_stored_refs.update(result.get("notStoredRefs", []))
+                # I8: a note whose attachment the rate limit stopped is a leftover: stored, but
+                # not finished, so it holds the cursor and the follow-up fetches it again.
+                for rid, retry_after in result.get("rateLimitedRefs", []):
+                    rate_limited.setdefault(rid, (None, retry_after))
+                    not_stored_refs.add(rid)
+                    media_waiting.add(rid)
+                _drain_provider_item_failures(provider, item_failures, notice_failures)
+            del chunk_notes  # this chunk's docs are not held while the next is fetched
+        listed_ids = {r.remote_id for r in refs}
+        not_stored_refs = {rid for rid in not_stored_refs if rid in listed_ids}  # retries never hold the cursor
+        not_stored_refs.update(listed_ids - fetched_ids)
+        if imported_any:
+            item_failures.extend(await asyncio.to_thread(
+                _heal_after_pass, user_id, linked_note_ids))
 
         # Task 11 MUST-RESOLVE #1: an opaque cursor the provider published
         # on ITSELF (Dropbox — see base.py's `opaque_cursor` docstring)
@@ -568,10 +1301,10 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         opaque_cursor = getattr(provider, "opaque_cursor", None)
         if not not_stored_refs:
             if opaque_cursor is not None:
-                connections.update_cursor(user_id, source_id, opaque_cursor)
+                await asyncio.to_thread(connections.update_cursor, user_id, source_id, opaque_cursor)
             elif refs:
                 newest = max(r.updated_at for r in refs)
-                connections.update_cursor(user_id, source_id, newest)
+                await asyncio.to_thread(connections.update_cursor, user_id, source_id, newest)
 
         # A1: a pass that fetched refs but stored NONE of them (the "13 of
         # 13 lost" catastrophic case a whole-batch confirm failure used to
@@ -580,11 +1313,65 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # in `failures` — still reports "ok": the batch committed what it
         # could, exactly as designed; the failure is visible in `failures`,
         # not hidden behind the top-level status.
-        lost_everything = bool(not_stored_refs) and not (
-            counts["created"] or counts["updated"] or counts["skipped"]
+        # Live gate 2026-11-03: listed notes a provider's rate limit left unread. For a provider
+        # that opts in they are a first import still catching up: a quick follow-up pass is booked,
+        # the member reads a progress sentence, and they are neither "lost" nor "couldn't be read".
+        leftovers = {rid for rid in rate_limited if rid in not_stored_refs} if follow_up else set()
+        member_failures = item_failures
+        progress: str | None = None
+        stalled = False
+        if leftovers:
+            limited_strings = {rate_limited[rid][0] for rid in rate_limited} - {None}
+            fetch_failed -= sum(1 for f in item_failures if f in limited_strings)
+            member_failures = [f for f in item_failures if f not in limited_strings]
+            # N4: attachments copied are progress too; a nightly full pass adds no zero pass.
+            # A note re-read only to retry an attachment that is STILL waiting is no progress,
+            # though the import path counts it as updated.
+            stalled = _track_import_progress(
+                sync_state, counts["created"] + max(0, counts["updated"] - len(media_waiting))
+                + counts.get("adopted", 0) + counts["mediaUploaded"], _utcnow(), counted=not full)
+            booked = await asyncio.to_thread(
+                _schedule_follow_up, user_id, source_id,
+                [rate_limited[rid][1] for rid in leftovers],
+                sync_state["importing"]["zeroPasses"])
+            label = dest_folder.provider_label(source.get("provider"))
+            total = len(listed_ids)
+            if source.get("cursor"):
+                template = (IMPORT_NEW_STALLED_REASON if stalled else
+                            IMPORT_NEW_PROGRESS_REASON if booked else IMPORT_NEW_PROGRESS_LATER_REASON)
+            else:
+                template = (IMPORT_STALLED_REASON if stalled else
+                            IMPORT_PROGRESS_REASON if booked else IMPORT_PROGRESS_LATER_REASON)
+            progress = template.format(
+                label=label, stored=total - len(not_stored_refs), total=total,
+                notes="note" if total == 1 else "notes")
+        else:
+            sync_state.pop("importing", None)
+            if follow_up and source.get("warmingUntil"):
+                await asyncio.to_thread(connections.set_follow_up, user_id, source_id, None)
+        if follow_up:
+            learned = getattr(provider, "learned_pacing", None)
+            interval, tripped = learned() if learned is not None else (None, False)
+            if tripped and isinstance(interval, (int, float)):
+                sync_state["pace"] = {"intervalS": float(interval), "learnedAt": _now_iso()}
+            await asyncio.to_thread(_save_sync_state, user_id, source_id, source, sync_state)
+        lost_everything = bool(not_stored_refs - leftovers) and not (
+            counts["created"] or counts["updated"] or counts["skipped"] or counts["unchanged"]
         )
-        status = "warning" if (delete_guard_warning or lost_everything) else "ok"
-        error_parts = ([delete_guard_warning] if delete_guard_warning else []) + item_failures
+        # Plan E Task 6 review R2: deletions cannot propagate while every complete listing fails.
+        # From the 3rd consecutive skipped check, EVERY pass (incremental ones too, so a quiet
+        # tick never wipes it) is a warning carrying the member's sentence, until a check runs.
+        removal_warning = _removal_skip_warning(  # M2: its own connection, off the loop
+            source, await asyncio.to_thread(connections.removal_skips, user_id, source_id))
+        status = "warning" if (delete_guard_warning or lost_everything or removal_warning) else "ok"
+        if stalled:
+            status = "warning"  # I10: amber, with the stalled sentence
+        elif progress is not None and status == "ok" and fetch_failed == 0 and not any(
+                f.get("reason") for f in notice_failures):
+            # Nothing but the rate-limit leftovers: in progress, not a warning (SourceRow's pill).
+            status = "importing"
+        error_parts = (([removal_warning] if removal_warning else [])
+                       + ([delete_guard_warning] if delete_guard_warning else []) + item_failures)
 
         # ⛔⛔ Recorded HERE, not before the block above, and from the SAME
         # `status`/`error_parts` the log and the return value use -- one
@@ -595,18 +1382,30 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # is still right even for a warning: the pass authenticated and
         # fetched, so it is genuine evidence a previously-'broken' source has
         # recovered; only what the MEMBER is shown differs.
-        connections.record_sync_result(
-            user_id, source_id, ok=True, status=status,
-            error="; ".join(error_parts) if error_parts else None,
+        # M2 (live audit 2026-11-03): the source row is what the member reads (SourceRow renders
+        # `lastSyncError`), so it carries member sentences only. The developer text, batch counts
+        # and raw ids included, stays in the server log and the log row's `error` column (which
+        # no endpoint serves).
+        member_error = _member_sync_error(
+            source, removal_warning=removal_warning, delete_guard_warning=delete_guard_warning,
+            delete_guard_refused=delete_guard_refused, item_failures=member_failures,
+            notice_failures=notice_failures, fetch_failed=fetch_failed, progress=progress)
+        if error_parts:
+            log.warning("[note-sync] source %s pass finished %s: %s", source_id, status,
+                        "; ".join(error_parts))
+        await asyncio.to_thread(
+            connections.record_sync_result,
+            user_id, source_id, ok=True, status=status, error=member_error,
         )
 
-        _finish_log(
+        await asyncio.to_thread(
+            _finish_log,
             log_id, status=status, counts=counts,
             error="; ".join(error_parts) if error_parts else None,
-            source_deleted=deleted_count,
+            source_deleted=deleted_count, failures_json=notice_failures,
         )
 
-        return {
+        result = {
             "status": status,
             "sourceId": source_id,
             **counts,
@@ -614,8 +1413,19 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             "failures": item_failures,
             "deleteDetectionWarning": delete_guard_warning,
         }
+        if removal_check:
+            result["removalCheck"] = _removal_check_summary(
+                user_id, source_id, ran=removal_listing is not None,
+                reason=removal_reason, severed=deleted_count,
+            )
+        return result
     except Exception as e:
-        connections.record_sync_result(user_id, source_id, ok=False, error=str(e))
+        # Review M7: the source row is member-facing; the raw text goes to the server log and the
+        # log row's `error` column (which no endpoint serves), never to `lastSyncError`.
+        log.warning("[note-sync] source %s sync stopped: %s: %s", source_id, type(e).__name__, e)
+        member_error = _member_hard_error(source, e)
+        await asyncio.to_thread(
+            connections.record_sync_result, user_id, source_id, ok=False, error=member_error)
         if isinstance(e, errors.NoteConnAuthError):
             # Auth rejected (incl. NoteConnTokenExpired, a subclass) — retrying
             # on the next scheduled sync would just fail identically forever
@@ -623,13 +1433,16 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             # source and the connector 'broken' so list_due_sources excludes
             # this source going forward and the UI prompts a reconnect.
             try:
-                connections.set_source_status(user_id, source_id, "broken", error=str(e))
+                connections.set_source_status(user_id, source_id, "broken", error=member_error)
                 connections.set_connector_status(user_id, source["provider"], "broken")
             except Exception:  # noqa: BLE001 — never let this bookkeeping mask the real error
                 pass
-        _finish_log(log_id, status="error", counts=counts, error=str(e))
+        await asyncio.to_thread(_finish_log, log_id, status="error", counts=counts, error=str(e),
+                                failures_json=notice_failures)
         raise
     finally:
+        if slot_held:
+            _release_pass_slot()
         if provider is not None:
             aclose = getattr(provider, "aclose", None)
             if aclose is not None:
@@ -643,9 +1456,15 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
 
 def _run_delete_detection(
     user_id: str, source: dict[str, Any], refs: list[RemoteRef],
-    *, deleted_refs: list[RemoteRef] | None = None,
+    *, deleted_refs: list[RemoteRef] | None = None, stamp_at: str,
 ) -> dict[str, Any]:
-    """Runs BEFORE `_touch_remote_index` so `prev_count` reflects the index
+    """Plan D task 3: `stamp_at` is written to `j2_note_sources.
+    last_full_sync_at` in the SAME transaction on EVERY branch, the <50%
+    refuse branch included (a refused check is still a check for the member
+    rate limit), so that branch now commits. The result carries `refused`,
+    True only on the <50% branch. Neither guard's condition changed.
+
+    Runs BEFORE `_touch_remote_index` so `prev_count` reflects the index
     as of before this sync touched anything — touching first would inflate
     the denominator with brand-new rows and mask a genuine bad-enumeration
     refuse case. Refs seen this round and refs not seen are disjoint sets, so
@@ -688,6 +1507,25 @@ def _run_delete_detection(
     explicit_deleted_ids = {r.remote_id for r in (deleted_refs or [])}
     conn = get_connection()
     try:
+        # Strike gap for EVERY pass: when the PREVIOUS full pass (read before
+        # this one stamps) was under MEMBER_FULL_PASS_MIN_INTERVAL_S ago, an
+        # enumeration-only miss does not count as a strike this pass. Explicit
+        # `deleted_refs` still sever (within the 20% cap) and seen notes still
+        # reset. Unparseable or far-future stamps count as "no previous pass".
+        prev_stamp_row = conn.execute(
+            "SELECT last_full_sync_at FROM j2_note_sources WHERE id = ? AND user_id = ?",
+            (source_id, user_id),
+        ).fetchone()
+        gap_now = _utcnow()
+        prev_full = _last_full_pass_at(prev_stamp_row["last_full_sync_at"] if prev_stamp_row else None, gap_now)
+        strike_gap_open = (
+            prev_full is not None
+            and (gap_now - prev_full).total_seconds() < MEMBER_FULL_PASS_MIN_INTERVAL_S
+        )
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ? AND user_id = ?",
+            (stamp_at, source_id, user_id),
+        )
         existing_rows = conn.execute(
             "SELECT remote_id, import_key, miss_streak FROM j2_note_remote_index "
             "WHERE user_id = ? AND source_id = ?",
@@ -695,8 +1533,10 @@ def _run_delete_detection(
         ).fetchall()
         prev_count = len(existing_rows)
         if prev_count > 0 and len(seen_ids) < prev_count * 0.5:
+            conn.commit()  # the stamp only: no index row is touched
             return {
                 "status": "warning",
+                "refused": True,
                 "deleted": 0,
                 "reason": (
                     f"delete-detection refused for source {source_id}: full "
@@ -736,6 +1576,8 @@ def _run_delete_detection(
                 )
                 deleted += 1
                 continue
+            if strike_gap_open:
+                continue  # inside the strike gap: an enumeration miss is not a strike
             streak = (row["miss_streak"] or 0) + 1
             if streak >= 2:
                 _tag_note_source_deleted(conn, user_id, row["import_key"])
@@ -753,8 +1595,9 @@ def _run_delete_detection(
                 )
         conn.commit()
         if explicit_refused:
-            return {"status": "warning", "deleted": deleted, "reason": explicit_refuse_reason}
-        return {"status": "ok", "deleted": deleted, "reason": None}
+            return {"status": "warning", "refused": False, "deleted": deleted,
+                    "reason": explicit_refuse_reason}
+        return {"status": "ok", "refused": False, "deleted": deleted, "reason": None}
     finally:
         conn.close()
 
@@ -763,10 +1606,15 @@ def _write_tags_preserving_updated_at(
     conn: sqlite3.Connection, user_id: str, note_id: str, tags: list[str],
 ) -> None:
     """Writes ONLY the `tags` column, deliberately WITHOUT bumping
-    `updated_at` — used EXCLUSIVELY by the engine's own sever/un-sever tag
-    writes (`_tag_note_source_deleted`, `_untag_note_source_reappeared`),
-    never by a real user edit (Fix-round-2 Important, carried from Task 8:
-    made user-visible by round-1's heal path, not introduced by it).
+    `updated_at` — used EXCLUSIVELY by the engine's own tag writes: the
+    sever/un-sever tags (`_tag_note_source_deleted`,
+    `_untag_note_source_reappeared`) and, since Plan A Task 15 (D1), the
+    `sync-conflict` tag on a member-edited original (`_import_remote_notes`'
+    conflict loop and `_reroute_resolved_body_to_sibling`) — never by a real
+    user edit (Fix-round-2 Important, carried from Task 8: made user-visible
+    by round-1's heal path, not introduced by it). Through `update_note` the
+    conflict tag moved the member's edit time to the sync time, so the note
+    jumped to the top of "recently edited".
 
     Root cause: `notes_svc.update_note` (notes.py) unconditionally bumps
     `updated_at` to now on ANY patch, including a tags-only one. `_is_conflict`
@@ -793,6 +1641,7 @@ def _write_tags_preserving_updated_at(
 
 def _write_import_hash_preserving_updated_at(
     conn: sqlite3.Connection, user_id: str, note_id: str, import_hash: str,
+    *, remote_rev: str | None,
 ) -> None:
     """Writes ONLY the `import_hash` column, WITHOUT touching `updated_at`/
     `imported_at`/content (Fix-round-3 Important; same "raw write, skip
@@ -815,11 +1664,58 @@ def _write_import_hash_preserving_updated_at(
     remote content this sync actually saw" independent of what's displayed
     (which stays exactly as the user left it) — the correct baseline for
     "changed since last pass," not "changed since the user's edit was first
-    detected"."""
-    conn.execute(
-        "UPDATE j2_notes SET import_hash = ? WHERE id = ? AND user_id = ?",
-        (import_hash, note_id, user_id),
-    )
+    detected".
+
+    Plan A Task 1: `remote_rev`, when given, is written to
+    `import_remote_rev` in the same raw write, for the same reason — the
+    revision gate in `_remote_changed` must compare against the last
+    revision this sync SAW, not the one before the first conflict."""
+    if remote_rev is None:
+        conn.execute(
+            "UPDATE j2_notes SET import_hash = ? WHERE id = ? AND user_id = ?",
+            (import_hash, note_id, user_id),
+        )
+    else:
+        conn.execute(
+            "UPDATE j2_notes SET import_hash = ?, import_remote_rev = ? "
+            "WHERE id = ? AND user_id = ?",
+            (import_hash, remote_rev, note_id, user_id),
+        )
+
+
+def _backfill_remote_revs_preserving_updated_at(
+    conn: sqlite3.Connection, user_id: str, remote_notes: list[RemoteNote],
+    import_keys: list[str], existing: dict[str, dict[str, Any]],
+) -> int:
+    """Plan A Task 1 fix round 1: give a LEGACY row (`import_remote_rev`
+    NULL) its revision the first time a pass sees it UNCHANGED (stored
+    `import_hash` == this pass's hash, so `rn.updated_at` is exactly the
+    revision that hash was taken at). Without it a legacy row that had
+    already conflicted (imported_at stale, remote revision later) stays on
+    `_remote_changed`'s imported_at fallback, and the first converter change
+    reads as a remote edit and re-tallies the conflict / re-confirms a
+    sibling the member deleted.
+
+    Raw write, never `updated_at` (same idiom as
+    `_write_import_hash_preserving_updated_at`). Run BEFORE the conflict
+    gate's own writes and committed on its own by the caller, so committing
+    it can never commit a conflict baseline ahead of its sibling."""
+    n = 0
+    for rn, key in zip(remote_notes, import_keys):
+        meta = existing.get(key)
+        rev = rn.updated_at or None
+        if meta is None or rev is None or meta.get("importRemoteRev") is not None:
+            continue
+        if notes_svc._import_payload_hash(_build_confirm_entry(rn, key)) != (meta.get("importHash") or ""):
+            continue
+        conn.execute(
+            "UPDATE j2_notes SET import_remote_rev = ? "
+            "WHERE id = ? AND user_id = ? AND import_remote_rev IS NULL",
+            (rev, meta["id"], user_id),
+        )
+        meta["importRemoteRev"] = rev
+        n += 1
+    return n
 
 
 def _tag_note_source_deleted(conn: sqlite3.Connection, user_id: str, import_key: str) -> None:
@@ -858,6 +1754,192 @@ def _untag_note_source_reappeared(conn: sqlite3.Connection, user_id: str, import
         return
     tags = [t for t in tags if t != "source-deleted"]
     _write_tags_preserving_updated_at(conn, user_id, row["id"], tags)
+
+
+#: The member's sentence for a note that could not be stored, when nothing better was said.
+NOT_STORED_RETRY_REASON = "This note couldn't be saved this time. It will be tried again on the next sync."
+#: The member's sentence for a media retry the hash gate skipped (C1's belt guard; fix round 2, m2):
+#: the note is kept as it is, and its pending images are tried again on a later full pass.
+RETRY_SKIPPED_REASON = ("An image in this note couldn't be copied this time, because the note looks "
+                        "different from the copy here. It will be tried again on the next sync.")
+
+
+#: The `import_confirm` failures that are already member sentences (m1). Anything else (a
+#: developer's validation message, a raw DB error) is never shown: see `_member_reason`.
+_MEMBER_NOT_STORED_SENTENCES = frozenset({
+    notes_svc.TOO_LONG_BODY_DETAIL, notes_svc.TOO_DEEP_BODY_DETAIL,
+    notes_svc.UNBUILDABLE_BODY_DETAIL, notes_svc.S_TITLE_TOO_LONG,
+})
+
+
+def _member_reason(error: Any, *, key: Any) -> str:
+    """What a member reads for a note `import_confirm` could not store (Plan E Task 9 fix round 2,
+    m1): a known member sentence as it is, else `NOT_STORED_RETRY_REASON`. The raw text is logged
+    server-side only."""
+    if isinstance(error, str) and error in _MEMBER_NOT_STORED_SENTENCES:
+        return error
+    log.warning("[note-sync] note %r could not be stored: %s", key, error)
+    return NOT_STORED_RETRY_REASON
+
+
+#: The developer string (`result["failures"]`, the server log) for a batch refused because the
+#: source's destination folder is missing; `_member_sync_error` keeps it out of the member's text.
+DEST_MISSING_FAILURE_PREFIX = "destination folder missing"
+#: The source row's sentence for per-note problems the log rows name (`failures_json`). Review M6:
+#: it never repeats the "N items didn't come over" the Recent syncs toggle already shows.
+NOTES_INCOMPLETE_REASON = "Some notes didn't sync completely. Recent syncs names each one and why."
+#: Notes whose fetch failed: the log rows do not name them, so this says how many and that they are
+#: retried (true: the cursor holds on an unfetched note).
+FETCH_FAILED_REASON = "{n} {notes} couldn't be read from {label} this time. {they} tried again on the next sync."
+#: Live gate 2026-11-03: a pass a provider's rate limit cut short is a first import still catching
+#: up, not a failure. `stored` of `total` are this pass's listed notes stored vs listed. The first
+#: form is used when a quick follow-up pass is booked, the second when the hourly bound is reached.
+IMPORT_PROGRESS_REASON = ("Still importing from {label}: {stored} of {total} {notes} so far. "
+                          "The rest will come in over the next few minutes.")
+IMPORT_PROGRESS_LATER_REASON = ("Still importing from {label}: {stored} of {total} {notes} so far. "
+                                "The rest will come in on the next sync.")
+#: Fix round 1 (I10): the same for a source that already has a cursor (its first import finished):
+#: the listing is only what changed, so "X of Y" would not be the library.
+IMPORT_NEW_PROGRESS_REASON = ("Still importing new notes from {label}. "
+                              "The rest will come in over the next few minutes.")
+IMPORT_NEW_PROGRESS_LATER_REASON = ("Still importing new notes from {label}. "
+                                    "The rest will come in on the next sync.")
+#: Fix round 1 (I10): an import that stopped making progress. Amber, and true: it keeps retrying.
+IMPORT_STALLED_REASON = ("{label} import has stalled at {stored} of {total} {notes}. It will keep "
+                         "retrying; if this lasts, disconnect and reconnect {label}.")
+IMPORT_NEW_STALLED_REASON = ("Importing new notes from {label} has stalled. It will keep "
+                             "retrying; if this lasts, disconnect and reconnect {label}.")
+#: Fix round 2 (concern 4): the provider rate limited the LISTING itself. In progress, not "sync
+#: stopped"; it counts as a pass without progress, so it can stall like any other.
+LISTING_LIMITED_REASON = "{label} is slowing us down; retrying shortly."
+LISTING_STALLED_REASON = ("{label} keeps slowing us down, so syncing has stalled. It will keep "
+                          "retrying; if this lasts, disconnect and reconnect {label}.")
+#: The source row's sentence for a pass that left something unfinished and names nothing per note
+#: (a sweep that did not run, a link pass that failed): each is retried on a later pass.
+PASS_UNFINISHED_REASON = "Part of this sync didn't finish. It will be tried again on the next sync."
+#: Review M7: a pass that stopped on an exception (the raw text is in the server log).
+SYNC_STOPPED_REASON = ("This sync stopped early because of a problem on our side or {label}'s. "
+                       "It will be tried again on the next sync.")
+#: An auth failure: the source is marked broken and is not retried until the member reconnects.
+RECONNECT_REASON = "{label} needs to be reconnected before it can sync again. Press Reconnect."
+#: The <50% enumeration guard refused the removal check (`_run_delete_detection`).
+REMOVALS_REFUSED_REASON = ("Couldn't confirm removals this time: {label} returned far fewer notes "
+                           "than expected, so nothing was changed.")
+#: The 20% cap refused `list_deleted`'s explicit signal; the 2-strike rule still applies.
+REMOVALS_DOUBLE_CHECKED_REASON = ("{label} reported many notes as deleted at once, so they will be "
+                                  "double-checked on later syncs before anything is marked removed.")
+
+
+def _dest_folder_missing_reason(user_id: str, source: dict[str, Any]) -> str:
+    """The member's sentence for a batch refused because the source's folder is missing, after
+    trying the repair once more (the folder went while this pass ran). Each sentence is true of
+    what the repair did: a usable answer re-points `source` (so later batches of this pass use it)
+    and the notes are saved on the next pass; a paused or disabled source says what will fix it."""
+    heal = dest_folder.heal_missing_dest_folder(user_id, source["id"])
+    if heal.outcome in dest_folder.USABLE:
+        source["destFolderId"] = heal.dest_folder_id
+    return _heal_sentence(heal, source)
+
+
+def _heal_sentence(heal: "dest_folder.HealResult", source: dict[str, Any]) -> str:
+    """The one mapping from what the repair did to what the member reads."""
+    label = dest_folder.provider_label(source.get("provider"))
+    if heal.outcome in dest_folder.USABLE:
+        if heal.outcome == "remade":
+            return dest_folder.dest_folder_remade_sentence(heal.folder_name or "")
+        return dest_folder.DEST_FOLDER_MOVED_SENTENCE
+    if heal.outcome == "paused":
+        return dest_folder.dest_folder_gone_sentence(label)
+    if heal.outcome == "disabled":
+        return dest_folder.dest_folder_disabled_sentence(label)
+    return dest_folder.DEST_FOLDER_RETRY_SENTENCE  # "failed" (and "gone": nobody reads it)
+
+
+def _member_hard_error(source: dict[str, Any], exc: BaseException) -> str:
+    label = dest_folder.provider_label(source.get("provider"))
+    if isinstance(exc, errors.NoteConnAuthError):
+        return RECONNECT_REASON.format(label=label)
+    return SYNC_STOPPED_REASON.format(label=label)
+
+
+def _member_sync_error(
+    source: dict[str, Any], *, removal_warning: str | None, delete_guard_warning: str | None,
+    delete_guard_refused: bool, item_failures: list[str], notice_failures: list[dict[str, Any]],
+    fetch_failed: int = 0, progress: str | None = None,
+) -> str | None:
+    """What the source row tells the member about a pass (M2, live audit 2026-11-03): sentences,
+    never developer text. It used to be every failure string joined, so a member read
+    "confirm failed for a batch of 1 note(s): ..." and "media '<url>' on note 919630dd...: ...",
+    a raw note id included. Per-note detail lives in the log rows (`failures_json`, by title);
+    this is the summary: a whole-source problem in full (a missing folder's sentence, which all
+    begin `dest_folder.DEST_SENTENCE_PREFIX`), the notes that could not be read, and a pointer to
+    the log rows for the rest."""
+    label = dest_folder.provider_label(source.get("provider"))
+    parts: list[str] = [progress] if progress else []
+    if removal_warning:
+        parts.append(removal_warning)
+    if delete_guard_warning:
+        parts.append((REMOVALS_REFUSED_REASON if delete_guard_refused
+                      else REMOVALS_DOUBLE_CHECKED_REASON).format(label=label))
+    reasons = [f.get("reason") or "" for f in notice_failures]
+    parts.extend(r for r in dict.fromkeys(reasons) if dest_folder.is_dest_folder_sentence(r))
+    per_note = [r for r in reasons if not dest_folder.is_dest_folder_sentence(r)]
+    if fetch_failed:
+        parts.append(FETCH_FAILED_REASON.format(
+            n=fetch_failed, notes="note" if fetch_failed == 1 else "notes", label=label,
+            they="It will be" if fetch_failed == 1 else "They will be"))
+    if per_note:
+        parts.append(NOTES_INCOMPLETE_REASON)
+    elif not fetch_failed and any(
+            not f.startswith(DEST_MISSING_FAILURE_PREFIX) for f in item_failures):
+        parts.append(PASS_UNFINISHED_REASON)
+    return " ".join(parts) if parts else None
+
+
+def _not_stored_notice(title: Any, key: Any, reason: str) -> dict[str, Any]:
+    """`failures_json`'s `{noteTitle, reason, name}` for a note that was not stored (concern 4):
+    its title, else its import key, so the row always names something."""
+    name = title.strip() if isinstance(title, str) and title.strip() else str(key or "Untitled")
+    return {"noteTitle": name, "reason": reason, "name": None}
+
+
+def _pending_media_refs(
+    user_id: str, source: dict[str, Any], provider: NoteProvider,
+    refs: list[RemoteRef], index_refs: list[RemoteRef],
+) -> list[RemoteRef]:
+    """The refs of the complete listing `index_refs` that `refs` (this pass's delta) does not
+    hold and whose stored note waits on a retryable media copy (`import_media_pending = 1`;
+    2, waiting for storage space, is not a retry). A note the member edited is never one
+    (`_is_conflict`, the one predicate: its edited branch never confirms, so it would be
+    refetched every pass for nothing; review I1). At most `MEDIA_RETRY_NOTES_PER_PASS`, the
+    stalest `imported_at` first, so every note gets its turn (review I2). One query: the
+    pending rows are few, and the listing is matched in memory. See the call site."""
+    listed = {r.remote_id for r in refs}
+    by_key: dict[str, RemoteRef] = {}
+    for r in index_refs:
+        if r.remote_id not in listed:
+            by_key.setdefault(provider.import_key(source["remoteId"], r.remote_id), r)
+    if not by_key:
+        return []
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT import_key, updated_at, imported_at FROM j2_notes "
+            "WHERE user_id = ? AND deleted_at IS NULL AND import_media_pending = ? "
+            "ORDER BY imported_at, import_key",
+            (user_id, import_notice.MEDIA_PENDING_RETRY),
+        ).fetchall()
+    finally:
+        conn.close()
+    out: list[RemoteRef] = []
+    for row in rows:
+        r = by_key.get(row["import_key"])
+        if r is None or _is_conflict({"updatedAt": row["updated_at"], "importedAt": row["imported_at"]}):
+            continue
+        out.append(r)
+        if len(out) >= MEDIA_RETRY_NOTES_PER_PASS:
+            break
+    return out
 
 
 def _touch_remote_index(
@@ -915,13 +1997,86 @@ def _touch_remote_index(
 
 # ── Fetch (batched, with per-ref fallback) ───────────────────────────────────
 
+_HEAL_NAMED_CHUNK = 200  # named notes healed per call: bounds the bodies held at once
+
+#: Plan E Task 6 review R2: consecutive skipped removal checks before the source turns amber.
+REMOVAL_SKIP_WARN_AFTER = 3
+
+
+def _removal_skip_warning(source: dict[str, Any], skips: int) -> str | None:
+    """The member-facing sentence for a source whose removal check has been skipped
+    `REMOVAL_SKIP_WARN_AFTER`+ nights in a row; None below that."""
+    if skips < REMOVAL_SKIP_WARN_AFTER:
+        return None
+    from . import registry
+    name = source.get("provider") or "the app"
+    label = registry.get_entry(name).label if registry.is_known(name) else name
+    return f"Couldn't check which notes were deleted in {label} for {skips} nights — retrying"
+
+
+def _heal_after_pass(user_id: str, linked_note_ids: list[str]) -> list[str]:
+    """Plan E Task 6 review R1: after the LAST chunk of a pass, heal BY NAME every note this pass
+    stored that still has a pending link (a forward link into a later chunk), then run the
+    member's random sweep ONCE (review m4: it used to run once per chunk). Named notes are read
+    regardless of the sweep's sample; they are filtered to `import_links_pending = 1` first and
+    healed `_HEAL_NAMED_CHUNK` at a time, so a 5000-note pass never holds 5000 bodies. Runs in
+    a worker thread, each call on its own connection. Never fails the pass: returns failures."""
+    failures: list[str] = []
+    try:
+        pending: list[str] = []
+        ids = list(dict.fromkeys(linked_note_ids))
+        conn = get_connection()
+        try:
+            for i in range(0, len(ids), 500):  # SQLite variable limit
+                chunk = ids[i:i + 500]
+                pending.extend(r["id"] for r in conn.execute(
+                    f"SELECT id FROM j2_notes WHERE user_id = ? AND import_links_pending = 1 "
+                    f"AND id IN ({','.join('?' * len(chunk))})", (user_id, *chunk)).fetchall())
+        finally:
+            conn.close()
+        for i in range(0, len(pending), _HEAL_NAMED_CHUNK):
+            result = heal_pending_links(user_id, note_ids=pending[i:i + _HEAL_NAMED_CHUNK], limit=0)
+            failures.extend(result.get("failures", []))
+        result = heal_pending_links(user_id)  # the member's sweep: once per pass
+        failures.extend(result.get("failures", []))
+    except Exception as e:  # noqa: BLE001
+        failures.append(f"link heal pass failed: {e}")
+    return failures
+
+
 async def _fetch_remote_notes(
     provider: NoteProvider, creds: dict[str, Any], refs: list[RemoteRef],
+    rate_limited: dict[str, tuple[str | None, float | None]] | None = None,
+    fetch_cap: list[int] | None = None,
 ) -> tuple[list[RemoteNote], list[str]]:
+    """`rate_limited`, when given, collects `{remote_id: (failure string, retry_after)}` for each
+    ref whose own fetch raised `NoteConnRateLimited` (live gate 2026-11-03: a follow-up pass, not
+    a failure, for a provider that opts in). The failure strings are returned as before.
+
+    Fix round 1 (I4): a provider on the BASE `fetch_many` (a plain loop over `fetch`) is fetched
+    one ref at a time directly: a batch that failed on its 30th note used to be fetched again,
+    every note of it, one by one. `fetch_cap` (D2, a one-item list shared across calls) bounds
+    how many refs are fetched; one not reached is a rate-limit leftover with no failure string."""
     if not refs:
         return [], []
     notes: list[RemoteNote] = []
     failures: list[str] = []
+    if type(provider).fetch_many is NoteProvider.fetch_many:
+        for ref in refs:
+            if fetch_cap is not None:
+                if fetch_cap[0] <= 0:
+                    if rate_limited is not None:
+                        rate_limited.setdefault(ref.remote_id, (None, None))
+                    continue
+                fetch_cap[0] -= 1
+            try:
+                notes.append(await provider.fetch(creds, ref))
+            except Exception as e2:  # noqa: BLE001
+                failure = f"fetch failed for {ref.remote_id!r}: {e2}"
+                failures.append(failure)
+                if rate_limited is not None and isinstance(e2, errors.NoteConnRateLimited):
+                    rate_limited[ref.remote_id] = (failure, e2.retry_after)
+        return notes, failures
     for batch in _chunks(refs, _FETCH_BATCH_SIZE):
         try:
             notes.extend(await provider.fetch_many(creds, batch))
@@ -932,18 +2087,83 @@ async def _fetch_remote_notes(
                 try:
                     notes.append(await provider.fetch(creds, ref))
                 except Exception as e2:  # noqa: BLE001
-                    failures.append(f"fetch failed for {ref.remote_id!r}: {e2}")
+                    failure = f"fetch failed for {ref.remote_id!r}: {e2}"
+                    failures.append(failure)
+                    if rate_limited is not None and isinstance(e2, errors.NoteConnRateLimited):
+                        rate_limited[ref.remote_id] = (failure, e2.retry_after)
     return notes, failures
+
+
+def _finalize_remote_doc(doc: dict[str, Any]) -> dict[str, Any]:
+    """Plan A Task 10 (L-3, L-4): THE chokepoint every provider's doc passes through --
+    Notion rich text, Roam, Craft, OneNote, Dropbox and Obsidian alike -- before it is
+    hashed or stored. Existing hrefs go through the one scheme policy first (an unsafe or
+    dead link becomes text), then bare URLs in plain text become links. Pure."""
+    return finalize_links(doc)  # B-14 fix round 1: a refused link's text is never re-linked
+
+
+def _finalize_remote_notes(notes: list[RemoteNote]) -> list[RemoteNote]:
+    """Each note with a finalized doc -- a NEW `RemoteNote`, the provider's object is never
+    mutated. A deep link the policy turned into a pending `import-link://` key joins
+    `links`, so the round's final link pass resolves it like any other. Called through
+    `asyncio.to_thread`: linear, but a large batch is still CPU work off the event loop."""
+    out: list[RemoteNote] = []
+    for rn in notes:
+        doc = _finalize_remote_doc(rn.doc)
+        links = list(rn.links)
+        links.extend(k for k in import_link_keys(doc) if k not in links)
+        out.append(dataclasses.replace(rn, doc=doc, links=links))
+    return out
 
 
 # ── Conflict policy + import_confirm + media/rewrite (spec §6, §3) ──────────
 
 def _is_conflict(meta: dict[str, Any]) -> bool:
-    updated = _parse_iso(meta.get("updatedAt"))
-    imported = _parse_iso(meta.get("importedAt"))
-    if updated is None or imported is None:
+    """Edited by the member since the last import -- the ONE predicate
+    (`import_provenance.edited_since_import`, Plan A Task 4 controller ruling 2)."""
+    return edited_since_import(meta.get("updatedAt"), meta.get("importedAt"))
+
+
+def _remote_changed(meta: dict[str, Any], rn: RemoteNote, entry_hash: str) -> bool:
+    """Plan A Task 1: did the REMOTE change since the last time this sync
+    confirmed or baselined the note? Keyed on the remote's own revision
+    (`import_remote_rev`), NOT on `import_hash` alone — the hash covers OUR
+    conversion of the body, so a converter fix moves it for every note and,
+    on a member-edited note, used to read as "edited AND remote changed" and
+    manufacture a "(synced copy)" sibling on the next nightly full pass.
+
+    Rule, in order:
+      1. hash equal                       -> False (nothing moved at all)
+      2. stored rev and remote rev known  -> the revisions differ
+      3. remote reports no revision       -> True (the pre-Task-1 hash rule;
+                                             nothing better to key on)
+      4. legacy row (stored rev NULL)     -> remote revision is later than
+                                             `imported_at`
+
+    ⚠️ Known, accepted limitation (controller ruling, 2026-11-01): some
+    providers (Notion) report minute-precision revision timestamps, so a
+    remote edit made within the same minute as the last sync, on a
+    member-edited note, reads as the same revision and is skipped until the
+    next remote edit. Deliberately NOT papered over with a raw-payload hash."""
+    if entry_hash == (meta.get("importHash") or ""):
         return False
-    return updated > imported
+    stored_rev = meta.get("importRemoteRev")
+    # `or None`: an empty revision is no revision, exactly as import_confirm
+    # stores it (`n.get("updatedAt") or None`).
+    remote_rev = rn.updated_at or None
+    if stored_rev is not None and remote_rev is not None:
+        return remote_rev != stored_rev
+    if remote_rev is None:
+        return True
+    remote = _parse_iso(remote_rev)
+    imported = _parse_iso(meta.get("importedAt"))
+    if remote is None or imported is None:
+        return True  # unreadable -> the conservative pre-Task-1 answer
+    if remote.tzinfo is None:
+        remote = remote.replace(tzinfo=timezone.utc)
+    if imported.tzinfo is None:
+        imported = imported.replace(tzinfo=timezone.utc)
+    return remote > imported
 
 
 def _bulk_existing_note_meta(
@@ -967,8 +2187,13 @@ def _bulk_existing_note_meta(
         # "doesn't exist" to the sync engine, same reasoning as
         # notes.py::import_check — otherwise a background sync would
         # silently resurrect a note the member deliberately trashed.
+        # Plan A Task 6: the body is read only for a note still pending media (1 retry
+        # now, 2 waiting for space) -- the only rows whose notices carry attempts the
+        # next try must count from. Read HERE, before confirm overwrites the body.
         rows = conn.execute(
-            f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash "
+            f"SELECT id, import_key, title, updated_at, imported_at, tags, folder_id, import_hash, "
+            f"import_remote_rev, "
+            f"CASE WHEN import_media_pending IN (1, 2) THEN body_json END AS pending_body "
             f"FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
             f" AND import_key IN ({placeholders})",
             (user_id, *chunk),
@@ -976,18 +2201,50 @@ def _bulk_existing_note_meta(
         for row in rows:
             out[row["import_key"]] = {
                 "id": row["id"],
+                "title": row["title"],  # Plan E Task 9 fix round 1: names a skipped retry
                 "updatedAt": row["updated_at"],
                 "importedAt": row["imported_at"],
                 "tags": json.loads(row["tags"] or "[]"),
                 "folderId": row["folder_id"],
                 "importHash": row["import_hash"],
+                "importRemoteRev": row["import_remote_rev"],  # Plan A Task 1
+                # Plan A Task 6: {ref: attempts} of this note's notices ({} unless pending)
+                "noticeAttempts": (import_notice.notice_attempts_by_ref(row["pending_body"])
+                                   if row["pending_body"] else {}),
+                # Plan A Task 8 fix round 1 (I4): the resolved body a retry builds on, so
+                # what already resolved is reused, never fetched and stored again.
+                "pendingBody": row["pending_body"],
             }
     return out
 
 
+#: Plan F (Task 7 fix round 1, concern 2): the SQL name of `stored_body_sha`, registered on the
+#: connection right before the UPDATE that uses it.
+_BODY_SHA_SQL = "j2_body_sha256"
+
+
+def stored_body_sha(body_json_text: Any) -> str:
+    """sha256 of a note's stored `body_json` text (NULL reads as ""). THE body hash: the import
+    repair records it when it plans a note and `_apply_resolved_body(expected_body_hash=)`
+    compares it inside the UPDATE, so the two can never hash differently."""
+    text = body_json_text if isinstance(body_json_text, str) else ""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _ensure_body_sha_function(conn: sqlite3.Connection) -> None:
+    """Register `stored_body_sha` on `conn` ONLY if the connection lacks it (Plan F re-review
+    N-1): SQLite refuses to RE-register a function while another statement on the connection is
+    active, so registering on every call would fail inside a caller's cursor loop. A probe
+    answers whether this connection has it (a pooled connection drops its functions on reuse)."""
+    try:
+        conn.execute(f"SELECT {_BODY_SHA_SQL}('')").fetchone()
+    except sqlite3.OperationalError:
+        conn.create_function(_BODY_SHA_SQL, 1, stored_body_sha, deterministic=True)
+
+
 def _apply_resolved_body(
     conn: sqlite3.Connection, user_id: str, note_id: str, body: dict[str, Any],
-    *, expected_updated_at: str | None,
+    *, expected_updated_at: str | None, expected_body_hash: str | None = None,
 ) -> bool:
     """Writes the placeholder-resolved body directly, WITHOUT bumping
     `updated_at` (unlike `notes_svc.update_note`). This call is the sync
@@ -1009,25 +2266,66 @@ def _apply_resolved_body(
     the already-resolved content into a conflict sibling instead (spec §6).
 
     audit B5: also recomputes `import_media_pending` from the body this call
-    is ABOUT to write (not the note's prior state) — the same substring scan
-    `_find_stranded_placeholder_ids` already uses. Media resolves fully in
-    one pass, so a media-only note clears the flag here. A note whose links
-    are deliberately left as an inert intact placeholder (the per-provider
-    docstrings above: unresolved marks are never stripped, on purpose, so
-    self-heal has a real signal to retry) correctly STAYS pending — that is
-    what lets `import_confirm`'s own media-pending gate re-offer it for
-    resolution on a later sync without waiting on the separate
-    `_find_stranded_placeholder_ids` re-scan to notice."""
+    is ABOUT to write (not the note's prior state). Media resolves fully in
+    one pass, so a media-only note clears the flag here. Plan A Task 6: this
+    is also the ONLY writer of an `importNotice`'s `attempts` (the retry
+    bookkeeping lives in the body), so the count moves without `updated_at`.
+
+    Plan A Task 4: and `import_links_pending`, separately. A link left as an
+    inert intact placeholder (unresolved marks are never stripped, on
+    purpose) keeps `import_links_pending = 1` and nothing else: media pending
+    would make `import_confirm` re-write the note and the engine re-download
+    its media on every pass, for a link no re-import can resolve. The link
+    heal pass (`link_keys.heal_pending_links`, run at the end of every
+    import round and from the member's heal door) finishes it once its
+    target exists, writing through THIS function.
+
+    Plan F (`expected_body_hash`, optional; None = exactly the behaviour above, for every
+    existing caller): a timestamp-neutral writer (this function, from the heal pass) does not
+    move `updated_at`, so the stamp lock cannot see it. With a hash, the write also requires the
+    STORED body to still hash to it (`stored_body_sha`), checked in the SAME UPDATE's WHERE
+    through a deterministic SQL function registered on this connection. One statement: no
+    window between the check and the write, whatever else writes the row."""
     body_plain = notes_svc.extract_plain_text(body)
     body_blob = json.dumps(body)
-    still_pending = 1 if ("import-ref://" in body_blob or "import-link://" in body_blob) else 0
-    cur = conn.execute(
-        "UPDATE j2_notes SET body_json = ?, body_plain = ?, import_media_pending = ? "
-        "WHERE id = ? AND user_id = ? AND updated_at = ?",
-        (body_blob, body_plain, still_pending, note_id, user_id, expected_updated_at),
-    )
+    # Plan A Task 6: tri-state -- 1 while a placeholder or a retryable importNotice
+    # remains (the next sync retries it), 2 while only a storage_limit notice waits.
+    media_pending = import_notice.media_pending_state(body)
+    links_pending = 1 if notes_svc._body_has_import_link(body) else 0
+    # One unit with its sidecars (below): a SAVEPOINT, so a failed projection undoes
+    # THIS note's body write and nothing else the connection may hold.
+    body_clause, body_params = "", ()
+    if expected_body_hash is not None:
+        _ensure_body_sha_function(conn)
+        body_clause, body_params = f" AND {_BODY_SHA_SQL}(body_json) = ?", (expected_body_hash,)
+    conn.execute("SAVEPOINT apply_resolved_body")
+    try:
+        cur = conn.execute(
+            "UPDATE j2_notes SET body_json = ?, body_plain = ?, import_media_pending = ?, "
+            "import_links_pending = ? "
+            "WHERE id = ? AND user_id = ? AND updated_at = ?" + body_clause,
+            (body_blob, body_plain, media_pending, links_pending, note_id, user_id,
+             expected_updated_at, *body_params),
+        )
+        applied = cur.rowcount > 0
+        if applied:
+            # Plan A Task 2, controller ruling 1: every other body write rebuilds the
+            # content sidecars in its own transaction, and this one must too -- a link
+            # this pass resolves (import-link:// -> /journal?j2tab=notebook&note=<id>),
+            # or one Task 4's heal pass writes through here, is otherwise never a
+            # backlink or a graph edge. Timestamp-neutral like the UPDATE above:
+            # `_sync_note_sidecars` writes only the sidecar tables, never j2_notes.
+            notes_svc._sync_note_sidecars(conn, user_id, note_id, body, body_plain)
+    except Exception:
+        # The body write is undone with its projection, never left pending for some
+        # later commit to land alone. The caller records a per-note failure (fix
+        # round 1, M1); the stored placeholder body stays for self-heal to retry.
+        conn.execute("ROLLBACK TO SAVEPOINT apply_resolved_body")
+        conn.execute("RELEASE SAVEPOINT apply_resolved_body")
+        raise
+    conn.execute("RELEASE SAVEPOINT apply_resolved_body")
     conn.commit()
-    return cur.rowcount > 0
+    return applied
 
 
 def _find_stranded_placeholder_ids(
@@ -1039,7 +2337,12 @@ def _find_stranded_placeholder_ids(
     resolve step raised, before Critical 3's per-batch pipeline existed, or
     a process crash mid-resolve) and the literal placeholder is still sitting
     in the stored body. Self-heal (Critical 3b): any hit re-enters Phase 2
-    even though its content hash says 'unchanged'."""
+    even though its content hash says 'unchanged'.
+
+    Plan A Task 4: MEDIA placeholders only. A stranded `import-link://` is
+    not a reason to re-enter Phase 2 (that re-downloads the note's media and
+    rewrites it for a link that may never resolve, every pass); the link
+    heal pass at the end of `_import_remote_notes` finishes it instead."""
     if not note_ids:
         return set()
     out: set[str] = set()
@@ -1051,7 +2354,7 @@ def _find_stranded_placeholder_ids(
         ).fetchall()
         for row in rows:
             body = row["body_json"] or ""
-            if "import-ref://" in body or "import-link://" in body:
+            if "import-ref://" in body:
                 out.add(row["id"])
     return out
 
@@ -1110,7 +2413,9 @@ def _reroute_resolved_body_to_sibling(
         cur_tags = json.loads(row["tags"] or "[]")
         if "sync-conflict" not in cur_tags:
             cur_tags.append("sync-conflict")
-            notes_svc.update_note(user_id, row["id"], {"tags": cur_tags}, conn=conn)
+            # Engine bookkeeping, not an edit: the member's own edit time stays (Task 15 D1).
+            _write_tags_preserving_updated_at(conn, user_id, row["id"], cur_tags)
+            conn.commit()
     return sibling_id, failures
 
 
@@ -1138,45 +2443,366 @@ def _build_confirm_entry(
     return entry
 
 
+#: Task 9 fix round 1 (minor a): room for the `data:<mime>;params,` header and line breaks.
+DATA_URI_SLACK_CHARS = 4096
+
+
+def data_uri_max_chars() -> int:
+    """The longest data URI that can decode to a source the media policy would keep: the
+    base64 length of `MEDIA_SOURCE_MAX_BYTES` (read per call, never retyped) plus slack."""
+    return media_policy.MEDIA_SOURCE_MAX_BYTES * 4 // 3 + DATA_URI_SLACK_CHARS
+
+
 def _decode_data_uri(data_uri: str) -> tuple[bytes, str]:
-    header, _, b64_payload = data_uri.partition(",")
-    if ";base64" not in header:
-        raise ValueError(f"unsupported data URI (not base64): {header[:40]!r}")
-    content_type = header[len("data:"):].split(";")[0] or "application/octet-stream"
-    data = base64.b64decode(b64_payload, validate=True)
-    return data, content_type
+    """`(bytes, mime)` for a data URI (Plan A Task 9, I-6): base64 when a `;base64` parameter
+    is present, else percent-encoded (`data:image/svg+xml,%3Csvg...`). The grammar is
+    `mddoc.DATA_URI_RE`, the one copy. Run off the event loop (`asyncio.to_thread`).
+
+    Fix round 1: a URI longer than `data_uri_max_chars()` is `NoteConnTooLarge` (`too_large`)
+    BEFORE any decoding; a malformed URI or bad base64 is `NoteConnUnsupported`, a FINAL
+    `unsupported` notice -- bytes that cannot decode never will, so it is never retried."""
+    if len(data_uri) > data_uri_max_chars():
+        raise errors.NoteConnTooLarge(
+            f"data URI of {len(data_uri)} characters exceeds {data_uri_max_chars()}",
+            reason="Inline image is larger than the allowed size limit")
+    match = mddoc.DATA_URI_RE.match(data_uri)
+    if match is None:
+        raise errors.NoteConnUnsupported(f"malformed data URI: {data_uri[:40]!r}",
+                                         reason="Inline image data is malformed")
+    content_type = match.group("mime").strip().lower() or "application/octet-stream"
+    params = [p.strip().lower() for p in match.group("params").split(";")]
+    payload = match.group("payload")
+    if "base64" in params:
+        try:
+            return base64.b64decode(payload, validate=True), content_type
+        except (binascii.Error, ValueError) as exc:
+            raise errors.NoteConnUnsupported(f"data URI base64 does not decode: {exc}",
+                                             reason="Inline image data is malformed") from exc
+    return urllib.parse.unquote_to_bytes(payload), content_type
+
+
+def media_failure_reason(exc: BaseException) -> str:
+    """The `SERVER_REASONS` code for a media failure, decided by TYPE (see
+    `_notice_for_exception`). The ONE mapping: the engine's notices and the member media-fetch
+    door (`POST /api/j2/notes/media/fetch`, Plan A Task 9) both read it. One provider type
+    carries its own plugin reason: `NoteConnAttachmentNotSent` (an Obsidian file the plugin did
+    not send, live audit 2026-11-03 F2) reads its own (`obsidian-plugin-outdated` or `not-sent`),
+    never `unsupported`."""
+    if isinstance(exc, media_policy.MediaRejected):
+        return exc.reason
+    if isinstance(exc, errors.NoteConnUnsafeAddress):
+        return "unsafe"
+    if isinstance(exc, errors.NoteConnTooLarge):
+        return "too_large"
+    if isinstance(exc, errors.NoteConnAttachmentNotSent):
+        return exc.notice_reason
+    if isinstance(exc, errors.NoteConnUnsupported):
+        return "unsupported"
+    if isinstance(exc, NoteQuotaExceeded) or isinstance(exc.__cause__, NoteQuotaExceeded):
+        return "storage_limit"
+    if isinstance(exc, notes_svc.NoteValidationError):
+        return "unsupported"
+    return "fetch_failed"
+
+
+def _notice_for_exception(
+    exc: Exception, *, ref: str, name: str | None, source_url: str | None, attempts: int,
+) -> dict:
+    """The importNotice a media failure leaves where the file was (Plan A Task 6).
+
+    Decided by TYPE, never by an error's wording (Plan A Task 8): a `MediaRejected` from the
+    one media policy carries its own reason; `NoteConnUnsafeAddress` (the SSRF guard) is
+    `unsafe`; `NoteConnTooLarge` (a capped download) is `too_large`; any other
+    `NoteConnUnsupported` is final `unsupported`. A `NoteValidationError` from a save is final
+    `unsupported`, except the storage quota (raised `from NoteQuotaExceeded`), which is
+    `storage_limit`: it waits for space (`import_media_pending = 2`). Anything else
+    (`NoteConnTransient`, a network error, a bad data URI) is `fetch_failed`, retried while
+    `attempts < MEDIA_RETRY_MAX_ATTEMPTS`. `attempts` counts fetch tries and is kept only
+    on `fetch_failed`, the one reason it bounds: a waiting or final notice stores 0, so a
+    storage wait can never run a bound out."""
+    reason = media_failure_reason(exc)
+    return import_notice.notice_node(
+        reason, name=name, source_url=source_url, ref=ref,
+        attempts=attempts if reason == "fetch_failed" else 0)
+
+
+def _media_source_url(m: dict[str, Any]) -> str | None:
+    """The address a notice links to: the entry's own `source_url` (http(s) only), else
+    the ref itself when the ref is a safe http(s) address."""
+    return import_notice.safe_source_url(m.get("source_url")) or import_notice.safe_source_url(m.get("ref"))
+
+
+def _placeholder_refs(doc: Any) -> list[str]:
+    """Every media placeholder ref in a body, in document order: an `image`'s `src` or an
+    `attachmentChip`'s `href` reading `import-ref://<ref>` -- exactly what `rewrite_body`
+    resolves."""
+    out: list[str] = []
+    stack = [doc]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+        value = (node.get("attrs") or {}).get(attr) if attr else None
+        if isinstance(value, str) and value.startswith(REF_PREFIX) and value[len(REF_PREFIX):]:
+            out.append(value[len(REF_PREFIX):])
+        content = node.get("content")
+        if isinstance(content, list):
+            stack.extend(reversed(content))
+    return list(dict.fromkeys(out))
+
+
+def _placeholder_nodes(doc: Any) -> dict[str, dict]:
+    """`{ref: placeholder node}` for every media placeholder in a body (first one per ref)."""
+    out: dict[str, dict] = {}
+    stack = [doc]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+        value = (node.get("attrs") or {}).get(attr) if attr else None
+        if isinstance(value, str) and value.startswith(REF_PREFIX) and value[len(REF_PREFIX):]:
+            out.setdefault(value[len(REF_PREFIX):], node)
+        content = node.get("content")
+        if isinstance(content, list):
+            stack.extend(reversed(content))
+    return out
+
+
+def _retry_source(stored_body: str | None, rn: RemoteNote) -> tuple[dict[str, Any], set[str]] | None:
+    """Plan A Task 8 fix round 1 (I4): a media RETRY (a storage wait that freed, or a
+    `fetch_failed` with attempts left) of a note whose remote content is unchanged builds on
+    the body already stored, not on the placeholder doc: every notice still worth retrying
+    goes back to its placeholder, and everything that already resolved stays exactly as
+    stored. Returns `(doc, refs_to_retry)`, or None when the stored body cannot be built on
+    (unreadable, still holding a raw placeholder, or nothing to retry): the caller then
+    imports the whole note as before."""
+    if not stored_body or REF_PREFIX in stored_body:
+        return None
+    try:
+        stored = json.loads(stored_body)
+    except (TypeError, ValueError):
+        return None
+    placeholders = _placeholder_nodes(rn.doc)
+    retry: set[str] = set()
+
+    def walk(node: Any) -> Any:
+        if not isinstance(node, dict):
+            return node
+        if node.get("type") == import_notice.IMPORT_NOTICE_TYPE:
+            attrs = node.get("attrs") or {}
+            ref = attrs.get("ref")
+            if ref in placeholders and (import_notice.is_retryable(attrs)
+                                        or attrs.get("reason") == "storage_limit"):
+                retry.add(ref)
+                return copy.deepcopy(placeholders[ref])
+            return node
+        if isinstance(node.get("content"), list):
+            return {**node, "content": [walk(c) for c in node["content"]]}
+        return node
+
+    doc = walk(stored)
+    return (doc, retry) if retry and isinstance(doc, dict) else None
+
+
+def _note_title(rn: RemoteNote, key: str) -> str:
+    """The title the member sees for the note at `key` (a conflict sibling's included)."""
+    return f"{rn.title} (synced copy)" if key.endswith("#remote") else rn.title
+
+
+def _notice_failures(title: str, body: Any, notices: dict[str, dict]) -> list[dict[str, Any]]:
+    """`failures_json` entries for the notices THIS pass placed in `body`: `{noteTitle,
+    reason, name}`, `reason` being the sentence the member reads in the note."""
+    placed = [a for a in import_notice.iter_notices(body) if a.get("ref") in notices]
+    return [{"noteTitle": title or "Untitled note", "reason": import_notice.notice_text(a),
+             "name": a.get("name")} for a in placed]
+
+
+def _provider_notice_failures(title: str, doc: Any) -> list[dict[str, Any]]:
+    """`failures_json` entries for the notices the provider's converter wrote into the remote
+    doc itself (Plan A Task 12). Those carry no ref (they hold no placeholder), so they never
+    overlap `_notice_failures`, which lists only the notices this pass placed by ref."""
+    return [{"noteTitle": title or "Untitled note", "reason": import_notice.notice_text(a),
+             "name": a.get("name")} for a in import_notice.iter_notices(doc) if not a.get("ref")]
+
+
+def _strip_media_placeholders(node: Any) -> Any:
+    """A copy of `node` with every media placeholder (`image`/`attachmentChip` on an
+    `import-ref://`) removed. Pure, and never through `rewrite_body`: it is the last resort
+    when even `rewrite_body`'s output cannot be stored."""
+    if isinstance(node, list):
+        return [c for c in (_strip_media_placeholders(n) for n in node) if c is not None]
+    if not isinstance(node, dict):
+        return node
+    attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+    value = (node.get("attrs") or {}).get(attr) if attr else None
+    if isinstance(value, str) and value.startswith(REF_PREFIX):
+        return None
+    out = dict(node)
+    if isinstance(node.get("content"), list):
+        out["content"] = _strip_media_placeholders(node["content"])
+    return out
+
+
+def _final_body_without_media(
+    rn: RemoteNote, key: str, doc: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, dict], list[dict[str, Any]]]:
+    """Plan A Task 8 (Task 6 review d): the body to store when the RESOLVED body fails
+    validation, so the note terminates instead of staying pending (which re-fetched every
+    item on every pass with no attempt counted). First choice: every placeholder becomes its
+    FINAL `unsupported` notice (attempts 0). If that body cannot be stored either, the
+    placeholders are removed. Returns `(body, notices, dropped_failures)`: `dropped_failures`
+    are the `failures_json` entries for items removed with no notice left in the note, so the
+    loss is still named. `(None, {}, [])` when nothing storable can be built (cannot happen
+    for a body `import_confirm` accepted; the old leave-in-place behaviour is the fallback).
+    `doc` is the body the pass resolved from (`rn.doc`, or a retry's stored body)."""
+    doc = rn.doc if doc is None else doc
+    names = {m.get("ref"): m.get("name") for m in (rn.media or []) if isinstance(m, dict)}
+    by_ref = {m.get("ref"): m for m in (rn.media or []) if isinstance(m, dict)}
+    final = {ref: import_notice.notice_node(
+        "unsupported", name=names.get(ref),
+        source_url=_media_source_url(by_ref[ref]) if ref in by_ref else import_notice.safe_source_url(ref),
+        ref=ref, attempts=0) for ref in _placeholder_refs(doc)}
+    body, _dropped = rewrite_body(doc, {}, {}, strip_unresolved_links=False, notices=final)
+    try:
+        notes_svc._validate_body_json(body)
+        return body, final, []
+    except notes_svc.NoteValidationError:
+        pass
+    stripped = _strip_media_placeholders(doc)
+    try:
+        notes_svc._validate_body_json(stripped)
+    except notes_svc.NoteValidationError:
+        return None, {}, []
+    title = _note_title(rn, key) or "Untitled note"
+    return stripped, {}, [{"noteTitle": title, "reason": import_notice.notice_text(n["attrs"]),
+                           "name": n["attrs"]["name"]} for n in final.values()]
+
+
+#: At most this many waiting notes come back per pass when storage frees (bounded work).
+STORAGE_WAIT_FLIP_LIMIT = 200
+
+
+def _flip_storage_waits(conn: sqlite3.Connection, user_id: str) -> int:
+    """Plan A Task 8 (spec §15 Q2, "they come back once space frees"): this member's notes
+    waiting for storage (`import_media_pending = 2`) go back to 1 (retry), so the pass that
+    follows re-imports them. Member-scoped, bounded (`STORAGE_WAIT_FLIP_LIMIT`), and
+    timestamp-neutral: only `import_media_pending` moves. The caller decides that space has
+    freed; this commits and returns how many rows moved."""
+    cur = conn.execute(
+        "UPDATE j2_notes SET import_media_pending = 1 WHERE id IN ("
+        "SELECT id FROM j2_notes WHERE user_id = ? AND import_media_pending = 2 LIMIT ?)",
+        (user_id, STORAGE_WAIT_FLIP_LIMIT))
+    conn.commit()
+    return cur.rowcount
+
+
+def _storage_has_freed(budget: media_policy.MediaBudget) -> bool:
+    """Space a waiting note can use: room under the member's media cap for the largest item a
+    sync can copy (`MEDIA_SOURCE_MAX_BYTES`) AND volume headroom (`assert_import_headroom`, the
+    other storage_limit source -- read through `notes`, the same reference every save checks).
+    Final review (promoted minor): merely "under the cap" re-downloaded every waiting note of a
+    member a few bytes under it on every nightly pass, forever, only to hit the cap again."""
+    room = media_policy.MEMBER_IMPORT_MEDIA_CAP_BYTES - budget.used
+    if room < media_policy.MEDIA_SOURCE_MAX_BYTES:
+        return False
+    try:
+        notes_svc.assert_import_headroom(0)
+    except NoteQuotaExceeded:
+        return False
+    return True
+
+
+def _decide_and_store(
+    user_id: str, note_id: str, data: bytes, content_type: str | None, name: str, *,
+    file_intent: bool, budget: media_policy.MediaBudget,
+) -> media_policy.StoredMedia:
+    """One media item through the policy, synchronously -- called via `asyncio.to_thread`.
+    An item the provider listed as a file keeps file intent (fix round 1, I5): `normalize_file`,
+    never decoded, so an attached image is never refused for its pixels."""
+    decide = media_policy.normalize_file if file_intent else media_policy.normalize_media
+    return media_policy.store_media(user_id, note_id, decide(data, content_type, name), budget=budget)
 
 
 async def _upload_media_for_note(
     provider: NoteProvider, creds: dict[str, Any], user_id: str, note_id: str,
-    media_entries: list[dict[str, Any]],
-) -> tuple[dict[str, str], int, list[str]]:
-    """Per-item try/except — one bad media ref is a NAMED failure, dropped
-    from the note's body by `rewrite_body`, never a crash of the whole note
-    (or the whole sync)."""
-    media_urls: dict[str, str] = {}
+    media_entries: list[dict[str, Any]], *, prior_attempts: dict[str, int],
+    budget: media_policy.MediaBudget,
+    rate_limited_out: list[tuple[str, float | None]] | None = None,
+) -> tuple[dict[str, media_policy.StoredMedia], dict[str, dict], int, list[str]]:
+    """`_upload_media_for_note(provider, creds, user_id, note_id, media_entries, *,
+    prior_attempts, budget) -> (resolved, notices, uploaded, failures)`.
+
+    Per-item try/except — one bad media ref is a NAMED failure, never a crash
+    of the whole note (or the whole sync).
+
+    Plan A Task 8: every item goes through the ONE media policy --
+    `media_policy.normalize_media` (sniff, convert, downscale, classify, refuse) then
+    `media_policy.store_media` under `budget`, the member's `MediaBudget` for this whole
+    pass (one `MediaBudget.for_member` per `_import_remote_notes` call, never per item).
+    `resolved` is `{ref: StoredMedia}` for `rewrite_body(..., resolved=...)`. An item the
+    provider listed as a file (`kind != "image"`) keeps chip intent: `normalize_file`, the
+    bytes stored as a file, never decoded or re-routed inline. Items past the cap are
+    `storage_limit` notices; the note itself still imports. The policy work runs in a
+    worker thread (`asyncio.to_thread`), never on the event loop.
+
+    Plan A Task 6 (spec I-7): a ref that cannot be copied gets an importNotice in
+    `notices`, which `rewrite_body` puts where the file was -- never a silent drop.
+    `prior_attempts` is `{ref: attempts}` from the note's stored notices; a ref that
+    has already used `MEDIA_RETRY_MAX_ATTEMPTS` is not fetched again, it keeps its
+    final notice."""
+    resolved: dict[str, media_policy.StoredMedia] = {}
+    notices: dict[str, dict] = {}
     uploaded = 0
     failures: list[str] = []
     for m in media_entries:
         ref = m.get("ref")
+        prior = prior_attempts.get(ref, 0) if isinstance(ref, str) else 0
+        if prior >= import_notice.MEDIA_RETRY_MAX_ATTEMPTS:
+            notices[ref] = import_notice.notice_node(
+                "fetch_failed", name=m.get("name"), source_url=_media_source_url(m),
+                ref=ref, attempts=prior)
+            continue
         try:
             data_uri = m.get("data_uri")
             if data_uri:
-                data, content_type = _decode_data_uri(data_uri)
+                # Plan A Task 9: decoding (base64 or percent) is off the event loop too.
+                data, content_type = await asyncio.to_thread(_decode_data_uri, data_uri)
             else:
                 data, content_type = await provider.fetch_media(creds, ref)
             name = m.get("name") or ref
-            if m.get("kind") == "image":
-                result = notes_svc.save_note_image_bytes(
-                    user_id, note_id, data, name, content_type, kind="inline")
-            else:
-                result = notes_svc.save_note_attachment_bytes(
-                    user_id, note_id, data, name, content_type)
-            media_urls[ref] = result["url"]
+            file_intent = m.get("kind") != "image"
+            if (file_intent and getattr(provider, "promote_raster_files", False) is True
+                    and media_policy.raster_signature(data)):
+                # Plan E Task 9 fix round 1 (concern 5): content wins for a raster the provider
+                # listed under a generic type. The caller turns its placeholder into an image.
+                file_intent = False
+            # Fix round 1, I2: the decide+store work (a 25 MB decode/downscale, disk writes)
+            # runs OFF the event loop -- a manual "Sync now" runs this on the uvicorn loop.
+            # The policy's own decode semaphore bounds it alongside the upload doors.
+            resolved[ref] = await asyncio.to_thread(
+                _decide_and_store, user_id, note_id, data, content_type, name,
+                file_intent=file_intent, budget=budget)
             uploaded += 1
         except Exception as e:  # noqa: BLE001
+            if isinstance(e, errors.NoteConnRateLimited) and rate_limited_out is not None:
+                # Fix round 1 (I8): the provider's rate limit stopped this copy. It waits, as a
+                # storage-limit notice does: a retrying notice that spends NO attempt, and the
+                # caller makes the note a leftover (a follow-up fetches it again). Not a failure.
+                log.info("[note-sync] media %r on note %s waits on the rate limit", ref, note_id)
+                rate_limited_out.append((ref, e.retry_after))
+                if isinstance(ref, str) and ref:
+                    notices[ref] = import_notice.notice_node(
+                        "fetch_failed", name=m.get("name"), source_url=_media_source_url(m),
+                        ref=ref, attempts=prior)
+                continue
             failures.append(f"media {ref!r} on note {note_id}: {e}")
-    return media_urls, uploaded, failures
+            if isinstance(ref, str) and ref:
+                notices[ref] = _notice_for_exception(
+                    e, ref=ref, name=m.get("name"), source_url=_media_source_url(m),
+                    attempts=prior + 1)
+    return resolved, notices, uploaded, failures
 
 
 def _bulk_note_updated_at(conn: sqlite3.Connection, note_ids: list[str]) -> dict[str, str | None]:
@@ -1226,6 +2852,8 @@ def _merge_batch_result(
     totals["conflicts"] += res.get("conflicts", 0)
     totals["failures"].extend(res["failures"])
     totals["notStoredRefs"].extend(res.get("notStoredRefs", []))
+    totals["noticeFailures"].extend(res.get("noticeFailures", []))
+    totals.setdefault("rateLimitedRefs", []).extend(res.get("rateLimitedRefs", []))
     all_touched.extend(res.get("touched", []))
 
 
@@ -1253,8 +2881,8 @@ async def _resolve_links_final_pass(
         return result
 
     link_targets = sorted({lk for rn, _k, _n in candidates for lk in rn.links})
-    link_check = notes_svc.import_check(user_id, link_targets, conn=conn)
-    id_by_key = {k: v["id"] for k, v in link_check["existing"].items()}
+    # Plan A Task 4: every key kind (exact import keys, Evernote titles) through the ONE resolver.
+    id_by_key = resolve_link_keys(conn, user_id, link_targets)
     if not id_by_key:
         return result  # nothing resolvable yet -> leave every mark intact; self-heal retries later
 
@@ -1283,7 +2911,11 @@ async def _resolve_links_final_pass(
             continue
 
         expected = baseline_updated_at.get(note_id)
-        applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        try:
+            applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        except Exception as e:  # noqa: BLE001 -- fix round 1, M1: one note never stops the pass
+            result["failures"].append(f"link pass: resolved body write failed for note {note_id!r}: {e}")
+            continue
         if not applied:
             sibling_id, reroute_failures = _reroute_resolved_body_to_sibling(
                 conn, user_id, source, rn, key, body)
@@ -1300,8 +2932,19 @@ async def _confirm_and_resolve_batch(
     conn: sqlite3.Connection, user_id: str, source: dict[str, Any],
     provider: NoteProvider, creds: dict[str, Any], dest_folder_id: str | None,
     entries: list[dict[str, Any]], pairs: list[tuple[RemoteNote, str]],
+    *, notice_attempts: dict[str, dict[str, int]] | None = None,
+    budget: media_policy.MediaBudget | None = None,
+    retry_bodies: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Confirms ONE batch, then immediately resolves MEDIA (upload +
+    """`budget` (Plan A Task 8): the member's `MediaBudget` for the whole pass; None reads one
+    (a direct caller). `retry_bodies` (fix round 1, I4): `{import_key: stored body}` for a
+    note re-imported only to retry its media (remote unchanged); see `_retry_source`.
+    `notice_attempts` (Plan A Task 6): `{import_key: {ref: attempts}}`, read by
+    `_bulk_existing_note_meta` BEFORE this confirm overwrites the bodies; each
+    failed ref counts on from its prior attempts. `result["noticeFailures"]` holds
+    the `failures_json` entries of every notice this batch wrote.
+
+    Confirms ONE batch, then immediately resolves MEDIA (upload +
     validate + guarded write) for every created/updated note in THAT SAME
     batch, plus any 'skipped' note whose stored body still carries a
     stranded literal placeholder (self-heal). Per Critical 3 (PRIMARY):
@@ -1329,6 +2972,7 @@ async def _confirm_and_resolve_batch(
     result: dict[str, Any] = {
         "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
         "conflicts": 0, "failures": [], "touched": [], "notStoredRefs": [],
+        "noticeFailures": [], "rateLimitedRefs": [],
     }
     # Every ref THIS batch is attempting, so a whole-call exception below
     # (a batch-level failure, e.g. a malformed overall payload — NOT a
@@ -1336,6 +2980,11 @@ async def _confirm_and_resolve_batch(
     # bucket and returns normally, see below) can still report every one of
     # them as not-stored — the cursor must not advance past ANY of them.
     remote_id_by_key = {key: rn.remote_id for rn, key in pairs}
+    # Plan E Task 9 fix round 1 (concern 4): a note that is not stored is named by its TITLE
+    # for the member (`failures_json`), once per pass; the failure strings above stay by key.
+    title_by_key = {e.get("importKey"): e.get("title") for e in entries}
+    if budget is None:
+        budget = media_policy.MediaBudget.for_member(user_id)
     try:
         r = notes_svc.import_confirm(
             user_id,
@@ -1343,10 +2992,22 @@ async def _confirm_and_resolve_batch(
             conn=conn,
         )
     except Exception as e:  # noqa: BLE001 — one bad batch must not strand others or abort the sync
-        result["failures"].append(
-            f"confirm failed for a batch of {len(entries)} note(s): {e}"
-        )
+        log.warning("[note-sync] confirm failed for a batch of %d note(s): %s", len(entries), e)
+        reason = NOT_STORED_RETRY_REASON
+        if isinstance(e, notes_svc.DestinationFolderNotFound):
+            # ⛔ M2: no retry fixes a deleted folder, so the member is never told "tried again"
+            # unless something now makes it true. The pass-start heal found the folder; it went
+            # while this pass ran. Heal again now (`import_confirm` rolled `conn` back, so no
+            # write lock is held here): the next pass then imports into the new folder, and so
+            # does every later batch of THIS pass (the source dict is the one they all read).
+            # Its own connection, off the loop (the write lock may be busy).
+            reason = await asyncio.to_thread(_dest_folder_missing_reason, user_id, source)
+        prefix = (DEST_MISSING_FAILURE_PREFIX if isinstance(e, notes_svc.DestinationFolderNotFound)
+                  else "confirm failed")
+        result["failures"].append(f"{prefix} for a batch of {len(entries)} note(s): {reason}")
         result["notStoredRefs"].extend(remote_id_by_key.values())
+        result["noticeFailures"].extend(
+            _not_stored_notice(title_by_key.get(k), k, reason) for k in remote_id_by_key)
         return result
 
     result["created"] = len(r["created"])
@@ -1370,12 +3031,12 @@ async def _confirm_and_resolve_batch(
     # rather than skipping it as already-seen.
     for item in r.get("failed", []):
         fkey = item.get("importKey")
-        result["failures"].append(
-            f"note {fkey!r} could not be stored: {item.get('error')}"
-        )
+        reason = _member_reason(item.get("error"), key=fkey)  # m1: never raw text for a member
+        result["failures"].append(f"note {fkey!r} could not be stored: {reason}")
         rid = remote_id_by_key.get(fkey)
         if rid is not None:
             result["notStoredRefs"].append(rid)
+        result["noticeFailures"].append(_not_stored_notice(title_by_key.get(fkey), fkey, reason))
 
     # Self-heal (Critical 3, SAFETY NET): a note marked 'skipped' this round
     # (content hash unchanged) may still carry a stranded import-ref://
@@ -1403,46 +3064,104 @@ async def _confirm_and_resolve_batch(
             continue  # shouldn't happen, but a lookup miss must never crash the sync
         status, note_id = outcome
         healing = status == "skipped" and note_id in stranded
+        if status != "skipped":
+            # Plan A Task 12 fix round 1: notices the PROVIDER placed (a truncated database, a
+            # file with no address) are failures the member reads in the log too -- listed when
+            # this pass writes the note, never again while it is skipped unchanged.
+            result["noticeFailures"].extend(_provider_notice_failures(_note_title(rn, key), rn.doc))
         if status == "skipped" and not healing:
             continue  # unchanged, no stranded placeholder -> nothing to do
 
-        if not healing and not rn.media:
-            # No media to resolve in THIS pass. If it has links, the final
+        if not healing and not rn.media and not _placeholder_refs(rn.doc):
+            # No media to resolve in THIS pass (Plan A Task 6: and no media
+            # placeholder either -- one with no `media` entry still needs its notice). If it has links, the final
             # link pass reads the confirm-written body directly — nothing
             # else has touched it since, so no write happens here at all.
             if rn.links:
                 result["touched"].append((rn, key, note_id))
             continue
 
-        media_urls: dict[str, str] = {}
-        if rn.media:
-            media_urls, up, med_failures = await _upload_media_for_note(
-                provider, creds, user_id, note_id, rn.media)
+        # Fix round 1, I4: a media retry builds on the stored body, fetching only what is
+        # still missing; anything already resolved is reused, never stored twice.
+        source_doc, media = rn.doc, rn.media
+        retry = _retry_source((retry_bodies or {}).get(key), rn) if status == "updated" else None
+        if retry is not None:
+            source_doc, retry_refs = retry
+            media = [m for m in (rn.media or []) if m.get("ref") in retry_refs]
+
+        resolved: dict[str, media_policy.StoredMedia] = {}
+        notices: dict[str, dict] = {}
+        waiting: list[tuple[str, float | None]] = []
+        if media:
+            resolved, notices, up, med_failures = await _upload_media_for_note(
+                provider, creds, user_id, note_id, media,
+                prior_attempts=(notice_attempts or {}).get(key, {}), budget=budget,
+                rate_limited_out=waiting)
+            if waiting:
+                known = [w for _r, w in waiting if isinstance(w, (int, float))]
+                result["rateLimitedRefs"].append((rn.remote_id, max(known) if known else None))
             result["mediaUploaded"] += up
             result["failures"].extend(med_failures)
+            # Concern 5: a file the bytes said is a raster was stored as an image; its chip
+            # placeholder becomes an image placeholder before the rewrite (opted-in providers only:
+            # for any other, a file-kind item is never stored as an image).
+            promoted = {m["ref"] for m in media if m.get("kind") != "image" and isinstance(m.get("ref"), str)
+                        and getattr(resolved.get(m["ref"]), "kind", None) == "image"}
+            if promoted:
+                source_doc = chips_to_images(source_doc, promoted)
+        # Plan A Task 6, no silent drop: a placeholder the provider never listed in
+        # `media` cannot be fetched at all, so it is a final notice too.
+        for ref in _placeholder_refs(source_doc):
+            if ref not in resolved and ref not in notices:
+                notices[ref] = import_notice.notice_node(
+                    "unsupported", name=None, source_url=import_notice.safe_source_url(ref),
+                    ref=ref, attempts=0)
 
         # MEDIA ONLY in this pass: id_by_key={} + strip_unresolved_links=False
         # means every import-link:// mark passes through completely
         # untouched (not stripped, not resolved) for the final pass to see.
-        body, _dropped = rewrite_body(rn.doc, media_urls, {}, strip_unresolved_links=False)
+        # `notices`: every placeholder without a URL becomes its importNotice.
+        body, _dropped = rewrite_body(
+            source_doc, {}, {}, strip_unresolved_links=False, notices=notices, resolved=resolved)
 
         # Important 6: validate the RESOLVED doc (1MB/shape backstop) before
         # the raw write — a malformed/oversized result must never land in
-        # the DB. Leave the placeholder body in place; the self-heal branch
-        # above retries it on a future sync once the underlying issue clears.
+        # the DB. Plan A Task 8 (Task 6 review d): the placeholder body is NOT
+        # left pending -- that re-fetched the media on every pass with no attempt
+        # counted, outside the I-7 bound. The note gets each item's FINAL notice
+        # instead (or, if even that cannot be stored, loses the placeholders), and
+        # every item is a named failure, so it terminates this pass.
+        dropped_failures: list[dict[str, Any]] = []
         try:
             notes_svc._validate_body_json(body)
         except notes_svc.NoteValidationError as e:
             result["failures"].append(
                 f"resolved body failed validation for note {note_id!r}: {e}"
             )
+            body, notices, dropped_failures = _final_body_without_media(rn, key, source_doc)
+            if body is None:
+                if rn.links:
+                    result["touched"].append((rn, key, note_id))  # placeholder still intact
+                continue
+
+        expected = baseline_updated_at.get(note_id)
+        try:
+            applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        except Exception as e:  # noqa: BLE001 -- fix round 1, M1: one note never stops the source
+            # Its body write was rolled back with its projection, so the confirm-written
+            # placeholder body stays and self-heal retries it on a later sync. Same
+            # shape as the validation failure above.
+            result["failures"].append(f"resolved body write failed for note {note_id!r}: {e}")
             if rn.links:
                 result["touched"].append((rn, key, note_id))  # placeholder still intact
             continue
-
-        expected = baseline_updated_at.get(note_id)
-        applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
         if applied:
+            # I8: an attachment waiting on the rate limit is no failure to list.
+            waiting_refs = {r for r, _w in waiting}
+            result["noticeFailures"].extend(_notice_failures(
+                _note_title(rn, key), body,
+                {r: n for r, n in notices.items() if r not in waiting_refs}))
+            result["noticeFailures"].extend(dropped_failures)
             if rn.links:
                 result["touched"].append((rn, key, note_id))
         else:
@@ -1456,35 +3175,104 @@ async def _confirm_and_resolve_batch(
                 conn, user_id, source, rn, key, body)
             result["failures"].extend(reroute_failures)
             result["conflicts"] += 1
+            if sibling_id:
+                result["noticeFailures"].extend(_notice_failures(
+                    _note_title(rn, f"{key}#remote"), body, notices))
+                result["noticeFailures"].extend(
+                    dict(f, noteTitle=_note_title(rn, f"{key}#remote")) for f in dropped_failures)
             if sibling_id and rn.links:
                 result["touched"].append((rn, f"{key}#remote", sibling_id))
 
     return result
 
 
+def _adopt_file_imports(
+    conn: sqlite3.Connection, user_id: str, provider: NoteProvider,
+    remote_notes: list[RemoteNote], import_keys: list[str], pass_state: dict | None = None,
+) -> tuple[list[dict], list[dict]]:
+    """Plan E Task 8: before the existing-row read, re-key the member's file-imported notes
+    (`.enex`) that these live notes ARE, so they update in place instead of duplicating. Runs on
+    every pass (a later file import adds candidates), and only for a provider that sets
+    `adopt_import_source`: every other provider makes no adoption query at all."""
+    import_source = getattr(provider, "adopt_import_source", None)
+    if not import_source:
+        return [], []
+    keys = [k for k in import_keys if k]
+    held: set[str] = set()
+    for i in range(0, len(keys), 500):  # sqlite variable-limit safety
+        chunk = keys[i:i + 500]
+        held.update(r[0] for r in conn.execute(
+            f"SELECT import_key FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL "
+            f"AND import_key IN ({','.join('?' * len(chunk))})", (user_id, *chunk)))
+    candidates = [(k, rn) for rn, k in zip(remote_notes, import_keys) if k and k not in held]
+    adopted, failures = adoption.adopt_file_imports(
+        conn, user_id, import_source, candidates, pass_state=pass_state)
+    if adopted:
+        conn.commit()
+    return adopted, failures
+
+
 async def _import_remote_notes(
     user_id: str, source: dict[str, Any], provider: NoteProvider, creds: dict[str, Any],
-    remote_notes: list[RemoteNote],
+    remote_notes: list[RemoteNote], *, heal: bool = True, adoption_state: dict | None = None,
+    retry_only: set[str] | None = None,
 ) -> dict[str, Any]:
+    """`retry_only` (Plan E Task 9 fix round 1, C1): remote ids in this call ONLY to retry their
+    pending media (`_pending_media_refs`). Such a note goes through the media-retry path
+    (`retry_bodies`) when its payload hash equals the stored `import_hash`; otherwise it is not
+    written at all, counted as skipped and named. A retry is never a content sync."""
+    retry_only = retry_only or set()
     conn = get_connection()
     try:
+        # Plan A Task 8: ONE media budget for this whole pass (one memoised usage read), and
+        # the storage wait: once space has freed, this member's notes waiting at
+        # `import_media_pending = 2` go back to 1 BEFORE the existing-meta read, so the
+        # confirm below re-imports them like any other retry.
+        budget = media_policy.MediaBudget.for_member(user_id)
+        if _storage_has_freed(budget):
+            try:
+                _flip_storage_waits(conn, user_id)
+            except sqlite3.Error as e:   # a busy DB defers the wait one pass; never fails the sync
+                log.warning("[note-sync] storage-wait flip deferred (%s)", type(e).__name__)
         import_keys = [
             provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
         ]
+        adopted, adoption_failures = _adopt_file_imports(
+            conn, user_id, provider, remote_notes, import_keys, adoption_state)
         existing = _bulk_existing_note_meta(conn, user_id, import_keys)
+        # Task 8 review M1: a row adopted THIS pass is judged by the file importer's own
+        # predicate (it forgives the old importer's image-finalize write), never a second rule.
+        adopted_unedited = {a["toKey"] for a in adopted if not a["editedSinceImport"]}
+        if _backfill_remote_revs_preserving_updated_at(
+                conn, user_id, remote_notes, import_keys, existing):
+            conn.commit()
 
         normal_items: list[tuple[dict[str, Any], RemoteNote, str]] = []
         # (confirm_entry, remote_note, sibling_key, original_folder_id)
         sibling_items: list[tuple[dict[str, Any], RemoteNote, str, str | None]] = []
         conflict_tag_updates: dict[str, list[str]] = {}  # original note id -> new tags
         pre_confirm_conflicts = 0
+        user_owned_unchanged = 0
+        retry_bodies: dict[str, str] = {}
+        retry_skipped: list[str] = []
 
         for rn, key in zip(remote_notes, import_keys):
             meta = existing.get(key)
+            edited = meta is not None and _is_conflict(meta) and key not in adopted_unedited
             # `entry` is what WOULD be written under the ORIGINAL import_key —
             # built unconditionally (not just in the else-branch) because
             # Fix-round-3 needs its hash regardless of which path is taken.
             entry = _build_confirm_entry(rn, key)
+            if rn.remote_id in retry_only:
+                # C1 belt guard: a retry-only ref may only retry media on the stored body.
+                if (meta is not None and not edited and meta.get("pendingBody")
+                        and meta.get("importHash") == notes_svc._import_payload_hash(entry)):
+                    normal_items.append((entry, rn, key))
+                    retry_bodies[key] = meta["pendingBody"]
+                else:
+                    user_owned_unchanged += 1
+                    retry_skipped.append(((meta or {}).get("title") or rn.title or key, key))
+                continue
             # Fix-round-3 Important (live-gate 23rd check): a conflict is only
             # a conflict when the REMOTE side actually changed. `_is_conflict`
             # alone (`updated_at > imported_at`) is permanently true for any
@@ -1503,9 +3291,15 @@ async def _import_remote_notes(
             # produces — never re-derived here) against the original's stored
             # `import_hash` answers "did the remote content change since the
             # last time we looked," independent of the user's own edit.
+            # Plan A Task 1: the hash alone also moves when OUR converter
+            # changes, so `_remote_changed` keys the answer on the remote's
+            # own revision (see its docstring, incl. the minute-precision
+            # limitation accepted for Notion). Consequence: a remote move/
+            # rename that does NOT advance the remote revision (folderPath and
+            # title sit in the hash) is now SKIPPED on an edited note, not copied.
             is_genuine_conflict = (
-                meta is not None and _is_conflict(meta)
-                and notes_svc._import_payload_hash(entry) != (meta.get("importHash") or "")
+                edited
+                and _remote_changed(meta, rn, notes_svc._import_payload_hash(entry))
             )
             if is_genuine_conflict:
                 # Local edit since the last sync AND the remote genuinely
@@ -1525,7 +3319,17 @@ async def _import_remote_notes(
                 # why skipping this freezes the comparison at the FIRST
                 # conflict forever instead of tracking pass-to-pass change.
                 _write_import_hash_preserving_updated_at(
-                    conn, user_id, meta["id"], notes_svc._import_payload_hash(entry))
+                    conn, user_id, meta["id"], notes_svc._import_payload_hash(entry),
+                    remote_rev=rn.updated_at or None)
+            elif edited:
+                # Edited by the member, remote UNCHANGED -> the note is the
+                # member's; nothing to write. It must NOT go to import_confirm:
+                # that call re-writes a note whose `import_media_pending` is
+                # still set even when the hash matches (audit B5, the media
+                # retry), and a note with a link that can never resolve stays
+                # pending forever -- so the member's edit was overwritten on
+                # every later sync, with no conflict and no copy kept.
+                user_owned_unchanged += 1
             else:
                 # Either no genuine conflict, or a conflict whose remote side
                 # is UNCHANGED -> plain pass-through. `import_confirm`'s own
@@ -1533,11 +3337,29 @@ async def _import_remote_notes(
                 # changed -- no tally, no sibling confirm, no resurrection of
                 # a sibling the user deleted.
                 normal_items.append((entry, rn, key))
+                # Fix round 1 (I4): remote unchanged and media still pending -> this pass
+                # is a media RETRY; it builds on the stored body (`_retry_source`).
+                if (meta is not None and meta.get("pendingBody")
+                        and meta.get("importHash") == notes_svc._import_payload_hash(entry)):
+                    retry_bodies[key] = meta["pendingBody"]
 
         totals: dict[str, Any] = {
-            "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
+            "created": 0, "updated": 0, "skipped": user_owned_unchanged, "mediaUploaded": 0,
             "conflicts": pre_confirm_conflicts, "failures": [], "notStoredRefs": [],
+            "noticeFailures": [], "rateLimitedRefs": [],
         }
+        # Plan E Task 8: the adoption seam's count and its Plan D-shaped failures.
+        totals["adopted"] = len(adopted)
+        totals["failures"].extend(
+            f"media retry skipped for {title!r}: the note as fetched now differs from the stored "
+            f"one, so it was left as it is" for title, _key in retry_skipped)
+        # m2: named for the member by title, through Concern 4's one naming path
+        totals["noticeFailures"].extend(
+            _not_stored_notice(title, key, RETRY_SKIPPED_REASON) for title, key in retry_skipped)
+        totals["noticeFailures"].extend(adoption_failures)
+        totals["failures"].extend(f["reason"] for f in adoption_failures)
+        # Plan A Task 6: prior notice attempts per key, read before any confirm below.
+        notice_attempts = {k: m["noticeAttempts"] for k, m in existing.items() if m["noticeAttempts"]}
         all_touched: list[tuple[RemoteNote, str, str]] = []
 
         # Per-batch pipeline (Critical 3, PRIMARY): confirm batch N, resolve
@@ -1554,7 +3376,8 @@ async def _import_remote_notes(
             pairs = [(rn, k) for _e, rn, k in batch]
             res = await _confirm_and_resolve_batch(
                 conn, user_id, source, provider, creds,
-                source.get("destFolderId"), entries, pairs,
+                source.get("destFolderId"), entries, pairs, notice_attempts=notice_attempts,
+                budget=budget, retry_bodies=retry_bodies,
             )
             _merge_batch_result(totals, res, all_touched)
 
@@ -1566,15 +3389,19 @@ async def _import_remote_notes(
         for entry, rn, sibling_key, original_folder_id in sibling_items:
             res = await _confirm_and_resolve_batch(
                 conn, user_id, source, provider, creds,
-                original_folder_id, [entry], [(rn, sibling_key)],
+                original_folder_id, [entry], [(rn, sibling_key)], notice_attempts=notice_attempts,
+                budget=budget,
             )
             _merge_batch_result(totals, res, all_touched)
 
         # Tag the ORIGINAL note in a pre-confirm conflict — add-tag only,
         # body/title untouched. Both the original and its sibling now carry
-        # 'sync-conflict'; neither version was lost.
+        # 'sync-conflict'; neither version was lost. Timestamp-neutral (Task 15 D1): the
+        # original is member-edited, and a tag the ENGINE adds must not move its edit time.
         for note_id, tags in conflict_tag_updates.items():
-            notes_svc.update_note(user_id, note_id, {"tags": tags}, conn=conn)
+            _write_tags_preserving_updated_at(conn, user_id, note_id, tags)
+        if conflict_tag_updates:
+            conn.commit()
 
         # Final pass (Critical 3 round-2 fix, PRIMARY): resolve every
         # import-link:// mark across the WHOLE round now that every batch
@@ -1592,6 +3419,29 @@ async def _import_remote_notes(
             totals["failures"].extend(link_result["failures"])
         except Exception as e:  # noqa: BLE001
             totals["failures"].append(f"link resolution pass failed: {e}")
+
+        # Plan A Task 4: heal the member's still-pending links -- a link written in an
+        # EARLIER round whose target has only now arrived. Bounded (`limit`, index-served
+        # on `import_links_pending`), timestamp-neutral, and never fails the sync: a
+        # failure here is one named failure, and the marks stay for the next round.
+        # Final review I2: up to `HEAL_LIMIT` bodies parsed and rewritten -- never on the event
+        # loop (a manual "Sync now" runs this pass on the uvicorn loop). A worker thread, on
+        # its OWN connection (`conn=None`): a sqlite connection never crosses threads. Same
+        # writes as before (timestamp-neutral, per-note edited re-check inside the heal).
+        # Plan E Task 6 review R1: a caller importing in CHUNKS passes `heal=False` and heals
+        # once, after its last chunk, naming this pass's notes (`linkedNoteIds`): a forward link
+        # into a later chunk is pending until then, and the random sweep alone heals it only by
+        # chance.
+        totals["linkedNoteIds"] = [note_id for rn, _key, note_id in all_touched if rn.links]
+        if heal:
+            try:
+                conn.commit()   # nothing of this pass left open to make the heal's writes wait
+                heal_result = await asyncio.to_thread(heal_pending_links, user_id)
+                totals["failures"].extend(heal_result.get("failures", []))
+            except Exception as e:  # noqa: BLE001
+                totals["failures"].append(f"link heal pass failed: {e}")
+        else:
+            conn.commit()
 
         return totals
     finally:

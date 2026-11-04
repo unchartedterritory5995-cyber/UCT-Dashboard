@@ -62,6 +62,8 @@ describe('D1 · two EMAs and their colours, in one message', () => {
   it('Undo takes it all back: the chart draws exactly what it did', async () => {
     const { say, board } = p.mount(...ONE('CYPH'))
     const before = drawn(board)
+    const stored = () => JSON.stringify(board.state.widgets[0].opts.settings ?? null)
+    const storedBefore = stored()
     await say('throw the 9 and 20 ema on my chart. make the fast one green and the other one yellow')
     await waitFor(() => expect(emas(board)).toHaveLength(2), { timeout: 8000 })
     await say('undo')
@@ -69,6 +71,7 @@ describe('D1 · two EMAs and their colours, in one message', () => {
     await undoAll(say, () => !emas(board).length)
     expect(emas(board)).toEqual([])
     expect(drawn(board)).toBe(before)
+    expect(stored()).toBe(storedBefore)                                         // and STORED exactly (Indicators #517 exact Undo)
   }, 40000)
 
   it('the 9 and 20 already on the chart are REUSED (no duplicates) and coloured', async () => {

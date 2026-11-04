@@ -86,7 +86,7 @@ import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 import { chartThemeOf } from './objectTheme'
 
 import {
-  sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
+  sourceInputsOf, parseSource, barFieldSeries, orderByDependency, sourceLineIntact,
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
 import { fundamentalColumnWithAuthority } from './marketCapAuthority'
@@ -768,10 +768,14 @@ export function __resetPaneHeightAlerts() {
 }
 
 /**
- * @param {{chart: object, LWC: object}} deps
+ * @param {{chart: object, LWC: object, scope?: string}} deps  `scope` names THIS binder in the
+ *   three notice stores (`chartClockNotice`, `objectRenderNotice`, `runtimeErrorNotice`),
+ *   so a strip reads only its own chart's notes when one instance id is drawn by several
+ *   binders. `StockChart` passes a stable per-chart id; absent, it is `''`.
  * @returns {{sync: (ctx: object) => object, teardown: () => void}}
  */
-export function createBinder({ chart, LWC }) {
+export function createBinder({ chart, LWC, scope = '' }) {
+  const noticeScope = typeof scope === 'string' ? scope : ''
   /** Last pass's bindings, each carrying `series`, `guideHandles`, `paneIndex`. */
   let held = []
   /** ⭐⭐ Bands hosted on the CHART'S OWN PRICE SERIES, for an instance that has no
@@ -1019,7 +1023,7 @@ export function createBinder({ chart, LWC }) {
   const publishClock = (instanceId, lane, list) => {
     const has = Array.isArray(list) && list.length > 0
     if (!has && !clockPublished[lane].has(instanceId)) return
-    attempt(() => setChartClockNotes(instanceId, lane, has ? list : []))
+    attempt(() => setChartClockNotes(instanceId, lane, has ? list : [], noticeScope))
     if (has) clockPublished[lane].add(instanceId)
     else clockPublished[lane].delete(instanceId)
   }
@@ -1035,7 +1039,7 @@ export function createBinder({ chart, LWC }) {
   const publishDrops = (instanceId, state) => {
     const n = state ? renderDroppedCount(state) : 0
     if (!n && !dropsPublished.has(instanceId)) return
-    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0))
+    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope))
     if (n) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
@@ -1365,7 +1369,7 @@ export function createBinder({ chart, LWC }) {
     if (sentence) stoppedIds.add(instanceId)
     else if (!stoppedIds.has(instanceId)) return
     else stoppedIds.delete(instanceId)
-    setRuntimeErrorNotice(instanceId, sentence)
+    setRuntimeErrorNotice(instanceId, sentence, noticeScope)
   }
 
   function releaseAll() {
@@ -1388,7 +1392,7 @@ export function createBinder({ chart, LWC }) {
     pruneDrops(null)
     held = []
     lastColumnErrors = new Map()
-    for (const id of stoppedIds) setRuntimeErrorNotice(id, null)
+    for (const id of stoppedIds) setRuntimeErrorNotice(id, null, noticeScope)
     stoppedIds.clear()
     computeMemo = new Map()
     pointMemo = new Map()
@@ -1501,7 +1505,7 @@ export function createBinder({ chart, LWC }) {
       // that drew nothing binds NO series, so `held` is empty exactly when there
       // is a "not drawn because …" sentence to take down. Zero calls when none.
       if (stoppedIds.size) {
-        for (const id of stoppedIds) setRuntimeErrorNotice(id, null)
+        for (const id of stoppedIds) setRuntimeErrorNotice(id, null, noticeScope)
         stoppedIds.clear()
       }
       // ⛔ THE TENANT IS GONE, SO THE AXIS GOES. See `assertLeftAxis` — deleting
@@ -1583,6 +1587,11 @@ export function createBinder({ chart, LWC }) {
     // binding can tell the legend which observation PERIOD each bar shows.
     const econObs = new Map()
     const dependedOn = new Set()
+    // ⭐ LINE IDENTITY — the instance a source names, to ask whether the line it
+    // recorded is still the line under that key (`sourceRef.sourceLineIntact`).
+    const instanceById = new Map()
+    for (const inst of instances) if (inst && typeof inst.instanceId === 'string') instanceById.set(inst.instanceId, inst)
+    const defOfReg = (id) => registry.getDefinition(id)
     for (const inst of instances) {
       if (!inst || inst.hidden === true) continue
       const idef = registry.getDefinition(inst.defId)
@@ -1655,6 +1664,12 @@ export function createBinder({ chart, LWC }) {
           series = (frame
             ? frameColumns.get(bindingKey(parsed.instanceId, parsed.plotKey))
             : columns.get(bindingKey(parsed.instanceId, parsed.plotKey))) || null
+          // ⛔⛔ LINE IDENTITY (owner decision 2026-11-02): the key still exists, but a
+          // DIFFERENT line now holds it (removed, then re-added). Exactly a missing
+          // column — never the new line's numbers, which nobody chose.
+          if (series && !sourceLineIntact(inst, key, parsed, instanceById.get(parsed.instanceId), defOfReg)) {
+            series = null
+          }
         } else if (parsed && parsed.kind === 'symbol' && frame) {
           // ⭐ ANOTHER SYMBOL AT THIS FRAME — the same exact-t rule, on the frame's
           // own bars (both sides are that frame's canonical bars).

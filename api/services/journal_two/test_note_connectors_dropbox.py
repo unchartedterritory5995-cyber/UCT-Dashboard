@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, quote
 
 import httpx
@@ -278,7 +279,7 @@ async def test_fetch_media_external_url_never_receives_the_access_token(monkeypa
     assert "authorization" not in {k.lower() for k in captured[0].headers.keys()}
 
 
-async def test_fetch_media_rejects_non_https_scheme_without_making_a_request():
+async def test_fetch_media_rejects_a_non_http_scheme_without_making_a_request():
     request_count = 0
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -288,9 +289,23 @@ async def test_fetch_media_rejects_non_https_scheme_without_making_a_request():
 
     provider = _make_provider(handler)
     with pytest.raises(NoteConnUnsupported):
-        await provider.fetch_media(CREDS, "http://example.com/img.png")
+        await provider.fetch_media(CREDS, "ftp://example.com/img.png")
 
-    assert request_count == 0, "a non-https, non-Dropbox ref must be refused before any request"
+    assert request_count == 0, "a non-http(s), non-Dropbox ref must be refused before any request"
+
+
+async def test_http_hotlink_is_downloaded_without_the_token():
+    """Plan A Task 9 (I-5): an http hotlink in a note is copied in (download only)."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"img", headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    assert await provider.fetch_media(CREDS, "http://1.1.1.1/a.png") == (b"img", "image/png")
+    assert [str(r.url) for r in seen] == ["http://1.1.1.1/a.png"]
+    assert "authorization" not in {k.lower() for k in seen[0].headers.keys()}
 
 
 # ---------------------------------------------------------------------------
@@ -420,6 +435,34 @@ async def test_fetch_resolves_a_relative_image_reference_via_the_path_map():
     data, content_type = await provider.fetch_media(CREDS, note.media[0]["ref"])
     assert data == FILE_CONTENTS[CHART_PNG_PATH]
     assert content_type == "image/png"
+
+
+async def test_a_raw_relative_html_img_in_markdown_is_a_named_refusal_never_a_request(monkeypatch):
+    """Plan A Task 13 fix round 1 (trace): `md_to_tiptap` now turns a raw `<img>` in
+    markdown into an image (it used to be literal text). Its src is NOT run through this
+    provider's markdown path map, so a relative one reaches `fetch_media` as written. It
+    must end as a NAMED refusal (`NoteConnUnsupported` with a reason, which the engine
+    writes as a visible importNotice), and never as a request: not to Dropbox, and not to
+    a protocol-relative host."""
+    body = b'# Trading\n\n<img src="pic.png"> and <img src="//evil.example/x.png">\n'
+    monkeypatch.setitem(FILE_CONTENTS, TRADING_MD_PATH, body)
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return _default_handler(request)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    note = await provider.fetch(CREDS, next(r for r in refs if r.remote_id == TRADING_MD_PATH))
+    assert [m["ref"] for m in note.media] == ["pic.png", "//evil.example/x.png"]
+
+    seen.clear()
+    for ref in ("pic.png", "//evil.example/x.png"):
+        with pytest.raises(NoteConnUnsupported) as exc:
+            await provider.fetch_media(CREDS, ref)
+        assert exc.value.reason
+    assert seen == []
 
 
 async def test_fetch_before_list_changed_raises_runtime_error():
@@ -585,6 +628,33 @@ async def test_updated_at_is_never_content_hash_shaped():
     datetime.fromisoformat(note.updated_at.replace("Z", "+00:00"))  # must not raise
     assert refs[0].updated_at == "2026-08-01T00:00:00Z"
     assert note.updated_at == "2026-08-01T00:00:00Z"
+
+
+async def test_an_unsafe_markdown_image_is_an_unsafe_notice_never_media():
+    """Plan A Task 15 fix round 1 (controller ruling): on the connector path an image whose
+    src is javascript:/vbscript:/file: -- raw or percent-encoded -- becomes an importNotice
+    `unsafe` in place, and is never a media entry the engine would try to fetch."""
+    entries = [{
+        ".tag": "file", "name": "a.md", "path_lower": TRADING_MD_PATH,
+        "content_hash": "b" * 64, "server_modified": "2026-08-01T00:00:00Z",
+    }]
+    text = "![x](javascript:alert(1))\n\n![y](javascript%3Aalert(1))\n\n![](file:///C:/a.png)\n"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            return httpx.Response(200, content=text.encode("utf-8"))
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    note = await provider.fetch(CREDS, refs[0])
+    assert note.media == []
+    assert note.doc["content"] == [
+        {"type": "importNotice", "attrs": {
+            "reason": "unsafe", "name": name, "sourceUrl": None, "ref": None, "attempts": 0}}
+        for name in ("x", "y", None)]
 
 
 async def test_last_seen_hashes_disambiguates_by_credentials_not_just_folder_path():
@@ -1744,6 +1814,22 @@ async def test_two_full_passes_with_churn_but_no_deletions_severs_nothing(
     assert not any("source-deleted" in n["tags"] for n in notes)
 
 
+def _a_night_later(source_id):
+    """Backdate the source's previous full pass by a day, so the next
+    back-to-back full pass on the real clock is shaped like the NEXT nightly
+    pass. A removal strike only counts when the previous full pass is at least
+    MEMBER_FULL_PASS_MIN_INTERVAL_S old; these tests model nightly passes."""
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ?",
+            ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), source_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 async def test_a_real_deletion_still_severs_after_two_full_passes(_engine_db, monkeypatch):
     """(3) Control for the fix above: genuine delete detection must still
     WORK. Three files; the third is truly removed from the Dropbox listing
@@ -1782,9 +1868,11 @@ async def test_a_real_deletion_still_severs_after_two_full_passes(_engine_db, mo
     # a.md and b.md are UNCHANGED (same content_hash) on both remaining
     # passes -- with the fix they still appear in `refs` every time, so they
     # never accumulate a miss_streak of their own.
+    _a_night_later(source["id"])
     result_2 = await note_engine.sync_source(source["id"], full=True, manual=True)
     assert result_2["sourceDeleted"] == 0  # first miss for c.md -- not severed yet
 
+    _a_night_later(source["id"])
     result_3 = await note_engine.sync_source(source["id"], full=True, manual=True)
     assert result_3["sourceDeleted"] == 1  # second consecutive miss -- severed now
 

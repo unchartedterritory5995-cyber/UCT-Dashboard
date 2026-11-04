@@ -139,6 +139,110 @@ export function supertrendTrees(factorNode, periodNode, warmup = SUPERTREND_WARM
   }
 }
 
+// ─── ⭐⭐ PARABOLIC SAR — THE FIRST EXPANSION OVER A MULTI-STATE RECURRENCE ─────
+//
+// `closedTable.json::_functions_excluded.sar` refused this name because SAR
+// carries a trend, a stop, an extreme point and an acceleration factor that all
+// read one another bar to bar — a tuple no single `accum` could hold. `accum4`
+// (`_functions_multi_state`) is that tuple, so `sar(step, maxStep)` ships as an
+// EXPANSION, never a table entry, exactly as Supertrend did.
+//
+// ⭐ THE RULES ARE THE CHART'S OWN. `indicators.js::computeParabolicSAR` is the
+// Parabolic SAR the chart already draws, so the formula's `sar` is that one rule —
+// never a second SAR that disagrees with the indicator beside it:
+//
+//   proj   = sar + af·(ep − sar)
+//   up:    stop = min(proj, low[1], low[2]);  low < stop  ⇒ flip down, sar = ep, ep = low,  af = step
+//                                             else high > ep ⇒ ep = high, af = min(af + step, maxStep)
+//   down:  stop = max(proj, high[1], high[2]); high > stop ⇒ flip up,  sar = ep, ep = high, af = step
+//                                             else low < ep  ⇒ ep = low,  af = min(af + step, maxStep)
+//
+// with the window seeded at bar `i − W` as the chart seeds bar 0: up if the close
+// rose, the stop at that bar's low (high), the extreme at its high (low), af = step.
+//
+// ⛔ BOUNDED, AND THE DOMAIN IS THE MEASURED ONE. The chart's SAR runs from the
+// first bar; this re-seeds `W` bars back. The old ruling's worry — "a missed trend
+// flip never decays out of the state" — was MEASURED (2026-10-30): with step ≥ 0.02
+// and maxStep ≥ 0.2 the windowed value equals the full-history chart SAR on every
+// bar measured — 0 of 212,206 bars over 38 distinct captured series, and 0 of
+// ~650,000 synthetic bars across trending, grinding, spiking and choppy regimes —
+// because the clamp to the prior two lows/highs and an `af` that reaches 0.2 merge
+// two trajectories exactly. BELOW that domain it does not: step 0.01 drifted up to
+// 5%, step 0.001 up to 34%. So a slower setting is REFUSED by name rather than
+// served from a different history — `expansionProblem` says so and names the chart
+// indicator, which runs from the first bar, as the alternative.
+// ⛔ The value is withheld until the window's seed bar has a previous close
+// (`close[W + 1]` known), so no published bar reads a seed that does not exist.
+export const SAR_WARMUP = 200
+export const SAR_MIN_STEP = 0.02
+export const SAR_MIN_MAX_STEP = 0.2
+export const SAR_NOTE = `Parabolic SAR here uses the chart's own Parabolic SAR rules and starts each value ${SAR_WARMUP} bars back instead of at the first bar of history. With a step of at least ${SAR_MIN_STEP} and a maximum of at least ${SAR_MIN_MAX_STEP} it matched the chart's full-history SAR on every bar we measured; it is not TradingView's ta.sar, whose first bars and reversal details differ.`
+
+/** A finite number literal in (0, 1], or NaN. */
+function accelOf(node) {
+  const f = node && node.type === 'num' ? Number(node.value) : NaN
+  return Number.isFinite(f) && f > 0 && f <= 1 ? f : NaN
+}
+
+/** `{value, direction}` trees for Parabolic SAR with `(step, maxStep)`, or null
+ *  outside the measured domain. `direction` is 1 in an up-trend (the stop below
+ *  price) and −1 in a down-trend — the chart's own `isUptrend`. */
+export function sarTrees(stepNode, maxNode, warmup = SAR_WARMUP) {
+  const step = accelOf(stepNode)
+  const max = accelOf(maxNode)
+  if (!Number.isFinite(step) || !Number.isFinite(max)) return null
+  if (step < SAR_MIN_STEP || max < SAR_MIN_MAX_STEP || max < step) return null
+  const s = (k) => cSeries(`state${k}`)
+  const H = cSeries('high')
+  const L = cSeries('low')
+  const C = cSeries('close')
+  const back = (node, n) => ({ type: 'offset', value: n, args: [node] })
+  const one = cNum(1)
+  const minusOne = cNum(-1)
+  const STEP = cNum(step)
+  const MAX = cNum(max)
+  // seeds — the bar the window starts on, read as the chart reads bar 0
+  const rose = cOp('>', [C, back(C, 1)])
+  const seedTrend = cOp('?:', [rose, one, minusOne])
+  const seedSar = cOp('?:', [rose, L, H])
+  const seedEp = cOp('?:', [rose, H, L])
+  // updates — every one reads LAST bar's four states
+  const isUp = cOp('==', [s(1), one])
+  const proj = cOp('+', [s(2), cOp('*', [s(4), cOp('-', [s(3), s(2)])])])
+  const upStop = cCall('min', [proj, cCall('min', [back(L, 1), back(L, 2)])])
+  const dnStop = cCall('max', [proj, cCall('max', [back(H, 1), back(H, 2)])])
+  const flipDn = cOp('<', [L, upStop])
+  const flipUp = cOp('>', [H, dnStop])
+  const newHigh = cOp('>', [H, s(3)])
+  const newLow = cOp('<', [L, s(3)])
+  const faster = cCall('min', [cOp('+', [s(4), STEP]), MAX])
+  const trend = cOp('?:', [isUp, cOp('?:', [flipDn, minusOne, one]), cOp('?:', [flipUp, one, minusOne])])
+  const sar = cOp('?:', [isUp, cOp('?:', [flipDn, s(3), upStop]), cOp('?:', [flipUp, s(3), dnStop])])
+  const ep = cOp('?:', [isUp,
+    cOp('?:', [flipDn, L, cOp('?:', [newHigh, H, s(3)])]),
+    cOp('?:', [flipUp, H, cOp('?:', [newLow, L, s(3)])])])
+  const af = cOp('?:', [isUp,
+    cOp('?:', [flipDn, STEP, cOp('?:', [newHigh, faster, s(4)])]),
+    cOp('?:', [flipUp, STEP, cOp('?:', [newLow, faster, s(4)])])])
+  // ⛔ A MISSING BAR POISONS ITS WINDOWS, never a confident guess. With `low` unknown
+  // the flip test would read "no reversal" (a comparison with `na` is 0) and carry
+  // on as if nothing happened; instead every state goes `na`, so each window holding
+  // the hole is withheld and the value comes back once the hole leaves the window.
+  const na = cOp('/', [cNum(0), cNum(0)])
+  const hole = cOp('||', [cCall('na', [H]), cCall('na', [L])])
+  const guarded = (u) => cOp('?:', [hole, na, u])
+  const W = cNum(warmup)
+  const run = (output) => cCall('accum4', [cNum(output), W, seedTrend, seedSar, seedEp, STEP,
+    guarded(trend), guarded(sar), guarded(ep), guarded(af)])
+  const unknown = cCall('na', [back(C, warmup + 1)])
+  const value = run(2)
+  return {
+    value: cOp('?:', [unknown, na, value]),
+    // the direction is shown exactly where the stop is
+    direction: cOp('?:', [cOp('||', [unknown, cCall('na', [value])]), na, run(1)]),
+  }
+}
+
 /**
  * name → `{ min, max, describe, build(args) → tree | null }`. `args` are canonical
  * trees; `describe` is the formula-reference line for the vocabulary list.
@@ -233,6 +337,33 @@ export const CALL_EXPANSIONS = Object.freeze({
       return cOp('-', [mid, cOp('*', [a[2], cCall('ema', [trueRangeTree(), cNum(n)])])])
     },
   },
+  // ta.bb(src, n, mult) → [middle, upper, lower]: sma(src,n) ± mult·stdev(src,n) — the SAME
+  // trees pine.js `PINE_TUPLE_BUILTINS.bb` builds, so a Pine `ta.bb` import and a member's
+  // "add Bollinger Bands" store one identity (2026-11-01).
+  bbMiddle: {
+    min: 2, max: 2, signature: 'bbMiddle(source, length)', describe: 'Bollinger Band middle line: sma(source, n)',
+    build: (a) => {
+      const n = windowOf(a[1], 1)
+      if (!Number.isFinite(n)) return null
+      return cCall('sma', [a[0], cNum(n)])
+    },
+  },
+  bbUpper: {
+    min: 3, max: 3, signature: 'bbUpper(source, length, multiplier)', describe: 'Bollinger Band upper band: sma(source, n) + multiplier × stdev(source, n)',
+    build: (a) => {
+      const n = windowOf(a[1], 1)
+      if (!Number.isFinite(n) || !a[2]) return null
+      return cOp('+', [cCall('sma', [a[0], cNum(n)]), cOp('*', [a[2], cCall('stdev', [a[0], cNum(n)])])])
+    },
+  },
+  bbLower: {
+    min: 3, max: 3, signature: 'bbLower(source, length, multiplier)', describe: 'Bollinger Band lower band: sma(source, n) − multiplier × stdev(source, n)',
+    build: (a) => {
+      const n = windowOf(a[1], 1)
+      if (!Number.isFinite(n) || !a[2]) return null
+      return cOp('-', [cCall('sma', [a[0], cNum(n)]), cOp('*', [a[2], cCall('stdev', [a[0], cNum(n)])])])
+    },
+  },
   // ta.supertrend(factor, atrPeriod)[0] / [1] — see `supertrendTrees` above.
   // ⛔ `vendorNote`: the ONE expansion that is not an exact identity. Its bands are
   // bounded recurrences, so it is disclosed wherever vendor notes are read
@@ -248,6 +379,19 @@ export const CALL_EXPANSIONS = Object.freeze({
     vendorNote: SUPERTREND_NOTE,
     build: (a) => { const t = supertrendTrees(a[0], a[1]); return t ? t.direction : null },
   },
+  // Parabolic SAR — `sarTrees` above: the chart's own SAR rules over `accum4`.
+  // ⛔ `vendorNote`: bounded, and not TradingView's `ta.sar` — disclosed wherever
+  // vendor notes are read, exactly as `supertrend` is.
+  sar: {
+    min: 2, max: 2, signature: 'sar(step, maxStep)', describe: `Parabolic SAR: the stop that trails the trend and jumps to the other side when price crosses it, accelerating by \`step\` up to \`maxStep\` — the chart's own Parabolic SAR (step at least ${SAR_MIN_STEP}, maximum at least ${SAR_MIN_MAX_STEP}; shown after a ${SAR_WARMUP}-bar warm-up)`,
+    vendorNote: SAR_NOTE,
+    build: (a) => { const t = sarTrees(a[0], a[1]); return t ? t.value : null },
+  },
+  sarDirection: {
+    min: 2, max: 2, signature: 'sarDirection(step, maxStep)', describe: 'the Parabolic SAR trend: 1 in an up-trend (the stop below price), −1 in a down-trend',
+    vendorNote: SAR_NOTE,
+    build: (a) => { const t = sarTrees(a[0], a[1]); return t ? t.direction : null },
+  },
 })
 
 export const EXPANSION_NAMES = Object.freeze(Object.keys(CALL_EXPANSIONS))
@@ -259,11 +403,19 @@ export const isExpansionName = (name) => typeof name === 'string'
 export function expansionProblem(call) {
   const spec = CALL_EXPANSIONS[call.name]
   const n = (call.args || []).length
+  if ((call.name === 'sar' || call.name === 'sarDirection') && n === 3) {
+    return `${call.name} takes 2 arguments — ${spec.signature}. TradingView's ta.sar(start, increment, maximum) `
+      + `uses one step for both the start and the increment here: \`${call.name}(0.02, 0.2)\` is the usual setting`
+  }
   if (n < spec.min || n > spec.max) {
     return `${call.name} takes ${spec.min === spec.max ? spec.min : `${spec.min} or ${spec.max}`} arguments — ${spec.signature}`
   }
   if (call.name === 'supertrend' || call.name === 'supertrendDirection') {
     return `${call.name} needs a positive factor and a whole-number ATR period, both written as numbers — ${spec.signature}`
+  }
+  if (call.name === 'sar' || call.name === 'sarDirection') {
+    return `${call.name} needs a step of at least ${SAR_MIN_STEP} and a maximum of at least ${SAR_MIN_MAX_STEP} (and no more than 1), both written as numbers, the maximum at least the step — ${spec.signature}. `
+      + `Slower settings are not offered because a value computed from the last ${SAR_WARMUP} bars was measured to drift from the full-history SAR there; the chart's Parabolic SAR indicator runs from the first bar and takes any setting`
   }
   return `${call.name} needs a whole-number length${call.name === 'linreg' || call.name === 'correlation' ? ' of at least 2' : ''} written as a number — ${spec.signature}`
 }
@@ -420,6 +572,10 @@ function candidates(t) {
   if ((isOp(t, '+', 2) || isOp(t, '-', 2)) && isCall(t.args[0], 'ema') && isOp(t.args[1], '*', 2)) {
     out.push([t.name === '+' ? 'kcUpper' : 'kcLower', [t.args[0].args[0], t.args[0].args[1], t.args[1].args[0]]])
   }
+  if (isCall(t, 'sma') && t.args.length === 2) out.push(['bbMiddle', [t.args[0], t.args[1]]])
+  if ((isOp(t, '+', 2) || isOp(t, '-', 2)) && isCall(t.args[0], 'sma') && isOp(t.args[1], '*', 2)) {
+    out.push([t.name === '+' ? 'bbUpper' : 'bbLower', [t.args[0].args[0], t.args[0].args[1], t.args[1].args[0]]])
+  }
   // supertrend / supertrendDirection: `unknown ? na : …`, where `unknown` reads the upper
   // band `W` bars back; the factor and the ATR period are read off that band's seed.
   if (isOp(t, '?:', 3) && isOp(t.args[0], '||', 2) && isCall(t.args[0].args[0], 'na')) {
@@ -433,20 +589,41 @@ function candidates(t) {
       out.push(['supertrendDirection', [scaled.args[0], atr.args[3]]])
     }
   }
+  // sar / sarDirection: `unknown ? na : …` over an `accum4` whose 4th seed is the step;
+  // the maximum is read off the acceleration update's `min(af + step, max)`. Rebuilt
+  // and compared below, so a guess here can only miss, never misname.
+  if (isOp(t, '?:', 3)) {
+    const run = isCall(t.args[2], 'accum4') ? t.args[2] : null
+    if (run && run.args.length === 10) {
+      const stepNode = run.args[5]
+      const af = run.args[9]
+      const inner = af && af.args && af.args[2]
+      const upArm = inner && inner.args && inner.args[1]
+      const climb = upArm && upArm.args && upArm.args[2]
+      const faster = climb && climb.args && climb.args[1]
+      const maxNode = isCall(faster, 'min') ? faster.args[1] : null
+      if (stepNode && maxNode) {
+        out.push(['sar', [stepNode, maxNode]])
+        out.push(['sarDirection', [stepNode, maxNode]])
+      }
+    }
+  }
   return out
 }
 
 /**
  * ⭐ `{name, args}` when `tree` is EXACTLY the expansion of an expansion call, else
- * null. Two shapes are too ordinary to rename by default: `kcMiddle` is a bare
- * `ema` (an EMA is an EMA unless its siblings say otherwise — `allowBareEma`) and
+ * null. Three shapes are too ordinary to rename by default: `kcMiddle` is a bare
+ * `ema` (an EMA is an EMA unless its siblings say otherwise — `allowBareEma`),
+ * `bbMiddle` a bare `sma` (`allowBareSma`) and
  * `mom` is any `x − x[n]` (a hand-written difference stays a difference —
  * `allowMom`). Both still EXPAND exactly; only the read-back name is withheld.
  */
-export function recogniseExpansion(tree, { allowBareEma = false, allowMom = false } = {}) {
+export function recogniseExpansion(tree, { allowBareEma = false, allowBareSma = false, allowMom = false } = {}) {
   if (!tree || typeof tree !== 'object') return null
   for (const [name, args] of candidates(tree)) {
     if (name === 'kcMiddle' && !allowBareEma) continue
+    if (name === 'bbMiddle' && !allowBareSma) continue
     if (name === 'mom' && !allowMom) continue
     const built = expandCall({ type: 'call', name, args })
     if (built && same(built, tree)) return { name, args }

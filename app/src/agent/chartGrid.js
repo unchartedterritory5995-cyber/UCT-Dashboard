@@ -44,7 +44,12 @@ const sameRect = (a, b) => RECT.every(k => a[k] === b[k])
 // edge) and a new widget of that type is added there. Any other widget in that column → refused (nothing the member did not
 // mention moves). A board that already has a widget of that type gets no rail (`rail` is then ignored).
 export const RAIL_W = 6
-export function planChartGrid({ board, charts, symbols, timeframe = null, layout = null, newCharts = false, cols, rows, minOf, maxWidgets, detached = [], rail = null }) {
+// ⭐ PHASE 3 acceptance (live 2026-10-31): `replace` — the member CHOSE to replace the current board with this workspace
+// ("Replace current board"). Every widget on the board that is not one of the first n charts (reading order) is REMOVED
+// in the same change, except a Watchlist when a rail is asked for: that one is MOVED into the rail (its list kept). The
+// board's own Undo puts every removed widget back whole (capabilities/board.js commitGrid / undoGrid). Never set by the
+// planner on its own: only from the member's pick, and chartGrid.set with `replace` is always a proposal (confirmIf).
+export function planChartGrid({ board, charts, symbols, timeframe = null, layout = null, newCharts = false, cols, rows, minOf, maxWidgets, detached = [], rail = null, replace = false }) {
   const syms = (symbols || []).map(s => String(s || '').trim().toUpperCase()).filter(Boolean)
   const n = syms.length
   if (!n) return { ok: false, reason: 'Which tickers?' }
@@ -52,10 +57,21 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
   if (n > MAX_GRID_CHARTS) return { ok: false, reason: `That's more than ${MAX_GRID_CHARTS} charts in one grid — ask for fewer.` }
   const away = new Set((detached || []).map(String))
   let onGrid = board.filter(w => !away.has(String(w.id)))
+  const remove = []
+  let railMove = null
+  if (replace) {
+    if (newCharts) return { ok: false, reason: 'Replacing the board reuses its charts — ask without “new”.' }
+    const keep = new Set(onGrid.filter(w => w.type === 'chart' && charts.has(String(w.id))).sort(readingOrder).slice(0, n).map(w => String(w.id)))
+    const list = rail ? onGrid.find(w => w.type === rail.type) : null
+    if (list) railMove = String(list.id)
+    for (const w of onGrid) if (!keep.has(String(w.id)) && String(w.id) !== railMove) remove.push(String(w.id))
+    onGrid = onGrid.filter(w => keep.has(String(w.id)))
+    board = board.filter(w => !remove.includes(String(w.id)) && String(w.id) !== railMove)
+  }
   // the rail: cleared of charts first, then held by a stand-in so the tiling below grows nothing into it
   let railAdd = null
   const railSet = {}
-  if (rail && !board.some(w => w.type === rail.type)) {
+  if (rail && (railMove || !board.some(w => w.type === rail.type))) {
     const rw = rail.w || RAIL_W
     const rx = cols - rw
     const inRail = onGrid.filter(w => w.x + w.w > rx)
@@ -63,10 +79,10 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     if (blocker) return { ok: false, reason: `There's no room for a ${rail.label || rail.type} on the right without moving the ${blocker.type === 'chart' ? 'chart' : rail.labelOf?.(blocker.type) || blocker.type} there — make room first, or ask without it.` }
     const { minW } = minOf({ type: 'chart' })
     if (inRail.some(w => rx - w.x < minW)) return { ok: false, reason: `There's no room for a ${rail.label || rail.type} beside your charts — they would be narrower than a chart can be.` }
-    if (board.length + 1 > maxWidgets) return { ok: false, reason: `The workspace already holds ${board.length} widgets — there's no room for a ${rail.label || rail.type} too.` }
+    if (!railMove && board.length + 1 > maxWidgets) return { ok: false, reason: `The workspace already holds ${board.length} widgets — there's no room for a ${rail.label || rail.type} too.` }
     for (const w of inRail) railSet[String(w.id)] = { x: w.x, y: w.y, w: rx - w.x, h: w.h }
     onGrid = [...onGrid.map(w => (railSet[String(w.id)] ? { ...w, ...railSet[String(w.id)] } : w)), { id: '__rail', type: rail.type, x: rx, y: 0, w: rw, h: rows }]
-    railAdd = { type: rail.type, rect: { x: rx, y: 0, w: rw, h: rows } }
+    if (!railMove) railAdd = { type: rail.type, rect: { x: rx, y: 0, w: rw, h: rows } }
   }
   const chartWs = onGrid.filter(w => w.type === 'chart' && charts.has(String(w.id))).sort(readingOrder)
   // the charts that take a cell: the first n (reused for the tickers), or with newCharts every chart (kept as they are)
@@ -78,7 +94,8 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     return { ok: false, reason: `That needs ${needed} more chart${needed === 1 ? '' : 's'}, but the workspace holds ${maxWidgets} widgets and has room for ${free} more. Close a widget you don't need, or ask for fewer charts.` }
   }
   const pattern = layout || 'grid'
-  const tiled = needed > 0 || layout != null
+  // ⭐ PHASE 3 acceptance: a rail that narrowed some charts (or a replaced board) re-tiles them, so the grid stays even
+  const tiled = needed > 0 || layout != null || Object.keys(railSet).length > 0 || remove.length > 0
   let set = {}
   let addRects = []
   let shape = null
@@ -149,6 +166,9 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
   })
   const add = addRects.map((rect, i) => ({ rect, symbol: syms[(newCharts ? 0 : k) + i], tf: timeframe || null }))
   if (railAdd) add.push({ type: railAdd.type, rect: railAdd.rect, opts: {} })
-  const noop = !add.length && !Object.keys(set).length && !unlink.length && reuse.every(r => r.symbol == null && r.tf == null)
-  return { ok: true, reuse: newCharts ? reuse.filter(r => r.id in set) : reuse, add, set, unlink, tiled, shape, noop, symbols: syms, timeframe, newCharts: !!newCharts, kept: newCharts ? k : 0, rail: railAdd ? railAdd.type : null }
+  if (railMove) {
+    set[railMove] = { x: cols - (rail.w || RAIL_W), y: 0, w: rail.w || RAIL_W, h: rows }
+  }
+  const noop = !add.length && !remove.length && !Object.keys(set).length && !unlink.length && reuse.every(r => r.symbol == null && r.tf == null)
+  return { ok: true, reuse: newCharts ? reuse.filter(r => r.id in set) : reuse, add, set, unlink, tiled, shape, noop, symbols: syms, timeframe, newCharts: !!newCharts, kept: newCharts ? k : 0, rail: railAdd ? railAdd.type : null, remove, railMoved: railMove }
 }

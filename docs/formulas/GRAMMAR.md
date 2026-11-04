@@ -89,7 +89,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (83)
+## Functions (86)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -98,6 +98,9 @@ decide whether a formula can run at all.
 |---|---|---|---|
 | `abs(source)` | a number | 0 bars | the absolute value of `source` |
 | `accum(seed, update, warmupPeriod)` | a number | whatever `warmupPeriod` asks for | the running value that starts at `seed` and becomes `update` on each of the last `warmupPeriod` bars |
+| `accum2(stateIndex, warmupPeriod, seed1, seed2, update1, update2)` | a number | whatever `warmupPeriod` asks for | running value number `stateIndex` of two that start at `seed1`, `seed2` and together become `update1`, `update2` on each of the last `warmupPeriod` bars |
+| `accum3(stateIndex, warmupPeriod, seed1, seed2, seed3, update1, update2, update3)` | a number | whatever `warmupPeriod` asks for | running value number `stateIndex` of three that start at `seed1`, `seed2`, `seed3` and together become `update1`, `update2`, `update3` on each of the last `warmupPeriod` bars |
+| `accum4(stateIndex, warmupPeriod, seed1, seed2, seed3, seed4, update1, update2, update3, update4)` | a number | whatever `warmupPeriod` asks for | running value number `stateIndex` of four that start at `seed1`, `seed2`, `seed3`, `seed4` and together become `update1`, `update2`, `update3`, `update4` on each of the last `warmupPeriod` bars |
 | `acos(source)` | a number | 0 bars | the arccosine of `source` |
 | `adx(high, low, close, period)` | a number | 2*arg3 | the `period`-bar ADX of `high`, `low` and `close` |
 | `alma(source, period, weightCentre, weightSpread)` | a number | whatever `period` asks for | the `period`-bar Arnaud Legoux average of `source` at offset `weightCentre` and sigma `weightSpread` |

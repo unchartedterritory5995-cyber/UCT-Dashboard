@@ -29,14 +29,18 @@ plus the table constraint `UNIQUE(alert_id, fire_key)`, which is not a column
 and is the fire-once guard AND the history at the same time.
 
 **`indicator_alerts`** — `api/services/indicator_alert_service.py`,
-TWENTY-FOUR columns (14 in the CREATE, 10 added by ALTER):
+TWENTY-FIVE columns (14 in the CREATE, 11 added by ALTER):
 
     CREATE: id · user_id · sym · indicator · condition · threshold · tf ·
             params_json · active · last_value · last_evaluated_at ·
             triggered_at · trigger_count · created_at
     ALTER:  state · state_detail · state_at · arm_epoch · snooze_until ·
             last_fire_key · instance_id · instance_missing_at · scope ·
-            def_source
+            def_source · plot_uid
+
+(`plot_uid`, 2026-11-02, is the LINE a user alert is bound to -- written by the
+service and the alert lane, never sent by a member, so it is recorded here and not
+pinned, like `instance_missing_at`. The "ten" in (b) below was the count then.)
 
 ⚠️ THREE DIVERGENCES FROM THE PACKET, RECORDED RATHER THAN SILENTLY RESOLVED:
 

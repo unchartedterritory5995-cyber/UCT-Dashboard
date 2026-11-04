@@ -50,13 +50,21 @@ afterEach(() => {
 })
 
 describe('RT4 — the object program is not drawn without the run', () => {
-  it.each(PROBES)('%s: the document is a runtime document that CARRIES an object program (non-vacuity)', (name) => {
+  // ⭐ WS-E (2026-10-31) — both probes' HOST object program is PARTIAL (30 of 31
+  // drawing ops dropped: drawings under a guard on `var` state), so the runtime
+  // document now takes its drawings from its OWN run (`runtimeObjectsDoor.js`)
+  // instead of carrying the host program. RT4's rule — no drawing without the run,
+  // never DIVERGE or MATCH for a drawing the pane would put up alone — is asserted
+  // on that route here; the host-program gate (`runtimeObjectsWithheld`) is held
+  // below on a runtime document whose host program is CLEAN and so still carried.
+  it.each(PROBES)('%s: the document is a runtime document whose drawings are its RUN\'s (non-vacuity)', (name) => {
     const cap = capture(name)
     on()
     const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
     expect(built.ok, built.reason).toBe(true)
     expect(built.lane).toBe('runtime')
-    expect(built.definition.objects && built.definition.objects.ops.length).toBeGreaterThan(0)
+    expect(built.definition.compute.objects).toBe(true)
+    expect(built.definition.objects).toBeFalsy()
     expect(cap.history && cap.history.startsAtBar0).not.toBe(true)
   })
 
@@ -66,7 +74,7 @@ describe('RT4 — the object program is not drawn without the run', () => {
     const { verdict } = gradeCapture(cap)
     expect(verdict.objects, 'the capture records objects, so a row exists').toBeTruthy()
     expect(verdict.objects.verdict).toBe('INCONCLUSIVE')
-    expect(verdict.objects.reason).toContain(registry.RUNTIME_OBJECTS_GUARD)
+    expect(verdict.objects.reason).toContain('the run drew nothing')
     // UIE Phase 2: off the listing the run is tried behind its warm-up curtain; these
     // probes plot `bar_index` (their CONTROL row), which never forgets its first bar
     expect(verdict.objects.reason).toContain('runtime:warmup-never-converges')
@@ -76,22 +84,21 @@ describe('RT4 — the object program is not drawn without the run', () => {
     for (const p of verdict.plots) expect(p.verdict, p.title).toBe('INCONCLUSIVE')
   })
 
-  it('⭐ CONTROL: the same document with a run that COMPUTES opens the gate', () => {
-    const cap = capture(PROBES[0])
+  it('⭐ CONTROL: a runtime document CARRYING a clean host program is gated until its run computes', () => {
     on()
-    const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
+    const src = '//@version=6\nindicator("t", overlay = true)\nvar float acc = 0\nacc += close\nplot(acc)\n'
+      + 'if bar_index % 50 == 0\n    label.new(bar_index, close, "x")\n'
+    const built = memberPaneDefinition({ source: src, id: DEF_ID })
+    expect(built.ok, built.reason).toBe(true)
+    expect(built.lane).toBe('runtime')
     const def = built.definition
-    const bars = toProductBars(cap)
-    // the run refused here (the capture does not start at the listing) ...
-    const refused = registry.computeFor(def, bars, undefined, { tf: 'D', newestBarIsForming: false })
-    expect(Object.keys(refused)).toEqual([])
-    const why = registry.runtimeObjectsWithheld(def, refused)
+    expect(def.objects && def.objects.ops.length).toBeGreaterThan(0)
+    // nothing computed at all (a run in flight, or a run that refused) is withheld ...
+    const why = registry.runtimeObjectsWithheld(def, undefined)
     expect(why && why.guard).toBe(registry.RUNTIME_OBJECTS_GUARD)
-    expect(why.message).toContain('runtime:warmup-never-converges')
-    // ... nothing computed at all (a run in flight) is withheld too ...
-    expect(registry.runtimeObjectsWithheld(def, undefined)).toBeTruthy()
     expect(registry.runtimeObjectsWithheld(def, {})).toBeTruthy()
     // ... and a run that computed its columns draws its objects
+    const bars = Array.from({ length: 120 }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100 + i, h: 101 + i, l: 99 + i, c: 100 + i, v: 1000 }))
     const cols = computeRuntimeColumns(def, bars, { tf: 'D', newestBarIsForming: false, historyFromListing: true })
     expect(Object.keys(cols).length).toBeGreaterThan(0)
     expect(registry.runtimeObjectsWithheld(def, cols)).toBeNull()

@@ -2,7 +2,7 @@
 // auto-follow / Jump to live, highlight, sound (muted by default, once per headline
 // across widgets), settings persistence, error states. The shared pool is mocked
 // so the test drives the feed directly. Synthetic headlines only.
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const feed = vi.hoisted(() => {
@@ -117,14 +117,25 @@ describe('TradeExchangeNewsWidget', () => {
     expect(screen.queryByText('Macro')).toBeNull()
   })
 
-  it('the header brands the widget and keeps LIVE, pause, alerts and settings', () => {
-    mount()
+  it('the header brands the widget and holds, in order, LIVE -> Saved Headlines -> Settings; no pause, no alerts bell', () => {
+    const { container } = mount()
     expect(screen.getByText('UCT News')).toBeInTheDocument()
     expect(screen.getByText('Powered by Trade Exchange')).toBeInTheDocument()
     expect(screen.getByText('Live')).toBeInTheDocument()
-    for (const label of ['Turn auto-follow off', 'News alerts', 'News widget settings']) {
-      expect(screen.getByLabelText(label)).toBeInTheDocument()
-    }
+    const bar = container.querySelector('[class*="_bar_"]')
+    const order = [...bar.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') || b.textContent.trim())
+    expect(order).toEqual(['Live', 'Show saved headlines', 'News widget settings'])
+    expect(screen.queryByLabelText(/auto-follow/)).toBeNull()
+    expect(screen.queryByLabelText('News alerts')).toBeNull()
+  })
+
+  it('the toolbar is Search... | Filters | All Lists', () => {
+    const { container } = mount()
+    const bar = container.querySelector('[class*="searchBar"]')
+    expect(screen.getByLabelText('Search headlines')).toHaveAttribute('placeholder', 'Search...')
+    const controls = [...bar.querySelectorAll('input, button, select')].map((e) => e.getAttribute('aria-label'))
+    expect(controls).toEqual(['Search headlines', expect.stringMatching(/^News filters/), 'Filter by watchlist'])
+    expect(screen.getByRole('option', { name: 'All Lists' })).toBeInTheDocument()
   })
 
   it('tickers take the theme up/down colour from the daily change, neutral when missing or stale', () => {
@@ -174,17 +185,37 @@ describe('TradeExchangeNewsWidget', () => {
     expect(container.querySelector('[class*="flash"]')).toBeNull()
   })
 
-  it('a graphic-only placeholder is hidden and counted, and can be shown', async () => {
-    const items = [...HISTORY, H(4, 'CRYPTO', [], { placeholder: 'graphic' })]
+  it('graphic-only posts (CRYPTO, "SPY Daily Weekly") are hidden, counted in the LIVE popover, and can be shown', async () => {
+    const items = [...HISTORY, H(4, 'CRYPTO', [], { placeholder: 'graphic' }),
+      H(5, 'SPY Daily Weekly', [], { placeholder: 'graphic' })]
     const { unmount } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
-    act(() => feed.set({ status: 'live', items, lastSeq: 4, lastHeadlineAt: NOW }))
+    act(() => feed.set({ status: 'live', items, lastSeq: 5, lastHeadlineAt: NOW }))
     expect(document.querySelector('[data-seq="4"]')).toBeNull()
-    expect(await screen.findByText(/1 graphic-only hidden/)).toBeInTheDocument()
+    expect(document.querySelector('[data-seq="5"]')).toBeNull()
+    expect(screen.queryByText(/graphic-only hidden/)).toBeNull()                 // never in the footer
+    fireEvent.click(screen.getByTitle(/Click for feed health/))
+    const health = await screen.findByRole('dialog', { name: 'Feed health' })
+    expect(health.querySelector('[data-key="graphic"]').textContent).toMatch(/2 hidden/)
     unmount()
     render(<TradeExchangeNewsWidget color="A" opts={{ settings: { graphicPlaceholders: 'show' } }} onOptsChange={vi.fn()} />)
-    act(() => feed.set({ status: 'live', items, lastSeq: 4, lastHeadlineAt: NOW }))
+    act(() => feed.set({ status: 'live', items, lastSeq: 5, lastHeadlineAt: NOW }))
     expect(document.querySelector('[data-seq="4"]')).not.toBeNull()
-    expect(screen.queryByText(/graphic-only hidden/)).toBeNull()
+    expect(document.querySelector('[data-seq="5"]')).not.toBeNull()
+  })
+
+  it('the footer holds only the date and time controls; the count and notes are in the LIVE popover', async () => {
+    const { container } = mount()
+    const footer = container.querySelector('[class*="footer"]')
+    expect(footer.querySelector('nav[aria-label="Date"]')).not.toBeNull()
+    expect(within(footer).getByRole('button', { name: 'Previous day' })).toBeInTheDocument()
+    expect(within(footer).getByRole('button', { name: /Choose a date/ })).toBeInTheDocument()
+    expect(within(footer).getByRole('button', { name: 'Next day' })).toBeInTheDocument()
+    expect(within(footer).getByRole('button', { name: 'Jump to Time' })).toBeInTheDocument()
+    expect(footer.textContent).not.toMatch(/headline|received times|provisional|graphic-only/)
+    fireEvent.click(screen.getByTitle(/Click for feed health/))
+    const health = await screen.findByRole('dialog', { name: 'Feed health' })
+    expect(health.querySelector('[data-key="view"]').textContent).toMatch(/headline/)
+    expect(health.querySelector('[data-key="times"]').textContent).toMatch(/received each headline, in ET/)
   })
 
   it('the new-headline highlight lasts 2.1 s (1.5 s hold + fade) and never fires for history pages or old replays', () => {
@@ -213,7 +244,10 @@ describe('TradeExchangeNewsWidget', () => {
 
   it('the linked-symbol and watchlist filters persist in opts and filter the feed', () => {
     const { container, onOptsChange } = mount()
-    fireEvent.click(screen.getByLabelText('Show only the linked symbol'))
+    fireEvent.click(screen.getByRole('button', { name: /^News filters/ }))
+    const menu = screen.getByRole('dialog', { name: 'News filters' })
+    expect(within(menu).getByRole('button', { name: 'All headlines' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(menu).getByRole('button', { name: /Linked to chart/ }))
     expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({ linked: true }))
     fireEvent.change(screen.getByLabelText('Filter by watchlist'), { target: { value: 'pre1' } })
     expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({ watchlistId: 'pre1' }))
@@ -260,12 +294,6 @@ describe('TradeExchangeNewsWidget', () => {
     const jump = screen.getByRole('button', { name: /Jump to live · 1 new/ })
     fireEvent.click(jump)
     expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({ follow: true }))
-  })
-
-  it('auto-follow toggle persists per widget', () => {
-    const { onOptsChange } = mount()
-    fireEvent.click(screen.getByLabelText('Turn auto-follow off'))
-    expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({ follow: false }))
   })
 
   it('density and sound settings persist per widget through the shared settings panel', () => {

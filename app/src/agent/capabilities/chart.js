@@ -21,6 +21,7 @@
 // No new settings key, so the chartDefaults allow-list is untouched.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { resolveDateWord, dayWord, isoDayMs } from '../dateWords'
 import { CHART_THEMES, CHART_THEME_BY_ID, applyThemeToOneChart } from '../../components/chart/chartThemes'
 import { primaryChartTypeFor } from '../../components/chart/engine/sourceCapability'
 import { canonicalFamily, canonicalProduct, canonicalSourceCapability, marketIndicatorRecord } from '../../hooks/useMarketIndicators'
@@ -143,18 +144,34 @@ const SETTING_HINTS = (() => {
     const key = d.labels ? Object.keys(d.labels).join('|') : d.options.join('|')
     groups.set(key, [...(groups.get(key) || []), d.id])
   }
+  // ids that differ in ONE segment are written once ("prevDayLevels.high|low|close.width"); the rest listed (W1-B: mixed prefixes)
   const short = (ids) => {
-    if (ids.length === 1) return ids[0]
-    const parts = ids.map(id => id.split('.'))
-    const same = parts.every(p => p.length === parts[0].length && p.every((x, i) => i === 1 || x === parts[0][i]))
-    return same ? parts[0].map((x, i) => (i === 1 ? ids.map(id => id.split('.')[1]).join('|') : x)).join('.') : ids.join(', ')
+    const out = []
+    const left = new Set(ids)
+    while (left.size) {
+      const id = [...left][0]
+      const parts = id.split('.')
+      let best = null
+      for (let i = 0; i < parts.length; i += 1) {
+        const members = [...left].filter(x => { const q = x.split('.'); return q.length === parts.length && q.every((p, j) => j === i || p === parts[j]) })
+        if (members.length > 1 && (!best || members.length > best.members.length)) best = { i, members }
+      }
+      if (best) { out.push(parts.map((p, j) => (j === best.i ? best.members.map(m => m.split('.')[best.i]).join('|') : p)).join('.')); best.members.forEach(m => left.delete(m)) } else { out.push(id); left.delete(id) }
+    }
+    return out.join(', ')
   }
   const enums = [...groups.entries()].map(([opts, ids]) => `${short(ids)}: ${opts}`)
-  return 'value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false); '
-    + 'a hex color (#2962ff) for color settings. '
-    + `Allowed values — ${enums.join('; ')}. `
-    + 'Only these settings: for any other chart setting (watermark opacity, volume style…) do NOT plan an op — '
-    + 'say it is not Agent-enabled yet and where it lives in Chart Settings.'
+  // W1-B: number settings, grouped by range ("watermark.opacity|x|y: 0–1")
+  const ranges = new Map()
+  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'number')) {
+    const key = `${d.min}–${d.max}${d.integer ? ' (whole)' : ''}`
+    ranges.set(key, [...(ranges.get(key) || []), d.id])
+  }
+  const nums = [...ranges.entries()].map(([r, ids]) => `${short(ids)}: ${r}`)
+  // (kept under the manifest's 1000-char hints cap — agentContracts.test.js; the exact arg SHAPE is the capability's `shape`)
+  return 'value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. '
+    + `Allowed — ${enums.join('; ')}; ${nums.join('; ')}. `
+    + 'Any other setting (header info-row fields, volume plot style…): no op — say where it lives in Chart Settings.'
 })()
 // "turn off the grid", "hide the watermark", "crosshair off", "show swing labels"
 const SETTING_WORDS = new Map(ELIGIBLE_SETTINGS.flatMap(d => (d.words || []).map(w => [w, d])))
@@ -216,22 +233,26 @@ export const chartKind = {
   name: 'chart',
   list: (host) => host?.charts?.list() || [],
   read: (host, ref) => host?.charts?.read(ref) || null,
-  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null }),
+  // `replay`: the workspace's Replay Mode cutoff (W1-B B-06) — undefined when the host has none (then chart.replay refuses)
+  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null, replay: snap.replay }),
   patch(before, after) {
     const p = {}
     if (after.cs !== before.cs) p.settings = after.cs
     if (after.tf !== before.tf) p.tf = after.tf
     if (after.symbol !== before.symbol) p.symbol = after.symbol
     if (after.goto != null) p.goto = after.goto
+    if (after.replay !== before.replay) p.replay = after.replay ?? null
     return Object.keys(p).length ? p : null
   },
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
   async commit(host, ref, patch) {
-    const { goto, ...rest } = patch
+    const { goto, replay, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
+    // Replay Mode: ChartsWorkspace's own startReplay / exitReplayMode (a VIEW on every linked chart; nothing is saved)
+    if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
     if (goto != null && ok) {
       if (!host.charts.goTo?.(ref, goto)) return false
       const t0 = Date.now()
@@ -248,6 +269,7 @@ export const chartKind = {
     if ('tf' in patch && snap.tf !== patch.tf) return false
     if ('symbol' in patch && snap.symbol !== patch.symbol) return false
     if ('goto' in patch && !viewAt(snap.view, patch.goto)) return false
+    if ('replay' in patch && (snap.replay ?? null) !== patch.replay) return false
     return true
   },
   undoPatch(item) {
@@ -258,13 +280,17 @@ export const chartKind = {
     // Undo a date jump = jump back to where the right edge was. When that edge was never read there
     // is no Undo for the change — and the receipt says why (chart.goToDate's undoNote, F6).
     if ('goto' in item.patch) { if (item.before.view?.rightMs == null) return null; p.goto = item.before.view.rightMs }
+    // Undo a replay = the cutoff as it was (off → clear it: every bar is back)
+    if ('replay' in item.patch) p.replay = item.before.replay ?? null
     return p
   },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
   // ⛔ F6: a date jump's Undo is stale once the member has moved the view since — scrolling back
   // would overwrite where they are now. Every other chart change ignores the view.
   fingerprintFor: (host, snap, item) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol,
-    ...('goto' in (item?.patch || {}) ? [snap.view?.rightMs ?? null] : [])]),
+    ...('goto' in (item?.patch || {}) ? [snap.view?.rightMs ?? null] : []),
+    // a replay's Undo is stale once the member changed the cutoff themselves (the Replay dialog)
+    ...('replay' in (item?.patch || {}) ? [snap.replay ?? null] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.
@@ -402,7 +428,7 @@ const CAPABILITIES = [
       // An explicit "symbol/ticker to X" may be lowercase: the noun removes the
       // ambiguity that keeps "show volume" from ever reading as a ticker.
       const m = /^\$([A-Za-z][A-Za-z0-9.]{0,9})$/.exec(raw)
-        || /^(?:chart|open|show|load|pull up|put|switch to|go to|(?:change|flip|switch)(?: it| this| that)? to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
+        || /^(?:chart|open|show|load|pull up|put|switch to|go to|(?:change|flip|switch)(?: it| this| that| the chart| this chart| my chart)? to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
         || /^(?:change|switch|set)\s+(?:the\s+)?(?:symbol|ticker)\s+to\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})$/i.exec(raw)
       // ⛔ "change the ticker to it" / "$" aside, a pronoun is never a ticker (nl/tickers.js)
       const typed = m && raw.includes(`$${m[1]}`) ? `$${m[1]}` : m?.[1]   // "$IT" is explicitly a ticker
@@ -412,7 +438,7 @@ const CAPABILITIES = [
       // whether it exists (or is an exact company name). "switch to weekly" stays a timeframe.
       // ⭐ PHASE 3: "change the bottom right to amd" — the position is lifted off first (fastPath.extractTarget), leaving
       // "change to amd"; the same N4 rule decides the word ("change to weekly" stays a timeframe)
-      const low = /^(?:chart|pull up|bring up|load|switch to|put up|(?:change|flip|switch)(?: it| this| that)? to)\s+([a-z][a-z0-9.]{0,9})$/.exec(raw)
+      const low = /^(?:chart|pull up|bring up|load|switch to|put up|(?:change|flip|switch)(?: it| this| that| the chart| this chart| my chart)? to)\s+([a-z][a-z0-9.]{0,9})$/.exec(raw)
       return low && plainSymbolWord(low[1], host, said) ? { symbol: low[1].toUpperCase() } : null
     },
     // Async lookup BEFORE planning: an unknown ticker is refused, never charted blank. NL N4: a symbol
@@ -615,13 +641,19 @@ const CAPABILITIES = [
     // read back, and undoable like every other chart change. A UI prerequisite (thin bars only
     // on Bars/HLC) refuses exactly where the dialog hides the control.
     name: 'chart.setSetting',
-    summary: 'Change one chart display setting from UCT\'s approved list (grid and its color, crosshair and its color, scale text size/color, legend, watermark and its size/weight/lines, labels, event markers, swing labels and their options, prev-day lines and their style/width/color, countdown, title, color mode, thin bars, inverted scale).',
+    summary: 'Change one chart display setting from UCT\'s approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).',
     hints: SETTING_HINTS,
     args: { type: 'object', properties: {
       setting: { type: 'string', enum: ELIGIBLE_SETTINGS.map(d => d.id) },
       value: { type: ['string', 'number', 'boolean'] },
     }, required: ['setting', 'value'], additionalProperties: false },
     fast: ({ lower, core }) => fastSetting(lower) || fastSetting(core),
+    // W1.1 R-01 (LT-3): what the live planner sent for the promoted rows — a differently named key for `setting`
+    // (the value's own typing — "off", "90%" — is read by coerceSettingValue, as the dialog reads it)
+    argAliases: { setting: ['key', 'id', 'name', 'option', 'settingId', 'setting_id', 'path', 'property'] },
+    shape: 'args {"setting": <one id from the list>, "value": …} — "turn the gradient off" = {"setting":"bgMode","value":"solid"}, '
+      + '"gradient on" = {"setting":"bgMode","value":"gradient"}, "hide the grid" = {"setting":"grid.visible","value":false}. Never invent '
+      + 'a setting id (no "bgGradient.enabled", no "background.gradient"): an on/off wish for a setting not listed is unsupported.',
     check(st, { setting, value }) {
       const d = settingDescriptor(setting)
       if (!d || d.agent !== 'eligible') return `“${setting}” isn't a chart setting UCT Agent can change.`
@@ -705,6 +737,40 @@ const CAPABILITIES = [
     undoNote: "I couldn't read where the chart was scrolled before, so this can't be undone here — scroll the chart back, or jump to another date.",
     apply: (st, { date }) => ({ ...st, goto: dateMs(date) }),
     describe: (b, a) => (a.goto != null ? `Moved the view to ${fmtDay(a.goto)} — the right edge shows the last bar on or before it (view only; later bars are still there)` : null),
+  },
+  {
+    // ── chart.replay (W1-B B-06): Tools → Replay Mode — the workspace's ONE shared cutoff (ChartsWorkspace replayCutoff,
+    // StockChart's `replayCutoff` prop): every linked chart hides the bars after it. A VIEW: nothing is saved; the Replay
+    // dialog's own startReplay / exitReplayMode write it; Undo puts the previous cutoff back (off → every bar is back).
+    name: 'chart.replay',
+    summary: 'Replay Mode (Tools → Replay): hide every bar after a date on the linked charts, as if it were that day — or exit replay (date null). A view only: nothing is saved; Undo clears it (or restores the previous cutoff).',
+    hints: 'date = YYYY-MM-DD (or the member\'s date word: "last friday", "oct 15") for the cutoff; null = exit replay. "As of <date>" / "replay from <date>" / "go back to <date> and hide what came after" = this; "scroll to <date>" with every bar kept = chart.goToDate.',
+    args: { type: 'object', properties: { date: { type: ['string', 'null'] } }, required: ['date'], additionalProperties: false },
+    // W1.1 R-01 (LT-3, live "exit replay" refused as off-schema): the cutoff under another key, and the exit said as a word
+    argAliases: { date: ['cutoff', 'to', 'until', 'day', 'at', 'as_of', 'asOf', 'replay_date', 'replayDate'] },
+    // (W1.1 review NB-1: "none"/"nothing" are no longer null words for a string arg — replay declares them itself)
+    coerce: { date: { exit: null, off: null, stop: null, end: null, false: null, clear: null, 'exit replay': null, none: null, nothing: null, nil: null } },
+    shape: '{"date":"YYYY-MM-DD"} to replay from a date; {"date":null} to EXIT replay ("exit replay", "leave replay", "replay off", '
+      + '"show every bar again") — the JSON null, never the word "null" and never an "exit" or "enabled" key.',
+    check(st, { date }) {
+      if (st.replay === undefined) return 'Replay Mode isn\'t reachable from here.'
+      if (date == null) return null
+      const r = resolveDateWord(date)
+      if (!r) return `I couldn\'t read “${date}” as a date — use YYYY-MM-DD or a day like “last Friday”.`
+      if (r.future) return `${dayWord(r.to)} hasn\'t happened yet — replay only goes back.`
+      if (isoDayMs(r.to) < Date.UTC(1900, 0, 1)) return 'That date is earlier than any chart history.'
+      return null
+    },
+    apply(st, { date }) {
+      const to = date == null ? null : resolveDateWord(date).to
+      return (st.replay ?? null) === to ? st : { ...st, replay: to }
+    },
+    describe(b, a) {
+      if ((b.replay ?? null) === (a.replay ?? null)) return null
+      if (a.replay == null) return 'Exited Replay Mode — every bar is back on the linked charts'
+      return `Replay Mode: the linked charts show bars up to ${dayWord(a.replay)} and hide what came after (a view only — nothing is saved; exit replay to see every bar again)`
+    },
+    noop: (b, a, { date } = {}) => (date == null ? 'Replay Mode is already off' : 'Replay is already at that date'),
   },
   {
     // ── chart.compare: the Compare Symbols panel's add / remove / clear (comparisonSymbols) ──

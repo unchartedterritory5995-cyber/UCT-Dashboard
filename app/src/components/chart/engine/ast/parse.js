@@ -417,10 +417,25 @@ export const RECURRENCES = Object.freeze(Object.fromEntries(
     .map(([name, spec]) => [name, spec.recurrence]),
 ))
 
+/** Every function entry that declares a `multiState` (`accum2`…`accum4`), by name —
+ *  `closedTable.json::_functions_multi_state`. Same idiom as `RECURRENCES`: the
+ *  walkers ask "does this call declare one", never "is this call `accum4`". */
+export const MULTI_STATES = Object.freeze(Object.fromEntries(
+  Object.entries(TABLE.functions)
+    .filter(([, spec]) => spec && typeof spec.multiState === 'object' && spec.multiState)
+    .map(([name, spec]) => [name, spec.multiState]),
+))
+
+/** The names multi-state updates bind (`state1`…), derived from the entries. */
+export const MULTI_STATE_BINDINGS = Object.freeze(
+  [...new Set(Object.values(MULTI_STATES).flatMap((m) => m.binds))].sort())
+
 /** The reserved names the bodies bind — the set a scope must refuse to let an
- *  input shadow. Derived from the entries above, never listed. */
+ *  input shadow. Derived from the entries above, never listed. ⭐ It holds the
+ *  multi-state binds too: every reader that asks "does this subtree read a bind"
+ *  (memo safety, the scope lock, the sentence) must say yes for `state1`. */
 export const RECURRENCE_BINDINGS = Object.freeze(
-  [...new Set(Object.values(RECURRENCES).map((r) => r.binds))].sort())
+  [...new Set([...Object.values(RECURRENCES).map((r) => r.binds), ...MULTI_STATE_BINDINGS])].sort())
 
 /** The declaration that says an entry is computed over the BAR ARRAY rather than
  *  over the columns its arguments name. `closedTable.json::_functions_bar_readers`

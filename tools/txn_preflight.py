@@ -6,11 +6,14 @@
 Checks, and prints only names, booleans and counts (never a value):
   * every variable the role needs is set; digests are 64 hex characters;
   * the receiver's dark/permission switches are in the state the runbook step expects;
-  * R2: the bucket answers a LIST under the journal prefix, and its lifecycle
-    configuration expires that prefix (the retention the recovery floor assumes).
-    A correctly scoped key (Object Read & Write, this bucket only) is REFUSED the
-    lifecycle read (D2, staging 2026-10-28): the operator then confirms the two rules
-    in the dashboard and passes ``--lifecycle-confirmed-in-dashboard``;
+  * R2: the bucket answers a LIST under the journal prefix, and ⛔⛔ NO enabled
+    lifecycle rule expires (or transitions) that prefix -- the journal is the PERMANENT
+    archive of every delivery (owner, 2026-10-31; never reintroduce an expiry). Rules
+    on other prefixes (the 1-day preflight canary) and the multipart-abort rule are
+    fine. A correctly scoped key (Object Read & Write, this bucket only) is REFUSED the
+    lifecycle read (D2, staging 2026-10-28): the operator then confirms in the
+    dashboard that no rule touches the events prefix and passes
+    ``--lifecycle-confirmed-in-dashboard``;
   * --r2-write-check (web): this credential can PUT (it must, for the repair pass)
     — writes one canary object under ``trade-exchange-news/v1/preflight/``, a prefix
     the reconciler never reads.
@@ -36,6 +39,26 @@ SWITCHES = {
     "web": ("TXN_ENABLED", "TXN_STORAGE_PERMISSION_CONFIRMED", "ALERT_NEWS_MATCH_ENABLED"),
 }
 PREFIX = "trade-exchange-news/v1/events"
+
+
+def journal_expiring_rules(rules: list, journal_prefix: str) -> list[str]:
+    """Names of ENABLED rules that would expire or transition objects under the journal
+    prefix: a rule whose prefix is empty (the whole bucket) or a prefix of the journal's,
+    with an Expiration or a Transition. The multipart-abort rule deletes no object."""
+    out = []
+    for r in rules or []:
+        if r.get("Status") != "Enabled" or not (r.get("Expiration") or r.get("Transitions")
+                                                or r.get("NoncurrentVersionExpiration")):
+            continue
+        rule_prefix = ((r.get("Filter") or {}).get("Prefix", r.get("Prefix", "")) or "")
+        if journal_prefix.startswith(rule_prefix) or rule_prefix.startswith(journal_prefix):
+            out.append(str(r.get("ID") or "(unnamed)"))
+    return out
+
+
+def _no_lifecycle(e: Exception) -> bool:
+    code = (getattr(e, "response", None) or {}).get("Error", {}).get("Code", "")
+    return "NoSuchLifecycleConfiguration" in (code or str(e))
 
 
 def _access_denied(e: Exception) -> bool:
@@ -74,22 +97,20 @@ def check(role: str, env: dict[str, str], r2_write: bool = False, client=None,
         return problems
     try:
         rules = client.get_bucket_lifecycle_configuration(Bucket=bucket).get("Rules", [])
-        days = [r.get("Expiration", {}).get("Days") for r in rules
-                if r.get("Status") == "Enabled" and prefix.startswith((r.get("Filter", {}) or {}).get("Prefix", r.get("Prefix", "")) or "")]
-        days = [d for d in days if d]
-        if not days:
-            problems.append("no enabled lifecycle rule expires the journal prefix")
-        else:
-            print(f"r2 lifecycle: journal prefix expires after {min(days)} day(s)")
-            if min(days) < 8:
-                problems.append("journal lifecycle is shorter than 8 days (recovery floor assumes >= history + 1 day)")
+        for name in journal_expiring_rules(rules, prefix + "/"):
+            problems.append(f"⛔ lifecycle rule {name!r} expires the PERMANENT journal prefix: disable it")
+        if not problems:
+            print(f"r2 lifecycle: {len(rules)} rule(s); none expires the journal prefix (permanent)")
     except Exception as e:  # noqa: BLE001
-        if _access_denied(e) and lifecycle_confirmed:
+        if _no_lifecycle(e):
+            print("r2 lifecycle: no lifecycle configuration; the journal is permanent")
+        elif _access_denied(e) and lifecycle_confirmed:
             print("r2 lifecycle: not readable with this object-scoped key (expected); "
-                  "operator confirmed the rules in the dashboard")
+                  "operator confirmed in the dashboard that no rule expires the events prefix")
         elif _access_denied(e):
-            problems.append("r2 lifecycle unreadable with this object-scoped key (expected): confirm the "
-                            "8-day events rule in the dashboard, then rerun with --lifecycle-confirmed-in-dashboard")
+            problems.append("r2 lifecycle unreadable with this object-scoped key (expected): confirm in the "
+                            "dashboard that NO enabled rule expires trade-exchange-news/v1/events/, then "
+                            "rerun with --lifecycle-confirmed-in-dashboard")
         else:
             problems.append(f"r2 lifecycle unreadable: {type(e).__name__}")
     if r2_write:

@@ -363,3 +363,60 @@ export const colourArgKind = (spec, i) => {
   const declared = spec.args[i]
   return declared === undefined ? spec.args[spec.args.length - 1] : declared
 }
+
+// ─── ⭐⭐ PHASE 3 WS-E — A NAME DECLARED `color` HOLDS A COLOUR ─────────────────
+//
+// `var color trend = na` then `trend := up ? color.green : color.red` then
+// `barcolor(show ? trend : na)` is how a per-bar bar colour is written when the
+// colour carries from bar to bar (atr-trend-bands-misu; `color barColor = na` +
+// an `if` that assigns it is multi-timeframe-trend-indicator). The front end
+// marks a slot as a colour from its INITIALISER, and `na` belongs to every type,
+// so the slot was never marked and `barcolor(trend)` refused `runtime:colour`
+// ("paints with a colour, and this is not one") about a name the author TYPED
+// as a colour. Pine's compiler rejects `color x = <a number>`, so the declared
+// type is the author's statement of kind, not a guess.
+//
+// ⛔ ONLY A NAME EVERY DECLARATION OF WHICH IS `color`. A name declared anywhere
+// else in the script without that type (an untyped `x = …`, a `float x`, a loop
+// variable, a tuple element, a function's parameter or its name) is left to the
+// initialiser rule, because this scan does not resolve scopes: a `color` name in
+// one function and a `float` of the same name in another must not let the float
+// be read as a colour.
+
+const DECL_PREFIXES = Object.freeze(new Set(['var', 'varip']))
+
+/** The names a script declares with the `color` type at every declaration.
+ *
+ * @param {object[]} stmts  `blockStatements` output (`header` tokens, `sub` lists)
+ * @param {(toks: object[], pred: Function) => number} findTop  pine.js's top-level finder
+ * @returns {Set<string>}
+ */
+export function colourTypedNamesOf(stmts, findTop) {
+  const colour = new Set()
+  const other = new Set()
+  const isP = (t, v) => !!t && t.kind === 'punct' && t.value === v
+  const walk = (list) => {
+    for (const s of list || []) {
+      const ts = s.header || []
+      const arrow = findTop(ts, (t) => isP(t, '=>'))
+      if (arrow > 0) {
+        // a function header: its name and every parameter are other declarations
+        for (let i = 0; i < arrow; i += 1) if (ts[i].kind === 'ident') other.add(String(ts[i].value))
+      } else {
+        const eq = findTop(ts, (t) => isP(t, '='))
+        if (eq > 0) {
+          let k = 0
+          while (k < eq && ts[k].kind === 'ident' && DECL_PREFIXES.has(ts[k].value)) k += 1
+          const typed = eq - k === 2 && ts[k].kind === 'ident' && ts[k].value === 'color'
+            && ts[k + 1].kind === 'ident'
+          if (typed) colour.add(String(ts[k + 1].value))
+          else for (let i = 0; i < eq; i += 1) if (ts[i].kind === 'ident') other.add(String(ts[i].value))
+        }
+      }
+      if (s.sub && s.sub.length) walk(s.sub)
+    }
+  }
+  walk(stmts)
+  for (const n of other) colour.delete(n)
+  return colour
+}

@@ -111,32 +111,53 @@ describe('⭐⭐ a block in value position on the right of `:=`', () => {
       .toEqual(BARS.map((b) => (b.c > 102 ? 1 : 2)))
   })
 
-  it('⛔⛔ CONTROL — `var x = switch` STILL REFUSES, and now says why', () => {
-    // ⚠️ `var` INITIALISES ONCE. Lowering it like a plain binding would
-    // re-evaluate the block every bar and silently make `var` mean nothing —
-    // which is worse than refusing, because nothing would look wrong.
-    const r = refusalOf(`${head}s = 1\nvar x = switch s\n    1 => 10\n    => 20\nplot(x)\n`)
-    expect(r.guard).toBe('runtime:block-value')
-    expect(r.message).toMatch(/once/i)
-    // ⛔ AND IT NO LONGER BLAMES THE VALUE MODEL. `pine:block` says "this engine
-    // stores a single expression", which is false about a lane that has just
-    // lowered the same block one line above.
-    expect(r.message).not.toMatch(/single expression/)
-  })
-
-  it('⛔ CONTROL — `var x = if` refuses for the SAME reason, by the same branch', () => {
-    // ⛔ THE SECOND HALF OF ONE PREDICATE. The refusal reads
-    // `varBlk.value === 'if' || varBlk.value === 'switch'`, and a case for only
-    // one disjunct cannot tell a working guard from one whose `if` half was
-    // dropped — `lesson_a_guard_that_tests_the_adjacent_thing`.
-    const r = refusalOf(`${head}var x = if close > 102
-    1
-else
-    2
+  it('⭐⭐ P3 WS-A — `var x = switch` INITIALISES ONCE: the first bar arm, kept', () => {
+    // ⚰️ THIS WAS A REFUSAL ("no once-only guard around a block yet"). `var`
+    // initialises ONCE — on the first bar the declaration is reached — and keeps
+    // the value. Bar 0's close is 100, so the subject-less switch takes its
+    // default there and EVERY later bar must still read it, although the first
+    // arm matches from bar 3 on.
+    const out = run(`${head}var x = switch
+    close > 102 => close
+    => -close
 plot(x)
 `)
-    expect(r.guard).toBe('runtime:block-value')
-    expect(r.message).toMatch(/once/i)
+    expect(out).toEqual(BARS.map(() => -100))
+    // ⛔ NON-VACUITY: the same block WITHOUT `var` re-evaluates every bar, so the
+    // two differ on exactly the bars the first arm matches.
+    const plain = run(`${head}x = switch
+    close > 102 => close
+    => -close
+plot(x)
+`)
+    expect(plain).toEqual(BARS.map((b) => (b.c > 102 ? b.c : -b.c)))
+    expect(plain).not.toEqual(out)
+  })
+
+  it('⭐ `var x = if` is the SAME once-only lowering (the other half of one predicate)', () => {
+    // ⛔ THE SECOND DISJUNCT. The route reads `if || switch`, and a case for only
+    // one cannot tell a working route from one whose `if` half was dropped.
+    const out = run(`${head}var x = if close > 102
+    1
+else
+    close
+plot(x)
+`)
+    expect(out).toEqual(BARS.map(() => 100))
+  })
+
+  it('⭐ a `var` block first REACHED on a later bar initialises THERE, and only there', () => {
+    // Pine: the initialiser runs on the first bar the declaration is reached. In
+    // a block that opens on bar 3, that is bar 3's close (103), held after.
+    const out = run(`${head}var float seen = na
+if close > 102
+    var x = switch
+        close > 104 => 1
+        => close
+    seen := x
+plot(seen)
+`)
+    expect(out).toEqual(BARS.map((b) => (b.c > 102 ? 103 : NaN)))
   })
 
   it('⛔ CONTROL — an armless `switch` still refuses BY NAME', () => {

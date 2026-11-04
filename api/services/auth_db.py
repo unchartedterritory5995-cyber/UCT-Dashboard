@@ -515,6 +515,36 @@ CREATE TABLE IF NOT EXISTS tracings_documents (
     revision     INTEGER NOT NULL DEFAULT 1,
     updated_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+-- UCT News Research Library (api/services/trade_exchange_news/library.py). A member's
+-- bookmarks, personal collections and notes. ⛔ Personal data ONLY: the headlines
+-- themselves live in the shared News store + R2 journal, permanently, and nothing here
+-- deletes them. A bookmark names a headline by its permanent event_id (the receiver's
+-- ULID), never by seq. Purged on account deletion (account_purge _DIRECT_USER_TABLES).
+CREATE TABLE IF NOT EXISTS txn_bookmarks (
+    user_id             TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id            TEXT NOT NULL,
+    saved_at_ms         INTEGER NOT NULL,
+    note                TEXT NOT NULL DEFAULT '',
+    note_updated_at_ms  INTEGER,
+    PRIMARY KEY (user_id, event_id)
+);
+CREATE INDEX IF NOT EXISTS ix_txn_bookmarks_saved ON txn_bookmarks(user_id, saved_at_ms);
+CREATE TABLE IF NOT EXISTS txn_collections (
+    id             TEXT PRIMARY KEY,
+    user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name           TEXT NOT NULL,
+    created_at_ms  INTEGER NOT NULL,
+    updated_at_ms  INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_txn_collections_name ON txn_collections(user_id, name COLLATE NOCASE);
+CREATE TABLE IF NOT EXISTS txn_collection_items (
+    user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    collection_id  TEXT NOT NULL,
+    event_id       TEXT NOT NULL,
+    added_at_ms    INTEGER NOT NULL,
+    PRIMARY KEY (collection_id, event_id)
+);
+CREATE INDEX IF NOT EXISTS ix_txn_collection_items_user ON txn_collection_items(user_id, event_id);
 """
 
 

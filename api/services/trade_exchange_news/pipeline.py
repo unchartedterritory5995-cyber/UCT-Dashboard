@@ -33,7 +33,6 @@ from api.services.trade_exchange_news.store import KNOWN, NEW, REPEAT, Store
 
 logger = logging.getLogger(__name__)
 
-PRUNE_EVERY = 200          # ingests between bound checks (plus the reconciler's timer)
 REPLAY_PAGE = 500
 
 
@@ -99,6 +98,24 @@ def headline_event(row: dict[str, Any], epoch: str = "", derived: dict[str, Any]
     differently, and an R2 LIST is only the order RECOVERY ingests in. Every
     client sees the same seq order, and a client that ever sees seq != last+1
     knows it missed something and replays."""
+    ev = _headline_event(row, epoch, derived)
+    # A VERIFIED original press-release link, when release_links.py has stored one:
+    # a dict lookup (never matching, never I/O), so every read path carries it.
+    link = _release_link(row["event_id"])
+    if link:
+        ev["link"] = link
+    return ev
+
+
+def _release_link(event_id: str) -> dict[str, str] | None:
+    try:
+        from api.services.trade_exchange_news.release_links import lookup
+        return lookup(event_id)
+    except Exception:  # noqa: BLE001 -- a link is an extra; never cost a headline
+        return None
+
+
+def _headline_event(row: dict[str, Any], epoch: str, derived: dict[str, Any] | None) -> dict[str, Any]:
     return {"type": "headline", "epoch": epoch, "seq": row["seq"], "id": row["event_id"],
             "source": row["source"], "content": row["content"],
             "received_at_ms": row["received_at_ms"],
@@ -120,7 +137,6 @@ class Pipeline:
     def __init__(self, store: Store, hub: Hub, loop: asyncio.AbstractEventLoop) -> None:
         self.store, self.hub, self.loop = store, hub, loop
         self._writer = ThreadPoolExecutor(max_workers=1, thread_name_prefix="txn-writer")
-        self._since_prune = 0
         self.ready = asyncio.Event()
         self.counts = {NEW: 0, REPEAT: 0, KNOWN: 0, "invalid": 0, "push": 0, "reconcile": 0,
                        "boot_wait_timeouts": 0}
@@ -150,9 +166,6 @@ class Pipeline:
                                            repeat_event(out["headline"], self.store.epoch))
         self.counts[out["kind"]] += 1
         self.counts[via] += 1
-        self._since_prune += 1
-        if self._since_prune >= PRUNE_EVERY:
-            self._prune_now()
         self.last_ingest_latency_ms = (time.perf_counter() - t0) * 1000
         return out
 
@@ -167,14 +180,6 @@ class Pipeline:
                     timing["arrive_lag_ms"], None if timing["queue_ms"] is None else round(timing["queue_ms"], 1),
                     timing["tickers_ms"], timing["store_ms"], (time.perf_counter() - timing["t2"]) * 1000,
                     self.hub.subscribers)
-
-    def _prune_now(self) -> dict[str, int]:
-        self._since_prune = 0
-        return self.store.prune(max_age_ms=config.history_max_age_ms(),
-                                max_items=config.history_max_items())
-
-    async def prune(self) -> dict[str, int]:
-        return await self.loop.run_in_executor(self._writer, self._prune_now)
 
     async def submit(self, raw: Any, via: str) -> dict[str, Any]:
         """Validate and ingest one journal record. Raises ``RecordError``."""

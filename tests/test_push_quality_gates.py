@@ -230,19 +230,63 @@ def test_flow_split_no_data_noops():
     assert "_flowPct" not in push
 
 
-def test_card_renders_flow_line():
+def test_card_renders_flow_bar_default():
+    # default on: a colored ANSI bar (green bull fill) + the dollars line
     flow = {"CRWD|C|257.5|1/21/2028": {"Bull": 8_100_000.0, "Bear": 500_000.0}}
     push = _leaps_alert()
     lmr._stamp_flow_split(push, _leaps_alert(), flow)
     desc = lmr._build_massive_embed(push, mode="single")["description"]
+    assert "```ansi" in desc                 # colored bar block present
+    assert "\x1b[0;32m" in desc               # green = bullish fill
+    assert "94%" in desc and "ask" in desc    # percent + side label on the bar
+    assert "$8.10M vs $500K" in desc          # dollars retained beneath the bar
+
+
+def test_flow_bar_bear_is_red_with_amber_tail():
+    # a less-than-100% bearish card: red dominant fill + amber opposing share
+    flow = {"ARM|P|200|6/17/2027": {"Bull": 200_000.0, "Bear": 3_000_000.0}}
+    p = {"ticker": "ARM", "cp": "P", "strike": 200, "exp": "6/17/2027", "dte": 200,
+         "_direction": "Bear", "_tierKey": "bearish", "alertName": "UCT Bearish",
+         "grade": "B", "alertPremium": 3_000_000, "tradeSize": 100, "priorOI": 50,
+         "averageFillPrice": 20.0, "aggAskPremium": 0, "aggAskVolume": 0,
+         "spot": 195.0, "moneynessLabel": "OTM", "moneynessPct": 2.5,
+         "timestamp": 1793293877}
+    lmr._stamp_flow_split(p, dict(p), flow)
+    desc = lmr._build_massive_embed(p, mode="single")["description"]
+    assert "\x1b[0;31m" in desc               # red = bearish fill
+    assert "\x1b[0;33m" in desc               # amber = opposing side (94% -> 6% tail)
+
+
+def test_flow_bar_100pct_all_dominant_no_amber():
+    p = {"ticker": "MSTR", "cp": "C", "strike": 131, "exp": "11/6/2026",
+         "_direction": "Bull", "_flowPct": 100, "_flowSide": "ask",
+         "_flowDom": 72_000.0, "_flowOther": 0.0}
+    bar = lmr._flow_bar_block(p)
+    assert bar.count("█") == lmr._FLOW_BAR_CELLS   # every cell filled
+    assert "\x1b[0;33m" not in bar                      # no amber at 100%
+    assert "\x1b[0;32m" in bar and "100%" in bar
+
+
+def test_flow_bar_disabled_falls_back_to_text(monkeypatch):
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: {"flow_bar_enabled": False})
+    flow = {"CRWD|C|257.5|1/21/2028": {"Bull": 8_100_000.0, "Bear": 500_000.0}}
+    push = _leaps_alert()
+    lmr._stamp_flow_split(push, _leaps_alert(), flow)
+    desc = lmr._build_massive_embed(push, mode="single")["description"]
+    assert "```ansi" not in desc
     assert "📐 Flow: 94% one-sided (ask)" in desc
     assert "$8.10M vs $500K" in desc
 
 
+def test_flow_bar_no_stamp_renders_nothing():
+    assert lmr._flow_bar_block({"_direction": "Bull"}) == ""   # no _flowPct
+
+
 def test_unverified_relabel_has_no_flow_line():
-    # relabel is never stamped -> no Flow line on a neutral card
+    # relabel is never stamped -> no Flow bar/line on a neutral card
     desc = lmr._build_massive_embed(_relabel_helper(), mode="single")["description"]
-    assert "Flow:" not in desc
+    assert "Flow" not in desc
+    assert "```ansi" not in desc
 
 
 def _relabel_helper():

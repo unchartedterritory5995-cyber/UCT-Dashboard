@@ -24,7 +24,7 @@
 // a transport failure (it never answered) and a refusal whose body is
 // unreadable. That is the same split `useIndicatorAlerts.createIndicatorAlert`
 // draws, for the same reason.
-import { useContext, useEffect, useMemo } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { AuthContext } from '../context/AuthContext'
 import {
@@ -32,6 +32,13 @@ import {
 } from '../components/chart/engine/nativeRegistry'
 import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
+import { withServedRowIdentities } from '../components/chart/engine/lineIdentity'
+import {
+  SCRIPT_ENGINE_VERSION, withoutEngineStamp, withinPineSourceCap,
+} from '../components/chart/engine/scriptEngineVersion'
+import {
+  resolveRow, writeBackOnce, recordOnce, onUpgradeSettled, isScriptDocument,
+} from '../components/chart/builder/memberPane/savedScriptUpgrade'
 
 export const USER_DEFINITIONS_KEY = '/api/user-definitions'
 
@@ -50,6 +57,13 @@ export const USER_DEFINITIONS_KEY = '/api/user-definitions'
 const GRAPH_READ = 'graph=1'
 const withGraph = (url) => `${url}${url.includes('?') ? '&' : '?'}${GRAPH_READ}`
 
+/** ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — the LIST read also says which script engine this
+ *  bundle runs (`scriptEngineVersion.js`). The store answers by attaching the
+ *  saved Pine source to exactly the rows translated by an OLDER engine, so a
+ *  current row costs no byte and a stale one needs no second request. An old
+ *  bundle never asks and is served exactly as before. */
+const withEngine = (url) => `${url}${url.includes('?') ? '&' : '?'}engine=${SCRIPT_ENGINE_VERSION}`
+
 /** ⚠️ THROWS on a non-ok response, deliberately.
  *
  *  A swallowed 402 renders as "you have no formulas", which is the same picture
@@ -60,7 +74,7 @@ async function fetcher(url) {
   // ⭐ C2D.7 — the SWR key stays `USER_DEFINITIONS_KEY` (every `mutate` in this
   // file names it) while the REQUEST carries the capability flag. Folding the
   // flag into the key would silently orphan five revalidation call sites.
-  const r = await fetch(withGraph(url), { credentials: 'include' })
+  const r = await fetch(withEngine(withGraph(url)), { credentials: 'include' })
   if (!r.ok) {
     const err = new Error(`user-definitions ${r.status}`)
     err.status = r.status
@@ -71,8 +85,11 @@ async function fetcher(url) {
   // ⭐ C2C: a row stored as a shared graph reads back as the ORDINARY document
   // every surface below already knows — trees, ast, and the source text
   // re-derived by the one lane that can print it. Inert for every other row.
+  // ⭐ LINE IDENTITY — the store serves each definition as stored and its lines'
+  // identities BESIDE it (`plot_identities`); the copy this browser holds wears them
+  // as `plots[].uid` (`lineIdentity.withServedRowIdentities`).
   return body.definitions.map((row) => (row && row.definition
-    ? { ...row, definition: hydrateGraphDocument(row.definition) }
+    ? withServedRowIdentities({ ...row, definition: hydrateGraphDocument(row.definition) })
     : row))
 }
 
@@ -131,12 +148,16 @@ export function useUserDefinitions() {
 /**
  * @param {object} definition
  * @param {string|null} [defId]
- * @param {{previewAcked?: boolean, baseVersion?: number}|null} [options] P0/0P — `previewAcked:
+ * @param {{previewAcked?: boolean, baseVersion?: number, pineSource?: string}|null} [options] P0/0P — `previewAcked:
  *   true` says every `preview-repaints` plot in this save was acknowledged by
  *   the author (the server's `repaint_acknowledged`; never persisted).
  *   ⭐ PHASE 4 — `baseVersion`: the version an EDIT opened. The server refuses a
  *   stale write (409) instead of overwriting a newer version; the result then
  *   carries `conflict: true` and the server's own sentence.
+ *   ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — `pineSource`: the Pine a SCRIPT door built
+ *   `definition` from (`attachPineAs`, or the load-time write-back). Stored beside
+ *   the document, never inside it; omitted by every formula save, which therefore
+ *   stores none (a hand edit is never re-translated away).
  * @param {{importId: string, dialect?: string}|null} [telemetry] Phase One
  *   Track C — TELEMETRY-ONLY, never merged into `definition`. Lets the
  *   server's `import_accepted` event join back to whichever client-observed
@@ -158,6 +179,24 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
   // cannot do safely returns the original untouched — so the worst outcome is
   // the refusal the member would have got anyway.
   definition = reduceIfOversized(definition)
+  // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — THE ONE PLACE A STAMP IS CHECKED AGAINST ITS SCRIPT.
+  // `meta.engineVersion` says "this document IS the translator's output for the script
+  // stored beside it". A save that sends no script (the Formula tab, the studio, an
+  // Undo, any hand edit — every one of them can carry a stored row's `meta` through)
+  // cannot make that claim, so the stamp is dropped here, at the only door every
+  // writer goes through, rather than at each writer.
+  // ⛔ L6 — a script over the store's cap is not sent (the store would refuse the
+  // whole request); the document saves without it and later offers the Builder row.
+  const pineSource = options && typeof options.pineSource === 'string' && options.pineSource.trim()
+    && withinPineSourceCap(options.pineSource) ? options.pineSource : null
+  if (!pineSource) {
+    definition = withoutEngineStamp(definition)
+    // ⭐ L2 — and a script document saved WITHOUT its script is the member's own
+    // maths now (a hand edit): marked, so it is never offered "paste the script".
+    if (isScriptDocument(definition) && definition.meta.scriptEdited !== true) {
+      definition = { ...definition, meta: { ...definition.meta, scriptEdited: true } }
+    }
+  }
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
   let r
   try {
@@ -179,6 +218,9 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
         ...(options && options.previewAcked === true ? { repaint_acknowledged: true } : {}),
         // ⭐ PHASE 4 — revision-aware save: only an EDIT sends the version it opened.
         ...(defId && options && Number.isInteger(options.baseVersion) ? { base_version: options.baseVersion } : {}),
+        ...(pineSource ? { pine_source: pineSource } : {}),
+        // ⭐ MEDIUM-1 — only the load-time write-back sends this, and only with its script.
+        ...(pineSource && options && options.reason === 'engine-upgrade' ? { save_reason: 'engine-upgrade' } : {}),
       }),
     })
   } catch {
@@ -282,7 +324,7 @@ export async function forkUserDefinition(defId) {
       const g = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(made.def_id)}`, { credentials: 'include' })
       if (g.ok) {
         const row = await g.json()
-        if (row && row.def_id && row.definition) return { ok: true, row }
+        if (row && row.def_id && row.definition) return { ok: true, row: withServedRowIdentities(row) }
       }
     } catch { /* fall through */ }
     return { ok: true, row: { def_id: made.def_id, version: made.version, definition: null } }
@@ -299,21 +341,42 @@ export async function forkUserDefinition(defId) {
  * @returns {Promise<{ok: true, row: object} | {ok: false, status: number|null, error: string}>}
  *   `status: 404` is the authoritative "not live"; `null` is a transport failure.
  */
-export async function readUserDefinition(defId) {
+export async function readUserDefinition(defId, { withSource = false } = {}) {
   let r
   try {
-    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}`, { credentials: 'include' })
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}${withSource ? '?source=1' : ''}`, { credentials: 'include' })
   } catch {
     return { ok: false, status: null, error: 'Could not reach the server — check your connection and try again.' }
   }
   if (r.ok) {
     try {
       const row = await r.json()
-      if (row && row.def_id) return { ok: true, row }
+      if (row && row.def_id) return { ok: true, row: withServedRowIdentities(row) }
     } catch { /* fall through */ }
     return { ok: false, status: r.status, error: 'The server answered without the definition.' }
   }
   return { ok: false, status: r.status, error: `The server could not read this indicator (${r.status}).` }
+}
+
+/**
+ * ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — remember, server-side, what this browser's newer
+ * script engine learned about the LIVE version of one of the member's script
+ * documents (`refused` / `write-failed`). Append-only; the document is never touched.
+ * @returns {Promise<{ok: boolean, status: number|null}>}
+ */
+export async function recordEngineStatus(defId, { version, engine, status, reason }) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}/engine-status`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version, engine, status, reason: String(reason || '').slice(0, 2000) || status }),
+    })
+  } catch {
+    return { ok: false, status: null }
+  }
+  if (r.ok) mutate(USER_DEFINITIONS_KEY)
+  return { ok: r.ok, status: r.status }
 }
 
 /** HTTP statuses that are an AUTHORITATIVE "this session has no definitions".
@@ -386,6 +449,12 @@ function announceDefinitionsChanged() {
 
 export function useInstalledUserDefinitions() {
   const { rows, isLoading, error, refresh } = useUserDefinitions()
+  // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — a stale script document's new translation
+  // lands asynchronously (`savedScriptUpgrade.js`); this tick re-runs the install
+  // when it does. Zero for a member whose documents are all current: nothing
+  // queues, nothing settles, nothing re-renders.
+  const [upgradeTick, setUpgradeTick] = useState(0)
+  useEffect(() => onUpgradeSettled(() => setUpgradeTick((n) => n + 1)), [])
   useEffect(() => {
     const ch = defsChannel()
     if (!ch) return undefined
@@ -416,14 +485,35 @@ export function useInstalledUserDefinitions() {
   // version and compute handle ⇒ no write, no generation bump) and
   // `clearUserDefinitions` returns early on an empty index, so a second run
   // costs a loop and changes nothing a consumer can observe.
-  const { installedIds, errors } = useMemo(() => {
+  const { installedIds, errors, writeBacks, records, pending } = useMemo(() => {
     if (key === '<refused>') {
       clearUserDefinitions()
-      return { installedIds: [], errors: [] }
+      return { installedIds: [], errors: [], writeBacks: NO_ROWS, records: NO_ROWS, pending: 0 }
     }
-    const docs = rows
-      .map(r => r && r.definition)
-      .filter(d => d && typeof d === 'object')
+    // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — each row resolves to the document to draw
+    // (`resolveRow`): a CURRENT row is its stored document, byte for byte, with no
+    // work; a STALE row with its script is its new translation once that lands,
+    // HELD until then; a stale row the new translation REFUSES is not drawn, and
+    // the refusal is reported by name beside the install door's own errors.
+    const docs = []
+    const refusals = []
+    const plans = []
+    const records = []
+    const held = []
+    for (const r of rows) {
+      if (!r || !r.definition || typeof r.definition !== 'object') continue
+      const res = resolveRow(r)
+      if (res.pending) { held.push(r.def_id); continue }
+      if (res.record) records.push(res.record)
+      if (res.refusal) {
+        refusals.push(res.refusal)
+        // ⛔ the refusal wins on this chart too, whatever an earlier install left
+        uninstallUserDefinition(r.def_id)
+        continue
+      }
+      docs.push(res.definition)
+      if (res.writeBack) plans.push(res.writeBack)
+    }
     const { installed, errors: installErrors } = installUserDefinitions(docs)
     // ⭐ A1.4 — uninstall ONLY on an authoritative, successful response, and only ids a
     // previous response installed. Never on a transport error, a 5xx or while loading.
@@ -432,9 +522,30 @@ export function useInstalledUserDefinitions() {
       for (const id of [..._fromStore]) if (!present.has(id)) uninstallUserDefinition(id)
       _fromStore.clear()
       for (const d of installed) _fromStore.add(d.id)
+      for (const id of held) _fromStore.add(id)
     }
-    return { installedIds: installed.map(d => d.id), errors: installErrors }
-  }, [key, rows, isLoading, error])
+    // ⛔ ONLY A DOCUMENT THE INSTALL DOOR ACCEPTED IS WRITTEN BACK — the same gate
+    // every save meets in the browser (`validateUserDefinitions`) before the store's.
+    const ok = new Set(installed.map(d => d.id))
+    return {
+      installedIds: installed.map(d => d.id),
+      errors: refusals.length ? [...installErrors, ...refusals] : installErrors,
+      writeBacks: plans.length ? plans.filter(p => ok.has(p.row.def_id)) : NO_ROWS,
+      records: records.length ? records : NO_ROWS,
+      pending: held.length,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- upgradeTick: re-run when a held script's new translation lands (`resolveRow` reads it from the upgrade module, not from React)
+  }, [key, rows, isLoading, error, upgradeTick])
+  // The write-back is a NETWORK effect, so it runs after commit — once per stored
+  // version per tab (`writeBackOnce` dedupes across every chart that mounts this).
+  useEffect(() => {
+    for (const plan of writeBacks) writeBackOnce(plan, saveUserDefinition, recordEngineStatus)
+  }, [writeBacks])
+  // ⭐ MEDIUM-2(a) — a refusal this tab just learned is remembered for every lane and
+  // device (once per stored version); after that no load translates it again.
+  useEffect(() => {
+    for (const plan of records) recordOnce(plan, recordEngineStatus)
+  }, [records])
   // The ids the store returned — installed or refused — so a non-resolving formula the store
   // HAS reads "no longer passes checks", and one it lacks reads "deleted" (A1.4).
   const storeDefIds = useMemo(() => new Set(rows.map(r => r && r.def_id).filter(Boolean)), [rows])
@@ -447,7 +558,9 @@ export function useInstalledUserDefinitions() {
     // there — not the one it held before them.
     generation: registryGeneration(),
     storeDefIds,
-    isLoading,
+    // ⭐ A held (upgrading) script reads as LOADING, not as "can't be shown": its
+    // new translation is on its way, and `UnavailableIndicators` waits on this.
+    isLoading: isLoading || pending > 0,
     error: error || null,
     refresh,
   }
@@ -717,7 +830,7 @@ export async function fetchDefinitionHistory(defId) {
   }
   let body = null
   try { body = await r.json() } catch { /* not JSON */ }
-  if (r.ok) return { ok: true, versions: (body && body.versions) || [] }
+  if (r.ok) return { ok: true, versions: ((body && body.versions) || []).map(withServedRowIdentities) }
   const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
   return { ok: false, error: detail || `The version history could not be read (${r.status}).` }
 }

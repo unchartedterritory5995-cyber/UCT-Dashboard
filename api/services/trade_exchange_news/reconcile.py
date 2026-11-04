@@ -10,9 +10,19 @@ When it runs:
 Where it starts: the newest receipt web has ledgered, minus
 ``TXN_RECONCILE_OVERLAP_S`` (default 10 min) -- a cursor with slack, because
 two receiver instances overlap during the receiver's own deploy and their
-clocks may disagree by a little. Ids already in the ledger are skipped without
-a GET, so the slack costs one LIST, not re-downloads. An empty store starts at
-the recoverable floor, never earlier.
+clocks may disagree by a little -- or earlier, at the start of the oldest window
+the journal was unreachable for, so clearing that window is a claim the scan
+actually checked. Ids already in the ledger are skipped without a GET, so the
+slack costs one LIST, not re-downloads.
+
+⛔⛔ PERMANENT RETENTION (owner, 2026-10-31). The journal expires nothing (no R2
+lifecycle rule on the events prefix; never reintroduce one), so a database that
+holds anything recovers from its own cursor however long web was down. Only an
+EMPTY database (a fresh or lost volume) is limited, to
+``config.boot_recovery_window_ms`` -- the whole archive comes back from a
+snapshot or ``tools/txn_rebuild_from_r2.py``, not one GET at a time in here.
+The daily integrity check (integrity.py) compares the WHOLE journal with the
+ledger and recovers anything this loop never saw.
 
 ⛔ THE LIST IS NOT THE ORDER. R2 lists keys lexicographically, i.e. by ULID =
 receiver clock. That decides only the order recovery ingests in; the order
@@ -22,11 +32,11 @@ flagged ``delayed`` -- never slotted silently into the past.
 
 ⭐ COVERAGE IS MEASURED, NOT CLAIMED. Web writes a heartbeat (``alive_ms``) on
 every cycle. At boot the window ``[alive_ms, now]`` is the time web could not
-receive pushes. Recovery can only cover the part of that window that is inside
-the RECOVERABLE floor = ``now - min(history age, journal retention)``; anything
-older is recorded as a GAP (``outage_exceeded_retention``). A boot with no
-journal configured, or a recovery scan that fails, records the window as a gap
-too (``no_journal`` / ``journal_unreachable``) until a later scan covers it.
+receive pushes; the journal holds all of it. A boot with no journal configured,
+or a recovery scan that fails, records the window as a GAP (``no_journal`` /
+``journal_unreachable``) until a later scan covers it. (``outage_exceeded_retention``
+-- an outage longer than the journal's old 8-day expiry -- can no longer be
+recorded; one already stored is still shown.)
 Gaps are surfaced in the admin status and to stream clients.
 
 ⭐ REPAIR — THE JOURNAL ALWAYS CATCHES UP (Checkpoint D1 durability audit). The
@@ -55,7 +65,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from api.services.trade_exchange_news import config, records
+from api.services.trade_exchange_news import config, ops_alerts, records
 from api.services.trade_exchange_news.journal_reader import JournalReader, cursor_for_ms
 from api.services.trade_exchange_news.pipeline import Pipeline
 
@@ -92,7 +102,11 @@ class Reconciler:
     # ── coverage ─────────────────────────────────────────────────────────────
 
     def recoverable_floor_ms(self, now_ms: int) -> int:
-        return now_ms - min(config.history_max_age_ms(), config.journal_retention_ms())
+        """The oldest receipt recovery may reach: the whole journal (0) once the
+        database holds anything; the boot window while it is empty."""
+        if self.pipeline.store.cursor_ms() is None:
+            return now_ms - config.boot_recovery_window_ms()
+        return 0
 
     def gaps(self) -> list[dict[str, Any]]:
         try:
@@ -101,9 +115,7 @@ class Reconciler:
             return []
 
     def _set_gaps(self, gaps: list[dict[str, Any]], now_ms: int) -> None:
-        floor = now_ms - config.history_max_age_ms()
-        keep = [g for g in gaps if g["to_ms"] >= floor][-MAX_GAPS:]   # beyond history: moot
-        self.pipeline.store.set_state("gaps", json.dumps(keep))
+        self.pipeline.store.set_state("gaps", json.dumps(gaps[-MAX_GAPS:]))
 
     def _add_gap(self, from_ms: int, to_ms: int, reason: str, now_ms: int) -> None:
         if to_ms <= from_ms:
@@ -114,12 +126,11 @@ class Reconciler:
         self._set_gaps(gaps, now_ms)
         logger.warning("[txn] coverage gap %s..%s reason=%s", from_ms, to_ms, reason)
 
-    def _clear_pending(self, reason: str, now_ms: int) -> None:
+    def _clear_pending(self, reason: str, scanned_from_ms: int, now_ms: int) -> None:
         """A later successful scan covers windows recorded only because the
-        journal was unreachable -- provided they are still recoverable."""
-        floor = self.recoverable_floor_ms(now_ms)
+        journal was unreachable -- those it actually scanned from."""
         gaps = [g for g in self.gaps()
-                if not (g["reason"] == reason and g["from_ms"] >= floor)]
+                if not (g["reason"] == reason and g["from_ms"] >= scanned_from_ms)]
         self._set_gaps(gaps, now_ms)
 
     def heartbeat(self, now_ms: int | None = None) -> None:
@@ -142,17 +153,18 @@ class Reconciler:
         down_from = int(alive)
         if self.reader is None:
             self._add_gap(down_from, now, "no_journal", now)
-            return
-        floor = self.recoverable_floor_ms(now)
-        if down_from < floor:
-            self._add_gap(down_from, floor, "outage_exceeded_retention", now)
+            ops_alerts.alert("no_journal", "web restarted with NO R2 journal configured: headlines received "
+                                           "while it was down cannot be recovered")
 
     # ── scanning ─────────────────────────────────────────────────────────────
 
     def _start_ms(self, now_ms: int) -> int:
-        floor = self.recoverable_floor_ms(now_ms)
         cur = self.pipeline.store.cursor_ms()
-        return floor if cur is None else max(floor, cur - config.reconcile_overlap_ms())
+        if cur is None:
+            return self.recoverable_floor_ms(now_ms)
+        start = cur - config.reconcile_overlap_ms()
+        pending = [g["from_ms"] for g in self.gaps() if g["reason"] == "journal_unreachable"]
+        return max(0, min([start, *pending]))
 
     def _missing(self, start_ms: int) -> list[str]:
         store = self.pipeline.store
@@ -169,7 +181,8 @@ class Reconciler:
         now = int(time.time() * 1000)
         found = 0
         try:
-            missing = await asyncio.to_thread(self._missing, self._start_ms(now))
+            start = await asyncio.to_thread(self._start_ms, now)
+            missing = await asyncio.to_thread(self._missing, start)
             for i in range(0, len(missing), FETCH_CHUNK):        # ULID order
                 chunk = await asyncio.to_thread(self._fetch_chunk, missing[i:i + FETCH_CHUNK])
                 for eid, raw in zip(missing[i:i + FETCH_CHUNK], chunk):
@@ -183,7 +196,7 @@ class Reconciler:
                         found += 1
             self.last_error = None
             self.last_ok_ms = now
-            await asyncio.to_thread(self._clear_pending, "journal_unreachable", now)
+            await asyncio.to_thread(self._clear_pending, "journal_unreachable", start, now)
         except Exception as e:  # noqa: BLE001 -- recovery retries next interval
             self.last_error = type(e).__name__
             logger.warning("[txn] reconcile failed: %s", type(e).__name__)
@@ -193,6 +206,10 @@ class Reconciler:
         self.runs += 1
         self.recovered += found
         self.last_run_ms = now
+        # ⛔ Recovery failing is an ADMIN ALERT, not only a log line (owner, 2026-10-31).
+        ops_alerts.condition("journal_unreachable", self.last_error is not None,
+                             f"recovery from the R2 journal has been failing for 10+ min "
+                             f"({self.last_error}); headlines missed by live delivery are not being recovered")
         return {"recovered": found}
 
     # ── repair ───────────────────────────────────────────────────────────────
@@ -256,7 +273,11 @@ class Reconciler:
         self.confirmed += out.get("confirmed", 0)
         self.repaired += out.get("repaired", 0)
         backlog = await asyncio.to_thread(self.pipeline.store.journal_backlog)
-        if backlog["count"] and backlog["oldest_ms"] and now - backlog["oldest_ms"] > REPAIR_WARN_MS:
+        stuck = bool(backlog["count"] and backlog["oldest_ms"] and now - backlog["oldest_ms"] > REPAIR_WARN_MS)
+        ops_alerts.condition("journal_unconfirmed", stuck,
+                             f"{backlog['count']} acknowledged headline(s) are held by web only: the R2 archive "
+                             f"has not confirmed them for 10+ min (last error {self.last_repair_error})")
+        if stuck:
             logger.warning("[txn] %d acknowledged headline(s) are held by web only (oldest %ds); "
                            "the R2 journal has not confirmed them", backlog["count"],
                            (now - backlog["oldest_ms"]) // 1000)
@@ -274,10 +295,6 @@ class Reconciler:
             await self.run_once()
             await self.repair_once()
             await asyncio.to_thread(self.heartbeat)
-            try:
-                await self.pipeline.prune()
-            except Exception as e:  # noqa: BLE001
-                logger.warning("[txn] prune failed: %s", type(e).__name__)
 
     def snapshot(self) -> dict[str, Any]:
         return {"journal": getattr(self.reader, "kind", None), "runs": self.runs,

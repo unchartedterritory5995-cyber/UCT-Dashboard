@@ -219,15 +219,17 @@ async def test_a_foreign_epoch_is_reset_not_misread_as_caught_up():
     await it.aclose()
 
 
-async def test_a_cursor_older_than_retained_history_is_flagged_truncated(monkeypatch):
+async def test_an_old_cursor_replays_everything_after_it_nothing_is_truncated(monkeypatch):
+    """Permanent retention: a retired count bound deletes nothing, so a reconnect
+    from an old cursor gets every headline since it."""
     monkeypatch.setenv("TXN_HISTORY_MAX_ITEMS", "2")
     p = pl.start(asyncio.get_running_loop())
     for i in range(5):
         await p.submit(rec(f"SYNTHETIC {i}", i), "push")
-    await p.prune()
+    assert not hasattr(p, "prune")
     _, resp = await open_stream(after=1, epoch=p.store.epoch)
-    frames, it = await take(resp, 3)
-    assert frames[0][2]["truncated"] is True and [f[2]["seq"] for f in frames[1:]] == [4, 5]
+    frames, it = await take(resp, 5)
+    assert frames[0][2]["truncated"] is False and [f[2]["seq"] for f in frames[1:]] == [2, 3, 4, 5]
     await it.aclose()
 
 

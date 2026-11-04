@@ -408,6 +408,11 @@ def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
     if row is None:
         raise HTTPException(status_code=404,
                             detail=f"no definition {def_id!r} for this member")
+    # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is not
+    # replayed: 409 (the request is fine; the STATE says no), with the reason.
+    engine_why = defs.engine_withheld_reason(row)
+    if engine_why:
+        raise HTTPException(status_code=409, detail=f"definition {def_id!r} is withheld: {engine_why}")
     doc = row.get("definition") if isinstance(row.get("definition"), dict) else {}
     compute = doc.get("compute") if isinstance(doc.get("compute"), dict) else {}
     tree = compute.get("ast")
@@ -428,11 +433,22 @@ def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
     # `ast_interpret.semantics_for` — the server's stamp, never a client field. A
     # posted `ast` body has no document and is semantics 1, whatever it claims.
     from api.services import ast_interpret
+    from api.services import block_runs
     # `_semantics` is PRIVATE to this route: popped before the provenance is
     # echoed, so the member-visible provenance contract is unchanged.
+    # ⭐⭐ C48 / C45 (review round 2, M3) — `_block_runs`, private the same way: the
+    # gates the member door stamped on the SCAN plot (`meta.blockRuns`, for the key
+    # `compute.ast` is — `block_runs.scan_plot_key`). The replay withholds the
+    # screen on every symbol whose bars the member's chart withholds it on, by the
+    # gate's own sentence (`run_backtest(withheld_for=…)`), never off the every-bar
+    # number. ⚰️ This door read `compute.ast` and nothing else, so a screen the
+    # chart, the sweep and the alert lane all withhold was replayed as if drawn.
+    scan_key = block_runs.scan_plot_key(doc)
+    gates = block_runs.block_runs_for(doc, scan_key) if scan_key else None
     return tree, {"def_id": def_id, "version": row.get("version"),
                   "rev": compute.get("rev"),
-                  "_semantics": ast_interpret.semantics_for(doc)}
+                  "_semantics": ast_interpret.semantics_for(doc),
+                  "_block_runs": ({"definition": doc, "key": scan_key, "gates": gates} if gates else None)}
 
 
 def _tree_of(body: BacktestRequest, user_id: Any = None) -> tuple[dict, dict]:
@@ -746,9 +762,26 @@ def _iso(session: int) -> str:
     return f"{session // 10_000:04d}-{(session // 100) % 100:02d}-{session % 100:02d}"
 
 
+def _withheld_for(blocked: Optional[dict], opts: Optional[dict]):
+    """⭐ C48 / C45 (M3) — ``bars -> sentence | None`` for ``run_backtest``: why the
+    member's chart withholds the stored definition's scan plot on these bars, or
+    ``None`` for a replay with no gates. The guards are evaluated with the SAME opts
+    the engine hands ``interpret`` for the tree (``_scan_symbol``: the definition's
+    semantics), so a gate is never asked under different maths than its plot."""
+    if not blocked:
+        return None
+    from api.services import block_runs
+    doc, key = blocked["definition"], blocked["key"]
+
+    def withheld(bars):
+        return block_runs.block_runs_refusal(
+            doc, key, lambda guard: ast_interpret.interpret(guard, list(bars), opts=dict(opts) if opts else None))
+    return withheld
+
+
 def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
                 horizons: list[int], read_bars, want: int, to_key: int,
-                tf: str = "D", semantics: int = 1) -> dict:
+                tf: str = "D", semantics: int = 1, blocked: Optional[dict] = None) -> dict:
     """The ONLY call into ``api/services/screener/backtest.py``.
 
     ⛔ Nothing is post-processed. Whatever receipt the engine returns — including
@@ -772,14 +805,19 @@ def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
     answer a question about one, and the engine holds all of it at once.
     """
     engine = _engine()
+    # ⭐ the canonical opts for the definition semantics — None for 1, so a
+    # semantics-1 replay evaluates exactly as it always did
+    opts = {"semantics": 2} if semantics == 2 else None
     receipt = engine.run_backtest(
         tree, symbols, _iso(start), _iso(end),
         bars_for=lambda sym: read_bars(sym, want),
         horizons=horizons,
         bars_source=_bars_source_label(tf, want, to_key),
-        # ⭐ the canonical opts for the definition semantics — None for 1, so a
-        # semantics-1 replay evaluates exactly as it always did
-        opts=({"semantics": 2} if semantics == 2 else None))
+        opts=opts,
+        # ⭐ M3 — a stored definition's scan-plot gates, asked per symbol; `None`
+        # for every other replay, which the engine reads as "no gates" (no key of
+        # the receipt moves)
+        withheld_for=_withheld_for(blocked, opts))
     # ⛔ `.to_dict()` AND NOT `dataclasses.asdict`. The receipt decides which keys
     # a refusal carries and which an answer carries (`forward_returns`/`baseline`
     # only when `backtestable`), and `asdict` would flatten that decision into
@@ -823,7 +861,8 @@ def _envelope(receipt: dict, extras: dict) -> dict:
 # --------------------------------------------------------------------------- #
 
 def job_id(tree: Any, symbols: list[str], tf: str, start: int, end: int,
-           horizons: list[int], semantics: int = 1) -> str:
+           horizons: list[int], semantics: int = 1,
+           block_runs: Optional[list] = None) -> str:
     """Deterministic id for one backtest. No clock, no RNG, no counter.
 
     Same inputs → same id → the poll finds the receipt that was already computed,
@@ -838,6 +877,11 @@ def job_id(tree: Any, symbols: list[str], tf: str, start: int, end: int,
     # under one — is byte-identical to what it was.
     if semantics == 2:
         body["semantics"] = 2
+    # ⭐ M3 — …AND THE GATES A STORED DEFINITION CARRIES, for the same reason: the
+    # same tree replayed with gates withholds symbols the bare tree answers, so the
+    # two receipts must never be served for each other. Added ONLY when present.
+    if block_runs:
+        body["blockRuns"] = block_runs
     payload = json.dumps(body, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
 
@@ -960,6 +1004,10 @@ def run_screen_backtest(body: BacktestRequest,
     # STORED definition (`_definition_tree`); a posted tree is semantics 1. Popped
     # here, first, so the private key never reaches an echo of the provenance.
     semantics = 2 if (definition.pop("_semantics", 1) if definition else 1) == 2 else 1
+    # ⭐ M3 — the stored definition's scan-plot gates (`_definition_tree`), popped
+    # beside it for the same reason; `None` for a posted tree and every unstamped
+    # definition.
+    blocked = definition.pop("_block_runs", None) if definition else None
     tf = _tf(body.tf)
 
     # ⛔⛔ THE WINDOW THE MEMBER TYPED IS PARSED **HERE**, BEFORE THE UNIVERSE IS
@@ -1052,7 +1100,8 @@ def run_screen_backtest(body: BacktestRequest,
                     f"({len(symbols):,} symbols x {want:,} bars) and the ceiling "
                     f"is {cap:,}. Narrow the universe or shorten the window."))
 
-    job = job_id(tree, symbols, tf, start, end, horizons, semantics=semantics)
+    job = job_id(tree, symbols, tf, start, end, horizons, semantics=semantics,
+                 block_runs=blocked["gates"] if blocked else None)
 
     # ⛔ `universe_request`, NOT `universe`, AND NO `bars_source` AT ALL.
     # The engine's receipt already writes both: `Receipt.universe` is a REQUIRED
@@ -1157,7 +1206,8 @@ def run_screen_backtest(body: BacktestRequest,
         receipt = _run_engine(tree, symbols, start=start, end=end,
                               horizons=horizons,
                               read_bars=_bars_reader(tf, to_key),
-                              want=want, to_key=to_key, tf=tf, semantics=semantics)
+                              want=want, to_key=to_key, tf=tf, semantics=semantics,
+                              blocked=blocked)
         return _envelope(receipt, extras)
 
     if background:

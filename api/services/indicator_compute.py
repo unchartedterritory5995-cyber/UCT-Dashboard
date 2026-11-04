@@ -45,7 +45,7 @@ These match the structure used throughout ``api/services/bars_fetch.py``.
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from math import isfinite, sqrt
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -1812,6 +1812,7 @@ def bar_close_state(bars: List[dict], tf, now: Optional[float] = None,
 #: and its 1st-of-month key (``_resample_monthly_iso``) need no special case.
 #: The screen's ``YYYYMMDD`` ints stay behind the unit gate.
 DAILY_SESSION_OPEN_ET_MINUTE = 9 * 60 + 30
+_EPOCH_UTC = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 
 
@@ -1861,8 +1862,25 @@ def bar_open_instant(t, tf: Optional[str] = None) -> Optional[float]:
         day = _first_vendor_session(first, (nxt - first).days)
     if day is None:
         return None
-    instant = _et_wall_instant(day, DAILY_SESSION_OPEN_ET_MINUTE)
-    return instant if instant >= VWAP_MIN_INSTANT else None
+    # ⭐ NO 1990 FLOOR ON A DATE (2026-10-31, ``fix/fx-clock-blank``). The floor
+    # guards the NUMBER branch above -- a ``YYYYMMDD`` int read as seconds -- and an
+    # ISO date cannot be one. It blanked every clock column of a series holding one
+    # pre-1990 bar (FX:EURUSD 1D from 1971; AAPL / KO deep daily history). Mirrors
+    # ``indicators.js::barOpenInstant`` / ``etClockRead``.
+    # ⛔ Before 1883-11-18 New York kept local mean time (UTC-4:56:02): no whole-hour
+    # offset, so ``etWallInstant`` answers null there and so does this.
+    offset = datetime(day.year, day.month, day.day, DAILY_SESSION_OPEN_ET_MINUTE // 60,
+                      DAILY_SESSION_OPEN_ET_MINUTE % 60, tzinfo=_et_zone()).utcoffset()
+    if offset is None or offset.total_seconds() % 3600 != 0:
+        return None
+    return _et_wall_instant(day, DAILY_SESSION_OPEN_ET_MINUTE)
+
+
+def _et_from_ts(t: float, zone) -> datetime:
+    """``datetime.fromtimestamp(t, zone)`` for any instant, before 1970 included:
+    Windows' ``fromtimestamp`` raises on a negative ``t``, and a date-keyed bar may
+    now open before the epoch (``bar_open_instant``). The same instant either way."""
+    return (_EPOCH_UTC + timedelta(seconds=t)).astimezone(zone)
 
 
 def _last_vendor_session(end: date, span: int) -> Optional[date]:
@@ -1925,7 +1943,7 @@ def compute_period_calendar(bars: List[dict], tf: Optional[str] = None) -> Optio
         t = bar_open_instant((bar or {}).get("t") if isinstance(bar, dict) else None, tf)
         if t is None:
             return None
-        day = datetime.fromtimestamp(t, zone).date()
+        day = _et_from_ts(t, zone).date()
         out["day"][i] = float(day.year * 10000 + day.month * 100 + day.day)
         monday = day - timedelta(days=day.weekday())
         quarter_month = day.month - ((day.month - 1) % 3)
@@ -2156,7 +2174,7 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     if tf == "60":
         on_hour = on_half = False
         for t in opens:
-            dt = datetime.fromtimestamp(t, zone)
+            dt = _et_from_ts(t, zone)
             if dt.isoweekday() > 5 or dt.hour < 10 or dt.hour > 15:
                 continue
             m60 = int((t - int(t // 3600) * 3600) // 60)
@@ -2172,7 +2190,7 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
         if utc_hour == memo_hour:
             y, mo, d, wd, h = memo
         else:
-            dt = datetime.fromtimestamp(t, zone)
+            dt = _et_from_ts(t, zone)
             # ``isoweekday()`` is 1=Monday..7=Sunday; Pine's day is
             # 1=Sunday..7=Saturday, so Sunday's 7 wraps to 1 and every other day
             # shifts up by one. Written as ``% 7 + 1`` so there is no table.

@@ -26,7 +26,8 @@ change either):
 ⭐⭐ GT (2026-10-02, owner rulings D1 / D2 / D6) — THREE MORE, ALL READ PER CALL:
 
 * ``PINE_RUNTIME_STAGE`` — WHO the runtime pane is for: ``off`` (the default,
-  and what an unset or unrecognised value reads as), ``admins``, ``all``. It
+  and what an unset or unrecognised value reads as), ``admins``, ``cohort``
+  (WS-I, R2: admins plus the ``pine-runtime-pane`` cohort tag), ``all``. It
   rides the auth payload resolved for the member (``api/routers/auth.py::
   _access_payload`` -> ``pine_runtime_pane_enabled``), and the client's
   ``runtimePaneGate.runtimePaneEnabled()`` needs BOTH it and the build flag.
@@ -48,16 +49,35 @@ recomputed here from ``compute.source``; the repaint class is re-derived here
 by ``runtime_repaint.runtime_repaint_of`` — the mirror of the client door's
 ``engine/runtime/runtimeRepaint.js``, over the same rule table, held to one
 answer per corpus script by ``tests/test_runtime_repaint.py`` (RT2).
+
+W5 T12 (2026-11-02) -- THE SERVER LANES' ADMISSION (docs/pine/SERVER-RUNTIME-DESIGN.md, 3.5).
+Three more variables, all read per call, and one function the server lanes ask:
+
+* ``PINE_RUNTIME_SERVER_STAGE`` -- WHO the server lanes (alerts, scans, backtests, the rule
+  record) run for: the pane's ladder (off, admins, cohort, all) in a variable of its own.
+  Unset or unrecognised is ``off``. The stage the lanes run at is min(pane stage, server
+  stage) (``effective_server_stage``), so a lane never reaches a member whose chart cannot
+  draw the script (``server_permitted`` asks ``pane_permitted`` first).
+* ``PINE_RUNTIME_SERVICE_URL`` and ``PINE_RUNTIME_SERVICE_SECRET`` -- where the web pod
+  reaches the runtime service and the key that signs the request. Here they are only asked
+  about being set (``service_missing``); the value of the secret is never read into a
+  sentence or a log.
+* ``server_lane_refusal(row, lane=...)`` -- the ONE admission question a server lane asks:
+  kill list, allowlist (graded MATCH), pane stage, server stage, service set up, in that
+  order. NOTHING CALLS IT YET (T13 onward wire it), so no member's behaviour changes.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
 from typing import Any, Optional
 
 from api.services import runtime_repaint
+
+log = logging.getLogger(__name__)
 
 #: The compute kind this module owns.
 RUNTIME_KIND = "runtime"
@@ -70,15 +90,27 @@ STAGE_ENV = "PINE_RUNTIME_STAGE"
 STAGE_OFF = "off"
 STAGE_ADMINS = "admins"
 STAGE_ALL = "all"
-STAGES = (STAGE_OFF, STAGE_ADMINS, STAGE_ALL)
+#: ⭐ WS-I (2026-10-31, owner ruling R2) — the stage between admins and all:
+#: admins PLUS members tagged into `rollout_gate.PINE_RUNTIME_COHORT`
+#: (`rollout:pine-runtime-pane`, a `user_tags` row). The ladder is
+#: off -> admins -> cohort -> all; every step back is a variable, never a delete.
+STAGE_COHORT = "cohort"
+STAGES = (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT, STAGE_ALL)
+#: W5 T12 (owner ruling Q4, 2026-11-02): the stage of the SERVER lanes. Same ladder, own variable.
+SERVER_STAGE_ENV = "PINE_RUNTIME_SERVER_STAGE"
 
 #: ⭐ DECLARED AS A MODE TABLE so `feature_flag_index.mode_flags()` derives it
 #: (the stage carries no ENABLED marker, so `gates()` cannot see it). The
 #: default is the literal the code falls back to, in the same expression a
 #: reader audits. ⛔ It is OFF: an unset variable never exposes the lane.
 #: ⚠️ The KEY is a string literal on purpose: the index reads a constant key.
-PINE_RUNTIME_MODE_FLAGS = {"PINE_RUNTIME_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_ALL))}
+PINE_RUNTIME_MODE_FLAGS = {
+    "PINE_RUNTIME_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT, STAGE_ALL)),
+    # W5 T12 (ruling Q4): the SERVER lanes' stage, the same ladder in a variable of its own.
+    "PINE_RUNTIME_SERVER_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT, STAGE_ALL)),
+}
 assert STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
+assert SERVER_STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
 
 # ─── GT: the starter allowlist (D6) ──────────────────────────────────────────
 ALLOW_ENV = "PINE_RUNTIME_ALLOWLIST"
@@ -137,7 +169,7 @@ def kill_list() -> list[str]:
 
 
 def stage() -> str:
-    """`PINE_RUNTIME_STAGE`, read PER CALL: ``off`` · ``admins`` · ``all``.
+    """`PINE_RUNTIME_STAGE`, read PER CALL: ``off`` · ``admins`` · ``cohort`` · ``all``.
 
     ⛔ AN UNSET, EMPTY OR UNRECOGNISED VALUE IS ``off`` — never the opposite.
     A typo ("admin", "everyone") must not open the lane to anyone."""
@@ -145,18 +177,202 @@ def stage() -> str:
     return v if v in STAGES else STAGE_OFF
 
 
-def pane_permitted(role: Any) -> bool:
+def pane_permitted(role: Any, user_id: Any = None) -> bool:
     """May THIS member's pane draw a script through the runtime lane?
 
-    ``all`` -> everyone; ``admins`` -> ``role == "admin"`` only; ``off`` -> nobody.
-    ⛔ A missing role is a MEMBER's, never an admin's: a caller that forgets to
-    pass it fails closed."""
+    ``all`` -> everyone; ``cohort`` -> admins and members tagged into the
+    ``pine-runtime-pane`` cohort (WS-I, R2); ``admins`` -> ``role == "admin"``
+    only; ``off`` -> nobody.
+    ⛔ A missing role is a MEMBER's, never an admin's, and a missing id is
+    OUTSIDE the cohort: a caller that forgets either fails closed."""
     s = stage()
     if s == STAGE_ALL:
         return True
-    if s == STAGE_ADMINS:
-        return role == "admin"
+    if s in (STAGE_ADMINS, STAGE_COHORT) and role == "admin":
+        return True
+    if s == STAGE_COHORT:
+        # ⛔ Imported here, not at the top: `rollout_gate` imports FastAPI and the
+        # auth middleware, which the store's save path must not drag in at import.
+        from api.services import rollout_gate
+        return bool(rollout_gate.pine_runtime_cohort_enabled_for(
+            str(user_id) if user_id else None))
     return False
+
+
+# --- W5 T12: the SERVER lanes' admission (docs/pine/SERVER-RUNTIME-DESIGN.md, 3.5) ---
+#
+# The alert cycle, the scans, the backtest and the rule record will run a member's
+# script in the separate `pine-runtime` service (tasks T13-T17), and every one of them
+# asks `server_lane_refusal` BEFORE it evaluates. ONE AUTHORITY: the kill list, the
+# allowlist, the stage and the cohort are read here, through the functions the chart's
+# own serving path uses (`killed`, `not_graded`, `pane_permitted`); the service holds no
+# copy of any of them and has no variable for them.
+#
+# NOTHING CALLS THESE YET. Until a lane is wired to them (T13 onward) no member's
+# behaviour changes, whatever the variables below hold.
+
+#: Where the web pod reaches the runtime service (private network only). Read per call.
+SERVICE_URL_ENV = "PINE_RUNTIME_SERVICE_URL"
+#: The HMAC key that signs every request to the service (design 3.6). It is read here
+#: ONLY to ask whether it is set: its VALUE never reaches a sentence, a log or the
+#: ledger. The signing read is the client's (T11).
+SERVICE_SECRET_ENV = "PINE_RUNTIME_SERVICE_SECRET"
+
+
+def server_stage() -> str:
+    """`PINE_RUNTIME_SERVER_STAGE`, read PER CALL: ``off`` | ``admins`` | ``cohort`` | ``all``.
+
+    WHO the SERVER lanes (alerts, scans, backtests, the rule record) run for: the same
+    ladder and the same vocabulary (`STAGES`) as `stage()`, in a variable of its own so
+    the chart can be armed without arming the server lanes, and the server lanes can be
+    killed alone (owner ruling Q4, 2026-11-02).
+
+    NEVER READ THIS ON ITS OWN TO ADMIT ANYONE: the stage the server lanes run at is
+    `effective_server_stage()`, the LOWER of this and the pane's.
+
+    AN UNSET, EMPTY OR UNRECOGNISED VALUE IS ``off``, never the opposite. A typo
+    ("admin", "everyone") must not open a server lane to anyone."""
+    v = os.environ.get(SERVER_STAGE_ENV, STAGE_OFF).strip().lower()
+    return v if v in STAGES else STAGE_OFF
+
+
+def effective_server_stage() -> str:
+    """The stage the server lanes really run at: min(pane stage, server stage) on the
+    ladder `STAGES` (off < admins < cohort < all). Both are read per call.
+
+    A server lane can therefore never reach a member whose chart cannot draw the
+    script: with the pane at ``admins`` and the server at ``all`` this is ``admins``."""
+    pane, server = stage(), server_stage()
+    return pane if STAGES.index(pane) <= STAGES.index(server) else server
+
+
+def server_permitted(role: Any, user_id: Any = None) -> bool:
+    """May a script OWNED by this member run in a SERVER lane? (ruling Q4)
+
+    Two questions, the pane's first. `pane_permitted` is CALLED here, not copied, so a
+    member the chart cannot draw for is refused by construction, whatever
+    `PINE_RUNTIME_SERVER_STAGE` says and whatever `pane_permitted` comes to mean later.
+    Then the server stage's own audience: ``all`` -> everyone; ``cohort`` -> admins and
+    the `pine-runtime-pane` cohort (the same tag the pane's cohort stage reads);
+    ``admins`` -> ``role == "admin"`` only; ``off`` -> nobody.
+
+    A missing role is a MEMBER's, never an admin's, and a missing id is OUTSIDE the
+    cohort: a caller that forgets either fails closed. The server stage is the cohort's
+    kill switch, read FIRST: at any other server stage no tag is read, so stepping the
+    stage back withdraws every tagged member and touches no tag."""
+    if not pane_permitted(role, user_id):
+        return False
+    s = server_stage()
+    if s == STAGE_ALL:
+        return True
+    if s in (STAGE_ADMINS, STAGE_COHORT) and role == "admin":
+        return True
+    # Imported here, not at the top: `rollout_gate` imports FastAPI and the auth
+    # middleware, which the store's save path must not drag in at import.
+    from api.services import rollout_gate
+    return bool(rollout_gate.cohort_enabled_for(
+        str(user_id) if user_id else None, rollout_gate.PINE_RUNTIME_COHORT,
+        kill_switch=lambda: s == STAGE_COHORT))
+
+
+def _owner_role(owner_id: Any) -> Optional[str]:
+    """The stored role of a definition's OWNER (`users.role`, the value the auth payload
+    reads for the same member), or ``None`` when there is no id or the lookup fails.
+
+    Read on EVERY call, never cached: a demotion reaches the next admission. A failure
+    is a MEMBER (``None``), never an admin: the chain below then refuses at the
+    ``admins`` stages and says so by name."""
+    if not owner_id:
+        return None
+    try:
+        from api.services import auth_service
+        user = auth_service.get_user_by_id(str(owner_id))
+    except Exception:  # noqa: BLE001 -- an unreadable owner is a member, and the lane refuses by name
+        log.warning("[runtime_definitions] owner role unreadable; treated as a member")
+        return None
+    role = user.get("role") if isinstance(user, dict) else None
+    return role if isinstance(role, str) else None
+
+
+def service_missing() -> list[str]:
+    """The names of the variables the web pod needs to reach the runtime service that
+    are NOT set (blank counts as unset): `PINE_RUNTIME_SERVICE_URL` (where) and
+    `PINE_RUNTIME_SERVICE_SECRET` (the key that signs the request). Empty means
+    configured. Read per call. Names only: no value is ever returned.
+
+    Each name is read by its own `os.environ.get(CONSTANT, ...)` on purpose, not through a loop
+    variable: the flag index finds a read only in that form, and a ledgered name the index
+    cannot see read would look like rot."""
+    missing = []
+    if not os.environ.get(SERVICE_URL_ENV, "").strip():
+        missing.append(SERVICE_URL_ENV)
+    if not os.environ.get(SERVICE_SECRET_ENV, "").strip():
+        missing.append(SERVICE_SECRET_ENV)
+    return missing
+
+
+def server_lane_refusal(row: Any, *, lane: Any) -> Optional[tuple[str, str]]:
+    """THE ONLY ADMISSION QUESTION A SERVER LANE ASKS of a stored runtime document:
+    ``(guard, sentence)`` for the FIRST refusal that applies, or ``None`` when the lane
+    may run it. Design 3.5, step by step; it never raises and never returns a
+    non-refusal for a row it cannot read.
+
+      1. kill list       `killed(def_id, source)`                 -> ``runtime:killed``
+      2. graded          `not_graded(source)`                     -> ``runtime:not-yet-graded``
+      3. pane stage      `pane_permitted(owner_role, owner_id)`   -> ``runtime:stage``
+      4. server stage    `server_permitted(owner_role, owner_id)` -> ``runtime:server-stage``
+      5. service set up  `service_missing()` is empty             -> ``runtime:server-unavailable``
+
+    ONE AUTHORITY PER QUESTION: steps 1-3 ask the very functions the chart's serving path
+    asks, so a script the chart refuses is refused here by the same reason and the same
+    sentence (steps 1 and 2 return that sentence verbatim). Step 2 therefore admits only
+    a script on the GRADED allowlist (ruling Q8: only allowlisted, MATCH-graded documents may
+    use the service): `not_graded(source, graded_only=True)` asks `graded_allow_list` (the
+    committed JSON served through `rollout_gate.pine_runtime_admission`), never a second
+    list. ⛔ The operator variable `PINE_RUNTIME_ALLOWLIST` carries no evidence, so it keeps
+    admitting on the browser pane only and NEVER on a server lane (coordinator ruling,
+    2026-11-02).
+
+    ALL FIVE ARE READ ON EVERY CALL and nothing is cached: a kill, a stage change or a
+    demotion reaches the NEXT call, and nothing stored is touched (a kill switch is never
+    a delete). The owner is the definition's, `row["user_id"]`, checked at EVALUATION
+    time, every cycle, not once at arm.
+
+    `lane` is the service profile asking (``alert``, ``on-demand``, ``backtest``,
+    ``sweep``, ``record``); it only words the sentences, the five questions are the same
+    in every lane. No sentence carries a variable's value other than a stage word, and
+    never the URL or the secret."""
+    lane_name = lane.strip() if isinstance(lane, str) and lane.strip() else "server"
+    why_not = f"so this one does not run on the server ({lane_name} lane)"
+    definition = row.get("definition") if isinstance(row, dict) else None
+    def_id = row.get("def_id") if isinstance(row, dict) else None
+    if not is_runtime(definition) or not isinstance(def_id, str) or not def_id:
+        return ("runtime:not-runtime",
+                f"this is not a stored runtime document, {why_not}")
+    source = definition["compute"].get("source")
+    reason = killed(def_id, source)
+    if reason:
+        return ("runtime:killed", reason)
+    reason = not_graded(source, graded_only=True)
+    if reason:
+        return ("runtime:not-yet-graded", reason)
+    owner_id = row.get("user_id")
+    role = _owner_role(owner_id)
+    if not pane_permitted(role, owner_id):
+        return ("runtime:stage",
+                "scripts drawn bar by bar are not switched on for this account right now "
+                f"({STAGE_ENV}={stage()}), {why_not}")
+    if not server_permitted(role, owner_id):
+        return ("runtime:server-stage",
+                "scripts drawn bar by bar are not switched on for server runs for this "
+                f"account right now (effective stage {effective_server_stage()}: "
+                f"{SERVER_STAGE_ENV}={server_stage()}, {STAGE_ENV}={stage()}), {why_not}")
+    missing = service_missing()
+    if missing:
+        return ("runtime:server-unavailable",
+                f"the runtime service is not set up on this server ({' and '.join(missing)} "
+                f"not set), {why_not}")
+    return None
 
 
 def _allow_entries_from(raw: Any) -> list[str]:
@@ -168,8 +384,62 @@ def _allow_entries_from(raw: Any) -> list[str]:
     return out
 
 
+def _allowlist_doc() -> Optional[dict]:
+    try:
+        with open(ALLOWLIST_PATH, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return doc if isinstance(doc, dict) else None
+
+
+def allow_report() -> dict:
+    """WS-I (R1) — what the committed allowlist SERVES and what it WITHHOLDS, and
+    why, plus the variable's entries (which carry no evidence: an operator
+    override outside R1, reported so it is never invisible). Never raises on
+    the file: an unreadable one serves nothing (fail closed)."""
+    from api.services import rollout_gate
+    doc = _allowlist_doc()
+    served: list[dict] = []
+    withheld: list[dict] = []
+    scripts = doc.get("scripts") if doc else None
+    registry = doc.get("capabilities") if doc else None
+    for s in scripts if isinstance(scripts, list) else []:
+        if not isinstance(s, dict):
+            continue
+        sha = _allow_entries_from([s.get("sha256")])
+        reasons = rollout_gate.pine_runtime_admission(s, registry)
+        if not sha:
+            reasons = ["no well-formed sha256"] + reasons
+        row = {"slug": s.get("slug"), "sha256": sha[0] if sha else None}
+        if reasons:
+            withheld.append(dict(row, reasons=reasons))
+        else:
+            served.append(row)
+    overrides = _allow_entries_from(re.split(r"[\s,]+", os.environ.get(ALLOW_ENV, "")))
+    return {"served": served, "withheld": withheld, "env_overrides": overrides}
+
+
+def graded_allow_list() -> list[str]:
+    """The GRADED allowlist: only what the committed JSON SERVES (`allow_report`'s
+    ``served``: R1-graded, with a MATCH capture), never `PINE_RUNTIME_ALLOWLIST`.
+
+    ⭐ The single authority for "graded" (W5 T12, ruling Q8): `allow_list` builds on it and
+    the SERVER lanes ask it directly (`not_graded(..., graded_only=True)`), so the two can
+    never disagree about what is graded. Read per call; an unreadable JSON serves nothing."""
+    return [r["sha256"] for r in allow_report()["served"]]
+
+
 def allow_list() -> list[str]:
     """The starter allowlist: the committed JSON ∪ `PINE_RUNTIME_ALLOWLIST`.
+
+    ⭐ WS-I (2026-10-31, owner ruling R1): a committed script is SERVED only when
+    `rollout_gate.pine_runtime_admission` admits it: every capability it uses
+    conformance-graded, and at least one MATCH capture with the pane on. One that
+    fails is left out (served as not graded, never deleted); `allow_report`
+    names why. ⚠️ The variable's entries carry no evidence and are NOT graded
+    here: it stays an additive operator override (tests, an emergency add),
+    recorded in `docs/feature_flags.json` as to be left UNSET in production.
 
     Both are read PER CALL, so an env edit needs no deploy. Each entry is a
     script's source sha256 or a prefix of at least 12 hex. ⛔ A definition id is
@@ -178,45 +448,39 @@ def allow_list() -> list[str]:
 
     ⛔ AN UNREADABLE JSON CONTRIBUTES NOTHING (fail closed): the lane serves less,
     never more."""
-    entries: list[str] = []
-    try:
-        with open(ALLOWLIST_PATH, encoding="utf-8") as fh:
-            doc = json.load(fh)
-        scripts = doc.get("scripts") if isinstance(doc, dict) else None
-        if isinstance(scripts, list):
-            entries.extend(_allow_entries_from(
-                s.get("sha256") for s in scripts if isinstance(s, dict)))
-    except (OSError, ValueError):
-        pass
+    entries: list[str] = graded_allow_list()
     for e in _allow_entries_from(re.split(r"[\s,]+", os.environ.get(ALLOW_ENV, ""))):
         if e not in entries:
             entries.append(e)
     return entries
 
 
-def not_graded(source: Optional[str]) -> Optional[str]:
+def not_graded(source: Optional[str], *, graded_only: bool = False) -> Optional[str]:
     """Why this script is NOT served by the runtime lane (D6), or ``None``.
 
     The sentence is the reason; the code the member door declines with is
-    ``runtime:not-yet-graded``."""
+    ``runtime:not-yet-graded``. `graded_only=True` (the SERVER lanes, ruling Q8) admits
+    only `graded_allow_list`, so an operator-variable entry is refused there; the default
+    (the browser pane) admits `allow_list`, the variable included."""
     h = source_hash(source) if isinstance(source, str) else ""
-    if h and any(h.startswith(e) for e in allow_list()):
+    if h and any(h.startswith(e) for e in (graded_allow_list() if graded_only else allow_list())):
         return None
     return (f"this script (sha256 {h[:12] or '?'}…) has not yet been graded against "
             "TradingView, so it is not drawn bar by bar")
 
 
-def save_permission(role: Any) -> Optional[str]:
+def save_permission(role: Any, user_id: Any = None) -> Optional[str]:
     """The save door's PER-MEMBER refusal (D1), or ``None``.
 
     ⛔ The SAME question the client's pane asks before it draws
     (`pane_permitted`), so a member who cannot see the lane cannot store into it
     either. The save switch, the kill list and the allowlist are asked by the
     caller, each with its own sentence."""
-    if pane_permitted(role):
+    if pane_permitted(role, user_id):
         return None
     s = stage()
-    who = "no member" if s == STAGE_OFF else "admins only"
+    who = {STAGE_OFF: "no member", STAGE_COHORT: "admins and a test group only"}.get(
+        s, "admins only")
     return (f"scripts drawn bar by bar are switched on for {who} right now "
             f"({STAGE_ENV}={s}), so this one is not saved")
 
@@ -337,6 +601,13 @@ def stamp_served(row: dict) -> dict:
         return row
     source = (definition.get("compute") or {}).get("source")
     why = killed(row.get("def_id"), source)
+    # ⭐ WS-I (S6) — THE STAGE REACHES A SERVED ROW. With `PINE_RUNTIME_STAGE=off`
+    # nobody may draw through the lane, so every runtime row read after the
+    # switch-off is stamped exactly as a kill is (never stored, never deleted):
+    # a tab still latched ON refuses it at its install door on its next read.
+    if not why and stage() == STAGE_OFF:
+        why = (f"scripts drawn bar by bar are switched off for every member right now "
+               f"({STAGE_ENV}={STAGE_OFF}), so this one is not drawn bar by bar")
     # ⭐ GT (D6) — a stored runtime row whose script is not on the starter
     # allowlist is SERVED stamped, never deleted and never rewritten, exactly as
     # a kill is: the install door refuses the stamp, and listing the script

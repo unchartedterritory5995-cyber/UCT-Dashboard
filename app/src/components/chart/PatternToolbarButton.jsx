@@ -16,7 +16,7 @@ export default function PatternToolbarButton({ active, onToggle }) {
       title={active ? 'Patterns: ON (click to hide)' : 'Patterns: OFF (click to show)'}
       aria-label="Toggle chart patterns overlay"
       aria-pressed={active}
-      style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px' }}
+      style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px', width: 'auto', minWidth: 24, whiteSpace: 'nowrap', flexShrink: 0 }}
     >
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
         <span style={{ fontSize: 12, lineHeight: 1 }}><UIcon name="patterns" size={12} /></span>

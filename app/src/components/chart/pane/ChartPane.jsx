@@ -1,5 +1,5 @@
 import {
-  forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
+  forwardRef, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
@@ -306,6 +306,12 @@ function ChartPane({
   // draws. Ready fires on a fatal error too, and a badge reading "0 bars" on a
   // dead ticker is a disclosure about nothing.
   const [drawnBars, setDrawnBars] = useState(null)
+  // ⭐⭐ ONE ID FOR THIS PANE'S BINDER AND THIS PANE'S STRIP. The binder publishes its
+  // bind-time notes under it (`StockChart` → `createBinder({scope})`) and the strip
+  // reads only it, so an instance id drawn by another chart (a grid cell, a seeded
+  // widget on another symbol or timeframe) never puts that chart's notes here.
+  // `useId` is stable for the pane's life: no render ever sees a new scope.
+  const noticeScope = useId()
   const noteDrawnBars = useCallback((n) => {
     setDrawnBars((prev) => (Number.isFinite(n) && n !== prev ? n : prev))
   }, [])
@@ -1144,6 +1150,9 @@ function ChartPane({
           onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
           onDateNavApi={(api) => { dateNavApiRef.current = api; stockChartProps?.onDateNavApi?.(api) }}
           onDrawnBarCount={(n) => { noteDrawnBars(n); stockChartProps?.onDrawnBarCount?.(n) }}
+          /* AFTER the host spread: the strip below reads this scope, so a host
+             cannot point the binder anywhere else. */
+          noticeScope={noticeScope}
           /* AFTER the host spread for the same reason as the two above — and this
              one does not DROP the host's ref, it fans out to it. See
              `toolbarApiRef`'s declaration. */
@@ -1162,7 +1171,7 @@ function ChartPane({
           gated INSIDE the component (one authority, the one the rails measure),
           and `null` when nothing attached raises anything, which is every chart
           in the app today. */}
-      <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} />
+      <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} noticeScope={noticeScope} />
       <ChartSettingsModal
         open={settingsOpen}
         chartTf={effectiveTf}

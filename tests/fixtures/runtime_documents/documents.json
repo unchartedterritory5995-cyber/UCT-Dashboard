@@ -11984,7 +11984,15 @@
      "rev": 1,
      "source": "// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © faytterro\n\n//@version=5\nindicator(\"Wyckoff Accumulation Distribution\", overlay=true, max_boxes_count = 500, calc_bars_count = 1000)\n\n// === Genel ayar ===\ncolor_ = input.color(color.white, \"Text Color\")\n\n// RSI hesaplama\nrsilen = input.int(14, \"RSI Length\")\nrsi = ta.rsi(close, rsilen)\nrsisens = input.int(20, title= \"trend Sensitivity\", maxval=50, minval=0, \n tooltip = \"When it increases, bull and bear signals decrease and horizontal trend signals increase.\")\n\nutad = rsi<50+rsisens and rsi[1]>50+rsisens\nspring = rsi>50-rsisens and rsi[1]<50-rsisens\n\n// Yüksek ve düşük hesaplama fonksiyonları\nmyhigh(len) =>\n    x = array.new_float()\n    for i = 0 to len - 1\n        array.push(x, high[i])\n    array.max(x)\n\nmylow(len) =>\n    x = array.new_float()\n    for i = 0 to len - 1\n        array.push(x, low[i])\n    array.min(x)\n\n// Yatay, yükseliş ve düşüş koşulları\nside = (rsi < 50 + rsisens and rsi > 50 - rsisens) or (rsi[1] < 50 + rsisens and rsi[1] > 50 - rsisens)\nbull = rsi > 50 + rsisens and rsi[1] > 50 + rsisens\nbear = rsi < 50 - rsisens and rsi[1] < 50 - rsisens \n\nboxlen = ta.barssince(side and not side[1])\n\nbarcolor(bull ? color.lime : bear ? color.purple : na, offset = -2)\n\nx1 = ta.valuewhen(side and not side[1], bar_index, 0)\nx2 = ta.valuewhen(not side and side[1], bar_index[1], 0)-1\ny1 = myhigh(math.max(1, boxlen+1))[2]\ny2 = mylow(math.max(1, boxlen+1))[2]\n\n// Kutuyu çizme\nvar box trendBox = na\nif side[1] and not side\n    trendBox := box.new(x1, y1, x2, y2, color.gray, 1, line.style_solid, extend.none, xloc.bar_index, x1 < x2 ? color.rgb(120, 123, 134, 90) : na, text_color = color.new(color_,80))\n\nvar string after_trend = na\nif bull\n    after_trend := \"Accumulation\"\nelse if bear\n    after_trend := \"Distribution\"\n\nif not na(trendBox) and after_trend == \"Accumulation\"\n    box.set_bgcolor(trendBox, color.rgb(76, 175, 79, 95))\n    box.set_text(trendBox, \"Accumulation\")\nelse if not na(trendBox) and after_trend == \"Distribution\"\n    box.set_bgcolor(trendBox, color.rgb(255, 82, 82, 95))\n    box.set_text(trendBox, \"Distribution\")\n\npivotLen = input.int(5, \"Pivot Length\", minval=1)\nrsiLow = 50 - rsisens\nrsiHigh = 50 + rsisens\noffsetVal = -pivotLen\n\npivotLow = ta.pivotlow(low, pivotLen, pivotLen)\npivotHigh = ta.pivothigh(high, pivotLen, pivotLen)\nrsiAtPivot = rsi[pivotLen]\n\n// Flagler\nvar bool isSCFlag = false\nvar bool isARFlag = false\nvar bool isSTFlag = false\nvar bool isBCFlag = false\nvar bool isDARFlag = false\nvar bool isDSTFlag = false\n\n// SC\nisSC = pivotLow and rsiAtPivot < rsiLow and not isSCFlag and not spring\nplotshape(isSC, \"The Selling Climax\", location=location.belowbar, style=shape.triangleup, color=color.green, size=size.tiny, offset=offsetVal, text=\"SC\", textcolor=color_, display = display.pane)\nisSCFlag := isSC ? true : isSCFlag\n\n// AR\nvar int scBarIndex = na\nif isSC\n    scBarIndex := bar_index - pivotLen\nisAR = false\nif not na(scBarIndex)\n    if pivotHigh and (bar_index - pivotLen > scBarIndex) and not isARFlag\n        isAR := true\n        scBarIndex := na\nisARFlag := isAR ? true : isARFlag\nplotshape(isAR, \"Automatic Rally\", style=shape.triangledown, location=location.abovebar, color=color.green, size=size.tiny, offset=offsetVal, text=\"AR\", textcolor=color_, display = display.pane)\n\n// ST (Accumulation)\nvar int pivotCounter = 0\nif pivotLow\n    pivotCounter := pivotCounter + 1\nif rsiAtPivot < rsiLow\n    pivotCounter := 0\nisST = pivotCounter == 1 and pivotLow and not isSTFlag \nplotshape(isST,\"the Secondary Test\", location=location.belowbar, style=shape.triangleup, color=color.green, size=size.tiny, offset=offsetVal, text=\"ST\", textcolor=color_, display = display.pane)\nisSTFlag := isST ? true : isSTFlag\n\n// BC\nisBC = rsiAtPivot > rsiHigh and pivotHigh and not isBCFlag and not utad\nplotshape(isBC,\"The Buying Climax\", location=location.abovebar, style=shape.triangledown, color=color.red, size=size.tiny, offset=offsetVal, text=\"BC\", textcolor=color_, display = display.pane)\nisBCFlag := isBC ? true : isBCFlag\n\n// DAR\nvar int bcBarIndex = na\nif isBC\n    bcBarIndex := bar_index - pivotLen\nisDAR = false\nif not na(bcBarIndex)\n    if pivotLow and (bar_index - pivotLen > bcBarIndex) and not isDARFlag\n        isDAR := true\n        bcBarIndex := na\nisDARFlag := isDAR ? true : isDARFlag\nplotshape(isDAR,\"Automatic Reaction\", location=location.belowbar, style=shape.triangleup, color=color.red, size=size.tiny, offset=offsetVal, text=\"AR\", textcolor=color_, display = display.pane)\n\n// DST\nvar int darBarIndex = na\nif isDAR\n    darBarIndex := bar_index - pivotLen\nisDST = false\nif not na(darBarIndex)\n    if pivotHigh and (bar_index - pivotLen > darBarIndex) and not isDSTFlag and not isBC\n        isDST := true\n        darBarIndex := na\nisDSTFlag := isDST ? true : isDSTFlag\nplotshape(isDST,\"The Secondary Test\", location=location.abovebar, style=shape.triangledown, color=color.red, size=size.tiny, offset=offsetVal, text=\"ST\", textcolor=color_, display = display.pane)\n\n// Diğer pivotlar (turuncu)\nplotshape(pivotLow and not isSC and not isST and not isAR and not isDAR, \"pivotHigh\", location=location.belowbar, style=shape.triangleup, color=color.orange, size=size.auto, offset=offsetVal, display = display.pane)\nplotshape(pivotHigh and not isAR and not isDST and not isBC,\"pivotLow\", location=location.abovebar, style=shape.triangledown, color=color.orange, size=size.auto, offset=offsetVal, display = display.pane)\n\n// Reset flagler\nif bar_index != bar_index[1]\n    isSCFlag := false\n    isARFlag := false\n    isSTFlag := false\n    isBCFlag := false\n    isDARFlag := false\n    isDSTFlag := false\n",
      "outputs": {
-      "out2": 0
+      "value": 1,
+      "out2": 2,
+      "out3": 3,
+      "out4": 4,
+      "out5": 5,
+      "out6": 6,
+      "out7": 7,
+      "out8": 8,
+      "out9": 0
      },
      "objects": true
     },
@@ -12029,36 +12037,8 @@
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       },
       {
-       "name": "The Selling Climax",
-       "note": "`The Selling Climax` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
-      },
-      {
-       "name": "Automatic Rally",
-       "note": "`Automatic Rally` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
-      },
-      {
-       "name": "the Secondary Test",
-       "note": "`the Secondary Test` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
-      },
-      {
-       "name": "The Buying Climax",
-       "note": "`The Buying Climax` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
-      },
-      {
-       "name": "Automatic Reaction",
-       "note": "`Automatic Reaction` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
-      },
-      {
-       "name": "The Secondary Test",
-       "note": "`The Secondary Test` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
-      },
-      {
-       "name": "pivotHigh",
-       "note": "`pivotHigh` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
-      },
-      {
-       "name": "pivotLow",
-       "note": "`pivotLow` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
+       "name": "Settings",
+       "note": "Kept at the author's default: `pivotLen` (it sets where a plot is drawn (`offset`), which this pane draws at the author's default)."
       },
       {
        "name": "Drawings",
@@ -12075,7 +12055,7 @@
       "key": "color",
       "type": "color",
       "label": "Color",
-      "default": "#c9a84c"
+      "default": "#4CAF50"
      },
      {
       "key": "lineWidth",
@@ -12089,13 +12069,118 @@
      {
       "key": "out2Color",
       "type": "color",
-      "label": "out2 colour",
-      "default": "#c9a84c"
+      "label": "Automatic Rally colour",
+      "default": "#4CAF50"
      },
      {
       "key": "out2Width",
       "type": "int",
-      "label": "out2 width",
+      "label": "Automatic Rally width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "out3Color",
+      "type": "color",
+      "label": "the Secondary Test colour",
+      "default": "#4CAF50"
+     },
+     {
+      "key": "out3Width",
+      "type": "int",
+      "label": "the Secondary Test width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "out4Color",
+      "type": "color",
+      "label": "The Buying Climax colour",
+      "default": "#FF5252"
+     },
+     {
+      "key": "out4Width",
+      "type": "int",
+      "label": "The Buying Climax width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "out5Color",
+      "type": "color",
+      "label": "Automatic Reaction colour",
+      "default": "#FF5252"
+     },
+     {
+      "key": "out5Width",
+      "type": "int",
+      "label": "Automatic Reaction width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "out6Color",
+      "type": "color",
+      "label": "The Secondary Test colour",
+      "default": "#FF5252"
+     },
+     {
+      "key": "out6Width",
+      "type": "int",
+      "label": "The Secondary Test width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "out7Color",
+      "type": "color",
+      "label": "pivotHigh colour",
+      "default": "#FF9800"
+     },
+     {
+      "key": "out7Width",
+      "type": "int",
+      "label": "pivotHigh width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "out8Color",
+      "type": "color",
+      "label": "pivotLow colour",
+      "default": "#FF9800"
+     },
+     {
+      "key": "out8Width",
+      "type": "int",
+      "label": "pivotLow width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "out9Color",
+      "type": "color",
+      "label": "out9 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "out9Width",
+      "type": "int",
+      "label": "out9 width",
       "default": 1,
       "min": 1,
       "max": 10,
@@ -12120,34 +12205,181 @@
       "label": "trend Sensitivity",
       "min": 0,
       "max": 50
-     },
-     {
-      "key": "pivotLen",
-      "type": "int",
-      "default": 5,
-      "label": "Pivot Length",
-      "min": 1
      }
     ],
     "plots": [
      {
       "key": "value",
-      "label": "wyckoff-accu",
-      "style": "line",
+      "label": "The Selling Climax",
+      "style": "markers",
       "color": "$color",
       "width": "$lineWidth",
       "role": "primary",
       "legend": {
        "decimals": 2
       },
-      "hidden": true
+      "marker": {
+       "shape": "arrowUp",
+       "pineShape": "shape.triangleup",
+       "shapeApprox": true,
+       "position": "belowBar",
+       "size": 0.5,
+       "text": "SC"
+      },
+      "displace": -5,
+      "forward": 0
      },
      {
       "key": "out2",
-      "label": "out2",
-      "style": "line",
+      "label": "Automatic Rally",
+      "style": "markers",
       "color": "$out2Color",
       "width": "$out2Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowDown",
+       "pineShape": "shape.triangledown",
+       "shapeApprox": true,
+       "position": "aboveBar",
+       "size": 0.5,
+       "text": "AR"
+      },
+      "displace": -5,
+      "forward": 0
+     },
+     {
+      "key": "out3",
+      "label": "the Secondary Test",
+      "style": "markers",
+      "color": "$out3Color",
+      "width": "$out3Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowUp",
+       "pineShape": "shape.triangleup",
+       "shapeApprox": true,
+       "position": "belowBar",
+       "size": 0.5,
+       "text": "ST"
+      },
+      "displace": -5,
+      "forward": 0
+     },
+     {
+      "key": "out4",
+      "label": "The Buying Climax",
+      "style": "markers",
+      "color": "$out4Color",
+      "width": "$out4Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowDown",
+       "pineShape": "shape.triangledown",
+       "shapeApprox": true,
+       "position": "aboveBar",
+       "size": 0.5,
+       "text": "BC"
+      },
+      "displace": -5,
+      "forward": 0
+     },
+     {
+      "key": "out5",
+      "label": "Automatic Reaction",
+      "style": "markers",
+      "color": "$out5Color",
+      "width": "$out5Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowUp",
+       "pineShape": "shape.triangleup",
+       "shapeApprox": true,
+       "position": "belowBar",
+       "size": 0.5,
+       "text": "AR"
+      },
+      "displace": -5,
+      "forward": 0
+     },
+     {
+      "key": "out6",
+      "label": "The Secondary Test",
+      "style": "markers",
+      "color": "$out6Color",
+      "width": "$out6Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowDown",
+       "pineShape": "shape.triangledown",
+       "shapeApprox": true,
+       "position": "aboveBar",
+       "size": 0.5,
+       "text": "ST"
+      },
+      "displace": -5,
+      "forward": 0
+     },
+     {
+      "key": "out7",
+      "label": "pivotHigh",
+      "style": "markers",
+      "color": "$out7Color",
+      "width": "$out7Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowUp",
+       "pineShape": "shape.triangleup",
+       "shapeApprox": true,
+       "position": "belowBar",
+       "size": 1
+      },
+      "displace": -5,
+      "forward": 0
+     },
+     {
+      "key": "out8",
+      "label": "pivotLow",
+      "style": "markers",
+      "color": "$out8Color",
+      "width": "$out8Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowDown",
+       "pineShape": "shape.triangledown",
+       "shapeApprox": true,
+       "position": "aboveBar",
+       "size": 1
+      },
+      "displace": -5,
+      "forward": 0
+     },
+     {
+      "key": "out9",
+      "label": "out9",
+      "style": "line",
+      "color": "$out9Color",
+      "width": "$out9Width",
       "role": "secondary",
       "legend": {
        "decimals": 2
@@ -12160,7 +12392,7 @@
      {
       "kind": "barcolor",
       "line": 39,
-      "colorMode": "column:out2",
+      "colorMode": "column:out9",
       "colorPacked": {},
       "offset": -2
      }

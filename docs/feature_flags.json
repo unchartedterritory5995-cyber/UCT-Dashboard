@@ -61,6 +61,12 @@
     "its payload key is an explicit false when off (tests/test_feature_status.py)."
   ],
   "flags": {
+    "CHART_IQ_ENABLED": {"status": "dark", "since": "2026-11-01", "where": ["web"], "note": "DARK. Chart IQ (pattern recognition drawn on the chart: levels, zones, trendlines, bases, key candles, cycle stages, buy days, what is setting up, plus a one-paragraph thesis and plan and a read box). Gates GET /api/chart-iq/{sym} (api/routers/chart_iq.py), read PER CALL: unset, the route answers 404 for everyone and the engine (api/services/chart_iq) is never imported. On: ADMINS ONLY, until CHART_IQ_MEMBERS_ENABLED is also on. Compute runs in a worker thread, at most 2 at once, 25 s timeout, cached (latest session 15 min, a past day 24 h). Rails: tests/test_chart_iq_router.py. Arm (owner): railway variables --service web --set CHART_IQ_ENABLED=1. Rollback = set it to 0."},
+    "CHART_IQ_PACK_ENABLED": {"status": "dark", "since": "2026-11-02", "where": ["web"], "note": "DARK. Chart IQ nightly pack (api/services/chart_iq/pack.py; api/main.py::register_chart_iq_pack_jobs, 18:15 ET build + 06:30 ET catch-up, weekdays): reads every stock: PRIMARY the lab PC builds it (~90 s for the universe on a fast local disk, lab chart_iq/site_port/build_pack.py) and uploads chart_iq/<ts>.db.gz + chart_iq/latest.txt to the DATA_SYNC R2 bucket; this pod pulls it every 15 min (sync_from_r2: integrity_check, >=1000 rows, never an older day, versioned file + atomic marker). FALLBACK (23:00 / 06:30 ET, only if behind): the pod reads every stock in api/data/cap_universe.json plus tickers members opened recently, one at a time with the route's own pipeline, into <DATA_DIR>/chart_iq_pack.db; GET /api/chart-iq/{sym} then answers a latest-session ask with one lookup (a past date, a missing ticker or a pack older than 5 days takes the live path). Refuses to build 09:20-17:30 ET unless forced; rows-cache memory capped during the build. Admin: GET /api/chart-iq/pack/status, POST /api/chart-iq/pack/build. While on, the group pre-warm (CHART_IQ_PREWARM_ENABLED) skips itself. Rails: tests/test_chart_iq_router.py. Arm: railway variables --service web --set CHART_IQ_PACK_ENABLED=1. Rollback = 0 (the route falls back to the live path)."},
+    "CHART_IQ_PACK_FALLBACK_ENABLED": {"status": "dark", "since": "2026-11-02", "where": ["web"], "note": "DARK ON PURPOSE. Lets the WEB POD build the Chart IQ pack itself (api/services/chart_iq/pack.py::server_build_allowed: the 23:00/06:30 ET catch-up jobs and admin POST /api/chart-iq/pack/build). Off because the in-pod build took the pod down on 2026-11-02 20:20 CT (restart, ~1 min of 502s). The lab PC builds the pack and uploads it to R2; the pod only installs it (sync_from_r2). Do not arm without moving the build out of the web process. Rails: tests/test_chart_iq_router.py."},
+    "CHART_IQ_PACK_WORKER_ENABLED": {"status": "dark", "since": "2026-11-03", "where": ["worker"], "note": "DARK. Chart IQ pack BACKUP builder on the WORKER service (api/services/chart_iq/pack_backup.py, started by api/worker_main.py). The lab PC builds the nightly pack; if it is behind (R2 chart_iq/latest_day.txt older than the worker's SPY day) at 00:40-02:30 ET Tue-Sat or 06:45-08:00 ET Mon-Fri, the worker builds one in a niced child process from its own bars.db, checks it like the web installer does (integrity_check, >=1000 reads, the expected day) and publishes it with the PC's protocol (pointer last). Never the web pod (CHART_IQ_PACK_FALLBACK_ENABLED stays off). ARM ONLY AFTER ONE SUPERVISED RUN: watch the worker's memory and the bars prewarmer through one forced build (weekend). Rails: tests/test_chart_iq_pack_backup.py. Arm: railway variables --service worker --set CHART_IQ_PACK_WORKER_ENABLED=1. Rollback = 0 (and redeploy the worker)."},
+    "CHART_IQ_PREWARM_ENABLED": {"status": "dark", "since": "2026-11-02", "where": ["web"], "note": "DARK. Chart IQ group pre-warm (api/services/chart_iq/prewarm.py, registered by api/main.py::register_chart_iq_prewarm_jobs at 18:30 and 07:00 ET weekdays): warms the bars rows cache for the industries members opened in the last 5 days, so the first chart of each industry on a new session is not a 5-25 s cold read. One query at a time, a 2 s pause per industry, a 45 min cap; memory: a few row lists. Read at registration (boot) and again in warm() together with CHART_IQ_ENABLED. Rails: tests/test_chart_iq_router.py. Arm: railway variables --service web --set CHART_IQ_PREWARM_ENABLED=1. Rollback = 0."},
+    "CHART_IQ_MEMBERS_ENABLED": {"status": "dark", "since": "2026-11-01", "where": ["web"], "note": "DARK. Opens Chart IQ (see CHART_IQ_ENABLED) to PAID members: true only while CHART_IQ_ENABLED is ALSO on. Off: members get 404 from GET /api/chart-iq/{sym} and the chart's Chart IQ toggle stays hidden for them; admins unchanged. Members never receive the admin-only raw layer. Rails: tests/test_chart_iq_router.py. Arm (owner, after admin review on the live site): railway variables --service web --set CHART_IQ_MEMBERS_ENABLED=1. Rollback = set it to 0."},
     "ARTIFACT_VERSIONS_ENABLED": {
       "status": "armed",
       "since": "2026-10-02",
@@ -1490,6 +1496,42 @@
       "owner": "trade-exchange-news",
       "note": "Trade Exchange News Checkpoint B (2026-10-27). DARK BY OWNER RULE: no deploy, no member access and no Trade Exchange webhook registration without explicit owner approval; history storage additionally waits on Trade Exchange's written retention/redistribution permission. Read in api/services/trade_exchange_news/config.py::enabled() (strict == '1'). ON: mounts POST /api/trade-exchange-news/internal/ingest (the receiver service's private-network push, bearer TXN_INGEST_TOKEN checked as its sha-256 against TXN_INGEST_TOKEN_SHA256) and GET /api/admin/trade-exchange-news, and starts the single-writer pipeline (/data/trade_exchange_news.db, bounded 7 days / 5,000 headlines) plus the R2 journal reconciler. OFF: routes do not match, nothing starts, /data untouched. Rollback = unset; the store and the R2 journal are kept."
     },
+    "TXN_RELEASE_LINKS_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-01",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "UCT News original press-release links (api/services/trade_exchange_news/release_links.py): starts the resolver thread (one pass a minute, off the delivery path). Does nothing by itself: each stage needs its own flag (TXN_RELEASE_LINKS_FMP_ENABLED, TXN_RELEASE_LINKS_SEC_ENABLED) and members see links only with TXN_RELEASE_LINKS_DISPLAY_ENABLED. Verified links go to trade_exchange_news.db release_links (write-once, keyed by TX event id); weaker candidates to release_link_candidates (never shown). First pass = one-time historical catch-up. Never writes headlines/deliveries or company news. Rollback = unset; stored rows are kept."
+    },
+    "TXN_RELEASE_LINKS_FMP_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-01",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "FMP wire stage of the press-release link resolver (needs TXN_RELEASE_LINKS_ENABLED). Read every pass. ON: after each company-news FMP poll, matches TX-PressRelease headlines against company_news.db (read-only, mode=ro): exact headline + same ticker + one unique wire URL + time within 30 min (ET-aware, bracketed by ingested_at) + URL slug; links as 'Original release'. OFF: the stage is skipped; rows stay pending. Rollback = unset."
+    },
+    "TXN_RELEASE_LINKS_SEC_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-01",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "SEC EDGAR stage of the press-release link resolver (needs TXN_RELEASE_LINKS_ENABLED). Read every pass. ON: for headlines FMP did not link, 45 min / 2 h / 6 h / 24 h / 72 h after arrival, reads the slot issuer's 8-K/6-K filings through fundamentals_pit.sec_client (the repo's fair-access client and SEC_USER_AGENT; no redirects accepted), at most TXN_RELEASE_LINKS_SEC_BUDGET (40) requests a pass, and links the Exhibit 99 document only when it opens with the exact headline ('SEC filing'). OFF: rows stay pending so turning it on later still reaches them. Rollback = unset."
+    },
+    "TXN_RELEASE_LINKS_DISPLAY_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-01",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "Members see stored press-release links ('Original release' / 'SEC filing') on UCT News rows and receive the live `link` SSE event. Read on every headline event (release_links.lookup). OFF hides every link at once without deleting anything -- the rollback switch if a link is ever wrong. Independent of the resolver flags, so links can be resolved and reviewed dark first."
+    },
     "INDICATOR_VISION_ENABLED": {
       "status": "armed",
       "where": [
@@ -2018,12 +2060,47 @@
       ],
       "note": ""
     },
+    "NOTE_SYNC_EVERNOTE_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-02",
+      "where": [
+        "web"
+      ],
+      "note": "DARK until the live gate against the owner's real Evernote account passes (215 active notes, 73 in trash, 6 with images; docs/notebook-connectors/evernote-live-gate.md). Values: unset/0 off (also stops syncs of existing sources), admin = admins only, 1 = every paid member. Also needs EVERNOTE_CLIENT_ID (tools/evernote_register_client.py) and NOTE_ENCRYPTION_KEY. Evernote's terms on unattended sync of the MCP beta are an open question to Evernote support; do not set 1 before the answer. Turning it off after sources exist is a kill switch, not a bug: each scheduled tick for such a source logs an error row (NoteConnNotConfigured) and marks nothing broken; nothing is deleted. The member sees 'Evernote sync is paused'. admin also pauses existing NON-admin sources the same way. NEVER set this flag (admin or 1) on a build without Plan E Task 7 (the router's per-member gate and its explicit Evernote OAuth branch): before Task 7 the connect door has no per-member check and would hand out a Dropbox authorize URL."
+    },
     "NOTE_SYNC_OBSIDIAN_ENABLED": {
       "status": "armed",
       "where": [
         "web"
       ],
       "note": "ARMED 2026-09-04 on service `web` (staged via `railway variables --set --skip-deploys`, activated by a redeploy; verified by /api/health uptime reset and by GET /api/j2/notes/connectors/status reporting obsidian configured=true connectKind='device').\n\nAll three arming conditions from the previous note are satisfied, each against a run rather than a passing suite:\n  (1) per-note failure isolation -- landed 2026-09-02 (da289747d, per-note SAVEPOINT in import_confirm + engine.py cursor fix). RE-PROVEN LIVE on the arming day: a real vault push of 6 files returned pushed=5 with tooLarge=['Oversized Note.md'] -- the oversized note was isolated and its 5 siblings landed, which is precisely the data-loss shape this condition existed to block.\n  (2) THE FORMER SOLE BLOCKER, now satisfied: the plugin is published at https://github.com/unchartedterritory5995-cyber/obsidian-uct-notebook-sync with tagged GitHub Releases (0.1.0, 0.1.1) carrying manifest.json/main.js/styles.css as assets, and ObsidianConnectModal.jsx links members straight to /releases/latest. The community-directory LISTING is still pending review, which is why the modal's copy reads 'or -- while it is awaiting review -- download the latest release': a member can install it today, which is what this condition asked for.\n  (3) realistic-size pair -- landed as a committed rail, test_obsidian_ingest.py::test_a_realistically_large_note_syncs_end_to_end_through_the_real_http_sync_route (210,609-char body, 740,540 bytes converted, lands) plus the oversized-isolation half re-proven live in (1).\n\nProven live end-to-end on the arming day against PRODUCTION, with the real released plugin driving a real vault: connect-code mint -> redeem -> push (5 staged, 1 oversized isolated) -> server sync created=5 in the member's Notebook -> disconnect -> the revoked device token was refused ('Not authenticated', needsReconnect) and could no longer ingest. Test residue was removed afterwards; the connector is left disconnected."
+    },
+    "NOTE_IMPORT_REPAIR_ENABLED": {
+      "status": "pending",
+      "since": "2026-11-02",
+      "where": [],
+      "note": "Plan F: gates tools/note_import_repair.py --apply only. Set on web for the one production run after the owner approves the dry-run numbers, then deleted + redeployed (runbook docs/runbooks/note-import-repair.md)."
+    },
+    "NOTEBOOK_DOC_PENDING_SWEEP_DISABLED": {
+      "status": "pending",
+      "since": "2026-11-02",
+      "where": [],
+      "note": "Plan F (Task 7 round 2, S-3): the KILL SWITCH of the web pod's j2_doc_pending_sweep job (api/main.py; document_extraction.pending_sweep_tick), which re-queues searchable-document rows left 'pending' and never extracted (processed_at IS NULL; older than 10 min, 20 per tick, a row failed after 3 tries, first tick 10 min after boot). SHIPS ON: unset, or any value but 1/true/yes/on, means the sweep runs. The value is read at each tick, but from the PROCESS environment, which a Railway variable change reaches only on a NEW BOOT. STOP: (1) railway variable set NOTEBOOK_DOC_PENDING_SWEEP_DISABLED=1 --service web; (2) railway redeploy --service web --yes; (3) confirm from the pod: /api/health uptime reset, and the RUNNING process holds the value (railway ssh --service web, then: tr '\\0' '\\n' < /proc/1/environ | grep NOTEBOOK_DOC_PENDING_SWEEP_DISABLED). RESUME: (1) railway variable delete NOTEBOOK_DOC_PENDING_SWEEP_DISABLED --service web (a delete never restarts the pod); (2) railway redeploy --service web --yes; (3) confirm from the pod: uptime reset and the same /proc/1/environ read prints nothing. Never confirm from --kv alone: it reads the service, not the process."
+    },
+    "NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-02",
+      "where": [
+        "web"
+      ],
+      "default": "0",
+      "values": [
+        "0",
+        "admin",
+        "1"
+      ],
+      "owner": "connector fidelity Plan C (Obsidian attachments), Task 2; master switch since the final review (I3)",
+      "note": "MASTER SWITCH for the Obsidian attachment layer, DEFAULT OFF (final review I3): it ships dark because plugin 0.2.0 is not yet released, and with the layer on every member would be told to install an update that does not exist. Read per request by api/services/journal_two/note_connectors/obsidian_attachments.py::attachments_mode() / attachments_enabled_for(). SERVICE: web. VALUES: \"0\" (and unset, and any unknown value) OFF; \"admin\" on for admins only; \"1\" on for everyone. OFF for a member means Plan C does not exist for them: POST /api/j2/notes/connectors/obsidian/attachments/check and PUT .../obsidian/attachments/{sha256} answer 404 (at \"0\" before authenticating; at \"admin\" right after device auth, before the paid gate, so a non-admin never sees a 403) -- a 0.2.0 plugin reads 404 as 'this server takes no attachments' and syncs text only; GET /status reports pluginSupportsAttachments null (the card's update hint never shows) and obsidianAttachments false (the connect modal shows the text-only consent); and the provider converts every staged row with NO attachment pass, exactly as before Plan C, so no 'update the plugin' or 'will be retried' notice is ever written (this also settles final review M2). /obsidian/ingest still accepts and stores per-note refs (attachments_json) and records the plugin version, and the final-push GC still runs; staged blobs already on disk stay until that GC or the vault's disconnect. The whole connector's own switch is NOTE_SYNC_OBSIDIAN_ENABLED. ARM (after plugin 0.2.0 is published): railway variables --set NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED=admin --service web, prove it on an admin vault, then --set ...=1; confirm a fresh boot each time. OFF again: railway variables --set NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED=0 --service web (a --set restarts web; a variable delete does NOT restart the pod, so after a delete run railway redeploy --service web --yes and confirm from the pod). ACCEPTED COST (final review M3): a staged blob is a SECOND copy of every synced attachment (the note's stored media is the first), kept while any staged note of that vault references it, so an imported attachment costs about 2x disk on /data, inside the member's 2 GB staged bound (obsidian_attachments.remaining_bytes) and the volume headroom check. It is released by the final-push GC once no staged note references it (obsidian_attachments.gc_unreferenced), by the vault's disconnect (obsidian_link.revoke_devices) or by the account purge (account_purge -> obsidian_attachments purge). Not released at import: the plugin pushes a note's refs again on every edit, and a retry of a pending media item reads the blob."
     },
     "OI_MASSIVE_ENABLED": {
       "status": "armed",
@@ -2634,14 +2711,29 @@
       "status": "dark",
       "where": [],
       "owner": "pine parity programme",
-      "owner_decision": "2026-10-02 ruling D1 (admins first, then everyone, kill list as the safety net); the flip itself is not yet taken",
+      "owner_decision": "2026-10-02 ruling D1 (admins first, then everyone, kill list as the safety net); 2026-10-31 ruling R2 (Phase 3 plan section 4.6): a cohort stage between admins and all. The flip itself is not yet taken",
       "default": "off",
       "values": [
         "off",
         "admins",
+        "cohort",
         "all"
       ],
-      "note": "GT (2026-10-02): WHO the per-bar runtime pane is for. A MODE, not a gate: off (default; unset, empty or unrecognised all read off) | admins (role == 'admin' only) | all. Read PER REQUEST in api/services/runtime_definitions.py::stage / pane_permitted, declared as PINE_RUNTIME_MODE_FLAGS so feature_flag_index.mode_flags() derives it. Rides the auth payload resolved for THIS member as pine_runtime_pane_enabled (api/routers/auth.py::_access_payload, no new endpoint); the client latches it per tab (engine/runtimePaneGate.js) and runtimePaneEnabled() needs BOTH it and the build flag VITE_PINE_RUNTIME_PANE_ENABLED. The save door asks the same question of the saving member. While admins or all, the lane serves only the starter allowlist (adx-and-di-for-v4 today). Rollback: set off (a variable, NO deploy; reaches a member on their next authenticated request or reload, an open tab keeps its latched answer). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeSwitchOn.test.js."
+      "note": "GT (2026-10-02): WHO the per-bar runtime pane is for. A MODE, not a gate: off (default; unset, empty or unrecognised all read off) | admins (role == 'admin' only) | all. Read PER REQUEST in api/services/runtime_definitions.py::stage / pane_permitted, declared as PINE_RUNTIME_MODE_FLAGS so feature_flag_index.mode_flags() derives it. Rides the auth payload resolved for THIS member as pine_runtime_pane_enabled (api/routers/auth.py::_access_payload, no new endpoint); the client latches it per tab (engine/runtimePaneGate.js) and runtimePaneEnabled() needs BOTH it and the build flag VITE_PINE_RUNTIME_PANE_ENABLED. The save door asks the same question of the saving member. While admins or all, the lane serves only the starter allowlist (adx-and-di-for-v4 today). WS-I (2026-10-31, R2): cohort = admins plus members tagged into the pine-runtime-pane cohort (a user_tags row rollout:pine-runtime-pane, written only by tools/rollout_cohort.py add --cohort pine-runtime-pane --user <id> --apply; api/services/rollout_gate.py::pine_runtime_cohort_enabled_for). The stage itself is the cohort's kill switch, read FIRST: at any other stage no tag is read, so stepping back to admins or off withdraws every tagged member without touching a tag. Rollback: set a lower stage, never delete a tag (a variable, NO deploy; reaches a member on their next authenticated request; since WS-I (S6) an OPEN tab that holds a yes re-asks /api/auth/me once its answer is 60 s old and APPLIES a no (app/src/lib/runtimePanePermission.js), and with off every served runtime row is stamped meta.runtimeKilled so the install door refuses it on the next read; and every run of a loaded pane re-asks the per-member permission and the kill list, so a drawing pane stops on its next run with runtime:switched-off or runtime:killed (app/src/components/chart/engine/nativeRegistry.js::runtimeColumnsOrReasons)). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeSwitchOn.test.js, app/src/lib/runtimePaneRevocation.test.js, app/src/components/chart/engine/__tests__/runtimeRunGate.test.js."
+    },
+    "PINE_RUNTIME_SERVER_STAGE": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine parity programme",
+      "owner_decision": "2026-11-02 owner ruling Q4 (docs/pine/SERVER-RUNTIME-DESIGN.md section 9.1): a separate variable for the server lanes, with the effective stage min(pane stage, server stage). The flip itself is not yet taken: arming it is T20, the owner's Railway step.",
+      "default": "off",
+      "values": [
+        "off",
+        "admins",
+        "cohort",
+        "all"
+      ],
+      "note": "W5 T12 (2026-11-02): WHO the SERVER lanes (alerts, scans, backtests, the rule record: docs/pine/SERVER-RUNTIME-DESIGN.md 3.5) run a member's runtime script for. A MODE, not a gate: off (default; unset, empty or unrecognised all read off) | admins | cohort | all, the same ladder and the same cohort tag (rollout:pine-runtime-pane) as PINE_RUNTIME_STAGE. Read PER CALL in api/services/runtime_definitions.py::server_stage / effective_server_stage / server_permitted / server_lane_refusal, declared in PINE_RUNTIME_MODE_FLAGS so feature_flag_index.mode_flags() derives it. The effective server stage is min(pane stage, server stage): server_permitted asks pane_permitted FIRST (called, not copied), so a server lane can never reach a member whose chart cannot draw the script. It is checked against the definition's OWNER at EVALUATION time on every call, not once at arm, so lowering it withholds every runtime alert by name (runtime:server-stage) on the next cycle and deletes nothing. As of T12 nothing calls server_lane_refusal (T13 onward wire the lanes to it), so until a lane is wired this variable changes no member's behaviour, and no Railway variable is set. Arming order (T20, the owner's step): PINE_RUNTIME_SERVICE_SECRET on web and on the pine-runtime service, then PINE_RUNTIME_SERVICE_URL on web; this variable stays UNSET (off) until the post-deploy smoke passes; then admins with the allowlist only for a week (exit: zero runtime:server-integrity, canary green, smoke green on each deploy), then cohort, then all, never ahead of the pane stage. Rollback: set a lower stage or blank it (a variable, no deploy; verify a NEW boot and read it in-process, never from --kv). Rails: tests/test_runtime_server_stage.py."
     },
     "PROVIDER_COVERAGE_MONITOR_ENABLED": {
       "status": "armed",
@@ -3525,6 +3617,19 @@
       "baked_measured_on": "e6ca532c6 — same commit, same reason",
       "last_changed": "2026-09-13 (row added; the flag itself has never been on)",
       "note": "PLACEMENT, not a feature gate, and NOT the member-pane flag despite the word 'volume' in both names — read by app/src/components/chart/engine/placement.js::volumeNumericPaneEnabled, it decides whether a definition already overlaid on the volume pane gets its OWN pane and right axis instead of the shared left one. Turning it on does nothing for uncharted-volume.pine. The collision cost a full re-read of resolvePlacement to rule out, which is why both flags now say in writing what the other one is not. Same Dockerfile ARG gap, fixed in the same commit."
+    },
+    "VITE_SAVED_SCRIPT_UPGRADE": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "pine parity programme",
+      "owner_decision": "owner ruling 2026-11-01: saved scripts pick up engine accuracy fixes automatically (PR #610); default ON",
+      "railway_value": "UNSET on every service (unset = ON; only the literal '0' disables)",
+      "baked_value": "undefined, which the read treats as ON",
+      "baked_measured_on": "2026-11-01, from Dockerfile.web's ARG list (declared in this commit; #610 shipped the read without it and the master deploy gate held production)",
+      "last_changed": "2026-11-01T00:00:00Z",
+      "note": "Kill switch for saved-script auto-upgrade, read in ONE place: app/src/components/chart/builder/memberPane/savedScriptUpgrade.js::savedScriptUpgradeEnabled as `(env.VITE_SAVED_SCRIPT_UPGRADE ?? '1') !== '0'`. ON (unset): a saved Pine doc whose meta.engineVersion is older than SCRIPT_ENGINE_VERSION and that carries its stored source is re-translated after first paint and written back once. Rollback: set the variable to 0 on web and redeploy (build constant). Declared as a build ARG in Dockerfile.web because Railway drops undeclared build args silently."
     }
   },
   "knobs": {
@@ -3624,6 +3729,50 @@
       "where": ["web"],
       "default": "unset (any well-formed chromiumapp.org id may complete the Browser Capture handshake)",
       "note": "ARMED on web 2026-10-09 18:20Z (=kpogeikeoejgkefdcjdpeoonmbiflnlk), owner's go: the Chrome Web Store item UCT Browser Capture has been Published - unlisted since 2026-09-26 under that id, so the handshake is pinned to it. One bare --set, web SUCCESS 18:20Z; probed as the smoke account after the boot: a foreign id answers 400 'That extension is not authorized', a non-extension target 400 'That redirect target is not a browser extension'. Existing connections are unaffected (checked at handshake only). The same id is CAPTURE_EXTENSION_ID in app/src/pages/journal-2-0/components/BrowserCaptureCard.jsx (the install link); a re-published item needs both changed. Rollback: set it to \"\" (Railway ignores null) and verify a new boot."
+    },
+    "PINE_RUNTIME_KILL_LIST": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/runtime_definitions.py::kill_list (read per call; comma- or whitespace-separated: a definition id u_ + 12 hex, or a Pine source sha256 / a prefix of >= 12 hex). Served to the member door by GET /api/user-definitions/runtime-kill and stamped on every served runtime row (stamp_served -> meta.runtimeKilled).",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "default": "unset (empty list: no script killed)",
+      "owner": "pine parity programme",
+      "owner_decision": "2026-10-02 ruling D1 (the kill list is the safety net under the staged rollout); 2026-10-31 WS-I: ledgered (Phase 3 plan gap S7). Set on no service: nothing is served by the runtime lane while PINE_RUNTIME_STAGE is off, so there is nothing to kill yet",
+      "note": "RT1 (2026-10-02): the PER-SCRIPT kill switch for the per-bar runtime lane. A listed script falls back to the host lane's answer: its save is refused, a stored copy is SERVED stamped meta.runtimeKilled (never rewritten, never deleted) so every install door refuses it, and unlisting brings it back on the next read. Kill wins over the allowlist. Lever: ADD an entry (railway variable set PINE_RUNTIME_KILL_LIST=<entries> --service web); undo by removing the entry or setting it to \"\" (Railway ignores null; verify a NEW boot after any delete, a delete does not restart). Reach: the next definitions read, the next MemberPane mount, and since WS-I (S6) an open tab that has read the list re-reads it once it is 60 s old (app/src/components/chart/engine/runtimeKill.js). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeKillSwitch.test.js."
+    },
+    "PINE_RUNTIME_ALLOWLIST": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/runtime_definitions.py::allow_list (read per call; comma- or whitespace-separated Pine source sha256 values or >= 12-hex prefixes; a definition id is never accepted). The committed half is api/data/pine_runtime_allowlist.json; the server serves the union on GET /api/user-definitions/runtime-kill (allow).",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "default": "unset (only the committed api/data/pine_runtime_allowlist.json counts: adx-and-di-for-v4 today)",
+      "owner": "pine parity programme",
+      "owner_decision": "2026-10-02 ruling D6 (only a script graded MATCH on a TradingView capture is served); 2026-10-31 ruling R1: per-capability conformance is the primary gate AND every allowlisted script has at least one MATCH capture with the runtime pane on (api/services/rollout_gate.py::pine_runtime_admission over the committed JSON). Keep this variable UNSET in production: its entries carry no evidence, so a set value serves a script outside R1. W5 T12 (2026-11-02, ruling Q8): it never admits on a server lane (alerts, scans, backtests, the record); the server lanes read the graded committed list only",
+      "note": "GT (2026-10-02): the operator half of the starter allowlist. WS-I (2026-10-31, R1): the COMMITTED list is graded: a script there is served only when every census capability it names is conformant in the file's capabilities registry and it names a MATCH capture with the pane on; one that fails is withheld (served as not graded, never deleted) and allow_report() names why, and the rail goes red by name. This variable stays additive and ungraded (an operator override, used by tests to admit synthetic sources); allow_report() reports its entries as env_overrides so a set value is never invisible. W5 T12 (2026-11-02): it admits on the browser pane only; every server lane (runtime_definitions.server_lane_refusal step 2, not_graded(graded_only=True)) reads graded_allow_list(), the committed graded half, so a hash only in this variable is refused on a server lane and still drawn on the pane. The way to admit a script is a commit to the JSON with its evidence. Lever to WITHDRAW one: remove its line (commit + deploy) or, faster, add it to PINE_RUNTIME_KILL_LIST (a variable, no deploy). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeSwitchOn.test.js."
+    },
+    "PINE_RUNTIME_SERVICE_URL": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/runtime_definitions.py::service_missing, asked by server_lane_refusal step 5 (read per call; blank counts as unset). The client that connects to it (T11, api/services/pine_runtime_client.py) reads the same name.",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "default": "unset (no runtime service configured: every server lane refuses by name, runtime:server-unavailable)",
+      "owner": "pine parity programme",
+      "owner_decision": "2026-11-02 owner decision: the Pine runtime runs server-side as a SEPARATE sandboxed service, reachable only on the private network (docs/pine/SERVER-RUNTIME-DESIGN.md sections 0 and 3.6). Setting this is T20, the owner's Railway step; it is set on no service.",
+      "note": "W5 T12 (2026-11-02): where the web pod reaches the pine-runtime service, its private-network address (pine-runtime.railway.internal, design 3.6): the service has NO public domain. Unset or blank means the service is not configured: server_lane_refusal answers runtime:server-unavailable BEFORE any network call, and the client maps the same case the same way (design 3.7). It is an address, not a credential, but no admission sentence ever carries its value. It arms nothing by itself: a server lane also needs PINE_RUNTIME_SERVER_STAGE above off and PINE_RUNTIME_SERVICE_SECRET set. Set order (T20): the secret on both services first, then this on web. Rollback: set it to \"\" (Railway ignores null) and verify a NEW boot; a delete does not restart. Rails: tests/test_runtime_server_stage.py."
+    },
+    "PINE_RUNTIME_SERVICE_SECRET": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/runtime_definitions.py::service_missing, asked by server_lane_refusal step 5, which asks ONLY whether it is set (read per call; blank counts as unset). The signing read is the client's (T11, api/services/pine_runtime_client.py).",
+      "kind": "secret",
+      "status": "dark",
+      "where": [],
+      "default": "unset (the web pod cannot sign a request: every server lane refuses by name, runtime:server-unavailable)",
+      "owner": "pine parity programme",
+      "owner_decision": "2026-11-02 owner decision: the Pine runtime runs server-side as a SEPARATE sandboxed service (docs/pine/SERVER-RUNTIME-DESIGN.md sections 0 and 3.6). The owner creates this key in the Railway dashboard (T20); no agent sets it, and it is set on no service.",
+      "note": "A SECRET: its value is never recorded in this ledger, in the repo, in a log, in a sentence or in a chat. W5 T12 (2026-11-02): the HMAC key that signs every request from web to the pine-runtime service (design 3.6); the SAME value is set on BOTH services (the service accepts a comma-separated list so a key can rotate). Here it is only asked about being set: server_lane_refusal step 5 answers runtime:server-unavailable while it is not, so a lane never builds a request it cannot sign. (Design 3.5 step 5 names only the URL; the secret is added to that step so a pod holding one without the other fails closed by name instead of at the first request.) Rotation without a joint restart: add the new key to the service, switch web to it, then remove the old one from the service. Rollback: blank it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."
     }
   }
 }

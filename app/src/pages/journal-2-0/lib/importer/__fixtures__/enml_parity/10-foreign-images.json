@@ -1,0 +1,63 @@
+{
+  "enml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>A hotlink:</div><img src=\"https://e.example.com/pics/x.png\"/><div>An unsafe image:</div><img src=\"javascript:alert(1)\"/><div>A data image:</div><img src=\"data:image/png;base64,iVBORw0KGgo=\"/><div>A relative image, no clip source:</div><img src=\"/local/x.png\"/><div>end</div></en-note>",
+  "id": "10-foreign-images",
+  "note": {
+    "created": "20260101T090000Z",
+    "guid": "11111111-0000-4000-8000-000000000010",
+    "notebook": "Trading",
+    "notes": {},
+    "resources": [],
+    "title": "Foreign images"
+  },
+  "server": {
+    "blocks": [
+      {
+        "text": "A hotlink:",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "An unsafe image:",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "importNotice"
+      },
+      {
+        "text": "A data image:",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "A relative image, no clip source:",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "importNotice"
+      },
+      {
+        "text": "end",
+        "type": "paragraph"
+      }
+    ],
+    "chips": [],
+    "images": [
+      "https://e.example.com/pics/x.png",
+      "data:e9dd2797018cad79186e03e8c5aec8dc"
+    ],
+    "links": [],
+    "notices": [
+      "unsafe",
+      "unresolvable_src"
+    ],
+    "task_checked": []
+  }
+}

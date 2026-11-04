@@ -231,7 +231,11 @@ export default function MemberPane({
     setAttach({ state: 'busy', error: null })
     let res = null
     try {
-      res = await fn(built.definition, needsAck && acked ? { previewAcked: true } : null)
+      // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — the SCRIPT this document was built from rides
+      // with it, so the store keeps it beside the document and a later engine can
+      // translate it again (`savedScriptUpgrade.js`). The same `source` the
+      // memoised build above read: the document and its script are one pair.
+      res = await fn(built.definition, { ...(needsAck && acked ? { previewAcked: true } : {}), source })
     } catch (e) {
       // ⚠️ A THROW IS A TRANSPORT FAILURE, NOT A REFUSAL. The store never
       // answered, so there is no sentence of its to render and inventing one that
@@ -245,7 +249,7 @@ export default function MemberPane({
       error: (res && typeof res.error === 'string' && res.error.trim())
         ? res.error : 'The store refused this definition.',
     })
-  }, [built, needsAck, acked])
+  }, [built, needsAck, acked, source])
   const doAttach = useCallback(() => doAttachWith(onAttach), [doAttachWith, onAttach])
   const doAttachCopy = useCallback(() => doAttachWith(onAttachCopy), [doAttachWith, onAttachCopy])
 

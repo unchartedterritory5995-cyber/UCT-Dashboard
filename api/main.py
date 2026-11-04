@@ -190,6 +190,7 @@ from api.routers import backtest as backtest_router
 from api.routers import rare_preview as rare_preview_router  # rare-pattern admin preview, DARK
 from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
+from api.routers import chart_iq as chart_iq_router   # Chart IQ (pattern recognition on the chart): gated per call, CHART_IQ_ENABLED / CHART_IQ_MEMBERS_ENABLED
 from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_purge as admin_purge_router
@@ -3286,6 +3287,85 @@ def _pattern_vision_contract_line() -> str:
             f"confirmed_only={'on' if conf_only is True else 'OFF'}[api_default]")
 
 
+def register_chart_iq_pack_jobs(scheduler):
+    """Chart IQ nightly pack (api/services/chart_iq/pack.py): every stock's latest-session read, so a member's read is one lookup.
+    The lab PC builds it (fast local disk, ~10 min) and uploads one file to R2; this pod pulls it every 15 minutes (sync_from_r2).
+    The server-side build is the FALLBACK: 23:00 ET and 06:30 ET weekdays, and only when the installed pack is behind the latest
+    session (build_if_behind), so a missing upload never leaves the pack stale. Gate: CHART_IQ_PACK_ENABLED=1. Returns True if
+    registered."""
+    import os
+    if os.environ.get("CHART_IQ_PACK_ENABLED", "").strip() != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.interval import IntervalTrigger
+
+    def _sync():
+        try:
+            from api.services.chart_iq import pack
+            pack.sync_from_r2()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] sync job error: %s", exc)
+
+    def _fallback():
+        try:
+            from api.services.chart_iq import pack
+            pack.build_if_behind()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] fallback job error: %s", exc)
+
+    try:   # boot: page the installed pack in now, so the first member after a deploy is not the one who waits on the disk
+        from api.services.chart_iq import pack as _ciq_pack
+        _ciq_pack.warm_file(_ciq_pack._path())
+    except Exception:  # noqa: BLE001
+        pass
+    scheduler.add_job(_sync, trigger=IntervalTrigger(minutes=15), id="chart_iq_pack_sync", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=600)
+    def _behind_alert():
+        try:
+            from api.services.chart_iq import pack
+            pack.alert_if_behind()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] behind-alert job error: %s", exc)
+
+    # After the PC's build window (nightly 22:30 CT + 15 min sync) and after its 06:00 CT retry: page ops if members are
+    # still reading an older session than the market's last one.
+    scheduler.add_job(_behind_alert, trigger=CronTrigger(day_of_week="tue-sat", hour=0, minute=20, timezone=_ET),
+                      id="chart_iq_pack_behind_evening", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    scheduler.add_job(_behind_alert, trigger=CronTrigger(day_of_week="mon-fri", hour=7, minute=35, timezone=_ET),
+                      id="chart_iq_pack_behind_morning", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    from api.services.chart_iq import pack as _ciq_pack_gate
+    if not _ciq_pack_gate.server_build_allowed():   # the in-pod build took the pod down 11/02; the PC owns the build
+        return True
+    scheduler.add_job(_fallback, trigger=CronTrigger(day_of_week="mon-fri", hour=23, minute=0, timezone=_ET),
+                      id="chart_iq_pack_evening", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    scheduler.add_job(_fallback, trigger=CronTrigger(day_of_week="mon-fri", hour=6, minute=30, timezone=_ET),
+                      id="chart_iq_pack_morning", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    return True
+
+
+def register_chart_iq_prewarm_jobs(scheduler):
+    """Chart IQ group pre-warm (api/services/chart_iq/prewarm.py): after the close, warm the rows cache for the industries members
+    opened in the last few days, so the first chart of each industry on the new session is not the 5-25 s cold read. 18:30 ET
+    (the day's bars have landed) and 07:00 ET (a late landing or a restart) on weekdays. Gate: CHART_IQ_PREWARM_ENABLED=1, read
+    again inside warm() together with CHART_IQ_ENABLED. Returns True if registered."""
+    import os
+    if os.environ.get("CHART_IQ_PREWARM_ENABLED", "").strip() != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+
+    def _run_prewarm():
+        try:
+            from api.services.chart_iq import prewarm
+            prewarm.warm()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_prewarm] job error: %s", exc)
+
+    for hh, mm, jid in ((18, 30, "chart_iq_prewarm_evening"), (7, 0, "chart_iq_prewarm_morning")):
+        scheduler.add_job(_run_prewarm, trigger=CronTrigger(day_of_week="mon-fri", hour=hh, minute=mm, timezone=_ET),
+                          id=jid, max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    return True
+
+
 def register_call_recap_warm_jobs(scheduler):
     """Pre-generate call recaps so the modal is a point-read, not a ~39s wait.
 
@@ -4136,6 +4216,18 @@ async def lifespan(app: FastAPI):
                       daemon=True).start()
     except Exception:
         logging.getLogger(__name__).exception("[startup] could not schedule the terminal seed")
+
+    # Plan A Task 2 (L-2): internal link MARKS already stored become note links.
+    # A flag-file one-shot on a daemon thread with its OWN connection, started HERE --
+    # after `_init_auth_db()` has committed -- never from inside `ensure_schema`, where
+    # it raced the boot connection's remaining schema writes (fix round 1, I1). It
+    # scans ids unlocked and writes in small chunks; see its docstring.
+    try:
+        from api.services.journal_two.db import start_internal_link_projection_backfill
+        start_internal_link_projection_backfill()
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "[startup] could not schedule the internal-link projection backfill")
 
     # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
     # It used to be created only inside _buzz_poll, AFTER its
@@ -6161,6 +6253,28 @@ async def lifespan(app: FastAPI):
         except Exception as _e_ocr_sweep:
             print(f"[startup] j2 ocr recovery sweep skip: {_e_ocr_sweep}")
 
+        # Plan F Task 7 re-review I-5: a document row left `pending` was never extracted (a
+        # crash or redeploy mid-queue, or a row the import repair created: that short-lived
+        # process never extracts). Re-queue the stale ones through the same bounded pool, a few
+        # per tick, on a scheduler thread (off the event loop). Ungated, like PDF extraction.
+        try:
+            from api.services.journal_two import document_extraction as _doc_pending
+
+            def _doc_requeue_pending() -> None:
+                # One tick: waits out a startup grace (round 2 S-2), then re-queues.
+                out = _doc_pending.pending_sweep_tick()
+                if out.get("requeued") or out.get("failed"):
+                    logging.getLogger(__name__).info(
+                        "[doc-extract] sweep re-queued %s pending document(s), failed %s",
+                        out.get("requeued", 0), out.get("failed", 0))
+
+            _scheduler.add_job(
+                _doc_requeue_pending,
+                CronTrigger(minute="7/10"),
+                id="j2_doc_pending_sweep", replace_existing=True, max_instances=1)
+        except Exception as _e_doc_sweep:
+            print(f"[startup] j2 document pending sweep skip: {_e_doc_sweep}")
+
         # live room is never a dead room. Self-gates on COMMUNITY_CHAT_ENABLED at
         # run time (no-op while dark) — NOT a Compass LLM job, so registered directly.
         try:
@@ -7200,6 +7314,15 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(minute=23, timezone=_ET),
                 id="note_sync_due", max_instances=1, replace_existing=True,
             )
+            # Quick follow-up passes (live gate 2026-11-03): a source a provider's rate limit
+            # cut short (Evernote's per-minute tool limit) is stamped a few minutes ahead and
+            # synced again here instead of waiting for the hourly tick. A cheap no-op when no
+            # source is stamped; bounded per source per hour in the engine.
+            _scheduler.add_job(
+                _note_sync_scheduler.run_follow_up_sync_blocking,
+                trigger=IntervalTrigger(minutes=int(os.getenv("NOTE_SYNC_FOLLOW_UP_INTERVAL_MIN", "2"))),
+                id="note_sync_follow_up", max_instances=1, replace_existing=True,
+            )
             # Nightly FULL-listing pass (MUST-RESOLVE #2, distinct minute
             # offset from the tick above) -- delete detection (engine.py's
             # 2-strike miss_streak + the list_deleted wiring) ONLY runs on a
@@ -7308,6 +7431,10 @@ async def lifespan(app: FastAPI):
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
+            if register_chart_iq_pack_jobs(_scheduler):
+                logging.getLogger(__name__).info("[startup] chart-iq pack: R2 sync every 15 min; fallback build 23:00 / 06:30 ET if behind")
+            if register_chart_iq_prewarm_jobs(_scheduler):
+                logging.getLogger(__name__).info("[startup] chart-iq group pre-warm: 18:30 / 07:00 ET weekdays")
             if register_call_recap_warm_jobs(_scheduler):
                 logging.getLogger(__name__).info(
                     "[startup] call-recap warm sweeps: 07:30/12:30/17:15/21:30 ET")
@@ -10253,6 +10380,7 @@ app.include_router(backtest_router.router)
 app.include_router(rare_preview_router.router)
 app.include_router(patterns_router.router)
 app.include_router(admin_patterns_router.router)
+app.include_router(chart_iq_router.router)
 # TERM-053: the GEX family is gated at its MOUNT, not per route. OI-17 put
 # `get_current_user` on `/data` and `/compare` four lines below it stayed
 # anonymous (ARCH-06 §2.2) — the omission class recurring one route apart. A
@@ -10324,6 +10452,8 @@ from api.routers import indicator_vision as indicator_vision_router  # noqa: E40
 app.include_router(indicator_vision_router.router)  # /api/indicator-vision/* — a screenshot in, ranked candidate indicators out
 from api.routers import indicator_telemetry as indicator_telemetry_router  # noqa: E402
 app.include_router(indicator_telemetry_router.router)  # /api/indicator-telemetry/event — Phase One Track C, client half (import_submitted/compile_finished only)
+from api.routers import pine_runtime_telemetry as pine_runtime_telemetry_router  # noqa: E402
+app.include_router(pine_runtime_telemetry_router.router)  # /api/pine-runtime-telemetry/stop — P3 WS-H S8: runtime stop beacon (shape only, no source, no member id)
 from api.routers import indicator_support as indicator_support_router  # noqa: E402
 app.include_router(indicator_support_router.router)  # /api/indicator-support/* — Pine support loop Phase A: gap counts + opt-in mismatch reports (docs/pine/support-loop/PHASE-A.md)
 app.include_router(indicator_support_router.internal_router)  # /api/internal/indicator-support/* — Phase B digest + triage door, PUSH_SECRET bearer (docs/pine/support-loop/PHASE-B.md)
@@ -10540,6 +10670,24 @@ def _csv_response(csv_path: str, filename: str):
             "Content-Disposition": f'inline; filename="{filename}"',
         })
     return JSONResponse(status_code=404, content={"error": f"{filename} not found"})
+
+@app.get("/api/brand/massive-card-logo.png")
+async def _massive_card_logo():
+    """Public author-icon for the Massive Discord cards (the UCT Logo).
+
+    Discord fetches an embed's ``icon_url`` anonymously, so the image MUST be
+    publicly reachable. The embed used to point at the GitHub raw URL for
+    ``app/public/UCT_logo_512.png``, but this repo is private -> GitHub returns
+    404 to Discord -> the card showed a broken-image placeholder. Serve a small
+    (256px) copy from here instead; ``UCT_LOGO_URL`` points the embed at this
+    route. Keep it public (no auth) so Discord can load it.
+    """
+    p = os.path.join(PUBLIC, "massive-card-logo.png")
+    if os.path.exists(p):
+        return FileResponse(p, media_type="image/png", headers={
+            "Cache-Control": "public, max-age=86400",
+        })
+    return JSONResponse(status_code=404, content={"error": "massive-card-logo.png not found"})
 
 @app.get("/api/admin/massive/diagnose")
 async def _massive_diagnose():

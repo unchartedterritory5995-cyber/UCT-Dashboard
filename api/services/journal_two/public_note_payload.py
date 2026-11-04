@@ -101,6 +101,7 @@ from urllib.parse import unquote, urlsplit
 
 from api.services.journal_two import example_sanitize   # pure (re only): the closure stays framework-free
 from api.services.journal_two import shelf_kind_names   # constants only: the closure stays engine-free
+from api.services.journal_two import web_embed as _web_embed   # pure (re + urllib): the embed id patterns, from webEmbeds.js
 
 # ⛔ NO WEB FRAMEWORK AT MODULE LEVEL. `journal_two.db.ensure_schema` imports
 # `template_gallery`, which imports this module for `reduce`, and the firm-template seed calls
@@ -261,6 +262,14 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "aisearch"): "mixed",         # an AI answer over several sources
     ("widgetEmbed", "news"): "mixed",             # AlphaVantage / RSS headlines
     ("widgetEmbed", "tradeExchangeNews"): "tradexchange",  # Trade Exchange breaking news (licensed feed)
+    # UCT News V2 (#574): one Trade Exchange headline sent to a note -- the same licensed feed, so the
+    # same neutral line; its frozen headline, tickers and archive id never reach a stranger.
+    ("widgetEmbed", "tradeExchangeHeadline"): "tradexchange",
+    # The retired Research Library widget (#565; opens as UCT News on Saved Headlines): a member's saved
+    # Trade Exchange headlines. "tradexchange", NOT "private": both are NEUTRAL, but a "private" embed is
+    # DROPPED in example mode where an undeclared one showed the neutral line -- this row keeps the line
+    # in every mode, exactly as before, and the member's notes, collections and headlines never show.
+    ("widgetEmbed", "researchLibrary"): "tradexchange",
     ("widgetEmbed", "notebook"): "private",       # the member's OTHER notes -- never public
     ("widgetEmbed", "profile"): "mixed",          # AI profile + price statistics
     ("widgetEmbed", "alerts"): "private",         # the member's own alert list + prices
@@ -430,6 +439,10 @@ NODE_POLICY: dict[str, dict[str, str]] = {
     "financialFact": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},
     "documentExcerpt": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},
     "tradeCanvas": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},  # wave 11 11D: a trade plan
+    # Connector fidelity (2026-11): an import's "couldn't copy" marker. It names a file of the
+    # member's and the address it came from, and says nothing a reader needs: it never leaves
+    # the member's notebook (example mode inherits gallery's drop).
+    "importNotice": {"share": "drop", "publish": "drop", "gallery": "drop"},
     # ── marks ──
     "bold": {"share": "mark", "publish": "mark", "gallery": "mark"},
     "code": {"share": "mark", "publish": "mark", "gallery": "mark"},
@@ -883,10 +896,12 @@ GALLERY_FONT_FAMILIES: tuple[str, ...] = (
 GALLERY_FONT_SIZE_RANGE = (8, 96)
 GALLERY_COLOR_NAMES: tuple[str, ...] = ("gray", "red", "orange", "yellow", "green", "blue")
 GALLERY_CALLOUT_VARIANTS: tuple[str, ...] = ("note", "info", "success", "warning", "danger")
-#: provider -> the pattern its id must match (lib/webEmbeds.js YOUTUBE_ID, TRADINGVIEW_REF).
+#: provider -> the pattern its id must match. DERIVED from `web_embed` (the server port of
+#: lib/webEmbeds.js, pinned against it by tests/test_web_embed_parity.py), never restated here,
+#: and always tested with `fullmatch` (`$` also matches before a trailing newline).
 GALLERY_EMBED_REFS: dict[str, "re.Pattern[str]"] = {
-    "youtube": re.compile(r"^[A-Za-z0-9_-]{11}$"),
-    "tradingview": re.compile(r"^(?:[A-Z0-9_]{1,20}:)?[A-Z0-9._!]{1,30}$"),
+    "youtube": re.compile(_web_embed.YOUTUBE_ID_SRC),
+    "tradingview": re.compile(_web_embed.TRADINGVIEW_REF_SRC),
 }
 GALLERY_MAX_URL_CHARS = 2048
 
@@ -1248,7 +1263,7 @@ def _clean_node(out: dict, mode: str, policy: dict | None = None) -> dict | None
         return None
     if t == "webEmbed":
         pattern = GALLERY_EMBED_REFS.get(attrs.get("provider"))
-        if pattern is None or not isinstance(attrs.get("ref"), str) or not pattern.match(attrs["ref"]):
+        if pattern is None or not isinstance(attrs.get("ref"), str) or not pattern.fullmatch(attrs["ref"]):
             attrs.pop("provider", None)              # not a player this app can build:
             attrs.pop("ref", None)                   # it reads as a plain link, or nothing
     if t == "linkPreview" and not isinstance(attrs.get("url"), str):

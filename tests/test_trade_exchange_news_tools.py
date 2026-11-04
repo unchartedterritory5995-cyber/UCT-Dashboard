@@ -12,8 +12,20 @@ SECRET = "SECRET-VALUE-DO-NOT-PRINT"
 DIGEST = "a" * 64
 
 
+#: Production's rules after 2026-10-31 (owner screenshot): the multipart abort, the
+#: 1-day preflight canary, and the old events rule DISABLED.
+PERMANENT_RULES = [
+    {"ID": "Default Multipart Abort Rule", "Status": "Enabled", "Filter": {"Prefix": ""},
+     "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 7}},
+    {"ID": "events-8d", "Status": "Disabled", "Filter": {"Prefix": "trade-exchange-news/v1/events/"},
+     "Expiration": {"Days": 8}},
+    {"ID": "preflight-1d", "Status": "Enabled", "Filter": {"Prefix": "trade-exchange-news/v1/preflight/"},
+     "Expiration": {"Days": 1}},
+]
+
+
 class LifecycleS3(FakeS3):
-    def __init__(self, days=8, put_ok=True):
+    def __init__(self, days="permanent", put_ok=True):
         super().__init__()
         self.days = days
         self.put_ok = put_ok
@@ -23,7 +35,11 @@ class LifecycleS3(FakeS3):
             raise PermissionError("AccessDenied")
         if self.days is None:
             raise KeyError("NoSuchLifecycleConfiguration")
-        return {"Rules": [{"Status": "Enabled", "Filter": {"Prefix": "trade-exchange-news/"},
+        if self.days == "broken":
+            raise TimeoutError("r2 slow")
+        if self.days == "permanent":
+            return {"Rules": PERMANENT_RULES}
+        return {"Rules": [{"ID": "events-expire", "Status": "Enabled", "Filter": {"Prefix": "trade-exchange-news/"},
                            "Expiration": {"Days": self.days}}]}
 
     def put_object(self, **kw):
@@ -48,7 +64,7 @@ def test_preflight_ready_and_prints_no_value(capsys):
     assert pf.check("web", env("web"), r2_write=True, client=LifecycleS3()) == []
     out = capsys.readouterr().out
     assert SECRET not in out and DIGEST not in out
-    assert "journal prefix expires after 8 day(s)" in out and "r2 write ok" in out
+    assert "none expires the journal prefix (permanent)" in out and "r2 write ok" in out
 
 
 def test_preflight_names_every_problem():
@@ -58,9 +74,13 @@ def test_preflight_names_every_problem():
     probs = pf.check("receiver", e, client=LifecycleS3())
     assert "missing TXN_INGEST_TOKEN" in probs
     assert any("not 64-hex" in p for p in probs)
-    assert any("shorter than 8 days" in p for p in pf.check("web", env("web"), client=LifecycleS3(days=3)))
-    assert any("no enabled lifecycle" in p or "unreadable" in p
-               for p in pf.check("web", env("web"), client=LifecycleS3(days=None)))
+    # ⛔⛔ ANY enabled expiry over the journal is a problem now, however long (permanent archive).
+    for days in (3, 8, 3650):
+        assert any("expires the PERMANENT journal" in p for p in pf.check("web", env("web"), client=LifecycleS3(days=days)))
+    assert pf.check("web", env("web"), client=LifecycleS3(days=None)) == []     # no lifecycle at all: permanent
+    whole = [{"ID": "all", "Status": "Enabled", "Filter": {"Prefix": ""}, "Expiration": {"Days": 30}}]
+    assert pf.journal_expiring_rules(whole, "trade-exchange-news/v1/events/") == ["all"]
+    assert pf.journal_expiring_rules(PERMANENT_RULES, "trade-exchange-news/v1/events/") == []
     assert any("r2 write failed" in p
                for p in pf.check("web", env("web"), r2_write=True, client=LifecycleS3(put_ok=False)))
 
@@ -72,7 +92,7 @@ def test_preflight_scoped_key_lifecycle_needs_the_dashboard_confirmation(capsys)
     assert pf.check("web", env("web"), r2_write=True, client=LifecycleS3(days="denied"),
                     lifecycle_confirmed=True) == []
     # only a refusal is waived: any other failure still blocks
-    assert any("unreadable" in p for p in pf.check("web", env("web"), client=LifecycleS3(days=None),
+    assert any("unreadable" in p for p in pf.check("web", env("web"), client=LifecycleS3(days="broken"),
                                                    lifecycle_confirmed=True))
     assert SECRET not in capsys.readouterr().out
 

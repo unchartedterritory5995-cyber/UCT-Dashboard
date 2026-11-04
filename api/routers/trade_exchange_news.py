@@ -31,7 +31,8 @@ Member surface -- every SIGNED-IN user (``get_current_user``; owner release
     ``Last-Event-ID: <epoch>:<seq>`` (sent by the browser on its own reconnect)
     or ``?after=<seq>&epoch=<epoch>`` (a pooled manager reopening). Opens with
     ``event: hello`` saying whether the cursor was honoured (``reset`` when the
-    epoch changed, ``truncated`` when history before the cursor was pruned), then
+    epoch changed, ``truncated`` when history before the cursor is absent -- only
+    a restored database can lack it now, nothing deletes), then
     replays every headline after the cursor in seq order, then goes live. Named
     ``heartbeat`` every 10 s so the client watchdog can tell silence from death.
 """
@@ -53,18 +54,25 @@ from starlette.routing import Match
 from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services.trade_exchange_news import config, pipeline as txn_pipeline, records
 from api.services.trade_exchange_news import archive as txn_archive
+from api.services.trade_exchange_news import explain as txn_explain
+from api.services.trade_exchange_news import library as txn_library
+from api.services.trade_exchange_news import integrity as txn_integrity
+from api.services.trade_exchange_news import ops_alerts as txn_ops_alerts
 from api.services.trade_exchange_news import reconcile as txn_reconcile
+from api.services.trade_exchange_news import release_links as txn_release_links
 from api.services.trade_exchange_news.loop_lag import LAG as _loop_lag
 from api.services.trade_exchange_news.records import RecordError
 
 INGEST_PATH = "/api/trade-exchange-news/internal/ingest"
 STATUS_PATH = "/api/admin/trade-exchange-news"
+INTEGRITY_PATH = "/api/admin/trade-exchange-news/integrity"
 TIMING_PATH = "/api/trade-exchange-news/client-timing"
 CLOCK_PATH = "/api/trade-exchange-news/clock"
 RECENT_PATH = "/api/trade-exchange-news/recent"
 STREAM_PATH = "/api/trade-exchange-news/stream"
 DAY_PATH = "/api/trade-exchange-news/day"
 DAYS_PATH = "/api/trade-exchange-news/days"
+EXPLAIN_PATH = "/api/trade-exchange-news/explain"
 MAX_DAY_BODY = 96 * 1024
 _archive_slots: asyncio.Semaphore | None = None
 HEARTBEAT_S = 10.0
@@ -230,15 +238,20 @@ async def day(request: Request, _user: dict = Depends(get_current_user)) -> JSON
     store = pipe.store
     t_req = time.perf_counter()
 
+    history = d.get("history") is True
+
     def build() -> dict[str, Any]:
         t0 = time.perf_counter()
         misses0 = txn_archive.stats["misses"]
-        out = txn_archive.day_slice(
-            store, day=which, limit=limit, cursor=d.get("cursor"),
-            direction="newer" if d.get("direction") == "newer" else "older", at=at,
-            query=d.get("query") if isinstance(d.get("query"), str) else "", categories=cats,
-            symbol=d.get("symbol") if isinstance(d.get("symbol"), str) else None, symbols=syms,
-            hide_placeholders=d.get("hide_placeholders", True) is not False)
+        common = dict(query=d.get("query") if isinstance(d.get("query"), str) else "", categories=cats,
+                      symbol=d.get("symbol") if isinstance(d.get("symbol"), str) else None, symbols=syms,
+                      hide_placeholders=d.get("hide_placeholders", True) is not False)
+        if history:                                   # Linked to chart: every archived day, newest first
+            out = txn_archive.history_slice(store, limit=limit, cursor=d.get("cursor"), **common)
+        else:
+            out = txn_archive.day_slice(
+                store, day=which, limit=limit, cursor=d.get("cursor"),
+                direction="newer" if d.get("direction") == "newer" else "older", at=at, **common)
         t1 = time.perf_counter()
         out.pop("seqs")
         out["items"] = [txn_pipeline.headline_event(r, store.epoch, txn_archive.event_fields(r["source"], r["content"]))
@@ -250,9 +263,134 @@ async def day(request: Request, _user: dict = Depends(get_current_user)) -> JSON
         return out
 
     out = await _in_slot(build)
-    out.update(date=which.isoformat(), epoch=store.epoch, coverage=_coverage(),
+    out.update(date=None if history else which.isoformat(), epoch=store.epoch, coverage=_coverage(),
                tickers_provisional=TICKERS_PROVISIONAL, server_ms=int(time.time() * 1000))
     return JSONResponse(out)
+
+
+@router.post(EXPLAIN_PATH)
+async def explain(request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
+    """One member's Explain click. The body names a headline by ``id`` only: the
+    text explained is the stored row (explain.py), never anything the client sends."""
+    pipe = txn_pipeline.get()
+    if pipe is None:
+        return JSONResponse({"reason": "not_started"}, status_code=503)
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    try:
+        return JSONResponse(await txn_explain.explain(pipe.store, d.get("id"), user))
+    except txn_explain.Refused as r:
+        return JSONResponse({"reason": r.reason, "detail": r.detail},
+                            status_code=txn_explain.STATUS.get(r.reason, 503))
+
+
+# ── Research Library (library.py): the member's own bookmarks, collections, notes ──
+# ⛔ Every route takes the user from the SESSION; no body or path ever names a member.
+
+LIB = "/api/trade-exchange-news/library"
+
+
+def _lib(fn, *a, **kw) -> JSONResponse:
+    if not txn_library.enabled():
+        return JSONResponse({"reason": "disabled", "detail": "The Research Library is switched off right now."},
+                            status_code=404)
+    try:
+        return JSONResponse(fn(*a, **kw))
+    except txn_library.LibraryError as e:
+        return JSONResponse({"reason": e.reason, "detail": e.detail}, status_code=e.status)
+
+
+def _uid(user: dict) -> str:
+    return str(user["id"])
+
+
+def _store():
+    pipe = txn_pipeline.get()
+    return pipe.store if pipe else None
+
+
+def _event_for(store):
+    return lambda r: txn_pipeline.headline_event(r, store.epoch, txn_archive.event_fields(r["source"], r["content"]))
+
+
+@router.get(LIB + "/state")
+def library_state(user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.state, _uid(user), _store())
+
+
+@router.get(LIB + "/items")
+def library_items(q: str = Query("", max_length=200), ticker: str = Query("", max_length=12),
+                  collection: str = Query("", max_length=40), date_from: str = Query("", alias="from", max_length=10),
+                  date_to: str = Query("", alias="to", max_length=10), sort: str = Query("saved", pattern="^(saved|received)$"),
+                  offset: int = Query(0, ge=0, le=txn_library.MAX_BOOKMARKS),
+                  limit: int = Query(txn_library.DEFAULT_PAGE, ge=1, le=txn_library.PAGE_MAX),
+                  user: dict = Depends(get_current_user)) -> JSONResponse:
+    store = _store()
+    if store is None:
+        return JSONResponse({"reason": "not_started"}, status_code=503)
+    return _lib(txn_library.items, _uid(user), store, query=q, ticker=ticker, collection=collection,
+                date_from=date_from, date_to=date_to, sort=sort, offset=offset, limit=limit,
+                event_for=_event_for(store))
+
+
+@router.get(LIB + "/bookmarks/{event_id}")
+def library_bookmark(event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.get_bookmark, _uid(user), event_id, _store())
+
+
+@router.put(LIB + "/bookmarks/{event_id}")
+async def library_save(event_id: str, request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    return await asyncio.to_thread(_lib, txn_library.save, _uid(user), _store(), event_id, note=d.get("note"),
+                                   collection_ids=d.get("collection_ids") or (), saved_at_ms=d.get("saved_at_ms"),
+                                   note_updated_at_ms=d.get("note_updated_at_ms"))
+
+
+@router.delete(LIB + "/bookmarks/{event_id}")
+def library_remove(event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.remove, _uid(user), event_id, _store())
+
+
+@router.put(LIB + "/bookmarks/{event_id}/note")
+async def library_note(event_id: str, request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    return await asyncio.to_thread(_lib, txn_library.set_note, _uid(user), event_id, d.get("note"), _store())
+
+
+@router.post(LIB + "/collections")
+async def library_create_collection(request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    return await asyncio.to_thread(_lib, txn_library.create_collection, _uid(user), d.get("name"))
+
+
+@router.patch(LIB + "/collections/{cid}")
+async def library_rename_collection(cid: str, request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    return await asyncio.to_thread(_lib, txn_library.rename_collection, _uid(user), cid, d.get("name"))
+
+
+@router.delete(LIB + "/collections/{cid}")
+def library_delete_collection(cid: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.delete_collection, _uid(user), cid)
+
+
+@router.put(LIB + "/collections/{cid}/items/{event_id}")
+def library_add_to_collection(cid: str, event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.set_membership, _uid(user), cid, event_id, True, _store())
+
+
+@router.delete(LIB + "/collections/{cid}/items/{event_id}")
+def library_remove_from_collection(cid: str, event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.set_membership, _uid(user), cid, event_id, False, _store())
 
 
 @router.get(DAYS_PATH)
@@ -373,7 +511,11 @@ def status(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
         "ready": bool(pipe and pipe.ready.is_set()),
         "ingest_token_configured": bool(config.ingest_token_hashes()),
         "dedupe_window_ms": config.dedupe_window_ms(),
-        "history": {"max_age_ms": config.history_max_age_ms(), "max_items": config.history_max_items()},
+        # ⛔⛔ PERMANENT: nothing deletes a headline or a delivery (store.py). Any retired
+        # bound still set in the environment is named so it can be removed; it does nothing.
+        "retention": {"permanent": True, "retired_env_set": config.retired_env_set()},
+        "integrity": txn_integrity.last(pipe.store) if pipe else None,
+        "ops_alerts": {"active": txn_ops_alerts.active(), "recent": txn_ops_alerts.recent()},
         "pipeline": dict(pipe.counts) if pipe else None,
         "last_ingest_latency_ms": pipe.last_ingest_latency_ms if pipe else None,
         "subscribers": pipe.hub.subscribers if pipe else 0,
@@ -385,7 +527,21 @@ def status(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
         "synthetic_only": config.synthetic_only(),
         "streams": dict(_streams),
         "loop_lag": _loop_lag.snapshot(),
+        "explain": txn_explain.snapshot(),
+        "library": txn_library.snapshot(pipe.store if pipe else None),
+        "release_links": txn_release_links.snapshot(pipe.store if pipe else None),
     }
+
+
+@router.post(INTEGRITY_PATH)
+async def integrity_now(_admin: dict = Depends(require_admin)) -> JSONResponse:
+    """Run the daily integrity check now (admin): counts and ids only, never content.
+    It may re-ingest R2 deliveries the database lacks and re-arm lost ones for the R2
+    repair pass -- additions and a flag, never a deletion."""
+    pipe = txn_pipeline.get()
+    if pipe is None:
+        return JSONResponse({"reason": "not_started"}, status_code=503)
+    return JSONResponse(await txn_integrity.run(pipe, txn_reconcile.get()))
 
 
 async def start_background() -> None:
@@ -401,16 +557,22 @@ async def start_background() -> None:
             "[txn] TXN_ENABLED=1 but storage permission is unconfirmed; pipeline not started")
         return
     pipe = txn_pipeline.start()
-    txn_reconcile.start(pipe, reader_from_env())
+    rec = txn_reconcile.start(pipe, reader_from_env())
+    txn_integrity.start(pipe, rec)
     _loop_lag.start()
     # Company-name links: built on a side thread from the on-disk name cache, never
     # on the delivery path (until it is ready, headlines simply carry no name links).
     import threading
     from api.services.ticker_resolver import prewarm_company_index
     threading.Thread(target=prewarm_company_index, name="txn-company-index", daemon=True).start()
+    # Original press-release links: stored ones load now; the resolver thread runs only
+    # with TXN_RELEASE_LINKS_ENABLED=1, after company-news polls, off the delivery path.
+    txn_release_links.start(pipe)
 
 
 def stop_background() -> None:
+    txn_release_links.stop()
     _loop_lag.stop()
+    txn_integrity.stop()
     txn_reconcile.stop()
     txn_pipeline.stop()

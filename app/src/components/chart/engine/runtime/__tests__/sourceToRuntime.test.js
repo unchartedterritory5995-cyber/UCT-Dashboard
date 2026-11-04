@@ -192,7 +192,9 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // `WHILE_ITERATIONS`, by name. The row moves to `varip`, which still refuses
     // at build — the category this table asks about is "a statement this lane
     // cannot read", and that is what `varip` is.
-    ['a varip', `${head}varip s = 0.0\ns := s + 1\nplot(s)\n`, 'runtime:varip'],
+    // ⭐ P3 WS-F — a top-level `varip` lowers now (the realtime ledger,
+    // `runtimeRealtimeTicks.test.js`); one inside a function body still refuses by name.
+    ['a varip', `${head}f() =>\n    varip s = 0.0\n    s := s + 1\n    s\nplot(f())\n`, 'runtime:varip'],
     // ⚰️ `a user function → runtime:function` LIVED HERE UNTIL 2E, which gave
     // functions real call frames. The case moved rather than being deleted: what
     // it asserts now is that a function this front end cannot READ still refuses
@@ -244,8 +246,11 @@ plot(a)
     // table has had to move a row off a shipped capability. What remains is a
     // WINDOW COMPOSITE (`hma`, assembled from FINITE_WINDOW members) and a
     // carried-SHAPED builtin that binds a shipped implementation (`rsi`).
-    ['a WINDOW-COMPOSITE builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.hma(x, 5))\n`, 'runtime:call-windowed-state'],
-    ['a SHIPPED-IMPL stateful builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.rsi(x, 5))\n`, 'runtime:call-windowed-state'],
+    // ⚰️ P3 WS-B executes `ta.hma` and `ta.rsi` over state (and serves
+    // `str.tostring` in every run): the specimens are `ta.bbw`, `ta.cci` and
+    // `str.format`, still refused under the same three guards.
+    ['a WINDOW-COMPOSITE builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.bbw(x, 5, 2))\n`, 'runtime:call-windowed-state'],
+    ['a SHIPPED-IMPL stateful builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cci(x, 5))\n`, 'runtime:call-windowed-state'],
     // ⚰️⚰️ `math.max` OVER STATE REFUSED HERE UNTIL 2F-1, WHICH EXECUTES IT, and
     // the replacement case is worth reading because the first attempt was WRONG.
     // It moved to `ta.cum` and asserted `call-windowed-state` — "cumulative needs
@@ -277,7 +282,7 @@ plot(a)
     // undeclared name today, verified by driving it — and it will need the same
     // treatment the day it lands (⚰️ RT3: it was `ta.vwma` until RT3 served `vwma` through the host lane's closed form).
     ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cog(x, 3))\n`, 'runtime:call-undeclared-builtin-state'],
-    ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)))\n`, 'runtime:call-text-state'],
+    ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.format("{0}", x)))\n`, 'runtime:call-text-state'],
     // ⚰️ C18 — `int(x)` and `float(x)` over state now LOWER (truncation, and the
     // identity — Pine's documented casts); `bool(x)` is the conversion still refused.
     ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(bool(x) ? 1 : 0)\n`, 'runtime:call-conversion-state'],
@@ -293,14 +298,14 @@ plot(a)
   }
 
   it('⭐ a refusal carries a source LINE, so a gap is attributable', () => {
-    const r = refusalOf(`${head}varip s = 0.0\ns := s + 1\nplot(s)\n`)
+    const r = refusalOf(`${head}f() =>\n    varip s = 0.0\n    s := s + 1\n    s\nplot(f())\n`)
     expect(r.line).toBeGreaterThan(0)
   })
 
   it('⛔ NOTHING IS SILENTLY DROPPED — an unsupported statement refuses the PROGRAM', () => {
     // A front end that skipped what it could not lower would accept this script
     // and quietly compute a different indicator.
-    const built = buildRuntimeIr(`${head}var s = 0.0\nvarip t = 0.0\ns := s + 1\nplot(s)\n`, { bars: BARS })
+    const built = buildRuntimeIr(`${head}var s = 0.0\ng() =>\n    varip t = 0.0\n    t\ns := s + 1 + 0 * g()\nplot(s)\n`, { bars: BARS })
     expect(built.ok).toBe(false)
     expect(built.ir).toBeUndefined()
   })

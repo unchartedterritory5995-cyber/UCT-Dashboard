@@ -116,3 +116,33 @@ export function formingByBar(bars, forming) {
   if (value === true) out[n - 1] = true
   return out
 }
+
+/** ⭐⭐ P3 WS-F — `barstate.isnew`, ONE ENTRY PER BAR, from what this chart has already RUN.
+ *
+ *  TradingView: *"true if the script is currently calculating on a new bar"* — true on
+ *  EVERY historical bar (each runs once, and that run is its first) and on the FIRST
+ *  update of a realtime bar; false on every later update of it, its closing one included.
+ *  So it is a fact about the run, not the bar, and this lane answers it from the realtime
+ *  ledger (`runtimeColumns.js`): the bar times this chart has already executed.
+ *
+ *  ⭐ A bar the ledger has seen runs AGAIN in this run — a tick of the forming bar, its
+ *  closing update, or a replay of that closing update when the history is re-run — so it
+ *  is `0`; every other bar is `1`.
+ *
+ *  ⛔ IT COMPUTES NOTHING FROM THE CLOCK, like the rest of this module: no `Date.now()`.
+ *  Two runs over the same bars with the same ledger answer the same column.
+ *  ⛔ NOT SERVED YET: `closedTable.json::_barstate.refused.isnew` still refuses the name
+ *  on every contract; lifting it is an owner ruling. This is the producer it would read.
+ *
+ *  @param {Array<{t: number}>} bars oldest first
+ *  @param {{has: (t: number) => boolean}|null} executed the times already run (a Set or
+ *         Map); `null` = nothing has run yet, every bar is new
+ *  @returns {Uint8Array} 1 = this run is the bar's first execution
+ */
+export function isNewByBar(bars, executed) {
+  const n = bars && bars.length ? bars.length : 0
+  const out = new Uint8Array(n).fill(1)
+  if (!executed || typeof executed.has !== 'function') return out
+  for (let i = 0; i < n; i += 1) if (executed.has(bars[i].t)) out[i] = 0
+  return out
+}

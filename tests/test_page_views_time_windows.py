@@ -88,3 +88,36 @@ def test_page_analytics_counts_a_view_made_today(db):
 def test_the_cutoff_is_in_the_stored_form(db):
     stamp = auth_service._page_views_cutoff(auth_service.timedelta(seconds=0))
     assert "T" not in stamp and "+" not in stamp and len(stamp) == 19
+
+
+# -- anonymised rows: account deletion sets page_views.user_id to '' (the column is NOT NULL) --
+
+def _anon_rows(n: int, page: str = "/dashboard") -> None:
+    c = auth_db.get_connection()
+    for i in range(n):
+        c.execute("INSERT INTO page_views (id, user_id, page) VALUES (?, '', ?)", (f"anon-{i}", page))
+    c.commit()
+    c.close()
+
+
+def test_anonymised_rows_do_not_inflate_the_unique_visitor_count(db):
+    """'' is not a visitor: two anonymised rows beside one real member is still ONE unique user,
+    while all three rows still count as views."""
+    auth_service.log_page_view("u1", "/dashboard")
+    _anon_rows(2)
+    rows = auth_service.get_page_analytics(days=1)
+    assert len(rows) == 1 and rows[0]["page"] == "/dashboard"
+    assert rows[0]["views"] == 3
+    assert rows[0]["unique_users"] == 1
+
+
+def test_a_page_seen_only_by_deleted_members_has_zero_unique_visitors(db):
+    _anon_rows(3, "/gone")
+    rows = auth_service.get_page_analytics(days=1)
+    assert [(r["page"], r["views"], r["unique_users"]) for r in rows] == [("/gone", 3, 0)]
+
+
+def test_active_now_never_lists_an_anonymised_row(db):
+    """Control on the other page_views reader: its JOIN on users already drops ''."""
+    _anon_rows(2)
+    assert auth_service.get_active_now(minutes=5)["count"] == 0

@@ -26,6 +26,7 @@ import {
   COPY_CONTENT, COPY_OTHER, COPY_TOO_LARGE, copyRefusedForGood, holdRefusedCopy, refusedCopiesOf,
 } from './refusedCopy'
 import { citationLeafText } from '../askCitation'
+import { importNoticeText } from '../importNoticeText'
 import { fmtTime } from '../../../../components/video/playerUtils'
 
 /** One outbox entry by its key, or null. Read through `listOutbox`, which the static layer already
@@ -106,6 +107,12 @@ function leafText(node) {
       return head && url ? `${head} (${url})` : head || url
     }
     case 'webEmbed': return str(attrs.url)
+    // Connector fidelity (2026-11): an import's marker reads as the sentence the editor
+    // shows, then the original's address (as words, never a link).
+    case 'importNotice': {
+      const url = str(attrs.sourceUrl)
+      return url ? `${importNoticeText(attrs)} (${url})` : importNoticeText(attrs)
+    }
     case 'askCitation': return str(attrs.label)
     case 'widgetEmbed':
       return [str(citationLeafText({ type: { name: type }, attrs })), str(attrs.caption)].filter(Boolean).join(' — ')

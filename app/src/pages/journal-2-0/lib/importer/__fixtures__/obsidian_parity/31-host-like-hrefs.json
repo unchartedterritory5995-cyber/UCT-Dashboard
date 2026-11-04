@@ -1,0 +1,35 @@
+{
+  "id": "31-host-like-hrefs",
+  "input_markdown": "# Host-like links\n\nsee [the site](www.example.com) and [the page](example.com/path?x=1) now.\n\n[the plan](Plan.md) is a note, [a gone note](Ghost.md) stays text, and [a folder](docs/page) too.\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [],
+    "highlights": [],
+    "images": [],
+    "links": [
+      {
+        "target": "https://www.example.com",
+        "text": "the site"
+      },
+      {
+        "target": "Plan.md",
+        "text": "the plan"
+      }
+    ],
+    "notices": [],
+    "pending": [
+      {
+        "key": "name:obsidian:vault-1/ghost.md||rel",
+        "text": "a gone note"
+      }
+    ],
+    "task_checked": [],
+    "text": "Host-like links see the site and the page now. the plan is a note, a gone note stays text, and a folder too."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "Plan.md"
+  ]
+}

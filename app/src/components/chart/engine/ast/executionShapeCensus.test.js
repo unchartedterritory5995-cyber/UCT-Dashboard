@@ -85,6 +85,11 @@ const CARRIED_SHAPE = {
   minusDI: 'computeADX — RMA underneath',
   macd: 'computeMACD (shipped) — EMA-based, NOT composed here',
   accum: 'running sum from an anchor',
+  // ⭐ 2026-10-30 — the same bounded window over a TUPLE of K carried cells
+  // (`_functions_multi_state`), all K replaced together each step.
+  accum2: 'runMultiState — two carried cells, updated together',
+  accum3: 'runMultiState — three carried cells, updated together',
+  accum4: 'runMultiState — four carried cells, updated together',
   // ⭐⭐ `cum` JOINED ON 2026-09-09 (owner Ruling D) AND IT IS THE PUREST MEMBER
   // OF THIS SHAPE: ONE carried cell and nothing else. `cumFrom` above is the same
   // accumulator with an anchor test on each bar; this is it without the anchor —
@@ -331,12 +336,19 @@ describe('⭐⭐ what each shape is worth on the corpus', () => {
     }
     // ⭐⭐ THE RESULT THAT MATTERS, ASSERTED so it cannot quietly stop being true:
     // every script still held by `call-windowed-state` reaches the CARRIED shape.
+    // ⭐ PHASE 3 WS-D (2026-11-01) — ONE NAMED EXCEPTION, and it is a finding, not a
+    // loosening. Once `input.symbol` became a runtime value, this script stopped refusing at
+    // its inputs and now stops at `ta.percentrank` fed by a mutable variable: a
+    // `windowComposite` member, not a carried one. It is pinned BY NAME so the claim stays
+    // exact: a second script that does not reach `carried` turns this red, and so does this
+    // one reaching `carried` or ceasing to be blocked.
+    const KNOWN_WINDOW_COMPOSITE_ONLY = { 'oos1/long_tail__08-vix-term-structure.pine': 'windowComposite' }
     const notCarried = Object.entries(report.members)
       .filter(([k]) => !k.split('+').includes('carried'))
-      .flatMap(([, v]) => v)
-    expect(notCarried,
-      `blocked on call-windowed-state WITHOUT reaching a carried builtin: ${notCarried.join(', ')}`)
-      .toEqual([])
+      .flatMap(([k, v]) => v.map((f) => [f, k]))
+    expect(Object.fromEntries(notCarried),
+      `blocked on call-windowed-state WITHOUT reaching a carried builtin: ${notCarried.map(([f, k]) => `${f} (${k})`).join(', ')}`)
+      .toEqual(KNOWN_WINDOW_COMPOSITE_ONLY)
   })
 
   it('⭐ scripts reaching ONLY already-shipped shapes still refuse for other reasons', () => {

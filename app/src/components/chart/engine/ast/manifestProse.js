@@ -213,6 +213,7 @@ export const DROP = Object.freeze([
   "_functions_rounding",
   "_functions_smoothing",
   "_functions_recurrence",
+  "_functions_multi_state",
   "_functions_bar_readers",
   "_functions_arg_extreme",
   "_functions_bounded_state",

@@ -1270,18 +1270,26 @@ function substituteParams(toks, byName) {
   return out
 }
 
-/** Is `toks[i]` the head of a call to one of `names` — `f(…)`, or the method
- *  form `x.f(…)` on a script value (never under one of Pine's own namespaces)? */
+/** Does a call SPELLED `name` reach one of `names` — `f(…)`, or the method form
+ *  `x.f(…)` on a script value (never under one of Pine's own namespaces)?
+ *  ⭐ C45 — ONE answer for both readers of a call: the token reader below and the
+ *  plot lane's arm reader (`pine.js::armHistoryCallOf`), which meets the same
+ *  spelling as a parsed `call` node. */
+export function isHistoryCallName(name, names) {
+  if (!names || !names.size || typeof name !== 'string' || !name) return false
+  if (names.has(name)) return true
+  const dot = name.lastIndexOf('.')
+  if (dot <= 0) return false
+  const first = name.split('.')[0]
+  return names.has(name.slice(dot + 1)) && !KNOWN_NAMESPACES.has(first) && !DRAWN_FAMILIES.includes(first)
+}
+
+/** Is `toks[i]` the head of a call to one of `names` (`isHistoryCallName`)? */
 function historyCallAt(toks, i, names) {
   const tk = toks[i]
   const next = toks[i + 1]
   if (!names || !names.size || !tk || tk.kind !== 'ident' || !next || next.kind !== 'punct' || next.value !== '(') return false
-  const v = String(tk.value)
-  if (names.has(v)) return true
-  const dot = v.lastIndexOf('.')
-  if (dot <= 0) return false
-  const first = v.split('.')[0]
-  return names.has(v.slice(dot + 1)) && !KNOWN_NAMESPACES.has(first) && !DRAWN_FAMILIES.includes(first)
+  return isHistoryCallName(String(tk.value), names)
 }
 
 /** ⭐ C42 — the first call, in these tokens, to a function that reads its own

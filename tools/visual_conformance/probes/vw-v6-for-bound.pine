@@ -1,0 +1,72 @@
+//@version=6
+indicator("UCTPROBE_VW_V6_FOR_BOUND", overlay = false)
+
+// ─── 2026-10-31 P3 WS-A — DOES PINE 6 RE-READ A `for` LOOP'S `to` BOUND? ──────────
+//
+// The v6 migration guide ("Dynamic `for` loop boundaries") and the March 2025 release
+// notes say the `to` bound is re-evaluated before EVERY pass; v5 read it once. The
+// runtime lane reads it once (`lowerIr.js`, STMT.FOR `toSlot`). It serves a v6 loop
+// only where no pass can move the bound (`pineRuntimeFrontend.js::forBoundMovedBy`)
+// and refuses the rest (`runtime:loop`, "Pine 6 re-reads …"). This probe pins the rule.
+//
+//   L00/L01  controls.
+//   L02  passes of `for i = 0 to n` whose body sets `n := 5` on pass 1 (n starts 3).
+//        Read once: 4. Re-read per pass: 6.
+//   L03  passes of `for i = 0 to array.size(a) - 1` whose body pushes while size < 6
+//        (a starts with 2 elements, fresh each bar). Read once: 2. Re-read: 6.
+//   L04  passes of `for i = 0 to n by 2` whose body sets `n := 1` on pass 0 (n starts
+//        6): does a bound that SHRINKS below the counter stop the loop at once? Read
+//        once: 4. Re-read: 1.
+//   L05  passes of `for i = 5 to n` (counting DOWN) whose body sets `n := 3` on the
+//        first pass (n starts 0). Read once: 6. Re-read: 3.
+//   L06  the step: `for i = 0 to 9 by st`, body sets `st := 3` on pass 0 (st starts 1).
+//        If the step is read once: 10 passes; if re-read: 4.
+//
+// ⛔ CAPTURE: AMEX:SPY 1D. Every bar carries the same values; one bar settles it.
+
+plot(bar_index, "L00_bar_index_CONTROL")
+plot(close,     "L01_close_CONTROL")
+
+int n2 = 3
+int c2 = 0
+for i = 0 to n2
+    c2 += 1
+    if i == 1
+        n2 := 5
+plot(c2, "L02_name_bound_grows")
+
+a = array.new_float(0)
+array.push(a, 1)
+array.push(a, 2)
+int c3 = 0
+for i = 0 to array.size(a) - 1
+    c3 += 1
+    if array.size(a) < 6
+        array.push(a, 1)
+plot(c3, "L03_array_bound_grows")
+
+int n4 = 6
+int c4 = 0
+for i = 0 to n4 by 2
+    c4 += 1
+    if i == 0
+        n4 := 1
+plot(c4, "L04_bound_shrinks_below_counter")
+
+int n5 = 0
+int c5 = 0
+bool f5 = true
+for i = 5 to n5
+    c5 += 1
+    if f5
+        n5 := 3
+        f5 := false
+plot(c5, "L05_counting_down")
+
+int st = 1
+int c6 = 0
+for i = 0 to 9 by st
+    c6 += 1
+    if i == 0
+        st := 3
+plot(c6, "L06_step_reread")

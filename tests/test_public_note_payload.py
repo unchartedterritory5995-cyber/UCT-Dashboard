@@ -248,6 +248,10 @@ FIXTURES: dict[str, Callable[[], dict]] = {
                           {"id": "i2", "kind": "chart", "x": 0, "y": 0, "w": 400, "h": 260, "symbol": "NVDA",
                            "tf": "D", "mode": "live", "asOf": None}],
         "edges": [], "levels": [{"id": "l1", "role": "entry", "label": "Entry", "price": 182.5, "chartId": "i2"}]}}}),
+    # Connector fidelity (2026-11): an import's "couldn't copy" marker, naming a file and its source.
+    "importNotice": lambda: doc({"type": "importNotice", "attrs": {
+        "reason": "fetch_failed", "name": "chart.png", "sourceUrl": "https://example.com/chart.png",
+        "ref": "r1", "attempts": 3}}),
     # marks
     "bold": lambda: doc(p(t("b", {"type": "bold"}))),
     "code": lambda: doc(p(t("c", {"type": "code"}))),
@@ -292,6 +296,7 @@ EXPECTED.update({
     "financialFact": ("neutral", "neutral"),  # the fixture is a Massive price fact
     "documentExcerpt": ("neutral", "neutral"),
     "tradeCanvas": ("neutral", "neutral"),  # wave 11 11D: a plan mixes member text with Massive charts
+    "importNotice": ("gone", "gone"),       # connector fidelity: an import's marker never leaves
 })
 
 #: Wave 12 lane 12A -- what each type becomes in the THIRD mode, `gallery` (a member template
@@ -471,6 +476,21 @@ def test_internal_link_marks_lose_the_link_and_keep_the_words():
     assert texts_in(out) == ["a", "b", "c", "d", "e"]
     hrefs = [m["attrs"]["href"] for n in find(out, "text") for m in n.get("marks", [])]
     assert hrefs == ["https://example.com/ok", "mailto:me@example.com"]
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_internal_note_href_mark_renders_as_text_on_share_and_publish(mode):
+    """Plan A Task 2 (L-1): an imported wiki link resolves to `/journal?j2tab=notebook&note=<id>`
+    -- a link MARK, not a noteLink node. In the app it opens the note; on a public page it is
+    the member's words only: mark removed, text kept, and the private note id nowhere in the
+    payload, whichever order the query names its params in."""
+    body = doc(p(t("my alias", {"type": "link", "attrs": {"href": f"/journal?j2tab=notebook&note={OTHER}"}}),
+                 t(" and ", ),
+                 t("again", {"type": "link", "attrs": {"href": f"/journal?note={OTHER}&j2tab=notebook"}})))
+    out = reduce(body, mode, NOTE_LINKS_IN_PUBLICATION if mode == "publish" else None)
+    assert "".join(texts_in(out)) == "my alias and again"
+    assert all(not n.get("marks") for n in find(out, "text"))
+    assert OTHER not in json.dumps(out)
 
 
 # ── M-6: the URL attributes of KEPT nodes (wave-8 final review) ─────────────────────────
@@ -666,6 +686,52 @@ def test_the_vendor_derivation_reads_the_real_registry():
 def test_every_registered_widget_has_a_vendor_row(widget_id):
     assert ("widgetEmbed", widget_id) in pnp.MARKET_DATA_VENDORS, (
         f"widget `{widget_id}` has no vendor row -- a stranger's view of its archived image is undecided")
+
+
+# ── UCT News: a headline sent to a note, and the retired Research Library ──────────────────
+# Both reduce EXACTLY as an undeclared widget did before their rows existed (the neutral market-data
+# line), and nothing of the headline, its archive id or a member's library ever reaches a stranger.
+
+_HEADLINE = "SYNTHETIC: ALFA Corp raises full-year guidance"
+_EVENT_ID = "01JSYNTHETICEVENT000000000A"
+
+
+def _news_embed(widget_id: str, params: dict) -> dict:
+    return {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": widget_id, "mode": "snapshot", "capturedAt": "2026-11-01T12:00:00Z",
+        "params": params, "searchText": f"[UCT News: {_HEADLINE} · ALFA — Trade Exchange]",
+        "caption": "SYNTHETIC private research note", "embedId": "e-news"}}
+
+
+_NEWS_CASES = {
+    "tradeExchangeHeadline": {"eventId": _EVENT_ID, "content": _HEADLINE, "receivedAtMs": 1793000000000,
+                              "source": "Trade Exchange", "tickers": ["ALFA"]},
+    "researchLibrary": {"collection": "c-private-collection", "ticker": "ALFA", "view": "saved"},
+}
+
+
+@pytest.mark.parametrize("widget_id", sorted(_NEWS_CASES))
+def test_uct_news_embeds_are_declared_and_neutral(widget_id):
+    assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", widget_id)] == {
+        "tradeExchangeHeadline": "tradexchange", "researchLibrary": "tradexchange"}[widget_id]
+    assert pnp.market_data_verdict("widgetEmbed", widget_id) == pnp.NEUTRAL
+    # the same verdict an undeclared widget gets: declaring the row changed no behaviour
+    assert pnp.market_data_verdict("widgetEmbed", widget_id) == pnp.market_data_verdict("widgetEmbed", "zz-undeclared")
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "example"])
+@pytest.mark.parametrize("widget_id", sorted(_NEWS_CASES))
+def test_uct_news_embeds_show_the_neutral_line_and_leak_nothing(widget_id, mode):
+    body = doc(p(t("before")), _news_embed(widget_id, _NEWS_CASES[widget_id]), p(t("after")))
+    out = reduce(body, mode)
+    # exactly what an undeclared widget in the same place reduces to (the pre-existing behaviour)
+    assert out == reduce(doc(p(t("before")), _news_embed("zz-undeclared", _NEWS_CASES[widget_id]), p(t("after"))), mode)
+    assert "widgetEmbed" not in types_in(out)
+    text = json.dumps(out)
+    for secret in (_HEADLINE, _EVENT_ID, "ALFA", "SYNTHETIC private research note", "c-private-collection", "Trade Exchange"):
+        assert secret not in text, (widget_id, mode, secret)
+    if mode != "example":
+        assert pnp.NEUTRAL_LINE in text and pnp.ACCOUNT_NEUTRAL_LINE not in text
 
 
 def test_every_fact_source_has_a_vendor_row():

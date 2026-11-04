@@ -108,6 +108,12 @@ export const NOTEBOOK_TYPE_SCHEMA = Object.freeze({
   // that lacks the node would open it EMPTY and its next save would write the
   // empty document over the plan. Level 3 makes the server refuse that write.
   tradeCanvas: 3,
+  // ── 5: connector fidelity (2026-11) ──
+  // ⛔ NEVER-REVERT, like every row above. `importNotice` is the block atom an
+  // import leaves where something could not come over (importNoticeNode.js); an
+  // editor that lacks it would open such a note EMPTY and save the empty document
+  // over it. Level 5 (4 is the `widgetEmbed.ta` attribute) makes the server refuse.
+  importNotice: 5,
 })
 
 /**

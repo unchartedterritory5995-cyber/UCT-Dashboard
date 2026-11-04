@@ -112,8 +112,8 @@ describe('a text input may name its default', () => {
     const src = fs.readFileSync(
       path.join(REPO, 'corpus/committed/rvol__05fcd9e160.pine'), 'utf8')
     const r = buildRuntimeIr(src, { bars: BARS, inputs: {}, tf: 'D', ...runtimeClockOpts(false) })
-    expect(r.ok).toBe(false)
-    expect(r.refusal.line).toBeGreaterThan(11)
-    expect(r.refusal.message).not.toMatch(/states no default/)
+    // ⭐ WS-E (2026-10-31) — its last wall was line 26's gradient `fill`, now
+    // lowered as an undrawn fill, so the script BUILDS — past line 11 entirely.
+    expect(r.ok, r.refusal && `${r.refusal.line}: ${r.refusal.message}`).toBe(true)
   })
 })

@@ -20,6 +20,7 @@
   "chart.applyTemplate": "charts",
   "chart.resetDefaults": "charts",
   "chart.goToDate": "charts",
+  "chart.replay": "chartSetup",
   "chart.compare": "charts",
   "chart.addCustomTimeframe": "charts",
   "widget.add": "workspace",
@@ -50,6 +51,9 @@
   "alert.list": "alerts",
   "alert.create": "alerts",
   "alert.delete": "alerts",
+  "indicatorAlert.create": "indicatorAlerts",
+  "indicatorAlert.toggle": "indicatorAlerts",
+  "indicatorAlert.delete": "indicatorAlerts",
   "stock.profile": "data",
   "stock.earnings": "data",
   "stock.compare": "data",
@@ -74,6 +78,7 @@
   "board.duplicateChart": "boardEdit",
   "widget.setLink": "workspace",
   "widget.showList": "workspace",
+  "widget.setOption": "boardEdit",
   "watchlist.open": "lists",
   "widget.showScan": "workspace",
   "chart.applyThemeAll": "charts",
@@ -88,6 +93,13 @@
   "chart.closeTab": "charts",
   "chart.renameTab": "charts",
   "chart.linkTab": "charts",
+  "drawing.addTrendline": "drawingTools",
+  "drawing.addRay": "drawingTools",
+  "drawing.addRectangle": "drawingTools",
+  "drawing.addFib": "drawingTools",
+  "drawing.addHorizontalRay": "drawingTools",
+  "drawing.addText": "drawingTools",
+  "drawing.addAvwap": "drawingTools",
   "drawing.list": "drawings",
   "drawing.addLevel": "drawings",
   "drawing.style": "drawings",
@@ -136,7 +148,7 @@
   },
   {
    "id": "chartSetup",
-   "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+   "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
   },
   {
    "id": "chartGrid",
@@ -144,7 +156,7 @@
   },
   {
    "id": "boardEdit",
-   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
   },
   {
    "id": "workspace",
@@ -167,6 +179,10 @@
    "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
   },
   {
+   "id": "drawingTools",
+   "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+  },
+  {
    "id": "drawings",
    "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
   },
@@ -183,8 +199,12 @@
    "title": "Price alerts (list, create, delete)"
   },
   {
+   "id": "indicatorAlerts",
+   "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+  },
+  {
    "id": "data",
-   "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+   "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
   },
   {
    "id": "breadth",
@@ -264,7 +284,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -272,7 +292,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -295,6 +315,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingTools",
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+     },
+     {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
@@ -311,8 +335,12 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -410,7 +438,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -418,7 +446,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -441,6 +469,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingTools",
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+     },
+     {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
@@ -457,8 +489,12 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -563,7 +599,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -571,7 +607,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -594,6 +630,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingTools",
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+     },
+     {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
@@ -610,8 +650,12 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -725,7 +769,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -733,7 +777,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -756,6 +800,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingTools",
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+     },
+     {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
@@ -772,8 +820,12 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -867,7 +919,7 @@
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
      },
      {
       "id": "chartGrid",
@@ -875,7 +927,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
      },
      {
       "id": "workspace",
@@ -898,6 +950,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingTools",
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+     },
+     {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
@@ -914,8 +970,12 @@
       "title": "Price alerts (list, create, delete)"
      },
      {
+      "id": "indicatorAlerts",
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
+     },
+     {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -955,10 +1015,12 @@
     "indicators",
     "indicatorSetup",
     "definitions",
+    "drawingTools",
     "drawings",
     "lists",
     "screener",
     "alerts",
+    "indicatorAlerts",
     "data",
     "breadth",
     "settings",
@@ -979,6 +1041,7 @@
     "chart.applyTemplate",
     "chart.resetDefaults",
     "chart.goToDate",
+    "chart.replay",
     "chart.compare",
     "chart.addCustomTimeframe",
     "widget.add",
@@ -1009,6 +1072,9 @@
     "alert.list",
     "alert.create",
     "alert.delete",
+    "indicatorAlert.create",
+    "indicatorAlert.toggle",
+    "indicatorAlert.delete",
     "stock.profile",
     "stock.earnings",
     "stock.compare",
@@ -1033,6 +1099,7 @@
     "board.duplicateChart",
     "widget.setLink",
     "widget.showList",
+    "widget.setOption",
     "watchlist.open",
     "widget.showScan",
     "chart.applyThemeAll",
@@ -1047,6 +1114,13 @@
     "chart.closeTab",
     "chart.renameTab",
     "chart.linkTab",
+    "drawing.addTrendline",
+    "drawing.addRay",
+    "drawing.addRectangle",
+    "drawing.addFib",
+    "drawing.addHorizontalRay",
+    "drawing.addText",
+    "drawing.addAvwap",
     "drawing.list",
     "drawing.addLevel",
     "drawing.style",

@@ -86,6 +86,61 @@ export function matchesQuery(item, query) {
   return (item.tickers || []).some((t) => String(t).toLowerCase() === q.replace(/^\$/, ''))
 }
 
+/** What a search highlights, by the SAME rule as matchesQuery: the whole query as one
+ *  phrase (News search is a phrase, not separate words), case-insensitive; a `$SYM`
+ *  query highlights the symbol's letters. -> lower-cased needles ([] when no search). */
+export function searchNeedles(query) {
+  const q = String(query || '').trim().toLowerCase().slice(0, 80)
+  if (!q) return []
+  const bare = q.startsWith('$') ? q.slice(1) : q
+  return [...new Set([q, bare].filter(Boolean))]
+}
+
+/** `text` cut into runs, `hit` on EVERY occurrence of any needle (overlaps merged),
+ *  original capitals kept -- the UCT Agent's highlightRuns (agent/chatSearch.js), over
+ *  News's own needles. Pure text in, pure text out: nothing is parsed as markup. */
+export function highlightRuns(text, needles) {
+  return runsIn(String(text ?? ''), hitRanges(text, needles), 0)
+}
+
+/** Every hit of the needles in `text` as merged [start, end) ranges (case-insensitive). */
+export function hitRanges(text, needles) {
+  const s = String(text ?? '')
+  if (!needles?.length || !s) return []
+  const low = s.toLowerCase()
+  const ranges = []
+  for (const t of needles) {
+    if (!t) continue
+    for (let i = low.indexOf(t); i !== -1; i = low.indexOf(t, i + t.length)) ranges.push([i, i + t.length])
+  }
+  ranges.sort((a, b) => a[0] - b[0])
+  const merged = []
+  for (const r of ranges) {
+    const last = merged[merged.length - 1]
+    if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1])
+    else merged.push([...r])
+  }
+  return merged
+}
+
+/** One piece of a headline (`text`, starting at `offset` in the whole) cut by the whole
+ *  headline's hit ranges -- so a phrase that runs across a ticker link is marked in both. */
+export function runsIn(text, ranges, offset = 0) {
+  const s = String(text ?? '')
+  const runs = []
+  let at = 0
+  for (const [a0, b0] of ranges || []) {
+    const a = Math.max(a0 - offset, 0)
+    const b = Math.min(b0 - offset, s.length)
+    if (b <= 0 || a >= s.length || b <= a) continue
+    if (a > at) runs.push({ text: s.slice(at, a), hit: false })
+    runs.push({ text: s.slice(a, b), hit: true })
+    at = b
+  }
+  if (at < s.length || !runs.length) runs.push({ text: s.slice(at), hit: false })
+  return runs
+}
+
 /** The server classifier's categories (api/services/trade_exchange_news/categories.py
  *  CATEGORIES), in toolbar order. The widget filters on `item.category`; it never
  *  classifies anything itself. */
@@ -134,6 +189,19 @@ export function fmtReceived(ms, nowMs = Date.now()) {
   return _etDay(ms) === _etDay(nowMs) ? formatTimeEt(ms, { seconds: true }) : formatDateTimeEt(ms / 1000)
 }
 
+/** A headline's stamp on its row: "11/01/2026 12:48:13 PM ET" -- the date ALWAYS (All history
+ *  mixes days), UCT's receipt time in the market zone, with its zone label (the presentation
+ *  rule: a market-zone time names its zone -- formatDateTimeEt). Built from the shared ET
+ *  primitives (etDateKey -> formatDateTimeEt; formatTimeEt), so DST is the time-zone
+ *  database's, never a fixed offset. */
+export function fmtStamp(ms) {
+  if (!ms) return ''
+  const key = etDateKey(ms)
+  const time = formatTimeEt(ms, { seconds: true })
+  if (!key || !time) return ''
+  return `${key.slice(5, 7)}/${key.slice(8, 10)}/${key.slice(0, 4)} ${time} ET`
+}
+
 /** Tooltip for the category label: derived by UCT, the provider's own label kept. */
 export function categoryTitle(item) {
   const src = item?.source ? ` · Trade Exchange label: ${item.source}` : ''
@@ -179,7 +247,7 @@ function unavailableTitle(reason) {
 }
 
 const GAP_REASON = {
-  outage_exceeded_retention: 'UCT was offline longer than the recovery window',
+  outage_exceeded_retention: 'UCT was offline longer than the recovery window (before permanent archiving)',
   no_journal: 'recovery storage was not configured while UCT was offline',
   journal_unreachable: 'recovery storage could not be reached',
 }
@@ -305,6 +373,23 @@ export function feedHealth(state, nowMs = Date.now()) {
     { key: 'latency', label: 'Latency', tone: 'none',
       value: measured ? `${(s.lastLatencyMs / 1000).toFixed(1)} s from UCT receipt to this screen · measured ${_ago(nowMs - s.lastLatencyAt)}`
         : 'Not measured yet in this browser (needs a live headline in a visible tab)' },
+  ]
+}
+
+/** The selected day's view, for the feed-health popover (the footer keeps only
+ *  the date and time controls): how many headlines, what the times are, and what
+ *  is hidden as graphic-only. */
+export function viewHealth({ dateLabel = '', count = null, provisional = false, hidden = 0, showing = false } = {}) {
+  return [
+    { key: 'view', label: 'This view', tone: 'none', value: count ? `${count} · ${dateLabel} (ET)` : dateLabel || '—' },
+    { key: 'times', label: 'Times', tone: 'none',
+      value: 'When UCT received each headline, in ET (Trade Exchange sends no publication time)' },
+    { key: 'tickers', label: 'Tickers', tone: 'none',
+      value: provisional ? 'Detected automatically · provisional' : 'Detected automatically' },
+    { key: 'graphic', label: 'Graphic-only', tone: 'none',
+      value: showing ? 'Shown (⚙ → Graphic-only posts)'
+        : hidden > 0 ? `${hidden} hidden: chart captions or labels whose picture the webhook does not carry. Stored, not lost · ⚙ → Graphic-only posts → Show`
+          : 'None hidden in this view' },
   ]
 }
 
@@ -459,7 +544,7 @@ export function mergeDay(serverRows, poolMatches, { dateKey, hasNewer = false, h
   const top = rows[0]
   const bottom = rows[rows.length - 1]
   for (const it of poolMatches || []) {
-    if (etDateKey(it.received_at_ms) !== dateKey) continue
+    if (dateKey && etDateKey(it.received_at_ms) !== dateKey) continue     // no dateKey: All history
     if (hasNewer && top && dayCmp(it, top) < 0) continue             // newer than what is loaded, with a gap between
     if (hasOlder && bottom && dayCmp(it, bottom) > 0) continue       // older than what is loaded, with a gap between
     bySeq.set(it.seq, it)
@@ -467,8 +552,39 @@ export function mergeDay(serverRows, poolMatches, { dateKey, hasNewer = false, h
   return [...bySeq.values()].sort(dayCmp)
 }
 
-/** The footer's archive note: how far back the retained history actually reaches. */
+/** The footer's archive note: how far back the archive reaches. It is permanent. */
 export function archiveTitle(oldestMs, nowMs = Date.now()) {
   const back = oldestMs ? `back to ${fmtReceived(oldestMs, nowMs)}${_etDay(oldestMs) === _etDay(nowMs) ? ' ET' : ''}` : 'empty so far'
-  return `The retained archive reaches ${back}. UCT keeps about 7 days of headlines, up to 5,000; nothing older is available.`
+  return `The UCT News archive reaches ${back}. Every Trade Exchange headline since then is kept permanently.`
+}
+
+// ── AI Explanation (explain.py) ───────────────────────────────────────────────
+
+//: The server's own limits (explain.py MAX_HEADLINE_CHARS, `explainable`).
+export const EXPLAIN_MAX_CHARS = 4000
+
+/** Whether a headline offers Explain: a stored id, real words, not a graphic-only
+ *  placeholder. The server decides again; this only hides a button that would fail. */
+export function explainable(item) {
+  const text = String(item?.content || '').trim()
+  return !!item?.id && !item.placeholder && text.length <= EXPLAIN_MAX_CHARS && /[A-Za-z]{2}/.test(text)
+}
+
+/** What Copy explanation puts on the clipboard: the compact format, as plain text. */
+export function explanationText(body) {
+  if (!body?.explanation) return ''
+  return `What this means: ${body.explanation}\n\nWhat to watch: ${body.watch || ''}`.trim()
+}
+
+/** A refusal or failure -> the sentence shown, and whether Retry can help. The
+ *  server's sentence is used when it sent one (never an internal cause). */
+const EXPLAIN_FINAL = new Set(['disabled', 'bad_id', 'not_found', 'not_explainable', 'daily_limit', 'population', 'paused'])
+export function explainError(status, body) {
+  const reason = body?.reason || null
+  if (status === 401) return { text: 'Sign in to UCT to see explanations.', retry: false }
+  const text = typeof body?.detail === 'string' && body.detail
+    ? body.detail
+    : status === 0 ? 'Could not reach UCT — check your connection and try again.'
+      : 'The explanation could not be written right now. Try again shortly.'
+  return { text, retry: !EXPLAIN_FINAL.has(reason) }
 }

@@ -1,9 +1,11 @@
 /**
  * News (Trade Exchange) — the row and its popovers, split out of the widget:
  *   Row            one headline (memoised: a quote tick re-renders only the rows
- *                  naming that symbol), its collapse, one-click copy
- *                  and ⋯ (add to watchlist)
- *   ActionsMenu    Add a headline's symbol to a personal watchlist
+ *                  naming that symbol), its collapse, Explain (AI), Bookmark,
+ *                  one-click Copy and ⋯ (the secondary actions)
+ *   InlineExplanation  the explanation of one headline, expanded INSIDE its row
+ *                  under the headline (the rows below move down; nothing covered)
+ *   ActionsMenu    ⋯: Add to Watchlist, Send to Notebook, Add to Collection, Copy
  *   FilterMenu     categories (multi-select) + this widget's saved presets
  *   HealthPopover  what this browser knows about the feed (feedHealth)
  *   DayBar         the day being read: ‹ date › · calendar · jump to time · Latest
@@ -13,18 +15,27 @@
  *
  * Every integration is the canonical one: a ticker in the text opens the chart
  * (setGroupSym on the widget's colour group), Add to watchlist is the watchlist
- * API TickerActions uses, Copy is the browser clipboard. News alerts are not
+ * API TickerActions uses, Send to Notebook is the Notebook's own capture door
+ * (sendCaptureToJournal), Copy is the browser clipboard. News alerts are not
  * offered from a headline (switched off in production until the owner approves).
  */
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
+import { AuthContext } from '../../../context/AuthContext'
+import { useAgentFlag } from '../../../agent/agentFlag'
+import compassMark from '../../../components/intro/assets/compass-mark.png'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
-import { CATEGORY_FILTERS, categoryTitle, cleanCategories, fmtReceived, fmtReceivedFull,
+import { requestExplanation, cachedExplanation } from '../../../lib/tradeExchangeNewsExplain'
+import { sentRecently } from '../../../lib/tradeExchangeNewsNotebook'
+import { CollectionPicker } from './TradeExchangeNewsCollections'
+import { NewsAgentAsk } from './TradeExchangeNewsAsk'
+import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceivedFull, fmtStamp, hitRanges, runsIn,
   dayLabel, dayStatus, cleanTime, MAX_PRESETS, monthGrid, MONTHS, tickerTitle, tickerTone, timeLabel, tokenize,
   WEEKDAYS } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
+import { releaseLinkFor } from '../../../lib/tradeExchangeNewsReleaseLink'
 
 const TONE_CLASS = { up: 'symUp', down: 'symDown', flat: 'symFlat', none: 'symNone' }
 
@@ -65,14 +76,29 @@ function useLong(ref, lines, content, expanded) {
   return long
 }
 
-function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional, clampLines, expanded, headRef }) {
-  const parts = tokenize(item.content, item.tickers, item.mentions)
+/** `text` with the search's hits marked (<mark>, the Agent's gold): React text only.
+ *  `ranges`/`offset`: the WHOLE headline's hits and where this piece starts in it. */
+export function Hl({ text, needles, ranges, offset = 0 }) {
+  const rs = ranges || (needles?.length ? hitRanges(text, needles) : null)
+  if (!rs?.length) return text
+  return runsIn(text, rs, offset).map((r, i) => (r.hit ? <mark key={i} className={styles.hit}>{r.text}</mark> : r.text))
+}
+
+/** The pieces of a tokenized headline with their offsets in the whole text. */
+export function withOffsets(parts) {
+  let at = 0
+  return parts.map((p) => { const o = at; at += String(p.text ?? '').length; return { ...p, offset: o } })
+}
+
+function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional, clampLines, expanded, headRef, needles }) {
+  const parts = withOffsets(tokenize(item.content, item.tickers, item.mentions))
+  const ranges = needles ? hitRanges(item.content, needles) : null
   const clamp = clampLines && !expanded
   return (
     <span ref={headRef} className={`${styles.headline}${clamp ? ' ' + styles.clamped : ''}`}
       style={clamp ? { WebkitLineClamp: clampLines } : undefined}>
       {parts.map((p, i) => {
-        if (!p.sym) return <span key={i}>{p.text}</span>
+        if (!p.sym) return <span key={i}><Hl text={p.text} ranges={ranges} offset={p.offset} /></span>
         const q = prices?.[p.sym]
         const stale = !!staleSymbols?.has?.(p.sym)
         const t = tickerTone(q, stale)
@@ -85,7 +111,7 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
             className={`${styles.sym}${tone ? ' ' + tone : ''}${p.sym === linkedSym ? ' ' + styles.symLinked : ''}`}
             onClick={() => onSym(p.sym)}
             title={`${tickerTitle(p.sym, q, stale, { named: p.named })}${provisional ? ' · ticker detected automatically (provisional)' : ''}`}
-          >{p.text}</button>
+          ><Hl text={p.text} ranges={ranges} offset={p.offset} /></button>
         )
       })}
     </span>
@@ -95,8 +121,8 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
 /** Only what a row DISPLAYS from a quote: a tick that moves none of it is no render. */
 const quoteKey = (q) => (q ? `${q.price}|${q.change_pct}|${q.updated_at || q.timestamp || ''}` : '')
 const ROW_KEYS = ['item', 'linkedSym', 'colorMode', 'provisional', 'clampLines', 'expanded', 'flashing',
-  'showCategory', 'timeOnly', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
-  'actionsOpen']
+  'showCategory', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
+  'actionsOpen', 'onExplain', 'explainOpen', 'onCloseExplain', 'onSave', 'saved', 'needles']
 function rowPropsEqual(a, b) {
   for (const k of ROW_KEYS) if (a[k] !== b[k]) return false
   if (!a.quotesUsed && !b.quotesUsed) return true
@@ -153,20 +179,41 @@ function CopyButton({ text }) {
   )
 }
 
+/** "Original release ↗" / "SEC filing ↗" — only for a link the server verified
+ *  and the browser re-checked (tradeExchangeNewsReleaseLink). New tab, no opener,
+ *  no referrer; a click never selects the row or links the chart. */
+function ReleaseLink({ item }) {
+  const link = releaseLinkFor(item)
+  if (!link) return null
+  return (
+    // The slot takes only the line's leftover space (basis 0), so a narrow row
+    // truncates the label instead of wrapping the row actions onto a new line.
+    <span className={styles.releaseSlot}>
+      <a className={styles.releaseLink} href={link.href} target="_blank" rel="noopener noreferrer nofollow"
+        referrerPolicy="no-referrer" title={link.title} onClick={(e) => e.stopPropagation()}>
+        <span className={styles.releaseLabel}>{link.label}</span><span className={styles.releaseArrow} aria-hidden="true">↗</span>
+      </a>
+    </span>
+  )
+}
+
 export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional,
-  clampLines, expanded, onToggleExpand, flashing, showCategory, timeOnly = false, groupCount = 0, groupOpen = false,
-  onToggleGroup, related = false, onActions, actionsOpen }) {
+  clampLines, expanded, onToggleExpand, flashing, showCategory, groupCount = 0, groupOpen = false,
+  onToggleGroup, related = false, onActions, actionsOpen, onExplain, explainOpen, onCloseExplain, onSave, saved = false,
+  needles = null }) {
   const headRef = useRef(null)
+  const explainRef = useRef(null)
   const long = useLong(headRef, clampLines, item.content, expanded)
   return (
     // ⛔ No selected-row background: a ticker click links the chart and nothing
-    // else, so it can never be mistaken for a newly arriving headline.
-    <div className={`${styles.row}${related ? ' ' + styles.related : ''}`} data-seq={item.seq}>
+    // else, so it can never be mistaken for a newly arriving headline. The one
+    // tint is the row an explanation has expanded (rowExplaining).
+    <div className={`${styles.row}${related ? ' ' + styles.related : ''}${explainOpen ? ' ' + styles.rowExplaining : ''}`} data-seq={item.seq}>
       {flashing && <span className={styles.flash} aria-hidden="true" />}
       <span className={styles.when}>
         <span className={styles.time} title={`Received by UCT ${fmtReceivedFull(item.received_at_ms)} · Trade Exchange does not send a publication time`}>
-          {/* a day view names its date once (the date bar); each row says the time */}
-          {fmtReceived(item.received_at_ms, timeOnly ? item.received_at_ms : undefined)}
+          {/* the date and time on every row: All history mixes days */}
+          {fmtStamp(item.received_at_ms)}
         </span>
         {showCategory && item.category && (
           <span className={styles.category} title={categoryTitle(item)}>{item.category}</span>
@@ -177,24 +224,47 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
             {groupOpen ? 'Hide' : '+'}{groupOpen ? ' related' : `${groupCount} related`}
           </button>
         )}
+        <ReleaseLink item={item} />
         <span className={styles.rowActions}>
+          {onExplain && explainable(item) && (
+            <button
+              ref={explainRef}
+              type="button"
+              className={`${styles.rowBtn}${explainOpen ? ' ' + styles.rowBtnOn : ''}`}
+              onClick={(e) => { e.stopPropagation(); onExplain(item, e.currentTarget) }}
+              aria-label="Explain this headline"
+              aria-expanded={!!explainOpen}
+              title="Explain"
+            ><UIcon name="sparkle" size={11} gold={false} /></button>
+          )}
+          {onSave && item.id && (
+            // ⛔ a plain currentColor glyph (gold={false}): see the Explain button above.
+            <button
+              type="button"
+              className={`${styles.rowBtn}${saved ? ' ' + styles.rowBtnOn + ' ' + styles.rowBtnSaved : ''}`}
+              onClick={(e) => { e.stopPropagation(); onSave(item) }}
+              aria-label={saved ? 'Remove bookmark' : 'Save headline'}
+              aria-pressed={!!saved}
+              title={saved ? 'Remove bookmark' : 'Save headline'}
+            ><UIcon name={saved ? 'bookmark-fill' : 'bookmark'} size={11} gold={false} /></button>
+          )}
           <CopyButton text={item.content || ''} />
-          {(item.tickers || []).length > 0 && (
+          {onActions && (
             <button
               type="button"
               className={`${styles.rowBtn} ${styles.rowMenuBtn}${actionsOpen ? ' ' + styles.rowBtnOn : ''}`}
               onClick={(e) => { e.stopPropagation(); onActions(item, e.currentTarget) }}
-              aria-label="Add a symbol to a watchlist"
+              aria-label="More actions for this headline"
               aria-haspopup="menu"
               aria-expanded={!!actionsOpen}
-              title="Add to watchlist"
+              title="More: watchlist, Notebook, collections, copy"
             >⋯</button>
           )}
         </span>
       </span>
       <Headline item={item} linkedSym={linkedSym} onSym={onSym} colorMode={colorMode} prices={prices}
         staleSymbols={staleSymbols} provisional={provisional} clampLines={clampLines}
-        expanded={expanded} headRef={headRef} />
+        expanded={expanded} headRef={headRef} needles={needles} />
       <span className={styles.badges}>
         {item.repeat_count > 0 && (
           <span className={styles.badge} title={`Received ${item.repeat_count + 1} times within a minute (a resend or a repeat publication)`}>×{item.repeat_count + 1}</span>
@@ -208,9 +278,117 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
           {expanded ? 'Show less' : 'Show more'}
         </button>
       )}
+      {explainOpen && <InlineExplanation key={item.id} item={item} onClose={onCloseExplain} openerRef={explainRef} />}
     </div>
   )
 }, rowPropsEqual)
+
+// ── AI Explanation: expands INSIDE the headline's row ──
+
+/** Whose voice the explanation is in. UCT Agent is ADMIN-ONLY (its routes are
+ *  require_admin_dark), so its mark and name show only where the Agent itself would:
+ *  the SAME two keys as the /charts panel (ChartsWorkspace `agentAllowed`) -- this
+ *  browser's Agent switch AND the admin role. Everyone else (a member, an admin with
+ *  the switch off, no AuthProvider in isolated tests) reads the same explanation under
+ *  a neutral heading: the failure direction never shows the Agent to someone who can't
+ *  use it.
+ *  ⛔ Branding only -- nothing here talks to the Agent (increments 2/3 will, through
+ *  app/src/agent's public exports, never AgentPanel internals). */
+function useAgentVoice() {
+  const admin = useContext(AuthContext)?.user?.role === 'admin'
+  const agentOn = useAgentFlag()
+  return admin && agentOn
+}
+
+function ExplainTitle({ agentVoice }) {
+  if (!agentVoice) return <span className={styles.explainTitle}><UIcon name="sparkle" size={10} /> Explanation</span>
+  return (
+    <span className={`${styles.explainTitle} ${styles.explainAgent}`}>
+      <span className={styles.agentMark} aria-hidden="true"><img src={compassMark} alt="" /></span>
+      UCT Agent
+    </span>
+  )
+}
+
+/** One headline's explanation, asked for when it opens (the member's click), shown
+ *  directly under the headline it explains -- the row grows, the rows below move
+ *  down, nothing is covered. Rendered as TEXT only: React escapes it, nothing is
+ *  parsed as HTML or markdown. Escape or ✕ closes it and returns focus to Explain. */
+export function InlineExplanation({ item, onClose, openerRef }) {
+  const [state, setState] = useState(() => {
+    const hit = cachedExplanation(item.id)
+    return hit ? { body: hit } : { loading: true }
+  })
+  const [copied, setCopied] = useState(null)            // null | 'ok' | 'err'
+  const [attempt, setAttempt] = useState(0)
+  const boxRef = useRef(null)
+  useEffect(() => {
+    if (state.body) return undefined
+    let live = true
+    setState({ loading: true })
+    requestExplanation(item.id).then((out) => { if (live) setState(out) })
+    return () => { live = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per open / Retry
+  }, [item.id, attempt])
+  // Opened near the foot of the list (or grown when the text arrives): keep it in view,
+  // moving the list only as far as needed.
+  useEffect(() => { boxRef.current?.scrollIntoView?.({ block: 'nearest' }) }, [state])
+  useEffect(() => { boxRef.current?.focus({ preventScroll: true }) }, [])
+  useEffect(() => {
+    if (!copied) return undefined
+    const t = setTimeout(() => setCopied(null), COPY_FEEDBACK_MS)
+    return () => clearTimeout(t)
+  }, [copied])
+  const close = useCallback(() => { onClose(); openerRef?.current?.focus?.() }, [onClose, openerRef])
+  const { body, error, loading } = state
+  const agentVoice = useAgentVoice()
+  return (
+    <div ref={boxRef} className={styles.explain} role="region" aria-label="Explanation" tabIndex={-1}
+      onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close() } }}>
+      <div className={styles.explainHead}>
+        <ExplainTitle agentVoice={agentVoice} />
+        {body && (
+          <button type="button" className={styles.explainCopy}
+            onClick={async () => setCopied((await copyText(explanationText(body))) ? 'ok' : 'err')}
+            aria-label={copied === 'ok' ? 'Explanation copied' : copied === 'err' ? 'Copy failed' : 'Copy explanation'}
+            title={copied === 'ok' ? 'Copied' : copied === 'err' ? 'The browser blocked the clipboard' : 'Copy explanation'}>
+            <UIcon name={copied === 'ok' ? 'check' : copied === 'err' ? 'x' : 'copy'} size={10} gold={false} />
+          </button>
+        )}
+        <button type="button" className={styles.explainClose} onClick={close}
+          aria-label="Close explanation" title="Close (Esc)"><UIcon name="x" size={10} gold={false} /></button>
+      </div>
+      <div className={styles.explainBody} aria-live="polite" aria-busy={!!loading}>
+        {loading && (
+          <div className={styles.explainLoading}>
+            <span className={styles.explainSkel} /><span className={styles.explainSkel} />
+            <span className={`${styles.explainSkel} ${styles.explainSkelShort}`} />
+            <span className={styles.srOnly}>Writing the explanation…</span>
+          </div>
+        )}
+        {body && (
+          <>
+            <h4 className={styles.explainLabel}>What this means</h4>
+            <p className={styles.explainText}>{body.explanation}</p>
+            <h4 className={styles.explainLabel}>What to watch</h4>
+            <p className={styles.explainText}>{body.watch}</p>
+            {/* follow-ups: only where the Agent itself is allowed, and only once there is
+                an explanation to follow up on (members keep the explanation alone) */}
+            {agentVoice && <NewsAgentAsk newsId={item.id} />}
+          </>
+        )}
+        {error && (
+          <div className={styles.explainError}>
+            <span>{error.text}</span>
+            {error.retry && (
+              <button type="button" className={styles.explainAction} onClick={() => setAttempt((n) => n + 1)}>Retry</button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // ── popover plumbing: click-away + Escape, focus returned to the opener ──
 function usePopover(boxRef, anchorEl, onClose) {
@@ -254,24 +432,79 @@ function placeUnder(anchorEl, hostEl, width) {
 
 const fetchJson = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : []))
 
-/** ⋯ on a headline: add one of its symbols to a personal watchlist. The chart is
- *  the ticker in the text; copying is the row's own button. */
-export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose }) {
+/** ⋯ on a headline: the secondary actions. Add to Watchlist (the canonical watchlist
+ *  API), Send to Notebook (lib/tradeExchangeNewsNotebook.js -> the Notebook's own
+ *  capture door), Add to Collection (saving it if it is not saved yet) and Copy
+ *  Headline. The chart is the ticker in the text. Watchlist and Collection open in
+ *  place, with a Back to the list. */
+export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose, onNotebook, onCopied, saved = false }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
+  const [view, setView] = useState('main')              // 'main' | 'watchlist' | 'collections'
+  const [sending, setSending] = useState(false)
+  const [again, setAgain] = useState(() => sentRecently(item.id))
+  const hasTickers = (item.tickers || []).length > 0
+  useEffect(() => {
+    const first = boxRef.current?.querySelector('[role="menuitem"]:not([disabled]), input, [role="menuitem"]')
+    if (first) first.focus()
+    else boxRef.current?.focus()
+  }, [view])
+  const width = view === 'main' ? 196 : 214
+  const back = (
+    <button type="button" role="menuitem" className={`${styles.menuItem} ${styles.menuBack}`} onClick={() => setView('main')}>
+      <UIcon name="chevronLeft" size={11} gold={false} /> Back
+    </button>
+  )
+  const notebook = async () => {
+    if (sending) return
+    setSending(true)
+    const r = await onNotebook(item)
+    setSending(false)
+    if (r.ok) setAgain(true)
+    onClose(r)
+  }
+  return (
+    <div ref={boxRef} tabIndex={-1} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeUnder(anchorEl, hostEl, width), width }}
+      role="menu" aria-label="Headline actions" onKeyDown={(e) => { onKey(e); menuKeys(e) }}>
+      {view === 'main' && (
+        <>
+          <button type="button" role="menuitem" className={styles.menuItem} disabled={!hasTickers}
+            onClick={() => setView('watchlist')} title={hasTickers ? undefined : 'No ticker identified in this headline'}>
+            <UIcon name="plus" size={12} gold={false} /> Add to Watchlist
+          </button>
+          <button type="button" role="menuitem" className={styles.menuItem} disabled={sending} onClick={notebook}
+            title={again ? 'You sent this a moment ago. Click to send it again.' : 'Add this headline to your current note (or the Notebook inbox)'}>
+            <UIcon name="journal" size={12} gold={false} /> {sending ? 'Sending…' : again ? 'Send to Notebook again' : 'Send to Notebook'}
+          </button>
+          <button type="button" role="menuitem" className={styles.menuItem} onClick={() => setView('collections')}>
+            <UIcon name="library" size={12} gold={false} /> {saved ? 'Collections…' : 'Add to Collection…'}
+          </button>
+          <button type="button" role="menuitem" className={styles.menuItem}
+            onClick={async () => { const ok = await copyText(item.content || ''); onCopied?.(ok); onClose() }}>
+            <UIcon name="copy" size={12} gold={false} /> Copy Headline
+          </button>
+        </>
+      )}
+      {view === 'watchlist' && <WatchlistPicker item={item} back={back} />}
+      {view === 'collections' && (
+        <>
+          {back}
+          <div className={styles.menuHead}>Collections</div>
+          <CollectionPicker item={item} />
+        </>
+      )}
+    </div>
+  )
+}
+
+/** Add one of the headline's symbols to a personal watchlist (the canonical watchlist API). */
+function WatchlistPicker({ item, back }) {
   const syms = [...new Set(item.tickers || [])]
   const [sym, setSym] = useState(syms[0] || null)
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState(false)
   const { data: lists } = useSWR(sym ? '/api/watchlists?include_items=0' : null, fetchJson, { revalidateOnFocus: false })
   const myLists = (Array.isArray(lists) ? lists : []).filter((l) => !l?.is_prebuilt)
-  const focused = useRef(false)
-  useEffect(() => {
-    // Focus the first list once they arrive (a symbol chip or the box until then).
-    const first = boxRef.current?.querySelector('[role="menuitem"]')
-    if (first && !focused.current) { focused.current = true; first.focus() }
-    else if (!first) boxRef.current?.focus()
-  }, [lists])
 
   const addTo = useCallback(async (list) => {
     if (busy || !sym) return
@@ -293,10 +526,9 @@ export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose }) {
     }
   }, [busy, sym])
 
-  const width = 210
   return (
-    <div ref={boxRef} tabIndex={-1} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeUnder(anchorEl, hostEl, width), width }}
-      role="menu" aria-label="Add to watchlist" onKeyDown={(e) => { onKey(e); menuKeys(e) }}>
+    <>
+      {back}
       <div className={styles.menuHead}>{sym ? `Add ${sym} to watchlist` : 'Add to watchlist'}</div>
       {syms.length > 1 && (
         <div className={styles.menuSyms} role="group" aria-label="Security">
@@ -319,12 +551,12 @@ export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose }) {
       )}
       {!sym && <div className={styles.menuNote}>No ticker identified in this headline.</div>}
       {result && <div className={result.tone === 'err' ? styles.alertsErr : styles.alertsOk} role="status">{result.text}</div>}
-    </div>
+    </>
   )
 }
 
 export function FilterMenu({ anchorEl, hostEl, themeVars, onClose, categories, onCategories, presets, activeId,
-  onApply, onSave, onRename, onDelete }) {
+  onApply, onSave, onRename, onDelete, linked = false, linkedSym = null, onLinked }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
   const selected = new Set(cleanCategories(categories))
@@ -340,7 +572,19 @@ export function FilterMenu({ anchorEl, hostEl, themeVars, onClose, categories, o
   const width = 220
   return (
     <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeUnder(anchorEl, hostEl, width), width }}
-      role="dialog" aria-label="Filters and presets" onKeyDown={onKey}>
+      role="dialog" aria-label="News filters" onKeyDown={onKey}>
+      {onLinked && (
+        <>
+          <div className={styles.menuHead}>Headlines</div>
+          <div className={styles.menuCats} role="group" aria-label="Headlines">
+            <button type="button" className={`${styles.menuSym}${!linked ? ' ' + styles.menuSymOn : ''}`} aria-pressed={!linked}
+              onClick={() => onLinked(false)}>All headlines</button>
+            <button type="button" className={`${styles.menuSym}${linked ? ' ' + styles.menuSymOn : ''}`} aria-pressed={linked}
+              onClick={() => onLinked(true)} title="Only headlines naming this widget's linked chart symbol">
+              Linked to chart{linkedSym ? ` · ${linkedSym}` : ''}</button>
+          </div>
+        </>
+      )}
       <div className={styles.menuHead}>Categories</div>
       <div className={styles.menuCats} role="group" aria-label="Categories">
         <button type="button" className={`${styles.menuSym}${all ? ' ' + styles.menuSymOn : ''}`} aria-pressed={all}
@@ -410,9 +654,11 @@ function placeAbove(anchorEl, hostEl, width) {
   return { bottom: Math.max(4, h.bottom - a.top + 4), left }
 }
 
-/** A month of days. Future dates and dates before retention are disabled and say
- *  why; a dot marks a retained date with headlines (only what the server reports). */
-export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, onPick, onClose }) {
+/** A month of days. Future dates and dates before the archive began are disabled and
+ *  say why; a dot marks an archived date with headlines (only what the server reports).
+ *  The archive is permanent: nothing in it ever ages out. */
+export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, onPick, onClose, history = false,
+  allHistory = false, onAll }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
   const [ym, setYm] = useState(() => [Number(selected.slice(0, 4)), Number(selected.slice(5, 7)) - 1])
@@ -440,6 +686,12 @@ export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, o
   return (
     <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeAbove(anchorEl, hostEl, width), top: 'auto', width }}
       role="dialog" aria-label="Choose a date" onKeyDown={(e) => { onKey(e); keys(e) }}>
+      {history && onAll && (
+        <button type="button" className={`${styles.menuItem}${allHistory ? ' ' + styles.menuItemOn : ''}`} aria-pressed={allHistory}
+          onClick={() => { onAll(); onClose() }} title="Every archived headline naming the linked symbol, newest first">
+          All history
+        </button>
+      )}
       <div className={styles.calHead}>
         {nav('Previous year', '«', () => move(-1, 0))}
         {nav('Previous month', '‹', () => move(0, -1))}
@@ -453,9 +705,9 @@ export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, o
           const st = dayStatus(key, meta)
           const off = st.kind === 'future' || st.kind === 'unretained'
           const title = st.kind === 'future' ? 'In the future'
-            : st.kind === 'unretained' ? 'Not retained: UCT keeps about 7 days of headlines'
+            : st.kind === 'unretained' ? 'Before the UCT News archive began'
               : st.kind === 'news' ? `${formatNumber(st.count, { decimals: 0 })} headline${st.count === 1 ? '' : 's'}`
-                : st.kind === 'empty' ? 'No headlines retained for this date' : ''
+                : st.kind === 'empty' ? 'No headlines on this date' : ''
           return (
             <button key={key} type="button" data-day={key} role="gridcell" disabled={off}
               tabIndex={key === focus ? 0 : -1} aria-selected={key === selected} aria-label={`${dayLabel(key, meta?.today)}${title ? `. ${title}` : ''}`}
@@ -471,32 +723,36 @@ export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, o
       </div>
       {meta?.first_day && (
         <div className={styles.menuNote}>
-          History from {dayLabel(meta.first_day, meta.today)}{meta.first_day_partial ? ' (partial day)' : ''} · about 7 days are kept
+          Archive from {dayLabel(meta.first_day, meta.today)}{meta.first_day_partial ? ' (began mid-day)' : ''} · every headline is kept
         </div>
       )}
     </div>
   )
 }
 
-const TIME_PRESETS = [['09:30', 'Open'], ['12:00', 'Midday'], ['16:00', 'Close']]
+const TIME_PRESETS = [['04:00', 'Pre-market open'], ['09:30', 'Regular-session open'], ['16:00', 'Regular-session close']]
 
 /** Jump to a time of the selected day (ET): presets or any hour and minute. */
-export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose }) {
+export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose, live = true, onLatest }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
   const [draft, setDraft] = useState(at || '')
   const [bad, setBad] = useState(false)
   useEffect(() => { boxRef.current?.querySelector('button')?.focus() }, [])
   const go = (t) => { onPick(t); onClose() }
-  const width = 210
+  const width = 236                    // the three shortcuts on one line
   return (
     <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeAbove(anchorEl, hostEl, width), top: 'auto', width }}
       role="dialog" aria-label="Jump to a time" onKeyDown={onKey}>
+      {!live && onLatest && (
+        <button type="button" className={styles.menuItem} onClick={() => { onLatest(); onClose() }}
+          title="Today's newest headlines and the live feed">Latest — today&apos;s live headlines</button>
+      )}
       <div className={styles.menuHead}>Jump to time (ET)</div>
       <div className={styles.timePresets}>
         {TIME_PRESETS.map(([t, name]) => (
           <button key={t} type="button" className={`${styles.menuSym}${at === t ? ' ' + styles.menuSymOn : ''}`}
-            aria-pressed={at === t} onClick={() => go(t)} title={name}>{timeLabel(t)}</button>
+            aria-pressed={at === t} onClick={() => go(t)} title={name}>{timeLabel(t)} ET</button>
         ))}
       </div>
       <form className={styles.presetForm} onSubmit={(e) => {
@@ -516,40 +772,45 @@ export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose }
   )
 }
 
-/** ‹ date › · calendar · time · Latest. Every control says what it does. */
+/** The footer: ‹ [calendar · date] › on the left, the clock (Jump to Time) on the right.
+ *  "Today" for the current ET day; a compact date otherwise. Latest (back to today's live
+ *  feed) is the first item of the clock's menu whenever a past day or time is shown. */
 export function DayBar({ day, onCalendar, onTime, calendarOpen, timeOpen, calRef, timeRef }) {
   const first = day.meta?.first_day
   const prevOff = !!first && day.dateKey <= first
-  const label = day.isToday ? `Today · ${dayLabel(day.dateKey, day.todayKey)}` : dayLabel(day.dateKey, day.todayKey)
-  const short = day.isToday ? 'Today' : dayLabel(day.dateKey, day.todayKey).replace(/^\w+, /, '')
+  const all = !!day.allHistory
+  const full = all ? 'All history' : dayLabel(day.dateKey, day.todayKey)
+  const label = all ? 'All history' : day.isToday ? 'Today' : full
+  const short = all ? 'All history' : day.isToday ? 'Today' : full.replace(/^\w+, /, '')
+  const atText = day.at ? `${day.atMatch === 'after' ? 'after' : 'from'} ${timeLabel(day.at)} ET` : null
   return (
     <nav className={styles.dayBar} aria-label="Date">
-      <button type="button" className={styles.pageBtn} onClick={day.prevDay} disabled={prevOff}
-        aria-label="Previous day" title={prevOff ? 'Earlier dates are not retained' : 'Previous day'}>
-        <UIcon name="chevronLeft" size={10} />
-      </button>
-      <button ref={calRef} type="button" className={`${styles.dayBtn}${calendarOpen ? ' ' + styles.dayBtnOn : ''}`} onClick={onCalendar}
-        aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label={`Date: ${label}. Choose a date`} title="Choose a date">
-        <span className={styles.dayIcon}><UIcon name="calendar" size={11} /></span>
-        <span className={`${styles.dayText} ${styles.dayLong}`}>{label}</span>
-        <span className={`${styles.dayText} ${styles.dayShort}`}>{short}</span>
-      </button>
-      <button type="button" className={styles.pageBtn} onClick={day.nextDay} disabled={day.isToday}
-        aria-label="Next day" title={day.isToday ? 'Today is the latest date' : 'Next day'}>
-        <UIcon name="chevronRight" size={10} />
-      </button>
-      <button ref={timeRef} type="button" className={`${styles.dayBtn}${day.at ? ' ' + styles.dayBtnOn : ''}`} onClick={onTime}
-        aria-haspopup="dialog" aria-expanded={timeOpen}
-        aria-label={day.at ? `From ${timeLabel(day.at)} ET. Change the time` : 'Jump to a time'}
+      <span className={styles.dayNav}>
+        <button type="button" className={styles.pageBtn} onClick={day.prevDay} disabled={prevOff || all}
+          aria-label="Previous day" title={all ? 'Pick a day from the calendar to browse one day' : prevOff ? 'Earlier dates are not retained' : 'Previous day'}>
+          <UIcon name="chevronLeft" size={12} gold={false} />
+        </button>
+        <button ref={calRef} type="button" className={`${styles.dayBtn}${calendarOpen ? ' ' + styles.dayBtnOn : ''}`} onClick={onCalendar}
+          aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label={`Date: ${all ? 'All history' : day.isToday ? `Today, ${full}` : full}. Choose a date`}
+          title={all ? 'Every archived headline naming the linked symbol. Choose a day to narrow it' : day.isToday ? `Today, ${full} (ET). Choose a date` : `${full} (ET). Choose a date`}>
+          <span className={styles.dayIcon}><UIcon name="calendar" size={12} gold={false} /></span>
+          <span className={`${styles.dayText} ${styles.dayLong}`}>{label}</span>
+          <span className={`${styles.dayText} ${styles.dayShort}`}>{short}</span>
+        </button>
+        <button type="button" className={styles.pageBtn} onClick={day.nextDay} disabled={day.isToday || all}
+          aria-label="Next day" title={all ? 'Pick a day from the calendar to browse one day' : day.isToday ? 'Today is the latest date' : 'Next day'}>
+          <UIcon name="chevronRight" size={12} gold={false} />
+        </button>
+      </span>
+      <button ref={timeRef} type="button" className={`${styles.timeBtn}${day.at || !day.live ? ' ' + styles.dayBtnOn : ''}`} onClick={onTime}
+        aria-haspopup="dialog" aria-expanded={timeOpen} disabled={all}
+        aria-label={atText ? `Jump to Time: showing ${atText}. Change the time` : 'Jump to Time'}
         title={day.at ? (day.atMatch === 'after'
-          ? `Nothing at or before ${timeLabel(day.at)} ET: showing from the day's first headline`
-          : `Showing from the closest headline at or before ${timeLabel(day.at)} ET`) : 'Jump to a time (ET)'}>
-        <UIcon name="clock" size={11} />
-        {day.at && <span className={`${styles.dayText} ${styles.dayTime}`}>{day.atMatch === 'after' ? 'after' : '≤'} {timeLabel(day.at)}</span>}
+          ? `Jump to Time · nothing at or before ${timeLabel(day.at)} ET: showing from the day's first headline`
+          : `Jump to Time · showing from the closest headline at or before ${timeLabel(day.at)} ET`)
+          : all ? 'Jump to Time works within one day: pick a day first' : 'Jump to Time'}>
+        <UIcon name="clock" size={13} gold={false} />
       </button>
-      {(!day.live) && (
-        <button type="button" className={styles.pageLatest} onClick={day.toLatest} title="Today's newest headlines and the live feed">Latest</button>
-      )}
     </nav>
   )
 }

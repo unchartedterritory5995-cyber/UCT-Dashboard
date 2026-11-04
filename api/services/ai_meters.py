@@ -224,6 +224,18 @@ def _has_voice_access(user: dict) -> bool:
 
 # The registry: every member-visible meter, in display order. A key here is
 # what `api/services/ai_doors.py` names in a door's `meter` field.
+# ── UCT News "Explain this headline" (durable daily_counters, per ET day) ───
+
+def _txn_explain(user: dict) -> dict | None:
+    from api.services import daily_counters
+    from api.services.trade_exchange_news import explain as tx
+    if not tx.enabled():
+        return None
+    return _meter("txn_explain", "News headline explanations", "api/services/trade_exchange_news/explain.py",
+                  "explanations", "day", tx.SCOPE,
+                  daily_counters.read(tx.et_day(), tx.SCOPE, str(user.get("id"))), tx.daily_cap())
+
+
 METERS: dict[str, Callable[[dict], dict | list | None]] = {
     "ai_search": _ai_search,
     "ai_search_personal": _ai_search_personal,
@@ -232,6 +244,7 @@ METERS: dict[str, Callable[[dict], dict | list | None]] = {
     "notebook_voice_notes": _notebook_voice_notes,
     "notebook_ai_actions": _notebook_ai_actions,
     "flow_explain": _flow_explain,
+    "txn_explain": _txn_explain,
     "compass_chat": _compass_chat,
     "voice": _voice,
 }

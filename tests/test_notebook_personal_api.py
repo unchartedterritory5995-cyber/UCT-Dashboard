@@ -434,6 +434,20 @@ class TestCreate:
         assert "[image: https://example.com/nvda.png]" in body
         assert "[image: https://example.com/big.png]" in body
 
+    def test_an_unsafe_image_keeps_the_personal_api_marker_never_a_notice(self):
+        """Task 15 fix round 1: the connector path turns an unsafe image into an importNotice
+        `unsafe`; the personal API does NOT (it keeps its own media-to-marker stripping), and
+        a percent-encoded `javascript%3A` src is refused here too -- never an image whose
+        marker would carry the decoded address."""
+        from api.services.journal_two.note_personal_api import markdown_nodes
+        for md in ("![x](javascript:alert(1))", "![x](javascript%3Aalert(1))",
+                   "![x](vbscript:msgbox(1))", "![x](file:///C:/a.png)"):
+            body = json.dumps(markdown_nodes(md))
+            assert "importNotice" not in body and '"image"' not in body, md
+            assert "javascript:" not in body and "import-ref://" not in body, md
+            assert body == json.dumps([{"type": "paragraph", "content": [
+                {"type": "text", "text": "[unsupported image]"}]}]), md
+
     def test_refusals_are_sentences(self, app, client, gate_on):
         uid = _user()
         token = _mint(uid)

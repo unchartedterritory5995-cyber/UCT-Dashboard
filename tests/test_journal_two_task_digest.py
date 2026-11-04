@@ -260,10 +260,12 @@ def test_the_connector_engines_raw_rewrite_is_never_stale(conn):
     upd = conn.execute("SELECT updated_at FROM j2_notes WHERE id = ?", (nid,)).fetchone()["updated_at"]
     assert engine._apply_resolved_body(conn, U, nid, _doc(("resolved text", False, "2026-09-25")),
                                        expected_updated_at=upd)
-    # it does not refill (not a door); the trigger dropped the old row, so it is absent,
-    # never the old tasks -- and the answer still comes from the new body
+    # Plan A Task 2 (controller ruling 1): the engine's raw rewrite now rebuilds the
+    # content sidecars in its own transaction, so it IS a door: the row is refilled
+    # from the NEW body (never the old tasks) -- and the answer agrees with the body
     _assert_never_stale(conn, nid)
-    assert _row(conn, nid) is None
+    _assert_fresh(conn, nid)
+    assert _row(conn, nid)                      # non-vacuity: refilled, not absent
     _assert_answer_equal(conn)
     assert [t["text"] for t in note_tasks.list_tasks(U, now=NOW, conn=conn)["tasks"]] == ["resolved text"]
 

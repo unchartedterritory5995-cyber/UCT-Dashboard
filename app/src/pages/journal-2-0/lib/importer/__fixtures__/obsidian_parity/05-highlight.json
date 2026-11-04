@@ -3,6 +3,8 @@
   "input_markdown": "# Highlight\n\nThis is ==very important== to remember before sizing up.\n",
   "self_path": "a.md",
   "server": {
+    "callouts": [],
+    "files": [],
     "highlights": [
       {
         "color": null,
@@ -11,6 +13,8 @@
     ],
     "images": [],
     "links": [],
+    "notices": [],
+    "pending": [],
     "task_checked": [],
     "text": "Highlight This is very important to remember before sizing up."
   },

@@ -217,9 +217,13 @@ describe('⛔ what 2F-1 does NOT do — the split stays honest', () => {
     //     admitting it would need that implementation factored first.
     // A test that keeps asserting the wall a wave just removed is the failure
     // this annotation exists to make visible, twice over.
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.hma(x, 5))\n`).guard)
+    // ⚰️ P3 WS-B executes `ta.hma` (a respelling into three `wma` windows) and
+    // `ta.rsi` (`CARRIED.rsiPine`) over runtime state, so the specimens moved to
+    // the nearest still-refused calls of the same two kinds: `ta.bbw` (a window
+    // COMPOSITE) and `ta.cci` (a SHIPPED-IMPL builtin).
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.bbw(x, 5, 2))\n`).guard)
       .toBe('runtime:call-windowed-state')
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.rsi(x, 5))\n`).guard)
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cci(x, 5))\n`).guard)
       .toBe('runtime:call-windowed-state')
   })
 

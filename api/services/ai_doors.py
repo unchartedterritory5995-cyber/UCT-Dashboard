@@ -179,6 +179,12 @@ DOORS: dict[str, Door] = {
     "api/services/ticker_explain.py": Door(
         "member", "POST /api/research/explain/{sym} (get_current_user)",
         "narrative_cost_guard $10/day global, durable", gap="no per-member counter exists"),
+    "api/services/trade_exchange_news/explain.py": Door(
+        "member", "POST /api/trade-exchange-news/explain (get_current_user; TXN_EXPLAIN_ENABLED)",
+        "daily_counters txn_explain 40/member/ET day + 6/member/minute + one in flight per "
+        "member + 4 site-wide; narrative_cost_guard txn_explain $5/day durable; shared "
+        "per-headline cache (a hit is charged to nobody)",
+        meter="txn_explain", pop_cap="api/services/trade_exchange_news/explain.py"),
     "api/services/research/comparison_ai_adapter.py": Door(
         "member", "POST /api/research/compare/{sym}/{cmp}/explain (get_current_user)",
         "narrative_cost_guard $10/day global, durable", gap="no per-member counter exists"),

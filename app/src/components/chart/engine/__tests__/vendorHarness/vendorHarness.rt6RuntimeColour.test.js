@@ -154,9 +154,16 @@ describe('RT6 — the style-transparency rules, on fvg-trend\'s own source (v4)'
     expect(p.notes.map((n) => n.note).join(' | ')).toMatch(/`bgcolor` \(line \d+\) is not drawn: a transparency applies over a colour that may carry its own/)
     const q = variant('color=(fvgCounter > 0 ? color.green : color.red), title="fvgCounter"',
       'color=(fvgCounter > 0 ? color.new(color.green, 50) : color.red), transp=30, title="fvgCounter"', false)
-    // its one drawn row withheld, the document declines, naming why
-    expect(q.ok).toBe(false)
-    expect(q.runtimeDeclined.why).toMatch(/`fvgCounter`: .*`transp =` applies over a colour that may carry its own/)
+    // its one drawn row withheld, by name.
+    // ⭐ WS-E — the document no longer DECLINES for it: its `bgcolor` is a paint the
+    // run computes, and a document whose only drawn output is a carried paint is a
+    // document (`memberPaneDefinition.js`, the nothing-drawn decline counts paints).
+    // The row's withholding is unchanged, and still said in the member's notes.
+    expect(q.ok, q.reason).toBe(true)
+    expect(q.withheld).toContain('fvgCounter')
+    expect(q.definition.plots.filter((x) => !x.hidden).map((x) => x.label)).not.toContain('fvgCounter')
+    expect(q.definition.paints).toEqual([expect.objectContaining({ kind: 'bgcolor', colorPacked: { transparency: 90 } })])
+    expect(q.notes.map((n) => n.note).join(' | ')).toMatch(/`fvgCounter` is not drawn: .*`transp =` applies over a colour that may carry its own/)
     // CONTROL — the same plot over fixed colours carries the transparency
     const r = variant('color=(fvgCounter > 0 ? color.green : color.red), title="fvgCounter"',
       'color=(fvgCounter > 0 ? color.green : color.red), transp=30, title="fvgCounter"')

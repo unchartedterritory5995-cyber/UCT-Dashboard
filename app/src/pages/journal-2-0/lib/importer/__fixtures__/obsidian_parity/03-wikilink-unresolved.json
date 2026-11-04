@@ -3,9 +3,18 @@
   "input_markdown": "# Unresolved Wikilink\n\nThere is no page for [[Ghost Note]] yet.\n",
   "self_path": "a.md",
   "server": {
+    "callouts": [],
+    "files": [],
     "highlights": [],
     "images": [],
     "links": [],
+    "notices": [],
+    "pending": [
+      {
+        "key": "name:obsidian:vault-1/ghost note",
+        "text": "Ghost Note"
+      }
+    ],
     "task_checked": [],
     "text": "Unresolved Wikilink There is no page for Ghost Note yet."
   },

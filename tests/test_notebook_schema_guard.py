@@ -186,11 +186,13 @@ _ENTRY = re.compile(r"(?:^|[^\w$])([A-Za-z_$][\w$]*)\s*:\s*(\d+)")
 
 
 def test_levels_are_contiguous_from_0_and_there_is_a_newer_level():
+    # ⚰️ Contiguity was asserted here over the TYPE table alone until connector fidelity
+    # (2026-11) put the first type (`importNotice`, 5) above an attribute-only level
+    # (`widgetEmbed.ta`, 4). The two tables share ONE numbering, so the gap rule is judged
+    # over both, once, in test_levels_stay_contiguous_across_types_AND_attributes above.
+    # What stays here is what only the type table can answer.
     levels = sorted(set(nbs.NOTEBOOK_TYPE_SCHEMA.values()))
     assert levels[0] == 0, "no level-0 types: production's schema is missing from the table"
-    assert levels == list(range(levels[-1] + 1)), (
-        f"levels {levels} skip one: a client declares 'every type at or below N', so a gap "
-        "is a level no bundle can ever declare")
     assert levels[-1] >= 1, "non-vacuity: the table records at least one newer schema"
 
 

@@ -781,6 +781,7 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
         ("POST", "/api/user-definitions/shared/{token}/install"),
         # ⭐ PHASE 4 (2026-10-07) — "Create custom copy": it PERSISTS A NEW
         # DEFINITION, so it is in BOTH classes (paid AND counted) — see `appends`.
+        ("POST", "/api/user-definitions/{def_id}/engine-status"),
         ("POST", "/api/user-definitions/{def_id}/fork"),
         ("POST", "/api/user-definitions/{def_id}/list"),
         ("POST", "/api/user-definitions/{def_id}/share"),

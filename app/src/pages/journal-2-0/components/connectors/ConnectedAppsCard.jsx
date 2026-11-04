@@ -8,6 +8,11 @@
  * Task 7):
  *   - !isPaid                                          -> upsell
  *   - provider.configured === false                    -> "Coming soon" tile (dark provider, no env creds yet)
+ *   - a MEMBER_GATED_PROVIDERS key (evernote) not configured -> NO tile at all (Plan E Task 10: /status lists it to
+ *     every member, `configured: false` while the flag is off or the member is not allowed; `isProviderShown`)
+ *   - `p.beta`                                          -> a "Beta" pill beside the label
+ *   - evernote's consent panel                          -> EVERNOTE_CONNECT_NOTES above the checkbox, the `.enex`
+ *     offer under the panel; a `reason=evernote_plan` return -> EVERNOTE_PLAN_RETURN + the `.enex` link
  *   - configured, !connected                           -> "Connect" (token modal for roam/craft, consent panel + OAuth redirect for oauth providers)
  *   - FOLDER_PICKER_PROVIDERS, connected, sources.length===0 -> "Choose folder" CTA (amber, NOT the green Connected badge) -> DropboxFolderPicker
  *   - connected, sources.length>0                       -> "Connected · N source(s)" + a SourceRow per source
@@ -43,9 +48,11 @@
  * (disabled until checked) fires `startOAuth`, which sends `consent: true`.
  */
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import TileCard from '../../../../components/TileCard'
 import { useAuth } from '../../../../context/AuthContext'
-import useNoteConnectors, { FOLDER_PICKER_PROVIDERS, NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
+import useNoteConnectors, { FOLDER_PICKER_PROVIDERS, NOTE_CONNECTOR_PROVIDERS, isProviderShown } from '../../hooks/useNoteConnectors'
+import { ENEX_IMPORT_HREF, EVERNOTE_ENEX_OFFER, EVERNOTE_PLAN_RETURN, PROVIDER_CONNECT_NOTES } from './evernoteCopy'
 import ConnectConsentPanel from './ConnectConsentPanel'
 import ConnectTokenModal from './ConnectTokenModal'
 import DropboxFolderPicker from './DropboxFolderPicker'
@@ -57,8 +64,8 @@ import styles from './ConnectedAppsCard.module.css'
 export default function ConnectedAppsCard() {
   const { isPaid, startCheckout } = useAuth()
   const {
-    providers, enabled, isLoading, refresh, connectToken, startOAuth, mintConnectCode, syncSource,
-    updateSource, disconnect, listFolders, addSource,
+    providers, enabled, obsidianAttachments, isLoading, refresh, connectToken, startOAuth, mintConnectCode,
+    syncSource, getSourceLog, updateSource, disconnect, listFolders, addSource,
   } = useNoteConnectors()
 
   const [tokenModalProvider, setTokenModalProvider] = useState(null)
@@ -83,12 +90,26 @@ export default function ConnectedAppsCard() {
   // (connector only, no source yet) — remember it here so the follow-up
   // effect (below, once fresh `providers` lands) can auto-open the folder
   // picker instead of leaving a silently-incomplete tile.
+  const [returnNotice, setReturnNotice] = useState(null)   // { connector, reason } after a failed OAuth return
   const healedRef = useRef(false)
   const autoPickProviderRef = useRef(null)
   useEffect(() => {
     if (healedRef.current) return
     const params = new URLSearchParams(window.location.search)
     const connector = params.get('connector')
+    if (connector && params.get('connected') === '0') {
+      // A return that did NOT connect (provider error, or the callback landed
+      // in a browser that is not the one that pressed Connect). Say so and
+      // strip the params; nothing to refresh, nothing was connected.
+      healedRef.current = true
+      setReturnNotice({ connector, reason: params.get('reason') || '' })
+      params.delete('connector')
+      params.delete('connected')
+      params.delete('reason')
+      const failQs = params.toString()
+      window.history.replaceState({}, '', window.location.pathname + (failQs ? `?${failQs}` : ''))
+      return
+    }
     if (!connector || params.get('connected') !== '1') return
     healedRef.current = true
     autoPickProviderRef.current = connector
@@ -181,7 +202,9 @@ export default function ConnectedAppsCard() {
     setConsentChecked(false)
   }
 
+  // Returns the normalized sync result; SourceRow turns it (or a throw) into its notice.
   const handleSync = (source) => syncSource(source.id)
+  const handleLoadLog = (source) => getSourceLog(source.id)
   const handleTogglePause = (source) => updateSource(source.id, { syncEnabled: !source.syncEnabled })
   const handleDisconnect = async (source) => {
     setActionError(null)
@@ -193,6 +216,8 @@ export default function ConnectedAppsCard() {
   }
 
   const activeTokenProvider = NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === tokenModalProvider)
+  // Review M3: Evernote's plan sentence needs BOTH the connector and the reason; any other pair is generic.
+  const evernotePlanReturn = !!returnNotice && returnNotice.connector === 'evernote' && returnNotice.reason === 'evernote_plan'
 
   return (
     <TileCard icon="link" title="Connected Apps">
@@ -221,6 +246,25 @@ export default function ConnectedAppsCard() {
 
         {actionError && <div className={styles.error} role="alert">{actionError}</div>}
 
+        {evernotePlanReturn && (
+          // Evernote refused a Free account (the callback maps that to `evernote_plan`): say what it
+          // means and offer the import a Free member CAN use, never the raw reason.
+          <p className={styles.offerNotice} role="status" data-testid="oauth-return-notice">
+            {EVERNOTE_PLAN_RETURN}{' '}
+            <Link to={ENEX_IMPORT_HREF} className={styles.offerLink}>Import an .enex export</Link>
+          </p>
+        )}
+
+        {returnNotice && !evernotePlanReturn && (() => {
+          const label = NOTE_CONNECTOR_PROVIDERS.find((x) => x.key === returnNotice.connector)?.label || returnNotice.connector
+          const text = returnNotice.reason === 'oauth_state'
+            ? `Connecting ${label} didn't finish in this browser. Press Connect below to start again here.`
+            : returnNotice.reason
+              ? `Couldn't connect ${label}: ${returnNotice.reason}`
+              : `Couldn't connect ${label}. Try again.`
+          return <p className={styles.pausedNotice} role="status" data-testid="oauth-return-notice">{text}</p>
+        })()}
+
         {/* Final-review Item B: `enabled` (server's NOTE_SYNC_ENABLED gate)
             has no consumer without this — a connected, healthy-looking tile
             with the background scheduler off is a SILENT failure mode (one
@@ -236,7 +280,7 @@ export default function ConnectedAppsCard() {
         )}
 
         <div className={styles.tiles}>
-          {NOTE_CONNECTOR_PROVIDERS.map((p) => {
+          {NOTE_CONNECTOR_PROVIDERS.filter((p) => isProviderShown(p.key, providers[p.key])).map((p) => {
             // Always fully-shaped — normalizeStatus guarantees every provider
             // key, so no `|| {}` fallback and no re-deriving `connected` here.
             const info = providers[p.key]
@@ -253,9 +297,16 @@ export default function ConnectedAppsCard() {
             return (
               <div key={p.key} className={styles.tile} data-provider={p.key} data-testid={`connector-tile-${p.key}`}>
                 <div className={styles.tileHead}>
-                  <span className={styles.tileName}>{p.label}</span>
-                  {!configured ? (
-                    <span className={styles.comingSoon}>Coming soon</span>
+                  <span className={styles.tileName}>
+                    {p.label}
+                    {/* Review M2: the visual gap is margin only, so a hidden ", " gives a screen reader "Evernote, Beta". */}
+                    {p.beta && <span className="sr-only">, </span>}
+                    {p.beta && <span className={styles.betaPill}>Beta</span>}
+                  </span>
+                  {!configured && connected ? (
+                    <span className={styles.statusPill}>Sync off</span>
+                  ) : !configured ? (
+                    <span className={styles.statusPill}>Coming soon</span>
                   ) : needsFolder ? (
                     <button
                       type="button"
@@ -294,7 +345,22 @@ export default function ConnectedAppsCard() {
                     busy={busyProvider === p.key}
                     onConfirm={() => confirmOAuthConnect(p)}
                     onCancel={cancelOAuthConsent}
+                    notes={PROVIDER_CONNECT_NOTES[p.key]}
                   />
+                )}
+
+                {!connected && showingConsent && p.key === 'evernote' && (
+                  <p className={styles.offerLine}>
+                    <Link to={ENEX_IMPORT_HREF} className={styles.offerLink}>{EVERNOTE_ENEX_OFFER}</Link>
+                  </p>
+                )}
+
+                {!configured && connected && (
+                  // Connected, but the server will not sync it for this member now (flag off, admin mode,
+                  // or no longer set up). Sync now and pause would 503; Disconnect and the log still work.
+                  <p className={styles.pausedNotice} data-testid={`sync-off-${p.key}`}>
+                    {p.label} sync is off for this account. Your imported notes stay here, and you can disconnect.
+                  </p>
                 )}
 
                 {connected && sources.length > 0 && (
@@ -304,10 +370,13 @@ export default function ConnectedAppsCard() {
                         key={s.id}
                         source={s}
                         providerSourceCount={sources.length}
+                        providerLabel={p.label}
                         onSync={handleSync}
+                        onLoadLog={handleLoadLog}
                         onTogglePause={handleTogglePause}
                         onDisconnect={handleDisconnect}
                         onReconnect={() => openConnect(p)}
+                        syncOff={!configured}
                       />
                     ))}
                   </div>
@@ -331,6 +400,7 @@ export default function ConnectedAppsCard() {
         open={!!deviceModalProvider}
         providerLabel={NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === deviceModalProvider)?.label || 'Obsidian'}
         mintConnectCode={mintConnectCode}
+        attachments={obsidianAttachments}
         onClose={() => setDeviceModalProvider(null)}
       />
 

@@ -27,6 +27,7 @@ SCENARIOS = {
     "light-applied-theme": "?theme=light&apply=midnight-navy",
     "responsive-300": "?theme=dark&width=300",
     "responsive-250": "?theme=dark&width=250",
+    "responsive-160": "?theme=dark&width=160",
 }
 
 # Interactive captures on the News pane (dark): the SHARED settings panel, the

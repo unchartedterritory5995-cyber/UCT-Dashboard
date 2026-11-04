@@ -11,6 +11,8 @@ import { fastParse } from './fastPath'
 import { makeBoard } from './__fixtures__/board'
 import { DESTINATIONS } from './capabilities/app'
 import { NAV_ITEMS } from '../components/NavBar'
+import { loadAgentConfig, _resetAgentConfig } from './agentClient'
+import { turnStart, turnEnd, _resetTurns } from './trace'
 
 registerBuiltins()
 const CTX = { surface: 'charts' }
@@ -22,14 +24,25 @@ const EI = {
   summary: { next_report_date: '2026-11-17', next_report_label: 'FY2027 Q3', next_eps_estimate: 2.6, next_revenue_estimate: 101000000000 },
   meta: { retrieved_at: 1791478230 },
 }
-let calls, live
-beforeEach(() => {
-  calls = []; live = { NVDA: { price: 233.5, change_pct: 1.24, observed_at: 1791478000 } }
-  globalThis.fetch = vi.fn(async (url) => {
+let calls, live, gateway
+// W1-C C-04: the profile's price line is the MD-1 `quote` kind (a live regular-session trade here); never /api/live-prices.
+const QUOTE_ENV = (sym) => ({ contract: 'MD-1.0', kind: 'quote', params_echo: { symbol: sym }, status: 'ok', freshness: 'live', as_of: '2026-11-02T15:30:00Z',
+  fetched_at: '2026-11-02T15:30:05Z', delay_s: null, stale: false, source: 'massive', coverage: null, provider_calls: 1, notes: [],
+  data: { quote: { symbol: sym, last: 233.5, change: 2.86, change_pct: 1.24, last_source: 'trade', as_of: '2026-11-02T15:30:00Z' }, session: 'regular', session_detail: 'regular' } })
+beforeEach(async () => {
+  _resetAgentConfig(); _resetTurns()
+  calls = []; live = { NVDA: QUOTE_ENV('NVDA') }; gateway = true
+  globalThis.fetch = vi.fn(async (url, init) => {
     const u = String(url); calls.push(u)
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
     if (u.startsWith('/api/fundamentals-full/')) return u.endsWith('/NVDA') ? json(FULL) : json({ detail: 'not found' }, 404)
-    if (u.startsWith('/api/live-prices')) return json(live)
+    if (u.startsWith('/api/live-prices')) throw new Error('an Agent stock read called /api/live-prices')
+    if (u === '/api/agent/config') return json({ stream: false, nl1: false, data: gateway, scan: false, data_kinds: gateway ? ['quote'] : [] })
+    if (u === '/api/agent/data') {
+      const b = JSON.parse(init.body)
+      const e = live[b.params.symbol]
+      return json(e || { ...QUOTE_ENV(b.params.symbol), status: 'unavailable', freshness: 'unavailable', as_of: null, data: null, notes: ['no quote'] })
+    }
     if (u.startsWith('/api/earnings-intel/')) return u.endsWith('/NVDA') ? json(EI) : json({ ticker: 'AMD', quarters: [], summary: {} })
     if (u.startsWith('/api/research/compare/')) return json({ a: { sym: 'NVDA', fundamentals: FULL, ratings: { composite: 88 } }, b: { sym: 'AMD', fundamentals: { ...FULL, ticker: 'AMD', market_cap: '$270B', pe_forward: 30.1 }, ratings: { composite: 71 } }, fundamentals_period_note: 'Not guaranteed to be the same period.' })
     if (u.startsWith('/api/ticker-search')) {
@@ -39,8 +52,11 @@ beforeEach(() => {
     if (u.startsWith('/api/watchlist-alerts')) return json([])
     return json({})
   })
+  await loadAgentConfig()
 })
-afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
+afterEach(() => { _resetTurns(); vi.restoreAllMocks(); vi.useRealTimers() })
+/** A capability answer inside one member turn (trace.js), as the panel runs it: the gateway read is keyed by it. */
+async function inTurn(fn) { turnStart('send'); try { return await fn() } finally { turnEnd() } }
 
 function host({ prefs = {}, writeOk = true } = {}) {
   const b = makeBoard([{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20 }])
@@ -76,20 +92,36 @@ describe('discovery: eight new actions, all closed schemas, in the manifest', ()
 })
 
 describe('stock.* — deterministic answers from UCT data, sources and freshness stated', () => {
-  it('profile: name, sector, LIVE price with its timestamp, market cap, P/E, next earnings; Research link', async () => {
-    const a = await getCapability('stock.profile').answer(null, { symbol: 'nvda' })
+  it('profile: name, sector, the gateway LIVE price with its time (one `quote` read for the turn), market cap, P/E, next earnings; Research link', async () => {
+    const a = await inTurn(() => getCapability('stock.profile').answer(null, { symbol: 'nvda' }))
     expect(a.text).toMatch(/^NVDA — NVIDIA Corporation · Technology \/ Semiconductors/)
-    expect(a.text).toMatch(/Price \$233\.50, \+1\.24% today \(quote as of .* ET\)/)
+    expect(a.text).toMatch(/Price \$233\.50, \+1\.24% vs the previous close — live, as of .* ET/)
     expect(a.text).toMatch(/Market cap \$5\.64T · P\/E 29\.52 trailing, 14\.67 forward/)
     expect(a.text).toMatch(/Next earnings: Nov 17, 2026/)
-    expect(a.text).toMatch(/Source: UCT fundamentals/)
+    expect(a.text).toMatch(/Source: UCT fundamentals .*; price from the Massive market snapshot through the UCT data gateway/)
     expect(a.link.href).toBe('/research/NVDA')
+    expect(calls.filter(u => u === '/api/agent/data')).toHaveLength(1)
+    expect(calls.some(u => u.startsWith('/api/live-prices'))).toBe(false)
   })
-  it('profile without a live quote says the price is from the snapshot; unknown ticker / bad input are said plainly', async () => {
+  it('profile with a stale / closed quote never says live; without a usable quote the price is from the snapshot and said so', async () => {
+    live = { NVDA: { ...QUOTE_ENV('NVDA'), freshness: 'historical', data: { ...QUOTE_ENV('NVDA').data, quote: { ...QUOTE_ENV('NVDA').data.quote, last_source: 'day_close', as_of: '2026-10-30T20:00:00Z' }, session_detail: 'closed' } } }
+    const closed = await inTurn(() => getCapability('stock.profile').answer(null, { symbol: 'NVDA' }))
+    expect(closed.text).toMatch(/Price \$233\.50, \+1\.24% vs the previous close — as of Fri, Oct 30, 4:00 PM ET, not a real-time price/)
+    expect(closed.text).not.toMatch(/\blive\b/)
     live = {}
-    expect((await getCapability('stock.profile').answer(null, { symbol: 'NVDA' })).text).toMatch(/Price \$233\.49 \(from the fundamentals snapshot — a live quote wasn't available\)/)
+    expect((await inTurn(() => getCapability('stock.profile').answer(null, { symbol: 'NVDA' }))).text).toMatch(/Price \$233\.49 \(from the fundamentals snapshot — a current quote wasn't available through the Agent's data gateway\)/)
     expect(await getCapability('stock.profile').answer(null, { symbol: 'ZZZQ' })).toBe('UCT has no data for “ZZZQ”.')
     expect(await getCapability('stock.profile').answer(null, { symbol: 'not a ticker!' })).toMatch(/doesn't look like a ticker/)
+  })
+  it('profile with the gateway DARK (or no open turn): no quote read at all, never /api/live-prices, the snapshot price is said as such', async () => {
+    const noTurn = await getCapability('stock.profile').answer(null, { symbol: 'NVDA' })      // served, but no turn is open
+    expect(noTurn.text).toMatch(/a current quote wasn't available through the Agent's data gateway/)
+    gateway = false; _resetAgentConfig(); await loadAgentConfig(); calls = []
+    const dark = await inTurn(() => getCapability('stock.profile').answer(null, { symbol: 'NVDA' }))
+    expect(dark.text).toMatch(/Price \$233\.49 \(from the fundamentals snapshot — a current quote wasn't available through the Agent's data gateway\)/)
+    expect(dark.text).toMatch(/no current quote was available through the Agent's data gateway\./)
+    expect(calls.filter(u => u === '/api/agent/data')).toHaveLength(0)
+    expect(calls.some(u => u.startsWith('/api/live-prices'))).toBe(false)
   })
   it('earnings: REPORTED vs ESTIMATED kept apart; next report with its estimates; missing data never filled in', async () => {
     const a = await getCapability('stock.earnings').answer(null, { symbol: 'NVDA' })
@@ -105,13 +137,16 @@ describe('stock.* — deterministic answers from UCT data, sources and freshness
     const a = await getCapability('stock.compare').answer(null, { symbols: ['nvda', 'AMD'] })
     expect(a.table.columns.map(c => c.label)).toEqual(['', 'NVDA', 'AMD'])
     expect(a.table.rows.find(r => r.metric === 'Market cap')).toEqual({ metric: 'Market cap', a: '$5.64T', b: '$270B' })
-    expect(a.table.rows.find(r => r.metric === 'UCT composite rating')).toEqual({ metric: 'UCT composite rating', a: '88', b: '71' })
+    // F-12 (owner, Sprint 2): the payload carries ratings 88 / 71, and the Agent's compare shows neither
+    expect(a.table.rows.some(r => /\brating\b|composite/i.test(r.metric))).toBe(false)
+    expect(JSON.stringify(a)).not.toMatch(/\b(88|71)\b/)
     expect(a.text).toMatch(/Not guaranteed to be the same period/)
     expect(await getCapability('stock.compare').answer(null, { symbols: ['NVDA'] })).toBe('Name exactly two tickers to compare.')
   })
   it('a stock question makes NO model or research call of its own (one HTTP read per source)', async () => {
-    await getCapability('stock.profile').answer(null, { symbol: 'NVDA' })
-    expect(calls.filter(u => u.startsWith('/api/agent'))).toHaveLength(0)
+    calls = []
+    await inTurn(() => getCapability('stock.profile').answer(null, { symbol: 'NVDA' }))
+    expect(calls.filter(u => u.startsWith('/api/agent') && u !== '/api/agent/data')).toHaveLength(0)   // the one data read is the quote (C-04), never a turn
     expect(calls.filter(u => u.startsWith('/api/fundamentals-full'))).toHaveLength(1)
   })
 })

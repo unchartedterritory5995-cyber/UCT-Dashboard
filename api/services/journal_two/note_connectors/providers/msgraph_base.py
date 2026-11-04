@@ -59,7 +59,7 @@ from typing import Any
 import httpx
 
 from .. import errors
-from .base import AccountInfo
+from .base import AccountInfo, media_http_client
 
 GRAPH_API_BASE = "https://graph.microsoft.com/v1.0"
 GRAPH_HOST = "graph.microsoft.com"
@@ -196,7 +196,8 @@ class MSGraphClient:
         `send()`'s per-request `headers=`, never on the client object
         itself — the client has no persistent default headers)."""
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=_http_timeout_seconds())
+            # The OneDrive/OneNote media hops ride it: `media_http_client`, never an env proxy.
+            self._client = media_http_client(timeout=_http_timeout_seconds())
         return self._client
 
     async def send(

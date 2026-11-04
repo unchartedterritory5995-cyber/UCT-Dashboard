@@ -147,6 +147,37 @@ export const RESERVED_INPUT_TYPES = Object.freeze([
   'timeframe', 'price', 'time', 'session', 'symbol', 'confirm',
 ])
 
+/** ⭐⭐ PHASE 3 WS-D — the reserved types a RUNTIME document (`compute.kind === 'runtime'`,
+ *  a pasted Pine script run bar by bar) may declare: Pine's `input.time` (UNIX milliseconds)
+ *  and `input.session` (a session string). ⛔ ONLY there: the run is the one reader that
+ *  hands either value to a script (`pineRuntimeFrontend.js`); on any other document nothing
+ *  would read the setting, so they stay RESERVED for it, with the reserved sentence. */
+export const RUNTIME_INPUT_TYPES = Object.freeze(['time', 'session'])
+
+/** ⭐ PHASE 3 WS-D — a session string as TradingView writes one: `HHMM-HHMM`, ranges joined
+ *  by `,`, an optional `:days` suffix (1 = Sunday … 7 = Saturday, each at most once), or
+ *  `24x7`. Hours 00..24 (24 only as `2400`), minutes 00..59. The ONE reader: the run
+ *  (`runtimeInputs.js` re-exports it) and the server (`user_definitions.py::_SESSION_RE`,
+ *  railed against the same cases) agree with this. */
+export function isSessionString(s) {
+  if (typeof s !== 'string') return false
+  if (s === '24x7') return true
+  // `[0-9]`, spelled out: JS `\d` is ASCII-only, Python's is not; the server's twin uses
+  // `[0-9]` + `re.ASCII` and the shared fixture's non-ASCII rows pin both.
+  const m = /^([0-9]{4}-[0-9]{4}(?:,[0-9]{4}-[0-9]{4})*)(?::([1-7]{1,7}))?$/.exec(s)
+  if (!m) return false
+  if (m[2] && new Set(m[2]).size !== m[2].length) return false
+  return m[1].split(',').every((r) => r.split('-').every((hm) => {
+    const h = Number(hm.slice(0, 2))
+    const mi = Number(hm.slice(2))
+    return h <= 24 && mi <= 59 && !(h === 24 && mi !== 0)
+  }))
+}
+
+/** ⭐ PHASE 3 WS-D — the widest instant JavaScript's Date holds (±8.64e15 ms); a time input's
+ *  value is whole milliseconds inside it. */
+export const TIME_INPUT_MAX_ABS_MS = 8.64e15
+
 /** Plot styles buildable in v1 (spec §3.1).
  *
  *  `band` gets a rule the others don't need, added in B2 Task 2 when Bollinger
@@ -1277,6 +1308,17 @@ export function validateInputValue(input, value, path, errors) {
     case 'string':
       if (typeof d !== 'string') errors.push(`${path}: type "string" requires a string, got ${fmt(d)}`)
       break
+    // ⭐ PHASE 3 WS-D (runtime documents only — `RUNTIME_INPUT_TYPES`)
+    case 'time':
+      if (!Number.isInteger(d) || Math.abs(d) > TIME_INPUT_MAX_ABS_MS) {
+        errors.push(`${path}: type "time" requires whole milliseconds since 1970 (UTC), got ${fmt(d)}`)
+      }
+      break
+    case 'session':
+      if (!isSessionString(d)) {
+        errors.push(`${path}: type "session" requires a session such as "0930-1600" or "0930-1600:23456", got ${fmt(d)}`)
+      }
+      break
     case 'color':
       // Not resolved here — `'token:info'`, `'#ff8100'` and `'rgba(…)'` are all
       // legal at registration; designTokens.resolveToken() adjudicates at render.
@@ -1349,7 +1391,7 @@ function validateInputDefault(input, path, errors) {
   validateInputValue(input, input.default, `${path}.default`, errors)
 }
 
-function validateInput(input, index, seenKeys, errors) {
+function validateInput(input, index, seenKeys, errors, runtimeDoc = false) {
   const path = `inputs[${index}]`
   if (!isPlainObject(input)) {
     errors.push(`${path}: expected an object, got ${fmt(input)}`)
@@ -1374,8 +1416,12 @@ function validateInput(input, index, seenKeys, errors) {
   }
 
   // type — THE FAIL-CLOSED GATE. No fallback branch. Ever.
+  // ⭐ PHASE 3 WS-D — a runtime document may also declare `RUNTIME_INPUT_TYPES`.
   const typeOk = checkVocabulary(
-    input.type, INPUT_TYPES, RESERVED_INPUT_TYPES, `${path}.type`, 'input type', errors,
+    input.type,
+    runtimeDoc ? [...INPUT_TYPES, ...RUNTIME_INPUT_TYPES] : INPUT_TYPES,
+    runtimeDoc ? RESERVED_INPUT_TYPES.filter((t) => !RUNTIME_INPUT_TYPES.includes(t)) : RESERVED_INPUT_TYPES,
+    `${path}.type`, 'input type', errors,
   )
 
   // default (only meaningful once the type is one we understand)
@@ -2432,7 +2478,8 @@ export function validateDefinition(def) {
       errors.push(`inputs: expected an array, got ${fmt(out.inputs)}`)
     }
     const inputs = Array.isArray(out.inputs) ? out.inputs : []
-    inputs.forEach((input, i) => validateInput(input, i, inputKeyIndex, errors))
+    const runtimeDoc = isPlainObject(out.compute) && out.compute.kind === 'runtime'
+    inputs.forEach((input, i) => validateInput(input, i, inputKeyIndex, errors, runtimeDoc))
     // Built from every input that declared a usable key, INCLUDING ones that
     // failed another check — so a bad `type` yields one error, not that plus a
     // cascade of bogus "unresolvable $ref" noise pointing at the same input.

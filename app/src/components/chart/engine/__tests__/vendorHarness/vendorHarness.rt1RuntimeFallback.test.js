@@ -103,7 +103,8 @@ describe('RT1 — routing: flag off is the door it always was', () => {
     // runtime lane refuses by name. (⚰️ RT2: this read another timeframe and
     // expected `runtime:repaint-unstated`; that class is now STATED, and an
     // unused weekly read no longer stops the script — `vendorHarness.rt2*`.)
-    const src = `${cap.source.text}\nvarip int rt2Ticks = 0\n`
+    // ⭐ P3 WS-F — a top-level `varip` lowers now; inside a function it still refuses by name.
+    const src = `${cap.source.text}\nrt2f() =>\n    varip int rt2Ticks = 0\n    rt2Ticks += 1\n    rt2Ticks\nrt2v = rt2f()\n`
     const offB = memberPaneDefinition({ source: src, id: DEF_ID })
     vi.stubEnv(FLAG, '1')
     const onB = memberPaneDefinition({ source: src, id: DEF_ID })

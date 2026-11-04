@@ -257,9 +257,36 @@ export function fieldFromInput(input) {
         max: input.max,
         step: input.step ?? (input.type === 'int' ? 1 : 0.1),
       }
+    // ⭐ PHASE 3 WS-D — a pasted Pine script's `input.time` (UNIX ms) and `input.session`
+    // (`HHMM-HHMM[:days]`), declared only on a runtime document (`defSchema.RUNTIME_INPUT_TYPES`).
+    case 'time':
+      return { ...base, type: 'datetime' }
+    case 'session':
+      return { ...base, type: 'session' }
     default:
       return null
   }
+}
+
+/** ⭐ PHASE 3 WS-D — a time input's value (UNIX ms) as the `datetime-local` text the dialog
+ *  shows, IN UTC (`YYYY-MM-DDTHH:MM`), or '' for a value that is not one. The dialog labels the
+ *  control "UTC", so the member reads the instant the script compares against.
+ *  ⚠️ Known limits, by decision: MINUTE resolution (seconds in an author default are not shown, and
+ *  a re-picked time stores a whole minute), and a year outside 0000..9999 has no four-digit text
+ *  (`toISOString` writes `+010000-…`), so the control shows empty and `timeInputMs` cannot invert it. */
+export function timeInputText(ms) {
+  if (!Number.isInteger(ms)) return ''
+  const d = new Date(ms)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 16)
+}
+
+/** ⭐ PHASE 3 WS-D — the inverse: `YYYY-MM-DDTHH:MM` read as UTC → UNIX ms, or null. */
+export function timeInputMs(text) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(text || ''))
+  if (!m) return null
+  const ms = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5])
+  return timeInputText(ms) === text ? ms : null
 }
 
 /** Every field a definition declares, in DECLARATION ORDER — which is the order

@@ -178,8 +178,16 @@ _RECURRENCES = {
     for name, spec in (TABLE.get("functions") or {}).items()
     if isinstance(spec, dict) and isinstance(spec.get("recurrence"), dict)
 }
+#: ⭐ 2026-10-30 -- the MULTI-STATE entries (``accum2``…), whose ``updates`` are
+#: bodies binding ``state1``… exactly as ``accum``'s body binds ``self``.
+_MULTI_STATES = {
+    name: spec["multiState"]
+    for name, spec in (TABLE.get("functions") or {}).items()
+    if isinstance(spec, dict) and isinstance(spec.get("multiState"), dict)
+}
 _RECURRENCE_BINDINGS = frozenset(
-    r["binds"] for r in _RECURRENCES.values() if isinstance(r.get("binds"), str))
+    [r["binds"] for r in _RECURRENCES.values() if isinstance(r.get("binds"), str)]
+    + [b for ms in _MULTI_STATES.values() for b in (ms.get("binds") or ())])
 
 
 def _bind_foldable_window(node: Any) -> Tuple[bool, Any]:
@@ -687,12 +695,13 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
         if not isinstance(node, dict) or node.get("type") != "call":
             continue
         rec = _recs.get(node.get("name"))
-        if not isinstance(rec, Mapping):
+        ms = _MULTI_STATES.get(node.get("name")) if not isinstance(rec, Mapping) else None
+        if not isinstance(rec, Mapping) and not isinstance(ms, Mapping):
             continue
         node_args = node.get("args") if isinstance(node.get("args"), list) else []
-        idx = rec.get("body")
-        body = node_args[idx] if isinstance(idx, int) and 0 <= idx < len(node_args) else None
-        descend = [body]
+        idxs = [rec.get("body")] if isinstance(rec, Mapping) else list(ms.get("updates") or ())
+        descend = [node_args[i] if isinstance(i, int) and 0 <= i < len(node_args) else None
+                   for i in idxs]
         while descend:
             x = descend.pop()
             if not isinstance(x, dict) or id(x) in in_recurrence_body:

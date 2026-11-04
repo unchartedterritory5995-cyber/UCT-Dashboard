@@ -1,20 +1,59 @@
 {
   "_readme": [
     "GT (2026-10-02, owner ruling D6): the STARTER ALLOWLIST for the per-bar runtime pane.",
-    "While PINE_RUNTIME_STAGE is admins or all, the runtime lane draws ONLY a script whose",
+    "While PINE_RUNTIME_STAGE is admins, cohort or all, the runtime lane draws ONLY a script whose",
     "Pine source sha256 (UTF-8, as written) starts with one of the sha256 values below or one",
     "in the PINE_RUNTIME_ALLOWLIST variable on web (the server reads the union, per request).",
     "Every other script declines by name (runtime:not-yet-graded) with the host lane's sentence.",
     "ADD A SCRIPT ONLY WHEN A TRADINGVIEW CAPTURE GRADES IT MATCH: one object per script, naming",
     "the capture. Read by api/services/runtime_definitions.py::allow_list. An empty list serves",
-    "nothing. Edit this file as text; never round-trip it through a serialiser."
+    "nothing. Edit this file as text; never round-trip it through a serialiser.",
+    "",
+    "WS-I (2026-10-31, owner ruling R1): a script below is SERVED only when it passes",
+    "api/services/rollout_gate.py::pine_runtime_admission, in this order:",
+    "  1. PER-CAPABILITY CONFORMANCE (the primary gate). `capabilities` names every census",
+    "     capability the script uses (the ids of tools/pine_coverage/coverage_map.py::FEATURES;",
+    "     tests/test_pine_runtime_switch_on.py holds the list to the census detector, so it can",
+    "     never under-declare), and EVERY one of them must be `conformant` in the `capabilities`",
+    "     registry at the bottom of this file, with evidence named.",
+    "  2. AT LEAST ONE MATCH CAPTURE. `captures` names a TradingView capture of THIS script",
+    "     (tests/fixtures/vendor/harness/<id>.json, its source hashing to `sha256`) graded MATCH",
+    "     with the runtime pane ON.",
+    "A committed script that fails either is WITHHELD (served as not graded, never deleted) and",
+    "tests/test_pine_runtime_switch_on.py goes red BY NAME, so an ungraded line cannot be",
+    "committed by accident. A capability marked `divergent` withholds every script that uses it:",
+    "`conditional-ta` (R4) is that row until WS-C lands per-call-site history."
   ],
   "scripts": [
     {
       "slug": "adx-and-di-for-v4",
       "sha256": "d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
       "source": "corpus/committed/adx-and-di-for-v4__932.pine",
-      "evidence": "MATCH, capture adx-and-di-for-v4-rddt-1d-2026-09-27 (docs/pine/runtime-pane-switch-on-plan.md)"
+      "evidence": "MATCH, capture adx-and-di-for-v4-rddt-1d-2026-09-27 (docs/pine/runtime-pane-switch-on-plan.md)",
+      "capabilities": ["reassign", "ternary"],
+      "captures": [
+        {"id": "adx-and-di-for-v4-rddt-1d-2026-09-27", "verdict": "MATCH", "runtimePane": "on",
+         "graded": "docs/pine/PHASE3-RUNTIME-PLAN.md section 2.4 (runtime-on harness run @ b09a6bcee6)"},
+        {"id": "adx-and-di-for-v4-spy-1d-2026-10-03", "verdict": "MATCH", "runtimePane": "on",
+         "graded": "docs/pine/PHASE3-RUNTIME-PLAN.md section 2.4 (runtime-on harness run @ b09a6bcee6)"}
+      ]
     }
-  ]
+  ],
+  "capabilities": {
+    "reassign": {
+      "status": "conformant",
+      "evidence": ["adx-and-di-for-v4-rddt-1d-2026-09-27", "adx-and-di-for-v4-spy-1d-2026-10-03"],
+      "note": ":= reassignment of a series variable across bars, graded MATCH with the runtime pane on (PHASE3-RUNTIME-PLAN 2.4)."
+    },
+    "ternary": {
+      "status": "conformant",
+      "evidence": ["adx-and-di-for-v4-rddt-1d-2026-09-27", "adx-and-di-for-v4-spy-1d-2026-10-03"],
+      "note": "?: on series values, graded MATCH with the runtime pane on (PHASE3-RUNTIME-PLAN 2.4)."
+    },
+    "conditional-ta": {
+      "status": "divergent",
+      "evidence": [],
+      "note": "R4 (2026-10-31): a pure ta.* called inside if, a loop or a UDF is computed from EVERY bar on the plot lane (pineRuntimeFrontend.js:1518-1563), not per call site. Withholds every script that names it until WS-C lands per-call-site history; the by-name refusal in the front end is WS-C's first task."
+    }
+  }
 }

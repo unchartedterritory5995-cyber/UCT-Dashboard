@@ -78,6 +78,31 @@ class NoteConnUnsupported(NoteConnError):
         self.reason = reason if reason is not None else message
 
 
+class NoteConnUnsafeAddress(NoteConnUnsupported):
+    """The SSRF guard refused a content-supplied address: not https, no host, or a host that
+    resolves to a private/internal/metadata address (`providers/base.py::assert_public_https`
+    and the providers' own https-only checks). A TYPE, so the engine's `unsafe` importNotice
+    never depends on the wording of a reason (Plan A Task 8): a provider's own "private page"
+    refusal is a plain `NoteConnUnsupported` and reads `unsupported`."""
+
+
+class NoteConnAttachmentNotSent(NoteConnUnsupported):
+    """An Obsidian vault file whose bytes never reached the server (live audit 2026-11-03, F2):
+    attachment sync off for the account, a plugin older than 0.2.0, or a file missing from the
+    list a newer one sent with the note. Final. `notice_reason` is the importNotice reason the
+    engine writes (`media_failure_reason`): "update the plugin" only where an update fixes it,
+    else `not-sent`; never "can't be shown here"."""
+
+    def __init__(self, message: str, *, notice_reason: str, **kw):
+        super().__init__(message, **kw)
+        self.notice_reason = notice_reason
+
+
+class NoteConnTooLarge(NoteConnUnsupported):
+    """A download refused for its size, by a header or while reading (`providers/base.py`'s
+    capped reads). The engine's importNotice reads `too_large`, never `unsupported`."""
+
+
 class NoteConnValidationError(NoteConnError):
     """A client-supplied payload violates a data-integrity or resource-bound
     invariant this server enforces AT THE BOUNDARY — not an auth/config/

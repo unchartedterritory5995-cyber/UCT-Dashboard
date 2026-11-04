@@ -78,11 +78,42 @@ describe('notion adapter — images/attachments (resolved like generic)', () => 
 })
 
 describe('notion adapter — internal links, edge cases', () => {
-  it('leaves an internal link inert when its target file is missing from the import', async () => {
+  const DASHED2 = 'def45678-9012-3456-78ab-cdef01abc123'
+
+  it('turns a link to a page missing from the zip into the server notion key (dashed lowercase uuid)', async () => {
     const { docs } = await notionAdapter.parse([
-      vf(`A ${HEX}.md`, `[ghost](Missing%20${HEX2}.md)`),
+      vf(`A ${HEX}.md`, `[gone](Gone%20${HEX2.toUpperCase()}.md)`),
     ])
-    expect(docs[0].html).not.toContain('data-import-link')
+    expect(docs[0].html).toContain(`data-import-link="notion:${DASHED2}"`)
+    expect(docs[0].html).not.toContain('href=')
+    expect(docs[0].links).toEqual([{ targetKey: `notion:${DASHED2}`, placeholder: `Gone%20${HEX2.toUpperCase()}.md` }])
+  })
+
+  it('keeps a missing link with no page id as text, never a relative href', async () => {
+    const { docs } = await notionAdapter.parse([
+      vf(`A ${HEX}.md`, '[ghost](Missing.md) tail'),
+    ])
+    expect(docs[0].html).toContain('ghost tail')
+    expect(docs[0].html).not.toContain('<a')
+    expect(docs[0].html).not.toContain('Missing.md')
+    expect(docs[0].links).toHaveLength(0)
+  })
+
+  it('maps a notion.so URL to a page that is in the zip onto that note', async () => {
+    const { docs } = await notionAdapter.parse([
+      vf(`A ${HEX}.md`, `[t](https://www.notion.so/ws/Sub-${HEX2}?pvs=4#frag)`),
+      vf(`Sub ${HEX2}.md`, 'target'),
+    ])
+    const a = docs.find((d) => d.title === 'A')
+    expect(a.html).toContain('data-import-link="notion:Sub.md"')
+    expect(a.links[0].targetKey).toBe('notion:Sub.md')
+  })
+
+  it('leaves a notion.so URL to a page outside the zip as the working URL it is', async () => {
+    const { docs } = await notionAdapter.parse([
+      vf(`A ${HEX}.md`, `[t](https://www.notion.so/Other-${HEX2})`),
+    ])
+    expect(docs[0].html).toContain(`href="https://www.notion.so/Other-${HEX2}"`)
     expect(docs[0].links).toHaveLength(0)
   })
 
@@ -192,5 +223,35 @@ describe('notion adapter — detect (0.7 tier: index.html beside a hex-suffixed 
       vf(`export/other/My Page ${HEX}/sub.html`, ''),
     ])
     expect(score).toBe(0)
+  })
+})
+
+// D2 item 5 (shared parse, `convert.js::htmlToNote`): through the Notion markdown export.
+describe('notion adapter — D2 item 5: no empty paragraph, no lost space', () => {
+  const shape = (n) => (n.type === 'text' ? JSON.stringify(n.text)
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  it('an image alone on its line, and text before a file chip', async () => {
+    const { htmlToNote } = await import('./convert')
+    const bin = (p) => ({ path: p, size: 1, lastModified: null, bytes: async () => new Uint8Array([1]) })
+    const { docs } = await notionAdapter.parse([
+      vf(`Page ${HEX}.md`, `Top\n\n![](Page%20${HEX}/img.png)\n\nRead [notes](Page%20${HEX}/notes.pdf) more`),
+      bin(`Page ${HEX}/img.png`), bin(`Page ${HEX}/notes.pdf`)])
+    expect(shape(htmlToNote(docs[0].html).bodyJson)).toBe(
+      'doc(paragraph("Top"), image, paragraph("Read "), attachmentChip, paragraph(" more"))')
+  })
+})
+
+// D2 fix round 1 (M1): a noncharacter in a Notion page is the member's text, never the
+// shared parse's marker. A raw one, and an `<aside>` HTML island holding the entity (Notion's
+// markdown export passes HTML islands through as written).
+describe('notion adapter — D2 fix round 1: a member noncharacter survives', () => {
+  it('keeps it beside an image split', async () => {
+    const { htmlToNote } = await import('./convert')
+    const bin = (p) => ({ path: p, size: 1, lastModified: null, bytes: async () => new Uint8Array([1]) })
+    const nc = String.fromCharCode(0xfdd0) // a noncharacter, spelled by code point
+    const { docs } = await notionAdapter.parse([
+      vf(`Page ${HEX}.md`, `keep ${nc}\n\n<aside>&#xFDD0;</aside>\n\nRead ![](Page%20${HEX}/img.png)`),
+      bin(`Page ${HEX}/img.png`)])
+    expect(htmlToNote(docs[0].html).bodyPlain).toBe(`keep ${nc} ${nc} Read `)
   })
 })

@@ -109,10 +109,18 @@ def mentions_for(source: str, content: str) -> list[list[str]]:
 
 #: ⛔ Graphic-only placeholders: Trade Exchange's own app shows a picture under
 #: these, but the webhook carries only the label (no image, embed or extra field
-#: has been seen: admin status extra_keys_seen is empty). CONFIRMED labels only --
+#: has been seen: admin status extra_keys_seen is empty). CONFIRMED shapes only --
 #: a short headline is NOT a placeholder ("GOOGL lows", "VIX 16.40" stay).
 GRAPHIC_PLACEHOLDERS = frozenset({"CRYPTO"})
 _INVISIBLE = re.compile(r"[\s\u200b-\u200f\u2060\ufeff\u00ad]+")
+_ZERO_WIDTH = re.compile(r"[\u200b-\u200f\u2060\ufeff\u00ad]+")
+#: A chart caption: ONE upper-case symbol, then "Daily Weekly", and nothing else
+#: ("SPY Daily Weekly"; owner-reported 2026-10-31 for HYG DIA SMH TLT IWM SPY) --
+#: the label of a daily + weekly chart pair the webhook never carries. The WHOLE
+#: text must be the caption: "SPY daily weekly gains", "Retailer weekly sales
+#: rise" or a lower-case word where the symbol goes stay ordinary headlines.
+_CHART_CAPTION = re.compile(
+    r"\$?[A-Z][A-Z0-9]{0,5}(?:[.\-][A-Z]{1,2})?\s+(?:[Dd]aily|DAILY)\s*(?:[/&+|,\-]|and|AND)?\s*(?:[Ww]eekly|WEEKLY)")
 
 
 def placeholder_for(content: str) -> str | None:
@@ -120,6 +128,8 @@ def placeholder_for(content: str) -> str | None:
     if not visible:
         return "graphic"                 # nothing to read: an image-only post
     if visible.upper() in GRAPHIC_PLACEHOLDERS and (content or "").strip().upper() in GRAPHIC_PLACEHOLDERS:
+        return "graphic"
+    if _CHART_CAPTION.fullmatch(_ZERO_WIDTH.sub("", content or "").strip()):
         return "graphic"
     return None
 

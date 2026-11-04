@@ -29,6 +29,10 @@
 //   lastLatencyMs: the newest MEASURED receipt -> this screen time (reportTiming's
 //                  e2e sample, only when the clock sync was trustworthy), else null.
 //   status: connecting | live | reconnecting | dropped | failed | unavailable
+//   `link` events: a verified press-release link found after the headline
+//   (release_links.py) — patched onto the item with that seq, nothing else moves.
+
+import { applyLinkEvent } from './tradeExchangeNewsReleaseLink'
 
 export const RECENT_URL = '/api/trade-exchange-news/recent'
 export const STREAM_URL = '/api/trade-exchange-news/stream'
@@ -286,6 +290,13 @@ function openStream() {
     heard()
     publish((st) => ({ ...st, lastEventAt: Date.now(),
       items: st.items.map((it) => (it.seq === ev.seq ? { ...it, repeat_count: ev.repeat_count } : it)) }))
+  })
+  es.addEventListener('link', (e) => {
+    if (!live()) return
+    const ev = readData(e)
+    if (!ev) return
+    heard()
+    publish((st) => ({ ...st, lastEventAt: Date.now(), items: applyLinkEvent(st.items, ev) }))
   })
   es.addEventListener('heartbeat', () => {
     if (!live()) return

@@ -12,7 +12,10 @@
     {"input": "alma", "value": 2.5, "ast": {"type": "op", "name": "+", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "alma"}]}, {"type": "series", "name": "open"}]}},
     {"input": "rci", "value": 0.25, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "high"}, {"type": "op", "name": "*", "args": [{"type": "series", "name": "rci"}, {"type": "series", "name": "low"}]}]}},
     {"input": "acos", "value": 3, "ast": {"type": "call", "name": "sma", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "acos"}]}, {"type": "num", "value": 2}]}},
-    {"input": "percentileNearestRank", "value": 1.5, "ast": {"type": "op", "name": ">", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "volume"}, {"type": "series", "name": "percentileNearestRank"}]}, {"type": "num", "value": 1600}]}}
+    {"input": "percentileNearestRank", "value": 1.5, "ast": {"type": "op", "name": ">", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "volume"}, {"type": "series", "name": "percentileNearestRank"}]}, {"type": "num", "value": 1600}]}},
+    {"input": "accum2", "value": 0.5, "ast": {"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "accum2"}]}},
+    {"input": "accum3", "value": 2, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "high"}, {"type": "series", "name": "accum3"}]}},
+    {"input": "accum4", "value": 4, "ast": {"type": "call", "name": "sma", "args": [{"type": "op", "name": "+", "args": [{"type": "series", "name": "low"}, {"type": "series", "name": "accum4"}]}, {"type": "num", "value": 2}]}}
   ],
   "old_names": ["sma", "atan", "percentileLinearInterpolation", "valuewhenOccurrence"],
   "call_refused": {"input": "alma", "value": 9, "ast": {"type": "call", "name": "alma", "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 3}, {"type": "num", "value": 0.85}, {"type": "num", "value": 6}]}}

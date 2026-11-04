@@ -657,7 +657,27 @@ const READS_ALL = new Set(['array.indexof', 'array.includes', 'array.sort_indice
 // ⭐ UIE PHASE 4 (M3) — only the members that READ are wrapped (profiled: wrapping every
 // member cost ~3% of a call-heavy script, `array.set` / `size` / `push` included)
 const HANDS_BACK = new Set(['array.get', 'array.first', 'array.last', 'array.pop', 'array.shift', 'array.remove'])
-export const ARRAY_FNS = Object.freeze(Object.fromEntries(Object.entries(ARRAY_FNS_RAW).map(([name, spec]) => {
+// ⭐ P3 WS-A — WHAT EACH MEMBER WRITES, declared once beside the table, so a
+// reader that asks "can this call move an array?" (the v6 `for` bound guard,
+// `pineRuntimeFrontend.js::forBoundMovedBy`) derives it here rather than keeping
+// a second list. `size`: the length can change; `elements`: values only;
+// `none`: reads. ⛔ A member added to the table without an entry here carries no
+// `writes`, which every reader treats as `size` (fail closed), and the rail
+// `p3WsaReviewFixes.test.js` (L1) goes red until it is classified.
+const ARRAY_WRITES = Object.freeze({
+  'array.push': 'size', 'array.pop': 'size', 'array.shift': 'size', 'array.unshift': 'size',
+  'array.remove': 'size', 'array.clear': 'size', 'array.concat': 'size',
+  'array.set': 'elements',
+  'array.new': 'none', 'array.new_float': 'none', 'array.new_int': 'none', 'array.new_bool': 'none',
+  'array.new_string': 'none', 'array.new_color': 'none', 'array.new_box': 'none', 'array.new_line': 'none',
+  'array.new_label': 'none', 'array.new_linefill': 'none', 'array.from': 'none', 'str.split': 'none',
+  'array.sort_indices': 'none', 'array.size': 'none', 'array.get': 'none', 'array.copy': 'none',
+  'array.first': 'none', 'array.last': 'none', 'array.indexof': 'none', 'array.includes': 'none',
+  'array.max': 'none', 'array.min': 'none', 'array.sum': 'none', 'array.avg': 'none',
+  'array.slice': 'none', 'array.median': 'none', 'array.stdev': 'none', 'runtime.error': 'none',
+})
+export const ARRAY_FNS = Object.freeze(Object.fromEntries(Object.entries(ARRAY_FNS_RAW).map(([name, spec0]) => {
+  const spec = ARRAY_WRITES[name] ? { ...spec0, writes: ARRAY_WRITES[name] } : spec0
   if (READS_ALL.has(name)) {
     return [name, { ...spec, fn: (a, budget, typeArg) => {
       if (Array.isArray(a[0])) { const hit = a[0].find(isUnfilled); if (hit) readUnfilled(name, hit) }

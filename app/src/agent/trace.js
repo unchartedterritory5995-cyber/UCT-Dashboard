@@ -52,11 +52,20 @@ const since = (t) => Math.round(now() - t.t0)
 /** Start a turn (no-op while one is open: an Apply typed as "do it" stays inside its message's turn). */
 export function turnStart(kind) {
   if (turn) return false
-  turn = { kind, path: null, t0: now(), visible: null, output: null, outputRole: null, done: null, marks: [] }
+  turn = { kind, id: newTurnId(), path: null, t0: now(), visible: null, output: null, outputRole: null, done: null, marks: [] }
   turns.push(turn)
   if (turns.length > TURNS_KEEP) turns.shift()
   return true
 }
+// PROGRAM MD-1: an opaque id for the open turn — the market-data gateway's per-turn budget key
+// (readData(kind, params, { turnId: currentTurnId() })). Random and content-free; null when no turn is open.
+let turnSeq = 0
+function newTurnId() {
+  try { if (globalThis.crypto?.randomUUID) return `t-${globalThis.crypto.randomUUID()}` } catch { /* fall through */ }
+  turnSeq += 1
+  return `t-${Date.now().toString(36)}-${turnSeq}`
+}
+export const currentTurnId = () => (turn ? turn.id : null)
 export function turnPath(path) { if (turn && !turn.path) turn.path = path }
 export function turnMark(phase, detail = null) {
   if (!turn) return

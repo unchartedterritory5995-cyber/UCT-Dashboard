@@ -40,6 +40,8 @@ describe('controlled error at the import boundary', () => {
     expect(screen.getByTestId('pine-refusal').dataset.guard).toBe('import:internal-error')
     expect(screen.getByTestId('pine-use')).toBeDisabled()
     paste('plot p = Average(close, 20);')
-    await vi.waitFor(() => expect(screen.getByTestId('import-outcome').dataset.outcome).toBe('exact'))
+    // ⭐ I2: a clean thinkScript import is never "exact" (no thinkorswim value was ever
+    // compared); recovery from the error is what this case checks.
+    await vi.waitFor(() => expect(screen.getByTestId('import-outcome').dataset.outcome).toBe('no-known-differences'))
   })
 })

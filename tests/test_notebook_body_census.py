@@ -62,6 +62,8 @@ NO_SESSION_BY_DESIGN = {
     ("POST", "/api/j2/personal/daily/append"): "personal API bearer token",
     ("POST", "/api/j2/notes/connectors/obsidian/ingest"): "Obsidian plugin bearer token",
     ("POST", "/api/j2/notes/connectors/obsidian/redeem"): "one-time pairing code in the body",
+    ("POST", "/api/j2/notes/connectors/obsidian/attachments/check"): "Obsidian plugin bearer token",
+    ("PUT", "/api/j2/notes/connectors/obsidian/attachments/{sha256}"): "Obsidian plugin bearer token",
     ("POST", "/api/j2/capture/token"): "one-time authorisation code in the body",
     ("POST", "/api/j2/capture"): "capture token or session (its own dependency)",
     ("POST", "/api/j2/broker/webhook"): "SnapTrade signature over the body",
@@ -97,7 +99,8 @@ def test_the_census_is_not_vacuous(rows):
     by_key = {_key(r): r for r in rows}
     # one of each kind of bounded door, found where it is known to be
     upload = by_key[("POST", "/api/j2/notes/{note_id}/images")]
-    assert upload.reads[0].how == "capped" and upload.reads[0].limit_bytes == 5 * 1024 * 1024
+    # Plan A Task 8: /images reads to the media policy's 25 MB source cap (it downscales).
+    assert upload.reads[0].how == "capped" and upload.reads[0].limit_bytes == 25 * 1024 * 1024
     email = by_key[("POST", "/api/j2/inbound-email")]
     assert email.reads[0].how == "stream-loop" and email.reads[0].limit_bytes == 36 * 1024 * 1024
     gallery = by_key[("POST", "/api/j2/template-gallery")]
@@ -147,6 +150,8 @@ def test_every_bounded_read_has_a_limit_the_census_can_state(rows):
     allowed = {
         # _read_bounded_body(request, _MAX_OBSIDIAN_INGEST_BYTES): 2,000,000 bytes at the call site
         "POST /api/j2/notes/connectors/obsidian/ingest  (note_sync.obsidian_ingest): request.stream() limit `limit`",
+        # _read_bounded_body(request, _MAX_ATTACHMENT_CHECK_BYTES): 512,000 bytes at the call site
+        "POST /api/j2/notes/connectors/obsidian/attachments/check  (note_sync.obsidian_attachments_check): request.stream() limit `limit`",
         # read_capped_form(request, limit + FRAMING_SLACK, ...): limit is vn.MAX_UPLOAD_BYTES (90 MiB)
         "POST /api/j2/voice-notes/jobs  (notebook_voice_notes.create_job): read_capped_form limit `limit + body_cap.FRAMING_SLACK`",
     }

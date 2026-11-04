@@ -105,7 +105,22 @@ _FH_FORBIDDEN_TTL = 86_400
 # immediately — this runs on the shared request threadpool, so sleeping here
 # to "wait for a slot" would just move the 524-outage surface from "burst of
 # 429s" to "burst of hung request threads."
-_FH_RATE_LIMIT_PER_MIN = 55.0
+#
+# 2026-11-02: the ACCOUNT is NOT this pod's alone. The same FINNHUB_API_KEY is
+# used by tx-recap (UCT News / #uct-earnings: the earnings calendar every 45 s,
+# ~1.3 calls/min) and morning-wire. At 55/min this pod could spend the whole
+# minute on a heavy earnings morning and the others got 429 on every retry
+# (live 11/02 8:03-8:52 AM ET: 10 of ~66 tx-recap rounds failed). 45/min
+# leaves ~15/min for them. `FINNHUB_RATE_PER_MIN` overrides (clamped 30-55).
+def _rate_from_env() -> float:
+    try:
+        v = float(os.environ.get("FINNHUB_RATE_PER_MIN", "45"))
+    except ValueError:
+        v = 45.0
+    return min(55.0, max(30.0, v))
+
+
+_FH_RATE_LIMIT_PER_MIN = _rate_from_env()
 _fh_bucket_tokens = _FH_RATE_LIMIT_PER_MIN
 _fh_bucket_updated = _time.monotonic()
 _fh_bucket_lock = threading.Lock()

@@ -1327,6 +1327,15 @@ function parseAtom(c) {
     // exists; before this it reported a syntax error at the study's NAME, which
     // is a false reason pointing one token past the real one.
     if (k === 'reference') throw refuse('thinkscript:study-ref', t)
+    // ⭐ `Crosses(data1, data2, direction)` IS A FUNCTION SPELLED WITH A RESERVED
+    // WORD. `crosses` is an infix operator everywhere else, so it is an atom ONLY
+    // when a `(` follows it directly — the one position the infix form can never
+    // occupy (it needs a left operand). `resolveCrosses` translates it.
+    if (k === 'crosses' && isPunctTok(peek(c, 1), '(')) {
+      take(c)
+      const { args, endTok } = parseCall(c)
+      return { e: 'call', name: t.value, base: null, args, tok: t, endTok }
+    }
     if (NOT_AN_ATOM.has(k)) throw syntaxAt(c, t)
     take(c)
     if (isPunctTok(peek(c), '(')) {
@@ -2562,6 +2571,21 @@ export const TS_CALL_SHAPES = Object.freeze({
       + 'calculated as the simple moving average and then all values are calculated as the '
       + 'exponential moving average"; Default value length 12. EXACT against closedTable '
       + '`_functions_smoothing`: alpha 1/n, seed = the mean of the first full window',
+  },
+  // ⭐ `WMA(data, length)` is the SAME average `MovingAverage(AverageType.WEIGHTED,
+  // …)` already reaches (`TS_AVERAGE_TYPES.weighted → wma`), so this is a second
+  // spelling of an existing identity, not a new reading. ⚠️ ITS DEFAULT IS 9, NOT
+  // the 12 every other average here publishes — read off its own page.
+  wma: {
+    engine: 'wma',
+    params: ['data', 'length'],
+    defaults: { length: 9 },
+    args: [{ from: 'data' }, { from: 'length' }],
+    cite: 'Functions/Tech-Analysis/WMA: WMA(IDataHolder data, int length); "Returns Weighted '
+      + 'Moving Average value. The Weighted Moving Average is calculated by multiplying each '
+      + 'of the previous days\' data by a weight factor. That factor is equal to the number of '
+      + 'days past the first day. The total is then divided by the sum of the factors." '
+      + 'Default values: length 9',
   },
   movingaverage: {
     dispatch: TS_AVERAGE_TYPES,
@@ -3870,6 +3894,7 @@ class Resolver {
       return { type: 'tf', value: foreign.tf, args: [cSeries(foreign.field)] }
     }
     if (foreign) throw foreign
+    if (key(n.name) === 'crosses') return this.resolveCrosses(n)
     const deferredCall = TS_DEFERRED_CALLS[key(n.name)]
     if (deferredCall) {
       throw new ThinkScriptRefusal(deferredCall.guard,
@@ -4003,6 +4028,84 @@ class Resolver {
     // a sentence attached to a column that does not exist.
     if (has(TS_NOTE_BY_ENGINE, engine)) this.note(TS_NOTE_BY_ENGINE[engine], n.tok, `\`${n.name}\``)
     return built
+  }
+
+  /**
+   * ⭐ `Crosses(data1, data2, direction = CrossingDirection.ANY)` →
+   * `crossOver` / `crossUnder` / their OR, exactly as `data1 crosses [above|below]
+   * data2` already translates (see the `cross` case in `resolve`).
+   *
+   *   SOURCE: /center/reference/thinkScript/Functions/Math---Trig/Crosses —
+   *   "returns true when data1 becomes greater than data2 if the direction
+   *   parameter is CrossingDirection.ABOVE"; "Conversely … less than … BELOW";
+   *   ANY "irrespective of its direction"; "Default values: direction:
+   *   CrossingDirection.ANY". Its own example pins the edge:
+   *   `close > avg and close[1] <= avg[1]` and `Crosses(close, avg,
+   *   CrossingDirection.ABOVE)` are "equal definitions" — which is this engine's
+   *   `crossOver(a, b)`: `a > b && a[1] <= b[1]`.
+   *
+   * ⛔ THE DIRECTION MUST BE A LITERAL `CrossingDirection` ARM. The page's second
+   * example passes a boolean computed from an input; that picks the crossing at
+   * run time, and a refusal that says how to write it beats guessing which arm a
+   * boolean means.
+   */
+  resolveCrosses(n) {
+    const params = ['data1', 'data2', 'direction']
+    const slots = [null, null, null]
+    let k = 0
+    for (const a of n.args) {
+      if (a.name != null) {
+        const i = params.findIndex((p) => p === key(a.name))
+        if (i === -1) throw refuse('thinkscript:named-argument', a.nameTok || n.tok)
+        if (slots[i]) {
+          throw new ThinkScriptRefusal('thinkscript:arity',
+            `${REFUSALS['thinkscript:arity']} — two of them land on \`${params[i]}\``,
+            locate(a.nameTok || n.tok))
+        }
+        slots[i] = a
+        continue
+      }
+      while (k < 3 && slots[k]) k += 1
+      if (k >= 3) {
+        throw new ThinkScriptRefusal('thinkscript:arity',
+          `${REFUSALS['thinkscript:arity']} — Crosses takes 3 (data1, data2, direction) `
+          + `and was handed ${n.args.length}`, locate(n.tok))
+      }
+      slots[k] = a
+      k += 1
+    }
+    for (const i of [0, 1]) {
+      if (!slots[i]) {
+        throw new ThinkScriptRefusal('thinkscript:arity',
+          `${REFUSALS['thinkscript:arity']} — \`${params[i]}\` has no value, and thinkorswim `
+          + 'publishes no default for it', locate(n.tok))
+      }
+    }
+    let dir = 'any'
+    if (slots[2]) {
+      const v = this.resolve(slots[2].value)
+      const tok = (slots[2].value && slots[2].value.tok) || n.tok
+      const arms = ['above', 'below', 'any']
+      if (!(v && v.ts === 'enum' && key(v.family) === 'crossingdirection' && arms.includes(key(v.arm)))) {
+        throw new ThinkScriptRefusal('thinkscript:enum-arm',
+          `${REFUSALS['thinkscript:enum-arm']} — Crosses(…)'s direction has to be written as `
+          + 'CrossingDirection.ABOVE, CrossingDirection.BELOW or CrossingDirection.ANY. A '
+          + 'direction computed from an input chooses the crossing while the chart runs, which '
+          + 'this engine cannot store; write the crossing you mean, e.g. '
+          + '`close crosses above avg` or `Crosses(close, avg, CrossingDirection.ABOVE)`',
+          locate(tok))
+      }
+      dir = key(v.arm)
+    }
+    const a = this.asNode(this.resolve(slots[0].value), (slots[0].value && slots[0].value.tok) || n.tok)
+    const b = this.asNode(this.resolve(slots[1].value), (slots[1].value && slots[1].value.tok) || n.tok)
+    const pair = [{ node: a, tok: n.tok }, { node: b, tok: n.tok }]
+    if (dir === 'above') return this.engineCall('crossOver', pair, n.tok)
+    if (dir === 'below') return this.engineCall('crossUnder', pair, n.tok)
+    return cOp('||', [
+      this.engineCall('crossOver', pair, n.tok),
+      this.engineCall('crossUnder', pair, n.tok),
+    ])
   }
 
   /**

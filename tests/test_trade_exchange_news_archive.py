@@ -210,10 +210,11 @@ async def test_days_reports_counts_retention_and_today(monkeypatch):
     out = arc.days(p.store, now_ms=now)
     assert out["today"] == "2026-10-30" and out["first_day"] == "2026-10-28"
     assert out["days"] == [{"date": "2026-10-28", "count": 20}, {"date": "2026-10-30", "count": 7}]
-    assert out["first_day_partial"] is False
-    assert out["retention"]["max_items"] == 5000
-    monkeypatch.setenv("TXN_HISTORY_MAX_AGE_HOURS", "54")                 # the age cut falls inside Oct 28
-    assert arc.days(p.store, now_ms=now)["first_day_partial"] is True
+    assert out["first_day_partial"] is True                             # the archive began during it
+    assert out["retention"] == {"permanent": True}
+    monkeypatch.setenv("TXN_HISTORY_MAX_AGE_HOURS", "1")                  # a retired bound: changes nothing
+    monkeypatch.setenv("TXN_HISTORY_MAX_ITEMS", "3")
+    assert arc.days(p.store, now_ms=now)["days"] == out["days"]
     r = (await _call(ADMIN, "GET", route.DAYS_PATH)).json()
     assert r["epoch"] == p.store.epoch and sum(x["count"] for x in r["days"]) == 27
 
@@ -330,26 +331,29 @@ async def test_arrivals_while_scrolling_never_shift_duplicate_or_skip():
     assert [x["seq"] for x in up["items"]] == [65, 64, 63, 62, 61]      # scrolling up finds them
 
 
-async def test_a_recovered_headline_pruned_from_the_middle_leaves_the_index():
+async def test_a_recovered_headline_joins_its_old_day_even_when_that_day_is_cached():
     await _fill_day(n=30)
     p = pl.get()
+    await p.submit(rec("SYNTHETIC EARLIER", et_ms(date(2026, 10, 20), 8)), "push")
+    assert (await _day({"date": "2026-10-20", "hide_placeholders": False}))["total"] == 1   # now cached
     await p.submit(rec("SYNTHETIC LATE RECOVERED", et_ms(date(2026, 10, 20), 9)), "reconcile")   # new seq, old time
     late = p.store.last_seq()
-    assert (await _day({"date": "2026-10-20", "hide_placeholders": False}))["total"] == 1
-    gone = p.store.prune(max_age_ms=et_ms(DAY, 23) - et_ms(DAY, 0), max_items=10_000, now_ms=et_ms(DAY, 23))
-    assert gone["by_age"] == 1
-    assert (await _day({"date": "2026-10-20", "hide_placeholders": False}))["total"] == 0
-    d = await _day({"date": DAY.isoformat(), "limit": 200, "hide_placeholders": False})
-    assert late not in [x["seq"] for x in d["items"]] and d["total"] == 30
-    assert arc.cache_stats()["index_rows"] == 30
+    d = await _day({"date": "2026-10-20", "hide_placeholders": False})
+    assert d["total"] == 2 and d["items"][0]["seq"] == late
+    assert (await _day({"date": DAY.isoformat(), "limit": 200, "hide_placeholders": False}))["total"] == 30
 
 
-async def test_the_count_bound_drops_the_oldest_from_the_index():
+async def test_retired_bounds_remove_nothing_from_the_archive(monkeypatch):
+    """⛔⛔ PERMANENT RETENTION: the old age/count settings are read by nothing."""
+    monkeypatch.setenv("TXN_HISTORY_MAX_ITEMS", "25")
+    monkeypatch.setenv("TXN_HISTORY_MAX_AGE_HOURS", "1")
     p = await _fill_day(n=40)
     await _day({"date": DAY.isoformat()})
-    p.store.prune(max_age_ms=10**15, max_items=25)
+    for _ in range(250):                                                # past the old 200-ingest prune tick
+        await p.submit(rec(f"SYNTHETIC tick {_}", et_ms(date(2026, 10, 29), 9) + _), "push")
     d = await _day({"date": DAY.isoformat(), "limit": 200, "hide_placeholders": False})
-    assert d["day_total"] == 25 and min(x["seq"] for x in d["items"]) == 16
+    assert d["day_total"] == 40 and min(x["seq"] for x in d["items"]) == 1
+    assert p.store.stats()["headlines"] == 290 and p.store.stats()["deliveries"] == 290
 
 
 async def test_a_restart_or_another_process_rebuilds_the_same_answer():
@@ -361,7 +365,7 @@ async def test_a_restart_or_another_process_rebuilds_the_same_answer():
     cold = await _day(body)
     for k in ("total", "day_total", "items", "older_cursor", "has_older"):
         assert cold[k] == warm[k]
-    assert arc.cache_stats()["index_rows"] == 40
+    assert arc.cache_stats()["days_cached"] == 1 and arc.cache_stats()["day_rows"] == 40
 
 
 async def test_a_new_epoch_discards_the_index(tmp_path, monkeypatch):
@@ -440,7 +444,8 @@ async def test_cache_sizes_are_bounded_and_reported(monkeypatch):
         arc._light_of("TXNews1", f"SYNTHETIC unique {i}")
     assert arc.cache_stats()["derived_light"] == 5
     status = (await _call(ADMIN, "GET", route.STATUS_PATH)).json()
-    assert set(status["archive_cache"]) == {"index_rows", "derived_light", "derived_full", "rebuilds"}
+    assert set(status["archive_cache"]) == {"tail_rows", "days_cached", "day_rows", "hours", "rebuilds",
+                                            "day_loads", "derived_light", "derived_full"}
 
 
 async def test_recent_events_equal_a_fresh_build():
@@ -501,3 +506,71 @@ async def test_a_large_day_is_quick_cold_and_warm():
     t3 = time.perf_counter()
     assert cold["day_total"] == 5000 and len(warm["items"]) == 60 and jump["items"]
     assert t1 - t0 < 8.0 and t2 - t1 < 1.0 and t3 - t2 < 1.0, (t1 - t0, t2 - t1, t3 - t2)
+
+
+# ── chart captions ("SPY Daily Weekly"): one classifier for live and history ──
+
+CAPTIONS = ["HYG Daily Weekly", "DIA Daily Weekly", "SMH Daily Weekly",
+            "TLT Daily Weekly", "IWM Daily Weekly", "SPY Daily Weekly"]
+KEEP = ["SYNTHETIC SPY daily price move is the largest since April",
+        "SYNTHETIC Retailer weekly sales rise 4%", "SYNTHETIC SPY Daily Weekly gains"]
+
+
+@pytest.mark.parametrize("filters", [
+    {}, {"query": "weekly"}, {"query": "daily"}, {"symbol": "SPY"}, {"symbols": ["SPY", "HYG"]},
+    {"categories": ["News"]}, {"hide_placeholders": False},
+])
+async def test_daily_weekly_captions_are_hidden_counted_and_stored(filters):
+    p = pl.start(asyncio.get_running_loop())
+    base = et_ms(DAY, 9, 30)
+    for i, text in enumerate(CAPTIONS + KEEP + CAPTIONS):
+        await p.submit(rec(text, base + i * 60_000), "push")
+    hide = filters.get("hide_placeholders", True)
+    first, seqs = await _walk({**filters, "date": DAY.isoformat()}, limit=4)
+    want = _oracle(p, DAY, query=filters.get("query", ""), categories=filters.get("categories", ()),
+                   symbol=filters.get("symbol"), symbols=filters.get("symbols"), hide=hide)
+    assert seqs == want and first["total"] == len(want)
+    assert first["day_total"] == 15                      # stored and counted, never dropped
+    if not filters:
+        shown = {it["content"] for it in first["items"]}
+        assert seqs and not shown & set(CAPTIONS) and first["hidden_placeholders"] == 12
+    if not hide:
+        assert len(seqs) == 15
+    # live and history read the same rule: the stored row is the original text
+    stored = {r["content"] for r in p.store.recent(100)}
+    assert set(CAPTIONS) <= stored
+
+
+async def test_a_live_caption_and_its_history_row_agree():
+    p = pl.start(asyncio.get_running_loop())
+    out = await p.submit(rec("SPY Daily Weekly", et_ms(DAY, 16)), "push")
+    live = pl.headline_event(p.store.recent(1)[0], p.store.epoch)
+    day = await _day({"date": DAY.isoformat(), "hide_placeholders": False})
+    assert live["placeholder"] == day["items"][0]["placeholder"] == "graphic"
+    assert (await _day({"date": DAY.isoformat()}))["items"] == []
+    assert out is not None
+
+
+# ── the three time shortcuts (4:00 AM / 9:30 AM / 4:00 PM ET), DST days included ──
+
+@pytest.mark.parametrize("d", [date(2026, 11, 1), date(2026, 3, 8), DAY])     # DST ends / begins / normal
+@pytest.mark.parametrize("hhmm,want_hm", [("04:00", (3, 45)), ("09:30", (9, 30)), ("16:00", (15, 59))])
+async def test_a_time_shortcut_lands_at_or_before_it_on_that_day(d, hhmm, want_hm):
+    p = pl.start(asyncio.get_running_loop())
+    prev = d.fromordinal(d.toordinal() - 1)
+    await p.submit(rec("SYNTHETIC previous evening", et_ms(prev, 23, 50)), "push")
+    for h, m in [(3, 45), (9, 30), (9, 31), (15, 59), (16, 1), (20, 0)]:
+        await p.submit(rec(f"SYNTHETIC at {h:02d}:{m:02d}", et_ms(d, h, m)), "push")
+    r = await _day({"date": d.isoformat(), "at": hhmm})
+    assert r["at_match"] == "at_or_before" and r["date"] == d.isoformat()
+    assert r["items"][0]["received_at_ms"] == et_ms(d, *want_hm)
+    assert all(arc.day_of(it["received_at_ms"]) == d for it in r["items"])
+
+
+async def test_a_shortcut_before_the_days_first_headline_never_leaves_the_day():
+    p = pl.start(asyncio.get_running_loop())
+    await p.submit(rec("SYNTHETIC previous evening", et_ms(date(2026, 10, 31), 23, 0)), "push")
+    await p.submit(rec("SYNTHETIC at 09:45", et_ms(date(2026, 11, 1), 9, 45)), "push")
+    r = await _day({"date": "2026-11-01", "at": "04:00"})
+    assert r["at_match"] == "after" and [it["content"] for it in r["items"]] == ["SYNTHETIC at 09:45"]
+    assert (await _day({"date": "2026-11-02", "at": "16:00"}))["items"] == []
