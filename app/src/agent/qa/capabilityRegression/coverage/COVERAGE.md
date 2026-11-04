@@ -18,10 +18,13 @@ Catalog: **154** capabilities (every server-gated kind on; 145 with production's
 | multiStep | 21 / 154 |
 | phrasings | 94 / 154 |
 
-## Known gaps (2)
+## Known gaps (5)
 
 | id | level | intent | phrasing | owner | reason |
 |---|---|---|---|---|---|
+| CG-37 | c | wrongtarget.new-chart-weekly | "open TSLA on a new chart and switch it to the weekly" | agent-core (the train-4 fixes branch: in-plan reference to a newly created chart) | WRONG TARGET: 'open TSLA on a new chart and switch it to the weekly' adds the TSLA chart but switches the EXISTING NVDA chart to weekly ('it' is read as the chart already on the board, not the one this request creates) |
+| CG-37 | c | wrongtarget.new-chart-line | "add a chart for META and make it a line chart" | agent-core (the train-4 fixes branch: in-plan reference to a newly created chart) | WRONG TARGET: 'add a chart for META and make it a line chart' adds the META chart but turns the EXISTING NVDA chart into a line chart |
+| CG-37 | c | wrongtarget.new-chart-50sma | "add a chart for AMD and put the 50 SMA on it" | agent-core (the train-4 fixes branch: in-plan reference to a newly created chart) | WRONG TARGET: 'add a chart for AMD and put the 50 SMA on it' adds the AMD chart but puts the 50 SMA on the EXISTING NVDA chart |
 | CG-13 | collision | routing data | "how does NVDA stack up against AMD" | nlfix builder (routing.js) | the charts compare words select 'against' |
 | CG-4 | collision | routing indicators | "add the relative strength index" | nlfix builder (routing.js) | 'relative strength' is a screener strength word (SUBTRACTIVE: indicators not named) |
 

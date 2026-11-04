@@ -1,0 +1,2243 @@
+{
+  "version": 1,
+  "about": "W2-A2 planner v2 scripted-model ACCEPTANCE SET: multi-step cases run through the REAL panel (panelHarness + steps.js) against the scripted step server (testing/stepServer.js). The script IS the model: each item is one tool-use step (its target resolved from the turn's context or an earlier step's result) or the final reply. Expectations are what the browser executor reported back (step statuses), what the board holds afterwards, and what the member saw. No model call, no network, no market values. Runner: app/src/agent/agentPlannerV2Acceptance.test.jsx.",
+  "boards": {
+    "ROOMY": "one NVDA daily chart (12x10) with room for more; lists Swing (AAPL) and Momentum (NVDA, AMD); layouts Swing Board (open), Day Trading",
+    "TWO": "two charts NVDA | AMD filling the board; the same lists and layouts",
+    "FOUR": "four charts SPY QQQ NVDA TSLA; the same lists and layouts"
+  },
+  "targets": "{section, index?} = that entry of the turn's context; {alias} = the `as` of an earlier step; {added, kind, index?} = a ref the latest DONE step created; {literal}",
+  "cases": [
+    {
+      "id": "F01",
+      "group": "flagship",
+      "title": "the flagship: scan → new list (ONE card) → the shown top 3 added by the list's alias → charts of the top 2 → EMA 10 on the first new chart; undo all",
+      "board": "ROOMY",
+      "say": "curate a flagship for me: screen for names over ten dollars, gather the top three into a fresh W2 Flagship collection, bring up the top two with a ten ema",
+      "script": [
+        {
+          "action": "screener.run",
+          "target": {
+            "section": "screener"
+          },
+          "args": {
+            "filters": [
+              {
+                "field": "price",
+                "op": "gt",
+                "value": 10,
+                "max": null,
+                "values": null
+              }
+            ],
+            "sort_field": null,
+            "sort_dir": null,
+            "mode": "new",
+            "show": null,
+            "as": "screen1",
+            "within": null
+          }
+        },
+        {
+          "action": "watchlist.create",
+          "target": {
+            "section": "watchlistLibrary"
+          },
+          "args": {
+            "name": "W2 Flagship",
+            "as": "list1"
+          },
+          "mode": "propose"
+        },
+        {
+          "action": "watchlist.add",
+          "target": {
+            "alias": "list1"
+          },
+          "args": {
+            "symbols": [
+              "AAA",
+              "BBB",
+              "CCC"
+            ]
+          }
+        },
+        {
+          "action": "widget.addCharts",
+          "target": {
+            "section": "workspace"
+          },
+          "args": {
+            "symbols": [
+              "AAA",
+              "BBB"
+            ],
+            "timeframe": "D",
+            "chart_type": null,
+            "exact": null
+          }
+        },
+        {
+          "action": "indicator.add",
+          "target": {
+            "added": "indicatorEdits",
+            "index": 0
+          },
+          "args": {
+            "defId": "movingAverage",
+            "inputs": [
+              {
+                "key": "period",
+                "value": 10
+              },
+              {
+                "key": "maType",
+                "value": "ema"
+              }
+            ]
+          }
+        },
+        {
+          "reply": "W2 Flagship holds the top three; the top two are charted with a 10 EMA."
+        }
+      ],
+      "then": [
+        {
+          "say": "do it"
+        },
+        {
+          "say": "undo all of that",
+          "expect": {
+            "charts": 1,
+            "transcript": "Took back all"
+          }
+        }
+      ],
+      "expect": {
+        "results": [
+          "query",
+          "proposed",
+          "done",
+          "done",
+          "done"
+        ],
+        "resumes": [
+          [
+            "s2",
+            "done"
+          ]
+        ],
+        "lists": [
+          "Swing",
+          "Momentum",
+          "W2 Flagship"
+        ],
+        "listCount": {
+          "W2 Flagship": 3
+        },
+        "charts": 3,
+        "transcript": "W2 Flagship holds the top three",
+        "addedIndicators": {
+          "index": 0,
+          "brief": [
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)",
+            "movingAverage(50 sma)",
+            "movingAverage(200 sma)",
+            "movingAverage(10 ema)"
+          ]
+        },
+        "proposals": 1
+      }
+    },
+    {
+      "id": "F02",
+      "group": "flagship",
+      "title": "variant: sorted scan, ALL results to the list, weekly charts, two EMAs on each new chart, then save",
+      "board": "ROOMY",
+      "say": "curate W2 Weekly: screen over ten sorted by adr, gather them all into a fresh collection, bring up the top two weekly with ten and thirty emas, and preserve the layout",
+      "script": [
+        {
+          "action": "screener.run",
+          "target": {
+            "section": "screener"
+          },
+          "args": {
+            "filters": [
+              {
+                "field": "price",
+                "op": "gt",
+                "value": 10,
+                "max": null,
+                "values": null
+              }
+            ],
+            "sort_field": "adr_pct",
+            "sort_dir": "desc",
+            "mode": "new",
+            "show": null,
+            "as": "screen1",
+            "within": null
+          }
+        },
+        {
+          "action": "watchlist.create",
+          "target": {
+            "section": "watchlistLibrary"
+          },
+          "args": {
+            "name": "W2 Weekly",
+            "as": "list1"
+          },
+          "mode": "propose"
+        },
+        {
+          "action": "watchlist.add",
+          "target": {
+            "alias": "list1"
+          },
+          "args": {
+            "symbols": {
+              "from": "lastScreen",
+              "top": null
+            }
+          }
+        },
+        {
+          "action": "widget.addCharts",
+          "target": {
+            "section": "workspace"
+          },
+          "args": {
+            "symbols": {
+              "from": "lastScreen",
+              "top": 2
+            },
+            "timeframe": "W",
+            "chart_type": null,
+            "exact": null
+          }
+        },
+        {
+          "action": "indicator.add",
+          "target": {
+            "added": "indicatorEdits",
+            "index": 0
+          },
+          "args": {
+            "defId": "movingAverage",
+            "inputs": [
+              {
+                "key": "period",
+                "value": 10
+              },
+              {
+                "key": "maType",
+                "value": "ema"
+              }
+            ]
+          }
+        },
+        {
+          "action": "indicator.add",
+          "target": {
+            "added": "indicatorEdits",
+            "index": 0
+          },
+          "args": {
+            "defId": "movingAverage",
+            "inputs": [
+              {
+                "key": "period",
+                "value": 30
+              },
+              {
+                "key": "maType",
+                "value": "ema"
+              }
+            ]
+          }
+        },
+        {
+          "action": "indicator.add",
+          "target": {
+            "added": "indicatorEdits",
+            "index": 1
+          },
+          "args": {
+            "defId": "movingAverage",
+            "inputs": [
+              {
+                "key": "period",
+                "value": 10
+              },
+              {
+                "key": "maType",
+                "value": "ema"
+              }
+            ]
+          }
+        },
+        {
+          "action": "indicator.add",
+          "target": {
+            "added": "indicatorEdits",
+            "index": 1
+          },
+          "args": {
+            "defId": "movingAverage",
+            "inputs": [
+              {
+                "key": "period",
+                "value": 30
+              },
+              {
+                "key": "maType",
+                "value": "ema"
+              }
+            ]
+          }
+        },
+        {
+          "action": "layout.saveAs",
+          "target": {
+            "section": "layouts"
+          },
+          "args": {
+            "name": "W2 Weekly"
+          },
+          "mode": "propose"
+        },
+        {
+          "reply": "Saved W2 Weekly."
+        }
+      ],
+      "then": [
+        {
+          "say": "do it"
+        },
+        {
+          "say": "do it"
+        },
+        {
+          "say": "do it"
+        },
+        {
+          "say": "do it"
+        }
+      ],
+      "expect": {
+        "results": [
+          "query",
+          "proposed",
+          "proposed",
+          "proposed",
+          "done",
+          "done",
+          "done",
+          "done",
+          "proposed"
+        ],
+        "lists": [
+          "Swing",
+          "Momentum",
+          "W2 Weekly"
+        ],
+        "listCount": {
+          "W2 Weekly": 3
+        },
+        "charts": 3,
+        "addedTf": "W",
+        "addedIndicators": {
+          "index": 1,
+          "brief": [
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)",
+            "movingAverage(50 sma)",
+            "movingAverage(200 sma)",
+            "movingAverage(10 ema)",
+            "movingAverage(30 ema)"
+          ]
+        },
+        "transcript": "Saved W2 Weekly",
+        "resumes": [
+          [
+            "s2",
+            "done"
+          ],
+          [
+            "s3",
+            "done"
+          ],
+          [
+            "s4",
+            "done"
+          ],
+          [
+            "s9",
+            "done"
+          ]
+        ],
+        "layoutNames": [
+          "Swing Board",
+          "Day Trading",
+          "W2 Weekly"
+        ]
+      }
+    },
+    {
+      "id": "F03",
+      "group": "flagship",
+      "title": "variant: the list already exists (Swing) — add to it, open the top two, save over nothing (no save step)",
+      "board": "ROOMY",
+      "say": "screen over ten, gather the top two into Swing and bring them up",
+      "script": [
+        {
+          "action": "screener.run",
+          "target": {
+            "section": "screener"
+          },
+          "args": {
+            "filters": [
+              {
+                "field": "price",
+                "op": "gt",
+                "value": 10,
+                "max": null,
+                "values": null
+              }
+            ],
+            "sort_field": null,
+            "sort_dir": null,
+            "mode": "new",
+            "show": null,
+            "as": null,
+            "within": null
+          }
+        },
+        {
+          "action": "watchlist.add",
+          "target": {
+            "section": "watchlists",
+            "index": 0
+          },
+          "args": {
+            "symbols": {
+              "from": "lastScreen",
+              "top": 2
+            }
+          }
+        },
+        {
+          "action": "widget.addCharts",
+          "target": {
+            "section": "workspace"
+          },
+          "args": {
+            "symbols": {
+              "from": "lastScreen",
+              "top": 2
+            },
+            "timeframe": null,
+            "chart_type": null,
+            "exact": null
+          }
+        },
+        {
+          "reply": "Added two to Swing and opened them."
+        }
+      ],
+      "expect": {
+        "results": [
+          "query",
+          "proposed",
+          "proposed"
+        ],
+        "listCount": {
+          "Swing": 3
+        },
+        "charts": 3,
+        "resumes": [
+          [
+            "s2",
+            "done"
+          ],
+          [
+            "s3",
+            "done"
+          ]
+        ]
+      },
+      "then": [
+        {
+          "say": "do it"
+        },
+        {
+          "say": "do it"
+        }
+      ]
+    },
+    {
+      "id": "F04",
+      "group": "flagship",
+      "title": "the screen's own `as` alias names its results in the NEXT step (hardening: alias → the last screen)",
+      "board": "ROOMY",
+      "say": "screen over ten and gather the top two into Swing",
+      "script": [
+        {
+          "action": "screener.run",
+          "target": {
+            "section": "screener"
+          },
+          "args": {
+            "filters": [
+              {
+                "field": "price",
+                "op": "gt",
+                "value": 10,
+                "max": null,
+                "values": null
+              }
+            ],
+            "sort_field": null,
+            "sort_dir": null,
+            "mode": "new",
+            "show": null,
+            "as": "screen1",
+            "within": null
+          }
+        },
+        {
+          "action": "watchlist.add",
+          "target": {
+            "section": "watchlists",
+            "index": 0
+          },
+          "args": {
+            "symbols": {
+              "from": "screen1",
+              "top": 2
+            }
+          }
+        },
+        {
+          "reply": "Done."
+        }
+      ],
+      "expect": {
+        "results": [
+          "query",
+          "proposed"
+        ],
+        "listCount": {
+          "Swing": 3
+        },
+        "resumes": [
+          [
+            "s2",
+            "done"
+          ]
+        ]
+      },
+      "then": [
+        {
+          "say": "do it"
+        }
+      ]
+    },
+    {
+      "id": "F05",
+      "group": "flagship",
+      "title": "no room on the board: the charts step is refused honestly and the chain goes on",
+      "board": "TWO",
+      "say": "screen over ten, bring up the top two and retune the left panel to weekly",
+      "script": [
+        {
+          "action": "screener.run",
+          "target": {
+            "section": "screener"
+          },
+          "args": {
+            "filters": [
+              {
+                "field": "price",
+                "op": "gt",
+                "value": 10,
+                "max": null,
+                "values": null
+              }
+            ],
+            "sort_field": null,
+            "sort_dir": null,
+            "mode": "new",
+            "show": null,
+            "as": null,
+            "within": null
+          }
+        },
+        {
+          "action": "widget.addCharts",
+          "target": {
+            "section": "workspace"
+          },
+          "args": {
+            "symbols": {
+              "from": "lastScreen",
+              "top": 2
+            },
+            "timeframe": "D",
+            "chart_type": null,
+            "exact": null
+          }
+        },
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "reply": "No room for new charts; the left chart is weekly now."
+        }
+      ],
+      "expect": {
+        "results": [
+          "query",
+          "refused",
+          "done"
+        ],
+        "charts": 2,
+        "tf": {
+          "cl": "W"
+        },
+        "refusalMatches": {
+          "1": "isn't enough open space"
+        }
+      }
+    },
+    {
+      "id": "S01",
+      "group": "scan",
+      "title": "scan then refine (sort only) — two query results, nothing changed",
+      "board": "ROOMY",
+      "say": "screen over ten then order the names by adr",
+      "script": [
+        {
+          "action": "screener.run",
+          "target": {
+            "section": "screener"
+          },
+          "args": {
+            "filters": [
+              {
+                "field": "price",
+                "op": "gt",
+                "value": 10,
+                "max": null,
+                "values": null
+              }
+            ],
+            "sort_field": null,
+            "sort_dir": null,
+            "mode": "new",
+            "show": null,
+            "as": null,
+            "within": null
+          }
+        },
+        {
+          "action": "screener.run",
+          "target": {
+            "section": "screener"
+          },
+          "args": {
+            "filters": [],
+            "sort_field": "adr_pct",
+            "sort_dir": "desc",
+            "mode": "refine",
+            "show": null,
+            "as": null,
+            "within": null
+          }
+        },
+        {
+          "reply": "Sorted by ADR."
+        }
+      ],
+      "expect": {
+        "results": [
+          "query",
+          "query"
+        ],
+        "charts": 1,
+        "lists": [
+          "Swing",
+          "Momentum"
+        ]
+      }
+    },
+    {
+      "id": "S02",
+      "group": "scan",
+      "title": "scan → new list (card) → explicit tickers from the result",
+      "board": "ROOMY",
+      "say": "screen over ten and gather the first two into a fresh Picks collection",
+      "script": [
+        {
+          "action": "screener.run",
+          "target": {
+            "section": "screener"
+          },
+          "args": {
+            "filters": [
+              {
+                "field": "price",
+                "op": "gt",
+                "value": 10,
+                "max": null,
+                "values": null
+              }
+            ],
+            "sort_field": null,
+            "sort_dir": null,
+            "mode": "new",
+            "show": null,
+            "as": null,
+            "within": null
+          }
+        },
+        {
+          "action": "watchlist.create",
+          "target": {
+            "section": "watchlistLibrary"
+          },
+          "args": {
+            "name": "Picks",
+            "as": "list1"
+          },
+          "mode": "propose"
+        },
+        {
+          "action": "watchlist.add",
+          "target": {
+            "alias": "list1"
+          },
+          "args": {
+            "symbols": [
+              "AAA",
+              "BBB"
+            ]
+          }
+        },
+        {
+          "reply": "Picks has AAA and BBB."
+        }
+      ],
+      "then": [
+        {
+          "say": "do it"
+        }
+      ],
+      "expect": {
+        "results": [
+          "query",
+          "proposed",
+          "done"
+        ],
+        "listCount": {
+          "Picks": 2
+        },
+        "transcript": "Picks has AAA and BBB"
+      }
+    },
+    {
+      "id": "S03",
+      "group": "scan",
+      "title": "a saved screen run then the top two opened",
+      "board": "ROOMY",
+      "say": "replay my ADR Movers screen and bring up the top two",
+      "script": [
+        {
+          "action": "screener.runSaved",
+          "target": {
+            "section": "screener"
+          },
+          "args": {
+            "screen": "901",
+            "show": null,
+            "as": null
+          }
+        },
+        {
+          "action": "widget.addCharts",
+          "target": {
+            "section": "workspace"
+          },
+          "args": {
+            "symbols": {
+              "from": "lastScreen",
+              "top": 2
+            },
+            "timeframe": null,
+            "chart_type": null,
+            "exact": null
+          }
+        },
+        {
+          "reply": "Opened the top two."
+        }
+      ],
+      "expect": {
+        "results": [
+          "query",
+          "proposed"
+        ],
+        "charts": 3,
+        "resumes": [
+          [
+            "s2",
+            "done"
+          ]
+        ]
+      },
+      "then": [
+        {
+          "say": "do it"
+        }
+      ]
+    },
+    {
+      "id": "S04",
+      "group": "scan",
+      "title": "the scan's top N with exact: true and no room for that many is refused",
+      "board": "ROOMY",
+      "say": "bring up exactly the top six names",
+      "script": [
+        {
+          "action": "screener.run",
+          "target": {
+            "section": "screener"
+          },
+          "args": {
+            "filters": [
+              {
+                "field": "price",
+                "op": "gt",
+                "value": 10,
+                "max": null,
+                "values": null
+              }
+            ],
+            "sort_field": null,
+            "sort_dir": null,
+            "mode": "new",
+            "show": null,
+            "as": null,
+            "within": null
+          }
+        },
+        {
+          "action": "widget.addCharts",
+          "target": {
+            "section": "workspace"
+          },
+          "args": {
+            "symbols": {
+              "from": "lastScreen",
+              "top": 6
+            },
+            "timeframe": null,
+            "chart_type": null,
+            "exact": true
+          }
+        },
+        {
+          "reply": "Not enough room for six."
+        }
+      ],
+      "expect": {
+        "results": [
+          "query",
+          "proposed"
+        ],
+        "charts": 1
+      },
+      "then": [
+        {
+          "say": "do it"
+        }
+      ]
+    },
+    {
+      "id": "C01",
+      "group": "charts",
+      "title": "two chart changes in a row, both applied, one receipt each",
+      "board": "TWO",
+      "say": "retune the left panel to weekly and restyle the right one as bars",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "action": "chart.setType",
+          "target": {
+            "section": "charts",
+            "index": 1
+          },
+          "args": {
+            "type": "bars"
+          }
+        },
+        {
+          "reply": "Both set."
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "done"
+        ],
+        "tf": {
+          "cl": "W"
+        },
+        "chartType": {
+          "cr": "bars"
+        },
+        "receipts": 2
+      }
+    },
+    {
+      "id": "C02",
+      "group": "charts",
+      "title": "a new chart then a change ON it (its ref comes from the step's result)",
+      "board": "ROOMY",
+      "say": "bring up amd and retune it to weekly",
+      "script": [
+        {
+          "action": "widget.addCharts",
+          "target": {
+            "section": "workspace"
+          },
+          "args": {
+            "symbols": [
+              "AMD"
+            ],
+            "timeframe": "D",
+            "chart_type": null,
+            "exact": null
+          }
+        },
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "added": "chart",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "reply": "AMD is up, weekly."
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "done"
+        ],
+        "charts": 2,
+        "addedTf": "W"
+      }
+    },
+    {
+      "id": "C03",
+      "group": "charts",
+      "title": "a new chart, its symbol changed, an indicator added and styled",
+      "board": "ROOMY",
+      "say": "bring up a panel, retarget it to tsla with a ten ema",
+      "script": [
+        {
+          "action": "widget.addCharts",
+          "target": {
+            "section": "workspace"
+          },
+          "args": {
+            "symbols": [
+              "AMD"
+            ],
+            "timeframe": null,
+            "chart_type": null,
+            "exact": null
+          }
+        },
+        {
+          "action": "chart.setSymbol",
+          "target": {
+            "added": "chart",
+            "index": 0
+          },
+          "args": {
+            "symbol": "TSLA"
+          }
+        },
+        {
+          "action": "indicator.add",
+          "target": {
+            "added": "indicatorEdits",
+            "index": 0
+          },
+          "args": {
+            "defId": "movingAverage",
+            "inputs": [
+              {
+                "key": "period",
+                "value": 10
+              },
+              {
+                "key": "maType",
+                "value": "ema"
+              }
+            ]
+          }
+        },
+        {
+          "reply": "TSLA with a 10 EMA."
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "done",
+          "done"
+        ],
+        "charts": 2,
+        "addedSymbol": "TSLA",
+        "addedIndicators": {
+          "index": 0,
+          "brief": [
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)",
+            "movingAverage(50 sma)",
+            "movingAverage(200 sma)",
+            "movingAverage(10 ema)"
+          ]
+        }
+      }
+    },
+    {
+      "id": "C04",
+      "group": "charts",
+      "title": "a timeframe UCT does not offer is refused mid-chain; the next step still runs",
+      "board": "TWO",
+      "say": "retune the left panel to seven minutes and restyle the right one as bars",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "7"
+          }
+        },
+        {
+          "action": "chart.setType",
+          "target": {
+            "section": "charts",
+            "index": 1
+          },
+          "args": {
+            "type": "bars"
+          }
+        },
+        {
+          "reply": "7 minute is not available; bars on the right."
+        }
+      ],
+      "expect": {
+        "results": [
+          "refused",
+          "done"
+        ],
+        "tf": {
+          "cl": "D"
+        },
+        "chartType": {
+          "cr": "bars"
+        }
+      }
+    },
+    {
+      "id": "C05",
+      "group": "charts",
+      "title": "a target that is not on the board is refused; nothing else changes",
+      "board": "TWO",
+      "say": "retune the third panel to weekly",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "literal": "c9"
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "reply": "There is no third chart."
+        }
+      ],
+      "expect": {
+        "results": [
+          "refused"
+        ],
+        "tf": {
+          "cl": "D",
+          "cr": "D"
+        },
+        "refusalMatches": {
+          "0": "not on the workspace|isn't on the board|Which"
+        }
+      }
+    },
+    {
+      "id": "C06",
+      "group": "charts",
+      "title": "four charts, all weekly — one step each",
+      "board": "FOUR",
+      "say": "retune every panel to weekly",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 1
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 2
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 3
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "reply": "All four are weekly."
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "done",
+          "done",
+          "done"
+        ],
+        "tf": {
+          "c0": "W",
+          "c1": "W",
+          "c2": "W",
+          "c3": "W"
+        }
+      }
+    },
+    {
+      "id": "C07",
+      "group": "charts",
+      "title": "a no-op step (already weekly) reports done without a second change",
+      "board": "TWO",
+      "say": "retune the left panel to weekly, twice over",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "reply": "Weekly."
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "done"
+        ],
+        "tf": {
+          "cl": "W"
+        }
+      }
+    },
+    {
+      "id": "I01",
+      "group": "indicators",
+      "title": "two indicators on the existing chart, then undo all",
+      "board": "ROOMY",
+      "say": "overlay my usual pair of averages on it",
+      "script": [
+        {
+          "action": "indicator.add",
+          "target": {
+            "section": "indicatorEdits",
+            "index": 0
+          },
+          "args": {
+            "defId": "movingAverage",
+            "inputs": [
+              {
+                "key": "period",
+                "value": 9
+              },
+              {
+                "key": "maType",
+                "value": "ema"
+              }
+            ]
+          }
+        },
+        {
+          "action": "indicator.add",
+          "target": {
+            "section": "indicatorEdits",
+            "index": 0
+          },
+          "args": {
+            "defId": "movingAverage",
+            "inputs": [
+              {
+                "key": "period",
+                "value": 20
+              },
+              {
+                "key": "maType",
+                "value": "ema"
+              }
+            ]
+          }
+        },
+        {
+          "reply": "Both on."
+        }
+      ],
+      "then": [
+        {
+          "say": "undo all of that",
+          "expect": {
+            "transcript": "Took back all 2 changes",
+            "indicators": {
+              "c": []
+            }
+          }
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "done"
+        ],
+        "indicators": {
+          "c": [
+            "movingAverage(9 ema)",
+            "movingAverage(20 ema)"
+          ]
+        }
+      }
+    },
+    {
+      "id": "I02",
+      "group": "indicators",
+      "title": "an indicator the catalog does not have is refused; the next one is added",
+      "board": "ROOMY",
+      "say": "overlay the magic line and my fast average",
+      "script": [
+        {
+          "action": "indicator.add",
+          "target": {
+            "section": "indicatorEdits",
+            "index": 0
+          },
+          "args": {
+            "defId": "magicLine",
+            "inputs": null
+          }
+        },
+        {
+          "action": "indicator.add",
+          "target": {
+            "section": "indicatorEdits",
+            "index": 0
+          },
+          "args": {
+            "defId": "movingAverage",
+            "inputs": [
+              {
+                "key": "period",
+                "value": 9
+              },
+              {
+                "key": "maType",
+                "value": "ema"
+              }
+            ]
+          }
+        },
+        {
+          "reply": "No magic line here; the 9 EMA is on."
+        }
+      ],
+      "expect": {
+        "results": [
+          "refused",
+          "done"
+        ],
+        "indicators": {
+          "c": [
+            "movingAverage(9 ema)"
+          ]
+        }
+      }
+    },
+    {
+      "id": "L01",
+      "group": "lists",
+      "title": "a new list (card) then tickers added to it by its alias",
+      "board": "ROOMY",
+      "say": "curate a Chips collection holding nvda and amd",
+      "script": [
+        {
+          "action": "watchlist.create",
+          "target": {
+            "section": "watchlistLibrary"
+          },
+          "args": {
+            "name": "Chips",
+            "as": "new1"
+          },
+          "mode": "propose"
+        },
+        {
+          "action": "watchlist.add",
+          "target": {
+            "alias": "new1"
+          },
+          "args": {
+            "symbols": [
+              "NVDA",
+              "AMD"
+            ]
+          }
+        },
+        {
+          "reply": "Chips is ready."
+        }
+      ],
+      "then": [
+        {
+          "say": "do it"
+        }
+      ],
+      "expect": {
+        "results": [
+          "proposed",
+          "done"
+        ],
+        "listCount": {
+          "Chips": 2
+        },
+        "resumes": [
+          [
+            "s1",
+            "done"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L02",
+      "group": "lists",
+      "title": "the card dismissed: nothing is created and the dependent add is refused",
+      "board": "ROOMY",
+      "say": "curate a Chips collection holding nvda",
+      "script": [
+        {
+          "action": "watchlist.create",
+          "target": {
+            "section": "watchlistLibrary"
+          },
+          "args": {
+            "name": "Chips",
+            "as": "new1"
+          },
+          "mode": "propose"
+        },
+        {
+          "action": "watchlist.add",
+          "target": {
+            "alias": "new1"
+          },
+          "args": {
+            "symbols": [
+              "NVDA"
+            ]
+          }
+        },
+        {
+          "reply": "Okay — nothing was created."
+        }
+      ],
+      "then": [
+        {
+          "say": "no"
+        }
+      ],
+      "expect": {
+        "results": [
+          "proposed",
+          "refused"
+        ],
+        "lists": [
+          "Swing",
+          "Momentum"
+        ],
+        "resumes": [
+          [
+            "s1",
+            "refused"
+          ]
+        ],
+        "transcript": "nothing was created"
+      }
+    },
+    {
+      "id": "L03",
+      "group": "lists",
+      "title": "tickers added to an existing list; one already there is skipped, not duplicated",
+      "board": "ROOMY",
+      "say": "fold nvda and tsla into Momentum",
+      "script": [
+        {
+          "action": "watchlist.add",
+          "target": {
+            "section": "watchlists",
+            "index": 1
+          },
+          "args": {
+            "symbols": [
+              "NVDA",
+              "TSLA"
+            ]
+          }
+        },
+        {
+          "reply": "TSLA added; NVDA was already there."
+        }
+      ],
+      "expect": {
+        "results": [
+          "done"
+        ],
+        "listCount": {
+          "Momentum": 3
+        }
+      }
+    },
+    {
+      "id": "L04",
+      "group": "lists",
+      "title": "deleting a list is permanent: a card, then done after approval",
+      "board": "ROOMY",
+      "say": "retire the Momentum collection",
+      "script": [
+        {
+          "action": "watchlist.delete",
+          "target": {
+            "section": "watchlists",
+            "index": 1
+          },
+          "args": {},
+          "mode": "propose"
+        },
+        {
+          "reply": "Momentum is gone."
+        }
+      ],
+      "then": [
+        {
+          "say": "do it"
+        }
+      ],
+      "expect": {
+        "results": [
+          "proposed"
+        ],
+        "lists": [
+          "Swing"
+        ],
+        "resumes": [
+          [
+            "s1",
+            "done"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L05",
+      "group": "lists",
+      "title": "a list removed from, then its remaining ticker opened on a new chart",
+      "board": "ROOMY",
+      "say": "prune amd out of Momentum and bring up what remains",
+      "script": [
+        {
+          "action": "watchlist.remove",
+          "target": {
+            "section": "watchlists",
+            "index": 1
+          },
+          "args": {
+            "symbols": [
+              "AMD"
+            ]
+          }
+        },
+        {
+          "action": "widget.addCharts",
+          "target": {
+            "section": "workspace"
+          },
+          "args": {
+            "symbols": [
+              "NVDA"
+            ],
+            "timeframe": null,
+            "chart_type": null,
+            "exact": null
+          }
+        },
+        {
+          "reply": "Done."
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "done"
+        ],
+        "listCount": {
+          "Momentum": 1
+        },
+        "charts": 2
+      }
+    },
+    {
+      "id": "Y01",
+      "group": "layouts",
+      "title": "save as a new layout (card) then a chart change in the new layout",
+      "board": "TWO",
+      "say": "preserve this as Night Board and retune the left panel to weekly",
+      "script": [
+        {
+          "action": "layout.saveAs",
+          "target": {
+            "section": "layouts"
+          },
+          "args": {
+            "name": "Night Board"
+          },
+          "mode": "propose"
+        },
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "reply": "Saved and set."
+        }
+      ],
+      "then": [
+        {
+          "say": "do it"
+        }
+      ],
+      "expect": {
+        "results": [
+          "proposed",
+          "done"
+        ],
+        "layoutNames": [
+          "Swing Board",
+          "Day Trading",
+          "Night Board"
+        ],
+        "tf": {
+          "cl": "W"
+        }
+      }
+    },
+    {
+      "id": "Y02",
+      "group": "layouts",
+      "title": "a layout renamed to a name already taken is refused (nothing renamed)",
+      "board": "TWO",
+      "say": "retitle Day Trading as Swing Board",
+      "script": [
+        {
+          "action": "layout.rename",
+          "target": {
+            "section": "layouts"
+          },
+          "args": {
+            "layout": "2",
+            "name": "Swing Board"
+          }
+        },
+        {
+          "reply": "That name is taken."
+        }
+      ],
+      "expect": {
+        "results": [
+          "refused"
+        ],
+        "layoutNames": [
+          "Swing Board",
+          "Day Trading"
+        ]
+      }
+    },
+    {
+      "id": "Y03",
+      "group": "layouts",
+      "title": "opening another layout swaps the board: a step on the OLD board's chart is then refused",
+      "board": "TWO",
+      "say": "bring up Day Trading and retune the left panel to weekly",
+      "script": [
+        {
+          "action": "layout.open",
+          "target": {
+            "section": "layouts"
+          },
+          "args": {
+            "layout": "2"
+          }
+        },
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "reply": "Day Trading is open."
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "refused"
+        ]
+      }
+    },
+    {
+      "id": "U01",
+      "group": "undo",
+      "title": "undo all of a three-step chain, newest first",
+      "board": "TWO",
+      "say": "retune the left panel to weekly, restyle the right one as bars and retarget it to nvda",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "action": "chart.setType",
+          "target": {
+            "section": "charts",
+            "index": 1
+          },
+          "args": {
+            "type": "bars"
+          }
+        },
+        {
+          "action": "chart.setSymbol",
+          "target": {
+            "section": "charts",
+            "index": 1
+          },
+          "args": {
+            "symbol": "NVDA"
+          }
+        },
+        {
+          "reply": "Done."
+        }
+      ],
+      "then": [
+        {
+          "say": "undo all of that",
+          "expect": {
+            "transcript": "Took back all 3 changes",
+            "tf": {
+              "cl": "D"
+            },
+            "chartType": {
+              "cr": "candles"
+            },
+            "symbol": {
+              "cr": "AMD"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "done",
+          "done"
+        ],
+        "tf": {
+          "cl": "W"
+        },
+        "symbol": {
+          "cr": "NVDA"
+        }
+      }
+    },
+    {
+      "id": "U02",
+      "group": "undo",
+      "title": "undo all across a pause: the approved card's change is in the group too",
+      "board": "ROOMY",
+      "say": "retune to weekly, curate a Chips collection, restyle as bars",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "action": "watchlist.create",
+          "target": {
+            "section": "watchlistLibrary"
+          },
+          "args": {
+            "name": "Chips",
+            "as": null
+          },
+          "mode": "propose"
+        },
+        {
+          "action": "chart.setType",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "type": "bars"
+          }
+        },
+        {
+          "reply": "Done."
+        }
+      ],
+      "then": [
+        {
+          "say": "do it"
+        },
+        {
+          "say": "undo all of that",
+          "expect": {
+            "transcript": "Took back all 2 changes",
+            "tf": {
+              "c": "D"
+            },
+            "chartType": {
+              "c": "candles"
+            },
+            "lists": [
+              "Swing",
+              "Momentum",
+              "Chips"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "proposed",
+          "done"
+        ],
+        "tf": {
+          "c": "W"
+        },
+        "chartType": {
+          "c": "bars"
+        }
+      }
+    },
+    {
+      "id": "U03",
+      "group": "undo",
+      "title": "undo all after a refusal mid-chain reverts only what ran",
+      "board": "TWO",
+      "say": "retune the left panel to weekly and the right one to seven minutes",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 1
+          },
+          "args": {
+            "timeframe": "7"
+          }
+        },
+        {
+          "reply": "Left is weekly; 7 minute is not available."
+        }
+      ],
+      "then": [
+        {
+          "say": "undo all of that",
+          "expect": {
+            "transcript": "Undid|Took back",
+            "tf": {
+              "cl": "D",
+              "cr": "D"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "refused"
+        ],
+        "tf": {
+          "cl": "W",
+          "cr": "D"
+        }
+      }
+    },
+    {
+      "id": "U04",
+      "group": "undo",
+      "title": "a fresh request while a card waits has its own Undo group; the paused turn's change stays",
+      "board": "TWO",
+      "say": "retune the left panel to weekly and curate a Chips collection",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "action": "watchlist.create",
+          "target": {
+            "section": "watchlistLibrary"
+          },
+          "args": {
+            "name": "Chips",
+            "as": null
+          },
+          "mode": "propose"
+        },
+        {
+          "action": "chart.setType",
+          "target": {
+            "section": "charts",
+            "index": 1
+          },
+          "args": {
+            "type": "bars"
+          }
+        },
+        {
+          "reply": "Bars on the right."
+        }
+      ],
+      "then": [
+        {
+          "say": "restyle the right panel as bars"
+        },
+        {
+          "say": "undo all of that",
+          "expect": {
+            "chartType": {
+              "cr": "candles"
+            },
+            "tf": {
+              "cl": "W"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "proposed",
+          "done"
+        ],
+        "proposals": 1
+      }
+    },
+    {
+      "id": "P01",
+      "group": "partial",
+      "title": "a write the board refuses mid-chain: that step fails with nothing left half-done; the chain goes on; undo reverts the rest",
+      "board": "TWO",
+      "failApplyBoard": true,
+      "say": "retune the left panel to weekly, drop the right panel, restyle it as bars",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "action": "widget.remove",
+          "target": {
+            "section": "board"
+          },
+          "args": {
+            "widget": "cr"
+          }
+        },
+        {
+          "action": "chart.setType",
+          "target": {
+            "section": "charts",
+            "index": 1
+          },
+          "args": {
+            "type": "bars"
+          }
+        },
+        {
+          "reply": "The removal did not take; the rest is done."
+        }
+      ],
+      "then": [
+        {
+          "say": "undo all of that",
+          "expect": {
+            "tf": {
+              "cl": "D"
+            },
+            "chartType": {
+              "cr": "candles"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "results": [
+          "done",
+          "failed",
+          "done"
+        ],
+        "charts": 2,
+        "tf": {
+          "cl": "W"
+        },
+        "chartType": {
+          "cr": "bars"
+        },
+        "refusalMatches": {
+          "1": "didn't take effect|nothing was left changed|failed"
+        }
+      }
+    },
+    {
+      "id": "P02",
+      "group": "partial",
+      "title": "a created list whose dependent add targets a ref that never existed: refused, the list stays",
+      "board": "ROOMY",
+      "say": "curate a Chips collection and fold nvda into the wrong one",
+      "script": [
+        {
+          "action": "watchlist.create",
+          "target": {
+            "section": "watchlistLibrary"
+          },
+          "args": {
+            "name": "Chips",
+            "as": "new1"
+          },
+          "mode": "propose"
+        },
+        {
+          "action": "watchlist.add",
+          "target": {
+            "literal": "w99"
+          },
+          "args": {
+            "symbols": [
+              "NVDA"
+            ]
+          }
+        },
+        {
+          "reply": "Chips exists; the add went nowhere."
+        }
+      ],
+      "then": [
+        {
+          "say": "do it"
+        }
+      ],
+      "expect": {
+        "results": [
+          "proposed",
+          "refused"
+        ],
+        "lists": [
+          "Swing",
+          "Momentum",
+          "Chips"
+        ],
+        "listCount": {
+          "Chips": 0
+        }
+      }
+    },
+    {
+      "id": "R01",
+      "group": "research",
+      "title": "an answer with sources after a web lookup (server-side): the reply and its citations are shown, nothing changes",
+      "board": "ROOMY",
+      "say": "what is behind nvda's move this session",
+      "script": [
+        {
+          "reply": "NVDA moved on its earnings report (from the web).",
+          "sources": [
+            "https://example.com/nvda"
+          ]
+        }
+      ],
+      "expect": {
+        "results": [],
+        "transcript": "from the web\\)\\.\\s*example\\.com",
+        "charts": 1
+      }
+    },
+    {
+      "id": "R02",
+      "group": "research",
+      "title": "research then act in the same turn is refused by the server (STEP-1); the browser sees only the reply",
+      "board": "ROOMY",
+      "say": "dig up nvda headlines and bring it up",
+      "script": [
+        {
+          "reply": "No changes after a web lookup in the same turn — ask for the chart on its own."
+        }
+      ],
+      "expect": {
+        "results": [],
+        "charts": 1,
+        "transcript": "ask for the chart on its own"
+      }
+    },
+    {
+      "id": "X01",
+      "group": "refusal",
+      "title": "an action UCT does not have on this host (a drawing without a drawings host) is refused, the chain goes on",
+      "board": "TWO",
+      "say": "sketch a level at 100 and retune the left panel to weekly",
+      "script": [
+        {
+          "action": "drawing.addLevel",
+          "target": {
+            "literal": "NVDA"
+          },
+          "args": {
+            "price": 100,
+            "color": null,
+            "style": null
+          }
+        },
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "timeframe": "W"
+          }
+        },
+        {
+          "reply": "Drawings are not available here; the left chart is weekly."
+        }
+      ],
+      "expect": {
+        "results": [
+          "refused",
+          "done"
+        ],
+        "tf": {
+          "cl": "W"
+        }
+      }
+    },
+    {
+      "id": "X02",
+      "group": "refusal",
+      "title": "a step whose args fail the browser's own schema check is refused (the server would have caught it too)",
+      "board": "TWO",
+      "say": "retune the left panel's cadence",
+      "script": [
+        {
+          "action": "chart.setTimeframe",
+          "target": {
+            "section": "charts",
+            "index": 0
+          },
+          "args": {
+            "tf": "W"
+          }
+        },
+        {
+          "reply": "Could not read that."
+        }
+      ],
+      "expect": {
+        "results": [
+          "refused"
+        ],
+        "tf": {
+          "cl": "D"
+        }
+      }
+    },
+    {
+      "id": "X03",
+      "group": "refusal",
+      "title": "a reply alone (no steps) changes nothing and is shown as the answer",
+      "board": "TWO",
+      "say": "what distinguishes an exponential average from a simple one?",
+      "script": [
+        {
+          "reply": "An EMA weights recent prices more heavily."
+        }
+      ],
+      "expect": {
+        "results": [],
+        "transcript": "weights recent prices",
+        "receipts": 0
+      }
+    },
+    {
+      "id": "X04",
+      "group": "refusal",
+      "title": "the v1 path when the config says v1: no step server, the usual model turn",
+      "board": "TWO",
+      "planner": "v1",
+      "say": "what distinguishes an exponential average from a simple one?",
+      "script": [
+        {
+          "reply": "never"
+        }
+      ],
+      "expect": {
+        "v1turns": 1,
+        "stepBodies": 0
+      }
+    }
+  ]
+}

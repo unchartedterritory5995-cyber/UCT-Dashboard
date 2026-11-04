@@ -2971,6 +2971,48 @@
      "modes": {}
     }
    }
+  },
+  "wrongtarget.new-chart-weekly": {
+   "digest": "df633fdc56ffb3a6",
+   "phrasings": {
+    "open TSLA on a new chart and switch it to the weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "c"
+     ],
+     "modes": {
+      "c": "the charts' timeframes"
+     }
+    }
+   }
+  },
+  "wrongtarget.new-chart-line": {
+   "digest": "f423e69fefa20130",
+   "phrasings": {
+    "add a chart for META and make it a line chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "c"
+     ],
+     "modes": {
+      "c": "chart types"
+     }
+    }
+   }
+  },
+  "wrongtarget.new-chart-50sma": {
+   "digest": "dca25d2853af3f71",
+   "phrasings": {
+    "add a chart for AMD and put the 50 SMA on it": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "c"
+     ],
+     "modes": {
+      "c": "no movingAverage(50 sma)"
+     }
+    }
+   }
   }
  },
  "refusals": {
@@ -3415,6 +3457,13 @@
   },
   "where is the indicator settings button": {
    "digest": "22e7d4de10a73e3b",
+   "gap": false,
+   "mode": null
+  }
+ },
+ "clock": {
+  "session.extended@rth": {
+   "digest": "0502b8c5e034eea9",
    "gap": false,
    "mode": null
   }

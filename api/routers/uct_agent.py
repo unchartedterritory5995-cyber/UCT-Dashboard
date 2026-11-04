@@ -158,6 +158,9 @@ class TurnIn(BaseModel):
     # NL-1: stable catalogs (indicator catalog, Screener fields) sent apart from the context so the server
     # can cache them; turn.reference_block accepts only its known keys, as DATA, under a size limit.
     reference: Optional[dict] = None
+    # V2-G2 (review #782): the browser runs a v2 PLAN GROUP as one plan (steps.js runGroup). Absent/false = an older
+    # browser: the server sends one step at a time, as before.
+    stepGroups: bool = False
     pending: Optional[dict] = None
     recentOutcome: Optional[str] = None
     voice: bool = False
@@ -587,6 +590,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         turn_context = agent_coach.with_stored_consent(turn_context, agent_coach.stored_consent(uid, cid))
     if on_event is not None and planner_v2() and headline is None and not body.reroute and not agent_coach.is_coach_turn(body.context):
         token, v2 = _v2_register(uid)
+        v2["step_groups"] = body.stepGroups is True
     # The browser's NL-1 repair (useAgent.js) IGNORES a failed repair and goes on with its first plan: the member never
     # sees that failure, so it is never written to the transcript (the chat on reload and the next turn's history must
     # match what the member saw). Every other failure is shown to the member and stored.

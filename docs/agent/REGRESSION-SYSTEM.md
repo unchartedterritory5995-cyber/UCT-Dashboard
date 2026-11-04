@@ -18,6 +18,28 @@ file is changed. Suite: `app/src/agent/qa/capabilityRegression/` + `tests/test_u
 | Golden workflows | `baseline/goldenWorkflows.json` (18) | Previously verified workflows: live production acceptance 11-03 (E-01, E-01′, P-07, A-10a, A-13, C-08, P-09, B-07), hotfix #766 T1–T3, owner acceptance (exact Undo), and the AUDIT live passes of 11-04. Each is replayed through the real panel. |
 | Baseline lock | `baseline/baseline.lock.json`, `tests/test_uct_agent_capreg_baseline.py` | Removing an entry or phrasing, adding a known gap, or changing an entry's assertions needs a `### BASELINE:<id>` decision **bound to that exact change** (`- Binds: <old digest>-><new digest or removed>`, plus a real `Date:` and a named `Decided by:`; fenced examples never count). The corpus is held both to the lock in the same tree AND to the lock at the merge base with origin/master, so a hand-edited lock in the same PR cannot hide a weakening. A change of the lock's digest format (`LOCK_FORMAT`) against master needs its own `### LOCKFORMAT:<n>` decision. Adding entries and removing gaps is free (`--update` re-locks, and refuses while an undecided weakening exists). Self-tested on in-memory mutations. |
 | CI | `.github/workflows/agent-ci.yml` job `capability-regression` | A named check: pytest baseline (with master fetched for the merge-base comparison) + `vitest run src/agent/qa/capabilityRegression`, about 7 minutes, no model or key. **It cannot be made a required check: branch protection is not available on this plan (the API answers 403).** The enforcement that does exist: the master deploy gate runs `npx vitest run src/agent` (every file of this suite) before promotion, and the server job runs `tests/test_uct_agent*.py` (the baseline rail). The files also run in the four Agent CI shards (union rail). Paid live-model evals (`tools/agent_eval_*`) stay separate and are never run here. |
+| Code owners | `.github/CODEOWNERS` | The baseline folder (`baseline/`, including `baseline.lock.json`), `docs/agent/COMPATIBILITY-DECISIONS.md` and `tests/test_uct_agent_capreg_baseline.py` are owned by the repo owner. **Without branch protection, CODEOWNERS only requests the owner's review; it does not block a merge.** Deploy-gate enforcement still comes from the master gate's full Agent run (`npx vitest run src/agent` + `tests/test_uct_agent*.py`) before promotion. |
+
+### A pinned market clock (2026-11-04 incident)
+
+At the 09:30 ET open the master deploy gate went red. Its 5 `session.extended` cases failed because "show extended
+hours" on a DAILY chart is legitimately refused during the regular session (capabilities/chart.js `extWindowOpen()`,
+utils/extSession.js), and the suite read the wall clock.
+
+Now every capreg test file pins Date (`testing/clock.js` `pinClock()`):
+- The instant is chosen by `CAPREG_CLOCK`: `post` (default) is Tue 2026-11-03 17:00 ET, after the close; `rth` is
+  11:00 ET, in the regular session.
+- Only Date is faked; it advances from that instant.
+- Agent CI runs the suite at both instants, in parallel (a matrix leg each, its own 20 min timeout), with one aggregate check `capability-regression`.
+- An answer that legitimately differs by instant is written down explicitly in `baseline/clockExpectations.json`
+  (locked like every entry). `session.extended @ rth` expects the refusal, nothing changed, and no receipt. It is not
+  marked as a gap.
+- Inventory rail 8 fails a test file that does not pin the clock.
+
+The rest of the corpus was audited for wall-clock dependence:
+- Breadth "today", earnings "this week", screens and data reads are answered by fixtures that do not depend on the date.
+- Drawing anchors, go-to-date and replay use absolute dates inside the synthetic history, which ends 2026-10-30,
+  before both pinned instants.
 
 ### The faithful scripted model
 
@@ -224,6 +246,7 @@ all resolve against the same bars.
 | CG-34 | workflow | After "open a chart for AMD", "add rsi to it" asks "Which chart do you mean?": a chart the conversation just CREATED is not "it". | agent-core |
 | CG-35 | a | "what's on the calendar this week" matches no group and falls back to every group. On /charts the earnings week is a screen (the calendar.* capabilities exist only on the Calendar page). | nlfix |
 | CG-36 | a | "averages for the S&P" matches no group, so it falls back to every group. "how are the moving averages looking for the market" is caught by the indicators words. Canonical: breadth.show, where "averages" means % above moving averages. | nlfix |
+| CG-37 | c | **Wrong target (still open after train 4):** a reference in the same request to a chart that request CREATES lands on the EXISTING chart instead. "open TSLA on a new chart and switch it to the weekly" makes NVDA weekly; "add a chart for META and make it a line chart" turns NVDA into a line chart; "add a chart for AMD and put the 50 SMA on it" puts the 50 SMA on NVDA. Found by the NLM-1 held-out acceptance (P02 / P15). | agent-core (train-4 fixes branch) |
 
 Observations that are not marked as gaps because they need an owner ruling:
 

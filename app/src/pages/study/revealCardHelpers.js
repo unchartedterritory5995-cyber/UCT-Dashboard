@@ -43,3 +43,16 @@ export function lessonParts(reveal) {
     .map(([k, label]) => ({ key: k, label, text: parts[k].trim() }))
   return out.length ? out : null
 }
+
+/** The bank's answer as one line (a word, a number, or shares and dollars at risk); null when the reveal carries none. */
+export function answerWord(reveal) {
+  const a = reveal?.answer
+  if (a == null) return null
+  if (typeof a === 'boolean') return a ? 'Yes' : 'No'
+  if (typeof a === 'string' || typeof a === 'number') return String(a)
+  if (typeof a === 'object') {
+    if (a.answer != null && typeof a.answer !== 'object') return String(a.answer)
+    if (a.shares != null) return `${a.shares} shares${a.dollars != null ? `, $${Math.round(a.dollars)} at risk` : ''}`
+  }
+  return null
+}

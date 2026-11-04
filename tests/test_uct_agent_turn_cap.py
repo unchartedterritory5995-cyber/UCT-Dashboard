@@ -494,7 +494,7 @@ def test_MIGRATION_two_first_opens_racing_on_an_old_ledger_both_succeed_and_add_
     db = str(tmp_path / "old_ledger.db")
     with contextlib.closing(sqlite3.connect(db)) as c:
         c.execute("CREATE TABLE agent_spend (id INTEGER PRIMARY KEY AUTOINCREMENT, et_day TEXT NOT NULL, request_id INTEGER,"
-                  " status TEXT NOT NULL, reserved_usd REAL NOT NULL)")
+                  " status TEXT NOT NULL, reserved_usd REAL NOT NULL, created_at INTEGER NOT NULL)")
         c.commit()
     gate = threading.Barrier(2, timeout=20)
 
@@ -785,3 +785,11 @@ def test_WORDING_no_absolute_claims_in_the_budget_code():
     src = open(budget.__file__, encoding="utf-8").read()
     for phrase in ("not a guess", "By construction", "An upper bound on one"):
         assert phrase not in src
+
+
+def test_SWEEP_has_an_index_on_status_and_age(clean):
+    import contextlib
+    with contextlib.closing(budget._connect()) as c:
+        plan = " ".join(str(tuple(r)) for r in c.execute(
+            "EXPLAIN QUERY PLAN SELECT id FROM agent_spend WHERE status='reserved' AND created_at < 1 ORDER BY id LIMIT 200"))
+    assert "idx_agent_spend_open" in plan

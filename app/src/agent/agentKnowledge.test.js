@@ -32,20 +32,22 @@ const RECORD = env('setup.record', { setup: 'Episodic Pivot', regime: 'ALL',
 describe('pure envelope → answer', () => {
   it('explain: cited passages, the pack date, the footer; never the envelope notes', () => {
     const a = answerFromSearch(SEARCH)
-    expect(a.text).toMatch(/^From UCT's playbook as of Nov 1, 2026:/)
+    expect(a.text).toMatch(/^From UCT's knowledge base \(UCT's playbook as of Nov 1, 2026\):/)
     expect(a.text).toContain('• UCT team playbook: Episodic pivot: Conditions')
-    expect(a.text).toContain("(the UCT team's own posts (dated) · TSDR)")
+    expect(a.text).toContain("(UCT KB #1 · the UCT team's own posts (dated) · TSDR)")
+    expect(a.text).toContain('(UCT KB #2 · the UCT team playbook')
     expect(a.text).toMatch(/not advice\.$/)
     expect(a.text).not.toContain('must never be echoed')
     expect(a.table.rows).toHaveLength(2)
   })
   it('explain: an empty result is said honestly; a stale pack is said', () => {
-    expect(answerFromSearch(env('knowledge.search', { passages: [] }))).toMatch(/has nothing on that yet/)
+    expect(answerFromSearch(env('knowledge.search', { passages: [] }))).toBe("No approved UCT source covers this (UCT's playbook as of Nov 1, 2026).")
     expect(answerFromSearch({ ...SEARCH, stale: true }).text).toContain('has not been refreshed recently')
   })
   it('setup: template lines, the max stop as a rule, the Setup Library link', () => {
     const a = answerFromPlaybook(PLAYBOOK)
-    expect(a.text).toMatch(/^Episodic Pivot — UCT setup template \(Gap & Catalyst, origin: Bonde\)\./)
+    expect(a.text).toMatch(/^From UCT's playbook — Episodic Pivot: UCT setup template \(Gap & Catalyst, origin: Bonde\)\./)
+    expect(a.text).toContain('Cited: template “Episodic Pivot”')
     expect(a.text).toContain('Entry: primary: opening range high')
     expect(a.text).toContain('Max stop: 8%')
     expect(a.text).toContain('Common mistakes: chasing')
@@ -165,5 +167,43 @@ describe('review #735 B1: the sign of a controlled edge is always shown', () => 
       team_archive: { label: 'undated_record', label_text: 'the record carries no refresh date; figure withheld', n: 120, method: 'archive' }, caution: 'c' }))
     expect(t).toContain('archive: the record carries no refresh date; figure withheld.')
     expect(t).not.toContain('n = 120')
+  })
+})
+
+describe('owner source-policy 2026-11-03: commentary on an excluded setup is labelled in the text the model reads', () => {
+  it('a flagged passage carries the commentary note; an unflagged one does not', () => {
+    const e = env('knowledge.search', { method: 'fts', passages: [
+      { kb_id: 61, title: 'TSDR t61: watching a cup and handle', category: 'SETUP', trader: 'TSDR', source: "the UCT team's own posts (dated)", licence: 'team_owned', excerpt: 'Watching NVDA.', mentions_excluded_setup: ['Cup with Handle'], commentary_only: true },
+      { kb_id: 62, title: 'TSDR t62: kicker note', category: 'SETUP', trader: 'TSDR', source: "the UCT team's own posts (dated)", licence: 'team_owned', excerpt: 'Kicker note.' },
+    ] })
+    const a = answerFromSearch(e)
+    expect(a.text).toContain("[team commentary that mentions Cup with Handle; not UCT's definition of it]")
+    expect(a.text.split('\n').find(l => l.includes('t62'))).not.toContain('team commentary')
+  })
+})
+
+describe('owner 2026-11-03: grounded, cited knowledge answers (the v1 answer itself)', () => {
+  const COV = { coverage: { pack_ts: 1761962400, policy_version: 3 } }
+  it('search and template carry the pack and source-policy version', () => {
+    expect(answerFromSearch({ ...SEARCH, ...COV }).text).toContain('Sources: UCT playbook pack of Nov 1, 2026 · source policy v3.')
+    const t = answerFromPlaybook(env('setup.playbook', { ...PLAYBOOK.data, source: "the UCT team's own templates", approved_by_policy: 3 }))
+    expect(t.text).toContain("Cited: template “Episodic Pivot”, the UCT team's own templates. Sources: UCT playbook pack of Nov 1, 2026 · source policy v3.")
+    expect(answerFromRecord({ ...RECORD, ...COV })).toContain('source policy v3')
+  })
+  it('no approved template: said plainly, never filled in, never the policy internals', () => {
+    for (const why of ['UCT has no approved setup template named “ZZ”',
+      "UCT's approved knowledge does not include the Cup with Handle template: origin not approved"]) {
+      expect(answerFromPlaybook(refused('setup.playbook', why), 'Cup with Handle')).toBe('UCT has no approved playbook definition for Cup with Handle.')
+      expect(answerFromRecord(refused('setup.record', why), 'Cup with Handle')).toBe('UCT has no approved evidence for Cup with Handle.')
+    }
+  })
+  it('a model-written setup argument that reads like a definition is never echoed', () => {
+    const why = 'UCT has no approved setup template named “x”'
+    expect(answerFromPlaybook(refused('setup.playbook', why), 'EP (a 10% gap on earnings, stop 3%)')).toBe('UCT has no approved playbook definition for that setup.')
+    expect(answerFromPlaybook(refused('setup.playbook', why), 'an EP is a gap with a three percent stop')).toBe('UCT has no approved playbook definition for that setup.')
+  })
+  it('other refusals keep the server sentence (ambiguity, budget, unavailable)', () => {
+    expect(answerFromPlaybook(refused('setup.playbook', 'UCT uses “flag” for more than one setup; say which one you mean'), 'flag'))
+      .toBe('UCT uses “flag” for more than one setup; say which one you mean.')
   })
 })

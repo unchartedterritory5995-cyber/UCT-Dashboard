@@ -9,7 +9,7 @@ import StudyMark from '../../../components/study/StudyMark'
 import StartCard, { StartButton } from '../../../lab/StartCard'
 import { spot } from '../../../lab/pointers'
 import d5 from '../../../lab/duo.module.css'
-import LoadFailed from '../../journal-2-0/components/LoadFailed'
+import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
 import { BLITZ_BEST_KEY, BLITZ_POINTS, BLITZ_SECS, blitzMult, buildBlitzQuestions, fetchRecallPool, fetchSpotPool, scoreAttempt } from './challengeBank'
 import { comboFeedback, endFeedback, feedbackPrefs, revealFeedback } from '../studyFeedback'
@@ -41,7 +41,7 @@ function Question({ qn, onAnswer, fetcher }) {
   )
 }
 
-export default function BlitzChallenge({ profile = null, fetcher = studyFetch, onClose }) {
+export default function BlitzChallenge({ profile = null, fetcher = studyFetch, onClose, signedOut = null }) {
   const prefs = useMemo(() => feedbackPrefs(profile), [profile])
   const [phase, setPhase] = useState('start')     // start | play | done
   const [pool, setPool] = useState(null)
@@ -105,7 +105,7 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
   const kinds = useMemo(() => { if (!pool) return null; const c = {}; pool.forEach((q) => { c[q.kind] = (c[q.kind] || 0) + 1 }); return c }, [pool])
   const bankLine = pool == null ? 'loading the bank' : pool.length ? `${pool.length} questions in today's pool` : 'no unseen charts left for now'
 
-  if (error) return <LoadFailed what="the Blitz pool" error={error} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
+  if (error) return <ChallengeError what="the Blitz pool" error={error} signedOut={signedOut} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
 
   if (phase === 'start') {
     return (
