@@ -147,6 +147,39 @@ export function parsePriceSentence(text) {
   const onlyCashtags = allCash && s.split(/[\s,]+/).filter(Boolean).every(w => /^\$/.test(w) || /^and$/i.test(w))
   if (!PRICE_CTX.test(low) && !SESSION_RE.test(low) && !onlyCashtags) return null
   if (/\b(high|low|range)\b/.test(low) && !candidates.some(c => /^(HIGH|LOW)$/.test(c.text))) return null
+  if (!strictTickerAllows(low, candidates)) return null          // STUDY switch below; OFF in production
   const m = low.match(SESSION_RE)
   return { intent: 'quote', candidates, sessionWord: m ? m[0] : null }
+}
+
+// ── STUDY: a stricter contextual ticker rule (agent-qa; owner-approved for investigation and testing ONLY) ──────────
+// Proposed rule: a word typed in LOWER case is a ticker candidate only after a clear price frame ("price of", "quote",
+// "how much is", "trading at", premarket, after hours) or when $-prefixed; UPPERCASE words the member typed still
+// count. It gates the QUOTE reading only (last close / N-session change / 52-week range are untouched). When a lowercase
+// candidate fails the rule the reader steps aside (null → the model), as the list rule above does: pricing the other
+// candidates alone would answer half the question. Measured in qa/strictTickerRuleStudy.test.js.
+//   'off'   today's behaviour — the PRODUCTION DEFAULT; nothing in the product sets this switch
+//   'frame' a clear price frame anywhere in the sentence ("nvda price" passes)
+//   'after' the lowercase word must come AFTER the frame — the rule read literally ("price of nvda" passes, "nvda price" does not)
+export const STRICT_TICKER_MODES = Object.freeze(['off', 'frame', 'after'])
+let strictTickerMode = 'off'
+export function strictTickerRule() { return strictTickerMode }
+/** Test/study hook. Returns the previous mode so a caller can restore it. */
+export function setStrictTickerRule(mode) {
+  if (!STRICT_TICKER_MODES.includes(mode)) throw new Error(`unknown strict ticker mode: ${mode}`)
+  const prev = strictTickerMode
+  strictTickerMode = mode
+  return prev
+}
+const STRICT_FRAME = /\b(?:price|prices|pricing|quote|quotes|how much is|trading at|trade at|pre[\s-]?market|premarket|pre[\s-]?mkt|after[\s-]?hours|afterhours)\b/g
+
+function strictTickerAllows(low, candidates) {
+  if (strictTickerMode === 'off') return true
+  const lowers = candidates.filter(c => c.form === 'lower')
+  if (!lowers.length) return true
+  const frames = [...low.matchAll(STRICT_FRAME)]
+  if (!frames.length) return false
+  if (strictTickerMode === 'frame') return true
+  const after = low.slice(frames[0].index + frames[0][0].length)
+  return lowers.every(c => new RegExp(`(^|[^a-z0-9$])${c.text.replace(/[.-]/g, '\\$&')}($|[^a-z0-9])`).test(after))
 }

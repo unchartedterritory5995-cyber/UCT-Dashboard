@@ -1308,6 +1308,35 @@ Decision: ladder step 12 with the halo at 0.3 (the glow turned down a touch). Co
   lab/labAbsent.test.js mirrors econHarnessAbsent). The rail still carries three reds that are NOT this branch's:
   the "DASHBOARD COCKPIT RETIREMENT" block expired 2026-10-31 (24 modules parked), doorNameCoverage.js unreachable,
   doorCoverage.js wired but still listed. Other workstreams' decisions; recorded in PR #767.
+## 2026-11-04 (morning): THE DAILY DRILL IN THE WORKBENCH LOOK (PR #792, batch 16)
+- The owner on the live site: "extremely disappointed ... it looks nothing like the work we did in the local host".
+  Diagnosis: only the three challenges and the mark had reached production; the daily drill, the reveal card and
+  the end card were still the October design. Branch feat/study-drill-workbench-look (417d9b17f3), PR #792.
+- DrillPlayer: the mark + speech bubble ask the question (d5.ask), the setup chip (skillChip) + framing line,
+  10px gold progress segments, the chart in the workbench frame with the pointer (spot dot + ray + label on
+  reveal), the verdict Stamp, the run-on (forward bars played 160 ms apart after a check), the choice cards in
+  the workbench look (ChoiceList rightLabel/wrongLabel -> green/red), the gold Check / Continue footer (red on a
+  miss), the lesson card with a gold left border and green/red verdict word. EndCard rewritten on the StartCard
+  frame: ring to n/10 with the mark INSIDE it (the centring lives on a wrapper because the mark's throb owns its
+  own transform), "n of 10" hero word, XP gem + up to two bonus gems, the week dots, badge, Confetti + Medal +
+  Chest on a perfect set, one gold Done, "Keep practising" ghost.
+- Found on the way and fixed: a correct "Yes" was tinted RED because the card label was compared to the answer by
+  exact string (the answer was a boolean / lowercase): ChoiceList.sameAnswer compares by meaning (case, spacing,
+  yes/true aside) and answerWord renders booleans as Yes/No. RevealCard.module.css is CRLF: a patch with LF
+  anchors printed "done" and changed nothing (assert the anchor).
+- Workbench: lab piece 64 (Piece64DailyDrill) = the real DrillPlayer on the sandbox; `?set=free` POSTs a free
+  session so the drill runs again after Today's set is done. Shell batch 16 entry b16-drill with 12 parts
+  (bubble, chip, prog, chart, pointer, cards, check, stamp, runon, cardcolors, reveal, end); pw_parts.py has the
+  config + a `drill_finish` step; all 12 parts have desktop + phone pictures. pw_drill.py captures
+  show/drill_{pc,phone}_{1_question,2_reveal,3_end}.png; the six were sent to the owner.
+- Tests: src/pages/study + src/lab 26 files / 171 green (--maxWorkers=2). Hygiene gate clean. eslint reds in the
+  touched files are the react-refresh only-export-components rule (helper exports beside components), the same
+  class as before this branch.
+- CI on #792: the first run of build-args/latency/rails/static FAILED in 2-4 s with no steps and no runner
+  (runner-level, not the code); re-run with `gh run rerun --failed`. Merge is the owner's (`! gh pr merge 792
+  --merge --repo unchartedterritory5995-cyber/UCT-Dashboard`); the classifier refuses the session's merges.
+- Noticed, not changed: a spot item asked "Does the firm's Capitulation setup fire" while the chip read VOLUME
+  CLIMAX (the chip is setupName(skill_id); the question text is the bank's). Owner's call on the wording.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.

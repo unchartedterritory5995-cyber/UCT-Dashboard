@@ -1031,6 +1031,71 @@ DATA_READ_ACTIONS = frozenset({
     # train2 (W2-B3 #746, live for admins): the setup description is a deterministic read of bars.daily
     "chart.describeSetup",
 })
+#: Brain response handling (owner, 2026-11-03, before activation). Planner v1 writes `reply` BEFORE any knowledge is
+#: read, so a plan holding ANY knowledge read (playbook.*, decided by action name: knowledge.frame) never serves it,
+#: not even beside a write: free text cannot be checked for a definition UCT's knowledge base never gave. The member
+#: sees UCT's grounded knowledge card (cited) and, for a write, the change's own receipt. Such a plan is never
+#: researched in the same turn either (web text never sits beside UCT's knowledge); this fixed sentence says so.
+#: Planner v2 reads first and answers from the framed result; it never passes through here.
+KNOWLEDGE_NO_WEB = ("I answered from UCT's knowledge base only: it is never combined with a web search in the same "
+                    "step. Ask the web question on its own in a new chat.")
+#: Review #768 — DEFENCE IN DEPTH, not the guarantee (owner 2026-11-04: Brain stays OFF until a retrieval-first
+#: evidence step exists; design docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md). While a playbook.* capability is
+#: offered, a planner-v1 turn is put "knowledge first" BEFORE research and sanitize (knowledge_first), and an answer's
+#: reply never streams:
+#:   - a TALK disposition (answer / clarify) holding a knowledge op becomes an apply of those knowledge ops only;
+#:   - on a "knowledge turn" (the member's words ask a playbook question: frame.wants_knowledge, the browser's own
+#:     routing words; never a message about a specific stock or chart: frame.about_a_symbol) the model's words are
+#:     never served:
+#:       an answer becomes UCT's playbook.explain read of the member's message (no extra model call), or UCT's fixed
+#:         sentence below when that read is not offered;
+#:       a clarify keeps only short plain choices (<= 40 characters, no definitional wording) under UCT's fixed text,
+#:         or becomes the read when none is left;
+#:       an apply gets the read added (its reply is then dropped by sanitize_envelope); a propose only loses its reply
+#:         (a read never rides behind a proposal card).
+#: With the flag off no knowledge capability exists and none of this runs (flag-off parity is tested).
+KNOWLEDGE_NOT_RETRIEVED = "UCT can't retrieve an approved playbook definition for that."
+KNOWLEDGE_CLARIFY = "Which one do you mean?"
+_CHOICE_CUE = re.compile(r"[:;]|\b(is|are|means|defined|definition|refers? to|consists? of|characteri[sz]ed by|when)\b", re.I)
+
+
+def knowledge_first(env, msg: str, cap_names: set, kn_ref, kn_turn: bool, compact: bool):
+    """(env, reason or None). See KNOWLEDGE_NOT_RETRIEVED's comment."""
+    if not isinstance(env, dict):
+        return env, None
+    fr = _kn_frame()
+    disp = env.get("disposition")
+    ops = [o for o in env.get("ops") or [] if isinstance(o, dict)] if isinstance(env.get("ops"), list) else []
+    kops = [o for o in ops if fr.is_knowledge_action(o.get("action")) and o.get("action") in cap_names]
+    if disp in ("answer", "clarify") and kops:
+        return {**env, "disposition": "apply", "ops": kops, "reply": "", "question": None}, "talk_with_knowledge_op"
+    if not kn_turn or kops or disp not in DISPOSITIONS or disp == "unsupported":
+        return env, None
+    op = None
+    if "playbook.explain" in cap_names and kn_ref:
+        qq = str(msg or "")[:400]
+        op = ({"action": "playbook.explain", "target": kn_ref, "args_json": json.dumps({"question": qq})} if compact
+              else {"action": "playbook.explain", "target": kn_ref, "args": {"question": qq}})
+
+    def the_read(tag):
+        if op is not None:
+            return {**env, "disposition": "apply", "ops": [op], "reply": "", "question": None}, f"{tag}:read"
+        return ({**env, "disposition": "answer", "ops": [], "reply": KNOWLEDGE_NOT_RETRIEVED, "question": None,
+                 "research": None}, f"{tag}:not_retrieved")
+
+    if disp == "answer":
+        return the_read("knowledge_turn")
+    if disp == "clarify":
+        q = env.get("question") if isinstance(env.get("question"), dict) else {}
+        choices = q.get("choices") if isinstance(q.get("choices"), list) else []
+        keep = [c for c in choices if isinstance(c, str) and 0 < len(c.strip()) <= 40 and not _CHOICE_CUE.search(c)]
+        if not keep:
+            return the_read("knowledge_turn:clarify")
+        return {**env, "reply": "", "question": {**q, "text": KNOWLEDGE_CLARIFY, "choices": keep}}, "knowledge_turn:clarify"
+    if disp == "apply" and op is not None and len(ops) < MAX_OPS:
+        return {**env, "ops": ops + [op]}, "knowledge_turn:read_added"
+    return {**env, "reply": ""}, "knowledge_turn:reply_dropped"
+
 LOCAL_RESULT_NOTE = ("[UCT showed the member this result on their screen. Its figures are shown ONLY to "
                      "the member and are never given to you: do not state, estimate or repeat any value "
                      "from it. To answer about it again, plan the same lookup.]")
@@ -1387,7 +1452,8 @@ def _research(query: str, recency: str) -> dict:
     if res.get("error"):
         return {"answer": "research unavailable right now", "citations": []}
     return {"answer": str(res.get("answer") or "")[:2400], "citations": list(res.get("citations") or [])[:6],
-            "cached": bool(res.get("cached")), "cost_usd": res.get("cost_usd")}
+            "cached": bool(res.get("cached")), "cost_usd": res.get("cost_usd"),
+            "attempts": res.get("attempts"), "usage_reported": res.get("usage_reported")}
 
 
 def _default_caller(**kwargs):
@@ -1405,11 +1471,28 @@ def _default_stream_caller(on_text: Callable[[str], None], **kwargs):
     from api.services import llm_timeouts
     client = _get_anthropic_client().with_options(
         max_retries=0, timeout=llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH))
-    with client.messages.stream(**kwargs) as stream:
-        for event in stream:
-            if getattr(event, "type", None) == "text":
-                on_text(event.text)
-        return stream.get_final_message()
+    seen: dict | None = None
+    try:
+        with client.messages.stream(**kwargs) as stream:
+            for event in stream:
+                kind = getattr(event, "type", None)
+                if kind == "text":
+                    on_text(event.text)
+                elif kind == "message_start":
+                    u = getattr(getattr(event, "message", None), "usage", None)
+                    if u is not None:
+                        seen = {"input": int(getattr(u, "input_tokens", 0) or 0),
+                                "cache_read": int(getattr(u, "cache_read_input_tokens", 0) or 0),
+                                "cache_write": int(getattr(u, "cache_creation_input_tokens", 0) or 0)}
+            return stream.get_final_message()
+    except Exception as e:
+        if seen is not None:
+            # budget.Meter settles a mid-stream failure at this input + the output ceiling, not the byte bound
+            try:
+                e.uct_usage = seen
+            except Exception:  # noqa: BLE001 -- an exception that takes no attributes keeps the worst case
+                pass
+        raise
 
 
 # ── STREAMING THE REPLY (2026-10-12, latency) ───────────────────────────────────────────────────────
@@ -1506,6 +1589,24 @@ RESEARCH_STEP_LIMIT = ("I'd need to look that up, but this request has used its 
                        "Ask it again on its own and I'll check current information.")
 RESEARCH_NOT_RUN = ("I couldn't look that up right now, so I haven't answered from memory. "
                     "Please ask again later.")
+RESEARCH_TURN_CAP = ("I'd need to look that up, but this request has reached one turn's AI budget, so I haven't. "
+                     "Ask it again on its own and I'll check current information.")
+RESEARCH_UNREAD_TURN_CAP = ("I looked that up, but reading the results would go past one turn's AI budget, so I haven't "
+                            "answered from them. Ask it again on its own and I'll check current information.")
+#: The pre-check's allowance for the research block the post-research call carries (answer <= 2400 characters,
+#: <= 6 citations). An allowance, not a bound: that call's own reservation is exact.
+RESEARCH_RESULT_BYTES = 12000
+
+
+def _next_call_worst(kw: dict, extra: list[dict]) -> float:
+    """The worst case of the follow-up call that re-sends this call's request with `extra` messages appended."""
+    from api.services.uct_agent import budget
+    return budget.worst_case_usd({**kw, "messages": list(kw.get("messages") or []) + extra})
+
+
+def _affords_next(meter, kw: dict, extra: list[dict], *also: float) -> bool:
+    """Does the per-turn cap leave room for a follow-up call (plus `also`)? No meter or no request: yes."""
+    return meter is None or meter.affords(*also, _next_call_worst(kw, extra))
 
 
 def _budget_refusal(e: BaseException) -> bool:
@@ -1888,7 +1989,7 @@ def promote_talk_reads(env: Any, msg: str | None = None, cap_names: set[str] | N
 
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
                       unselected_ids: set[str] | None = None, local_notice: str | None = None,
-                      claim_repaired: bool = False, grounded: bool = False,
+                      claim_repaired: bool = False, grounded: bool = False, knowledge_no_web: bool = False,
                       answer_only: bool = False) -> dict:
     """The server-side gate between the model and the browser. `grounded`: the reply was written from research
     results (the post-research call of a mixed request), not before any data was read."""
@@ -1921,6 +2022,14 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         return {"disposition": "clarify", "reply": "", "question": {"text": claim["question"], "choices": []},
                 "ops": [], "unsupported_category": None, "false_claim": claim["family"]}
     ops = env.get("ops") if isinstance(env.get("ops"), list) else []
+    offered_kn = lambda o: (isinstance(o, dict) and _kn_frame().is_knowledge_action(o.get("action"))   # noqa: E731
+                            and (cap_names is None or o.get("action") in cap_names))
+    if disp in ("answer", "clarify") and any(offered_kn(o) for o in ops):
+        # review #768 finding 1 (the gate's own copy of knowledge_first): a talk reply holding a knowledge read is
+        # that read, never the model's pre-read words; only the OFFERED knowledge ops are kept (TALK never mutates;
+        # flag off, a stray playbook.* op on a talk reply is dropped with the other ops, exactly as before)
+        ops = [o for o in ops if offered_kn(o)]
+        disp, env = "apply", {**env, "disposition": "apply", "reply": "", "question": None}
     if disp not in MUTATING:
         ops = []                      # TALK never mutates, whatever the model emitted
     ops = [o for o in ops if isinstance(o, dict)]
@@ -1988,6 +2097,11 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
             log.info("uct_agent data-read plan: dropped a %d-char model reply (%s)", len(reply),
                      ",".join(sorted({str(o.get("action")) for o in ops})))
         reply = ""
+    if disp in MUTATING and any(_kn_frame().is_knowledge_action(o.get("action")) for o in ops):
+        # ⛔ KNOWLEDGE PLANS (owner 2026-11-03): UCT's cited card is the answer; the model's pre-read words never are
+        if reply:
+            log.info("uct_agent knowledge plan: dropped a %d-char model reply", len(reply))
+        reply = KNOWLEDGE_NO_WEB if knowledge_no_web else ""
     if disp in MUTATING and any(o.get("action") in LOCAL_ONLY_ACTIONS for o in ops):
         # ⛔ LOCAL-RESULT BOUNDARY: the model planned a lookup whose figures it never sees, so any
         # figure in its reply is invented. UCT's own answer is the reply; this text is not shown,
@@ -2387,6 +2501,15 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         return {"envelope": nonsense_clarify(), "usage": usage, "title": None}
     pre_research = None
     notice = None
+    kn_no_web = False
+    # review #768: knowledge first (see KNOWLEDGE_NOT_RETRIEVED). Only when a playbook.* capability is in the validated
+    # manifest (the knowledge flag is on); a coach turn has its own guard (agent_coach.guard_envelope).
+    kn_caps = {n for n in cap_names if _kn_frame().is_knowledge_action(n)}
+    kn_on = bool(kn_caps) and not coach_turn          # a knowledge capability is offered (the flag is on)
+    kn_turn = kn_on and _kn_frame().wants_knowledge(msg) and not _kn_frame().about_a_symbol(
+        msg, [str(c.get("symbol") or "") for c in ((context or {}).get("charts") or []) if isinstance(c, dict)])
+    kn_ref = next((str(r.get("ref")) for r in ((context or {}).get("playbook") or [])
+                   if isinstance(r, dict) and str(r.get("ref") or "") in valid_refs), None) if kn_caps else None
     repaired = bool(repair_in)               # a repair request (or one already made here) is never repaired again
     if repair_in:
         usage["repaired"] = "browser"
@@ -2396,18 +2519,15 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # always is; the first one is not when UCT will force research on an answer (current facts).
         # (a coach turn never streams its reply: the guard must see the whole text before the member does)
         rs = (ReplyStream(lambda text: on_event({"t": "delta", "text": text}),
-                          allowed=(round_ > 0 or not forced_research) and pre_research is None and not coach_turn)
+                          allowed=((round_ > 0 or not forced_research) and pre_research is None and not coach_turn
+                                   and not kn_on))      # review #768: knowledge on → an answer never streams
               if streaming and stream_caller is not None else None)
         call = (lambda **kw: stream_caller(rs.feed, **kw)) if rs is not None else caller
         category = ("reroute" if reroute else "turn") if round_ == 0 else ("repair" if usage.get("repaired") == "server" else "after_research")
+        call_kw = dict(model=model(), max_tokens=output_ceiling(model()), system=system_blocks,
+                       output_config=output_config_for(model(), schema), messages=messages)
         try:
-            resp = _paid(
-                meter, category, call,
-                model=model(), max_tokens=output_ceiling(model()),
-                system=system_blocks,
-                output_config=output_config_for(model(), schema),
-                messages=messages,
-            )
+            resp = _paid(meter, category, call, **call_kw)
         except Exception as e:  # noqa: BLE001 — anything but a schema refusal is re-raised unchanged
             if compact or round_ != 0 or not _schema_refused(e) or _budget_refusal(e):
                 raise
@@ -2417,13 +2537,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             schema = envelope_schema(caps, unselected, compact)
             sysprompt = system_prompt(caps, unselected, compact)
             system_blocks = [{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}]
-            resp = _paid(
-                meter, "schema_retry", call,
-                model=model(), max_tokens=output_ceiling(model()),
-                system=system_blocks,
-                output_config=output_config_for(model(), schema),
-                messages=messages,
-            )
+            call_kw = dict(model=model(), max_tokens=output_ceiling(model()), system=system_blocks,
+                           output_config=output_config_for(model(), schema), messages=messages)
+            resp = _paid(meter, "schema_retry", call, **call_kw)
         usage["model_calls"] += 1
         usage["stages"]["model"].append(_ms(t_call))
         u = getattr(resp, "usage", None)
@@ -2463,23 +2579,38 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # checked like a first answer (sanitize_envelope converts a repeated claim into a clarify, never the claim).
         if round_ == 0 and not repaired and not asks_groups and isinstance(env, dict):
             claim = false_capability_claim(env, cap_names, unselected_ids)
+            extra = [{"role": "assistant", "content": text},
+                     {"role": "user", "content": _block("validation_error", {"errors": [claim["error"]]})}] if claim else []
             if claim and claim["where"] == "caps" and (meter is None or meter.calls_left() >= 1):
-                repaired = True
-                usage["repaired"] = "server"
-                usage["false_claim"] = claim["family"]
-                messages = messages + [{"role": "assistant", "content": text},
-                                       {"role": "user", "content": _block("validation_error", {"errors": [claim["error"]]})}]
-                continue
+                if not _affords_next(meter, call_kw, extra):
+                    usage["repair_skipped"] = "turn_cap"      # the plan is served as it came (sanitized as usual)
+                else:
+                    repaired = True
+                    usage["repaired"] = "server"
+                    usage["false_claim"] = claim["family"]
+                    messages = messages + extra
+                    continue
         if nl1 and round_ == 0 and not repaired and not asks_groups:
             problems = nl1_plan_problems(env, caps, valid_refs)
+            extra = [{"role": "assistant", "content": text},
+                     {"role": "user", "content": _block("validation_error", {"errors": problems})}] if problems else []
             if problems and (meter is None or meter.calls_left() >= 1):
-                # NL-1's ONE repair: the plan goes back with the server's reasons; whatever comes back is
-                # checked exactly like a first answer (sanitize, the browser's planner, policy, approval)
-                repaired = True
-                usage["repaired"] = "server"
-                messages = messages + [{"role": "assistant", "content": text},
-                                       {"role": "user", "content": _block("validation_error", {"errors": problems})}]
-                continue
+                if not _affords_next(meter, call_kw, extra):
+                    usage["repair_skipped"] = "turn_cap"      # the browser's planner refuses what it must, as usual
+                else:
+                    # NL-1's ONE repair: the plan goes back with the server's reasons; whatever comes back is
+                    # checked exactly like a first answer (sanitize, the browser's planner, policy, approval)
+                    repaired = True
+                    usage["repaired"] = "server"
+                    messages = messages + extra
+                    continue
+        if kn_on and not asks_groups and not usage.get("hidden_phrase") and isinstance(env, dict):
+            env, kn_why = knowledge_first(env, msg, cap_names, kn_ref, kn_turn, compact)
+            if kn_why:
+                usage["knowledge_first"] = kn_why
+                log.info("uct_agent knowledge first: %s", kn_why)
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
         req = env.get("research") if isinstance(env, dict) else None
         if unselected_ids and isinstance(env, dict) and isinstance(env.get("need_groups"), list) and env["need_groups"]:
             req = None                # it asked for more actions: no research on this call
@@ -2522,7 +2653,16 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                 usage["local_research_skipped"] = True
         if wants:
             from api.services.uct_agent.knowledge import frame as kn_frame      # KN-1 owner decision 5: separation
-            if kn_frame.seen(messages):
+            if not kn_frame.seen(messages) and any(
+                    isinstance(o, dict) and kn_frame.is_knowledge_action(o.get("action")) and o.get("action") in cap_names
+                    for o in (env.get("ops") or [] if env.get("disposition") in MUTATING else [])):
+                # owner 2026-11-03: a plan reading UCT's knowledge is not researched in the same turn (said in UCT's words)
+                wants = False
+                usage["research_skipped"] = "knowledge_plan"
+                kn_no_web = True
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
+            elif kn_frame.seen(messages):
                 wants = False
                 usage["research_skipped"] = "knowledge_separation"
                 if streaming and rs is not None and rs.streamed:
@@ -2536,8 +2676,14 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # has a call left and the budget admits the search itself. Otherwise NOTHING is looked up and the
             # member is told so in UCT's words — never an answer from memory presented as current.
             skip = None
+            from api.services.uct_agent import budget as _budget
             if meter.calls_left() < 1:
                 skip = ("call_limit", RESEARCH_STEP_LIMIT)
+            elif not _affords_next(meter, call_kw, [{"role": "assistant", "content": text},
+                                                    {"role": "user", "content": "r" * RESEARCH_RESULT_BYTES}],
+                                   _budget.research_worst_case_usd()):
+                # the lookup AND the call that reads it must fit this turn's budget, or nothing is looked up
+                skip = ("turn_cap", RESEARCH_TURN_CAP)
             else:
                 if streaming:
                     if rs is not None and rs.streamed:
@@ -2551,7 +2697,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                 except Exception as e:  # noqa: BLE001 — only a budget refusal is handled here
                     if not _budget_refusal(e):
                         raise
-                    skip = (e.reason, RESEARCH_NOT_RUN)
+                    skip = (e.reason, RESEARCH_TURN_CAP if e.reason == "turn_cap" else RESEARCH_NOT_RUN)
                 usage["stages"]["research"] = _ms(t_research)
             if skip:
                 wants = False
@@ -2580,15 +2726,29 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                 r = _research(str(req["query"]), str(req.get("recency") or "any"))
                 usage["stages"]["research"] = _ms(t_research)
             r = {"answer": r.get("answer", ""), "citations": list(r.get("citations") or [])}   # ledger fields never reach the model
-            usage["citations"].extend(r["citations"])
-            messages = messages + [
+            follow = [
                 {"role": "assistant", "content": text},
                 {"role": "user", "content": _block("research_results", r)
                  + "\nAnswer the member's request from these results. Set research to null (and `title` as instructed). If the results "
                    "say research is unavailable or do not cover the question, say plainly that you could not "
                    "retrieve current information; never present facts from memory as current."},
             ]
-            continue
+            if not _affords_next(meter, call_kw, follow):
+                # the pre-check used an allowance for the results; the REAL results (measured here, before the call is
+                # reserved) do not fit: the turn ends honestly instead of being refused half-way. A planned change stays.
+                usage["research_unread"] = "turn_cap"
+                if streaming and rs is not None and rs.streamed:
+                    on_event({"t": "retract"})
+                env = {**env, "reply": RESEARCH_UNREAD_TURN_CAP, "research": None, "question": None}
+                if env.get("disposition") == "clarify":
+                    env["disposition"] = "answer"
+                if env.get("disposition") not in MUTATING:
+                    env = {**env, "disposition": "answer", "ops": []}
+                pre_research = None                 # the lookup ran and is counted; nothing it returned is read
+            else:
+                usage["citations"].extend(r["citations"])
+                messages = messages + follow
+                continue
         if pre_research is not None and isinstance(env, dict):
             # The change planned before the research, with the researched answer as its reply.
             env = {**env, "disposition": pre_research["disposition"], "ops": pre_research["ops"],
@@ -2601,7 +2761,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
-        if usage["research_calls"] and isinstance(env, dict) and (env.get("disposition") != "answer" or env.get("ops")):
+        research_read = usage["research_calls"] and not usage.get("research_unread")
+        if research_read and isinstance(env, dict) and (env.get("disposition") != "answer" or env.get("ops")):
             # ⛔ Text retrieved from the web is DATA: it may inform an answer, never
             # drive a change in the same turn. A turn that researched is an answer;
             # the member asks for any change themselves afterwards.
@@ -2611,7 +2772,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    "reply": ("I looked that up, but I don't make changes based on what I find online in the same "
                              "step. Tell me exactly what you'd like changed and I'll do it.") if mutated or not env.get("reply")
                    else env.get("reply")}
-        if not answer_only and not usage["research_calls"]:
+        if not answer_only and not research_read:
             env = promote_talk_reads(env, msg, cap_names)
         if isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
@@ -2621,6 +2782,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    "reply": env.get("reply") or "I can only answer questions about this headline here."}
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
                                                              claim_repaired=bool(usage.get("false_claim")),
+                                                             knowledge_no_web=kn_no_web,
                                                              answer_only=answer_only), env), caps)
         if coach_turn:
             envelope = agent_coach.guard_envelope(envelope, context, msg, usage, history)

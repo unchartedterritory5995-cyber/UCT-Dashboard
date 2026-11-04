@@ -8,8 +8,10 @@ A source string from the Brain Pack (`knowledge_base.source`) is classified as:
 """
 from __future__ import annotations
 
+import datetime
 import json
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -121,6 +123,64 @@ def classify_record(key: str) -> dict:
         return {"state": "pending", "licence": row.get("licence") or "unresolved", "label": row.get("label") or key,
                 "reason": row.get("pending") or "not approved"}
     return {"state": "unknown", "licence": "unresolved", "label": key, "reason": "a record source the policy does not list"}
+
+
+_CLEARED_ROW_FIELDS = ("kb_id", "content_sha", "provenance_ref", "rights_review_ref", "approved_by", "approved_on")
+_SHA = re.compile(r"^[0-9a-f]{64}$")
+
+
+_APPROVER = re.compile(r"^(?=.*[A-Za-z])[A-Za-z0-9 .'@_-]{2,80}$")
+
+
+def _approved_on_ok(v) -> bool:
+    """An ISO calendar date (YYYY-MM-DD) that exists and is not in the future (UTC)."""
+    s = str(v or "").strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
+        return False
+    try:
+        d = datetime.date.fromisoformat(s)
+    except ValueError:
+        return False
+    return d <= datetime.datetime.now(datetime.timezone.utc).date()
+
+
+def cleared_row_ids() -> dict:
+    """{kb_id: content_sha} for policy.cleared_rows entries with EVERY required field present (provenance + rights
+    review) and well formed (review #751 note 3: a positive integer kb_id, an approver name, an ISO approval date not
+    in the future; delta 3: the sha256 content_sha of the text that was reviewed, as the index records it). The caller
+    serves a cleared row only while its current content_sha matches, so changed text loses its clearance. Any other
+    entry is ignored, so its row stays withheld."""
+    out = {}
+    for e in load().get("cleared_rows") or []:
+        if not (isinstance(e, dict) and all(str(e.get(f) or "").strip() for f in _CLEARED_ROW_FIELDS)):
+            continue
+        if not (_APPROVER.match(str(e["approved_by"]).strip()) and _approved_on_ok(e["approved_on"])):
+            continue
+        sha = str(e["content_sha"]).strip().lower()
+        if not _SHA.match(sha):
+            continue
+        k = e["kb_id"]
+        if isinstance(k, bool):
+            continue
+        try:
+            k = int(str(k).strip())
+        except (TypeError, ValueError):
+            continue
+        if k > 0:
+            out[k] = sha
+    return out
+
+
+MENTIONS_WITHHOLD, MENTIONS_SERVE_FLAGGED = "withhold", "serve_flagged"
+
+
+def excluded_mentions_mode() -> str:
+    """Review #751 delta 6 (owner directive 2026-11-04, withhold uncertain): an admitted row that NAMES an excluded
+    setup is withheld unless cleared ("withhold", the default and what any value but "serve_flagged" means). The owner
+    may re-admit those rows as a block, served flagged commentary_only, with "serve_flagged"."""
+    v = str((load().get("excluded_setup_mentions") or {}).get("mode") or "").strip().lower() \
+        if isinstance(load().get("excluded_setup_mentions"), dict) else ""
+    return MENTIONS_SERVE_FLAGGED if v == MENTIONS_SERVE_FLAGGED else MENTIONS_WITHHOLD
 
 
 def admitted_sources() -> list[str]:

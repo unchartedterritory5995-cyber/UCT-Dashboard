@@ -19,10 +19,13 @@ export default function ChallengeChart({ id, bars, view = null, height = 320, an
   // never runs into the price scale (the drill player's exact date range put the last candle against it)
   const shown = Math.max(20, Math.min(n, view || n))
   const onChartTap = useCallback((p) => {
-    if (!onBarTap || !p || p.time == null) return
-    const keys = [p.time, tapDayKey(p.time)].map(String)
-    const i = bars ? bars.findIndex((b) => keys.includes(String(b.t))) : -1
-    onBarTap({ time: i >= 0 ? bars[i].t : tapDayKey(p.time), index: i, bar: i >= 0 ? bars[i] : null, price: p.price })
+    if (!onBarTap || !p || !bars?.length) return
+    const keys = p.time == null ? [] : [p.time, tapDayKey(p.time)].map(String)
+    let i = keys.length ? bars.findIndex((b) => keys.includes(String(b.t))) : -1
+    // no bar under the cursor (the blank space right of the newest candle, or between bars): the nearest one by position
+    if (i < 0 && Number.isFinite(p.logical)) i = Math.max(0, Math.min(bars.length - 1, Math.round(p.logical)))
+    if (i < 0) return
+    onBarTap({ time: bars[i].t, index: i, bar: bars[i], price: p.price })
   }, [onBarTap, bars])
   if (!n) return null
   return (
