@@ -1,5 +1,5 @@
 // CAPABILITY REGRESSION (Mission 2) — the CAPABILITY INVENTORY and its COVERAGE, generated from the canonical
-// registry (lib/registry.js: the real register functions, every server-gated kind on) and from the corpus / golden
+// registry (testing/registry.js: the real register functions, every server-gated kind on) and from the corpus / golden
 // data. Coverage counts only what a test in this suite ENFORCES and that is not a recorded known gap.
 //
 // Protections per capability (docs/agent/REGRESSION-SYSTEM.md §2):

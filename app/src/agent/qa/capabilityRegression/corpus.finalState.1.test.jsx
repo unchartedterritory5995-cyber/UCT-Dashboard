@@ -1,8 +1,8 @@
-// CAPABILITY REGRESSION · corpus level (c), slice 1 of lib/finalState.SLICES (see lib/finalState.jsx).
+// CAPABILITY REGRESSION · corpus level (c), slice 1 of testing/finalState.SLICES (see testing/finalState.jsx).
 import { vi, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import { registerCatalog } from './lib/registry'
-import { finalStateSuite } from './lib/finalState'
+import { registerCatalog } from './testing/registry'
+import { finalStateSuite } from './testing/finalState'
 
 vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 await registerCatalog()

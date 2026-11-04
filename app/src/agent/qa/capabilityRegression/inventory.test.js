@@ -9,11 +9,11 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { registerCatalog, PROD_KINDS, ALL_KINDS } from './lib/registry'
+import { registerCatalog, PROD_KINDS, ALL_KINDS } from './testing/registry'
 import { shapeError, getCapability } from '../../capabilities'
-import { contractOf, coverage, canonicalOps, knownGaps } from './lib/inventory'
-import { coverageJson, coverageMd } from './lib/report'
-import { corpus, golden } from './lib/corpus'
+import { contractOf, coverage, canonicalOps, knownGaps } from './testing/inventory'
+import { coverageJson, coverageMd } from './testing/report'
+import { corpus, golden } from './testing/corpus'
 import backlog from './data/regressionEntries.json'
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))

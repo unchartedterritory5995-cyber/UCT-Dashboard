@@ -1,5 +1,5 @@
 // CAPABILITY REGRESSION · corpus level (c) FINAL STATE — every phrasing through the REAL panel, with the faithful
-// scripted model (lib/harness.jsx) answering the intent's canonical plan only with the actions it was sent. Asserted:
+// scripted model (testing/harness.jsx) answering the intent's canonical plan only with the actions it was sent. Asserted:
 // the final board / indicators / canonical reads and writes / receipt, proposal and refusal STRUCTURE. Never prose.
 // The intents are dealt round-robin into SLICES (corpus.finalState.<k>.test.jsx) so the Agent CI shards share them.
 import { describe, it } from 'vitest'

@@ -3,9 +3,9 @@
 // plan (a wrong deterministic reading runs with no model to catch it); `det: "required"` phrasings must be claimed.
 // An unclaimed optional phrasing is the model's (levels a and c cover it).
 import { describe, expect } from 'vitest'
-import { registerCatalog } from './lib/registry'
-import { corpus, phrasingsOf, gapIt, deterministicReading, equivalent } from './lib/corpus'
-import { BOARDS } from './lib/harness'
+import { registerCatalog } from './testing/registry'
+import { corpus, phrasingsOf, gapIt, deterministicReading, equivalent } from './testing/corpus'
+import { BOARDS } from './testing/harness'
 import { makeBoard } from '../../__fixtures__/board'
 
 await registerCatalog()

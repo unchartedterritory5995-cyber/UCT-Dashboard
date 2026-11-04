@@ -8,8 +8,8 @@ file is changed. Suite: `app/src/agent/qa/capabilityRegression/` + `tests/test_u
 
 | Part | File(s) | What it guarantees |
 |---|---|---|
-| Canonical registry | `lib/registry.js` | The catalog is built by the REAL register functions (`registerBuiltins` + `registerServerGatedBuiltins`), under production's data kinds (corpus) and with every gated kind on (inventory, so a dark capability is inventoried the day it ships). No hand list. |
-| Capability inventory + coverage | `inventory.test.js`, `lib/inventory.js`, `coverage/coverage.json`, `coverage/COVERAGE.md` | Per capability: which of the ten protections exist (§2). The report is generated and the test fails when it is stale. |
+| Canonical registry | `testing/registry.js` | The catalog is built by the REAL register functions (`registerBuiltins` + `registerServerGatedBuiltins`), under production's data kinds (corpus) and with every gated kind on (inventory, so a dark capability is inventoried the day it ships). No hand list. |
+| Capability inventory + coverage | `inventory.test.js`, `testing/inventory.js`, `coverage/coverage.json`, `coverage/COVERAGE.md` | Per capability: which of the ten protections exist (§2). The report is generated and the test fails when it is stale. |
 | New-capability rail | `inventory.test.js` rail 1, `data/regressionEntries.json` | A capability with no corpus intent / golden workflow and no backlog entry fails the build. A backlog entry added after the initial inventory needs `### BACKLOG:<name>` in `COMPATIBILITY-DECISIONS.md`. A covered capability must leave the backlog. |
 | Contract rail | rail 2, `coverage/contract.json` | Removing a capability, `risk` confirm → local, `undo` exact → none, irreversible → reversible, or a query becoming a change needs `### CAP:<name>`. |
 | Arg validity | rail 3 | Every canonical op in the data passes the registry's own `shapeError`. |
@@ -23,7 +23,7 @@ file is changed. Suite: `app/src/agent/qa/capabilityRegression/` + `tests/test_u
 
 Older scripted-model tests return their plan whatever the request carried. That hides a routing miss, because the
 browser re-validates ops against the full registry, so an action the model was never shown still runs in the test.
-`lib/harness.jsx faithful()` returns the canonical plan only when every canonical action is in `body.capabilities`.
+`testing/harness.jsx faithful()` returns the canonical plan only when every canonical action is in `body.capabilities`.
 Otherwise it asks for the missing groups (`need_groups`, the real bounded reroute). If they are still missing after
 the reroute, it plans nothing. The fixture server serves the canonical reads with synthetic or empty data:
 `instrument.resolve` following instruments.py §4.7.5, alerts with read-back, a screener catalog, and `bars.daily`
@@ -58,7 +58,7 @@ exposure.
 
 ## 3. Corpus levels
 
-* **(a) routing**: `lib/route.js` builds the request exactly as useAgent's legacy routed request does (the Charts
+* **(a) routing**: `testing/route.js` builds the request exactly as useAgent's legacy routed request does (the Charts
   catalog, server limit 60, budget 55, member names, lexicon typo readings, the last change's actions). Every needed
   action must be present and its group must not be in `overBudget`. With `ownWords`, the group must also be named by
   the message's own words, because reaching it through the unrecognised-message budget fill is luck.

@@ -3,9 +3,9 @@
 // recorded decision (docs/agent/COMPATIBILITY-DECISIONS.md; baseline.lock.json).
 import { describe, vi, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import { registerCatalog } from './lib/registry'
-import { corpus, golden, gapIt } from './lib/corpus'
-import { replay } from './lib/run'
+import { registerCatalog } from './testing/registry'
+import { corpus, golden, gapIt } from './testing/corpus'
+import { replay } from './testing/run'
 
 vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 await registerCatalog()
