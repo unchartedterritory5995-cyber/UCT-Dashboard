@@ -1533,6 +1533,10 @@
   },
   "periodchange": {
    "data": 0.9
+  },
+  "tickercharts": {
+   "workspace": 1,
+   "chartGrid": 0.8
   }
  }
 }

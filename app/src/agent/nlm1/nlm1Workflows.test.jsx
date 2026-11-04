@@ -1,7 +1,13 @@
 // NLM-1 D2 + D3 — multi-step plans with references, and conversational context, replayed through the REAL panel with
-// NLM-1 ON (both keys) and asserted on the FINAL WORKSPACE STATE and on Undo restoring it exactly
-// (nlm1/baseline/workflows.json, the capreg golden-workflow format). No model call anywhere (modelTurns 0).
-// NLM1_WF_MODE=off replays the same cases with NLM-1 OFF (the v1 baseline measurement; not a gate).
+// NLM-1 ON (both keys) and asserted on the FINAL WORKSPACE STATE and on Undo restoring it exactly (the capreg
+// golden-workflow format). No model call anywhere (modelTurns 0).
+//   nlm1/baseline/workflows.json   the first set (D2 18, D3 22)
+//   nlm1/baseline/workflows2.json  the GENERALISATION set (AUDIT's sealed-set categories a–f; written after them)
+// NLM1_WF_MODE=off      the same cases with NLM-1 OFF (the v1 baseline measurement; not a gate)
+// NLM1_WF_MODE=planner  PLANNER-ASSISTED: each step with a `canonical` plan gets that plan as the model's answer (scripted,
+//                       faithful) and its `routes` are checked against routing v2 — a pass means routing + binding +
+//                       executor are right and only a deterministic reader is missing; a fail means something is WRONG
+// NLM1_WF_SET=1 | 2     one set only.
 import { describe, it, vi, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
@@ -9,20 +15,30 @@ import { replay } from '../qa/capabilityRegression/testing/run'
 import { pinClock } from '../qa/capabilityRegression/testing/clock'
 import { gapIt } from '../qa/capabilityRegression/testing/corpus'
 import data from './baseline/workflows.json'
+import data2 from './baseline/workflows2.json'
 
 pinClock()
 vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 await registerCatalog()
 afterEach(() => { vi.restoreAllMocks(); cleanup() })
 
-const OFF = globalThis.process?.env?.NLM1_WF_MODE === 'off'
+const MODE = globalThis.process?.env?.NLM1_WF_MODE || 'on'
+const OFF = MODE === 'off'
+const PLANNER = MODE === 'planner'
 const only = globalThis.process?.env?.NLM1_WF_ONLY || ''
 
-describe(`NLM-1 workflows (${OFF ? 'flag OFF — baseline' : 'flag ON'})`, () => {
-  for (const w of data.workflows) {
+/** planner mode: the canonical plan answers the step; the model-turn bound no longer applies to that step */
+const plannerSteps = (steps) => steps.map(s => (s.canonical ? { ...s, model: { ops: s.canonical.ops }, routes: s.canonical.routes, expect: { ...s.expect, modelTurns: undefined } } : s))
+
+describe(`NLM-1 workflows (${OFF ? 'flag OFF — baseline' : PLANNER ? 'flag ON, planner-assisted' : 'flag ON'})`, () => {
+  const set = globalThis.process?.env?.NLM1_WF_SET || 'all'
+  let all = [...(set === '2' ? [] : data.workflows), ...(set === '1' ? [] : data2.workflows)]
+  if (PLANNER) all = all.filter(w => w.steps.some(s => s.canonical))
+  for (const w of all) {
     if (only && !w.id.startsWith(only)) continue
     // a recorded gap must fail exactly as recorded (capreg gapIt) — with NLM-1 on; flag-off baseline runs every case plainly
-    const { run, tag } = OFF ? { run: it, tag: '' } : gapIt(w.gap)
-    run(`${w.id}${tag}`, async () => { await replay({ ...w, seed: { ...(w.seed || {}), nlm1: !OFF } }, w.id) }, 60000)
+    const { run, tag } = OFF || PLANNER ? { run: it, tag: '' } : gapIt(w.gap)
+    const steps = PLANNER ? plannerSteps(w.steps) : w.steps
+    run(`${w.id}${tag}`, async () => { await replay({ ...w, steps, seed: { ...(w.seed || {}), nlm1: !OFF } }, w.id) }, 60000)
   }
 })

@@ -31,7 +31,10 @@ function aimAt(op, chartRef) {
 }
 
 /** → { ops } | { ask } | null */
-export function planCreatedReference(text, host) {
+// `bind`: the created-object binder (Track A's bindCreated today; created-binding-v2 when it lands — same contract:
+// (ops, text, host) → { ops } | { ask } | null). This module hands it UNTARGETED ops only (a target is filled only where it
+// is certain: the workspace), so it never depends on a binder re-aiming an op the plan aimed at an existing chart.
+export function planCreatedReference(text, host, { bind = bindCreated } = {}) {
   try {
     const t = String(text || '')
     const both = BOTH.test(t)
@@ -46,7 +49,7 @@ export function planCreatedReference(text, host) {
       const list = (() => { try { return kind?.list?.(host) || [] } catch { return [] } })()
       return list.length === 1 && getCapability(o.action)?.target === 'workspace' ? { ...o, target: list[0].ref } : o
     })
-    const bound = bindCreated(filled, words, host)
+    const bound = bind(filled, words, host)
     if (!bound) return null
     if (bound.ask) return { ask: bound.ask }
     let ops = bound.ops

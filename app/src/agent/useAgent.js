@@ -42,6 +42,7 @@ import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } fro
 import { pickRouter, routingV2Active } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
 import { nlm1Rewrite, createReferents } from './nlm1/followups'   // NLM-1 D2/D3 (same two keys)
 import { planCreatedReference } from './nlm1/plans'                 // NLM-1 D2 (same two keys), on Track A's bindCreated
+import { resolveFollowUpOps, snapshotOf, rescopeOrdinal } from './nlm1/followupOps'   // NLM-1 D2/D3.1 (same two keys)
 import { doItForMe } from './capabilities/guide'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
@@ -1652,7 +1653,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const idsBefore = undoRef.current.map(e => e.id)
       // ⭐ NLM-1 D2 (dark): a step that refers to the chart IT creates ("…, add a chart for AMD and put the 21 ema on it, …")
       const made = routingV2Active() && step.kind === 'fast' ? planCreatedReference(step.text, host) : null
-      const r = made?.ops ? { ops: made.ops } : resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
+      // D2.1 (dark): "…, then make the second one weekly" — counted among the charts this request's grid step made
+      const ord = !made?.ops && routingV2Active() ? rescopeOrdinal(step.text, { host, order: working || [] }) : null
+      const r = made?.ops ? { ops: made.ops } : ord?.ops ? { ops: ord.ops } : resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
       if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; prevIds = []; continue }
       if (r.note) push({ role: 'outcome', text: r.note })
       if (r.say || !r.ops?.length) { stop(i, String(r.say || 'there was nothing to do there').replace(/[.]+$/, '')); return }
@@ -1741,12 +1744,45 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // (readers, planner, policy, runtime, receipts, grouped Undo) is unchanged. The transcript keeps the member's words.
       if (routingV2Active()) {
         if (!answering && !pendingRef.current) {
+          // D2/D3.1: "make the first one weekly" right after a request that CREATED several charts — counted among them
+          const ord = rescopeOrdinal(text, { host, order: createdRef.current?.refs || [] })
+          if (ord?.ops) {
+            mark('nlm1:ordinal', ord.rule)
+            referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
+            referentsRef.current.note(memoryRef.current.currentTurn(), text)
+            lastActionsRef.current = ord.ops.map(o => o.action)
+            return await execute(ord.ops, { path: 'fast', mode: 'apply', member: text, voice })
+          }
           const last = memoryRef.current?.lastTurn?.(epochOf(host))
           // read as the panel reads it: "the new one" is "it" bound to the chart just created (asSubjectWords)
           const reads = (t0) => { const t = asSubjectWords(t0, createdRef.current?.refs || null).text; try { return [fastParse(t, { host }), multiChartPlan(t, { host }), planCompound(t, { host })].some(r => r && r.kind !== 'say') } catch { return false } }
-          const rw = nlm1Rewrite(text, { prev: last ? referentsRef.current.textOf(last.id) : null, claims: reads, originalClaimed: reads(text) })
+          const typed = reads(text)
+          const rw = nlm1Rewrite(text, { prev: last ? referentsRef.current.textOf(last.id) : null, claims: reads, originalClaimed: typed })
           if (rw) { mark('nlm1:rewrite', rw.rule); text = rw.text }
+          // D2/D3.1 (nlm1/followupOps.js): a follow-up no reader takes, as OPERATIONS — chart referent sets (positions,
+          // ordinals, quantifiers), repeat / additive copies of the last request, "back to" inversion from the snapshot
+          // taken before it, removal by position. Its ops go through the same execute (policy, runtime, receipts, Undo).
+          const conv = (() => { try { return resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochOf(host) }) } catch { return null } })()
+          if (!rw && !typed && !conv) {
+            const fo = resolveFollowUpOps(text, { host, memory: memoryRef.current, epoch: epochOf(host), created: createdRef.current?.refs || [],
+              before: last ? referentsRef.current.stateBefore(last.id) : null })
+            if (fo?.say) {
+              referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
+              push({ role: 'agent', text: fo.say })
+              record({ member: text, outcome: fo.say, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+              return
+            }
+            if (fo?.ops) {
+              mark('nlm1:followup-ops', fo.rule)
+              referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
+              referentsRef.current.note(memoryRef.current.currentTurn(), text)
+              lastActionsRef.current = fo.ops.map(o => o.action)
+              return await execute(fo.ops, { path: 'fast', mode: 'apply', member: text, voice })
+            }
+          }
         }
+        // the board as THIS message found it (the "back to …" inversion of a later message reads it)
+        referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
         referentsRef.current.note(memoryRef.current.currentTurn(), text)
       }
       // ⭐ NL-1 (owner 2026-10-16; flag off by default): the MODEL reads the request. Only EXACT Undo /

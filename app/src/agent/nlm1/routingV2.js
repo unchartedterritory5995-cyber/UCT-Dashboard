@@ -184,8 +184,15 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   const evidenced = sel.ranked.filter(([, s]) => s >= k.EVID_FLOOR).map(([g]) => g).sort(bySize)
   const best = sel.ranked.find(([g]) => g !== 'charts')
   const lead = sel.uncertain && best && best[1] >= k.STRONG_FLOOR ? [best[0]] : []
+  // D2.1: v1's own hits are packed smallest-first (v1's order) while they all FIT; when they don't, the cut falls on the
+  // least evidence, never simply on the biggest group ("add a chart for AMD then add RSI and MACD to it": charts, the
+  // group the request most plainly needs, was cut for being the largest)
+  const v1Own = (sel.v1 || []).filter(id => !pinned.includes(id))
+  const pinnedSize = pinned.reduce((a, id) => a + sizeOf(id), counts.get(null) || 0)
+  const v1Fits = v1Own.reduce((a, id) => a + sizeOf(id), pinnedSize) <= budget
+  const v1Order = v1Fits ? [...v1Own].sort(bySize) : [...v1Own].sort((a, b) => ((scoreOf.get(b) || 0) - (scoreOf.get(a) || 0)) || bySize(a, b))
   const own = !sel.matched ? [] : sel.uncertain ? ['charts', ...lead]
-    : [...(sel.v1 || []).filter(id => !pinned.includes(id)).sort(bySize),
+    : [...v1Order,
       // D1.3 (bytes): on a message v1's words recognised, v2 ADDS a group to the request only on evidence ≥ MATCHED_ADD
       ...(sel.v1Matched ? sel.strong.filter(g => (scoreOf.get(g) || 0) >= k.MATCHED_ADD) : sel.strong)]
   // 4. weak

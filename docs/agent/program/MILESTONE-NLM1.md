@@ -40,14 +40,14 @@ Hooks in production files, all gated: `useAgent.js` (`pickRouter` at the two rou
 
 Held-out (sealed set, scored independently by AUDIT; aggregates only):
 
-| Metric | v1 | D1 `9a912420cc` | D1.1 `09512d5def` | D1.2 `92893dca0f` | D1.3 (this head) |
+| Metric | v1 | D1 `9a912420cc` | D1.1 `09512d5def` | D1.2 `92893dca0f` | D1.3 `799d3419a5` |
 |---|---|---|---|---|---|
-| Raw availability (needed actions sent) | 95.3% | 93.7% | 97.2% | **96.8%** | pending AUDIT re-score |
-| Own-groups recall (router's own selection) | 78.2% | 90.9% | 94.3% | **95.0%** | pending |
-| Broad fallback | 18.0% | 3.2% | 0.6% | **0.6%** | pending |
-| Avg actions per request (budget 55) | 24.9 | 31.5 | 36.8 | 28.9 | pending |
-| Avg / largest manifest bytes | 24.5 / 55.4 KB | n/a | n/a | 28.2 / 59.3 KB | pending (largest is now capped at v1's own fallback request) |
-| Capabilities below v1 | (none) | 5 | 1 (screener.run) | 1 (news.latest, ticker asks without "news") | pending; dev shows none |
+| Raw availability (needed actions sent) | 95.3% | 93.7% | 97.2% | 96.8% | **97.8%** |
+| Own-groups recall (router's own selection) | 78.2% | 90.9% | 94.3% | 95.0% | **95.9%** |
+| Broad fallback | 18.0% | 3.2% | 0.6% | 0.6% | **0.6%** |
+| Avg actions per request (budget 55) | 24.9 | 31.5 | 36.8 | 28.9 | n/a |
+| Avg / largest manifest bytes | 24.5 / 55.4 KB | n/a | n/a | 28.2 / 59.3 KB | **27.9 KB / = v1's largest** |
+| Capabilities below v1 | (none) | 5 | 1 (screener.run) | 1 (news.latest, ticker asks without "news") | **none**; nothing v1 recalls is missed |
 
 D1.3 fixes, all structural: composite entities (a ticker plus an information-seeking ask points at data/news; a ticker plus a period-change shape points at data), and a byte budget so no request exceeds v1's own fallback request for the manifest.
 
@@ -76,16 +76,43 @@ Prompt-size delta (D1.2): +5.1 KB of manifest JSON per turn on the corpus (+25%)
 
 Acceptance: D2 needs ≥ 15 golden multi-step / cross-turn workflows passing with grouped Undo restoring exactly: **16** (D2-01..12, 14..17). D3 needs ≥ 20 cross-turn cases: **22**.
 
+#### D2/D3.1: mechanisms, after AUDIT's sealed-set result (17/37 flag on, 14/37 off at `799d3419a5`)
+
+AUDIT's finding was that the D2/D3 rewriter generalised poorly beyond the phrasings it was built on. D2/D3.1 replaces phrase templates with mechanisms (`nlm1/followupOps.js`, plus same-request normalisations in `nlm1/followups.js`):
+
+| Mechanism | What it does |
+|---|---|
+| Chart referent sets | A target phrase resolves to charts from the live board's geometry: positions ("top right", "the bottom two", "the left two"), quantifiers ("the other three", "the other two on the bottom", "the others", "both", "all of them"; a count that doesn't match gives no reading), ordinals (the charts the last request created, in creation order, else board order), tickers, and lists of these |
+| Repeat / additive | The last committing request's ops (what the runtime committed) re-aimed at each chart of the set; an indicator said as an addition ("and macd too") goes on the charts the last request touched |
+| Inversion | "back to <value>" sets that value; "back", "back to the previous …" or "put the first one back" restore the value from before the last request (a per-turn snapshot of each chart's symbol and timeframe), only for what that request changed |
+| Removal by position | "remove it from the right one" / "take it off the bottom two": the indicator the conversation last added, found by what it is (defId + length) on each chart; more than one match means a question, never a guess |
+| Ordinals over created charts | "make the second one weekly" after (or within) a request that made several charts: counted among those charts (main path and `runCompound`'s working set) |
+| Same-request normalisation | Multi-ticker creation ("AMD and QQQ charts, both with RSI" / "with the 21 ema on each") becomes the grid and each-with readers' form; a clause's "add X to it" never crosses into the clause before it; a verb is distributed over a coordinated indicator list ("put RSI and MACD on it") |
+
+Generalisation set (`nlm1/baseline/workflows2.json`: 23 cases in AUDIT's categories a–f, written after them, no sealed texts seen), plus the first set (40):
+
+| Mode | First set (40) | Generalisation set (23) | Total |
+|---|---|---|---|
+| Flag OFF (with Track A) | 23/40 | 3/23 | 26/63 |
+| Flag ON, before D2/D3.1 | 38/40 + 2 gaps | 4/23 | n/a |
+| **Flag ON, D2/D3.1** | **38/40 + 2 gaps** | **22/23 + 1 gap** | **60/63 + 3 recorded gaps** |
+
+By category, flag ON: (a) in-plan 4/5 + 1 gap, (b) quantifiers/positions 6/6, (c) revert 5/5, (d) additive 4/4, (e) removal by position 2/2, (f) Undo after a follow-up removal 1/1. (f) works flag-on; flag-off it never gets that far (the removal goes to the model), so there is nothing to route to Track A.
+
+**(a) Decision: in-plan multi-step is handled deterministically where the readers can take the sentence's explicit form, and otherwise by the planner.** `NLM1_WF_MODE=planner` (planner-assisted measurement) answers each (a) step with its scripted canonical plan through the real panel and checks the step's routes under routing v2. Result: 4/5, and every canonical plan's actions are routed. The one failure (G-a3) executes correctly and fails only at its Undo (NLM1-G1). Two routing fixes came out of this measurement: when v1's own groups overflow the budget, the cut follows evidence rather than size (charts was being cut for being the largest), and two or more tickers plus "charts" points at workspace and chartGrid.
+
+**Track A dependency (created-binding v2).** `nlm1/plans.js` hands the binder only UNTARGETED ops and takes the binder as a parameter (`{ bind }`), so it can sit on created-binding-v2 unchanged if v2 keeps the `(ops, text, host) → {ops}|{ask}|null` contract. No flag-ON pass depends on re-targeting an explicitly targeted op. The flag-OFF +4 that Track A gave on the first set does go through that re-targeting (flagged in its review).
+
 Recorded gaps (capreg `gapIt`: each must fail exactly as recorded, so a fix is noticed):
-- **NLM1-G1** (D2-13): after the new chart's later changes are undone exactly, the creation's own Undo is refused ("Workspace has changed since I made that change"). The new chart's stored settings aren't byte-identical after those undos, so the workspace fingerprint no longer matches. Same with the flag off. Runtime exact-undo area (#771), reported to AUDIT.
+- **NLM1-G1** (D2-13, G-a3): after the new chart's later changes are undone exactly, the creation's own Undo is refused ("Workspace has changed since I made that change"). The new chart's stored settings aren't byte-identical after those undos, so the workspace fingerprint no longer matches. Same with the flag off. Runtime exact-undo area (#771), reported to AUDIT.
 - **NLM1-G2** (D2-18): an indicator added on a chart the same request created (through its alias, the deferred step) isn't found by the conversation follow-up reader, so the next "make it orange" has no referent. Same in two separate turns with the flag off (it goes to the model). Conversation memory × CG-37, reported to AUDIT.
 
-Unit coverage: `nlm1/nlm1Followups.test.js` (rewriter rules, never-guess cases, tracker bounds) and `nlm1/nlm1Routing.test.js` (vocabulary validity; the vocabulary is a supplement: the index alone recognises ≥ 75% of the dev set; index generated from the registry; entity typing; `NLM1_ROUTER`).
+Unit coverage: `nlm1/nlm1FollowupOps.test.js` (referent sets, repeat / additive, inversion, removal, ordinals, on a fake 2×2 board), `nlm1/nlm1Followups.test.js` (rewriter and same-request rules, never-guess cases, tracker bounds) and `nlm1/nlm1Routing.test.js` (vocabulary validity; the vocabulary is a supplement: the index alone recognises ≥ 75% of the dev set; index generated from the registry; entity typing; `NLM1_ROUTER`).
 
 ## 4. Activation checklist (needs the OWNER's approval plus a PAID eval; nothing here is authorised yet)
 
 1. AUDIT's held-out re-score of the frozen D1.x head: raw availability ≥ 95.3% (v1), own-groups ≥ 90%, no capability below v1.
-2. Track A's `agent/w2/live-train4-fixes` final and merged; NLM-1 re-merged on it; gates re-run (identity fingerprint re-frozen for the new base, only if routing inputs changed).
+2. Track A's created-binding-v2 (the rework of `7be34d2dd9`, which failed review) final and merged; NLM-1 re-merged on it (`plans.js` takes the binder as a parameter); gates re-run (identity fingerprint re-frozen for the new base, only if routing inputs changed).
 3. Owner/peer review of `nlm1/vocabulary.json` (marked draft) and of the rewrite rules in `nlm1/followups.js`.
 4. Gaps NLM1-G1 / G2 triaged by their owners (they also affect the flag-off product).
 5. Paid eval (separate owner authorisation, `EVAL.md`): the real planner model with routing v2. Measure task success on the capreg corpus and live phrasings, need_groups reroute rate, input tokens and $ per turn against the #785 per-turn cap (expected +10–25% manifest bytes), and confirm the model handles the larger mean routed set.
@@ -103,4 +130,5 @@ Unit coverage: `nlm1/nlm1Followups.test.js` (rewriter rules, never-guess cases, 
 | `09512d5def` | D1.1: weak evidence, critical groups, expansion, undo signal, typos, dev metrics |
 | `92893dca0f` | D1.2: percent-move screens, best group leads under doubt, size trimmed |
 | `344a9777b3` | D2/D3: referent tracker + rewriter, created-reference plans on `bindCreated`, request-level Undo grouping; D4 |
-| (this commit) | D1.3: ticker + info-seeking / period-change entities, byte budget = v1 fallback size; cost analysis |
+| `799d3419a5` | D1.3: ticker + info-seeking / period-change entities, byte budget = v1 fallback size; cost analysis |
+| (this commit) | D2/D3.1: follow-ups as operations (referent sets, repeat / additive, inversion, removal by position, ordinals over created charts), same-request normalisation, planner-assisted mode, generalisation set; routing: evidence-ordered cut, multi-ticker charts entity |

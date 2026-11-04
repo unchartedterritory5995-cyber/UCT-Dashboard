@@ -22,6 +22,23 @@ describe('D2 same-request references', () => {
   })
 })
 
+describe('D2.1 same-request mechanisms', () => {
+  it('multi-ticker creation → the grid / each-with readers\' own form', () => {
+    expect(rewriteSameRequest('add AMD and QQQ charts, both with RSI')?.text).toBe('open charts for AMD and QQQ, each with RSI')
+    expect(rewriteSameRequest('give me AMD and META charts with the 21 ema on each')?.text).toBe('open charts for AMD and META, each with the 21 ema')
+    expect(rewriteSameRequest('pull up NVDA, AMD and AVGO charts')?.text).toBe('open charts for NVDA, AMD and AVGO')
+    expect(rewriteSameRequest('add AMD and QQQ charts and make the second one weekly')?.text).toBe('open charts for AMD and QQQ, then make the second one weekly')
+  })
+  it('a clause\'s "add X to it", never crossing into the clause before it', () => {
+    expect(rewriteSameRequest('add a chart for AMD then add MACD to it')?.text).toBe('add a chart for AMD then put MACD on it')
+  })
+  it('a verb distributed over a list of indicators — only when every conjunct is one', () => {
+    expect(rewriteSameRequest('add a chart for AMD then add RSI and MACD to it')?.text).toBe('add a chart for AMD then put RSI on it and put MACD on it')
+    expect(rewriteSameRequest('add a chart for AMD and put RSI and MACD on it')?.text).toBe('add a chart for AMD and put RSI on it and put MACD on it')
+    expect(rewriteSameRequest('put TSLA and MACD on it')).toBeNull()
+  })
+})
+
 describe('D3 referents across turns', () => {
   it('slots of a request', () => {
     expect(slotsOf('put TSLA on the right chart')).toMatchObject({ tickers: ['TSLA'], pos: 'right', tf: null, creates: false })

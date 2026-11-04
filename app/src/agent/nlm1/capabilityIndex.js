@@ -194,6 +194,8 @@ export function entityTokens(raw) {
   // last month", "how has X done this week") — both the stock's data / news, however casually said
   if (ticker && INFO_SEEK.test(s)) out.push('tickerinfo')
   if (ticker && PERIOD_CHANGE.test(s)) out.push('periodchange')
+  // D2.1: two or more tickers AND "charts" — new charts for them (the workspace's add, or a grid)
+  if (tickerWordsOf(s).length >= 2 && /\bcharts?\b/i.test(s)) out.push('tickercharts')
   return out
 }
 const INFO_SEEK = /\b(?:what(?:'s|’s| is| are)? (?:out|new|up|happening|going on)|(?:being |people )?(?:said|saying|say|talking|chatter|buzz)|happening|going on|hear(?:d|ing)?|read(?:ing)?(?: up)?|latest|update[sd]?|any word|scoop|story|stories|tell me (?:about|what)|know about|catch up|why (?:is|did|was))\b/i

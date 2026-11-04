@@ -49,14 +49,21 @@ export function slotsOf(text) {
 const MAX_TURNS = 24
 export function createReferents() {
   const turns = new Map()                 // member turn id → the text it was read as
+  const states = new Map()                // member turn id → the board's charts (symbol, timeframe) when it STARTED
   return {
+    noteState(turnId, snap) {
+      if (turnId == null || !snap) return
+      states.set(turnId, snap)
+      while (states.size > MAX_TURNS) states.delete(states.keys().next().value)
+    },
+    stateBefore(turnId) { return states.has(turnId) ? states.get(turnId) : null },
     note(turnId, text) {
       if (turnId == null) return
       turns.set(turnId, String(text || ''))
       while (turns.size > MAX_TURNS) turns.delete(turns.keys().next().value)
     },
     textOf(turnId) { return turns.has(turnId) ? turns.get(turnId) : null },
-    clear() { turns.clear() },
+    clear() { turns.clear(); states.clear() },
   }
 }
 
@@ -88,9 +95,36 @@ const withTf = (text, prevTf, tf) => (!tf ? text : prevTf ? text.replace(new Reg
  */
 export function rewriteSameRequest(text) {
   const { s } = clean(text)
-  // "add rsi to it / to the new one / onto that chart" → "put rsi on …" (the reader's own phrasing)
-  const onto = /^(?:add|throw|slap|stick|load) (.+?) (?:to|onto) (it|that one|that chart|the new one|the new chart|the one you just added)$/i.exec(s)
+  // D2.1 MULTI-TICKER CREATION, canonical: "<verb> AMD and QQQ charts[, both with RSI | with the 21 ema on each | and …]"
+  // → "open charts for AMD and QQQ[, each with … | , then …]" — the grid reader's and the each-with reader's own form
+  const mt = /^(?:(?:please|can you|could you|would you)\s+)?(?:add|open|give me|show me|pull up|bring up|create|make|get me|set up|i want|i'd like|lemme see)\s+(?:(?:two|three|four|five|six|\d)\s+)?(?:new\s+|separate\s+)?(\$?[A-Z]{1,5}(?:\s*(?:,|and|&)\s*\$?[A-Z]{1,5})+)\s+charts?\b\s*(.*)$/.exec(s)
+  if (mt) {
+    const list = mt[1].replace(/\$/g, '').split(/\s*(?:,|and|&)\s*/).filter(Boolean)
+    const tickers = list.length > 2 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list.join(' and ')
+    const tail = mt[2].trim()
+    let rest = null
+    let m
+    if (!tail) rest = ''
+    else if ((m = /^,?\s*(?:both|each|all(?: of them)?)\s+(?:with|having|getting)\s+(.+)$/i.exec(tail))) rest = `, each with ${m[1]}`
+    else if ((m = /^,?\s*with\s+(.+?)\s+(?:on|for|in)\s+(?:each|both|all|every one)(?: of them| one| chart)?$/i.exec(tail))) rest = `, each with ${m[1]}`
+    else if ((m = /^,?\s*with\s+(.+)$/i.exec(tail))) rest = `, each with ${m[1]}`
+    else if ((m = /^,?\s*(?:and|then|and then)\s+(.+)$/i.exec(tail))) rest = `, then ${m[1]}`
+    if (rest != null) return { text: `open charts for ${tickers}${rest}`, rule: 'multi-ticker-create' }
+  }
+  // "add rsi to it / to the new one / onto that chart" → "put rsi on …" (the reader's own phrasing) — the whole message,
+  // or (D2.1) one clause of it ("add a chart for AMD then add RSI and MACD to it")
+  // (the "what" never crosses a clause: no comma / "then" / another add verb inside it)
+  const WHAT = '((?:(?!\\b(?:then|add|throw|slap|stick|load|and then)\\b)[^,;])+?)'
+  const onto = new RegExp(`^(?:add|throw|slap|stick|load) ${WHAT} (?:to|onto) (it|that one|that chart|the new one|the new chart|the one you just added)$`, 'i').exec(s)
   if (onto) return { text: `put ${onto[1]} on ${onto[2]}`, rule: 'add-to-it' }
+  const ontoClause = s.replace(new RegExp(`\\b(?:add|throw|slap|stick|load) ${WHAT} (?:to|onto) (it|the new one|the new chart)\\b`, 'gi'), 'put $1 on $2')
+  // D2.1 COORDINATION: "put RSI and MACD on it" → "put RSI on it and put MACD on it" — the verb distributed over a list of
+  // indicators (each conjunct must itself be an indicator), so each is one clause the readers already take
+  const distributed = ontoClause.replace(/\bput ((?:(?!\bput\b)[^,;])+?) on (it|the new one|the new chart)\b/gi, (m, list, where) => {
+    const items = list.split(/\s*(?:,\s*(?:and\s+)?|\band\b)\s*/).map(x => x.trim()).filter(Boolean)
+    return items.length >= 2 && items.every(x => INDICATOR.test(x)) ? items.map(x => `put ${x} on ${where}`).join(' and ') : m
+  })
+  if (distributed !== s) return { text: distributed, rule: distributed !== ontoClause ? 'distribute-indicators' : 'add-to-it-clause' }
   // "<a chart request> with <indicator>[ and …]" → "<chart request> and put <indicator> on it[ and …]"
   const w = /^(.+?)\s+with\s+(.+?)(\s+and\s+.+)?$/i.exec(s)
   const chartHead = (h) => /\bcharts?\b|\bswitch (?:it )?to\b|\bon the (?:\w+ )?(?:chart|one)\b/i.test(h)
