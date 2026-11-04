@@ -1,9 +1,9 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-03 23:55 CT
+updated: 2026-11-04 00:20 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
-free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Running 9 (2 Opus: W3 S1 r2, W5-T6; 7 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, E lows, W5-T3, W4-T0 peel, W2 r3). A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
+free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 8 after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
 baseline (dsk-baseline, final-tip on pine-dsk-smoke @ 5d95103c8a): DONE 15:42 CT, 34.5 min under the lock. gate pytest 46 passed (rc 0) · hygiene rc 0 · vitest chart+hooks: Test Files 1 failed | 1333 passed | 27 skipped (1361). Failed file: src/hooks/pollingSites.rail.test.js ("no NEW bare polling site..."), a known laptop baseline item. targetScriptReport.measure PASSES on the desktop, so the desktop baseline is 1 failed file, not 2. pine-dsk-smoke removed (junction rmdir'd first).
 poll on ops/pine-coord: ARMED (15 min). Read 063fe2ba8e (KEEP BUILDING, pause cancelled for the desktop) at 23:55 CT: acknowledged; nothing was paused here. After the queue, the desktop picks further W4/W5 work whose dependencies are met, per that note.
@@ -102,10 +102,12 @@ engine bump needed: yes (engine 7 at merge, per ASSIGNMENTS)
 next: run ONLY the final-tip named at the end of its EVIDENCE.md, record it, READY for delta review
 
 ## E evidence-engine lows (re-homed)
-state: BUILDING   round: r0   updated: 2026-11-03 23:40 CT
-branch: fix/pine-evidence-engine-lows   start tip: e58edcbeaf   worktree: pine-dsk-elows   model: Sonnet
-engine bump needed: decided at READY
-next: all 5 lows already coded; run deploy-gate pytest + hygiene + rails, write EVIDENCE.md, READY
+state: READY            round: r0            updated: 2026-11-04 00:20 CT
+branch: fix/pine-evidence-engine-lows   tip: 558c7a5c25 (EVIDENCE-only over code tip e58edcbeaf)   tested on master: 52f76f9b4f (merge-base; origin/master since 0aeac8cfdb, deploy-gate timeout only, no overlap)
+engine bump needed: NO (nothing under app/ changed)
+evidence: docs/pine/evidence/2026-11-03-e-lows/EVIDENCE.md (on the branch)
+report: All 5 lows in tools/vendor_harness/evidence_engine.py + docs/pine/EVIDENCE-ENGINE-DESIGN.md. (1) the gate holds a capture id to the run manifest's own captureStem, so a same-slug file added between capture and promote cannot unpromote a valid capture; (2) a section's chart beats the preamble's and the listing flag follows the chart used (rail-only; master already right; 4 mutations kill the rail); (3) a probe named in a prose-headed column is a fixture reference, never a request or owed probe; (4) finished-capture heading rule takes numbered, lettered and mixed-case headings, "Built-in" is not one; (5) design doc corrected: no LICENCE_HOLD targets, no --local-evidence (flag removed, railed). Tip also regenerates capture-queue.json (stale on master). Red/green: evidence_engine.py + design doc at merge-base bytes with tip tests -> 5 failed / 36 passed (rails for lows 1 x2, 3, 4, 5), restored byte-exact; tip 41 passed. Mutations 71/71 KILLED, control exit 0 (19 new), 0 survivors. final-tip on e58edcbeaf: gate pytest 46 passed, hygiene clean (34655 files), rail 41 passed, vitest 1 failed | 1333 passed | 27 skipped = pollingSites.rail baseline. Open: capture-queue.json is generated; regenerate after any queue-doc change before merging.
+desktop check of the definition of done: PASS (scope = evidence engine + its tests/doc/mutations + generated queue, rails red/green, 71/71 mutations, final-tip at baseline, e58edcbeaf..558c7a5c25 is EVIDENCE.md only, local == origin, worktree clean)
 
 ## W5-T3 codec (re-homed)
 state: BUILDING   round: r0   updated: 2026-11-03 23:50 CT
