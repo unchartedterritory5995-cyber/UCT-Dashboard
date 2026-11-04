@@ -120,3 +120,12 @@ checked before each call.
 
 The owner flagship (9 steps, 2 cards; acceptance tool above) is still the tightest case. Its summed worst-case
 reservation is $0.2460 on master. The runtime rule (spent + next worst) stays below that.
+
+
+## V2-G2 plan groups (agent/w2/v2-nl-equivalence, stacked on #775)
+
+"Put four charts on my screen" (V2-G1) is fixed with no phrase workaround. Consecutive ordinary changes in ONE model
+response now form a plan group, and the browser runs the group as ONE plan, the same way v1 runs one envelope. The index
+prompt tells the model to send changes that only work together (adding widgets AND re-arranging the board) in one
+response. The parity rail now passes all 46 intents on v2 with no known gap. The paid quality evaluation plan is in
+PLANNER-V2-EVAL-PLAN.md (not run).
