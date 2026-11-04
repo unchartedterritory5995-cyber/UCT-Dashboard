@@ -41,6 +41,28 @@ or for CG-10 the exact wrong reading `read as {"plan":[{"action":"indicator.hide
 So a gap can never hide an unrelated break, the way a bare `it.fails` could. `CAPREG_CAPTURE_GAPS=<file>` records the
 actual failure of a new gap.
 
+### When a fix lands: flipping known gaps
+
+A product fix (for example #771 for CG-1 to CG-16) makes each gap it closes fail with
+`KNOWN GAP <id> no longer fails — the fix landed: remove the gap marker`. That failure is the signal. In the same PR
+as the fix, or right after it lands on master:
+
+1. Remove the `gaps.<level>` object from each fixed phrasing in `baseline/corpus.json`. For a routing collision,
+   remove it from the row in `baseline/routingCollisions.json`; for a workflow, remove its `gap`. Never delete the
+   phrasing or loosen its `expect`: removing a gap is a strengthening and needs no decision.
+2. Re-lock with `python tests/test_uct_agent_capreg_baseline.py --update`. It accepts a removed gap and still refuses
+   any undecided weakening.
+3. Regenerate the generated files with `UPDATE_CAPREG=1 npx vitest run src/agent/qa/capabilityRegression/inventory.test.js`
+   (run in `app/`). This rewrites `coverage/coverage.json`, `coverage/COVERAGE.md` and, for a new capability,
+   `coverage/contract.json`. These files are generated from the registry and the data; never edit them by hand.
+   Inventory rail 4 fails while they are stale.
+4. Run `npx vitest run src/agent/qa/capabilityRegression` and `pytest tests/test_uct_agent_capreg_*.py`. Commit the
+   data, the lock and the regenerated files together.
+
+A fix that only PARTLY closes a gap fails differently: `failed for an UNRELATED reason — expected the mode …`. Then
+re-capture the new failure with `CAPREG_CAPTURE_GAPS=<file>` and update that gap's `mode`. Changing a mode is not a
+weakening, because the gap already existed. If the case now fails in a way that hides a regression, treat it as one.
+
 ### What counts as covered
 
 A capability counts as exercised only when an assertion actually runs it (`testing/inventory.js exercisedBy`):
