@@ -23,7 +23,7 @@ const byId = { a: { skill_id: 'a', mastery: 90, reps: 10 }, c: { skill_id: 'c', 
 export default function Piece60LandingPreview() {
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto' }}>
-      <StudyLanding curricula={curricula} byId={byId} badges={[{ badge_id: 'first_set', earned_at: '2026-11-03' }]} />
+      <StudyLanding curricula={curricula} byId={byId} badges={[{ badge_id: 'first_set', earned_at: '2026-11-03' }]} onOpenChallenge={() => {}} />
     </div>
   )
 }

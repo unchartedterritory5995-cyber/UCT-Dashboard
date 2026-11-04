@@ -200,3 +200,8 @@
   .tile, .candle { transition: none; }
   .tile:hover { transform: none; }
 }
+
+/* the Challenges deck: the same tile, an icon plate instead of the ring */
+.tileChallenge { align-items: center; }
+.challengeIcon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border-accent); background: var(--ut-gold-dim); }
+.tileSub { display: block; color: var(--text-muted); font-size: var(--text-xs); line-height: 1.35; }
