@@ -824,6 +824,65 @@
    ]
   },
   {
+   "id": "R-B5c.remove-by-position-never-without-approval",
+   "cat": "B",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "add rsi to both charts",
+     "expect": {
+      "bySymbol": {
+       "NVDA": {
+        "has": [
+         "rsi"
+        ]
+       },
+       "AMD": {
+        "has": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "remove it from the right one",
+     "expect": {
+      "proposal": true,
+      "bySymbol": {
+       "AMD": {
+        "has": [
+         "rsi"
+        ]
+       },
+       "NVDA": {
+        "has": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     },
+     "dismiss": true,
+     "afterDismiss": {
+      "bySymbol": {
+       "AMD": {
+        "has": [
+         "rsi"
+        ]
+       },
+       "NVDA": {
+        "has": [
+         "rsi"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
    "id": "R-B6.first-one-back-on-tf-2chart",
    "cat": "B",
    "board": "TWO",

@@ -260,7 +260,7 @@ Kept ungated:
 
 `tf-modifier` and `add-to-it` (used) stay on. **Internal paths of used rules are kept**: a used rule that normalises its parts (`clauses`, `in-message-repeat`: `rewriteSameRequest` at depth > 0, `rewriteFollowUp(…, { internal: true })`) still applies those stages, `same-for-ticker` and `structure` to its own parts. Without the key, those rules are not reachable on their own.
 
-**R-B5b, the one robustness-B case that fails with the key OFF**, needs `remove-on-charts`: "add rsi to both charts" → "remove it from the right one" (removal by position; a proposal, approved). It is a cross-turn behaviour, but no sealed pass took the rule, so it stays gated pending AUDIT's decision. With it ungated, B on my robustness set would be 12/12 with the key OFF. The two safety answers (`remove-not-there`, `remove-ambiguous`) are ungated either way.
+**R-B5b** ("add rsi to both charts" → "remove it from the right one") needed `remove-on-charts`. **AUDIT ungated it** (11-04): it is a cross-turn (B) behaviour, and `indicator.remove` is always a proposal the member approves, which matches the owner's confirmation rule. Tests: R-B5c (real panel, key OFF) shows the proposal and, dismissed, removes nothing; `nlm1InplanGate.test.js` shows it reads by what the indicator is, and that `remove-ambiguous` asks instead of guessing.
 
 **NLM1-G2.** Its fix depended on `style-last-added`, which is now gated. D2-18 passes with the in-plan key ON (the default of `nlm1Workflows.test.jsx`, which reproduces `36957ddf7a`). With the key OFF, D2-18 fails as before: **G2 is a gated gap**, fixed only behind the in-plan key.
 

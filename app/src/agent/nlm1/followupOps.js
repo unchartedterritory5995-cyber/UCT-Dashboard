@@ -314,8 +314,9 @@ export function resolveFollowUpOps(text, { host, memory, epoch = null, created =
         }
         ops.push({ action: 'indicator.remove', target: indicatorEditsRef(ref), args: { instance: hits[0].instanceId } })
       }
-      // (remove-on-charts is dark behind the in-plan key: no sealed pass took it; the refusal / question above stay on)
-      return inplanOn() ? { ops, rule: 'remove-on-charts' } : null
+      // remove-on-charts: a cross-turn behaviour, NOT gated (AUDIT 11-04) — indicator.remove is always a proposal the member
+      // approves (the owner's confirmation rule); the refusal / question above answer when it cannot be certain
+      return { ops, rule: 'remove-on-charts' }
     }
 
     // INVERSION: "[go|put|switch|set] [<charts>] back [to <value>]"

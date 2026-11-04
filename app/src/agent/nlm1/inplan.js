@@ -8,9 +8,10 @@
 //   followups.js     multi-ticker-create · same-on-new-chart · the `structure` rewrite (preNormalise) · borrow-verb ·
 //                    it-is-named-chart · same-for-ticker (as a follow-up of its own; in-message-repeat, which was used,
 //                    still reads its "same for <ticker>" internally)
-//   followupOps.js   back-to-before · remove-on-charts (remove-not-there / remove-ambiguous stay ON: an honest refusal or a
-//                    question, never a guess) · swap-places · swap-tickers · style-last-added · ordinal-of-created (and with
-//                    it the whole nlm1:ordinal path, main and runCompound)
+//   followupOps.js   back-to-before · swap-places · swap-tickers · style-last-added · ordinal-of-created (and with it the
+//                    whole nlm1:ordinal path, main and runCompound)
+// NOT gated (AUDIT 11-04): remove-on-charts — cross-turn, and indicator.remove is always a proposal the member approves —
+// with remove-not-there / remove-ambiguous (an honest refusal, a question; never a guess).
 // The rules stay in the code (deletion is a later, separate step).
 export const INPLAN_KEY = 'uct.agent.nlm1.inplan'
 

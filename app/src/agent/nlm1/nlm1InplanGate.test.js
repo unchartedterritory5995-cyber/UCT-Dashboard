@@ -42,9 +42,8 @@ describe('key OFF: the never-taken rules do not fire', () => {
     expect(rewriteFollowUp('make it weekly and add rsi', 'put TSLA on the right chart')).toBeNull()        // it-is-named-chart
     expect(rewriteFollowUp('same for QQQ', 'add a chart for AMD and put RSI on it')).toBeNull()           // same-for-ticker
   })
-  it('ops: back-to-before, remove-on-charts, swap, style-last-added, ordinal-of-created', () => {
+  it('ops: back-to-before, swap, style-last-added, ordinal-of-created', () => {
     expect(resolveFollowUpOps('go back to the previous timeframe', { host, memory: memoryOf(weekly), before: { c1: { symbol: 'NVDA', tf: 'M' }, c2: { symbol: 'AMD', tf: 'D' } } })).toBeNull()
-    expect(resolveFollowUpOps('remove it from the right one', { host, memory: memoryOf(addRsi, { chart: 'c1', instanceId: 'i1', defId: 'rsi' }) })).toBeNull()
     const sets = (p) => resolveCharts(p, { host })
     expect(swapOps('swap the two charts', { host, sets })).toBeNull()
     expect(swapOps('swap the tickers on the two charts', { host, sets })).toBeNull()
@@ -93,5 +92,13 @@ describe('key OFF: the runtime-built names no sealed case fired (AUDIT classific
   })
   it('a USED rule keeps its internal path (clauses normalise their parts)', () => {
     expect(rewriteClauses('make the left chart weekly and add rsi to both')?.steps).toEqual(['make the left chart weekly', 'add rsi to both charts'])
+  })
+})
+
+describe('key OFF: remove-on-charts is NOT gated (cross-turn; always a proposal)', () => {
+  it('reads "remove it from the right one" as an indicator.remove of the indicator found by what it is', () => {
+    const r = resolveFollowUpOps('remove it from the right one', { host, memory: memoryOf(addRsi, { chart: 'c1', instanceId: 'i1', defId: 'rsi' }) })
+    expect(r?.rule).toBe('remove-on-charts')
+    expect(r.ops).toEqual([{ action: 'indicator.remove', target: expect.stringContaining('c2'), args: { instance: 'i2' } }])
   })
 })
