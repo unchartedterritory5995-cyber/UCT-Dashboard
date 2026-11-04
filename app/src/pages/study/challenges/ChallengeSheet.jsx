@@ -17,7 +17,7 @@ export const CHALLENGE_KINDS = new Set(CHALLENGES.map((c) => c.kind))
 
 const BODIES = { blitz: BlitzChallenge, boss: BossChallenge, kicker: KickerChallenge }
 
-export default function ChallengeSheet({ kind, open = true, onClose, profile = null, fetcher }) {
+export default function ChallengeSheet({ kind, open = true, onClose, profile = null, fetcher, signedOut = null }) {
   const meta = CHALLENGES.find((c) => c.kind === kind) || CHALLENGES[0]
   const Body = BODIES[meta.kind]
   return (
@@ -30,7 +30,7 @@ export default function ChallengeSheet({ kind, open = true, onClose, profile = n
       </div>
       <div className={styles.scroll} data-testid={`challenge-${meta.kind}`}>
         <div className={d5.lesson}>
-          <Body profile={profile} onClose={onClose} {...(fetcher ? { fetcher } : {})} />
+          <Body profile={profile} onClose={onClose} signedOut={signedOut} {...(fetcher ? { fetcher } : {})} />
         </div>
       </div>
     </Sheet>
