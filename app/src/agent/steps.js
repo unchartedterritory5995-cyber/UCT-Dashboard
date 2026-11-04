@@ -206,58 +206,84 @@ export function createStepRunner() {
   }
 
   async function runStep(ev, deps) {
-    const { host, execute, tapRef } = deps
     if (ev.action === UNDO_ACTION && typeof deps.doUndo === 'function') {
       const res = await runUndoStep(ev, deps)
       await agentStepResult({ turnId: ev.turnId, id: ev.id, ...res })
       return
     }
-    if (!getCapability(ev.action)?.query) active.changeSteps += 1
-    const argProblem = argRefProblem(withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources), active.refMap)
-    if (argProblem) {
-      await agentStepResult({ turnId: ev.turnId, id: ev.id, status: 'refused', refusal: argProblem })
-      return
+    await runGroup([ev], deps)
+  }
+
+  // ⭐ V2-G2: the steps of ONE plan group (consecutive ordinary changes of one model response, turn_v2._send_group) run as
+  // ONE execute — one plan, one decideMode, one commit, one receipt, one Undo — exactly like one v1 envelope's ops (new
+  // widgets placed together with a re-tile of the board: "put four charts on my screen"). A group of one is the ordinary
+  // single step. Every step gets the group's outcome; results go back in step order (the server reads them in order).
+  async function runGroup(evs, deps) {
+    const { host, execute, tapRef } = deps
+    const out = new Map()
+    const run = []
+    for (const ev of evs) {
+      if (!getCapability(ev.action)?.query) active.changeSteps += 1
+      const op = withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources)
+      const argProblem = argRefProblem(op, active.refMap)
+      if (argProblem) out.set(ev.id, { status: 'refused', refusal: argProblem })
+      else run.push({ ev, op, al: aliasOf(op) })
     }
-    const op = withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources)
-    const al = aliasOf(op)
-    const bound = translateRefs(bindSourceRefs([op], active.refMap, { host, message: '' }), active.refMap)
-    const mode = ev.mode === 'propose' ? 'propose' : 'apply'
-    tapRef.current = []
-    let bodies
-    try {
-      await execute(bound, { path: 'model', mode, member: null, voice: active.voice })
-    } catch (e) {
-      bodies = [{ outcome: `That didn't work: ${e?.message || 'error'}`, outcomeData: { kind: 'failed', actions: [op.action] } }]
-    } finally {
-      bodies = bodies || tapRef.current
-      tapRef.current = null
-    }
-    const set = deps.memoryRef?.current?.latestResults?.()
-    const shown = set && set.source === op.action ? set.symbols : null
-    const res = outcomeOf(bodies, bound[0] || op, shown)
-    if (res.status === 'done') {
-      // a step that CREATED targets (a new chart): the board's context is rebuilt and the new refs reported, so the
-      // server lets the next step name them and the model learns them from the result
-      const added = await newRefs(host, deps.capCtx, active.refMap)
-      if (added.length) res.added = added
-      bindAlias(active, al, added)
-    }
-    if (al?.source && (res.status === 'query' || res.status === 'done')) active.sources[al.alias] = al.source
-    if (res.status === 'proposed') {
-      // the card waits: whatever the member does about it (approve / dismiss) is recorded for afterCard
-      paused = { turnId: ev.turnId, id: ev.id, memoryTurn: deps.memoryRef?.current?.currentTurn?.() ?? null, alias: al?.kind ? al : null,
-        undoBefore: active.undoBefore, changeSteps: active.changeSteps }
+    if (run.length) {
+      const ops = run.map(r => r.op)
+      const bound = translateRefs(bindSourceRefs(ops, active.refMap, { host, message: '' }), active.refMap)
+      const mode = run.some(r => r.ev.mode === 'propose') ? 'propose' : 'apply'
       tapRef.current = []
+      let bodies
+      try {
+        await execute(bound, { path: 'model', mode, member: null, voice: active.voice })
+      } catch (e) {
+        bodies = [{ outcome: `That didn't work: ${e?.message || 'error'}`, outcomeData: { kind: 'failed', actions: ops.map(o => o.action) } }]
+      } finally {
+        bodies = bodies || tapRef.current
+        tapRef.current = null
+      }
+      const set = deps.memoryRef?.current?.latestResults?.()
+      const last = run[run.length - 1]
+      const shown = set && set.source === last.op.action ? set.symbols : null
+      const res = outcomeOf(bodies, bound[bound.length - 1] || last.op, shown)
+      if (res.status === 'done') {
+        // a step that CREATED targets (a new chart): the board's context is rebuilt and the new refs reported, so the
+        // server lets the next step name them and the model learns them from the result
+        const added = await newRefs(host, deps.capCtx, active.refMap)
+        if (added.length) res.added = added
+        for (const r of run) bindAlias(active, r.al, added)
+      }
+      for (const r of run) if (r.al?.source && (res.status === 'query' || res.status === 'done')) active.sources[r.al.alias] = r.al.source
+      if (res.status === 'proposed') {
+        // the card waits: whatever the member does about it (approve / dismiss) is recorded for afterCard
+        const al = run.map(r => r.al).filter(x => x?.kind).pop() || null
+        paused = { turnId: last.ev.turnId, id: last.ev.id, memoryTurn: deps.memoryRef?.current?.currentTurn?.() ?? null, alias: al,
+          undoBefore: active.undoBefore, changeSteps: active.changeSteps }
+        tapRef.current = []
+      }
+      run.forEach((r, i) => out.set(r.ev.id, i === 0 || !res.added ? res : { ...res, added: undefined }))
     }
-    await agentStepResult({ turnId: ev.turnId, id: ev.id, ...res })
+    for (const ev of evs) await agentStepResult({ turnId: ev.turnId, id: ev.id, ...out.get(ev.id) })
   }
 
   function onEvent(deps) {
+    const groups = new Map()
     return (ev) => {
-      if (ev?.t === 'step' && active) {
-        // steps arrive one at a time (the server waits for each result); a chain keeps them in order anyway
-        active.chain = active.chain.then(() => runStep(ev, deps)).catch(() => {})
+      if (ev?.t !== 'step' || !active) return
+      const g = ev.group
+      if (g && Number(g.size) > 1) {
+        // V2-G2: hold a group's steps until all of them have arrived (the server emits them back to back)
+        const held = groups.get(g.id) || []
+        held.push(ev)
+        groups.set(g.id, held)
+        if (held.length < Number(g.size)) return
+        groups.delete(g.id)
+        active.chain = active.chain.then(() => runGroup(held.sort((x, y) => x.group.index - y.group.index), deps)).catch(() => {})
+        return
       }
+      // steps arrive one at a time (the server waits for each result); a chain keeps them in order anyway
+      active.chain = active.chain.then(() => runStep(ev, deps)).catch(() => {})
     }
   }
 

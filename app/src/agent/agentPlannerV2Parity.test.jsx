@@ -36,12 +36,8 @@ const rows = []
 /** Known v2-ONLY gaps (the case passes on v1): each must fail in exactly its recorded way (corpus.js gapIt), so a fix
  *  turns it red until the marker is removed, and an unrelated break is never hidden. */
 const V2_GAPS = {
-  'grid.four.unnamed': { id: 'V2-G1', owner: 'planner v2 (turn_v2 prompt / steps.js)', mode: 'chart count',
-    reason: 'the canonical plan is 3 × widget.add + widget.arrange. On master v1 fails it too (capreg CG-3: add + change-existing '
-      + 'refused); #771 fixes v1 by running the adds then ONE re-tile in a single plan (splitMixedOps arrangeAfter). v2 runs one '
-      + 'step at a time, so the third add finds no empty space and is refused before the arrange runs — #771 does not fix v2. A '
-      + 'real model can recover from the refusal (arrange first), but v2 needs a "make room first" prompt rule or a multi-op '
-      + 're-tile step to match.' },
+  // V2-G1 ("Put four charts on my screen") is FIXED by V2-G2 plan groups (agent/w2/v2-nl-equivalence): the adds and the
+  // re-tile come in one response and run as ONE plan, as v1 runs them. No v2-only gap is open.
 }
 
 /** turn_v2's mode for one step, from the manifest entry the v2 request carried (STEP-1 + v2-readiness-2 agent.undo). */
@@ -54,13 +50,31 @@ export function v2ModeOf(entry) {
 
 /** The scripted v2 model for one canonical plan: one step per op, faithful to the v2 request's manifest. */
 function v2Script(plan) {
+  // V2-G2: the scripted model follows the v2 prompt — consecutive ordinary changes go in ONE response (one plan group,
+  // run as one plan); a query, a guarded step (its own card) or the Undo is a response of its own
   const offered = (c) => new Map((c.body?.capabilities || []).map(e => [e.name, e]))
-  const steps = plan.ops.map(op => (c) => {
+  const stepFor = (op, c) => {
     const entry = offered(c).get(op.action)
-    if (!entry) return { reply: `«v2 was not offered ${op.action}»` }
+    if (!entry) return null
     return { action: op.action, target: resolveTarget(op.target, c.body), args: op.args || {}, mode: v2ModeOf(entry) }
+  }
+  const responses = []
+  for (const op of plan.ops) {
+    const lastR = responses[responses.length - 1]
+    const groupable = (o) => o.action !== 'agent.undo'
+    if (lastR && lastR.groupable && groupable(op)) lastR.ops.push(op)
+    else responses.push({ ops: [op], groupable: groupable(op) })
+  }
+  const items = responses.map(r => (c) => {
+    const steps = r.ops.map(op => stepFor(op, c))
+    const missing = r.ops.filter((op, i) => !steps[i]).map(op => op.action)
+    if (missing.length) return { reply: `«v2 was not offered ${missing.join(', ')}»` }
+    // modes other than apply never share a group (turn_v2._plannable)
+    if (steps.length > 1 && steps.every(st => st.mode === 'apply')) return { group: steps }
+    if (steps.length === 1) return steps[0]
+    throw new Error(`v2Script: a response mixing apply with ${steps.map(st => st.mode).join('/')} steps is not scripted (none in the corpus)`)
   })
-  return [...steps, { reply: '' }]
+  return [...items, { reply: '' }]
 }
 
 const turnCount = (p) => p.st.calls.filter(c => c[1] === '/api/agent/turn').length
