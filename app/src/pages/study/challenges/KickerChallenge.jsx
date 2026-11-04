@@ -14,7 +14,7 @@ import { boxAt, rayAt } from '../../../lab/pointers'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
-import LoadFailed from '../../journal-2-0/components/LoadFailed'
+import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
 import { fetchSpotPool, scoreAttempt } from './challengeBank'
 import { KIND_WORD, candidates, rules } from './kickerRules'
@@ -112,7 +112,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone }) {
   )
 }
 
-export default function KickerChallenge({ profile = null, fetcher = studyFetch, onClose }) {
+export default function KickerChallenge({ profile = null, fetcher = studyFetch, onClose, signedOut = null }) {
   const prefs = useMemo(() => feedbackPrefs(profile), [profile])
   const phone = useIsPhone()
   const [phase, setPhase] = useState('start')    // start | play | done
@@ -128,7 +128,7 @@ export default function KickerChallenge({ profile = null, fetcher = studyFetch, 
     return () => { on = false }
   }, [reload, fetcher, phone])
   const total = Math.min(8, pool?.length || 0)
-  if (error) return <LoadFailed what="the Kicker charts" error={error} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
+  if (error) return <ChallengeError what="the Kicker charts" error={error} signedOut={signedOut} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
   if (phase === 'start') {
     return (
       <StartCard eyebrow="Challenge" title="Spot the Kicker" art={<StudyMark mood="think" size={116} />}
