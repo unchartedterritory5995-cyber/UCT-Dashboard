@@ -118,7 +118,12 @@ chart+hooks `Test Files 3 failed | 1332 passed | 27 skipped (1362)`, `Tests 3 fa
 118 skipped (22514)`. Failures: `pollingSites.rail` (known baseline) and the two `volume-profile` pins
 above, which this branch then updated (wall moved, intended). Desktop baseline (`runs/dsk-baseline`,
 master): `Tests 1 failed | 22360 passed | 118 skipped (22479)` (`pollingSites.rail`).
-FINAL_TIP_PLACEHOLDER
+**Final tree `ce5c4bf34b`** (engine + pins; the next commit only fills this paragraph):
+`final-tip.sh pine-dsk-w4t2 dsk-w4t2/final2 tests/test_script_engine_version_gate.py`: gate pytest 46
+passed; `test_script_engine_version_gate.py` 6 passed; hygiene clean; vitest chart+hooks
+`Test Files 1 failed | 1334 passed | 27 skipped (1362)`, `Tests 1 failed | 22395 passed | 118 skipped
+(22514)`; the one failure is `pollingSites.rail` (known baseline, also red on the desktop baseline).
+Logs `runs/dsk-w4t2/final2/`.
 
 ## Open items
 
