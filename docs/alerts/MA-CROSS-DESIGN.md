@@ -31,7 +31,7 @@ Before this change the catalog had `rsi, macd(+signal/histogram), bb(+bands), st
 
 ### Series (no second MA formula)
 `alert_series._series_ma_cross(bars, params)` = `fast_MA − slow_MA`, aligned to `len(bars)`, `None` wherever either MA is undefined. Both MAs are `indicator_compute.compute_ema` / `compute_sma`, the same functions `price_vs_ma` uses.
-`fn.inputs = {"ma_type": "ema", "fast": 9, "slow": 20}` feeds the catalog's `inputs`, the popover's knobs and `bars_needed_for_alert` (which sums `fast+slow`; floor 400 bars, cap 5000). Invalid params produce an all-`None` column: a silent no-fire that the existing `needs_attention` diagnosis reports. They are also refused at create (below).
+`fn.inputs = {"ma_type": "ema", "fast": 9, "slow": 20}` feeds the catalog's `inputs` and the popover's knobs. The window is DECLARED by the column (`fn.lookback`): an EMA gets a convergence prefix of 6×slow (seed weight ≈ e^-12), an SMA gets `slow`; `bars_needed_for_alert` reads it (`bars_wanted`: +400 floor, cap 5000), and the column is computed over exactly that many newest bars, so the cross lands on the full-history (chart) bar and never depends on a neighbour alert's wider fetch (review round 1). Stored params are normalised (`fn.normalize`: int periods, lowercased vocabularies). Invalid params produce an all-`None` column: a silent no-fire that the existing `needs_attention` diagnosis reports. They are also refused at create (below).
 
 ### Conditions — no change to `check_condition`
 `ALERT_CONDITIONS["ma_cross"]` = `cross_above` ("Fast MA crosses above slow MA") and `cross_below` ("Fast MA crosses below slow MA"), both `needs_threshold: False`, with declared operands
@@ -76,4 +76,5 @@ The popover renders the new group from the catalog, with no new list. One afford
 1. `instance_id` stores only the crossing (fast) line, so deleting the slow average is not reported by the orphan sweep. A second column would need an additive migration; it was not added.
 2. Mixed-type crosses (EMA 9 vs SMA 50) are refused. Supporting them would mean `fast_type`/`slow_type` params.
 3. Closed `ma_cross` fires accrue Signature-ledger receipts like every other builtin closed fire. Please confirm that is wanted.
-4. The EMA is computed over the evaluator's bar window (≥ 400 bars, `fast+slow+400`). This is the same convergence trade-off `price_vs_ma` already has against the chart's full history.
+4. Resolved in review round 1: the EMA window is 400 + 6×slow (cap 5000), pinned against a full-history EMA for 50/200 and 100/500.
+5. Operator paths (`ias.create` direct, `tools/alert_soak_matrix.py --arm`) bypass `params_refusal`, as they bypass `refusal_for`; the column still answers no value for invalid params.
