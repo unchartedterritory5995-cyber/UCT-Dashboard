@@ -4441,7 +4441,7 @@
           "gaps": {
             "a": {
               "id": "CG-27",
-              "reason": "routing: the settings word is /\b(alert )?sound\b/ — the plural 'sounds' does not match, so 'turn off alert sounds' routes [alerts] only",
+              "reason": "routing: the settings word is /\\b(alert )?sound\\b/ — the plural 'sounds' does not match, so 'turn off alert sounds' routes [alerts] only",
               "owner": "nlfix builder (routing.js)",
               "mode": "→ settings.setAlertSound"
             }
