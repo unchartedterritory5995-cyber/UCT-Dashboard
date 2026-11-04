@@ -173,6 +173,8 @@ def _template_aliases(src) -> dict:
 # word, then within 40 characters that are not a full stop one of these words.
 DEFINITIONAL_CUE = r"[^.]{0,40}\b(is|are|means|defined|definition|rules?|entry|stop|criteria)\b"
 MIN_TERM = 3
+# review #751 note 1: a whole term is bounded by NON-word characters (`\b` never fires after a term ending in ")")
+_WB, _WE = r"(?<!\w)", r"(?!\w)"
 
 
 def _mention_index(src) -> Optional[dict]:
@@ -195,11 +197,11 @@ def _mention_index(src) -> Optional[dict]:
     if not terms:
         return {"terms": {}, "any": None, "per": {}}
     ordered = sorted(terms, key=len, reverse=True)
-    anyre = re.compile(r"\b(" + "|".join(re.escape(t) for t in ordered) + r")\b", re.I)
+    anyre = re.compile(_WB + "(" + "|".join(re.escape(t) for t in ordered) + ")" + _WE, re.I)
     per = {}
     for t in ordered:
         e = re.escape(t)
-        per[t] = (re.compile(r"\b" + e + r"\b", re.I), re.compile(r"\b" + e + r"\b" + DEFINITIONAL_CUE, re.I))
+        per[t] = (re.compile(_WB + e + _WE, re.I), re.compile(_WB + e + _WE + DEFINITIONAL_CUE, re.I))
     return {"terms": terms, "any": anyre, "per": per}
 
 
@@ -213,8 +215,10 @@ def _mentions(content: str, mi: Optional[dict]) -> tuple:
         if not mi["any"] or not mi["any"].search(content or ""):
             return [], [], False
         mentioned, definitional = set(), set()
+        low = content.casefold()
         for t, (m_re, d_re) in mi["per"].items():
-            if m_re.search(content):
+            # review #751 perf: only a term present as a substring is scanned (same result, far fewer regex scans)
+            if t in low and m_re.search(content):
                 mentioned |= mi["terms"][t]
                 if d_re.search(content):
                     definitional |= mi["terms"][t]
@@ -283,21 +287,30 @@ def excluded_by_template(template_admitted) -> list:
     return out
 
 
+REBUILDING = "the knowledge index is being rebuilt; try again shortly"
+
+
 def ensure() -> dict:
-    """The index is current for the installed pack (rebuilt if not). {ok, ...} or {ok: False, reason}."""
+    """The index is current for the installed pack (rebuilt if not). {ok, ...} or {ok: False, reason}.
+    Review #751 (perf): a request never WAITS for another thread's (re)build (a schema change, a pack install): it is
+    answered "being rebuilt" at once, and nothing is served from the old index meanwhile (fail closed)."""
     ts = pack.pack_ts()
     if not ts:
         return {"ok": False, "reason": "no Brain Pack installed"}
     info = built_info()
     if info.get("pack_ts") == str(ts) and info.get("schema") == str(SCHEMA):
         return {"ok": True, **info}
-    with _LOCK:
+    if not _LOCK.acquire(blocking=False):
+        return {"ok": False, "reason": REBUILDING}
+    try:
         info = built_info()
         if info.get("pack_ts") == str(ts) and info.get("schema") == str(SCHEMA):
             return {"ok": True, **info}
         if _FAILED.get("ts") == ts and time.time() - _FAILED["at"] < FAIL_COOLDOWN_S:   # a NEW pack is tried at once
-            return {"ok": False, "reason": "the knowledge index is being rebuilt; try again shortly"}
+            return {"ok": False, "reason": REBUILDING}
         return build()
+    finally:
+        _LOCK.release()
 
 
 def on_pack_install() -> None:

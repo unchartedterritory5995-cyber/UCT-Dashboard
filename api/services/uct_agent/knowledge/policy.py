@@ -8,8 +8,10 @@ A source string from the Brain Pack (`knowledge_base.source`) is classified as:
 """
 from __future__ import annotations
 
+import datetime
 import json
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -126,15 +128,40 @@ def classify_record(key: str) -> dict:
 _CLEARED_ROW_FIELDS = ("kb_id", "provenance_ref", "rights_review_ref", "approved_by", "approved_on")
 
 
+_APPROVER = re.compile(r"^(?=.*[A-Za-z])[A-Za-z0-9 .'@_-]{2,80}$")
+
+
+def _approved_on_ok(v) -> bool:
+    """An ISO calendar date (YYYY-MM-DD) that exists and is not in the future (UTC)."""
+    s = str(v or "").strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
+        return False
+    try:
+        d = datetime.date.fromisoformat(s)
+    except ValueError:
+        return False
+    return d <= datetime.datetime.now(datetime.timezone.utc).date()
+
+
 def cleared_row_ids() -> set:
-    """kb_ids on policy.cleared_rows with EVERY required field present (provenance + rights review); others ignored."""
+    """kb_ids on policy.cleared_rows with EVERY required field present (provenance + rights review) and well formed
+    (review #751 note 3: a positive integer kb_id, an approver name, an ISO approval date not in the future); any
+    other entry is ignored, so its row stays withheld."""
     out = set()
     for e in load().get("cleared_rows") or []:
-        if isinstance(e, dict) and all(str(e.get(f) or "").strip() for f in _CLEARED_ROW_FIELDS):
-            try:
-                out.add(int(e["kb_id"]))
-            except (TypeError, ValueError):
-                continue
+        if not (isinstance(e, dict) and all(str(e.get(f) or "").strip() for f in _CLEARED_ROW_FIELDS)):
+            continue
+        if not (_APPROVER.match(str(e["approved_by"]).strip()) and _approved_on_ok(e["approved_on"])):
+            continue
+        k = e["kb_id"]
+        if isinstance(k, bool):
+            continue
+        try:
+            k = int(str(k).strip())
+        except (TypeError, ValueError):
+            continue
+        if k > 0:
+            out.add(k)
     return out
 
 

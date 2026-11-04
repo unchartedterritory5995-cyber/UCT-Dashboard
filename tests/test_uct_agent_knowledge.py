@@ -1498,3 +1498,46 @@ def test_refine_frame_rule_tells_the_model_commentary_is_not_a_definition():
     from api.services.uct_agent.knowledge import frame
     assert "commentary only, never UCT's definition" in frame.RULE
 
+
+
+# ── review #751 queue (before activation): boundaries, clearance formats, non-blocking rebuild ─────────────────────
+def test_r751_a_term_ending_in_a_bracket_still_matches_as_a_whole_term():
+    import re as _re
+    mi = {"terms": {"ep (earnings)": {"Episodic Pivot"}}, "any": None, "per": {}}
+    e = _re.escape("ep (earnings)")
+    mi["any"] = _re.compile(index._WB + "(" + e + ")" + index._WE, _re.I)
+    mi["per"] = {"ep (earnings)": (_re.compile(index._WB + e + index._WE, _re.I),
+                                   _re.compile(index._WB + e + index._WE + index.DEFINITIONAL_CUE, _re.I))}
+    assert index._mentions("The EP (earnings) is a gap on a report.", mi) == (["Episodic Pivot"], ["Episodic Pivot"], False)
+    assert index._mentions("STEP (earnings) noted", mi) == ([], [], False)                  # not inside a longer word
+
+
+def test_r751_clearance_fields_must_be_well_formed(monkeypatch, tmp_path):
+    good = {"kb_id": 60, "provenance_ref": "PROV-60", "rights_review_ref": "RR-60", "approved_by": "owner",
+            "approved_on": "2026-11-01"}
+    cases = [({}, True), ({"approved_on": "11/01/2026"}, False), ({"approved_on": "2026-02-30"}, False),
+             ({"approved_on": "2999-01-01"}, False), ({"approved_by": "!"}, False), ({"approved_by": "x" * 81}, False),
+             ({"approved_by": "1234"}, False), ({"kb_id": True}, False), ({"kb_id": -3}, False), ({"kb_id": "60"}, True)]
+    pol = json.loads(policy.DEFAULT_PATH.read_text(encoding="utf-8"))
+    f = tmp_path / "p.json"
+    monkeypatch.setenv("UCT_AGENT_KNOWLEDGE_POLICY", str(f))
+    for i, (over, ok) in enumerate(cases):
+        pol["cleared_rows"] = [{**good, **over}]
+        f.write_text(json.dumps(pol), encoding="utf-8")
+        os.utime(f, (time.time() + i + 1, time.time() + i + 1))
+        assert (policy.cleared_row_ids() == {60}) is ok, over
+
+
+def test_r751_a_search_never_waits_for_another_threads_rebuild(kn):
+    index.ensure()
+    (kn["data"] / ".brain_last_ts").write_text(str(int(time.time()) + 50), encoding="utf-8")   # index now stale
+    assert index._LOCK.acquire(blocking=False)
+    try:
+        t0 = time.time()
+        out = index.ensure()
+        assert out == {"ok": False, "reason": index.REBUILDING} and time.time() - t0 < 0.5
+        ids = read("knowledge.search", {"question": "episodic pivot", "k": 3})
+        assert ids["status"] == "unavailable"                                 # nothing from the old index
+    finally:
+        index._LOCK.release()
+    assert index.ensure()["ok"] is True                                       # the next request rebuilds

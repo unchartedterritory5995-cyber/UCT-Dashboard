@@ -193,6 +193,16 @@ filtering or ranking work would add complexity without a measurable gain; embedd
 - A facade row with a win rate but no win count is withheld (fails closed).
 - Retrieval is lexical (FTS5, porter stemming); no embeddings by design (no external calls).
 
+## #751 review queue (independent review: approved except coach B-1, fixed in #757 8ba90b43ab, merged into this branch)
+- (1) Rebuild: a request never waits for another thread's rebuild (`index.ensure` answers "being rebuilt" at once, nothing
+  served from the old index); the mention scan checks only terms present in the row. Real snapshot build 4.6 s (was
+  9.2-12.9 s). The first request after a schema change still builds once synchronously (startup hooks are shared code).
+- (2) Template terms are bounded by non-word characters (a term ending in ")" now matches).
+- (3) `cleared_rows`: approved_by must be a name (2-80 chars, a letter), approved_on an ISO date not in the future,
+  kb_id a positive integer; anything else is ignored (row stays withheld).
+- (4) 122 served, flagged rows matching a looser cue -> PROVENANCE-REVIEW-LOOSER-CUE.md (ids only) for the rights review.
+- Real snapshot after the changes: 71 withheld, 309 served and flagged, 0 mention errors (unchanged).
+
 ## Next step to resume
 MERGED DARK (2026-11-03): #735 is on master via release train 2, PR #754, master 3d3d444d4f, after Wave 1.1 was verified live.
 Flags unset (AUDIT verifies production). #751 (this branch) is NOT on master; it needs its own independent review and a rebase
