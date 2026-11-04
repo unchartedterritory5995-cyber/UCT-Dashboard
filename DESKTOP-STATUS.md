@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 11:28 CT
+updated: 2026-11-04 12:24 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -228,8 +228,8 @@ open: a direct parameter offset src[length-1] at two call sites fails with a nam
 desktop check: PASS (FE + 2 test files + evidence; T2-helper edit named; 133a4d217a..e1d180f163 is EVIDENCE only; local == origin; worktree clean)
 
 ## W5-T4 host-parity rail (picked per 063fe2ba8e: needs T1 + T3, both READY)
-state: BUILDING r1 (HP-3 decision taken: option b)   round: r0   updated: 2026-11-04 06:06 CT
-branch: feat/pine-w5-t4-host-parity   tip: eb922686fe (EVIDENCE over code tip 56279a879e)   base: W5-T1 27e95ca34c + one local merge of W5-T3 409456ee36 (e5f7ea0e0b, no conflict); merge T1 and T3 first   tested on master: 5d95103c8a
+state: READY            round: r1            updated: 2026-11-04 12:24 CT   round: r0   updated: 2026-11-04 06:06 CT
+branch: feat/pine-w5-t4-host-parity   tip: 09753c9426 (r1 EVIDENCE over code tip 5397a30c6a; r0 tip eb922686fe)   base: W5-T1 27e95ca34c + one local merge of W5-T3 409456ee36 (e5f7ea0e0b, no conflict); merge T1 and T3 first   tested on master: 5d95103c8a
 engine bump needed: NO
 evidence: docs/pine/evidence/2026-11-04-w5-t4/EVIDENCE.md + muts.json, muts-r2.json
 files: tools/pine_runtime_host_parity.mjs (Node half), tools/pine_runtime_host_parity.py (Chromium half); runtime/__fixtures__/hostParity/ (corpus.json, 41 .pine files, expected-digests.json, 166 cases); runtime/__tests__/hostParity.rail.test.js (19); tests/test_pine_runtime_engine_identity.py (5). Corpus: 34 original scripts, 10 hostile cases, 5 generated bar sets; no census/allowlist/test-file scripts (licence rule).
@@ -241,6 +241,8 @@ open: HP-3 gating decision; verify HP-1 under Node 20 before T19; extract runtim
 desktop check: PASS for the build (scope, rails, 29/29, final-tip at baseline, local == origin, worktree clean). HP-3 red is a real cross-host finding, reported, not hidden.
 
 r1 (2026-11-04 11:22 CT): the owner delegated the open decisions ("lets do all that"); the desktop took option (b), the reversible one: trig cases (transcendental@*) are REPORTED by HP-3 with their ulp counts, not gated; every other HP-3 case stays gated. Option (a) (a JS sin/cos in the runtime, engine bump) is left as a candidate lane for the coordinator. Builder adds the report path, a rail and a mutation, re-runs final-tip on _resume-2026-11-01/dsk/heavy-final3.lock.
+r1 RESULT (DESKTOP-VERIFIED: local == origin 09753c9426, clean; corpus.json reportOnly = exactly transcendental@forming + transcendental@listing with the V8 reason; final-tip js.log single failure = pollingSites.rail; no Playwright Chromium left): HP-3 shows a listed case whose ONLY difference is the digest as REPORTED (count + max ulp + reason); a listed case that also differs in status/guards/warm-up stays RED; all others gated as before. Chromium 145 run: 164/166 equal + 2 REPORTED (forming 78/10000 values, max 512 ulp; listing 72/7500, max 128 ulp; above 1 ulp because p3 sums sin*cos with atan). HP-1 green 166/166 on Node 24; HP-4..HP-7 green. Rail 19 -> 25 tests; 9/9 mutations killed (one r1 survivor, reason text unasserted, fixed and killed in r2). Node 20 (portable v20.18.0, V8 11.3, scratchpad only): HP-1 RED on the same two trig cases, 164 equal; HP-1 unchanged. final-tip: gate pytest 46, rails pytest 222, hygiene clean, vitest Tests 1 failed | 22542 passed | 118 skipped = pollingSites.rail.
+open (coordinator): T19 wiring HP-1 into the Node 20 deploy gate would be red on the two trig cases: extend reportOnly to HP-1 when V8 differs from the recorded one, record per-V8 digests, or option (a).
 ## W4-T10 (picked per 063fe2ba8e: "after T1"; STACKED on the laptop's W4-T1, reviewed GO, in the merge queue)
 state: READY            round: r0            updated: 2026-11-04 08:06 CT
 branch: feat/pine-w4-t10-state-kernels   tip: aab2471815 (docs over engine tip 22ad7169f5)   base: origin/feat/pine-w4-t1-wall-report f9b85fb442 (merge W4-T1 first)
