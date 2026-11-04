@@ -91,11 +91,30 @@
 /* the question lives in the workbench's bubble beside the mark */
 .question {
   margin: 0;
-  color: var(--text-bright);
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 1.35;
+  color: #f7f3e8;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  line-height: 1.28;
   text-wrap: balance;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .5);
+}
+.ask.ask { gap: 18px; align-items: center; margin-bottom: 4px; }
+.bubble.bubble { flex: 1 1 auto; min-width: 0; padding: 16px 20px; border-color: #5a4a1c; background: linear-gradient(180deg, #1f1a09, #141210); box-shadow: 0 10px 30px rgba(0, 0, 0, .5), 0 0 0 1px rgba(220, 187, 94, .08) inset; }
+/* the setup chip beside the chart facts (round 17: the facts replace the framing line) */
+.qLine { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 10px; }
+.framingSm { flex: 1 1 100%; order: 3; font-size: 13px; color: #9a958a; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.stat { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border: 1px solid #262626; border-radius: 10px; background: linear-gradient(180deg, #161616, #0f0f0f); font-variant-numeric: tabular-nums; }
+.stat dt { margin: 0; font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: #9a958a; }
+.stat dd { margin: 0; font-size: 15px; font-weight: 800; color: #e6e1d6; }
+.stat_up dd { color: #4ad98a; }
+.stat_down dd { color: #ff6b6b; }
+.primaryBtn.primaryBtn { margin: 0 auto; max-width: 520px; }
+@media (max-width: 640px) {
+  .question { font-size: 19px; }
+  .ask.ask { gap: 12px; }
+  .stat { padding: 5px 10px; } .stat dd { font-size: 14px; }
 }
 .lessonIn { padding-bottom: var(--space-md) !important; }
 .framing {
