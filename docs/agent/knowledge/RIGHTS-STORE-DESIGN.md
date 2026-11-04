@@ -71,5 +71,36 @@ anchor row with plain SQLite. Layering MACs over editable files keeps producing 
 5. To withdraw it: `revoke --kb-id N --by NAME --reason TEXT`. The row stops being served at once, and the event
    stays.
 
+## A minimal Brain without the Rights subsystem (owner question, 2026-11-04)
+**Configuration:**
+- `UCT_AGENT_KNOWLEDGE=1`, `UCT_AGENT_DATA=1` and `UCT_AGENT_DATA_KINDS=knowledge.search` only;
+- the shipped `policy.json`;
+- `UCT_KN_RIGHTS_KEY` UNSET and no rights store;
+- for any member-facing answer, also E-1 from #781 (`UCT_AGENT_KN_E1=1` plus a pack), see below.
+
+**Dependency boundaries, demonstrated in `tests/test_uct_agent_kn_minimal.py`:**
+- **Rights readers at runtime:**
+  - `knowledge.search`: `kinds._blocked_snapshot` → `rights.authorized()`. With no key it returns `{}`, so every row
+    naming an excluded setup stays withheld, even when `policy.json` lists a "cleared" row (a forged entry is tested).
+  - `setup.playbook`: `policy.classify_template` → `rights_cleared_concepts`, which is empty in the shipped policy.
+  - `setup.record` reads no rights.
+- **What serves:** only the admitted, team-owned sources (`setup_knowledge`, `trader_archive`), with
+  `licence = team_owned`. Never intake, self-review, manual, chart-intake, Wisdom or unknown sources; never rows naming
+  an excluded (third-party or unresolved) setup; never excluded categories.
+- **Writes:** none. No rights code path writes in this configuration; no anchor or log is created (tested).
+- **Template and record kinds** are not served at all: they are not in the data kinds (tested). So no third-party
+  template and no unattested statistic can appear.
+
+**What this does NOT show:**
+- Answer safety. With Brain on and E-1 off, the planner can still write a definition in its own words.
+- A member-facing test therefore needs E-1 (#781) as well. Otherwise use admin-only direct reads of
+  `knowledge.search`, which is a retrieval test.
+
+**Independence:**
+- Every path is dark behind `UCT_AGENT_KNOWLEDGE` (plus `UCT_AGENT_KN_E1` for E-1). Nothing in the Rights or Brain
+  code runs with those flags off.
+- The only shared code touched is `budget.Meter.call(counts_as_call=…)`, already on master. Brain blocks no other
+  Agent feature.
+
 ## Decision needed
 Approve this design (or amend it) before it is built. Until then #793 stays as it is: dark, nothing cleared.
