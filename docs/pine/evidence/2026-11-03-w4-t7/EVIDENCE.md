@@ -108,3 +108,17 @@ a first lane-0 run had its shared base switched by another builder to 6990d63b02
 final-tip on 0ac78ae601 (heavy-final2): gate pytest 46 passed, engine-version gate 6 passed, hygiene clean;
 vitest "Test Files 1 failed | 1334 passed | 27 skipped", "Tests 1 failed | 22375 passed"; the one failure is the known
 baseline pollingSites.rail. Logs: runs/dsk-w4t7d/ and runs/dsk-w4t7d-final/.
+
+## Correction: valid measure-pair on the gated tip (supersedes the dsk-w4t7d measure-pair numbers above)
+The dsk-w4t7d measure-pair runs used a lock file outside the lane lock directory, so other lanes switched the shared base
+under them; those results are INVALID and are withdrawn. Mutation (M10) and final-tip on 0ac78ae601 ran in this worktree
+and stand. Re-run: `.../dsk/heavy-mp2.lock`, base pine-dsk-mpbase2 switched to M 5d95103c8a inside the job, HEAD asserted
+equal to M before and after each lane plus a 3 s watcher for any mid-run switch (none fired; job printed MP_OK).
+Tip measured: 42d7c83698 (code identical to 0ac78ae601; docs-only commits since). Logs: runs/dsk-w4t7e/.
+- lane 0: side tip 42d7c83698, side base 5d95103c8a. Harness 336: MATCH 93 / DIVERGE 103 / INCONCLUSIVE 140 on both sides, 0 per-capture
+  diffs. C18 probes identical. C18 corpus audit: 0 non-timing diffs. Census: 2 rows differ, both noise: `multi-timeframe-trend-indicator`
+  (pine:timeout text) and `volatility-coil-edge-bullbyte` (object-lane drop-reason counts 138 on base this run vs 141 on base in an earlier
+  run, 137 on tip both times: the base varies run to run).
+- lane 1: harness 336: MATCH 111 / DIVERGE 107 / INCONCLUSIVE 118 on both sides, 0 diffs. Probes identical. Audit 0 non-timing diffs.
+  Census 17 rows differ (the 16 runtime-pane first-wall / peel-depth moves listed earlier plus the timeout row); none has attached False -> True.
+Object-door verdict stands: `reverse-stochastic-momentum-index-on-chart` is gated to master's refusal (see the addendum above).
