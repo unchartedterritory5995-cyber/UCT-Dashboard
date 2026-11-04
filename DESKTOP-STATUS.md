@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 03:40 CT
+updated: 2026-11-04 03:45 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -37,7 +37,7 @@ The next coordinator should replace the banner with RESUMED. CONFIRMED by the ow
 
 ### Desktop worktrees (created by this session; each has .uct-session-owner)
 - pine-handoff-dsk (plan folder) · pine-dsk-mpbase (measure-pair base) · pine-dsk-smoke (baseline; REMOVED)
-- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3, pine-dsk-w5t6, pine-dsk-w4t0, pine-dsk-w2, pine-dsk-w4t14 (created by builders); pine-dsk-mpbase2 (second measure-pair base, created by this session)
+- lane worktrees: pine-dsk-w4t2, pine-dsk-w5t1, pine-dsk-w4t7, pine-dsk-w4t11, pine-dsk-w4t17, pine-dsk-w4t12, pine-dsk-w4t3, pine-dsk-elows, pine-dsk-w5t3, pine-dsk-w3, pine-dsk-w5t6, pine-dsk-w4t0, pine-dsk-w2, pine-dsk-w4t14, pine-dsk-w5t7, pine-dsk-w5t8, pine-dsk-w4t15 (created by builders); pine-dsk-mpbase2 (second measure-pair base, created by this session)
 
 ### Queue (in order, as builder slots free; cap 6 at >=8 GB)
 Re-homed lanes are started AFTER current lanes, per a915fc4858. Order chosen to unblock merges and engine numbering first, short lanes first:
@@ -181,3 +181,9 @@ next: pool + sandbox per SERVER-RUNTIME-DESIGN P1 T7 (services/pine_runtime/{poo
 state: BUILDING   round: r0   updated: 2026-11-04 01:45 CT
 branch: feat/pine-w5-t8-cache   base: W5-T6 tip 94b46f55b1   worktree: pine-dsk-w5t8   model: Sonnet
 next: caches per SERVER-RUNTIME-DESIGN P1 T8 (services/pine_runtime/cache.mjs)
+
+## W4-T15 (picked per 063fe2ba8e: "after T0's re-count", which is READY at 127a0f1e3c)
+state: BUILDING   round: r0   updated: 2026-11-04 03:45 CT
+branch: feat/pine-w4-t15-fn-forms   base: origin/master   worktree: pine-dsk-w4t15   model: Sonnet
+region: FE :9918-10230, :6047-6056, :9859 (no in-flight lane overlaps; T3's band starts at :10295)
+next: function and statement forms per W4-BREAKDOWN T15 (+ T16 folded in); keep master's answer at the object door unless proved; measure-pair on mp2, mutations on mut lane, final-tip on lane 3
