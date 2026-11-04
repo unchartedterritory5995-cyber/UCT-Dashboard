@@ -77,9 +77,9 @@ def test_uncertainty_is_required_only_for_outcome_talk():
 
 
 def test_order_language_catches_commands_not_descriptions():
-    assert guard.order_language("Buy 100 shares at the open.") == ["trade-now", "shares"]
+    assert guard.order_language("Buy 100 shares at the open.") == ["trade-now", "shares", "imperative"]
     assert guard.order_language("Place a limit order under the low.") == ["place-order"]
-    assert guard.order_language("You should sell here.") == ["trade-now", "you-should"]
+    assert guard.order_language("You should sell here.") == ["trade-now", "you-should", "advisory-stance"]
     assert guard.order_language("Traders sometimes sell into strength; that is a description, not an instruction.") == []
     assert guard.order_language("I can't tell you whether to buy or sell.") == []
 
@@ -105,3 +105,38 @@ def test_every_concept_in_the_knowledge_base_passes_its_own_guard():
     for c in rows:
         assert guard.check(c["text"], c["text"]) == [], c["id"]
         assert guard.has_hedge(c["sections"]["Uncertainty"]), c["id"]
+
+
+# ── pre-activation gate: the HELD-OUT paraphrase eval (never tuned on; see the fixture's _about) ────────────────────
+
+HELDOUT = json.loads((REPO / "app" / "src" / "agent" / "__fixtures__" / "coachGuardHeldout.json").read_text(encoding="utf-8"))
+
+
+def _rates(viol, clean, inputs):
+    caught = sum(1 for c in viol if guard.check(c["text"], inputs))
+    flagged = sum(1 for c in clean if guard.check(c["text"], inputs))
+    return caught, len(viol), flagged, len(clean)
+
+
+def test_heldout_set_is_big_enough_and_marked():
+    assert HELDOUT["held_out"] is True
+    assert len(HELDOUT["violating"]) >= 50 and len(HELDOUT["clean"]) >= 30
+    assert len(HELDOUT["round2_violating"]) >= 30 and len(HELDOUT["round2_clean"]) >= 20
+    texts = {c["text"] for c in FX["cases"]}
+    for c in HELDOUT["violating"] + HELDOUT["clean"] + HELDOUT["round2_violating"] + HELDOUT["round2_clean"]:
+        assert c["text"] not in texts, "a held-out phrase must never be copied into the development fixture"
+
+
+def test_heldout_recall_and_false_positive_floors():
+    """The measured numbers are floors (a guard change may only improve them). Round 2 is the honest estimate."""
+    c1, n1, f1, m1 = _rates(HELDOUT["violating"], HELDOUT["clean"], HELDOUT["inputs"])
+    c2, n2, f2, m2 = _rates(HELDOUT["round2_violating"], HELDOUT["round2_clean"], HELDOUT["inputs"])
+    assert (c1, f1) == (55, 0), (c1, n1, f1, m1)           # round 1: 55/55 recall, 0/32 false positives
+    assert c2 >= 18 and f2 <= 1, (c2, n2, f2, m2)           # round 2: >= 18/30 recall (60 %), <= 1/20 false positives
+
+
+def test_class_patterns_are_identical_in_the_browser_mirror():
+    js = (REPO / "app" / "src" / "agent" / "coach" / "guard.js").read_text(encoding="utf-8")
+    body = js.split("export const CLASS_PATTERNS = [", 1)[1].split("\n]", 1)[0]
+    rows = [json.loads(line.strip().rstrip(",")) for line in body.splitlines() if line.strip().startswith("[")]
+    assert [tuple(r) for r in rows] == [tuple(p) for p in guard.CLASS_PATTERNS]
