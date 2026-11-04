@@ -45,7 +45,22 @@ script-engine output change; SCRIPT_ENGINE_VERSION untouched). No flag set or ch
 | M15 stamp collapses refusal to bool | test_a_refused_lane_is_stamped_with_guard_and_sentence |
 Steps 1-4 run under a socket guard (no network); no survivors, no equivalents.
 
-## final-tip (tip c3ffe23737, lock heavy-final3, logs `_resume-2026-11-01/runs/dsk-w5t17-final/`)
+## Stub change at tests/test_runtime_definitions.py:75
+`test_KILL_is_never_a_delete...` fakes `rt.not_graded` so an ungraded script does not mask the kill
+it tests. The fake was `lambda source: None`. The real `server_lane_refusal` calls
+`not_graded(source, graded_only=True)`, and the router's `_stamped` (list route) now reaches it for a
+runtime row, so the fake raised TypeError. The fake now takes `graded_only=False` and still returns
+None: the same intent (not_graded never refuses), assertions untouched. No production behaviour for
+`ast` rows changed: `_stamped` adds `server_lanes` only when `is_runtime(definition)`, and the diff
+against the base touches no `ast` code path (6 files, no app/ file).
+
+## final-tip FINAL TREE (tip c1cb5d43ac, lock heavy-final3 label w5t17-final2, logs `runs/dsk-w5t17-final2/`)
+gate pytest 46 passed; hygiene clean; rails pytest 567 passed, 0 failed; chart+hooks vitest 1332
+passed, 2 failed = known baselines: `pollingSites.rail`, and `settingsScope.rail` rule 1, whose
+offender is `app/src/lab/StudyChart.jsx:32 <StockChart> passes settingsOverride without
+onSettingsPersist` (a static scan of a file this branch does not touch).
+
+## final-tip (earlier tip c3ffe23737, lock heavy-final3, logs `_resume-2026-11-01/runs/dsk-w5t17-final/`)
 gate pytest 46 passed; hygiene clean; rails pytest 566 passed + 1 failed (fixed after, above);
 full chart+hooks vitest: 1332 passed, 2 failed = baselines `settingsScope.rail`, `pollingSites.rail`.
 Mutation log: lock heavy-mut, label w5t17-mut.
