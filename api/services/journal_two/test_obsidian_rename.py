@@ -226,8 +226,9 @@ async def test_a_member_edit_on_the_old_note_survives_the_rekey(client):
         {"type": "paragraph", "content": [{"type": "text", "text": "My own UCT words."}]}]}
     notes_svc.update_note(USER, note_id, {"bodyJson": edited_doc})
 
-    # Obsidian keeps the file's mtime on a rename, but a later one must not matter either.
-    _push(client, token, {"Sub/Probe moved.md": BODY}, ["Sub/Probe moved.md"], updated_at="2026-11-02T00:00:00Z")
+    # Obsidian's own rename keeps the file's mtime (a moved mtime is a remote change: see
+    # test_obsidian_rename_fr1.py, which expects the "(synced copy)" then).
+    _push(client, token, {"Sub/Probe moved.md": BODY}, ["Sub/Probe moved.md"])
     r = await _sync(src)
     rows = _live_rows()
     assert list(rows) == [_key("Sub/Probe moved.md")]                 # no "(synced copy)" sibling

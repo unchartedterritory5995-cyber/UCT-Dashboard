@@ -359,17 +359,45 @@ def _body_sha(body_md: str | None) -> str:
     return hashlib.sha256((body_md or "").encode("utf-8")).hexdigest()
 
 
-def _staged_bodies(conn: Any, user_id: str, vault_id: str, paths: list[str]) -> dict[str, str]:
-    """{vault_path: sha256 of its staged body} for `paths` that have a staged row."""
-    out: dict[str, str] = {}
+#: Fix round 1 (L2): a body with fewer non-whitespace characters than this is never paired as a
+#: rename. Short bodies are where unrelated notes collide: an empty note, a lone `#todo`, a title
+#: line a template stamps on every new note. A false pairing is the expensive mistake (it moves a
+#: note's identity, UCT edits and favourites onto an unrelated file); a missed one costs only
+#: today's behaviour (a new note, the old one tagged after two strikes). 32 is about one short
+#: sentence ("Some plain words about the trade." is 28): enough text that two DIFFERENT notes
+#: sharing it byte for byte is unlikely, and the vault-wide uniqueness check below catches the
+#: template that is longer than that.
+RENAME_MIN_BODY_CHARS = 32
+
+
+def _staged_bodies(conn: Any, user_id: str, vault_id: str,
+                   paths: list[str]) -> dict[str, tuple[str, int]]:
+    """{vault_path: (sha256 of its staged body, its non-whitespace character count)} for `paths`
+    that have a staged row."""
+    out: dict[str, tuple[str, int]] = {}
     for i in range(0, len(paths), 500):  # sqlite variable-limit safety
         part = paths[i:i + 500]
         marks = ",".join("?" * len(part))
         for r in conn.execute(
                 "SELECT vault_path, body_md FROM j2_obsidian_staging WHERE user_id = ? AND vault_id = ?"
                 f" AND vault_path IN ({marks})", (user_id, vault_id, *part)):
-            out[r["vault_path"]] = _body_sha(r["body_md"])
+            body = r["body_md"] or ""
+            out[r["vault_path"]] = (_body_sha(body), len("".join(body.split())))
     return out
+
+
+def _body_unique_in_manifest(conn: Any, user_id: str, vault_id: str, path: str,
+                             manifest_json: str) -> bool:
+    """Fix round 1 (L2): no OTHER path of the new manifest has `path`'s staged body byte for
+    byte. Two notes made from one template are identical; pairing a dropped one with an added
+    one would be a guess between look-alikes. Compared in SQL, so no body leaves the database."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM j2_obsidian_staging s WHERE s.user_id = ? AND s.vault_id = ?"
+        " AND s.vault_path IN (SELECT value FROM json_each(?))"
+        " AND s.body_md = (SELECT body_md FROM j2_obsidian_staging"
+        "                  WHERE user_id = ? AND vault_id = ? AND vault_path = ?)",
+        (user_id, vault_id, manifest_json, user_id, vault_id, path)).fetchone()
+    return row[0] == 1
 
 
 def _record_renames(conn: Any, *, user_id: str, vault_id: str, previous: set[str],
@@ -384,7 +412,9 @@ def _record_renames(conn: Any, *, user_id: str, vault_id: str, previous: set[str
     manifest added whose STAGED body is byte-identical (server-side sha256 of `body_md`, never
     the client's `content_hash`). EXACT match only, and unique BOTH ways: two dropped paths with
     one body, or two added paths with one body, are ambiguous and record nothing for that body,
-    so those notes import exactly as before this change. A rename plus an edit in the same push
+    so those notes import exactly as before this change. Fix round 1: a body under
+    `RENAME_MIN_BODY_CHARS` non-whitespace characters is never paired, nor one another path of the
+    new manifest shares (a template). A rename plus an edit in the same push
     has different bodies and records nothing (today's behaviour: a new note). A folder move is a
     rename. No previous manifest (the first push) records nothing.
 
@@ -405,13 +435,16 @@ def _record_renames(conn: Any, *, user_id: str, vault_id: str, previous: set[str
     added_by: dict[str, list[str]] = {}
     for p in removed:
         if p in shas:
-            removed_by.setdefault(shas[p], []).append(p)
+            removed_by.setdefault(shas[p][0], []).append(p)
     for p in added:
         if p in shas:
-            added_by.setdefault(shas[p], []).append(p)
+            added_by.setdefault(shas[p][0], []).append(p)
+    manifest_json = json.dumps(sorted(current))
     rows = [(user_id, vault_id, news[0], olds[0], sha, recorded_at)
             for sha, olds in removed_by.items()
-            if len(olds) == 1 and len(news := added_by.get(sha, [])) == 1]
+            if len(olds) == 1 and len(news := added_by.get(sha, [])) == 1
+            and shas[olds[0]][1] >= RENAME_MIN_BODY_CHARS
+            and _body_unique_in_manifest(conn, user_id, vault_id, news[0], manifest_json)]
     conn.executemany(
         "INSERT OR REPLACE INTO j2_obsidian_renames"
         " (user_id, vault_id, new_path, old_path, body_sha, recorded_at) VALUES (?, ?, ?, ?, ?, ?)",

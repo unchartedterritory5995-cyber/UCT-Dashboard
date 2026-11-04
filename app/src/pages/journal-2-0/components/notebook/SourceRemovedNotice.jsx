@@ -11,19 +11,35 @@ import styles from './SourceRemovedNotice.module.css'
 export const SOURCE_DELETED_TAG = 'source-deleted'
 export const GENERIC_SOURCE_LABEL = 'its source app'
 
+/** Shown for a CONNECTOR note the engine tagged: a note with no `importSource` was made in UCT,
+ *  so a `source-deleted` tag on it is one the member typed, not a sync fact (fix round 1). */
 export function noteIsSourceRemoved(note) {
   return Array.isArray(note?.tags) && note.tags.includes(SOURCE_DELETED_TAG)
+    && typeof note?.importSource === 'string' && note.importSource !== ''
+}
+
+function providerOf(importSource) {
+  const key = typeof importSource === 'string' ? importSource.toLowerCase() : ''
+  return NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === key) || null
 }
 
 /** The app's name from the note's `importSource` (the connector's provider key), else the
  *  generic wording: a name is only ever one the connector roster knows. */
 export function sourceLabel(importSource) {
-  const key = typeof importSource === 'string' ? importSource.toLowerCase() : ''
-  return NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === key)?.label || GENERIC_SOURCE_LABEL
+  return providerOf(importSource)?.label || GENERIC_SOURCE_LABEL
 }
 
+/** Fix round 1: only a provider whose listing is authoritative (Obsidian's vault walk) can say
+ *  the note was REMOVED. Any other provider's listing can come back without a note that still
+ *  exists there (sharing, a permission, an index), so it says what it knows: the note is no
+ *  longer listed. */
 export function sourceRemovedText(importSource) {
-  return `This note was removed from ${sourceLabel(importSource)}, so it no longer syncs. Your copy here is kept.`
+  const provider = providerOf(importSource)
+  if (provider?.authoritativeListing) {
+    return `This note was removed from ${provider.label}, so it no longer syncs. Your copy here is kept.`
+  }
+  const who = provider?.label || 'Its source app'
+  return `${who} no longer lists this note, so it no longer syncs. Your copy here is kept.`
 }
 
 export default function SourceRemovedNotice({ importSource }) {

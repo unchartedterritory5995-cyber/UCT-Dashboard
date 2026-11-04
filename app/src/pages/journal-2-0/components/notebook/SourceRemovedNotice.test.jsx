@@ -50,26 +50,31 @@ afterEach(() => {
 })
 
 describe('SourceRemovedNotice copy', () => {
-  it('names the app the note came from', () => {
+  it('says REMOVED only for a provider whose listing is authoritative (Obsidian)', () => {
     expect(sourceRemovedText('obsidian')).toBe(
       'This note was removed from Obsidian, so it no longer syncs. Your copy here is kept.')
+  })
+
+  it('says "no longer lists" for every other provider', () => {
     expect(sourceRemovedText('evernote')).toBe(
-      'This note was removed from Evernote, so it no longer syncs. Your copy here is kept.')
+      'Evernote no longer lists this note, so it no longer syncs. Your copy here is kept.')
     expect(sourceRemovedText('notion')).toBe(
-      'This note was removed from Notion, so it no longer syncs. Your copy here is kept.')
+      'Notion no longer lists this note, so it no longer syncs. Your copy here is kept.')
   })
 
-  it('falls back to a generic name when the source is unknown or missing', () => {
-    const generic = 'This note was removed from its source app, so it no longer syncs. Your copy here is kept.'
-    expect(sourceRemovedText(null)).toBe(generic)
+  it('falls back to a generic name when the source is not a connector the roster knows', () => {
+    const generic = 'Its source app no longer lists this note, so it no longer syncs. Your copy here is kept.'
     expect(sourceRemovedText('file')).toBe(generic)
-    expect(sourceRemovedText(undefined)).toBe(generic)
+    expect(sourceRemovedText(null)).toBe(generic)
   })
 
-  it('is decided by the source-deleted tag alone', () => {
-    expect(noteIsSourceRemoved({ tags: ['source-deleted'] })).toBe(true)
-    expect(noteIsSourceRemoved({ tags: ['sync-conflict'] })).toBe(false)
-    expect(noteIsSourceRemoved({ tags: null })).toBe(false)
+  it('is shown for a tagged CONNECTOR note only, never for a tag typed on a UCT-made note', () => {
+    expect(noteIsSourceRemoved({ tags: ['source-deleted'], importSource: 'obsidian' })).toBe(true)
+    expect(noteIsSourceRemoved({ tags: ['source-deleted'], importSource: null })).toBe(false)
+    expect(noteIsSourceRemoved({ tags: ['source-deleted'], importSource: '' })).toBe(false)
+    expect(noteIsSourceRemoved({ tags: ['source-deleted'] })).toBe(false)
+    expect(noteIsSourceRemoved({ tags: ['sync-conflict'], importSource: 'obsidian' })).toBe(false)
+    expect(noteIsSourceRemoved({ tags: null, importSource: 'obsidian' })).toBe(false)
     expect(noteIsSourceRemoved(null)).toBe(false)
   })
 
@@ -112,9 +117,16 @@ describe('NoteEditorPage shows it', () => {
     expect(screen.queryByTestId('source-removed-notice')).toBeNull()
   })
 
-  it('in generic words when the note does not say where it came from', async () => {
-    NOTE = note({ tags: ['source-deleted'], importSource: undefined })
+  it('in "no longer lists" words for a provider whose listing is not authoritative', async () => {
+    NOTE = note({ tags: ['source-deleted'], importSource: 'evernote' })
     await renderEditor()
-    expect(screen.getByTestId('source-removed-notice').textContent).toContain('removed from its source app')
+    expect(screen.getByTestId('source-removed-notice').textContent).toBe(
+      'Evernote no longer lists this note, so it no longer syncs. Your copy here is kept.')
+  })
+
+  it('not for a note made in UCT that the member tagged source-deleted', async () => {
+    NOTE = note({ tags: ['source-deleted'], importSource: null })
+    await renderEditor()
+    expect(screen.queryByTestId('source-removed-notice')).toBeNull()
   })
 })

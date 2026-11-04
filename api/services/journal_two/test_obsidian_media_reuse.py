@@ -185,3 +185,32 @@ async def test_a_kept_original_that_is_gone_means_the_image_is_copied_again(clie
     assert (await _sync(source_id))["mediaUploaded"] == 1
     [chip2] = _of_type(_stored_note()["doc"], "attachmentChip")
     assert _served(chip2["attrs"]["href"]) == heic
+
+
+async def test_media_left_out_of_the_written_body_is_not_recorded(client, monkeypatch):
+    """L4 fix round 1: when the resolved body fails validation, `_final_body_without_media`
+    writes notices instead of the copied files. Those files are in no body, so no row may say the
+    note "has" them, or a later update would reuse files nothing shows."""
+    real = notes_svc._validate_body_json
+
+    def refuse_resolved(body):
+        if "/api/j2/notes/attachments/" in json.dumps(body):
+            raise notes_svc.NoteValidationError("too big, say")
+        return real(body)
+
+    monkeypatch.setattr(notes_svc, "_validate_body_json", refuse_resolved)
+    token, source_id = _connect(client)
+    media = _media()
+    for name, data, mime in media:
+        _upload(client, token, data, name, mime)
+    _ingest(client, token, _body("Version 0", media), _refs(media), content_hash="v0")
+    await sync_engine.sync_source(source_id, full=False, manual=True)
+    note = _stored_note()
+    assert _of_type(note["doc"], "image") == []                     # notices, not the files
+    conn = auth_db.get_connection()
+    try:
+        n = conn.execute("SELECT COUNT(*) FROM j2_note_import_media WHERE note_id = ?",
+                         (note["id"],)).fetchone()[0]
+    finally:
+        conn.close()
+    assert n == 0

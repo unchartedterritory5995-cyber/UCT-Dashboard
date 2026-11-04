@@ -4832,6 +4832,8 @@ def purge_expired_deleted_notes(
             conn.execute("DELETE FROM j2_notes WHERE id = ?", (note_id,))
             conn.execute("DELETE FROM j2_note_embeds WHERE note_id = ?", (note_id,))
             conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
+            # L4 fix round 1: the sync engine's record of what this note's media is stored as.
+            conn.execute("DELETE FROM j2_note_import_media WHERE note_id = ?", (note_id,))
             # P2 Tier 3: no trigger cleans the check-ins either (R-T3-V3).
             conn.execute("DELETE FROM j2_note_checkins WHERE note_id = ?", (note_id,))
             # Notebook widgets phase 2 (Task 8.9): nor the "used in" projection.
