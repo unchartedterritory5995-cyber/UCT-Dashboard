@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 00:50 CT
+updated: 2026-11-04 01:10 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -139,9 +139,17 @@ branch: fix/pine-w0-census-peel   start tip: 75c4c400c2   worktree: pine-dsk-w4t
 next: run docs/pine/evidence/2026-11-03-w0-peel/job.sh with desktop paths (lane 2), write coverage-map.json, targets, COVERAGE-MAP-2026-11-03.md, 7.1 corrigendum, READY
 
 ## W2 round 3 (re-homed)
-state: BUILDING   round: r3   updated: 2026-11-03 23:55 CT
-branch: feat/pine-w2-arming   start tip: 1a8dddb408   worktree: pine-dsk-w2   model: Sonnet
-next: per round2/WIP-STATE.md + round3-job.sh: classify P11, edit the packet, READY. NEVER arm or touch flags; any flag/Railway step is skipped and reported.
+state: READY            round: r3            updated: 2026-11-04 01:10 CT
+branch: feat/pine-w2-arming   tip: 6f613ff0bc (one docs-only commit on 1a8dddb408)   tested on: origin/master 03a42b201a, merge-base 0afa7645dd, and a throwaway merge of origin/production e26130c7f6 (d107aafbf3, not pushed)
+engine bump needed: NO
+NOTHING WAS ARMED. No flag, Railway variable or production system was touched; no step in round3-job.sh needed skipping for that reason.
+P11 classification: 0 branch-caused. Each of the 25 failing gate files was re-run alone (--maxWorkers=2) on branch, master and merge-base. 17 fail identically on all three (pre-existing census/ratchet rails red on master, e.g. surfaces/manifest "routes with no manifest row: /admin/rare-preview"; includes pollingSites.rail). 8 pass alone on the branch (3 pass everywhere; 3 pass on branch but fail on master+merge-base = instrument-sensitive; objectLaneCallSites.measure fails on merge-base only; ChartPlanPanel.asOfDay fails on master only). Evidence: docs/pine/evidence/w2-arming-2026-11-02/round3/p11-rerun-results.txt.
+merged-tree re-runs (heavy lock, all rc 0): vitest A 27 files / 455 passed; J3a runtime-on harness MATCH 110 / DIVERGE 107 / INCONCLUSIVE 119; J3b production harness 93/103/140 (both equal round 2); 7 pytest rails 202 passed; deploy gate 82 passed. origin/production since moved to edd353fc06 (= master); e26130c7f6..edd353fc06 touches no file on the lane's path.
+packet edits (docs/pine/ARMING-PACKET-2026-11-02.md): interim banner removed and sections 0/7.2 re-pinned to production; S8 PASS; harness counts corrected to 110/107/119 ("17 captures become MATCH") with the one-capture change described; new 3.3 (J3a/J3b on the merged tree); B1 notes 16.8 ms vs a 1-frame 16.7 ms budget is jitter per the 17 ms MET precedent; B5 records the coordinator's acceptance of the x4 miss (52.3 vs 50 ms) for the adx-only stage 1, "gates nothing" wording removed; 7.1 adds VITE_PINE_MEMBER_PANE_ENABLED (expected '1'); 8.4 item 2 and section 10 P11 carry the classification; section 11 replaces stale file refs (probe.json fixed; names round2/round3-job.sh and round3/round3-job-desktop.sh) and records laptop->desktop path mappings.
+deviations: feat/pine-w2-arming is checked out in a stale worktree pine-w2 (left alone), so the desktop used local branch dsk-w2-arming and pushed dsk-w2-arming:feat/pine-w2-arming. The in-branch merge was replaced by the throwaway merge-tree (no-merge rule). PYTHONPATH pydeps dropped (desktop Python has the packages). Throwaway worktrees pine-dsk-w2-mst/-mb/-mrg were made for master/merge-base/merged trees; the desktop REMOVED them after the report (junctions unlinked first; pine-base node_modules intact).
+open: (1) the 854c1c507a fix from the WIP list was NOT applied: still open. (2) 3.2 and 6.4 prose not fully rewritten; skim for stray older counts. (3) the owner decides whether to accept the P11 classification or re-run the six-shard gate on a quiet machine.
+note on "baseline": the desktop baseline (1 failed file) is for final-tip's chart+hooks vitest only. P11's 25 files come from the wider gate suite, where 17 pre-existing master reds is consistent, not a stale baseline.
+desktop check: PASS (all changed files under docs/, local == origin, worktree clean)
 
 ## W4-T14 (picked per coord note 063fe2ba8e: dependencies met)
 state: BUILDING   round: r0   updated: 2026-11-04 00:25 CT
