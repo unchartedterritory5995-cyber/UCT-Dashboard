@@ -306,6 +306,13 @@ def _cache_put(key, decision: dict) -> None:
         _CACHE[key] = (time.monotonic(), dict(decision))
 
 
+def _judge_key(meter, reply: str) -> Optional[tuple]:
+    rid = getattr(meter, "request_id", None) if meter is not None else None
+    if rid is None:
+        return None
+    return ("judge", str(getattr(meter, "user_id", "")), int(rid), hashlib.sha256(reply.encode("utf-8")).hexdigest())
+
+
 def _reset_for_test() -> None:
     with _CACHE_LOCK:
         _CACHE.clear()
@@ -744,7 +751,17 @@ def judge_backstop(res: dict, message: str, meter=None) -> dict:
     if not reply or reply in fixed_sentences() or (disp == "clarify" and all(
             x in fixed_sentences() or x in ("", "Which one do you mean?") for x in reply.split("\n"))):
         return res
-    block, why, use = judge_reply(reply, message, meter)
+    # QA round 4: a browser reroute / repair of the SAME request that comes back with the SAME text is not judged (or
+    # paid for) twice; any different text is judged again
+    jkey = _judge_key(meter, reply)
+    hit = _cache_get(jkey)
+    if hit is not None:
+        block, why, use = bool(hit["block"]), str(hit["why"]) + ":cached", {"input_tokens": 0, "output_tokens": 0,
+                                                                          "cost_usd": 0.0}
+    else:
+        block, why, use = judge_reply(reply, message, meter)
+        if not why.startswith(("judge_error", "judge_stop", "judge_json", "judge_schema", "judge_unaffordable")):
+            _cache_put(jkey, {"block": block, "why": why})
     usage = res.setdefault("usage", {})
     usage["judge"] = why
     usage["model_calls"] = int(usage.get("model_calls") or 0) + (1 if use.get("input_tokens") else 0)

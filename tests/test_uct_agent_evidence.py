@@ -921,3 +921,25 @@ def test_r3_e1_refuses_planner_v2_with_no_paid_call(monkeypatch):
         assert out["usage"]["evidence"]["why"] == "e1_refuses_v2"
     assert c.calls == []
 
+
+
+def test_r4_a_reroute_with_the_same_text_is_not_judged_twice_but_new_text_is(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    j = _judge(monkeypatch, JUDGE_CLEAR)
+    m = _Meter(request_id=99)
+    for _ in range(2):                                                          # first request, then its reroute
+        out = run("what is vwap", meter=m, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert len(j.calls) == 1 and out["usage"]["judge"] == "judge:clear:cached"
+    run("what is vwap", meter=m, caller=caller_of(_resp(env("answer", reply="VWAP weights price by volume."))))
+    assert len(j.calls) == 2                                                    # different text: judged again
+    run("what is vwap", meter=_Meter(request_id=100), caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert len(j.calls) == 3                                                    # another request: judged again
+
+
+def test_r4_a_failed_judgement_is_never_cached(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    j = _judge(monkeypatch, RuntimeError("down"), JUDGE_CLEAR)
+    m = _Meter(request_id=5)
+    a = run("what is vwap", meter=m, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    b = run("what is vwap", meter=m, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert a["envelope"]["reply"] == ev.NOT_RETRIEVED and b["usage"]["judge"] == "judge:clear" and len(j.calls) == 2
