@@ -27,7 +27,6 @@ import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
-import { bindCreated } from './createdBinding'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift, splitMixedOps } from './executor'
 import { notDoneLines } from './notDone'
 import { decideMode } from './policy'
@@ -1924,16 +1923,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           if (list.length === 1) pick[k] = list[0].ref
         }
         if (fast.ops.every(o => o.target || pick[getCapability(o.action)?.target])) {
-          const picked = fast.ops.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))
-          // live train 4 (P02 / P15, CG-37): "…a new chart and switch IT to the weekly" — the change goes on the chart this
-          // request creates (its alias → the committed widget's id), never the existing chart (createdBinding.js)
-          const bound0 = bindCreated(picked, text, host)
-          if (bound0?.ask) {
-            push({ role: 'agent', text: bound0.ask })
-            record({ member: text, outcome: bound0.ask, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
-            return
-          }
-          const ops = bound0?.ops || picked
+          const ops = fast.ops.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))
           lastActionsRef.current = ops.map(o => o.action)
           return await execute(ops, { path: 'fast', mode: 'apply', member: text, voice })
         }
@@ -2345,16 +2335,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
-      const bound1 = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
-      // live train 4 (CG-37): the model's ops after a create step that point at an EXISTING chart while the member said
-      // "it / that / the new one" are re-aimed at the created chart — or asked about when several were created
-      const created1 = bindCreated(bound1, text, host)
-      if (created1?.ask) {
-        push({ role: 'agent', text: created1.ask })
-        record({ member: null, outcome: created1.ask, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'model', disposition: 'clarify', voice } })
-        return
-      }
-      const bound = created1?.ops || bound1
+      const bound = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
       // ⛔ S6 F1–F3: the model's plan is checked against the member's own words before anything runs
       const screened = screenModelOps(host, scopeChartOps(bound, host, `${carryAsked ? askedFor || '' : ''} ${text}`), text, capCtx)
       if (screened.ask) {

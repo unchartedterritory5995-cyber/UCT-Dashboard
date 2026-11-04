@@ -53,6 +53,33 @@
  },
  "knownGaps": [
   {
+   "id": "CG-37",
+   "reason": "WRONG TARGET: 'open TSLA on a new chart and switch it to the weekly' adds the TSLA chart but switches the EXISTING NVDA chart to weekly ('it' is read as the chart already on the board, not the one this request creates)",
+   "owner": "agent-core (the train-4 fixes branch: in-plan reference to a newly created chart)",
+   "mode": "the charts' timeframes",
+   "level": "c",
+   "intent": "wrongtarget.new-chart-weekly",
+   "phrasing": "open TSLA on a new chart and switch it to the weekly"
+  },
+  {
+   "id": "CG-37",
+   "reason": "WRONG TARGET: 'add a chart for META and make it a line chart' adds the META chart but turns the EXISTING NVDA chart into a line chart",
+   "owner": "agent-core (the train-4 fixes branch: in-plan reference to a newly created chart)",
+   "mode": "chart types",
+   "level": "c",
+   "intent": "wrongtarget.new-chart-line",
+   "phrasing": "add a chart for META and make it a line chart"
+  },
+  {
+   "id": "CG-37",
+   "reason": "WRONG TARGET: 'add a chart for AMD and put the 50 SMA on it' adds the AMD chart but puts the 50 SMA on the EXISTING NVDA chart",
+   "owner": "agent-core (the train-4 fixes branch: in-plan reference to a newly created chart)",
+   "mode": "no movingAverage(50 sma)",
+   "level": "c",
+   "intent": "wrongtarget.new-chart-50sma",
+   "phrasing": "add a chart for AMD and put the 50 SMA on it"
+  },
+  {
    "id": "CG-13",
    "reason": "the charts compare words select 'against'",
    "owner": "nlfix builder (routing.js)",
@@ -7333,7 +7360,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 7,
+   "phrasings": 4,
    "evidence": {
     "nl": [
      "widget.addCharts: \"open charts for AAPL and MSFT\"",
@@ -7360,16 +7387,10 @@
     ],
     "execution": [
      "widget.addCharts (c)",
-     "wrongtarget.new-chart-weekly (c)",
-     "wrongtarget.new-chart-line (c)",
-     "wrongtarget.new-chart-50sma (c)",
      "GW-22.new-chart-then-rsi-on-it"
     ],
     "receipt": [
      "widget.addCharts (c)",
-     "wrongtarget.new-chart-weekly (c)",
-     "wrongtarget.new-chart-line (c)",
-     "wrongtarget.new-chart-50sma (c)",
      "GW-22.new-chart-then-rsi-on-it"
     ],
     "refusal": [],
