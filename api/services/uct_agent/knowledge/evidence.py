@@ -306,11 +306,13 @@ def _cache_put(key, decision: dict) -> None:
         _CACHE[key] = (time.monotonic(), dict(decision))
 
 
-def _judge_key(meter, reply: str) -> Optional[tuple]:
+def _judge_key(meter, reply: str, message: str = "") -> Optional[tuple]:
     rid = getattr(meter, "request_id", None) if meter is not None else None
     if rid is None:
         return None
-    return ("judge", str(getattr(meter, "user_id", "")), int(rid), hashlib.sha256(reply.encode("utf-8")).hexdigest())
+    # QA round 5: the member's message is part of the judged input, so it is part of the key
+    return ("judge", str(getattr(meter, "user_id", "")), int(rid),
+            hashlib.sha256(("%s %s" % (message or "", reply)).encode("utf-8")).hexdigest())
 
 
 def _reset_for_test() -> None:
@@ -753,7 +755,7 @@ def judge_backstop(res: dict, message: str, meter=None) -> dict:
         return res
     # QA round 4: a browser reroute / repair of the SAME request that comes back with the SAME text is not judged (or
     # paid for) twice; any different text is judged again
-    jkey = _judge_key(meter, reply)
+    jkey = _judge_key(meter, reply, message)
     hit = _cache_get(jkey)
     if hit is not None:
         block, why, use = bool(hit["block"]), str(hit["why"]) + ":cached", {"input_tokens": 0, "output_tokens": 0,

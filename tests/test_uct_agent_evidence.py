@@ -943,3 +943,12 @@ def test_r4_a_failed_judgement_is_never_cached(monkeypatch):
     a = run("what is vwap", meter=m, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
     b = run("what is vwap", meter=m, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
     assert a["envelope"]["reply"] == ev.NOT_RETRIEVED and b["usage"]["judge"] == "judge:clear" and len(j.calls) == 2
+
+
+def test_r5_the_judge_cache_key_includes_the_members_message(monkeypatch):
+    use(monkeypatch, MISROUTES[1])
+    j = _judge(monkeypatch, JUDGE_CLEAR)
+    m = _Meter(request_id=77)
+    run("what is vwap", meter=m, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    run("explain vwap please", meter=m, caller=caller_of(_resp(env("answer", reply="VWAP is an average."))))
+    assert len(j.calls) == 2                                                    # same reply, different message: judged
