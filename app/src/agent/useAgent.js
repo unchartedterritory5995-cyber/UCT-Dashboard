@@ -2412,7 +2412,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const gridded = screenChartGrid(screenEmptyBoardChart(screenNewChart(canonicalIndicatorAdds(screened.ops), text).ops, host).ops, text, host)
       // review t4 M1: the SAME replace-or-add question as the instant reader, for the model's plan on every path (NL-1 too) —
       // a grid of fewer tickers than the board's charts, with no new / add / replace in the member's words, is never guessed
-      const gridAsk = gridChoiceFor(gridded.ops, `${askedFor || ''} ${text}`, host)
+      const gridAsk0 = gridChoiceFor(gridded.ops, `${askedFor || ''} ${text}`, host)
+      // a grid that could not run either way (an unknown ticker, no room) is never asked about — its refusal is said as before
+      const gridAsk = gridAsk0 && await (async () => {
+        try { const a = gridAsk0.options.add; return planOps(collectTargets(host, kindsOf(a)), a, await prepareOps(a), capCtx).ok } catch { return false }
+      })() ? gridAsk0 : null
       if (gridAsk) {
         pendingRef.current = { kind: 'target', ops: [], path: 'model', member: text, voice, epoch: epochOf(host), gridChoice: gridAsk.options }
         push({ role: 'question', text: gridAsk.text, choices: [...gridAsk.choices, { label: 'Cancel', cancel: true }], local: true })
