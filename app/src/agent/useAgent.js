@@ -37,7 +37,7 @@ import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutpu
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT, normalizeArgs } from './capabilities'
 import { UNDO_ACTION } from './capabilities/about'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
-import { routeManifest, routingEnabled, routingNames } from './routing'
+import { routeManifest, routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
 import { doItForMe } from './capabilities/guide'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
@@ -240,7 +240,8 @@ export function scopeChartOps(ops, host, words) {
   try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
   if (charts.length < 2) return ops
   const ref = (() => {
-    try { const s = host?.charts?.selected?.(); if (s && charts.some(c => c.ref === s)) return s } catch { /* no selection */ }
+    // review #771 delta M2: what the member NAMES outranks the last-clicked chart — its label, then its symbol (one chart,
+    // or symbol + position); a symbol on several charts with nothing else to tell them apart is ASKED, never the selection
     const t = String(words || '')
     const lower = t.toLowerCase()
     const byLabel = charts.filter(c => c.label && lower.includes(String(c.label).toLowerCase()))
@@ -251,12 +252,28 @@ export function scopeChartOps(ops, host, words) {
     if (bySym.length > 1) {
       const pos = bySym.filter(c => c.position && new RegExp(`\\b${esc(String(c.position).toLowerCase())}\\b`).test(lower))
       if (pos.length === 1) return pos[0].ref
+      // several charts of the named symbol: the selected one only if it IS one of them, else asked
+      try { const s = host?.charts?.selected?.(); if (s && bySym.some(c => c.ref === s)) return s } catch { /* no selection */ }
+      return null
     }
+    try { const s = host?.charts?.selected?.(); if (s && charts.some(c => c.ref === s)) return s } catch { /* no selection */ }
     return null
   })()
   if (!ref) return ops
   return ops.map(o => (CHART_SCOPED.has(o?.action) && o.args && o.args.chart == null ? { ...o, args: { ...o.args, chart: ref } } : o))
 }
+// review #771 delta H1/L3: a reply ANSWERS the model's open question only when it is a choice click, matches a choice, or
+// is short with no action of its own ("Chart c3", "the left one", "TSLA") — anything else is a new request, routed fresh
+const ANSWER_VERB = /\b(?:add|remove|delete|open|close|draw|put|make|change|switch|set|create|show|hide|move|alert|save|run|find|scan|undo|load|apply|swap|turn|give|rename|sort|copy|duplicate)\b/i
+export function isShortAnswer(text, choices = [], answering = false) {
+  if (answering) return true
+  const t = String(text || '').trim().toLowerCase()
+  if (!t) return false
+  if ((choices || []).some(c => c?.label && t.includes(String(c.label).toLowerCase()))) return true
+  return t.split(/\s+/).length <= 6 && !ANSWER_VERB.test(t)
+}
+// the groups a question is ABOUT: those its request's own words named (never the always-on / budget fill)
+const questionGroups = (words) => ROUTE_GROUPS.filter(g => !g.always && wordsSelect(g.id, words)).map(g => g.id)
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
@@ -1625,6 +1642,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     turnStart('send')
     saidRef.current = text
     const askedFor = askedForRef.current
+    // review #771 delta H1/L3: this message ANSWERS the model's open question (a choice, or a short reply) — else it is routed fresh
+    const carryAsked = !!askedFor && isShortAnswer(text, lastQuestionRef.current?.choices || [], answering)
     askedForRef.current = null
     push({ role: 'member', text, voice })
     setBusy(true)
@@ -2036,9 +2055,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // ⭐ W2 AUDIT (live 2026-11-04: "Bottom-left chart (TSLA)" — a click on the model's own "which TSLA chart?" — was routed by
       // its own words, without indicatorAlerts, so the model had to ask need_groups and lost the thread): an ANSWER to the
       // model's question keeps the groups the question was asked with (they ride along; the answer's words still route too)
-      const askedGroups = askedFor && askedGroupsRef.current ? askedGroupsRef.current : []
+      // review #771 delta H1: ONLY the question's own groups, only for a short answer, packed AFTER this message's own groups
+      const askedGroups = carryAsked && askedGroupsRef.current ? askedGroupsRef.current : []
       askedGroupsRef.current = null
-      let routed = routeManifest(full, text, routeOpts, askedGroups)
+      if (askedGroups.length) routeOpts.after = askedGroups
+      let routed = routeManifest(full, text, routeOpts)
       lastRoutedRef.current = routed.routing ? routed.routing.selected : null
       mark('route', routed.routing ? `${routed.manifest.length}/${full.length}` : 'full')
       // Data that can change outside this panel is re-read first (bounded) — Phase 2: only for the
@@ -2078,7 +2099,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
         // The groups the model needs come first; whatever no longer fits the budget is dropped
         // from THIS request (named, not sent). If a needed group itself cannot fit, stop honestly.
-        routed = routeManifest(full, text, routeOpts, [...askedGroups, ...need])
+        routed = routeManifest(full, text, routeOpts, need)
         lastRoutedRef.current = routed.routing ? routed.routing.selected : null
         live.settle(null)
         if (!need.every(g => routed.routing?.selected?.includes(g) || !routed.routing)) {
@@ -2150,7 +2171,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (env.disposition === 'clarify') {
         pendingRef.current = p                     // a question doesn't drop a waiting proposal
         // W2 AUDIT: the groups this question was asked with go with its answer (the legacy routed request above)
-        askedGroupsRef.current = lastRoutedRef.current ? [...lastRoutedRef.current] : null
+        askedGroupsRef.current = questionGroups(`${askedFor || ''} ${text}`)
         push({ role: 'question', text: env.question?.text || env.reply, choices: clarifyChoices(env.question?.choices).map(c => ({ label: c.label })) })
         return
       }
@@ -2244,7 +2265,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // that target's own read-only producer before the refs are translated.
       const bound = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
       // ⛔ S6 F1–F3: the model's plan is checked against the member's own words before anything runs
-      const screened = screenModelOps(host, scopeChartOps(bound, host, `${askedFor || ''} ${text}`), text, capCtx)
+      const screened = screenModelOps(host, scopeChartOps(bound, host, `${carryAsked ? askedFor || '' : ''} ${text}`), text, capCtx)
       if (screened.ask) {
         // a pick that fills one argument of the planned ops (a new draft's chart): chooseTarget runs them with it
         if (screened.ask.pick) pendingRef.current = { kind: 'target', ops: screened.ask.pick.ops, path: 'model', mode: env.disposition, member: text, voice, epoch: epochOf(host), pickArg: screened.ask.pick }

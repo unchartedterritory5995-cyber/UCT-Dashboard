@@ -366,7 +366,10 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // so the model asks for what it needs (need_groups) instead of anything being cut.
   if (opts.enabled === false && manifest.length <= limit) return { manifest, routing: null }
   const { priority, matched, soft } = selectGroups(message, opts)
-  if (!matched && !extra.length && manifest.length <= limit) return { manifest, routing: null }
+  // `opts.after` (review #771 delta H1): the groups an ANSWER to the model's question carries over — packed AFTER the
+  // message's own groups (never displacing them), and before any fill
+  const after = (opts.after || []).filter(id => GROUPS.some(g => g.id === id))
+  if (!matched && !extra.length && !after.length && manifest.length <= limit) return { manifest, routing: null }
   // A reroute's requested groups come straight after the always-on ones.
   const always = GROUPS.filter(g => g.always).map(g => g.id)
   // one pass: each group's action count (null = ungrouped) — the packing and both sorts read it many times
@@ -389,8 +392,9 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   const LAST = new Set(GROUPS.filter(g => g.fillLast).map(g => g.id))
   const bySize = (a, b) => sizeOf(a) - sizeOf(b)
   const fillOrder = (a, b) => (LAST.has(a) - LAST.has(b)) || bySize(a, b)
-  const own = matched ? [...rest].sort(bySize)
-    : [...new Set([...(soft || []).filter(id => rest.includes(id)), ...rest.filter(id => id === 'charts'), ...rest.filter(id => id !== 'charts').sort(fillOrder)])]
+  const carried = after.filter(id => !pinned.includes(id))
+  const own = matched ? [...new Set([...rest.filter(id => !carried.includes(id)).sort(bySize), ...carried])]
+    : [...new Set([...carried, ...(soft || []).filter(id => rest.includes(id)), ...rest.filter(id => id === 'charts'), ...rest.filter(id => id !== 'charts').sort(fillOrder)])]
   const order = [...new Set([...pinned, ...own])]
   // PACK under the budget, in priority order. A group that would overflow is NOT sent — it is
   // named (unselected), so the model can ask for it; nothing is ever partially sent.

@@ -12,7 +12,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import { registerBuiltins } from './builtins'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
-import { touchesCharts, arrangesBoard, asSubjectWords } from './useAgent'
+import { touchesCharts, arrangesBoard, asSubjectWords, isShortAnswer } from './useAgent'
 import { AuthContext } from '../context/AuthContext'
 import { selectGroups, routeManifest, wordsSelect } from './routing'
 import { fastParse } from './fastPath'
@@ -675,6 +675,20 @@ describe('AUDIT · indicatorAlert.create is ONE chart\'s — resolved by named s
     await approve(say)
     expect(alertPosts[0]).toMatchObject({ sym: 'NVDA' })
   }, 40000)
+  it('review #771 delta M2: a named symbol that IS the selected chart\'s still resolves to it', async () => {
+    const { say } = mountSel('c1')                                                   // NVDA selected
+    envelopes.push(b => env('propose', [{ action: 'indicatorAlert.create', target: lib(b), args: { instance: 'inst:rsi:1', plot: null, condition: 'above', threshold: 70, crossWith: null, chart: null } }]))
+    await say("alert me when NVDA's RSI goes above 70 — no wait, I mean on the chart in the middle")
+    await approve(say)
+    expect(alertPosts[0]).toMatchObject({ sym: 'NVDA' })
+  }, 40000)
+  it('review #771 delta M2: the named symbol wins over a selection on ANOTHER symbol', async () => {
+    const { say } = mountSel('c2')                                                   // a TSLA chart selected, the member names NVDA
+    envelopes.push(b => env('propose', [{ action: 'indicatorAlert.create', target: lib(b), args: { instance: 'inst:rsi:1', plot: null, condition: 'above', threshold: 70, crossWith: null, chart: null } }]))
+    await say("alert me when NVDA's RSI goes above 70")
+    await approve(say)
+    expect(alertPosts[0]).toMatchObject({ sym: 'NVDA' })
+  }, 40000)
   it('via the model\'s CLARIFY: the clicked choice keeps the question\'s groups (indicatorAlerts) and picks that chart', async () => {
     const { say } = mountSel(null)
     envelopes.push(() => ({ ...env('clarify', [], ''), question: { text: 'Which TSLA chart?', choices: [{ label: 'Chart c2' }, { label: 'Chart c3' }] } }))
@@ -746,5 +760,31 @@ describe('CG-12/18..21 · routing collisions (#774): each everyday phrasing is n
     expect(wordsSelect('charts', 'show swing labels')).toBe(true)
     expect(wordsSelect('data', 'add a news widget')).toBe(false)
     expect(wordsSelect('data', 'NVDA news')).toBe(true)
+  })
+})
+
+describe('review #771 delta · a clarify carries ONLY its own groups, only into a short answer', () => {
+  const clarify = () => ({ ...env('clarify', [], ''), question: { text: 'Which part should look cleaner?', choices: [{ label: 'The left chart' }, { label: 'The whole board' }] } })
+  for (const [next, action] of [['add the RSI to my chart', 'indicators'], ['open my Swing layout', 'layouts'], ['draw a line at 150', 'drawings'], ['add a news widget', 'workspace']]) {
+    it(`"make it look cleaner" (clarify) → "${next}" is routed FRESH: never "too many parts", its own actions sent`, async () => {
+      const { say } = mount(...TWO())
+      envelopes.push(clarify)
+      await say('make it look cleaner')
+      await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
+      envelopes.push(env('answer', [], 'ok'))
+      await say(next)
+      expect(transcript()).not.toMatch(/too many parts of UCT/)
+      const body = turnBodies()[1]
+      // (an instant-path reading needs no model turn at all — then nothing was carried by construction)
+      if (body?.routing) expect(body.routing.selected, next).toContain(action)            // the message's OWN group is sent
+    }, 30000)
+  }
+  it('isShortAnswer: a choice, a short reply with no action of its own — and nothing else', () => {
+    expect(isShortAnswer('Chart c3', [{ label: 'Chart c3' }])).toBe(true)
+    expect(isShortAnswer('the left one')).toBe(true)
+    expect(isShortAnswer('TSLA')).toBe(true)
+    expect(isShortAnswer('add the RSI to my chart')).toBe(false)
+    expect(isShortAnswer('open my Swing layout')).toBe(false)
+    expect(isShortAnswer('anything at all', [], true)).toBe(true)
   })
 })
