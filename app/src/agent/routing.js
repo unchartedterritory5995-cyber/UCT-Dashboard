@@ -189,9 +189,15 @@ export const GROUPS = [
   // hotfix 2026-11-03 (live: "Undo the last change you made to my charts." reached a model with no Undo): the Agent's OWN
   // Undo (agent.undo → the receipt's Undo, browser-only) in its OWN one-action group, named by any Undo word — so the
   // always-on group and every per-request budget keep their size; a model that still needs it asks (need_groups)
-  { id: 'undo', title: 'Undo your own last change(s) in this conversation (exactly the receipt’s Undo)', domains: [], fillLast: true,
+  // (review F1: ADD-ONLY — an Undo word never counts as recognising the message, so selection and the full-budget fill
+  // are exactly master's; the group only rides along. The phrases name the Agent's own change, never "take me back to …",
+  // "roll back my layout to yesterday" or "reverse the order of …")
+  { id: 'undo', title: 'Undo your own last change(s) in this conversation (exactly the receipt’s Undo)', domains: [], fillLast: true, addOnly: true, ridesAlong: true,
     actions: ['agent.undo'],
-    words: [/\b(undo|undoing|revert|reverting|reverse (that|it|this|the|my|what|those|everything)|roll ?back|put (it|that|them|things|everything) back|take (?:\w+ ){0,3}back)\b/] },
+    words: [/\b(?:undo|undoing|revert|reverting)\b/,
+      /\b(?:reverse|roll ?back) (?:that|it|this|what (?:you|u)|the last|my last|your last|those changes|that change|everything)\b|\broll (?:it|that|this) back\b/,
+      /\bput (?:it|that|them|everything|things) back (?:the way|how|as) (?:it|they) (?:was|were)\b/,
+      /\btake (?:it|that|this|them|those|everything|all (?:of )?(?:that|it|this)) (?:all )?back\b|\btake back (?:that|what (?:you|u)|the last|my last|your last|those changes|that change|everything|whatever (?:you|u))\b/] },
   // ⭐ PHASE 2 Workstream B: EXPLAIN a term or feature, SHOW ME where a control is — both change nothing
   { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
     // (show-me words only: an explanation question is the model's to answer, as before — it may reroute to this group)
@@ -334,7 +340,10 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // The message's OWN groups are packed smallest-first (after the always-on, reroute and follow-up
   // groups, which keep their place): more of the distinct things a multi-part request names fit,
   // and if one must wait it is the biggest, most often incidental, group.
-  const pinned = [...new Set([...always, ...extra, ...(opts.pendingActions || []), ...(opts.recentActions || [])].map(x => (x.includes?.('.') ? groupOfAction(x) : x)).filter(Boolean))]
+  // review F1: a `ridesAlong` add-only group its words named (agent.undo: one action) is packed right after the always-on
+  // ones — it never changes what else is selected, and a full budget never cuts it
+  const riders = GROUPS.filter(g => g.ridesAlong && wordsSelect(g.id, message)).map(g => g.id)
+  const pinned = [...new Set([...always, ...riders, ...extra, ...(opts.pendingActions || []), ...(opts.recentActions || [])].map(x => (x.includes?.('.') ? groupOfAction(x) : x)).filter(Boolean))]
   const rest = priority.filter(id => !pinned.includes(id))
   // Nothing recognised: the soft-vocabulary groups first, then charts (the page's own controls), then
   // every other group SMALLEST first — the most groups that fit, so a message nothing named (a breadth

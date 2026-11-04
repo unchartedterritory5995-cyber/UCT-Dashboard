@@ -121,6 +121,9 @@ export function translateRefs(ops, refMap) {
 // hotfix 2026-11-03: tab-adding actions — only when the member's own words say "tab"
 const TAB_ADDS = new Set(['chart.addTab', 'widget.addTab'])
 // hotfix 2026-11-03: a planned "change …, then undo it" whose change committed nothing undoable
+// review F3: the refusal wording that would claim nothing changed
+const DIDNT_CHANGE = /^I didn['’]t change anything/
+const UNDO_HELD = 'I didn’t change or undo anything: that change needs your approval (or an answer) first, so I can’t make it and undo it in one request. Ask for the change on its own; once it has run, say “undo”.'
 const UNDO_AFTER_NOTHING = 'I didn’t undo anything: the change before the Undo didn’t make a change I could take back (see above), so nothing was undone.'
 // "undo that <noun> …" — the target kinds each noun names (F14)
 const UNDO_ABOUT = { indicator: ['indicatorEdits', 'indicatorDrafts'], chart: ['chart'], widget: ['board', 'workspace'], drawing: ['drawing'], layout: ['layouts'] }
@@ -128,6 +131,9 @@ const UNDO_ABOUT = { indicator: ['indicatorEdits', 'indicatorDrafts'], chart: ['
 const UNDO_SAYS = { colour: /\bcolou?r|\bcolou?red\b/i, style: /\bstyle|dashed|dotted|solid|thick|thin|width/i, timeframe: /\btimeframe\b/i, symbol: /\bsymbol\b|\bticker\b/i,
   pane: /\bpane\b/i, layout: /\blayout\b/i, theme: /\btheme\b/i, resize: /\bresiz|\bsize\b|taller|shorter|wider|narrower/i, size: /\bresiz|\bsize\b|taller|shorter|wider|narrower/i, move: /\bmov(?:e|ed)\b/i, rename: /\brenam/i, link: /\blink/i }
 const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it => UNDO_ABOUT[about].includes(it.kind))
+  // review F2: "undo the change you made to my charts" after a CHART GRID / charts added (board / workspace writes whose
+  // receipt is about charts) is a chart change in the member's words
+  || (about === 'chart' && entry.items.some(it => it.kind === 'board' || it.kind === 'workspace') && /\bcharts?\b/i.test((entry.lines || []).join(' ')))
   : UNDO_SAYS[about] ? UNDO_SAYS[about].test((entry.lines || []).join(' ')) : true)
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
@@ -374,6 +380,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const memoryRef = useRef(null)            // GATE C session memory (agent/memory.js) — this chat only
   const tapRef = useRef(null)               // ⭐ PHASE 2: outcome kinds recorded while one step of a multi-step request runs
   const undoAfterRef = useRef(null)         // hotfix 2026-11-03: a model plan "change …, then undo it" — the Undo waits for the change
+  const undoneFirstRef = useRef(false)      // review F3: a planned Undo ran FIRST this turn — a later "didn't change anything" isn't true
+  const lastUndoRef = useRef(null)          // review F5: how the last doUndo ended — 'ok' | 'unsaved' | 'refused' | 'none'
   const runCompoundRef = useRef(null)       // ⭐ PHASE 3 acceptance: approve() resumes a whole workspace (defined after it)
   // PLANNER v2 (Wave 1 A-05, agent/steps.js): null unless /api/agent/config says planner 'v2' — then every model
   // turn is the server's step loop, each step through the same `execute`. v2TapRef collects the record bodies of
@@ -402,7 +410,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // `at`: when the line joined the chat (the panel shows it beside the sender's name).
   // ⛔ Never an EMPTY Agent container: an agent / refusal / error line with nothing to show is not
   // added (a blank reply, an answer that came back empty). Cards and questions always carry content.
-  const push = useCallback((item) => {
+  const push = useCallback((item0) => {
+    // review F3: after this turn's planned Undo went through, a refusal of the REST never says nothing changed
+    const item = undoneFirstRef.current && ['refusal', 'error', 'agent'].includes(item0?.role) && DIDNT_CHANGE.test(String(item0.text || ''))
+      ? { ...item0, text: String(item0.text).replace(DIDNT_CHANGE, 'I undid my earlier change (above), but I didn’t make the rest of your request') }
+      : item0
     if (['agent', 'refusal', 'error'].includes(item?.role) && !String(item.text || '').trim()
         && !item.present && !item.table && !item.link) return
     if (item?.role && item.role !== 'member') turnOutput(item.role)
@@ -1016,10 +1028,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [executeInner, definitionListed, host, push, record])
 
   const doUndo = useCallback(async (undoId, { member, voice, about = null } = {}) => {
+    lastUndoRef.current = 'refused'
     const stack = undoRef.current
     const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
     if (!entry) {
       const text = 'There is nothing of mine to undo in this session.'
+      lastUndoRef.current = 'none'
       push({ role: 'outcome', text })
       record({ member, outcome: text, outcomeData: { kind: 'undo-none' }, telemetry: { path: 'fast', undo: true, voice } })
       return
@@ -1059,11 +1073,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         : { ok: true }
       if (saved.ok) saved = await confirmDrawings(host, entry.items.filter(it => it.kind === 'drawing').map(it => it.ref))
       if (!saved.ok) {
+        lastUndoRef.current = 'unsaved'
         push({ role: 'receipt', lines: res.lines, undoId: null, isUndo: true, unsaved: true, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']] })
         record({ member, outcome: `${res.lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'undo-unsaved' }, telemetry: { path: 'fast', undo: true, voice, refused: true } })
         rerender()
         return false
       }
+      lastUndoRef.current = 'ok'
       push({ role: 'receipt', lines: res.lines, undoId: null, isUndo: true })
       record({ member, outcome: res.lines.join(' · '), outcomeData: { kind: 'undo' }, telemetry: { path: 'fast', undo: true, voice } })
       rerender()
@@ -1074,6 +1090,17 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     rerender()
     return false
   }, [host, push, record, withdrawPending])
+
+  // review F4: a planned "…, then undo it" whose change is now WAITING (an approval card, a which-chart question) never
+  // leaves that card or question behind — approving it later would commit the change with no Undo after it
+  const dropHeldForUndo = (before) => {
+    const q = pendingRef.current
+    if (!q || q === before) return false
+    pendingRef.current = null
+    if (q.kind === 'proposal' && q.id) patchItem(q.id, { status: 'replaced' })
+    push({ role: 'refusal', text: UNDO_HELD })
+    return true
+  }
 
   // ⭐ PHASE 3: "undo all of that" — every change the LAST request committed (memory.lastTurn's Undo entries), newest first,
   // each through doUndo (its own refusals: protected, another board, changed since). The first that can't be undone
@@ -1242,7 +1269,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         let ok = true
         if (!prevIds) ok = await doUndo(null, { member: null, voice, about })
         else for (const id of [...prevIds].reverse()) { ok = await doUndo(id, { member: null, voice, about }); if (!ok) break }
-        if (!ok) { stop(i, 'that Undo didn’t go through (see above)'); return }
+        if (!ok) { stop(i, lastUndoRef.current === 'unsaved' ? 'that Undo put things back but couldn’t be saved (see above)' : 'that Undo didn’t go through (see above)'); return }
         done += 1
         prevIds = []
         continue
@@ -1841,16 +1868,26 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           else await doUndo(null, { member: null, voice, about })
           return
         }
+        // review F4: a change that waits for an approval can't be made AND undone in one request (approving it later would
+        // commit it with no Undo after) — refused before anything runs
+        if (at !== 0 && env.disposition !== 'apply') {
+          push({ role: 'refusal', text: UNDO_HELD })
+          record({ member: null, outcome: UNDO_HELD, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'model', undo: true, refused: true, voice } })
+          return
+        }
         if (at === 0) {
           const ok = u.scope === 'all' ? await undoTurn({ member: null, voice }) : await doUndo(null, { member: null, voice, about })
+          if (ok) undoneFirstRef.current = true
           if (!ok) {
-            const t = 'Because that Undo didn’t go through, I didn’t make the rest of the change either.'
+            // review F5: an Undo that put things back but could not be saved says exactly that (its receipt is above)
+            const t = lastUndoRef.current === 'unsaved' ? 'That Undo put things back but couldn’t be saved (see above), so I didn’t make the rest of the change.'
+              : 'Because that Undo didn’t go through, I didn’t make the rest of the change either.'
             push({ role: 'agent', text: t })
             record({ member: null, outcome: t, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'model', undo: true, refused: true, voice } })
             return
           }
         } else {
-          undoAfterRef.current = { about, before: undoRef.current.map(e => e.id) }
+          undoAfterRef.current = { about, before: undoRef.current.map(e => e.id), held: pendingRef.current }
         }
         env = { ...env, ops: rest, reply: '' }
       }
@@ -1858,7 +1895,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // overwriting its ticker): a plan that adds chart tabs when the member never said "tab" is a stand-in for what was
       // asked — nothing runs, said plainly (the member can ask for tabs, or for the charts again)
       if ((env.ops || []).some(o => TAB_ADDS.has(o?.action)) && !/\btabs?\b/i.test(`${askedFor || ''} ${text}`)) {
-        const t = 'I didn’t change anything: my plan would have put those on TABS of one chart, not on separate charts. Ask again for the charts (for example “four charts for SPY, QQQ, NVDA and TSLA in a grid”), or say “tabs” if tabs are what you want.'
+        const t = 'I didn’t change anything: my plan would have added a chart tab, which you didn’t ask for. Ask again — and say “tab” if a tab is what you want.'
         push({ role: 'refusal', text: t })
         record({ member: null, outcome: t, outcomeData: { kind: 'refused', actions: (env.ops || []).map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
         return
@@ -1970,7 +2007,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       undoAfterRef.current = null
       if (after) {
         const fresh = undoRef.current.filter(e => !after.before.includes(e.id))
-        if (!fresh.length) {
+        if (!fresh.length && dropHeldForUndo(after.held)) { /* review F4: said by dropHeldForUndo */ } else if (!fresh.length) {
           const t = UNDO_AFTER_NOTHING
           push({ role: 'agent', text: t })
           record({ member: null, outcome: t, outcomeData: { kind: 'undo-none' }, telemetry: { path: 'model', undo: true, voice } })
@@ -1981,9 +2018,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     } finally {
       // a planned "…, then undo it" whose change never ran (a question, a card, a refusal): nothing was undone — said
       if (undoAfterRef.current) {
+        const held = undoAfterRef.current.held
         undoAfterRef.current = null
-        push({ role: 'agent', text: UNDO_AFTER_NOTHING })
+        if (!dropHeldForUndo(held)) push({ role: 'agent', text: UNDO_AFTER_NOTHING })
       }
+      undoneFirstRef.current = false
       lockRef.current = false
       setBusy(false)
       setActivity(null)

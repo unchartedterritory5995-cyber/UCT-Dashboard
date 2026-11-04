@@ -247,12 +247,20 @@ export function undoWords(t0) {
   let t = String(t0 || '').replace(/^(?:(?:please|can you|could you|would you|will you|just|kindly),?\s+)+(?=(?:undo|revert|reverse|roll back|take|go back|put)\b)/, '')
   if (!UNDO_VERB.test(t)) return t0
   t = t.replace(/^roll back\b/, 'undo').replace(/^(undo|revert|reverse) (?:what|everything) (?:you|u) (?:just )?did\b/, (m, v) => (m.includes('everything') ? `${v} everything you just did` : `${v} that`))
+  // review F2: a NAMED target ("…to my layout", "…to my widgets") is never dropped: it becomes the change's kind, so the
+  // existing which-change check (useAgent doUndo `about`) refuses when the newest change was not one of those
+  let noun = null
   for (let i = 0; i < 3; i++) {
     t = t.replace(/,?\s+(?:for me|please|thanks|thank you|now|just now|again)$/, '')
       .replace(/\s+(?:that |which )?(?:you|u) (?:just )?(?:made|did|applied|changed|added)(?: (?:just )?now)?(?=$|\s)/, '')
-      .replace(/\s+(?:to|on|in|from|for|of) (?:my|the|this|that|these|those) (?:charts?|board|workspace|layout|screen|widgets?)$/, '')
+      .replace(/\s+(?:to|on|in|from|for|of) (?:my|the|this|that|these|those) (charts?|board|workspace|layout|screen|widgets?)$/, (m, w) => {
+        noun = noun || (/^chart/.test(w) ? 'chart' : w === 'layout' ? 'layout' : w === 'screen' ? null : 'widget')
+        return ''
+      })
   }
-  return t.replace(/^(undo|revert|reverse) your\b/, '$1 my').trim()
+  t = t.replace(/^(undo|revert|reverse) your\b/, '$1 my').trim()
+  const plain = /^(undo|revert|reverse)(?: (?:that|it|this)| (?:the|my|that) (?:last )?(?:change|edit|thing|one))?$/.exec(t)
+  return noun && plain ? `${plain[1]} my last ${noun} change` : t
 }
 
 /** undo / confirm / dismiss / "just the first N" — the universal control words, or null */
