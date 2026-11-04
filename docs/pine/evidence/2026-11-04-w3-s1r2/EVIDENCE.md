@@ -96,12 +96,26 @@ Log `_resume-2026-11-01/runs/w3r2-pin/mutate.log`. **21 of 22 killed, 1 survivor
 | M22 per-pass list-element shape not spelled | a string list read by the counter |
 | **M19 SURVIVED** `textRefuse` also writes `lastCanonRefusal` | none. NOT equivalent, see below |
 
-M19 (OPEN, needs a fix round): `pine.js` keeps the text reader's refusal off `lastCanonRefusal` because that value decides
-(`rtAdmits`, `rtTextOf`, `noteGuardRefusal`). The text guards (`pine:text-value`, `loop:per-pass`) are not in `RT_ADMITS`, so a leak cannot
-OPEN the runtime lane. It can OVERWRITE an admitting refusal (`pine:reassign` / `pine:block`) written earlier in the same slot read, and
-that would drop a cell the C18 runtime lane serves today. None of the 4 rail files builds with `objectOpts.runtimeCheck` (the C18 door),
-so none can see it. The rail needed: a C18-door probe whose text slot hits an admitting refusal and then a text refusal, asserting the
-runtime text placeholder is still produced. Unmutated tip vs master on the C18 door: 0 diffs (measure-pair rt0/rt1 above).
+M19 was recorded OPEN in the first mutation run. The fix round below closed it.
+
+## Fix round: M19 rail (C18 door)
+Rail: `ast/textRefusalNames.test.js` section D, commit `ab579a4078` (tests only, no src change).
+- The rail builds with `objectRuntimeCheck: probeObjectRuntime` (the C18 door). `bias` is a text bound below a stepped-over
+  `while`, which writes the admitting `pine:block` refusal. The label's text is an 18-deep `?:` chain ending in `bias`.
+- It builds, then nests past `TEXT_NODE_MAX_NEST`, so `fitTextNest` refuses it as `pine:text-value`. `valueRef` then asks
+  `rtTextOf` for the whole text, which reads `lastCanonRefusal`.
+- Assertion: one label create, a `ternary` text runtime spec, no drop.
+- CONTROL: the same depth with no admitting refusal is dropped, named `pine:text-value ... nests deeper than the runtime reads`.
+- The bug was NOT LIVE on the tip: the rail is green on `ab579a4078` (25/25 in the file). Under M19 the label is dropped (verified on a
+  scratch probe, restored byte-exact). The rail guards W3's own invariant, so it is not a red-on-master rail: on master
+  `fitTextNest` writes no text refusal, and the label is carried there too.
+- Mutation re-run, all of `muts2.json` on `heavy-mut.lock` (label `w3-mut2`; log `runs/w3r2-pin/mutate2.log`): **22 / 22 killed**.
+  M19 is killed by "a too-deep text after an admitting refusal is still read whole from the runtime lane". No equivalents.
+- Only a test changed, so measure-pair was not re-run (the src tree is the one measured above).
+- final-tip on `heavy-final3.lock` (label `w3-final2`): `final-tip.sh pine-dsk-w3 w3r2-final2 tests/test_script_engine_version_gate.py`,
+  tip `ab579a40783394cd21689a0d95c8fecf74a9366a`, log `runs/w3r2-final2/` (job log `runs/w3r2-fix-job.log`).
+  - Gate `46 passed`. Hygiene clean (34663 files). Version gate `6 passed`.
+  - Vitest `Test Files  1 failed | 1335 passed | 28 skipped (1364)`: only `src/hooks/pollingSites.rail.test.js`, the baseline.
 
 ## Why census (base vs tip)
 Same job. `tools/pine_coverage/w3_why_input.py --sample _resume-2026-11-01/pine-sample` gave 195 scripts. The env-gated
