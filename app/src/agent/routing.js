@@ -61,9 +61,11 @@ export const GROUPS = [
     // CG-33 (corpus #774, live LT-7): Replay Mode had no words of its own — "replay", "bar replay", "as of <date>", "hide
     // what came after", "step through", "exit / stop replay" (routing only ADDS this group) — the first words below
     // W2 (CG-5): "what's the setup here" names chart.describeSetup too (not only describe / summarise / walk me through)
-    words: [/\b(?:bar )?replay(?:ing|ed)?\b/, /\bas of (?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]* \d{1,2}|\d{1,2}\/\d{1,2}|\d{4}-\d{2}-\d{2}|last \w+)\b/,
+    words: [/\b(?:bar )?replay(?:ing|ed)?\b/, /^(?=.*\b(?:replay|charts?|bars?|candles?)\b).*\bas of (?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]* \d{1,2}|\d{1,2}\/\d{1,2}|\d{4}-\d{2}-\d{2}|last \w+)\b/,
       /\bhide (?:what|everything|all|the bars?|the candles?)(?: that)? (?:came |comes )?after\b/, /\bstep (?:through|forward|back)\b/,
-      /\btemplates?\b/, /\blooks? (just )?like\b/, /\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/, /\bwhat(?:'s|’s|s| is) (?:the |this |my )?(?:chart'?s? )?set-?up\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
+      // delta nit: "look like" is the copy-look request ("make the left chart look like the right one") — not "what does the
+      // market look like as of …"
+      /\btemplates?\b/, /\b(?:make|making|made)\b.*\blooks? (just )?like\b|\blooks? (just )?like (?:the|that|my|this) (?:\w+ )?(?:chart|one)\b/,/\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/, /\bwhat(?:'s|’s|s| is) (?:the |this |my )?(?:chart'?s? )?set-?up\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
@@ -109,13 +111,13 @@ export const GROUPS = [
       // CG-28 (corpus #774): the words traders use for a chart's indicators — "which studies do I have on here", "my
       // oscillators", "the averages", "what overlays are on", "which lines (MAs) are on here" — and "on here" = this chart
       /\b(?<!case )stud(?:y|ies)\b|\boscillators\b|\bmas\b/,
-      /^(?!.*\b(?:the market|market'?s|s ?& ?p|spx|nyse|nasdaq|breadth|stocks)\b).*\b(?:moving |the |my |which |what |all (?:the |my )?)averages\b/,
+      /^(?:(?=.*\bcharts?\b)|(?!.*\b(?:the market|market'?s|s ?& ?p|spx|nyse|nasdaq|breadth|stocks)\b)).*\b(?:moving |the |my |which |what |all (?:the |my )?)averages\b/,
       /\b(?:what|which|any|my|the) (?:[a-z-]+ ){0,2}(?:overlays|lines)\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/,
       /\b(?:what|which)\b.*\b(?:have|got|is|are)\b.*\b(?:on|in) here\b/,
       // Gate C: moving averages by name or by LENGTH ("add a 200 day moving average", "add the 9 and 20",
       // "put the 50 on it", "make it a 9" after an add) and the short names traders type ("bollies", "bb")
       // CG-36 (corpus #774): the MARKET's moving averages ("how are the moving averages looking for the market") are breadth's
-      /^(?!.*\b(?:the market|market'?s|s ?& ?p|spx|nyse|nasdaq|breadth|stocks)\b).*\bmoving averages?\b/, /\b(mas?|bbands?|bb|bollies|boll)\b/,
+      /^(?:(?=.*\bcharts?\b)|(?!.*\b(?:the market|market'?s|s ?& ?p|spx|nyse|nasdaq|breadth|stocks)\b)).*\bmoving averages?\b/, /\b(mas?|bbands?|bb|bollies|boll)\b/,
       // CG-19 (corpus #774): a LENGTH ("the 200 day") — not in a question over a universe of stocks ("% of stocks above the 50 day")
       /^(?!.*\b(?:percent|%|pct|share|how many)\b.*\b(?:stocks|names|issues)\b)(?!.*\b(?:stocks|names|issues)\b.*\b(?:above|below)\b).*\b\d{1,3}[- ]?(?:day|week|period)\b/,
       /\b(add|put|throw|slap|stick|plot|show|hide|remove|take off|clear|get rid of|make|swap|replace)\b.*\bthe \d{1,3}(?:\s*(?:,|and|&)\s*(?:the )?\d{1,3})*\b/,

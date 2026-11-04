@@ -961,3 +961,23 @@ describe('review gaps-5 · a reply sets the question aside ONLY when it is a com
     expect(wordsSelect('breadth', 'averages for the S&P')).toBe(true)
   })
 })
+
+describe('gaps-5 delta nits', () => {
+  it('a reply with an action and its OWN new object is a new request even when the QUESTION names the same ticker', () => {
+    expect(isNewRequest('draw a trendline on NVDA from 2031-01-01 to today', { text: 'Which NVDA October low do you mean?', choices: [{ label: 'Oct 10' }, { label: 'Oct 24' }] })).toBe(true)
+    expect(isNewRequest('set an alert on AMD at 150', { text: 'Which chart should get the RSI alert?', choices: [{ label: 'Chart (NVDA)' }, { label: 'Chart (AMD)' }] })).toBe(true)
+    expect(isNewRequest('add the 50 day moving average to AMD', { text: 'Which chart should get the RSI alert?', choices: [{ label: 'Chart (NVDA)' }, { label: 'Chart (AMD)' }] })).toBe(true)
+    // …and naming only what was offered still answers
+    expect(isNewRequest('put it on AMD', { text: 'Which chart should get the RSI alert?', choices: [{ label: 'Chart (NVDA)' }, { label: 'Chart (AMD)' }] })).toBe(false)
+  })
+  it('"as of <date>" is replay only beside replay / chart / bar words — a price or market question keeps its own groups', () => {
+    expect(wordsSelect('chartSetup', 'what was NVDA trading at as of oct 3')).toBe(false)
+    expect(wordsSelect('chartSetup', 'what does the market look like as of last friday')).toBe(false)
+    expect(wordsSelect('chartSetup', 'show me the chart as of oct 1')).toBe(true)
+  })
+  it('a CHART\'s moving averages keep indicators even on an index chart', () => {
+    expect(wordsSelect('indicators', 'what are the moving averages on the nasdaq chart')).toBe(true)
+    expect(wordsSelect('indicators', 'hide the moving averages on my SPX chart')).toBe(true)
+    expect(wordsSelect('indicators', 'how are the moving averages looking for the market')).toBe(false)
+  })
+})

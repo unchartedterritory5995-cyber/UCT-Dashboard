@@ -276,10 +276,10 @@ export function isShortAnswer(text, choices = [], answering = false) {
 // verb or a tool / indicator noun, WITH its own object (a ticker, a date, a level, an indicator, a widget) — that names
 // nothing the question offered or asked about. Anything that picks among the choices or the question's subject (a
 // position, a symbol, a timeframe, a length, "instead / rather / go with / use / not the …") ANSWERS it. When unclear: an answer.
-const REQUEST_VERB = /\b(?:add|remove|delete|open|draw|put|create|show|hide|move|alert|save|run|find|scan|swap|rename|sort|copy|duplicate|plot|load|apply|set up|build)\b/i
-const REQUEST_NOUN = /\b(?:trend ?lines?|avwap|anchored vwap|fib\w*|rays?|rectangles?|alerts?|watch ?lists?|screens?|scans?|layouts?|widgets?|rsi|macd|vwap|bollinger|ema|sma)\b/i
-const ANSWER_WORDS = /\b(?:instead|rather|go with|use|the (?:\w+ )?one|not the|left|right|top|bottom|middle|first|second|third|last|other|daily|weekly|monthly|hourly|intraday|\d+[- ]?(?:day|min|minute|hour|week)s?)\b/i
-const DATE_OR_LEVEL = /\b\d{4}-\d{2}-\d{2}\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]* \d{1,2}\b|\$\d|\b\d{2,5}(?:\.\d+)?\b/i
+const REQUEST_VERB = /\b(?:add|remove|delete|open|draw|put|create|show|hide|move|alert|save|run|find|scan|swap|rename|sort|copy|duplicate|plot|load|apply|set up|set|build)\b/i
+const REQUEST_NOUN = /\b(?:trend ?lines?|avwap|anchored vwap|fib\w*|rays?|rectangles?|alerts?|watch ?lists?|screens?|scans?|layouts?|widgets?|rsi|macd|vwap|bollinger|ema|sma|moving averages?)\b/i
+// only an EXPLICIT pick ("instead", "go with", "the … one", "not the …") answers despite an action verb with new objects
+const PICK_WORDS = /\b(?:instead|rather|go with|the (?:\w+ )?one|not the)\b/i
 const sigTokens = (s) => new Set((String(s || '').toLowerCase().match(/[a-z0-9$.-]+/g) || [])
   .filter(w => w.length > 1 && !/^(?:the|a|an|my|on|in|to|of|for|and|or|chart|charts|one|this|that|it|do|you|mean|which|what|from|at|with|please)$/.test(w)))
 export function isNewRequest(text, question = null) {
@@ -288,14 +288,22 @@ export function isNewRequest(text, question = null) {
   const raw = t.replace(/[.,!?]+/g, ' ')
   const tickers = (raw.match(/(?:^|\s)\$?([A-Z]{1,5})(?=\s|$)/g) || []).map(w => w.trim().replace('$', ''))
     .filter(w => !['I', 'A', 'UCT', 'OK'].includes(w))
-  const lowerTicker = /\b(?:nvda|tsla|aapl|amd|msft|amzn|meta|goog|googl|spy|qqq|iwm|nflx|avgo|mu|smci|pltr)\b/i.test(raw)
+  const lower = raw.toLowerCase()
   const action = REQUEST_VERB.test(raw) || REQUEST_NOUN.test(raw)
-  const object = tickers.length > 0 || lowerTicker || DATE_OR_LEVEL.test(raw) || REQUEST_NOUN.test(raw)
-  if (!action || !object) return false
-  if (ANSWER_WORDS.test(raw)) return false
-  // anything it names that the question offered or asked about → it is answering
-  const asked = sigTokens([question?.text || '', ...((question?.choices || []).map(c => c?.label || ''))].join(' '))
-  for (const w of sigTokens(raw)) if (asked.has(w)) return false
+  if (!action) return false
+  // delta review (1): the reply's OWN objects — tickers, dates, levels / lengths, indicators and tools it names
+  const objects = new Set([
+    ...tickers.map(x => x.toLowerCase()),
+    ...(lower.match(/\b(?:nvda|tsla|aapl|amd|msft|amzn|meta|goog|googl|spy|qqq|iwm|nflx|avgo|mu|smci|pltr)\b/g) || []),
+    ...(lower.match(/\b\d{4}-\d{2}-\d{2}\b|\$?\d+(?:\.\d+)?\b/g) || []).map(x => x.replace('$', '')),
+    ...(lower.match(new RegExp(REQUEST_NOUN.source, 'gi')) || []).map(x => x.toLowerCase()),
+  ])
+  if (!objects.size) return false
+  // compared with the CHOICES only (what the question offered — never every word of the question, which names its topic)
+  const offered = sigTokens((question?.choices || []).map(c => c?.label || '').join(' '))
+  const fresh = [...objects].filter(o => !offered.has(o) && !o.split(/\s+/).every(w => offered.has(w)))
+  if (!fresh.length) return false                                  // it only names what was offered: an answer
+  if (PICK_WORDS.test(raw)) return false                           // an explicit pick among them
   return true
 }
 // the groups a question is ABOUT: those its request's own words named (never the always-on / budget fill)
