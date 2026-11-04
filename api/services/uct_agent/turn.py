@@ -2500,7 +2500,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                                                                  claim_repaired=bool(usage.get("false_claim")),
                                                                  grounded=True), env), caps)
             if coach_turn:
-                envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
+                envelope = agent_coach.guard_envelope(envelope, context, msg, usage, history)
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
@@ -2523,7 +2523,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
                                                              claim_repaired=bool(usage.get("false_claim"))), env), caps)
         if coach_turn:
-            envelope = agent_coach.guard_envelope(envelope, context, msg, usage)
+            envelope = agent_coach.guard_envelope(envelope, context, msg, usage, history)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         title = clean_title(env) if conversation_title and not envelope.get("need_groups") else None

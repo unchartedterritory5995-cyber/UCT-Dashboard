@@ -65,28 +65,62 @@ def setup_named(text: str) -> str | None:
 # a sentence that DEFINES a named setup: "<setup> is a / are when / means the / refers to ...", "<setup>: ...", "<setup> = ..."
 _DEF_TAIL = (r"(?:s|es)?\s*(?:\([^)]{0,40}\)\s*)?(?:(?:is|are|means|refers to|is defined as|is called|describes|consists of)\s+"
              r"(?:a|an|the|when|where|basically|simply|essentially|just|defined|characteri\w+|made of|any)\b|[:=]\s)")
-_DEF_FORMS = [(name or " / ".join(AMBIGUOUS[form]), re.compile(r"(?:^|[^A-Za-z0-9])" + _body(form) + _DEF_TAIL,
-                                                                 0 if form in ("EP", "PEG") else re.I))
+# pre-activation (re-review r2): wider definition shapes -- "In a VCP, price ...", "VCPs form when ...", "The VCP
+# pattern is a ...", "A VCP setup means ..."
+_DEF_IN = r"\bin (?:a|an|the) "                                                          # "In a VCP, price ..."
+_DEF_IN_TAIL = r"(?:s|es)?\s*,"
+_DEF_WHEN_TAIL = (r"(?:s|es)?\s+(?:form|forms|occur|occurs|happen|happens|develop|develops|appear|appears|start|starts|"
+                  r"begin|begins|show up|shows up|set up|sets up|trigger|triggers)\s+(?:when|after|as|if|where|once)\b")
+_DEF_NOUN_TAIL = (r"(?:s|es)?\s+(?:pattern|setup|set-up|formation|template|signal|entry|structure)s?\s+"
+                  r"(?:is|are|means|refers to|describes|consists of|happens when|occurs when|forms when|is defined as|is when)\b")
+
+
+def _flags(form: str) -> int:
+    return 0 if form in ("EP", "PEG") else re.I
+
+
+_DEF_FORMS = [(name or " / ".join(AMBIGUOUS[form]),
+               [re.compile(r"(?:^|[^A-Za-z0-9])" + _body(form) + tail, _flags(form))
+                for tail in (_DEF_TAIL, _DEF_WHEN_TAIL, _DEF_NOUN_TAIL)]
+               + [re.compile(_DEF_IN + _body(form) + _DEF_IN_TAIL, _flags(form))])
               for name, form, _rx_ in _FORMS]
-# the reply carries a REAL setup.playbook template citation -- the exact header coach.explain writes when it teaches
-# from a template (coach/brain.js setupTemplate). #751 B-1: "From UCT's playbook" (a passage, possibly team commentary),
-# "approved playbook", "Setup Library" and the like are NOT a citation of a definition.
-_CITES = re.compile(r"— from UCT's setup template \(the approved playbook\):", re.I)
+
+# A definition is CITED only by a real setup.playbook citation that coach.explain produced in this conversation: the
+# stored, text-free citation marker of an answer it taught from the template (coach/brain.js knowledgeMarker:
+# `<uct_knowledge_ref/> ... Cited: setup template "VCP" ...`). Free text in the reply never counts -- "UCT's playbook",
+# "approved playbook", a copied template header (#751 B-1 / re-review r2).
+_MARKER_TEMPLATE = re.compile(r'setup template "([^"]{1,80})"')
 
 
-def uncited_setup_definitions(reply: str) -> list[str]:
-    """The canonical names a reply DEFINES without citing UCT's playbook (empty = fine). Deterministic."""
+def cited_templates(history: list | None) -> set[str]:
+    """The canonical templates coach.explain taught FROM a setup.playbook template in the stored history (its markers)."""
+    out: set[str] = set()
+    for t in history or []:
+        if not isinstance(t, dict) or t.get("role") != "outcome":
+            continue
+        data = t.get("data") if isinstance(t.get("data"), dict) else {}
+        text = str(t.get("text") or "")
+        if data.get("knowledge") is not True or not text.startswith("<uct_knowledge_ref/>"):
+            continue
+        for m in _MARKER_TEMPLATE.finditer(text):
+            name = setup_named(m.group(1))
+            if name:
+                out.add(name)
+    return out
+
+
+def uncited_setup_definitions(reply: str, cited: set[str] | frozenset[str] = frozenset()) -> list[str]:
+    """The canonical names a reply DEFINES that coach.explain has not cited from UCT's playbook (empty = fine)."""
     t = str(reply or "")
-    if _CITES.search(t):
-        return []
     out: list[str] = []
-    for name, rx in _DEF_FORMS:                      # longest form first; a matched span is blanked, so "high tight
-        m = rx.search(t)                             # flag is ..." is not ALSO read as "tight flag is ..."
-        while m:
-            if name not in out:
-                out.append(name)
-            t = t[:m.start()] + " " * (m.end() - m.start()) + t[m.end():]
+    for name, rxs in _DEF_FORMS:                     # longest form first; a matched span is blanked, so "high tight
+        for rx in rxs:                               # flag is ..." is not ALSO read as "tight flag is ..."
             m = rx.search(t)
+            while m:
+                if name not in out and name not in cited:
+                    out.append(name)
+                t = t[:m.start()] + " " * (m.end() - m.start()) + t[m.end():]
+                m = rx.search(t)
     return out
 
 
