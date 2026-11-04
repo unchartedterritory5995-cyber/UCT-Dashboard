@@ -810,11 +810,12 @@ describe('nl-gaps-2 review notes', () => {
     expect(parsePriceSentence('move the 200 line up to 210')).toBeNull()
   })
   it('CG-24\'s search words never claim a question about the chart\'s OWN indicators, or a removal', () => {
-    for (const [m, own] of [['which indicators are on my chart', 'indicators'], ['remove any indicators', 'indicators']]) {
+    for (const [m, own] of [['which indicators are on my chart', 'indicators'], ['remove any indicators', 'indicators'], ['what indicators are on this chart', 'indicators']]) {
       expect(wordsSelect('definitions', m), m).toBe(false)
       expect(selectGroups(m).selected, m).toContain(own)
     }
     expect(wordsSelect('definitions', 'are there any volatility indicators')).toBe(true)
     expect(wordsSelect('definitions', 'what indicators do you have')).toBe(true)
+    expect(wordsSelect('definitions', 'find me a volatility indicator')).toBe(true)                   // master's search words still search
   })
 })
