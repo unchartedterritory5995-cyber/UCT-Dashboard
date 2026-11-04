@@ -60,8 +60,8 @@ as the fix, or right after it lands on master:
    data, the lock and the regenerated files together.
 
 A fix that only PARTLY closes a gap fails differently: `failed for an UNRELATED reason — expected the mode …`. Then
-re-capture the new failure with `CAPREG_CAPTURE_GAPS=<file>` and update that gap's `mode`. Changing a mode is not a
-weakening, because the gap already existed. If the case now fails in a way that hides a regression, treat it as one.
+re-capture the new failure with `CAPREG_CAPTURE_GAPS=<file>` and update that gap's `mode`. The mode is part of the lock (format 3),
+so the change needs a bound `BASELINE:` decision. If the case now fails in a way that hides a regression, treat it as one.
 
 ### What counts as covered
 
