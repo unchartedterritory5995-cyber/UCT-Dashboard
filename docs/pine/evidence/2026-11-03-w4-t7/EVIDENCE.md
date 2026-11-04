@@ -84,3 +84,27 @@ Classification (0 unintended):
 
 Logs: C:\Users\Patrick\uct-worktrees\_resume-2026-11-01\runs\dsk-w4t7c\ (job.out, red-master.log, green-tip.log, mut.log,
 mp0*, mp1*, olc-*.log) and ...\runs\dsk-w4t7c-final\ (js.log, gate.log, hyg.log, py.log).
+
+## Addendum: object-door gate (coordinator ruling), code tip 0ac78ae601ad474d159c046c34deb0b1cce1318d
+The script that moved BUILD-REFUSED -> DREW-NOTHING-KEPT on the live object door:
+`reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine` (found by a per-script run of the object-lane census,
+tip vs master; four scripts changed refusal text, only this one changed bucket).
+Why: its UDFs (f_reverse_SMI, f_reverse_SMI_cross) take `ta.ema(...)[1]` and `(...)[1]` over expressions of their
+parameters, which master refuses (`runtime:history-expression`); with the frame hoist they build, and the script's single
+`label.new` (info box at `time_close + offset`, xloc.bar_time) is emitted but the renderer keeps none.
+Verdict: NOT PROVABLY CORRECT. TradingView draws that info box, so a blank result is not "TradingView draws nothing too".
+Action: the function-body hoist is gated off at the object door (`atObjectDoor && owner !== null` in hoistCommittedSeries),
+so the door keeps master's answer exactly. The runtime pane keeps the new behaviour.
+Rails (w4FrameHoist.test.js, 15 tests): door refuses `runtime:history-expression`; the pane builds the same source;
+the door still serves the root-list hoist master served.
+Mutation M10 (gate removed): KILLED by "door (objectDoor: true) refuses runtime:history-expression, as master does".
+measure-pair re-run on the gated tip, base `pine-dsk-mpbase2` at M 5d95103c8a (the base header was checked each lane;
+a first lane-0 run had its shared base switched by another builder to 6990d63b02 and was discarded, lane 0 re-run):
+- lane 0 (mp0b): harness 336 MATCH 93 / DIVERGE 103 / INCONCLUSIVE 140, identical; C18 probes identical; C18 corpus
+  audit 0 non-timing diffs; census 1 row differs (`multi-timeframe-trend-indicator` pine:timeout, a time-budget artefact).
+- lane 1 (mp1): harness 336 MATCH 111 / DIVERGE 107 / INCONCLUSIVE 118, identical; probes identical; audit 0 non-timing
+  diffs (the earlier two first-wall moves were runtime-pane effects and are now gone from the door); census 16 rows differ,
+  all runtime-pane first-wall moves with attached False -> False, as before.
+final-tip on 0ac78ae601 (heavy-final2): gate pytest 46 passed, engine-version gate 6 passed, hygiene clean;
+vitest "Test Files 1 failed | 1334 passed | 27 skipped", "Tests 1 failed | 22375 passed"; the one failure is the known
+baseline pollingSites.rail. Logs: runs/dsk-w4t7d/ and runs/dsk-w4t7d-final/.
