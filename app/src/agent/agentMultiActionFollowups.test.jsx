@@ -724,6 +724,9 @@ describe('CG-10..16 · corpus gaps (#769): never the opposite action, never a qu
   it('CG-15: "trade places with the left and right charts" is never a quote (PLACES / LEFT / CHARTS)', () => {
     expect(parsePriceSentence('trade places with the left and right charts')).toBeNull()
     expect(parsePriceSentence('swap the left and right charts')).toBeNull()
+    // CG-22 (corpus #774): an everyday word typed in lower case is never a ticker; a $-prefixed or capitalised one still is
+    expect(parsePriceSentence('move the 200 line up to 210')).toBeNull()
+    expect(parsePriceSentence('what is NVDA trading at')?.candidates?.map(c => c.text)).toEqual(['NVDA'])
     expect(selectGroups('trade places with the left and right charts').selected).toContain('boardEdit')
   })
   it('CG-11/12/13/14/16 route their capability groups', () => {

@@ -24,6 +24,15 @@ const GRAMMAR = new Set([...ALWAYS_GRAMMAR, ...('a an get got give show tell tra
   + 'okay just quick stock stocks share shares check look lookup also both move moved moving sitting right now for '
   + 'pm hours hour after rn').split(/\s+/)])                     // rn = "right now" (agent-qa set 3, A10)
 
+// CG-15 / CG-22 (corpus #769 / #774): everyday words the member typed in LOWER case are never a ticker — "move the 200 line
+// up to 210" is a drawing, "trade places with the left and right charts" a swap. A sentence that leans on one of them is
+// not a price question at all, so the reader steps aside (the request goes on to its own capability or the model). A
+// ticker is still read when typed $-prefixed or in capitals ("$LINE", "LINE").
+const NOT_A_TICKER = new Set(('line lines places place left charts chart level levels drawing drawings top bottom middle side sides '
+  + 'board widget widgets panel panels screen screens layout layouts window windows grid label labels colour color colors colours '
+  + 'average averages one ones each every other those these them that this thing things all alert alerts tab tabs pane panes '
+  + 'indicator indicators study studies box boxes ray rays fib trendline trendlines arrow arrows note notes').split(/\s+/))
+
 // intent words only (never a symbol): the parser's own fixed typo list (MD-1-phrasings §1.6)
 const TYPOS = { wats: "what's", whats: "what's", wat: 'what', tradin: 'trading', tradeing: 'trading', pirce: 'price',
   prcie: 'price', pric: 'price', qoute: 'quote', quoet: 'quote', premarkt: 'premarket', premaket: 'premarket',
@@ -101,6 +110,7 @@ export function parsePriceSentence(text) {
   if (VETO.some(re => re.test(low)) || TIME_VETO.some(re => re.test(low))) return null
   const candidates = candidatesOf(s)
   if (!candidates || !candidates.length || candidates.length > MAX_TICKERS) return null
+  if (candidates.some(c => c.form === 'lower' && NOT_A_TICKER.has(c.text))) return null
   const allCash = candidates.every(c => c.form === 'cashtag')
   if (candidates.length > 1 && !allCash && !/(\band\b|,)/i.test(s)) return null
   // a list ("X and Y", "X, Y") must have a candidate in EVERY item: "nvda and on price" names two things, one of which
