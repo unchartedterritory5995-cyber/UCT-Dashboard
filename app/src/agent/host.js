@@ -218,6 +218,9 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         widgets: all.map(w => ({
           id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h, color: w.color,
           optsSig: optsSignature(w.opts),
+          // NLM1-G1: the opts WITHOUT the timeframe — the stale-Undo check compares the EFFECTIVE timeframe instead
+          // (configOf: an absent tf IS 'D'), so an exact Undo that writes back tf 'D' never reads as a later edit
+          optsSigNoTf: optsSignature(w.opts && typeof w.opts === 'object' ? { ...w.opts, tf: undefined } : w.opts),
         })),
         visible: visible.map(w => ({ id: w.id, type: w.type, position: positionWord(w, visible) || null })),
         count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits, fitsSequence, capacity, groupPlan,
