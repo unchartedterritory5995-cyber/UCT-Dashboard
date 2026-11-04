@@ -2,7 +2,6 @@
 tools/kn_rights_review.py). Fixture pack only; no network; Brain stays OFF in production."""
 from __future__ import annotations
 
-import datetime
 import json
 
 import pytest
@@ -12,7 +11,6 @@ from tests.test_uct_agent_knowledge import KB, _make_pack, kn as _kn_base, read 
 
 CUP = (14, "SETUP", "TSDR note: cup and handle", "The cup and handle forms over weeks; the team watches the handle.",
        "trader_archive", "TSDR", 5)
-TODAY = datetime.date.today().isoformat()
 
 
 @pytest.fixture
@@ -35,7 +33,7 @@ def _ids(out):
 
 def _filled(ws, ref="RR-14", **over):
     d = {"clear": True, "provenance_ref": "PROV-14", "rights_review_ref": ref, "approved_by": "Owner Name",
-         "approved_on": TODAY, "notes": ""}
+         "approved_on": "2026-11-01", "notes": ""}
     d.update(over)
     return {**ws, "decision": d}
 
