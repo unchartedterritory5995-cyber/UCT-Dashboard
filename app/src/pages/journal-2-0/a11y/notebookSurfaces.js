@@ -352,6 +352,9 @@ export const SURFACES = Object.freeze({
   // Plan F Task 10: the one-time notice above the list for imports that lost pictures. The tab's
   // rails answer "no notice", so it has its own; rail a11y/importRepairNotice.a11y.test.jsx.
   'components/notebook/ImportRepairNotice.jsx': { recipe: 'import-repair-notice' },
+  // L3 (2026-11-03): the note view's notice for a connector note its source app no longer has.
+  // The editor's rail opens an untagged note, so it has its own; rail a11y/sourceRemovedNotice.a11y.test.jsx.
+  'components/notebook/SourceRemovedNotice.jsx': { recipe: 'source-removed-notice' },
   // Notebook P2 Tier 2 part B: the earnings follow-up card a notice links to (dark behind
   // notebook_earnings_followup_enabled + Journal styles, so no tab recipe renders it); a11y/followupCard.a11y.test.jsx
   // reads it through its slot, with the failure sentence on screen. The slot is the card's eager half.
