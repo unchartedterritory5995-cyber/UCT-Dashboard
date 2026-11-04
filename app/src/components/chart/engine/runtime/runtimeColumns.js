@@ -31,7 +31,8 @@ import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute } from './vm.js'
 import { Budget, RuntimeLimitError, DEFAULT_LIMITS } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
-import { registerObjectRuntimeValues } from '../objectColumns.js'
+// ⭐ W5-T2 — through the leaf seam, never `objectColumns.js` (which reaches the registry)
+import { registerObjectRuntimeValues } from '../objectRuntimeSeam.js'
 // ⭐⭐ RT5 — the run's own drawings ride the column record (`runtimeObjects.js`).
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY, RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 import { sameDrawings } from './warmupDrawings.js'
@@ -55,7 +56,16 @@ function rememberProbeVerdict(key, v) {
 }
 /** Test seam: forget every cached verdict. */
 export function __resetBarIndexProbeCacheForTests() { probeVerdictCache.clear() }
-import { strippedForScan } from '../ast/pine.js'
+import { strippedForScan, withTranslateClock } from '../ast/pine.js'
+
+// ─── ⭐⭐ W5-T2 — EVERY WALL CLOCK A RUN READS IS THE HOST'S TO INJECT (design 2.2 H5) ──
+// `opts.now` reaches the pane budget, the VM's `WALL_TIME` and the translator's
+// `pine:timeout` (`withTranslateClock`). Absent, each reads the host's own clock, LATE,
+// from this ONE default. ⛔ A clock is a safety stop and never a verdict (ruling R3):
+// what a script computes is decided by the instruction budgets (`limits.js`).
+const hostNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+const clockOf = (opts) => (opts && typeof opts.now === 'function' ? opts.now : hostNow)
+const injectedNow = (opts) => (opts && typeof opts.now === 'function' ? { now: opts.now } : {})
 
 /** ⭐⭐ C23 — THE RUNTIME LANE SERVES A CHART PANE, NEVER A SCREEN, from every
  *  door in this module: a runtime pane's columns and an object pass's values are
@@ -401,8 +411,7 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   const win = calcBarsWindowOf(def, rows, (src) => declaredCalcBarsOf(strippedForScan(src)))
   if (win) {
     const wctx = { ...(ctx || {}), historyFromListing: true }
-    const clock = typeof opts.now === 'function' ? opts.now
-      : () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    const clock = clockOf(opts)
     const t0 = Number.isFinite(opts.budgetMs) ? clock() : 0
     let cols
     try {
@@ -588,8 +597,7 @@ function computeOffListing(def, rows, ctx, opts) {
     + 'TradingView does not share. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded '
     + "history reaches the listing (a daily chart of a symbol listed within the bars it loads) draws it.")
   if (shift < 2) throw never()
-  const clock = typeof opts.now === 'function' ? opts.now
-    : () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+  const clock = clockOf(opts)
   const t0 = clock()
   const inner = { ...opts, warmupCurtain: false }
   // ⭐⭐ UIE PHASE 3 (M1) — B stops as soon as it is PROVEN to repeat A (`warmupProbe.js`);
@@ -1203,7 +1211,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const reused = prevSession && prevSession.build && rows.length ? columnsOver(prevSession.build, rows, prevSession) : null
   const reusedLast = reused ? _lastReused : 0
   const recorder = !reused && sessionKey && rows.length ? buildRecorder() : null
-  const built = reused ? { ok: true, ir: { ...prevSession.build.ir, columns: reused } } : buildRuntimeIr(String(compute.source || ''), {
+  const built = reused ? { ok: true, ir: { ...prevSession.build.ir, columns: reused } } : withTranslateClock(opts.now, () => buildRuntimeIr(String(compute.source || ''), {
     ...(recorder ? { columnInterpret: recorder.interpret } : {}),
     // ⭐ P3 WS-F (review M3) — a `varip` builds only where its ledger runs: a run with a session
     ...(sessionKey && !slides ? { realtimeLedger: true } : {}),
@@ -1231,7 +1239,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     ...(ctx && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
     // ⭐ WS-E — the calc_bars window's `bar_index` probe (measurement only)
     ...(Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0 ? { barIndexShift: opts.barIndexShift } : {}),
-  })
+  }))
   if (!built.ok) {
     const r = built.refusal || {}
     throw refusal(r.guard || 'runtime:build', r.message || 'the runtime lane could not build this script')
@@ -1285,8 +1293,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // ⭐⭐ RT1 — THE TIME BUDGET, checked at the end of every bar through the VM's
   // own per-bar hook (no VM change): past it the run stops by name.
   const budgetMs = Number.isFinite(opts.budgetMs) ? opts.budgetMs : null
-  const now = typeof opts.now === 'function' ? opts.now
-    : () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+  const now = clockOf(opts)
   const startedAt = budgetMs !== null ? now() : 0
   if (typeof opts.onProgram === 'function') opts.onProgram(program)
   // ⭐⭐ C43 — the script's own `runtime.error` (C35's `PineRuntimeError`) stops
@@ -1309,6 +1316,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // `runtimeLimitsBudget.measure.test.js`); no product caller passes it, so every
       // chart runs under `DEFAULT_LIMITS`.
     }, opts.limits, {
+      ...injectedNow(opts),
       ...(runProbe ? { probe: runProbe } : {}),
       ...(resumeFrom ? { resume: resumeFrom } : {}),
       ...(realtime ? { realtime: realtime.hooks } : {}),
@@ -1575,7 +1583,7 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
   const value = (() => {
     let built
     try {
-      built = buildRuntimeIr(String(rt.source), {
+      built = withTranslateClock(ctx.now, () => buildRuntimeIr(String(rt.source), {
         bars: rows,
         inputs: {},
         objectTrees: [],
@@ -1585,7 +1593,7 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
         ...(symbol ? { symbol } : {}),
         ...(tf ? { basePeriod: tf, tf } : {}),
         ...runtimeClockOpts(forming, tf ? { tf } : {}),
-      })
+      }))
     } catch (err) {
       return withheld('runtime:build')
     }
@@ -1641,7 +1649,7 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
         columns: program.columns,
         confirmed: forming === false,
         barTimes: rows.map((b) => b.t),
-      }, undefined, { budget, ...(hasIters ? { onBar } : {}) })
+      }, undefined, { budget, ...injectedNow(ctx), ...(hasIters ? { onBar } : {}) })
       return { outputs: res.outputs, snaps, overflow, hits: budget.unmeasured.hits.length }
     }
     let first

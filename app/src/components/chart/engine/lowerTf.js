@@ -99,7 +99,8 @@
 import { etClockAt } from '../indicators.js'
 import { tradingViewCloseMinute, SESSION_OPEN_MINUTE } from '../../../lib/marketClock/tradingViewSession.js'
 import { interpret, isoDay, maxLookback, tfBucket } from './ast/interpret.js'
-import { lowerTfServingEnabled } from './lowerTfGate.js'
+// ⭐ W5-T2 — the gate through its leaf seam: the flag itself is read at the door (`lowerTfGate.js`)
+import { lowerTfServingEnabled } from './lowerTfServing.js'
 
 /** Why a lower-timeframe request is not served — one code per sentence, so a
  *  rail and a surface can name the reason without matching prose. */

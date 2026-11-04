@@ -6923,9 +6923,42 @@ let TRANSLATE_PATH = null
 let TRANSLATE_BUDGET = 0
 let printSteps = 0
 
-export function beginTranslateBudget(budgetMs, sourcePath) {
+// ─── ⭐⭐ W5-T2 — THE TRANSLATOR'S CLOCK IS INJECTABLE (SERVER-RUNTIME-DESIGN 2.2 H5) ──
+//
+// Every wall-clock read in this translator goes through `translateNow()`. By default it
+// is the host's `Date.now()`, read LATE (so nothing here is a function of when the
+// module loaded). A caller hands its own clock in one of two ways, and both reach every
+// limb of `pine:timeout` that reads time:
+//   * `translatePine(src, { now })` — the window this call opens reads it;
+//   * `withTranslateClock(now, fn)` — every Resolver CONSTRUCTED inside `fn` reads it
+//     (the runtime lane's front end builds its own Resolvers outside any
+//     `translatePine` window: `runtime/runtimeColumns.js` passes the run's `opts.now`).
+// ⛔ The clock is a SAFETY STOP, never the verdict: the deterministic limbs (the step
+// cap and the depth bound below) decide the same on every host, and a host that
+// injects a clock that never advances keeps only them (ruling R3, design 9.1).
+const wallNow = () => Date.now()
+let TRANSLATE_CLOCK = null
+let TRANSLATE_WINDOW_CLOCK = wallNow
+const clockOrNull = (now) => (typeof now === 'function' ? now : null)
+
+/** The clock a Resolver constructed NOW reads: the scoped one, else the open window's
+ *  (the host's when no window is open). */
+function translateNow() { return TRANSLATE_CLOCK || TRANSLATE_WINDOW_CLOCK }
+
+/** Runs `fn` with `now` as the translator's clock (restored after, nesting-safe).
+ *  A non-function `now` leaves the clock as it is. */
+export function withTranslateClock(now, fn) {
+  const clock = clockOrNull(now)
+  if (!clock) return fn()
+  const prior = TRANSLATE_CLOCK
+  TRANSLATE_CLOCK = clock
+  try { return fn() } finally { TRANSLATE_CLOCK = prior }
+}
+
+export function beginTranslateBudget(budgetMs, sourcePath, now) {
+  TRANSLATE_WINDOW_CLOCK = clockOrNull(now) || TRANSLATE_CLOCK || wallNow
   TRANSLATE_BUDGET = Number.isFinite(budgetMs) ? budgetMs : PINE_TRANSLATE_BUDGET_MS
-  TRANSLATE_DEADLINE = TRANSLATE_BUDGET > 0 ? Date.now() + TRANSLATE_BUDGET : Infinity
+  TRANSLATE_DEADLINE = TRANSLATE_BUDGET > 0 ? TRANSLATE_WINDOW_CLOCK() + TRANSLATE_BUDGET : Infinity
   TRANSLATE_PATH = typeof sourcePath === 'string' ? sourcePath : null
   printSteps = 0
 }
@@ -6934,6 +6967,7 @@ export function endTranslateBudget() {
   TRANSLATE_DEADLINE = Infinity
   TRANSLATE_PATH = null
   TRANSLATE_BUDGET = 0
+  TRANSLATE_WINDOW_CLOCK = wallNow
 }
 
 /** Throws `pine:timeout` once the wall-clock budget is gone. Cheap: a masked
@@ -6951,14 +6985,14 @@ export function endTranslateBudget() {
  * difference between 10s and 46 × 10s on a 45-output script like Uncharted Clouds.
  */
 export function translateBudgetExpired() {
-  return TRANSLATE_DEADLINE !== Infinity && Date.now() > TRANSLATE_DEADLINE
+  return TRANSLATE_DEADLINE !== Infinity && TRANSLATE_WINDOW_CLOCK() > TRANSLATE_DEADLINE
 }
 
 export function translateBudgetMs() { return TRANSLATE_BUDGET }
 
 export function tickTranslateBudget() {
   if ((((printSteps += 1)) & BUDGET_CHECK_MASK) !== 0) return
-  if (Date.now() <= TRANSLATE_DEADLINE) return
+  if (TRANSLATE_WINDOW_CLOCK() <= TRANSLATE_DEADLINE) return
   throw new PineRefusal('pine:timeout',
     `${REFUSALS['pine:timeout']} — gave up after ${TRANSLATE_BUDGET}ms`
     + (TRANSLATE_PATH ? ' translating `' + TRANSLATE_PATH + '`' : '')
@@ -7097,7 +7131,9 @@ export class Resolver {
      *  pass `budgetMs: 0` to disable it, which is for tests that deliberately
      *  measure a slow path — never for a batch run over untrusted scripts. */
     this.budgetMs = Number.isFinite(opts.budgetMs) ? opts.budgetMs : PINE_TRANSLATE_BUDGET_MS
-    this.deadline = this.budgetMs > 0 ? Date.now() + this.budgetMs : Infinity
+    /** ⭐ W5-T2 — the clock this Resolver's own deadline reads (`translateNow`). */
+    this.now = clockOrNull(opts.now) || translateNow()
+    this.deadline = this.budgetMs > 0 ? this.now() + this.budgetMs : Infinity
     /** Named in the refusal so a batch says WHICH file, not just that one hung. */
     this.sourcePath = typeof opts.sourcePath === 'string' ? opts.sourcePath : null
     this.maxSteps = Number.isFinite(opts.maxSteps) ? opts.maxSteps : PINE_TRANSLATE_MAX_STEPS
@@ -8968,7 +9004,9 @@ export class Resolver {
     // `this.deadline` is the fallback for a Resolver constructed directly,
     // outside `translatePine`, where no window was ever opened.
     const deadline = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_DEADLINE : this.deadline
-    if (Date.now() <= deadline) return
+    // ⭐ W5-T2 — each deadline is read on the clock it was set with
+    const clock = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_WINDOW_CLOCK : this.now
+    if (clock() <= deadline) return
     const budget = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_BUDGET : this.budgetMs
     throw new PineRefusal('pine:timeout',
       `${REFUSALS['pine:timeout']} — gave up after ${budget}ms for the whole script`
@@ -24376,7 +24414,7 @@ function translatePineResult(source, opts = {}) {
   // this function, so every phase — resolve, print, round-trip, object pass —
   // is inside it. Opening it any later would leave the phase that actually hangs
   // outside the guard, which is the mistake this guard was written to correct.
-  beginTranslateBudget(opts.budgetMs, opts.sourcePath)
+  beginTranslateBudget(opts.budgetMs, opts.sourcePath, opts.now)
   // ⭐ THE PALETTE SCOPE IS SAVED HERE and restored in the SAME `finally` that
   // closes the budget, so a translation can never leave its version behind for
   // the next one. It is OPENED once the lexer has read the version, below.
