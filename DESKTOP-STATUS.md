@@ -1,7 +1,7 @@
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
-updated: 2026-11-04 07:34 CT
+updated: 2026-11-04 08:06 CT
 desktop up since: 2026-11-03 (this session) · plan: DESKTOP-PROMPT v2.1 @ 7809e3399b
 free RAM: 16229 MB · builder cap per coordinator ruling a48cbe455f: 6 (max 2 Opus) at >=8 GB, 4 below. Was 9 (2 Opus: W3 S1 r2, W5-T6; 6 Sonnet: W5-T1 final-tip, W4-T7, W4-T3 r1, W5-T3, W4-T0 peel, W2 r3). Running 9 again: W4-T14 started after E lows READY.. A RAM/disk watch runs every 5 min and alerts below 8 GB free RAM or 20 GB free disk; no new lane starts while below 8 GB.
 master at start: 5d95103c8a
@@ -239,10 +239,14 @@ open: HP-3 gating decision; verify HP-1 under Node 20 before T19; extract runtim
 desktop check: PASS for the build (scope, rails, 29/29, final-tip at baseline, local == origin, worktree clean). HP-3 red is a real cross-host finding, reported, not hidden.
 
 ## W4-T10 (picked per 063fe2ba8e: "after T1"; STACKED on the laptop's W4-T1, reviewed GO, in the merge queue)
-state: BUILDING   round: r0   updated: 2026-11-04 04:45 CT
-branch: feat/pine-w4-t10-state-kernels   base: origin/feat/pine-w4-t1-wall-report f9b85fb442 (merge W4-T1 first)   worktree: pine-dsk-w4t10   model: Sonnet
-region: ast/interpret.js tables + api/services/ast_interpret.py; RT/vm.js OP.CARRIED ~:1080-1110; FE builtinStateFamily ~:4886-4933
-next: state kernels (ta.cum, running totals, ta.vwap, pivots, ta.stoch over runtime values); measure-pair against the T1 tip on mp2; object door keeps master's answer unless proved
+state: READY            round: r0            updated: 2026-11-04 08:06 CT
+branch: feat/pine-w4-t10-state-kernels   tip: aab2471815 (docs over engine tip 22ad7169f5)   base: origin/feat/pine-w4-t1-wall-report f9b85fb442 (merge W4-T1 first)
+engine bump needed: YES (refusals become served values on the runtime lane; SCRIPT_ENGINE_VERSION not edited)
+evidence: docs/pine/evidence/2026-11-04-w4-t10/EVIDENCE.md (logs _resume-2026-11-01/runs/dsk-w4t10/)
+report: ast/interpret.js: new CARRIED.cumPine, pivotHighPine, pivotLowPine and CARRIED2.stochPine, vwapPine (three-input members), each the columnar arithmetic stepped per bar. runtime/vm.js, ir.js, lowerIr.js: cells may be a function of the length, step receives the plan entry's m, CARRIED2 members with inputs: 3 pop a third value; OP.WINDOW untouched. ast/pineRuntimeFrontend.js: a new RUNTIME_STATE_KERNELS table and one branch before the namespaced transform (which had rewritten ta.pivothigh into a refused history read over a stateful call); builtinStateFamily and other lanes' bands untouched. Served now over run-computed values: ta.cum, ta.pivothigh/low(x, L, R), ta.stoch(c, h, l, n), ta.vwap(x); v1-v4 bare spellings only before v5; a script's own function of the same name wins. Still refused: 2-argument pivots (pure; the columnar lane answers them), counts of 0, anchored/banded vwap. api/services/ast_interpret.py NOT touched (runtime-only kernels, no columnar twin). OBJECT DOOR keeps master's answer (off when opts.objectDoor; 4 new objectDoorGate shapes t10_cum, t10_pivot, t10_stoch, t10_vwap).
+checks: new w4StateKernels.test.js (28); on the T1 base bytes six rail files give 34 failed | 181 passed; all green on tip. Pins moved on purpose: h4Loops, rt7PivotRightbars, finiteWindow, carriedState (runtime-only count 3 -> 6), objectDoorGate, enumerationSites. Mutations: 29 run; 2 pivot-window mutations (ignore an na in the window, answer before the ring is full) are equivalent because beats(c, NaN) is false; a dead 2-argument pivot branch was removed; all others killed. measure-pair (heavy-mp2; tip 22ad7169f5 vs base f9b85fb442 set in-job; DESKTOP-VERIFIED from the mpbase2 reflog: base f9b85fb442 from 06:32:30 to 07:25:57 covering every side; the next switch, 07:25:58, is W4-T7's re-run after this job released the lock): rt0 C18 out/probe identical (ms ignored), verdicts.json identical, harness 93/103/140 both sides, 6/967 census rows differ; rt1 identical C18/verdicts, harness 111/107/118, 11/967 rows. Intended attaches on both lanes: volume-divergence-by-mm and stoch-money-flow-admf-absolute-strength-index-asi-ci8dh; the rest are wall/peel moves and timeout-wording noise; 0 unintended; OBJECT DOOR: no change. Spec misses: coral-trend-indicator-lazybear and anchored-vwap-pinch-handoff did not attach (blocking walls are not among the served forms). final-tip (on 490146fe3f, same engine code as 22ad7169f5): gate pytest 46, ast_interpret + version-gate pytest 113, hygiene clean, vitest Test Files 1 failed | 1335 passed, Tests 1 failed | 22422 passed | 118 skipped = pollingSites.rail baseline (settingsScope.rail passed; base predates 96582cd549).
+open: stoch over a source with interior na restarts its window (matches columnar for leading holes and after the last hole; no TradingView capture grades a gappy source). vwap uses the ET calendar-day session, as computeVWAP does.
+desktop check: PASS (scope, rails red/green, mutations with 2 named equivalents, measure-pair both lanes with base verified, final-tip at baseline, 22ad7169f5..aab2471815 docs only, local == origin, worktree clean)
 
 ## W5-T5 cross-engine report (picked per 063fe2ba8e: needs T4, READY; stacked on T4)
 state: READY            round: r0            updated: 2026-11-04 07:02 CT
