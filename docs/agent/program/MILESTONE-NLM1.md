@@ -253,10 +253,14 @@ Kept ungated:
 - `remove-not-there` and `remove-ambiguous`: safety behaviours (an honest refusal, a question; never a guess).
 - `in-message-repeat`, which a sealed pass used, still reads its "same for <ticker>" internally (`rewriteFollowUp(…, { internal: true })`), so gating `same-for-ticker` as a follow-up does not break it.
 
-**Rule names built at runtime that appear in NEITHER of AUDIT's lists** (left ungated, as instructed; for AUDIT to classify):
-- `same-on-charts`: the plural branch of a ternary next to `same-on-chart`.
-- The same-request pipeline's composite names, `rules.join('+')`: `verbless-assign`, `with-indicator`, `quantifier`, `distribute-indicators`, alone or combined (only `add-to-it` and `tf-modifier+add-to-it` are on the used list).
-- `nlm1Rewrite`'s `<follow-up rule>+<same-request rule>` composites.
+**Rule names built at runtime that appeared in neither list.** AUDIT then classified them from the full sealed tally (every mark that fired, composites included): none fired in any sealed case. So these are **now gated too**, at the TOP level:
+- `same-on-charts` (the plural branch of a ternary next to `same-on-chart`);
+- the same-request pipeline stages `verbless-assign`, `with-indicator`, `quantifier`, `distribute-indicators`;
+- `nlm1Rewrite`'s `<follow-up>+<same-request>` composites.
+
+`tf-modifier` and `add-to-it` (used) stay on. **Internal paths of used rules are kept**: a used rule that normalises its parts (`clauses`, `in-message-repeat`: `rewriteSameRequest` at depth > 0, `rewriteFollowUp(…, { internal: true })`) still applies those stages, `same-for-ticker` and `structure` to its own parts. Without the key, those rules are not reachable on their own.
+
+**R-B5b, the one robustness-B case that fails with the key OFF**, needs `remove-on-charts`: "add rsi to both charts" → "remove it from the right one" (removal by position; a proposal, approved). It is a cross-turn behaviour, but no sealed pass took the rule, so it stays gated pending AUDIT's decision. With it ungated, B on my robustness set would be 12/12 with the key OFF. The two safety answers (`remove-not-there`, `remove-ambiguous`) are ungated either way.
 
 **NLM1-G2.** Its fix depended on `style-last-added`, which is now gated. D2-18 passes with the in-plan key ON (the default of `nlm1Workflows.test.jsx`, which reproduces `36957ddf7a`). With the key OFF, D2-18 fails as before: **G2 is a gated gap**, fixed only behind the in-plan key.
 
@@ -270,10 +274,10 @@ Results (my 114 cases; final state plus Undo, no model; every run's flag and key
 | Mode | First (40) | Gen. (23) | Robust. (22) | Shapes (29) | Total |
 |---|---|---|---|---|---|
 | Flag ON, in-plan key ON (= `36957ddf7a`) | 40 | 23 | 22 | 29 | **114/114** (incl. 2 NLM1-G1 gap cases failing as recorded) |
-| Flag ON, in-plan key OFF (as it would ship) | 36 | 14 | 19 | 8 | **77/114** |
+| Flag ON, in-plan key OFF (as it would ship; after the second gating batch) | 34 | 13 | 16 | 9 | **72/114** (first batch only: 77) |
 | Flag OFF | 23 | 3 | 2 | 4 | 32/114 |
 
-By category with the key OFF: robustness B (cross-turn) 11/12, C 2/2, A 6/8. My shape set drops to 8/29: exactly the never-taken in-plan rules. Flag-off regression 3079/3079 (+ the gate test); D1 gates and metrics unchanged. AUDIT's sealed confirmation with the key OFF is pending (prediction: B 19/19, A 9/16 or close).
+By category with the key OFF: robustness B (cross-turn) 11/12 (R-B5b needs remove-on-charts), C 2/2, A 3/8. My shape set drops to 9/29: exactly the never-taken in-plan rules. Flag-off regression 3083/3083 (+ the gate tests); D1 gates and metrics unchanged. AUDIT's sealed confirmation with the key OFF is pending (prediction: B 19/19, A 9/16 or close).
 
 Recorded gaps (capreg `gapIt`: each must fail exactly as recorded, so a fix is noticed):
 - **NLM1-G1** (D2-13, G-a3): after the new chart's later changes are undone exactly, the creation's own Undo is refused ("Workspace has changed since I made that change"). The new chart's stored settings aren't byte-identical after those undos, so the workspace fingerprint no longer matches. Same with the flag off. Runtime exact-undo area (#771), reported to AUDIT.

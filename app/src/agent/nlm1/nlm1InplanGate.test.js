@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest'
 import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
 import { INPLAN_KEY, inplanOn, setInplan } from './inplan'
-import { rewriteSameRequest, rewriteFollowUp, rewriteClauses } from './followups'
+import { rewriteSameRequest, rewriteFollowUp, rewriteClauses, nlm1Rewrite } from './followups'
 import { resolveFollowUpOps, rescopeOrdinal, swapOps, resolveCharts } from './followupOps'
 
 await registerCatalog()
@@ -74,5 +74,24 @@ describe('key OFF: what sealed passes used, and the safety behaviours, still wor
     expect(resolveFollowUpOps('remove it from the right one', { host, memory })?.rule).toBe('remove-not-there')
     const twoRsi = { charts: { list: host.charts.list, read: (r) => ({ ...host.charts.read(r), cs: { indicatorInstances: [{ instanceId: 'a', defId: 'rsi', inputs: { period: 14 } }, { instanceId: 'b', defId: 'rsi', inputs: { period: 7 } }] } }) } }
     expect(resolveFollowUpOps('remove the rsi from the right one', { host: twoRsi, memory })?.rule).toBe('remove-ambiguous')
+  })
+})
+
+describe('key OFF: the runtime-built names no sealed case fired (AUDIT classification) are dark too', () => {
+  it('pipeline stages verbless-assign / with-indicator / quantifier / distribute-indicators at the top level', () => {
+    expect(rewriteSameRequest('TSLA on the left chart, META on the right one')).toBeNull()
+    expect(rewriteSameRequest('add a chart for AMD with RSI')).toBeNull()
+    expect(rewriteSameRequest('add rsi to both')).toBeNull()
+    expect(rewriteSameRequest('put RSI and MACD on it')).toBeNull()
+  })
+  it('same-on-charts (the plural); same-on-chart (used) stays', () => {
+    expect(rewriteFollowUp('do the same for the bottom two', 'make the top left chart weekly')).toBeNull()
+    expect(rewriteFollowUp('now the right one too', 'make the left chart weekly')?.rule).toBe('same-on-chart')
+  })
+  it('a <follow-up>+<same-request> composite', () => {
+    expect(nlm1Rewrite('same but weekly', { prev: 'add a chart for TSLA with RSI', claims: () => true })?.rule).toBe('same-but-tf')
+  })
+  it('a USED rule keeps its internal path (clauses normalise their parts)', () => {
+    expect(rewriteClauses('make the left chart weekly and add rsi to both')?.steps).toEqual(['make the left chart weekly', 'add rsi to both charts'])
   })
 })

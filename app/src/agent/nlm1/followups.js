@@ -99,7 +99,9 @@ export function rewriteSameRequest(text, depth = 0) {
   // D3.3 clause STRUCTURE first (topicalised / plain "give", possessives, a count of charts with tickers) — so every later
   // rule sees the canonical structure, whatever the surface order or verb
   // (the `structure` rewrite is dark behind the in-plan key: no sealed pass took it — nlm1/inplan.js)
-  const s = inplanOn() ? preNormalise(raw) : raw
+  // (the `structure` rewrite is dark behind the in-plan key at the TOP level; a used rule's internal normalisation of its
+  // parts — clauses, in-message-repeat: depth > 0 — keeps it, the same exception as same-for-ticker)
+  const s = (inplanOn() || depth > 0) ? preNormalise(raw) : raw
   const preChanged = s !== raw
   // D2.2 / D3.3 IN-MESSAGE "SAME": "<request> and the same to AMD", "<request>, same for QQQ", "<request> and do the same with
   // TSLA", "<request> and AMD the same", "<request>, then open a chart for AMD and do the same there", "<request> and give a
@@ -130,12 +132,16 @@ export function rewriteSameRequest(text, depth = 0) {
   let t = s
   const rules = []
   const stage = (name, fn) => { const n = fn(t); if (n && n !== t) { t = n; rules.push(name) } }
-  stage('verbless-assign', verblessAssign)       // "…, AMD on the right" → "…, put AMD on the right chart"
+  // (in-plan key, AUDIT's tally: verbless-assign, with-indicator, quantifier and distribute-indicators never fired in any sealed
+  // case, alone or combined — dark at the TOP level; a USED rule that normalises its parts internally (clauses,
+  // in-message-repeat: depth > 0) keeps them. tf-modifier and add-to-it were used: always on.)
+  const gated = depth === 0 && !inplanOn()
+  if (!gated) stage('verbless-assign', verblessAssign)       // "…, AMD on the right" → "…, put AMD on the right chart"
   stage('tf-modifier', tfModifier)               // "switch the right chart to TSLA on the weekly …" → "… and make it weekly …"
-  stage('with-indicator', withIndicator)         // "<chart request> with RSI [on both]" → "… and put RSI on it" / "… and add RSI to both charts"
-  stage('quantifier', quantifierCharts)          // "add rsi to both" → "add rsi to both charts"
+  if (!gated) stage('with-indicator', withIndicator)         // "<chart request> with RSI [on both]" → "… and put RSI on it" / "… and add RSI to both charts"
+  if (!gated) stage('quantifier', quantifierCharts)          // "add rsi to both" → "add rsi to both charts"
   stage('add-to-it', ontoClauses)                // "add X to it / the new one" → "put X on …" (a clause never crosses into another)
-  stage('distribute-indicators', distributeIndicators) // "put RSI and MACD on it" → "put RSI on it and put MACD on it"
+  if (!gated) stage('distribute-indicators', distributeIndicators) // "put RSI and MACD on it" → "put RSI on it and put MACD on it"
   if (preChanged) rules.unshift('structure')
   return rules.length ? { text: t, rule: rules.join('+') } : null
 }
@@ -352,6 +358,8 @@ export function rewriteFollowUp(text, prev, { internal = false } = {}) {
   const positions = positionsOf(phrase, P.pos)
   if (!positions || P.creates) return null
   const one = (p) => withTf(P.posPhrase ? P.text.replace(P.posPhrase, `the ${p} chart`) : `${P.text} on the ${p} chart`, P.tf, tf)
+  // (same-on-charts — the plural — never fired in a sealed case: dark behind the in-plan key; same-on-chart was used)
+  if (positions.length > 1 && !internal && !inplanOn()) return null
   return { text: positions.map(one).join(' and '), rule: positions.length > 1 ? 'same-on-charts' : 'same-on-chart' }
 }
 
@@ -373,7 +381,8 @@ export function nlm1Rewrite(text, { prev = null, claims = () => false, originalC
       if (originalClaimed && !r.override) continue
       if (r.steps) { if (r.steps.length > 1 && r.steps.every(st => claims(st))) return r; continue }
       // a follow-up's explicit form may itself carry a same-request reference ("… with RSI")
-      const again = rewriteSameRequest(r.text)
+      // (a '<follow-up>+<same-request>' composite never fired in a sealed case: dark behind the in-plan key)
+      const again = inplanOn() ? rewriteSameRequest(r.text) : null
       const out = again ? { ...again, rule: `${r.rule}+${again.rule}` } : r
       if (out.steps ? out.steps.every(st => claims(st)) : claims(out.text)) return out
     }
