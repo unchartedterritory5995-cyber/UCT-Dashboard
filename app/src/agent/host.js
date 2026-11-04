@@ -168,6 +168,17 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
  * = handleRemoveWidget). `fits[type]` is planPlacement's own verdict: true when
  * the type lands in empty space without resizing anything.
  */
+/** A widget's opts as the stale-Undo check (workspace.js fingerprintFor) and the layout approval binding (layout.js
+ *  approvalState) compare them. A null-valued key is the same widget as an absent one — an Undo that restores a chart's
+ *  never-persisted settings writes `settings: null` — and opts that are absent, `{}` or only null keys all sign as
+ *  "null", so none of them ever reads as a later edit. Any real value (including one that BECOMES null from a value)
+ *  still changes the signature. Top-level keys only: a nested null is content and stays significant. */
+export function optsSignature(opts) {
+  if (!opts || typeof opts !== 'object') return JSON.stringify(null)
+  const kept = Object.entries(opts).filter(([, v]) => v != null)
+  return JSON.stringify(kept.length ? Object.fromEntries(kept) : null)
+}
+
 export function buildWidgetSource({ widgetOps, getWidgets }) {
   return {
     snapshot() {
@@ -206,7 +217,7 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         ref: 'workspace', label: 'Workspace',
         widgets: all.map(w => ({
           id: w.id, type: w.type, x: w.x, y: w.y, w: w.w, h: w.h, color: w.color,
-          optsSig: JSON.stringify(w.opts ?? null),
+          optsSig: optsSignature(w.opts),
         })),
         visible: visible.map(w => ({ id: w.id, type: w.type, position: positionWord(w, visible) || null })),
         count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits, fitsSequence, capacity, groupPlan,
@@ -560,7 +571,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     ...(widgetOps ? { widgetInSync: buildWidgetSync({ readLayout, localLayout: () => widgetOps.layout() }) } : {}),
     // The board's persistence acknowledgment (ChartsWorkspace `persist`): resolves once the
     // server has accepted — or refused — this tab's current board. → { ok, conflict, reason }
-    ...(widgetOps?.persist ? { persist: () => widgetOps.persist() } : {}),
+    ...(widgetOps?.persist ? { persist: (opts) => widgetOps.persist(opts) } : {}),
     otherWidgets: () => (getWidgets() || []).filter(w => w.type !== 'chart').map(w => widgetLabel(w.type)),
     // The member's own preferences, through the Settings page's writer: read() → the
     // current values; write(key, value) → true only once the server accepted it.

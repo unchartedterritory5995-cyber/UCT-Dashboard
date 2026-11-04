@@ -64,12 +64,16 @@ on:
 
 # One queue for the whole repository. Runs execute strictly one at a time and an
 # older run is never cancelled by a newer one.
+env:
+  AGENT_SHARDS: '4'
+
 concurrency:
   group: master-deploy
   cancel-in-progress: false
 
 jobs:
   gate:
+    name: deploy-correctness checks + Agent server tests
     runs-on: ubuntu-latest
     timeout-minutes: 60   # 40 -> 60 (2026-11-04, owner-approved): release train 2 ran the gate 35.2 of 40 min on 3d3d444d4f (Agent vitest 23.7 min, serial); 10 -> 15 (2026-10-06): + the production dependency smoke; 15 -> 25 (2026-10-11): + the UCT Agent tests (npm ci + vitest); 25 -> 40 (2026-11-02): Sprint 1 grew the Agent vitest step to 16.2 min and the gate ran 23.5 of 25 min on c3ba71c343
     steps:
@@ -357,25 +361,6 @@ jobs:
           /tmp/prodvenv/bin/python -m pip install --quiet pytest httpx
           /tmp/prodvenv/bin/python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-
-      - name: Install the app's dependencies (for the UCT Agent browser tests)
-        working-directory: app
-        run: npm ci
-
-      - name: UCT Agent browser tests
-        working-directory: app
-        run: |
-          n=$(ls src/agent/*.test.js src/agent/*.test.jsx 2>/dev/null | wc -l)
-          if [ "$n" -lt 30 ]; then
-            echo "::error::Only $n UCT Agent test files under app/src/agent (floor 30) — refusing to pass a gate that tests nothing."
-            exit 1
-          fi
-          npx vitest run src/agent src/components/chart/builder/agentMutations
 
       - name: Explain a failure
         if: failure()
@@ -400,4 +385,139 @@ jobs:
           echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
           echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
           echo "  python -m pytest tests/test_uct_agent*.py -q"
-          echo "  (cd app && npm ci && npx vitest run src/agent src/components/chart/builder/agentMutations)"
+          echo "  (cd app && npm ci && npx vitest run src/agent src/components/chart/builder/agentMutations)  # CI runs this as 4 shards + an equivalence rail"
+
+  # ── SPEEDUP (2026-11-04): the Agent browser suite was 22.3 of the gate's ~31 min, run
+  # serially AFTER the Python checks. It now runs as 4 parallel vitest shards beside the
+  # `gate` job, exactly as agent-ci.yml already does, and `agent-browser-union` proves the
+  # shards together executed EVERY file `vitest list` reports (the equivalence rail) with
+  # zero failures and >= 30 files. Nothing is skipped, deselected or made optional.
+  # ⛔ The workflow conclusion (what promote-production.yml / tools/promotion_gate.py read)
+  # is failure if ANY job fails; `verdict` additionally names the result in one place.
+  agent-browser:
+    name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install the app's dependencies (for the UCT Agent browser tests)
+        working-directory: app
+        run: npm ci
+
+      - name: UCT Agent browser tests
+        working-directory: app
+        run: |
+          n=$(ls src/agent/*.test.js src/agent/*.test.jsx 2>/dev/null | wc -l)
+          if [ "$n" -lt 30 ]; then
+            echo "::error::Only $n UCT Agent test files under app/src/agent (floor 30) — refusing to pass a gate that tests nothing."
+            exit 1
+          fi
+          start=$(date +%s)
+          npx vitest run src/agent src/components/chart/builder/agentMutations             --shard=${{ matrix.shard }}/${AGENT_SHARDS}             --reporter=default --reporter=json --outputFile=../shard-${{ matrix.shard }}.json
+          echo "shard ${{ matrix.shard }} wall: $(( $(date +%s) - start )) s"
+
+      - name: Keep the shard report for the equivalence rail
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-agent-shard-${{ matrix.shard }}
+          path: shard-${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  agent-browser-union:
+    name: Agent shards cover every Agent test file (equivalence rail)
+    needs: agent-browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci (for vitest list)
+        working-directory: app
+        run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gate-agent-shard-*
+          path: shards
+          merge-multiple: true
+      - name: Expected file list
+        working-directory: app
+        run: npx vitest list src/agent src/components/chart/builder/agentMutations --filesOnly > ../expected-files.txt && wc -l ../expected-files.txt
+      - name: Union of executed files equals the expected list; exactly 4 shard reports; floor 30; no failures
+        run: |
+          node - <<'EOF2'
+          const fs = require('fs'), path = require('path');
+          const norm = p => path.resolve(p).replace(/\\/g, '/').replace(/^.*?\/app\//, 'app/');
+          const expected = new Set(fs.readFileSync('expected-files.txt', 'utf8').split(/\r?\n/).filter(Boolean).map(f => norm(path.join('app', f))));
+          const reports = fs.readdirSync('shards').filter(f => f.endsWith('.json'));
+          if (reports.length !== Number(process.env.AGENT_SHARDS)) { console.log(`::error::expected ${process.env.AGENT_SHARDS} shard reports, got ${reports.length}`); process.exit(1); }
+          const ran = new Set(); let failed = 0, passed = 0, files = 0;
+          for (const f of reports) {
+            const r = JSON.parse(fs.readFileSync(path.join('shards', f), 'utf8'));
+            for (const t of r.testResults) { files++; ran.add(norm(t.name)); }
+            failed += (r.numFailedTests || 0) + (r.numFailedTestSuites || 0); passed += r.numPassedTests || 0;
+          }
+          const missing = [...expected].filter(f => !ran.has(f));
+          const extra = [...ran].filter(f => !expected.has(f));
+          console.log(`expected ${expected.size} files; shards ran ${ran.size} distinct (${files} total); passed ${passed}, failed ${failed}`);
+          if (missing.length) { console.log('::error::files no shard ran:\n' + missing.join('\n')); }
+          if (extra.length) { console.log('::warning::files ran but not in the expected list:\n' + extra.join('\n')); }
+          if (expected.size < 30 || ran.size < 30) { console.log('::error::fewer than 30 Agent test files'); process.exit(1); }
+          if (missing.length || failed > 0) process.exit(1);
+          EOF2
+
+  # One named verdict for the whole gate. Runs even when a dependency failed or was
+  # cancelled, and passes ONLY if every job above succeeded.
+  verdict:
+    name: master deploy gate verdict
+    needs: [gate, agent-browser, agent-browser-union]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every gate job succeeded
+        run: |
+          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }}"
+          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ]; then
+            echo "master deploy gate: ALL JOBS GREEN"; exit 0
+          fi
+          exit 1
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::The master deploy gate failed — Railway has ALREADY built this commit; production will not be promoted."
+          echo ""
+          echo "⛔ READ THAT AGAIN: a red gate does NOT stop the deploy today."
+          echo "Railway's Wait-for-CI is OFF (checkSuites=False on all six services),"
+          echo "so the build started when you pushed. What this failure prevents is the"
+          echo "promotion of \`production\`. Until the watched branch is repointed at"
+          echo "\`production\`, the code IS live and a revert is a push, not a re-run."
+          echo ""
+          echo "This gate is FAST and serialised: it holds the promotion queue, so fix"
+          echo "forward rather than pushing again on top of a red run."
+          echo ""
+          echo "Run the same checks locally:"
+          echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
+          echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
+          echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
+          echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
+          echo "  python tools/check_repo_hygiene.py"
+          echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
+          echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
+          echo "  python -m pytest tests/test_uct_agent*.py -q"
+          echo "  (cd app && npm ci && npx vitest run src/agent src/components/chart/builder/agentMutations)  # CI runs this as 4 shards + an equivalence rail"

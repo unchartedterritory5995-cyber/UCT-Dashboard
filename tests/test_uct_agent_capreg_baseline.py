@@ -432,6 +432,12 @@ def test_no_control_characters_in_the_data():
 def test_rail_self_test_detects_a_loosened_gap_mode():
     """Review #769 delta (3): the recorded failure mode is locked — loosening it (e.g. to "") is a change that needs a decision."""
     corpus = _load(CORPUS)
+    # every known gap may be fixed (a corpus with none is the goal): the rail is then self-tested on a SYNTHETIC gap,
+    # locked first, so loosening its mode is still caught — never a vacuous pass
+    if not any(isinstance(p, dict) and p.get("gaps") for it in corpus["intents"] for p in it["phrasings"]):
+        corpus = copy.deepcopy(corpus)
+        first = next(p for it in corpus["intents"] for p in it["phrasings"] if isinstance(p, dict))
+        first["gaps"] = {"a": {"id": "CG-SELFTEST", "reason": "synthetic (rail self-test)", "owner": "rail", "mode": "→ selftest"}}
     lock = fingerprint(corpus, _load(GOLDEN))
     c2 = copy.deepcopy(corpus)
     hit = None

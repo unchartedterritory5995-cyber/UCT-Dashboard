@@ -271,6 +271,9 @@ function controlWord(t) {
   // (useAgent undoTurn: newest first, each through the same Undo; it stops at the first one that can't be undone)
   if (/^(?:undo|revert|reverse) (?:all (?:of )?(?:that|it|this|those|them|those changes|of those changes)|everything(?: (?:you|i) just (?:did|made|changed|asked for))?|that whole (?:thing|request|change|lot)|the whole (?:thing|request|lot)|all (?:the|those|your|my) (?:last )?changes)$|^take (?:it|that|them|everything) all back$|^take (?:everything|all of (?:that|it|them)) back$/.test(u)) return { kind: 'undo', all: true }
   if (/^(undo|undo (that|it|this|the last (one|change|action|thing))|(revert|reverse)( that| it| this)?|(undo|revert|reverse) (the |my )?last (one|change|action|thing)|go back|put it back|take (that|it) back)$/.test(u)) return { kind: 'undo' }
+  // W2 (CG-9): "put my layout back", "put the charts back (the way they were)" — the newest change, when it IS one of those
+  const back = /^(?:please |can you |could you )?put (?:my|the) (layout|board|workspace|charts?|widgets) back(?: (?:the way|how|as|like) (?:it|they) (?:was|were))?(?: please)?$/.exec(u)
+  if (back) return { kind: 'undo', about: /^chart/.test(back[1]) ? 'chart' : back[1] === 'layout' ? 'layout' : 'widget' }
   // "undo that indicator removal", "undo the last hide", "undo removing that" — the same Undo (the
   // newest change); the noun only describes it, it never picks a different entry. ⛔ F14: a NAMED
   // kind ("indicator", "chart"…) is passed on — when the newest change isn't one, nothing is undone

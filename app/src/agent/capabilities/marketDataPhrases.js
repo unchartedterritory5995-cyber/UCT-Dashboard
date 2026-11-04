@@ -24,6 +24,21 @@ const GRAMMAR = new Set([...ALWAYS_GRAMMAR, ...('a an get got give show tell tra
   + 'okay just quick stock stocks share shares check look lookup also both move moved moving sitting right now for '
   + 'pm hours hour after rn').split(/\s+/)])                     // rn = "right now" (agent-qa set 3, A10)
 
+// CG-15 / CG-22 (corpus #769 / #774): everyday words the member typed in LOWER case are never a ticker — "move the 200 line
+// up to 210" is a drawing, "trade places with the left and right charts" a swap. A sentence that leans on one of them is
+// not a price question at all, so the reader steps aside (the request goes on to its own capability or the model). A
+// ticker is still read when typed $-prefixed or in capitals ("$LINE", "LINE").
+const NOT_A_TICKER = new Set(('line lines places place left charts chart level levels drawing drawings top bottom middle side sides '
+  + 'board widget widgets panel panels screen screens layout layouts window windows grid label labels colour color colors colours '
+  + 'average averages one ones each every other those these them that this thing things alert alerts tab tabs pane panes '
+  + 'indicator indicators study studies box boxes ray rays fib trendline trendlines arrow arrows note notes '
+  // CG-23 (corpus #774): a chart's look — "make the up candles blue and the down candles orange"
+  + 'candle candles bar bars wick wicks body bodies background theme blue orange red green yellow purple pink white black '
+  + 'gray grey brown teal cyan magenta make set turn paint colour color recolor recolour add remove draw hide '
+  + 'thick thin dashed dotted solid bold').split(/\s+/))
+
+const QUOTE_FRAME = /\b(?:price|prices|pricing|quote|quotes|how much is|trading at|trade at|premarket|pre-market|after ?hours|overnight)\b/
+
 // intent words only (never a symbol): the parser's own fixed typo list (MD-1-phrasings §1.6)
 const TYPOS = { wats: "what's", whats: "what's", wat: 'what', tradin: 'trading', tradeing: 'trading', pirce: 'price',
   prcie: 'price', pric: 'price', qoute: 'quote', quoet: 'quote', premarkt: 'premarket', premaket: 'premarket',
@@ -35,7 +50,9 @@ const VETO = [/\bwhy\b/, /\bnews\b/, /\bmarket\s*cap\b/, /\bp\/?e\b/, /\bpe rati
   /\bhits?\b/, /\bcross(es)?\b/, /\bwatchlist\b/, /\bchart\b/, /\bdividend/, /\bbuy\b/, /\bsell\b/, /\bshould i\b/,
   /\btarget\b/, /\bforecast\b/, /\bpredict/, /\bfutures?\b/, /\bvolume\b/, /\beuros?\b|\bpounds?\b|\byen\b|\bin [a-z]+ (dollars|currency)\b/,
   /\b\d+\s*(m|min|mins|minutes?|h|hr|hrs|hourly)\b/, /\btime\s*frame\b/, /\bindicators?\b/, /\b(rsi|macd|ema|sma|vwap|bollinger)\b/,
-  /\b\d{1,2}(:\d\d)?\s*(am|pm)\b/, /\bzoom\b/, /\bdraw/, /\bswitch\b/, /\bopen\b.*\bchart/]
+  /\b\d{1,2}(:\d\d)?\s*(am|pm)\b/, /\bzoom\b/, /\bdraw/, /\bswitch\b/, /\bopen\b.*\bchart/,
+  // CG-15 (corpus #769): "trade places with the left and right charts" is a board swap, never a quote for PLACES / LEFT / CHARTS
+  /\bcharts\b/, /\b(?:trade|switch|swap|change|exchange) places\b/, /\bswap\b/, /\bwidgets?\b/, /\bpanels?\b/]
 
 // a time the parser cannot resolve without a clock: never "now", never "the last session" (§4.7.1)
 const TIME_VETO = [/\bhistor(y|ical|ic)\b/, /\bago\b/, /\bsince\b/, /\bbefore\b/, /\buntil\b/, /\byesterday('?s)?\b/,
@@ -97,8 +114,14 @@ export function parsePriceSentence(text) {
   const low = s.toLowerCase()
   if (/&/.test(s)) return null
   if (VETO.some(re => re.test(low)) || TIME_VETO.some(re => re.test(low))) return null
-  const candidates = candidatesOf(s)
+  // CG-15/22/23: an everyday word typed in lower case is DROPPED as a candidate (never a ticker) — the rest still read
+  // ("price of nvda and set" prices NVDA); a sentence left with none is not a price question at all
+  const all = candidatesOf(s)
+  const candidates = all ? all.filter(c => !(c.form === 'lower' && NOT_A_TICKER.has(c.text))) : null
   if (!candidates || !candidates.length || candidates.length > MAX_TICKERS) return null
+  // a sentence that leaned on an everyday word ("add a horizontal level at 200", "close the Swing tab") is not a price
+  // question unless it SAYS so — a clear quote frame or a $ ticker keeps the rest ("price of nvda and set" → NVDA)
+  if (all.length !== candidates.length && !QUOTE_FRAME.test(low) && !candidates.some(c => c.form === 'cashtag')) return null
   const allCash = candidates.every(c => c.form === 'cashtag')
   if (candidates.length > 1 && !allCash && !/(\band\b|,)/i.test(s)) return null
   // a list ("X and Y", "X, Y") must have a candidate in EVERY item: "nvda and on price" names two things, one of which
