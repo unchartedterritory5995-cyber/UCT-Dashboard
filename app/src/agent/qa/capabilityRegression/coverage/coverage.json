@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 154,
-  "withAnyRegressionCase": 43,
+  "withAnyRegressionCase": 45,
   "perProtection": {
    "nl": {
-    "covered": 40,
+    "covered": 43,
     "applicable": 154
    },
    "routing": {
-    "covered": 41,
+    "covered": 43,
     "applicable": 154
    },
    "args": {
-    "covered": 41,
+    "covered": 44,
     "applicable": 154
    },
    "execution": {
-    "covered": 39,
+    "covered": 42,
     "applicable": 154
    },
    "receipt": {
-    "covered": 34,
+    "covered": 36,
     "applicable": 154
    },
    "refusal": {
@@ -34,11 +34,11 @@
     "applicable": 154
    },
    "permission": {
-    "covered": 130,
+    "covered": 132,
     "applicable": 154
    },
    "undo": {
-    "covered": 17,
+    "covered": 18,
     "applicable": 95
    },
    "multiStep": {
@@ -46,7 +46,7 @@
     "applicable": 154
    },
    "phrasings": {
-    "covered": 39,
+    "covered": 42,
     "applicable": 154
    }
   }
@@ -321,6 +321,33 @@
    "level": "c",
    "intent": "board.swap",
    "phrasing": "trade places with the left and right charts"
+  },
+  {
+   "id": "CG-17",
+   "reason": "four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect)",
+   "owner": "nlfix builder",
+   "mode": "a proposal waiting",
+   "level": "c",
+   "intent": "indicatorAlert.ma-cross-multichart",
+   "phrasing": "mark when the 9 ema crosses above the 20 on the NVDA chart"
+  },
+  {
+   "id": "CG-17",
+   "reason": "four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect)",
+   "owner": "nlfix builder",
+   "mode": "a proposal waiting",
+   "level": "c",
+   "intent": "indicatorAlert.ma-cross-multichart",
+   "phrasing": "alert me when NVDA's 9 ema crosses above its 20"
+  },
+  {
+   "id": "CG-17",
+   "reason": "four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect)",
+   "owner": "nlfix builder",
+   "mode": "a proposal waiting",
+   "level": "c",
+   "intent": "indicatorAlert.ma-cross-multichart",
+   "phrasing": "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside"
   }
  ],
  "capabilities": {
@@ -3851,28 +3878,53 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
+    "nl": true,
     "routing": true,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": false,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 10,
    "evidence": {
-    "nl": [],
-    "routing": [
-     "GW-08.indicator-alert-routed: \"mark when the 9 ema crosses above the 20 on this chart\""
+    "nl": [
+     "indicatorAlert.threshold: \"alert me when RSI goes above 70\"",
+     "indicatorAlert.threshold: \"ping me when the RSI is above 70\"",
+     "indicatorAlert.threshold: \"let me know when RSI gets over 70\"",
+     "indicatorAlert.threshold: \"set an RSI alert above 70\"",
+     "indicatorAlert.threshold: \"notify me if RSI rises above 70\"",
+     "indicatorAlert.ma-cross: \"mark when the 9 ema crosses above the 20 on this chart\""
     ],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "routing": [
+     "indicatorAlert.threshold: \"alert me when RSI goes above 70\"",
+     "indicatorAlert.threshold: \"ping me when the RSI is above 70\"",
+     "indicatorAlert.threshold: \"let me know when RSI gets over 70\"",
+     "indicatorAlert.threshold: \"set an RSI alert above 70\"",
+     "indicatorAlert.threshold: \"notify me if RSI rises above 70\"",
+     "indicatorAlert.ma-cross: \"mark when the 9 ema crosses above the 20 on this chart\""
+    ],
+    "args": [
+     "corpus indicatorAlert.threshold",
+     "corpus indicatorAlert.ma-cross",
+     "corpus indicatorAlert.ma-cross-multichart"
+    ],
+    "execution": [
+     "indicatorAlert.threshold (c)",
+     "indicatorAlert.ma-cross (c)"
+    ],
+    "receipt": [
+     "indicatorAlert.threshold (c)",
+     "indicatorAlert.ma-cross (c)"
+    ],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "indicatorAlert.threshold: waits for Apply",
+     "indicatorAlert.ma-cross: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -3891,26 +3943,42 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
     "receipt": false,
     "refusal": false,
-    "permission": false,
+    "permission": true,
     "undo": null,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
+    "nl": [
+     "indicatorAlert.delete: \"delete my RSI alert\"",
+     "indicatorAlert.delete: \"remove the NVDA RSI alert\"",
+     "indicatorAlert.delete: \"get rid of my RSI indicator alert\"",
+     "indicatorAlert.delete: \"cancel the RSI alert\""
+    ],
+    "routing": [
+     "indicatorAlert.delete: \"delete my RSI alert\"",
+     "indicatorAlert.delete: \"remove the NVDA RSI alert\"",
+     "indicatorAlert.delete: \"get rid of my RSI indicator alert\"",
+     "indicatorAlert.delete: \"cancel the RSI alert\""
+    ],
+    "args": [
+     "corpus indicatorAlert.delete"
+    ],
+    "execution": [
+     "indicatorAlert.delete (c)"
+    ],
     "receipt": [],
     "refusal": [],
-    "permission": [],
+    "permission": [
+     "indicatorAlert.delete: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -3929,27 +3997,45 @@
    ],
    "fast": false,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
-    "undo": false,
+    "undo": true,
     "multiStep": false,
-    "phrasings": false
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 4,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "indicatorAlert.toggle: \"pause my RSI alert\"",
+     "indicatorAlert.toggle: \"pause the NVDA RSI alert\"",
+     "indicatorAlert.toggle: \"turn off my RSI alert for now\"",
+     "indicatorAlert.toggle: \"mute the RSI alert\""
+    ],
+    "routing": [
+     "indicatorAlert.toggle: \"pause my RSI alert\"",
+     "indicatorAlert.toggle: \"pause the NVDA RSI alert\"",
+     "indicatorAlert.toggle: \"turn off my RSI alert for now\"",
+     "indicatorAlert.toggle: \"mute the RSI alert\""
+    ],
+    "args": [
+     "corpus indicatorAlert.toggle"
+    ],
+    "execution": [
+     "indicatorAlert.toggle (c)"
+    ],
+    "receipt": [
+     "indicatorAlert.toggle (c)"
+    ],
     "refusal": [],
     "permission": [],
-    "undo": [],
+    "undo": [
+     "indicatorAlert.toggle: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

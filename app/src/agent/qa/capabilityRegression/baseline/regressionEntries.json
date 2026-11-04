@@ -287,16 +287,6 @@
    "since": "2026-11-04",
    "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
   },
-  "indicatorAlert.delete": {
-   "owner": "agent-qa (capreg) — group indicatorAlerts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
-  "indicatorAlert.toggle": {
-   "owner": "agent-qa (capreg) — group indicatorAlerts",
-   "since": "2026-11-04",
-   "status": "inventory-only: approval/undo contract pinned; no NL / execution case yet"
-  },
   "indicatorCopy.copyTo": {
    "owner": "agent-qa (capreg) — group indicatorSetup",
    "since": "2026-11-04",

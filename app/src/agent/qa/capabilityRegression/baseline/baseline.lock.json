@@ -1504,6 +1504,121 @@
      "modes": {}
     }
    }
+  },
+  "indicatorAlert.threshold": {
+   "digest": "a4858348dd668b3a",
+   "phrasings": {
+    "alert me when RSI goes above 70": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "ping me when the RSI is above 70": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "let me know when RSI gets over 70": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "set an RSI alert above 70": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "notify me if RSI rises above 70": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
+  },
+  "indicatorAlert.ma-cross": {
+   "digest": "2c509458b6a43df1",
+   "phrasings": {
+    "mark when the 9 ema crosses above the 20 on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "alert me when the 9 ema crosses above the 20 ema": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "tell me when the 9 crosses over the 20": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "notify me on a 9/20 ema cross up": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "set an alert for the 9 ema crossing above the 20": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
+  },
+  "indicatorAlert.ma-cross-multichart": {
+   "digest": "6b0961df59c18208",
+   "phrasings": {
+    "mark when the 9 ema crosses above the 20 on the NVDA chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "c"
+     ]
+    },
+    "alert me when NVDA's 9 ema crosses above its 20": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "c"
+     ]
+    },
+    "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "c"
+     ]
+    }
+   }
+  },
+  "indicatorAlert.toggle": {
+   "digest": "7aa9d7fc1e44cc25",
+   "phrasings": {
+    "pause my RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "pause the NVDA RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "turn off my RSI alert for now": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "mute the RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
+  },
+  "indicatorAlert.delete": {
+   "digest": "9aa1d9a36e200eae",
+   "phrasings": {
+    "delete my RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "remove the NVDA RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "get rid of my RSI indicator alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    },
+    "cancel the RSI alert": {
+     "digest": "44136fa355b3678a",
+     "gaps": []
+    }
+   }
   }
  },
  "refusals": {

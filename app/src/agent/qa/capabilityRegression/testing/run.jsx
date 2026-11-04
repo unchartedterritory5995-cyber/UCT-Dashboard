@@ -5,6 +5,7 @@ import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow } from './harness'
 import { routedNames } from './route'
+import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
 
 /** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
 export function hueFamily(hex) {
@@ -72,6 +73,13 @@ export function checkExpect(ctx, e, label) {
     for (const sym of e.watchlist.include || []) expect(wl.items.map(i => i.sym), `${label}: ${sym} on ${e.watchlist.name}`).toContain(sym)
     for (const sym of e.watchlist.exclude || []) expect(wl.items.map(i => i.sym), `${label}: ${sym} not on ${e.watchlist.name}`).not.toContain(sym)
   }
+  if (e.indicatorAlerts) {
+    // the fixture /api/indicator-alerts rows (the product's hook writers wrote them); `match` = dotted-path fields
+    const rows = ctx.st.ialerts
+    const get = (o, k) => k.split('.').reduce((a, x) => a?.[x], o)
+    if (e.indicatorAlerts.count != null) expect(rows.length, `${label}: indicator alerts`).toBe(e.indicatorAlerts.count)
+    if (e.indicatorAlerts.match) expect(rows.some(r => Object.entries(e.indicatorAlerts.match).every(([k, v]) => get(r, k) === v)), `${label}: an indicator alert ${JSON.stringify(e.indicatorAlerts.match)} (rows: ${JSON.stringify(rows.map(r => [r.sym, r.indicator, r.condition, r.threshold, r.active]))})`).toBe(true)
+  }
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)
@@ -100,6 +108,8 @@ export function checkExpect(ctx, e, label) {
 export async function replay({ board: boardName = 'ONE', steps, seed = {} }, label) {
   const m = mountCase(boardName, { seed })
   const { p, board, say } = m
+  // a member's panel has read their indicator alerts long before they ask (the cache is module-level: start clean)
+  if (m.h.indicatorAlerts) { _resetIndicatorAlertCache(); await loadIndicatorAlerts(m.h, { force: true }) }
   const start = boardState(board)
   for (const [i, s] of steps.entries()) {
     const before = boardState(board)

@@ -2914,6 +2914,370 @@
         "start a new watchlist Semis",
         "new watchlist: Semis"
       ]
+    },
+    {
+      "id": "indicatorAlert.threshold",
+      "source": "Batch D1 (11-04): indicator alerts through the real hook writers (create threshold / MA cross, pause, delete)",
+      "capabilities": [
+        "indicatorAlert.create"
+      ],
+      "board": "IALERTS",
+      "needs": [
+        "indicatorAlert.create"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorAlert.create",
+            "args": {
+              "condition": "above",
+              "threshold": 70
+            }
+          }
+        ]
+      },
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "indicatorAlert.create",
+            "target": "$indicatorAlertLibrary",
+            "args": {
+              "instance": "inst:rsi:1",
+              "plot": null,
+              "condition": "above",
+              "threshold": 70,
+              "crossWith": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "indicatorAlerts": {
+          "count": 0
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "indicatorAlerts": {
+          "count": 1,
+          "match": {
+            "sym": "NVDA",
+            "indicator": "rsi",
+            "condition": "above",
+            "threshold": 70,
+            "tf": "D"
+          }
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "alert me when RSI goes above 70",
+        "ping me when the RSI is above 70",
+        "let me know when RSI gets over 70",
+        "set an RSI alert above 70",
+        "notify me if RSI rises above 70"
+      ]
+    },
+    {
+      "id": "indicatorAlert.ma-cross",
+      "source": "Batch D1 (11-04): indicator alerts through the real hook writers (create threshold / MA cross, pause, delete) (train 3 ma_cross; live B-07 / LT-4 phrasing)",
+      "capabilities": [
+        "indicatorAlert.create"
+      ],
+      "board": "ONE_DEFAULT_IA",
+      "needs": [
+        "indicatorAlert.create"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorAlert.create",
+            "args": {
+              "condition": "cross_above"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorAlert.create",
+            "target": "$indicatorAlertLibrary",
+            "args": {
+              "instance": "ovl:0",
+              "plot": null,
+              "condition": "cross_above",
+              "threshold": null,
+              "crossWith": "ovl:1"
+            }
+          }
+        ],
+        "disposition": "propose"
+      },
+      "expect": {
+        "proposal": true,
+        "indicatorAlerts": {
+          "count": 0
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "indicatorAlerts": {
+          "count": 1,
+          "match": {
+            "sym": "NVDA",
+            "indicator": "ma_cross",
+            "condition": "cross_above",
+            "params_json.ma_type": "ema",
+            "params_json.fast": 9,
+            "params_json.slow": 20
+          }
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "mark when the 9 ema crosses above the 20 on this chart",
+        "alert me when the 9 ema crosses above the 20 ema",
+        "tell me when the 9 crosses over the 20",
+        "notify me on a 9/20 ema cross up",
+        "set an alert for the 9 ema crossing above the 20"
+      ]
+    },
+    {
+      "id": "indicatorAlert.ma-cross-multichart",
+      "source": "Batch D1 (11-04): indicator alerts through the real hook writers (create threshold / MA cross, pause, delete) — four default charts each carrying EMA 9/20 (the same instance ids): the AUDIT live defect",
+      "capabilities": [
+        "indicatorAlert.create"
+      ],
+      "board": "FOUR_DEFAULT",
+      "needs": [
+        "indicatorAlert.create"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorAlert.create",
+            "args": {
+              "condition": "cross_above"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorAlert.create",
+            "target": "$indicatorAlertLibrary",
+            "args": {
+              "instance": "ovl:0",
+              "plot": null,
+              "condition": "cross_above",
+              "threshold": null,
+              "crossWith": "ovl:1"
+            }
+          }
+        ],
+        "disposition": "propose"
+      },
+      "expect": {
+        "proposal": true,
+        "indicatorAlerts": {
+          "count": 0
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "indicatorAlerts": {
+          "count": 1,
+          "match": {
+            "sym": "NVDA",
+            "indicator": "ma_cross",
+            "condition": "cross_above",
+            "params_json.ma_type": "ema",
+            "params_json.fast": 9,
+            "params_json.slow": 20
+          }
+        }
+      },
+      "phrasings": [
+        {
+          "text": "mark when the 9 ema crosses above the 20 on the NVDA chart",
+          "gaps": {
+            "c": {
+              "id": "CG-17",
+              "reason": "four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect)",
+              "owner": "nlfix builder",
+              "mode": "a proposal waiting"
+            }
+          }
+        },
+        {
+          "text": "alert me when NVDA's 9 ema crosses above its 20",
+          "gaps": {
+            "c": {
+              "id": "CG-17",
+              "reason": "four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect)",
+              "owner": "nlfix builder",
+              "mode": "a proposal waiting"
+            }
+          }
+        },
+        {
+          "text": "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside",
+          "gaps": {
+            "c": {
+              "id": "CG-17",
+              "reason": "four charts each carry EMA 9 / EMA 20 under the SAME instance ids (ovl:0 / ovl:1): the model's best plan (instance ovl:0, crossWith ovl:1) is refused 'That indicator is on 4 charts with different symbols — say which chart' although the member named the NVDA chart, and there is no chart-qualified id to name it with (AUDIT live defect)",
+              "owner": "nlfix builder",
+              "mode": "a proposal waiting"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "indicatorAlert.toggle",
+      "source": "Batch D1 (11-04): indicator alerts through the real hook writers (create threshold / MA cross, pause, delete)",
+      "capabilities": [
+        "indicatorAlert.toggle"
+      ],
+      "board": "IALERTS",
+      "seed": {
+        "indicatorAlerts": [
+          {
+            "id": 7,
+            "sym": "NVDA",
+            "indicator": "rsi",
+            "condition": "above",
+            "threshold": 70,
+            "tf": "D",
+            "params_json": {
+              "period": 14
+            },
+            "instance_id": "inst:rsi:1"
+          }
+        ]
+      },
+      "needs": [
+        "indicatorAlert.toggle"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorAlert.toggle",
+            "args": {
+              "active": false
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorAlert.toggle",
+            "target": "$indicatorAlerts[0]",
+            "args": {
+              "active": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "indicatorAlerts": {
+          "count": 1,
+          "match": {
+            "id": 7,
+            "active": false
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "indicatorAlerts": {
+            "count": 1,
+            "match": {
+              "id": 7,
+              "active": true
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "pause my RSI alert",
+        "pause the NVDA RSI alert",
+        "turn off my RSI alert for now",
+        "mute the RSI alert"
+      ]
+    },
+    {
+      "id": "indicatorAlert.delete",
+      "source": "Batch D1 (11-04): indicator alerts through the real hook writers (create threshold / MA cross, pause, delete)",
+      "capabilities": [
+        "indicatorAlert.delete"
+      ],
+      "board": "IALERTS",
+      "seed": {
+        "indicatorAlerts": [
+          {
+            "id": 7,
+            "sym": "NVDA",
+            "indicator": "rsi",
+            "condition": "above",
+            "threshold": 70,
+            "tf": "D",
+            "params_json": {
+              "period": 14
+            },
+            "instance_id": "inst:rsi:1"
+          }
+        ]
+      },
+      "needs": [
+        "indicatorAlert.delete"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorAlert.delete",
+            "args": {}
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorAlert.delete",
+            "target": "$indicatorAlerts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "indicatorAlerts": {
+          "count": 1
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "indicatorAlerts": {
+          "count": 0
+        },
+        "writes": [
+          "^DELETE /api/indicator-alerts/7"
+        ]
+      },
+      "phrasings": [
+        "delete my RSI alert",
+        "remove the NVDA RSI alert",
+        "get rid of my RSI indicator alert",
+        "cancel the RSI alert"
+      ]
     }
   ],
   "refusals": [
