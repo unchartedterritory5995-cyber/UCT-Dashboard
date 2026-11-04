@@ -1,0 +1,7055 @@
+{
+ "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
+ "catalog": {
+  "all": 154,
+  "withProductionKinds": 145,
+  "darkGated": 9
+ },
+ "totals": {
+  "capabilities": 154,
+  "withAnyRegressionCase": 43,
+  "perProtection": {
+   "nl": {
+    "covered": 40,
+    "applicable": 154
+   },
+   "routing": {
+    "covered": 41,
+    "applicable": 154
+   },
+   "args": {
+    "covered": 41,
+    "applicable": 154
+   },
+   "execution": {
+    "covered": 39,
+    "applicable": 154
+   },
+   "receipt": {
+    "covered": 34,
+    "applicable": 154
+   },
+   "refusal": {
+    "covered": 8,
+    "applicable": 154
+   },
+   "permission": {
+    "covered": 130,
+    "applicable": 154
+   },
+   "undo": {
+    "covered": 17,
+    "applicable": 95
+   },
+   "multiStep": {
+    "covered": 9,
+    "applicable": 154
+   },
+   "phrasings": {
+    "covered": 39,
+    "applicable": 154
+   }
+  }
+ },
+ "knownGaps": [
+  {
+   "id": "CG-1",
+   "reason": "routing: 'panels' / 'four equal panels' is not a chartGrid word (EQUAL_SIZE needs size/width/height after equal; MULTI_CHARTS needs 'charts'), so the request is routed [charts, agent] only — the model is never shown chartGrid.set (it needs a need_groups reroute the live planner did not ask for on 11-03)",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ chartGrid.set",
+   "level": "a",
+   "intent": "grid.four.named",
+   "phrasing": "Show SPY, QQQ, NVDA and TSLA in four equal panels."
+  },
+  {
+   "id": "CG-2",
+   "reason": "routing: the chartGrid words match '2x2' / '2 x 2' / '2 by 2' but not the multiplication sign '2×2' (U+00D7) the owner typed; routed [charts, layouts] — no chartGrid.set",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ chartGrid.set",
+   "level": "a",
+   "intent": "grid.four.named",
+   "phrasing": "Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA."
+  },
+  {
+   "id": "CG-3a",
+   "reason": "routing: a COUNT of charts with no tickers routes chartGrid (which needs tickers) but not the workspace group (widget.add / widget.arrange) — the model has no action that can add the charts",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ widget.add",
+   "level": "a",
+   "intent": "grid.four.unnamed",
+   "phrasing": "Put four charts on my screen."
+  },
+  {
+   "id": "CG-3",
+   "reason": "no single plan makes N equal charts without tickers: add ×3 + widget.arrange(grid) on a board with a chart is refused ('Adding widgets and changing existing ones in one request isn’t supported yet'); chartGrid.set requires tickers; screenChartGrid only converts adds that carry tickers",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
+   "level": "c",
+   "intent": "grid.four.unnamed",
+   "phrasing": "Put four charts on my screen."
+  },
+  {
+   "id": "CG-3a",
+   "reason": "routing: as 'Put four charts on my screen.' — no workspace group for a count of charts without tickers",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ widget.add",
+   "level": "a",
+   "intent": "grid.four.unnamed",
+   "phrasing": "Create four charts."
+  },
+  {
+   "id": "CG-3",
+   "reason": "as 'Put four charts on my screen.' — add + re-arrange of an existing chart is refused as a mixed request",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
+   "level": "c",
+   "intent": "grid.four.unnamed",
+   "phrasing": "Create four charts."
+  },
+  {
+   "id": "CG-3a",
+   "reason": "routing: '2×2' (U+00D7) and 'chart layout' route [charts, layouts] only — no workspace, no chartGrid",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ widget.add",
+   "level": "a",
+   "intent": "grid.four.unnamed",
+   "phrasing": "Make a 2×2 chart layout."
+  },
+  {
+   "id": "CG-3",
+   "reason": "as 'Put four charts on my screen.'",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
+   "level": "c",
+   "intent": "grid.four.unnamed",
+   "phrasing": "Make a 2×2 chart layout."
+  },
+  {
+   "id": "CG-3",
+   "reason": "routes the grid and the workspace, but the only plans are refused (add + arrange existing = mixed request) or impossible (chartGrid.set needs tickers)",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
+   "level": "c",
+   "intent": "grid.four.unnamed",
+   "phrasing": "give me a 2x2 grid of charts"
+  },
+  {
+   "id": "CG-3",
+   "reason": "as 'give me a 2x2 grid of charts'",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
+   "level": "c",
+   "intent": "grid.four.unnamed",
+   "phrasing": "I want four equal charts on the board"
+  },
+  {
+   "id": "CG-3",
+   "reason": "as 'give me a 2x2 grid of charts'",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "chart count",
+   "level": "c",
+   "intent": "grid.four.unnamed",
+   "phrasing": "four charts, same size, please"
+  },
+  {
+   "id": "CG-4",
+   "reason": "routing: 'relative strength' is a SCREENER strength word (routing.js screener group) and no indicators word matches the spelled-out 'relative strength index', so indicator.add is never sent (routed [screener, agent])",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ indicator.add",
+   "level": "a",
+   "intent": "indicator.rsi",
+   "phrasing": "add the relative strength index"
+  },
+  {
+   "id": "CG-5",
+   "reason": "routing: the chartSetup group's describe words need describe/summarise/walk me through, so 'what's the setup here' does not route chart.describeSetup. MASKED today by the capability's own fast matcher (it claims this exact phrasing with no model call); it bites when the fast reader misses (a typo, a longer sentence)",
+   "owner": "agent-core builder (routing.js / multiChart.js / useAgent.js)",
+   "mode": "→ chart.describeSetup",
+   "level": "a",
+   "intent": "describe.setup",
+   "phrasing": "what's the setup here"
+  },
+  {
+   "id": "CG-6",
+   "reason": "routing: no data-group word names 'pullbacks' (it is only screener SOFT vocabulary), so the message is unrecognised and stock.dailyBars arrives only through the budget fill — production edd353fc06 omitted the data group for this possessive form (AUDIT 11-04 live)",
+   "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "names the data group by its own words",
+   "level": "a",
+   "intent": "stock.pullbacks",
+   "phrasing": "show me NVDA's recent pullbacks"
+  },
+  {
+   "id": "CG-6",
+   "reason": "routing: as \"show me NVDA's recent pullbacks\" — data reached only by the fill (the fast reader claims this exact phrasing today)",
+   "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "names the data group by its own words",
+   "level": "a",
+   "intent": "stock.pullbacks",
+   "phrasing": "nvda pullbacks"
+  },
+  {
+   "id": "CG-6",
+   "reason": "routing: 'pulled back' names no data-group word; stock.dailyBars only via the fill",
+   "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "names the data group by its own words",
+   "level": "a",
+   "intent": "stock.pullbacks",
+   "phrasing": "how far has NVDA pulled back"
+  },
+  {
+   "id": "CG-7",
+   "reason": "routing: 'drawdowns' matches the DRAWINGS group (/\\bdraw\\w*\\b/) — routed [drawings, agent]: stock.dailyBars is not sent",
+   "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "→ stock.dailyBars",
+   "level": "a",
+   "intent": "stock.pullbacks",
+   "phrasing": "NVDA drawdowns this year"
+  },
+  {
+   "id": "CG-7b",
+   "reason": "routing: '52-week' is a screener word; nothing names the data group, so stock.dailyBars is not sent",
+   "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "→ stock.dailyBars",
+   "level": "a",
+   "intent": "stock.offHigh",
+   "phrasing": "NVDA distance from the 52-week high"
+  },
+  {
+   "id": "CG-8",
+   "reason": "a named Undo ('my layout') right after chartGrid.set is refused as 'not a layout change' — the grid (a board re-tile) is not matched as a layout change (AUDIT 11-04 live; nlfix fixing)",
+   "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "the board is back as it started",
+   "level": "c",
+   "intent": "undo.named-after-grid",
+   "phrasing": "undo the change you made to my layout"
+  },
+  {
+   "id": "CG-9",
+   "reason": "routing: 'put my layout back' is not an Undo phrase (only 'put it/that/them back the way it was'), so agent.undo is not sent",
+   "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "→ agent.undo",
+   "level": "a",
+   "intent": "undo.named-after-grid",
+   "phrasing": "put my layout back"
+  },
+  {
+   "id": "CG-9",
+   "reason": "neither the fast Undo words nor the routing read 'put my layout back' as an Undo; with the grid just made the board is not restored",
+   "owner": "nlfix builder (routing.js), per AUDIT 11-04",
+   "mode": "the board is back as it started",
+   "level": "c",
+   "intent": "undo.named-after-grid",
+   "phrasing": "put my layout back"
+  },
+  {
+   "id": "CG-10",
+   "reason": "WRONG deterministic reading: the follow-up reader (conversation.js resolveFollowUp) matches the word 'hide' inside 'unhide' and plans indicator.hide — the opposite action — with no model call",
+   "owner": "agent-core builder (conversation.js follow-up reader / NL)",
+   "mode": "read as {\"plan\":[{\"action\":\"indicator.hide\",\"args\":{\"instance\":\"ovl:2\"}}],\"via\":\"followUp\"}",
+   "level": "b",
+   "intent": "indicator.show",
+   "phrasing": "unhide the 50 sma"
+  },
+  {
+   "id": "CG-10",
+   "reason": "through the panel 'unhide the 50 sma' on a hidden SMA 50 answers 'already hidden' and leaves it hidden (on a visible one it would HIDE it)",
+   "owner": "agent-core builder (conversation.js follow-up reader / NL)",
+   "mode": "hidden",
+   "level": "c",
+   "intent": "indicator.show",
+   "phrasing": "unhide the 50 sma"
+  },
+  {
+   "id": "CG-11",
+   "reason": "routing: 'how much is X' names no data-group word (quote words: price / trading at), so the request is routed without stock.quote",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ stock.quote",
+   "level": "a",
+   "intent": "stock.quote",
+   "phrasing": "how much is NVDA right now"
+  },
+  {
+   "id": "CG-12",
+   "reason": "routing: 'tell me' is an ALERTS word (/\\b(notify|ping|tell) me\\b/), so the request is routed [alerts, agent] — stock.profile is not sent",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ stock.profile",
+   "level": "a",
+   "intent": "stock.profile",
+   "phrasing": "tell me about TSM the company"
+  },
+  {
+   "id": "CG-13",
+   "reason": "routing: 'against' is a charts COMPARE word and 'stack up' only data SOFT vocabulary, so the request routes [charts, agent] — stock.compare (data) is not sent",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ stock.compare",
+   "level": "a",
+   "intent": "stock.compare",
+   "phrasing": "how does NVDA stack up against AMD"
+  },
+  {
+   "id": "CG-14",
+   "reason": "routing: the workspace words name add/open/close/remove/delete … chart but not 'get rid of', so widget.remove is not sent (routed [charts, agent])",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ widget.remove",
+   "level": "a",
+   "intent": "widget.remove",
+   "phrasing": "get rid of the AMD chart"
+  },
+  {
+   "id": "CG-16",
+   "reason": "routing: 'new charts for …' routes chartGrid (re-tile) but not the workspace group, so widget.addCharts is not sent; chartGrid.set with new_charts may serve it — owner to rule which is canonical",
+   "owner": "nlfix builder (routing.js)",
+   "mode": "→ widget.addCharts",
+   "level": "a",
+   "intent": "widget.addCharts",
+   "phrasing": "give me new charts for AAPL and MSFT"
+  },
+  {
+   "id": "CG-15",
+   "reason": "WRONG deterministic reading: the quote fast reader (stock.quote) claims 'trade places with the left and right charts' as a price quote for the 'symbols' PLACES, LEFT, CHARTS — no model call, the swap never happens",
+   "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "mode": "read as {\"plan\":[{\"action\":\"stock.quote\",\"args\":{\"symbols\":[\"places\",\"left\",\"charts\"]}}],\"via\":\"fastPath\"}",
+   "level": "b",
+   "intent": "board.swap",
+   "phrasing": "trade places with the left and right charts"
+  },
+  {
+   "id": "CG-15",
+   "reason": "through the panel the swap phrasing becomes a quote read; the board is unchanged",
+   "owner": "agent-md builder (marketDataQuote.js fast matcher)",
+   "mode": "chart symbols (board order)",
+   "level": "c",
+   "intent": "board.swap",
+   "phrasing": "trade places with the left and right charts"
+  }
+ ],
+ "capabilities": {
+  "agent.capabilities": {
+   "domain": "agent",
+   "group": "agent",
+   "target": "about",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "agent.undo": {
+   "domain": "agent",
+   "group": "undo",
+   "target": "about",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": true,
+    "permission": true,
+    "undo": null,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 18,
+   "evidence": {
+    "nl": [
+     "undo.last: \"undo\"",
+     "undo.last: \"undo that\"",
+     "undo.last: \"Undo the last change you made to my charts.\"",
+     "undo.last: \"revert that\"",
+     "undo.last: \"take that back\"",
+     "undo.last: \"put it back the way it was\""
+    ],
+    "routing": [
+     "undo.last: \"undo\"",
+     "undo.last: \"undo that\"",
+     "undo.last: \"Undo the last change you made to my charts.\"",
+     "undo.last: \"revert that\"",
+     "undo.last: \"take that back\"",
+     "undo.last: \"put it back the way it was\""
+    ],
+    "args": [
+     "corpus undo.last",
+     "corpus compound.change-then-undo",
+     "corpus undo.named-after-grid",
+     "GW-13.model-undo-is-the-receipt-undo"
+    ],
+    "execution": [
+     "undo.last (c)",
+     "compound.change-then-undo (c)",
+     "undo.named-after-grid (c)",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-02.empty-board-honest",
+     "GW-10.grid-then-undo-by-kind"
+    ],
+    "receipt": [],
+    "refusal": [
+     "refuse.undo-nothing",
+     "GW-02.empty-board-honest"
+    ],
+    "permission": [],
+    "undo": [
+     "undo.last: undo restores",
+     "compound.change-then-undo: undo restores",
+     "undo.named-after-grid: undo restores",
+     "GW-12.emas-coloured-exact-undo"
+    ],
+    "multiStep": [
+     "undo.last: after an earlier turn",
+     "compound.change-then-undo: 2-op plan",
+     "undo.named-after-grid: after an earlier turn",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-02.empty-board-honest",
+     "GW-10.grid-then-undo-by-kind"
+    ],
+    "phrasings": []
+   }
+  },
+  "alert.create": {
+   "domain": "alert",
+   "group": "alerts",
+   "target": "alertLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": true,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "alert.price-above: \"alert me if nvda goes above 150\"",
+     "alert.price-above: \"set an alert on NVDA at 150 to the upside\"",
+     "alert.price-above: \"ping me when NVDA crosses above 150\"",
+     "alert.price-above: \"let me know if NVDA breaks above 150\"",
+     "alert.price-above: \"notify me when nvda rises to 150\"",
+     "alert.price-above: \"create a price alert for NVDA above $150\""
+    ],
+    "routing": [
+     "alert.price-above: \"alert me if nvda goes above 150\"",
+     "alert.price-above: \"set an alert on NVDA at 150 to the upside\"",
+     "alert.price-above: \"ping me when NVDA crosses above 150\"",
+     "alert.price-above: \"let me know if NVDA breaks above 150\"",
+     "alert.price-above: \"notify me when nvda rises to 150\"",
+     "alert.price-above: \"create a price alert for NVDA above $150\""
+    ],
+    "args": [
+     "corpus alert.price-above",
+     "GW-14.price-alert-needs-approval",
+     "refuse.alert-needs-approval"
+    ],
+    "execution": [
+     "alert.price-above (c)",
+     "GW-14.price-alert-needs-approval"
+    ],
+    "receipt": [
+     "alert.price-above (c)",
+     "GW-14.price-alert-needs-approval"
+    ],
+    "refusal": [
+     "refuse.alert-needs-approval"
+    ],
+    "permission": [
+     "alert.price-above: waits for Apply",
+     "GW-14.price-alert-needs-approval: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "alert.delete": {
+   "domain": "alert",
+   "group": "alerts",
+   "target": "alert",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "alert.delete: \"delete my NVDA alert\"",
+     "alert.delete: \"remove the NVDA alert\"",
+     "alert.delete: \"cancel my alert on NVDA\"",
+     "alert.delete: \"get rid of the NVDA price alert\""
+    ],
+    "routing": [
+     "alert.delete: \"delete my NVDA alert\"",
+     "alert.delete: \"remove the NVDA alert\"",
+     "alert.delete: \"cancel my alert on NVDA\"",
+     "alert.delete: \"get rid of the NVDA price alert\""
+    ],
+    "args": [
+     "corpus alert.delete"
+    ],
+    "execution": [
+     "alert.delete (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [
+     "alert.delete: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "alert.list": {
+   "domain": "alert",
+   "group": "alerts",
+   "target": "alertLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "alert.list: \"show my alerts\"",
+     "alert.list: \"what alerts do I have\"",
+     "alert.list: \"list my price alerts\"",
+     "alert.list: \"which alerts are set\"",
+     "alert.list: \"show me all my alerts\""
+    ],
+    "routing": [
+     "alert.list: \"show my alerts\"",
+     "alert.list: \"what alerts do I have\"",
+     "alert.list: \"list my price alerts\"",
+     "alert.list: \"which alerts are set\"",
+     "alert.list: \"show me all my alerts\""
+    ],
+    "args": [
+     "corpus alert.list"
+    ],
+    "execution": [
+     "alert.list (c)"
+    ],
+    "receipt": [
+     "alert.list (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "app.open": {
+   "domain": "app",
+   "group": "settings",
+   "target": "app",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "board.duplicateChart": {
+   "domain": "board",
+   "group": "boardEdit",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "board.duplicateChart: \"duplicate this chart\"",
+     "board.duplicateChart: \"make a copy of the NVDA chart\"",
+     "board.duplicateChart: \"clone this chart\"",
+     "board.duplicateChart: \"duplicate the NVDA chart\""
+    ],
+    "routing": [
+     "board.duplicateChart: \"duplicate this chart\"",
+     "board.duplicateChart: \"make a copy of the NVDA chart\"",
+     "board.duplicateChart: \"clone this chart\"",
+     "board.duplicateChart: \"duplicate the NVDA chart\""
+    ],
+    "args": [
+     "corpus board.duplicateChart"
+    ],
+    "execution": [
+     "board.duplicateChart (c)"
+    ],
+    "receipt": [
+     "board.duplicateChart (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "board.duplicateChart: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "board.swap": {
+   "domain": "board",
+   "group": "boardEdit",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "board.swap: \"swap the two charts\"",
+     "board.swap: \"switch places between the NVDA and AMD charts\"",
+     "board.swap: \"swap NVDA and AMD\""
+    ],
+    "routing": [
+     "board.swap: \"swap the two charts\"",
+     "board.swap: \"switch places between the NVDA and AMD charts\"",
+     "board.swap: \"swap NVDA and AMD\"",
+     "board.swap: \"trade places with the left and right charts\""
+    ],
+    "args": [
+     "corpus board.swap"
+    ],
+    "execution": [
+     "board.swap (c)"
+    ],
+    "receipt": [
+     "board.swap (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "board.swap: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "breadth.history": {
+   "domain": "breadth",
+   "group": "breadth",
+   "target": "breadth",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "breadth.history.nhnl: \"when did nh/nl last go negative\"",
+     "breadth.history.nhnl: \"when was net new highs last below zero\"",
+     "breadth.history.nhnl: \"last time new highs minus new lows went negative\"",
+     "breadth.history.nhnl: \"when did net new highs last turn negative\""
+    ],
+    "routing": [
+     "breadth.history.nhnl: \"when did nh/nl last go negative\"",
+     "breadth.history.nhnl: \"when was net new highs last below zero\"",
+     "breadth.history.nhnl: \"last time new highs minus new lows went negative\"",
+     "breadth.history.nhnl: \"when did net new highs last turn negative\""
+    ],
+    "args": [
+     "corpus breadth.history.nhnl"
+    ],
+    "execution": [
+     "breadth.history.nhnl (c)"
+    ],
+    "receipt": [
+     "breadth.history.nhnl (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "breadth.page": {
+   "domain": "breadth",
+   "group": "breadth",
+   "target": "breadthPage",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "breadth"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "breadth.show": {
+   "domain": "breadth",
+   "group": "breadth",
+   "target": "breadth",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 7,
+   "evidence": {
+    "nl": [
+     "breadth.now: \"what's the breadth like\"",
+     "breadth.now: \"how's market breadth today\"",
+     "breadth.now: \"show me breadth\"",
+     "breadth.now: \"what does breadth look like right now\"",
+     "breadth.now: \"how are the market internals\"",
+     "breadth.now: \"hows breadth today\""
+    ],
+    "routing": [
+     "breadth.now: \"what's the breadth like\"",
+     "breadth.now: \"how's market breadth today\"",
+     "breadth.now: \"show me breadth\"",
+     "breadth.now: \"what does breadth look like right now\"",
+     "breadth.now: \"how are the market internals\"",
+     "breadth.now: \"hows breadth today\""
+    ],
+    "args": [
+     "corpus breadth.now",
+     "GW-03.breadth-member-side"
+    ],
+    "execution": [
+     "breadth.now (c)",
+     "GW-03.breadth-member-side"
+    ],
+    "receipt": [
+     "breadth.now (c)",
+     "GW-03.breadth-member-side"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "calendar.day": {
+   "domain": "calendar",
+   "group": null,
+   "target": "calendar",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "calendar"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "calendar.nextReport": {
+   "domain": "calendar",
+   "group": null,
+   "target": "calendar",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "calendar"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.addCustomTimeframe": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.addTab": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": true,
+    "execution": false,
+    "receipt": false,
+    "refusal": true,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [
+     "refuse.tab-standin"
+    ],
+    "execution": [],
+    "receipt": [],
+    "refusal": [
+     "refuse.tab-standin"
+    ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.applyTemplate": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.applyTheme": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.applyThemeAll": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.closeTab": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.compare": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "compare.amd: \"compare with AMD\"",
+     "compare.amd: \"overlay AMD on this chart\"",
+     "compare.amd: \"compare NVDA to AMD\"",
+     "compare.amd: \"add AMD as a comparison\""
+    ],
+    "routing": [
+     "compare.amd: \"compare with AMD\"",
+     "compare.amd: \"overlay AMD on this chart\"",
+     "compare.amd: \"compare NVDA to AMD\"",
+     "compare.amd: \"add AMD as a comparison\""
+    ],
+    "args": [
+     "corpus compare.amd"
+    ],
+    "execution": [
+     "compare.amd (c)"
+    ],
+    "receipt": [
+     "compare.amd (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "compare.amd: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.describeSetup": {
+   "domain": "chart",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "describe.setup: \"describe the setup on nvda\"",
+     "describe.setup: \"describe this setup\"",
+     "describe.setup: \"what's the setup here\"",
+     "describe.setup: \"walk me through the setup on NVDA\"",
+     "describe.setup: \"summarize the NVDA setup\"",
+     "describe.setup: \"describe the chart setup for NVDA\""
+    ],
+    "routing": [
+     "describe.setup: \"describe the setup on nvda\"",
+     "describe.setup: \"describe this setup\"",
+     "describe.setup: \"walk me through the setup on NVDA\"",
+     "describe.setup: \"summarize the NVDA setup\"",
+     "describe.setup: \"describe the chart setup for NVDA\""
+    ],
+    "args": [
+     "corpus describe.setup"
+    ],
+    "execution": [
+     "describe.setup (c)"
+    ],
+    "receipt": [
+     "describe.setup (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.goToDate": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.linkTab": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.renameTab": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.replay": {
+   "domain": "chart",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.resetDefaults": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.selectTab": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.setBackground": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.setCandleColors": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.setScale": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "scale.log: \"log scale\"",
+     "scale.log: \"switch to log scale\"",
+     "scale.log: \"use a logarithmic price scale\"",
+     "scale.log: \"make the chart log\"",
+     "scale.log: \"turn on log scale\"",
+     "GW-01.symbol-weekly-emas-log-undo"
+    ],
+    "routing": [
+     "scale.log: \"log scale\"",
+     "scale.log: \"switch to log scale\"",
+     "scale.log: \"use a logarithmic price scale\"",
+     "scale.log: \"make the chart log\"",
+     "scale.log: \"turn on log scale\""
+    ],
+    "args": [
+     "corpus scale.log",
+     "GW-01.symbol-weekly-emas-log-undo"
+    ],
+    "execution": [
+     "scale.log (c)",
+     "GW-01.symbol-weekly-emas-log-undo"
+    ],
+    "receipt": [
+     "scale.log (c)",
+     "GW-01.symbol-weekly-emas-log-undo"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "scale.log: undo restores",
+     "GW-01.symbol-weekly-emas-log-undo"
+    ],
+    "multiStep": [
+     "GW-01.symbol-weekly-emas-log-undo"
+    ],
+    "phrasings": []
+   }
+  },
+  "chart.setSession": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "session.extended: \"show extended hours\"",
+     "session.extended: \"turn on extended hours\"",
+     "session.extended: \"show pre-market and after hours\"",
+     "session.extended: \"switch to the extended session\""
+    ],
+    "routing": [
+     "session.extended: \"show extended hours\"",
+     "session.extended: \"turn on extended hours\"",
+     "session.extended: \"show pre-market and after hours\"",
+     "session.extended: \"switch to the extended session\""
+    ],
+    "args": [
+     "corpus session.extended"
+    ],
+    "execution": [
+     "session.extended (c)"
+    ],
+    "receipt": [
+     "session.extended (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "session.extended: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.setSetting": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chart.setSymbol": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "symbol.switch: \"switch to AMD\"",
+     "symbol.switch: \"show me AMD\"",
+     "symbol.switch: \"pull up AMD\"",
+     "symbol.switch: \"chart AMD\"",
+     "symbol.switch: \"put AMD on the chart\"",
+     "symbol.switch: \"change the symbol to AMD\""
+    ],
+    "routing": [
+     "symbol.switch: \"switch to AMD\"",
+     "symbol.switch: \"show me AMD\"",
+     "symbol.switch: \"pull up AMD\"",
+     "symbol.switch: \"chart AMD\"",
+     "symbol.switch: \"put AMD on the chart\"",
+     "symbol.switch: \"change the symbol to AMD\""
+    ],
+    "args": [
+     "corpus symbol.switch",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-09.two-new-charts",
+     "refuse.tab-standin"
+    ],
+    "execution": [
+     "symbol.switch (c)",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-09.two-new-charts"
+    ],
+    "receipt": [
+     "symbol.switch (c)",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-09.two-new-charts"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "symbol.switch: undo restores",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-09.two-new-charts"
+    ],
+    "multiStep": [
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-09.two-new-charts"
+    ],
+    "phrasings": []
+   }
+  },
+  "chart.setTimeframe": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": true,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 19,
+   "evidence": {
+    "nl": [
+     "compound.change-then-undo: \"Change the NVDA chart to the weekly timeframe, then undo that change.\"",
+     "compound.change-then-undo: \"switch to weekly, then undo it\"",
+     "compound.change-then-undo: \"change NVDA to weekly then undo\"",
+     "compound.change-then-undo: \"make it weekly and then undo that\"",
+     "compound.change-then-undo: \"change nvda to weekly, then revert it\"",
+     "timeframe.weekly: \"switch to weekly\""
+    ],
+    "routing": [
+     "compound.change-then-undo: \"Change the NVDA chart to the weekly timeframe, then undo that change.\"",
+     "compound.change-then-undo: \"switch to weekly, then undo it\"",
+     "compound.change-then-undo: \"change NVDA to weekly then undo\"",
+     "compound.change-then-undo: \"make it weekly and then undo that\"",
+     "compound.change-then-undo: \"change nvda to weekly, then revert it\"",
+     "timeframe.weekly: \"switch to weekly\""
+    ],
+    "args": [
+     "corpus compound.change-then-undo",
+     "corpus timeframe.weekly",
+     "corpus timeframe.5m",
+     "GW-09.two-new-charts"
+    ],
+    "execution": [
+     "compound.change-then-undo (c)",
+     "timeframe.weekly (c)",
+     "timeframe.5m (c)",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-02.empty-board-honest",
+     "GW-09.two-new-charts"
+    ],
+    "receipt": [
+     "timeframe.weekly (c)",
+     "timeframe.5m (c)",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-09.two-new-charts"
+    ],
+    "refusal": [
+     "GW-02.empty-board-honest"
+    ],
+    "permission": [],
+    "undo": [
+     "compound.change-then-undo: undo restores",
+     "timeframe.weekly: undo restores",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-09.two-new-charts",
+     "GW-13.model-undo-is-the-receipt-undo",
+     "GW-15.live-undo-last-change-charts"
+    ],
+    "multiStep": [
+     "compound.change-then-undo: 2-op plan",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-02.empty-board-honest",
+     "GW-09.two-new-charts",
+     "GW-13.model-undo-is-the-receipt-undo",
+     "GW-15.live-undo-last-change-charts"
+    ],
+    "phrasings": []
+   }
+  },
+  "chart.setType": {
+   "domain": "chart",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "charttype.line: \"make it a line chart\"",
+     "charttype.line: \"switch to line\"",
+     "charttype.line: \"line chart please\"",
+     "charttype.line: \"show it as a line\"",
+     "charttype.line: \"change the chart type to line\""
+    ],
+    "routing": [
+     "charttype.line: \"make it a line chart\"",
+     "charttype.line: \"switch to line\"",
+     "charttype.line: \"line chart please\"",
+     "charttype.line: \"show it as a line\"",
+     "charttype.line: \"change the chart type to line\""
+    ],
+    "args": [
+     "corpus charttype.line"
+    ],
+    "execution": [
+     "charttype.line (c)"
+    ],
+    "receipt": [
+     "charttype.line (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartGrid.set": {
+   "domain": "chartGrid",
+   "group": "chartGrid",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 16,
+   "evidence": {
+    "nl": [
+     "grid.four.named: \"Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.\"",
+     "grid.four.named: \"Show SPY, QQQ, NVDA and TSLA in four equal panels.\"",
+     "grid.four.named: \"Give me four equally sized charts with those tickers.\"",
+     "grid.four.named: \"Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA.\"",
+     "grid.four.named: \"Create four charts for SPY, QQQ, NVDA and TSLA\"",
+     "grid.four.named: \"put spy, qqq, nvda and tsla on four charts\""
+    ],
+    "routing": [
+     "grid.four.named: \"Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.\"",
+     "grid.four.named: \"Give me four equally sized charts with those tickers.\"",
+     "grid.four.named: \"Create four charts for SPY, QQQ, NVDA and TSLA\"",
+     "grid.four.named: \"put spy, qqq, nvda and tsla on four charts\"",
+     "grid.four.named: \"Show 4 charts: SPY, QQQ, NVDA, TSLA\"",
+     "grid.four.named: \"SPY, QQQ, NVDA and TSLA in a 2x2 grid\""
+    ],
+    "args": [
+     "corpus grid.four.named",
+     "corpus grid.four.named.daily",
+     "GW-16.live-grid-2x2-daily"
+    ],
+    "execution": [
+     "grid.four.named (c)",
+     "grid.four.named.daily (c)",
+     "undo.named-after-grid (c)",
+     "GW-10.grid-then-undo-by-kind",
+     "GW-16.live-grid-2x2-daily"
+    ],
+    "receipt": [
+     "grid.four.named (c)",
+     "grid.four.named.daily (c)",
+     "GW-10.grid-then-undo-by-kind",
+     "GW-16.live-grid-2x2-daily"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "grid.four.named: undo restores",
+     "undo.named-after-grid: undo restores",
+     "GW-10.grid-then-undo-by-kind"
+    ],
+    "multiStep": [
+     "undo.named-after-grid: after an earlier turn",
+     "GW-10.grid-then-undo-by-kind"
+    ],
+    "phrasings": []
+   }
+  },
+  "chartSetup.compareDisplay": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.copyLook": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.deleteTemplate": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chartTemplates",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.favoriteTimeframe": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.removeTimeframe": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.saveTemplate": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chartTemplates",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "coach.consent": {
+   "domain": "coach",
+   "group": "coach",
+   "target": "coach",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "coach.explain": {
+   "domain": "coach",
+   "group": "coach",
+   "target": "coach",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "definition.delete": {
+   "domain": "definition",
+   "group": "definitions",
+   "target": "definitionLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "definition.describe": {
+   "domain": "definition",
+   "group": "definitions",
+   "target": "definitionLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "definition.duplicate": {
+   "domain": "definition",
+   "group": "definitions",
+   "target": "definitionLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "definition.search": {
+   "domain": "definition",
+   "group": "definitions",
+   "target": "definitionLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.addAvwap": {
+   "domain": "drawing",
+   "group": "drawingTools",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.addFib": {
+   "domain": "drawing",
+   "group": "drawingTools",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.addHorizontalRay": {
+   "domain": "drawing",
+   "group": "drawingTools",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.addLevel": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.addRay": {
+   "domain": "drawing",
+   "group": "drawingTools",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.addRectangle": {
+   "domain": "drawing",
+   "group": "drawingTools",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.addText": {
+   "domain": "drawing",
+   "group": "drawingTools",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.addTrendline": {
+   "domain": "drawing",
+   "group": "drawingTools",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.clear": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.list": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.lock": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.remove": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.setAllVisible": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.setLevel": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.setVisible": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.style": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "guide.explain": {
+   "domain": "guide",
+   "group": "guide",
+   "target": "guide",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "guide.show": {
+   "domain": "guide",
+   "group": "guide",
+   "target": "guide",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "history.afterEvent": {
+   "domain": "history",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicator.add": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": true,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 13,
+   "evidence": {
+    "nl": [
+     "indicator.ema-9-20: \"add the 9 and 20 EMAs\"",
+     "indicator.ema-9-20: \"add the 9 and 20 ema\"",
+     "indicator.ema-9-20: \"put the 9 and 20 ema on\"",
+     "indicator.ema-9-20: \"throw the 9 and 20 ema on my chart\"",
+     "indicator.ema-9-20: \"add a 9 ema and a 20 ema\"",
+     "indicator.ema-9-20: \"9 and 20 EMA please\""
+    ],
+    "routing": [
+     "indicator.ema-9-20: \"add the 9 and 20 EMAs\"",
+     "indicator.ema-9-20: \"add the 9 and 20 ema\"",
+     "indicator.ema-9-20: \"put the 9 and 20 ema on\"",
+     "indicator.ema-9-20: \"throw the 9 and 20 ema on my chart\"",
+     "indicator.ema-9-20: \"add a 9 ema and a 20 ema\"",
+     "indicator.ema-9-20: \"9 and 20 EMA please\""
+    ],
+    "args": [
+     "corpus indicator.ema-9-20",
+     "corpus indicator.rsi"
+    ],
+    "execution": [
+     "indicator.ema-9-20 (c)",
+     "indicator.rsi (c)",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-02.empty-board-honest",
+     "GW-12.emas-coloured-exact-undo",
+     "GW-18.live-emas-already-present"
+    ],
+    "receipt": [
+     "indicator.ema-9-20 (c)",
+     "indicator.rsi (c)",
+     "GW-01.symbol-weekly-emas-log-undo"
+    ],
+    "refusal": [
+     "GW-02.empty-board-honest",
+     "GW-18.live-emas-already-present"
+    ],
+    "permission": [],
+    "undo": [
+     "indicator.ema-9-20: undo restores",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-12.emas-coloured-exact-undo"
+    ],
+    "multiStep": [
+     "indicator.ema-9-20: 2-op plan",
+     "GW-01.symbol-weekly-emas-log-undo",
+     "GW-02.empty-board-honest",
+     "GW-12.emas-coloured-exact-undo"
+    ],
+    "phrasings": []
+   }
+  },
+  "indicator.discardDraft": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicatorDrafts",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicator.draft": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicatorDrafts",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicator.hide": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "indicator.hide: \"hide the 50 sma\"",
+     "indicator.hide: \"hide the SMA 50\"",
+     "indicator.hide: \"turn off the 50 day moving average\"",
+     "indicator.hide: \"hide the 50 day\""
+    ],
+    "routing": [
+     "indicator.hide: \"hide the 50 sma\"",
+     "indicator.hide: \"hide the SMA 50\"",
+     "indicator.hide: \"turn off the 50 day moving average\"",
+     "indicator.hide: \"hide the 50 day\""
+    ],
+    "args": [
+     "corpus indicator.hide"
+    ],
+    "execution": [
+     "indicator.hide (c)"
+    ],
+    "receipt": [
+     "indicator.hide (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "indicator.hide: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicator.list": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicators",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicator.openCreate": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicators",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicator.previewDraft": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicatorDrafts",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicator.remove": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicatorEdits",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "indicator.remove-sma200: \"remove the 200 sma\"",
+     "indicator.remove-sma200: \"take off the 200 day moving average\"",
+     "indicator.remove-sma200: \"get rid of the 200\"",
+     "indicator.remove-sma200: \"delete the SMA 200 from this chart\"",
+     "indicator.remove-sma200: \"remove the 200 day\""
+    ],
+    "routing": [
+     "indicator.remove-sma200: \"remove the 200 sma\"",
+     "indicator.remove-sma200: \"take off the 200 day moving average\"",
+     "indicator.remove-sma200: \"get rid of the 200\"",
+     "indicator.remove-sma200: \"delete the SMA 200 from this chart\"",
+     "indicator.remove-sma200: \"remove the 200 day\""
+    ],
+    "args": [
+     "corpus indicator.remove-sma200"
+    ],
+    "execution": [
+     "indicator.remove-sma200 (c)"
+    ],
+    "receipt": [
+     "indicator.remove-sma200 (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "indicator.remove-sma200: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicator.saveDraft": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicatorDrafts",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicator.show": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "indicator.show: \"show the 50 sma again\"",
+     "indicator.show: \"turn the 50 day back on\"",
+     "indicator.show: \"show the SMA 50\""
+    ],
+    "routing": [
+     "indicator.show: \"show the 50 sma again\"",
+     "indicator.show: \"unhide the 50 sma\"",
+     "indicator.show: \"turn the 50 day back on\"",
+     "indicator.show: \"show the SMA 50\""
+    ],
+    "args": [
+     "corpus indicator.show"
+    ],
+    "execution": [
+     "indicator.show (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [
+     "indicator.show: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "indicator.undoDraft": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicatorDrafts",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicator.update": {
+   "domain": "indicator",
+   "group": "indicators",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "indicator.update-period: \"change the 9 ema to a 10\"",
+     "indicator.update-period: \"make the 9 ema a 10 ema\"",
+     "indicator.update-period: \"change the 9 ema's period to 10\"",
+     "indicator.update-period: \"set the 9 ema to 10\"",
+     "indicator.update-period: \"switch the 9 ema to a 10 period\""
+    ],
+    "routing": [
+     "indicator.update-period: \"change the 9 ema to a 10\"",
+     "indicator.update-period: \"make the 9 ema a 10 ema\"",
+     "indicator.update-period: \"change the 9 ema's period to 10\"",
+     "indicator.update-period: \"set the 9 ema to 10\"",
+     "indicator.update-period: \"switch the 9 ema to a 10 period\""
+    ],
+    "args": [
+     "corpus indicator.update-period"
+    ],
+    "execution": [
+     "indicator.update-period (c)"
+    ],
+    "receipt": [
+     "indicator.update-period (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "indicator.update-period: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicatorAlert.create": {
+   "domain": "indicatorAlert",
+   "group": "indicatorAlerts",
+   "target": "indicatorAlertLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": true,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [
+     "GW-08.indicator-alert-routed: \"mark when the 9 ema crosses above the 20 on this chart\""
+    ],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicatorAlert.delete": {
+   "domain": "indicatorAlert",
+   "group": "indicatorAlerts",
+   "target": "indicatorAlert",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicatorAlert.toggle": {
+   "domain": "indicatorAlert",
+   "group": "indicatorAlerts",
+   "target": "indicatorAlert",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicatorCopy.copyTo": {
+   "domain": "indicatorCopy",
+   "group": "indicatorSetup",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicatorCopy.duplicate": {
+   "domain": "indicatorCopy",
+   "group": "indicatorSetup",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicatorStyle.placeIn": {
+   "domain": "indicatorStyle",
+   "group": "indicatorSetup",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "indicatorStyle.set": {
+   "domain": "indicatorStyle",
+   "group": "indicatorSetup",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "indicatorStyle.colour: \"make the 9 ema red\"",
+     "indicatorStyle.colour: \"color the 9 ema red\"",
+     "indicatorStyle.colour: \"change the 9 ema's colour to red\"",
+     "indicatorStyle.colour: \"turn the 9 ema red\"",
+     "indicatorStyle.colour: \"paint the 9 ema red\""
+    ],
+    "routing": [
+     "indicatorStyle.colour: \"make the 9 ema red\"",
+     "indicatorStyle.colour: \"color the 9 ema red\"",
+     "indicatorStyle.colour: \"change the 9 ema's colour to red\"",
+     "indicatorStyle.colour: \"turn the 9 ema red\"",
+     "indicatorStyle.colour: \"paint the 9 ema red\""
+    ],
+    "args": [
+     "corpus indicatorStyle.colour"
+    ],
+    "execution": [
+     "indicatorStyle.colour (c)"
+    ],
+    "receipt": [
+     "indicatorStyle.colour (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "indicatorStyle.colour: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "journal.createNote": {
+   "domain": "journal",
+   "group": "coach",
+   "target": "journal",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "journal"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "journal.listNotes": {
+   "domain": "journal",
+   "group": "coach",
+   "target": "journal",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "journal"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "journal.proposeNote": {
+   "domain": "journal",
+   "group": "coach",
+   "target": "coach",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "journal.reviewTrades": {
+   "domain": "journal",
+   "group": "coach",
+   "target": "coach",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.create": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layouts",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.current": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layouts",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.delete": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layouts",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.duplicate": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layouts",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.list": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layouts",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.open": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layouts",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "layout.open: \"open my Momentum layout\"",
+     "layout.open: \"switch to the Momentum layout\"",
+     "layout.open: \"load Momentum\"",
+     "layout.open: \"go to my Momentum layout\"",
+     "layout.open: \"pull up the Momentum layout\""
+    ],
+    "routing": [
+     "layout.open: \"open my Momentum layout\"",
+     "layout.open: \"switch to the Momentum layout\"",
+     "layout.open: \"load Momentum\"",
+     "layout.open: \"go to my Momentum layout\"",
+     "layout.open: \"pull up the Momentum layout\""
+    ],
+    "args": [
+     "corpus layout.open"
+    ],
+    "execution": [
+     "layout.open (c)"
+    ],
+    "receipt": [
+     "layout.open (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.rename": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layouts",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": true,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [
+     "GW-07.protected-layout-rename: refused by name"
+    ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.saveAs": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layouts",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "layout.saveAs: \"save this layout as Swing 2\"",
+     "layout.saveAs: \"save this as a new layout called Swing 2\"",
+     "layout.saveAs: \"save the board as Swing 2\"",
+     "layout.saveAs: \"save a copy of this layout named Swing 2\""
+    ],
+    "routing": [
+     "layout.saveAs: \"save this layout as Swing 2\"",
+     "layout.saveAs: \"save this as a new layout called Swing 2\"",
+     "layout.saveAs: \"save the board as Swing 2\"",
+     "layout.saveAs: \"save a copy of this layout named Swing 2\""
+    ],
+    "args": [
+     "corpus layout.saveAs"
+    ],
+    "execution": [
+     "layout.saveAs (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [
+     "layout.saveAs: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.saveCurrent": {
+   "domain": "layout",
+   "group": "layouts",
+   "target": "layouts",
+   "risk": "local",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "news.catalysts": {
+   "domain": "news",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "news.catalysts: \"what are the catalysts for NVDA\"",
+     "news.catalysts: \"NVDA catalysts\"",
+     "news.catalysts: \"any upcoming catalysts on NVDA\"",
+     "news.catalysts: \"show me NVDA's catalysts\""
+    ],
+    "routing": [
+     "news.catalysts: \"what are the catalysts for NVDA\"",
+     "news.catalysts: \"NVDA catalysts\"",
+     "news.catalysts: \"any upcoming catalysts on NVDA\"",
+     "news.catalysts: \"show me NVDA's catalysts\""
+    ],
+    "args": [
+     "corpus news.catalysts"
+    ],
+    "execution": [
+     "news.catalysts (c)"
+    ],
+    "receipt": [
+     "news.catalysts (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "news.latest": {
+   "domain": "news",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "news.latest: \"any news on tsla\"",
+     "news.latest: \"latest headlines for TSLA\"",
+     "news.latest: \"what's the news on TSLA\"",
+     "news.latest: \"show me TSLA news\"",
+     "news.latest: \"TSLA headlines\""
+    ],
+    "routing": [
+     "news.latest: \"any news on tsla\"",
+     "news.latest: \"latest headlines for TSLA\"",
+     "news.latest: \"what's the news on TSLA\"",
+     "news.latest: \"show me TSLA news\"",
+     "news.latest: \"TSLA headlines\""
+    ],
+    "args": [
+     "corpus news.latest"
+    ],
+    "execution": [
+     "news.latest (c)"
+    ],
+    "receipt": [
+     "news.latest (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "pane.move": {
+   "domain": "pane",
+   "group": "indicatorSetup",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "pane.resize": {
+   "domain": "pane",
+   "group": "indicatorSetup",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "playbook.explain": {
+   "domain": "playbook",
+   "group": "playbook",
+   "target": "playbook",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "playbook.record": {
+   "domain": "playbook",
+   "group": "playbook",
+   "target": "playbook",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "playbook.setup": {
+   "domain": "playbook",
+   "group": "playbook",
+   "target": "playbook",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "research.ask": {
+   "domain": "research",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "screener.deleteSaved": {
+   "domain": "screener",
+   "group": "screener",
+   "target": "savedScreens",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts",
+    "screener"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "screener.duplicateSaved": {
+   "domain": "screener",
+   "group": "screener",
+   "target": "savedScreens",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts",
+    "screener"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "screener.listSaved": {
+   "domain": "screener",
+   "group": "screener",
+   "target": "screener",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "screener.openSaved": {
+   "domain": "screener",
+   "group": "screener",
+   "target": "screenerPage",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "screener"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "screener.page": {
+   "domain": "screener",
+   "group": "screener",
+   "target": "screenerPage",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "screener"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "screener.renameSaved": {
+   "domain": "screener",
+   "group": "screener",
+   "target": "savedScreens",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts",
+    "screener"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "screener.run": {
+   "domain": "screener",
+   "group": "screener",
+   "target": "screener",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": true,
+    "permission": true,
+    "undo": null,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "screener.adr: \"find stocks with ADR above 5%\"",
+     "screener.adr: \"screen for stocks with an ADR over 5%\"",
+     "screener.adr: \"show me names with ADR greater than 5 percent\"",
+     "screener.adr: \"scan for ADR > 5%\"",
+     "screener.adr: \"which stocks have an ADR above 5%\"",
+     "GW-05.screen-price-rvol"
+    ],
+    "routing": [
+     "screener.adr: \"find stocks with ADR above 5%\"",
+     "screener.adr: \"screen for stocks with an ADR over 5%\"",
+     "screener.adr: \"show me names with ADR greater than 5 percent\"",
+     "screener.adr: \"scan for ADR > 5%\"",
+     "screener.adr: \"which stocks have an ADR above 5%\""
+    ],
+    "args": [
+     "corpus screener.adr",
+     "GW-05.screen-price-rvol"
+    ],
+    "execution": [
+     "screener.adr (c)",
+     "GW-05.screen-price-rvol",
+     "GW-06.hidden-field-refused"
+    ],
+    "receipt": [
+     "screener.adr (c)",
+     "GW-05.screen-price-rvol"
+    ],
+    "refusal": [
+     "refuse.rs-rank-hidden"
+    ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [
+     "GW-06.hidden-field-refused"
+    ],
+    "phrasings": []
+   }
+  },
+  "screener.runSaved": {
+   "domain": "screener",
+   "group": "screener",
+   "target": "screener",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "screener.runSaved: \"run my Momentum Screen\"",
+     "screener.runSaved: \"run the Momentum Screen\"",
+     "screener.runSaved: \"show me the results of my Momentum Screen\"",
+     "screener.runSaved: \"open my saved Momentum Screen and run it\""
+    ],
+    "routing": [
+     "screener.runSaved: \"run my Momentum Screen\"",
+     "screener.runSaved: \"run the Momentum Screen\"",
+     "screener.runSaved: \"show me the results of my Momentum Screen\"",
+     "screener.runSaved: \"open my saved Momentum Screen and run it\""
+    ],
+    "args": [
+     "corpus screener.runSaved"
+    ],
+    "execution": [
+     "screener.runSaved (c)"
+    ],
+    "receipt": [
+     "screener.runSaved (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "screener.saveAs": {
+   "domain": "screener",
+   "group": "screener",
+   "target": "savedScreens",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts",
+    "screener"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "screener.state": {
+   "domain": "screener",
+   "group": "screener",
+   "target": "screener",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "settings.setAlertSound": {
+   "domain": "settings",
+   "group": "settings",
+   "target": "settings",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "settings.setAppTheme": {
+   "domain": "settings",
+   "group": "settings",
+   "target": "settings",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "settings.setDefaultTimeframe": {
+   "domain": "settings",
+   "group": "settings",
+   "target": "settings",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "settings.setWatchlistDigest": {
+   "domain": "settings",
+   "group": "settings",
+   "target": "digest",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "settings.show": {
+   "domain": "settings",
+   "group": "settings",
+   "target": "settings",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.compare": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.compare: \"compare NVDA and AMD fundamentals\"",
+     "stock.compare: \"how does NVDA stack up against AMD\"",
+     "stock.compare: \"NVDA vs AMD on valuation\"",
+     "stock.compare: \"compare the fundamentals of NVDA versus AMD\""
+    ],
+    "routing": [
+     "stock.compare: \"compare NVDA and AMD fundamentals\"",
+     "stock.compare: \"NVDA vs AMD on valuation\"",
+     "stock.compare: \"compare the fundamentals of NVDA versus AMD\""
+    ],
+    "args": [
+     "corpus stock.compare"
+    ],
+    "execution": [
+     "stock.compare (c)"
+    ],
+    "receipt": [
+     "stock.compare (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.dailyBars": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 7,
+   "evidence": {
+    "nl": [
+     "stock.pullbacks: \"show me NVDA's recent pullbacks\"",
+     "stock.pullbacks: \"nvda pullbacks\"",
+     "stock.pullbacks: \"how far has NVDA pulled back\"",
+     "stock.pullbacks: \"NVDA drawdowns this year\"",
+     "stock.offHigh: \"how far off its high is NVDA\"",
+     "stock.offHigh: \"how far is NVDA off its high\""
+    ],
+    "routing": [
+     "stock.offHigh: \"how far off its high is NVDA\"",
+     "stock.offHigh: \"how far is NVDA off its high\""
+    ],
+    "args": [
+     "corpus stock.pullbacks",
+     "corpus stock.offHigh"
+    ],
+    "execution": [
+     "stock.pullbacks (c)",
+     "stock.offHigh (c)"
+    ],
+    "receipt": [
+     "stock.pullbacks (c)",
+     "stock.offHigh (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.earnings": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": true,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "earnings.date: \"when does nvda report earnings\"",
+     "earnings.date: \"nvda earnings date\"",
+     "earnings.date: \"when is NVDA's next earnings\"",
+     "earnings.date: \"when does nvda report\"",
+     "earnings.date: \"NVDA earnings\"",
+     "earnings.date: \"what did NVDA report last quarter\""
+    ],
+    "routing": [
+     "earnings.date: \"when does nvda report earnings\"",
+     "earnings.date: \"nvda earnings date\"",
+     "earnings.date: \"when is NVDA's next earnings\"",
+     "earnings.date: \"when does nvda report\"",
+     "earnings.date: \"NVDA earnings\"",
+     "earnings.date: \"what did NVDA report last quarter\""
+    ],
+    "args": [
+     "corpus earnings.date",
+     "GW-04.earnings-when",
+     "GW-17.live-earnings-next"
+    ],
+    "execution": [
+     "earnings.date (c)",
+     "GW-04.earnings-when",
+     "GW-17.live-earnings-next"
+    ],
+    "receipt": [
+     "earnings.date (c)",
+     "GW-04.earnings-when",
+     "GW-17.live-earnings-next"
+    ],
+    "refusal": [
+     "GW-17.live-earnings-next"
+    ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.profile": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.profile: \"give me a quick profile on TSM\"",
+     "stock.profile: \"what does TSM do\"",
+     "stock.profile: \"TSM profile\"",
+     "stock.profile: \"tell me about TSM the company\""
+    ],
+    "routing": [
+     "stock.profile: \"give me a quick profile on TSM\"",
+     "stock.profile: \"what does TSM do\"",
+     "stock.profile: \"TSM profile\""
+    ],
+    "args": [
+     "corpus stock.profile"
+    ],
+    "execution": [
+     "stock.profile (c)"
+    ],
+    "receipt": [
+     "stock.profile (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.quote": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "stock.quote: \"whats nvda at\"",
+     "stock.quote: \"what's NVDA trading at\"",
+     "stock.quote: \"NVDA price\"",
+     "stock.quote: \"how much is NVDA right now\"",
+     "stock.quote: \"quote NVDA\""
+    ],
+    "routing": [
+     "stock.quote: \"whats nvda at\"",
+     "stock.quote: \"what's NVDA trading at\"",
+     "stock.quote: \"NVDA price\"",
+     "stock.quote: \"quote NVDA\""
+    ],
+    "args": [
+     "corpus stock.quote"
+    ],
+    "execution": [
+     "stock.quote (c)"
+    ],
+    "receipt": [
+     "stock.quote (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.themes": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "volume.setState": {
+   "domain": "volume",
+   "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.add": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "watchlist.add: \"add AMD to my Momentum list\"",
+     "watchlist.add: \"put AMD on the Momentum watchlist\"",
+     "watchlist.add: \"add AMD to Momentum\"",
+     "watchlist.add: \"throw AMD on my Momentum watchlist\""
+    ],
+    "routing": [
+     "watchlist.add: \"add AMD to my Momentum list\"",
+     "watchlist.add: \"put AMD on the Momentum watchlist\"",
+     "watchlist.add: \"add AMD to Momentum\"",
+     "watchlist.add: \"throw AMD on my Momentum watchlist\""
+    ],
+    "args": [
+     "corpus watchlist.add"
+    ],
+    "execution": [
+     "watchlist.add (c)"
+    ],
+    "receipt": [
+     "watchlist.add (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "watchlist.add: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.clear": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.create": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlistLibrary",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "watchlist.create: \"create a new watchlist called Semis\"",
+     "watchlist.create: \"make a list named Semis\"",
+     "watchlist.create: \"start a new watchlist Semis\"",
+     "watchlist.create: \"new watchlist: Semis\""
+    ],
+    "routing": [
+     "watchlist.create: \"create a new watchlist called Semis\"",
+     "watchlist.create: \"make a list named Semis\"",
+     "watchlist.create: \"start a new watchlist Semis\"",
+     "watchlist.create: \"new watchlist: Semis\""
+    ],
+    "args": [
+     "corpus watchlist.create"
+    ],
+    "execution": [
+     "watchlist.create (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [
+     "watchlist.create: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.delete": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.list": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlistLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.open": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.remove": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "watchlist.remove: \"remove TSLA from my Momentum list\"",
+     "watchlist.remove: \"take TSLA off the Momentum watchlist\"",
+     "watchlist.remove: \"drop TSLA from Momentum\"",
+     "watchlist.remove: \"delete TSLA from my Momentum list\""
+    ],
+    "routing": [
+     "watchlist.remove: \"remove TSLA from my Momentum list\"",
+     "watchlist.remove: \"take TSLA off the Momentum watchlist\"",
+     "watchlist.remove: \"drop TSLA from Momentum\"",
+     "watchlist.remove: \"delete TSLA from my Momentum list\""
+    ],
+    "args": [
+     "corpus watchlist.remove"
+    ],
+    "execution": [
+     "watchlist.remove (c)"
+    ],
+    "receipt": [
+     "watchlist.remove (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "watchlist.remove: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.rename": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.reorder": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.setNote": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.show": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "watchlist",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.add": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "workspace",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "grid.four.unnamed: \"Put four charts on my screen.\"",
+     "grid.four.unnamed: \"Create four charts.\"",
+     "grid.four.unnamed: \"Make a 2×2 chart layout.\"",
+     "grid.four.unnamed: \"give me a 2x2 grid of charts\"",
+     "grid.four.unnamed: \"I want four equal charts on the board\"",
+     "grid.four.unnamed: \"four charts, same size, please\""
+    ],
+    "routing": [
+     "grid.four.unnamed: \"give me a 2x2 grid of charts\"",
+     "grid.four.unnamed: \"I want four equal charts on the board\"",
+     "grid.four.unnamed: \"four charts, same size, please\"",
+     "widget.news: \"add a news widget\"",
+     "widget.news: \"put a news panel on the board\"",
+     "widget.news: \"open the news widget\""
+    ],
+    "args": [
+     "corpus grid.four.unnamed",
+     "corpus widget.news",
+     "GW-09.two-new-charts"
+    ],
+    "execution": [
+     "widget.news (c)",
+     "GW-09.two-new-charts"
+    ],
+    "receipt": [
+     "widget.news (c)",
+     "GW-09.two-new-charts"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "widget.news: undo restores",
+     "GW-09.two-new-charts"
+    ],
+    "multiStep": [
+     "GW-09.two-new-charts"
+    ],
+    "phrasings": []
+   }
+  },
+  "widget.addCharts": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "workspace",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "widget.addCharts: \"open charts for AAPL and MSFT\"",
+     "widget.addCharts: \"add charts for AAPL and MSFT\"",
+     "widget.addCharts: \"open AAPL and MSFT in new charts\"",
+     "widget.addCharts: \"give me new charts for AAPL and MSFT\""
+    ],
+    "routing": [
+     "widget.addCharts: \"open charts for AAPL and MSFT\"",
+     "widget.addCharts: \"add charts for AAPL and MSFT\"",
+     "widget.addCharts: \"open AAPL and MSFT in new charts\""
+    ],
+    "args": [
+     "corpus widget.addCharts"
+    ],
+    "execution": [
+     "widget.addCharts (c)"
+    ],
+    "receipt": [
+     "widget.addCharts (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "widget.addCharts: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.addTab": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.arrange": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [
+     "grid.four.unnamed: \"Put four charts on my screen.\"",
+     "grid.four.unnamed: \"Create four charts.\"",
+     "grid.four.unnamed: \"Make a 2×2 chart layout.\"",
+     "grid.four.unnamed: \"give me a 2x2 grid of charts\"",
+     "grid.four.unnamed: \"I want four equal charts on the board\"",
+     "grid.four.unnamed: \"four charts, same size, please\""
+    ],
+    "routing": [
+     "grid.four.unnamed: \"give me a 2x2 grid of charts\"",
+     "grid.four.unnamed: \"I want four equal charts on the board\"",
+     "grid.four.unnamed: \"four charts, same size, please\""
+    ],
+    "args": [
+     "corpus grid.four.unnamed"
+    ],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.closeTab": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.move": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.remove": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "widget.remove: \"close the right chart\"",
+     "widget.remove: \"remove the chart on the right\"",
+     "widget.remove: \"get rid of the AMD chart\"",
+     "widget.remove: \"close the AMD chart\"",
+     "widget.remove: \"delete the right-hand chart\""
+    ],
+    "routing": [
+     "widget.remove: \"close the right chart\"",
+     "widget.remove: \"remove the chart on the right\"",
+     "widget.remove: \"close the AMD chart\"",
+     "widget.remove: \"delete the right-hand chart\""
+    ],
+    "args": [
+     "corpus widget.remove"
+    ],
+    "execution": [
+     "widget.remove (c)"
+    ],
+    "receipt": [
+     "widget.remove (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "widget.remove: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.renameTab": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.resize": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.selectTab": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.setLink": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.setOption": {
+   "domain": "widget",
+   "group": "boardEdit",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.showList": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.showScan": {
+   "domain": "widget",
+   "group": "workspace",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [],
+    "execution": [],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  }
+ }
+}
