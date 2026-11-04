@@ -345,7 +345,7 @@ branch: feat/pine-w5-t16-rule-record   base: W5-T11 86218da704 + local merge of 
 locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final3.lock
 
 ## W5-T18 editor status (optional in the design; needs T17, READY)
-state: BUILDING   round: r0   updated: 2026-11-04 14:37 CT
+state: QUEUED (free RAM 8.5 GB at 2026-11-04 14:37, at the start floor; starts when RAM recovers or a builder finishes)
 branch: feat/pine-w5-t18-editor-status   base: W5-T17 f777d2c427 (STACK)   model: Sonnet
 locks: mut _resume-2026-11-01/dsk/heavy-mut.lock · final _resume-2026-11-01/dsk/heavy-final2.lock
 
