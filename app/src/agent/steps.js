@@ -172,6 +172,29 @@ export function resumedTurn(p, deps) {
     changeSteps: Math.max(1, Number(p?.changeSteps) || 0), undoBefore }
 }
 
+/** review #782 (1): the outcome of EACH op of a plan group. The executor may commit only part of a plan — a deferred op
+ *  it drops before running ("I'll do the rest, but not this part"), or a part it splits off — so the group's final
+ *  outcome is NOT every member's. A done outcome is credited op by op from the actions the commit records named
+ *  (`outcomeData.actions`, a multiset); an op no committed record names did not run and is told so. When the final
+ *  outcome is not done (a card, a refusal, a failure), it is every member's — nothing of the plan ran. */
+const DONE_KINDS = new Set(['applied', 'noop', 'applied-unsaved'])
+export const NOT_RUN = 'UCT did not run this part of the plan (the reply above says why); the rest of the plan ran'
+export function groupOutcomes(bodies, ops, final) {
+  if (ops.length <= 1 || final.status !== 'done') return ops.map(() => final)
+  const done = (bodies || []).filter(b => DONE_KINDS.has(String(b?.outcomeData?.kind || '')))
+  if (!done.length || done.some(b => !Array.isArray(b.outcomeData.actions))) return ops.map(() => final)
+  const pool = new Map()
+  for (const b of done) for (const a of b.outcomeData.actions) pool.set(a, (pool.get(a) || 0) + 1)
+  // the records name none of the group's actions (the executor ran them under other names): no per-op evidence
+  if (!ops.some(op => pool.has(op.action))) return ops.map(() => final)
+  return ops.map(op => {
+    const n = pool.get(op.action) || 0
+    if (!n) return { status: 'refused', refusal: NOT_RUN }
+    pool.set(op.action, n - 1)
+    return final
+  })
+}
+
 export function createStepRunner() {
   let paused = null              // { turnId, id, memoryTurn, alias } while a card waits
   let active = null              // the turn being served: { turnId, refMap, sources, voice, chain }
@@ -206,58 +229,89 @@ export function createStepRunner() {
   }
 
   async function runStep(ev, deps) {
-    const { host, execute, tapRef } = deps
     if (ev.action === UNDO_ACTION && typeof deps.doUndo === 'function') {
       const res = await runUndoStep(ev, deps)
       await agentStepResult({ turnId: ev.turnId, id: ev.id, ...res })
       return
     }
-    if (!getCapability(ev.action)?.query) active.changeSteps += 1
-    const argProblem = argRefProblem(withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources), active.refMap)
-    if (argProblem) {
-      await agentStepResult({ turnId: ev.turnId, id: ev.id, status: 'refused', refusal: argProblem })
-      return
+    await runGroup([ev], deps)
+  }
+
+  // ⭐ V2-G2: the steps of ONE plan group (consecutive ordinary changes of one model response, turn_v2._send_group) run as
+  // ONE execute — one plan, one decideMode, one commit, one receipt, one Undo — exactly like one v1 envelope's ops (new
+  // widgets placed together with a re-tile of the board: "put four charts on my screen"). A group of one is the ordinary
+  // single step. Every step gets the group's outcome; results go back in step order (the server reads them in order).
+  async function runGroup(evs, deps) {
+    const { host, execute, tapRef } = deps
+    const out = new Map()
+    const run = []
+    for (const ev of evs) {
+      if (!getCapability(ev.action)?.query) active.changeSteps += 1
+      const op = withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources)
+      const argProblem = argRefProblem(op, active.refMap)
+      if (argProblem) out.set(ev.id, { status: 'refused', refusal: argProblem })
+      else run.push({ ev, op, al: aliasOf(op) })
     }
-    const op = withSources({ action: ev.action, target: ev.target, args: ev.args || {} }, active.sources)
-    const al = aliasOf(op)
-    const bound = translateRefs(bindSourceRefs([op], active.refMap, { host, message: '' }), active.refMap)
-    const mode = ev.mode === 'propose' ? 'propose' : 'apply'
-    tapRef.current = []
-    let bodies
-    try {
-      await execute(bound, { path: 'model', mode, member: null, voice: active.voice })
-    } catch (e) {
-      bodies = [{ outcome: `That didn't work: ${e?.message || 'error'}`, outcomeData: { kind: 'failed', actions: [op.action] } }]
-    } finally {
-      bodies = bodies || tapRef.current
-      tapRef.current = null
-    }
-    const set = deps.memoryRef?.current?.latestResults?.()
-    const shown = set && set.source === op.action ? set.symbols : null
-    const res = outcomeOf(bodies, bound[0] || op, shown)
-    if (res.status === 'done') {
-      // a step that CREATED targets (a new chart): the board's context is rebuilt and the new refs reported, so the
-      // server lets the next step name them and the model learns them from the result
-      const added = await newRefs(host, deps.capCtx, active.refMap)
-      if (added.length) res.added = added
-      bindAlias(active, al, added)
-    }
-    if (al?.source && (res.status === 'query' || res.status === 'done')) active.sources[al.alias] = al.source
-    if (res.status === 'proposed') {
-      // the card waits: whatever the member does about it (approve / dismiss) is recorded for afterCard
-      paused = { turnId: ev.turnId, id: ev.id, memoryTurn: deps.memoryRef?.current?.currentTurn?.() ?? null, alias: al?.kind ? al : null,
-        undoBefore: active.undoBefore, changeSteps: active.changeSteps }
+    if (run.length) {
+      const ops = run.map(r => r.op)
+      const bound = translateRefs(bindSourceRefs(ops, active.refMap, { host, message: '' }), active.refMap)
+      const mode = run.some(r => r.ev.mode === 'propose') ? 'propose' : 'apply'
       tapRef.current = []
+      let bodies
+      try {
+        await execute(bound, { path: 'model', mode, member: null, voice: active.voice })
+      } catch (e) {
+        bodies = [{ outcome: `That didn't work: ${e?.message || 'error'}`, outcomeData: { kind: 'failed', actions: ops.map(o => o.action) } }]
+      } finally {
+        bodies = bodies || tapRef.current
+        tapRef.current = null
+      }
+      const set = deps.memoryRef?.current?.latestResults?.()
+      const last = run[run.length - 1]
+      const shown = set && set.source === last.op.action ? set.symbols : null
+      const res = outcomeOf(bodies, bound[bound.length - 1] || last.op, shown)
+      if (res.status === 'done') {
+        // a step that CREATED targets (a new chart): the board's context is rebuilt and the new refs reported, so the
+        // server lets the next step name them and the model learns them from the result
+        const added = await newRefs(host, deps.capCtx, active.refMap)
+        if (added.length) res.added = added
+        for (const r of run) bindAlias(active, r.al, added)
+      }
+      for (const r of run) if (r.al?.source && (res.status === 'query' || res.status === 'done')) active.sources[r.al.alias] = r.al.source
+      if (res.status === 'proposed') {
+        // the card waits: whatever the member does about it (approve / dismiss) is recorded for afterCard
+        const al = run.map(r => r.al).filter(x => x?.kind).pop() || null
+        paused = { turnId: last.ev.turnId, id: last.ev.id, memoryTurn: deps.memoryRef?.current?.currentTurn?.() ?? null, alias: al,
+          undoBefore: active.undoBefore, changeSteps: active.changeSteps }
+        tapRef.current = []
+      }
+      const each = groupOutcomes(bodies, ops, res)
+      let addedSent = false
+      run.forEach((r, i) => {
+        const o = each[i]
+        if (o.status === 'done' && res.added && !addedSent) { out.set(r.ev.id, o); addedSent = true } else out.set(r.ev.id, o === res && res.added ? { ...res, added: undefined } : o)
+      })
     }
-    await agentStepResult({ turnId: ev.turnId, id: ev.id, ...res })
+    for (const ev of evs) await agentStepResult({ turnId: ev.turnId, id: ev.id, ...out.get(ev.id) })
   }
 
   function onEvent(deps) {
+    const groups = new Map()
     return (ev) => {
-      if (ev?.t === 'step' && active) {
-        // steps arrive one at a time (the server waits for each result); a chain keeps them in order anyway
-        active.chain = active.chain.then(() => runStep(ev, deps)).catch(() => {})
+      if (ev?.t !== 'step' || !active) return
+      const g = ev.group
+      if (g && Number(g.size) > 1) {
+        // V2-G2: hold a group's steps until all of them have arrived (the server emits them back to back)
+        const held = groups.get(g.id) || []
+        held.push(ev)
+        groups.set(g.id, held)
+        if (held.length < Number(g.size)) return
+        groups.delete(g.id)
+        active.chain = active.chain.then(() => runGroup(held.sort((x, y) => x.group.index - y.group.index), deps)).catch(() => {})
+        return
       }
+      // steps arrive one at a time (the server waits for each result); a chain keeps them in order anyway
+      active.chain = active.chain.then(() => runStep(ev, deps)).catch(() => {})
     }
   }
 
@@ -294,6 +348,8 @@ export function createStepRunner() {
         pending: pending ? { ops: pending.ops.map(o => ({ ...o, target: back[o.target] || o.target })) } : null,
         context: mem ? { ...context, conversation_memory: withModelRefs(mem, back) } : context,
         capabilities: full, manifestVersion: MANIFEST_VERSION, routing: null, planner: 'v2',
+        // V2-G2: this browser runs a plan group as ONE plan (runGroup); the server groups steps only when told so
+        stepGroups: true,
       }
       active = { turnId: null, refMap, sources: {}, voice, chain: Promise.resolve(), changeSteps: 0,
         undoBefore: (deps.undoRef?.current || []).map(e => e.id) }
