@@ -19,6 +19,7 @@ import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
 import { useInRouterContext } from 'react-router-dom'
 import AgentNavBridge from '../../agent/AgentNavBridge'
+import { useAgentPageHost } from '../../agent/agentApp'
 import { setIndicatorAgentRoute, resolveAgentChart } from '../../agent/indicatorEntry'
 const loadAgentPanel = () => import('../../agent/AgentPanel')
 const AgentPanel = lazy(loadAgentPanel)
@@ -3001,7 +3002,11 @@ function ChartsWorkspaceBoard() {
     // this tab's current board; anything else means it is on screen but NOT saved. The
     // autosave's own guards apply: an unreadable stored board or a board commit in flight is
     // never written over, and is reported as not confirmed rather than bypassed.
-    persist: async () => {
+    // `settle` (W2 audit, live 2026-11-04: a 2×2 grid's receipt waited ~20 s behind the NEW charts' own chart_settings
+    // writes as they loaded): the other preference writes to wait for. A change that is only the board's widgets
+    // (arrangement, adds, removals, tickers / timeframes of its charts) passes [] — its own writes are the layout and
+    // the link-group tickers, and their conflicts are still checked; everything else waits exactly as before.
+    persist: async ({ settle = ['charts_active_template', 'chart_settings'] } = {}) => {
       if (storedLayoutUnreadableRef.current || boardCommitInFlightRef.current) return { ok: false, conflict: false, reason: 'not-saved' }
       if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
       if (groupsSaveTimerRef.current) { clearTimeout(groupsSaveTimerRef.current); groupsSaveTimerRef.current = null }
@@ -3009,7 +3014,7 @@ function ChartsWorkspaceBoard() {
         setPref('charts_workspace_layout', serializeLayout(layoutRef.current)),
         setPref('charts_workspace_groups', JSON.stringify(agentGroupSymsRef.current)),
       ])
-      await whenWritesSettle(['charts_active_template', 'chart_settings'])
+      if (settle.length) await whenWritesSettle(settle)
       const conflict = hasWorkspaceConflict(['charts_workspace_layout', 'charts_workspace_groups', 'charts_active_template', 'chart_settings'])
       return { ok: board !== false && groups !== false && !conflict, conflict, reason: conflict ? 'conflict' : (board === false || groups === false ? 'not-saved' : null) }
     },
@@ -3134,7 +3139,7 @@ function ChartsWorkspaceBoard() {
       color: (id, c) => agentWidgetOpsRef.current.color(id, c),
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
       groupSyms: () => agentGroupSymsRef.current,
-      persist: () => agentWidgetOpsRef.current.persist(),
+      persist: (opts) => agentWidgetOpsRef.current.persist(opts),
       grid: () => agentWidgetOpsRef.current.grid(),
       minOf: (w) => agentWidgetOpsRef.current.minOf(w),
       repack: (ws, id, rect) => agentWidgetOpsRef.current.repack(ws, id, rect),
@@ -3172,6 +3177,8 @@ function ChartsWorkspaceBoard() {
       set: (iso) => { const r = agentReplayRef.current; if (!r) return; if (iso) r.start(iso, null); else r.exit() },
     },
   }), [])
+  // ⭐ W2-C1: the app-level Agent host knows this page's host; /charts keeps its own dock + panel below (`owned`).
+  useAgentPageHost('charts', agentHost, { owned: true })
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
   // Modify door opens the Agent on THAT chart (it asks what to build) instead of the chart-side dock.
   // The toolbar names its chart `chartId` or `chartId:tabId`; the host names it `chartId~tabId`. A

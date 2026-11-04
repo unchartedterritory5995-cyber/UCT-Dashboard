@@ -96,8 +96,11 @@ const CHARTS_FOR = /\bcharts (?:for|of|showing|on)\b/i
 const COUNT_RE = /\b(two|three|four|five|six|seven|eight|nine|[2-9])\s+(?:new\s+)?(?:(?:daily|weekly|monthly|hourly|intraday)\s+)?(?:separate\s+)?charts?\b/i
 const GRID_LAYOUT = [[/\b(?:side[\s-]by[\s-]side|next to each other|in (?:a )?row)\b/i, 'columns'], [/\b(?:stacked|on top of each other|in (?:a )?column)\b/i, 'rows'],
   [/\b(?:grid|2\s*x\s*2|2\s*by\s*2|3\s*x\s*3|quad)\b/i, 'grid']]
+// hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size."): equal sizing asked in words —
+// the charts are re-tiled evenly (chartGrid.set), never dropped into whatever empty space happens to be there
+export const EQUAL_SIZE_WORDS = /\b(?:same|equal|even|identical) (?:size|sizes|sized|width|height)\b|\bequal(?:ly)?[\s-]?sized?\b|\bevenly\b|\bequally\b/i
 // everything else such a sentence may say — any other word means it is not ONLY a grid of these tickers
-const GRID_FILLER = /\b(?:please|can|could|would|you|i|want|need|like|to|create|make|open|add|show|set|setup|up|give|me|put|load|pull|bring|build|chart|charts|display|lay|out|new|separate|for|of|with|on|showing|and|them|all|each|every|one|a|an|the|in|into|as|be|is|are|my|grid|2x2|2|x|by|side|stacked|top|other|row|column|quad|equal|equally|sized|size|evenly|layout|arrangement|arranged|time ?frames?|daily|weekly|monthly|hourly|intraday|minutes?|min|hour|hr|1h|4h|1|5|15|30|60|two|three|four|five|six|seven|eight|nine|both|too|also|just|now)\b/gi
+const GRID_FILLER = /\b(?:please|can|could|would|you|i|want|need|like|to|create|make|open|add|show|set|setup|up|give|me|put|load|pull|bring|build|chart|charts|display|lay|out|new|separate|for|of|with|on|showing|and|them|all|each|every|one|a|an|the|in|into|as|be|is|are|my|grid|2x2|2|x|by|side|stacked|top|other|row|column|quad|panels?|cells?|boxes|windows|quadrants|equal|equally|sized|size|sizes|same|identical|evenly|layout|arrangement|arranged|time ?frames?|daily|weekly|monthly|hourly|intraday|minutes?|min|hour|hr|1h|4h|1|5|15|30|60|two|three|four|five|six|seven|eight|nine|both|too|also|just|now)\b/gi
 // ⭐ live acceptance 2026-10-29: "open daily charts for aapl msft nvda, each with a 50sma" — the tickers of a grid may be
 // typed in lowercase. Only the words a grid sentence leaves once its own words are taken out, each at most four letters
 // (a longer word is more often a company name — "apple" — and stays the model's) and passing the shared N4 rule: not a
@@ -125,6 +128,8 @@ const WATCH_RAIL = /(?:,\s*|\s+)(?:and\s+|with\s+|plus\s+)?(?:a|one)\s+watch ?li
 export const isWorkspaceRequest = (text) => WORKSPACE_LEAD.test(String(text || '').trim())
 export const asksForWatchlistRail = (text) => WATCH_RAIL.test(String(text || ''))
 function gridRequest(raw0, lower0, charts, host) {
+  // W2 (CG-2): '2×2' typed with the multiplication sign
+  raw0 = String(raw0).replace(/×/g, 'x'); lower0 = String(lower0).replace(/×/g, 'x')
   const lead = WORKSPACE_LEAD.exec(raw0)
   const rail = WATCH_RAIL.test(raw0)
   const raw = raw0.replace(WORKSPACE_LEAD, 'open ').replace(WATCH_RAIL, ' ').replace(/\s+/g, ' ').trim()
@@ -145,7 +150,7 @@ function gridRequest(raw0, lower0, charts, host) {
   if (rest) return null
   const fresh = wantsNew(raw, syms.length, charts.length)
   // least disruptive: NEW charts (no layout asked for) that fit in the empty space go there — nothing re-tiled
-  if (fresh && !layoutHit && !rail && fitsEmpty(host, syms.length)) {
+  if (fresh && !layoutHit && !rail && !EQUAL_SIZE_WORDS.test(raw) && fitsEmpty(host, syms.length)) {
     return { kind: 'ops', ops: [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: syms, timeframe: tf || null, chart_type: null, exact: null } }], mode: 'apply' }
   }
   // a workspace "with" the charts reuses the board's charts (they are its charts now); "open" / "new" adds beside them
@@ -227,8 +232,11 @@ function screenGridOnly(ops, text, host, rail) {
   try { charts = (host?.charts?.list?.() || []).slice().sort(readingOrder) } catch { charts = [] }
   const existing = ops.filter(o => o.action === 'chart.setSymbol' && !aliases.has(String(o.target))).map(o => String(o.target))
   if (existing.length && (existing.some((r, i) => charts[i]?.ref !== r) || ops.findIndex(o => o.action === 'chart.setSymbol' && aliases.has(String(o.target))) < ops.findLastIndex(o => o.action === 'chart.setSymbol' && !aliases.has(String(o.target))))) return { ops, corrected: false }
-  // least disruptive: NEW charts that fit in the empty space are added there as planned (nothing re-tiled)
-  if (!existing.length && fitsEmpty(host, symbols.length)) return { ops, corrected: false }
+  // least disruptive: NEW charts that fit in the empty space are added there as planned (nothing re-tiled) — unless the
+  // plan (widget.arrange) or the member's words (equal sizes) ask for re-tiling: that plan would otherwise mix adds with a
+  // change to the EXISTING board and be refused ("Adding widgets and changing existing ones…", hotfix 2026-11-03)
+  const retile = ops.some(o => o.action === 'widget.arrange') || EQUAL_SIZE_WORDS.test(String(text || ''))
+  if (!existing.length && !retile && fitsEmpty(host, symbols.length)) return { ops, corrected: false }
   const fresh = !existing.length && wantsNew(text, symbols.length, charts.length)
   const layout = ops.find(o => o.action === 'widget.arrange')?.args?.pattern
   const target = ops.find(o => o.action === 'widget.arrange')?.target || 'board'

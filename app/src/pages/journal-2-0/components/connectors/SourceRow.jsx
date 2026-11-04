@@ -29,16 +29,27 @@ import { BUSY_DETAIL } from '../../hooks/useNoteConnectors'
 import { timeAgo } from '../../../../utils/timeAgo'
 import styles from './ConnectedAppsCard.module.css'
 
+// Evernote rate-limit fix round 1 (I3): what a Sync now press says when the server ran it in the
+// background (a provider whose pass can wait out a rate limit). Never an error.
+export const BACKGROUND_SYNC_NOTICE = 'Syncing in the background. Progress shows here as notes come in.'
+
 function freshnessTone(source) {
   if (source.status === 'broken' || source.lastSyncStatus === 'error') return 'red'
   if (!source.syncEnabled) return 'amber'
+  // D4-2: waiting for one of the server's shared pass slots: neither running nor a problem.
+  if (source.queued) return 'neutral'
+  if (source.syncing) return 'progress'
+  // A first import a provider's rate limit cut short (live gate 2026-11-03): the engine records
+  // `importing` ONLY when nothing but those leftovers remains, and books a quick follow-up pass.
+  // In progress, not a warning, even though `lastSyncError` carries the progress sentence.
+  if (source.lastSyncStatus === 'importing') return 'progress'
   // ⛔ `lastSyncError` on its own has to move the dot. The engine records a
   // PARTIAL failure as status "ok" plus per-note error text — by design, since
   // the batch really did commit what it could. But that left a source that
   // failed to store some of the member's notes showing a GREEN dot with the
   // reason hidden in text below it, which is the green-dot-over-a-failure
   // shape this surface keeps producing.
-  if (source.warmingUntil || source.lastSyncStatus === 'warning' || source.lastSyncError) return 'amber'
+  if (source.lastSyncStatus === 'warning' || source.lastSyncError) return 'amber'
   if (source.lastSyncAt) return 'green'
   return 'amber'
 }
@@ -46,6 +57,11 @@ function freshnessTone(source) {
 function freshnessLabel(source) {
   if (source.status === 'broken') return 'reconnect needed'
   if (!source.syncEnabled) return 'sync paused'
+  if (source.queued) return 'queued'
+  if (source.syncing) return 'syncing now'
+  if (source.lastSyncStatus === 'importing') {
+    return source.lastSyncAt ? `still importing, last batch ${timeAgo(source.lastSyncAt)}` : 'still importing'
+  }
   // A pass that fetched notes and stored NONE of them sets lastSyncAt like
   // any other, so this read "synced 2 minutes ago" over a warning saying
   // nothing landed — literally true, and the line a member scans first.
@@ -129,6 +145,9 @@ export default function SourceRow({
   onDisconnect,
   onReconnect,
   onLoadLog,
+  // The server will not sync this provider for this member now: Sync now, pause and Reconnect would
+  // fail, so only Disconnect (and the log) are offered.
+  syncOff = false,
 }) {
   const [syncing, setSyncing] = useState(false)
   const [notice, setNotice] = useState(null)
@@ -157,7 +176,9 @@ export default function SourceRow({
     setNotice(null)
     try {
       const result = await onSync(source)
-      setNotice(removalNotice(result && result.removalCheck, providerLabel))
+      setNotice(result && result.status === 'started'
+        ? BACKGROUND_SYNC_NOTICE
+        : removalNotice(result && result.removalCheck, providerLabel))
       refreshLog()
     } catch (err) {
       setNotice(errorNotice(err))
@@ -291,7 +312,11 @@ export default function SourceRow({
         </p>
       )}
 
-      {source.lastSyncError && <p className={styles.sourceErr}>{source.lastSyncError}</p>}
+      {source.lastSyncError && (
+        <p className={source.lastSyncStatus === 'importing' ? styles.sourceProgress : styles.sourceErr}>
+          {source.lastSyncError}
+        </p>
+      )}
 
       {/* A device on plugin 0.1.x reports pluginSupportsAttachments false.
           Only an explicit false shows this: null means an older server. */}
@@ -351,23 +376,31 @@ export default function SourceRow({
       )}
 
       <div className={styles.sourceActions}>
-        {source.status === 'broken' && onReconnect && (
+        {!syncOff && source.status === 'broken' && onReconnect && (
           <button type="button" className="btn btn-primary" onClick={() => onReconnect(source)}>
             Reconnect
           </button>
         )}
-        <button type="button" className="btn btn-ghost" disabled={syncing} onClick={handleSync}>
-          {syncing ? 'Syncing…' : 'Sync now'}
-        </button>
-        <label className={styles.toggle} title="Pause background sync">
-          <input
-            type="checkbox"
-            checked={!!source.syncEnabled}
-            disabled={pauseBusy}
-            onChange={handleTogglePause}
-          />
-          <span>{source.syncEnabled ? 'On' : 'Paused'}</span>
-        </label>
+        {!syncOff && (
+          <button type="button" className="btn btn-ghost" disabled={syncing} onClick={handleSync}>
+            {syncing ? 'Syncing…' : 'Sync now'}
+          </button>
+        )}
+        {!syncOff && (
+          <label className={styles.toggle} title="Pause background sync">
+            {/* L1 (live audit 2026-11-03): the accessible name was just the visible "On", so a
+                member with two sources heard two identical checkboxes. The name says which
+                source and which app; the visible On/Paused stays, and `checked` carries the state. */}
+            <input
+              type="checkbox"
+              aria-label={`Sync ${source.displayName || source.remoteId} from ${providerLabel}`}
+              checked={!!source.syncEnabled}
+              disabled={pauseBusy}
+              onChange={handleTogglePause}
+            />
+            <span>{source.syncEnabled ? 'On' : 'Paused'}</span>
+          </label>
+        )}
         <button
           type="button"
           className={`${styles.dangerBtn} ${armed ? styles.dangerArmed : ''}`}

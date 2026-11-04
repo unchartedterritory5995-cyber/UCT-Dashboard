@@ -114,6 +114,7 @@ def test_tools_are_built_from_the_manifest_per_STEP_1():
 
 # ── the happy path ────────────────────────────────────────────────────────────────────────────
 def test_HAPPY_PATH_domain_lookup_then_one_step_then_the_reply(monkeypatch):
+    monkeypatch.setenv(v2.TOOLS_ENV, "search")                         # the Wave 1 layout (domain tools + tool search)
     c = scripted(resp(tool_use("chart", {})),
                  resp(tool_use("chart__setTimeframe", {"target": "c1", "args": {"timeframe": "W"}}, "tu2")),
                  resp(text("Weekly it is.")))
@@ -123,7 +124,7 @@ def test_HAPPY_PATH_domain_lookup_then_one_step_then_the_reply(monkeypatch):
     assert len(c.calls) == 3
     kw = c.calls[0]
     assert kw["tools"][0]["name"] == "tool_search_tool_regex" and "tool_choice" not in kw and "temperature" not in kw
-    assert kw["max_tokens"] == 2048 and "output_config" not in kw            # today's model, no effort set
+    assert kw["max_tokens"] == v2.V2_MAX_TOKENS == 1024 and "output_config" not in kw   # today's model, no effort set (W2-A2: v2 rounds reserve 1024)
     assert kw["system"][0]["cache_control"] == {"type": "ephemeral"} and "<member_request>switch to weekly</member_request>" in kw["messages"][-1]["content"]
     # round 1: the domain tool answered server-side (free), no step
     r1 = c.calls[1]["messages"][-1]["content"][0]
@@ -226,6 +227,64 @@ def test_a_DISMISSED_proposal_resumes_as_a_refusal_the_model_is_told_about():
     o = run(c2, waiter({"status": "proposed"}))
     o2 = v2.run_turn_v2(message="", context={}, history=[], caller=c2, resume=o["state"], resume_result={"id": "s1", "status": "refused"})
     assert o2["envelope"]["reply"] == turn.NOTHING_DONE
+
+
+def test_RAILS_count_tool_search_misses_unknown_names_rounds_dollars_and_pauses_value_free():
+    """W2-A2: usage.rails carries per-turn counts only (no args, targets or results)."""
+    search = types.SimpleNamespace(type="server_tool_use", id="st1", name="tool_search_tool_regex", input={"pattern": "chart__set"})
+    hit = types.SimpleNamespace(type="tool_search_tool_result", tool_use_id="st1",
+                                content={"type": "tool_search_tool_search_result", "tool_references": [{"type": "tool_reference", "tool_name": "chart__setTimeframe"}]})
+    search2 = types.SimpleNamespace(type="server_tool_use", id="st2", name="tool_search_tool_regex", input={"pattern": "nope"})
+    miss = types.SimpleNamespace(type="tool_search_tool_result", tool_use_id="st2",
+                                 content={"type": "tool_search_tool_search_result", "tool_references": []})
+    c = scripted(resp(search, hit, search2, miss, tool_use("chart__nope", {"target": "c1", "args": {}}, "tu0")),
+                 resp(tool_use("watchlist__create", {"target": "wl", "args": {"name": "M", "as": None}}, "tu1")),
+                 resp(text("Done.")))
+    out = run(c, waiter({"status": "proposed"}))
+    r = out["usage"]["rails"]
+    assert (r["tool_search_calls"], r["tool_search_misses"], r["unknown_actions"], r["paused"], r["resumed"]) == (2, 1, 1, 1, 0)
+    assert r["rounds"] == 2 and r["usd"] > 0 and r["worst_round_usd"] > 0
+    out2 = v2.run_turn_v2(message="", context={}, history=[], caller=c, resume=out["state"], resume_result={"id": "s1", "status": "done"})
+    r2 = out2["usage"]["rails"]
+    assert r2["resumed"] == 1 and r2["paused"] == 1 and r2["rounds"] == 3
+    assert set(r2) == set(v2.new_rails())
+    assert all(isinstance(v, (int, float)) for v in r2.values())         # value-free: numbers only
+
+
+def test_INDEX_layout_is_the_default_round_one_carries_the_index_and_load_actions_only():
+    """W2-A2 cost: the default layout sends a compact action index in the system prompt and ONE fixed tool (load_actions);
+    a capability's strict tool definition rides only the rounds after the model loaded it."""
+    c = scripted(resp(tool_use("load_actions", {"names": ["chart__setTimeframe", "chart__nope"]}, "tu1")),
+                 resp(tool_use("chart__setTimeframe", {"target": "c1", "args": {"timeframe": "W"}}, "tu2")),
+                 resp(text("Weekly it is.")))
+    w = waiter({"status": "done", "receipt": "Switched Chart (SPY) to weekly"})
+    out = run(c, w)
+    first, second = c.calls[0], c.calls[1]
+    assert [t["name"] for t in first["tools"]] == ["load_actions"] and first["tools"][-1]["cache_control"] == {"type": "ephemeral"}
+    system = first["system"][0]["text"]
+    assert "<action_index>" in system and all(v2.tool_name(a["name"]) in system for a in CAPS)
+    assert "tool_search_tool_regex" not in json.dumps(first["tools"])
+    # the load: the known name is appended (strict, not deferred); the unknown one is told back and counted as a miss
+    assert [t["name"] for t in second["tools"]] == ["load_actions", "chart__setTimeframe"]
+    loaded = second["tools"][1]
+    assert loaded["strict"] is True and "defer_loading" not in loaded and loaded["input_schema"]["required"] == ["target", "args"]
+    told = second["messages"][-1]["content"][0]["content"]
+    assert "loaded: chart__setTimeframe" in told and "chart__nope" in told
+    assert out["envelope"]["steps"][0]["status"] == "done" and out["envelope"]["reply"] == "Weekly it is."
+    r = out["usage"]["rails"]
+    assert (r["tool_search_calls"], r["tool_search_misses"], r["rounds"]) == (1, 1, 3)
+    # the first request is a fraction of the Wave 1 layout's (every capability deferred in every request)
+    assert budget.request_bytes(first) < budget.request_bytes({"tools": v2.build_tools(turn.validate_manifest(CAPS, 200), False)}) * 2
+
+
+def test_INDEX_a_load_of_nothing_known_is_an_error_result_and_loads_nothing():
+    state = {"tools": v2.build_index_tools(False), "caps": {a["name"]: a for a in turn.validate_manifest(CAPS, 200)}}
+    text_, err, misses = v2.load_actions(state, ["nope__x"])
+    assert err is True and misses == 1 and len(state["tools"]) == 1 and "nope__x" in text_
+    text_, err, misses = v2.load_actions(state, [])
+    assert err is True and misses == 1
+    text_, err, misses = v2.load_actions(state, ["watchlist.add", "watchlist__add"])          # dotted or tool name; never twice
+    assert err is False and misses == 0 and [t["name"] for t in state["tools"]] == ["load_actions", "watchlist__add"]
 
 
 # ── caps BEFORE the call ──────────────────────────────────────────────────────────────────────

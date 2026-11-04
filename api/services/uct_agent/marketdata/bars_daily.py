@@ -20,7 +20,10 @@ Semantics:
   * `as_of` = the regular-session close of the newest bar returned, in UTC (the data's own time);
   * `stale` = the newest bar is older than the newest completed session at or before the cutoff
     (MD-1 budget: 1 session);
-  * a symbol the store does not hold is `unavailable` with a note — this adapter never fetches it.
+  * a symbol the store does not hold is `unavailable` with a note — this adapter never fetches it;
+  * W2-B2 (builder-b): `from` (an ISO day) opens a WINDOW — the bars on or after it, up to the cutoff — read as ONE
+    `get_bars_before` of up to MAX_BARS (or `bars`, when given, as a cap) and filtered here; when the store's oldest
+    held bar is after `from`, the read is `partial` and says where the held bars start.
 """
 from __future__ import annotations
 
@@ -39,6 +42,8 @@ _SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 NOTE_COMPLETED = "completed sessions only — the current session's developing bar is never included"
+NOTE_FROM = "window: bars on or after {d}"
+NOTE_FROM_SHORT = "the store's oldest held bar in the window is {first}, after the {d} asked for"
 
 
 def _ymd(d: str) -> int:
@@ -84,14 +89,18 @@ def validate(params: dict) -> Optional[str]:
     n = params.get("bars", DEFAULT_BARS)
     if not isinstance(n, int) or isinstance(n, bool) or n < 1:
         return "`bars` must be a positive whole number"
-    to = params.get("to")
-    if to is not None:
-        if not isinstance(to, str) or not _DATE_RE.match(to):
-            return "`to` must be a date like 2026-10-30"
+    for key in ("to", "from"):
+        v = params.get(key)
+        if v is None:
+            continue
+        if not isinstance(v, str) or not _DATE_RE.match(v):
+            return f"`{key}` must be a date like 2026-10-30"
         try:
-            datetime.strptime(to, "%Y-%m-%d")
+            datetime.strptime(v, "%Y-%m-%d")
         except ValueError:
-            return "`to` is not a real calendar date"
+            return f"`{key}` is not a real calendar date"
+    if params.get("from") is not None and params.get("to") is not None and params["from"] > params["to"]:
+        return "`from` must be on or before `to`"
     return None
 
 
@@ -101,7 +110,9 @@ def read_bars_daily(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no per
     if why:
         return env.unavailable(kind, params, SOURCE, why)
     sym = str(params["symbol"]).strip().upper()
-    n = min(params.get("bars", DEFAULT_BARS), MAX_BARS)
+    frm = params.get("from")
+    # a window read (`from`) takes the whole held depth unless `bars` caps it; a count read takes `bars`
+    n = min(params.get("bars", MAX_BARS if frm is not None else DEFAULT_BARS), MAX_BARS)
     to = params.get("to")
     cutoff: Optional[int] = _ymd(to) if to is not None else None
 
@@ -113,6 +124,14 @@ def read_bars_daily(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no per
     bars = [b for b in bars if isinstance(b.get("t"), str) and _ymd(b["t"]) <= expected]
     if not bars:
         return env.unavailable(kind, params, SOURCE, f"no completed daily bars are held for {sym}")
+    short_window = False
+    if frm is not None:
+        oldest_held = bars[0]["t"]
+        bars = [b for b in bars if b["t"] >= frm]
+        if not bars:
+            return env.unavailable(kind, params, SOURCE, f"no completed daily bars are held for {sym} on or after {frm}")
+        # the read returned fewer than it could hold AND its oldest bar is after `from`: the store does not go back that far
+        short_window = oldest_held > frm and len(rows) < n
 
     newest = _ymd(bars[-1]["t"])
     stale = newest < expected
@@ -122,14 +141,18 @@ def read_bars_daily(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no per
                      f"{_iso_date(expected)}")
     if cutoff is not None:
         notes.append(f"point-in-time: bars on or before {to}")
-    if len(bars) < n:
+    if frm is not None:
+        notes.append(NOTE_FROM.format(d=frm))
+        if short_window:
+            notes.append(NOTE_FROM_SHORT.format(d=frm, first=bars[0]["t"]))
+    elif len(bars) < n:
         notes.append(f"{len(bars)} of {n} requested bars are held")
     out_bars = [{"date": b["t"], "open": _num(b.get("o")), "high": _num(b.get("h")), "low": _num(b.get("l")),
                  "close": _num(b.get("c")), "volume": int(b["v"]) if _num(b.get("v")) is not None else None}
                 for b in bars]
-    status = "ok" if len(bars) >= n else "partial"
+    status = ("partial" if short_window else "ok") if frm is not None else ("ok" if len(bars) >= n else "partial")
     data = {"symbol": sym, "bars": out_bars, "through": bars[-1]["t"],
-            "latest_completed_session": _iso_date(expected)}
+            "latest_completed_session": _iso_date(expected), **({"window_from": frm} if frm is not None else {})}
     return env.make_envelope(kind, params, status=status, freshness="historical",
                              as_of=_session_close_utc(newest), source=SOURCE, data=data, stale=stale,
                              notes=notes, provider_calls=0)

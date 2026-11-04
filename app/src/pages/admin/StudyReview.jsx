@@ -38,7 +38,8 @@ import Textarea from '../../components/ui/Textarea'
 import UIcon from '../../components/ui/UIcon'
 import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
-import { studyAnnotations } from '../study/studyOverlays'
+import { studyAnnotations, studyOpenMarkers } from '../study/studyOverlays'
+import { toChartTime } from '../../components/chart/patternTime'
 import { slingshotInstances } from '../study/slingshotOverlay'
 import styles from './StudyReview.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
@@ -574,8 +575,16 @@ export default function StudyReview() {
   const sessionChart = useSessionChartSettings(studyOverride, sel?.id || null)
   const markers = useMemo(() => {
     if (!sel?.asof) return null
+    // An hourly item marks its OPEN (the first-hour bar) instead of the session date: the three dotted bars
+    // under the arrow are the ones the reader judges (owner 2026-10-31), in their own red/green (owner 2026-11-01).
+    const firstHour = isHourlyItem(sel) ? sel.reveal_json?.facts?.first_hour_t : null
+    if (firstHour != null) {
+      // StockChart feeds intraday bars at t + ET_OFFSET (adjustTime); the marker rides the same shift or it lands hours late.
+      const arrow = { time: toChartTime(Number(firstHour), '60'), position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'the open: first 3 hours dotted', id: 'study-open' }
+      return [arrow, ...((chartBars && studyOpenMarkers(sel, chartBars)) || [])]
+    }
     return [{ time: sel.asof, position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'member sees to here', id: 'study-asof' }]
-  }, [sel])
+  }, [sel, chartBars])
   const priceLines = useMemo(() => {
     const lv = sel?.reveal_json?.facts?.levels
     if (!lv || typeof lv !== 'object') return null

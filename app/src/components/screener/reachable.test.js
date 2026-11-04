@@ -264,6 +264,14 @@ function trackedModules() {
  *  and nothing else is'). */
 const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stubs)[\\/]|(^|[\\/])test-[^\\/]*$|(^|[\\/])pages[\\/]journal-2-0[\\/]a11y[\\/]/
 
+/** The Study WORKBENCH, `src/lab/`: a dev-server-only Vite entry (app/lab.html, <script src="/src/lab/main.jsx">)
+ *  the owner scores design pieces on, never built (lab/labAbsent.test.js is the rail, the econHarness shape). A
+ *  walk from App.jsx can never see a second HTML entry, so its ~70 pieces would read as abandoned here while being
+ *  used daily. Named by its FULL path under src, so a `lab/` directory anywhere else is judged like any other
+ *  module. The product MAY import single lab modules (the challenges reuse the workbench's start card, bits and
+ *  stylesheet); those are then reachable like anything else and need no excuse. */
+const WORKBENCH = /^lab[\\/]/
+
 /**
  * Unreachable ON PURPOSE, each with the reason and the decision still owed.
  *
@@ -920,6 +928,16 @@ describe('🔴 every module under app/src is REACHABLE from an entry point', () 
       + 'committed — the tracked set is wrong, not the allow-list').toEqual([])
   })
 
+  it('the Study workbench directory is a dev-only entry, and a lab/ anywhere else is not', () => {
+    const rel = (...p) => path.join(...p)
+    expect(WORKBENCH.test(rel('lab', 'main.jsx'))).toBe(true)
+    expect(WORKBENCH.test(rel('lab', 'pieces', 'Piece58LogoLadder.jsx'))).toBe(true)
+    // the product's own modules, including the challenges that IMPORT lab modules, are judged like any other
+    expect(WORKBENCH.test(rel('pages', 'study', 'challenges', 'BlitzChallenge.jsx'))).toBe(false)
+    expect(WORKBENCH.test(rel('components', 'lab', 'Bench.jsx'))).toBe(false)
+    expect(WORKBENCH.test(rel('labels', 'x.js'))).toBe(false)
+  })
+
   it('the Notebook a11y rail directory is test infrastructure, and nothing else is', () => {
     const rel = (...p) => path.join(...p)
     expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'a11y', 'axeHarness.js'))).toBe(true)
@@ -934,7 +952,7 @@ describe('🔴 every module under app/src is REACHABLE from an entry point', () 
     const orphans = modules
       .filter((f) => tracked.has(f))
       .filter((f) => !reachable.has(f))
-      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)))
+      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)) && !WORKBENCH.test(path.relative(SRC, f)))
       .map(key)
       .filter((k) => !(k in AWAITING_A_DECISION))
     expect(orphans,
@@ -1141,7 +1159,7 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
 
     const classify = (trackedSet) => [planted]
       .filter((f) => trackedSet.has(f))
-      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)))
+      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)) && !WORKBENCH.test(path.relative(SRC, f)))
       .map(key)
       .filter((k) => !(k in AWAITING_A_DECISION))
 

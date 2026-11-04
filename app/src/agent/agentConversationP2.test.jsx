@@ -247,13 +247,13 @@ describe('M · several steps in one message', () => {
     expect(p.instancesOn(board, 'c')).toHaveLength(0)
   }, 40000)
 
-  it('M6 each step has its own Undo: "undo" takes back only the newest step', async () => {
+  it('M6 (owner ruling W2 11-04): a plain "undo" takes back the WHOLE request — every step, newest first', async () => {
     const { board, say } = p.mount(...ONE())
     await say('Put RSI under price and make it a little taller')
     const sized = rsiOn(board, 'c')[0]
     expect(sized).toBeTruthy()
     await say('undo')
-    expect(rsiOn(board, 'c')).toHaveLength(1)                          // the RSI stays; only its height came back
+    expect(rsiOn(board, 'c')).toHaveLength(0)                          // the height AND the RSI itself
   }, 40000)
 })
 

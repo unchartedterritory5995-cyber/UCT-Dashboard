@@ -1,0 +1,82 @@
+{
+  "enml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Clipped article. See <a href=\"/chart\">the chart</a> and <a href=\"//cdn.site.com/x\">the cdn</a>.</div><div><a href=\"/gallery\"><en-media hash=\"365dccce50f2d8411c4e737c7ff0057d\" type=\"image/png\"/></a></div><div>Unsafe: <a href=\"javascript:alert(1)\">click</a></div><div>Hero image:</div><img src=\"/images/hero.png\"/><img src=\"thumbs/t1.png\"/></en-note>",
+  "id": "09-web-clip-source-url",
+  "note": {
+    "created": "20260101T090000Z",
+    "guid": "11111111-0000-4000-8000-000000000009",
+    "notebook": "Clips",
+    "notes": {},
+    "resources": [
+      {
+        "data_b64": "dWN0LWZpeHR1cmUtaW1hZ2UtY2hhcnQ=",
+        "hash": "365dccce50f2d8411c4e737c7ff0057d",
+        "mime": "image/png",
+        "name": "chart.png"
+      }
+    ],
+    "sourceUrl": "https://site.com/articles/today",
+    "title": "Web clip"
+  },
+  "server": {
+    "blocks": [
+      {
+        "text": "Source: https://site.com/articles/today",
+        "type": "paragraph"
+      },
+      {
+        "text": "Clipped article. See the chart and the cdn.",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "https://site.com/gallery",
+        "type": "paragraph"
+      },
+      {
+        "text": "Unsafe: click",
+        "type": "paragraph"
+      },
+      {
+        "text": "Hero image:",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "",
+        "type": "image"
+      }
+    ],
+    "chips": [],
+    "images": [
+      "365dccce50f2d8411c4e737c7ff0057d",
+      "https://site.com/images/hero.png",
+      "https://site.com/articles/thumbs/t1.png"
+    ],
+    "links": [
+      {
+        "target": "https://site.com/articles/today",
+        "text": "https://site.com/articles/today"
+      },
+      {
+        "target": "https://site.com/chart",
+        "text": "the chart"
+      },
+      {
+        "target": "https://cdn.site.com/x",
+        "text": "the cdn"
+      },
+      {
+        "target": "https://site.com/gallery",
+        "text": "https://site.com/gallery"
+      }
+    ],
+    "notices": [],
+    "task_checked": []
+  }
+}

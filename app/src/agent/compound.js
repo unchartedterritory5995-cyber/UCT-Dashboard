@@ -70,7 +70,7 @@ function newPaneIndicator(t0) {
 }
 const defaultPlacement = (defId) => { try { return nativeRegistry.getDefinition(defId)?.placement?.target || null } catch { return null } }
 
-/** Does ONE clause read as one step? → 'grid' | 'fast' | 'follow' | 'pane' | null. Board-aware, side-effect free. */
+/** Does ONE clause read as one step? → 'grid' | 'fast' | 'follow' | 'pane' | 'undo' | null. Board-aware, side-effect free. */
 function clauseKind(text, host) {
   const t = String(text || '').trim()
   if (!t) return null
@@ -79,6 +79,9 @@ function clauseKind(text, host) {
   if (newPaneIndicator(canon(t).replace(/[.!?]+$/, ''))) return 'pane'
   const f = fastParse(eachWith(t), { host })
   if (f?.kind === 'ops') return 'fast'
+  // hotfix 2026-11-03: "…, then undo that (change)" — UCT's own Undo, as a step of its own (useAgent.runCompound: the
+  // Undo of exactly what the step before it committed, through doUndo; never an older change)
+  if (f?.kind === 'undo' && !f.all) return 'undo'
   if (followUpShape(t)) return 'follow'
   return null
 }

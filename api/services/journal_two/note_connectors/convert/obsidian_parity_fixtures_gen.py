@@ -220,6 +220,12 @@ def _walk_semantic(node: Any, vault_id: str, out: dict[str, list],
         # download name) and, D2 item 6, its LABEL (the member's link text the chip
         # shows; None when absent), in document order.
         out["files"].append({"name": attrs.get("name"), "label": attrs.get("label")})
+    elif ntype == "importNotice":
+        # Live audit 2026-11-03 (F3): what did not come over, and why, in document order. The
+        # reason in the copy table's snake_case (`not-found` and `not_found` read one sentence,
+        # `importNoticeText.js::reasonOf`); the name as written on the notice.
+        out["notices"].append({"reason": str(attrs.get("reason") or "").replace("-", "_"),
+                               "name": attrs.get("name")})
     elif ntype == "callout":
         # Plan A Task 13: an Obsidian callout is the editor's callout node, by variant.
         out["callouts"].append(attrs.get("variant"))
@@ -238,7 +244,7 @@ def semantic_summary(doc: dict[str, Any], vault_id: str,
     hand-rolled text walker. Mirrors `obsidianParity.contract.test.js::
     semanticSummary`."""
     out: dict[str, list] = {"links": [], "images": [], "task_checked": [], "highlights": [],
-                            "pending": [], "callouts": [], "files": []}
+                            "pending": [], "callouts": [], "files": [], "notices": []}
     _walk_semantic(doc, vault_id, out, refs)
     return {"text": extract_plain_text(doc), **out}
 

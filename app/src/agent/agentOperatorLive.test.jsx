@@ -284,7 +284,9 @@ describe('receiptView', () => {
     expect(receiptView(['Added EMA 20 on Left chart (NVDA)'])).toEqual({ summary: 'Added EMA 20 on Left chart (NVDA)', details: '' })
     expect(receiptView(['Added EMA 9/20 % Diff on Chart (QQQ)', 'Saved to your indicators — EMA 9/20 % Diff — …'])).toEqual({
       summary: 'Done — created your “EMA 9/20 % Diff” indicator and added it to Chart (QQQ).', details: 'Added EMA 9/20 % Diff on Chart (QQQ) · Saved to your indicators — EMA 9/20 % Diff — …' })
-    expect(receiptView(['Switched timeframe to Weekly', 'Changed symbol to SPY', 'Changed symbol to QQQ']).summary).toBe('Done — switched timeframe to Weekly (and 2 more changes).')
+    // W2: a few changes are each said (none hidden behind a count); more than four point at Details, which list them all
+    expect(receiptView(['Switched timeframe to Weekly', 'Changed symbol to SPY', 'Changed symbol to QQQ']).summary).toBe('Done — switched timeframe to Weekly; changed symbol to SPY; changed symbol to QQQ.')
+    expect(receiptView(['Switched timeframe to Weekly', 'a', 'b', 'c', 'd']).summary).toBe('Done — switched timeframe to Weekly (and 4 more changes — see Details).')
     expect(receiptView(['Undid: x · y'], { isUndo: true })).toEqual({ summary: 'Undid: x · y', details: '' })
   })
 })

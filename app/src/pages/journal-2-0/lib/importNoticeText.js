@@ -23,7 +23,9 @@ export const SERVER_REASONS = Object.freeze(['too_large', 'storage_limit', 'unsu
 /** `storage_full` (Plan B R3): a file import's storage refusal — final, nothing retries a file import. */
 export const CLIENT_REASONS = Object.freeze(['upload_failed', 'type_refused', 'unresolvable_src', 'decode_failed', 'missing_resource', 'storage_full'])
 /** Plan C (the Obsidian plugin), plugin-only meanings, in snake_case. */
-export const PLUGIN_REASONS = Object.freeze(['obsidian_plugin_outdated', 'obsidian_attachments_unavailable', 'not_found', 'sync_off'])
+// `not_sent` (live audit 2026-11-03): a vault file whose bytes never reached the server and that no
+// update would bring. Final; names no remedy.
+export const PLUGIN_REASONS = Object.freeze(['obsidian_plugin_outdated', 'obsidian_attachments_unavailable', 'not_found', 'sync_off', 'not_sent'])
 /** Plan F (the import repair): media an earlier import lost. Final; appended last, as on the server. */
 export const REPAIR_REASONS = Object.freeze(['missing_from_import'])
 export const NOTICE_REASONS = Object.freeze([...SERVER_REASONS, ...CLIENT_REASONS, ...PLUGIN_REASONS, ...REPAIR_REASONS])
@@ -53,6 +55,7 @@ export const NOTICE_COPY = Object.freeze({
   obsidian_attachments_unavailable: "{name} wasn't synced yet. It will be retried on the next sync.",
   not_found: "{name} wasn't found in the vault.",
   sync_off: "{name} wasn't synced because image and file sync is turned off in the plugin settings.",
+  not_sent: "{name} wasn't sent from Obsidian, so it isn't shown here.",
   // Plan F (import repair): final, and it names the way back.
   missing_from_import: "{name} didn't come over in the original import. Import the same export again with Re-import to recover turned on to bring it back",
 })

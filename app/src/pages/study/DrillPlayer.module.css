@@ -49,12 +49,12 @@
 }
 .seg, .segDone, .segCurrent {
   flex: 1 1 0;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--border-accent);
+  height: 10px;
+  border-radius: 5px;
+  background: #222;
 }
-.segDone { background: var(--ut-gold); }
-.segCurrent { background: var(--ut-gold-glow); box-shadow: inset 0 0 0 1px var(--ut-gold); }
+.segDone { background: linear-gradient(90deg, #b8942e, var(--ut-gold-bright)); box-shadow: 0 0 10px rgba(220, 187, 94, .35); }
+.segCurrent { background: var(--ut-gold); opacity: .35; }
 
 .combo {
   flex: 0 0 auto;
@@ -88,17 +88,16 @@
   gap: var(--space-md);
 }
 
+/* the question lives in the workbench's bubble beside the mark */
 .question {
-  margin: 0 0 var(--space-sm);
+  margin: 0;
   color: var(--text-bright);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
-  line-height: var(--lh-snug);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  line-height: 1.35;
+  text-wrap: balance;
 }
+.lessonIn { padding-bottom: var(--space-md) !important; }
 .framing {
   margin: 0 0 var(--space-md);
   color: var(--text-muted);
@@ -111,11 +110,11 @@
   position: relative;
   width: 100%;
   min-height: 240px;
-  margin: 0 0 var(--space-lg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  margin: 0;
+  border: 1px solid #262626;
+  border-radius: 12px;
   overflow: hidden;
-  background: var(--bg-surface);
+  background: #0f0f0f;
 }
 .chartHidden {
   position: absolute;
@@ -145,7 +144,7 @@
   font-size: var(--text-md);
 }
 
-.body { margin: 0 0 var(--space-lg); }
+.body { margin: 0; }
 
 .failed {
   margin: 0 0 var(--space-md);
@@ -164,21 +163,28 @@
   margin: 0;
 }
 
+/* the workbench's footer button: wide, capitals, brushed gold when live, dark when not */
 .primary {
   min-height: 52px;
   min-width: var(--tap-min);
-  border: none;
-  border-radius: var(--radius-lg);
-  background: var(--ut-gold);
-  color: #141410;
+  border: 0;
+  border-bottom: 4px solid #8a6f22;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--ut-gold-bright), var(--ut-gold));
+  color: #111;
   font: inherit;
-  font-size: var(--text-lg);
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
 }
-.primary:hover { background: var(--ut-gold-bright); }
-.primary:disabled { opacity: 0.45; cursor: default; }
+.primary:hover { filter: brightness(1.06); }
+.primary:disabled { background: #262626; border-bottom-color: #1a1a1a; color: #6b665c; cursor: default; opacity: 1; }
+.good .bar.bar { background: #0f2a18; }
+.bad .bar.bar { background: #2a1113; }
+.bad .primary { background: linear-gradient(180deg, #ff6b6b, #c41f2d); border-bottom-color: #6a1016; color: #fff; }
 .primary:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 2px; }
 
 .ghost {
@@ -245,3 +251,6 @@
   .question, .framing, .chartBox, .body, .failed { max-width: 720px; margin-left: auto; margin-right: auto; }
   .chartHidden { margin-left: auto; margin-right: auto; }
 }
+
+/* the verdict stamp sits inside the plot, clear of the price scale */
+.chartBox > [class*="stamp"] { right: 84px; }

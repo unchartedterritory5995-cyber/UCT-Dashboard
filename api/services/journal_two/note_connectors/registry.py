@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Awaitable, Callable, Literal
 
 from . import errors
 
@@ -65,6 +65,14 @@ class ProviderEntry:
     configured: Callable[[], bool]
     # (source_row_or_None) -> a fresh NoteProvider instance.
     build: Callable[[dict[str, Any] | None], Any]
+    # Plan E Task 6: (user_id) -> the member's current creds, refreshed when needed, or None.
+    # When set, `engine._resolve_credentials` uses it instead of the `oauth.py` path. A
+    # trailing defaulted field, so no existing entry changes.
+    refresh: Callable[[str], Awaitable[dict | None]] | None = None
+    # Evernote rate-limit fix round 1 (I3): () -> the provider CLASS, imported lazily, so a door
+    # can read a class attribute (`follow_up_on_rate_limit`) without building an instance. The
+    # attribute stays the one authority; this only reaches it. A trailing defaulted field.
+    provider_class: Callable[[], type] | None = None
 
 
 def _always_configured() -> bool:
@@ -206,6 +214,71 @@ def _build_obsidian(source: dict[str, Any] | None) -> Any:
     return ObsidianProvider(user_id=source.get("userId"), vault_id=source.get("remoteId"))
 
 
+#: What a member's source row says while Evernote sync is switched off for them.
+EVERNOTE_PAUSED = "Evernote sync is paused"
+
+
+def evernote_flag_mode() -> Literal["off", "admin", "on"]:
+    """`NOTE_SYNC_EVERNOTE_ENABLED`, read live: "1" -> on (every member), "admin" -> admins only,
+    anything else (unset, "0", "true", ...) -> off. Exact strings, so a typo stays off."""
+    value = os.environ.get("NOTE_SYNC_EVERNOTE_ENABLED")
+    if value == "1":
+        return "on"
+    if value == "admin":
+        return "admin"
+    return "off"
+
+
+def provider_allowed_for(provider: str, user: dict[str, Any]) -> bool:
+    """Whether `user` may use `provider`. Every provider but Evernote: yes. Evernote: mode `on`,
+    or mode `admin` and the user's role is admin."""
+    if provider != "evernote":
+        return True
+    mode = evernote_flag_mode()
+    return mode == "on" or (mode == "admin" and (user or {}).get("role") == "admin")
+
+
+def _evernote_configured() -> bool:
+    """Mode not off, a registered client id (`EVERNOTE_CLIENT_ID`, read live), and the note
+    encryption key (credentials are stored encrypted). All read live."""
+    if evernote_flag_mode() == "off":
+        return False
+    from api.services import crypto_box
+    from . import evernote_oauth
+    return bool(evernote_oauth.client_id()) and crypto_box.NoteBox.is_configured()
+
+
+def _evernote_class() -> type:
+    from .providers.evernote import EvernoteProvider
+    return EvernoteProvider
+
+
+def _build_evernote(source: dict[str, Any] | None) -> Any:
+    """Refuses while the flag is off: the flag is a real kill switch, so scheduled syncs of
+    EXISTING sources stop too, with nothing deleted (the engine logs an error row per tick; it
+    marks nothing broken -- only an auth error does that). Threads `source["userId"]` as
+    `_build_obsidian` does, so the provider can refresh on a mid-sync 401; a probe (`None`
+    source) gets `user_id=None`."""
+    mode = evernote_flag_mode()
+    user_id = (source or {}).get("userId")
+    if mode == "off":
+        # Task 6 review m7: the source row shows this text; member words, never an env var.
+        raise errors.NoteConnNotConfigured(EVERNOTE_PAUSED)
+    if mode == "admin" and user_id is not None:
+        # Task 6 review m5: flipping 1 -> admin stops members' EXISTING sources too, exactly as
+        # off does, not only new connects. The owner's role is read live from the users table.
+        from api.services import auth_service
+        if (auth_service.get_user_by_id(user_id) or {}).get("role") != "admin":
+            raise errors.NoteConnNotConfigured(EVERNOTE_PAUSED)
+    from .providers.evernote import EvernoteProvider
+    return EvernoteProvider(user_id=user_id)
+
+
+async def _evernote_refresh(user_id: str) -> dict | None:
+    from . import evernote_oauth
+    return await evernote_oauth.refresh_if_needed(user_id)
+
+
 _REGISTRY: dict[str, ProviderEntry] = {
     "roam": ProviderEntry("roam", "Roam Research", "token", _always_configured, _build_roam),
     "craft": ProviderEntry("craft", "Craft", "token", _always_configured, _build_craft),
@@ -214,6 +287,8 @@ _REGISTRY: dict[str, ProviderEntry] = {
     "onenote": ProviderEntry("onenote", "OneNote", "oauth", _onenote_configured, _build_onenote),
     "onedrive": ProviderEntry("onedrive", "OneDrive", "oauth", _onedrive_configured, _build_onedrive),
     "obsidian": ProviderEntry("obsidian", "Obsidian", "device", _obsidian_configured, _build_obsidian),
+    "evernote": ProviderEntry("evernote", "Evernote", "oauth", _evernote_configured, _build_evernote,
+                              refresh=_evernote_refresh, provider_class=_evernote_class),
 }
 
 
@@ -243,6 +318,21 @@ def configured(provider: str) -> bool:
     if entry is None:
         return False
     return entry.configured()
+
+
+def runs_sync_in_background(provider: str) -> bool:
+    """Fix round 1 (I3): does a member's "Sync now" for this provider always run in the
+    background? True exactly when the provider's class opts in to rate-limit follow-ups
+    (`follow_up_on_rate_limit`): such a pass can wait on the provider's limit for minutes, which
+    must never hold an HTTP request open. Never raises; unknown or class-less entries say False."""
+    entry = _REGISTRY.get(provider)
+    if entry is None or entry.provider_class is None:
+        return False
+    try:
+        cls = entry.provider_class()
+    except Exception:  # noqa: BLE001 -- a door must not fail on this question
+        return False
+    return getattr(cls, "follow_up_on_rate_limit", False) is True
 
 
 def build_provider(provider: str, source: dict[str, Any] | None = None) -> Any:

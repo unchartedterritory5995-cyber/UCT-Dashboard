@@ -39,6 +39,10 @@ from .mddoc import html_to_tiptap, md_to_tiptap
 
 _HERE = pathlib.Path(__file__).resolve().parent
 FIXTURES_IN_DIR = _HERE / "fixtures_in"
+# Plan E Task 4: the ENML parity rail's inputs (`<stem>.enml` + `<stem>.note.json`), run through
+# `enml.enml_to_tiptap` and written as `enml-<stem>.json`, so every node the Evernote converter
+# emits also passes the real editor schema. One copy of the inputs, shared with that rail.
+ENML_FIXTURES_IN_DIR = _HERE / "enml_fixtures_in"
 
 # api/services/journal_two/note_connectors/convert/fixtures_gen.py
 #   -> convert -> note_connectors -> journal_two -> services -> api -> <repo root>
@@ -63,6 +67,7 @@ def _render(result: dict) -> str:
 def generate(
     out_dir: pathlib.Path = FIXTURES_OUT_DIR,
     in_dir: pathlib.Path = FIXTURES_IN_DIR,
+    enml_dir: pathlib.Path = ENML_FIXTURES_IN_DIR,
 ) -> list[pathlib.Path]:
     """Regenerates every fixture JSON under `out_dir` from every `*.md`/
     `*.html` file under `in_dir`. Returns the sorted list of paths written
@@ -80,6 +85,25 @@ def generate(
         text = in_path.read_text(encoding="utf-8")
         result = html_to_tiptap(text) if in_path.suffix == ".html" else md_to_tiptap(text)
         out_path = out_dir / f"{in_path.stem}.json"
+        out_path.write_text(_render(result), encoding="utf-8", newline="\n")
+        written.append(out_path)
+    written.extend(_generate_enml(out_dir, enml_dir))
+    return written
+
+
+def _generate_enml(out_dir: pathlib.Path, enml_dir: pathlib.Path) -> list[pathlib.Path]:
+    """The `.enml` branch (Plan E Task 4)."""
+    from .enml import enml_to_tiptap  # local: keeps this module's import cost for md/html callers
+
+    written: list[pathlib.Path] = []
+    for in_path in sorted(enml_dir.glob("*.enml")):
+        note = json.loads((enml_dir / f"{in_path.stem}.note.json").read_text(encoding="utf-8"))
+        resources = [{"id": str(i), "hash": r["hash"], "mime": r["mime"], "name": r.get("name")}
+                     for i, r in enumerate(note.get("resources") or [])]
+        text = in_path.read_text(encoding="utf-8").replace("\r\n", "\n").rstrip("\n")
+        result = enml_to_tiptap(text, resources or None, note_guid=note["guid"],
+                                source_url=note.get("sourceUrl"))
+        out_path = out_dir / f"enml-{in_path.stem}.json"
         out_path.write_text(_render(result), encoding="utf-8", newline="\n")
         written.append(out_path)
     return written

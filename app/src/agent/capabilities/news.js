@@ -107,7 +107,7 @@ export function registerNewsCapabilities() {
   registered = true
   registerCapability({
     name: 'news.latest',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Show the latest news headlines UCT has stored for ONE stock (the Company Panel\'s News tab), each with time, source and tone. '
       + 'Use this (disposition apply, research null) for "show me the latest NVDA news", "what news is UCT showing for PLTR".',
@@ -118,7 +118,7 @@ export function registerNewsCapabilities() {
   })
   registerCapability({
     name: 'news.catalysts',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Show the catalysts UCT\'s catalyst engine has recorded for ONE stock (the Catalysts History page): the days it was flagged, catalyst type, grade, gap and the thesis written at the time. '
       + 'Use this (disposition apply, research null) for "what are the recent catalysts for AMD?". UCT has no calendar of future events besides earnings (use stock.earnings for the next report).',

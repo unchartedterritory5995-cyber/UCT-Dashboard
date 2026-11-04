@@ -1211,7 +1211,7 @@ export function registerBoardCapabilities() {
     ...common,
     name: 'chart.addTab',
     summary: 'Add a new chart TAB to a chart widget (the tab strip\'s "+"), on the same link colour as the tab showing now, and switch to it.',
-    hints: `target = the ref of the board entry; widget = the chart widget's id; timeframe = ${CHART_TIMEFRAMES.join('|')} or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).`,
+    hints: `target = the ref of the board entry; widget = the chart widget's id; timeframe = ${CHART_TIMEFRAMES.join('|')} or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS ("on four charts", "N charts for …") are chartGrid.set or widget.addCharts, never tabs of one chart.`,
     args: { type: 'object', properties: { widget: widgetArg, timeframe: { type: ['string', 'null'], enum: [...CHART_TIMEFRAMES, null] }, name: { type: ['string', 'null'] } }, required: ['widget', 'timeframe', 'name'], additionalProperties: false },
     check(st, { widget }) {
       const { t, why } = chartWidget(st, widget)
@@ -1280,6 +1280,8 @@ export function registerBoardCapabilities() {
     name: 'chart.renameTab',
     summary: 'Rename a chart widget\'s tab (double-click on the tab).',
     hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} name = the new label (24 characters at most).`,
+    // W1.1 R-03 (LT-9): "rename <a layout name> to …" was read as this op live
+    shape: 'only for a chart widget\'s TAB the member names as a tab ("rename the tab"). "rename <a layout name> to …" is layout.rename.',
     args: { type: 'object', properties: { widget: widgetArg, tab: tabArg, name: { type: 'string' } }, required: ['widget', 'tab', 'name'], additionalProperties: false },
     check(st, { widget, tab, name }) {
       const { t, why } = chartWidget(st, widget)

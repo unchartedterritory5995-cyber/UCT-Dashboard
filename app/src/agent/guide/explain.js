@@ -23,7 +23,7 @@
 
 import { catalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
-import { GUIDE_FEATURES } from './registry'
+import { GUIDE_FEATURES, surfaceOf } from './registry'
 import { CHART_SETTING_DESCRIPTORS } from '../../components/chart/chartSettingsDescriptors'
 
 // UCT concepts — each sentence states what the product does (source in the trailing comment)
@@ -121,8 +121,10 @@ function settingsOfTab(tab) {
   return { title: `Chart Settings → ${tab}`, text: `The ${tab} tab: ${lines.join(' ')} Ask me about any one of them (“what is ${rows[0].label.toLowerCase()}?”), or tell me what to change.` }
 }
 
-/** An explanation of what the words name, from UCT's own sources → { id, kind, title, text } | null. */
-export function explainTopic(words) {
+/** An explanation of what the words name, from UCT's own sources → { id, kind, title, text } | null.
+ *  ⭐ W2-C2 `surface`: the page asked on — a page's own features explain only there (the Charts features everywhere),
+ *  so "what are filters?" on /charts is answered exactly as before. */
+export function explainTopic(words, surface = 'charts') {
   const w = norm(words)
   if (!w) return null
   const concept = CONCEPTS.find(c => c.words.some(re => re.test(w)))
@@ -146,7 +148,7 @@ export function explainTopic(words) {
     return { id: `indicator:${row.id}`, kind: 'indicator', title: name, text: `${name} — ${row.description.replace(/\.$/, '')}. ${where} Say “add ${row.shortName || row.name}” to put it on this chart.`, local: true }
   }
   const c = core(w)
-  const f = GUIDE_FEATURES.find(x => norm(x.title) === w || (x.terms || []).includes(c))
+  const f = GUIDE_FEATURES.find(x => (surfaceOf(x) === 'charts' || surfaceOf(x) === surface) && (norm(x.title) === w || (x.terms || []).includes(c)))
   if (f) return { id: `feature:${f.id}`, kind: 'feature', title: f.title, text: f.explain, local: true }
   // ⭐ PHASE 3: "these settings" — the Chart Settings tab open on screen; with none open, where to look (one sentence)
   if (THESE.test(w) || /^(?:settings?|options?|controls?|tab)(?: here)?$/.test(c)) {

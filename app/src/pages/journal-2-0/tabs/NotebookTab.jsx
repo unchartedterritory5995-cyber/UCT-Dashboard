@@ -531,6 +531,14 @@ export default function NotebookTab() {
     setStylesOpen(true)
     setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('styles'); return p }, { replace: true })
   }, [searchParams, setSearchParams])
+  // Plan E Task 10: `?import=evernote` (the Evernote tile's `.enex` offer, `ENEX_IMPORT_HREF` in
+  // connectors/evernoteCopy.js; NotebookTab.importParam.test.jsx routes to that constant) opens the
+  // import wizard once, through the ordinary door, and leaves the URL clean. The same pattern as `?styles=1`.
+  useEffect(() => {
+    if (searchParams.get('import') !== 'evernote') return
+    openImport()
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('import'); return p }, { replace: true })
+  }, [searchParams, setSearchParams, openImport])
   // Notebook widgets phase 2 (wave 8, Task 8.18): the My tools door, beside Styles, while wave 8 is on. My tools is
   // lazy (its own root, the openMyTools door), so a static import here would put it on the Notebook's first open.
   // Links out of it go through this tab's router (R-45).
@@ -2717,6 +2725,7 @@ export default function NotebookTab() {
               onClick={() => createNote()}
               disabled={creating}
               data-tour="new-note"
+              data-guide="journal.newNote"
             >
               + New note
             </button>
